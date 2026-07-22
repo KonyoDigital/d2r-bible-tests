@@ -1272,6 +1272,19 @@
   .dl-lead:has(.dl-transition) { border-left-color: #ff8a5a; }
   .dl-trace.dl-transition b { color: #ffb08a; } .dl-trace.dl-loot b, .dl-trace.dl-gameplay b { color: #9df0bd; }
   .dl-trace.dl-town b { color: #a8ccef; } .dl-trace.dl-tooltip b { color: #d0bcff; }
+  /* ══ v1265 (DIABLO-LANGUAGE B8 · SESSION SCENE FINGERPRINT) — "what this run WAS" in Diablo terms, on
+     the shelf card + last-session digest. Reuses the SAME per-scene palette as the live chips/retro trace
+     above (synced wording + colour). Calm mono line: the coloured "🔥 8%" leads, the muted word follows. ══ */
+  .scene-fp { font: 600 var(--fs-2xs)/1.6 var(--mono); letter-spacing: .02em; color: #9a8e70; }
+  .scene-fp .sfp-seg { white-space: nowrap; }
+  .scene-fp .sfp-hd { font-weight: 800; }
+  .scene-fp .sfp-x { opacity: .35; margin: 0 2px; }
+  .scene-fp .sfp-tab { color: #e9c46e; font-weight: 700; }
+  .sfp-transition { color: #ffb08a; } .sfp-town { color: #a8ccef; }
+  .sfp-stash, .sfp-inventory { color: #e9c46e; } .sfp-loot, .sfp-gameplay { color: #9df0bd; }
+  .sfp-tooltip { color: #d0bcff; }
+  .sh-fp-line { display: inline-block; margin-top: 3px; }
+  .tf-fp { margin: 4px 0 0; }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
      re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
@@ -3226,6 +3239,40 @@
       + '<b>' + d.key + '</b>' + (sub ? ' <span class="dl-sub">· ' + esc(sub) + '</span>' : '')
       + ' <span class="dl-full">— ' + d.full + '</span></span>';
   }
+  // ══ v1265 (DIABLO-LANGUAGE B8 · THE SESSION SCENE FINGERPRINT) — "what this run WAS" in Diablo language,
+  // from the session's real sceneReads/tabReads (/api/sessions, added v1254). Shows the % of KAI's reads per
+  // scene using the SAME _DIABLO_SCENES/_DIABLO_TABS dictionary as the live chips + retro trace (synced wording
+  // + colour). TRUTHFUL: real reads only; returns '' when a reel exposes no sceneReads (older/unsealed reel) so
+  // the caller OMITS it — never faked. LIGHT: pure derivation off the sessions already fetched by hdShelf. ══
+  var _SFP_LABEL = { transition: 'portal', gameplay: 'in-game', loot: 'farming' };   // run-summary words (else _DIABLO_SCENES.full)
+  function _sceneFingerprint(sm){
+    var sr = sm && sm.sceneReads;
+    if (!sr || typeof sr !== 'object') return '';
+    var ents = [], total = 0;
+    for (var k in sr){ if (Object.prototype.hasOwnProperty.call(sr, k)){ var n = sr[k] | 0; if (n > 0){ ents.push([k, n]); total += n; } } }
+    if (!total) return '';
+    ents.sort(function(a, b){ return b[1] - a[1]; });
+    var segs = ents.slice(0, 4).map(function(e){
+      var key = e[0], pct = Math.round(e[1] / total * 100);
+      var m = _DIABLO_SCENES[key];
+      var lab = _SFP_LABEL[key] || (m ? m.full : key);
+      var seg = '<span class="sfp-hd sfp-' + esc(key) + '">' + (m ? m.ic : '·') + ' ' + pct + '%</span> ' + esc(lab);
+      if (key === 'stash' && sm.tabReads && typeof sm.tabReads === 'object'){   // real tab read-counts (Gems ×5)
+        var _TALLY = { gems: 1, runes: 1, materials: 1 };   // the meaningful loot tabs — prefer these over generic Personal/Shared storage
+        var best = null, bestAny = null;
+        for (var t in sm.tabReads){ if (Object.prototype.hasOwnProperty.call(sm.tabReads, t)){
+          var tn = sm.tabReads[t] | 0; if (tn <= 0) continue;
+          if (!bestAny || tn > bestAny[1]) bestAny = [t, tn];
+          if (_TALLY[t] && (!best || tn > best[1])) best = [t, tn];
+        } }
+        var chosen = best || bestAny;   // dominant tally tab if any; else the dominant tab overall (honest either way)
+        if (chosen) seg += ' <span class="sfp-tab">· ' + esc(_DIABLO_TABS[chosen[0]] || chosen[0]) + ' ×' + chosen[1] + '</span>';
+      }
+      return '<span class="sfp-seg">' + seg + '</span>';
+    });
+    return '<span class="scene-fp" title="what this run was, in Diablo terms — % of KAI\'s reads per scene (real reads)">'
+      + segs.join('<span class="sfp-x"> · </span>') + '</span>';
+  }
   function thDossierLine(b){
     var d = b && b.dossier;
     if (!d || typeof d !== 'object') return '';
@@ -4796,14 +4843,17 @@
       if (sm.tallies > 0) vparts.push('📸 ' + sm.tallies + ' tall' + (sm.tallies > 1 ? 'ies' : 'y'));
       if (sm.regrets > 0) vparts.push('<span class="sh-warn">💔 ' + sm.regrets + ' regret' + (sm.regrets > 1 ? 's' : '') + '</span>');
       else if (sm.judged > 0) vparts.push('🔬 ' + sm.judged + ' judged');
-      // v938 — the reel's FINGERPRINT: KAI's top frame classes (what the run was made of)
-      if (sm.kaiClasses && typeof sm.kaiClasses === 'object'){
+      // v1265 (B8) — the run's DIABLO-LANGUAGE fingerprint (sceneReads %). Supersedes the v938 collapsed
+      // kaiClasses 🎞 line, which now only shows as the fallback when a reel has no sceneReads (older/unsealed).
+      var _fp = _sceneFingerprint(sm);
+      if (!_fp && sm.kaiClasses && typeof sm.kaiClasses === 'object'){
         var _kc = Object.keys(sm.kaiClasses).filter(function(k){ return sm.kaiClasses[k] > 0 && k !== 'gameplay'; })
           .sort(function(a,b){ return sm.kaiClasses[b] - sm.kaiClasses[a]; }).slice(0,3)
           .map(function(k){ return k.replace('stash-','🏦') + '×' + sm.kaiClasses[k]; });
         if (_kc.length) vparts.push('<span style="opacity:.6">🎞 ' + _kc.join(' ') + '</span>');
       }
       var verdictLine = vparts.length ? '<br><span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '';
+      var fpLine = _fp ? '<br><span class="sh-fp-line">' + _fp + '</span>' : '';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '">'
         + art
         + '<b>session ' + n + '</b>' + (sm.stub ? ' <span class="sh-dim">· ghost</span>' : '') + '<br>'
@@ -4811,6 +4861,7 @@
         + '<span class="sh-dim">' + (spanS ? Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's · ' : '')
         + (sm.reads || 0) + ' reads · ' + (sm.named || 0) + ' named'
         + verdictLine
+        + fpLine
         + (footLine ? '<br>' + footLine : '')
         + ((sm.areas || []).length ? '<br>' + esc(sm.areas.slice(0, 3).join(' · ')) : '') + '</span></div>';
     }).join('');
@@ -6066,9 +6117,11 @@
       var badge = clean
         ? '<span class="tf-tag" style="border-color:rgba(240,192,96,.4);color:var(--gold)">🛡 CLEAN</span>'
         : '<span class="tf-tag" style="border-color:rgba(255,122,122,.5);color:#ff7a7a">🚨 ' + t.watchdogViolations + '</span>';
+      var _fp = _sceneFingerprint(t);   // v1265 (B8) — the run's Diablo-language scene fingerprint, honest-absent
       $('hd-ls-row').innerHTML = '<div class="tf-row tf-stat"><span class="tf-g">📼</span>'
         + '<span class="tf-t"><b>session ' + (t.n || '') + '</b> · ' + esc(parts.join(' · ')) + '</span>'
-        + badge + '</div>';
+        + badge + '</div>'
+        + (_fp ? '<div class="tf-fp">' + _fp + '</div>' : '');
       box.hidden = false;
     } catch(e){}
   }
