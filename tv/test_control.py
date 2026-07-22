@@ -1948,5 +1948,82 @@ class TestSingleGridSignalIsOneWitness(unittest.TestCase):
         self.assertEqual(ca._router_conf(["read", "judge"]), 1)
 
 
+class TestSanctionedGridSoloTallyRoute(unittest.TestCase):
+    """v1259 PHANTOM-OCR GATE HONESTY (A2) — the closer used to relabel a grid-DERIVED eye
+    cls into `_ocr_cls`, so a grid-solo tally frame (sources=['grid','solo'], ocrTab='' — the
+    RotW gems case where the 5-label tab strip is OCR-illegible and grid is legitimately the
+    ONLY signal) produced BOTH a phantom votes['ocr'] and the real votes['grid'] in
+    `_kai_build_routing`. `_router_conf` maps grid->'layout' and ocr->'pixel' as DISTINCT
+    classes → confidence 2 from ONE physical detector → `_kai_gate_check`'s confidence>=2
+    check self-certified on a lone grid read (root of the wallpaper-sealed-as-gems miss).
+
+    The fix: the closer no longer fakes the ocr vote (a grid-solo row carries NO ocrLabel),
+    so grid is honestly ONE witness (conf 1); firing a TRUE gems tab instead rides an
+    EXPLICITLY sanctioned single-signal route — grid alone, at conf 1, cleared through the
+    gate ONLY when the closer flagged its own tighter grid bar (`gridSolo`: a definite tally
+    pick on a panel-open dark-cell lattice, no OCR corroboration). True gems still route to
+    tally:gems (via the gap-funnel, `_kai_stage3_gap_funnels`); a false/low-confidence grid
+    read no longer self-certifies."""
+
+    def _grid_solo_gems_row(self, grid_solo=True):
+        # what the closer now emits for a true grid-only gems frame: a real grid vote, NO
+        # phantom ocr vote (ocrLabel=None), and the sanctioned tighter-bar flag.
+        return {
+            "f": "g1.jpg", "ts": 1000,
+            "ocr": False, "ocrLabel": None,
+            "grid": True, "gridLabel": "stash-gems", "gridSolo": grid_solo,
+            "label": "stash-gems",
+        }
+
+    def test_grid_solo_is_one_honest_witness_no_phantom_ocr(self):
+        routing = ca._kai_build_routing([self._grid_solo_gems_row()], [], "sid1", [])
+        row = routing[0]
+        # grid alone — the phantom 'ocr'/'pixel' second class is GONE
+        self.assertEqual(row["sources"], ["grid"])
+        self.assertEqual(row["confidence"], 1)
+        self.assertNotIn("ocr", row["gateSources"])
+        # _router_conf invariant preserved (companion assertion)
+        self.assertEqual(ca._router_conf(row["sources"]), 1)
+
+    def test_confident_grid_solo_gems_passes_gate_via_sanctioned_route(self):
+        routing = ca._kai_build_routing([self._grid_solo_gems_row()], [], "sid1", [])
+        row = routing[0]
+        self.assertEqual(row["label"], "stash-gems")
+        self.assertEqual(row["route"], "tally:gems")
+        # sanctioned single-signal route: gate PASSES honestly at conf 1 (not a quorum<2 hold)
+        self.assertTrue(row["gatePass"])
+        self.assertIsNone(row["gateReason"])
+
+    def test_true_gems_still_routes_to_tally_gems(self):
+        # the actual firing path for a single-witness tally is the gap-funnel — it must still
+        # queue a gems shot for a genuine grid-solo gems frame.
+        routing = ca._kai_build_routing([self._grid_solo_gems_row()], [], "sid1", [])
+        gaps = ca._kai_stage3_gap_funnels(routing, [])
+        tabs = {g["tab"] for g in gaps}
+        self.assertIn("gems", tabs)
+
+    def test_low_confidence_grid_read_does_not_self_certify(self):
+        # SAME lone grid read, but the closer did NOT clear its tighter bar (no panel-open
+        # lattice / not a definite pick) → gridSolo False. It must NOT pass the gate.
+        routing = ca._kai_build_routing([self._grid_solo_gems_row(grid_solo=False)],
+                                        [], "sid1", [])
+        row = routing[0]
+        self.assertEqual(row["sources"], ["grid"])
+        self.assertEqual(row["confidence"], 1)
+        self.assertFalse(row["gatePass"])
+        self.assertEqual(row["gateReason"], "quorum<2")
+
+    def test_sanction_never_shortcuts_a_multiclass_or_nontally_label(self):
+        # the flag is honored ONLY for a grid-ONLY tally. A vault 'stash' label with the flag
+        # set (and grid the sole witness) must still be held — the sanction is tally-specific.
+        row = ca._kai_gate_check("stash", ["grid"], 1, "vault", grid_solo_ok=True)
+        self.assertFalse(row["pass"])
+        self.assertEqual(row["reason"], "quorum<2")
+        # and a tally label whose sole witness is NOT grid gets no sanction either
+        row2 = ca._kai_gate_check("stash-gems", ["journal"], 1, "tally:gems", grid_solo_ok=True)
+        self.assertFalse(row2["pass"])
+        self.assertEqual(row2["reason"], "no-hard-signal")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

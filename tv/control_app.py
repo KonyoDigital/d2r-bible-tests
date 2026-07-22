@@ -3109,7 +3109,8 @@ def _kai_gate_name_hit(names, fullnames=None):
     return False
 
 
-def _kai_gate_check(label, sources, confidence, route, chrome_votes=None, name_hit=None):
+def _kai_gate_check(label, sources, confidence, route, chrome_votes=None, name_hit=None,
+                    grid_solo_ok=False):
     """THE ACCURACY GATE — three ordered checks a routing-ledger row must PASS before its
     funnel may fire:
 
@@ -3124,6 +3125,14 @@ def _kai_gate_check(label, sources, confidence, route, chrome_votes=None, name_h
          (_router_conf / _kai_quorum_label); RE-ASSERTS confidence>=2 rather than
          re-deriving it (disagreement already collapses confidence to 0, so it is caught
          here too, not duplicated as a separate branch).
+         v1259 SANCTIONED GRID-SOLO EXCEPTION — a lone grid fingerprint is honestly ONE
+         witness (_router_conf(['grid'])==1); it must NEVER fake a 2nd class (the phantom-ocr
+         defect this fix removes upstream). But for a TALLY tab whose only real signal is the
+         grid layout (the RotW 5-label tab strip is OCR-illegible, so grid legitimately IS the
+         sole signal), an EXPLICITLY sanctioned single-signal route clears check 2 at conf 1 —
+         gated behind its OWN tighter grid bar (grid_solo_ok: a definite gems/runes/materials
+         pick on a panel-open dark-cell lattice, computed by the closer from gridDetail). True
+         gems still route to tally:*; a false/low-confidence/uncorroborated grid read does not.
       3) CELL-CORRECTNESS — the route must be the ONE cell _kai_route_for_label says this
          label owns, AND no chrome-class brain (tabstrip/grid) may have voted a DIFFERENT
          label — a lone dissenting chrome witness vetoes the fire even when it lost the
@@ -3148,7 +3157,14 @@ def _kai_gate_check(label, sources, confidence, route, chrome_votes=None, name_h
         return {"pass": False, "reason": "no-hard-signal"}
     # ---- check 2: brain quorum (re-assert, don't duplicate the router) ----
     if int(confidence or 0) < 2:
-        return {"pass": False, "reason": "quorum<2"}
+        # v1259 SANCTIONED GRID-SOLO — grid is the ONLY witness (never a faked pair) AND the
+        # closer's tighter grid bar cleared (grid_solo_ok) AND the label is a tally tab: an
+        # honest one-detector, one-witness route. Anything else at conf<2 is held.
+        if grid_solo_ok and src == {"grid"} and label in (
+                "stash-runes", "stash-gems", "stash-materials"):
+            pass  # sanctioned single-signal tally route — fall through to cell-correctness
+        else:
+            return {"pass": False, "reason": "quorum<2"}
     # ---- check 3: cell-correctness ----
     want = _kai_route_for_label(label)
     if not want or route != want:
@@ -3379,8 +3395,14 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
                 _pool = _pool + [_jn]
             if _pool:
                 name_hit = _kai_gate_name_hit(_pool)
+        # v1259 — sanctioned grid-solo: the closer flags a frame `gridSolo` only when grid
+        # alone (no OCR/journal) made a DEFINITE tally pick on a panel-open dark-cell lattice
+        # (its own tighter grid bar). Honored by the gate ONLY when grid really is the sole
+        # agreeing witness for this label — never a shortcut around a genuine 2-witness quorum.
+        grid_solo_ok = bool(s.get("gridSolo")) and sources == ["grid"]
         gate = _kai_gate_check(label, sources, conf, route,
-                                chrome_votes=chrome_votes, name_hit=name_hit)
+                                chrome_votes=chrome_votes, name_hit=name_hit,
+                                grid_solo_ok=grid_solo_ok)
         if routed is None and skip in ("not-selected", "no-gap", "cap") and not gate["pass"] \
                 and gate["reason"] not in ("quorum<2", "no-label"):
             skip = "gate:" + gate["reason"]
@@ -4041,7 +4063,11 @@ def _kai_closer_loop():
             # store and fights the game for CPU. Reels wait; they aren't going anywhere.
             if _agent_mode != "off" or _agent_alive():
                 continue
-            # v947/v948.7 — re-close reels under kaiVer < 3 (retro grid-solo + gap funnel)
+            # v947/v948.7 — re-close reels under kaiVer < N (retro grid-solo + gap funnel)
+            # v1259 — bump target to 4 so ALREADY-SEALED reels re-sweep to pick up v1254 scene
+            # carry-through, v1256 gems detection, the v1258 panel-open guard, and the v1259
+            # honest gate. The two wallpaper reels re-seal as gameplay (0 gems) via the guard.
+            _KAIVER_TARGET = 4
             reels = []
             for d in sorted(os.listdir(hist)):
                 if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
@@ -4055,7 +4081,7 @@ def _kai_closer_loop():
                 try:
                     with open(kr, encoding="utf-8") as _kf:
                         _kv = int((json.load(_kf) or {}).get("kaiVer") or 1)
-                    if _kv < 3:
+                    if _kv < _KAIVER_TARGET:
                         reels.append(d)
                 except Exception:
                     reels.append(d)
@@ -4172,7 +4198,16 @@ def _kai_closer_loop():
                     _eye_src = list((_eye or {}).get("sources") or [])
                     _ocr_tab = str((_eye or {}).get("ocrTab") or "")
                     # fused eye tally only (never raw grid alone — invents materials on loading)
-                    if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                    # v1259 PHANTOM-OCR FIX — only credit the eye's tally cls to `_ocr_cls`
+                    # (which becomes the scan row's `ocr`/`ocrLabel` = the 'pixel'/'ocr' witness
+                    # in _kai_build_routing) when OCR ACTUALLY contributed to the eye's tab
+                    # decision ('ocr' in the fusion's own sources). A grid-DERIVED eye cls (grid
+                    # fingerprint, no readable chrome — the RotW gems case) must NOT masquerade
+                    # as a 2nd 'ocr' vote alongside its real 'grid' vote: that faked ONE physical
+                    # detector into two independent classes → conf 2 → self-certified the gate.
+                    # It now rides ONLY its genuine grid vote (gridLabel, below); the display
+                    # class still comes through via `_eye_tab`, so nothing visible regresses.
+                    if _eye_cls in ("stash-runes", "stash-gems", "stash-materials") and "ocr" in _eye_src:
                         _ocr_cls = _eye_cls
                     elif _ocr_cls in (None, "gameplay", "stash", "tooltip"):
                         _ocr_cls = _kai_tab_strip_refine(fp, _ocr_cls, wp) or _ocr_cls
@@ -4219,6 +4254,17 @@ def _kai_closer_loop():
                     # gems/runes). See _kai_grid_vote_label.
                     _raw_gl = str((_eye or {}).get("gridLabel") or "")
                     _gr_lab = _kai_grid_vote_label(_eye_tab, _eye_src, _raw_gl, _eye_cls)
+                    # v1259 SANCTIONED GRID-SOLO flag — the tighter grid-confidence bar for a
+                    # single-signal tally route: grid named a DEFINITE tally tab AND the panel-
+                    # open dark-cell lattice (v1258 A1 geometry) confirmed a real stash panel,
+                    # AND no OCR chrome corroborated it (grid genuinely IS the sole witness). The
+                    # gate honors this at conf 1; a low-confidence/uncorroborated grid read (no
+                    # panel_open, or a plain-stash pick) is NOT flagged and cannot self-certify.
+                    _grid_solo = bool(
+                        _gr_lab in ("stash-runes", "stash-gems", "stash-materials")
+                        and ((_eye or {}).get("gridDetail") or {}).get("panel_open")
+                        and "ocr" not in _eye_src
+                    )
                     _disp = cls or "gameplay"
                     if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
                         _disp = _eye_cls
@@ -4240,6 +4286,7 @@ def _kai_closer_loop():
                         "tabstripLabel": _ts_lab,
                         "grid": bool(_gr_lab),
                         "gridLabel": _gr_lab,
+                        "gridSolo": _grid_solo,
                         "stashTab": _eye_tab or (_near or ""),
                         "label": _disp or "gameplay",
                         "sig": _kai_frame_sig(fp),
@@ -4262,8 +4309,9 @@ def _kai_closer_loop():
                       "classFrames": class_frames,
                       "missedFrames": len(missed), "missed": missed[:40],
                       "classes": classes,
-                      "closedAt": int(time.time() * 1000), "kaiVer": 3,
-                      "eyeNote": "v948.7 retro grid-solo + cluster promote + gap funnel (film recheck)"}
+                      "closedAt": int(time.time() * 1000), "kaiVer": 4,
+                      "eyeNote": "v1259 honest gate (grid-solo sanctioned, phantom-ocr removed) "
+                                 "+ v1258 panel-open guard + v948.7 retro grid-solo/gap funnel"}
             _kai_write_report_atomic(os.path.join(rd, "kai_report.json"), report)
             # journal the ledger onto the session's timeline (🧠 gold in SIM).
             # v934.1 — GHOST-PROOF: split_sessions sorts by ts and cuts on sid change, so
@@ -5419,7 +5467,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1258",
+        "ver": "v1259",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7136,7 +7184,7 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 self._json(200, {"ok": True, "msg": "kai_report cleared — closer will re-scan within ~30s (priority)",
-                                 "sessionId": sid, "reel": "reel_" + sid, "kaiVerTarget": 3})
+                                 "sessionId": sid, "reel": "reel_" + sid, "kaiVerTarget": 4})
             except Exception as e:
                 self._json(500, {"ok": False, "msg": str(e)[:160]})
             return
