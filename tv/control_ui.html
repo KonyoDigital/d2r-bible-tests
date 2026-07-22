@@ -1463,6 +1463,14 @@
   .eh-organ.eh-warn { border-color: rgba(233,185,110,.4); }
   .eh-organ.eh-bad  { border-color: rgba(255,106,90,.5); }
   @keyframes ehPulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+  /* v1212 (Engine Room r3) — the plain-language health pill (cockpit live spine): STRAINED/DOWN pop
+     against the calm HEALTHY organs, so the bottleneck this instant is obvious at a glance. */
+  .eh-state { display: inline-block; margin: 6px 0 1px; font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .1em;
+    padding: 3px 9px; border-radius: 999px; }
+  .eh-state-ok   { color: #9df0bd; background: rgba(143,230,160,.1);  border: 1px solid rgba(143,230,160,.38); }
+  .eh-state-warn { color: #f0d89a; background: rgba(233,185,110,.14); border: 1px solid rgba(233,185,110,.55); }
+  .eh-state-bad  { color: #ffb0a0; background: rgba(255,106,90,.16);  border: 1px solid rgba(255,106,90,.6); }
+  .eh-state-idle { color: #9a8d73; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.12); }
   body[data-endurance="1"] .eh-dot { animation: none !important; }
   @media (max-width: 720px){ .eh-flow { display: none; } .eh-organ { flex: 1 1 44%; } }
   /* ══ v950 — 🧠🖥 THE ENGINE ROOM: the Master Brain's cockpit (observability, not a CRM) ══ */
@@ -5519,6 +5527,10 @@
   // OFF AIR = idle (resting), never alarming red — a sleeping engine is healthy. ══
   // v950 — the 5 organs' live state, computed once from /api/status; shared by the home spine AND
   // the ENGINE ROOM cockpit (one source of truth for the whole loop's pulse).
+  // v1212 (Engine Room r3) — plain-language health per organ, so "which engine is hot/cold/stalled
+  // RIGHT NOW" reads at a glance without decoding the corner dot's colour. Shown on the cockpit live
+  // spine only (big); the retro spine sets no `state` (it shows the frame's per-organ verdict instead).
+  var _EH_STATE = { ok: 'HEALTHY', warn: 'STRAINED', bad: 'DOWN', idle: 'IDLE' };
   function _engineOrganData(st){
     st = st || {};
     var dr = st.driver || {}, ey = st.eyes || {}, sh = st.sessionHealth || {}, wd = st.watchdog || {};
@@ -5576,11 +5588,11 @@
     var ldStat = (st.journalMB != null ? st.journalMB + ' MB' : '—') + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + viol + ' miss</span>' : '');
     var ldSub = (sh.verdict === 'miss' ? '⚠ last session had gaps' : (viol ? viol + ' watchdog breach' : 'journal clean'));
     return [
-      { key: 'capture', icon: '📷', title: 'CAPTURE', stat: capStat, pulse: capPulse, sub: capSub },
-      { key: 'readers', icon: '👁', title: 'READERS', stat: rdStat, pulse: rdPulse, sub: rdSub },
-      { key: 'router',  icon: '🚦', title: 'ROUTER', stat: rtStat, pulse: rtPulse, sub: rtSub },
-      { key: 'funnels', icon: '🩹', title: 'FUNNELS', stat: fnStat, pulse: fnPulse, sub: fnSub },
-      { key: 'ledger',  icon: '📒', title: 'LEDGER', stat: ldStat, pulse: ldPulse, sub: ldSub }
+      { key: 'capture', icon: '📷', title: 'CAPTURE', stat: capStat, pulse: capPulse, sub: capSub, state: _EH_STATE[capPulse] },
+      { key: 'readers', icon: '👁', title: 'READERS', stat: rdStat, pulse: rdPulse, sub: rdSub, state: _EH_STATE[rdPulse] },
+      { key: 'router',  icon: '🚦', title: 'ROUTER', stat: rtStat, pulse: rtPulse, sub: rtSub, state: _EH_STATE[rtPulse] },
+      { key: 'funnels', icon: '🩹', title: 'FUNNELS', stat: fnStat, pulse: fnPulse, sub: fnSub, state: _EH_STATE[fnPulse] },
+      { key: 'ledger',  icon: '📒', title: 'LEDGER', stat: ldStat, pulse: ldPulse, sub: ldSub, state: _EH_STATE[ldPulse] }
     ];
   }
   function _ehOrganHtml(o, big){
@@ -5588,6 +5600,7 @@
       + ' title="' + esc(o.title + (o.sub ? ' — ' + o.sub.replace(/<[^>]+>/g, '') : '')) + '">'
       + '<span class="eh-dot"></span>'
       + '<div class="eh-head"><span class="eh-ic">' + o.icon + '</span><span class="eh-title">' + esc(o.title) + '</span></div>'
+      + (big && o.state ? '<span class="eh-state eh-state-' + o.pulse + '">' + o.state + '</span>' : '')
       + '<div class="eh-stat">' + o.stat + '</div>'
       + (o.sub ? '<div class="eh-sub">' + o.sub + '</div>' : '') + '</div>';
   }
