@@ -1176,6 +1176,27 @@
   .rnf-verd { color: #9df0bd; font-weight: 700; }
   .rnf-grail .rnf-verd { color: var(--gold-hi); }
   .rnf-why { color: #7f958a; flex: 1 1 100%; }
+  /* v1249 r3 — RESTING state (discoverable off-air) + faded LAST-SESSION preview */
+  .rnf-t-rest { color: #8a9d92; }
+  .rnf-rest { margin-left: auto; font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); background: rgba(255,255,255,.05); padding: 2px 7px; border-radius: 999px; }
+  .rnf-restnote { font: 500 var(--fs-2xs)/1.5 var(--mono); color: #7f958a; letter-spacing: .02em; }
+  .rnf-restnote b { color: var(--mint); }
+  .rnf-lastlab { margin: 8px 0 5px; font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #6f6a58; text-align: center; }
+  .rnf-faded { opacity: .5; filter: saturate(.7); }
+  /* v1249 r3 · #2 READER-POOL EYE-DOTS — N worker eyes, lit = reading now */
+  .rn-pool { display: flex; align-items: center; gap: 9px; margin: 7px 0 2px; padding: 5px 9px; border-radius: 8px;
+    background: rgba(143,230,160,.05); border: 1px solid rgba(143,230,160,.14); }
+  .rn-pool[hidden] { display: none; }
+  .rnp-dots { display: inline-flex; gap: 5px; }
+  .rnp-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+  .rnp-dot.warm { background: rgba(143,230,160,.4); }
+  .rnp-dot.lit { background: var(--mint); box-shadow: 0 0 8px rgba(143,230,160,.7); animation: rnpLit 1.1s ease-in-out infinite; }
+  @keyframes rnpLit { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+  .rnp-lab { font: 600 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .03em; color: #9db4a8; }
+  .rnp-lab b { color: var(--mint); }
+  .rnp-warm { color: #7f958a; }
+  @media (prefers-reduced-motion: reduce){ .rnp-dot.lit { animation: none; } }
   /* #3 READ-LANDED stage pulse toast — brief, top-center, never covers mid-game */
   .stage-pulse { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; pointer-events: none;
     font: 800 var(--fs-sm)/1 var(--mono); letter-spacing: .06em; padding: 8px 16px; border-radius: 999px; white-space: nowrap;
@@ -1198,7 +1219,11 @@
     display: block; font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase;
     color: var(--gold-dim); padding: 0 0 5px 8px; margin-bottom: 5px;
     border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.12); }
-  .signal .eyes::before { content: "THE READER NET"; }
+  /* v1249 (CONSOLE UPGRADE r3 · #3 PROMINENCE) — the reader cluster (eyes + pool + live feed) reads as one clear,
+     findable section: a mint "THE KAI READER" header (mint = the live engine), so Konyo can't miss where the AI
+     watches. Slightly larger + mint accent-bar, distinct from the gold SESSION HEALTH label below it. */
+  .signal .eyes::before { content: "🧠 THE KAI READER · live engine"; color: var(--mint);
+    border-left-color: var(--mint); font-size: var(--fs-xs); letter-spacing: .12em; }
   .sess-health::before { content: "SESSION HEALTH"; }
   .sess-health .sh-verdict { margin-top: 3px; font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .12em;
     text-transform: uppercase; text-align: center; padding: 4px 6px; border-radius: 6px;
@@ -2298,10 +2323,13 @@
           <div class="eye eye-second" id="eye-second"><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
           <div class="eye eye-kai" id="eye-kai"><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
         </div>
-        <!-- v1247 (CONSOLE UPGRADE r1 · #1 LIVE READ FEED) — the KAI reconciler's live opinion of each frame as it
-             lands (st.liveRing), directly UNDER the three eyes. Labeled LIVE GUESS: provisional, the sealed reel
-             wins in retro. Shows only ON AIR; hidden otherwise (so it never pushes the panel when resting). -->
-        <div class="rn-feed" id="rn-feed" hidden></div>
+        <!-- v1249 (CONSOLE UPGRADE r3 · #2 READER-POOL EYE-DOTS) — N reader-worker eyes, lit = reading right now
+             (st.health.poolInFlight/poolN/poolWarm). On-air only; hidden off-air. The reader net finally moves. -->
+        <div class="rn-pool" id="rn-pool" hidden></div>
+        <!-- v1247 r1 · #1 LIVE READ FEED (v1249 r3: now ALWAYS present — resting placeholder off-air, live stream
+             on-air) — the KAI reconciler's live opinion of each frame (st.liveRing), directly under the eyes.
+             Labeled LIVE GUESS: provisional, the sealed reel wins in retro. -->
+        <div class="rn-feed" id="rn-feed"></div>
         <!-- v946 — SESSION HEALTH: tabs + lease + overall verdict in one glance -->
         <div class="sess-health" id="sess-health" title="session truth at a glance">
           <div class="sh-row"><span class="sh-k">📸 Tabs</span><span class="sh-v" id="sh-tabs">—</span></div>
@@ -2772,7 +2800,7 @@
         capCls = 'cap-lock';
         capTxt = /d2r|diablo/i.test(ct.label || '') ? '🎯 Locked · Diablo II' : ('🎯 Locked · ' + (ct.label || 'game window'));
       } else if (on){ capCls = 'cap-screen'; capTxt = '🖥 whole screen'; }
-      else { capCls = 'cap-idle'; capTxt = 'holding — no game window'; }
+      else { capCls = 'cap-idle'; capTxt = '⊙ idle · locks onto the game when live'; }   // v1249 r3 — clear at rest, so its meaning reads before ON AIR
       capEl.textContent = capTxt;
       capEl.className = 'val cap-pill ' + capCls;
       capEl.style.color = '';
@@ -6019,30 +6047,51 @@
   // the live console (st.liveRing), + a stage toast when a KEEP/GRAIL lands. LIGHT: rides the existing poll, no
   // new timers/fetches, text-forward (no image loads while gaming). TRUTHFUL: labeled LIVE GUESS — the sealed
   // reel wins in retro (_kai_engine_frame_effective), never presented as the authoritative verdict. ══
+  function _rnFeedRow(r){
+    var owner = _ER_OWNER[r.owner] || r.owner || '— read';
+    var verd = r.verdict ? (_ER_VERDICT[r.verdict] || r.verdict) : '';
+    var vcls = r.verdict === 'grail' ? 'rnf-grail' : (r.verdict === 'keep' ? 'rnf-keep' : (r.verdict === 'toss' ? 'rnf-toss' : ''));
+    var what = r.label ? esc(String(r.label)) : '';
+    return '<div class="rnf-row ' + vcls + '"><span class="rnf-own">' + esc(owner) + '</span>'
+      + (what ? '<span class="rnf-what">' + what + '</span>' : '')
+      + (verd ? '<span class="rnf-verd">' + esc(verd) + '</span>' : '')
+      + (r.why ? '<span class="rnf-why">' + esc(String(r.why)) + '</span>' : '') + '</div>';
+  }
+  // v1249 (CONSOLE UPGRADE r3) — READER-POOL EYE-DOTS: N reader workers, lit = reading right now (from
+  // st.health.poolInFlight/poolN/poolWarm, forwarded on-air). Degrades to hidden off-air / no pool data.
+  function _rnPool(st, on){
+    var el = document.getElementById('rn-pool'); if (!el) return;
+    var H = (st && st.health) || {}, n = H.poolN, inf = H.poolInFlight, warm = H.poolWarm;
+    if (!on || n == null || n <= 0){ el.hidden = true; return; }
+    el.hidden = false;
+    var lit = Math.max(0, Math.min(n, inf || 0)), warmN = Math.max(0, Math.min(n - lit, warm || 0)), dots = '';
+    for (var i = 0; i < n; i++){ dots += '<span class="rnp-dot ' + (i < lit ? 'lit' : (i < lit + warmN ? 'warm' : '')) + '"></span>'; }
+    el.innerHTML = '<span class="rnp-dots">' + dots + '</span>'
+      + '<span class="rnp-lab"><b>' + lit + '</b> of ' + n + ' eye' + (n === 1 ? '' : 's') + ' reading' + (warmN ? (' <span class="rnp-warm">· ' + warmN + ' warm</span>') : '') + '</span>';
+  }
   function hdLivePulse(st){
     try {
       var on = (st && st.mode) === 'live';
       var ring = (st && st.liveRing) || [];
+      if (on && ring.length) hdLivePulse._lastRing = ring.slice(-4);   // remember the last real reads for the resting preview
+      // #2 READER-POOL EYE-DOTS (the reader net moves)
+      _rnPool(st, on);
       var el = document.getElementById('rn-feed');
       if (el){
-        if (!on){ el.hidden = true; }
-        else {
-          el.hidden = false;
+        el.hidden = false;   // v1249 — ALWAYS present now (discoverability fix for "where is it?"): resting placeholder off-air, live stream on-air
+        if (on){
           var head = '<div class="rnf-head"><span class="rnf-t">🧠 KAI · LIVE READS</span>'
             + '<span class="rnf-guess" title="the reconciler\'s live opinion of each frame — provisional; the SEALED reel wins in retro">LIVE GUESS</span></div>';
           if (!ring.length){ el.innerHTML = head + '<div class="rnf-empty">watching — waiting for the first read…</div>'; }
-          else {
-            el.innerHTML = head + '<div class="rnf-rows">' + ring.slice(-5).reverse().map(function(r){
-              var owner = _ER_OWNER[r.owner] || r.owner || '— read';
-              var verd = r.verdict ? (_ER_VERDICT[r.verdict] || r.verdict) : '';
-              var vcls = r.verdict === 'grail' ? 'rnf-grail' : (r.verdict === 'keep' ? 'rnf-keep' : (r.verdict === 'toss' ? 'rnf-toss' : ''));
-              var what = r.label ? esc(String(r.label)) : '';
-              return '<div class="rnf-row ' + vcls + '"><span class="rnf-own">' + esc(owner) + '</span>'
-                + (what ? '<span class="rnf-what">' + what + '</span>' : '')
-                + (verd ? '<span class="rnf-verd">' + esc(verd) + '</span>' : '')
-                + (r.why ? '<span class="rnf-why">' + esc(String(r.why)) + '</span>' : '') + '</div>';
-            }).join('') + '</div>';
-          }
+          else { el.innerHTML = head + '<div class="rnf-rows">' + ring.slice(-5).reverse().map(_rnFeedRow).join('') + '</div>'; }
+        } else {
+          // RESTING — a discoverable, labeled placeholder so Konyo always knows the feed is here + what it does.
+          var rest = '<div class="rnf-head"><span class="rnf-t rnf-t-rest">👁 KAI READ FEED</span><span class="rnf-rest">at rest</span></div>'
+            + '<div class="rnf-restnote">press <b>ON</b> to wake the eyes — every read the AI makes streams here as it lands</div>';
+          var last = hdLivePulse._lastRing;   // real reads from THIS page-session's last on-air spell → truthful "last session" preview
+          if (last && last.length){ rest += '<div class="rnf-lastlab">— last session · not live —</div>'
+            + '<div class="rnf-rows rnf-faded">' + last.slice().reverse().map(_rnFeedRow).join('') + '</div>'; }
+          el.innerHTML = rest;
         }
       }
       // #3 READ-LANDED STAGE PULSE — toast only on a NEW keep/grail at the ring head (never the first-poll backlog)
