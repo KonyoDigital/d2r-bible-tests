@@ -235,3 +235,7 @@ NEXT: round 4 continues — capture/read/funnel round 4 (dispatch → v1195). Ho
 ## ✅ GATED: v1195 (23/80) — HEAD 90de5d8 — CAPTURE round 4 (never-starve bridge un-starved)
 engine-capture r4 (tv_diablo.py + test_agent.py): _archive_footage_copy advances the 1fps due-clock unconditionally before the write, so the never-starve fallback's 2nd call (bridge-last-good) was rejected by the clock the failed 1st call already advanced — dead code in its own failure case. FIX: _consume_due param, caller owns the due-gate once. +2 tests (agent 183→185). ×3 parity, floor agent 185 · control 93, smoke+deploy. Counter: 23/80 · at v1195 · target v1252 → +20 ER (v1272).
 NEXT: read round 4 or funnel round 4 (dispatch → v1196). Round 4: route/gate ✅ capture ✅; read + funnel round 4 pending. Honesty clause active.
+
+## ✅ GATED: v1196 (24/80) — HEAD dfc83ef — READ round 4 (one-shot budget compounding)
+engine-read r4 (tv_diablo.py + test_agent.py): _oneshot spent LIVE_READ_TIMEOUT_S twice (gate-acquire wait + subprocess run) → up to 2×budget under the throttle-cascade the gate serializes. FIX: deduct gate-wait, pass max(1.0, timeout-elapsed). +2 tests (agent 185→187). ×3 parity, floor agent 187 · control 93, smoke+deploy. Counter: 24/80 · at v1196 · target v1252 → +20 ER (v1272).
+NEXT: funnel round 4 (dispatch → v1197) completes round-4 sweep. Test floor: agent 171→187, control 43→93. Honesty clause active.
