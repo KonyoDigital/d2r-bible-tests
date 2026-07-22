@@ -1993,24 +1993,44 @@
     background: linear-gradient(90deg, #c9a8ff, #b9a6d8); padding: 5px 13px; border-radius: 999px; box-shadow: 0 3px 14px rgba(0,0,0,.5); }
   .gsh-replica .head-tabs { display: flex; align-items: center; gap: 6px; }   /* keep the tab flex (the #id rule is namespaced away) */
   @keyframes gshFloat { 0%,100% { transform: translateY(0) scale(.82); } 50% { transform: translateY(-7px) scale(.824); } }
-  /* THE DOCK — the FILM + JOURNEY + CURRENT scrubbers relocate into here, pinned at the foot, framing the replica */
-  .gsh-dock { position: sticky; bottom: 0; z-index: 4; max-width: 1400px; margin: 0 auto; max-height: 54vh; overflow-y: auto;
-    padding: 12px clamp(12px,2vw,26px) clamp(12px,1.6vw,20px);
-    background: linear-gradient(180deg, rgba(14,11,26,.72), rgba(10,8,20,.95)); backdrop-filter: blur(6px);
-    border-top: 1px solid rgba(160,130,255,.3); border-radius: 16px 16px 0 0; box-shadow: 0 -18px 50px rgba(0,0,0,.5); }
-  .gsh-dock-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-  .gsh-dock-lead { font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #c9b8ff; }
-  .gsh-dock-hint { font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .02em; color: #9a8fc0; flex: 1 1 200px; min-width: 0; }
+  /* ══ v1244 (GHOST MODE r13 · STRUCTURE) — the dock reads as THREE clear panels, not a wall of strips:
+     ① THE TIME MACHINE (film + journey, the rewind controls) · ② CURRENT STATE (the not-rewound companion,
+     to the side) · ③ INSPECT (the deep frame view, its own zone at the foot that opens without shoving the
+     scrubbers). Consistent gutters, one calm frame each, clear headers. */
+  .gsh-dock { position: sticky; bottom: 0; z-index: 4; max-width: 1400px; margin: 0 auto; max-height: 56vh; overflow-y: auto;
+    padding: 14px clamp(12px,2vw,26px) clamp(14px,1.6vw,22px);
+    background: linear-gradient(180deg, rgba(12,10,22,.82), rgba(8,7,16,.96)); backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(160,130,255,.28); border-radius: 18px 18px 0 0; box-shadow: 0 -20px 54px rgba(0,0,0,.55); }
+  .gsh-dock-grid { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; }
+  /* a panel = one calm card: subtle frame, roomy padding, a clear header */
+  .gsh-panel-tm { flex: 3 1 560px; min-width: 0; border-radius: 13px; padding: 14px 16px 16px;
+    border: 1px solid rgba(150,120,235,.28); background: linear-gradient(180deg, rgba(26,21,48,.5), rgba(14,11,26,.4)); }
+  .gsh-side { flex: 1 1 250px; min-width: 236px; display: flex; }
+  .gsh-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+    padding-bottom: 10px; border-bottom: 1px solid rgba(160,130,255,.16); }
+  .gsh-panel-head .gsh-ph-ic { font-size: var(--fs-sm); }
+  .gsh-panel-head .gsh-ph-t { font: 800 var(--fs-xs)/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: #d3c4ff; }
+  .gsh-panel-head .gsh-ph-sub { font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .02em; color: #8f86ad; flex: 1 1 180px; min-width: 0; }
   .gsh-inspect { margin-left: auto; cursor: pointer; font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: #d8c8ff;
-    background: rgba(120,90,200,.16); border: 1px solid rgba(160,130,255,.5); border-radius: 9px; padding: 9px 15px; white-space: nowrap;
+    background: rgba(120,90,200,.16); border: 1px solid rgba(160,130,255,.5); border-radius: 9px; padding: 8px 14px; white-space: nowrap;
     transition: box-shadow .15s, background .15s, transform .1s; }
   .gsh-inspect:hover { background: rgba(120,90,200,.3); box-shadow: 0 0 16px rgba(160,130,255,.4); }
   .gsh-inspect:active { transform: translateY(1px); }
-  .gsh-dock-slots { display: flex; flex-direction: column; gap: 4px; }
-  .gsh-dock-slots #er-film { margin-top: 0; }
-  .gsh-dock-slots #er-gj, .gsh-dock-slots #er-current { margin-top: 10px; }
+  /* THE TIME MACHINE body — FILM then JOURNEY, calm spacing. Inside this purple panel the family is already
+     clear, so the per-band left accents are softened to hairlines (less border noise fighting the frame). */
+  .gsh-tm-body { display: flex; flex-direction: column; gap: 16px; }
+  .gsh-tm-body > #er-film, .gsh-tm-body > #er-gj, .gsh-tm-body > #er-reelcard, .gsh-tm-body > #er-livefeed { margin: 0; }
+  .gsh-tm-body .er-band.er-fam-tm { border-left-width: 0; padding-left: 0; }
+  .gsh-tm-body #er-reelcard, .gsh-tm-body #er-livefeed { border-radius: 10px; }
+  /* CURRENT STATE fills the side column as its own amber card (its own band is the header) */
+  .gsh-side > #er-current { margin: 0; width: 100%; align-self: flex-start; }
+  /* INSPECT — a dedicated zone at the foot; empty (detail hidden) it collapses, so opening it shoves nothing above */
+  .gsh-inspect-zone { margin-top: 16px; }
+  .gsh-inspect-zone:empty, .gsh-inspect-zone > .er-detail[hidden] { display: none; }
   /* the Time Machine drill-in (#engine-room, z-index 930) already stacks above the ghost shell (z-index 60) */
   @media (prefers-reduced-motion: reduce){ .gsh-replica-wrap { animation: none; transform: scale(.82); } }
+  /* narrow: the side column drops below the Time Machine */
+  @media (max-width: 900px){ .gsh-panel-tm { flex-basis: 100%; } .gsh-side { flex-basis: 100%; } }
 </style>
 </head>
 <body data-state="off">
@@ -6922,26 +6942,39 @@
     // v1240 (r11) — the DOCKED Time Machine: the FILM + JOURNEY + CURRENT scrubbers relocate INTO these slots
     // (see _ghostDockNodes), framing the ghost replica — visible the moment you flip GHOST MODE, no extra tap.
     // The deep engine forensics (spine · read-chain · owner/verdict · frame image) stay behind "inspect this moment".
+    // v1244 (r13 STRUCTURE) — three clear panels: the Time Machine (film + journey), the Current State side
+    // companion, and a dedicated Inspect zone at the foot. The scrubbers relocate into these (see _ghostDockNodes).
     var dock = '<div class="gsh-dock" id="gsh-dock">'
-      + '<div class="gsh-dock-bar"><span class="gsh-dock-lead">⏪ the time machine</span>'
-      + '<span class="gsh-dock-hint">scrub the film &amp; your grail journey on this ghosted console — every readout truthful</span>'
-      + '<button class="gsh-inspect" type="button" onclick="window._ghostInspectMoment()" title="reveal what the AI saw &amp; decided on this frame — inline, right here (no routing)">🔬 inspect this moment</button></div>'
-      + '<div class="gsh-dock-slots" id="gsh-dock-slots"></div></div>';
+      + '<div class="gsh-dock-grid">'
+        + '<section class="gsh-panel-tm" id="gsh-tm" aria-label="The Time Machine">'
+          + '<div class="gsh-panel-head"><span class="gsh-ph-ic" aria-hidden="true">⏪</span><span class="gsh-ph-t">The Time Machine</span>'
+          + '<span class="gsh-ph-sub">rewind — drag the film or the journey to travel back in time</span>'
+          + '<button class="gsh-inspect" type="button" onclick="window._ghostInspectMoment()" title="reveal what the AI saw &amp; decided on this frame — inline, right here (no routing)">🔬 inspect this moment</button></div>'
+          + '<div class="gsh-tm-body" id="gsh-tm-body"></div>'
+        + '</section>'
+        + '<aside class="gsh-side" id="gsh-now" aria-label="Current State"></aside>'
+      + '</div>'
+      + '<div class="gsh-inspect-zone" id="gsh-inspect-zone"></div>'
+      + '</div>';
     gs.innerHTML = head + '<div class="gsh-stage"><div class="gsh-replica-wrap"><div class="gsh-ribbon" aria-hidden="true">📼 viewing the past</div></div></div>' + dock;
     if (clone){ var wrap = gs.querySelector('.gsh-replica-wrap'); if (wrap) wrap.appendChild(clone); }
     document.body.appendChild(gs);
     // build+init the Time Machine (stays hidden), then relocate its scrubbers into the dock around the replica
     try { _engineRoomEnsure(); } catch (e) { console.error('[GhostMode] ensure', e); }
-    try { _ghostDockNodes(document.getElementById('gsh-dock-slots')); } catch (e) { console.error('[GhostMode] dock', e); }
+    try { _ghostDockNodes(); } catch (e) { console.error('[GhostMode] dock', e); }
   }
   function _ghostShellRemove(){ var gs = document.getElementById('ghost-shell'); if (gs) gs.remove(); }
   // v1240 (r11) — relocate the LIVE (wired) scrubber nodes into the ghost dock, recording each one's home so
   // flip-off restores them EXACTLY (→ #engine-room intact for next time, real console byte-identical).
+  // v1244 (r13 STRUCTURE) — each node lands in its labelled panel: FILM/JOURNEY/scrub-context → the Time Machine
+  // body, CURRENT STATE → the side companion, the deep detail → its own Inspect zone.
   var GHOST_MOVED = [];
-  function _ghostDockNodes(slots){
-    if (!slots) return; GHOST_MOVED = [];
-    ['er-film', 'er-gj', 'er-reelcard', 'er-livefeed', 'er-current', 'er-detail'].forEach(function(id){
-      var n = document.getElementById(id); if (n){ GHOST_MOVED.push({ node: n, parent: n.parentNode, next: n.nextSibling }); slots.appendChild(n); }
+  function _ghostDockNodes(){
+    GHOST_MOVED = [];
+    [['er-film', 'gsh-tm-body'], ['er-gj', 'gsh-tm-body'], ['er-reelcard', 'gsh-tm-body'], ['er-livefeed', 'gsh-tm-body'],
+     ['er-current', 'gsh-now'], ['er-detail', 'gsh-inspect-zone']].forEach(function(p){
+      var n = document.getElementById(p[0]), slot = document.getElementById(p[1]);
+      if (n && slot){ GHOST_MOVED.push({ node: n, parent: n.parentNode, next: n.nextSibling }); slot.appendChild(n); }
     });
   }
   function _ghostUndockNodes(){
