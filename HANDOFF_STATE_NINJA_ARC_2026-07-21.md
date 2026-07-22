@@ -231,3 +231,7 @@ NEXT: round 4 of per-engine polish (dispatch → v1194+). Diminishing obvious bu
 ## ✅ GATED: v1194 (22/80) — HEAD e2b7339 — ROUTE/GATE round 4 (grid-vote independence)
 engine-route r4 (control_app.py + test_control.py): reel-scan credited the "grid" evidence class from the OCR-driven FUSED tab without checking grid was in the fusion sources → a single chrome-OCR read double-counted as tabstrip+grid, falsely clearing ≥2 quorum. FIX: pure _kai_grid_vote_label() with "grid in sources" check, falls back to raw pixel classify_stash_grid(). +5 tests (control 88→93). ×3 parity, floor control 93 · agent 183, smoke+deploy. Counter: 22/80 · at v1194 · target v1252 → +20 ER (v1272).
 NEXT: round 4 continues — capture/read/funnel round 4 (dispatch → v1195). Honesty clause active (report no-new-gap rather than churn).
+
+## ✅ GATED: v1195 (23/80) — HEAD 90de5d8 — CAPTURE round 4 (never-starve bridge un-starved)
+engine-capture r4 (tv_diablo.py + test_agent.py): _archive_footage_copy advances the 1fps due-clock unconditionally before the write, so the never-starve fallback's 2nd call (bridge-last-good) was rejected by the clock the failed 1st call already advanced — dead code in its own failure case. FIX: _consume_due param, caller owns the due-gate once. +2 tests (agent 183→185). ×3 parity, floor agent 185 · control 93, smoke+deploy. Counter: 23/80 · at v1195 · target v1252 → +20 ER (v1272).
+NEXT: read round 4 or funnel round 4 (dispatch → v1196). Round 4: route/gate ✅ capture ✅; read + funnel round 4 pending. Honesty clause active.
