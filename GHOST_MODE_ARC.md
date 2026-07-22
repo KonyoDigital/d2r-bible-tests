@@ -36,13 +36,20 @@ console flies back through time. Flip it OFF → the overlay VANISHES → the li
 a `console_snapshot` event on each state-mutation (adjustRune/Gem/Material, clears, owned.delete ×7) recording
 full {runeStash,gemStash,materialStash} + owned. NOT doing this without Konyo's explicit go (violates rule #1's spirit).
 
-## THE BUILD (control_ui.html = the console shell polish-ui-2 owns; reads existing endpoints + same-origin bible logs)
-- **KEEP the Engine Room** cockpit AS-IS — Konyo: "leave it, it's a different set of tools." GHOST MODE is separate.
-- Round 1 = THE SWITCH + THE GHOST-SHELL CONTAINER: a 👻 GHOST MODE toggle; ON → dim/freeze the whole console
-  into past-mode + a Time Machine scrubber overlay; OFF → gone. Diagnose the real console structure first
-  (what IS "the console", where the overlay attaches to ghost-shell it). Container right BEFORE rewind depth.
-- Then progressively wire the TRUTHFUL rewind: scan replay → grail-by-date → forge; label tallies/vault approx.
-- Then polish: the Time Machine VISUAL (starfield-recede feel), scrub UX, per-moment detail, cohesion, ~50 rounds.
+## THE BUILD — UNIFIED (Konyo simplified 2026-07-22): ONE debugger switch, ER INTEGRATED IN
+Konyo: "the engine room should just be integrated to the time machine... i dont want the console and gaming
+mixing with the debugging... simplified. the debugger switch is enough." So NOT two buttons — ONE.
+- **ONE switch = 👻 GHOST/DEBUG MODE** = the console's single debugger entry. LIVE console (play + scan) has
+  ZERO debug UI; ALL debugging lives behind the switch. Clean split: LIVE vs DEBUG, never blended.
+- **The Engine Room is ABSORBED into GHOST MODE** (not a separate cockpit button anymore). Its 20-round toolset
+  (frame image · read-chain · owner/verdict · drill-down · spotlight · scorecard · live-feed) becomes HOW you
+  inspect a moment INSIDE the Time Machine. The ER's retro timeline ≈ the Time Machine scrubber already — build on it.
+  Nothing wasted — the ER becomes THE debugger behind the switch, wrapped in the Time Machine ghost-shell.
+- Round 1 = reframe the entry as the ONE debugger switch (👻 GHOST MODE), make it read "you're in the debugger /
+  viewing the past" (ghost-shell feel), remove any duplicate debug affordance from the live console → exactly one clean switch.
+- Then progressively wire the TRUTHFUL Time Machine rewind: scan replay → grail-by-date → forge; label tallies/vault approx.
+- Then polish: Time Machine VISUAL (recede/frozen-past feel), scrub UX, per-moment detail, cohesion, ~50 rounds.
+- Live console (control_ui.html gaming/scan tabs) NEVER gains debug clutter; GHOST-off = clean live console, unchanged.
 
 ## CADENCE (Konyo-workflow)
 polish-ui-2 owns control_ui.html; Fable gates every round (selective commit control_ui.html + stamps; smoke on
