@@ -1577,6 +1577,15 @@
     font: 800 var(--fs-sm)/1.2 var(--mono); letter-spacing: .08em; color: #c9b8ff; }
   .er-detail-head .thd-dim { font-weight: 500; letter-spacing: .02em; color: #9a8d73; }
   .er-detail-head .th-x { margin-left: auto; }
+  /* v1215 (Engine Room r6) — frame-step nav in the drill-down (◀ ▶ / arrow keys) */
+  .er-detail-head .er-fnav { display: inline-flex; align-items: center; gap: 8px; margin-left: 14px; flex: 0 0 auto; white-space: nowrap; }
+  .er-detail-head .thd-dim { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .er-fnav-btn { cursor: pointer; font: 700 var(--fs-sm)/1 var(--mono); color: #c9b8ff; background: rgba(160,130,255,.1);
+    border: 1px solid rgba(160,130,255,.35); border-radius: 6px; padding: 3px 10px; transition: border-color .15s, background .15s; }
+  .er-fnav-btn:hover:not([disabled]) { border-color: #c9b8ff; background: rgba(160,130,255,.2); }
+  .er-fnav-btn[disabled] { opacity: .32; cursor: default; }
+  .er-fnav-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(200,168,255,.6); }
+  .er-fnav-pos { font: 700 var(--fs-2xs)/1 var(--mono); color: #9a8d73; letter-spacing: .06em; min-width: 46px; text-align: center; white-space: nowrap; }
   .er-detail-body { padding: 12px 16px 14px; font: 500 var(--fs-sm)/1.6 var(--mono); color: #c8d0d6; }
   .er-detail-body .kv { display: grid; grid-template-columns: clamp(172px, 10vw, 240px) 1fr; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }   /* v1210 (Engine Room r1) — label col wide enough that no row-label wraps to two lines at fullscreen */
   .er-detail-body .kv .k { color: #94a89c; opacity: .85; } .er-detail-body .kv .v { color: #d9e2da; word-break: break-word; }
@@ -5909,6 +5918,8 @@
     document.addEventListener('keydown', function(e){
       // v950.3 — Esc peels the drill-down detail first, then the cockpit
       if (e.key === 'Escape' && ER.open){ e.stopPropagation(); if (ER.detailOpen){ window._engineRoomDetailClose(); } else { window._engineRoomClose(); } }
+      // v1215 (r6) — ← / → step frames while the drill-down is open (watch the reads evolve)
+      else if (ER.open && ER.detailOpen && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')){ e.preventDefault(); e.stopPropagation(); window._engineRoomStepFrame(e.key === 'ArrowRight' ? 1 : -1); }
     }, true);
     return ov;
   }
@@ -6133,7 +6144,18 @@
     var gate = (b.gatePass === false) ? ('<span style="color:#ffcf8a">🛡 HELD · ' + esc(_GATE_WHY[b.gateReason] || b.gateReason || 'held') + '</span>')
       : (b.gatePass === true ? '<span style="color:#9df0bd">🛡 ✓ proven' + (b.routed ? ' · fired' : '') + '</span>' : '—');
     var ik = b.intake || {};
-    el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>'
+    // v1215 (Engine Room r6) — FRAME NAVIGATION: step ◀ ▶ through this reel's frames to watch the AI's
+    // reads evolve, instead of only jumping by reel. Reads the reel's already-cached beats (no fetch).
+    var _frames = ((reel && reel.sessionId && ER.reelCache[reel.sessionId]) || []).filter(function(x){ return x.frame; }).sort(function(a, c){ return (a.ts || 0) - (c.ts || 0); });
+    var _fi = _frames.indexOf(b);
+    var _nav = (_frames.length > 1)
+      ? '<span class="er-fnav">'
+        + '<button class="er-fnav-btn" onclick="window._engineRoomStepFrame(-1)" title="previous frame (←)"' + (_fi > 0 ? '' : ' disabled') + '>◀</button>'
+        + '<span class="er-fnav-pos">' + (_fi >= 0 ? (_fi + 1) + ' / ' + _frames.length : '– / ' + _frames.length) + '</span>'
+        + '<button class="er-fnav-btn" onclick="window._engineRoomStepFrame(1)" title="next frame (→)"' + (_fi >= 0 && _fi < _frames.length - 1 ? '' : ' disabled') + '>▶</button>'
+        + '</span>'
+      : '';
+    el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>' + _nav
       + '<button class="th-x" id="er-detail-x" onclick="window._engineRoomDetailClose()" title="close (Esc)">✕</button></div>'
       + '<div class="er-detail-body">'
       + _erReadChain(b, ov)
@@ -6169,6 +6191,26 @@
     ER.detailOpen = true;
     _engineRoomRenderDetail(b, reel);
     _engineRoomFetchBlob(b);
+  };
+  // v1215 (Engine Room r6) — step the drill-down to the prev/next FRAME within the current reel, so
+  // Konyo can watch the AI's reads evolve frame-by-frame (◀ ▶ buttons + arrow keys). Cached beats only.
+  window._engineRoomStepFrame = function(dir){
+    var reel = ER.focusReelObj; if (!reel || !reel.sessionId) return;
+    var beats = ER.reelCache[reel.sessionId] || [];
+    var frames = beats.filter(function(x){ return x.frame; }).sort(function(a, c){ return (a.ts || 0) - (c.ts || 0); });
+    if (frames.length < 2) return;
+    var idx = frames.indexOf(ER.focusBeat);
+    if (idx < 0){ var bd = 1e15; frames.forEach(function(x, i){ var d = Math.abs((x.ts || 0) - (ER.focusTs || 0)); if (d < bd){ bd = d; idx = i; } }); }
+    var ni = Math.max(0, Math.min(frames.length - 1, idx + dir)); if (ni === idx) return;
+    var nb = frames[ni];
+    ER.focusSid = reel.sessionId; ER.focusTs = nb.ts; ER.focusBeat = nb;   // stepping = navigating retro frames
+    var ax = document.getElementById('er-axis');
+    var seg = ax && ax.querySelector('.er-reel[data-sid="' + ((window.CSS && CSS.escape) ? CSS.escape(reel.sessionId) : reel.sessionId) + '"]');
+    if (ax && seg){ var ar = ax.getBoundingClientRect(), sr = seg.getBoundingClientRect(), t0 = +seg.dataset.t0, t1 = +seg.dataset.t1;
+      var frac = (t1 > t0) ? Math.max(0, Math.min(1, (nb.ts - t0) / (t1 - t0))) : 0.5;
+      var cur = document.getElementById('er-cursor'); if (cur){ cur.hidden = false; cur.style.left = ((sr.left - ar.left) + frac * sr.width) + 'px'; } }
+    _engineRoomRenderRetro(beats);   // re-renders spine + band + readout + playhead flag + the open detail
+    _engineRoomFetchBlob(nb);
   };
   function _engineRoomFetchBlob(b){
     // pull the deep forensic blob (OCR/raw/decisions) for a read beat, then re-render the detail
