@@ -1218,6 +1218,27 @@
   .stage-pulse.sp-in { animation: stagePulseIn .4s cubic-bezier(.2,.9,.25,1) both; }
   @keyframes stagePulseIn { 0% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.9); } 60% { transform: translateX(-50%) translateY(2px) scale(1.03); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
   @media (prefers-reduced-motion: reduce){ .eye-live.reading .ex { animation: none; } .stage-pulse.sp-in { animation: none; } }
+  /* ══ v1255 (DIABLO-LANGUAGE r1 · UI) — the scene chip (live) + retro trace (theatre), one look, one dictionary ══ */
+  .dl-chip { display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 9px; border-radius: 999px;
+    font: 800 var(--fs-xs)/1.2 var(--mono); letter-spacing: .08em; border: 1px solid rgba(240,192,96,.3); background: rgba(0,0,0,.32); }
+  .dl-chip .dl-key { color: #e8dcc0; }
+  .dl-chip .dl-sub { font-weight: 600; letter-spacing: .02em; color: #b7a884; }
+  .dl-chip.dl-transition { border-color: rgba(255,138,90,.5); } .dl-chip.dl-transition .dl-key { color: #ffb08a; }
+  .dl-chip.dl-town { border-color: rgba(111,168,220,.5); } .dl-chip.dl-town .dl-key { color: #a8ccef; }
+  .dl-chip.dl-stash, .dl-chip.dl-inventory { border-color: rgba(233,196,110,.5); }
+  .dl-chip.dl-loot, .dl-chip.dl-gameplay { border-color: rgba(143,230,160,.5); } .dl-chip.dl-loot .dl-key, .dl-chip.dl-gameplay .dl-key { color: #9df0bd; }
+  .dl-chip.dl-tooltip { border-color: rgba(201,168,255,.5); } .dl-chip.dl-tooltip .dl-key { color: #d0bcff; }
+  /* the retro per-frame trace — leads the theatre footage dossier */
+  .dl-lead { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; border-left: 3px solid var(--gold-antique); background: rgba(240,192,96,.05); }
+  .dl-trace { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font: 700 var(--fs-sm)/1.35 var(--mono); letter-spacing: .04em; }
+  .dl-trace .dl-ic { font-size: 1.05em; }
+  .dl-trace b { color: #e8dcc0; letter-spacing: .1em; }
+  .dl-trace .dl-sub { font-weight: 700; color: #e9c46e; }
+  .dl-trace .dl-full { font-weight: 500; color: #8a7e68; letter-spacing: .02em; }
+  .dl-trace.dl-none { color: #7a7160; font-style: italic; font-weight: 500; }
+  .dl-lead:has(.dl-transition) { border-left-color: #ff8a5a; }
+  .dl-trace.dl-transition b { color: #ffb08a; } .dl-trace.dl-loot b, .dl-trace.dl-gameplay b { color: #9df0bd; }
+  .dl-trace.dl-town b { color: #a8ccef; } .dl-trace.dl-tooltip b { color: #d0bcff; }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
      re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
@@ -2806,7 +2827,13 @@
     } catch (e2) {}
     tweenReads(rc);
     setMeter('m-area', st.area || '—');
-    setMeter('m-scene', st.scene || st.phase || '—');
+    // v1255 (DIABLO-LANGUAGE r1 · UI) — the live SCENE meter speaks Diablo: a keyword chip (🔥 PORTAL · 🏛 TOWN ·
+    // 🎒 STASH · Gems · ⚔ FARMING · 🔍 ITEM) from st.scene/tab, same dictionary as the retro trace (synced).
+    var _scEl = $('m-scene');
+    if (_scEl){ var _scChip = _diabloChip(st.scene, st.tab, st.area);
+      var _scVal = _scChip || ('t:' + (st.scene || st.phase || '—'));
+      if (_scEl.__dl !== _scVal){ _scEl.__dl = _scVal;
+        if (_scChip) _scEl.innerHTML = _scChip; else _scEl.textContent = st.scene || st.phase || '—'; } }
 
     $('sig-bridge').textContent = on ? 'connected' : (state === 'off' ? 'resting · off air' : 'no signal');   // v938.4 — 'no signal' only when it's actually wrong
     $('sig-model').textContent = st.model || '—';
@@ -3103,6 +3130,45 @@
   // v941.6 — 🗂 THE DOSSIER LINE: joins all three eyes (📸 intake tally · 🔵 second-eye verdict ·
   // 🧠 kai class/judge) into ONE flagship line. Renders defensively — server-side beat.dossier
   // may be absent (older sessions / dossier-app not yet merged): returns '' → zero visual noise.
+  // ══ v1255 (DIABLO-LANGUAGE r1 · UI) — THE ONE DIABLO DICTIONARY ═══════════════════════════════════════
+  // Raw engine scene/tab → Diablo-language keyword + icon, in ONE place, used by BOTH the live scene chip AND
+  // the retro per-frame trace (Konyo's "synced": no wording drift between live and retro). The engine now
+  // carries scene (town|stash|inventory|loot|gameplay|transition) + tab + area on every beat (v1254).
+  var _DIABLO_SCENES = {
+    transition: { ic: '🔥', key: 'PORTAL',    full: 'entering game / portal' },
+    town:       { ic: '🏛', key: 'TOWN',      full: 'town' },
+    stash:      { ic: '🎒', key: 'STASH',     full: 'stash' },
+    inventory:  { ic: '🎒', key: 'INVENTORY', full: 'inventory' },
+    loot:       { ic: '⚔', key: 'FARMING',   full: 'farming' },
+    gameplay:   { ic: '⚔', key: 'IN-GAME',   full: 'in-game' },
+    tooltip:    { ic: '🔍', key: 'ITEM',      full: 'inspecting item' }
+  };
+  var _DIABLO_TABS = { personal: 'Personal', shared: 'Shared', gems: 'Gems', materials: 'Materials', runes: 'Runes' };
+  // returns {ic,key,full,tab,area} for a real Diablo scene, or null for engine-internal/absent (kai/intake/null)
+  function _diabloScene(scene, tab, area){
+    var m = _DIABLO_SCENES[String(scene || '').toLowerCase()];
+    if (!m) return null;
+    var sc = String(scene).toLowerCase();
+    var tabName = (sc === 'stash' && tab) ? (_DIABLO_TABS[String(tab).toLowerCase()] || String(tab)) : '';
+    var loc = (area && /^(town|loot|gameplay|transition)$/.test(sc)) ? String(area) : '';
+    return { ic: m.ic, key: m.key, full: m.full, tab: tabName, area: loc };
+  }
+  // the compact live CHIP: "🔥 PORTAL" / "🎒 STASH · Gems" / "🏛 TOWN · Rogue Encampment"
+  function _diabloChip(scene, tab, area){
+    var d = _diabloScene(scene, tab, area); if (!d) return '';
+    var sub = d.tab || d.area;
+    return '<span class="dl-chip dl-' + esc(String(scene).toLowerCase()) + '"><span class="dl-ic">' + d.ic + '</span>'
+      + '<span class="dl-key">' + d.key + '</span>' + (sub ? '<span class="dl-sub">· ' + esc(sub) + '</span>' : '') + '</span>';
+  }
+  // the retro TRACE line (leads a frame's dossier): "🎒 STASH · Gems — inspecting the gems tab", honest when absent
+  function _diabloTrace(scene, tab, area){
+    var d = _diabloScene(scene, tab, area);
+    if (!d) return '<span class="dl-trace dl-none">— no read on this frame —</span>';
+    var sub = d.tab || d.area;
+    return '<span class="dl-trace dl-' + esc(String(scene).toLowerCase()) + '"><span class="dl-ic">' + d.ic + '</span>'
+      + '<b>' + d.key + '</b>' + (sub ? ' <span class="dl-sub">· ' + esc(sub) + '</span>' : '')
+      + ' <span class="dl-full">— ' + d.full + '</span></span>';
+  }
   function thDossierLine(b){
     var d = b && b.dossier;
     if (!d || typeof d !== 'object') return '';
@@ -4298,6 +4364,9 @@
       var _r = (bF.dossier && bF.dossier.router) || {};
       var _fRetro = thHandoffNote(bF);   // v949 — a frame KAI retro-caught (live missed at speed)
       el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>'
+        // v1255 (DIABLO-LANGUAGE r1 · UI) — LEAD with THIS frame's OWN Diablo scene (from the beat's scene/tab/area,
+        // NOT a nearby-stamp bleed). Honest "— no read —" when the frame carries no scene. Konyo's "pinpoint each photo".
+        + '<div class="dl-lead">' + _diabloTrace(bF.scene, bF.tab, bF.area) + '</div>'
         + (_rs ? '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rp ? _rp + ' ' : '') + _rs + '</div>' : '')
         + (_fRetro ? '<h4>reader — who owns this frame</h4><div class="rd-card">' + thReaderBadge(bF) + '<div class="rd-handoff-row">' + _fRetro + '</div></div>' : '')
         + '<h4>📹 footage · capture-synced debug</h4>'
