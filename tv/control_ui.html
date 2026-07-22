@@ -1471,6 +1471,19 @@
   .sh-empty-hero .she-sub { font: 500 var(--fs-sm)/1.6 var(--mono); color: #9a8e70; max-width: 520px; }
   .sh-empty-hero .she-sub b { color: var(--mint); }
   #th-shelfov { padding-bottom: clamp(80px, 12vh, 120px) !important; }   /* v1275 (D3 · z-index) — tall cards scroll fully clear of the transport deck, never clipped/hidden behind it */
+  /* ══ v1282 (SESSIONS FLAGSHIP D8 · SHELF SEARCH) — filter the run cards live (item · area · grail · session) ══ */
+  .sh-search-wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
+  .sh-search { flex: 1 1 260px; min-width: 0; font: 600 var(--fs-sm)/1 var(--mono); color: var(--text); letter-spacing: .02em;
+    background: rgba(0,0,0,.4); border: 1px solid var(--edge); border-radius: 10px; padding: 11px 14px; }
+  .sh-search::placeholder { color: #7a7160; }
+  .sh-search:focus { outline: none; border-color: var(--gold-antique); box-shadow: 0 0 0 1px rgba(200,160,74,.3); }
+  .sh-chips { display: flex; gap: 7px; }
+  .sh-chip { font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .04em; color: var(--gold-dim); cursor: pointer;
+    background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 999px; padding: 8px 13px; }
+  .sh-chip:hover { color: var(--gold); border-color: var(--gold-antique); }
+  .sh-chip.on { color: #1a1206; background: var(--gold); border-color: var(--gold); }
+  .sh-search-count { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .04em; color: #8a7e68; font-variant-numeric: tabular-nums; margin-left: auto; }
+  .sh-no-match { font: 500 var(--fs-base)/1.5 var(--mono); color: #9a8e70; font-style: italic; text-align: center; padding: 6vh 20px; }
   @media (prefers-reduced-motion: no-preference) { .hh-card { transition: border-color .14s, box-shadow .14s, transform .14s; } .hh-card:hover { transform: translateY(-2px); } }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
@@ -4863,7 +4876,13 @@
       var verdictLine = vparts.length ? '<br><span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '';
       var fpLine = _fp ? '<br><span class="sh-fp-line">' + _fp + '</span>' : '';
       var findsLine = _findsStrip(sm, 6);   // v1267 (D1) — WHAT I FOUND: the grails/keeps KAI witnessed this run
-      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '">'
+      // v1282 (D8) — the searchable index for live shelf filtering: session/date + item names + areas + verdict/grail
+      var _sq = ['session ' + n];
+      if (d0) _sq.push(d0.toLocaleDateString());
+      (sm.finds || []).forEach(function(f){ if (f.name) _sq.push(f.name); if (f.tier === 'grail') _sq.push('grail'); });
+      (sm.areas || []).forEach(function(a){ _sq.push(a); });
+      _sq.push(sm.watchdogViolations > 0 ? 'flagged' : (sm.kaiMissed != null ? 'clean' : ''));
+      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
         + art
         + '<b>session ' + n + '</b>' + (sm.stub ? ' <span class="sh-dim">· ghost</span>' : '') + '<br>'
         + (d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—') + '<br>'
@@ -4879,16 +4898,53 @@
       ? '<div class="sh-grid">' + cards + '</div>'
       : '<div class="sh-empty-hero"><div class="she-emoji">🎞</div><div class="she-lead">No runs recorded yet</div>'   // v1275 (D3) — first-run/empty state (was a bare empty grid)
         + '<div class="she-sub">Press <b>▶ On Air</b> to start a session. When it seals, the reel lands here — every screenshot, every read, and every grail KAI witnessed, ready to replay and explore.</div></div>';
+    // v1282 (D8) — SHELF SEARCH: filter the run cards live as you type (item · area · grail · session). Pure UI
+    // off the card index; quick chips seed common queries. Only shown when there are cards to search.
+    var searchBar = cards
+      ? '<div class="sh-search-wrap"><input type="search" id="sh-search" class="sh-search" placeholder="Search runs — item · area · grail · session…" autocomplete="off" spellcheck="false">'
+        + '<div class="sh-chips">'
+        + '<button type="button" class="sh-chip" data-q="grail">🏆 grail</button>'
+        + '<button type="button" class="sh-chip" data-q="clean">🛡 clean</button>'
+        + '<button type="button" class="sh-chip" data-q="flagged">🚨 flagged</button>'
+        + '</div><span class="sh-search-count" id="sh-search-count"></span></div>'
+        + '<div class="sh-no-match" id="sh-no-match" hidden>No runs match — try an item, area, or session number.</div>'
+      : '';
     ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
-      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>' + body;
+      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>' + searchBar + body;
     ov.hidden = false;
+    var _si = $('sh-search');
+    if (_si){
+      _si.value = SHELF_Q;                       // restore the query across the poll's re-renders
+      _si.oninput = function(){ _shFilter(); };
+      // typing must NOT trigger the theatre's single-letter shortcuts (s/f/i/space/arrows); Esc clears then blurs
+      _si.onkeydown = function(e){ e.stopPropagation(); if (e.key === 'Escape'){ if (_si.value){ _si.value = ''; _shFilter(); } else { _si.blur(); } } };
+      if (SHELF_Q) _shFilter();                   // re-apply the active filter after a re-render
+    }
     ov.onclick = function(e){
       if (e.target.closest && e.target.closest('#th-shelf-x')){ ov.hidden = true; return; }
-      if (e.target.closest && e.target.closest('.find-card')) return;   // find cards handle their own jump (stopPropagation covers it; belt-and-braces)
+      var chip = e.target.closest && e.target.closest('.sh-chip');
+      if (chip){ var q = chip.dataset.q || ''; if (_si){ _si.value = (SHELF_Q === q) ? '' : q; _si.focus(); } _shFilter(); return; }
+      if (e.target.closest && (e.target.closest('.sh-search-wrap') || e.target.closest('.find-card'))) return;   // search UI + find-cards handle themselves
       var c = e.target.closest('.sh-card');
       if (!c){ ov.hidden = true; return; }   // click-outside a card = dismiss
       _sessionDossier(Number(c.dataset.n) || 1);   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
     };
+  }
+  var SHELF_Q = '';   // v1282 (D8) — the live shelf-search query, preserved across shelf re-renders
+  function _shFilter(){
+    var ov = $('th-shelfov'); if (!ov || ov.hidden) return;
+    var inp = $('sh-search'); var q = (inp ? inp.value : '').trim().toLowerCase();
+    SHELF_Q = inp ? inp.value : '';
+    var cards = ov.querySelectorAll('.sh-card'), shown = 0;
+    for (var i = 0; i < cards.length; i++){
+      var hit = !q || (cards[i].getAttribute('data-search') || '').indexOf(q) >= 0;
+      cards[i].style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    }
+    var cnt = $('sh-search-count'); if (cnt) cnt.textContent = q ? (shown + ' of ' + cards.length) : '';
+    var nm = $('sh-no-match'); if (nm) nm.hidden = !(q && shown === 0);
+    var chips = ov.querySelectorAll('.sh-chip');
+    for (var j = 0; j < chips.length; j++){ chips[j].classList.toggle('on', !!q && chips[j].dataset.q === q); }
   }
   $('th-shelf').onclick = function(){ thShelf(); };
   // v940.5 — ⋯ MORE: the drawer for the rare controls (forensics / clip / delete)
