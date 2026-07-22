@@ -1381,6 +1381,35 @@
   .cmp-scene-empty { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #7d7358; }
   .cmp-empty { text-align: center; color: #8a7e68; font: var(--fw-medium) var(--fs-sm)/var(--lh-normal) var(--mono); padding: 40px 20px; }
   @media (max-width: 620px){ .cmp-pickers, .cmp-scenes { grid-template-columns: 1fr; } .cmp-vs { display: none; } }
+  /* ══ D16 · AREA HEATMAP — where you farm most, ranked heat-bars off session areas[] (pure UI) ══ */
+  #th-heatmap-ov { position: fixed; inset: 0; z-index: 122; overflow-y: auto; background: rgba(4,6,5,.985);
+    padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px); }
+  #th-heatmap-ov[hidden] { display: none !important; }
+  .hm-wrap { max-width: 860px; margin: 0 auto; }
+  .hm-top { display: flex; margin-bottom: 18px; }
+  .hm-back { font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); color: var(--gold-dim); background: rgba(0,0,0,.3);
+    border: 1px solid var(--edge); border-radius: 8px; padding: 7px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .hm-back:hover { color: var(--gold); border-color: var(--gold-antique); }
+  .hm-head { font: var(--fw-bold) var(--fs-xl)/var(--lh-snug) var(--serif); color: #e8cf96;
+    letter-spacing: var(--ls-wider); text-transform: uppercase; margin-bottom: 4px; }
+  .hm-sub { font: var(--fw-medium) var(--fs-2xs)/var(--lh-normal) var(--mono); letter-spacing: var(--ls-snug);
+    color: #8a7e68; text-transform: uppercase; margin-bottom: 20px; }
+  .hm-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+  .hm-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; }
+  .hm-rank { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: var(--gold-dim); font-variant-numeric: tabular-nums; width: 1.4em; text-align: right; }
+  .hm-bar-wrap { min-width: 0; }
+  .hm-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    font: var(--fw-semibold) var(--fs-sm)/var(--lh-tight) var(--mono); color: #e4d2a4; margin-bottom: 5px; }
+  .hm-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hm-meta { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: #8a7e68;
+    font-variant-numeric: tabular-nums; white-space: nowrap; flex: none; }
+  .hm-meta .hm-gr { color: var(--gold); margin-left: 6px; }
+  .hm-track { height: 12px; border-radius: 999px; background: rgba(255,255,255,.05); overflow: hidden; }
+  .hm-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold-antique), var(--gold-hi));
+    box-shadow: 0 0 12px rgba(240,192,96,.3); transition: width .3s; }
+  .hm-note { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #6f6a58; letter-spacing: var(--ls-tight);
+    border-top: 1px solid rgba(255,255,255,.06); padding-top: 12px; }
+  .hm-empty { text-align: center; color: #8a7e68; font: var(--fw-medium) var(--fs-sm)/var(--lh-normal) var(--mono); padding: 40px 20px; }
   .dsr-wrap { max-width: 860px; margin: 0 auto; }
   .dsr-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   .dsr-back { font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); color: var(--gold-dim); background: rgba(0,0,0,.3); border: 1px solid var(--edge);
@@ -2188,6 +2217,8 @@
         <div id="th-dossier-ov" hidden></div>
         <!-- D14 · SESSION COMPARISON — diff two runs side by side; opens over the shelf (z 122). Built by _cmpOpen(). -->
         <div id="th-compare-ov" hidden></div>
+        <!-- D16 · AREA HEATMAP — where you farm most, ranked by run frequency. Built by _hmOpen(). -->
+        <div id="th-heatmap-ov" hidden></div>
         <!-- v940.5 — coach hint: shown once per page-load, dismissed on any interaction -->
         <div class="th-coach" id="th-coach" hidden>space = play/pause · ← → = step · esc = close</div>
         <!-- v940.5 (Konyo: 'incomprehensible button mess') — BUTTON DIET. Primary strip keeps
@@ -3502,6 +3533,57 @@
     _cmpRender();
   };
   window._cmpClose = function(){ var ov = document.getElementById('th-compare-ov'); if (ov) ov.hidden = true; };
+  // ══ D16 · AREA HEATMAP — WHERE you farm most. Ranks the session areas[] across all real runs by how often
+  // each appears (frequency = the honest weight: sceneReads is scene-TYPE not per-area, and finds carry no
+  // game-area, so grails are NOT pinned to a zone — shown only as "grails in runs that visited here"). Pure UI. ══
+  function _hmAggregate(){
+    var runs = _cmpList();   // real runs (non-stub), newest first
+    var map = {};
+    runs.forEach(function(s){
+      var grails = (s.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
+      var seen = {};
+      (s.areas || []).forEach(function(a){
+        a = String(a || '').trim(); if (!a) return;
+        var key = a.toLowerCase();
+        if (seen[key]) return; seen[key] = 1;   // an area counts once per run
+        if (!map[key]) map[key] = { name: a, runs: 0, reads: 0, grails: 0 };
+        map[key].runs++; map[key].reads += (s.reads || 0); map[key].grails += grails;
+      });
+    });
+    var arr = Object.keys(map).map(function(k){ return map[k]; });
+    arr.sort(function(a, b){ return (b.runs - a.runs) || (b.reads - a.reads); });
+    return { areas: arr, totalRuns: runs.length };
+  }
+  window._hmOpen = function(){
+    var ov = document.getElementById('th-heatmap-ov'); if (!ov) return;
+    var agg = _hmAggregate();
+    var back = '<div class="hm-top"><button type="button" class="hm-back" onclick="window._hmClose()">‹ back to the shelf</button></div>';
+    if (!agg.areas.length){
+      ov.innerHTML = '<div class="hm-wrap">' + back
+        + '<div class="hm-empty">No areas logged yet — KAI records the zone it reads each run, and they’ll rank here once you’ve farmed a few.</div></div>';
+      ov.hidden = false; ov.scrollTop = 0; return;
+    }
+    var max = agg.areas[0].runs || 1;
+    var rows = agg.areas.slice(0, 12).map(function(a, i){
+      var pctRuns = Math.round(a.runs / agg.totalRuns * 100);
+      var heat = (0.32 + 0.68 * (a.runs / max)).toFixed(2);   // hotter = more frequent
+      var w = Math.max(6, Math.round(a.runs / max * 100));
+      var gr = a.grails > 0 ? '<span class="hm-gr">🏆 ' + a.grails + '</span>' : '';
+      return '<div class="hm-row"><div class="hm-rank">' + (i + 1) + '</div>'
+        + '<div class="hm-bar-wrap">'
+        + '<div class="hm-label"><span class="hm-name">' + esc(a.name) + '</span>'
+        + '<span class="hm-meta">' + a.runs + ' run' + (a.runs === 1 ? '' : 's') + ' · ' + pctRuns + '% · ' + _kpiFmt(a.reads) + ' reads' + gr + '</span></div>'
+        + '<div class="hm-track"><div class="hm-fill" style="width:' + w + '%;opacity:' + heat + '"></div></div>'
+        + '</div></div>';
+    }).join('');
+    ov.innerHTML = '<div class="hm-wrap">' + back
+      + '<div class="hm-head">🗺 Where you farm</div>'
+      + '<div class="hm-sub">across ' + agg.totalRuns + ' run' + (agg.totalRuns === 1 ? '' : 's') + ' · ' + agg.areas.length + ' area' + (agg.areas.length === 1 ? '' : 's') + ' · ranked by how often you run each</div>'
+      + '<div class="hm-list">' + rows + '</div>'
+      + '<div class="hm-note">Bars rank by run frequency — the honest signal in the data. 🏆 counts are grails found in the runs that visited an area, not pinned to the zone itself (finds don’t carry a location).</div></div>';
+    ov.hidden = false; ov.scrollTop = 0;
+  };
+  window._hmClose = function(){ var ov = document.getElementById('th-heatmap-ov'); if (ov) ov.hidden = true; };
   function thDossierLine(b){
     var d = b && b.dossier;
     if (!d || typeof d !== 'object') return '';
@@ -5124,6 +5206,7 @@
         + '<option value="newest">Newest</option><option value="longest">Longest</option>'
         + '<option value="found">Most found</option><option value="reads">Most reads</option></select></label>'
         + '<button type="button" class="sh-cmp" id="sh-cmp" title="compare two runs side by side" onclick="window._cmpOpen()">⚖ Compare</button>'
+        + '<button type="button" class="sh-cmp" id="sh-heat" title="where you farm most" onclick="window._hmOpen()">🗺 Areas</button>'
         + '<span class="sh-search-count" id="sh-search-count"></span></div>'
         + '<div class="sh-filter-bar">'
         + '<button type="button" class="sh-chip" data-f="grail">🏆 grail</button>'

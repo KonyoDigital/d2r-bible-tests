@@ -32,9 +32,9 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] (v1298) · G4 TOGGLE — 🟣 Grok Accuracy card in Tools (honest 3-state OFF/needs-key/active, POWER-USER opt-in), reads g4_status/posts g4_toggle. 5/5 paint tests.
 - [x] v1301 · G4 touchpoint #2 **(landed v1299)** — borderline keep/toss: fires only near-cutoff (keep 14–16, toss 5–6), flag-never-override into the journal. 12/12 band test. OFF byte-identical.
 - [x] v1302 · G4 touchpoint #3 **(landed v1300)** — grail-promotion re-check (split-brain class, highest value): fires only on toss/border→grail promotion, flag-never-override. All 3 seams complete; flag map = register(kai_report) + journal(sessions.jsonl). OFF byte-identical.
-- [ ] v1303 · G4 "🟣 Grok caught this" review surface (reads g4.agree===false flags) — bible.html Tools + a flags endpoint [in flight]
-- [ ] v1304 · G4 credit-aware rate limit + selective config (only uncertain/important; never bulk)
-- [ ] v1305 · G4 REMOVAL TEST — prove the whole module lifts out clean (toggle off = identical to today) + docs
+- [x] v1303 · G4 "🟣 Grok caught this" review surface **(landed v1302)** — GET /api/g4_flags + panel in the Grok card; reads g4.agree===false from register+journal; honest empty state (0 on real data). 6/6 tests.
+- [ ] v1304 · G4 credit-aware rate limit + selective config [in flight]
+- [ ] v1305 · G4 REMOVAL TEST — prove the whole module lifts out clean (byte-identical to pre-G4) + docs [next]
 - [ ] v1306 · G4 cohesion + honest labeling pass
 
 ## PHASE C · SESSIONS FLAGSHIP DEPTH (remaining D-rounds) — v1307–1320
