@@ -55,7 +55,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [ ] v1320 · D29 since-last-session deltas · D30 cover-art = best find · D31 Sessions cohesion pass
 
 ## PHASE D · DIABLO-LANGUAGE COMPLETION (B4–B10) — v1321–1327
-- [ ] v1321 · B4 AREA/ZONE in Diablo terms (ENTERING banner / automap per frame)
+- [x] v1321 · B4 AREA/ZONE in Diablo terms **(engine landed v1324, recorded v1325)** — `_diablo_scene_label`+`_TOWN_AREAS`: transition→ENTERING <area> · panel→STASH · town(deterministic)→TOWN · gameplay-nontown→FARMING · no-signal→unclear. Additive `native` field, 15/15 tests. B5-B7 reader-prompt (dark-frame transition detect) = daytime; UI surfacing = a sessions-visual round.
 - [ ] v1322 · B5 TOWN vs FARMING distinction (safe vs drops)
 - [ ] v1323 · B6 scene keyword-chips polish (live)
 - [ ] v1324 · B7 retro scene-sync polish (per-frame)

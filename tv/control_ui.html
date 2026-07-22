@@ -894,7 +894,17 @@
   .shc-sess { position: absolute; top: 9px; left: 12px; z-index: 2; font: var(--fw-bold) var(--fs-sm)/1 var(--serif);
     letter-spacing: var(--ls-wide); color: #f2e4c0; text-shadow: 0 2px 7px rgba(0,0,0,.95); }
   .shc-ghost { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #b0a184; margin-left: 5px; }
-  .shc-seal { position: absolute; top: 8px; right: 9px; z-index: 2; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono);
+  /* D26 — top-right cluster holds the ⭐ pin + the verdict seal */
+  .shc-tr { position: absolute; top: 8px; right: 9px; z-index: 2; display: flex; align-items: center; gap: 6px; }
+  .shc-pin { flex: none; font-size: var(--fs-sm); line-height: 1; color: #b9c9be; background: rgba(6,8,6,.55); backdrop-filter: blur(3px);
+    border: 1px solid var(--edge); border-radius: 999px; width: 26px; height: 26px; cursor: pointer; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center; transition: color .15s, border-color .15s, transform .1s; }
+  .shc-pin:hover { color: var(--gold); border-color: var(--gold-antique); transform: scale(1.08); }
+  .shc-pin.on { color: var(--gold-hi); border-color: rgba(240,192,96,.5); text-shadow: 0 0 8px rgba(240,192,96,.5); }
+  .shc-pin:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.55); }
+  #th-shelfov .sh-card.pinned { border-color: rgba(240,192,96,.4); box-shadow: inset 3px 0 0 var(--gold-antique), 0 8px 24px rgba(0,0,0,.4); }
+  .sh-daygroup.sh-pingroup .shg-lab { color: var(--gold-hi); }
+  .shc-seal { z-index: 2; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono);
     letter-spacing: var(--ls-tight); padding: 4px 7px; border-radius: 7px; background: rgba(6,8,6,.55); backdrop-filter: blur(3px);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 5px rgba(0,0,0,.4); }   /* D21 — same pressed-seal language as the dossier stamp */
   .shc-seal.clean { color: var(--gold-hi); border: 1px solid rgba(240,192,96,.38); }
@@ -1526,7 +1536,12 @@
     border: 1px solid var(--edge); border-radius: 8px; padding: 6px 11px; }
   .dsr-chip.dsr-warn { color: #ff9a7a; border-color: rgba(255,122,122,.35); }
   .dsr-empty { font: var(--fw-normal) var(--fs-sm)/var(--lh-snug) var(--mono); color: #7a7160; font-style: italic; }
-  .dsr-actions { margin-top: 24px; display: flex; justify-content: center; }
+  .dsr-actions { margin-top: 24px; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
+  /* D26 — dossier pin toggle */
+  .dsr-pin { font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); letter-spacing: var(--ls-snug); color: var(--gold-dim);
+    background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 9px; padding: 9px 15px; cursor: pointer; transition: color .15s, border-color .15s, box-shadow .15s; }
+  .dsr-pin:hover { color: var(--gold); border-color: var(--gold-antique); }
+  .dsr-pin.on { color: var(--gold-hi); border-color: rgba(240,192,96,.5); box-shadow: 0 0 12px rgba(240,192,96,.15); }
   .dsr-open { font: var(--fw-bold) var(--fs-md)/1 var(--serif); letter-spacing: var(--ls-wide); color: #0c0a06; background: linear-gradient(180deg, #f0c869, #d8a63e);
     border: none; border-radius: 10px; padding: 14px 34px; cursor: pointer; box-shadow: 0 6px 20px rgba(240,192,96,.25); }
   .dsr-open:hover { filter: brightness(1.08); box-shadow: 0 8px 26px rgba(240,192,96,.4); }
@@ -3618,7 +3633,9 @@
       + '<div class="dsr-sealrow">' + seal + sealLat + '</div>'
       + (function(){ var _b = _dossierBeats(sm); return _b ? '<div class="dsr-sec"><div class="dsr-h">⚡ The beats</div>' + _b + '</div>' : ''; })()   // D19 — the run's story as an iconographic beat ribbon
       + regretSec + decisionSec + montSec + missSec + findsSec + fpSec + storySec
-      + '<div class="dsr-actions"><button type="button" class="dsr-open" onclick="window._dossierToTheatre()">▶ Open in Theatre</button></div>'
+      + '<div class="dsr-actions">'
+        + '<button type="button" class="dsr-pin' + (_sesPinned(sm.sessionId) ? ' on' : '') + '" onclick="window._dossierTogglePin()">' + (_sesPinned(sm.sessionId) ? '★ Pinned' : '☆ Pin this run') + '</button>'
+        + '<button type="button" class="dsr-open" onclick="window._dossierToTheatre()">▶ Open in Theatre</button></div>'
       + '</div>';
   }
   // ══ D25 · SESSION NOTES / NAMING — name a run ("Meph 200x") + add a note, persisted to localStorage keyed by
@@ -5542,13 +5559,13 @@
       function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
       var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
         + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_cov != null ? (_cov + '%') : '—', 'cover') + '</div>';
-      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' grail' : '') + '" data-n="' + n
+      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' grail' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-n="' + n
         + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
         + heroOpen
           + '<div class="shc-sess">' + (_cnm.name ? esc(_cnm.name) : ('Session ' + n)) + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
-          + seal + headFind
+          + '<div class="shc-tr">' + pinBtn + seal + '</div>' + headFind
         + '</div>'
         + '<div class="shc-body">'
           + '<div class="shc-when">' + whenTxt + (durTxt ? ' <span class="shc-dur">· ' + durTxt + '</span>' : '') + '</div>'
@@ -5574,6 +5591,7 @@
         + '<button type="button" class="sh-cmp" id="sh-heat" title="where you farm most" onclick="window._hmOpen()">🗺 Areas</button>'
         + '<span class="sh-search-count" id="sh-search-count"></span></div>'
         + '<div class="sh-filter-bar">'
+        + '<button type="button" class="sh-chip" data-f="pin">⭐ pinned</button>'
         + '<button type="button" class="sh-chip" data-f="grail">🏆 grail</button>'
         + '<span class="sh-fdiv"></span>'
         + '<button type="button" class="sh-chip" data-f="verdict:clean">🛡 clean</button>'
@@ -5608,7 +5626,7 @@
       _si.oninput = function(){ _shFilter(); };
       // typing must NOT trigger the theatre's single-letter shortcuts (s/f/i/space/arrows); Esc clears then blurs
       _si.onkeydown = function(e){ e.stopPropagation(); if (e.key === 'Escape'){ if (_si.value){ _si.value = ''; _shFilter(); } else { _si.blur(); } } };
-      if (SHELF_Q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day) _shFilter();   // re-apply the active search+filters after a re-render
+      if (SHELF_Q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin) _shFilter();   // re-apply the active search+filters after a re-render
     }
     var _ss = $('sh-sort');
     if (_ss){
@@ -5622,6 +5640,8 @@
       var chip = e.target.closest && e.target.closest('.sh-chip');
       if (chip){ _shToggleFilter(chip.dataset.f || ''); return; }   // v1283 (D9) — chips toggle composable filters (not seed the search)
       if (e.target.closest && (e.target.closest('.sh-search-wrap') || e.target.closest('.sh-filter-bar') || e.target.closest('.find-card'))) return;   // search UI + filter bar + find-cards handle themselves
+      var pin = e.target.closest && e.target.closest('.shc-pin');
+      if (pin){ _sesPinToggle(pin.dataset.pinSid); thShelf(true); return; }   // D26 — ⭐ toggles pin (never opens the dossier)
       var hi = e.target.closest && e.target.closest('.shi-clk');
       if (hi && hi.dataset.n){ _sessionDossier(Number(hi.dataset.n) || 1); return; }   // D17 — a highlight card jumps to that run's dossier
       var c = e.target.closest('.sh-card');
@@ -5630,7 +5650,7 @@
     };
   }
   var SHELF_Q = '';   // v1282 (D8) — the live shelf-search query, preserved across shelf re-renders
-  var SHELF_F = { grail: false, verdict: null, day: null };   // v1283 (D9) — composable shelf filters, preserved too
+  var SHELF_F = { grail: false, verdict: null, day: null, pin: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
   var SHELF_S = 'newest';   // v1284 (D11) — the shelf sort key, preserved too
   // v1284 (D11) — SORT the run cards (composes with search+filters: reorders the whole set, filter hides the rest).
   // Reads sort keys straight off the card data-attrs; re-appends in order. Newest / longest / most-found / most-reads.
@@ -5639,8 +5659,10 @@
     var grid = ov.querySelector('.sh-grid'); if (!grid) return;
     var cards = [].slice.call(grid.querySelectorAll('.sh-card'));
     var gn = function(c, a){ return +c.getAttribute(a) || 0; };
+    var pn = function(c){ return c.getAttribute('data-pin') === '1' ? 1 : 0; };   // D26 — pinned float to the top
     var key = SHELF_S || 'newest';
     cards.sort(function(a, b){
+      var dp = pn(b) - pn(a); if (dp) return dp;   // D26 — pinned-first, then the chosen sort composes within each group
       if (key === 'longest') return (gn(b, 'data-t1') - gn(b, 'data-t0')) - (gn(a, 'data-t1') - gn(a, 'data-t0'));
       if (key === 'found') return gn(b, 'data-found') - gn(a, 'data-found') || gn(b, 'data-t0') - gn(a, 'data-t0');
       if (key === 'reads') return gn(b, 'data-reads') - gn(a, 'data-reads') || gn(b, 'data-t0') - gn(a, 'data-t0');
@@ -5656,21 +5678,26 @@
     var ov = $('th-shelfov'); if (!ov || ov.hidden) return;
     var grid = ov.querySelector('.sh-grid'); if (!grid) return;
     var old = grid.querySelectorAll('.sh-daygroup'); for (var k = 0; k < old.length; k++) old[k].remove();
-    if ((SHELF_S || 'newest') !== 'newest') return;   // graceful collapse under a non-date sort
+    var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){ return c.style.display !== 'none'; });
+    var mkHead = function(lab, n, before, cls){
+      var h = document.createElement('div'); h.className = 'sh-daygroup' + (cls || '');
+      h.innerHTML = '<span class="shg-lab">' + lab + '</span><span class="shg-n">' + n + ' run' + (n === 1 ? '' : 's') + '</span>';
+      grid.insertBefore(h, before);
+    };
+    // D26 — a "📌 Pinned" section over the pinned cards (which sort to the top), shown in ANY sort view
+    var pinned = vis.filter(function(c){ return c.getAttribute('data-pin') === '1'; });
+    if (pinned.length) mkHead('📌 Pinned', pinned.length, pinned[0], ' sh-pingroup');
+    if ((SHELF_S || 'newest') !== 'newest') return;   // day headers only in the date-ordered (Newest) view
     var now = new Date(), startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     var startYest = startToday - 864e5, weekAgo = startToday - 6 * 864e5;
     var bucket = function(t0){ return !t0 ? 'older' : (t0 >= startToday ? 'today' : (t0 >= startYest ? 'yesterday' : (t0 >= weekAgo ? 'week' : 'older'))); };
     var LAB = { today: 'Today', yesterday: 'Yesterday', week: 'This week', older: 'Older' };
-    var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){ return c.style.display !== 'none'; });
-    var counts = {}; vis.forEach(function(c){ var b = bucket(+c.getAttribute('data-t0') || 0); counts[b] = (counts[b] || 0) + 1; });
+    var rest = vis.filter(function(c){ return c.getAttribute('data-pin') !== '1'; });   // day-group the NON-pinned remainder
+    var counts = {}; rest.forEach(function(c){ var b = bucket(+c.getAttribute('data-t0') || 0); counts[b] = (counts[b] || 0) + 1; });
     var seen = {};
-    vis.forEach(function(c){
+    rest.forEach(function(c){
       var b = bucket(+c.getAttribute('data-t0') || 0);
-      if (!seen[b]){ seen[b] = 1;
-        var h = document.createElement('div'); h.className = 'sh-daygroup';
-        h.innerHTML = '<span class="shg-lab">' + LAB[b] + '</span><span class="shg-n">' + counts[b] + ' run' + (counts[b] === 1 ? '' : 's') + '</span>';
-        grid.insertBefore(h, c);
-      }
+      if (!seen[b]){ seen[b] = 1; mkHead(LAB[b], counts[b], c); }
     });
   }
   // v1286 (D12) — HISTORY TIMELINE: a compact runs-per-day activity sparkline over the last 14 days, from every
@@ -5702,7 +5729,8 @@
       + '<div class="shtl-bars">' + bars + '</div>';
   }
   function _shToggleFilter(f){
-    if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
+    if (f === 'pin') SHELF_F.pin = !SHELF_F.pin;   // D26
+    else if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
     else if (f.indexOf('verdict:') === 0){ var v = f.slice(8); SHELF_F.verdict = (SHELF_F.verdict === v) ? null : v; }
     else if (f.indexOf('day:') === 0){ var d = f.slice(4); SHELF_F.day = (SHELF_F.day === d) ? null : d; }
     _shFilter();
@@ -5726,17 +5754,18 @@
       var hit = (!q || (c.getAttribute('data-search') || '').indexOf(q) >= 0)   // v1283 (D9) — search AND filters compose
         && (!SHELF_F.grail || c.getAttribute('data-grail') === '1')
         && (!SHELF_F.verdict || c.getAttribute('data-verdict') === SHELF_F.verdict)
+        && (!SHELF_F.pin || c.getAttribute('data-pin') === '1')   // D26 — the ⭐ pinned filter composes with the rest
         && _shDayHit(c, SHELF_F.day, startToday, weekAgo);
       c.style.display = hit ? '' : 'none';
       if (hit) shown++;
     }
-    var active = !!(q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day);
+    var active = !!(q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin);
     var cnt = $('sh-search-count'); if (cnt) cnt.textContent = active ? (shown + ' of ' + cards.length) : '';
     var nm = $('sh-no-match'); if (nm) nm.hidden = !(active && shown === 0);
     var chips = ov.querySelectorAll('.sh-chip');
     for (var j = 0; j < chips.length; j++){
       var f = chips[j].dataset.f || '';
-      var on = (f === 'grail' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
+      var on = (f === 'pin' && SHELF_F.pin) || (f === 'grail' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
       chips[j].classList.toggle('on', !!on);
     }
     _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set

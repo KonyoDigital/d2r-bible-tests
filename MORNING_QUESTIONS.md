@@ -17,6 +17,7 @@ Anything I couldn't decide autonomously overnight lands here so I never block th
 - **Duration format** — the app shows run duration as minutes (e.g. "192m00s") everywhere (shelf/dossier/compare). For multi-hour runs that reads long; an h:m format ("3h12m") would be nicer but it's an app-wide helper change touching every surface. Want it? I'll do it app-wide in one small round.
 
 ## ⏸️ Deferred to a careful daytime pass (not autonomous-safe)
+- **Diablo-language reader-prompt (B5/B7)** — B4 shipped the *labeling* engine (a read that says "transition + The Pit" now surfaces as "🏛 ENTERING The Pit", town-vs-farming deterministic). But upgrading a DARK loading/portal frame the reader currently calls "gameplay/near-black" into a real "transition" needs a change to the READER PROMPT (tv_diablo.py) — which alters live scanning behavior/accuracy. Held for daytime so you can verify it live (same reasoning as G3 live-forward). Queued.
 - **G3 live-forward auto-route** — the "items auto-route into trackers AS you scan" half of your unified vision. I built the retro back-fill (the 🔄 sweep, ready for your Apply) but held the LIVE-forward wiring for daytime: it touches the live scan pipeline, and I didn't want to risk that autonomously overnight. It's queued — say go when you're up and I'll design it read-first, then wire it gated (same careful pattern as the sweep).
 
 ## 🟢 Decisions I made autonomously (veto any in the morning)
