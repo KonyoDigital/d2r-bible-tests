@@ -1566,6 +1566,20 @@
   .er-reelcard .erc-hot .erc-v { color: #9df0bd; }
   .er-reelcard .erc-k { margin-top: 3px; font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #8a7e68; }
   .er-reelcard .erc-notable { margin-top: 8px; font: 600 var(--fs-2xs)/1.4 var(--mono); color: #f0d89a; letter-spacing: .04em; }
+  /* v1219 (Engine Room r10) — the live read feed: the last few reads as they land (ON AIR only) */
+  .er-livefeed { margin-top: 10px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(143,230,160,.28);
+    background: linear-gradient(180deg, rgba(16,26,18,.4), rgba(8,10,8,.3)); }
+  .er-livefeed[hidden] { display: none; }
+  .er-livefeed .erlf-head { font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mint); margin-bottom: 9px; }
+  .er-livefeed .erlf-sub { font-weight: 500; text-transform: none; letter-spacing: .04em; color: #7f958a; opacity: .85; margin-left: 8px; }
+  .er-livefeed .erlf-empty { font: 600 var(--fs-2xs)/1.5 var(--mono); color: #7f958a; letter-spacing: .04em; }
+  .er-livefeed .erlf-strip { display: flex; flex-wrap: wrap; gap: 9px; }
+  .er-livefeed .erlf-card { flex: 0 1 auto; display: flex; gap: 9px; align-items: center; padding: 7px 10px 7px 7px;
+    border-radius: 8px; background: rgba(0,0,0,.3); border: 1px solid rgba(143,230,160,.16); }
+  .er-livefeed .erlf-thumb { width: 66px; height: auto; border-radius: 4px; border: 1px solid rgba(143,230,160,.2); display: block; }
+  .er-livefeed .erlf-owner { font: 700 var(--fs-2xs)/1.2 var(--mono); color: #d9e2da; }
+  .er-livefeed .erlf-verd { font: 700 var(--fs-2xs)/1.2 var(--mono); color: #9df0bd; margin-top: 2px; }
+  .er-livefeed .erlf-why { font: 500 var(--fs-2xs)/1.3 var(--mono); color: #7f958a; margin-top: 2px; max-width: 160px; }
   /* v1213 (Engine Room r4) — the always-visible key: subtle, self-documenting, never shouts */
   .er-key { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 11px; padding-top: 10px;
     border-top: 1px solid rgba(240,192,96,.12); font: 600 var(--fs-2xs)/1.5 var(--mono); color: #8a7e68; letter-spacing: .03em; }
@@ -5936,6 +5950,9 @@
       // v1218 (Engine Room r9) — SESSION STORY: the whole reel's shape (found / read / retro-caught /
       // tallies / duration), shown the moment you scrub into a reel — the SHAPE before you drill in.
       + '<div class="er-reelcard" id="er-reelcard" hidden></div>'
+      // v1219 (Engine Room r10) — THE LIVE READ FEED: when ON AIR, the last few reads as they land,
+      // each with its frame + who owned it + the verdict — the "live time" half of the north star.
+      + '<div class="er-livefeed" id="er-livefeed" hidden></div>'
       // v1213 (Engine Room r3→r4) — the ALWAYS-VISIBLE KEY: decodes the cockpit's two glyph systems
       // (the reader net + the health colours) so nothing on the spine/timeline has to be guessed.
       + '<div class="er-key" aria-hidden="true">'
@@ -6076,15 +6093,40 @@
       + ' <span class="eh-x">·</span> <span style="opacity:.65">drag ▶ to NOW for live</span>';
     var rc = document.getElementById('er-reelcard');   // v1218 r9 — the reel scorecard, shown while scrubbing a reel
     if (rc){ rc.innerHTML = _erReelScorecard(reel); rc.hidden = false; }
+    var lf = document.getElementById('er-livefeed'); if (lf) lf.hidden = true;   // v1219 r10 — live feed is on-air only
   }
   function _engineRoomRetro(){
     if (ER.focusTs == null || !ER.focusSid) return;
     _engineRoomLoadReel(ER.focusSid, ER.focusN, function(beats){ _engineRoomRenderRetro(beats); });
   }
+  // v1219 (Engine Room r10) — the live read feed: the last few reads from status.liveRing (the in-memory
+  // ring the reconciler keeps), each with its frame + owner + verdict. Refreshes every live poll = reads
+  // visibly flow. Degrades to a "waiting" line before the first read; thumbnails onerror-hide.
+  function _erLiveFeed(st){
+    var ring = (st && st.liveRing) || [];
+    if (!ring.length) return '<div class="erlf-head">📡 LIVE READS <span class="erlf-sub">the reader net, as reads land</span></div>'
+      + '<div class="erlf-empty">watching — waiting for the first read…</div>';
+    var recent = ring.slice(-6).reverse();   // newest first
+    return '<div class="erlf-head">📡 LIVE READS <span class="erlf-sub">the last few, newest first</span></div>'
+      + '<div class="erlf-strip">'
+      + recent.map(function(r){
+          var owner = _ER_OWNER[r.owner] || r.owner || '— read';
+          var verd = r.verdict ? (_ER_VERDICT[r.verdict] || r.verdict) : '';
+          var thumb = r.f ? '<img class="erlf-thumb" src="/hist/' + encodeURIComponent(r.f) + '.jpg?w=140" loading="lazy" alt="" onerror="this.style.display=\'none\'">' : '';
+          return '<div class="erlf-card">' + thumb
+            + '<div class="erlf-meta"><div class="erlf-owner">' + esc(owner) + '</div>'
+            + (verd ? '<div class="erlf-verd">' + esc(verd) + '</div>' : '')
+            + (r.why ? '<div class="erlf-why">' + esc(String(r.why)) + '</div>' : '')
+            + '</div></div>';
+        }).join('')
+      + '</div>';
+  }
   function _engineRoomReadoutLive(st){
     var rc = document.getElementById('er-reelcard'); if (rc) rc.hidden = true;   // v1218 r9 — scorecard is retro-only
-    var ro = document.getElementById('er-readout'); if (!ro) return;
     st = st || {}; var on = (st.mode === 'live'); var dr = st.driver || {}, ey = st.eyes || {};
+    var lf = document.getElementById('er-livefeed');   // v1219 r10 — live read feed shows only ON AIR
+    if (lf){ if (on){ lf.innerHTML = _erLiveFeed(st); lf.hidden = false; } else lf.hidden = true; }
+    var ro = document.getElementById('er-readout'); if (!ro) return;
     var ageS = (st.eyeAgeMs != null && st.eyeAgeMs >= 0) ? (Math.round(st.eyeAgeMs / 100) / 10 + 's') : '—';
     ro.innerHTML = '<span class="er-ro-tag ' + (on ? 'er-ro-live' : 'er-ro-idle') + '">' + (on ? '● LIVE · NOW' : '● idle') + '</span> '
       + (on ? ('🔴 ' + (st.readCount||0) + ' reads <span class="eh-x">·</span> last frame ' + ageS + ' <span class="eh-x">·</span> 🚦 ' + (dr.fired||0) + ' routed <span class="eh-x">·</span> 🧠 ' + (ey.kaiMissed||0) + ' retro-caught')
