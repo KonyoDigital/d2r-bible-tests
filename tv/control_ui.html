@@ -1490,6 +1490,12 @@
   .sh-sort-sel option { background: #14100a; color: var(--text); }
   .sh-search-count { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .04em; color: #8a7e68; font-variant-numeric: tabular-nums; margin-left: auto; }
   .sh-no-match { font: 500 var(--fs-base)/1.5 var(--mono); color: #9a8e70; font-style: italic; text-align: center; padding: 6vh 20px; }
+  /* v1285 (D10) — day-group headers span the shelf grid, sectioning the newest-sorted runs by date */
+  .sh-daygroup { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; margin: 10px 2px 0;
+    padding-bottom: 7px; border-bottom: 1px solid rgba(200,180,120,.14); }
+  .sh-daygroup:first-child { margin-top: 0; }
+  .shg-lab { font: 800 var(--fs-md)/1 var(--serif); letter-spacing: .1em; color: #e8cf96; }
+  .shg-n { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: #8a7e68; }
   @media (prefers-reduced-motion: no-preference) { .hh-card { transition: border-color .14s, box-shadow .14s, transform .14s; } .hh-card:hover { transform: translateY(-2px); } }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
@@ -4976,6 +4982,31 @@
       return gn(b, 'data-t0') - gn(a, 'data-t0');   // newest (default)
     });
     for (var i = 0; i < cards.length; i++) grid.appendChild(cards[i]);   // re-append in sorted order
+    _shGroups();
+  }
+  // v1285 (D10) — DAY-GROUPING: lightweight date headers (Today · Yesterday · This week · Older) over the VISIBLE,
+  // sorted cards, honest per-group counts. Only in the date-ordered (Newest) view — a non-date sort gracefully
+  // collapses to a flat list (headers omitted) since day sections would scatter. Composes with search/filter.
+  function _shGroups(){
+    var ov = $('th-shelfov'); if (!ov || ov.hidden) return;
+    var grid = ov.querySelector('.sh-grid'); if (!grid) return;
+    var old = grid.querySelectorAll('.sh-daygroup'); for (var k = 0; k < old.length; k++) old[k].remove();
+    if ((SHELF_S || 'newest') !== 'newest') return;   // graceful collapse under a non-date sort
+    var now = new Date(), startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var startYest = startToday - 864e5, weekAgo = startToday - 6 * 864e5;
+    var bucket = function(t0){ return !t0 ? 'older' : (t0 >= startToday ? 'today' : (t0 >= startYest ? 'yesterday' : (t0 >= weekAgo ? 'week' : 'older'))); };
+    var LAB = { today: 'Today', yesterday: 'Yesterday', week: 'This week', older: 'Older' };
+    var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){ return c.style.display !== 'none'; });
+    var counts = {}; vis.forEach(function(c){ var b = bucket(+c.getAttribute('data-t0') || 0); counts[b] = (counts[b] || 0) + 1; });
+    var seen = {};
+    vis.forEach(function(c){
+      var b = bucket(+c.getAttribute('data-t0') || 0);
+      if (!seen[b]){ seen[b] = 1;
+        var h = document.createElement('div'); h.className = 'sh-daygroup';
+        h.innerHTML = '<span class="shg-lab">' + LAB[b] + '</span><span class="shg-n">' + counts[b] + ' run' + (counts[b] === 1 ? '' : 's') + '</span>';
+        grid.insertBefore(h, c);
+      }
+    });
   }
   function _shToggleFilter(f){
     if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
@@ -5015,6 +5046,7 @@
       var on = (f === 'grail' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
       chips[j].classList.toggle('on', !!on);
     }
+    _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set
   }
   $('th-shelf').onclick = function(){ thShelf(); };
   // v940.5 — ⋯ MORE: the drawer for the rare controls (forensics / clip / delete)
