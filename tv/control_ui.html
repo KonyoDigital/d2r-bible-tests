@@ -6465,9 +6465,17 @@
     return null;
   }
   function _erReelFlags(beats){
+    // v1227 (Engine Room r18) — count each flag kind INDEPENDENTLY (a frame can be both held AND
+    // retro-caught), so "retro-caught" here agrees with the reel scorecard's kaiMissed. `total` stays the
+    // count of DISTINCT flagged frames (the jump set), so the kinds may sum to more than the total.
     var flags = [], c = { held: 0, super: 0, caught: 0, stall: 0 };
     (beats || []).filter(function(x){ return x.frame; }).sort(function(a, d){ return (a.ts || 0) - (d.ts || 0); })
-      .forEach(function(b){ var k = _erFlagKind(b); if (k){ flags.push(b); c[k]++; } });
+      .forEach(function(b){
+        var held = (b.gatePass === false), sup = !!(b.super && b.super.reread), caught = !!(b.kaiMissTexts && b.kaiMissTexts.length),
+            stall = !!(b.completedTs && b.ts && (b.completedTs - b.ts) / 1000 >= 8);
+        if (held) c.held++; if (sup) c.super++; if (caught) c.caught++; if (stall) c.stall++;
+        if (held || sup || caught || stall) flags.push(b);   // distinct flagged frames = the jump set
+      });
     return { frames: flags, counts: c, total: flags.length };
   }
   window._engineRoomJumpFlag = function(dir){
