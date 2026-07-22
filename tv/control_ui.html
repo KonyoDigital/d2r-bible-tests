@@ -1483,6 +1483,11 @@
     background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 999px; padding: 8px 13px; }
   .sh-chip:hover { color: var(--gold); border-color: var(--gold-antique); }
   .sh-chip.on { color: #1a1206; background: var(--gold); border-color: var(--gold); }
+  .sh-sort-wrap { display: inline-flex; align-items: center; gap: 6px; font: 700 var(--fs-2xs)/1 var(--mono); color: var(--gold-dim);
+    letter-spacing: .04em; background: rgba(0,0,0,.4); border: 1px solid var(--edge); border-radius: 10px; padding: 0 10px 0 12px; flex: none; }   /* v1284 (D11) — sort selector */
+  .sh-sort-sel { font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .03em; color: var(--text); cursor: pointer;
+    background: transparent; border: none; padding: 10px 4px; outline: none; }
+  .sh-sort-sel option { background: #14100a; color: var(--text); }
   .sh-search-count { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .04em; color: #8a7e68; font-variant-numeric: tabular-nums; margin-left: auto; }
   .sh-no-match { font: 500 var(--fs-base)/1.5 var(--mono); color: #9a8e70; font-style: italic; text-align: center; padding: 6vh 20px; }
   @media (prefers-reduced-motion: no-preference) { .hh-card { transition: border-color .14s, box-shadow .14s, transform .14s; } .hh-card:hover { transform: translateY(-2px); } }
@@ -4885,8 +4890,10 @@
       var _verd = sm.watchdogViolations > 0 ? 'flagged' : (sm.kaiMissed != null ? 'clean' : 'unsealed');
       _sq.push(_verd === 'unsealed' ? '' : _verd);
       var _hasGrail = (sm.finds || []).some(function(f){ return f.tier === 'grail'; }) ? '1' : '0';   // v1283 (D9) — filter attrs
+      var _foundN = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || 0);   // v1284 (D11) — sort keys
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n
         + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
+        + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
         + art
         + '<b>session ' + n + '</b>' + (sm.stub ? ' <span class="sh-dim">· ghost</span>' : '') + '<br>'
@@ -4907,6 +4914,9 @@
     // (grail · clean/flagged · date window) — search AND filters together, one honest "N of M" count. Pure UI.
     var searchBar = cards
       ? '<div class="sh-search-wrap"><input type="search" id="sh-search" class="sh-search" placeholder="Search runs — item · area · grail · session…" autocomplete="off" spellcheck="false">'
+        + '<label class="sh-sort-wrap" title="sort the runs">↕<select id="sh-sort" class="sh-sort-sel">'   // v1284 (D11) — sort selector, composes with search+filters
+        + '<option value="newest">Newest</option><option value="longest">Longest</option>'
+        + '<option value="found">Most found</option><option value="reads">Most reads</option></select></label>'
         + '<span class="sh-search-count" id="sh-search-count"></span></div>'
         + '<div class="sh-filter-bar">'
         + '<button type="button" class="sh-chip" data-f="grail">🏆 grail</button>'
@@ -4931,6 +4941,13 @@
       _si.onkeydown = function(e){ e.stopPropagation(); if (e.key === 'Escape'){ if (_si.value){ _si.value = ''; _shFilter(); } else { _si.blur(); } } };
       if (SHELF_Q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day) _shFilter();   // re-apply the active search+filters after a re-render
     }
+    var _ss = $('sh-sort');
+    if (_ss){
+      _ss.value = SHELF_S;                       // restore the sort across the poll's re-renders
+      _ss.onchange = function(){ SHELF_S = _ss.value; _shSort(); };
+      _ss.onkeydown = function(e){ e.stopPropagation(); };   // arrow keys navigate options, never the theatre transport
+      _shSort();                                  // apply the (persisted or default) sort on every render
+    }
     ov.onclick = function(e){
       if (e.target.closest && e.target.closest('#th-shelf-x')){ ov.hidden = true; return; }
       var chip = e.target.closest && e.target.closest('.sh-chip');
@@ -4943,6 +4960,23 @@
   }
   var SHELF_Q = '';   // v1282 (D8) — the live shelf-search query, preserved across shelf re-renders
   var SHELF_F = { grail: false, verdict: null, day: null };   // v1283 (D9) — composable shelf filters, preserved too
+  var SHELF_S = 'newest';   // v1284 (D11) — the shelf sort key, preserved too
+  // v1284 (D11) — SORT the run cards (composes with search+filters: reorders the whole set, filter hides the rest).
+  // Reads sort keys straight off the card data-attrs; re-appends in order. Newest / longest / most-found / most-reads.
+  function _shSort(){
+    var ov = $('th-shelfov'); if (!ov || ov.hidden) return;
+    var grid = ov.querySelector('.sh-grid'); if (!grid) return;
+    var cards = [].slice.call(grid.querySelectorAll('.sh-card'));
+    var gn = function(c, a){ return +c.getAttribute(a) || 0; };
+    var key = SHELF_S || 'newest';
+    cards.sort(function(a, b){
+      if (key === 'longest') return (gn(b, 'data-t1') - gn(b, 'data-t0')) - (gn(a, 'data-t1') - gn(a, 'data-t0'));
+      if (key === 'found') return gn(b, 'data-found') - gn(a, 'data-found') || gn(b, 'data-t0') - gn(a, 'data-t0');
+      if (key === 'reads') return gn(b, 'data-reads') - gn(a, 'data-reads') || gn(b, 'data-t0') - gn(a, 'data-t0');
+      return gn(b, 'data-t0') - gn(a, 'data-t0');   // newest (default)
+    });
+    for (var i = 0; i < cards.length; i++) grid.appendChild(cards[i]);   // re-append in sorted order
+  }
   function _shToggleFilter(f){
     if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
     else if (f.indexOf('verdict:') === 0){ var v = f.slice(8); SHELF_F.verdict = (SHELF_F.verdict === v) ? null : v; }
