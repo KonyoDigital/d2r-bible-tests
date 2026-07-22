@@ -8961,6 +8961,20 @@ function _magicFindCardHtml(name){
     ? '<section class="gic-section"><div class="gic-sec-title">'+(skiller?'🎯 ':'📜 ')+'Stats read from your screenshot</div>'
       + mods.map(function(m){ return '<div class="att-aff att-var" style="font-size:var(--fs-body)">'+_d2artEsc(m)+'</div>'; }).join('') + '</section>'
     : '';
+  // v1287 (E1 — VAULT STATS) — if this keeper was muled THROUGH the AI Item Checker, show its attached verdict
+  // (KEEP / BORDERLINE / TOSS + score + when), so a checker-verified mule visibly carries its judgement, not
+  // just its affixes. Bare intakes (no checker record) show nothing here — honest provenance.
+  var _chk = (typeof _mfChecker === 'function') ? _mfChecker(name) : null;
+  var chkHtml = _chk ? (function(){
+    var vt=_chk.verdict, lbl=vt==='keep'?'✅ KEEP':vt==='border'?'⚖ BORDERLINE':'🗑 TOSS',
+        vc=vt==='keep'?'#66ff88':vt==='border'?'#f0c060':'#ff7a7a';
+    var when=''; try{ if(_chk.checkedAt) when='checked '+new Date(_chk.checkedAt).toLocaleDateString(); }catch(e){}
+    return '<div class="mf-checked" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 2px;padding:7px 10px;border:1px solid '+vc+'55;border-radius:8px;background:'+vc+'12;font-size:12px">'
+      + '<span style="color:#9fd4ff;font-weight:700">🔬 AI Checker</span>'
+      + '<span style="color:'+vc+';font-weight:800">'+lbl+'</span>'
+      + (_chk.score!=null?'<span style="color:var(--text-dim)">score '+_chk.score+'</span>':'')
+      + (when?'<span style="color:var(--text-dim);margin-left:auto">'+when+'</span>':'')+'</div>';
+  })() : '';
   // v376 — for a socketable magic/rare/etc item (weapon/armor/helm/shield), show the QUALITY-aware
   // Larzuk/cube guidance: a magic item is GEM-only (NOT a runeword base — runewords need white/normal).
   // Returns '' for charms/jewels/rings/amulets (not socketable), so this is a no-op there.
@@ -8970,7 +8984,8 @@ function _magicFindCardHtml(name){
     + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">'
     + artHtml
     + '<div class="gic-id-block"><h2 class="gic-name" style="color:'+col+'">'+_d2artEsc(name)+'</h2>'
-    + '<div class="gic-subtitle">'+(base?_d2artEsc(base)+' · ':'')+q+' keeper · 🔮 Magic &amp; Rare'+(skiller?' · 🎯 Skiller':'')+'</div></div></header>'
+    + '<div class="gic-subtitle">'+(base?_d2artEsc(base)+' · ':'')+q+' keeper · 🔮 Magic &amp; Rare'+(skiller?' · 🎯 Skiller':'')+(_chk?' · 🔬 checked':'')+'</div></div></header>'
+    + chkHtml
     + modsHtml
     + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'+blurb
     + ' Tracked as a rolled-name keeper'+(mods.length?' — stats above were read from your screenshot.':' — there\'s no fixed drop card, so this is the summary.')+'</div>'+_sg+_cubeUpNote(name)+'</section>'
@@ -14590,6 +14605,10 @@ try { Object.keys(magicFinds).forEach(function(k){ if (typeof magicFinds[k] === 
 function _mfQual(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.q||'magic'):(v||'magic'); }
 function _mfBase(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.base||''):''; }
 function _mfMods(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object'&&Array.isArray(v.mods))?v.mods:[]; }
+// v1287 (E1 — VAULT STATS) — the AI-Item-Checker VERDICT attached to a muled keeper (verdict tier + score +
+// when it was checked). Returns null for bare intakes that were never run through the checker, so the card can
+// honestly distinguish a checker-VERIFIED mule ("🔬 checked · KEEP") from a plain name-only keeper.
+function _mfChecker(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object'&&v.checked&&v.verdict)?{verdict:v.verdict, score:(typeof v.score==='number'?v.score:null), checkedAt:v.checkedAt||null}:null; }
 // rolled-name magic/rare items have no UNIQUE art — in-game they're the BASE sprite. Map base → a sprite
 // we self-host (charms + jewels + the elite bases); null falls back to a quality-coloured glyph.
 // Pass the base type OR the full rolled name — the rolled name usually ENDS with its base
@@ -28750,7 +28769,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(!base && !hasMods){ status('🔬 nothing to keep — drop or enter an item first'); return; }
     var nm=String(it.name||'').trim() || ((it.q==='rare'?'Rare ':it.q==='crafted'?'Crafted ':'Magic ')+(base||'Item'));
     var mods=(it.mods||[]).map(function(m){ return String(m).trim(); }).filter(Boolean);
-    try { magicFinds[nm]={ q:it.q||'magic', base:base, mods:mods }; } catch(e){}
+    // v1287 (E1 — VAULT STATS) — attach the checker's VERDICT + score + timestamp to the muled keeper, so a
+    // checker-verified mule carries its full read (affixes + judgement), not just a name. TRUTHFUL: only the
+    // verdict the checker actually computed from the affixes on the item; `checked:true` marks the provenance so
+    // the vault card can show "🔬 checked" and distinguish these from bare intakes. Backward-compatible (old
+    // entries simply lack these fields → _mfChecker returns null).
+    var _av=null; try { _av=_aicVerdict(it); } catch(e){}
+    try {
+      var _rec={ q:it.q||'magic', base:base, mods:mods };
+      if (_av && _av.tier){ _rec.checked=true; _rec.verdict=_av.tier; if(typeof _av.score==='number') _rec.score=_av.score; _rec.checkedAt=Date.now(); }
+      magicFinds[nm]=_rec;
+    } catch(e){}
     try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm]) assign[nm]=sg.id; } catch(e){}
     try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
@@ -34341,7 +34370,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1286', name:'📈 Sessions Flagship D12 - History Timeline (completes the shelf cluster)', date:'2026-07-22', note:'📈 Sessions flagship D12 - history timeline. Above the shelf there is now a small activity sparkline: fourteen day-bars built from your runs, each bar as tall as the number of runs that day, days that produced a grail drawn in gold, today marked, and a hover that names the day with its run and grail counts, over a short summary of the whole window. The counts are real with no smoothing, cross-checked against the true session count, and the strip stays a steady overview of all runs rather than following the live filters, so it reads as a calm bird-eye view above the cards you are filtering. This completes the sessions history experience - finds, dossier, decision story, recovery, seal and regret, then search, filter, sort, day-grouping and now the timeline - as one cohesive product. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1287', name:'🏦 E1 Vault Stats - AI Checker Verdict Attached to Muled Items', date:'2026-07-23', note:'🏦📊 E1 vault stats - the AI Item Checker verdict now rides onto muled items. When you keep a magic or rare item through the AI Item Checker, the vault already remembered the affixes it read; now it also remembers the checkers judgement - keep, borderline or toss, its score, and when it was checked - and shows it on that items vault card as a checker badge, with a checked tag in the subtitle. So a keeper you ran through the checker visibly carries its full read, its stats and its verdict, and stands apart from a bare intake that was never checked. It only ever shows the verdict the checker really computed from the item, older keepers without a check simply show no badge, and nothing else in the vault changes. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
