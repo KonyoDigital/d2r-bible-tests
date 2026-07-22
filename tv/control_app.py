@@ -5677,7 +5677,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1279",
+        "ver": "v1280",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6215,6 +6215,7 @@ class Handler(BaseHTTPRequestHandler):
                 _km, _kc = None, None
                 _thrown = set()
                 _keepers = []
+                _keeper_info = {}   # v1280 (D7 engine) — lowered-name → {name, frameId, ts} for regret chips
                 _registered = None   # v943 — 📖 how many items KAI witnessed this session
                 _finds = None        # v1254 R1 — 📖 the ACTUAL items KAI witnessed (card-facing, capped)
                 _topFind = None      # v1254 R1 — the single best find (grail else newest) for the shelf teaser
@@ -6246,9 +6247,17 @@ class Handler(BaseHTTPRequestHandler):
                         _thrown.add(str(nm2).strip().lower())
                     _jd = (r2.get("kai") or {}).get("judge") if isinstance(r2.get("kai"), dict) else None
                     if isinstance(_jd, dict) and _jd.get("tier") == "keep" and _jd.get("name"):
-                        _keepers.append(str(_jd["name"]).strip().lower())
+                        _kn = str(_jd["name"]).strip()
+                        _keepers.append(_kn.lower())
+                        # v1280 (D7 engine) — remember where this keeper was seen (for the regret jump chip)
+                        _keeper_info.setdefault(_kn.lower(), {"name": _kn, "frameId": r2.get("frameId"), "ts": r2.get("ts")})
                 # v940 💔 — a REGRET = the judge ruled KEEP on something this session threw out
                 _regrets = sum(1 for k2 in _keepers if k2 in _thrown)
+                # v1280 (D7 engine) — the regret SPOTLIGHT items: each thrown-then-judged-KEEP name, named +
+                # frame-located for the jump chip. TRUTHFUL: only names that were BOTH thrown AND ruled keep;
+                # dormant (None) when there are no regrets — which is every current session (no thrown_names
+                # in the journal yet), so it stays honestly empty until a real regret occurs.
+                _regret_items = [_keeper_info[k2] for k2 in dict.fromkeys(_keepers) if k2 in _thrown and k2 in _keeper_info] or None
                 # v1253 R1 (DIABLO-LANGUAGE) — richer scene breakdown ALONGSIDE kaiClasses
                 # (which collapses to stash/gameplay/tooltip). This tallies the READS' OWN
                 # Diablo scene + stashTab straight from the journal, so the shelf/fingerprint
@@ -6277,6 +6286,7 @@ class Handler(BaseHTTPRequestHandler):
                 # the reel had no item text at all (nothing to report).
                 _coverage, _class_frames = None, None
                 _super_recovery, _missed_frames = None, None   # v1278 (D6 engine)
+                _seal_ms = None   # v1280 (D7 engine)
                 _rreport = _reel_report_cached(
                     os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or "")))
                 if _rreport:
@@ -6336,12 +6346,27 @@ class Handler(BaseHTTPRequestHandler):
                     if _mf_list:
                         _mf_list.sort(key=lambda x: x.get("ts") or 0)
                         _missed_frames = _mf_list[:24]
+                    # v1280 (D7 engine) — seal-latency: closedAt − run-end. TRUTHFUL guard: a re-swept reel's
+                    # closedAt lands hours/days after the run (a reseal, NOT a seal latency), so only emit when
+                    # the gap is plausibly a real seal (>0 and ≤30min); otherwise leave it absent (the chip hides).
+                    _ca = _rreport.get("closedAt")
+                    if isinstance(_ca, (int, float)):
+                        _rend = None
+                        if isinstance(_eframes, list) and _eframes:
+                            _rend = max((f.get("ts") or 0) for f in _eframes)
+                        if not _rend:
+                            _rend = sess[-1].get("ts")
+                        if _rend:
+                            _dlt = int(_ca) - int(_rend)
+                            if 0 < _dlt <= 30 * 60 * 1000:
+                                _seal_ms = _dlt
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
                             "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
                             "finds": _finds, "topFind": _topFind,   # v1254 R1 — 📖 what KAI witnessed this session
                             "coverage": _coverage, "classFrames": (_class_frames or None),   # v1276 (D5 engine) — decision-story meter + montage
                             "superRecovery": _super_recovery, "missedFrames": _missed_frames,   # v1278 (D6 engine) — recovery badge + missed-text drill
+                            "sealMs": _seal_ms, "regretItems": _regret_items,   # v1280 (D7 engine) — seal-latency chip + regret spotlight
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
