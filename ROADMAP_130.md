@@ -16,12 +16,12 @@ Rules: integer version per round · ×3 stamp parity (tv_diablo VERSION == contr
 
 ## PHASE A · G3 UNIFIED AUTO-ROUTE / TALLY (finish the sunder-tally arc) — v1291–1298
 Architecture (Konyo 2026-07-23): **chronicle/tracked items → full AI auto-pipeline (judge→route→verify→tally); everything else → AI Item Checker → vault mule/throw.** Sweep already built read-only + reviewed.
-- [ ] v1291 · G3 server `/api/autoroute-sweep` endpoint (read-only aggregate; MAX-of-snapshot; intake-lane inclusive) — gate g3-sweep's engine
-- [ ] v1292 · G3 bible apply UI — merge-max diff + Apply; TWO buckets (🔄 auto-route trackers · 🔬 send to Item Checker→vault) + tiny honest "unclear"
+- [x] v1291 · G3 server `/api/autoroute-sweep` endpoint (read-only, intake-inclusive, MAX-snapshot) **+ the bible apply UI (merge-max diff + Apply + provenance "🤖 KAI filled" + honest "review manually" bucket)** — delivered TOGETHER; endpoint JSON-verified on real data, merge-max 13/13 in node, live-vocab recovers the undercount uniques. **Folds in what I'd planned as 1292 (apply UI) + 1294 (provenance).**
+- [ ] v1292 · G3 two-bucket completion — a "→ send to Item Checker" action on the review-manually list (route non-chronicle bases/rolled into the checker→vault flow) + a live-intake "run the sweep" nudge
 - [ ] v1293 · G3 live-routing forward — chronicle items auto-route into trackers as scanned (same brain, going forward)
-- [ ] v1294 · G3 provenance tags ("🔄 G3 filled") + the review gate on auto-fills
-- [ ] v1295 · G3 sunder(4/6)+statue(5/5) seed verified on a real apply; de-dup/held-count truth (read N× = 1 held)
-- [ ] v1296 · G3 the non-chronicle → Item-Checker→vault wiring (bases/rolled route to the checker queue, E1 stats)
+- [ ] v1294 · (folded into v1291 — provenance done)
+- [ ] v1295 · G3 sunder(4/6)+statue(5/5) seed verified on Konyo's real apply (happens when he clicks Apply); de-dup/held-count truth
+- [ ] v1296 · (folded — the non-chronicle→checker list is in v1291; the action is v1292)
 - [ ] v1297 · G3 auto-route audit/verify pass (no false tallies; honest "unclear"; RotW-base labels)
 - [ ] v1298 · G3 cohesion + verify — one unified smart routing brain, end to end
 

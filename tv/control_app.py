@@ -4188,6 +4188,14 @@ def _reel_report_cached(reel_dir):
 #  · UNIQUES are deliberately left to the browser: only the runtime ITEM_REGISTRY
 #    (~403, built from BOSSES[].dropTable) is authoritative, so every non-stackable
 #    name ships as a `candidate` for the UI to classify against live vocab (caveat 3).
+#
+# Konyo's routing model (the UI splits `candidates` into 3 outcomes, no dead-end):
+#  1) tracked/chronicle item → auto-route into its tracker (the merge-max apply).
+#  2) non-chronicle real item (RotW/white bases · rolled magic/rare) → the 🔬 AI Item
+#     Checker → vault path (keep-or-toss + mule), NOT auto-tallied.
+#  3) genuinely unreadable → a tiny "unclear · needs a look" list.
+# The endpoint stays outcome-agnostic: it returns the stackable tallies + the raw
+# `candidates`; the browser (which holds ITEM_REGISTRY) does the 3-way routing.
 
 _AUTOROUTE_RUNES = [
     "El", "Eld", "Tir", "Nef", "Eth", "Ith", "Tal", "Ral", "Ort", "Thul", "Amn",
@@ -5894,7 +5902,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1291",
+        "ver": "v1292",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
