@@ -348,3 +348,4 @@ polish-ui-2 (control_ui.html): compact always-visible KEY footer decoding read-c
 ## ✅ GATED: v1220 (48/80) — 813ac20 — ER arc round 11 TWO-COLUMN HERO (frame image + conclusion side-by-side, evidence below; pure layout, reads as one instrument). Console @ v1220. ER 11/20. Round 12 → v1221 (discoverability/read-text/cohesion).
 ## ✅ GATED: v1221 (49/80) — 9bceb21 — ER arc round 12 READ TEXT vs FRAME ('📖 the AI read this frame as' beside the frame image, owning-layer output, raw OCR shown = debug value). Console @ v1221. ER 12/20. Round 13 → v1222 (50/80 milestone).
 ## ✅ GATED: v1222 (50/80 MILESTONE) — b680391 — ER arc round 13 KEYBOARD DISCOVERABILITY. Console @ v1222. ER 13/20. Round 14 → v1223.
+## ✅ GATED: v1223 (51/80) — 00f9ac1 — ER arc round 14 MATCHED NAME (beat already carries clean b.names + raw b.ocr_raw; hero shows clean + '⚡ cleaned up from <raw>'; sibling-beat merge by frameId). Console @ v1223. ER 14/20. Round 15 → v1224.
