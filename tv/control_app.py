@@ -3699,7 +3699,7 @@ def _kai_super_select(routing, sess_rows, fullnames=None, cap=None):
 # _ENGINE_FRAMES_LIVE deque near the bottom of _engine_driver's 2s loop).
 # ═══════════════════════════════════════════════════════════════════════════════════
 
-# ── v1322 B4 — DIABLO-LANGUAGE: game-true scene labels ──────────────────────────
+# ── v1325 B4 (engine landed v1324, recorded v1325) — DIABLO-LANGUAGE: game-true scene labels ──────────────────────────
 # The reader emits a raw scene (town|stash|inventory|loot|gameplay|transition) + area.
 # This DETERMINISTIC layer turns (scene, area) into the label a D2 player would say —
 # ENTERING <area> · TOWN <area> · FARMING <area> — and decides TOWN-vs-FARMING (safe vs
@@ -3915,7 +3915,7 @@ def _kai_reconcile(routing, register, sess_rows):
                     "scene": _scene,
                     "tab": (_sc[1] or None) if _sc else None,
                     "area": _area,
-                    # v1322 B4 — game-true label (ENTERING/TOWN/FARMING + area) for the UI
+                    # v1325 B4 (engine landed v1324, recorded v1325) — game-true label (ENTERING/TOWN/FARMING + area) for the UI
                     "native": _diablo_scene_label(_scene, _area)})
     return out
 
@@ -5974,7 +5974,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1324",
+        "ver": "v1325",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
