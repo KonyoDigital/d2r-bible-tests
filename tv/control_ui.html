@@ -1566,6 +1566,17 @@
   .er-reelcard .erc-hot .erc-v { color: #9df0bd; }
   .er-reelcard .erc-k { margin-top: 3px; font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #8a7e68; }
   .er-reelcard .erc-notable { margin-top: 8px; font: 600 var(--fs-2xs)/1.4 var(--mono); color: #f0d89a; letter-spacing: .04em; }
+  /* v1232 (GHOST MODE r3) — GRAIL-BY-DATE strip: your grail count as of the scrubbed moment (the Time
+     Machine "watch your grail journey" — truthful, from the found-log). Shown only while scrubbing retro. */
+  .er-grailt { margin-top: 10px; padding: 12px 15px; border-radius: 10px; border: 1px solid rgba(201,168,255,.32);
+    background: linear-gradient(180deg, rgba(30,24,52,.5), rgba(12,10,24,.42)); }
+  .er-grailt[hidden] { display: none; }
+  .er-grailt .egt-head { font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #c9b8ff; margin-bottom: 7px; }
+  .er-grailt .egt-body { display: flex; align-items: baseline; gap: 8px; }
+  .er-grailt .egt-n { font: 800 var(--fs-xl)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; text-shadow: 0 0 20px rgba(201,168,255,.35); }
+  .er-grailt .egt-slash { color: #6f6a58; margin: 0 1px; } .er-grailt .egt-body > span:nth-child(2) { color: #b7a884; font: 700 var(--fs-md)/1 var(--mono); }
+  .er-grailt .egt-lab { font: 600 var(--fs-2xs)/1.3 var(--mono); letter-spacing: .04em; color: #9a8d73; text-transform: uppercase; }
+  .er-grailt .egt-note { margin-top: 8px; font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .03em; color: #8f86ad; }
   /* v1219 (Engine Room r10) — the live read feed: the last few reads as they land (ON AIR only) */
   .er-livefeed { margin-top: 10px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(143,230,160,.28);
     background: linear-gradient(180deg, rgba(16,26,18,.4), rgba(8,10,8,.3)); }
@@ -1826,15 +1837,30 @@
      A pure add-on: the switch lives on the shell; ON adds body.ghost-on (recede/dim the console — CSS only,
      nothing inline on the console) + shows the #ghost-mode overlay. OFF drops the class + hides the overlay
      = ZERO trace. The Engine Room is untouched. ══ */
-  .ghost-switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-right: 10px;
-    font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #b9a6d8;
-    background: rgba(120,90,200,.12); border: 1px solid rgba(160,130,255,.35); border-radius: 8px; padding: 7px 11px;
-    transition: color .15s, border-color .15s, background .15s, box-shadow .15s; }
-  .ghost-switch:hover { color: #e0d4ff; border-color: rgba(160,130,255,.7); background: rgba(120,90,200,.22); box-shadow: 0 0 14px rgba(160,130,255,.25); }
-  .ghost-switch:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(160,130,255,.6); }
-  .ghost-switch.on { color: #1a1030; background: #c9a8ff; border-color: #c9a8ff; box-shadow: 0 0 16px rgba(201,168,255,.4); }
+  /* v1232 (GHOST MODE fix) — the debugger switch gets its OWN slot in the right cluster, clearly separated
+     from the tab rail (a divider) and never overlapping the tabs/clock/OFF AIR. It goes icon-only when the
+     header is tight so it always fits; the full "GHOST MODE" label shows when there's room. */
+  .ghost-switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; white-space: nowrap;
+    margin-left: clamp(8px, 1vw, 16px); padding-left: clamp(10px, 1vw, 16px); border-left: 1px solid rgba(240,192,96,.18);
+    font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #b9a6d8; }
+  .ghost-switch .gs-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 7px 11px;
+    background: rgba(120,90,200,.12); border: 1px solid rgba(160,130,255,.35); transition: color .15s, border-color .15s, background .15s, box-shadow .15s; }
+  .ghost-switch:hover .gs-pill { color: #e0d4ff; border-color: rgba(160,130,255,.7); background: rgba(120,90,200,.22); box-shadow: 0 0 14px rgba(160,130,255,.25); }
+  .ghost-switch:focus-visible { outline: none; }
+  .ghost-switch:focus-visible .gs-pill { box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(160,130,255,.6); }
+  .ghost-switch.on .gs-pill { color: #1a1030; background: #c9a8ff; border-color: #c9a8ff; box-shadow: 0 0 16px rgba(201,168,255,.4); }
   .ghost-switch .gs-ic { font-size: var(--fs-sm); }
-  @media (max-width: 900px){ .ghost-switch .gs-lab { display: none; } }
+  /* icon-only when the header is tight (never overlaps) — full label only when the window is roomy */
+  @media (max-width: 1360px){ .ghost-switch .gs-lab { display: none; } .ghost-switch .gs-pill { padding: 7px 9px; } }
+  /* v1232 (GHOST MODE fix) — at narrow windows the tab rail compacts so the (new) switch + clock + OFF AIR
+     always fit with NO overlap. Higher specificity (.topbar .head-tabs .ht) so it beats the later !important
+     padding rule. The tabs still work — just tighter when the window is narrow. */
+  @media (max-width: 1250px){
+    .topbar .brand { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+    .topbar .head-tabs { flex: 1 1 0; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .topbar .head-tabs::-webkit-scrollbar { height: 0; display: none; }
+    .topbar .head-tabs .ht { padding: 7px 9px !important; letter-spacing: .01em; flex: 0 0 auto; } }
+  @media (max-width: 1080px){ .topbar .head-tabs .ht { padding: 6px 7px !important; font-size: var(--fs-xs); } }
 
   /* the console recedes into the past — EVERY line here is scoped to body.ghost-on, so dropping the class
      leaves ZERO residue on the console (verified: computed transform/filter return to none when off). */
@@ -1882,7 +1908,7 @@
       <div class="head-right">
         <!-- v1230 (GHOST MODE r1) — the console's DEBUGGER SWITCH: flip ON → the whole console ghost-shells
              into the past (a pure add-on overlay; OFF removes it with zero trace). -->
-        <button class="ghost-switch" id="ghost-switch" type="button" onclick="window._ghostToggle()" title="GHOST MODE — the console time machine (debug)"><span class="gs-ic">👻</span><span class="gs-lab">GHOST&nbsp;MODE</span></button>
+        <button class="ghost-switch" id="ghost-switch" type="button" onclick="window._ghostToggle()" title="GHOST MODE — the console debugger / time machine"><span class="gs-pill"><span class="gs-ic">👻</span><span class="gs-lab">GHOST&nbsp;MODE</span></span></button>
         <div class="clock"><span id="clock-t">--:--:--</span><span class="d" id="clock-d">—</span></div>
         <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
       </div>
@@ -6042,6 +6068,9 @@
         + '<button class="er-live-btn" id="er-live-btn" onclick="window._engineRoomLive()" title="snap back to NOW">● LIVE</button></div>'
       + '<div class="er-axiswrap"><div class="er-axis" id="er-axis"></div><div class="er-cursor" id="er-cursor" hidden></div></div>'
       + '<div class="er-readout" id="er-readout"></div>'
+      // v1232 (GHOST MODE r3) — THE TRUTHFUL TIME MACHINE REWIND · GRAIL-BY-DATE: scrub the timeline into
+      // the past → your grail count AS OF that moment, from d2r_foundLog (exact for the found-once-kept case).
+      + '<div class="er-grailt" id="er-grailt" hidden></div>'
       // v1218 (Engine Room r9) — SESSION STORY: the whole reel's shape (found / read / retro-caught /
       // tallies / duration), shown the moment you scrub into a reel — the SHAPE before you drill in.
       + '<div class="er-reelcard" id="er-reelcard" hidden></div>'
@@ -6189,6 +6218,32 @@
     var rc = document.getElementById('er-reelcard');   // v1218 r9 — the reel scorecard, shown while scrubbing a reel
     if (rc){ rc.innerHTML = _erReelScorecard(reel); rc.hidden = false; }
     var lf = document.getElementById('er-livefeed'); if (lf) lf.hidden = true;   // v1219 r10 — live feed is on-air only
+    var gt = document.getElementById('er-grailt');     // v1232 GHOST r3 — grail-by-date, as of the scrub moment
+    if (gt){ var g = _grailAtT(best.ts || ER.focusTs); if (g){ gt.innerHTML = _erGrailStrip(g, best.ts || ER.focusTs); gt.hidden = false; } else gt.hidden = true; }
+  }
+  // v1232 (GHOST MODE r3) — GRAIL-BY-DATE, truthful: count the d2r_foundLog entries stamped on/before T.
+  // foundLog = {itemName: "MMM DD, YYYY · HH:MM"} (same-origin localStorage). EXACT for the found-once-kept
+  // case; an un-tick deletes a stamp (loses found→unfound→found), which we note honestly, never fake.
+  function _grailAtT(T){
+    if (!T) return null;
+    var raw; try { raw = localStorage.getItem('d2r_foundLog'); } catch (e) { return null; }
+    if (!raw) return null;
+    var log; try { log = JSON.parse(raw); } catch (e) { return null; }
+    var found = 0, logged = 0;
+    for (var name in log){ if (!Object.prototype.hasOwnProperty.call(log, name)) continue; logged++;
+      var t = Date.parse(String(log[name]).replace(/\s*·\s*/, ' '));
+      if (!isNaN(t) && t <= T) found++;
+    }
+    if (!logged) return null;
+    var total = null; try { var fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); if (fs && fs.grail && fs.grail.total) total = fs.grail.total; } catch (e) {}
+    return { found: found, logged: logged, total: total };
+  }
+  function _erGrailStrip(g, T){
+    var when = T ? new Date(T).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '?';
+    var denom = g.total ? (' <span class="egt-slash">/</span> ' + g.total) : '';
+    return '<div class="egt-head">⏪ THE GRAIL · as of ' + esc(when) + '</div>'
+      + '<div class="egt-body"><span class="egt-n">' + g.found + '</span>' + denom + ' <span class="egt-lab">uniques found by this moment</span></div>'
+      + '<div class="egt-note">🏆 from your found-log · real & exact for the found-once-kept case</div>';
   }
   function _engineRoomRetro(){
     if (ER.focusTs == null || !ER.focusSid) return;
@@ -6218,6 +6273,7 @@
   }
   function _engineRoomReadoutLive(st){
     var rc = document.getElementById('er-reelcard'); if (rc) rc.hidden = true;   // v1218 r9 — scorecard is retro-only
+    var gt = document.getElementById('er-grailt'); if (gt) gt.hidden = true;      // v1232 GHOST r3 — grail-by-date is retro-only
     st = st || {}; var on = (st.mode === 'live'); var dr = st.driver || {}, ey = st.eyes || {};
     var lf = document.getElementById('er-livefeed');   // v1219 r10 — live read feed shows only ON AIR
     if (lf){ if (on){ lf.innerHTML = _erLiveFeed(st); lf.hidden = false; } else lf.hidden = true; }
