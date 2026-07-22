@@ -33562,6 +33562,11 @@ window._sessionDoMission = function(){
         else if (m.status === 'pipe' && window.forgeSetFilter) window.forgeSetFilter('pipeline');
       } catch(e){}
     }, 80);
+  } else if (m.kind === 'set'){
+    // v1273 — set PIECES aren't in ITEMS (openItemDetail 404s → "item not found"); land on
+    // F·Sets and snap to Quick-wins where the last piece + its best run + a ✓ button live.
+    if (window.switchTab) window.switchTab('fsets');
+    setTimeout(function(){ try { if (window.fsetsSetFilter) window.fsetsSetFilter('near'); } catch(e){} }, 80);
   } else if (m.kind === 'grail'){
     if (typeof window.openItemDetail === 'function') window.openItemDetail(m.name);
     else if (typeof window.openDrop === 'function') window.openDrop(m.name);
@@ -33709,7 +33714,7 @@ window.renderSessionCockpit = function(){
       else if (_tgt && _tgt.key==='grail' && _tgt.op)
         mission = { name:_tgt.op.item, kind:'grail', status:'hunt', label:'Grail rotation — best farm', task:null, auto:true, rot:_tgt };
       else if (_tgt && _tgt.key==='sets' && _tgt.op)
-        mission = { name:_tgt.op.pieceClean, kind:'grail', status:'hunt', label:'Set rotation — '+_tgt.op.set, task:null, auto:true, rot:_tgt };
+        mission = { name:_tgt.op.pieceClean, kind:'set', status:'hunt', label:'Set rotation — '+_tgt.op.set, task:null, auto:true, rot:_tgt, setName:_tgt.op.set };
       else if (_scFuni && _scFuni.missing && _scFuni.missing[0])
         mission = { name:_scFuni.missing[0].n, kind:'grail', status:'hunt', label:'Nearest dark corner of the wall', task:null, auto:true };
       else if (_rotM && _rotM.sealed)
@@ -33728,7 +33733,7 @@ window.renderSessionCockpit = function(){
       else if (t.sub === 'cube') detail = 'Cube up runes, then forge';
       else if (mission.status === 'now') detail = 'Everything in hand — open Forge and socket in order';
       else if (t.base && t.base.base) detail = 'Base: <b>'+esc(t.base.base)+'</b>'+(t.need?(' · '+t.need+'os'):'');
-    } else if (mission.kind === 'grail'){
+    } else if (mission.kind === 'grail' || mission.kind === 'set'){
       // v1270 (G2) — rotation targets carry a real best-boss + odds + route; deepen the brief with them.
       if (mission.rot && mission.rot.op){
         var _o = mission.rot.op;
@@ -33839,7 +33844,8 @@ window.renderSessionCockpit = function(){
           rest.push({ tag:'grail', cls:'want', item:c.op.item, act:'Open',
             txt:'🏆 <b>'+esc(c.op.item)+'</b> — '+esc(c.op.boss||'best run')+(c.op.oddsStr?' <span style="opacity:.72">'+esc(c.op.oddsStr)+'</span>':'')+' · '+c.left+' uniques left' });
         } else if (c.key==='sets' && c.op){
-          rest.push({ tag:'set', cls:'want', item:c.op.pieceClean, act:'Open',
+          // v1273 — set pieces aren't in ITEMS; route the OPS row to F·Sets (quick-wins), not openItemDetail.
+          rest.push({ tag:'set', cls:'want', goTab:'fsets', setNear:true, act:'Open',
             txt:'🧩 <b>'+esc(c.op.set)+'</b> — '+esc(c.op.detail) });
         }
       });
@@ -33878,7 +33884,8 @@ window.renderSessionCockpit = function(){
             var op = ops[i]; if (!op) return;
             if (op.goTab){
               if (window.switchTab) window.switchTab(op.goTab);
-              if (op.filter) setTimeout(function(){ try{ window.forgeSetFilter&&window.forgeSetFilter(op.filter);}catch(e){} }, 100);
+              if (op.setNear) setTimeout(function(){ try{ window.fsetsSetFilter&&window.fsetsSetFilter('near');}catch(e){} }, 100);
+              else if (op.filter) setTimeout(function(){ try{ window.forgeSetFilter&&window.forgeSetFilter(op.filter);}catch(e){} }, 100);
             } else if (op.item){
               if (window.openItemDetail) window.openItemDetail(op.item);
               else if (window.openDrop) window.openDrop(op.item);
@@ -33914,6 +33921,8 @@ window.renderSessionCockpit = function(){
           v = { cls:'yes', text:'Mission forged — TZ is free real estate. Grail or next word.' };
       } else if (mission.kind === 'grail'){
         v = { cls:'yes', text:'Grail mission — open '+mname+' card; if this TZ holds its boss/superunique, dive in.' };
+      } else if (mission.kind === 'set'){
+        v = { cls:'yes', text:'Set mission — chasing '+mname+'; if this TZ boosts its best run, farm here.' };
       }
       return v;
     }
@@ -34181,7 +34190,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1272', name:'👻 Ghost Mode Retired (broken+redundant; grail-journey moves to Sessions)', date:'2026-07-22', note:'👻🗑 Ghost Mode retired. The Time-Machine debugger overlay was broken on click and had become redundant with the Sessions flagship, which now covers retro inspection more naturally, so the whole thing was removed cleanly: the header switch, the ghost shell and its scrubbers, and the entire Engine-Room debugger it wrapped, none of which the Sessions Theatre depended on. Over thirteen hundred lines came out with zero dead references and no console errors, the header reflows cleanly to the remaining tabs, and everything else - the home, the Sessions history and dossier, the reader eyes, the live pulse and the accuracy badge - is untouched and verified. Shared animation, reduced-motion and engine-health rules were preserved for their non-ghost uses. The one genuinely good piece, the grail-journey scrubber where you watch your grail climb across the months, is kept in spirit and will be rebuilt fresh inside the Sessions tab from your found-log. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1273', name:'🔧 Task-Force Set-Mission Routing Fix (no more item-not-found)', date:'2026-07-22', note:'🔧 Task-Force set-mission routing fix. Konyo clicked Do-this-now and the OPS queue Open button on a set-piece task and both dead-ended on "item not found". The rotation engine was tagging set missions the same as grail missions, so the console tried to open the set piece as if it were a unique item, looking it up in the unique/runeword catalogue where set pieces do not live, and falling through to the not-found card. Grail unique tasks worked fine; only set tasks broke. Now a set task is recognised as a set: the Do-this-now button and the OPS queue Open button both take you to the F.Sets tab and snap to Quick-wins, where the last piece, its best farm run and a tick button all live, and the mission brief and battlefield guidance now speak in set terms too. Clicking any set task lands somewhere real. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
