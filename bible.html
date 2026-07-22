@@ -14720,7 +14720,35 @@ function _mfMods(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v=
 // v1287 (E1 — VAULT STATS) — the AI-Item-Checker VERDICT attached to a muled keeper (verdict tier + score +
 // when it was checked). Returns null for bare intakes that were never run through the checker, so the card can
 // honestly distinguish a checker-VERIFIED mule ("🔬 checked · KEEP") from a plain name-only keeper.
-function _mfChecker(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object'&&v.checked&&v.verdict)?{verdict:v.verdict, score:(typeof v.score==='number'?v.score:null), checkedAt:v.checkedAt||null}:null; }
+function _mfChecker(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object'&&v.checked&&v.verdict)?{verdict:v.verdict, score:(typeof v.score==='number'?v.score:null), checkedAt:v.checkedAt||null, checks:(typeof v.checks==='number'?v.checks:1), reconciled:!!v.reconciled, agree:(v.agree!==false), disputed:(Array.isArray(v.disputed)?v.disputed:null), verdictReads:(Array.isArray(v.verdictReads)?v.verdictReads:null)}:null; }
+// v1308 (E1b — FUNNEL-2×) — reconcile two AI-Checker reads of the SAME item into one record.
+// TRUTHFUL: mods present in BOTH reads are confident (kept); a mod in only one read is DISPUTED
+// (surfaced honestly, never silently dropped). If the two verdicts match → agree (confidence up);
+// if they differ → the record is flagged unclear with both reads shown. A 2× pass is optional —
+// it only happens when the same item is run through the checker again. Backward-compatible.
+function _aicReconcile(prev, cur){
+  var norm = function(m){ return String(m||'').toLowerCase().replace(/\s+/g,' ').trim(); };
+  var pMods=(prev.mods||[]), cMods=(cur.mods||[]);
+  var pSet={}; pMods.forEach(function(m){ pSet[norm(m)]=1; });
+  var cSet={}; cMods.forEach(function(m){ cSet[norm(m)]=1; });
+  var disputed=[];
+  pMods.forEach(function(m){ if(!cSet[norm(m)]) disputed.push(m); });
+  cMods.forEach(function(m){ if(!pSet[norm(m)] && disputed.indexOf(m)<0) disputed.push(m); });
+  var verdictAgree = (prev.verdict||null) === (cur.verdict||null);
+  var modsAgree = disputed.length===0;
+  // keep the richer read's mods for display (union preserves every stat either read saw)
+  var union=[]; var seen={};
+  pMods.concat(cMods).forEach(function(m){ var k=norm(m); if(k && !seen[k]){ seen[k]=1; union.push(m); } });
+  var rec={ q: cur.q||prev.q||'magic', base: cur.base||prev.base||'', mods: union,
+            checked:true, verdict: verdictAgree ? cur.verdict : (prev.verdict||cur.verdict),
+            score: (typeof cur.score==='number'?cur.score:(typeof prev.score==='number'?prev.score:null)),
+            checkedAt: Date.now(), checks: (typeof prev.checks==='number'?prev.checks:1)+1,
+            reconciled:true, agree: (verdictAgree && modsAgree) };
+  if(!verdictAgree) rec.verdictReads=[prev.verdict||'?', cur.verdict||'?'];
+  if(disputed.length) rec.disputed=disputed;
+  return rec;
+}
+try { window._aicReconcile=_aicReconcile; } catch(e){}   // exposed for tests
 // rolled-name magic/rare items have no UNIQUE art — in-game they're the BASE sprite. Map base → a sprite
 // we self-host (charms + jewels + the elite bases); null falls back to a quality-coloured glyph.
 // Pass the base type OR the full rolled name — the rolled name usually ENDS with its base
@@ -29356,16 +29384,30 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // the vault card can show "🔬 checked" and distinguish these from bare intakes. Backward-compatible (old
     // entries simply lack these fields → _mfChecker returns null).
     var _av=null; try { _av=_aicVerdict(it); } catch(e){}
+    var _reconciled=null;
     try {
       var _rec={ q:it.q||'magic', base:base, mods:mods };
       if (_av && _av.tier){ _rec.checked=true; _rec.verdict=_av.tier; if(typeof _av.score==='number') _rec.score=_av.score; _rec.checkedAt=Date.now(); }
+      // v1308 (E1b) — 2× funnel: if this name was ALREADY checker-verified, reconcile the two reads
+      // (raise confidence on agreement; flag honestly on disagreement) instead of overwriting.
+      var _prev = magicFinds[nm];
+      if (_rec.checked && _prev && typeof _prev==='object' && _prev.checked && typeof _aicReconcile==='function'){
+        _rec = _aicReconcile(_prev, _rec);
+        _reconciled = _rec;
+      }
       magicFinds[nm]=_rec;
     } catch(e){}
     try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm]) assign[nm]=sg.id; } catch(e){}
     try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     var mu=(assign[nm]&&muleById(assign[nm]))?(' → '+muleById(assign[nm]).name):'';
-    status('🏦 '+nm+' kept in 🔮 Magic & Rare'+mu);
+    if (_reconciled){
+      var _cn=_reconciled.checks||2;
+      if (_reconciled.agree) status('🏦 '+nm+' — ✅ 2× confirmed ('+_cn+' agreeing reads) · kept in 🔮 Magic & Rare'+mu);
+      else { var _d=(_reconciled.disputed||[]).length; status('🏦 '+nm+' — ⚖ 2× checked, '+(_reconciled.verdictReads?'verdict unclear ('+_reconciled.verdictReads.join(' vs ')+')':(_d+' stat'+(_d===1?'':'s')+' unclear'))+' · kept for review'+mu); }
+    } else {
+      status('🏦 '+nm+' kept in 🔮 Magic & Rare'+mu);
+    }
     _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker();
   };
   function _aicMsg(html, show){ var el=document.getElementById('aic-msg'); if(el){ el.innerHTML=html; el.style.display=(show===false?'none':'block'); } try{ status(String(html).replace(/<[^>]+>/g,'')); }catch(e){} }
@@ -34951,7 +34993,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1305', name:'🟣 G4 Grok Add-on COMPLETE - Self-describing Flags + Removal Proven Clean', date:'2026-07-23', note:'🟣 G4 Grok add-on complete - and proven removable. This closes out the whole Grok accuracy layer you asked for. A small cohesion fix makes each flagged disagreement carry its own label - which of the three checks caught it - so the review list always describes itself clearly. And the removal test was re-run after this change and still passes: the entire Grok layer can be deleted cleanly, leaving the app byte-for-byte as if it were never there. So the full picture is done exactly to spec: off by default, safe for your cousin, needs your own key, watches only the three uncertain spots, only ever flags for your review and never overrides, has hard spend caps and per-check selection, keeps its flags in one honest review panel, and lifts out without a trace whenever you decide you no longer need it. The only thing left is for you to add your key and switch it on when you want to try it. control_app.py only.' };
+  window.D2R_BUILD = { id:'v1306', name:'🏆 Sessions Flagship D17 - Best-run / Streak Highlights', date:'2026-07-23', note:'🏆 Sessions flagship D17 - best runs and streaks. The top of the shelf now greets you with a short row of highlight cards drawn from your runs: your best run by grails, your highest read count, your best reads-per-hour, your best coverage, and your current farming streak of consecutive days. Each single-run card is a tap away from that runs full detail. It only ever shows real bests - if there is no data for a category, that card simply does not appear rather than inventing a number - and if one run happens to be the best on more than one measure it honestly shows up in each, since they measure different things. It reads off the run data already loaded and costs nothing extra. control_ui.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

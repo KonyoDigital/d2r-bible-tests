@@ -35,7 +35,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1303 · G4 "🟣 Grok caught this" review surface **(landed v1302)** — GET /api/g4_flags + panel in the Grok card; reads g4.agree===false from register+journal; honest empty state (0 on real data). 6/6 tests.
 - [x] v1304 · G4 credit-aware rate limit + selective config **(landed v1304)** — daily(300)+hourly(40) caps from one 24h ring, per-seam G4_GROK_SEAMS (run only e.g. grail-recheck), budget surfaced in the card, seam-gate no-network. + G4_GROK_REMOVAL.md doc.
 - [x] v1305 · G4 REMOVAL TEST — **PASSED.** Anchored-fence stripper on scratch copies: `rm g4_grok.py` + delete every fenced block → py_compile holds, 16 bible scripts compile, 0 G4 traces (`grep GROK ADD-ON|g4_grok|_g4` empty), G3 sweep returns identical (sunders 4/6, runes 32, gems 33). Proves "lifts out clean." Doc `tv/G4_GROK_REMOVAL.md` (stripper + proof). Verification-only (no code change) → certification folds into the v1306 commit.
-- [ ] v1306 · G4 cohesion + honest labeling — self-describing `kind` per seam flag + full-arc verify sweep [in flight]
+- [x] v1306 · G4 cohesion + honest labeling **(landed v1305)** — self-describing `kind` per seam flag; full-arc verify green (23/23 regression, removal test still clean). **✅ PHASE B / G4 COMPLETE end-to-end, provably removable.**
 
 ## PHASE C · SESSIONS FLAGSHIP DEPTH (remaining D-rounds) — v1307–1320
 - [x] v1307 · D14 session comparison **(landed v1301)** — ⚖ Compare overlay, 8 metric rows w/ ▲/▼ deltas (farming higher-better mint/red + winner glow), scene-mix diff, honest "—", pure UI. [in flight: D16 area heatmap]

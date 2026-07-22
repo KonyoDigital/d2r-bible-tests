@@ -9,6 +9,9 @@ Anything I couldn't decide autonomously overnight lands here so I never block th
 ## 💅 Small polish items (your call, non-blocking)
 - **Duration format** — the app shows run duration as minutes (e.g. "192m00s") everywhere (shelf/dossier/compare). For multi-hour runs that reads long; an h:m format ("3h12m") would be nicer but it's an app-wide helper change touching every surface. Want it? I'll do it app-wide in one small round.
 
+## ⏸️ Deferred to a careful daytime pass (not autonomous-safe)
+- **G3 live-forward auto-route** — the "items auto-route into trackers AS you scan" half of your unified vision. I built the retro back-fill (the 🔄 sweep, ready for your Apply) but held the LIVE-forward wiring for daytime: it touches the live scan pipeline, and I didn't want to risk that autonomously overnight. It's queued — say go when you're up and I'll design it read-first, then wire it gated (same careful pattern as the sweep).
+
 ## 🟢 Decisions I made autonomously (veto any in the morning)
 - **G4 toggle UI → bible.html, Tools tab, right by the 🔄 Auto-route Sweep panel** (revised from console — cleaner: it's one agent's lane, user-facing, and reads the g4_status/g4_toggle routes directly). OFF by default; shows honest state (OFF / "ON — needs your xAI key" / "ON — active"). It already works headless via env/state file, so this is the convenience switch. Say the word if you'd rather it live in the console instead.
 - **G3 sweep:** built exactly to your merge-max / review-gated / chronicle-vs-checker spec; nothing writes to your trackers until you open Tools → 🔄 Auto-route Sweep → Scan → review the diff → Apply. The sunder back-fill (4/6) is waiting there.
