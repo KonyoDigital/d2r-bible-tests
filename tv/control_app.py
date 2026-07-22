@@ -3867,132 +3867,143 @@ def _kai_closer_loop():
             class_frames = {}          # v935.11 R5 — {cls: count} over every line-producing frame
             routing_scan = []          # v944 🚦 — per-scanned-frame label evidence (routing ledger)
             scanned = textframes = 0
-            for it in frames:
-                fp = os.path.join(rd, it.get("f") or "")
-                if not os.path.isfile(fp):
-                    continue
-                try:
-                    wp.stdin.write(fp + "\n"); wp.stdin.flush()
-                    line = wp.stdout.readline()
-                    j = json.loads(line) if line else {}
-                except Exception:
-                    break
-                scanned += 1
-                raw = j.get("lines") or []
-                texts = [t for t in raw if _kai_itemish(t)]
-                # R5 — classify every frame that produced OCR lines, before the missed decision.
-                _ocr_cls = _kai_frame_cls(raw, texts) if raw else None   # v944 — OCR's own verdict
-                # v947 — EVERY film still gets intake-style eyes (tab chrome + grid fingerprint).
-                # Does NOT call gemIntake/runeIntake/materialIntake — only mimics their crops.
-                _fts5 = int(it.get("ts") or 0)
-                _near = _kai_sticky_tab(_fts5, stash_times)
-                _eye = {}
-                try:
-                    from stash_eye import analyze_frame as _se_analyze
-
-                    def _wp_read(p):
-                        try:
-                            wp.stdin.write(p + "\n"); wp.stdin.flush()
-                            line = wp.stdout.readline()
-                            return json.loads(line) if line else {}
-                        except Exception:
-                            return {}
-
-                    # v948.7 — allow_grid_solo: film stills rechecked without live deep sticky
-                    _eye = _se_analyze(
-                        fp,
-                        ocr_lines=raw,
-                        journal_tab=str(_near or ""),
-                        model_tab="",
-                        ocr_worker_read=_wp_read,
-                        work_dir=rd,
-                        allow_grid_solo=True,
-                    )
-                except Exception:
-                    _eye = {}
-                _eye_cls = str((_eye or {}).get("cls") or "")
-                _eye_tab = str((_eye or {}).get("tab") or "")
-                _eye_src = list((_eye or {}).get("sources") or [])
-                _ocr_tab = str((_eye or {}).get("ocrTab") or "")
-                # fused eye tally only (never raw grid alone — invents materials on loading)
-                if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
-                    _ocr_cls = _eye_cls
-                elif _ocr_cls in (None, "gameplay", "stash", "tooltip"):
-                    _ocr_cls = _kai_tab_strip_refine(fp, _ocr_cls, wp) or _ocr_cls
-                cls = _ocr_cls
-                if _eye_tab in ("runes", "gems", "materials"):
-                    _scls = "stash-" + _eye_tab
-                    class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}
-                    cls = _scls
-                elif _near:
-                    _scls = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
-                    class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}
-                    if not cls or cls in ("gameplay", "stash"):
-                        cls = _scls
-                    elif _near in ("runes", "gems", "materials") and cls == "stash":
-                        cls = _scls
-                elif _eye_cls == "stash":
-                    cls = "stash"
-                if cls:
-                    classes[cls] = classes.get(cls, 0) + 1
-                    class_frames[cls] = {"f": it.get("f"), "ts": it.get("ts")}
-                if texts:
-                    textframes += 1
-                    new = [t for t in texts if t.strip().lower() not in read_text]
-                    name_new = [t for t in new if _kai_nameish(t)]
-                    if name_new:
-                        missed.append({"f": it.get("f"), "ts": it.get("ts"),
-                                       "texts": name_new[:6], "cls": cls})
-                # v944/v947/v948.7 🚦 — votes from fused eyes
-                # Vault sticky (personal/shared) must NOT veto tally grid/tabstrip on the
-                # same film still — that blocked materials retro-funnel when live deep
-                # only named shared/personal.
-                _jlab = None
-                if _near in ("runes", "gems", "materials"):
-                    _jlab = "stash-" + _near
-                elif _near in ("personal", "shared"):
-                    _jlab = "stash"   # weak: panel open only, not a tally veto
-                elif _near:
-                    _jlab = "stash"
-                _ts_lab = ("stash-" + _ocr_tab) if _ocr_tab in ("runes", "gems", "materials") else (
-                    "stash" if _ocr_tab in ("personal", "shared") else None)
-                # grid vote — v1194: only from the fused tab when grid ITSELF corroborated
-                # it (else that's OCR's own chrome-strip read double-counted as a second
-                # "independent" class); else the raw pixel-only gridLabel (solo materials/
-                # gems/runes). See _kai_grid_vote_label.
-                _raw_gl = str((_eye or {}).get("gridLabel") or "")
-                _gr_lab = _kai_grid_vote_label(_eye_tab, _eye_src, _raw_gl, _eye_cls)
-                _disp = cls or "gameplay"
-                if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
-                    _disp = _eye_cls
-                elif _gr_lab in ("stash-runes", "stash-gems", "stash-materials"):
-                    _disp = _gr_lab
-                elif _ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
-                    _disp = _ocr_cls
-                elif _jlab and _jlab.startswith("stash-") and _jlab != "stash":
-                    _disp = _jlab
-                elif _jlab:
-                    _disp = _jlab if not (cls and str(cls).startswith("stash-")) else cls
-                routing_scan.append({
-                    "f": it.get("f"), "ts": int(it.get("ts") or 0),
-                    "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
-                    "ocrLabel": _ocr_cls if (_ocr_cls and _ocr_cls != "gameplay") else None,
-                    "journal": bool(_near),
-                    "journalLabel": _jlab,
-                    "tabstrip": bool(_ts_lab),
-                    "tabstripLabel": _ts_lab,
-                    "grid": bool(_gr_lab),
-                    "gridLabel": _gr_lab,
-                    "stashTab": _eye_tab or (_near or ""),
-                    "label": _disp or "gameplay",
-                    "sig": _kai_frame_sig(fp),
-                    "eyeSources": _eye_src,
-                })
-                time.sleep(0.08)   # peaceful — slightly faster; intake-style crops are small
+            # v1207 — WORKER-ORPHAN-LEAK class (funnel/closer side, same vein as v1206's
+            # core _WORKER/_OCR fix): `wp` (the ocr_mac --worker subprocess) was only
+            # terminated by a plain sequential statement AFTER this for-loop — if ANYTHING
+            # in 120+ lines of per-frame processing raised an exception this loop's own
+            # inner try/excepts don't already catch, execution jumped straight past the
+            # cleanup to the closer's outer per-reel except (below), leaving `wp` running
+            # forever — and since the closer just sleeps and moves to the NEXT reel, each
+            # such failure spawns ANOTHER orphaned worker on top of the last. try/finally
+            # guarantees the worker is always reaped, however this pass ends.
             try:
-                wp.stdin.close(); wp.terminate()
-            except Exception:
-                pass
+                for it in frames:
+                    fp = os.path.join(rd, it.get("f") or "")
+                    if not os.path.isfile(fp):
+                        continue
+                    try:
+                        wp.stdin.write(fp + "\n"); wp.stdin.flush()
+                        line = wp.stdout.readline()
+                        j = json.loads(line) if line else {}
+                    except Exception:
+                        break
+                    scanned += 1
+                    raw = j.get("lines") or []
+                    texts = [t for t in raw if _kai_itemish(t)]
+                    # R5 — classify every frame that produced OCR lines, before the missed decision.
+                    _ocr_cls = _kai_frame_cls(raw, texts) if raw else None   # v944 — OCR's own verdict
+                    # v947 — EVERY film still gets intake-style eyes (tab chrome + grid fingerprint).
+                    # Does NOT call gemIntake/runeIntake/materialIntake — only mimics their crops.
+                    _fts5 = int(it.get("ts") or 0)
+                    _near = _kai_sticky_tab(_fts5, stash_times)
+                    _eye = {}
+                    try:
+                        from stash_eye import analyze_frame as _se_analyze
+
+                        def _wp_read(p):
+                            try:
+                                wp.stdin.write(p + "\n"); wp.stdin.flush()
+                                line = wp.stdout.readline()
+                                return json.loads(line) if line else {}
+                            except Exception:
+                                return {}
+
+                        # v948.7 — allow_grid_solo: film stills rechecked without live deep sticky
+                        _eye = _se_analyze(
+                            fp,
+                            ocr_lines=raw,
+                            journal_tab=str(_near or ""),
+                            model_tab="",
+                            ocr_worker_read=_wp_read,
+                            work_dir=rd,
+                            allow_grid_solo=True,
+                        )
+                    except Exception:
+                        _eye = {}
+                    _eye_cls = str((_eye or {}).get("cls") or "")
+                    _eye_tab = str((_eye or {}).get("tab") or "")
+                    _eye_src = list((_eye or {}).get("sources") or [])
+                    _ocr_tab = str((_eye or {}).get("ocrTab") or "")
+                    # fused eye tally only (never raw grid alone — invents materials on loading)
+                    if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                        _ocr_cls = _eye_cls
+                    elif _ocr_cls in (None, "gameplay", "stash", "tooltip"):
+                        _ocr_cls = _kai_tab_strip_refine(fp, _ocr_cls, wp) or _ocr_cls
+                    cls = _ocr_cls
+                    if _eye_tab in ("runes", "gems", "materials"):
+                        _scls = "stash-" + _eye_tab
+                        class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}
+                        cls = _scls
+                    elif _near:
+                        _scls = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
+                        class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}
+                        if not cls or cls in ("gameplay", "stash"):
+                            cls = _scls
+                        elif _near in ("runes", "gems", "materials") and cls == "stash":
+                            cls = _scls
+                    elif _eye_cls == "stash":
+                        cls = "stash"
+                    if cls:
+                        classes[cls] = classes.get(cls, 0) + 1
+                        class_frames[cls] = {"f": it.get("f"), "ts": it.get("ts")}
+                    if texts:
+                        textframes += 1
+                        new = [t for t in texts if t.strip().lower() not in read_text]
+                        name_new = [t for t in new if _kai_nameish(t)]
+                        if name_new:
+                            missed.append({"f": it.get("f"), "ts": it.get("ts"),
+                                           "texts": name_new[:6], "cls": cls})
+                    # v944/v947/v948.7 🚦 — votes from fused eyes
+                    # Vault sticky (personal/shared) must NOT veto tally grid/tabstrip on the
+                    # same film still — that blocked materials retro-funnel when live deep
+                    # only named shared/personal.
+                    _jlab = None
+                    if _near in ("runes", "gems", "materials"):
+                        _jlab = "stash-" + _near
+                    elif _near in ("personal", "shared"):
+                        _jlab = "stash"   # weak: panel open only, not a tally veto
+                    elif _near:
+                        _jlab = "stash"
+                    _ts_lab = ("stash-" + _ocr_tab) if _ocr_tab in ("runes", "gems", "materials") else (
+                        "stash" if _ocr_tab in ("personal", "shared") else None)
+                    # grid vote — v1194: only from the fused tab when grid ITSELF corroborated
+                    # it (else that's OCR's own chrome-strip read double-counted as a second
+                    # "independent" class); else the raw pixel-only gridLabel (solo materials/
+                    # gems/runes). See _kai_grid_vote_label.
+                    _raw_gl = str((_eye or {}).get("gridLabel") or "")
+                    _gr_lab = _kai_grid_vote_label(_eye_tab, _eye_src, _raw_gl, _eye_cls)
+                    _disp = cls or "gameplay"
+                    if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                        _disp = _eye_cls
+                    elif _gr_lab in ("stash-runes", "stash-gems", "stash-materials"):
+                        _disp = _gr_lab
+                    elif _ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                        _disp = _ocr_cls
+                    elif _jlab and _jlab.startswith("stash-") and _jlab != "stash":
+                        _disp = _jlab
+                    elif _jlab:
+                        _disp = _jlab if not (cls and str(cls).startswith("stash-")) else cls
+                    routing_scan.append({
+                        "f": it.get("f"), "ts": int(it.get("ts") or 0),
+                        "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
+                        "ocrLabel": _ocr_cls if (_ocr_cls and _ocr_cls != "gameplay") else None,
+                        "journal": bool(_near),
+                        "journalLabel": _jlab,
+                        "tabstrip": bool(_ts_lab),
+                        "tabstripLabel": _ts_lab,
+                        "grid": bool(_gr_lab),
+                        "gridLabel": _gr_lab,
+                        "stashTab": _eye_tab or (_near or ""),
+                        "label": _disp or "gameplay",
+                        "sig": _kai_frame_sig(fp),
+                        "eyeSources": _eye_src,
+                    })
+                    time.sleep(0.08)   # peaceful — slightly faster; intake-style crops are small
+            finally:
+                try:
+                    wp.stdin.close(); wp.terminate()
+                except Exception:
+                    pass
             # v948.7 RETRO CLUSTER PROMOTE — consecutive plain-stash stills get majority
             # grid/tabstrip tally vote so materials/gems/runes on film funnel even when
             # live deep never named that tab (Theatre has the pixels = recheck).
@@ -5153,7 +5164,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1206",
+        "ver": "v1207",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

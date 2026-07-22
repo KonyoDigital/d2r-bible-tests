@@ -1398,6 +1398,43 @@ class TestTabBestTotalSessionScoping(unittest.TestCase):
         self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
 
 
+class TestCloserOcrWorkerNeverOrphaned(unittest.TestCase):
+    """v1207 — WORKER-ORPHAN-LEAK class on the funnel/closer side (same vein as v1206's core
+    _WORKER/_OCR fix): `_kai_closer_loop` spawns its own `ocr_mac --worker` subprocess (`wp`)
+    once per reel it closes. Before this fix, `wp.terminate()` was a plain sequential
+    statement placed AFTER the ~120-line per-frame processing loop — any exception inside
+    that loop NOT already caught by one of its own inner try/excepts skipped straight to the
+    closer's outer per-reel `except Exception: time.sleep(10.0)` (control_app.py, matching
+    the top-level `try:` right after `while True:`), leaving `wp` running forever. Worse: the
+    closer just sleeps and moves on to the NEXT reel, spawning ANOTHER orphaned worker on top
+    of the last one on every subsequent failure. Structural pin (the loop runs inside a live
+    background thread inside a huge function, not independently callable): pins that the
+    per-frame loop is now wrapped in try/finally so the worker is reaped unconditionally."""
+
+    def test_frame_loop_wrapped_in_try_finally_around_worker_cleanup(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        # the spawn must be followed by a try: that wraps the for-loop, then a finally: that
+        # terminates the worker — not a bare sequential cleanup after the loop.
+        spawn_idx = src.index('wp = subprocess.Popen([ocr_bin, "--worker"]')
+        after_spawn = src[spawn_idx:]
+        try_idx = after_spawn.index("try:\n                for it in frames:")
+        finally_idx = after_spawn.index("finally:")
+        self.assertGreater(finally_idx, try_idx,
+                            "finally: must come after the try: wrapping the for-loop")
+        tail = after_spawn[finally_idx:finally_idx + 200]
+        self.assertIn("wp.stdin.close(); wp.terminate()", tail)
+        # terminate() itself must stay defensively wrapped — a dead/gone process can raise
+        self.assertIn("except Exception:", tail)
+
+    def test_worker_spawn_failure_path_unchanged(self):
+        # regression guard: the spawn-failure branch (worker never even started) must still
+        # skip the reel cleanly — this fix only changes the POST-spawn cleanup path.
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn('print(f"🧠 KAI: worker spawn failed ({e}) — skipping reel"); continue', src)
+
+
 class TestDrvLiveJudgedReserve(unittest.TestCase):
     """v1205 — FUNNEL analog of engine-read's worker-orphan leak: `_engine_driver`'s
     `live_judged` dedup set is owned by ONE daemon thread that runs for the process's entire
