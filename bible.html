@@ -3813,7 +3813,7 @@ try {
       <div class="legend-item-card">
         <div class="legend-color-block lc-best"></div>
         <div class="legend-item-text">
-          <div class="legend-item-title">⭐ FASTEST <span style="opacity:.6;font-weight:400">(item card)</span></div>
+          <div class="legend-item-title">⭐ FASTEST <span style="opacity:.6;font-weight:var(--fw-regular)">(item card)</span></div>
           <div class="legend-item-desc">Open any item's detail card (🔍 calculator or search) — the boss/difficulty source with the best 1:N is marked fastest.</div>
         </div>
       </div>
@@ -4229,7 +4229,7 @@ try {
   </header>
   <section class="gic-section">
   <div class="gic-section-title">📍 Where it drops</div>
-  <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span>. <span class="zd-item-click" data-art-logo="Colossal Ancient Statue" data-art-glyph="📋" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="openDrop('Colossal Ancient Statue')">open the Colossal Ancient Statue ID card →</span></div>
+  <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="openDrop('Colossal Summit')">Colossal Summit →</span>. <span class="zd-item-click" data-art-logo="Colossal Ancient Statue" data-art-glyph="📋" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="openDrop('Colossal Ancient Statue')">open the Colossal Ancient Statue ID card →</span></div>
   </section>
   <section class="gic-section">
   <div class="gic-section-title">🗿 Track your 5 — open each ID card</div>
@@ -4239,7 +4239,7 @@ try {
     <span class="statue-progress-text" id="statue-text">0 / 5</span>
   </div>
   <div class="statue-tracker" id="statue-tracker"></div>
-  <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span> to summon the <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="openDrop('Colossal Ancients')">Colossal Ancients →</span> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" data-art-logo="Colossal Ancient Jewels" data-art-glyph="💎" style="color:var(--q-orange);font-weight:600" onclick="openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></div>
+  <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="openDrop('Colossal Summit')">Colossal Summit →</span> to summon the <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="openDrop('Colossal Ancients')">Colossal Ancients →</span> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" data-art-logo="Colossal Ancient Jewels" data-art-glyph="💎" style="color:var(--q-orange);font-weight:var(--fw-medium)" onclick="openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></div>
   </section>
   </div>
   </div>
@@ -4274,7 +4274,7 @@ try {
   <!-- v907 (Konyo: 'flagship SESSIONS as the main homepage dashboard for the ENTIRE website') —
        the console's DAILY TASK FORCE design, board-native: fed by the LIVE forgeScan -->
   <section class="sc-card" id="sc-taskforce" style="display:none">
-    <div class="sc-card-h">🗓 Daily Task Force <span id="sc-tf-date" style="opacity:.5;font-weight:400;margin-left:8px"></span></div>
+    <div class="sc-card-h">🗓 Daily Task Force <span id="sc-tf-date" style="opacity:.5;font-weight:var(--fw-regular);margin-left:8px"></span></div>
     <div class="sc-tf-rows" id="sc-tf-rows"></div>
   </section>
 
@@ -4627,7 +4627,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div id="vault-audit" class="vault-audit" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
       <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
-        <summary style="cursor:pointer;color:#7fd4ff;font-weight:600">📸 How to take screenshots the AI can actually read — example below</summary>
+        <summary style="cursor:pointer;color:#7fd4ff;font-weight:var(--fw-medium)">📸 How to take screenshots the AI can actually read — example below</summary>
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px">
           <img id="vault-shot-example" alt="example: in-game text visible — this is what the AI reads" style="max-width:300px;border:1px solid rgba(212,168,71,.5);border-radius:6px;cursor:zoom-in" onclick="window._gildLightboxOpen&&this.src&&window._gildLightboxOpen(this.src,'Example — a real stash screenshot with the tooltip open: the item NAME is visible text, so the AI reads it. Hover an item (or hold Alt over ground loot) before you screenshot.')">
           <div style="flex:1;min-width:240px;line-height:1.6">
@@ -4663,7 +4663,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <!-- v342.15: shared-stash advisory ("don't mule these") -->
       <div id="vault-keep" class="vault-keep" hidden></div>
       <div class="vault-detail" id="vault-detail" hidden></div>
-      <details class="zd-note vd-howto" style="margin-top:10px"><summary style="cursor:pointer;list-style:none;font-weight:600;color:var(--gold-dim,#b89b5e)">ℹ️ How auto-assign &amp; muling works <span style="opacity:.6;font-weight:400">(tap to expand)</span></summary><div style="margin-top:7px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div></details>
+      <details class="zd-note vd-howto" style="margin-top:10px"><summary style="cursor:pointer;list-style:none;font-weight:var(--fw-medium);color:var(--gold-dim,#b89b5e)">ℹ️ How auto-assign &amp; muling works <span style="opacity:.6;font-weight:var(--fw-regular)">(tap to expand)</span></summary><div style="margin-top:7px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div></details>
     </div>
   </div>
 
@@ -5590,7 +5590,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 <div class="tab-content" id="tab-ancients">
 
   <div class="events-intro" style="margin-bottom:24px;padding:14px 18px;border-left:2px solid var(--gold);background:var(--surface)">
-    <div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">The Pinnacle Events</div>
+    <div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">The Pinnacle Events</div>
     <div style="font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:var(--fs-title);color:var(--text);line-height:1.55">Four pinnacle events that gate the deepest endgame: <strong style="color:var(--gold-bright);font-style:normal">Uber Tristram</strong> (Hellfire Torch), <strong style="color:var(--gold-bright);font-style:normal">Diablo Clone</strong> (Annihilus charm), <strong style="color:var(--gold-bright);font-style:normal">Secret Cow Level</strong> (rune farming + density), <strong style="color:var(--gold-bright);font-style:normal">Colossal Ancients</strong> (RotW pinnacle, Colossal Jewels). Plus the seasonal <strong style="color:var(--gold-bright);font-style:normal">22 Nights of Terror</strong> when Blizzard turns it on.</div>
   </div>
 
@@ -5604,7 +5604,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="ec-tier"><div class="ec-tier-label">access</div><div class="ec-tier-val">Hell</div></div>
       <div class="ec-chevron">▾</div>
     </div>
-    <div class="event-card-body" hidden><!-- special-drop:event-uber-tristram --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 The holy grail of this event</div><span class="zd-item zd-item-click" data-art-logo="Hellfire Torch" data-art-glyph="🔥" style="color:var(--q-unique);font-weight:600" onclick="event.stopPropagation(); openDrop('Hellfire Torch')">Hellfire Torch →</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">The <strong>only source</strong> in the game. Cube the 3 Pandemonium Keys → red portal → kill all three ubers in one room. Torch drops 100% per completion, class-randomized: <strong>+3 to a random class's skill tab · +10-20 all res · +10-20 attributes</strong>. Click it for the full material card.</div></div>
+    <div class="event-card-body" hidden><!-- special-drop:event-uber-tristram --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 The holy grail of this event</div><span class="zd-item zd-item-click" data-art-logo="Hellfire Torch" data-art-glyph="🔥" style="color:var(--q-unique);font-weight:var(--fw-medium)" onclick="event.stopPropagation(); openDrop('Hellfire Torch')">Hellfire Torch →</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">The <strong>only source</strong> in the game. Cube the 3 Pandemonium Keys → red portal → kill all three ubers in one room. Torch drops 100% per completion, class-randomized: <strong>+3 to a random class's skill tab · +10-20 all res · +10-20 attributes</strong>. Click it for the full material card.</div></div>
     <p>The deepest endgame fight in D2R. Three Pandemonium Diablos (Uber Diablo + Uber Mephisto + Uber Baal) in one room, simultaneously. Reward: <strong style="color:var(--q-orange)">Standard of Heroes</strong> → <strong style="color:var(--q-orange)">Hellfire Torch</strong> (random class, +3 skills · +20 stats · +10-20 all res large charm).</p>
 
     <h3>🗝️ Step 1 — Farm the three keys (Hell only)</h3>
@@ -5681,7 +5681,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="ec-chevron">▾</div>
     </div>
     <div class="event-card-body" hidden>
-      <div class="lead">The full RotW pinnacle index — cube 5 <strong>Statues</strong> (terrorized Hell act bosses) → <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="event.stopPropagation();openDrop('Colossal Summit')">Colossal Summit →</span> → beat the <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="event.stopPropagation();openDrop('Colossal Ancients')">Colossal Ancients →</span> → keep the <strong>Jewel</strong> matching the Ancient killed last. Tap any tile for its full ID card.</div>
+      <div class="lead">The full RotW pinnacle index — cube 5 <strong>Statues</strong> (terrorized Hell act bosses) → <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="event.stopPropagation();openDrop('Colossal Summit')">Colossal Summit →</span> → beat the <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="event.stopPropagation();openDrop('Colossal Ancients')">Colossal Ancients →</span> → keep the <strong>Jewel</strong> matching the Ancient killed last. Tap any tile for its full ID card.</div>
       <div id="colossal-showcase"></div>
     </div>
   </div>
@@ -5696,7 +5696,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="ec-tier"><div class="ec-tier-label">bovines</div><div class="ec-tier-val">~400</div></div>
       <div class="ec-chevron">▾</div>
     </div>
-    <div class="event-card-body" hidden><!-- special-drop:event-cow-level --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 What you actually farm here</div><span style="color:var(--gold-bright);font-weight:600">Rune volume + a broad unique/set pool</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">Not a single grail item — a <strong>density farm</strong>: ~400+ Hell Bovines per game for rune throughput plus a wide normal-monster unique/set pool. For the rune-specific detail, see the <strong>Cow Level</strong> card in the Runes tab.</div></div>
+    <div class="event-card-body" hidden><!-- special-drop:event-cow-level --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 What you actually farm here</div><span style="color:var(--gold-bright);font-weight:var(--fw-medium)">Rune volume + a broad unique/set pool</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">Not a single grail item — a <strong>density farm</strong>: ~400+ Hell Bovines per game for rune throughput plus a wide normal-monster unique/set pool. For the rune-specific detail, see the <strong>Cow Level</strong> card in the Runes tab.</div></div>
     <div id="cow-grail-grid"></div>
     <p>Always-Hell-difficulty area accessed via cube. ~400 Hell Bovines + rare elite packs + the Cow King. Excellent for rune density (chipped/low-mid runes), set/unique drops, and general MF. Fast clears with AoE builds.</p>
 
@@ -5725,7 +5725,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     <h3>💎 Step 4 — What to farm</h3>
     <ul>
       <li><strong>Runes:</strong> cows have a normal mob rune table — good for El/Eld/Tir/Nef/Ith/Tal/Ral/Ort up to ~Hel/Io. Not great for high runes (Countess + LK better) but ~400 cows = chipped runes flow steadily.</li>
-      <li><strong>Sets/Uniques:</strong> Hell Bovines reach <strong>TC84</strong> in Hell (<strong>TC87</strong> in a Terror Zone) — see the full <span class="zd-item zd-item-click" style="color:var(--gold-bright);font-weight:600" onclick="event.stopPropagation(); openBossDetail('cows')">Hell Bovines drop card →</span> for the verified per-difficulty pool. Can drop Hellbovine glove (cow-only specific drops), Trang's, Vidala's pieces.</li>
+      <li><strong>Sets/Uniques:</strong> Hell Bovines reach <strong>TC84</strong> in Hell (<strong>TC87</strong> in a Terror Zone) — see the full <span class="zd-item zd-item-click" style="color:var(--gold-bright);font-weight:var(--fw-medium)" onclick="event.stopPropagation(); openBossDetail('cows')">Hell Bovines drop card →</span> for the verified per-difficulty pool. Can drop Hellbovine glove (cow-only specific drops), Trang's, Vidala's pieces.</li>
       <li><strong>Density:</strong> Hammerdin / Frozen Orb sorc / Lightning Fury ama / Mosaic sin — all clear 200+ cows/min. MF stacking is meaningful here.</li>
     </ul>
     <div class="success"><strong>For Konyo:</strong> Konyodin (Blessed Hammer + Concentration) is the king. Stack Goldwrap/Chance Guards/MF charms, run cows for an hour, walk away with 5-10 chipped runes + 1-2 set greens + general grail noise.</div>
@@ -5742,7 +5742,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="ec-tier"><div class="ec-tier-label">mlvl</div><div class="ec-tier-val">110</div></div>
       <div class="ec-chevron">▾</div>
     </div>
-    <div class="event-card-body" hidden><!-- special-drop:event-diablo-clone --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 The holy grail of this event</div><span class="zd-item zd-item-click" data-art-logo="Annihilus" data-art-glyph="🔱" style="color:var(--q-unique);font-weight:600" onclick="event.stopPropagation(); openDrop('Annihilus')">Annihilus →</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">The <strong>only unique small charm</strong> in the game. Diablo Clone spawns on the realm-wide SoJ sell counter (public games only). One Anni per Clone kill: <strong>+1 all skills · +10-20 attributes · +10-20 all res · +5-10% experience</strong>. Click it for the full material card.</div></div>
+    <div class="event-card-body" hidden><!-- special-drop:event-diablo-clone --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 The holy grail of this event</div><span class="zd-item zd-item-click" data-art-logo="Annihilus" data-art-glyph="🔱" style="color:var(--q-unique);font-weight:var(--fw-medium)" onclick="event.stopPropagation(); openDrop('Annihilus')">Annihilus →</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">The <strong>only unique small charm</strong> in the game. Diablo Clone spawns on the realm-wide SoJ sell counter (public games only). One Anni per Clone kill: <strong>+1 all skills · +10-20 attributes · +10-20 all res · +5-10% experience</strong>. Click it for the full material card.</div></div>
     <p>Server-wide world event. Über Diablo (DClone) walks the earth when enough Stones of Jordan are sold to vendors on a single server. Drops the only unique small charm in the game: the <strong style="color:var(--q-orange)">Annihilus</strong> (+1 all skills, +10-20 stats, +10-20 all res, +5-10% experience).</p>
 
     <h3>📡 Step 1 — Understand the spawn trigger</h3>
@@ -5838,7 +5838,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
           <div class="zd-stat"><span class="zd-sk">enrage 3</span><span class="zd-sv">when an ally dies</span></div>
           <div class="zd-stat"><span class="zd-sk">minion cap</span><span class="zd-sv">5 per Ancient</span></div>
         </div>
-        <div class="zd-row"><span class="zd-k">kill order</span><span class="zd-v">whichever Ancient you kill <strong>last</strong> decides which <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop&amp;&amp;window.openDrop('Colossal Ancient Jewels')">Colossal Jewel →</span> you keep — plan the order around the element you want.</span></div>
+        <div class="zd-row"><span class="zd-k">kill order</span><span class="zd-v">whichever Ancient you kill <strong>last</strong> decides which <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop&amp;&amp;window.openDrop('Colossal Ancient Jewels')">Colossal Jewel →</span> you keep — plan the order around the element you want.</span></div>
       </section>
       <div class="success" style="margin:0"><strong>For Konyo:</strong> Konyolock + Konyodin both work. Smiter Paladin = safest meta.</div>
       <div class="zd-note">⚠ Element immunities, the −100% matching-res auras and the kill-order → jewel rule are verified mechanics (Maxroll · Reign of the Warlock), not fabricated values.</div>
@@ -5855,7 +5855,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="ec-tier"><div class="ec-tier-label">nights</div><div class="ec-tier-val">22</div></div>
       <div class="ec-chevron">▾</div>
     </div>
-    <div class="event-card-body" hidden><!-- special-drop:event-22-nights --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 What this event gives</div><span style="color:var(--gold-bright);font-weight:600">A seasonal farming window</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">Not a grail drop — a <strong>window</strong>. Dec 13 – Jan 4, daily-rotating terror-zone modifiers crank density + drop ceilings. The payoff is accelerated TZ farming (every grail reachable from a TZ becomes easier) while it is active.</div></div>
+    <div class="event-card-body" hidden><!-- special-drop:event-22-nights --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 What this event gives</div><span style="color:var(--gold-bright);font-weight:var(--fw-medium)">A seasonal farming window</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">Not a grail drop — a <strong>window</strong>. Dec 13 – Jan 4, daily-rotating terror-zone modifiers crank density + drop ceilings. The payoff is accelerated TZ farming (every grail reachable from a TZ becomes easier) while it is active.</div></div>
     <p>Blizzard's holiday event. Active in all online modes (Classic excluded). The fabric of Sanctuary changes every 24 hours — a new gameplay modifier rotates daily for 22 days. Modifiers are visible via the in-game Message of the Day.</p>
     <p><strong>Typical modifiers (recurring across years):</strong></p>
     <ul style="line-height:1.7;font-size:var(--fs-body)">
@@ -6066,12 +6066,12 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 <div class="tab-content" id="tab-binds">
 
   <div class="events-intro" style="margin-bottom:28px;padding:16px 20px;border-left:3px solid var(--gold);background:var(--surface)">
-    <div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">Warlock Bind Demon · Patch 3.2</div>
+    <div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">Warlock Bind Demon · Patch 3.2</div>
     <div style="font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:var(--fs-title);color:var(--text);line-height:1.55">What you can bind is gated by <strong style="color:var(--gold-bright);font-style:normal">hard points</strong> (points spent directly, NOT +skills from gear). Higher tiers need more investment. This is the full target map for an Echoing Strike build at level 90.</div>
   </div>
 
   <div class="colossal" id="binds-tierlist">
-    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid var(--best);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--best);margin-bottom:5px">The Verdict · Ranked Best → Budget</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🏆 Best Warlock Binds — Tier List <span class="sec-h-peek" style="font-size:12.5px"><b style="color:var(--best)">S</b>&nbsp;Hephasto · TZ Urdar · Lister</span> <span class="sec-chev">▾</span></h3><!-- v693 🏓R3: the tab's whole answer peeks on the closed verdict row --></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid var(--best);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:3.5px;text-transform:uppercase;color:var(--best);margin-bottom:5px">The Verdict · Ranked Best → Budget</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:var(--fw-medium);color:var(--text);margin:0;border:none">🏆 Best Warlock Binds — Tier List <span class="sec-h-peek" style="font-size:12.5px"><b style="color:var(--best)">S</b>&nbsp;Hephasto · TZ Urdar · Lister</span> <span class="sec-chev">▾</span></h3><!-- v693 🏓R3: the tab's whole answer peeks on the closed verdict row --></div>
     <div class="sec-body" hidden>
     <div class="gic-card material-card binds-tierlist-card">
       <header class="gic-header">
@@ -6092,7 +6092,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <section class="gic-section">
         <div class="gic-section-title">🏆 The ranking — best → budget</div>
         <div class="zd-note" style="margin-bottom:8px">Click any gold name to jump to its full ID card / tier table. <strong style="color:var(--best)">S</strong> = top picks · <strong style="color:#7fd4ff">A</strong> = strong · B/C = situational / filler.</div>
-        <div class="colossal-grid" style="grid-template-columns:1fr"><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.4)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:800;color:var(--best);margin-right:4px">S</span><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="art/hephasto_graphic.png" alt="Hephasto the Armorer" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">⚒️</span></span><span class="su-link" onclick="jumpToSuperUniqueByName('Hephasto the Armorer')" style="cursor:pointer;color:var(--best)" title="open Hephasto's ID card">Hephasto the Armorer</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub"><strong>Always Aura Enchanted</strong> → save &amp; exit / reroll until <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong>. Fights <strong>solo</strong> = the cleanest 1-on-1 bind, no minion pack first. <span style="color:var(--gold-dim)">—</span> <strong>Highest self-suppliable DPS.</strong> Permanent personal Fanaticism (IAS + big %physical) — also buffs your merc.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.4)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:800;color:var(--best);margin-right:4px">S</span><span class="su-link" onclick="openBindSection('binds-unique')" style="cursor:pointer;color:#ffff66" title="jump to the Unique-pack tier table">TZ Unique Urdar</span> <span style="color:var(--gold-dim)">· 15 hp</span></div><div class="ct-sub">A4 River of Flame in a <strong>Terror Zone (mlvl 96)</strong> → aura <strong>level 12</strong> (the cap, = Infinity's Conviction). +%ED consume, then reroll the attached aura to <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong>. <span style="color:var(--gold-dim)">—</span> Best aura bind <strong>for the points</strong> — only 15 hard points, no boss hunt. The smart-money pick.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.4)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:800;color:var(--best);margin-right:4px">S</span><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="art/lister01_graphic.png" alt="Lister the Tormentor" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">⭐</span></span><span class="su-link" onclick="jumpToSuperUniqueByName('Lister the Tormentor')" style="cursor:pointer;color:var(--best)" title="open Lister's ID card">Lister the Tormentor</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub">Guaranteed Throne Wave 5 (no rare-spawn hunt). Fixed <strong data-aura-logo="Meditation" data-aura-glyph="🧘">Lvl 15 Meditation + 150% ED + 25% DR</strong> <em>plus</em> a rolled Aura Enchanted → reroll <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong>. <span style="color:var(--gold-dim)">—</span> The community OP pick. ~31.8k HP + 7 minions = a <strong>meat-shield that pulls aggro</strong>; Meditation fixes your mana for good.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(127,212,255,.32)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:800;color:#7fd4ff;margin-right:4px">A</span><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="art/smith_graphic.png" alt="The Smith" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔨</span></span><span class="su-link" onclick="jumpToSuperUniqueByName('The Smith')" style="cursor:pointer;color:var(--su)" title="open The Smith's ID card">The Smith</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub">Fixed <strong data-aura-logo="Holy Fire" data-aura-glyph="🔥">Lvl 15 Holy Fire + 180% ED + 20% phys-dmg-taken reduction</strong>, solo. A1 Barracks (mlvl 79) = the <strong>earliest</strong> fully-sourced bind. His Holy Fire is the <em>Consume</em> stat — he ALSO ends with a second aura like everyone else (rolled Aura Enchanted read live, or the blind BD-20 grant) → <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong> is possible here too. <span style="color:var(--gold-dim)">—</span> Strong early-game body + damage before you can reach the Throne — the grail you bind on the way up.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(127,212,255,.32)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:800;color:#7fd4ff;margin-right:4px">A</span><span class="su-link" onclick="openBindSection('binds-champion')" style="cursor:pointer;color:#6699ff" title="jump to the Champion tier table">Champion Urdar</span> <span style="color:var(--gold-dim)">· 10 hp</span></div><div class="ct-sub">+% Enhanced Damage consume, <strong>no aura</strong> (champions can't roll Aura Enchanted). Budget DPS body before you hit 15 points. <span style="color:var(--gold-dim)">—</span> Pure consume-damage filler. Cheap, immediate, replaced once you can bind a 15-pt unique.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:var(--border)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:800;color:var(--text-dim);margin-right:4px">B</span><span class="su-link" onclick="openBindSection('binds-superunique')" style="cursor:pointer;color:var(--su)" title="jump to the Super-Unique tier table">Council pack</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub">Coded <code>Demon</code> &amp; bindable (Ismail/Geleb/Toorc/Bremm/Wyand/Maffer); Bremm is always Aura Enchanted. Resist-pierce / utility consumes. <span style="color:var(--gold-dim)">—</span> Survivability &amp; resist utility, not raw DPS — a situational pick, not a damage bind.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:var(--border)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:800;color:var(--text-dim);margin-right:4px">C</span><span style="color:var(--text-dim)">1-point splash</span> <span style="color:var(--gold-dim)">· 1 hp</span></div><div class="ct-sub">Any white <code>Demon</code> — no consume worth naming, no aura. Just a disposable body. <span style="color:var(--gold-dim)">—</span> Aggro-sink / corpse for Echo only. Replace ASAP.</div></div></div></div>
+        <div class="colossal-grid" style="grid-template-columns:1fr"><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.4)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:var(--fw-bold);color:var(--best);margin-right:4px">S</span><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="art/hephasto_graphic.png" alt="Hephasto the Armorer" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">⚒️</span></span><span class="su-link" onclick="jumpToSuperUniqueByName('Hephasto the Armorer')" style="cursor:pointer;color:var(--best)" title="open Hephasto's ID card">Hephasto the Armorer</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub"><strong>Always Aura Enchanted</strong> → save &amp; exit / reroll until <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong>. Fights <strong>solo</strong> = the cleanest 1-on-1 bind, no minion pack first. <span style="color:var(--gold-dim)">—</span> <strong>Highest self-suppliable DPS.</strong> Permanent personal Fanaticism (IAS + big %physical) — also buffs your merc.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.4)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:var(--fw-bold);color:var(--best);margin-right:4px">S</span><span class="su-link" onclick="openBindSection('binds-unique')" style="cursor:pointer;color:#ffff66" title="jump to the Unique-pack tier table">TZ Unique Urdar</span> <span style="color:var(--gold-dim)">· 15 hp</span></div><div class="ct-sub">A4 River of Flame in a <strong>Terror Zone (mlvl 96)</strong> → aura <strong>level 12</strong> (the cap, = Infinity's Conviction). +%ED consume, then reroll the attached aura to <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong>. <span style="color:var(--gold-dim)">—</span> Best aura bind <strong>for the points</strong> — only 15 hard points, no boss hunt. The smart-money pick.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.4)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:var(--fw-bold);color:var(--best);margin-right:4px">S</span><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="art/lister01_graphic.png" alt="Lister the Tormentor" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">⭐</span></span><span class="su-link" onclick="jumpToSuperUniqueByName('Lister the Tormentor')" style="cursor:pointer;color:var(--best)" title="open Lister's ID card">Lister the Tormentor</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub">Guaranteed Throne Wave 5 (no rare-spawn hunt). Fixed <strong data-aura-logo="Meditation" data-aura-glyph="🧘">Lvl 15 Meditation + 150% ED + 25% DR</strong> <em>plus</em> a rolled Aura Enchanted → reroll <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong>. <span style="color:var(--gold-dim)">—</span> The community OP pick. ~31.8k HP + 7 minions = a <strong>meat-shield that pulls aggro</strong>; Meditation fixes your mana for good.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(127,212,255,.32)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:var(--fw-bold);color:#7fd4ff;margin-right:4px">A</span><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="art/smith_graphic.png" alt="The Smith" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔨</span></span><span class="su-link" onclick="jumpToSuperUniqueByName('The Smith')" style="cursor:pointer;color:var(--su)" title="open The Smith's ID card">The Smith</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub">Fixed <strong data-aura-logo="Holy Fire" data-aura-glyph="🔥">Lvl 15 Holy Fire + 180% ED + 20% phys-dmg-taken reduction</strong>, solo. A1 Barracks (mlvl 79) = the <strong>earliest</strong> fully-sourced bind. His Holy Fire is the <em>Consume</em> stat — he ALSO ends with a second aura like everyone else (rolled Aura Enchanted read live, or the blind BD-20 grant) → <strong style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</strong> is possible here too. <span style="color:var(--gold-dim)">—</span> Strong early-game body + damage before you can reach the Throne — the grail you bind on the way up.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(127,212,255,.32)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:var(--fw-bold);color:#7fd4ff;margin-right:4px">A</span><span class="su-link" onclick="openBindSection('binds-champion')" style="cursor:pointer;color:#6699ff" title="jump to the Champion tier table">Champion Urdar</span> <span style="color:var(--gold-dim)">· 10 hp</span></div><div class="ct-sub">+% Enhanced Damage consume, <strong>no aura</strong> (champions can't roll Aura Enchanted). Budget DPS body before you hit 15 points. <span style="color:var(--gold-dim)">—</span> Pure consume-damage filler. Cheap, immediate, replaced once you can bind a 15-pt unique.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:var(--border)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:var(--fw-bold);color:var(--text-dim);margin-right:4px">B</span><span class="su-link" onclick="openBindSection('binds-superunique')" style="cursor:pointer;color:var(--su)" title="jump to the Super-Unique tier table">Council pack</span> <span style="color:var(--gold-dim)">· 20 hp</span></div><div class="ct-sub">Coded <code>Demon</code> &amp; bindable (Ismail/Geleb/Toorc/Bremm/Wyand/Maffer); Bremm is always Aura Enchanted. Resist-pierce / utility consumes. <span style="color:var(--gold-dim)">—</span> Survivability &amp; resist utility, not raw DPS — a situational pick, not a damage bind.</div></div></div><div class="colossal-tile" style="cursor:default;border-color:var(--border)"><div class="ct-body"><div class="ct-name"><span style="display:inline-block;min-width:22px;font-weight:var(--fw-bold);color:var(--text-dim);margin-right:4px">C</span><span style="color:var(--text-dim)">1-point splash</span> <span style="color:var(--gold-dim)">· 1 hp</span></div><div class="ct-sub">Any white <code>Demon</code> — no consume worth naming, no aura. Just a disposable body. <span style="color:var(--gold-dim)">—</span> Aggro-sink / corpse for Echo only. Replace ASAP.</div></div></div></div>
       </section>
       <section class="gic-section">
         <div class="gic-section-title">⭐ The one rule that decides DPS</div>
@@ -6186,7 +6186,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
             <section class="gic-section">
         <div class="gic-section-title">✨ The aura pool (Patch 3.2 rewrite) — value for Echoing Strike</div>
         <div class="zd-note" style="margin-bottom:8px">When you bind an Aura Enchanted unique/super-unique, its aura is remapped into this pool — the old meta auras were removed. <strong style="color:var(--best)">Fanaticism</strong> is the jackpot; reroll until you hit it.</div>
-        <div class="colossal-grid"><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name" style="color:var(--best)">Fanaticism</div><div class="ct-sub">JACKPOT — boosts attack speed, AR, and physical damage for you + merc + demons · <span style="color:var(--best);font-weight:700">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Concentration</div><div class="ct-sub">Boosts the bound demon's own damage; minor for you · <span style="color:var(--best);font-weight:700">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Holy Freeze</div><div class="ct-sub">Defensive — slows + pulses cold; great survival utility · <span style="color:var(--best);font-weight:700">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Vigor</div><div class="ct-sub">Run/walk speed + stamina only — wasted slot · <span style="color:var(--best);font-weight:700">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Thorns</div><div class="ct-sub">Returns damage — useless for this build · <span style="color:var(--best);font-weight:700">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(255,90,90,.4)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Conviction</div><div class="ct-sub">Was the immunity-breaking meta · <span style="color:var(--hell);font-weight:700">❌ removed 3.2</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(255,90,90,.4)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Might</div><div class="ct-sub">Was strong for physical · <span style="color:var(--hell);font-weight:700">❌ removed 3.2</span></div></div></div></div>
+        <div class="colossal-grid"><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name" style="color:var(--best)">Fanaticism</div><div class="ct-sub">JACKPOT — boosts attack speed, AR, and physical damage for you + merc + demons · <span style="color:var(--best);font-weight:var(--fw-semibold)">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Concentration</div><div class="ct-sub">Boosts the bound demon's own damage; minor for you · <span style="color:var(--best);font-weight:var(--fw-semibold)">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Holy Freeze</div><div class="ct-sub">Defensive — slows + pulses cold; great survival utility · <span style="color:var(--best);font-weight:var(--fw-semibold)">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Vigor</div><div class="ct-sub">Run/walk speed + stamina only — wasted slot · <span style="color:var(--best);font-weight:var(--fw-semibold)">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(102,255,136,.35)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Thorns</div><div class="ct-sub">Returns damage — useless for this build · <span style="color:var(--best);font-weight:var(--fw-semibold)">✅ in pool</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(255,90,90,.4)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Conviction</div><div class="ct-sub">Was the immunity-breaking meta · <span style="color:var(--hell);font-weight:var(--fw-semibold)">❌ removed 3.2</span></div></div></div><div class="colossal-tile" style="cursor:default;border-color:rgba(255,90,90,.4)"><span class="ct-art"><span  style="font-size:var(--fs-display);display:inline-flex"></span></span><div class="ct-body"><div class="ct-name">Might</div><div class="ct-sub">Was strong for physical · <span style="color:var(--hell);font-weight:var(--fw-semibold)">❌ removed 3.2</span></div></div></div></div>
       </section>
       <section class="gic-section">
         <div class="gic-section-title">🔁 Removed-aura remap — deterministic 1:1 (3.2 LIVE)</div>
@@ -6232,7 +6232,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
   </div>
 
   <div class="colossal" id="binds-champion">
-    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid #6699ff;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#6699ff;margin-bottom:5px">Tier I · 10 Hard Points</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🔵 Champion Demons <span class="sec-chev">▾</span></h3></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid #6699ff;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:3.5px;text-transform:uppercase;color:#6699ff;margin-bottom:5px">Tier I · 10 Hard Points</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:var(--fw-medium);color:var(--text);margin:0;border:none">🔵 Champion Demons <span class="sec-chev">▾</span></h3></div>
     <div class="sec-body" hidden>
     <p>Bind the <span style="color:#6699ff">blue-name</span> champion version of any demon family in the field guide below. <strong>Verified 3.2 mechanics:</strong> champion packs spawn as <strong>2–4 monsters of the same type</strong>, at <strong>mlvl = area level + 2</strong>, carrying one of five champion modifier sets (Champion · Berserker · Fanatic · Ghostly · Possessed).</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Demon family</th><th>Act · Area</th><th>mlvl</th><th>Consume buff</th><th>Best for</th></tr></thead><tbody>
@@ -6252,7 +6252,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
   </div>
 
   <div class="colossal" id="binds-unique">
-    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid #ffff66;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#ffff66;margin-bottom:5px">Tier II · 15 Hard Points · Aura Sweet Spot</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🟡 Unique Packs <span class="sec-chev">▾</span></h3></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid #ffff66;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:3.5px;text-transform:uppercase;color:#ffff66;margin-bottom:5px">Tier II · 15 Hard Points · Aura Sweet Spot</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:var(--fw-medium);color:var(--text);margin:0;border:none">🟡 Unique Packs <span class="sec-chev">▾</span></h3></div>
     <div class="sec-body" hidden>
     <p>Bind the <span style="color:#ffff66">yellow unique pack-leader</span>. <strong>Verified 3.2 mechanics:</strong> unique packs spawn as <strong>1 boss + 3–6 minions</strong>, at <strong>mlvl = area level + 3</strong>, with 3 elite affixes in Hell drawn from a 13-affix pool that <strong>includes Aura Enchanted</strong>.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Demon family</th><th>Act · Area</th><th>mlvl</th><th>Consume buff</th><th>Aura on bind</th></tr></thead><tbody>
@@ -6286,7 +6286,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     @media (prefers-reduced-motion: reduce){ #binds-superunique{ animation: none; } }
   </style>
   <div class="colossal" id="binds-superunique">
-    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid var(--gold-bright);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold-bright);margin-bottom:5px">Tier III · 20 Hard Points · Verified</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--gold-bright);margin:0;border:none;text-shadow:0 0 14px rgba(240,192,96,.55)">🟠 Super-Unique Bosses <span class="sec-chev">▾</span></h3></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid var(--gold-bright);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:3.5px;text-transform:uppercase;color:var(--gold-bright);margin-bottom:5px">Tier III · 20 Hard Points · Verified</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:var(--fw-medium);color:var(--gold-bright);margin:0;border:none;text-shadow:0 0 14px rgba(240,192,96,.55)">🟠 Super-Unique Bosses <span class="sec-chev">▾</span></h3></div>
     <div class="sec-body" hidden>
     <p>Specific named bosses with <strong>fixed</strong> consume stats. All bindable in <strong>Hell</strong> (and TZ). mlvl = Hell base spawn level (scales to 96/98/99 in Terror Zones). HP threshold to bind: historically <strong>&lt;40% Hephasto/Lister, &lt;50% Council</strong> (community-derived, pre-3.2). <strong style="color:var(--hell)">Patch 3.2 introduced a per-demon max-HP cap and reduced missing-HP benefit — exact thresholds now vary per demon and aren't published.</strong></p>
     <p style="margin:-4px 0 12px;color:var(--gold-dim);font-size:12px">👉 <strong>Click any boss name</strong> for its golden bind ID card (location · mlvl · fixed aura · Consume stats).</p>
@@ -6912,7 +6912,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     <tr><td class="item-name">Hit Power</td><td>Perfect Sapphire</td><td>5% CtC Lvl-4 Frost Nova when struck + Attacker Takes Damage + (Str / Dex)</td><td>Gloves · Helm · Boots · Shield</td></tr>
   </tbody></table></div>
   <details class="all-drops-details" id="craft-recipe-matrix" style="margin-top:12px">
-    <summary style="cursor:pointer;font-weight:600">📋 Exact cube recipes — every slot, all four crafts (tap to expand)</summary>
+    <summary style="cursor:pointer;font-weight:var(--fw-medium)">📋 Exact cube recipes — every slot, all four crafts (tap to expand)</summary>
   <div class="lead" style="margin:8px 0 4px">The <strong>perfect gem still decides the craft</strong>; the <strong>rune varies only by slot</strong> (a different rune on the same slot is simply a different craft). Use a <strong>magic (blue)</strong> base of the listed type + any jewel. Base columns show the normal · exceptional · elite tier of that slot.</div>
   <div class="info" style="margin-top:10px"><strong>Caster</strong> — Perfect Amethyst + any jewel + the slot rune + a magic base:</div>
   <div class="scroll-table"><table class="ref-tbl"><thead><tr><th>Slot</th><th>Rune</th><th>Magic base (normal · exceptional · elite)</th></tr></thead><tbody>
@@ -8188,7 +8188,7 @@ function materialDetailHtml(name){
   const fromRows = (item.from || []).map(f => {
     const sn = _statueNames.find(n => String(f).indexOf(n) === 0);
     const fv = sn
-      ? `<span class="zd-item-click" data-arttip="${_d2artEsc(sn)}" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('${sn.replace(/'/g,"\\'")}')">${nameLogo(sn)}${sn} →</span>${String(f).slice(sn.length)}`
+      ? `<span class="zd-item-click" data-arttip="${_d2artEsc(sn)}" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('${sn.replace(/'/g,"\\'")}')">${nameLogo(sn)}${sn} →</span>${String(f).slice(sn.length)}`
       : f;
     return `<div class="zd-row"><span class="zd-k">drops from</span><span class="zd-v">${fv}</span></div>`;
   }).join('');
@@ -8446,7 +8446,7 @@ function pandemoniumKeysDetailHtml(embedded){
     <div data-art-logo="The Summoner" data-art-glyph="🔮" role="button" tabindex="0" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer" title="open The Summoner boss detail" onclick="window.openBossDetail&&window.openBossDetail('summoner')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openBossDetail&&window.openBossDetail('summoner')}">
       <span class="d2art-wrap md"><img class="d2art-img" src="art/summoner_graphic.png" alt="The Summoner" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback" style="font-size:26px;line-height:1">🔮</span></span>
       <div>
-        <div style="font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.02em;color:var(--gold-bright)">The Summoner →</div>
+        <div style="font-family:var(--serif-display);font-size:16px;font-weight:var(--fw-semibold);letter-spacing:.02em;color:var(--gold-bright)">The Summoner →</div>
         <div style="font-family:var(--mono);font-size:var(--fs-meta);color:var(--text-dim);letter-spacing:.04em">Horazon's incarnation · the only Key dropper without its own boss card</div>
       </div>
     </div>
@@ -8518,7 +8518,7 @@ function worldstoneShardsDetailHtml(embedded){
     <section class="gic-section">
       <div class="gic-section-title">\u{1F4A1} Free game, or hold? \u2014 two sinks, both consume the shard</div>
       <div class="shard-usesave" style="background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(91,143,249,.5);border-radius:10px;padding:13px 16px 14px;margin:12px 0 4px">
-    <div style="font-family:var(--serif-display);font-size:14px;font-weight:700;letter-spacing:.02em;color:var(--text);margin-bottom:7px">💡 Free game, or hold? — two sinks, both consume the shard</div>
+    <div style="font-family:var(--serif-display);font-size:14px;font-weight:var(--fw-semibold);letter-spacing:.02em;color:var(--text);margin-bottom:7px">💡 Free game, or hold? — two sinks, both consume the shard</div>
     <div style="font-size:12.5px;line-height:1.6;color:var(--text-dim)">
       A Worldstone Shard is a <strong>one-use consumable with two competing uses</strong> — so it is <em>not</em> free to burn. Each shard is tied to one act (region map below):
       <br>• <strong style="color:var(--gold-bright)">USE → terrorize the whole act.</strong> Right-click the shard and its entire act becomes a Terror Zone for the rest of your game session — <strong>no cube needed</strong>. On-demand control over where you farm: chain Herald-of-Terror hunts for Sunders, or force a specific Hell act boss to grind a <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange)" onclick="openDrop('Colossal Ancient Statue')">Colossal Ancient statue →</span>. The shard is consumed on use.
@@ -8638,12 +8638,12 @@ function colossalJewelDetailHtml(name){
         <div class="zd-stat"><span class="zd-sk">per character</span><span class="zd-sv">1 (pinnacle reward)</span></div>
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no — fixed pinnacle reward</span></div>
       </div>
-      <div class="zd-row"><span class="zd-k">you get this jewel by</span><span class="zd-v">killing <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${j.ancient.toLowerCase()}')">Colossal ${j.ancient} →</span> <strong>last</strong> in the encounter (you keep the jewel matching the Ancient killed last)</span></div>
-      <div class="zd-row"><span class="zd-k">the other jewel ${j.ancient} can give</span><span class="zd-v"><span class="zd-item-click" data-arttip="${_d2artEsc(j.sister)}" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('${_esc1(j.sister)}')">${j.sister} →</span></span></div>
+      <div class="zd-row"><span class="zd-k">you get this jewel by</span><span class="zd-v">killing <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${j.ancient.toLowerCase()}')">Colossal ${j.ancient} →</span> <strong>last</strong> in the encounter (you keep the jewel matching the Ancient killed last)</span></div>
+      <div class="zd-row"><span class="zd-k">the other jewel ${j.ancient} can give</span><span class="zd-v"><span class="zd-item-click" data-arttip="${_d2artEsc(j.sister)}" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('${_esc1(j.sister)}')">${j.sister} →</span></span></div>
     </section>
     <section class="gic-section">
       <div class="gic-section-title">🧪 How to reach the fight</div>
-      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 <span class="zd-item-click" data-arttip="Colossal Ancient Statue" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> → Colossal Summit → Act 5 red portal → beat Talic / Korlic / Madawc.</span></div>
+      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 <span class="zd-item-click" data-arttip="Colossal Ancient Statue" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> → Colossal Summit → Act 5 red portal → beat Talic / Korlic / Madawc.</span></div>
     </section>
     <div class="zd-note">⚠ Jewel affixes are diablo2.io / Maxroll sourced (Konyo-verified). Colossal jewels are not MF-scaled and are not part of the 322-item grail count.</div>
   </div>`;
@@ -8652,7 +8652,7 @@ window.colossalJewelDetailHtml = colossalJewelDetailHtml;
 function colossalStatueDetailHtml(name){
   const s = findColossalStatue(name); if(!s) return '';
   const others = COLOSSAL_STATUES.filter(x=>x.n!==s.n)
-    .map(x=>`<span class="zd-item-click" data-arttip="${_d2artEsc(x.n)}" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('${_esc1(x.n)}')">${nameLogo(x.n)}${x.n} →</span>`).join(' · ');
+    .map(x=>`<span class="zd-item-click" data-arttip="${_d2artEsc(x.n)}" style="cursor:pointer;color:var(--gold-bright);font-weight:var(--fw-medium)" onclick="window.openDrop('${_esc1(x.n)}')">${nameLogo(x.n)}${x.n} →</span>`).join(' · ');
   return `<div class="gic-card material-card colossal-card colossal-statue-card">
     <header class="gic-header">
       ${artOr(s.n, `<span class="gic-emoji">👑</span>`, 'lg')}
@@ -8676,13 +8676,13 @@ function colossalStatueDetailHtml(name){
         <div class="zd-stat"><span class="zd-sk">per-kill rate</span><span class="zd-sv">~1:8 to 1:15</span></div>
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no</span></div>
       </div>
-      <div class="zd-row"><span class="zd-k">boss</span><span class="zd-v"><span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openBossDetail&&window.openBossDetail('${s.bossId}')">${s.boss} →</span> — only while it is the active Hell Terror Zone boss</span></div>
+      <div class="zd-row"><span class="zd-k">boss</span><span class="zd-v"><span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openBossDetail&&window.openBossDetail('${s.bossId}')">${s.boss} →</span> — only while it is the active Hell Terror Zone boss</span></div>
     </section>
     <section class="gic-section">
       <div class="gic-section-title">🧩 The full 5-statue set</div>
       <div class="zd-row"><span class="zd-k">this statue</span><span class="zd-v"><strong>${s.n}</strong> — ${s.boss}</span></div>
       <div class="zd-row"><span class="zd-k">the other four</span><span class="zd-v">${others}</span></div>
-      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 → Colossal Summit → summon the Colossal Ancients → they drop the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></span></div>
+      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 → Colossal Summit → summon the Colossal Ancients → they drop the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></span></div>
     </section>
     <div class="zd-note">⚠ Statue drops are not MF-scaled, only drop from TERRORIZED Hell act bosses, and are not part of the 322-item grail count. Source: diablo2.io / Maxroll.</div>
   </div>`;
@@ -8720,7 +8720,7 @@ function rainbowFacetDetailHtml(name){
     `chance to cast a spell on ${f.trig}`,
   ].map(s=>`<div class="zd-row"><span class="zd-k">affix</span><span class="zd-v">${s}</span></div>`).join('');
   const sister = RAINBOW_FACETS.filter(x=>x.elem===f.elem && x.n!==f.n)
-    .map(x=>`<span class="zd-item-click" data-arttip="${_d2artEsc(x.n)}" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('${_esc1(x.n)}')">${x.trig} →</span>`).join(' · ') || '—';
+    .map(x=>`<span class="zd-item-click" data-arttip="${_d2artEsc(x.n)}" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('${_esc1(x.n)}')">${x.trig} →</span>`).join(' · ') || '—';
   return `<div class="gic-card material-card colossal-card rainbow-facet-card">
     <header class="gic-header">
       ${artOr(f.n, `<span class="gic-emoji">${f.emoji}</span>`, 'lg')}
@@ -8753,7 +8753,7 @@ function rainbowFacetDetailHtml(name){
     </section>
     <section class="gic-section">
       <div class="gic-section-title">💎 The RotW upgrade</div>
-      <div class="zd-row"><span class="zd-k">strictly better option</span><span class="zd-v">the matching <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> (same element, higher skill damage + resist break, plus a CtC and utility affixes)</span></div>
+      <div class="zd-row"><span class="zd-k">strictly better option</span><span class="zd-v">the matching <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> (same element, higher skill damage + resist break, plus a CtC and utility affixes)</span></div>
     </section>
     <div class="zd-note">⚠ Art is diablo2.io verified (HTTP 200 image/png). Roll values and drop rates are deliberately omitted — no verified Reign of the Warlock source exists, and the bible never fabricates numbers.</div>
   </div>`;
@@ -8768,7 +8768,7 @@ function isColossalAncients(name){ const q=_norm(name); return q===_norm('Coloss
 window.isColossalSummit = isColossalSummit;
 window.isColossalAncients = isColossalAncients;
 function colossalSummitDetailHtml(){
-  const statueChips = COLOSSAL_STATUES.map(s=>`<span class="zd-item-click" data-arttip="${_d2artEsc(s.n)}" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('${_esc1(s.n)}')">${nameLogo(s.n)}${s.n} →</span>`).join(' · ');
+  const statueChips = COLOSSAL_STATUES.map(s=>`<span class="zd-item-click" data-arttip="${_d2artEsc(s.n)}" style="cursor:pointer;color:var(--gold-bright);font-weight:var(--fw-medium)" onclick="window.openDrop('${_esc1(s.n)}')">${nameLogo(s.n)}${s.n} →</span>`).join(' · ');
   return `<div class="gic-card material-card colossal-card colossal-summit-card">
     <header class="gic-header">
       ${artOr('Colossal Summit', `<span class="gic-emoji">🗻</span>`, 'lg')}
@@ -8792,8 +8792,8 @@ function colossalSummitDetailHtml(){
     </section>
     <section class="gic-section">
       <div class="gic-section-title">🚪 What it opens</div>
-      <div class="zd-row"><span class="zd-k">portal leads to</span><span class="zd-v"><span class="zd-item-click" data-arttip="Colossal Ancients" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('Colossal Ancients')">the Colossal Ancients →</span> — the buffed Talic / Korlic / Madawc pinnacle fight</span></div>
-      <div class="zd-row"><span class="zd-k">reward</span><span class="zd-v">beat them → keep the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient killed <strong>last</strong></span></div>
+      <div class="zd-row"><span class="zd-k">portal leads to</span><span class="zd-v"><span class="zd-item-click" data-arttip="Colossal Ancients" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancients')">the Colossal Ancients →</span> — the buffed Talic / Korlic / Madawc pinnacle fight</span></div>
+      <div class="zd-row"><span class="zd-k">reward</span><span class="zd-v">beat them → keep the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient killed <strong>last</strong></span></div>
     </section>
     <div class="zd-note">⚠ The Summit is a one-shot consumable cube token, not equipment and not part of the 322-item grail count. Each run needs a fresh set of 5 statues. Source: GAME_RULES / Maxroll (Reign of the Warlock).</div>
   </div>`;
@@ -8806,8 +8806,8 @@ function colossalAncientsDetailHtml(){
     {n:'Madawc', id:'madawc', style:'dual throwing axes · caster',    drops:['Guardian\'s Thunder','Guardian\'s Light'], dcol:'var(--nm)'},
   ];
   const rows = ancients.map(a=>{
-    const dl = a.drops.map(d=>`<span class="zd-item-click" data-arttip="${_d2artEsc(d)}" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('${_esc1(d)}')">${d} →</span>`).join(' / ');
-    return `<div class="zd-row"><span class="zd-k"><span class="zd-item-click" style="cursor:pointer;color:${a.dcol};font-weight:700" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${a.id}')">${a.n} →</span></span><span class="zd-v"><span style="color:var(--text-dim)">${a.style}</span> · drops (by last kill): ${dl}</span></div>`;
+    const dl = a.drops.map(d=>`<span class="zd-item-click" data-arttip="${_d2artEsc(d)}" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('${_esc1(d)}')">${d} →</span>`).join(' / ');
+    return `<div class="zd-row"><span class="zd-k"><span class="zd-item-click" style="cursor:pointer;color:${a.dcol};font-weight:var(--fw-semibold)" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${a.id}')">${a.n} →</span></span><span class="zd-v"><span style="color:var(--text-dim)">${a.style}</span> · drops (by last kill): ${dl}</span></div>`;
   }).join('');
   return `<div class="gic-card material-card colossal-card colossal-ancients-card">
     <header class="gic-header">
@@ -8826,8 +8826,8 @@ function colossalAncientsDetailHtml(){
     </header>
     <section class="gic-section">
       <div class="gic-section-title">🧪 How to reach the fight</div>
-      <div class="zd-row"><span class="zd-k">step 1</span><span class="zd-v">Farm all 5 <span class="zd-item-click" data-arttip="Colossal Ancient Statue" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> from <strong>terrorized Hell act bosses</strong></span></div>
-      <div class="zd-row"><span class="zd-k">step 2</span><span class="zd-v">Cube the 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('Colossal Summit')">Colossal Summit →</span> → use in Act 5 → red portal</span></div>
+      <div class="zd-row"><span class="zd-k">step 1</span><span class="zd-v">Farm all 5 <span class="zd-item-click" data-arttip="Colossal Ancient Statue" style="cursor:pointer;color:var(--gold-bright);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> from <strong>terrorized Hell act bosses</strong></span></div>
+      <div class="zd-row"><span class="zd-k">step 2</span><span class="zd-v">Cube the 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Summit')">Colossal Summit →</span> → use in Act 5 → red portal</span></div>
     </section>
     <section class="gic-section">
       <div class="gic-section-title">⚔️ The 3 ancients (tap a name for its uber ID card)</div>
@@ -8837,7 +8837,7 @@ function colossalAncientsDetailHtml(){
       <div class="gic-section-title">🎲 The roll &amp; the reward</div>
       <div class="zd-row"><span class="zd-k">immunities</span><span class="zd-v"><strong>One random immunity each, re-rolled every game</strong> (like vanilla Ancients). If all 3 share an unbreakable immunity, leave &amp; remake to re-roll.</span></div>
       <div class="zd-row"><span class="zd-k">level</span><span class="zd-v">mlvl Colossal — massively buffed HP / defense, they drop lvl-75 jewels</span></div>
-      <div class="zd-row"><span class="zd-k">you keep</span><span class="zd-v">the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient you kill <strong>LAST</strong> — 1 per character</span></div>
+      <div class="zd-row"><span class="zd-k">you keep</span><span class="zd-v">the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient you kill <strong>LAST</strong> — 1 per character</span></div>
     </section>
     <div class="zd-note">⚠ Never bindable (Act-boss-class). Immunities vary per game so none are shown as fixed. Source: GAME_RULES / Maxroll (Reign of the Warlock).</div>
   </div>`;
@@ -8928,7 +8928,7 @@ function heraldTierDetailHtml(name){
     ? "You're at the apex — every Herald that spawns after this is another Terror."
     : `Kill this one and the next Herald to spawn is <strong>${next.n}</strong> (tier ${next.tier}).`;
   const sunderChips = ['Bone Break','Black Cleft','Crack of the Heavens','Cold Rupture','Flame Rift','Rotting Fissure']
-    .map(sn => { const e = sn.replace(/'/g, "\\'"); return `<span class="zd-item-click" data-arttip="${_d2artEsc(sn)}" style="cursor:pointer;font-weight:600;color:var(--q-orange);border:1px solid var(--border);border-radius:6px;padding:3px 8px" onclick="window.openDrop('${e}')" title="open the ${sn} card">${nameLogo(sn)}${sn} →</span>`; })
+    .map(sn => { const e = sn.replace(/'/g, "\\'"); return `<span class="zd-item-click" data-arttip="${_d2artEsc(sn)}" style="cursor:pointer;font-weight:var(--fw-medium);color:var(--q-orange);border:1px solid var(--border);border-radius:6px;padding:3px 8px" onclick="window.openDrop('${e}')" title="open the ${sn} card">${nameLogo(sn)}${sn} →</span>`; })
     .join('');
   return `<div class="gic-card material-card herald-tier-card">
     <header class="gic-header">
@@ -9101,11 +9101,11 @@ function _magicFindCardHtml(name){
     var when=''; try{ if(_chk.checkedAt) when='checked '+new Date(_chk.checkedAt).toLocaleDateString(); }catch(e){}
     // v1308 (E1b) — 2× funnel confidence: ✓✓ confirmed (both reads agreed) or ⚖ unclear (disputed).
     var conf=''; if(_chk.checks>1){ conf = _chk.agree
-      ? '<span style="color:#66ff88;font-weight:700" title="two agreeing AI-Checker reads">✓✓ '+_chk.checks+'× confirmed</span>'
-      : '<span style="color:#f0c060;font-weight:700" title="'+_d2artEsc(_chk.verdictReads?('reads disagreed: '+_chk.verdictReads.join(' vs ')):((_chk.disputed?_chk.disputed.length:0)+' stat(s) only seen once'))+'">⚖ '+_chk.checks+'× — unclear</span>'; }
+      ? '<span style="color:#66ff88;font-weight:var(--fw-semibold)" title="two agreeing AI-Checker reads">✓✓ '+_chk.checks+'× confirmed</span>'
+      : '<span style="color:#f0c060;font-weight:var(--fw-semibold)" title="'+_d2artEsc(_chk.verdictReads?('reads disagreed: '+_chk.verdictReads.join(' vs ')):((_chk.disputed?_chk.disputed.length:0)+' stat(s) only seen once'))+'">⚖ '+_chk.checks+'× — unclear</span>'; }
     return '<div class="mf-checked" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 2px;padding:7px 10px;border:1px solid '+vc+'55;border-radius:8px;background:'+vc+'12;font-size:12px">'
-      + '<span style="color:#9fd4ff;font-weight:700">🔬 AI Checker</span>'
-      + '<span style="color:'+vc+';font-weight:800">'+lbl+'</span>'
+      + '<span style="color:#9fd4ff;font-weight:var(--fw-semibold)">🔬 AI Checker</span>'
+      + '<span style="color:'+vc+';font-weight:var(--fw-bold)">'+lbl+'</span>'
       + (_chk.score!=null?'<span style="color:var(--text-dim)">score '+_chk.score+'</span>':'')
       + (conf?conf:'')
       + (when?'<span style="color:var(--text-dim);margin-left:auto">'+when+'</span>':'')+'</div>'
@@ -10681,7 +10681,7 @@ function superUniqueDetailHtml(su){
     <div class="zd-row"><span class="zd-k">what it drops</span><span class="zd-v">${su.drops}</span></div>`;
   if (su.bind){
     h += `<div class="su-bind-callout" style="margin:14px 0 4px;border:1px solid rgba(201,161,74,.5);border-left:3px solid var(--best);border-radius:10px;padding:13px 16px;background:linear-gradient(135deg,rgba(90,58,122,.18),rgba(42,21,69,.07));box-shadow:0 0 16px rgba(240,192,96,.12)">
-      <div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--best);margin-bottom:8px">⚜️ Warlock Bind${su.bindTier ? ' · ' + su.bindTier : ''}</div>
+      <div style="font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:2.5px;text-transform:uppercase;color:var(--best);margin-bottom:8px">⚜️ Warlock Bind${su.bindTier ? ' · ' + su.bindTier : ''}</div>
       ${su.auraGrid && typeof auraGridHtml === 'function' ? auraGridHtml(su.auraGrid) : ''}
       ${su.bind}
     </div>`;
@@ -11694,7 +11694,7 @@ const SUPER_UNIQUES = [
   {emoji:"💀",name:"Bone Ash",act:"Act 1 · Cathedral",mlvl:79,immune:"random (Hell)",dclone:false,tzMatch:"Bone Ash",role:"lightning-casting skeleton mage boss",drops:"Lightning caster outside the Catacombs. Appears in the Burial Grounds-adjacent TZ pulls; Cathedral terrors to mlvl 96 / TC85."},
   {emoji:"🔥",name:"Rakanishu",act:"Act 1 · Stony Field",mlvl:76,immune:"Lightning",dclone:true,tzMatch:"Rakanishu",role:"lightning-enchanted fallen, classic DClone camp",drops:"Lightning-enchanted fallen on the Stony Field cairn. Fast early-game tag and a textbook DClone spawn-camp target."},
   {emoji:"🧙",name:"Bishibosh",act:"Act 1 · Cold Plains",mlvl:74,immune:"Fire",dclone:true,tzMatch:"Bishibosh",role:"fire-enchanted shaman, classic DClone camp",drops:"Fire-enchanted fallen shaman in the Cold Plains. Low level, but the most accessible DClone spawn-camp super-unique in the game."},
-  {emoji:"👿",name:"Lister the Tormentor",act:"Act 5 · Throne of Destruction",mlvl:92,immune:"random (Hell)",dclone:false,tzMatch:"Lister",role:"Baal's wave-5 Throne boss — the last gate before Baal",drops:"Baal's fifth and final Throne of Destruction wave — the last fight before Baal himself. Leads a pack of <strong>7 Minions of Destruction</strong> in Hell (NM 6 / Norm 5), all at mlvl 92. Not on the open TZ rotation: you only meet him in the Throne of Destruction atop the Worldstone Keep. For an Echo Warlock he is one of only TWO super-uniques (with The Smith) whose bind/Consume stats are fully sourced — a prime 20-hard-point bind target. Throne-boss Hell immunities roll per spawn, so a <strong>Physical-immune</strong> Lister is commonly seen — bring a second damage type or a Bone Break sunder to be safe (it is not a hardcoded immunity).",pool:{tcMax:87,mlvl:92,src:"Throne of Destruction · Wave 5 — TC87 quality (per the WSK MonStats lock)"},auraGrid:{mlvl:96,fixed:{name:"Meditation",glyph:"🧘",lvl:"Lvl 15 · always",fx:"Permanent personal mana engine — out-regens a merc Insight and fixes Echoing Strike's mana hunger for good. This one never changes; it stacks ON TOP of whichever Aura-Enchanted you roll below."}},bindTier:"S-Tier · the community-favourite OP bind",bind:"<p style='margin:0 0 8px;font-style:italic;color:var(--text)'>The most popular Warlock bind in the game — and the easiest top-tier one to obtain: he is a <strong>guaranteed Throne of Destruction Wave 5</strong> spawn, so there is no rare-spawn hunt.</p><div style='font-weight:700;color:var(--gold-bright);margin:8px 0 4px'>What you keep — the permanent consume:</div><ul style='margin:0;padding-left:18px;line-height:1.6'><li><strong style='color:var(--best)'>+150% Enhanced Damage</strong> — a flat weapon-damage multiplier on your Echo hits.</li><li><strong style='color:var(--best)'>25% Physical Damage Reduction</strong> — a rare consume property; turns you into a brick.</li><li><strong style='color:var(--gold-bright)'>Lvl 15 Meditation aura</strong> — a permanent personal mana engine that out-regens a merc Insight and fixes the Warlock's mana-hungry Echoing Strike for good.</li><li>~31,800 HP and ~348 total resist in Hell, plus his 7 Minions of Destruction = a <strong>meat-shield that pulls aggro</strong> off you in P8 and boss fights.</li></ul><div style='margin-top:10px'><strong style='color:var(--gold-bright)'>⭐ The roll — yes, his aura changes.</strong> On top of the fixed Meditation, Lister always binds <em>with</em> a projected <strong>Aura Enchanted</strong>, and which aura you land <strong>varies per spawn</strong> — so <strong>save &amp; exit / re-make and rebind until you roll Fanaticism</strong> (Conviction for a fire build). Bound-aura level = <code>floor(mlvl &divide; 8)</code>, so do it at <strong>lvl 94+ inside a Terror Zone (mlvl 96)</strong> to cap the aura at level 12. The OP endgame state: fixed Meditation mana + a rolled Fanaticism + 150% ED + 25% DR, all permanent and persisting between games.</div><div style='margin-top:9px;color:var(--hell)'><strong>Watch-outs:</strong> Super-Unique tier needs <strong>20 hard points</strong>. His <strong>Mana Burn</strong> throws the <code>I can't</code> message — refill and retry. Bring him below the bind HP threshold (historically &lt;40%; the 3.2 per-demon cap is unpublished). In Hell his immunity rolls per spawn — most infamously <strong>Physical Immune</strong>, but Fire / Cold / Lightning / Poison / Magic are all possible; bring a second damage type or a Bone Break sunder to chip a Physical-immune roll down to the threshold.</div>"},
+  {emoji:"👿",name:"Lister the Tormentor",act:"Act 5 · Throne of Destruction",mlvl:92,immune:"random (Hell)",dclone:false,tzMatch:"Lister",role:"Baal's wave-5 Throne boss — the last gate before Baal",drops:"Baal's fifth and final Throne of Destruction wave — the last fight before Baal himself. Leads a pack of <strong>7 Minions of Destruction</strong> in Hell (NM 6 / Norm 5), all at mlvl 92. Not on the open TZ rotation: you only meet him in the Throne of Destruction atop the Worldstone Keep. For an Echo Warlock he is one of only TWO super-uniques (with The Smith) whose bind/Consume stats are fully sourced — a prime 20-hard-point bind target. Throne-boss Hell immunities roll per spawn, so a <strong>Physical-immune</strong> Lister is commonly seen — bring a second damage type or a Bone Break sunder to be safe (it is not a hardcoded immunity).",pool:{tcMax:87,mlvl:92,src:"Throne of Destruction · Wave 5 — TC87 quality (per the WSK MonStats lock)"},auraGrid:{mlvl:96,fixed:{name:"Meditation",glyph:"🧘",lvl:"Lvl 15 · always",fx:"Permanent personal mana engine — out-regens a merc Insight and fixes Echoing Strike's mana hunger for good. This one never changes; it stacks ON TOP of whichever Aura-Enchanted you roll below."}},bindTier:"S-Tier · the community-favourite OP bind",bind:"<p style='margin:0 0 8px;font-style:italic;color:var(--text)'>The most popular Warlock bind in the game — and the easiest top-tier one to obtain: he is a <strong>guaranteed Throne of Destruction Wave 5</strong> spawn, so there is no rare-spawn hunt.</p><div style='font-weight:var(--fw-semibold);color:var(--gold-bright);margin:8px 0 4px'>What you keep — the permanent consume:</div><ul style='margin:0;padding-left:18px;line-height:1.6'><li><strong style='color:var(--best)'>+150% Enhanced Damage</strong> — a flat weapon-damage multiplier on your Echo hits.</li><li><strong style='color:var(--best)'>25% Physical Damage Reduction</strong> — a rare consume property; turns you into a brick.</li><li><strong style='color:var(--gold-bright)'>Lvl 15 Meditation aura</strong> — a permanent personal mana engine that out-regens a merc Insight and fixes the Warlock's mana-hungry Echoing Strike for good.</li><li>~31,800 HP and ~348 total resist in Hell, plus his 7 Minions of Destruction = a <strong>meat-shield that pulls aggro</strong> off you in P8 and boss fights.</li></ul><div style='margin-top:10px'><strong style='color:var(--gold-bright)'>⭐ The roll — yes, his aura changes.</strong> On top of the fixed Meditation, Lister always binds <em>with</em> a projected <strong>Aura Enchanted</strong>, and which aura you land <strong>varies per spawn</strong> — so <strong>save &amp; exit / re-make and rebind until you roll Fanaticism</strong> (Conviction for a fire build). Bound-aura level = <code>floor(mlvl &divide; 8)</code>, so do it at <strong>lvl 94+ inside a Terror Zone (mlvl 96)</strong> to cap the aura at level 12. The OP endgame state: fixed Meditation mana + a rolled Fanaticism + 150% ED + 25% DR, all permanent and persisting between games.</div><div style='margin-top:9px;color:var(--hell)'><strong>Watch-outs:</strong> Super-Unique tier needs <strong>20 hard points</strong>. His <strong>Mana Burn</strong> throws the <code>I can't</code> message — refill and retry. Bring him below the bind HP threshold (historically &lt;40%; the 3.2 per-demon cap is unpublished). In Hell his immunity rolls per spawn — most infamously <strong>Physical Immune</strong>, but Fire / Cold / Lightning / Poison / Magic are all possible; bring a second damage type or a Bone Break sunder to chip a Physical-immune roll down to the threshold.</div>"},
 ];
 
 const ITEM_SETS = [
@@ -13300,7 +13300,7 @@ function runewordDetailHtml(name){
          var ic = g.level==='block' ? '⛔' : (g.level==='ok' ? '✅' : '⚠️');
          var hd = g.level==='block' ? 'DO NOT CUBE — this will waste your runes' : (g.level==='ok' ? 'Confirmed working on your server' : 'Verify before you commit high runes');
          return '<div class="rw-guard" style="background:'+bg+';border:1px solid '+bc+';border-radius:8px;padding:10px 12px;margin-bottom:9px">'
-           + '<div style="font-weight:700;color:#fff;margin-bottom:3px">'+ic+' '+hd+'</div>'
+           + '<div style="font-weight:var(--fw-semibold);color:#fff;margin-bottom:3px">'+ic+' '+hd+'</div>'
            + '<div style="font-size:12.5px;color:var(--text,#cfc4b0);line-height:1.5">'+g.why+'</div>'
            + '<div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap;align-items:center"><span style="font-size:var(--fs-meta);color:var(--text-dim,#9a8c72)">From your game:</span>'
            +   '<button onclick="window.rwSetVerify&&window.rwSetVerify(\''+key.replace(/'/g,"\\'")+'\',\'ok\')" style="cursor:pointer;font-size:var(--fs-meta);padding:3px 9px;border-radius:5px;border:1px solid rgba(102,255,136,.5);background:rgba(102,255,136,.1);color:#9effb9">✅ it formed</button>'
@@ -14123,7 +14123,7 @@ function _vColorName(n){
   var js = String(n).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   // v395 — ⊘ eth badge for items the AI flagged Ethereal (Cannot be Repaired)
   var _eth = (typeof etherealItems !== 'undefined' && etherealItems.has(n))
-    ? '<span class="pf-eth" title="Ethereal (Cannot be Repaired)" style="margin-left:4px;font-size:9px;font-weight:700;color:#9fb4c8;border:1px solid rgba(159,180,200,.5);border-radius:3px;padding:0 3px;vertical-align:middle">⊘ ETH</span>' : '';
+    ? '<span class="pf-eth" title="Ethereal (Cannot be Repaired)" style="margin-left:4px;font-size:9px;font-weight:var(--fw-semibold);color:#9fb4c8;border:1px solid rgba(159,180,200,.5);border-radius:3px;padding:0 3px;vertical-align:middle">⊘ ETH</span>' : '';
   return '<span class="pf-name-i" role="button" tabindex="0"' + s + ' data-arttip="' + _d2artEsc(n) + '"'
     + ' onclick="window.openDrop&&window.openDrop(\'' + js + '\')" title="open ' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>' + _eth;
 }
@@ -16307,7 +16307,7 @@ function renderItemDetailCard(itemName) {
       <div class="gic-char-card">
         <span class="gic-char-emoji">${medal}</span>
         <div style="flex:1">
-          <h4 class="gic-char-name">${charName}${char ? ` <span style="color:var(--text-dim);font-size:var(--fs-meta);font-weight:400">· ${char.build} · ${char.role}</span>` : ''}</h4>
+          <h4 class="gic-char-name">${charName}${char ? ` <span style="color:var(--text-dim);font-size:var(--fs-meta);font-weight:var(--fw-regular)">· ${char.build} · ${char.role}</span>` : ''}</h4>
           <div class="gic-char-tip">${rec.reason || ''}</div>
         </div>
       </div>
@@ -17377,7 +17377,7 @@ function renderBossCards() {
         <div class="boss-title-block">
           <p class="boss-name">${boss.name}</p>
           <p class="boss-subtitle">${boss.subtitle}</p>
-          <p class="boss-loc">${boss.loc} · <span style="color:var(--terror);font-weight:600">${boss.kph} kills/hr</span></p>
+          <p class="boss-loc">${boss.loc} · <span style="color:var(--terror);font-weight:var(--fw-medium)">${boss.kph} kills/hr</span></p>
         </div>
         <div class="boss-tier-tag">
           <div class="boss-tier-label">${boss.tierLabel}</div>
@@ -17768,7 +17768,7 @@ function renderDetail() {
         const r95 = runsFor(s.adjustedChance, 0.95);
         const h50 = hoursFor(s.adjustedChance, 0.5, s.kph);
         const verBadge = s.verified ? ' <span style="color:var(--verified);font-size:var(--fs-micro)">🔒 verified</span>' : '';
-        return `<tr class="${csrc}"><td style="${isBest?'color:var(--best);font-weight:600':''}">${s.boss}${verBadge} <span style="color:var(--text-dim);font-size:var(--fs-micro)">${s.kph}/hr</span></td><td class="diff-col ${isBest?'best-cell':''} ${s.verified?'verified-cell':''}">${fmt(s.adjustedChance)}</td><td class="diff-col">${r50.toLocaleString()}</td><td class="diff-col" style="color:var(--terror)">${fmtHours(h50)}</td><td class="diff-col">${r95.toLocaleString()}</td></tr>`;
+        return `<tr class="${csrc}"><td style="${isBest?'color:var(--best);font-weight:var(--fw-medium)':''}">${s.boss}${verBadge} <span style="color:var(--text-dim);font-size:var(--fs-micro)">${s.kph}/hr</span></td><td class="diff-col ${isBest?'best-cell':''} ${s.verified?'verified-cell':''}">${fmt(s.adjustedChance)}</td><td class="diff-col">${r50.toLocaleString()}</td><td class="diff-col" style="color:var(--terror)">${fmtHours(h50)}</td><td class="diff-col">${r95.toLocaleString()}</td></tr>`;
       }).join("")}
     </tbody>
   </table></div>
@@ -19768,7 +19768,7 @@ function _rwBaseTipHtml(name){
   return '<div class="att-type" style="color:var(--q-base,#a8adb8)">Base Item &middot; ' + b.slot + '</div>'
     + '<div class="att-meta">🔩 ' + sockLine + (strM ? ' &middot; ' + strM[1] + ' str' : '') + '</div>'
     + (note ? '<div class="att-aff">' + note.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>' : '')
-    + '<div class="att-result-h" style="margin-top:5px">⚒️ runewords on this base <span style="opacity:.6;font-weight:400">(🔩 = sockets needed)</span></div><div class="att-recipe" style="flex-wrap:wrap;gap:3px">' + rws + '</div>'
+    + '<div class="att-result-h" style="margin-top:5px">⚒️ runewords on this base <span style="opacity:.6;font-weight:var(--fw-regular)">(🔩 = sockets needed)</span></div><div class="att-recipe" style="flex-wrap:wrap;gap:3px">' + rws + '</div>'
     + '<div class="att-info">A normal/superior <b>grey</b> base — socket it to the right count (Larzuk / cube / drops) and cube the runes in order. Click to open its top runeword.</div>';
 }
 window._rwBaseTipHtml = _rwBaseTipHtml;
@@ -19792,7 +19792,7 @@ function _genericBaseTipHtml(name){
     return '<div class="att-type" style="color:var(--q-base,#a8adb8)">Base Item &middot; '+slot+'</div>'
       + '<div class="att-meta">🔩 '+(mx?('up to '+mx+' socket'+(mx===1?'':'s')):'socketable')+(reqs.length?' &middot; '+reqs.join(' &middot; '):'')+'</div>'
       + ((tier||hand)?'<div class="att-aff">'+[tier,hand].filter(Boolean).join(' &middot; ')+'</div>':'')
-      + (rws.length?('<div class="att-result-h" style="margin-top:5px">⚒️ runewords on this base <span style="opacity:.6;font-weight:400">(🔩 = sockets needed)</span></div><div class="att-recipe" style="flex-wrap:wrap;gap:3px">'+shown+more+'</div>'):'')
+      + (rws.length?('<div class="att-result-h" style="margin-top:5px">⚒️ runewords on this base <span style="opacity:.6;font-weight:var(--fw-regular)">(🔩 = sockets needed)</span></div><div class="att-recipe" style="flex-wrap:wrap;gap:3px">'+shown+more+'</div>'):'')
       + '<div class="att-info">A normal/superior <b>grey</b> base — socket it to the right count (Larzuk / cube / drops) and cube the runes in order.</div>';
   } catch(e){ return ''; }
 }
@@ -20883,7 +20883,7 @@ window.scanTopPicks = function(opts){
   var out=document.getElementById('ask-thread'); if(!out) return;
   var tp=(typeof buildTopPicks==='function')?window._previewWrap(buildTopPicks):{makeNow:[],afterCubing:[],close:[]};
   function fmt(a){ return a.map(function(x){ return (x.kind==='craft'?'🔨 ':'⚡ ')+_askEsc(x.display||x.name); }).join(' · '); }
-  var L=['<b>🎯 Top picks for your stash</b> <span style="color:var(--text-dim);font-weight:400">(top-tier only — crafts &amp; runewords that rival/beat uniques)</span>'];
+  var L=['<b>🎯 Top picks for your stash</b> <span style="color:var(--text-dim);font-weight:var(--fw-regular)">(top-tier only — crafts &amp; runewords that rival/beat uniques)</span>'];
   L.push(tp.makeNow.length ? ('<b style="color:var(--best)">✅ Make NOW:</b> '+fmt(tp.makeNow)) : '<span style="color:var(--text-dim)">✅ Nothing top-tier craftable yet — keep banking runes/gems.</span>');
   if(tp.afterCubing.length) L.push('<b style="color:var(--q-orange)">◆ After cubing up:</b> '+fmt(tp.afterCubing));
   if(tp.close.length) L.push('<b>🔜 Almost there:</b> '+tp.close.map(function(x){return _askEsc(x.name)+' <span style="color:var(--text-dim)">('+(x.awayN||1)+' more: '+_askEsc(x.need)+')</span>';}).slice(0,8).join(' · '));
@@ -21093,23 +21093,23 @@ window.dailyCreateAi = function(force){
     // v775 — the family spine header rides ABOVE everything (afterbegin injects push it down; pin it back to top)
     try { var _sp=document.getElementById('tools-spine'); if(_sp) tools.insertBefore(_sp, tools.firstChild); } catch(e){}
     var st=document.createElement('style'); st.textContent=
-      '.ask-chip-scan{color:#06121c!important;background:linear-gradient(180deg,#9fdcff,#5fb4e8)!important;border-color:#bfe6ff!important;font-weight:800}'
+      '.ask-chip-scan{color:#06121c!important;background:linear-gradient(180deg,#9fdcff,#5fb4e8)!important;border-color:#bfe6ff!important;font-weight:var(--fw-bold)}'
       +'.ask-chip-scan:hover{filter:brightness(1.07)}'
       +'.ask-toppicks{border-left-color:var(--best)!important;background:rgba(102,255,136,.06)!important;line-height:1.8}'
       +'.create-now{margin:2px 0 12px;border:1px solid rgba(102,255,136,.18);border-radius:12px;background:linear-gradient(180deg,rgba(102,255,136,.05),rgba(20,16,10,.25));padding:11px 13px}'
       +'.cn-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;flex-wrap:wrap}'
-      +'.cn-title{font-family:var(--serif-display,serif);font-weight:700;font-size:var(--fs-title);color:var(--best,#66ff88)}'
+      +'.cn-title{font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);font-size:var(--fs-title);color:var(--best,#66ff88)}'
       +'.cn-meta{font-size:var(--fs-micro);color:var(--text-dim);font-style:italic;display:inline-flex;align-items:center;gap:6px}'
       +'.cn-refresh{cursor:pointer;background:none;border:none;font-size:12px;padding:0;opacity:.7}.cn-refresh:hover{opacity:1}'
       +'.cn-ai{font-size:12px;color:var(--text);background:rgba(127,212,255,.07);border:1px solid rgba(127,212,255,.22);border-radius:8px;padding:7px 11px;margin-bottom:10px;line-height:1.5}.cn-ai b{color:#8fd0ff}'
       +'.cn-focusnote{font-size:11.5px;color:var(--text-dim);background:rgba(240,192,96,.06);border:1px dashed rgba(240,192,96,.3);border-radius:8px;padding:7px 11px;margin-top:7px;line-height:1.5}.cn-focusnote b{color:#f0c060}'
       +'.cn-group{margin-bottom:7px;border:1px solid rgba(255,255,255,.07);border-radius:9px;background:rgba(255,255,255,.018);overflow:hidden}'
-      +'.cn-gh{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);padding:9px 11px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;user-select:none}'
+      +'.cn-gh{font-size:10.5px;font-weight:var(--fw-bold);letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);padding:9px 11px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;user-select:none}'
       +'.cn-gh::-webkit-details-marker{display:none}.cn-gh:hover{color:var(--text)}'
       +'.cn-group[open] .cn-gh{border-bottom:1px solid rgba(255,255,255,.07)}'
       +'.cn-gh-chev{font-size:var(--fs-meta);color:var(--text-dim);transition:transform .15s}.cn-group[open] .cn-gh-chev{transform:rotate(180deg)}'
       +'.cn-now .cn-gh{color:#9fe6b0}.cn-cube .cn-gh{color:#a9d4ff}.cn-close .cn-gh{color:#e8c98a}'
-      +'.cn-ct{color:var(--text-dim);font-weight:600}'
+      +'.cn-ct{color:var(--text-dim);font-weight:var(--fw-medium)}'
       +'.cn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:7px;padding:9px 11px}'
       +'.cn-tile{display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.28);border:1px solid var(--border);border-left:3px solid var(--cn-glow,#ffa800);border-radius:9px;padding:7px 10px;cursor:pointer;transition:transform .12s,box-shadow .12s,background .12s}'
       +'.cn-tile:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--cn-glow,#ffa800) 9%,transparent);box-shadow:0 0 16px -5px var(--cn-glow,#ffa800)}'
@@ -21117,10 +21117,10 @@ window.dailyCreateAi = function(force){
       +'.cn-ic{flex:0 0 auto;font-size:18px;width:26px;height:26px;display:flex;align-items:center;justify-content:center}'
       +'.cn-ic .d2art-wrap.sm{width:26px;height:26px}.cn-ic .d2art-img{max-width:26px;max-height:26px}'
       +'.cn-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}'
-      +'.cn-name{font-weight:700;font-size:12.5px;color:var(--cn-glow,#ffa800);text-shadow:0 0 6px var(--cn-glow,#ffa800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+      +'.cn-name{font-weight:var(--fw-semibold);font-size:12.5px;color:var(--cn-glow,#ffa800);text-shadow:0 0 6px var(--cn-glow,#ffa800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       +'.cn-recipe{font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       +'.cn-need{display:flex;align-items:center;flex-wrap:wrap;gap:3px;font-size:10.5px;color:#ffb3b3;margin-top:2px}.cn-need img{max-width:16px;max-height:16px}'
-      +'.cn-need-n{font-size:8.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#1a1207;background:#f0b86a;border-radius:4px;padding:1px 5px;margin-right:2px}'
+      +'.cn-need-n{font-size:8.5px;font-weight:var(--fw-bold);letter-spacing:.03em;text-transform:uppercase;color:#1a1207;background:#f0b86a;border-radius:4px;padding:1px 5px;margin-right:2px}'
       +'.cn-recst{display:inline-flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:3px;vertical-align:middle}'
       +'.cn-rs-ing{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;padding:2px;border:1px solid transparent}'
       +'.cn-rs-ing img{max-width:20px;max-height:20px;display:block}.cn-rs-ing .cn-rc-g{font-size:var(--fs-title)}.cn-rs-ing .cn-rc-jw img{max-width:18px;max-height:18px}'
@@ -21130,13 +21130,13 @@ window.dailyCreateAi = function(force){
       +'.cn-rc{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;margin-top:2px}'
       +'.cn-rc-i{display:inline-flex;align-items:center}.cn-rc-i img{max-width:19px;max-height:19px;vertical-align:middle}'
       +'.cn-rc-g{font-size:var(--fs-title);margin-right:1px}.cn-rc-p{color:var(--text-dim);font-size:var(--fs-micro);margin:0 1px}.cn-rc-j{color:#9fd0ff;font-size:var(--fs-meta);margin-left:2px;opacity:.8}'
-      +'.cn-beats{display:block;font-size:9.5px;font-weight:700;color:#ffd040;letter-spacing:.02em;margin-top:2px;text-shadow:0 0 5px rgba(255,208,64,.4)}'
+      +'.cn-beats{display:block;font-size:9.5px;font-weight:var(--fw-semibold);color:#ffd040;letter-spacing:.02em;margin-top:2px;text-shadow:0 0 5px rgba(255,208,64,.4)}'
       +'.cn-badge{flex:0 0 auto;font-size:12px}'
       +'.cn-star{color:var(--star,#ffd040);font-size:var(--fs-meta)}'
       +'.cn-empty{font-size:12px;color:var(--text-dim);font-style:italic;padding:6px 2px}'
       +'.cn-when{opacity:.85}'
       /* v341.39 — FLAGSHIP Preview button: big, animated purple→cyan sheen + pulsing glow, the CTA that launches the sandbox simulator */
-      +'.cn-prev-toggle{cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#fff;background:linear-gradient(120deg,#7c3aed 0%,#b48ce0 36%,#7fd4ff 70%,#b48ce0 100%);background-size:240% 100%;border:1px solid rgba(222,206,255,.92);border-radius:12px;padding:9px 18px;text-shadow:0 1px 2px rgba(0,0,0,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 16px -3px rgba(150,110,230,.75),0 0 24px -6px rgba(127,212,255,.7);animation:cnPrevSheen 5.5s linear infinite,cnPrevPulse 2.8s ease-in-out infinite;transition:transform .12s ease,filter .16s ease}'
+      +'.cn-prev-toggle{cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:var(--fw-bold);letter-spacing:.07em;text-transform:uppercase;color:#fff;background:linear-gradient(120deg,#7c3aed 0%,#b48ce0 36%,#7fd4ff 70%,#b48ce0 100%);background-size:240% 100%;border:1px solid rgba(222,206,255,.92);border-radius:12px;padding:9px 18px;text-shadow:0 1px 2px rgba(0,0,0,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 16px -3px rgba(150,110,230,.75),0 0 24px -6px rgba(127,212,255,.7);animation:cnPrevSheen 5.5s linear infinite,cnPrevPulse 2.8s ease-in-out infinite;transition:transform .12s ease,filter .16s ease}'
       +'.cn-prev-toggle::before{content:"\\25B6";font-size:9px;opacity:.92;transform:translateY(.5px)}'
       +'.cn-prev-toggle:hover{transform:translateY(-2px) scale(1.05);filter:brightness(1.13) saturate(1.1)}'
       +'.cn-prev-toggle:active{transform:translateY(0) scale(.97)}'
@@ -21145,23 +21145,23 @@ window.dailyCreateAi = function(force){
       +'@keyframes cnPrevSheen{0%{background-position:0% 50%}100%{background-position:240% 50%}}'
       +'@keyframes cnPrevPulse{0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 16px -3px rgba(150,110,230,.6),0 0 18px -7px rgba(127,212,255,.5)}50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.42),0 6px 22px -2px rgba(150,110,230,.92),0 0 32px -3px rgba(127,212,255,.9)}}'
       +'@media(prefers-reduced-motion:reduce){.cn-prev-toggle{animation:none}}'
-      +'.cn-pv-badge{font-size:9px;font-weight:800;letter-spacing:.06em;color:#1a1207;background:#b48ce0;border-radius:7px;padding:1px 7px;vertical-align:middle}'
+      +'.cn-pv-badge{font-size:9px;font-weight:var(--fw-bold);letter-spacing:.06em;color:#1a1207;background:#b48ce0;border-radius:7px;padding:1px 7px;vertical-align:middle}'
       +'.cn-preview{margin:0 0 11px;border:1px dashed rgba(180,140,224,.5);border-radius:11px;background:rgba(180,140,224,.06);padding:10px 12px}'
       +'.cn-pv-note{font-size:var(--fs-meta);color:var(--text-muted);line-height:1.5;margin-bottom:9px}.cn-pv-note b{color:#cfa8ff}'
       +'.cn-pv-row{display:flex;flex-wrap:wrap;gap:7px;align-items:center}'
       +'.cn-pv-sel{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:12px;font-family:inherit;max-width:220px}'
       /* v341.40 — Add-item button is now IDENTICAL to the toggled-ON Preview button (green→cyan lit flagship) */
-      +'.cn-pv-add{cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#06281c;background:linear-gradient(120deg,#34d399 0%,#7fd4ff 50%,#34d399 100%);background-size:240% 100%;border:1px solid #bfffe0;border-radius:12px;padding:9px 18px;text-shadow:0 1px 1px rgba(255,255,255,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 16px -3px rgba(52,211,153,.8),0 0 26px -5px rgba(127,212,255,.8);animation:cnPrevSheen 4s linear infinite;transition:transform .12s ease,filter .16s ease}'
+      +'.cn-pv-add{cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:var(--fw-bold);letter-spacing:.07em;text-transform:uppercase;color:#06281c;background:linear-gradient(120deg,#34d399 0%,#7fd4ff 50%,#34d399 100%);background-size:240% 100%;border:1px solid #bfffe0;border-radius:12px;padding:9px 18px;text-shadow:0 1px 1px rgba(255,255,255,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 16px -3px rgba(52,211,153,.8),0 0 26px -5px rgba(127,212,255,.8);animation:cnPrevSheen 4s linear infinite;transition:transform .12s ease,filter .16s ease}'
       +'.cn-pv-add:hover{transform:translateY(-2px) scale(1.05);filter:brightness(1.1) saturate(1.08)}'
       +'.cn-pv-add:active{transform:translateY(0) scale(.97)}'
       +'.cn-pv-add:focus-visible{outline:2px solid #fff;outline-offset:2px}'
       +'.cn-pv-clear{cursor:pointer;font-size:11.5px;color:#ff9e9e;background:rgba(255,64,64,.08);border:1px solid rgba(255,80,80,.4);border-radius:8px;padding:6px 11px}'
-      +'.cn-pv-chips{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}.cn-pv-lab{font-size:var(--fs-micro);font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim)}'
-      +'.cn-pv-chip{display:inline-flex;align-items:center;gap:3px;font-size:var(--fs-meta);font-weight:600;color:#e8d8ff;background:rgba(180,140,224,.15);border:1px solid rgba(180,140,224,.4);border-radius:6px;padding:2px 8px}'
+      +'.cn-pv-chips{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}.cn-pv-lab{font-size:var(--fs-micro);font-weight:var(--fw-bold);text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim)}'
+      +'.cn-pv-chip{display:inline-flex;align-items:center;gap:3px;font-size:var(--fs-meta);font-weight:var(--fw-medium);color:#e8d8ff;background:rgba(180,140,224,.15);border:1px solid rgba(180,140,224,.4);border-radius:6px;padding:2px 8px}'
       +'.cn-pv-chip img{max-width:16px;max-height:16px;vertical-align:middle}.cn-pv-chip .cn-pv-glyph{font-size:var(--fs-body)}'
       +'.cn-pv-menu{margin-top:9px;max-height:280px;overflow-y:auto;border:1px solid rgba(180,140,224,.42);border-radius:11px;padding:7px 9px;background:rgba(12,9,5,.55)}'
-      +'.cn-pv-ggh{font-size:var(--fs-micro);font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#c9aef0;margin:9px 3px 4px;border-bottom:1px dashed rgba(180,140,224,.28);padding-bottom:3px}.cn-pv-ggh:first-child{margin-top:2px}'
-      +'.cn-pv-gsub{font-weight:600;text-transform:none;letter-spacing:0;color:var(--text-dim);font-size:9px;margin-left:4px}'
+      +'.cn-pv-ggh{font-size:var(--fs-micro);font-weight:var(--fw-bold);text-transform:uppercase;letter-spacing:.06em;color:#c9aef0;margin:9px 3px 4px;border-bottom:1px dashed rgba(180,140,224,.28);padding-bottom:3px}.cn-pv-ggh:first-child{margin-top:2px}'
+      +'.cn-pv-gsub{font-weight:var(--fw-medium);text-transform:none;letter-spacing:0;color:var(--text-dim);font-size:9px;margin-left:4px}'
       +'.cn-pv-ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:2px}'
       +'.cn-pv-opt{display:flex;align-items:center;gap:7px;padding:3px 7px;border-radius:7px;cursor:pointer;transition:background .1s}.cn-pv-opt:hover{background:rgba(180,140,224,.2)}'
       +'.cn-pv-opt-art{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}.cn-pv-opt-art img{max-width:24px;max-height:24px}'
@@ -21171,9 +21171,9 @@ window.dailyCreateAi = function(force){
       +'.cn-pv-jw.jw-magic img{filter:drop-shadow(0 0 5px rgba(105,105,255,.9))}.cn-pv-jw.jw-rare img{filter:drop-shadow(0 0 5px rgba(255,255,100,.9)) hue-rotate(35deg) saturate(1.3)}'
       +'.cn-pv-chip .cn-pv-jw img{max-width:15px;max-height:15px}'
       +'.cn-pv-empty{margin-top:8px;font-size:var(--fs-meta);color:var(--text-dim);font-style:italic}'+
-      '#ask-bible-card .arw-count{background:rgba(127,212,255,.16);color:#8fd0ff;border-radius:8px;padding:1px 8px;font-size:9px;font-weight:800;letter-spacing:.05em}'
+      '#ask-bible-card .arw-count{background:rgba(127,212,255,.16);color:#8fd0ff;border-radius:8px;padding:1px 8px;font-size:9px;font-weight:var(--fw-bold);letter-spacing:.05em}'
       +'.ask-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 11px}'
-      +'.ask-chip{cursor:pointer;font-size:11.5px;font-weight:600;color:#cfe8ff;background:rgba(127,212,255,.08);border:1px solid rgba(127,212,255,.3);border-radius:18px;padding:5px 12px;transition:background .14s,border-color .14s,transform .12s}'
+      +'.ask-chip{cursor:pointer;font-size:11.5px;font-weight:var(--fw-medium);color:#cfe8ff;background:rgba(127,212,255,.08);border:1px solid rgba(127,212,255,.3);border-radius:18px;padding:5px 12px;transition:background .14s,border-color .14s,transform .12s}'
       +'.ask-chip:hover{background:rgba(127,212,255,.16);border-color:rgba(127,212,255,.6);transform:translateY(-1px)}'
       +'.ask-thread{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin-bottom:10px}'
       +'.ask-q{align-self:flex-end;max-width:82%;background:linear-gradient(180deg,rgba(127,212,255,.16),rgba(127,212,255,.08));border:1px solid rgba(127,212,255,.3);border-radius:13px 13px 3px 13px;padding:7px 12px;font-size:12.5px;color:#e8f4ff}'
@@ -21183,7 +21183,7 @@ window.dailyCreateAi = function(force){
       +'.ask-input-row{display:flex;gap:8px}'
       +'.ask-input{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 13px;color:var(--text);font-size:var(--fs-body);font-family:inherit}'
       +'.ask-input:focus{outline:none;border-color:#8fd0ff;box-shadow:0 0 0 2px rgba(127,212,255,.18)}'
-      +'.ask-send{cursor:pointer;font-family:var(--serif-display,serif);font-weight:700;font-size:var(--fs-body);color:#06121c;background:linear-gradient(180deg,#9fdcff,#5fb4e8);border:1px solid #bfe6ff;border-radius:10px;padding:9px 17px;white-space:nowrap;transition:filter .14s,transform .12s}'
+      +'.ask-send{cursor:pointer;font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);font-size:var(--fs-body);color:#06121c;background:linear-gradient(180deg,#9fdcff,#5fb4e8);border:1px solid #bfe6ff;border-radius:10px;padding:9px 17px;white-space:nowrap;transition:filter .14s,transform .12s}'
       +'.ask-send:hover{filter:brightness(1.07);transform:translateY(-1px)}'
       +'.ask-note{font-size:var(--fs-micro);color:var(--text-dim);margin-top:8px;font-style:italic}'
       // ── v341.4 FLAGSHIP hero header: a distinctive violet→cyan→gold sheen that sets the AI
@@ -21192,11 +21192,11 @@ window.dailyCreateAi = function(force){
       +'.ask-flagship::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,#b48ce0,#8fd0ff,#ffd040,#b48ce0);background-size:300% 100%;animation:askSheen 9s linear infinite;opacity:.9;z-index:2}'
       +'@keyframes askSheen{0%{background-position:0% 0}100%{background-position:300% 0}}'
       +'.ask-hero{background:linear-gradient(120deg,rgba(120,90,200,.16),rgba(127,212,255,.08) 45%,rgba(240,192,96,.08));border-bottom:1px solid rgba(150,120,220,.25)}'
-      +'.ask-hero-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-family:var(--serif-display,serif);font-size:22px!important;font-weight:600;letter-spacing:.3px}'/* v341.37 — match the standard .boss-name title size/structure */
+      +'.ask-hero-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-family:var(--serif-display,serif);font-size:22px!important;font-weight:var(--fw-medium);letter-spacing:.3px}'/* v341.37 — match the standard .boss-name title size/structure */
       +'.ask-hero-d2{color:var(--gold-bright,#f0c060);font-family:var(--serif-display,serif)}'
       +'.ask-orb{font-size:19px;filter:drop-shadow(0 0 6px rgba(180,140,224,.9));animation:askOrb 3.2s ease-in-out infinite;display:inline-block}'
       +'@keyframes askOrb{0%,100%{transform:translateY(0) rotate(-4deg);filter:drop-shadow(0 0 5px rgba(180,140,224,.7))}50%{transform:translateY(-2px) rotate(4deg);filter:drop-shadow(0 0 11px rgba(143,208,255,.95))}}'
-      +'.ask-sonnet{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#0a0e16;background:linear-gradient(180deg,#cbb0f0,#9fd0ff);border:1px solid #d8c8ff;border-radius:9px;padding:2px 9px;box-shadow:0 0 10px -2px rgba(160,180,255,.6)}'
+      +'.ask-sonnet{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9.5px;font-weight:var(--fw-bold);letter-spacing:.06em;text-transform:uppercase;color:#0a0e16;background:linear-gradient(180deg,#cbb0f0,#9fd0ff);border:1px solid #d8c8ff;border-radius:9px;padding:2px 9px;box-shadow:0 0 10px -2px rgba(160,180,255,.6)}'
       +'.ask-hero-sub{color:#c8bfe0!important;font-size:11.5px!important;margin:3px 0 0!important}'
       // chat thread polish — the AI answer gets a 🔮 avatar; bubbles a touch richer; smooth entry
       +'.ask-q,.ask-a{animation:askIn .22s ease-out}@keyframes askIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}'
@@ -22360,7 +22360,7 @@ function renderHeraldCard(){
   });
   tb.innerHTML = _HERALD_SUNDERS.map((s) => {
     const esc = s.n.replace(/'/g, "\\'");
-    const name = `${artOr(s.n, '💎', 'sm')} <span class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="window.openDrop('${esc}')" title="open the ${s.n} material card">${s.n} →</span>`;
+    const name = `${artOr(s.n, '💎', 'sm')} <span class="zd-item-click" style="cursor:pointer;font-weight:var(--fw-medium)" onclick="window.openDrop('${esc}')" title="open the ${s.n} material card">${s.n} →</span>`;
     return `<tr><td>${name}</td><td class="brk ${s.imm}">${s.breaks}</td><td>${s.best}</td><td class="rec">${s.rec}</td></tr>`;
   }).join('');
 }
@@ -22492,18 +22492,18 @@ function renderUberBossCards(){
     // both as their own clickable ID-card chips instead of the aggregate link.
     const _jewelChips = (b.jewels && b.jewels.length)
       ? '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:7px">'
-        + b.jewels.map((jn) => '<span class="zd-item-click" data-arttip="' + _d2artEsc(jn) + '" style="cursor:pointer;color:var(--q-orange);font-weight:700;font-size:var(--fs-body);border:1px solid rgba(201,161,74,.4);border-radius:6px;padding:4px 9px;background:rgba(90,58,122,.18)" onclick="window.openDrop(\'' + jn.replace(/'/g, "\\'") + '\')">' + nameLogo(jn) + jn + ' →</span>').join('')
+        + b.jewels.map((jn) => '<span class="zd-item-click" data-arttip="' + _d2artEsc(jn) + '" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-semibold);font-size:var(--fs-body);border:1px solid rgba(201,161,74,.4);border-radius:6px;padding:4px 9px;background:rgba(90,58,122,.18)" onclick="window.openDrop(\'' + jn.replace(/'/g, "\\'") + '\')">' + nameLogo(jn) + jn + ' →</span>').join('')
         + '</div><div style="color:var(--gold-dim);font-size:var(--fs-meta);margin-top:5px;font-style:italic">You keep the jewel matching the Ancient killed <strong>last</strong>.</div>'
       : '';
     const _headLink = (b.jewels && b.jewels.length)
-      ? '<span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:700;font-size:14px" onclick="window.openDrop(\'Colossal Ancient Jewels\')">' + nameLogo(_item) + _item + ' →</span>'
-      : '<span class="zd-item-click" data-arttip="' + _d2artEsc(_item) + '" style="cursor:pointer;color:var(--q-orange);font-weight:700;font-size:14px" onclick="window.openDrop(\'' + _item.replace(/'/g, "\\'") + '\')">' + nameLogo(_item) + _item + ' →</span>';
+      ? '<span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-semibold);font-size:14px" onclick="window.openDrop(\'Colossal Ancient Jewels\')">' + nameLogo(_item) + _item + ' →</span>'
+      : '<span class="zd-item-click" data-arttip="' + _d2artEsc(_item) + '" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-semibold);font-size:14px" onclick="window.openDrop(\'' + _item.replace(/'/g, "\\'") + '\')">' + nameLogo(_item) + _item + ' →</span>';
     const dropRow = '<div class="ubc-drop" style="border:1px solid var(--gold);border-radius:8px;padding:9px 11px;background:linear-gradient(135deg,rgba(201,161,74,.13),rgba(201,161,74,.03))">'
-      + '<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;color:#100c05;background:linear-gradient(135deg,#eccd80,#c9a14a);padding:2px 7px;border-radius:4px;white-space:nowrap;margin-right:7px">🏆 ONLY DROPS HERE</span>'
+      + '<span style="font-size:9.5px;font-weight:var(--fw-bold);letter-spacing:.4px;color:#100c05;background:linear-gradient(135deg,#eccd80,#c9a14a);padding:2px 7px;border-radius:4px;white-space:nowrap;margin-right:7px">🏆 ONLY DROPS HERE</span>'
       + _headLink
       + '<div style="color:var(--gold-dim);font-size:11.5px;margin-top:4px">' + _note + '</div>'
       + _jewelChips + '</div>';
-    let _hdr = ''; if (b.group !== _lastG) { _lastG = b.group; _hdr = '<div class="ubc-group-head" style="grid-column:1/-1;width:100%;box-sizing:border-box;margin:18px 0 8px;font-size:var(--fs-body);font-weight:700;letter-spacing:.3px;color:var(--gold);border-bottom:1px solid rgba(201,161,74,.2);padding-bottom:6px">' + (GROUP_LABEL[b.group] || b.group) + '</div>'; }
+    let _hdr = ''; if (b.group !== _lastG) { _lastG = b.group; _hdr = '<div class="ubc-group-head" style="grid-column:1/-1;width:100%;box-sizing:border-box;margin:18px 0 8px;font-size:var(--fs-body);font-weight:var(--fw-semibold);letter-spacing:.3px;color:var(--gold);border-bottom:1px solid rgba(201,161,74,.2);padding-bottom:6px">' + (GROUP_LABEL[b.group] || b.group) + '</div>'; }
     return _hdr + '<div class="uber-boss-card" id="uberboss-' + b.id + '" data-boss="' + b.id + '">'
       + '<div class="ubc-head" onclick="window.toggleUberBoss(\'' + b.id + '\')" role="button" tabindex="0" aria-expanded="false">'
       + emblem
@@ -23661,7 +23661,7 @@ if (_origRenderWishlistHuntPath) {
       const btn = document.createElement('button');
       btn.className = 'wishlist-export-btn';
       btn.innerHTML = '📋 Export as Markdown';
-      btn.style.cssText = 'margin:14px auto 4px;display:block;background:linear-gradient(180deg,rgba(240,192,96,.2),rgba(240,192,96,.05));border:1px solid var(--gold-bright);color:var(--gold-bright);padding:7px 16px;border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:var(--fs-meta);font-weight:700;letter-spacing:.5px;transition:all .15s';
+      btn.style.cssText = 'margin:14px auto 4px;display:block;background:linear-gradient(180deg,rgba(240,192,96,.2),rgba(240,192,96,.05));border:1px solid var(--gold-bright);color:var(--gold-bright);padding:7px 16px;border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:.5px;transition:all .15s';
       btn.onclick = () => window.exportWishlistAsMarkdown();
       btn.onmouseover = () => { btn.style.background = 'var(--gold-bright)'; btn.style.color = '#1a1207'; };
       btn.onmouseout = () => { btn.style.background = 'linear-gradient(180deg,rgba(240,192,96,.2),rgba(240,192,96,.05))'; btn.style.color = 'var(--gold-bright)'; };
@@ -24466,7 +24466,7 @@ _v41_whenReady(() => {
 </div>
 <div id="routine-status-bar" style="background:linear-gradient(180deg,rgba(20,12,4,.95),rgba(10,6,2,.9));border:1px solid var(--gold-bright);border-radius:999px;padding:6px 14px;font-family:var(--mono);font-size:var(--fs-micro);color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,.6);display:none;align-items:center;gap:10px;white-space:nowrap">
   <div style="display:flex;align-items:center;gap:8px" title="click a letter to open its routine in Obsidian · R toggles this bar">
-    <span style="color:var(--gold-bright);font-weight:700;letter-spacing:.8px;white-space:nowrap">🤖 ROUTINES</span>
+    <span style="color:var(--gold-bright);font-weight:var(--fw-semibold);letter-spacing:.8px;white-space:nowrap">🤖 ROUTINES</span>
     <span id="routine-status-summary" style="color:var(--gold-dim);font-size:9px;white-space:nowrap"></span>
     <button onclick="document.getElementById('routine-status-bar').style.display='none'" style="margin-left:auto;background:none;border:none;color:var(--gold-dim);cursor:pointer;font-size:14px;padding:0">×</button>
   </div>
@@ -24829,7 +24829,7 @@ _v41_whenReady(() => {
             const t = document.createElement('div');
             t.id = 'v42-rw-toast';
             t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a1208;border:1px solid var(--gold-bright,#f0c060);color:#f0c060;padding:12px 18px;border-radius:6px;font-family:var(--mono,monospace);font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.7);z-index:9998;max-width:340px;line-height:1.5';
-            t.innerHTML = `<div style="font-weight:700;margin-bottom:4px">${rw.n}</div><div style="opacity:.85">${rw.runes}</div><div style="opacity:.75;margin-top:4px">${rw.base}</div><div style="opacity:.65;margin-top:4px;font-style:italic">${rw.notes||''}</div>`;
+            t.innerHTML = `<div style="font-weight:var(--fw-semibold);margin-bottom:4px">${rw.n}</div><div style="opacity:.85">${rw.runes}</div><div style="opacity:.75;margin-top:4px">${rw.base}</div><div style="opacity:.65;margin-top:4px;font-style:italic">${rw.notes||''}</div>`;
             document.body.appendChild(t);
             setTimeout(() => t.remove(), 6000);
           } catch(e) {}
@@ -29424,7 +29424,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bk=v.breakdown.length
       ? '<div class="aic-break">'+v.breakdown.map(function(b){ return '<div class="aic-bk"><span>'+esc(b.src)+'</span><span class="w">+'+b.w+'</span></div>'; }).join('')+'</div>'
       : '<div class="aic-vctx" style="opacity:.8">No valued affixes detected — almost certainly a toss.</div>';
-    return '<div class="aic-verdict '+v.tier+'"><div class="aic-vhead '+v.tier+'">'+head+' <span style="opacity:.65;font-size:12px;font-weight:600">· score '+v.score+'</span></div>'
+    return '<div class="aic-verdict '+v.tier+'"><div class="aic-vhead '+v.tier+'">'+head+' <span style="opacity:.65;font-size:12px;font-weight:var(--fw-medium)">· score '+v.score+'</span></div>'
       + '<div class="aic-vctx">'+v.ctx.join('<br>')+'</div>' + bk + '</div>';
   }
   function _aicRenderVerdict(){ var el=document.getElementById('aic-verdict'); if(el) el.innerHTML=_aicVerdictHtml(); }
@@ -30429,7 +30429,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }).join('');
         pfHtml = '<details class="vir-pf vj-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+e.pf.length+' file'+(e.pf.length===1?'':'s')+'</span></summary><div class="vir-pf-body">'+rows+'</div></details>';
       }
-      var _uBadge = e.u ? '<span class="vj-user" title="logged by ' + esc(e.u) + '" style="font-size:9px;font-weight:700;color:#c9b88f;border:1px solid rgba(201,184,143,.45);border-radius:3px;padding:0 4px;margin-left:6px">👤 ' + esc(e.u) + '</span>' : '';
+      var _uBadge = e.u ? '<span class="vj-user" title="logged by ' + esc(e.u) + '" style="font-size:9px;font-weight:var(--fw-semibold);color:#c9b88f;border:1px solid rgba(201,184,143,.45);border-radius:3px;padding:0 4px;margin-left:6px">👤 ' + esc(e.u) + '</span>' : '';
       return '<div class="vj-session"><div class="vj-meta"><span class="vj-when">' + when + '</span><span class="vj-count">' + e.items.length + ' item' + (e.items.length===1?'':'s') + '</span>' + _uBadge + '</div><div class="vj-items">' + chips + '</div>' + pfHtml + '</div>';
     }).join('');
     // v328: collapsible by default + symmetric grid chips + scroll (Konyo: "droppeeable
@@ -32283,7 +32283,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +_slotArtImg(r.slot, cc)
           +'<span class="f-craftrow-slot" style="color:var(--q-orange,#ffa800)">'+_fEsc(r.slot)+'</span>'
           +'<span class="f-craftrow-rec">'+_cingRune(r.rune)+'<span class="f-cplus">+</span>magic '+_cingBase(r.base, r.slot)+'<span class="f-cplus">+</span>'+_cingJewel()+'</span>'
-          +'<span class="f-craftrow-st">'+(r.ready?('✓ make now'+(r.gemCube?' <span style="opacity:.72;font-weight:500">· cube 3→1 '+_fEsc(c.gem)+'</span>':'')):(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))+'</span>'
+          +'<span class="f-craftrow-st">'+(r.ready?('✓ make now'+(r.gemCube?' <span style="opacity:.72;font-weight:var(--fw-normal)">· cube 3→1 '+_fEsc(c.gem)+'</span>':'')):(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))+'</span>'
           +'</div>';
       });
       h+='</div>';
@@ -34683,7 +34683,7 @@ window.renderSessionCockpit = function(){
         try { if (typeof artOr==='function') art = artOr(mission.name,'🎯','sm'); } catch(e){}
         var statusCls = mission.status==='now'?'now':(mission.status==='step'||mission.status==='pipe'?'step':'want');
         mB.innerHTML = '<div class="sc-mission-name">'+(art||'🎯')+' '+esc(mission.name)
-          + (mission.auto?' <span style="font-size:var(--fs-meta);font-weight:600;color:var(--text-dim);letter-spacing:.04em">AUTO</span>':'')
+          + (mission.auto?' <span style="font-size:var(--fs-meta);font-weight:var(--fw-medium);color:var(--text-dim);letter-spacing:.04em">AUTO</span>':'')
           + '</div>'
           + '<div class="sc-mission-status"><span class="sc-tag '+statusCls+'">'+esc(mission.status)+'</span>'
           + '<span style="font-size:12px;color:var(--text-muted)">'+esc(mission.label)+'</span></div>'
@@ -35103,7 +35103,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1319', name:'🎨 Bible Visual-Lock Typography Pass 4 - CSS-side Complete (386 folds, 611/733 tokenized)', date:'2026-07-23', note:'🎨 Bible board typography, pass four - the style-sheet is now unified. This round folds all the remaining scattered weights in the boards style sheet - the stat values, table cells, buttons, boss and tool card bodies and the rest - so the entire CSS side of the board now draws its font weights from one shared system. Over six hundred of the boards seven hundred-odd weights are unified, and it is the same pure identity change throughout, so nothing looks different while the whole style sheet is now drift-proof. All that is left are a small number of weights written inline inside the pages own scripts, which get folded next, after which the boards type system is fully locked to match the console. bible.html only.' };
+  window.D2R_BUILD = { id:'v1320', name:'🎨 Bible Visual-Lock Typography Pass 5 - JS-string Weights (724/733, 98.8% tokenized)', date:'2026-07-23', note:'🎨 Bible board typography, pass five - the runtime-built pieces too. The last big group of scattered weights lived inside the pages own scripts, in the little style snippets that build cards, rows and chips as you use the board. All of those - over a hundred of them - now draw from the same shared weight system, and the scripts were re-checked to make sure folding them in did not disturb any code. The board is now almost entirely unified, at about ninety-nine percent, with only a handful of edge cases left to hand-check before the whole board type system is locked to match the console. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
