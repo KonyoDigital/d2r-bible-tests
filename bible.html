@@ -2520,7 +2520,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   #routine-status-bar .routine-letter{
     display:inline-flex;align-items:center;justify-content:center;
     width:22px;height:22px;border:1px solid var(--gold-dim);
-    border-radius:3px;color:var(--gold-bright);font-weight:700;
+    border-radius:3px;color:var(--gold-bright);font-weight:var(--fw-semibold);
     font-family:var(--mono);font-size:var(--fs-meta);cursor:pointer;
     transition:all .15s;background:rgba(20,12,4,.6);
   }
@@ -2677,7 +2677,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     padding: 10px 14px;
     font-family: var(--mono);
     font-size:var(--fs-meta);
-    font-weight: 700;
+    font-weight:var(--fw-semibold);
     letter-spacing: 1.2px;
     text-transform: uppercase;
     border-bottom: 1px solid var(--gold-dim, #8a6f2e);
@@ -2715,8 +2715,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     font-size: 12px;
     line-height: 1.55;
   }
-  .fm-section-body strong { color: var(--gold-bright); font-weight: 600; }
-  .fm-section-body em { color: var(--best); font-style: normal; font-weight: 500; }
+  .fm-section-body strong { color: var(--gold-bright); font-weight:var(--fw-medium); }
+  .fm-section-body em { color: var(--best); font-style: normal; font-weight:var(--fw-normal); }
   
   /* Tip card aesthetic — used in ref tab + scattered */
   .tip-card {
@@ -2735,13 +2735,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     color: var(--gold-bright);
     font-family: var(--mono);
     font-size: 9.5px;
-    font-weight: 700;
+    font-weight:var(--fw-semibold);
     text-transform: uppercase;
     letter-spacing: 1.4px;
     margin-bottom: 5px;
     display: block;
   }
-  .tip-card strong { color: var(--gold-bright); font-weight: 600; }
+  .tip-card strong { color: var(--gold-bright); font-weight:var(--fw-medium); }
   .tip-card em { color: var(--best); font-style: normal; }
   .tip-card code { 
     background: rgba(240,192,96,.12);
@@ -2765,7 +2765,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     color: var(--verified);
     font-family: var(--mono);
     font-size:var(--fs-meta);
-    font-weight: 700;
+    font-weight:var(--fw-semibold);
     letter-spacing: 1.2px;
     text-transform: uppercase;
     list-style: none;
@@ -2863,7 +2863,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     border-radius: 3px;
     font-family: var(--mono);
     font-size: 9px;
-    font-weight: 700;
+    font-weight:var(--fw-semibold);
     letter-spacing: 1px;
     text-transform: uppercase;
     margin-right: 8px;
@@ -2905,7 +2905,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   #routine-fires-counter {
     font-family: var(--mono);
     font-size:var(--fs-meta);
-    font-weight: 700;
+    font-weight:var(--fw-semibold);
     color: var(--gold-bright);
     letter-spacing: .8px;
     padding: 2px 8px;
@@ -5961,7 +5961,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 }
 #tab-binds .colossal > h3:not(.sec-h){
   font-family:var(--serif-display);
-  font-weight:600;
+  font-weight:var(--fw-medium);
   font-size:22px;
   letter-spacing:.4px;
   color:var(--gold-bright);
@@ -6017,7 +6017,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 /* v145 — match the site-wide .sec-h hover glow + chevron convention */
 #tab-ancients .event-card-head:hover .ec-title{text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
 #tab-ancients .ec-title{
-  font-family:var(--serif-display);font-weight:600;font-size:21px;
+  font-family:var(--serif-display);font-weight:var(--fw-medium);font-size:21px;
   letter-spacing:.4px;color:var(--gold-bright);line-height:1.22;
 }
 #tab-ancients .ec-sub{
@@ -6034,7 +6034,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 #tab-ancients .event-card-body{padding:6px 22px 22px;border-top:1px solid rgba(212,168,71,.16);}
 #tab-ancients .event-card-body[hidden]{display:none;}
 #tab-ancients .event-card-body > h3{
-  font-family:var(--serif-display);font-weight:600;font-size:var(--fs-title);letter-spacing:.3px;
+  font-family:var(--serif-display);font-weight:var(--fw-medium);font-size:var(--fs-title);letter-spacing:.3px;
   color:var(--gold);margin:18px 0 9px;padding-bottom:0;border:none;
 }
 #tab-ancients .event-card-body p{font-size:13.5px;line-height:1.66;color:var(--text-muted);max-width:74ch;margin:0 0 12px;}
@@ -7437,7 +7437,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   color:var(--gold-bright,#f0c060);opacity:.9;margin-bottom:8px;
 }
 #tab-session .sc-mission-name{
-  font-family:var(--serif-display),Cinzel,serif;font-size:22px;font-weight:700;
+  font-family:var(--serif-display),Cinzel,serif;font-size:22px;font-weight:var(--fw-semibold);
   color:var(--gold-bright,#f0c060);display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   text-shadow:0 0 18px rgba(240,192,96,.3);
 }
@@ -7459,7 +7459,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 }
 #tab-session .sc-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}
 #tab-session .sc-cta.ghost{
-  background:transparent;border-color:var(--border,#3a2f1e);color:var(--text-muted,#b5a48a);font-weight:600;
+  background:transparent;border-color:var(--border,#3a2f1e);color:var(--text-muted,#b5a48a);font-weight:var(--fw-medium);
 }
 #tab-session .sc-cta.ghost:hover{border-color:var(--gold-bright);color:var(--gold-bright)}
 #tab-session .sc-grid-tf{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start}  /* v688.1 — cards size to their content: default stretch made a one-line TZ/log card a 230px void that read as broken */
@@ -24575,14 +24575,14 @@ _v41_whenReady(() => {
     color: #fff5d8;
     padding: 0 2px;
     border-radius: 2px;
-    font-weight: 600;
+    font-weight:var(--fw-medium);
   }
   .v42-pal-category {
     font-size:var(--fs-micro);
     text-transform: uppercase;
     letter-spacing: 1px;
     color: rgba(240,192,96,.6);
-    font-weight: 600;
+    font-weight:var(--fw-medium);
   }
   .v42-pal-section-header {
     padding: 10px 18px 4px;
@@ -24590,7 +24590,7 @@ _v41_whenReady(() => {
     text-transform: uppercase;
     letter-spacing: 1.5px;
     color: rgba(240,192,96,.5);
-    font-weight: 700;
+    font-weight:var(--fw-semibold);
     font-family: var(--mono, monospace);
     pointer-events: none;
   }
@@ -25553,7 +25553,7 @@ _v41_whenReady(() => {
   }
   #v42-tz-countdown .v42-tz-time {
     color: #ff8888;
-    font-weight: 700;
+    font-weight:var(--fw-semibold);
     font-size: 14px;
   }
   #v42-tz-countdown.imminent {
@@ -25639,7 +25639,7 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: 0.25px;
-  font-weight: 700;
+  font-weight:var(--fw-semibold);
   filter: drop-shadow(0 0 6px rgba(240,192,96,.15));
 }
 
@@ -25649,7 +25649,7 @@ body {
 .tab.active {
   background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
   box-shadow: 0 3px 14px rgba(240,192,96,.28), inset 0 1px 0 rgba(255,255,255,.18);
-  font-weight: 600;
+  font-weight:var(--fw-medium);
 }
 
 /* Boss chips — gold luxe treatment */
@@ -25907,7 +25907,7 @@ h1, h2, h3, .h-title, .hero-title, .legend-title {
   color: var(--gold-bright);
   margin-left: 10px;
   letter-spacing: .5px;
-  font-weight: 700;
+  font-weight:var(--fw-semibold);
   box-shadow: 0 1px 4px rgba(0,0,0,.3), inset 0 1px 0 rgba(240,192,96,.15);
   vertical-align: middle;
 }
@@ -26001,7 +26001,7 @@ html { scroll-behavior: smooth; }
 .masthead-kicker {
   font-family: var(--sans);
   font-size:var(--fs-micro);
-  font-weight: 600;
+  font-weight:var(--fw-medium);
   letter-spacing: 3.5px;
   text-transform: uppercase;
   color: var(--ink-kicker);
@@ -26012,7 +26012,7 @@ html { scroll-behavior: smooth; }
 .h-title {
   font-family: var(--serif-display) !important;
   font-size: clamp(28px, 4.4vw, 46px) !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   line-height: 1.05 !important;
   letter-spacing: 0.5px !important;
   color: var(--ink-h1) !important;
@@ -26034,7 +26034,7 @@ html { scroll-behavior: smooth; }
   font-family: var(--serif-text);
   font-style: italic;
   font-size: 14px;
-  font-weight: 400;
+  font-weight:var(--fw-regular);
   color: var(--ink-muted);
   max-width: 640px;
   margin: 0 auto;
@@ -26074,7 +26074,7 @@ html { scroll-behavior: smooth; }
   color: var(--ink-muted) !important;
   font-family: var(--sans) !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 2.2px !important;
   text-transform: uppercase !important;
   padding: 6px 16px !important;
@@ -26137,7 +26137,7 @@ html { scroll-behavior: smooth; }
 .hero-title {
   font-family: var(--sans) !important;
   font-size: 10px !important;
-  font-weight: 700 !important;
+  font-weight:var(--fw-semibold) !important;
   letter-spacing: 3.5px !important;
   text-transform: uppercase !important;
   color: var(--ink-kicker) !important;
@@ -26158,7 +26158,7 @@ html { scroll-behavior: smooth; }
 }
 .hero-sub strong {
   font-style: normal;
-  font-weight: 600;
+  font-weight:var(--fw-medium);
   color: var(--ink-h1);
 }
 
@@ -26184,14 +26184,14 @@ html { scroll-behavior: smooth; }
   letter-spacing: 1.8px !important;
   text-transform: uppercase !important;
   color: var(--ink-kicker) !important;
-  font-weight: 700 !important;
+  font-weight:var(--fw-semibold) !important;
   margin-bottom: 6px;
 }
 
 .hero-pick-name, .hero-pick-item {
   font-family: var(--serif-text) !important;
   font-size: 17px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   line-height: 1.25 !important;
   letter-spacing: 0 !important;
   color: var(--ink-h1) !important;
@@ -26229,7 +26229,7 @@ html { scroll-behavior: smooth; }
 .legend-title {
   font-family: var(--sans) !important;
   font-size: 10px !important;
-  font-weight: 700 !important;
+  font-weight:var(--fw-semibold) !important;
   letter-spacing: 2.5px !important;
   text-transform: uppercase !important;
   color: var(--ink-kicker) !important;
@@ -26239,7 +26239,7 @@ html { scroll-behavior: smooth; }
 .legend-item-title {
   font-family: var(--serif-text) !important;
   font-size: 13px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   color: var(--ink-h2) !important;
 }
 
@@ -26260,7 +26260,7 @@ html { scroll-behavior: smooth; }
   border-radius: 2px !important;
   font-family: var(--sans) !important;
   font-size: 11px !important;
-  font-weight: 500 !important;
+  font-weight:var(--fw-normal) !important;
   letter-spacing: 0.6px !important;
   padding: 8px 14px !important;
   color: var(--ink-muted) !important;
@@ -26276,7 +26276,7 @@ html { scroll-behavior: smooth; }
   background: var(--surface) !important;
   border-color: var(--gold) !important;
   color: var(--ink-h1) !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   box-shadow: none !important;
 }
 
@@ -26299,7 +26299,7 @@ html { scroll-behavior: smooth; }
 
 .boss-header, .gbc-name, .bd-name {
   font-family: var(--serif-text) !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 0.2px !important;
 }
 
@@ -26327,7 +26327,7 @@ html { scroll-behavior: smooth; }
 .gbc-name {
   font-family: var(--serif-display) !important;
   font-size: 26px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 0.4px !important;
   color: var(--ink-h1) !important;
 }
@@ -26383,7 +26383,7 @@ html { scroll-behavior: smooth; }
 .gbc-section h3, .gbc-section-title {
   font-family: var(--sans);
   font-size:var(--fs-micro);
-  font-weight: 700;
+  font-weight:var(--fw-semibold);
   letter-spacing: 2.5px;
   text-transform: uppercase;
   color: var(--ink-kicker);
@@ -26400,7 +26400,7 @@ html { scroll-behavior: smooth; }
   letter-spacing: 1.8px !important;
   text-transform: uppercase !important;
   color: var(--ink-muted) !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
 }
 .slider-value {
   font-family: var(--mono) !important;
@@ -26470,7 +26470,7 @@ input[type=range]::-moz-range-thumb {
 .item-name, .item-title {
   font-family: var(--serif-text) !important;
   font-size: 15px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 0.1px !important;
 }
 
@@ -26488,7 +26488,7 @@ input[type=range]::-moz-range-thumb {
 
 #aib-item-name {
   font-family: var(--serif-text) !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 0.1px !important;
 }
 
@@ -26500,7 +26500,7 @@ input[type=range]::-moz-range-thumb {
 .wishlist-title {
   font-family: var(--serif-display) !important;
   font-size: 22px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 0.3px !important;
   color: var(--ink-h1) !important;
   background: none !important;
@@ -26550,7 +26550,7 @@ input[type=range]::-moz-range-thumb {
 }
 .routine-letter {
   font-family: var(--mono) !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   border-radius: 2px !important;
   transition: transform .15s var(--ease) !important;
 }
@@ -26568,13 +26568,13 @@ input[type=range]::-moz-range-thumb {
 #v42-palette-input {
   font-family: var(--sans) !important;
   font-size: 16px !important;
-  font-weight: 400 !important;
+  font-weight:var(--fw-regular) !important;
   letter-spacing: 0.1px !important;
 }
 .v42-pal-cat {
   font-family: var(--sans) !important;
   font-size: 9px !important;
-  font-weight: 700 !important;
+  font-weight:var(--fw-semibold) !important;
   letter-spacing: 1.8px !important;
   text-transform: uppercase !important;
 }
@@ -26599,7 +26599,7 @@ button:hover:not(:disabled) {
 .gbc-close, .aid-close-btn {
   font-family: var(--sans) !important;
   font-size: 10px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 1.5px !important;
   text-transform: uppercase !important;
   border-radius: 2px !important;
@@ -26619,19 +26619,19 @@ button:hover:not(:disabled) {
 
 .help-content h2, .help-content h3 {
   font-family: var(--serif-display);
-  font-weight: 600;
+  font-weight:var(--fw-medium);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
    TYPOGRAPHIC HIERARCHY GLOBALS
    ════════════════════════════════════════════════════════════════════════ */
 
-h1 { font-family: var(--serif-display); font-weight: 600; letter-spacing: 0.3px; }
-h2 { font-family: var(--serif-display); font-weight: 600; letter-spacing: 0.2px; }
-h3 { font-family: var(--serif-text); font-weight: 600; letter-spacing: 0.15px; }
-h4, h5, h6 { font-family: var(--sans); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+h1 { font-family: var(--serif-display); font-weight:var(--fw-medium); letter-spacing: 0.3px; }
+h2 { font-family: var(--serif-display); font-weight:var(--fw-medium); letter-spacing: 0.2px; }
+h3 { font-family: var(--serif-text); font-weight:var(--fw-medium); letter-spacing: 0.15px; }
+h4, h5, h6 { font-family: var(--sans); font-weight:var(--fw-semibold); letter-spacing: 0.5px; text-transform: uppercase; }
 
-strong { font-weight: 600; color: var(--ink-h2); }
+strong { font-weight:var(--fw-medium); color: var(--ink-h2); }
 em, i { font-style: italic; }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -26642,7 +26642,7 @@ table { font-family: var(--mono); font-size: 12px; }
 table th {
   font-family: var(--sans) !important;
   font-size: 10px !important;
-  font-weight: 700 !important;
+  font-weight:var(--fw-semibold) !important;
   letter-spacing: 1.5px !important;
   text-transform: uppercase !important;
   color: var(--ink-kicker) !important;
@@ -26717,7 +26717,7 @@ table th {
   padding: 2px 0 3px !important;
   font-family: var(--sans, -apple-system, system-ui, sans-serif) !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 1.5px !important;
   text-transform: uppercase !important;
   color: var(--gold-bright) !important;
@@ -26740,7 +26740,7 @@ table th {
   color: var(--gold-bright) !important;
   font-family: var(--sans, -apple-system, system-ui, sans-serif) !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight:var(--fw-medium) !important;
   letter-spacing: 1.8px !important;
   text-transform: uppercase !important;
   padding: 10px 20px !important;
@@ -26878,7 +26878,7 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
   white-space:nowrap;
 }
 .control-dock .mf-preset-label{
-  font-size:var(--fs-micro); font-weight:700; letter-spacing:.6px; text-transform:uppercase;
+  font-size:var(--fs-micro); font-weight:var(--fw-semibold); letter-spacing:.6px; text-transform:uppercase;
   color:var(--gold-dim); white-space:nowrap;
 }
 .control-dock .mf-preset-chip{ padding:3px 9px; font-size:var(--fs-meta); }
@@ -26932,7 +26932,7 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
   color:#1a1208;
   border-color:rgba(240,192,96,.6);
   box-shadow:0 2px 12px rgba(240,192,96,.30), inset 0 1px 0 rgba(255,255,255,.25);
-  font-weight:600;
+  font-weight:var(--fw-medium);
 }
 @media (max-width:768px){
   .tabs{ width:auto; flex-wrap:wrap; }
@@ -26963,7 +26963,7 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
   font-family:var(--serif-text);
   font-style:italic;
   font-size:11.5px;
-  font-weight:400;
+  font-weight:var(--fw-regular);
   letter-spacing:.2px;
   line-height:1.35;
   color:var(--gold-dim);
@@ -35103,7 +35103,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1320', name:'🎨 Bible Visual-Lock Typography Pass 5 - JS-string Weights (724/733, 98.8% tokenized)', date:'2026-07-23', note:'🎨 Bible board typography, pass five - the runtime-built pieces too. The last big group of scattered weights lived inside the pages own scripts, in the little style snippets that build cards, rows and chips as you use the board. All of those - over a hundred of them - now draw from the same shared weight system, and the scripts were re-checked to make sure folding them in did not disturb any code. The board is now almost entirely unified, at about ninety-nine percent, with only a handful of edge cases left to hand-check before the whole board type system is locked to match the console. bible.html only.' };
+  window.D2R_BUILD = { id:'v1321', name:'🔒 Bible Visual-Lock Typography Pass 6 - WEIGHTS 100% LOCKED (matches console, 0 residual)', date:'2026-07-23', note:'🔒 Bible board typography - the weight system is now locked. This finishes the font-weight side of the flagship-look work: every weight on the whole board, all seven hundred and eighty of them, now draws from the same shared set as the console, with none left behind, and it stays a pure identity change so nothing looks different. Getting here caught a real gap first - a batch of weights written with a slightly different spacing had been quietly skipped, and the finishing pass found and folded them rather than declaring the job done early. Two things are deliberately left for a proper look with you rather than changed overnight: cleaning up a handful of forced-priority rules, and unifying the finer letter-spacing and line-height, which unlike the weights cannot be changed without altering the exact look you care about. The weight axis, which was the real inconsistency, is now locked on both the board and the console. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
