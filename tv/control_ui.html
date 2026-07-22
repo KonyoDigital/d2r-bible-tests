@@ -1661,6 +1661,9 @@
   .er-detail-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgba(160,130,255,.22);
     font: 800 var(--fs-sm)/1.2 var(--mono); letter-spacing: .08em; color: #c9b8ff; }
   .er-detail-head .thd-dim { font-weight: 500; letter-spacing: .02em; color: #9a8d73; }
+  /* v1241 (GHOST MODE r12) — the film-narration sub-label: this inline "inspect this moment" deep view is the
+     frame-side sibling of the journey story, so it speaks in the same Time-Machine voice ("what the AI saw"). */
+  .er-detail-head .er-detail-lead { font-weight: 500; letter-spacing: .03em; color: #b9a9de; text-transform: none; }
   .er-detail-head .th-x { margin-left: auto; }
   /* v1215 (Engine Room r6) — frame-step nav in the drill-down (◀ ▶ / arrow keys) */
   .er-detail-head .er-fnav { display: inline-flex; align-items: center; gap: 8px; margin-left: 14px; flex: 0 0 auto; white-space: nowrap; }
@@ -6338,7 +6341,11 @@
     if (!best) return;
     var reel = (ER.reels||[]).filter(function(x){ return x.sessionId === ER.focusSid; })[0] || { n: ER.focusN };
     ER.focusBeat = best; ER.focusReelObj = reel;   // v950.3 — the beat under the cursor (for the drill-down)
-    if (ER.detailOpen) _engineRoomRenderDetail(best, reel);   // keep the open detail synced to the cursor
+    // v1241 (GHOST MODE r12) — FILM STORYTELLING, on-demand: the inline "inspect this moment" deep view is
+    // never forced open (Konyo's "never in the way"); but ONCE you've opened it, scrubbing the film follows it
+    // frame by frame — the AI's-mind view (frame image · read · owner/verdict) tracks the cursor, deep OCR and
+    // raw enriched as they land. Truthful: only real captured frames + real reads, honest "no item named" gaps.
+    if (ER.detailOpen){ _engineRoomRenderDetail(best, reel); _engineRoomFetchBlob(best); }
     var spine = document.getElementById('er-spine');
     if (spine) spine.innerHTML = _engineOrganDataRetro(best, reel).map(function(o){ return _ehOrganHtml(o, true); }).join('<span class="eh-flow">→</span>');
     var band = document.getElementById('er-spine-band');
@@ -6717,7 +6724,7 @@
           + '<span class="er-kbd-grp" title="or use the [ ] bracket keys"><span class="er-kbd">[</span><span class="er-kbd">]</span></span></span></div>';
       }
     }
-    el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>' + _nav
+    el.innerHTML = '<div class="er-detail-head">🎬 THIS FRAME <span class="er-detail-lead">· what the AI saw &amp; decided</span> <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>' + _nav
       + '<button class="th-x" id="er-detail-x" onclick="window._engineRoomDetailClose()" title="close (Esc)">✕</button></div>'
       + '<div class="er-detail-body">'
       + _flagbar
