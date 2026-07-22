@@ -541,18 +541,22 @@ class TestV943GrailGate(unittest.TestCase):
 
     v948.19 — extended to replicate the RUNEWORD branch added to fix the 'Spirit' grail/toss
     split-brain (Grok forensic #6, 2026-07-21 21:05 fast run): a runeword name is real forged
-    gear (never toss/border) but is NOT a grail item (grail = unique/set only). _gate() now
-    mirrors control_app.py's /kai_verdict exactly, including the runewordnames branch."""
+    gear (never toss/border) but is NOT a grail item (grail = unique/set only).
+
+    v1250 — RW check is FIRST and independent of fullnames membership, so glued-base reads
+    ('Spirit Monarch') that are NOT in _kai_fullnames() still force keep (never grail/toss).
+    _gate() mirrors control_app.py /kai_verdict exactly via _kai_is_runeword_name."""
 
     @staticmethod
     def _gate(name, tier):
-        low = name.lower()
-        if name and low in ca._kai_fullnames() and low not in ca._kai_rarenames():
-            if low in ca._kai_runewordnames():
-                if tier in ("toss", "border"):
-                    return "keep"
-            elif tier in ("toss", "border"):
-                return "grail"
+        # Mirrors control_app.py /kai_verdict v1250 gate (pure decision, no journal).
+        if name and ca._kai_is_runeword_name(name):
+            if tier in ("toss", "border", "grail"):
+                return "keep"
+        elif (name and name.lower() in ca._kai_fullnames()
+              and name.lower() not in ca._kai_rarenames()
+              and tier in ("toss", "border")):
+            return "grail"
         return tier
 
     def test_unique_promotes_to_grail(self):
@@ -583,11 +587,55 @@ class TestV943GrailGate(unittest.TestCase):
         self.assertEqual(self._gate("Spirit", "toss"), "keep")
         self.assertEqual(self._gate("Spirit", "border"), "keep")
         self.assertEqual(self._gate("Spirit", "keep"), "keep")  # untouched, already keep
+        self.assertEqual(self._gate("Spirit", "grail"), "keep")  # demote false grail
         # a handful of other real runewords must never grail-promote either
         self.assertEqual(self._gate("Enigma", "toss"), "keep")
         self.assertEqual(self._gate("Insight", "border"), "keep")
         # true uniques/sets are UNCHANGED by the runeword branch — still grail-promote
         self.assertEqual(self._gate("Windforce", "toss"), "grail")
+
+    def test_spirit_monarch_glued_base_is_keep_not_grail(self):
+        """v1250 residual of forensic #6: live deep read 'Spirit Monarch' (RW + base glue).
+        Not in _kai_fullnames() (only bare 'Spirit' is), so the v948.19 fullnames-gated
+        branch skipped it entirely — left whatever the judge said (often toss) uncorrected.
+        Gate must force keep for glued-base forms the same as bare Spirit."""
+        self.assertFalse("spirit monarch" in ca._kai_fullnames())  # the trap
+        self.assertTrue(ca._kai_is_runeword_name("Spirit Monarch"))
+        self.assertEqual(self._gate("Spirit Monarch", "toss"), "keep")
+        self.assertEqual(self._gate("Spirit Monarch", "grail"), "keep")
+        self.assertEqual(self._gate("Insight Thresher", "border"), "keep")
+        self.assertEqual(self._gate("Chains of Honor Dusk Shroud", "toss"), "keep")
+        self.assertEqual(self._gate("Call to Arms Phase Blade", "grail"), "keep")
+        # rare that starts with a RW first-token must NOT false-match
+        self.assertFalse(ca._kai_is_runeword_name("Beast Noose"))
+        self.assertEqual(self._gate("Beast Noose", "toss"), "toss")
+
+    def test_reconcile_applied_matches_authoritative_tier(self):
+        """v1250 — journal applied must not lag a server tier upgrade (Theatre KEEP→toss)."""
+        self.assertEqual(ca._kai_reconcile_applied("keep", "toss"), "keep")
+        self.assertEqual(ca._kai_reconcile_applied("keep", "border"), "keep")
+        self.assertEqual(ca._kai_reconcile_applied("grail", "toss"), "grail")
+        self.assertEqual(ca._kai_reconcile_applied("grail", "keep"), "grail")
+        self.assertEqual(ca._kai_reconcile_applied("keep", "keep"), "keep")
+        self.assertEqual(ca._kai_reconcile_applied("toss", "toss"), "toss")  # no upgrade
+        self.assertEqual(ca._kai_reconcile_applied("keep", ""), "")  # no applied → leave empty
+
+    def test_register_canonicalizes_glued_runeword_names(self):
+        """v1250 — deep 'Spirit Monarch' must enter the register as bare 'Spirit' (keep),
+        not be dropped because the glued form isn't in _kai_fullnames()."""
+        rows = [
+            {"lane": "deep", "ts": 10, "frameId": "2_10", "sessionId": "s",
+             "names": ["Spirit Monarch"], "names_new": ["Spirit Monarch"],
+             "scene": "stash", "stashTab": "personal"},
+            {"lane": "kai", "mode": "kai-judge", "ts": 11, "frameId": "2_10",
+             "kai": {"judge": {"name": "Spirit Monarch", "tier": "keep", "score": 0}}},
+        ]
+        reg = ca._kai_compile_register(rows)
+        names = {r["name"].lower(): r for r in reg}
+        self.assertIn("spirit", names)
+        self.assertEqual(names["spirit"]["tier"], "keep")
+        # glued form itself must not appear as a second register row
+        self.assertNotIn("spirit monarch", names)
 
     def test_runewordnames_is_subset_of_fullnames_and_disjoint_from_rarenames(self):
         rw = ca._kai_runewordnames()
@@ -1635,9 +1683,13 @@ class TestIntakeLease(unittest.TestCase):
         self.assertTrue(c["ok"])
 
     def test_expired_lease_allows_new_owner(self):
-        # floor TTL is 5s — advance past until
-        ca._intake_lease_claim("runes", "board", ttl_ms=5_000, now_ms=4_000_000)
-        c = ca._intake_lease_claim("runes", "engine-driver", ttl_ms=60_000, now_ms=4_006_000)
+        # v1202 — expiry is monotonic (untilMono), not wall-clock. Advancing only now_ms
+        # leaves the lease held forever in a same-process test. Drive both clocks past TTL.
+        # floor TTL is 5s — advance past until.
+        ca._intake_lease_claim("runes", "board", ttl_ms=5_000,
+                              now_ms=4_000_000, now_mono_ms=4_000_000)
+        c = ca._intake_lease_claim("runes", "engine-driver", ttl_ms=60_000,
+                                 now_ms=4_006_000, now_mono_ms=4_006_000)
         self.assertTrue(c["ok"])
         self.assertEqual(c["owner"], "engine-driver")
 

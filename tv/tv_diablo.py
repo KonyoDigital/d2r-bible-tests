@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1249"   # 🖥👁 CONSOLE UPGRADE round 3 - DISCOVERABILITY (Konyo saw v1247 and asked "where is it?"). The KAI reader is now unmissable at rest AND alive on-air. (#1 RESTING STATE, the fix) the live read feed is ALWAYS present now (not hidden off-air): at rest a labeled placeholder under the eyes "KAI READ FEED · AT REST · press ON to wake the eyes - every read the AI makes streams here as it lands"; after an on-air spell, resting shows the last few REAL reads faded under "last session · not live" (cached from this page-sessions liveRing, never faked live). On-air = the live stream (as v1247). (#2 READER-POOL EYE-DOTS) st.health.poolInFlight/poolN/poolWarm (agent _health 368-369, forwarded on-air) render as N dots, lit+pulsing = reading now, dim = warm: "3 of 6 eyes reading · 2 warm"; hidden off-air. (#3 PROMINENCE) the cluster is now one findable section under a mint "THE KAI READER · live engine" header over eyes+pool+feed. (#4 CAPTURE PILL AT REST) idle pill now legible: "idle · locks onto the game when live" vs green Locked / amber whole-screen. LIGHT (rides hdRefresh, no new timers/fetches, text-forward). TRUTHFUL (liveRing=LIVE GUESS, honest at-rest/last-session labels). Did NOT touch ENGINE HEALTH model / anti-lag / fault lamp / parked GHOST MODE. control_ui.html only (70/21). CONSOLE UPGRADE 3. x3 parity
+VERSION = "v1251"   # 🎯 v1251 — D2R WINDOW PIN FIX (desktop wallpaper eye). Root cause: v1248 window-only takeover left ON AIR under the supervisor headless Python which has NO Screen Recording TCC → window grab failed → full-screen fallback archived the Mac desktop. Fix: --open RECLAIMS the port as primary (pause supervisor + kill --no-open); capture_mac/film never full-screen without D2R.exe alive + SR grant; start_agent refuses live when SR denied; tvd-scan finds Desktop/Applications app. ×3 parity.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1325,7 +1325,12 @@ def _film_loop():
                             globals()["_FILM_LANE"] = "full(demoted)"
             if not wrote:
                 # full-screen lane (demoted OR no wid OR white reject recovery)
-                wrote = _grab_full_screen_frame(tmp)
+                # v1251 — never wallpaper the film: full-screen only when D2R.exe is alive
+                # and Screen Recording is granted (same law as capture_mac).
+                if _allow_fullscreen_game_fallback("film"):
+                    wrote = _grab_full_screen_frame(tmp)
+                else:
+                    wrote = False
             globals()["_FILM_LANE"] = (
                 "window" if (wid and wrote and not white_reject and time.time() >= _lane_full_until)
                 else ("full(demoted)" if time.time() < _lane_full_until else "full")
@@ -1378,14 +1383,16 @@ def _film_loop():
                         globals()["_FOOTAGE_DUE"] = (
                             max(_due2 + _iv2, now_f2 - (_iv2 - 0.01)) if _due2 else now_f2 + _iv2)
                         got = False
-                        if _grab_full_screen_frame(tmp):
-                            got = _archive_footage_copy(tmp, now_f2, why="never-starve-full",
-                                                        _consume_due=False)
-                            try:
-                                os.replace(tmp, eye)
-                                globals()["_EYE_PREVIEW_AT"] = now_f2
-                            except Exception:
-                                pass
+                        # v1251 — never-starve must NOT wallpaper the reel with the desktop
+                        if _allow_fullscreen_game_fallback("never-starve"):
+                            if _grab_full_screen_frame(tmp):
+                                got = _archive_footage_copy(tmp, now_f2, why="never-starve-full",
+                                                            _consume_due=False)
+                                try:
+                                    os.replace(tmp, eye)
+                                    globals()["_EYE_PREVIEW_AT"] = now_f2
+                                except Exception:
+                                    pass
                         if not got:
                             # bridge: re-archive last good game frame rather than a hole
                             last = globals().get("_FILM_LAST_GOOD") or (
@@ -1424,10 +1431,47 @@ def start_film_thread():
     _FILM_THREAD.start()
 
 
+def _d2r_process_alive():
+    """v1251 — cheap pgrep for the real game binary (CrossOver-hosted D2R.exe)."""
+    try:
+        out = subprocess.run(["pgrep", "-f", "D2R.exe"], capture_output=True, timeout=2)
+        return out.returncode == 0
+    except Exception:
+        return False
+
+
+def _screen_recording_preflight():
+    """v1251 — silent TCC check (no dialog). Hot-path safe for film/capture loops."""
+    if sys.platform != "darwin":
+        return True
+    try:
+        from Quartz import CGPreflightScreenCaptureAccess
+        return bool(CGPreflightScreenCaptureAccess())
+    except Exception:
+        return True
+
+
+def _allow_fullscreen_game_fallback(why=""):
+    """v1251 — full-screen is ONLY legal when it is actually the game (Metal fullscreen /
+    Space transition), never a wallpaper dump of the Mac desktop.
+
+    Blocked when:
+      · Screen Recording is denied (Quartz window grab fails; full-screen = desktop)
+      · D2R.exe is not running (Battle.net lobby alone is not the game)
+    Allowed when SR is OK AND the game process is alive (window unlisted / white Metal)."""
+    if not _screen_recording_preflight():
+        return False
+    if not _d2r_process_alive():
+        return False
+    return True
+
+
 def capture_mac(path, timeout=12):
     """Full-screen capture by default (fullscreen D2R / CrossOver).
     Optional TV_CAPTURE=window|auto pins CrossOver/D2R window. v753 hard timeout.
-    v779 — always capture to a temp path first (stale-target trust gate killed)."""
+    v779 — always capture to a temp path first (stale-target trust gate killed).
+    v1251 — NEVER fall through to full-screen DESKTOP when window pin fails without
+    Screen Recording / without a live D2R.exe (Konyo live: eye stuck on wallpaper)."""
     global _CAP_TARGET, _CAP_WHY, _LAST_GOOD_WIN
     _CAP_WHY = ""
     mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()   # v777.1 (Konyo live: 'it's showing the desktop') — AUTO pins the D2R window when one exists; full-screen only as fallback
@@ -1453,12 +1497,33 @@ def capture_mac(path, timeout=12):
                         except Exception: pass
                     _CAP_TARGET = {"mode": "window", "label": label, "wid": wid}
                     return True
-                # window grab failed this tick — keep LAST_GOOD + wid for film; fall through
+                # window grab failed — drop stale last-good so we re-list next tick
                 _CAP_WHY = "window capture failed (quartz+sc) wid=%s" % wid
+                try:
+                    # force re-pick next frame (stale wid is the common fail mode)
+                    globals()["_PICK_CACHE"] = None
+                except Exception:
+                    pass
+                # v1251 — only fall through to full when the game is truly alive + SR ok
+                # (Metal fullscreen). Otherwise HOLD the eye — never wallpaper/desktop.
+                if not _allow_fullscreen_game_fallback(_CAP_WHY):
+                    _LAST_GOOD_WIN = None
+                    _CAP_TARGET = {
+                        "mode": "waiting",
+                        "label": ("eye held — " + _CAP_WHY +
+                                  " · open D2R in-game + grant Screen Recording to Python"),
+                        "wid": None,
+                    }
+                    return False
                 _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY,
                                "wid": wid}   # v898 — keep game wid so film still tries D2R.exe
             except Exception as e:
                 _CAP_WHY = "window capture exc: %s" % e
+                if not _allow_fullscreen_game_fallback(_CAP_WHY):
+                    _LAST_GOOD_WIN = None
+                    _CAP_TARGET = {"mode": "waiting",
+                                   "label": "eye held — %s" % _CAP_WHY, "wid": None}
+                    return False
         if mode in ("window", "win", "game"):
             _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
             return False
@@ -1467,10 +1532,16 @@ def capture_mac(path, timeout=12):
         # keeping reads armed, this lane quietly re-created the privacy leak v928.2 closed
         # (desktop frames read + archived while the game window is unlisted). No pin → no eye.
         if not hit:
-            _CAP_TARGET = {"mode": "waiting", "label": "D2R window not listed — eye held", "wid": None}
-            return False
-        # auto with a pinned-but-unGRABbable window → fall through to full screen (the game
-        # owns the display in that state; full-screen IS the game)
+            # v1251 — process-alive Metal fullscreen exception (window unlisted but D2R.exe up)
+            if _allow_fullscreen_game_fallback("no-window-process-alive"):
+                _CAP_WHY = "D2R.exe alive · window unlisted — fullscreen game lane"
+                # fall through to full-screen grab below
+            else:
+                _CAP_TARGET = {"mode": "waiting",
+                               "label": "D2R window not listed — eye held", "wid": None}
+                return False
+        # auto with a pinned-but-unGRABbable window → fall through to full screen ONLY when
+        # _allow_fullscreen_game_fallback said yes (game owns the display)
     # DEFAULT / fallback: entire display (Quartz first — SC full can also hang under load)
     tmp = _cap_tmp(path)
     try:

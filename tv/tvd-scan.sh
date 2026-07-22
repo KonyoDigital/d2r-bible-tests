@@ -2,11 +2,39 @@
 # 🎥 Hand :17772 to the real TCC-granted TV DIABLO.app for LIVE SCANNING (Konyo 2026-07-22).
 # Pauses the console supervisor, frees the port, and launches the app the TCC-correct way.
 # When you're done scanning, run tvd-console.sh to give the immortal headless console back.
+#
+# v1251 — find the app on Desktop / Applications / next to this script (old path only
+# looked at tv/TV DIABLO.app which is often missing → silent open fail).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 touch "$HERE/.tvd_supervisor_pause"          # tell the supervisor to stand down
 pkill -f "control_app.py --no-open" 2>/dev/null   # free :17772 (headless only)
+# also free a stuck primary if nothing is answering (best-effort, never kill user tools)
 sleep 1
-open "$HERE/TV DIABLO.app"                    # TCC-correct launch (Terminal reroute → grant inherited)
-echo "🎥 supervisor paused · launched TV DIABLO.app for scanning."
+
+APP=""
+for cand in \
+  "$HERE/TV DIABLO.app" \
+  "$HOME/Desktop/TV DIABLO.app" \
+  "$HOME/Applications/TV DIABLO.app" \
+  "/Applications/TV DIABLO.app"
+do
+  if [ -d "$cand" ]; then
+    APP="$cand"
+    break
+  fi
+done
+
+if [ -z "$APP" ]; then
+  # Fall back to the TCC Terminal-chain launcher script directly
+  if [ -f "$HERE/start_tvd_mac.sh" ]; then
+    echo "🎥 supervisor paused · launching via start_tvd_mac.sh (no .app found)"
+    exec bash "$HERE/start_tvd_mac.sh"
+  fi
+  echo "⛔ TV DIABLO.app not found. Expected on Desktop or Applications."
+  exit 1
+fi
+
+open "$APP"                    # TCC-correct launch (Terminal reroute → grant inherited)
+echo "🎥 supervisor paused · launched: $APP"
 echo "   when done scanning, run:  bash '$HERE/tvd-console.sh'  (restores the always-up console)"

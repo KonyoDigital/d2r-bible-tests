@@ -173,17 +173,20 @@ class TestStopDiscipline(unittest.TestCase):
         self.assertIn("_MAC_BROWSERS", src)                  # fragment-surviving spawn path
 
     def test_second_launch_takes_over_when_headless_else_refuses(self):
-        """v1248 — TAKEOVER (Konyo: "it says already open"): a second --open launch against a
-        HEADLESS server (the supervisor's always-up console, no window) now ATTACHES a window
-        instead of refusing; only a genuine live window keeps the v781 one-window refuse."""
+        """v1248/v1251 — TAKEOVER: a second --open against a HEADLESS server RECLAIMS the
+        port as PRIMARY (TCC-correct) instead of window-only attach. Window-only left the
+        agent under headless Python without Screen Recording → desktop wallpaper feed.
+        A genuine live window still keeps the v781 one-window refuse."""
         import inspect
         src = inspect.getsource(ca.main)
-        # takeover path: bind-fail + --open + no live window → attach a window
         self.assertIn("_window_present", src)
-        self.assertIn("open_control_window()", src)
-        self.assertIn("takeover", src.lower())
+        self.assertIn("_reclaim_headless_for_scan", src)
+        self.assertIn("reclaim", src.lower())
         # a genuine live window still gets the one-window refuse
         self.assertIn("already open", src.lower())
+        # helpers exist
+        self.assertTrue(callable(ca._reclaim_headless_for_scan))
+        self.assertTrue(callable(ca._screen_recording_ok_quick))
 
     def test_window_presence_lock_self_heals(self):
         """v1248 — the takeover guard: no file → absent; a live pid → present; a dead pid →

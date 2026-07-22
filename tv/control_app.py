@@ -1229,6 +1229,22 @@ def start_agent(sim=False, test=False):
         if IS_WIN:
             _start_capture(env, _log_fp)
 
+        # v1251 — refuse LIVE start when THIS process lacks Screen Recording TCC.
+        # Headless supervisor spawn → agent inherits deny → window pin fails → desktop
+        # wallpaper on the eye (Konyo live 2026-07-22). SIM still allowed.
+        if (sys.platform == "darwin" and not sim and not env.get("TV_STUB")
+                and not _screen_recording_ok_quick()):
+            _agent_mode = "off"
+            msg = ("Screen Recording not granted to this Python — the eye would only "
+                   "see the desktop. Quit the headless console, run: "
+                   "bash tv/tvd-scan.sh  (or open TV DIABLO.app via Terminal), "
+                   "enable Python in System Settings → Privacy → Screen Recording, "
+                   "then press ON AIR again.")
+            _log_fp.write("!! " + msg + "\n")
+            _log_fp.flush()
+            return {"ok": False, "error": msg, "mode": "off",
+                    "fix": "bash tv/tvd-scan.sh"}
+
         cmd = [sys.executable, os.path.join(HERE, "tv_diablo.py")]
         if IS_WIN:
             cmd.append("--watch")
@@ -1764,13 +1780,89 @@ def _window_present():
         return False
 
 
+def _screen_recording_ok_quick():
+    """v1251 — True when THIS process holds macOS Screen Recording TCC.
+    Headless supervisor launches do NOT — children inherit the deny, so window pin
+    fails and the old full-screen fallback captured the DESKTOP wallpaper."""
+    if sys.platform != "darwin":
+        return True
+    try:
+        from Quartz import CGPreflightScreenCaptureAccess
+        return bool(CGPreflightScreenCaptureAccess())
+    except Exception:
+        return True  # no Quartz → don't block; capture path will self-diagnose
+
+
+def _reclaim_headless_for_scan():
+    """v1251 — free :17772 from the supervisor's headless console so a TCC-capable
+    --open launch can BECOME the primary server (agent inherits Screen Recording).
+
+    The v1248 window-only takeover left the headless process owning the agent child,
+    so ON AIR always ran without Screen Recording → window pin failed → desktop feed.
+    Returns True when a reclaim was attempted (caller should re-bind)."""
+    pause = os.path.join(HERE, ".tvd_supervisor_pause")
+    try:
+        with open(pause, "a", encoding="utf-8") as f:
+            f.write("scan-reclaim %s\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
+    except Exception:
+        pass
+    # Prefer a clean kill of the known headless launcher only (never kill ourselves).
+    killed = 0
+    try:
+        out = subprocess.run(
+            ["pgrep", "-f", "control_app.py --no-open"],
+            capture_output=True, text=True, timeout=3)
+        for line in (out.stdout or "").splitlines():
+            try:
+                pid = int(line.strip())
+            except Exception:
+                continue
+            if pid == os.getpid() or pid <= 1:
+                continue
+            try:
+                os.kill(pid, signal.SIGTERM)
+                killed += 1
+            except Exception:
+                pass
+    except Exception:
+        pass
+    if killed:
+        time.sleep(0.6)
+        # escalate stragglers
+        try:
+            out2 = subprocess.run(
+                ["pgrep", "-f", "control_app.py --no-open"],
+                capture_output=True, text=True, timeout=3)
+            for line in (out2.stdout or "").splitlines():
+                try:
+                    pid = int(line.strip())
+                except Exception:
+                    continue
+                if pid == os.getpid() or pid <= 1:
+                    continue
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except Exception:
+                    pass
+            time.sleep(0.25)
+        except Exception:
+            pass
+    print(f"📺 reclaimed headless console for live scan "
+          f"(paused supervisor · killed {killed} --no-open) — "
+          f"this process is now PRIMARY with Screen Recording chain", flush=True)
+    return True
+
+
 def open_control_window():
     """Open the real native app window (pywebview). Blocks until the user closes it."""
-    url = f"http://127.0.0.1:{CONTROL_PORT}/"
+    # v1251 — cache-bust the WKWebView URL with the ship stamp so a relaunch never
+    # keeps a stale control_ui / board iframe from a prior version (Konyo: "I only see v1248"
+    # while /api/status already served v1251 — classic WebKit document cache).
+    url = f"http://127.0.0.1:{CONTROL_PORT}/?v={_app_ver()}"
     # wait for the local server to answer (up to ~3s)
     for _ in range(30):
         try:
-            with urllib.request.urlopen(url, timeout=0.3) as r:
+            with urllib.request.urlopen(f"http://127.0.0.1:{CONTROL_PORT}/api/status", timeout=0.3) as r:
                 if r.status == 200:
                     break
         except Exception:
@@ -2054,6 +2146,51 @@ def _kai_runewordnames():
         pass
     globals()["_KAI_RUNEWORD_NAMES"] = names
     return names
+
+
+def _kai_runeword_bare(name):
+    """v1250 — bare lowercased RUNEWORD_TIP key if `name` is a RW or RW+base / base+RW
+    read, else ''. Pure. Mirrors bible.html `_rwResolve` intent without BASE_CLASS:
+      1. exact match on RUNEWORD_TIP names
+      2. longest PREFIX match: name starts with '<rw> '  (RW then base glue)
+      3. longest SUFFIX match: name ends with ' <rw>'    (base then RW)
+    NEVER first-token alone (that false-positives rares like 'Beast Noose' where
+    Beast is a real runeword). Rare/crafted combos are also excluded by name."""
+    low = str(name or "").strip().lower()
+    if not low:
+        return ""
+    if low in _kai_rarenames():
+        return ""
+    rws = _kai_runewordnames()
+    if low in rws:
+        return low
+    best = ""
+    for rw in rws:
+        if len(rw) <= len(best):
+            continue
+        if low.startswith(rw + " ") or low.endswith(" " + rw):
+            best = rw
+    return best
+
+
+def _kai_is_runeword_name(name):
+    """v1250 — True when `_kai_runeword_bare` resolves a known runeword."""
+    return bool(_kai_runeword_bare(name))
+
+
+def _kai_reconcile_applied(tier, app_mode):
+    """v1250 — when the server upgrades tier (runeword keep / grail unique), the client's
+    aicJudgeApply may already have recorded a weaker applied mode (toss). Journal applied
+    must match the authoritative tier so Theatre doesn't show 'KEEP → toss'."""
+    tier = str(tier or "").lower()
+    app = str(app_mode or "").lower()
+    if not app:
+        return app_mode
+    if tier == "grail" and app in ("toss", "border", "keep"):
+        return "grail"
+    if tier == "keep" and app in ("toss", "border"):
+        return "keep"
+    return app_mode
 
 
 def _kai_vocab():
@@ -2540,7 +2677,20 @@ def _kai_compile_register(sess_rows):
         if not nm:
             return
         low = nm.lower()
-        if low not in fulln or _register_is_anchor(low) or _register_is_junk(low):
+        # v1250 — glued RW reads ('Spirit Monarch') are NOT in fullnames (only bare
+        # RUNEWORD_TIP keys are). Canonicalize to the bare RW so the register + Chronicle
+        # inbox still see the forged word, instead of silently dropping the deep name.
+        if low not in fulln:
+            bare = _kai_runeword_bare(nm)
+            if bare and bare in fulln:
+                low = bare
+                # prefer original casing when the deep already said the bare word; else
+                # title-case the bare key (good enough for single-token RWs like Spirit;
+                # multi-word keys keep their harvested lower form title-cased).
+                nm = nm if nm.lower() == bare else " ".join(w.capitalize() for w in bare.split())
+            else:
+                return
+        if _register_is_anchor(low) or _register_is_junk(low):
             return
         ts = int(ts or 0)
         cur = reg.get(low)
@@ -5225,7 +5375,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1249",
+        "ver": "v1251",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -5272,7 +5422,19 @@ def status_payload():
         "gameMsg": (st or {}).get("gameMsg") or ((st or {}).get("health") or {}).get("gameMsg") or "",
         "captureProc": _capture_health(),
         "bibleVer": _bible_ver(),
+        "agentVer": _agent_disk_ver(),  # v1251 — triple-lamp disk stamp
     }
+
+
+def _agent_disk_ver():
+    """v1251 — tv_diablo.VERSION on disk (cheap, ~4KB read)."""
+    try:
+        with open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8", errors="replace") as f:
+            head = f.read(5000)
+        m = re.search(r'VERSION\s*=\s*"(v[\d.]+)"', head)
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
 
 
 # ── DOCTOR (v801, Grok R7) ─────────────────────────────────────────────────────
@@ -6555,16 +6717,25 @@ class Handler(BaseHTTPRequestHandler):
                 # name forces 'keep' here, matching the mirrored fix in bible.html's
                 # aicJudgeApply (_rwResolve/findRuneword force-to-keep). Only a true unique/set
                 # name still promotes to 'grail'.
+                # v1250 — RW FIRST, independent of fullnames membership. Live deeps often read
+                # the forged word WITH its base glued on ("Spirit Monarch", "Insight Thresher",
+                # "Chains of Honor Dusk Shroud") — those strings are NOT in _kai_fullnames()
+                # (only bare RUNEWORD_TIP keys are), so the old outer fullnames guard SKIPPED
+                # the entire gate and left tier=grail/toss split intact for the exact forensic
+                # case. _kai_is_runeword_name handles bare + multi-word + glued-base forms and
+                # excludes rare combos (Beast Noose). Applied mode is then reconciled so the
+                # journal never shows "KEEP → toss".
                 _vlow = _vname.lower()
-                if _vname and _vlow in _kai_fullnames() and _vlow not in _kai_rarenames():
-                    if _vlow in _kai_runewordnames():
-                        if _tier in ("toss", "border"):
-                            _tier = "keep"
-                    elif _tier in ("toss", "border"):
-                        _tier = "grail"
+                if _vname and _kai_is_runeword_name(_vname):
+                    if _tier in ("toss", "border", "grail"):
+                        _tier = "keep"
+                elif (_vname and _vlow in _kai_fullnames() and _vlow not in _kai_rarenames()
+                      and _tier in ("toss", "border")):
+                    _tier = "grail"
                 # v948.1/v948.2 — applied route from aicJudgeApply; live=true = mid-session
                 _applied = body.get("applied") if isinstance(body.get("applied"), dict) else None
                 _app_mode = str((_applied or {}).get("mode") or "")[:16]
+                _app_mode = _kai_reconcile_applied(_tier, _app_mode) or _app_mode
                 _app_acts = (_applied or {}).get("actions") if isinstance((_applied or {}).get("actions"), list) else []
                 _live = bool(body.get("live"))
                 # v949.x — SUPER-ANALYZE KAI (Phase B, 4th organ) tags its own deep re-reads
@@ -7082,33 +7253,49 @@ def main():
         srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
     except OSError as e:
         # v1248 — TAKEOVER (Konyo: "it says already open"). The port is held, usually by the
-        # supervisor's always-up HEADLESS console (--no-open, no window). The old behavior
-        # refused and exited with a notification → a double-click gave NO window. Now: if a
-        # window was requested (--open) and no REAL window is already open, ATTACH one to the
-        # running server (window-only takeover) instead of refusing. Only when a live window
-        # already exists (genuine double-launch) do we keep the v781 one-window refuse.
+        # supervisor's always-up HEADLESS console (--no-open, no window).
+        # v1251 — LIVE-SCAN RECLAIM: a window-only attach left the headless process as the
+        # primary that SPAWNS the agent. Headless has NO Screen Recording TCC → ON AIR
+        # window-pin fails → full-screen fallback shows the DESKTOP. When --open wants a
+        # window and none is live, RECLAIM the port (pause supervisor + kill --no-open)
+        # and become PRIMARY so the agent inherits this process's TCC chain.
         if open_ui and not _window_present():
             print(f"📺 TV DIABLO already serving on :{CONTROL_PORT} (headless) — "
-                  f"attaching a window (takeover, not a second server)…", flush=True)
-            globals()["_WINDOW_ONLY"] = True   # window-close won't kill the primary's ON AIR / driver
-            open_control_window()
-            return
-        # v781 — a REAL window already exists → refuse a second one, point at the existing.
-        print(
-            f"📺 TV DIABLO window is already open on :{CONTROL_PORT} — not opening a second one.\n"
-            f"   Use the existing window (or STOP/quit it first).\n   ({e})"
-        )
-        try:
-            if sys.platform == "darwin":
-                subprocess.run(
-                    ["osascript", "-e",
-                     'display notification "TV DIABLO is already open — use the existing window." '
-                     'with title "TV DIABLO"'],
-                    capture_output=True, timeout=5,
-                )
-        except Exception:
-            pass
-        sys.exit(0)
+                  f"reclaiming for live scan (TCC-correct primary, not window-only)…",
+                  flush=True)
+            try:
+                _reclaim_headless_for_scan()
+            except Exception as _re:
+                print(f"⚠ reclaim failed: {_re}", flush=True)
+            try:
+                srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
+            except OSError as e2:
+                # last resort: attach a window so the user still sees something (capture
+                # may stay desktop-only until they run tvd-scan.sh / grant TCC).
+                print(f"📺 reclaim bind still failed ({e2}) — attaching window-only "
+                      f"(Screen Recording may be missing on the headless primary)…",
+                      flush=True)
+                globals()["_WINDOW_ONLY"] = True
+                open_control_window()
+                return
+            # reclaimed — fall through as PRIMARY (do not return)
+        else:
+            # v781 — a REAL window already exists → refuse a second one, point at the existing.
+            print(
+                f"📺 TV DIABLO window is already open on :{CONTROL_PORT} — not opening a second one.\n"
+                f"   Use the existing window (or STOP/quit it first).\n   ({e})"
+            )
+            try:
+                if sys.platform == "darwin":
+                    subprocess.run(
+                        ["osascript", "-e",
+                         'display notification "TV DIABLO is already open — use the existing window." '
+                         'with title "TV DIABLO"'],
+                        capture_output=True, timeout=5,
+                    )
+            except Exception:
+                pass
+            sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
     # v948.8 — was a hardcoded "v935.8" literal, frozen ~13 versions ago (drift

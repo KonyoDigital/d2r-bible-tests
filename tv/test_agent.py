@@ -1481,6 +1481,29 @@ class TestWindowPin(unittest.TestCase):
         # thin chrome bars under D2R.exe still lose on size
         self.assertIsNone(tv.score_d2r_window_candidate("D2R.exe", "", 1470, 33))
 
+    def test_fullscreen_fallback_blocked_without_game_process(self):
+        """v1251 — window-pin fail must NOT wallpaper the eye with the Mac desktop.
+        Full-screen is only legal when D2R.exe is alive (and SR preflight ok)."""
+        self.assertTrue(callable(tv._allow_fullscreen_game_fallback))
+        self.assertTrue(callable(tv._d2r_process_alive))
+        # When D2R.exe is not running, fallback must be False regardless of SR.
+        # Stub the process check so the pin is hermetic (CI / no CrossOver).
+        orig = tv._d2r_process_alive
+        orig_sr = tv._screen_recording_preflight
+        try:
+            tv._d2r_process_alive = lambda: False
+            tv._screen_recording_preflight = lambda: True
+            self.assertFalse(tv._allow_fullscreen_game_fallback("test"))
+            tv._d2r_process_alive = lambda: True
+            tv._screen_recording_preflight = lambda: False
+            self.assertFalse(tv._allow_fullscreen_game_fallback("test"))
+            tv._d2r_process_alive = lambda: True
+            tv._screen_recording_preflight = lambda: True
+            self.assertTrue(tv._allow_fullscreen_game_fallback("test"))
+        finally:
+            tv._d2r_process_alive = orig
+            tv._screen_recording_preflight = orig_sr
+
     def test_quartz_grab_helpers_exist(self):
         """v844 — capture stack has Quartz fallback + window BMP path (no live grab required)."""
         self.assertTrue(callable(tv._quartz_grab_window))

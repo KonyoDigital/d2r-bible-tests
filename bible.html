@@ -28726,40 +28726,37 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var mods = (res.mods || []).map(function(m){ return String(m || '').trim(); }).filter(Boolean);
       var nm = String(res.name || '').trim()
         || ((q === 'rare' ? 'Rare ' : q === 'crafted' ? 'Crafted ' : 'Magic ') + (base || 'Item'));
-      // v948.5 GRAIL GATE BEFORE any vault route (fixes Torch score-0 → toss)
+      // v1250 — RUNEWORD FIRST, then grail. Order matches control_app.py /kai_verdict:
+      // a forged word (bare "Spirit" OR glued "Spirit Monarch") is real gear → keep, never
+      // toss/border/grail. Checking runeword BEFORE _aicIsGrailName/q=unique prevents a
+      // mis-tagged unique quality or any residual name-collision from promoting a runeword
+      // into the grail track (runewords have their own Chronicle). Grail gate stays unique/set.
       try {
-        var _gHit = _aicIsGrailName(nm);
-        if (_gHit){
-          nm = _gHit.name || nm;
-          tier = 'grail';
-          try { if (res.verdict) res.verdict.tier = 'grail'; } catch(eG){}
-          try { res.name = nm; } catch(eN){}
-          out.grailGate = _gHit.via || 'yes';
-        } else if (q === 'unique' || q === 'set'){
-          // intake quality unique/set even if name sparse
-          tier = 'grail';
-          try { if (res.verdict) res.verdict.tier = 'grail'; } catch(eG2){}
-          out.grailGate = 'q-' + q;
+        var _rwHit = null;
+        try {
+          _rwHit = (typeof _rwResolve === 'function') ? _rwResolve(nm)
+                 : (typeof findRuneword === 'function') ? findRuneword(nm) : null;
+        } catch(eRW0){ _rwHit = null; }
+        if (_rwHit){
+          if (tier === 'toss' || tier === 'border' || tier === 'grail'){
+            tier = 'keep';
+            try { if (res.verdict) res.verdict.tier = 'keep'; } catch(eRW){}
+          }
+          out.runewordGate = _rwHit;
         } else {
-          // v948.19 — RUNEWORD PROTECTION (split-brain fix, Grok forensic #6 2026-07-21 21:05 run):
-          // "Spirit" read grail on the server /kai_verdict journal (bare runeword name matched the
-          // server's broad name harvest) while THIS applied path tossed it (score 0, no unique/set
-          // match — _aicIsGrailName is deliberately unique/set-only, v948.5). Same read, two
-          // disagreeing verdicts. Reconciled: a runeword is real forged gear — NEVER a toss/border —
-          // but it is not a grail item (grail = unique/set only; runewords track in their own
-          // Chronicle). findRuneword/_rwResolve recognize both a bare name ("Spirit") and a
-          // base-glued read ("Spirit Monarch"). Mirrors the matching server-side fix in
-          // control_app.py's /kai_verdict (_kai_runewordnames) so both paths return the SAME
-          // verdict for the SAME item.
-          try {
-            var _rwHit = (typeof _rwResolve === 'function') ? _rwResolve(nm)
-                       : (typeof findRuneword === 'function') ? findRuneword(nm) : null;
-            if (_rwHit && (tier === 'toss' || tier === 'border')){
-              tier = 'keep';
-              try { if (res.verdict) res.verdict.tier = 'keep'; } catch(eRW){}
-              out.runewordGate = _rwHit;
-            }
-          } catch(eRW2){}
+          var _gHit = _aicIsGrailName(nm);
+          if (_gHit){
+            nm = _gHit.name || nm;
+            tier = 'grail';
+            try { if (res.verdict) res.verdict.tier = 'grail'; } catch(eG){}
+            try { res.name = nm; } catch(eN){}
+            out.grailGate = _gHit.via || 'yes';
+          } else if (q === 'unique' || q === 'set'){
+            // intake quality unique/set even if name sparse
+            tier = 'grail';
+            try { if (res.verdict) res.verdict.tier = 'grail'; } catch(eG2){}
+            out.grailGate = 'q-' + q;
+          }
         }
       } catch(eGate){}
       out.name = nm; out.tier = tier; out.score = (res.verdict && res.verdict.score) || 0;
@@ -33976,7 +33973,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1249', name:'🖥 Console Upgrade - Discoverability (the KAI Reader, unmissable)', date:'2026-07-22', note:'🖥👁 CONSOLE UPGRADE round 3 - DISCOVERABILITY. Konyo saw the v1247 live pulse and asked where is it, so this makes the KAI reader unmissable whether the console is resting or live. The live read feed is now always present instead of hidden off-air: at rest it shows a labeled placeholder under the eyes telling you to press ON to wake the eyes and that every read the AI makes streams there as it lands, and after an on-air spell the resting state shows the last few real reads faded under a last-session-not-live label - real, never faked as live. When on-air it becomes the live stream as before. The reader net eyes now render as pool dots, lit and pulsing when actually reading and dim when warm, with a count like three of six eyes reading, from the real pool health. The whole cluster is gathered under a mint THE KAI READER live-engine header so it reads as one findable section rather than being lost in the rail, and the capture pill is legible even at rest, telling you it locks onto the game when live. It stays light, riding the existing poll with no new timers or fetches, and truthful, with the live guess and at-rest labels honest. The engine-health model, anti-lag machinery, fault lamp and parked ghost mode are untouched. control_ui.html only. CONSOLE UPGRADE round 3.' };
+  window.D2R_BUILD = { id:'v1251', name:'🎯 D2R window pin fix (no more desktop eye)', date:'2026-07-22', note:'🎯 v1251 — WINDOW PIN FIX. Live ON AIR was showing the Mac desktop wallpaper instead of the Diablo II window because a double-click takeover attached UI to the headless supervisor server, whose Python has no Screen Recording TCC. The agent inherited the deny, window pin failed, and full-screen fallback captured the desktop. Now --open reclaims the port as primary, capture never falls to desktop without a live D2R.exe + Screen Recording grant, and ON AIR refuses to start when TCC is missing. Run bash tv/tvd-scan.sh (or open TV DIABLO.app) for live scanning. ×3 parity.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
