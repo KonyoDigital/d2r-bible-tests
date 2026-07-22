@@ -1268,8 +1268,15 @@
   .ch-inbox { width: 100%; margin: 0 0 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer;
     font: 700 var(--fs-xs)/1.2 var(--mono); letter-spacing: .06em; color: #d9c9ff;
     border: 1px solid rgba(185,165,255,.4); background: rgba(40,32,64,.45); }
+  .ch-inbox { display: flex; align-items: center; gap: 6px; }   /* v1256 — room for the clear-all on the right */
   .ch-inbox b { color: #f0d89a; margin-left: 4px; }
   .ch-inbox:hover { border-color: rgba(185,165,255,.7); }
+  /* v1256 (Konyo: "clear all easily") — one obvious click on the inbox, dismisses the whole review queue */
+  .ch-clear { margin-left: auto; padding: 2px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .04em; color: #ffb0a0;
+    border: 1px solid rgba(255,120,90,.4); background: rgba(60,24,18,.4); }
+  .ch-clear:hover { color: #ffd0c4; border-color: rgba(255,120,90,.8); background: rgba(90,34,26,.5); }
+  .ch-clear[hidden] { display: none; }
   /* v947.4 — Chronicle inbox modal (selective grid + per-item ✓/✕ — replaces native prompt) */
   #ch-modal { position: fixed; inset: 0; z-index: 980; display: flex; align-items: center; justify-content: center;
     background: rgba(4,6,8,.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); padding: 16px; }
@@ -1909,6 +1916,11 @@
     border-radius: 6px; border: 1px solid rgba(143,230,160,.5); color: var(--mint); }
   .tf-tag.dim { border-color: var(--edge); color: #9a8d73; }
   .tf-tag.ai { border-color: rgba(185,165,255,.5); color: #cbbcff; }
+  /* v1256 — multi-chronicle rows: a gold accent for a chronicle still being hunted; muted when complete */
+  .tf-row.tf-chron { border-color: rgba(240,192,96,.28); box-shadow: inset 3px 0 0 var(--gold-antique); }
+  .tf-row.tf-chron.tf-chron-done { border-color: rgba(240,192,96,.12); box-shadow: none; opacity: .72; }
+  .tf-chron-note { color: #b7a884; font-weight: 600; }
+  .tf-tag.hunt { border-color: rgba(240,192,96,.55); color: var(--gold); }
   .hd-pager { float: right; display: inline-flex; gap: 8px; align-items: center; }
   .hd-pg { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.4); color: var(--gold-dim);
     border-radius: 6px; padding: 3px 10px; font: 700 var(--fs-xs)/1 var(--mono); cursor: pointer; }
@@ -2380,6 +2392,8 @@
         </div>
         <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before grail write">
           📜 Inbox <b id="ch-inbox-n">0</b>
+          <!-- v1256 (Konyo: "clear all easily") — one-click CLEAR ALL right on the inbox; stops the click from opening the modal -->
+          <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a grail write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
         </button>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
         <!-- Vision folded into the 🔴 Live Eye badge; element kept (hidden) so JS keeps writing it -->
@@ -5467,6 +5481,7 @@
     btn.title = nPend
       ? ('Chronicle · ' + nPend + ' pending · ' + nLed + ' in ledger')
       : ('Chronicle ledger · ' + nLed + ' reads (none pending)');
+    var clr = $('ch-clear-all'); if (clr) clr.hidden = nPend < 1;   // v1256 — clear-all only when there's something pending to clear
     btn.__items = data.pending;
     if (CH.open) chModalRender();
   }
@@ -5793,6 +5808,26 @@
     CH.selected = {};
     paintChronicleInbox();
   }
+  // v1256 (Konyo: "for inbox i want to be able to clear all easily") — one-click CLEAR ALL: dismiss every pending
+  // review item (empties the queue; NOT a grail write). Light window.confirm so an accidental click isn't destructive.
+  function chClearAllConfirm(){
+    var items = (CH.items || []).slice();
+    var n = items.length;
+    if (!n){ toast('Inbox is already empty'); return; }
+    if (!window.confirm('Clear all ' + n + ' pending inbox item' + (n === 1 ? '' : 's') + '?\n\nThey are dismissed from the review queue (NOT written to grail). Re-review from the session anytime.')) return;
+    var W = _engWin();
+    if (!W){ toast('Chronicle API unavailable'); return; }
+    var cleared = 0;
+    if (typeof W.kaiChronicleDismissAll === 'function'){
+      try { var r = W.kaiChronicleDismissAll(); cleared = (r && (r.dismissed != null ? r.dismissed : n)) || n; } catch(e){ toast('Clear all failed'); return; }
+    } else if (typeof W.kaiChronicleDismiss === 'function'){
+      items.forEach(function(it){ var nm = (it && it.name) || it; if (nm){ try { W.kaiChronicleDismiss(nm); cleared++; } catch(e){} } });
+    } else { toast('Chronicle API unavailable'); return; }
+    CH.selected = {};
+    toast('🗑 Cleared ' + cleared + ' from the inbox');
+    paintChronicleInbox();
+  }
+  window._chClearAll = chClearAllConfirm;
   // v948.5 — batch by session (lazy Accept/Dismiss)
   function chSessCall(fnName, sid, label){
     var W = _engWin();
@@ -6065,6 +6100,19 @@
       ((fs && fs.now) || []).slice(0, 3).forEach(function(rw){
         rows.push('<div class="tf-row tf-ready"><span class="tf-g">⚒</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
       });
+      // v1256 (Konyo: "what about my OTHER chronicles?") — the Task Force is MULTI-CHRONICLE now: runewords AND
+      // grail uniques AND sets, steering the daily focus at the INCOMPLETE ones (where the hunt still is), instead
+      // of dead-ending on "runewords done." Truthful — a chronicle with no data (absent) omits its row.
+      var _tfChron = function(icon, name, found, total, leftLabel){
+        var left = Math.max(0, total - found), done = left === 0, pct = total ? Math.round(found / total * 100) : 0;
+        return '<div class="tf-row tf-chron' + (done ? ' tf-chron-done' : '') + '"><span class="tf-g">' + icon + '</span>'
+          + '<span class="tf-t"><b>' + name + '</b> · ' + found + ' / ' + total
+          + ' <span class="tf-chron-note">— ' + (done ? 'complete ✓' : (left + ' ' + leftLabel)) + '</span></span>'
+          + '<span class="tf-tag ' + (done ? 'dim' : 'hunt') + '">' + (done ? 'DONE' : pct + '%') + '</span></div>';
+      };
+      if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('🔨', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build'));
+      if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('🏆', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt'));
+      if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('🧩', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left'));
       ((fs && fs.onestep) || []).slice(0, 2).forEach(function(t){
         rows.push('<div class="tf-row"><span class="tf-g">◈</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
       });
