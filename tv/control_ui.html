@@ -1537,6 +1537,21 @@
     border: 1px solid var(--edge); background: #0a0806; cursor: pointer; padding: 0; }
   .dsr-mont:hover { border-color: var(--gold-antique); }
   .dsr-mont-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* ══ D22 · CHAPTER RIBBON — the run's scene structure as jump-to-chapter chips above the montage ══ */
+  .dsr-chaps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+  .dsr-chap { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; cursor: pointer;
+    font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); text-transform: uppercase;
+    border: 1px solid var(--edge); background: rgba(255,255,255,.02); color: #cbbf9f; transition: border-color .12s, background .12s, transform .08s; }
+  .dsr-chap:hover { border-color: var(--gold-antique); background: rgba(240,192,96,.06); transform: translateY(-1px); }
+  .dsr-chap .dsr-chap-ic { font-size: 1.05em; line-height: 1; }
+  .dsr-chap .dsr-chap-n { opacity: .6; font-weight: var(--fw-medium); }
+  .dsr-chap-arrow { color: #6f6a58; font-size: var(--fs-2xs); flex: none; }
+  .dsr-chap.dl-transition { border-color: rgba(255,138,90,.4); color: #ffb08a; }
+  .dsr-chap.dl-town { border-color: rgba(111,168,220,.4); color: #a8ccef; }
+  .dsr-chap.dl-loot, .dsr-chap.dl-gameplay { border-color: rgba(143,230,160,.35); color: #9df0bd; }
+  .dsr-chap.dl-stash, .dsr-chap.dl-inventory { border-color: rgba(233,196,110,.4); color: #e9c46e; }
+  .dsr-chap.dl-tooltip { border-color: rgba(201,168,255,.4); color: #d0bcff; }
+  .dsr-mont-find { position: absolute; top: 5px; right: 6px; font-size: var(--fs-sm); line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,.85)); }
   .dsr-mont-lab { position: absolute; left: 5px; bottom: 5px; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal);
     color: #f0e4c6; background: rgba(4,6,5,.72); padding: 3px 7px; border-radius: 6px; }
   @media (prefers-reduced-motion: no-preference) { .dsr-mont { transition: border-color .12s, transform .12s; } .dsr-mont:hover { transform: translateY(-2px); } }
@@ -3380,23 +3395,51 @@
   // classFrames MONTAGE — a visual strip of the run, one representative frame per scene. Consumes the engine's
   // sm.classFrames = [{scene, thumb, frameId, ts}] (thumb = a /hist-relative path like sm.thumb). Each tile
   // click → jump to that frame (reuses _thJumpToFind). OMITTED until the engine provides it (never faked).
+  // shared scene → {key,ic,colorScene} label (same vocab as the live chips: _DIABLO_SCENES + stash sub-tabs)
+  function _sceneLabel(sc){
+    sc = String(sc || '').toLowerCase();
+    var m = _DIABLO_SCENES[sc];
+    if (m) return { key: m.key, ic: m.ic, colorScene: sc };
+    var sub = sc.match(/^stash-(gems|materials|runes|personal|shared)$/);
+    if (sub) return { key: (_DIABLO_TABS[sub[1]] || sub[1]).toUpperCase(), ic: '🎒', colorScene: 'stash' };
+    return { key: sc ? sc.replace(/[-_]/g, ' ').toUpperCase() : '', ic: '·', colorScene: '' };
+  }
+  // ══ D22 · FILMSTRIP CHAPTER MARKERS — the run's structure at a glance: collapse the ordered classFrames
+  // into scene CHAPTERS (consecutive same-scene frames = one chapter), shown as a jump-to-chapter ribbon above
+  // the montage. Honest — chapters ARE the real scene transitions; omitted when there's <2 (no structure). ══
+  function _dossierChapters(sm){
+    var cf = sm.classFrames;
+    if (!Array.isArray(cf) || !cf.length) return '';
+    var chaps = [];
+    cf.forEach(function(f){
+      var sc = String(f.scene || '').toLowerCase(), last = chaps[chaps.length - 1];
+      if (last && last.scene === sc) last.count++;
+      else chaps.push({ scene: sc, count: 1, frameId: f.frameId, ts: f.ts });
+    });
+    if (chaps.length < 2) return '';   // single scene → no chapter structure to show; the tiles suffice
+    return '<div class="dsr-chaps">' + chaps.map(function(c, i){
+      var L = _sceneLabel(c.scene);
+      var jump = (c.frameId || c.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(c.frameId || '')) + '&quot;,' + (Number(c.ts) || 0) + ')"' : '';
+      return (i ? '<span class="dsr-chap-arrow">→</span>' : '')
+        + '<button type="button" class="dsr-chap' + (L.colorScene ? ' dl-' + L.colorScene : '') + '"' + jump + ' title="jump to this chapter">'
+        + '<span class="dsr-chap-ic">' + L.ic + '</span>' + esc(L.key || 'scene')
+        + (c.count > 1 ? '<span class="dsr-chap-n">×' + c.count + '</span>' : '') + '</button>';
+    }).join('') + '</div>';
+  }
   function _dossierMontage(sm){
     var cf = sm.classFrames;
     if (!Array.isArray(cf) || !cf.length) return '';
+    var findMap = {};   // D22 — mark a montage frame when a real find lands exactly on it (honest: only on a true frameId match)
+    (sm.finds || []).forEach(function(fd){ if (fd.frameId) findMap[String(fd.frameId)] = (fd.tier === 'grail' ? '🏆' : '💎'); });
     return '<div class="dsr-montage">' + cf.slice(0, 8).map(function(f){
-      // v1276-verify — the reports emit a richer vocab than the live dictionary (stash-gems/materials/runes +
-      // tooltip); label each nicely, never raw "STASH-GEMS". Sub-tabs read as the tally tab, coloured as stash.
-      var sc = String(f.scene || '').toLowerCase(), m = _DIABLO_SCENES[sc], key, colorScene = '';
-      if (m){ key = m.key; colorScene = sc; }
-      else {
-        var sub = sc.match(/^stash-(gems|materials|runes|personal|shared)$/);
-        if (sub){ key = (_DIABLO_TABS[sub[1]] || sub[1]).toUpperCase(); colorScene = 'stash'; }
-        else { key = sc ? sc.replace(/[-_]/g, ' ').toUpperCase() : ''; }
-      }
+      // v1276-verify — the reports emit a richer vocab than the live dictionary; the shared _sceneLabel handles
+      // stash sub-tabs + nice casing (never raw "STASH-GEMS"), coloured as stash.
+      var L = _sceneLabel(f.scene), key = L.key, colorScene = L.colorScene;
       var img = f.thumb ? '<img class="dsr-mont-img" src="/hist/' + encodeURI(f.thumb) + '?w=200" alt="" loading="lazy" onerror="this.style.opacity=0">' : '';
       var jump = (f.frameId || f.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(f.frameId || '')) + '&quot;,' + (Number(f.ts) || 0) + ')"' : '';
+      var mark = (f.frameId && findMap[String(f.frameId)]) ? '<span class="dsr-mont-find">' + findMap[String(f.frameId)] + '</span>' : '';   // D22 — a find landed on this exact frame
       return '<button type="button" class="dsr-mont"' + jump + ' title="' + esc(key || 'frame') + ' — jump to this frame">'
-        + img + (key ? '<span class="dsr-mont-lab' + (colorScene ? ' dl-' + colorScene : '') + '">' + esc(key) + '</span>' : '') + '</button>';
+        + img + mark + (key ? '<span class="dsr-mont-lab' + (colorScene ? ' dl-' + colorScene : '') + '">' + esc(key) + '</span>' : '') + '</button>';
     }).join('') + '</div>';
   }
   // ══ v1277 (SESSIONS FLAGSHIP D6 · SUPER-RECOVERY BADGE) — KAI's super-analyze re-reads frames its first pass
@@ -3505,7 +3548,7 @@
       + (recov ? '<div class="dsr-recov-row">' + recov + '</div>' : '') + '</div>';
     // v1275 (D5) — classFrames montage (engine, honest-absent): a visual strip of the run, frame by frame
     var mont = _dossierMontage(sm);
-    var montSec = mont ? '<div class="dsr-sec"><div class="dsr-h">🎞 Frame by frame</div>' + mont + '</div>' : '';
+    var montSec = mont ? '<div class="dsr-sec"><div class="dsr-h">🎞 The reel · chapters</div>' + _dossierChapters(sm) + mont + '</div>' : '';
     // v1277 (D6) — missed-text drill (engine, honest-absent): every frame KAI couldn't read, jump to it
     var missDrill = _dossierMissedDrill(sm);
     var missSec = missDrill ? '<div class="dsr-sec"><div class="dsr-h">🔬 Missed text · tap to jump</div>' + missDrill + '</div>' : '';
