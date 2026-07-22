@@ -5677,7 +5677,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1277",
+        "ver": "v1278",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6276,6 +6276,7 @@ class Handler(BaseHTTPRequestHandler):
                 # gaps(=text seen-but-unread)} so read/total is the real read-completeness %; omitted when
                 # the reel had no item text at all (nothing to report).
                 _coverage, _class_frames = None, None
+                _super_recovery, _missed_frames = None, None   # v1278 (D6 engine)
                 _rreport = _reel_report_cached(
                     os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or "")))
                 if _rreport:
@@ -6299,11 +6300,48 @@ class Handler(BaseHTTPRequestHandler):
                             if len(_cf) >= 6:
                                 break
                         _class_frames = _cf or None
+                    # v1278 (D6 engine) — super-recovery badge + missed-text drill, from the SAME cached
+                    # report (no extra read). A "recovery" = a deeper pass rescued item text the first pass
+                    # missed: kai.caughtNames (retro sweep), super.deepNames (deep re-read),
+                    # second.correctedNames (second-eye correction). The report `missed` ledger is the text
+                    # that stayed UNREAD (final gaps) — disjoint from recoveries. So total-missed (the badge's
+                    # M) = recovered + still-unread, and recovered/M is the true rescue rate. missedFrames =
+                    # ≤24 rows for the drill: recovered frames carry their rescued name as `label`; still-
+                    # unread frames omit `label` (UI shows "— unreadable text —"). frameId+ts power jump.
+                    _mf_list, _recov = [], 0
+                    _eframes = _rreport.get("engineFrames")
+                    if isinstance(_eframes, list):
+                        for _ef in _eframes:
+                            _lay = _ef.get("layers") or {}
+                            _rescued = [n for n in (
+                                list(((_lay.get("kai") or {}).get("caughtNames")) or [])
+                                + list(((_lay.get("super") or {}).get("deepNames")) or [])
+                                + list(((_lay.get("second") or {}).get("correctedNames")) or [])) if n]
+                            if _rescued:
+                                _recov += 1
+                                if len(_mf_list) < 24:
+                                    _mf_list.append({"frameId": str(_ef.get("f") or "").rsplit(".", 1)[0],
+                                                     "ts": _ef.get("ts"), "label": _rescued[0]})
+                    _missed = _rreport.get("missed")
+                    _still = len(_missed) if isinstance(_missed, list) else 0
+                    if isinstance(_missed, list):
+                        for _ms in _missed:
+                            if len(_mf_list) >= 24:
+                                break
+                            _mf_list.append({"frameId": str(_ms.get("f") or "").rsplit(".", 1)[0],
+                                             "ts": _ms.get("ts")})
+                    _total_missed = _recov + _still
+                    if _total_missed > 0:
+                        _super_recovery = {"recovered": _recov, "missed": _total_missed}
+                    if _mf_list:
+                        _mf_list.sort(key=lambda x: x.get("ts") or 0)
+                        _missed_frames = _mf_list[:24]
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
                             "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
                             "finds": _finds, "topFind": _topFind,   # v1254 R1 — 📖 what KAI witnessed this session
                             "coverage": _coverage, "classFrames": (_class_frames or None),   # v1276 (D5 engine) — decision-story meter + montage
+                            "superRecovery": _super_recovery, "missedFrames": _missed_frames,   # v1278 (D6 engine) — recovery badge + missed-text drill
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
