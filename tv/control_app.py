@@ -390,8 +390,22 @@ _INTAKE_LEASE_TTL_MS = 120_000
 _INTAKE_LEASE_LOCK = threading.Lock()
 
 
-def _intake_lease_claim(tab, owner, ttl_ms=None, now_ms=None):
-    """Pure-ish lease claim. Returns {ok, tab, owner, until} or {ok:False, why, holder?}."""
+def _intake_lease_claim(tab, owner, ttl_ms=None, now_ms=None, now_mono_ms=None):
+    """Pure-ish lease claim. Returns {ok, tab, owner, until} or {ok:False, why, holder?}.
+
+    v1202 — CLOCK-SKEW class (same sweep as v1199-v1201): the expiry DECISION (drop-expired,
+    "is it still held") used to compare `until` against `time.time()*1000` — a backward
+    NTP/sleep-wake jump between claim and a later check makes `now` smaller than it should be,
+    so an already-expired lease reads as still-held for an extra `jump_size` ms — a tab stuck
+    "busy" longer than its 120s TTL. But `until` ITSELF must stay wall-clock: it's returned
+    straight to the caller (verified per-spot — the /intake_claim HTTP handler ships it
+    unmodified to the board's browser JS, and _intake_lease_status's snapshot rides the same
+    'until'/'since' shape into /api/status's `leases` field for the theatre UI, both comparing
+    it against THEIR OWN wall clock / Date.now()). A monotonic value would be meaningless
+    across that process boundary. Same split as the closer loop's _t0f/_t0f_mono: `until`
+    (wall-clock) stays the DISPLAYED/RETURNED field; a new internal-only `untilMono` (never
+    returned) drives the actual expiry comparison. now_ms/now_mono_ms are optional overrides
+    (both independently, for deterministic tests of skew scenarios) — real callers omit both."""
     tab = str(tab or "").lower().strip()
     owner = str(owner or "anon")[:48]
     if not tab:
@@ -400,23 +414,26 @@ def _intake_lease_claim(tab, owner, ttl_ms=None, now_ms=None):
         return {"ok": False, "why": "no-owner"}
     ttl = int(ttl_ms if ttl_ms is not None else _INTAKE_LEASE_TTL_MS)
     now = int(now_ms if now_ms is not None else time.time() * 1000)
+    now_mono = float(now_mono_ms if now_mono_ms is not None else time.monotonic() * 1000)
     with _INTAKE_LEASE_LOCK:
-        # drop expired
+        # drop expired — monotonic decision, immune to a backward wall-clock jump
         for k in list(_INTAKE_LEASES.keys()):
-            if int((_INTAKE_LEASES[k] or {}).get("until") or 0) <= now:
+            if float((_INTAKE_LEASES[k] or {}).get("untilMono") or 0) <= now_mono:
                 _INTAKE_LEASES.pop(k, None)
         cur = _INTAKE_LEASES.get(tab)
-        if cur and int(cur.get("until") or 0) > now and cur.get("owner") != owner:
+        if cur and float(cur.get("untilMono") or 0) > now_mono and cur.get("owner") != owner:
             return {"ok": False, "why": "held", "holder": cur.get("owner"),
                     "until": int(cur.get("until") or 0)}
         until = now + max(5_000, ttl)
-        _INTAKE_LEASES[tab] = {"owner": owner, "until": until,
+        until_mono = now_mono + max(5_000, ttl)
+        _INTAKE_LEASES[tab] = {"owner": owner, "until": until, "untilMono": until_mono,
                                "since": int((cur or {}).get("since") or now)}
         return {"ok": True, "tab": tab, "owner": owner, "until": until}
 
 
 def _intake_lease_release(tab, owner):
-    """Release if caller still holds. Returns {ok, released:bool}."""
+    """Release if caller still holds. Returns {ok, released:bool}.
+    No clock logic here — ownership + pop only, nothing time-based to skew."""
     tab = str(tab or "").lower().strip()
     owner = str(owner or "")[:48]
     with _INTAKE_LEASE_LOCK:
@@ -430,17 +447,21 @@ def _intake_lease_release(tab, owner):
         return {"ok": True, "released": True}
 
 
-def _intake_lease_status(tab=None):
-    """Snapshot of active (non-expired) leases for doctor/debug."""
-    now = int(time.time() * 1000)
+def _intake_lease_status(tab=None, now_mono_ms=None):
+    """Snapshot of active (non-expired) leases for doctor/debug.
+    v1202 — same monotonic-expiry / wall-clock-display split as _intake_lease_claim. The
+    returned snapshot deliberately omits `untilMono` (internal-only, meaningless outside this
+    process) — callers (the /api/status `leases` field) only ever see the wall-clock
+    `owner`/`until`/`since` shape they always have."""
+    now_mono = float(now_mono_ms if now_mono_ms is not None else time.monotonic() * 1000)
     with _INTAKE_LEASE_LOCK:
         out = {}
         for k, v in list(_INTAKE_LEASES.items()):
-            if int((v or {}).get("until") or 0) <= now:
+            if float((v or {}).get("untilMono") or 0) <= now_mono:
                 _INTAKE_LEASES.pop(k, None)
                 continue
             if tab is None or k == str(tab).lower():
-                out[k] = dict(v)
+                out[k] = {"owner": v.get("owner"), "until": v.get("until"), "since": v.get("since")}
         return out
 
 
@@ -5096,7 +5117,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1201",
+        "ver": "v1202",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

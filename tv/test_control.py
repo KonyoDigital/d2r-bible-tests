@@ -1354,6 +1354,92 @@ class TestTabBestTotalSessionScoping(unittest.TestCase):
         self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
 
 
+class TestIntakeLeaseClockSkewImmunity(unittest.TestCase):
+    """v1202 — your own flagged follow-up from the v1201 closer-loop clock-skew round:
+    _intake_lease_claim/_intake_lease_status used `until <= time.time()*1000` for the actual
+    expiry DECISION. A backward NTP/sleep-wake jump between claim and a later check makes
+    `now` read smaller than it should, so an already-expired lease looks still-held for an
+    extra `jump_size` ms — a tab stuck 'busy' longer than its 120s TTL. Verified per-spot
+    before fixing: `until` (wall-clock) is NOT purely internal — /intake_claim ships it
+    straight to the board's browser JS, and _intake_lease_status's snapshot rides into
+    /api/status's `leases` field for the theatre UI, both comparable to the CLIENT's own
+    Date.now() across a process boundary where a monotonic value would be meaningless. So the
+    fix keeps `until` wall-clock (unchanged, still returned) and adds an internal-only
+    `untilMono` (never returned) to drive the actual expiry math — same split as v1201's
+    _t0f/_t0f_mono."""
+
+    def setUp(self):
+        self._saved = dict(ca._INTAKE_LEASES)
+        ca._INTAKE_LEASES.clear()
+
+    def tearDown(self):
+        ca._INTAKE_LEASES.clear()
+        ca._INTAKE_LEASES.update(self._saved)
+
+    def test_claim_release_roundtrip(self):
+        r1 = ca._intake_lease_claim("runes", "engine-driver", ttl_ms=120000, now_ms=0, now_mono_ms=0)
+        self.assertTrue(r1["ok"])
+        self.assertEqual(r1["until"], 120000)   # wall-clock arithmetic, unaffected by the fix
+        # a second owner is blocked while it's still held (no time has passed)
+        r2 = ca._intake_lease_claim("runes", "board", ttl_ms=120000, now_ms=1000, now_mono_ms=1000)
+        self.assertFalse(r2["ok"])
+        self.assertEqual(r2["why"], "held")
+        self.assertEqual(r2["holder"], "engine-driver")
+        rel = ca._intake_lease_release("runes", "engine-driver")
+        self.assertTrue(rel["ok"])
+        self.assertTrue(rel["released"])
+        # released — now claimable by anyone
+        r3 = ca._intake_lease_claim("runes", "board", ttl_ms=120000, now_ms=2000, now_mono_ms=2000)
+        self.assertTrue(r3["ok"])
+
+    def test_release_by_non_holder_is_refused(self):
+        ca._intake_lease_claim("gems", "engine-driver", ttl_ms=120000, now_ms=0, now_mono_ms=0)
+        rel = ca._intake_lease_release("gems", "board")
+        self.assertFalse(rel["ok"])
+        self.assertEqual(rel["why"], "not-holder")
+        self.assertFalse(rel["released"])
+
+    def test_normal_forward_time_expiry_still_works(self):
+        # no skew at all — real time simply advances past the TTL on both clocks in lockstep.
+        # Must keep expiring normally; this fix must not weaken the TTL's ordinary behavior.
+        ca._intake_lease_claim("materials", "engine-driver", ttl_ms=120000, now_ms=0, now_mono_ms=0)
+        r = ca._intake_lease_claim("materials", "board", ttl_ms=120000, now_ms=130000, now_mono_ms=130000)
+        self.assertTrue(r["ok"])   # 130s of REAL elapsed time > 120s TTL — expired, reclaimable
+
+    def test_backward_wall_clock_jump_does_not_extend_a_truly_expired_lease(self):
+        # THE regression this round fixes: claim at t=0 (both clocks 0). 130000ms of REAL
+        # (monotonic) time passes — past the 120000ms TTL, genuinely expired. But the WALL
+        # clock stepped BACKWARD to -500000 (an NTP correction) at the moment of the second
+        # call. The OLD wall-clock-only check saw until(120000) > now(-500000) and reported
+        # still-held (leaking the lease ~620s past its real TTL). The fix must reclaim it.
+        ca._intake_lease_claim("runes", "engine-driver", ttl_ms=120000, now_ms=0, now_mono_ms=0)
+        r = ca._intake_lease_claim("runes", "board", ttl_ms=120000, now_ms=-500000, now_mono_ms=130000)
+        self.assertTrue(r["ok"], "a backward wall-clock jump must not extend a real TTL expiry")
+        self.assertEqual(r["owner"], "board")
+
+    def test_backward_wall_clock_jump_does_not_break_a_still_valid_lease(self):
+        # the flip side: real elapsed time is SHORT (still well within TTL) even though the
+        # wall clock also jumped backward — the lease must still correctly read as held.
+        ca._intake_lease_claim("runes", "engine-driver", ttl_ms=120000, now_ms=0, now_mono_ms=0)
+        r = ca._intake_lease_claim("runes", "board", ttl_ms=120000, now_ms=-500000, now_mono_ms=1000)
+        self.assertFalse(r["ok"])
+        self.assertEqual(r["why"], "held")
+
+    def test_status_snapshot_omits_internal_mono_field(self):
+        ca._intake_lease_claim("gems", "engine-driver", ttl_ms=120000, now_ms=5000, now_mono_ms=5000)
+        snap = ca._intake_lease_status(now_mono_ms=5500)
+        self.assertIn("gems", snap)
+        self.assertEqual(set(snap["gems"].keys()), {"owner", "until", "since"})
+        self.assertNotIn("untilMono", snap["gems"])
+
+    def test_status_expiry_also_immune_to_backward_wall_clock_jump(self):
+        ca._intake_lease_claim("gems", "engine-driver", ttl_ms=120000, now_ms=0, now_mono_ms=0)
+        # 130s of real (monotonic) time passed — status must show it gone, regardless of what
+        # the wall clock is doing (status never took a now_ms override at all — only monotonic).
+        snap = ca._intake_lease_status(now_mono_ms=130000)
+        self.assertNotIn("gems", snap)
+
+
 class TestCloserLoopClockSkewImmunity(unittest.TestCase):
     """v1201 — CLOCK-SKEW class swept from engine-capture (v1199) / engine-read (v1200): a
     backward NTP/sleep-wake clock jump breaks any wait-loop built purely on time.time()
