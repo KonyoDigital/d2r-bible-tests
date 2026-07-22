@@ -1586,6 +1586,15 @@
   .er-fnav-btn[disabled] { opacity: .32; cursor: default; }
   .er-fnav-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(200,168,255,.6); }
   .er-fnav-pos { font: 700 var(--fs-2xs)/1 var(--mono); color: #9a8d73; letter-spacing: .06em; min-width: 46px; text-align: center; white-space: nowrap; }
+  /* v1217 (Engine Room r8) — MISS SPOTLIGHT bar: the reel's flagged frames + jump-to-problem */
+  .er-flagbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 13px; margin-bottom: 15px; padding: 9px 13px;
+    border-radius: 8px; background: rgba(30,26,44,.4); border: 1px solid rgba(160,130,255,.22); font: 600 var(--fs-2xs)/1.4 var(--mono); }
+  .er-flagbar.er-flag-clean { color: #9df0bd; border-color: rgba(143,230,160,.3); background: rgba(143,230,160,.06); }
+  .er-flagbar .ef-lead { font-weight: 800; color: #c9b8ff; letter-spacing: .08em; text-transform: uppercase; }
+  .er-flagbar .ef-k { color: #b7a8d8; }
+  .er-flagbar .ef-held { color: #f0d89a; } .er-flagbar .ef-caught { color: #9df0bd; } .er-flagbar .ef-super { color: #cbbcff; } .er-flagbar .ef-stall { color: #ffb0a0; }
+  .er-flagbar .ef-here { color: #ffcf8a; font-weight: 700; }
+  .er-flagbar .ef-jump { margin-left: auto; display: inline-flex; gap: 8px; }
   .er-detail-body { padding: 12px 16px 14px; font: 500 var(--fs-sm)/1.6 var(--mono); color: #c8d0d6; }
   /* v1216 (Engine Room r7) — the frame image: the ground truth the AI read, hero of the drill-down */
   .er-frame { margin: 0 0 15px; }
@@ -5926,6 +5935,8 @@
       if (e.key === 'Escape' && ER.open){ e.stopPropagation(); if (ER.detailOpen){ window._engineRoomDetailClose(); } else { window._engineRoomClose(); } }
       // v1215 (r6) — ← / → step frames while the drill-down is open (watch the reads evolve)
       else if (ER.open && ER.detailOpen && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')){ e.preventDefault(); e.stopPropagation(); window._engineRoomStepFrame(e.key === 'ArrowRight' ? 1 : -1); }
+      // v1217 (r8) — [ / ] jump to the prev / next flagged frame (take me to the problems)
+      else if (ER.open && ER.detailOpen && (e.key === '[' || e.key === ']')){ e.preventDefault(); e.stopPropagation(); window._engineRoomJumpFlag(e.key === ']' ? 1 : -1); }
     }, true);
     return ov;
   }
@@ -6161,9 +6172,27 @@
         + '<button class="er-fnav-btn" onclick="window._engineRoomStepFrame(1)" title="next frame (→)"' + (_fi >= 0 && _fi < _frames.length - 1 ? '' : ' disabled') + '>▶</button>'
         + '</span>'
       : '';
+    // v1217 (Engine Room r8) — MISS SPOTLIGHT bar: the reel's flagged frames + jump-to-problem controls
+    var _flags = _erReelFlags((reel && reel.sessionId && ER.reelCache[reel.sessionId]) || []);
+    var _flagbar = '';
+    if (_frames.length){
+      if (!_flags.total) _flagbar = '<div class="er-flagbar er-flag-clean">✓ no flagged frames — the engine ran clean on this reel</div>';
+      else {
+        var _c = _flags.counts, _p = [];
+        if (_c.held) _p.push('<span class="ef-k ef-held">🛡 ' + _c.held + ' held</span>');
+        if (_c.caught) _p.push('<span class="ef-k ef-caught">🧠 ' + _c.caught + ' retro-caught</span>');
+        if (_c.super) _p.push('<span class="ef-k ef-super">🧠🔬 ' + _c.super + ' recovered</span>');
+        if (_c.stall) _p.push('<span class="ef-k ef-stall">🔴 ' + _c.stall + ' stalled</span>');
+        _flagbar = '<div class="er-flagbar"><span class="ef-lead">⚑ ' + _flags.total + ' flagged</span> ' + _p.join(' ')
+          + (_erFlagKind(b) ? ' <span class="ef-here">◂ this frame</span>' : '')
+          + '<span class="ef-jump"><button class="er-fnav-btn" onclick="window._engineRoomJumpFlag(-1)" title="jump to previous flagged frame ([)">⏮ prev</button>'
+          + '<button class="er-fnav-btn" onclick="window._engineRoomJumpFlag(1)" title="jump to next flagged frame (])">next ⏭</button></span></div>';
+      }
+    }
     el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>' + _nav
       + '<button class="th-x" id="er-detail-x" onclick="window._engineRoomDetailClose()" title="close (Esc)">✕</button></div>'
       + '<div class="er-detail-body">'
+      + _flagbar
       // v1216 (Engine Room r7) — THE FRAME IMAGE: the actual captured frame the AI read, so Konyo can
       // SEE what the AI saw right beside its verdict. Served by the existing /hist/<frameId>.jpg endpoint;
       // updates as he steps frames (r6); degrades gracefully when a frame wasn't archived.
@@ -6204,23 +6233,52 @@
   };
   // v1215 (Engine Room r6) — step the drill-down to the prev/next FRAME within the current reel, so
   // Konyo can watch the AI's reads evolve frame-by-frame (◀ ▶ buttons + arrow keys). Cached beats only.
-  window._engineRoomStepFrame = function(dir){
-    var reel = ER.focusReelObj; if (!reel || !reel.sessionId) return;
-    var beats = ER.reelCache[reel.sessionId] || [];
-    var frames = beats.filter(function(x){ return x.frame; }).sort(function(a, c){ return (a.ts || 0) - (c.ts || 0); });
-    if (frames.length < 2) return;
-    var idx = frames.indexOf(ER.focusBeat);
-    if (idx < 0){ var bd = 1e15; frames.forEach(function(x, i){ var d = Math.abs((x.ts || 0) - (ER.focusTs || 0)); if (d < bd){ bd = d; idx = i; } }); }
-    var ni = Math.max(0, Math.min(frames.length - 1, idx + dir)); if (ni === idx) return;
-    var nb = frames[ni];
-    ER.focusSid = reel.sessionId; ER.focusTs = nb.ts; ER.focusBeat = nb;   // stepping = navigating retro frames
+  // move the drill-down (+ playhead + spine) to a specific frame beat — shared by frame-step and flag-jump
+  function _engineRoomGotoFrame(nb){
+    var reel = ER.focusReelObj; if (!nb || !reel || !reel.sessionId) return;
+    ER.focusSid = reel.sessionId; ER.focusTs = nb.ts; ER.focusBeat = nb;
     var ax = document.getElementById('er-axis');
     var seg = ax && ax.querySelector('.er-reel[data-sid="' + ((window.CSS && CSS.escape) ? CSS.escape(reel.sessionId) : reel.sessionId) + '"]');
     if (ax && seg){ var ar = ax.getBoundingClientRect(), sr = seg.getBoundingClientRect(), t0 = +seg.dataset.t0, t1 = +seg.dataset.t1;
       var frac = (t1 > t0) ? Math.max(0, Math.min(1, (nb.ts - t0) / (t1 - t0))) : 0.5;
       var cur = document.getElementById('er-cursor'); if (cur){ cur.hidden = false; cur.style.left = ((sr.left - ar.left) + frac * sr.width) + 'px'; } }
-    _engineRoomRenderRetro(beats);   // re-renders spine + band + readout + playhead flag + the open detail
+    _engineRoomRenderRetro(ER.reelCache[reel.sessionId] || [nb]);   // spine + band + readout + playhead + detail
     _engineRoomFetchBlob(nb);
+  }
+  window._engineRoomStepFrame = function(dir){
+    var reel = ER.focusReelObj; if (!reel || !reel.sessionId) return;
+    var frames = (ER.reelCache[reel.sessionId] || []).filter(function(x){ return x.frame; }).sort(function(a, c){ return (a.ts || 0) - (c.ts || 0); });
+    if (frames.length < 2) return;
+    var idx = frames.indexOf(ER.focusBeat);
+    if (idx < 0){ var bd = 1e15; frames.forEach(function(x, i){ var d = Math.abs((x.ts || 0) - (ER.focusTs || 0)); if (d < bd){ bd = d; idx = i; } }); }
+    var ni = Math.max(0, Math.min(frames.length - 1, idx + dir)); if (ni === idx) return;
+    _engineRoomGotoFrame(frames[ni]);
+  };
+  // v1217 (Engine Room r8) — MISS SPOTLIGHT: classify a frame as "flagged" if the engine did something
+  // worth a debugger's eye — a gate HELD a read, KAI retro-caught a live miss, super-analyze recovered,
+  // or the live read stalled. Jump straight to those instead of stepping all N frames.
+  function _erFlagKind(b){
+    if (!b) return null;
+    if (b.gatePass === false) return 'held';
+    if (b.super && b.super.reread) return 'super';
+    if (b.kaiMissTexts && b.kaiMissTexts.length) return 'caught';
+    if (b.completedTs && b.ts && (b.completedTs - b.ts) / 1000 >= 8) return 'stall';
+    return null;
+  }
+  function _erReelFlags(beats){
+    var flags = [], c = { held: 0, super: 0, caught: 0, stall: 0 };
+    (beats || []).filter(function(x){ return x.frame; }).sort(function(a, d){ return (a.ts || 0) - (d.ts || 0); })
+      .forEach(function(b){ var k = _erFlagKind(b); if (k){ flags.push(b); c[k]++; } });
+    return { frames: flags, counts: c, total: flags.length };
+  }
+  window._engineRoomJumpFlag = function(dir){
+    var reel = ER.focusReelObj; if (!reel || !reel.sessionId) return;
+    var flags = _erReelFlags(ER.reelCache[reel.sessionId] || []).frames; if (!flags.length) return;
+    var cur = (ER.focusBeat && ER.focusBeat.ts) || ER.focusTs || 0, target = null, i;   // exact frame ts, not the scrub position
+    if (dir > 0){ for (i = 0; i < flags.length; i++){ if ((flags[i].ts || 0) > cur + 1){ target = flags[i]; break; } } }
+    else { for (i = flags.length - 1; i >= 0; i--){ if ((flags[i].ts || 0) < cur - 1){ target = flags[i]; break; } } }
+    if (!target) target = (dir > 0) ? flags[0] : flags[flags.length - 1];   // wrap around the flagged set
+    _engineRoomGotoFrame(target);
   };
   function _engineRoomFetchBlob(b){
     // pull the deep forensic blob (OCR/raw/decisions) for a read beat, then re-render the detail
