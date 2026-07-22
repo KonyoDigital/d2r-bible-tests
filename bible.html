@@ -4473,6 +4473,9 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     #autoroute-sweep-card .ars-checker b{color:#7cc4ff}
     #autoroute-sweep-card .ars-jump-btn{background:rgba(124,196,255,.14);color:#acd8ff;border:1px solid rgba(124,196,255,.4);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:4px}
     #autoroute-sweep-card .ars-jump-btn:hover{background:rgba(124,196,255,.24)}
+    #autoroute-sweep-card .ars-send{cursor:pointer;font-family:inherit;transition:all .12s}
+    #autoroute-sweep-card .ars-send:hover{background:rgba(124,196,255,.16);border-color:rgba(124,196,255,.5);color:#dbeeff}
+    #autoroute-sweep-card #ars-queue-hint:empty{display:none}
   </style>
   <div class="boss-card collapsible tool-premium tool-primary" id="autoroute-sweep-card" style="--tc:#7cc4ff">
     <div class="boss-header" onclick="window.toggleCardCollapse('autoroute-sweep-card')" role="button" tabindex="0" aria-expanded="true">
@@ -19036,9 +19039,13 @@ function _arRenderDiff(){
   }
   // BUCKET 2 — non-chronicle real items → the 🔬 AI Item Checker → vault path (never auto-tallied).
   if (d.itemChecker && d.itemChecker.length){
-    var chips = d.itemChecker.map(function(x){ return '<span class="ars-unk" title="seen in: ' + esc((x.sources || []).join(', ')) + '">' + esc(x.name) + '</span>'; }).join('');
+    // each item is a one-click hand-off: loads it into the AI Item Checker draft
+    // (d2r_aicDraft) → Konyo judges → Mule (vault) or Toss. Never auto-tallied.
+    var chips = d.itemChecker.map(function(x){ return '<button class="ars-unk ars-send" data-n="' + esc(x.name) + '" onclick="window._arSendToChecker(this.dataset.n)" title="load into the AI Item Checker → judge → Mule or Toss (seen in: ' + esc((x.sources || []).join(', ')) + ')">🔬 ' + esc(x.name) + '</button>'; }).join('');
     html += '<div class="ars-review ars-checker">🔬 <b>' + d.itemChecker.length + ' → Item Checker &amp; vault</b> — RotW bases, white bases &amp; rolled magic/rare aren’t tracked-collection items, so KAI hands them to the checker to keep-or-toss + vault-mule (not auto-tallied). '
-          + '<button class="ars-jump-btn" onclick="window._toolJump &amp;&amp; window._toolJump(\'ai-item-checker-card\')">open Item Checker →</button>'
+          + '<button class="ars-jump-btn" onclick="window._arSendAllToChecker()">🔬 send all → checker</button>'
+          + '<div id="ars-queue-hint" style="margin-top:6px"></div>'
+          + '<div style="margin-top:5px">Click any item to send it to the checker:</div>'
           + '<div style="margin-top:5px">' + chips + '</div></div>';
   }
   // BUCKET 3 — genuinely unreadable (tiny). Shown, NEVER applied.
@@ -19056,6 +19063,7 @@ function _arRenderDiff(){
   html += '<div class="ars-status" style="margin-top:10px">Swept ' + (stats.deepRows || 0) + ' deep reads · ' + (stats.intakeEvents || 0) + ' intake events · ' + (stats.reels || 0) + ' reels. Sunders witnessed: <strong>' + sSeen + ' of 6</strong> (only what KAI actually read — never seeded blind).</div>';
 
   if (diffEl) diffEl.innerHTML = html;
+  try { _arUpdateQueueHint(); } catch(e){}
   if (applyBtn) applyBtn.disabled = !total;
   if (statusEl){
     statusEl.innerHTML = total
@@ -19118,6 +19126,57 @@ async function autorouteApply(){
   setTimeout(function(){ try { autorouteScan(); } catch(e){} }, 400);
 }
 window.autorouteApply = autorouteApply;
+
+// ── G3 bucket-2 → AI Item Checker hand-off (v1292) ──────────────────────────
+// A non-chronicle item (RotW/white base · rolled magic/rare) is NOT auto-tallied —
+// Konyo's model routes it to the 🔬 AI Item Checker to judge → Mule (vault) or Toss.
+// These load the item into the checker's single-item draft (d2r_aicDraft via the
+// exposed window._aicSetDraft) and open the card. A persisted queue (d2r_aicQueue)
+// lets "send all" walk the list one at a time (the checker judges one item at once).
+function _arSeedDraft(name){
+  // affixed rolled item → the whole roll goes in `name`; a plain base → `base`
+  // (base drives the checker's art + bench). Quality ∈ magic|rare|crafted (aic set).
+  var affixy = /\b(of|chaotic|sullied|shimmering|scintillating|ivory|garnet|jewel)\b/i.test(name);
+  return affixy ? { name: name, base: '', q: 'rare', mods: [] }
+                : { name: '', base: name, q: 'rare', mods: [] };
+}
+function _arSendToChecker(name){
+  if (!name) return;
+  try { if (window._aicSetDraft) window._aicSetDraft(_arSeedDraft(name)); } catch(e){}
+  var card = document.getElementById('ai-item-checker-card');
+  // expand the card if collapsed (its header toggles collapse), then (re)render it
+  try { if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function') window.toggleCardCollapse('ai-item-checker-card'); } catch(e){}
+  try { if (typeof window.renderAIItemChecker === 'function') window.renderAIItemChecker(); } catch(e){}
+  try { if (typeof window._toolJump === 'function') window._toolJump('ai-item-checker-card'); else if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e){}
+  try { if (typeof status === 'function') status('🔬 loaded “' + name + '” into the Item Checker — judge → Mule (vault) or Toss'); } catch(e){}
+}
+window._arSendToChecker = _arSendToChecker;
+
+function _arQueueGet(){ try { return JSON.parse(LS.getItem('d2r_aicQueue') || '[]') || []; } catch(e){ return []; } }
+function _arQueueSet(a){ a = a || []; try { LS.setItem('d2r_aicQueue', JSON.stringify(a)); } catch(e){} _arUpdateQueueHint(); }
+function _arUpdateQueueHint(){
+  var el = document.getElementById('ars-queue-hint'); if (!el) return;
+  var q = _arQueueGet();
+  el.innerHTML = q.length
+    ? '🔬 <b>' + q.length + '</b> still queued for the checker — after you Mule/Toss the current one, <button class="ars-jump-btn" onclick="window._arLoadNextChecker()">▶ load next</button>'
+    : '';
+}
+window._arUpdateQueueHint = _arUpdateQueueHint;
+function _arSendAllToChecker(){
+  var list = ((_ARSweep.diff && _ARSweep.diff.itemChecker) || []).map(function(x){ return x.name; });
+  if (!list.length) return;
+  _arQueueSet(list);
+  _arLoadNextChecker();   // load the first now; the rest wait in the queue
+}
+window._arSendAllToChecker = _arSendAllToChecker;
+function _arLoadNextChecker(){
+  var q = _arQueueGet();
+  if (!q.length){ _arUpdateQueueHint(); try { if (typeof status === 'function') status('🔬 checker queue empty'); } catch(e){} return; }
+  var name = q.shift();
+  _arQueueSet(q);
+  _arSendToChecker(name);
+}
+window._arLoadNextChecker = _arLoadNextChecker;
 
 // v369.2 — runeword base-string → a verified-present base sprite (same files as the EXTRA_ITEMS art map),
 // so every Chronicle row shows a slot-appropriate icon (shield/armor/helm/weapon) instead of a bare glyph.
@@ -34720,7 +34779,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1293', name:'🎨 Visual Lock Typography - One Weight Source Across the Console', date:'2026-07-23', note:'🎨 Visual lock typography - one weight source across the whole console. The type-system work that made the Sessions page read as one flagship surface now extends to the entire console. Text sizes were already drawn from the shared scale; the font weights were still two hundred scattered hard-coded values, and those are now all folded onto the shared weight tokens, with none left behind, plus a dead override rule that pointed at nothing was removed. It is a pure identity change - every heading and label renders exactly as before, just from one source now instead of many - so the console looks unchanged while becoming far more consistent under the hood, which is what lets the look stay coherent as it grows. The finer spacing and line-height values are left for a dedicated later round that will decide the token set first rather than fold them piecemeal. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1294', name:'🔬 G3 Bucket-2 Hand-off to the AI Item Checker (chronicle/else model, complete)', date:'2026-07-23', note:'🔬 G3 hand-off to the Item Checker - the last piece of the routing model. The auto-route sweep already sorts everything three ways; now the middle bucket, the items that arent tracked collections, actually flows into the Item Checker the way you described. Each of those items - the Warlock class bases and rolled magic and rare pieces - is now a button that drops the item straight into the Item Checker so you can judge it and mule or toss it, and a send-all option queues them up so you can work through them one at a time with a load-next button. A rolled item lands in the checkers name field and a plain base in its base field so the card and its benchmark come up right, and you can always drop a screenshot to fill the rest. Nothing about the existing keep-or-toss and mule flow was changed. So now the whole model is complete: chronicle items auto-tally, everything else routes into the checker and the vault, by your hand. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
