@@ -1527,6 +1527,15 @@
   .er-reel-fill { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, transparent 1px 6px); pointer-events: none; }
   .er-reel-lab { position: relative; font: 600 var(--fs-2xs)/1 var(--mono); color: #9a8d73; opacity: .7; padding-bottom: 3px; pointer-events: none; }
   .er-reel-div { flex: 0 0 3px; background: rgba(0,0,0,.5); }   /* between-reel dead time = a thin divider */
+  /* v1214 (Engine Room r5) — THE SEALED|LIVE BOUNDARY: the seam between the sealed reels and the NOW
+     edge is the most important divide on the axis, so it gets a bright mint seam (not the same 3px
+     dead-gap as between reels) + a faint "SEALED" eyebrow over the recorded region. Now Konyo always
+     knows which side of NOW he's scrubbing. */
+  .er-seam { flex: 0 0 3px; align-self: stretch; margin: 0 4px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--mint), rgba(143,230,160,.3)); box-shadow: 0 0 10px rgba(143,230,160,.6); }
+  .er-zone-sealed { position: absolute; top: 9px; left: 13px; z-index: 2; pointer-events: none;
+    font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: #7a7160; opacity: .8; }
+  .er-zone-sealed::before { content: "◀ "; color: var(--gold-dim); }
   .er-stall { position: absolute; top: 0; bottom: 0; background: rgba(224,85,69,.28); border-left: 1px solid rgba(255,120,100,.7);
     border-right: 1px solid rgba(255,120,100,.7); pointer-events: none; }   /* WIDE in-flight stall band */
   .er-now-zone { flex: 0 0 74px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
@@ -5922,14 +5931,14 @@
     var ax = document.getElementById('er-axis'); if (!ax) return;
     var reels = ER.reels || [];
     if (!reels.length){ ax.innerHTML = '<div class="er-axis-empty">no sealed reels yet — go ON AIR, then scrub the film here</div>'; return; }
-    ax.innerHTML = reels.map(function(rl, i){
+    ax.innerHTML = '<div class="er-zone-sealed" aria-hidden="true">SEALED</div>' + reels.map(function(rl, i){
       var cur = (ER.focusSid === rl.sessionId);
       return (i ? '<div class="er-reel-div"></div>' : '')
         + '<div class="er-reel' + (cur ? ' er-reel-cur' : '') + '" data-sid="' + esc(rl.sessionId) + '" data-n="' + (rl.n || 0)
         + '" data-t0="' + (rl.t0 || 0) + '" data-t1="' + (rl.t1 || rl.t0 || 0) + '" style="flex:' + Math.max(2, rl.footageN || 1)
         + '" title="reel ' + (rl.n || '?') + ' · ' + (rl.footageN || 0) + ' frames · ' + (rl.reads || 0) + ' reads">'
         + '<div class="er-reel-fill"></div><div class="er-reel-lab">' + (rl.footageN || 0) + '</div></div>';
-    }).join('') + '<div class="er-reel-div"></div><div class="er-now-zone' + (ER.focusTs == null ? ' er-now-cur' : '') + '" data-now="1" title="NOW — live"><span class="er-nowz-dot"></span>NOW</div>';
+    }).join('') + '<div class="er-seam" aria-hidden="true"></div><div class="er-now-zone' + (ER.focusTs == null ? ' er-now-cur' : '') + '" data-now="1" title="NOW — the live edge"><span class="er-nowz-dot"></span>NOW</div>';
     _engineRoomStallBands();
   }
   function _computeStalls(beats){
