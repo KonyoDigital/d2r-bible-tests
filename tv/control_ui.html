@@ -1652,6 +1652,8 @@
   .er-frame-cap { margin-top: 6px; font: 600 var(--fs-2xs)/1.4 var(--mono); color: #9a8d73; letter-spacing: .04em; }
   .er-detail-body .kv { display: grid; grid-template-columns: clamp(172px, 10vw, 240px) 1fr; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }   /* v1210 (Engine Room r1) — label col wide enough that no row-label wraps to two lines at fullscreen */
   .er-detail-body .kv .k { color: #94a89c; opacity: .85; } .er-detail-body .kv .v { color: #d9e2da; word-break: break-word; }
+  /* v1225 (Engine Room r16) — empty evidence rows recede so the ones that fired lead the eye */
+  .er-detail-body .kv.kv-empty { opacity: .4; padding: 3px 0; border-bottom-color: rgba(255,255,255,.02); }
   .er-detail-body .kv .v b { color: #e4d2a4; }
   .er-auth { display: inline-block; font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 5px; margin-left: 6px; vertical-align: middle; }
@@ -6208,7 +6210,13 @@
   // Click an organ (or scrub a frame) → the RAW PROCESS at that timestamp: read-in-flight ms (the
   // stall), OCR literal text, quorum votes + evidence, the gate decision + reason, funnel receipt,
   // and the 🔴🔵🧠🔬 layer that owns the final read — sourced from /api/beat. See what the AI saw & why.
-  function _erDetailRow(k, v){ return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + (v || '—') + '</span></div>'; }
+  // v1225 (Engine Room r15→r16) — signal-forward: a row whose value is empty ("—") recedes, so the rows
+  // that actually fired stand out and the drill-down reads as "here's what happened", not a form of blanks.
+  function _erDetailRow(k, v){
+    var plain = v ? String(v).replace(/<[^>]+>/g, '').trim() : '';
+    var empty = (plain === '' || plain === '—');
+    return '<div class="kv' + (empty ? ' kv-empty' : '') + '"><span class="k">' + k + '</span><span class="v">' + (v || '—') + '</span></div>';
+  }
   // v950.4 (Phase D) — the reconciler's AUTHORITATIVE owner/verdict per frame. Retro = beat.engineFrame
   // (sealed), live = the status.liveRing entry for the now-frame. Fall back to inference on pre-Phase-C
   // reels (no engineFrame / empty liveRing) so it's a clean no-op until the reconciler's output lands.
