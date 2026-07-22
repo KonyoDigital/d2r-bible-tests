@@ -44,7 +44,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1310 · D18 shelf card redesign **(landed v1309)** — film-reel-still: cover-art hero + broadcast lower-third (Cinzel title + verdict seal) + gold headline-grail + 4-cell stat grid + rarity accents. Machinery preserved, tap-to-dossier intact. [in flight: D19 beat-card chips]
 - [x] v1311 · D19 beat-card chips **(landed v1311)** — "⚡ The beats" story ribbon on the dossier (🔥entered·⚔farmed·🏛town·📸tallied·🏆grails·💎keeps·🔬judged·💔regrets·🛡seal); honest, no fabricated timestamps, chips omit when absent. [in flight: D20 count-ups]
 - [x] v1312 · D20 animated stat count-ups **(landed v1313)** — dossier numbers tick 0→value (easeOutCubic 520ms), truth-safe (final=exact), reduced-motion aware, poll-guarded. [in flight: D21 seal-stamp polish]
-- [ ] v1313 · D21 verdict seal-stamp polish
+- [x] v1313 · D21 verdict seal-stamp polish **(landed v1315)** — embossed wax/broadcast stamp (92px, double-ring, 🛡/🚨/◌), press-down stamp-in (poll-guarded, reduced-motion CSS), unified with D18 card chip. [in flight: D22 chapter markers]
 - [ ] v1314 · D22 filmstrip chapter markers (read/find/film beats)
 - [ ] v1315 · D24 live-session preview card (recording-now)
 - [ ] v1316 · D25 session notes / naming ("Meph 200x")
