@@ -1654,6 +1654,18 @@
   .er-detail-body .kv .k { color: #94a89c; opacity: .85; } .er-detail-body .kv .v { color: #d9e2da; word-break: break-word; }
   /* v1225 (Engine Room r16) — empty evidence rows recede so the ones that fired lead the eye */
   .er-detail-body .kv.kv-empty { opacity: .4; padding: 3px 0; border-bottom-color: rgba(255,255,255,.02); }
+  /* v1226 (Engine Room r17) — first-open onboarding: subtle, one-time, dismissable orientation strip */
+  .er-onboard { display: flex; align-items: center; gap: 14px; margin-bottom: 2px; padding: 10px 14px; border-radius: 9px;
+    border: 1px solid rgba(240,192,96,.3); background: linear-gradient(180deg, rgba(42,33,14,.5), rgba(20,16,8,.4)); }
+  .er-onboard[hidden] { display: none; }
+  .er-onboard .ero-body { flex: 1 1 auto; font: 600 var(--fs-2xs)/1.6 var(--mono); color: #b7a884; letter-spacing: .02em; }
+  .er-onboard .ero-title { color: var(--gold); font-weight: 800; margin-right: 5px; }
+  .er-onboard .ero-tip b { color: #e6d9b8; }
+  .er-onboard .ero-sep { color: #6f6a58; margin: 0 7px; }
+  .er-onboard .ero-x { flex: 0 0 auto; cursor: pointer; font: 700 var(--fs-2xs)/1 var(--mono); color: var(--gold-dim); letter-spacing: .04em;
+    background: rgba(0,0,0,.3); border: 1px solid rgba(240,192,96,.3); border-radius: 6px; padding: 6px 11px; transition: color .15s, border-color .15s; }
+  .er-onboard .ero-x:hover { color: var(--gold-hi); border-color: var(--gold-hi); }
+  .er-onboard .ero-x:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6); }
   .er-detail-body .kv .v b { color: #e4d2a4; }
   .er-auth { display: inline-block; font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 5px; margin-left: 6px; vertical-align: middle; }
@@ -5972,6 +5984,15 @@
       + '<div class="er-head"><span class="er-title">🧠🖥 ENGINE ROOM</span>'
       + '<span class="er-sub">the Master Brain\'s cockpit · live + retro, time-synced · observes, never drives</span>'
       + '<button class="er-x th-x" id="er-x" onclick="window._engineRoomClose()" title="close (Esc)">✕</button></div>'
+      // v1226 (Engine Room r17) — ONBOARDING: a one-time first-open orientation (the retro half hides
+      // behind a drag gesture a newcomer would never guess). Dismiss remembers via localStorage.
+      + '<div class="er-onboard" id="er-onboard" hidden>'
+        + '<div class="ero-body"><span class="ero-title">👋 first time? three moves —</span>'
+          + '<span class="ero-tip"><b>drag the timeline ◀</b> into the sealed reels to replay the past</span>'
+          + '<span class="ero-sep">·</span><span class="ero-tip"><b>click a frame or engine</b> to see what the AI read on it</span>'
+          + '<span class="ero-sep">·</span><span class="ero-tip">the key below decodes every symbol</span></div>'
+        + '<button class="ero-x" onclick="window._engineRoomOnboardDismiss()" title="dismiss (won\'t show again)">got it ✕</button>'
+      + '</div>'
       + '<div class="er-spinewrap"><div class="er-band" id="er-spine-band">THE ENGINE SPINE — the whole loop, this instant</div>'
       + '<div class="eh-spine er-spine" id="er-spine"></div></div>'
       + '<div class="er-tlwrap"><div class="er-band">TIMELINE — <span class="er-live-tag">● LIVE</span> now rides the right edge · drag the cursor ◀ into the sealed reels for retro '
@@ -6485,6 +6506,14 @@
         .then(function (j) { ER.lastStatus = j; try { _engineRoomRefresh(j); } catch (e) { console.error('[EngineRoom] refresh(live)', e); } })
         .catch(function () {});
     } catch (e) { console.error('[EngineRoom] status fetch', e); }
+    try {   // v1226 r17 — first-open orientation, once per browser
+      var ob = document.getElementById('er-onboard');
+      if (ob){ var seen; try { seen = localStorage.getItem('tvd_er_onboarded'); } catch (e) {} ob.hidden = !!seen; }
+    } catch (e) { console.error('[EngineRoom] onboard', e); }
+  };
+  window._engineRoomOnboardDismiss = function(){
+    try { localStorage.setItem('tvd_er_onboarded', '1'); } catch (e) {}
+    var ob = document.getElementById('er-onboard'); if (ob) ob.hidden = true;
   };
   window._engineRoomClose = function(){ ER.open = false; ER.detailOpen = false; var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; };
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
