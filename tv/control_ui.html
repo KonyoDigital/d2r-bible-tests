@@ -1587,6 +1587,12 @@
   .er-fnav-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(200,168,255,.6); }
   .er-fnav-pos { font: 700 var(--fs-2xs)/1 var(--mono); color: #9a8d73; letter-spacing: .06em; min-width: 46px; text-align: center; white-space: nowrap; }
   .er-detail-body { padding: 12px 16px 14px; font: 500 var(--fs-sm)/1.6 var(--mono); color: #c8d0d6; }
+  /* v1216 (Engine Room r7) — the frame image: the ground truth the AI read, hero of the drill-down */
+  .er-frame { margin: 0 0 15px; }
+  .er-frame-img { display: block; width: clamp(240px, 27vw, 380px); height: auto; border-radius: 8px;
+    border: 1px solid rgba(160,130,255,.3); cursor: zoom-in; box-shadow: 0 5px 20px rgba(0,0,0,.55); transition: border-color .15s, box-shadow .15s; }
+  .er-frame-img:hover { border-color: #c9b8ff; box-shadow: 0 5px 24px rgba(160,130,255,.25); }
+  .er-frame-cap { margin-top: 6px; font: 600 var(--fs-2xs)/1.4 var(--mono); color: #9a8d73; letter-spacing: .04em; }
   .er-detail-body .kv { display: grid; grid-template-columns: clamp(172px, 10vw, 240px) 1fr; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }   /* v1210 (Engine Room r1) — label col wide enough that no row-label wraps to two lines at fullscreen */
   .er-detail-body .kv .k { color: #94a89c; opacity: .85; } .er-detail-body .kv .v { color: #d9e2da; word-break: break-word; }
   .er-detail-body .kv .v b { color: #e4d2a4; }
@@ -6158,6 +6164,10 @@
     el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>' + _nav
       + '<button class="th-x" id="er-detail-x" onclick="window._engineRoomDetailClose()" title="close (Esc)">✕</button></div>'
       + '<div class="er-detail-body">'
+      // v1216 (Engine Room r7) — THE FRAME IMAGE: the actual captured frame the AI read, so Konyo can
+      // SEE what the AI saw right beside its verdict. Served by the existing /hist/<frameId>.jpg endpoint;
+      // updates as he steps frames (r6); degrades gracefully when a frame wasn't archived.
+      + (b.frameId ? '<div class="er-frame"><img class="er-frame-img" src="/hist/' + encodeURIComponent(b.frameId) + '.jpg?w=560" loading="lazy" alt="the captured frame the AI read" title="click to open the full frame" onclick="window.open(\'/hist/' + encodeURIComponent(b.frameId) + '.jpg\',\'_blank\')" onerror="this.style.display=\'none\';var c=this.parentNode.querySelector(\'.er-frame-cap\');if(c){c.textContent=\'📸 this frame was not archived\';c.style.opacity=\'.6\';}"><div class="er-frame-cap">📸 the frame the AI read <span class="thd-dim">· click to enlarge</span></div></div>' : '')
       + _erReadChain(b, ov)
       + _erDetailRow('👁 the reader net', badges || '—')
       + _erDetailRow('owns the final read', '<b>' + ov.owner + '</b> <span class="er-auth ' + (ov.auth ? 'er-auth-yes' : 'er-auth-no') + '" title="' + (ov.auth ? 'the reconciler\'s sealed verdict — authoritative' : 'inferred from the beat\'s reader signals (no reconciler frame yet)') + '">' + (ov.auth ? 'authoritative' : 'inferred') + '</span>' + (ov.why ? ' <span class="thd-dim">· ' + esc(String(ov.why)) + '</span>' : ''))
