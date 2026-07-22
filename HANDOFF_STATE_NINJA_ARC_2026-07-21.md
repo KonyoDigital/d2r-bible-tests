@@ -343,3 +343,4 @@ polish-ui-2 (control_ui.html): compact always-visible KEY footer decoding read-c
 ## ✅ GATED: v1215 (43/80) — c531c05 — ER arc round 6 frame-nav. Console @ v1215. ER 6/20. Round 7 → v1216.
 ## ✅ GATED: v1216 (44/80) — 94962b9 — ER arc round 7 THE FRAME IMAGE (north star: see what the AI saw; existing /hist/ endpoint, updates on frame-step). Console @ v1216. ER 7/20. Round 8 → v1217 (miss-spotlight/session-story).
 ## ✅ GATED: v1217 (45/80) — b495542 — ER arc round 8 MISS SPOTLIGHT/jump-to-problem (flag bar: gate-held/KAI-caught/super/stall; ⏮⏭ + [ ] jump; clean=win). Console @ v1217. ER 8/20. Round 9 → v1218 (session-story/live-cockpit).
+## ✅ GATED: v1218 (46/80) — b984509 — ER arc round 9 REEL SCORECARD (duration/frames/reads/named/retro-caught/tallies + watchdog line, retro-only, completeness-framed). Console @ v1218. ER 9/20. Round 10 (arc halfway) → v1219 (live-cockpit / density-polish).
