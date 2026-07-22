@@ -67,7 +67,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1329 · E1c thrown-with-stats comparison **(landed v1308)** — aicToss logs tossed items w/ their read; "📊 Kept vs Tossed" side-by-side panel. 8/8 tests. **✅ E1 follow-ups COMPLETE (Konyo's full muled-vs-thrown vision).**
 - [x] v1330 · Vault Integrity Checker deepening **(landed v1310)** — +2 classes (🔬 checker-toss-kept review-only, 🤖 g3-vault-conflict auto-fix) + provenance on every finding (✋manual/🤖G3/🔬checked). Cross-references G3+E1+Checker. 9/9 tests. [in flight: full-system cohesion/verify round]
 - [ ] v1331 · Vault manager full pass (stats + mule + capacity + ladder)
-- [ ] v1332 · Vault cohesion + verify
+- [x] v1332 · Vault cohesion + verify **(landed v1312)** — FULL-SYSTEM COHESION CERT: 89 assertions green (75 node + 14 py), 0 regressions across v1291→v1310, data contracts aligned, G4 removal still clean. BUGS.md cert note. [next g3: bible-side visual-lock typography]
 
 ## PHASE F · CONSOLE POLISH (F-group) — v1333–1340
 - [ ] v1333 · F2 reads sparkline / session-vitals ribbon

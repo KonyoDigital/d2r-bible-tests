@@ -3515,9 +3515,42 @@
     var sm = null;
     for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n){ sm = list[i]; break; } }
     if (!sm){ ov.hidden = true; return; }
+    var freshOpen = ov.hidden || DOSSIER.n !== n;   // D20 — only count up on a real open, not the 12s poll re-render
     DOSSIER.n = n;
     ov.innerHTML = _dossierHtml(sm);
     ov.hidden = false; ov.scrollTop = 0;
+    if (freshOpen) _animCounts(ov);   // D20 — animate the key numbers up from 0 (cosmetic; lands on the exact value)
+  }
+  // ══ D20 · STAT COUNT-UPS — when the dossier opens, the key numbers tick up from 0 to their value (reads ·
+  // frames · named · found · the decision funnel · coverage%). Purely cosmetic: the LAST frame writes the exact
+  // original text verbatim, so the truth is never altered. Respects prefers-reduced-motion (no motion at all). ══
+  function _animCounts(root){
+    if (!root || typeof requestAnimationFrame !== 'function') return;
+    var reduce = false;
+    try { reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e){}
+    if (reduce) return;   // reduced motion → leave the real values in place, no animation
+    var els = root.querySelectorAll('.dsr-sv, .dfn-n, .dsr-cov-lab b');
+    Array.prototype.forEach.call(els, function(el){
+      var finalText = el.textContent;
+      var mm = finalText.match(/\d[\d,]*/);
+      if (!mm) return;                                   // no number (e.g. "—") → leave
+      var post = finalText.slice(mm.index + mm[0].length);
+      if (/^[KkMm]/.test(post)) return;                  // abbreviated (12.3K) → leave exact, don't animate
+      var pre = finalText.slice(0, mm.index);
+      var target = parseInt(mm[0].replace(/,/g, ''), 10);
+      if (!(target > 0)) return;                         // 0 / NaN → leave
+      el.textContent = pre + '0' + post;                 // start at 0
+      var dur = 520, t0 = null;
+      function frame(ts){
+        if (t0 == null) t0 = ts;
+        var p = (ts - t0) / dur;
+        if (p >= 1){ el.textContent = finalText; return; }   // land on the EXACT original text
+        var eased = 1 - Math.pow(1 - p, 3);              // easeOutCubic
+        el.textContent = pre + Math.round(eased * target).toLocaleString() + post;
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
   }
   window._dossierClose = function(){ var ov = document.getElementById('th-dossier-ov'); if (ov) ov.hidden = true; };
   window._dossierToTheatre = async function(){
