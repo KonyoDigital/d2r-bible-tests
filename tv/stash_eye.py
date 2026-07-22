@@ -189,6 +189,41 @@ def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
         return None
 
 
+# v1258 — STASH-PANEL-OPEN GUARD thresholds. Derived from measuring the intake crop of
+# confirmed frames across every historical reel:
+#   · real open stash tabs (gems/runes/materials/personal/shared) — frac_dark ~0.31-0.42
+#     (dark cells behind icons) and MANY dark-gridline columns (the lattice), typ. 12-25.
+#   · Mac desktop WALLPAPER (Screen-Recording-TCC miss) — frac_dark ≈ 0.01 (smoothly-lit
+#     photograph), ZERO dark-gridline columns, yet huge chroma from city lights.
+# A frame must show BOTH the dark-cell band AND the lattice to be treated as an open
+# stash panel; a frame with almost no dark cells is affirmatively NOT-D2R (a photograph).
+_PANEL_DARK_MIN = 0.12     # real stash crop is substantially dark cells
+_PANEL_DARK_MAX = 0.62     # above this = boot/loading/dark-combat, not an open panel
+_PANEL_MIN_DARKCOLS = 4    # ≥4 dark-gridline columns = grid lattice present (wallpaper=0)
+_NOT_D2R_DARK_MAX = 0.05   # a lit photograph has essentially no dark stash cells
+
+
+def _panel_open_from_features(frac_dark: float, dark_cols: int) -> Tuple[bool, bool]:
+    """Positive 'the D2R stash panel is actually open' evidence from cheap grid geometry.
+
+    Returns (panel_open, not_d2r):
+      panel_open — dark-cell band AND a visible grid lattice (dark gridline columns).
+                   REQUIRED precondition for any stash-gems/runes/materials grid label.
+      not_d2r    — almost no dark cells at all → a smoothly-lit photograph (desktop
+                   wallpaper), affirmatively not a game frame; reject before ANY label.
+
+    Pure — no I/O. Kept deliberately light (two already-computed pixel features)."""
+    fd = float(frac_dark or 0.0)
+    dc = int(dark_cols or 0)
+    not_d2r = fd < _NOT_D2R_DARK_MAX
+    panel_open = (
+        (not not_d2r)
+        and (_PANEL_DARK_MIN <= fd <= _PANEL_DARK_MAX)
+        and (dc >= _PANEL_MIN_DARKCOLS)
+    )
+    return panel_open, not_d2r
+
+
 def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
     """Pixel fingerprint of the left stash GRID (intake crop region) → tab guess.
 
@@ -210,7 +245,8 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         if crop is None:
             return "gameplay", detail
         # sample down for speed
-        g = crop.resize((84, 56), Image.BILINEAR)
+        _gw, _gh = 84, 56
+        g = crop.resize((_gw, _gh), Image.BILINEAR)
         px = list(g.getdata())
         n = len(px) or 1
         # features
@@ -220,8 +256,18 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         mid_gear = 0      # mixed shared/personal equipment
         bright = 0
         hue_bkt = [0] * 6  # v948.20 — sextant histogram of the saturated pixels
-        for r, gch, b in px:
+        # v1258 — PANEL-OPEN geometry: per-column luminance means → count of "dark
+        # gridline" columns. The D2R stash grid is a LATTICE (regular dark cells /
+        # gridlines), so a real stash tab shows several columns whose mean luminance
+        # dips well below the crop's global mean. A Mac-desktop wallpaper photograph
+        # (the TCC-failure frames) is a smoothly-lit continuous image with ZERO such
+        # dark gridline columns — that geometry, plus the dark-cell fraction below, is
+        # the positive "is this actually an open stash panel" evidence the tally
+        # branches now require. See _panel_open_from_features / classify_stash_grid.
+        col_lum = [0.0] * _gw
+        for i, (r, gch, b) in enumerate(px):
             lum = 0.299 * r + 0.587 * gch + 0.114 * b
+            col_lum[i % _gw] += lum
             if lum > 115:
                 bright += 1
             if lum < 40:
@@ -257,19 +303,39 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         # so ≥3 sextants light up — a fire-spark / single-colour gameplay frame does not.
         _hmin = max(2, int(0.006 * n))
         hue_div = sum(1 for x in hue_bkt if x >= _hmin)
+        # v1258 — lattice geometry: count columns whose mean luminance dips well below
+        # the crop's global mean (the dark gridlines / dark cells of an open stash grid).
+        col_mean = [c / _gh for c in col_lum]
+        _gmean = (sum(col_mean) / _gw) if _gw else 0.0
+        dark_cols = sum(1 for c in col_mean if c < _gmean * 0.70)
+        panel_open, not_d2r = _panel_open_from_features(fd, dark_cols)
         detail.update({
             "frac_tan": round(ft, 4), "frac_chroma": round(fc, 4),
             "frac_dark": round(fd, 4), "frac_gear": round(fg, 4),
             "frac_bright": round(fb, 4), "hue_div": hue_div,
+            "dark_cols": dark_cols, "panel_open": panel_open,
         })
+        # v1258 🛑 NOT-D2R / DESKTOP GUARD — a smoothly-lit photograph (Mac desktop
+        # wallpaper captured when the Screen-Recording-TCC grab misses D2R) has
+        # essentially NO dark stash cells in this crop (frac_dark≈0.01) yet can carry
+        # huge chroma (city lights). Reject it up front so a colourful non-game frame
+        # can never fall through to ANY stash-* / vault label. Root cause of the 69
+        # wallpaper frames sealed as stash-gems (reels s_1784734976651 / s_1784734921329).
+        if not_d2r:
+            detail["pick"] = "not-d2r"
+            return "gameplay", detail
         # decision tree — shared/personal vaults have COLOURED ring gems (chroma)
         # that must NOT be misread as the Gems tab. Gear density gates first.
         # shared/personal: gear / mixed mid-tones dominate the left panel
         if fg >= 0.14:
             detail["pick"] = "stash"
             return "stash", detail
-        # gems tab: high chroma AND low gear (pure jewel grid, not jewelry on gear)
-        if fc >= 0.11 and fg < 0.10 and fc >= ft:
+        # gems tab: high chroma AND low gear (pure jewel grid, not jewelry on gear).
+        # v1258 — REQUIRES panel_open (dark-cell lattice): the OLD high-chroma path had
+        # no dark/lattice gate, so a vivid wallpaper (fc≈0.74, frac_dark≈0.01, zero
+        # gridline columns) tripped it. A genuine packed Gems tab still passes (dark
+        # cells behind vivid icons → many dark gridline columns).
+        if fc >= 0.11 and fg < 0.10 and fc >= ft and panel_open:
             detail["pick"] = "gems"
             return "stash-gems", detail
         # v948.20 — gems tab, MODERATE chroma (the ROUND-2 miss). A packed gem grid is
@@ -283,11 +349,11 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         # 2722-frame sweep of every reel: fires on 67 frames, ALL genuine Gems-tab stills
         # across 16 sessions, zero flips out of materials/runes/gameplay.
         if (0.045 <= fc < 0.11 and hue_div >= 3 and fg < 0.12
-                and ft < 0.08 and 0.30 <= fd <= 0.55 and fc >= ft):
+                and ft < 0.08 and 0.30 <= fd <= 0.55 and fc >= ft and panel_open):
             detail["pick"] = "gems-multihue"
             return "stash-gems", detail
         # runes: pale limestone stones dominate (tan high, chroma low)
-        if ft >= 0.08 and fc < 0.06 and fb >= 0.12:
+        if ft >= 0.08 and fc < 0.06 and fb >= 0.12 and panel_open:
             detail["pick"] = "runes"
             return "stash-runes", detail
         # materials: dark empties + a little chroma (essences/keys/organs) but NOT
@@ -314,7 +380,7 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         # regressions on gems/personal/shared/runes ground truth. fd is now a closed band
         # (not just a floor) because every confirmed real STASH-panel frame across all tabs
         # sampled fd in [0.31, 0.42] — gameplay/splash scenes run much darker.
-        if 0.30 <= fd <= 0.55 and 0.02 <= fc < 0.045 and fg < 0.12 and ft < 0.08:
+        if 0.30 <= fd <= 0.55 and 0.02 <= fc < 0.045 and fg < 0.12 and ft < 0.08 and panel_open:
             detail["pick"] = "materials"
             return "stash-materials", detail
         # softer vault

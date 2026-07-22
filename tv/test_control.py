@@ -1864,5 +1864,89 @@ class TestKaiCompileRegisterBestTierWins(unittest.TestCase):
         self.assertEqual(reg[0]["frameId"], "earlier")
 
 
+import stash_eye as se  # noqa: E402
+
+
+class TestStashPanelOpenGuard(unittest.TestCase):
+    """v1258 🛑 STASH-PANEL-OPEN GUARD — root cause of the TV-DIABLO wallpaper bug: the
+    Screen-Recording-TCC grab sometimes captured the Mac DESKTOP WALLPAPER (a vivid Hong
+    Kong night skyline) instead of D2R. The multi-hue city lights on dark water tripped
+    `classify_stash_grid`'s high-chroma gems branch — which had NO 'is the stash panel
+    actually open' precondition — so 69 desktop frames sealed as stash-gems and fired a
+    phantom tally:gems that read 0. `_panel_open_from_features` demands POSITIVE stash-grid
+    geometry (a dark-cell band AND a visible grid lattice) before ANY stash-* grid label;
+    an affirmatively-photographic frame (almost no dark cells) is rejected as not-D2R."""
+
+    def test_panel_open_rejects_lit_photograph(self):
+        # wallpaper crop signature: frac_dark≈0.01, ZERO dark-gridline columns.
+        panel_open, not_d2r = se._panel_open_from_features(0.0098, 0)
+        self.assertFalse(panel_open)
+        self.assertTrue(not_d2r)
+
+    def test_panel_open_accepts_real_stash_grid(self):
+        # real open Gems tab: frac_dark≈0.39 dark cells + a strong lattice (19 dark cols).
+        panel_open, not_d2r = se._panel_open_from_features(0.3914, 19)
+        self.assertTrue(panel_open)
+        self.assertFalse(not_d2r)
+
+    def test_panel_open_rejects_chroma_without_lattice(self):
+        # high dark fraction but NO lattice (not a grid) — still not an open panel.
+        panel_open, _ = se._panel_open_from_features(0.40, 0)
+        self.assertFalse(panel_open)
+
+    def test_panel_open_rejects_near_black_scene(self):
+        # boot-splash / dark-combat: frac_dark far above the panel band → not "open".
+        panel_open, _ = se._panel_open_from_features(0.90, 20)
+        self.assertFalse(panel_open)
+
+    # ── real-frame fixtures (present in frames/hist) — the exact regression corpus ──
+    _WALL = os.path.join(HERE, "frames", "hist",
+                         "reel_s_1784734976651_81925", "f_1784734980086.jpg")
+    _GEMS = os.path.join(HERE, "frames", "hist",
+                         "reel_s_1784736270319_92862", "f_1784736381363.jpg")
+
+    @unittest.skipUnless(os.path.isfile(_WALL), "wallpaper fixture frame not present")
+    def test_wallpaper_frame_no_longer_classifies_stash(self):
+        # THE bug frame: a colourful desktop wallpaper with a Mac menu bar and zero game
+        # content must NOT classify as any stash-* label even though chroma/hue is high.
+        label, detail = se.classify_stash_grid(self._WALL)
+        self.assertFalse(str(label).startswith("stash"),
+                         "wallpaper must not be a stash panel, got %r (%r)" % (label, detail))
+        self.assertEqual(detail.get("pick"), "not-d2r")
+
+    @unittest.skipUnless(os.path.isfile(_GEMS), "gems fixture frame not present")
+    def test_real_gems_frame_still_classifies_stash_gems(self):
+        # a genuine open Gems tab must STILL detect after the guard.
+        label, detail = se.classify_stash_grid(self._GEMS)
+        self.assertEqual(label, "stash-gems", "real gems frame regressed: %r" % (detail,))
+        self.assertTrue(detail.get("panel_open"))
+
+
+class TestSingleGridSignalIsOneWitness(unittest.TestCase):
+    """v1258 router-honesty invariant (companion to the panel-open guard). `_router_conf`
+    counts INDEPENDENT evidence classes, so a lone grid fingerprint is ONE witness ('layout')
+    — it must never self-certify to the confidence>=2 accuracy gate on its own.
+
+    NOTE (clearly-scoped FOLLOW-UP, deferred from this load-bearing diff): the closer's
+    reel-scan build (control_app._kai_closer_loop ~L4176) still copies the grid-derived eye
+    cls into `_ocr_cls`, which becomes a SECOND, phantom 'ocr'/'pixel' vote alongside the
+    real 'grid'/'layout' vote for the SAME physical detector — inflating a grid-solo tally to
+    conf 2. The panel-open guard above stops a FALSE (non-D2R) grid read from ever reaching
+    that path; making the gate itself honest for grid-solo tallies needs a sanctioned
+    single-signal route (a naive vote-drop would kill true Gems, where OCR genuinely cannot
+    read the RotW 5-label tab strip and grid is legitimately the only signal). Tracked separately."""
+
+    def test_grid_alone_is_confidence_one(self):
+        self.assertEqual(ca._router_conf(["grid"]), 1)
+
+    def test_grid_plus_genuinely_independent_class_is_two(self):
+        # grid (layout) + journal (time) are two DIFFERENT physical detectors → conf 2 ok.
+        self.assertEqual(ca._router_conf(["grid", "journal"]), 2)
+
+    def test_two_names_of_one_content_witness_stay_one(self):
+        # read+judge are the same tooltip witnessed twice ('content') — still one class.
+        self.assertEqual(ca._router_conf(["read", "judge"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
