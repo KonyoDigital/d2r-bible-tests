@@ -1623,8 +1623,14 @@
   .er-flagbar .ef-here { color: #ffcf8a; font-weight: 700; }
   .er-flagbar .ef-jump { margin-left: auto; display: inline-flex; gap: 8px; }
   .er-detail-body { padding: 12px 16px 14px; font: 500 var(--fs-sm)/1.6 var(--mono); color: #c8d0d6; }
+  /* v1220 (Engine Room r11) — the drill-down hero: frame image (left) + the conclusion (right) side by
+     side, so the panel breathes and reads top-down: frame → verdict → the evidence rows below. */
+  .er-top { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-bottom: 15px; }
+  .er-top-analysis { flex: 1 1 340px; min-width: 288px; display: flex; flex-direction: column; }
+  .er-top-analysis .er-chain { margin: 2px 0 12px; }
+  .er-top-analysis .kv { border-bottom: none; padding: 4px 0; }
   /* v1216 (Engine Room r7) — the frame image: the ground truth the AI read, hero of the drill-down */
-  .er-frame { margin: 0 0 15px; }
+  .er-frame { flex: 0 0 auto; margin: 0; }
   .er-frame-img { display: block; width: clamp(240px, 27vw, 380px); height: auto; border-radius: 8px;
     border: 1px solid rgba(160,130,255,.3); cursor: zoom-in; box-shadow: 0 5px 20px rgba(0,0,0,.55); transition: border-color .15s, box-shadow .15s; }
   .er-frame-img:hover { border-color: #c9b8ff; box-shadow: 0 5px 24px rgba(160,130,255,.25); }
@@ -6281,11 +6287,17 @@
       // v1216 (Engine Room r7) — THE FRAME IMAGE: the actual captured frame the AI read, so Konyo can
       // SEE what the AI saw right beside its verdict. Served by the existing /hist/<frameId>.jpg endpoint;
       // updates as he steps frames (r6); degrades gracefully when a frame wasn't archived.
+      // v1220 (Engine Room r11) — DENSITY/HIERARCHY: the frame + the CONCLUSION (read chain · who owns ·
+      // verdict) sit side-by-side as the hero, using the space that was empty beside the image; the raw
+      // evidence rows read below. One clear read: "here's the frame → here's what the engines concluded".
+      + '<div class="er-top">'
       + (b.frameId ? '<div class="er-frame"><img class="er-frame-img" src="/hist/' + encodeURIComponent(b.frameId) + '.jpg?w=560" loading="lazy" alt="the captured frame the AI read" title="click to open the full frame" onclick="window.open(\'/hist/' + encodeURIComponent(b.frameId) + '.jpg\',\'_blank\')" onerror="this.style.display=\'none\';var c=this.parentNode.querySelector(\'.er-frame-cap\');if(c){c.textContent=\'📸 this frame was not archived\';c.style.opacity=\'.6\';}"><div class="er-frame-cap">📸 the frame the AI read <span class="thd-dim">· click to enlarge</span></div></div>' : '')
+      + '<div class="er-top-analysis">'
       + _erReadChain(b, ov)
-      + _erDetailRow('👁 the reader net', badges || '—')
       + _erDetailRow('owns the final read', '<b>' + ov.owner + '</b> <span class="er-auth ' + (ov.auth ? 'er-auth-yes' : 'er-auth-no') + '" title="' + (ov.auth ? 'the reconciler\'s sealed verdict — authoritative' : 'inferred from the beat\'s reader signals (no reconciler frame yet)') + '">' + (ov.auth ? 'authoritative' : 'inferred') + '</span>' + (ov.why ? ' <span class="thd-dim">· ' + esc(String(ov.why)) + '</span>' : ''))
       + (ov.verdict ? _erDetailRow('⚖ verdict (Master Brain)', '<b>' + ov.verdict + '</b>') : '')
+      + '</div></div>'
+      + _erDetailRow('👁 the reader net', badges || '—')
       + _erDetailRow('🔴 read in flight', lat != null ? ('<b>' + lat.toFixed(2) + 's</b>' + (lat >= 8 ? ' <span style="color:#ff9a7a">— STALL</span>' : '')) : (b.ms ? Math.round(b.ms) + 'ms' : '—'))
       + _erDetailRow('⚡ OCR literal sight', (b.ocr_raw || []).length ? esc(b.ocr_raw.slice(0, 14).join(' · ')) : ((b.ocr_names||[]).length ? esc(b.ocr_names.join(', ')) : '—'))
       + _erDetailRow('🚦 quorum · evidence', quorum.length ? esc(quorum.join(' ')) + ((b.routeConf != null) ? ' <span class="thd-dim">· conf ' + esc(String(b.routeConf)) + '</span>' : '') : '—')
