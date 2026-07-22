@@ -6917,7 +6917,7 @@
     var dock = '<div class="gsh-dock" id="gsh-dock">'
       + '<div class="gsh-dock-bar"><span class="gsh-dock-lead">⏪ the time machine</span>'
       + '<span class="gsh-dock-hint">scrub the film &amp; your grail journey on this ghosted console — every readout truthful</span>'
-      + '<button class="gsh-inspect" type="button" onclick="window._ghostInspectMoment()" title="open the deep engine forensics for the scrubbed moment">🔬 inspect this moment</button></div>'
+      + '<button class="gsh-inspect" type="button" onclick="window._ghostInspectMoment()" title="reveal what the AI saw &amp; decided on this frame — inline, right here (no routing)">🔬 inspect this moment</button></div>'
       + '<div class="gsh-dock-slots" id="gsh-dock-slots"></div></div>';
     gs.innerHTML = head + '<div class="gsh-stage"><div class="gsh-replica-wrap"><div class="gsh-ribbon" aria-hidden="true">📼 viewing the past</div></div></div>' + dock;
     if (clone){ var wrap = gs.querySelector('.gsh-replica-wrap'); if (wrap) wrap.appendChild(clone); }
@@ -6932,7 +6932,7 @@
   var GHOST_MOVED = [];
   function _ghostDockNodes(slots){
     if (!slots) return; GHOST_MOVED = [];
-    ['er-film', 'er-gj', 'er-reelcard', 'er-livefeed', 'er-current'].forEach(function(id){
+    ['er-film', 'er-gj', 'er-reelcard', 'er-livefeed', 'er-current', 'er-detail'].forEach(function(id){
       var n = document.getElementById(id); if (n){ GHOST_MOVED.push({ node: n, parent: n.parentNode, next: n.nextSibling }); slots.appendChild(n); }
     });
   }
@@ -6942,8 +6942,11 @@
     GHOST_MOVED = [];
   }
   // show the deep-forensics drill-in (spine · read-chain · owner/verdict · frame image) for the scrubbed moment
-  window._engineRoomShowDrillin = function(){ var ov = document.getElementById('engine-room'); if (!ov){ ov = _engineRoomEnsure(); } if (ov){ ER.open = true; ov.hidden = false; } };
-  window._ghostInspectMoment = function(){ try { window._engineRoomShowDrillin(); window._engineRoomInspect(); } catch (e) { console.error('[GhostMode] inspect', e); } };
+  // v1240 (r11 sharpened · Konyo: "no routing, one toggle") — the deep forensics render INLINE on the ghosted
+  // console (the er-detail node is docked too), NOT in a separate full-screen panel. Inspecting never routes or
+  // replaces the view — the scrubbers stay right there; the frame image + read + owner/verdict expand in place.
+  window._ghostInspectMoment = function(){ try { window._engineRoomInspect(); var d = document.getElementById('er-detail'); if (d && !d.hidden) d.scrollIntoView({ block: 'nearest' }); } catch (e) { console.error('[GhostMode] inspect', e); } };
+  window._engineRoomShowDrillin = window._ghostInspectMoment;   // back-compat alias (inline, no overlay)
   window._ghostEnterTimeMachine = window._ghostInspectMoment;   // back-compat alias
   // leave GHOST MODE entirely → restore the docked scrubbers to #engine-room, tear the clone down → ZERO trace
   window._ghostExit = function(){
@@ -6965,7 +6968,8 @@
   // Esc from the ghost shell (when the Time Machine drill-in is NOT open) exits ghost mode. Added once; inert
   // when ghost is off (guarded by GHOST.on), so it leaves no residue. The drill-in's own Esc is handled in _engineRoomEl.
   if (!GHOST._escWired){ GHOST._escWired = true;
-    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && GHOST.on && !ER.open){ e.stopPropagation(); window._ghostExit(); } }, true); }
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && GHOST.on && !ER.open){ e.stopPropagation();
+      if (ER.detailOpen){ window._engineRoomDetailClose(); } else { window._ghostExit(); } } }, true); }
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
   // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
   function _tlyCount(){
