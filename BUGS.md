@@ -753,3 +753,17 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   (sweep sunders 4/6 · g4_flags empty, no key ran).
 - **Verdict:** the "one intelligent system, verified" cohesion holds. Zero regressions across
   v1291→v1310; certification-only (no code change this round).
+
+## VISUAL-LOCK — weight type system frozen + invariant test (2026-07-23)
+- **What:** the `--fw-*` weight token system (console + bible) is now enforced by
+  `visual_lock_invariant.py` (repo root) — asserts **0 raw `font-weight:NNN`** literals + the
+  `--fw-*` `:root` set, in BOTH `bible.html` and `tv/control_ui.html`. Pure stdlib, CI-runnable
+  (`python3 visual_lock_invariant.py`). Contract doc: `LOCKED_TYPE_SYSTEM.md`. Proven: fails
+  loudly with file:line on an injected raw weight (tested + reverted).
+- **State:** bible.html = **0 raw** (locked). control_ui.html = **3 stragglers** the console
+  tokenization missed → the test correctly RED until sessions-visual folds them:
+  `tv/control_ui.html:2145` (`font-weight: 400`, spaced — needs `--fw-regular:400` added to its
+  :root), `:5187` + `:6104` (`font-weight:700` in JS-string inline styles → `var(--fw-semibold)`).
+- **Lesson (same as the bible finish-pass):** the SPACED syntax `font-weight: NNN` slips past a
+  `font-weight:NNN`(no-space) grep — always match `font-weight: *[0-9]+`. The invariant test uses
+  the spaced-tolerant pattern so this class can't recur silently.

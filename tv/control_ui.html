@@ -43,7 +43,7 @@
     --fs-xl:     clamp(24px,   2.6vw,  34px);    /* feature icons, callout numbers */
     --fs-2xl:    clamp(28px,   3.4vw,  44px);    /* brand h1, credits headline */
     --fs-display: clamp(46px,  8.5vw,  150px);   /* the hero phase digits */
-    --fw-normal: 500; --fw-medium: 600; --fw-semibold: 700; --fw-bold: 800;
+    --fw-regular: 400; --fw-normal: 500; --fw-medium: 600; --fw-semibold: 700; --fw-bold: 800;
     /* VISUAL LOCK · line-height + letter-spacing scales (role-named, cover every real value in use).
        Folded app-wide by ROLE; near-duplicates collapsed to one token (≤.05 lh / ≤.04 ls — visually
        identical). `1` (solid) stays literal; a few display one-offs (.42em kicker · .96/1.72/1.85/1.9 lh)
@@ -1458,6 +1458,22 @@
   .dsr-cover-none { display: flex; align-items: center; justify-content: center; font-size: 44px; opacity: .4; }
   .dsr-htext { min-width: 0; }
   .dsr-title { font: var(--fw-bold) var(--fs-xl)/var(--lh-tight) var(--serif); color: #f0dca6; letter-spacing: var(--ls-normal); }
+  /* ══ D25 · session notes / naming — editable title + note on the dossier ══ */
+  .dsr-eyebrow { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--gold-dim); margin-bottom: 3px; }
+  .dsr-titleslot { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-height: 1.2em; }
+  .dsr-noteslot { margin-top: 6px; display: flex; align-items: baseline; gap: 8px; }
+  .dsr-note { font: var(--fw-medium) var(--fs-sm)/var(--lh-snug) var(--mono); letter-spacing: var(--ls-tight); color: #b9c9be; }
+  .dsr-edit-btn { flex: none; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase;
+    color: var(--gold-dim); background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 7px; padding: 4px 8px; cursor: pointer;
+    transition: color .15s, border-color .15s; }
+  .dsr-edit-btn:hover { color: var(--gold); border-color: var(--gold-antique); }
+  .dsr-edit-btn.sm { padding: 3px 6px; }
+  .dsr-note-add { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: #6f6a58;
+    background: none; border: 1px dashed rgba(200,180,120,.28); border-radius: 7px; padding: 4px 9px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .dsr-note-add:hover { color: var(--gold-dim); border-color: var(--gold-antique); }
+  .dsr-edit-input { font: var(--fw-semibold) var(--fs-md)/1.2 var(--mono); color: var(--text); background: rgba(10,9,6,.8);
+    border: 1px solid var(--gold-antique); border-radius: 8px; padding: 6px 10px; min-width: 220px; max-width: 100%; box-shadow: 0 0 0 2px rgba(200,160,74,.2); }
+  .dsr-edit-input:focus { outline: none; }
   .dsr-sub { font: var(--fw-medium) var(--fs-sm)/var(--lh-normal) var(--mono); color: #9a8e70; letter-spacing: var(--ls-tight); margin-top: 4px; }
   .dsr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
   .dsr-stat { background: rgba(10,9,6,.6); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 10px; text-align: center; }
@@ -2142,7 +2158,7 @@
   .sh-art-fb { object-fit: contain; padding: 18px; opacity: .35; background: rgba(0,0,0,.5); }
   .hdc-body { padding: 8px 10px 10px; }
   .hdc-t { font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); color: #e6d9b8; }
-  .hdc-len { opacity: .5; font-weight: 400; font-size: var(--fs-2xs); margin-left: 6px; }
+  .hdc-len { opacity: .5; font-weight: var(--fw-regular); font-size: var(--fs-2xs); margin-left: 6px; }
   .hdc-when { font: var(--fw-normal) var(--fs-2xs)/var(--lh-snug) var(--mono); opacity: .55; margin: 3px 0 6px; }
   .hdc-chips { display: flex; gap: 5px; flex-wrap: wrap; }
   .hdc-chip { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); border: 1px solid var(--edge); border-radius: 6px; padding: 4px 7px; color: #cbbf9f; }
@@ -3584,8 +3600,20 @@
     return '<div class="dsr-wrap">'
       + '<div class="dsr-top"><button type="button" class="dsr-back" onclick="window._dossierClose()">‹ back to the shelf</button></div>'
       + '<div class="dsr-hero">' + cover
-      + '<div class="dsr-htext"><div class="dsr-title">Session ' + esc(String(n)) + '</div>'
-      + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur) + '</div></div></div>'
+      + '<div class="dsr-htext">' + (function(){
+          var nt = _sesNoteGet(sm.sessionId) || {};
+          var title = nt.name
+            ? '<div class="dsr-eyebrow">Session ' + esc(String(n)) + '</div>'
+              + '<div class="dsr-titleslot" id="dsr-titleslot"><span class="dsr-title">' + esc(nt.name) + '</span>'
+              + '<button type="button" class="dsr-edit-btn" onclick="window._dossierEditName()" title="rename this run">✎</button></div>'
+            : '<div class="dsr-titleslot" id="dsr-titleslot"><span class="dsr-title">Session ' + esc(String(n)) + '</span>'
+              + '<button type="button" class="dsr-edit-btn" onclick="window._dossierEditName()" title="name this run">✎ name</button></div>';
+          var note = nt.note
+            ? '<div class="dsr-noteslot" id="dsr-noteslot"><span class="dsr-note">📝 ' + esc(nt.note) + '</span>'
+              + '<button type="button" class="dsr-edit-btn sm" onclick="window._dossierEditNote()" title="edit note">✎</button></div>'
+            : '<div class="dsr-noteslot" id="dsr-noteslot"><button type="button" class="dsr-note-add" onclick="window._dossierEditNote()">+ add a note</button></div>';
+          return title + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur) + '</div>' + note;
+        })() + '</div></div>'
       + '<div class="dsr-stats">' + stats + '</div>'
       + '<div class="dsr-sealrow">' + seal + sealLat + '</div>'
       + (function(){ var _b = _dossierBeats(sm); return _b ? '<div class="dsr-sec"><div class="dsr-h">⚡ The beats</div>' + _b + '</div>' : ''; })()   // D19 — the run's story as an iconographic beat ribbon
@@ -3593,6 +3621,37 @@
       + '<div class="dsr-actions"><button type="button" class="dsr-open" onclick="window._dossierToTheatre()">▶ Open in Theatre</button></div>'
       + '</div>';
   }
+  // ══ D25 · SESSION NOTES / NAMING — name a run ("Meph 200x") + add a note, persisted to localStorage keyed by
+  // the STABLE sessionId (not the reindexable n). The custom name overrides the "Session N" title for display +
+  // feeds the search index; unnamed runs keep the auto-title. Pure UI + localStorage, no engine. ══
+  function _sesNotes(){ try { return JSON.parse(localStorage.getItem('tvd_sesnotes') || '{}') || {}; } catch(e){ return {}; } }
+  function _sesNoteGet(id){ if (!id) return null; var m = _sesNotes(); return m[id] || null; }
+  function _sesNoteSet(id, obj){
+    if (!id) return; var m = _sesNotes();
+    var name = ((obj && obj.name) || '').trim(), note = ((obj && obj.note) || '').trim();
+    if (name || note) m[id] = { name: name, note: note }; else delete m[id];
+    try { localStorage.setItem('tvd_sesnotes', JSON.stringify(m)); } catch(e){}
+  }
+  // swap the dossier title (or note) for an inline editor; Enter/blur saves, Esc cancels; re-renders on close
+  function _dossierEdit(field){
+    var host = document.getElementById(field === 'note' ? 'dsr-noteslot' : 'dsr-titleslot'); if (!host || !DOSSIER.sid) return;
+    var cur = (_sesNoteGet(DOSSIER.sid) || {})[field] || '';
+    var inp = document.createElement('input');
+    inp.className = 'dsr-edit-input'; inp.type = 'text'; inp.value = cur; inp.maxLength = field === 'note' ? 120 : 60;
+    inp.placeholder = field === 'note' ? 'Add a note…' : 'Name this run — e.g. “Meph 200x”';
+    host.innerHTML = ''; host.appendChild(inp); inp.focus(); inp.select();
+    var closed = false;
+    function close(save){
+      if (closed) return; closed = true;
+      if (save){ var m = _sesNoteGet(DOSSIER.sid) || {}; m[field] = inp.value; _sesNoteSet(DOSSIER.sid, m); }
+      if (typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n);   // re-render the dossier
+      try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch(e){}   // D25 — refresh the shelf so its card + search index pick up the new name
+    }
+    inp.onkeydown = function(e){ e.stopPropagation(); if (e.key === 'Enter'){ close(true); } else if (e.key === 'Escape'){ close(false); } };
+    inp.onblur = function(){ close(true); };
+  }
+  window._dossierEditName = function(){ _dossierEdit('name'); };
+  window._dossierEditNote = function(){ _dossierEdit('note'); };
   function _sessionDossier(n){
     var ov = document.getElementById('th-dossier-ov'); if (!ov) return;
     var list = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length) ? TH.sessions
@@ -3602,7 +3661,7 @@
     for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n){ sm = list[i]; break; } }
     if (!sm){ ov.hidden = true; return; }
     var freshOpen = ov.hidden || DOSSIER.n !== n;   // D20 — only count up on a real open, not the 12s poll re-render
-    DOSSIER.n = n;
+    DOSSIER.n = n; DOSSIER.sid = sm.sessionId || '';   // D25 — stable key for notes/naming
     ov.innerHTML = _dossierHtml(sm);
     ov.hidden = false; ov.scrollTop = 0;
     if (freshOpen){
@@ -4042,7 +4101,7 @@
     // v1267 (D1) — the WHAT I FOUND cards carry HD item art; repaint them once the art map arrives
     try { if (typeof hdLastSession === 'function') hdLastSession(); } catch (e) {}
     try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch (e) {}
-    try { var _dov = document.getElementById('th-dossier-ov'); if (_dov && !_dov.hidden && typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n); } catch (e) {}   // v1268 (D2) — dossier finds carry art too
+    try { var _dov = document.getElementById('th-dossier-ov'); if (_dov && !_dov.hidden && !_dov.querySelector('.dsr-edit-input') && typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n); } catch (e) {}   // v1268 (D2) — dossier finds carry art too · D25 — never re-render while a name/note edit is open
   }
   // tally counts arrive as an ARRAY of [name,n] (dossier) OR an OBJECT {name:n} (/api/tallies) — take both.
   function thCountPairs(counts){
@@ -5184,7 +5243,7 @@
         var cls = c['class'] || (c.vaulted ? 'wiped-by-commit' : (c.pending ? 'hold-chain' : ((c.seen || c.candidate) ? 'full-chain' : 'never-seen')));
         var chip = _CLS[cls] || [cls, '#b9c9be', ''];
         h += '<div class="col"><b style="color:#d9c9a0">' + esc(nm) + '</b> '
-          + '<span style="color:' + chip[1] + ';font-weight:700"> ' + chip[0] + '</span>'
+          + '<span style="color:' + chip[1] + ';font-weight:var(--fw-semibold)"> ' + chip[0] + '</span>'
           + (c.path ? ' <em style="opacity:.6">· ' + esc(c.path) + '</em>' : '')
           + (c.seenArea ? ' <em style="opacity:.5">@ ' + esc(c.seenArea) + '</em>' : '')
           + (c.firstSeen ? ' <em style="opacity:.5">· first ' + new Date(c.firstSeen).toLocaleTimeString() + '</em>' : '')
@@ -5442,7 +5501,10 @@
       var fpLine = _fp ? '<br><span class="sh-fp-line">' + _fp + '</span>' : '';
       var findsLine = _findsStrip(sm, 6);   // v1267 (D1) — WHAT I FOUND: the grails/keeps KAI witnessed this run
       // v1282 (D8) — the searchable index for live shelf filtering: session/date + item names + areas + verdict/grail
+      var _cnm = _sesNoteGet(sm.sessionId) || {};   // D25 — custom name/note override for display + search
       var _sq = ['session ' + n];
+      if (_cnm.name) _sq.push(_cnm.name);
+      if (_cnm.note) _sq.push(_cnm.note);
       if (d0) _sq.push(d0.toLocaleDateString());
       (sm.finds || []).forEach(function(f){ if (f.name) _sq.push(f.name); if (f.tier === 'grail') _sq.push('grail'); });
       (sm.areas || []).forEach(function(a){ _sq.push(a); });
@@ -5471,7 +5533,7 @@
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
         + heroOpen
-          + '<div class="shc-sess">Session ' + n + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
+          + '<div class="shc-sess">' + (_cnm.name ? esc(_cnm.name) : ('Session ' + n)) + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
           + seal + headFind
         + '</div>'
         + '<div class="shc-body">'
@@ -6101,7 +6163,7 @@
           + (c.fix && !c.ok ? '<br>&nbsp;&nbsp;&nbsp;↳ ' + c.fix : '') + '</div>';
       }).join('');
       out.style.borderColor = col;
-      out.innerHTML = '<div style="color:' + col + ';font-weight:700;letter-spacing:.6px">🛡 FARM DAY · ' + j.verdict + '</div>' + rows;
+      out.innerHTML = '<div style="color:' + col + ';font-weight:var(--fw-semibold);letter-spacing:.6px">🛡 FARM DAY · ' + j.verdict + '</div>' + rows;
     } catch(e){
       out.style.borderColor = '#e07070';
       out.innerHTML = '🛡 gate unreachable — is the control server up? ' + String(e && e.message || e);

@@ -46,7 +46,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1312 · D20 animated stat count-ups **(landed v1313)** — dossier numbers tick 0→value (easeOutCubic 520ms), truth-safe (final=exact), reduced-motion aware, poll-guarded. [in flight: D21 seal-stamp polish]
 - [x] v1313 · D21 verdict seal-stamp polish **(landed v1315)** — embossed wax/broadcast stamp (92px, double-ring, 🛡/🚨/◌), press-down stamp-in (poll-guarded, reduced-motion CSS), unified with D18 card chip. [in flight: D22 chapter markers]
 - [x] v1314 · D22 filmstrip chapter markers **(landed v1318)** — 🎞 jump-to-chapter ribbon (scene chapters collapse, click→jump) + truthful find-markers (badge only on exact frameId match); honest limit (real chapters, not fabricated timeline). [in flight: D24 live preview]
-- [ ] v1315 · D24 live-session preview card (recording-now)
+- [x] v1315 · D24 live-session preview card **(landed v1322)** — on-air "● REC · recording now" card atop the shelf (elapsed · reads · scene chip · phase · newest find), in-place paint, hidden off-air, honest. [in flight: D25 notes/naming]
 - [ ] v1316 · D25 session notes / naming ("Meph 200x")
 - [ ] v1317 · D26 pin / favorite sessions
 - [ ] v1318 · D27 recap export polish (+items +coverage)

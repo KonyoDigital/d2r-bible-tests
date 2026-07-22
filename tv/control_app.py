@@ -3698,6 +3698,44 @@ def _kai_super_select(routing, sess_rows, fullnames=None, cap=None):
 # below) and _engine_driver (provisional live guess — see _kai_live_routing_row / the
 # _ENGINE_FRAMES_LIVE deque near the bottom of _engine_driver's 2s loop).
 # ═══════════════════════════════════════════════════════════════════════════════════
+
+# ── v1322 B4 — DIABLO-LANGUAGE: game-true scene labels ──────────────────────────
+# The reader emits a raw scene (town|stash|inventory|loot|gameplay|transition) + area.
+# This DETERMINISTIC layer turns (scene, area) into the label a D2 player would say —
+# ENTERING <area> · TOWN <area> · FARMING <area> — and decides TOWN-vs-FARMING (safe vs
+# drops) from a fixed town-area list, NOT a model guess (a portal/loading frame that used
+# to collapse to "gameplay/near-black" now reads "ENTERING <area>"). Honest: no scene AND
+# no area ⇒ "unclear" (never invents a location). Pure — sessions-visual renders the label.
+_TOWN_AREAS = (
+    "rogue encampment", "lut gholein", "kurast docks", "kurast bazaar",
+    "the pandemonium fortress", "pandemonium fortress", "harrogath",
+)   # the 5 act-town safe zones (vanilla + RotW share these); substring-matched, case-insensitive
+
+
+def _diablo_scene_label(scene, area):
+    """(scene, area) → {kind, label, area}. kind ∈ entering|town|farming|menu|unclear.
+    TOWN vs FARMING is decided deterministically by _TOWN_AREAS (safe vs drops), never guessed."""
+    sc = str(scene or "").strip().lower()
+    ar = str(area or "").strip()
+    is_town = bool(ar) and any(t in ar.lower() for t in _TOWN_AREAS)
+    if sc in ("transition", "loading"):
+        return {"kind": "entering", "area": ar or None,
+                "label": ("ENTERING " + ar) if ar else "ENTERING (loading)"}
+    if sc in ("stash", "inventory", "loot"):
+        # an open panel is what's ON SCREEN — it wins over the underlying town/area context
+        nm = {"stash": "STASH", "inventory": "INVENTORY", "loot": "LOOT"}[sc]
+        return {"kind": "menu", "area": ar or None, "label": nm + (" · " + ar if ar else "")}
+    if is_town or sc == "town":
+        return {"kind": "town", "area": ar or None,
+                "label": ("TOWN · " + ar) if ar else "TOWN (safe)"}
+    if sc == "gameplay":
+        return {"kind": "farming", "area": ar or None,
+                "label": ("FARMING · " + ar) if ar else "FARMING"}
+    if ar:   # no scene word, but the read named an area — classify by the town list
+        return {"kind": "farming", "area": ar, "label": "FARMING · " + ar}
+    return {"kind": "unclear", "area": None, "label": "unclear"}
+
+
 def _kai_reconcile(routing, register, sess_rows):
     """THE reconciler — pure, no I/O, no threads. For each routing row (one per scanned
     frame) decides the OWNER — which layer's read is the ACCEPTED truth for that
@@ -3871,10 +3909,14 @@ def _kai_reconcile(routing, register, sess_rows):
                 why = "tally panel frame with no reader evidence and no receipt — never-zero: re-fire, not a zero"
 
         _sc = _nearest_scene(ts)
+        _scene = (_sc[0] or None) if _sc else None
+        _area = (_sc[2] or None) if _sc else None
         out.append({"f": f, "ts": ts, "owner": owner, "verdict": verdict, "why": why,
-                    "scene": (_sc[0] or None) if _sc else None,
+                    "scene": _scene,
                     "tab": (_sc[1] or None) if _sc else None,
-                    "area": (_sc[2] or None) if _sc else None})
+                    "area": _area,
+                    # v1322 B4 — game-true label (ENTERING/TOWN/FARMING + area) for the UI
+                    "native": _diablo_scene_label(_scene, _area)})
     return out
 
 
@@ -5932,7 +5974,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1322",
+        "ver": "v1323",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
