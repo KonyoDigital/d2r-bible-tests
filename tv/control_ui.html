@@ -1646,8 +1646,9 @@
   .er-top-analysis .kv { border-bottom: none; padding: 4px 0; }
   /* v1216 (Engine Room r7) — the frame image: the ground truth the AI read, hero of the drill-down */
   .er-frame { flex: 0 0 auto; margin: 0; }
-  .er-frame-img { display: block; width: clamp(240px, 27vw, 380px); height: auto; border-radius: 8px;
-    border: 1px solid rgba(160,130,255,.3); cursor: zoom-in; box-shadow: 0 5px 20px rgba(0,0,0,.55); transition: border-color .15s, box-shadow .15s; }
+  .er-frame-img { display: block; width: clamp(240px, 27vw, 380px); height: auto; aspect-ratio: 2940 / 1912; object-fit: cover; border-radius: 8px;
+    border: 1px solid rgba(160,130,255,.3); cursor: zoom-in; box-shadow: 0 5px 20px rgba(0,0,0,.55); transition: border-color .15s, box-shadow .15s;
+    background: rgba(160,130,255,.05); }   /* v1228 r19 — reserve the box (no collapse/jump while the next frame loads) */
   .er-frame-img:hover { border-color: #c9b8ff; box-shadow: 0 5px 24px rgba(160,130,255,.25); }
   .er-frame-cap { margin-top: 6px; font: 600 var(--fs-2xs)/1.4 var(--mono); color: #9a8d73; letter-spacing: .04em; }
   .er-detail-body .kv { display: grid; grid-template-columns: clamp(172px, 10vw, 240px) 1fr; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }   /* v1210 (Engine Room r1) — label col wide enough that no row-label wraps to two lines at fullscreen */
@@ -6408,6 +6409,12 @@
       + _erDetailRow('🧠🔬 super-analyze', (b.super && b.super.reread) ? ('recovered <b>' + esc((b.super.deepNames || []).join(', ') || 'a read') + '</b>' + (b.super.tier ? ' <span class="thd-dim">(' + esc(b.super.tier) + ')</span>' : '')) : '<span class="thd-dim">not needed — an earlier layer got it</span>')
       + (b.raw ? '<details class="th-raw"><summary>the model\'s raw answer (' + String(b.raw).length + ' chars)</summary><div class="col" style="white-space:pre-wrap;word-break:break-word">' + esc(String(b.raw).slice(0, 2400)) + '</div></details>' : '')
       + '</div>';
+    // v1228 (Engine Room r19) — SMOOTHNESS: warm the browser cache for the adjacent frames so stepping
+    // ◀ ▶ shows the next image instantly instead of blank→load. (The er-frame-img aspect-ratio reserves
+    // its box so the panel never collapses/jumps during that load.)
+    [_frames[_fi - 1], _frames[_fi + 1]].forEach(function(nb){
+      if (nb && (nb.frameId || nb.frame)){ var im = new Image(); im.src = '/hist/' + encodeURIComponent(nb.frameId || nb.frame) + '.jpg?w=560'; }
+    });
   }
   window._engineRoomInspect = function(){
     var b = ER.focusBeat, reel = ER.focusReelObj;
