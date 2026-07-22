@@ -872,18 +872,53 @@
   #th-shelfov[hidden] { display: none !important; }
   #th-shelfov .sh-head { font: var(--fw-bold) var(--fs-xl)/var(--lh-snug) var(--serif); color: #e8cf96; letter-spacing: var(--ls-wider); margin-bottom: 14px; padding-right: 48px; }
   #th-shelfov .sh-x { position: sticky; float: right; top: 0; margin: -4px 0 0 0; z-index: 4; }
-  #th-shelfov .sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
-  /* v945 R13 — shelf cards lift and brighten on hover; the current reel keeps its mint ring */
-  #th-shelfov .sh-card { border: 1px solid var(--edge); border-radius: 10px; padding: 11px 14px; cursor: pointer;
-    background: rgba(12,15,12,.9); font: var(--fw-normal) var(--fs-xs)/var(--lh-relaxed) var(--mono); color: #b9c9be;
-    transition: border-color .15s, transform .12s, box-shadow .15s, background .15s; }
-  #th-shelfov .sh-card:hover { border-color: var(--gold-antique); transform: translateY(-2px); background: rgba(18,22,17,.95); box-shadow: 0 6px 20px rgba(0,0,0,.45); }
-  #th-shelfov .sh-card.cur { border-color: #7ddca0; box-shadow: inset 0 0 0 1px rgba(125,220,160,.4); }
-  #th-shelfov .sh-card b { color: #e4d2a4; } #th-shelfov .sh-card .sh-dim { opacity: .55; }
-  /* v936 (STORY ARC R2a) — seal verdict line: small mono, sits in the .sh-dim block */
-  #th-shelfov .sh-card .sh-verdict { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); letter-spacing: var(--ls-tight); }
+  #th-shelfov .sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(244px, 1fr)); gap: 12px; }
+  /* ══ D18 · CINEMATIC SHELF CARD — each run reads like a film-reel still / collectible: cover-art hero with
+     the session title + verdict seal as a broadcast lower-third, a grail headline find, and a clean stat grid.
+     Gold-accented when a grail dropped; mint ring for the current reel; desaturated for retired ghosts. ══ */
+  #th-shelfov .sh-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--edge); border-radius: 12px; background: rgba(12,15,12,.92);
+    transition: border-color .15s, transform .12s, box-shadow .15s; }
+  #th-shelfov .sh-card:hover { border-color: var(--gold-antique); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+  #th-shelfov .sh-card:hover .shc-hero { transform: scale(1.045); }
+  #th-shelfov .sh-card.cur { border-color: #7ddca0; box-shadow: inset 0 0 0 1px rgba(125,220,160,.45); }
+  #th-shelfov .sh-card.grail { border-color: rgba(240,192,96,.42); box-shadow: 0 0 0 1px rgba(240,192,96,.14), 0 8px 24px rgba(0,0,0,.4); }
+  #th-shelfov .sh-card.grail:hover { box-shadow: 0 0 20px rgba(240,192,96,.22), 0 12px 30px rgba(0,0,0,.5); }
+  #th-shelfov .sh-card.stub { opacity: .5; filter: saturate(.45); }
+  /* the cover-art hero (reel thumb) — scrim top+bottom for legibility, gentle zoom on hover */
+  .shc-hero { position: relative; height: clamp(104px, 13vh, 140px); flex: none; overflow: hidden;
+    background-size: cover; background-position: center; transition: transform .35s ease; }
+  .shc-hero.noimg { background: radial-gradient(ellipse at 50% 28%, rgba(240,192,96,.1), transparent 62%), linear-gradient(160deg, #1a160d, #0c0a06); }
+  .shc-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(6,8,6,.4) 0%, transparent 28%, transparent 54%, rgba(6,8,6,.92) 100%); }
+  .shc-sess { position: absolute; top: 9px; left: 12px; z-index: 2; font: var(--fw-bold) var(--fs-sm)/1 var(--serif);
+    letter-spacing: var(--ls-wide); color: #f2e4c0; text-shadow: 0 2px 7px rgba(0,0,0,.95); }
+  .shc-ghost { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #b0a184; margin-left: 5px; }
+  .shc-seal { position: absolute; top: 8px; right: 9px; z-index: 2; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-tight); padding: 4px 7px; border-radius: 7px; background: rgba(6,8,6,.55); backdrop-filter: blur(3px); }
+  .shc-seal.clean { color: var(--gold-hi); border: 1px solid rgba(240,192,96,.38); }
+  .shc-seal.flag { color: #ff9a8a; border: 1px solid rgba(255,120,80,.5); }
+  .shc-seal.open { color: #9a8d73; border: 1px solid rgba(255,255,255,.12); }
+  .shc-headfind { position: absolute; left: 12px; right: 12px; bottom: 8px; z-index: 2;
+    font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); color: #e8dcc0; text-shadow: 0 2px 7px rgba(0,0,0,.95);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shc-headfind.grail { color: var(--gold-hi); }
+  /* body */
+  .shc-body { display: flex; flex-direction: column; gap: 7px; padding: 11px 13px 13px; }
+  .shc-when { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: #b9c9be; }
+  .shc-when .shc-dur { color: #8a7e68; }
+  .shc-area { font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-tight); color: #d9c9a0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 1px 0 2px; }
+  .shc-stat { text-align: center; padding: 7px 3px; border: 1px solid rgba(240,192,96,.12); border-radius: 8px; background: rgba(255,255,255,.02); }
+  .sh-card.grail .shc-stat { border-color: rgba(240,192,96,.2); }
+  .shc-sv { font: var(--fw-bold) var(--fs-sm)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .shc-sl { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #7d7358; margin-top: 4px; }
+  #th-shelfov .sh-card .sh-verdict { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); letter-spacing: var(--ls-tight); color: #94a89c; display: block; }
   #th-shelfov .sh-card .sh-verdict .sh-clean { color: var(--gold-dim); }
-  #th-shelfov .sh-card .sh-verdict .sh-warn { color: #ff7a7a; opacity: 1; }
+  #th-shelfov .sh-card .sh-verdict .sh-warn { color: #ff7a7a; }
+  .shc-fp { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); }
+  .shc-foot { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #7d8b80; }
   @keyframes thChipIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }
   .th-caption .th-chip { display: inline-block; margin: 0 4px; padding: 2px 9px; border-radius: 999px;
     background: rgba(240,192,96,.05); border: 1px solid rgba(240,192,96,.22); font-weight: var(--fw-medium);
@@ -5223,20 +5258,38 @@
       _sq.push(_verd === 'unsealed' ? '' : _verd);
       var _hasGrail = (sm.finds || []).some(function(f){ return f.tier === 'grail'; }) ? '1' : '0';   // v1283 (D9) — filter attrs
       var _foundN = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || 0);   // v1284 (D11) — sort keys
-      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n
+      // ══ D18 — the cinematic card: cover-art hero (reel thumb) + title/seal lower-third + headline grail,
+      // then a clean stat grid. Preserves every filter/sort/search data-attr + tap-to-dossier (data-n). ══
+      var _cov = (sm.coverage && sm.coverage.total) ? Math.round((sm.coverage.read || 0) / sm.coverage.total * 100) : null;
+      var _grailN = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
+      var _tf = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0] || (sm.finds || [])[0];
+      var headFind = _tf ? '<div class="shc-headfind' + (_tf.tier === 'grail' ? ' grail' : '') + '">' + (_tf.tier === 'grail' ? '🏆 ' : '') + esc(_tf.name || 'a keep') + '</div>' : '';
+      var seal = sm.watchdogViolations > 0 ? '<span class="shc-seal flag">🚨 ' + sm.watchdogViolations + '</span>'
+               : (sm.kaiMissed != null ? '<span class="shc-seal clean">🛡 clean</span>' : '<span class="shc-seal open">◌ open</span>');
+      var heroOpen = sm.thumb
+        ? '<div class="shc-hero" style="background-image:url(/hist/' + encodeURI(sm.thumb) + '?w=440)">'
+        : '<div class="shc-hero noimg">';
+      var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
+      var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
+      function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
+      var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
+        + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_cov != null ? (_cov + '%') : '—', 'cover') + '</div>';
+      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' grail' : '') + '" data-n="' + n
         + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
-        + art
-        + '<b>session ' + n + '</b>' + (sm.stub ? ' <span class="sh-dim">· ghost</span>' : '') + '<br>'
-        + (d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—') + '<br>'
-        + '<span class="sh-dim">' + (spanS ? Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's · ' : '')
-        + (sm.reads || 0) + ' reads · ' + (sm.named || 0) + ' named'
-        + verdictLine
-        + fpLine
-        + (footLine ? '<br>' + footLine : '')
-        + ((sm.areas || []).length ? '<br>' + esc(sm.areas.slice(0, 3).join(' · ')) : '') + '</span>'
-        + findsLine + '</div>';
+        + heroOpen
+          + '<div class="shc-sess">Session ' + n + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
+          + seal + headFind
+        + '</div>'
+        + '<div class="shc-body">'
+          + '<div class="shc-when">' + whenTxt + (durTxt ? ' <span class="shc-dur">· ' + durTxt + '</span>' : '') + '</div>'
+          + ((sm.areas || []).length ? '<div class="shc-area">📍 ' + esc(sm.areas.slice(0, 2).join(' · ')) + '</div>' : '')
+          + statRow
+          + (vparts.length ? '<span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '')
+          + (_fp ? '<span class="sh-verdict shc-fp">' + _fp + '</span>' : '')
+          + (footLine ? '<div class="shc-foot">' + footLine + '</div>' : '')
+        + '</div></div>';
     }).join('');
     var body = cards
       ? '<div class="sh-grid">' + cards + '</div>'
