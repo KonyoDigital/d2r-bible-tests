@@ -1586,6 +1586,20 @@
   .er-gj-read .er-gj-n { font: 800 var(--fs-xl)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; text-shadow: 0 0 20px rgba(201,168,255,.35); }
   .er-gj-read .er-gj-slash { color: #6f6a58; } .er-gj-read > span:nth-child(2){ color: #b7a884; font: 700 var(--fs-md)/1 var(--mono); }
   .er-gj-read .er-gj-lab { font: 600 var(--fs-2xs)/1.3 var(--mono); letter-spacing: .04em; color: #9a8d73; text-transform: uppercase; }
+  /* v1235 (GHOST MODE r6) — THE FORGE layer: current craftability, honestly badged "not rewound" (the
+     stash has no timeline). The amber "CURRENT" badge marks it apart from the rewindable FILM/JOURNEY. */
+  .er-forge { margin-top: 14px; }
+  .er-forge[hidden] { display: none; }
+  .er-forge .er-forge-badge { margin-left: 8px; font-weight: 800; letter-spacing: .08em; color: #1a1206; background: #e9b96e;
+    padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+  .er-forge-body { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px 22px; }
+  .er-forge-body .efo-stat { display: flex; align-items: baseline; gap: 7px; }
+  .er-forge-body .efo-n { font: 800 var(--fs-lg)/1 var(--mono); color: #e6d9b8; font-variant-numeric: tabular-nums; }
+  .er-forge-body .efo-lab { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: #9a8d73; }
+  .er-forge-body .efo-names { display: flex; flex-wrap: wrap; gap: 6px; }
+  .er-forge-body .efo-name { font: 600 var(--fs-2xs)/1.3 var(--mono); color: #e6cf90; background: rgba(240,192,96,.1); border: 1px solid rgba(240,192,96,.24); border-radius: 6px; padding: 4px 8px; }
+  .er-forge-body .efo-empty { font: 500 var(--fs-2xs)/1.4 var(--mono); font-style: italic; color: #7a7160; }
+  .er-forge-note { margin-top: 9px; font: 500 var(--fs-2xs)/1.5 var(--mono); letter-spacing: .02em; color: #a5906a; }
   /* v1219 (Engine Room r10) — the live read feed: the last few reads as they land (ON AIR only) */
   .er-livefeed { margin-top: 10px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(143,230,160,.28);
     background: linear-gradient(180deg, rgba(16,26,18,.4), rgba(8,10,8,.3)); }
@@ -6085,6 +6099,10 @@
         + '<div class="er-gj-wrap" id="er-gj-wrap"><div class="er-gj-fill" id="er-gj-fill"></div><div class="er-gj-ticks" id="er-gj-ticks"></div>'
           + '<div class="er-gj-marker" id="er-gj-marker"><div class="er-gj-cap" id="er-gj-cap"></div></div></div>'
         + '<div class="er-gj-read" id="er-gj-read"></div></div>'
+      // v1235 (GHOST MODE r6) — THE FORGE layer. Per the truthful-scope matrix, Forge "make now" derives
+      // purely from the (un-timestamped) stash, so it CANNOT rewind. Option A: show current craftability,
+      // labelled honestly as "not rewound" — a real, useful layer that never lies about a past it can't back.
+      + '<div class="er-forge" id="er-forge" hidden></div>'
       // v1218 (Engine Room r9) — SESSION STORY: the whole reel's shape (found / read / retro-caught /
       // tallies / duration), shown the moment you scrub into a reel — the SHAPE before you drill in.
       + '<div class="er-reelcard" id="er-reelcard" hidden></div>'
@@ -6299,6 +6317,25 @@
     wrap.addEventListener('pointermove', function(e){ if (dragging) scrub(e.clientX); });
     wrap.addEventListener('pointerup', function(){ dragging = false; });
     wrap.addEventListener('pointercancel', function(){ dragging = false; });
+  }
+  // v1235 (GHOST MODE r6) — THE FORGE layer (truthful Option A): current craftability from d2r_forgeSummary,
+  // labelled honestly as "CURRENT · not rewound" because the stash isn't time-stamped. Never fakes a past.
+  function _erForgeInit(){
+    var el = document.getElementById('er-forge'); if (!el) return;
+    var fs = null; try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch (e) {}
+    if (!fs){ el.hidden = true; return; }
+    var c = fs.counts || {}, now = (c.now != null ? c.now : (fs.now || []).length) || 0,
+        onestep = (c.onestep != null ? c.onestep : (fs.onestep || []).length) || 0;
+    var names = (fs.now || []).slice(0, 6).map(function(x){ return esc(String((x && (x.rw || x.name)) || x)); });
+    var when = fs.ts ? new Date(fs.ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+    var body = '<div class="efo-stat"><span class="efo-n">' + now + '</span> <span class="efo-lab">craftable now</span></div>'
+      + '<div class="efo-stat"><span class="efo-n">' + onestep + '</span> <span class="efo-lab">one step out</span></div>'
+      + (names.length ? '<div class="efo-names">' + names.map(function(n){ return '<span class="efo-name">⚒ ' + n + '</span>'; }).join('') + '</div>'
+         : (now === 0 ? '<div class="efo-empty">nothing craftable from the current stash</div>' : ''));
+    el.innerHTML = '<div class="er-band">🔨 THE FORGE <span class="er-band-sub">· what you can make right now</span> <span class="er-forge-badge" title="the stash has no timeline — this layer shows current state, it does not rewind with the scrubbers">CURRENT · not rewound</span></div>'
+      + '<div class="er-forge-body">' + body + '</div>'
+      + '<div class="er-forge-note">🔒 the stash isn\'t time-stamped, so THE FORGE can\'t rewind — this is your craftability AS OF NOW' + (when ? ' (as of ' + esc(when) + ')' : '') + ', real & current, not a rewound past.</div>';
+    el.hidden = false;
   }
   function _engineRoomRetro(){
     if (ER.focusTs == null || !ER.focusSid) return;
@@ -6678,6 +6715,7 @@
       if (ob){ var seen; try { seen = localStorage.getItem('tvd_er_onboarded'); } catch (e) {} ob.hidden = !!seen; }
     } catch (e) { console.error('[EngineRoom] onboard', e); }
     try { _erGrailJourneyInit(); } catch (e) { console.error('[EngineRoom] grailJourney', e); }   // v1233 GHOST r4
+    try { _erForgeInit(); } catch (e) { console.error('[EngineRoom] forge', e); }   // v1235 GHOST r6
   };
   window._engineRoomOnboardDismiss = function(){
     try { localStorage.setItem('tvd_er_onboarded', '1'); } catch (e) {}
