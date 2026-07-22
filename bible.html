@@ -28788,6 +28788,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _vaStoreLabel(k){ return k==='keep' ? '✓ Kept / Muled' : k==='magic' ? 'Magic & Rare' : k==='throw' ? 'Throw-out' : k; }
   function _vaIsGrailUni(n){ try{ return !!((typeof ITEM_REGISTRY!=='undefined'&&ITEM_REGISTRY[n]) || (window._UNI_EXTRA&&window._UNI_EXTRA[n]) || (window._GRAIL_SEED&&window._GRAIL_SEED[n])); }catch(e){ return false; } }
   function _vaIsRW(n){ try{ return !!(window.findRuneword && window.findRuneword(n)); }catch(e){ return false; } }
+  // v1310 — PROVENANCE: where did this item come from? Uses the tags built since v1281:
+  // 🤖 G3 (auto-route sweep, d2r_g3Filled) · 🔬 checked (AI Item Checker verdict, _mfChecker) · ✋ manual.
+  function _vaG3Filled(){ try{ var g=JSON.parse(LS.getItem('d2r_g3Filled')||'{}'); return (g&&typeof g==='object')?g:{}; }catch(e){ return {}; } }
+  function _vaProvenance(n){
+    var tags=[];
+    try{ var g=_vaG3Filled(); if(g && g[n]) tags.push('🤖 G3'); }catch(e){}
+    try{ if(typeof _mfChecker==='function' && _mfChecker(n)) tags.push('🔬 checked'); }catch(e){}
+    if(!tags.length) tags.push('✋ manual');
+    return tags.join(' · ');
+  }
   function _vaultAudit(){
     var F = [];
     // group membership — the keep / magic / throw stores are meant to be MUTUALLY EXCLUSIVE
@@ -28835,6 +28845,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (why) F.push({sev:'high', kind:'wrongly-thrown', item:n, store:'throw', to:to, fixable:true,
         detail:'thrown out — but it’s '+why+'. Rescue it.'});
     }); } catch(e){}
+    // 5) v1310 CHECKER SAID TOSS but it's KEPT (E1 cohesion) — review-only, a keep-a-toss is a judgement call
+    try { if(magicFinds) Object.keys(magicFinds).forEach(function(n){
+      var c=(typeof _mfChecker==='function')?_mfChecker(n):null;
+      if (c && c.verdict==='toss') F.push({sev:'med', kind:'checker-toss-kept', item:n, store:'magic', to:null, fixable:false,
+        detail:'🔬 the AI Checker rated this TOSS'+(c.score!=null?' (score '+c.score+')':'')+', but it’s kept in Magic & Rare — keep only if you meant to'});
+    }); } catch(e){}
+    // 6) v1310 G3 AUTO-FILL vs VAULT conflict — a name G3 filed into a tracker that ALSO sits in Magic & Rare
+    try { var _g3=_vaG3Filled(); Object.keys(_g3||{}).forEach(function(n){
+      if (magicFinds && magicFinds[n]){
+        var trk=(_g3[n]&&_g3[n].tracker)||'a tracker';
+        F.push({sev:'high', kind:'g3-vault-conflict', item:n, store:'magic', to:null, fixable:true,
+          detail:'🤖 G3 auto-filled this into your '+trk+' tracker, but a copy is still in Magic & Rare — drop the redundant vault copy'});
+      }
+    }); } catch(e){}
+    // v1310 — stamp PROVENANCE on every finding (manual · 🤖 G3 · 🔬 checked) so a fix is informed by origin
+    try { F.forEach(function(f){ f.prov=_vaProvenance(f.item); }); } catch(e){}
     // rank: high first, then by kind, then name
     var SEV={high:0, med:1, low:2};
     F.sort(function(a,b){ return (SEV[a.sev]-SEV[b.sev]) || String(a.kind).localeCompare(b.kind) || String(a.item).localeCompare(b.item); });
@@ -28859,6 +28885,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var to=f.to; if(!to){ var sg2=null; try{ sg2=suggestMule(f.item); }catch(e){} if(sg2&&muleById(sg2.id)) to=sg2.id; }
         if (to && muleById(to)) assign[f.item]=to;
       }
+      else if (f.kind==='g3-vault-conflict'){ if(magicFinds) delete magicFinds[f.item]; }   // v1310 — it's tracked elsewhere (G3); drop the redundant Magic & Rare copy
       else return false;
       return true;
     } catch(e){ return false; }
@@ -28881,7 +28908,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var r; try{ r=_vaultAudit(); }catch(e){ box.hidden=true; return; }
     if (!r || !r.total){ box.hidden=true; box.innerHTML=''; return; }
     box.hidden=false;
-    var KIND_IC={ 'misroute':'📦', 'rw-in-magic':'📜', 'dupe':'♻️', 'wrongly-thrown':'🛟', 'should-review':'👁' };
+    var KIND_IC={ 'misroute':'📦', 'rw-in-magic':'📜', 'dupe':'♻️', 'wrongly-thrown':'🛟', 'should-review':'👁', 'checker-toss-kept':'🔬', 'g3-vault-conflict':'🤖' };
     var rows=r.findings.slice(0,40).map(function(f){
       var art=''; try{ if(typeof _artRarity==='function'){ /* keep light — glyph only */ } }catch(e){}
       var btn = f.fixable
@@ -28889,6 +28916,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : '<span class="va-review" title="a judgement call — left for you">review</span>';
       return '<div class="va-row va-'+f.sev+'"><span class="va-ic">'+(KIND_IC[f.kind]||'•')+'</span>'
         + '<span class="va-item">'+esc(f.item)+'</span>'
+        + (f.prov?'<span class="va-prov" title="where this item came from" style="font-size:10px;color:var(--text-dim);white-space:nowrap">'+esc(f.prov)+'</span>':'')
         + '<span class="va-detail">'+esc(f.detail)+'</span>'+btn+'</div>';
     }).join('');
     box.innerHTML =
@@ -35075,7 +35103,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1309', name:'🎬 Sessions Flagship D18 - Cinematic Shelf Card Redesign (film-reel still)', date:'2026-07-23', note:'🎬 Sessions flagship D18 - cinematic shelf cards. Each run on the shelf now looks like a film-reel still: a full cover image from the run itself, the session title across it in the serif display face with a verdict seal in the corner telling you at a glance whether it was clean, flagged or still open, and the runs standout grail lit in gold along the bottom as the headline of that run. Below sits a clean grid of the key numbers and the usual chips, and the whole card is accented in gold when a grail dropped, ringed in mint for the run recording now, and dimmed for old retired runs. It is purely a visual redesign of the card - every search, filter and sort still works and tapping a card still opens its full detail. On your machine the real farm frame fills the cover, which is where it really comes alive. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1310', name:'🔍 Vault Integrity Deepening - G3 + E1 + Checker Aware (provenance-tagged)', date:'2026-07-23', note:'🔍 Vault integrity checker deepening - now it understands the whole system. The vault checker that catches mis-routed, duplicated and wrongly-thrown items now also cross-checks everything else we built. It flags an item you muled even though the AI Checker had rated it a toss, for you to review, and it flags an item the auto-route sweep already filed into a tracker that is somehow also still sitting in your Magic and Rare locker, offering a one-click fix that drops just the duplicate vault copy and names the tracker it really lives in, never touching the tracker itself. And every issue it lists now shows where the item came from - entered by hand, filled by the sweep, or verified by the checker - so you always know how it got there before you fix it. Clear-cut issues get a one-click or fix-all, judgement calls are left for you, and nothing is flagged unless it is a real disagreement. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
