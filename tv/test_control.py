@@ -1206,6 +1206,56 @@ class TestGridVoteRequiresGenuineGridSignal(unittest.TestCase):
         self.assertIsNone(ca._kai_grid_vote_label("", [], "", "gameplay"))
 
 
+class TestRetroPromoteNeverFabricatesAGridWitness(unittest.TestCase):
+    """v1198 ROUTE/GATE fix — `_kai_retro_promote_tally` (v948.7, the retro cluster-promote
+    pass that runs on `routing_scan` BEFORE `_kai_build_routing`) used to stamp
+    `grid=True, gridLabel=<promoted tab>` onto every gridLabel-less frame in a stash-ish
+    visual cluster, borrowed from the CLUSTER's majority tally vote (other frames' evidence).
+    `_kai_build_routing`/`_router_conf` then counted that as a genuinely independent 'layout'
+    witness for THAT SPECIFIC FRAME — grid never actually looked at its pixels. A frame with
+    only ONE real vote of its own (e.g. tabstrip alone, 'chrome' class) could then clear the
+    2-independent-class quorum on a fabricated second witness. The cluster's honest majority
+    context is still applied to the DISPLAY label (untouched by this fix); routing/gate
+    honesty for each frame must rest on its own real evidence — `_kai_stage3_gap_funnels`
+    already exists as the honest, explicitly-lower-bar fallback for an isolated single-witness
+    tally frame, so no real routability is lost."""
+
+    def _cluster(self):
+        # frame A: only its OWN tabstrip evidence, no grid evidence at all. Frames B/C:
+        # genuine grid evidence forming the cluster majority.
+        return [
+            {"f": "a.jpg", "ts": 1000, "label": "stash",
+             "tabstripLabel": "stash-runes", "tabstrip": True},
+            {"f": "b.jpg", "ts": 1200, "label": "stash-runes",
+             "gridLabel": "stash-runes", "grid": True},
+            {"f": "c.jpg", "ts": 1400, "label": "stash-runes",
+             "gridLabel": "stash-runes", "grid": True},
+        ]
+
+    def test_gridless_frame_gets_no_fabricated_grid_vote(self):
+        promoted = ca._kai_retro_promote_tally(self._cluster())
+        a = promoted[0]
+        self.assertIsNone(a.get("grid"))
+        self.assertIsNone(a.get("gridLabel"))
+        # the honest majority-context label rewrite is still applied
+        self.assertEqual(a.get("label"), "stash-runes")
+
+    def test_gridless_frame_no_longer_false_gate_passes(self):
+        promoted = ca._kai_retro_promote_tally(self._cluster())
+        routing = ca._kai_build_routing(promoted, [], "sid1", [])
+        row_a = next(r for r in routing if r["f"] == "a.jpg")
+        self.assertEqual(row_a["sources"], ["tabstrip"])
+        self.assertEqual(row_a["confidence"], 1)
+        self.assertFalse(row_a["gatePass"])
+        self.assertEqual(row_a["gateReason"], "quorum<2")
+
+    def test_frames_with_genuine_grid_evidence_unaffected(self):
+        promoted = ca._kai_retro_promote_tally(self._cluster())
+        b = next(r for r in promoted if r["f"] == "b.jpg")
+        self.assertTrue(b.get("grid"))
+        self.assertEqual(b.get("gridLabel"), "stash-runes")
+
+
 class TestDriverLiveHonestRejectionReceipt(unittest.TestCase):
     """v1185 — the engine-driver's OWN live fire chains (vaultcount_/vault_/tally, the same
     three sites hardened for never-zero at v1182) each ended their promise chain in a bare

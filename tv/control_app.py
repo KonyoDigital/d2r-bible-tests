@@ -2553,13 +2553,21 @@ def _kai_retro_promote_tally(routing_scan):
                 if str(s3.get("label") or "") in ("stash", prom, "gameplay") or gl3.startswith("stash") or tl3.startswith("stash"):
                     if str(s3.get("label") or "") in ("stash", "gameplay", ""):
                         s3["label"] = prom
-                    if not s3.get("gridLabel") and best_tab:
-                        # keep evidence for routing votes
-                        if gl3:
-                            pass
-                        elif best_n >= 2:
-                            s3["grid"] = True
-                            s3["gridLabel"] = prom
+                    # v1198 — do NOT synthesize grid=True/gridLabel here for a frame that has
+                    # no gridLabel of its own. The old code stamped a fabricated "grid" vote
+                    # onto every gridLabel-less frame in the cluster from the CLUSTER's
+                    # majority tally — `_kai_build_routing`/`_router_conf` then counted that
+                    # as a genuinely independent 'layout' witness (grid actually looked at
+                    # THIS frame's pixels), when in truth no grid classifier ever touched it.
+                    # A frame with its own single real vote (e.g. tabstrip alone) could then
+                    # clear the 2-independent-class quorum on a borrowed, mislabeled witness —
+                    # the same false-independence class the v1194 grid-vote fix closed one
+                    # layer downstream. The label rewrite above already carries the cluster's
+                    # majority context honestly (as the frame's display class); routing/gate
+                    # correctness for THIS frame must still rest on its own real evidence —
+                    # other frames in the cluster that DO have genuine 2-class evidence are
+                    # what actually clears quorum for the tab (Stage 3 fires per-TAB, not
+                    # per-frame, "newest frame wins").
         i = max(j, i + 1)
     return routing_scan
 
@@ -5066,7 +5074,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1197",
+        "ver": "v1198",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
