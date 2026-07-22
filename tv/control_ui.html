@@ -1577,6 +1577,25 @@
   .er-grailt .egt-slash { color: #6f6a58; margin: 0 1px; } .er-grailt .egt-body > span:nth-child(2) { color: #b7a884; font: 700 var(--fs-md)/1 var(--mono); }
   .er-grailt .egt-lab { font: 600 var(--fs-2xs)/1.3 var(--mono); letter-spacing: .04em; color: #9a8d73; text-transform: uppercase; }
   .er-grailt .egt-note { margin-top: 8px; font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .03em; color: #8f86ad; }
+  /* v1233 (GHOST MODE r4) — THE GRAIL JOURNEY scrubber: drag across the months you played, watch grail climb */
+  .er-gj { margin-top: 12px; }
+  .er-gj[hidden] { display: none; }
+  .er-gj .er-gj-hint { color: #c9b8ff; font-weight: 700; }
+  .er-gj .er-gj-range { margin-left: 8px; color: #8f86ad; font-weight: 500; text-transform: none; letter-spacing: .02em; }
+  .er-gj-wrap { position: relative; height: 44px; border-radius: 10px; cursor: ew-resize; user-select: none; touch-action: none;
+    border: 1px solid rgba(201,168,255,.3); background: linear-gradient(180deg, rgba(22,18,42,.6), rgba(10,8,20,.55)); overflow: hidden; }
+  .er-gj-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; pointer-events: none;
+    background: linear-gradient(90deg, rgba(120,90,200,.12), rgba(201,168,255,.22)); border-right: 1px solid rgba(201,168,255,.35); }
+  .er-gj-ticks { position: absolute; inset: 0; pointer-events: none; }
+  .er-gj-tick { position: absolute; top: 10px; bottom: 10px; width: 1px; margin-left: -0.5px; background: rgba(200,180,255,.5); }
+  .er-gj-marker { position: absolute; top: -5px; bottom: -5px; left: 100%; width: 3px; margin-left: -1.5px; background: #c9a8ff;
+    box-shadow: 0 0 12px rgba(201,168,255,.95); border-radius: 2px; pointer-events: none; }
+  .er-gj-cap { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .04em; color: #1a1030; background: #c9a8ff; padding: 3px 8px; border-radius: 999px; }
+  .er-gj-read { margin-top: 12px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .er-gj-read .er-gj-n { font: 800 var(--fs-xl)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; text-shadow: 0 0 20px rgba(201,168,255,.35); }
+  .er-gj-read .er-gj-slash { color: #6f6a58; } .er-gj-read > span:nth-child(2){ color: #b7a884; font: 700 var(--fs-md)/1 var(--mono); }
+  .er-gj-read .er-gj-lab { font: 600 var(--fs-2xs)/1.3 var(--mono); letter-spacing: .04em; color: #9a8d73; text-transform: uppercase; }
   /* v1219 (Engine Room r10) — the live read feed: the last few reads as they land (ON AIR only) */
   .er-livefeed { margin-top: 10px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(143,230,160,.28);
     background: linear-gradient(180deg, rgba(16,26,18,.4), rgba(8,10,8,.3)); }
@@ -6068,6 +6087,14 @@
         + '<button class="er-live-btn" id="er-live-btn" onclick="window._engineRoomLive()" title="snap back to NOW">● LIVE</button></div>'
       + '<div class="er-axiswrap"><div class="er-axis" id="er-axis"></div><div class="er-cursor" id="er-cursor" hidden></div></div>'
       + '<div class="er-readout" id="er-readout"></div>'
+      // v1233 (GHOST MODE r4) — THE GRAIL JOURNEY: a full-range Time Machine axis (earliest found-log stamp
+      // → now) that sweeps your whole grail journey across the months you played. Every tick is a REAL find
+      // (from d2r_foundLog); drag the marker and watch your grail climb — truthful, no fabricated points.
+      + '<div class="er-gj" id="er-gj" hidden>'
+        + '<div class="er-band">GRAIL JOURNEY — <span class="er-gj-hint">⏪ drag the marker</span> to travel your grail across time <span class="er-gj-range" id="er-gj-range"></span></div>'
+        + '<div class="er-gj-wrap" id="er-gj-wrap"><div class="er-gj-fill" id="er-gj-fill"></div><div class="er-gj-ticks" id="er-gj-ticks"></div>'
+          + '<div class="er-gj-marker" id="er-gj-marker"><div class="er-gj-cap" id="er-gj-cap"></div></div></div>'
+        + '<div class="er-gj-read" id="er-gj-read"></div></div>'
       // v1232 (GHOST MODE r3) — THE TRUTHFUL TIME MACHINE REWIND · GRAIL-BY-DATE: scrub the timeline into
       // the past → your grail count AS OF that moment, from d2r_foundLog (exact for the found-once-kept case).
       + '<div class="er-grailt" id="er-grailt" hidden></div>'
@@ -6244,6 +6271,52 @@
     return '<div class="egt-head">⏪ THE GRAIL · as of ' + esc(when) + '</div>'
       + '<div class="egt-body"><span class="egt-n">' + g.found + '</span>' + denom + ' <span class="egt-lab">uniques found by this moment</span></div>'
       + '<div class="egt-note">🏆 from your found-log · real & exact for the found-once-kept case</div>';
+  }
+  // v1233 (GHOST MODE r4) — THE GRAIL JOURNEY scrubber: a full-range time axis from the earliest found-log
+  // stamp to now. Every tick is a REAL find; drag the marker → grail-at-that-moment climbs. Truthful only.
+  var GJ = { t0: 0, t1: 0, stamps: [], total: null };
+  function _erGrailJourneyInit(){
+    var el = document.getElementById('er-gj'); if (!el) return;
+    var raw; try { raw = localStorage.getItem('d2r_foundLog'); } catch (e) {}
+    var log = null; try { log = raw ? JSON.parse(raw) : null; } catch (e) {}
+    if (!log){ el.hidden = true; return; }
+    var stamps = [];
+    for (var name in log){ if (!Object.prototype.hasOwnProperty.call(log, name)) continue;
+      var t = Date.parse(String(log[name]).replace(/\s*·\s*/, ' ')); if (!isNaN(t)) stamps.push(t); }
+    if (stamps.length < 2){ el.hidden = true; return; }
+    stamps.sort(function(a, b){ return a - b; });
+    GJ.stamps = stamps; GJ.t0 = stamps[0]; GJ.t1 = Date.now();
+    try { var fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); GJ.total = (fs && fs.grail && fs.grail.total) || null; } catch (e) {}
+    var span = Math.max(1, GJ.t1 - GJ.t0);
+    var ticks = document.getElementById('er-gj-ticks');
+    if (ticks) ticks.innerHTML = stamps.map(function(t){ return '<span class="er-gj-tick" style="left:' + ((t - GJ.t0) / span * 100).toFixed(3) + '%"></span>'; }).join('');
+    var range = document.getElementById('er-gj-range');
+    if (range) range.textContent = new Date(GJ.t0).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '  →  now';
+    el.hidden = false;
+    _erGjRender(1);   // park the marker at NOW
+    _erGjWire();
+  }
+  function _erGjRender(frac){
+    frac = Math.max(0, Math.min(1, frac));
+    var T = GJ.t0 + frac * (GJ.t1 - GJ.t0);
+    var found = 0; for (var i = 0; i < GJ.stamps.length; i++){ if (GJ.stamps[i] <= T) found++; }
+    var mk = document.getElementById('er-gj-marker'), fill = document.getElementById('er-gj-fill'),
+        cap = document.getElementById('er-gj-cap'), read = document.getElementById('er-gj-read');
+    if (mk) mk.style.left = (frac * 100) + '%';
+    if (fill) fill.style.width = (frac * 100) + '%';
+    var when = new Date(T).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    if (cap) cap.textContent = when;
+    if (read) read.innerHTML = '<span class="er-gj-n">' + found + '</span>' + (GJ.total ? ' <span class="er-gj-slash">/</span> ' + GJ.total : '')
+      + ' <span class="er-gj-lab">uniques found by ' + esc(when) + '</span> <span class="thd-dim">· 🏆 real, from your found-log</span>';
+  }
+  function _erGjWire(){
+    var wrap = document.getElementById('er-gj-wrap'); if (!wrap || wrap.__wired) return; wrap.__wired = true;
+    var dragging = false;
+    var scrub = function(clientX){ var r = wrap.getBoundingClientRect(); _erGjRender((clientX - r.left) / Math.max(1, r.width)); };
+    wrap.addEventListener('pointerdown', function(e){ dragging = true; try { wrap.setPointerCapture(e.pointerId); } catch (x) {} scrub(e.clientX); });
+    wrap.addEventListener('pointermove', function(e){ if (dragging) scrub(e.clientX); });
+    wrap.addEventListener('pointerup', function(){ dragging = false; });
+    wrap.addEventListener('pointercancel', function(){ dragging = false; });
   }
   function _engineRoomRetro(){
     if (ER.focusTs == null || !ER.focusSid) return;
@@ -6623,6 +6696,7 @@
       var ob = document.getElementById('er-onboard');
       if (ob){ var seen; try { seen = localStorage.getItem('tvd_er_onboarded'); } catch (e) {} ob.hidden = !!seen; }
     } catch (e) { console.error('[EngineRoom] onboard', e); }
+    try { _erGrailJourneyInit(); } catch (e) { console.error('[EngineRoom] grailJourney', e); }   // v1233 GHOST r4
   };
   window._engineRoomOnboardDismiss = function(){
     try { localStorage.setItem('tvd_er_onboarded', '1'); } catch (e) {}
