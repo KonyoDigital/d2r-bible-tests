@@ -27997,6 +27997,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
+    // v1251 — SELF-HEAL: a forged RUNEWORD must never sit in the Magic & Rare keeper track (magicFinds).
+    // The aic-judge "keep" path used to dump runewords (Call to Arms, Spirit…) into magicFinds, so the
+    // MAGIC & RARE locker painted them as a stray gold ◆ fallback tile (Konyo: "Call to Arms shows a gold
+    // dot on the mule") — and since they were never in `owned`, their runewords assignment got pruned so
+    // they never appeared in the real RUNEWORDS locker. Migrate any runeword key to owned + its mule, once.
+    try {
+      if (typeof magicFinds === 'object' && magicFinds && typeof window.findRuneword === 'function'){
+        var _mfMig=false;
+        Object.keys(magicFinds).forEach(function(_mfk){
+          if (window.findRuneword(_mfk)){
+            try { if (typeof owned!=='undefined' && owned.add) owned.add(_mfk); } catch(e){}
+            try { var _sg=suggestMule(_mfk); if(_sg && muleById(_sg.id)) assign[_mfk]=_sg.id; } catch(e){}
+            delete magicFinds[_mfk]; _mfMig=true;
+          }
+        });
+        if (_mfMig){
+          try { if (typeof LS!=='undefined' && LS.setItem) LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
+          try { if (typeof persistOwned==='function') persistOwned(); } catch(e){}
+          try { if (typeof saveA==='function') saveA(); } catch(e){}
+        }
+      }
+    } catch(e){}
     var poolAll=ownedPool();
     // account-shared-stash items (runes/essences/shards/statues) are recorded but NEVER muled —
     // keep them OUT of the dock/mules (they live in the Registered panel's "not muled" group).
@@ -28792,7 +28814,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
       if (tier === 'keep'){
         try {
-          if (typeof magicFinds === 'object' && magicFinds){
+          // v1251 — a forged RUNEWORD is real gear with its OWN Chronicle + RUNEWORDS locker; it must
+          // NOT land in the Magic & Rare keeper track (magicFinds) or the MAGIC locker paints it as a
+          // stray gold ◆ (Konyo: "Call to Arms shows a gold dot on the mule"). Keep runewords in `owned`
+          // (so their runewords assignment survives renderVault's prune) and off magicFinds.
+          var _kwRW = out.runewordGate || (typeof findRuneword === 'function' && findRuneword(nm));
+          if (_kwRW){
+            try { if (typeof owned !== 'undefined' && owned.add) owned.add(nm); } catch(e0){}
+          } else if (typeof magicFinds === 'object' && magicFinds){
             magicFinds[nm] = { q: q || 'magic', base: base, mods: mods };
           }
           try {
@@ -33973,7 +34002,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1263', name:'🛡 Console - Accuracy-Gate Hero Badge (KAI GATE)', date:'2026-07-22', note:'🛡🔬 CONSOLE - the accuracy-gate hero badge, surfacing the newly-honest gate. The proven and held counts from the accuracy gate, previously buried in a funnels sub-line, are now a proud KAI GATE badge under the three eyes in the reader cluster. It shows a gold guarding state when the gate is holding uncertain reads back to protect accuracy, and a mint clean state at a hundred percent when every read cleared the two-witness gate, with the proven rate as its tag; it reads the real gate numbers from the newest sealed reel and hides entirely when there is nothing to show, so it never fabricates a figure. The held-uncertain framing is honest - it counts the reads the gate refused to certify rather than overclaiming. It is light, riding the existing status poll, and leaves the funnels organ and engine-health model untouched. Now that the gate itself is honest, the console visibly shows the brain protecting your accuracy. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1264', name:'🏦 Vault Fix - Runewords out of the gold-dot (CTA) into RUNEWORDS', date:'2026-07-22', note:'🏦🔧 VAULT FIX - the Call-to-Arms gold-dot bug Konyo spotted. Call to Arms, and any runeword, was showing a stray gold diamond in the Magic and Rare locker instead of a proper tile in the Runewords locker. The cause was that when the AI item judge recognized a forged runeword it filed the runeword into the Magic-and-Rare keeper track, where the vault renders every entry as a tile; a runeword has no item art, so it fell through to a gold diamond placeholder, and because it was never added to the owned set its real Runewords placement was pruned on every render, leaving only that stray dot. The fix routes a judged runeword into the owned set and its correct Runewords locker and keeps it out of the Magic-and-Rare track, and a one-time self-heal sweep moves any runeword already mis-filed there - including the live Call to Arms - into its proper home, generalizing to every runeword. The item now lives in exactly one correct locker, the legitimate mule badge and normal keepers are untouched, and it was verified with a reproduction test and the vault regression specs. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
