@@ -1613,6 +1613,11 @@
   .er-fnav-btn[disabled] { opacity: .32; cursor: default; }
   .er-fnav-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(200,168,255,.6); }
   .er-fnav-pos { font: 700 var(--fs-2xs)/1 var(--mono); color: #9a8d73; letter-spacing: .06em; min-width: 46px; text-align: center; white-space: nowrap; }
+  /* v1222 (Engine Room r13) — DISCOVERABILITY: keycaps surface the keyboard shortcuts at each control */
+  .er-kbd-grp { display: inline-flex; gap: 2px; margin-left: 8px; align-items: center; }
+  .er-kbd { display: inline-block; min-width: 15px; padding: 1px 4px; border-radius: 4px; text-align: center;
+    font: 700 var(--fs-2xs)/1.35 var(--mono); color: #8a7e68; background: rgba(255,255,255,.045);
+    border: 1px solid rgba(255,255,255,.14); border-bottom-width: 2px; }
   /* v1217 (Engine Room r8) — MISS SPOTLIGHT bar: the reel's flagged frames + jump-to-problem */
   .er-flagbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 13px; margin-bottom: 15px; padding: 9px 13px;
     border-radius: 8px; background: rgba(30,26,44,.4); border: 1px solid rgba(160,130,255,.22); font: 600 var(--fs-2xs)/1.4 var(--mono); }
@@ -6283,6 +6288,8 @@
         + '<button class="er-fnav-btn" onclick="window._engineRoomStepFrame(-1)" title="previous frame (←)"' + (_fi > 0 ? '' : ' disabled') + '>◀</button>'
         + '<span class="er-fnav-pos">' + (_fi >= 0 ? (_fi + 1) + ' / ' + _frames.length : '– / ' + _frames.length) + '</span>'
         + '<button class="er-fnav-btn" onclick="window._engineRoomStepFrame(1)" title="next frame (→)"' + (_fi >= 0 && _fi < _frames.length - 1 ? '' : ' disabled') + '>▶</button>'
+        // v1222 (Engine Room r13) — visible keycaps make the arrow-key shortcut discoverable at the control
+        + '<span class="er-kbd-grp" title="or use the ← → arrow keys"><span class="er-kbd">←</span><span class="er-kbd">→</span></span>'
         + '</span>'
       : '';
     // v1217 (Engine Room r8) — MISS SPOTLIGHT bar: the reel's flagged frames + jump-to-problem controls
@@ -6299,7 +6306,8 @@
         _flagbar = '<div class="er-flagbar"><span class="ef-lead">⚑ ' + _flags.total + ' flagged</span> ' + _p.join(' ')
           + (_erFlagKind(b) ? ' <span class="ef-here">◂ this frame</span>' : '')
           + '<span class="ef-jump"><button class="er-fnav-btn" onclick="window._engineRoomJumpFlag(-1)" title="jump to previous flagged frame ([)">⏮ prev</button>'
-          + '<button class="er-fnav-btn" onclick="window._engineRoomJumpFlag(1)" title="jump to next flagged frame (])">next ⏭</button></span></div>';
+          + '<button class="er-fnav-btn" onclick="window._engineRoomJumpFlag(1)" title="jump to next flagged frame (])">next ⏭</button>'
+          + '<span class="er-kbd-grp" title="or use the [ ] bracket keys"><span class="er-kbd">[</span><span class="er-kbd">]</span></span></span></div>';
       }
     }
     el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>' + _nav
