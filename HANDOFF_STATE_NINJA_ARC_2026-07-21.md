@@ -335,3 +335,6 @@ NOTE: :17772 was down + supervisor pause-flag STALE (Konyo's scan ended) → cle
 ## ✅ GATED: v1212 (40/80 MILESTONE) — HEAD 70444c2 — 🧠🖥 ENGINE ROOM ARC ROUND 3 (live health pills)
 polish-ui-2 (control_ui.html): HEALTHY/STRAINED/DOWN/IDLE pills per organ on the cockpit LIVE spine (bottleneck reads at a glance). Scoped to big cockpit organs (home small-cards + retro spine = 0 pills, verified). Mirrors existing pulse, no new semantics. ×3 parity, floor control 125 · agent 198, demo 7/7, smoke+deploy. Console restored @ v1212. Counter: 40/80 (HALFWAY to v1252) · at v1212 · ER arc 3/20 → v1272.
 PUSH LESSON REINFORCED: detached push can look "died" if checked too early — the harness task notification is the source of truth (exit 0 = landed). Round 4 dispatched (in flight → v1213).
+
+## ✅ GATED: v1213 (41/80) — HEAD d922af7 — 🧠🖥 ENGINE ROOM ARC ROUND 4 (always-visible key)
+polish-ui-2 (control_ui.html): compact always-visible KEY footer decoding read-chain (🔴🔵🧠🧠🔬🚦) + health dots in one quiet line, present all 3 states, subtle. Cockpit now self-documenting. ×3 parity, floor control 125 · agent 198, demo 7/7, smoke+deploy. Console @ v1213. Counter: 41/80 · at v1213 · ER arc 4/20 → v1272. Round 5 in flight → v1214.
