@@ -1146,6 +1146,46 @@
   .eye-kai    { border-left-color: var(--gold); }
   .eye.off { opacity: .42; }
   .eye.off .es { color: var(--muted); }
+  /* ══ v1247 (CONSOLE UPGRADE r1 — THE LIVE PULSE) ══════════════════════════════════════════════════════ */
+  /* the live eye PULSES while it's actually thinking on a frame (real visionBusyMs) — the reader net moves */
+  .eye-live.reading { border-left-color: #ff6a58; box-shadow: -3px 0 0 -1px #e05545, 0 0 16px rgba(224,85,69,.22); }
+  .eye-live.reading .ex { animation: eyeReading 1.1s ease-in-out infinite; }
+  @keyframes eyeReading { 0%,100% { filter: saturate(1.1); opacity: 1; } 50% { filter: saturate(1.5) brightness(1.3); opacity: .82; } }
+  /* #4 CAPTURE LOCK-ON pill: green locked on the game window · amber whole-screen · grey idle */
+  .cap-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font: 700 var(--fs-2xs)/1.3 var(--mono); letter-spacing: .02em; }
+  .cap-lock { color: #0e1a12; background: var(--mint); box-shadow: 0 0 12px rgba(143,230,160,.3); }
+  .cap-screen { color: #1c1607; background: #e9b96e; }
+  .cap-idle { color: var(--muted); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+  /* #1 LIVE READ FEED — the KAI reconciler's live-guess stream, under the reader net (mint = live/keep family) */
+  .rn-feed { margin-top: 10px; padding: 10px 11px; border-radius: 10px; border: 1px solid rgba(143,230,160,.24);
+    background: linear-gradient(180deg, rgba(16,26,18,.4), rgba(8,10,8,.3)); }
+  .rn-feed[hidden] { display: none; }
+  .rnf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .rnf-t { font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mint); }
+  .rnf-guess { margin-left: auto; font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+    color: #1c1607; background: #e9b96e; padding: 2px 7px; border-radius: 999px; }
+  .rnf-empty { font: 500 var(--fs-2xs)/1.5 var(--mono); color: #7f958a; letter-spacing: .03em; }
+  .rnf-rows { display: flex; flex-direction: column; gap: 5px; }
+  .rnf-row { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; font: 600 var(--fs-2xs)/1.35 var(--mono);
+    padding: 4px 8px; border-radius: 7px; background: rgba(0,0,0,.28); border-left: 2px solid rgba(143,230,160,.2); }
+  .rnf-row.rnf-keep { border-left-color: var(--mint); }
+  .rnf-row.rnf-grail { border-left-color: var(--gold); background: rgba(240,192,96,.06); }
+  .rnf-row.rnf-toss { border-left-color: #6f6a58; opacity: .82; }
+  .rnf-own { color: #d9e2da; font-weight: 700; }
+  .rnf-what { color: #e8dcc0; font-weight: 800; }
+  .rnf-verd { color: #9df0bd; font-weight: 700; }
+  .rnf-grail .rnf-verd { color: var(--gold-hi); }
+  .rnf-why { color: #7f958a; flex: 1 1 100%; }
+  /* #3 READ-LANDED stage pulse toast — brief, top-center, never covers mid-game */
+  .stage-pulse { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; pointer-events: none;
+    font: 800 var(--fs-sm)/1 var(--mono); letter-spacing: .06em; padding: 8px 16px; border-radius: 999px; white-space: nowrap;
+    box-shadow: 0 6px 22px rgba(0,0,0,.5); }
+  .stage-pulse[hidden] { display: none; }
+  .stage-pulse.sp-keep { color: #0e1a12; background: linear-gradient(90deg, var(--mint), #7fe0a0); }
+  .stage-pulse.sp-grail { color: #1c1607; background: linear-gradient(90deg, var(--gold-hi), var(--gold)); box-shadow: 0 6px 26px rgba(240,192,96,.4); }
+  .stage-pulse.sp-in { animation: stagePulseIn .4s cubic-bezier(.2,.9,.25,1) both; }
+  @keyframes stagePulseIn { 0% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.9); } 60% { transform: translateX(-50%) translateY(2px) scale(1.03); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
+  @media (prefers-reduced-motion: reduce){ .eye-live.reading .ex { animation: none; } .stage-pulse.sp-in { animation: none; } }
   /* v946 — session health strip */
   .sess-health { margin: 6px 0 8px; padding: 8px 10px; border-radius: 9px;
     border: 1px solid rgba(240,192,96,.22); background: rgba(0,0,0,.32); display: flex; flex-direction: column; gap: 4px; }
@@ -2104,6 +2144,10 @@
       </div>
 
       <div class="marquee"><span class="rec"></span><span id="marquee-t">Standby</span></div>
+      <!-- v1247 (CONSOLE UPGRADE r1 · #3 READ-LANDED PULSE) — a brief premium toast when a live KEEP/GRAIL read
+           lands, for that "the AI just found something" dopamine while gaming. Never covers mid-game (top-center,
+           auto-dismiss); only fires on real liveRing keep/grail verdicts. -->
+      <div class="stage-pulse" id="stage-pulse" hidden></div>
 
       <div class="center">
         <div class="kicker" id="kicker">Signal Idle</div>
@@ -2254,6 +2298,10 @@
           <div class="eye eye-second" id="eye-second"><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
           <div class="eye eye-kai" id="eye-kai"><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
         </div>
+        <!-- v1247 (CONSOLE UPGRADE r1 · #1 LIVE READ FEED) — the KAI reconciler's live opinion of each frame as it
+             lands (st.liveRing), directly UNDER the three eyes. Labeled LIVE GUESS: provisional, the sealed reel
+             wins in retro. Shows only ON AIR; hidden otherwise (so it never pushes the panel when resting). -->
+        <div class="rn-feed" id="rn-feed" hidden></div>
         <!-- v946 — SESSION HEALTH: tabs + lease + overall verdict in one glance -->
         <div class="sess-health" id="sess-health" title="session truth at a glance">
           <div class="sh-row"><span class="sh-k">📸 Tabs</span><span class="sh-v" id="sh-tabs">—</span></div>
@@ -2609,6 +2657,9 @@
     if (eLiveB) eLiveB.classList.toggle('off', !on);
     if (eSecB) eSecB.classList.toggle('off', !on);
     if (eKaiB) eKaiB.classList.toggle('off', st.engineAlive !== true);
+    // v1247 (CONSOLE UPGRADE r1) — the reader net MOVES: the live eye pulses while it's actually thinking on a
+    // frame (real H.visionBusyMs), so Konyo SEES it working. Truthful — only when genuinely mid-read.
+    if (eLiveB) eLiveB.classList.toggle('reading', on && (H.visionBusyMs || 0) > 1200);
 
     // v946 — SESSION HEALTH strip
     try {
@@ -2714,13 +2765,17 @@
     var capEl = $('sig-capture');
     if (capEl){
       var ct = st.captureTarget || {};
-      // v931 (Konyo: 'CAPTURE — what is it?') — plain words for what the eye is pointed at
-      var capTxt;
-      if (ct.mode === 'window') capTxt = /d2r|diablo/i.test(ct.label || '') ? 'Diablo II window' : (ct.label || 'game window');
-      else if (on) capTxt = 'whole screen';
-      else capTxt = 'holding — no game window';
+      // v1247 (CONSOLE UPGRADE r1 · #4 CAPTURE LOCK-ON) — Konyo asks "is it targeting the D2R window?" REPEATEDLY;
+      // give a permanent, glanceable answer: a GREEN lock pill on the game window vs AMBER whole-screen vs grey idle.
+      var capTxt, capCls;
+      if (ct.mode === 'window'){
+        capCls = 'cap-lock';
+        capTxt = /d2r|diablo/i.test(ct.label || '') ? '🎯 Locked · Diablo II' : ('🎯 Locked · ' + (ct.label || 'game window'));
+      } else if (on){ capCls = 'cap-screen'; capTxt = '🖥 whole screen'; }
+      else { capCls = 'cap-idle'; capTxt = 'holding — no game window'; }
       capEl.textContent = capTxt;
-      capEl.style.color = ct.mode === 'window' ? 'var(--mint)' : '';
+      capEl.className = 'val cap-pill ' + capCls;
+      capEl.style.color = '';
     }
     if (rc > readMax) readMax = rc;
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
@@ -5960,7 +6015,55 @@
     var el = $('hd-spine'); if (!el) return;
     el.innerHTML = _engineOrganData(st).map(function(o){ return _ehOrganHtml(o, false); }).join('<span class="eh-flow">→</span>');
   }
-  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); try { _engineRoomRefresh(st); } catch(e){} hdEngines(st); hdTaskForce(st); }
+  // ══ v1247 (CONSOLE UPGRADE r1 — THE LIVE PULSE) — surface the KAI reconciler's LIVE opinion of each frame on
+  // the live console (st.liveRing), + a stage toast when a KEEP/GRAIL lands. LIGHT: rides the existing poll, no
+  // new timers/fetches, text-forward (no image loads while gaming). TRUTHFUL: labeled LIVE GUESS — the sealed
+  // reel wins in retro (_kai_engine_frame_effective), never presented as the authoritative verdict. ══
+  function hdLivePulse(st){
+    try {
+      var on = (st && st.mode) === 'live';
+      var ring = (st && st.liveRing) || [];
+      var el = document.getElementById('rn-feed');
+      if (el){
+        if (!on){ el.hidden = true; }
+        else {
+          el.hidden = false;
+          var head = '<div class="rnf-head"><span class="rnf-t">🧠 KAI · LIVE READS</span>'
+            + '<span class="rnf-guess" title="the reconciler\'s live opinion of each frame — provisional; the SEALED reel wins in retro">LIVE GUESS</span></div>';
+          if (!ring.length){ el.innerHTML = head + '<div class="rnf-empty">watching — waiting for the first read…</div>'; }
+          else {
+            el.innerHTML = head + '<div class="rnf-rows">' + ring.slice(-5).reverse().map(function(r){
+              var owner = _ER_OWNER[r.owner] || r.owner || '— read';
+              var verd = r.verdict ? (_ER_VERDICT[r.verdict] || r.verdict) : '';
+              var vcls = r.verdict === 'grail' ? 'rnf-grail' : (r.verdict === 'keep' ? 'rnf-keep' : (r.verdict === 'toss' ? 'rnf-toss' : ''));
+              var what = r.label ? esc(String(r.label)) : '';
+              return '<div class="rnf-row ' + vcls + '"><span class="rnf-own">' + esc(owner) + '</span>'
+                + (what ? '<span class="rnf-what">' + what + '</span>' : '')
+                + (verd ? '<span class="rnf-verd">' + esc(verd) + '</span>' : '')
+                + (r.why ? '<span class="rnf-why">' + esc(String(r.why)) + '</span>' : '') + '</div>';
+            }).join('') + '</div>';
+          }
+        }
+      }
+      // #3 READ-LANDED STAGE PULSE — toast only on a NEW keep/grail at the ring head (never the first-poll backlog)
+      if (on && ring.length){
+        var top = ring[ring.length - 1], key = String((top && (top.ts || top.f)) || '');
+        if (key && key !== hdLivePulse._lastKey){
+          var hadPrev = hdLivePulse._lastKey != null; hdLivePulse._lastKey = key;
+          if (hadPrev && (top.verdict === 'keep' || top.verdict === 'grail')){
+            _stagePulse((top.verdict === 'grail' ? '🏆 GRAIL' : '✦ KEEP') + (top.label ? ' · ' + top.label : ''), top.verdict);
+          }
+        }
+      } else if (!on){ hdLivePulse._lastKey = null; }
+    } catch(e){}
+  }
+  function _stagePulse(text, verdict){
+    var el = document.getElementById('stage-pulse'); if (!el) return;
+    el.textContent = text; el.className = 'stage-pulse ' + (verdict === 'grail' ? 'sp-grail' : 'sp-keep'); el.hidden = false;
+    el.classList.remove('sp-in'); void el.offsetWidth; el.classList.add('sp-in');   // restart the entrance animation
+    clearTimeout(_stagePulse._t); _stagePulse._t = setTimeout(function(){ el.hidden = true; }, 2600);
+  }
+  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); try { _engineRoomRefresh(st); } catch(e){} hdEngines(st); hdTaskForce(st); try { hdLivePulse(st); } catch(e){} }
 
   // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it
   // came from. Data = /api/tallies (journaled intake beats — server truth, agent on or off).
