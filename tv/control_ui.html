@@ -1311,6 +1311,50 @@
     border: 1px dashed rgba(200,180,120,.28); cursor: pointer; }
   .find-more:hover { color: var(--gold); border-color: var(--gold-antique); }
   @media (prefers-reduced-motion: no-preference) { .find-card { transition: border-color .12s, background .12s, box-shadow .12s, transform .12s; } .find-card:hover { transform: translateY(-1px); } }
+  /* ══ v1268 (SESSIONS FLAGSHIP D2 · SESSION DETAIL DOSSIER) — a real destination between the shelf and the
+     Theatre: tap a session card → a full dossier you explore (hero · stats · finds · fingerprint · story ·
+     ▶ Open in Theatre). Sits above the shelf (z-index 15); Esc backs out to the shelf. All from real data. ══ */
+  /* full-viewport page (not confined to the short off-air stage) so the dossier is a real place to explore;
+     Esc / ‹ back returns to the shelf underneath (thEscUnwind handles it as the topmost layer). */
+  #th-dossier-ov { position: fixed; inset: 0; z-index: 120;
+    overflow-y: auto; background: rgba(4,6,5,.985); padding: clamp(18px, 3vh, 46px) clamp(16px, 2.4vw, 34px); }
+  #th-dossier-ov[hidden] { display: none !important; }
+  .dsr-wrap { max-width: 860px; margin: 0 auto; }
+  .dsr-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .dsr-back { font: 700 var(--fs-sm)/1 var(--mono); color: var(--gold-dim); background: rgba(0,0,0,.3); border: 1px solid var(--edge);
+    border-radius: 8px; padding: 8px 13px; cursor: pointer; letter-spacing: .04em; }
+  .dsr-back:hover { color: var(--gold); border-color: var(--gold-antique); }
+  .dsr-hero { display: flex; gap: clamp(14px, 2vw, 24px); align-items: center; margin-bottom: 20px; }
+  .dsr-cover { width: clamp(120px, 22vw, 200px); aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px;
+    border: 1px solid var(--edge-hi); box-shadow: 0 8px 26px rgba(0,0,0,.5); flex: none; background: #0a0806; }
+  .dsr-cover-fb { object-fit: contain; padding: 14px; }
+  .dsr-cover-none { display: flex; align-items: center; justify-content: center; font-size: 44px; opacity: .4; }
+  .dsr-htext { min-width: 0; }
+  .dsr-title { font: 800 var(--fs-xl)/1.15 var(--serif); color: #f0dca6; letter-spacing: .06em; }
+  .dsr-sub { font: 600 var(--fs-sm)/1.5 var(--mono); color: #9a8e70; letter-spacing: .03em; margin-top: 4px; }
+  .dsr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+  .dsr-stat { background: rgba(10,9,6,.6); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 10px; text-align: center; }
+  .dsr-sv { font: 800 var(--fs-lg)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; }
+  .dsr-sl { font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #7d7358; margin-top: 6px; }
+  .dsr-sealrow { display: flex; justify-content: center; margin-bottom: 22px; }
+  .dsr-seal { font: 800 var(--fs-sm)/1 var(--mono); letter-spacing: .1em; padding: 8px 16px; border-radius: 999px; text-transform: uppercase; }
+  .dsr-seal-clean { color: var(--gold); border: 1px solid rgba(240,192,96,.5); background: rgba(240,192,96,.08); }
+  .dsr-seal-flag { color: #ff7a7a; border: 1px solid rgba(255,122,122,.5); background: rgba(255,122,122,.08); }
+  .dsr-seal-open { color: #8a7e68; border: 1px dashed rgba(200,180,120,.3); }
+  .dsr-sec { margin-bottom: 20px; }
+  .dsr-h { font: 800 var(--fs-xs)/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+  .dsr-finds { gap: 8px; }
+  .dsr-fp .scene-fp { font-size: var(--fs-xs); }
+  .dsr-story { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dsr-chip { font: 600 var(--fs-xs)/1 var(--mono); letter-spacing: .02em; color: #b7a884; background: rgba(0,0,0,.3);
+    border: 1px solid var(--edge); border-radius: 8px; padding: 6px 11px; }
+  .dsr-chip.dsr-warn { color: #ff9a7a; border-color: rgba(255,122,122,.35); }
+  .dsr-empty { font: 500 var(--fs-sm)/1.4 var(--mono); color: #7a7160; font-style: italic; }
+  .dsr-actions { margin-top: 24px; display: flex; justify-content: center; }
+  .dsr-open { font: 800 var(--fs-md)/1 var(--serif); letter-spacing: .1em; color: #0c0a06; background: linear-gradient(180deg, #f0c869, #d8a63e);
+    border: none; border-radius: 10px; padding: 14px 34px; cursor: pointer; box-shadow: 0 6px 20px rgba(240,192,96,.25); }
+  .dsr-open:hover { filter: brightness(1.08); box-shadow: 0 8px 26px rgba(240,192,96,.4); }
+  .dsr-open:focus-visible { outline: 2px solid #fff2cf; outline-offset: 2px; }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
      re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
@@ -2340,6 +2384,9 @@
         <div id="th-credits" hidden></div>
         <div id="th-slate" hidden></div>
         <div id="th-shelfov" hidden></div>
+        <!-- v1268 (SESSIONS FLAGSHIP D2) — THE SESSION DETAIL DOSSIER: a real destination between the shelf and
+             the Theatre. Built by _sessionDossier(n); sits above the shelf (z-index 15). -->
+        <div id="th-dossier-ov" hidden></div>
         <!-- v940.5 — coach hint: shown once per page-load, dismissed on any interaction -->
         <div class="th-coach" id="th-coach" hidden>space = play/pause · ← → = step · esc = close</div>
         <!-- v940.5 (Konyo: 'incomprehensible button mess') — BUTTON DIET. Primary strip keeps
@@ -3322,7 +3369,7 @@
       + (t.mark ? '<span class="fc-mark">' + t.mark + '</span>' : '')
       + '<span class="fc-name">' + esc(f.name) + '</span>' + loc + '</span>';
   }
-  function _findsStrip(sm, cap){
+  function _findsStrip(sm, cap, bare){
     var finds = sm && sm.finds;
     if (!Array.isArray(finds) || !finds.length) return '';   // honest: nothing to show when no finds (unsealed/older reel)
     var n = sm.n || 1, lim = cap || 5;
@@ -3333,7 +3380,8 @@
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0);}"'
         + ' title="open this run in the Theatre to see them all">+' + (reg - lim) + ' more</span>'
       : '';
-    return '<div class="finds-strip"><span class="finds-lead">🏆 What I found</span>' + cards + more + '</div>';
+    var lead = bare ? '' : '<span class="finds-lead">🏆 What I found</span>';   // v1268 (D2) — the dossier supplies its own section header
+    return '<div class="finds-strip">' + lead + cards + more + '</div>';
   }
   // click a find → open the session's Theatre and seek to the exact frame KAI witnessed the item (by frameId,
   // ts fallback). Empty frameId+ts (the "+N more" chip) just opens the run. Best-effort: never throws into the UI.
@@ -3346,9 +3394,83 @@
       if (idx < 0 && ts){ var best = Infinity; for (i = 0; i < beats.length; i++){ var d = Math.abs((beats[i].ts || 0) - ts); if (d < best){ best = d; idx = i; } } }
       if (idx >= 0 && typeof thGo === 'function') thGo(idx);
       var ov = document.getElementById('th-shelfov'); if (ov) ov.hidden = true;   // leave the shelf; we're in the Theatre now
+      var dov = document.getElementById('th-dossier-ov'); if (dov) dov.hidden = true;   // v1268 — and the dossier, if the jump came from it
     } catch (e) {}
   }
   window._tvdJumpFind = function(ev, n, frameId, ts){ if (ev){ ev.stopPropagation(); ev.preventDefault(); } _thJumpToFind(n, frameId, ts); };
+  // ══ v1268 (SESSIONS FLAGSHIP D2 · THE SESSION DETAIL DOSSIER) — tapping a session card opens a real
+  // destination (hero · headline stats · full finds · scene fingerprint · verdict story · ▶ Open in Theatre)
+  // BEFORE the Theatre. All from the /api/sessions summary already in TH.sessions/HD_ALL; honest "—" for absent
+  // fields (old/unsealed reels), never fabricated. Reuses the D1 find cards + the B8 scene fingerprint. ══
+  var DOSSIER = { n: 0 };
+  function _dossierStory(sm){
+    var chips = [];
+    if (sm.kaiMissed != null) chips.push('<span class="dsr-chip">🧠 swept · ' + sm.kaiMissed + ' missed-text</span>');
+    if (sm.tallies > 0) chips.push('<span class="dsr-chip">📸 ' + sm.tallies + ' intake tall' + (sm.tallies > 1 ? 'ies' : 'y') + '</span>');
+    if (sm.judged > 0) chips.push('<span class="dsr-chip">🔬 ' + sm.judged + ' judged</span>');
+    if (sm.regrets > 0) chips.push('<span class="dsr-chip dsr-warn">💔 ' + sm.regrets + ' regret' + (sm.regrets > 1 ? 's' : '') + '</span>');
+    if (sm.kaiClasses && typeof sm.kaiClasses === 'object'){   // class fingerprint — KAI's top frame classes (what the run was made of)
+      Object.keys(sm.kaiClasses).filter(function(k){ return sm.kaiClasses[k] > 0 && k !== 'gameplay'; })
+        .sort(function(a, b){ return sm.kaiClasses[b] - sm.kaiClasses[a]; }).slice(0, 5)
+        .forEach(function(k){ chips.push('<span class="dsr-chip">🎞 ' + esc(k.replace('stash-', '🏦')) + ' ×' + sm.kaiClasses[k] + '</span>'); });
+    }
+    (sm.areas || []).slice(0, 6).forEach(function(a){ chips.push('<span class="dsr-chip">📍 ' + esc(a) + '</span>'); });
+    return chips.length ? '<div class="dsr-story">' + chips.join('') + '</div>' : '<div class="dsr-empty">— no verdict detail on this reel —</div>';
+  }
+  function _dossierHtml(sm){
+    var n = sm.n || 1;
+    var d0 = sm.t0 ? new Date(sm.t0) : null;
+    var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
+    var dur = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '—';
+    var when = d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—';
+    var cover = sm.thumb
+      ? '<img class="dsr-cover" src="/hist/' + encodeURI(sm.thumb) + '?w=420" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'dsr-cover-fb\')">'
+      : '<div class="dsr-cover dsr-cover-none">🎞</div>';
+    var sealed = (sm.kaiMissed != null), clean = !(sm.watchdogViolations > 0);
+    var seal = !sealed ? '<span class="dsr-seal dsr-seal-open">◌ unsealed</span>'
+      : (clean ? '<span class="dsr-seal dsr-seal-clean">🛡 clean run</span>'
+               : '<span class="dsr-seal dsr-seal-flag">🚨 ' + sm.watchdogViolations + ' flagged</span>');
+    function tile(label, val){ return '<div class="dsr-stat"><div class="dsr-sv">' + val + '</div><div class="dsr-sl">' + label + '</div></div>'; }
+    var found = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || '—');
+    var stats = tile('reads', (sm.reads != null ? sm.reads : '—')) + tile('frames', (sm.frames != null ? sm.frames : '—'))
+              + tile('named', (sm.named != null ? sm.named : '—')) + tile('found', found);
+    var findsBody = _findsStrip(sm, 16, true);
+    var findsSec = '<div class="dsr-sec"><div class="dsr-h">🏆 What I found</div>'
+      + (findsBody || '<div class="dsr-empty">— no items registered this run —</div>') + '</div>';
+    var fp = _sceneFingerprint(sm);
+    var fpSec = '<div class="dsr-sec"><div class="dsr-h">🎬 The run</div>'
+      + (fp ? '<div class="dsr-fp">' + fp + '</div>' : '<div class="dsr-empty">— no scene reads on this reel —</div>') + '</div>';
+    var storySec = '<div class="dsr-sec"><div class="dsr-h">📼 Verdict &amp; story</div>' + _dossierStory(sm) + '</div>';
+    return '<div class="dsr-wrap">'
+      + '<div class="dsr-top"><button type="button" class="dsr-back" onclick="window._dossierClose()">‹ back to the shelf</button></div>'
+      + '<div class="dsr-hero">' + cover
+      + '<div class="dsr-htext"><div class="dsr-title">Session ' + esc(String(n)) + '</div>'
+      + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur) + '</div></div></div>'
+      + '<div class="dsr-stats">' + stats + '</div>'
+      + '<div class="dsr-sealrow">' + seal + '</div>'
+      + findsSec + fpSec + storySec
+      + '<div class="dsr-actions"><button type="button" class="dsr-open" onclick="window._dossierToTheatre()">▶ Open in Theatre</button></div>'
+      + '</div>';
+  }
+  function _sessionDossier(n){
+    var ov = document.getElementById('th-dossier-ov'); if (!ov) return;
+    var list = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length) ? TH.sessions
+             : (typeof HD_ALL !== 'undefined' ? HD_ALL : []);
+    list = list || [];
+    var sm = null;
+    for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n){ sm = list[i]; break; } }
+    if (!sm){ ov.hidden = true; return; }
+    DOSSIER.n = n;
+    ov.innerHTML = _dossierHtml(sm);
+    ov.hidden = false; ov.scrollTop = 0;
+  }
+  window._dossierClose = function(){ var ov = document.getElementById('th-dossier-ov'); if (ov) ov.hidden = true; };
+  window._dossierToTheatre = function(){
+    var n = DOSSIER.n;
+    var dov = document.getElementById('th-dossier-ov'); if (dov) dov.hidden = true;
+    var sov = document.getElementById('th-shelfov'); if (sov) sov.hidden = true;   // leave the shelf; we're going into the film
+    if (typeof thLoadSession === 'function') thLoadSession(Number(n) || 1);
+  };
   function thDossierLine(b){
     var d = b && b.dossier;
     if (!d || typeof d !== 'object') return '';
@@ -3536,6 +3658,7 @@
     // v1267 (D1) — the WHAT I FOUND cards carry HD item art; repaint them once the art map arrives
     try { if (typeof hdLastSession === 'function') hdLastSession(); } catch (e) {}
     try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch (e) {}
+    try { var _dov = document.getElementById('th-dossier-ov'); if (_dov && !_dov.hidden && typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n); } catch (e) {}   // v1268 (D2) — dossier finds carry art too
   }
   // tally counts arrive as an ARRAY of [name,n] (dossier) OR an OBJECT {name:n} (/api/tallies) — take both.
   function thCountPairs(counts){
@@ -4951,10 +5074,10 @@
     ov.hidden = false;
     ov.onclick = function(e){
       if (e.target.closest && e.target.closest('#th-shelf-x')){ ov.hidden = true; return; }
+      if (e.target.closest && e.target.closest('.find-card')) return;   // find cards handle their own jump (stopPropagation covers it; belt-and-braces)
       var c = e.target.closest('.sh-card');
       if (!c){ ov.hidden = true; return; }   // click-outside a card = dismiss
-      ov.hidden = true;
-      thLoadSession(Number(c.dataset.n) || 1);
+      _sessionDossier(Number(c.dataset.n) || 1);   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
     };
   }
   $('th-shelf').onclick = function(){ thShelf(); };
@@ -5025,6 +5148,7 @@
   // (its own ✕, Esc, and a click outside it); the tally overlay owns its own capture-phase Esc.
   function thEscUnwind(){
     if (TH.hdOpen){ thHdClose(); return; }   // v944.7 — the frame lightbox is the topmost layer
+    var dsr = $('th-dossier-ov'); if (dsr && !dsr.hidden){ dsr.hidden = true; return; }   // v1268 (D2) — the dossier is above the shelf; Esc backs out to the shelf first
     var mp = $('th-more-pop'); if (mp && !mp.hidden){ thMore(false); return; }
     var sh = $('th-shelfov');  if (sh && !sh.hidden){ thShelf(false); return; }
     if (CARD.open){ thCardToggle(); return; }
