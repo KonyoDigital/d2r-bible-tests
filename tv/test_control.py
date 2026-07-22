@@ -607,6 +607,106 @@ class TestPhaseDEngineFramesOnBeat(unittest.TestCase):
                         "older reels (no engineFrames) must not carry an engineFrame — UI no-op")
 
 
+class TestV1254SessionFinds(unittest.TestCase):
+    """v1254 R1 (SESSIONS FLAGSHIP — WHAT I FOUND) — _theatre_sessions surfaces the kai
+    register ITEMS as card-facing `finds` (capped, card fields only, grail/tier-first then
+    newest) plus a `topFind` teaser. TRUTHFUL: a session with no register → finds/topFind
+    null (never fabricated). Rides the existing honest `registered` count."""
+
+    def _run(self, sessions_rows):
+        """sessions_rows: list of (sessionId, [journal rows]) → run _theatre_sessions against
+        an isolated tempdir journal and return its output list."""
+        tmp = tempfile.mkdtemp(prefix="tvd-v1254-")
+        journal = os.path.join(tmp, "sessions.jsonl")
+        hist = os.path.join(tmp, "hist")
+        os.makedirs(hist)
+        with open(journal, "w", encoding="utf-8") as f:
+            for _sid, rows in sessions_rows:
+                for r in rows:
+                    f.write(json.dumps(r) + "\n")
+        old_h, old_j = ca.HIST_DIR, rp.JOURNAL
+        ca.HIST_DIR = hist
+        rp.JOURNAL = journal
+        if hasattr(ca.Handler, "_journal_cache"):
+            ca.Handler._journal_cache = None
+        try:
+            class _H:
+                def _load_journal_cached(self):
+                    return rp.load_journal()
+            out = ca.Handler._theatre_sessions(_H())
+            self.assertNotIn("error", out if isinstance(out, dict) else {})
+            return out
+        finally:
+            ca.HIST_DIR = old_h
+            rp.JOURNAL = old_j
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    @staticmethod
+    def _sess(sid, t0, register=None, extra=None):
+        rows = []
+        for i in range(1, 4):   # >=3 reads so it's not tagged a stub
+            rows.append({"ts": t0 + i * 1000, "n": i, "scene": "loot", "area": "Blood Moor",
+                         "names": [], "frameId": "%d_x" % i, "sessionId": sid,
+                         "lane": "deep", "captureTs": t0 + i * 1000})
+        if register is not None:
+            rows.append({"ts": t0 + 5000, "captureTs": t0 + 5000, "lane": "kai", "mode": "kai",
+                         "scene": "kai", "names": [], "sessionId": sid, "frameId": "",
+                         "kai": {"register": register}})
+        rows.append({"ts": t0 + 9000, "n": 99, "scene": "session_end", "mode": "session_end",
+                     "sessionEnd": True, "sessionId": sid, "names": [], "frameId": ""})
+        return (sid, rows)
+
+    def test_register_items_become_capped_sorted_finds(self):
+        # grail beats a NEWER non-grail (tier wins over recency); newest wins within a tier.
+        items = [
+            {"name": "Enigma", "firstSeenTs": 1000, "frameId": "f_a", "loc": None, "tier": "grail"},
+            {"name": "Nagelring", "firstSeenTs": 5000, "frameId": "f_b", "loc": "stash", "tier": None},
+            {"name": "Harlequin Crest", "firstSeenTs": 3000, "frameId": "f_c", "loc": "equipped", "tier": "grail"},
+            {"name": "Gheed's Fortune", "firstSeenTs": 4000, "frameId": "f_d", "loc": "stash", "tier": "keep"},
+        ]
+        out = self._run([self._sess("s_find_1", 1_700_200_000_000,
+                                     register={"count": 4, "items": items})])
+        s = next(x for x in out if x.get("sessionId") == "s_find_1")
+        self.assertEqual(s["registered"], 4, "honest count preserved")
+        finds = s["finds"]
+        self.assertIsInstance(finds, list)
+        # grail-first (newest grail wins), then keep, then null — recency inside a tier
+        self.assertEqual([f["name"] for f in finds],
+                         ["Harlequin Crest", "Enigma", "Gheed's Fortune", "Nagelring"])
+        # card-facing fields ONLY, and firstSeenTs re-keyed to `ts`
+        self.assertEqual(set(finds[0].keys()), {"name", "tier", "loc", "frameId", "ts"})
+        self.assertEqual(finds[0]["ts"], 3000)
+        self.assertEqual(finds[0]["frameId"], "f_c")
+        # topFind = the single best (a grail present → newest grail)
+        self.assertEqual(s["topFind"], {"name": "Harlequin Crest", "tier": "grail"})
+
+    def test_finds_capped_at_16(self):
+        items = [{"name": "Item%02d" % k, "firstSeenTs": 1000 + k, "frameId": "f_%d" % k,
+                  "loc": "stash", "tier": None} for k in range(30)]
+        out = self._run([self._sess("s_cap", 1_700_300_000_000,
+                                     register={"count": 30, "items": items})])
+        s = next(x for x in out if x.get("sessionId") == "s_cap")
+        self.assertEqual(s["registered"], 30, "the full total still lives in `registered` (+N more)")
+        self.assertEqual(len(s["finds"]), 16, "finds list must be capped for the 12s poll")
+
+    def test_no_register_never_fabricates_finds(self):
+        # a session with NO kai register row (unswept / old reel) → honest nulls
+        out = self._run([self._sess("s_bare", 1_700_400_000_000, register=None)])
+        s = next(x for x in out if x.get("sessionId") == "s_bare")
+        self.assertIsNone(s["registered"], "no register → registered null (unchanged honesty)")
+        self.assertIsNone(s["finds"], "no register → finds null, never fabricated")
+        self.assertIsNone(s["topFind"])
+
+    def test_empty_register_reports_zero_and_no_finds(self):
+        # a SWEPT reel that witnessed nothing → registered 0, finds absent (nothing to show)
+        out = self._run([self._sess("s_empty", 1_700_500_000_000,
+                                     register={"count": 0, "items": []})])
+        s = next(x for x in out if x.get("sessionId") == "s_empty")
+        self.assertEqual(s["registered"], 0)
+        self.assertIsNone(s["finds"])
+        self.assertIsNone(s["topFind"])
+
+
 class TestV872StickyBridge(unittest.TestCase):
     """v877 (army suite-audit #6) — the STANDBY-flash fix must stay fixed."""
 

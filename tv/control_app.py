@@ -5657,7 +5657,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1264",
+        "ver": "v1265",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6196,11 +6196,32 @@ class Handler(BaseHTTPRequestHandler):
                 _thrown = set()
                 _keepers = []
                 _registered = None   # v943 — 📖 how many items KAI witnessed this session
+                _finds = None        # v1254 R1 — 📖 the ACTUAL items KAI witnessed (card-facing, capped)
+                _topFind = None      # v1254 R1 — the single best find (grail else newest) for the shelf teaser
                 for r2 in sess:
                     if r2.get("lane") == "kai" and isinstance(r2.get("kai"), dict) and "missedFrames" in r2["kai"]:
                         _km = r2["kai"].get("missedFrames"); _kc = r2["kai"].get("classes")
                     if r2.get("lane") == "kai" and isinstance(r2.get("kai"), dict) and isinstance(r2["kai"].get("register"), dict):
-                        _registered = r2["kai"]["register"].get("count")
+                        _reg = r2["kai"]["register"]
+                        _registered = _reg.get("count")
+                        # v1254 R1 (WHAT I FOUND) — surface the register ITEMS as premium-card
+                        # finds. TRUTHFUL: register only exists on SEALED reels (kaiVer>=3/4);
+                        # unswept/old reels have no register dict, so _finds stays null — we NEVER
+                        # fabricate. LIGHT: cap at 16 (the /api/sessions payload is polled ~12s;
+                        # the total lives in `registered`, so the UI can show "+N more"). Sort
+                        # grail/tier-first then newest firstSeenTs so the teaser shows the best.
+                        _ritems = _reg.get("items")
+                        if isinstance(_ritems, list) and _ritems:
+                            _srt = sorted(
+                                _ritems,
+                                key=lambda it: (-_KAI_TIER_RANK.get((it.get("tier") or ""), 0),
+                                                -(it.get("firstSeenTs") or 0)))
+                            _finds = [{"name": it.get("name"), "tier": it.get("tier"),
+                                       "loc": it.get("loc"), "frameId": it.get("frameId"),
+                                       "ts": it.get("firstSeenTs")}
+                                      for it in _srt[:16]]
+                            _tf = _srt[0]
+                            _topFind = {"name": _tf.get("name"), "tier": _tf.get("tier")}
                     for nm2 in (r2.get("thrown_names") or []):
                         _thrown.add(str(nm2).strip().lower())
                     _jd = (r2.get("kai") or {}).get("judge") if isinstance(r2.get("kai"), dict) else None
@@ -6226,6 +6247,7 @@ class Handler(BaseHTTPRequestHandler):
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
                             "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
+                            "finds": _finds, "topFind": _topFind,   # v1254 R1 — 📖 what KAI witnessed this session
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
