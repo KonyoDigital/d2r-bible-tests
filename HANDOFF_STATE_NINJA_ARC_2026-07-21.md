@@ -338,3 +338,5 @@ PUSH LESSON REINFORCED: detached push can look "died" if checked too early — t
 
 ## ✅ GATED: v1213 (41/80) — HEAD d922af7 — 🧠🖥 ENGINE ROOM ARC ROUND 4 (always-visible key)
 polish-ui-2 (control_ui.html): compact always-visible KEY footer decoding read-chain (🔴🔵🧠🧠🔬🚦) + health dots in one quiet line, present all 3 states, subtle. Cockpit now self-documenting. ×3 parity, floor control 125 · agent 198, demo 7/7, smoke+deploy. Console @ v1213. Counter: 41/80 · at v1213 · ER arc 4/20 → v1272. Round 5 in flight → v1214.
+
+## ✅ GATED: v1214 (42/80) — HEAD 90e2c84 — 🧠🖥 ENGINE ROOM ARC ROUND 5 (sealed|live boundary). Console @ v1214. ER arc 5/20 → v1272. Round 6 in flight → v1215.
