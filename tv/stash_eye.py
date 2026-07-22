@@ -87,6 +87,9 @@ def tab_from_ocr_lines(lines: Optional[Sequence[Any]]) -> str:
     blob = re.sub(r"materlal", "materials", blob)
     blob = re.sub(r"sha[ak]e?d", "shared", blob)
     blob = re.sub(r"pers[o•\*]*n?a?l?", "personal", blob)
+    # gems garbles: G→6/9, m→rn/nn, trailing $/s noise (Gems is the shortest label
+    # so OCR mangles it hardest — the ROUND-2 miss). Keep bounded to gem-ish tokens.
+    blob = re.sub(r"\b[6g9]e[rmn]{1,3}[sz$]?\b", "gems", blob)
     blob = re.sub(r"\bgens\b", "gems", blob)
     blob = re.sub(r"\bgemz\b", "gems", blob)
     order = (
@@ -216,6 +219,7 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         dark_empty = 0
         mid_gear = 0      # mixed shared/personal equipment
         bright = 0
+        hue_bkt = [0] * 6  # v948.20 — sextant histogram of the saturated pixels
         for r, gch, b in px:
             lum = 0.299 * r + 0.587 * gch + 0.114 * b
             if lum > 115:
@@ -230,6 +234,15 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
             mx, mn = max(r, gch, b), min(r, gch, b)
             if (mx - mn) > 70 and mx > 120 and lum > 50:
                 chroma += 1
+                # sextant hue bucket (standard HSV hue → 6 bins), df>0 guaranteed
+                df = mx - mn
+                if mx == r:
+                    hh = ((gch - b) / df) % 6
+                elif mx == gch:
+                    hh = ((b - r) / df) + 2
+                else:
+                    hh = ((r - gch) / df) + 4
+                hue_bkt[int(hh) % 6] += 1
             # gear/metal: mid lum, moderate chroma (rings, charms)
             if 55 < lum < 140 and 25 < cr < 90:
                 mid_gear += 1
@@ -238,10 +251,16 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         fd = dark_empty / n
         fg = mid_gear / n
         fb = bright / n
+        # v948.20 — hue diversity: how many hue sextants each hold a meaningful share
+        # of the saturated pixels. The Gems tab is a grid of DISTINCT gem colours
+        # (ruby-red · emerald-green · sapphire-blue · amethyst-purple · topaz-yellow),
+        # so ≥3 sextants light up — a fire-spark / single-colour gameplay frame does not.
+        _hmin = max(2, int(0.006 * n))
+        hue_div = sum(1 for x in hue_bkt if x >= _hmin)
         detail.update({
             "frac_tan": round(ft, 4), "frac_chroma": round(fc, 4),
             "frac_dark": round(fd, 4), "frac_gear": round(fg, 4),
-            "frac_bright": round(fb, 4),
+            "frac_bright": round(fb, 4), "hue_div": hue_div,
         })
         # decision tree — shared/personal vaults have COLOURED ring gems (chroma)
         # that must NOT be misread as the Gems tab. Gear density gates first.
@@ -252,6 +271,20 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         # gems tab: high chroma AND low gear (pure jewel grid, not jewelry on gear)
         if fc >= 0.11 and fg < 0.10 and fc >= ft:
             detail["pick"] = "gems"
+            return "stash-gems", detail
+        # v948.20 — gems tab, MODERATE chroma (the ROUND-2 miss). A packed gem grid is
+        # small vivid icons on mostly-dark cells, so total chroma is only ~0.05-0.10 —
+        # it fell in the DEAD ZONE between the high-chroma gems floor (fc>=0.11) above
+        # and the materials chroma cap (fc<0.045) below, and dropped to stash-default.
+        # ROOT of the s_1784736270319 f_1784736381363 GEMS MISS: fc=0.058 measured.
+        # Discriminated from dark-gameplay fire-sparks (fc~0.025) by the fc floor, and
+        # from a single-colour glow by hue_div>=3 (multiple distinct gem colours). fd is
+        # a closed stash-panel band (splash/combat run much darker). Verified on a
+        # 2722-frame sweep of every reel: fires on 67 frames, ALL genuine Gems-tab stills
+        # across 16 sessions, zero flips out of materials/runes/gameplay.
+        if (0.045 <= fc < 0.11 and hue_div >= 3 and fg < 0.12
+                and ft < 0.08 and 0.30 <= fd <= 0.55 and fc >= ft):
+            detail["pick"] = "gems-multihue"
             return "stash-gems", detail
         # runes: pale limestone stones dominate (tan high, chroma low)
         if ft >= 0.08 and fc < 0.06 and fb >= 0.12:

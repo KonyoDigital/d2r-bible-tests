@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1255"   # 🗣🎮 DIABLO-LANGUAGE arc round 2 (UI) - the engine scene is now VISIBLE, live + retro, from ONE dictionary (answers Konyo "each photo corrected, analyzed, seen"). RETRO per-frame truth: the Theatre footage drawer now LEADS with THAT frames own Diablo scene (from the beat scene/tab/area added in v1254), not a nearby-stamp bleed - a read stash frame shows "STASH", a portal "entering game / portal", a town "TOWN · <area>", and a frame with no read honestly shows "no read on this frame" (never bleeds a neighbor). LIVE scene chip: the stage SCENE meter speaks Diablo (transition->PORTAL, town, stash+tab, loot->FARMING, gameplay->IN-GAME, tooltip->ITEM), raw fallback for unknown. ONE hardcoded dictionary (_DIABLO_SCENES + _DIABLO_TABS via _diabloScene/_diabloChip/_diabloTrace) drives BOTH live + retro = identical wording, no drift (Konyo "synced"). tab is null until R2 detects it - stash shows without a tab now and auto-gains "· Gems" the moment R2 populates b.tab (no further UI change). TRUTHFUL, LIGHT (rides poll + beat data, no new fetches). Did NOT touch ENGINE HEALTH / anti-lag / fault lamp / parked GHOST MODE / KAI READER / home. control_ui.html only (70/1). DIABLO-LANGUAGE 2. Next: R2 engine - DETECT the Gems tab. x3 parity
+VERSION = "v1256"   # 🗣💎 DIABLO-LANGUAGE arc round 3 - DETECT THE GEMS TAB (the Konyo gems MISS, fixed + verified). ROOT CAUSE: the RotW stash chrome prints ALL FIVE tab labels at once, so OCR of the tab strip can NEVER identify the active tab (2+ tab words = ambiguous by design); detection falls on the grid pixel fingerprint (stash_eye.classify_stash_grid). Materials has a distinctive low-chroma signature that fires, but a packed gem grid (small vivid icons on dark cells, frac_chroma~0.058 on the real miss frame) sat in a DEAD ZONE between the materials chroma cap (0.045) and the gems floor (0.11) -> fell through to generic stash; the models stale tab=personal (bled 17s earlier) then rode through. FIX (tight, engine-only): stash_eye.classify_stash_grid gains a hue-sextant histogram + a moderate-chroma MULTI-HUE gems branch (hue_div>=3 distinct gem colours discriminates gems from single-colour fire glow; closed fd band rejects dark-gameplay sparks); tab_from_ocr_lines gains OCR-garble tolerance for gems (6ems/9ems/gerns/gemz); tv_diablo _stash_tab_ocr_path forwards the model tab so a confident grid-gems read WINS over model-personal (existing "OCR tab beats vague model" rule). VERIFIED on the real frame f_1784736381363.jpg -> stash-gems (gems-multihue, hue_div=3); a full 2722-frame sweep detected 67 additional gems frames across 16 sessions, ALL genuine, ZERO regressions (gameplay 1105/materials 234/runes 26 unchanged). With v1255 the UI auto-shows "stash · Gems" now. Honest: OCR can never pick the tab (all 5 labels print) - the grid fingerprint is the reliable signal. Floor 511 (+4 tests). stash_eye.py + tv_diablo.py + tests (NOT control_ui.html). DIABLO-LANGUAGE 3. x3 parity
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3124,11 +3124,20 @@ def _crop_left_tab_strip(src_path, dest_path, frac=0.20):
         return None
 
 
-def _stash_tab_ocr_path(frame_path):
+def _stash_tab_ocr_path(frame_path, model_tab=""):
     """v947 — intake-style tab chrome + grid fingerprint (no intake calls).
 
     Mimics bible `_tallyPrepImage` crop band: upscaled tab chrome above left grid,
     then pixel grid class (runes/gems/materials). Used by live deep journal stashTab.
+
+    v948.20 — model_tab corroboration: the caller (_resolve_stash_tab) only reaches
+    here having ALREADY confirmed scene=='stash' from the model read, i.e. the stash
+    panel IS open. Passing that through as model_tab lets the grid fingerprint's
+    confident tally read (esp. the moderate-chroma GEMS grid) satisfy fuse_tab_signals'
+    stash-open corroboration instead of being dropped for lack of a live journal sticky
+    — WITHOUT relaxing the live loading-screen guard (which keys off the panel being
+    open, which we know it is). Chrome OCR can't disambiguate the active tab (it prints
+    ALL five labels → ambiguous → ''), so the grid is the real gems signal.
     """
     if not frame_path or not os.path.isfile(frame_path):
         return ""
@@ -3147,7 +3156,7 @@ def _stash_tab_ocr_path(frame_path):
             frame_path,
             ocr_lines=None,
             journal_tab="",
-            model_tab="",
+            model_tab=(model_tab or "stash"),
             ocr_worker_read=_read if _OCR.available() else None,
             work_dir=HIST_DIR,
         )
@@ -3192,7 +3201,9 @@ def _resolve_stash_tab(scene, model_tab, frame_path=None, ocr_rd=None, ts=None):
         if lines:
             ocr_tab = _tab_from_ocr_lines(lines)
         if not ocr_tab and frame_path:
-            ocr_tab = _stash_tab_ocr_path(frame_path)
+            # v948.20 — pass the model tab (or bare 'stash', panel is open) so a
+            # confident grid gems/materials/runes read isn't dropped for want of a sticky.
+            ocr_tab = _stash_tab_ocr_path(frame_path, model_tab=model)
     except Exception:
         ocr_tab = ""
 

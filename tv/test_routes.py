@@ -1977,6 +1977,73 @@ class TestStashTabIdentity(unittest.TestCase):
             self.assertNotEqual(label, "stash-materials")
             self.assertGreater(detail.get("frac_dark", 0), 0.55)  # confirms why: too dark
 
+    def test_gems_ocr_garble_tolerance(self):
+        """v948.20 ROUND-2 — 'Gems' is the shortest RotW tab label, so OCR mangles it
+        hardest: G→6/9, m→rn. Tolerate the common garbles WITHOUT stealing green/gear."""
+        import stash_eye as se
+        for g in ("6ems", "9ems", "gemz", "gens", "gerns", "germs", "GEMS"):
+            self.assertEqual(se.tab_from_ocr_lines([g]), "gems", g)
+        # must NOT over-match unrelated words / other tabs
+        for w in ("green", "gear", "shared", "runes", "materials", "personal"):
+            self.assertNotEqual(se.tab_from_ocr_lines([w]), "gems", w)
+
+    def test_gems_grid_detects_moderate_chroma_frame(self):
+        """v948.20 ROUND-2 — THE GEMS MISS (Konyo 2026-07-22, DIABLO_LANGUAGE_ARC).
+
+        Session s_1784736270319 frame f_1784736381363 VISUALLY shows the Gems stash tab
+        (all gem counts visible), yet kai_report had NO 'gems' class — it fell to generic
+        'stash'. ROOT: a packed gem grid is small vivid icons on mostly-dark cells, so
+        total chroma is only ~0.058 — it sat in the DEAD ZONE between the high-chroma gems
+        floor (fc>=0.11) and the materials chroma cap (fc<0.045) and dropped to
+        stash-default. The moderate-chroma + multi-hue (hue_div>=3) branch now catches it.
+        Ground truth: 3 independently visually-confirmed Gems frames across 3 sessions."""
+        import stash_eye as se
+        p = os.path.join(HERE, "frames", "hist",
+                          "reel_s_1784736270319_92862", "f_1784736381363.jpg")
+        if os.path.isfile(p):
+            label, detail = se.classify_stash_grid(p)
+            self.assertEqual(label, "stash-gems")
+            self.assertEqual(detail.get("pick"), "gems-multihue")
+            self.assertGreaterEqual(detail.get("hue_div", 0), 3)
+        # second + third visually-confirmed Gems frames, OTHER sessions (same law)
+        for rp in ("reel_s_1784561282553_86929/f_1784561359762.jpg",
+                   "reel_s_1784647619282_26240/f_1784647699000.jpg"):
+            p2 = os.path.join(HERE, "frames", "hist", *rp.split("/"))
+            if os.path.isfile(p2):
+                self.assertEqual(se.classify_stash_grid(p2)[0], "stash-gems", rp)
+
+    def test_gems_grid_rejects_dark_gameplay(self):
+        """v948.20 — the moderate-chroma gems branch must NOT fire on dark gameplay with
+        fire-spark chroma (multi-hue but LOW chroma fraction ~0.025 and very dark). The
+        fc>=0.045 floor + closed fd band keep these out — same discipline as the materials
+        false-positive guard."""
+        import stash_eye as se
+        p = os.path.join(HERE, "frames", "hist",
+                          "reel_s_1784561467394_89891", "f_1784561731834.jpg")
+        if os.path.isfile(p):
+            label, detail = se.classify_stash_grid(p)
+            self.assertNotEqual(label, "stash-gems")
+
+    def test_live_resolve_gems_overrides_model_personal(self):
+        """v948.20 — the EXACT reported live failure: the model's deep read said tab=
+        'personal' (bleed from 17s earlier) on a frame that is really the Gems tab. A
+        confident grid gems read must WIN over that stale model guess and flow through as
+        the resolved stashTab (the tally-tab-beats-vague-model law, extended to grid gems).
+        """
+        import tv_diablo as tv
+        p = os.path.join(HERE, "frames", "hist",
+                          "reel_s_1784736270319_92862", "f_1784736381363.jpg")
+        if os.path.isfile(p):
+            tv._STASH_TAB_STICKY.update({"open": False, "tab": "", "ts": 0})
+            tab = tv._resolve_stash_tab("stash", "personal", frame_path=p,
+                                        ocr_rd=None, ts=1784736381363)
+            self.assertEqual(tab, "gems")
+            # and when the model offered no tab at all (still on the stash panel)
+            tv._STASH_TAB_STICKY.update({"open": False, "tab": "", "ts": 0})
+            tab2 = tv._resolve_stash_tab("stash", "", frame_path=p,
+                                         ocr_rd=None, ts=1784736381363)
+            self.assertEqual(tab2, "gems")
+
     def test_retro_promote_and_gap_funnel(self):
         """v948.7 — cluster promote + gap funnel from reel labels."""
         scan = [
