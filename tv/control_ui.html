@@ -1355,6 +1355,48 @@
     border: none; border-radius: 10px; padding: 14px 34px; cursor: pointer; box-shadow: 0 6px 20px rgba(240,192,96,.25); }
   .dsr-open:hover { filter: brightness(1.08); box-shadow: 0 8px 26px rgba(240,192,96,.4); }
   .dsr-open:focus-visible { outline: 2px solid #fff2cf; outline-offset: 2px; }
+  /* ══ v1275 (SESSIONS FLAGSHIP D3 · HISTORY as a board region) — session history promoted to a first-class
+     off-air home region (was only reachable via the 📚 button inside the Theatre). Compact horizontal run
+     strip; tap a card → the D2 dossier. Empty/first-run → a teaching hero. ══ */
+  .hd-history .hd-h { display: flex; align-items: center; }
+  .hd-hist-head { cursor: pointer; user-select: none; }
+  .hd-hist-head:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 2px; }
+  .hh-chev { display: inline-block; color: var(--gold-dim); transition: transform .15s; font-size: .8em; margin-right: 2px; }
+  .hd-history:not(.hist-collapsed) .hh-chev { transform: rotate(90deg); }
+  .hd-history.hist-collapsed .hd-hist-strip { display: none; }   /* collapsed = slim one-line header only → home stays no-scroll */
+  .hd-history.hist-collapsed { padding-top: 9px; padding-bottom: 9px; }
+  .hd-history.hist-collapsed .hd-h { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .hd-hist-all { margin-left: auto; font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; color: var(--gold-dim);
+    background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 7px; padding: 5px 10px; cursor: pointer; text-transform: none; }
+  .hd-hist-all:hover { color: var(--gold); border-color: var(--gold-antique); }
+  .hd-hist-strip { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 8px; scrollbar-width: thin; }
+  .hh-card { position: relative; flex: 0 0 auto; width: 150px; text-align: left; display: flex; flex-direction: column;
+    background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(0,0,0,.34)); border: 1px solid var(--edge); border-radius: 10px;
+    overflow: hidden; cursor: pointer; padding: 0; color: inherit; }
+  .hh-card:hover { border-color: var(--gold-antique); box-shadow: 0 5px 16px rgba(0,0,0,.45); }
+  .hh-card:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 1px; }
+  .hh-art { width: 100%; height: 66px; object-fit: cover; display: block; background: #0a0806; }
+  .hh-art-fb { object-fit: contain; }
+  .hh-seal { position: absolute; top: 5px; right: 5px; font-size: var(--fs-xs); filter: drop-shadow(0 1px 2px #000); }
+  .hh-body { padding: 7px 9px 9px; }
+  .hh-t { font: 800 var(--fs-2xs)/1.1 var(--mono); letter-spacing: .06em; color: #e8dcc0; }
+  .hh-when { font: 600 var(--fs-2xs)/1.2 var(--mono); color: #8a7e68; margin-top: 2px; }
+  .hh-meta { font: 600 var(--fs-2xs)/1.3 var(--mono); color: #b7a884; margin-top: 4px; }
+  .hh-found { color: var(--gold); }
+  .hh-grail { font: 700 var(--fs-2xs)/1.2 var(--mono); color: #ffdf9a; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hd-hist-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 18px 16px 20px; width: 100%; }
+  .hh-emoji { font-size: 34px; opacity: .55; }
+  .hh-lead { font: 800 var(--fs-sm)/1.2 var(--serif); color: #e8cf96; letter-spacing: .05em; }
+  .hh-sub { font: 500 var(--fs-xs)/1.5 var(--mono); color: #9a8e70; max-width: 460px; }
+  .hh-sub b { color: var(--mint); }
+  /* the full-shelf overlay empty/first-run state (via 📚 see all) */
+  .sh-empty-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 8vh 20px; }
+  .sh-empty-hero .she-emoji { font-size: 56px; opacity: .5; }
+  .sh-empty-hero .she-lead { font: 800 var(--fs-lg)/1.2 var(--serif); color: #e8cf96; letter-spacing: .08em; }
+  .sh-empty-hero .she-sub { font: 500 var(--fs-sm)/1.6 var(--mono); color: #9a8e70; max-width: 520px; }
+  .sh-empty-hero .she-sub b { color: var(--mint); }
+  #th-shelfov { padding-bottom: clamp(80px, 12vh, 120px) !important; }   /* v1275 (D3 · z-index) — tall cards scroll fully clear of the transport deck, never clipped/hidden behind it */
+  @media (prefers-reduced-motion: no-preference) { .hh-card { transition: border-color .14s, box-shadow .14s, transform .14s; } .hh-card:hover { transform: translateY(-2px); } }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
      re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
@@ -2069,7 +2111,7 @@
   body[data-state="sim"] .home-dash { display: none; }
   /* v913 (Konyo: 'when the reader is on it should show all visually perfectly') — ON AIR keeps
      a LIVE strip: engines + intake feed breathe under the film; the heavy panels rest */
-  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession { display: none; }
+  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession, body[data-state="on"] #hd-history { display: none; }   /* v1275 (D3) — HISTORY is an off-air exploration region; the live view stays compact */
   body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; max-height: 180px; overflow-y: auto; }
   body[data-state="on"] .stage { min-height: 420px; }   /* v913-R6 (Grok) — the film NEVER starves for the live strip */
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
@@ -2439,6 +2481,18 @@
       <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
         <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
         <div class="hd-tf-rows" id="hd-ls-row"></div>
+      </div>
+      <!-- v1275 (SESSIONS FLAGSHIP D3) — HISTORY promoted to a first-class board region: every recorded run,
+           surfaced on the off-air home (not only via the 📚 button inside the Theatre). Tap a card → the D2
+           dossier. "see all" opens the full shelf. First-run/empty → a teaching hero. -->
+      <!-- v1275 (D3) — COLLAPSIBLE so the off-air home stays no-scroll (Konyo: "i dont want to need to scroll
+           down"): collapsed shows a slim one-line summary; tap the header to expand the run strip. First-run
+           (no runs) auto-expands to teach. State persists in localStorage. -->
+      <div class="hd-col hd-wide hd-history hist-collapsed" id="hd-history">
+        <div class="hd-h hd-hist-head" id="hd-hist-head" role="button" tabindex="0" aria-expanded="false" title="tap to expand your run history">
+          <span class="hh-chev" id="hh-chev" aria-hidden="true">▸</span> 🗂 HISTORY <span class="hd-sub" id="hd-hist-sub">every recorded run</span>
+          <button type="button" class="hd-hist-all" id="hd-hist-all" title="open the full shelf — every recorded run">see all →</button></div>
+        <div class="hd-hist-strip" id="hd-hist-strip"></div>
       </div>
       <!-- v949 (ENGINE_ARCH target #5) — ONE ENGINE-HEALTH SURFACE: the whole loop's pulse, spine order -->
       <div class="hd-col hd-wide hd-enghealth" id="hd-enghealth">
@@ -3465,10 +3519,11 @@
     ov.hidden = false; ov.scrollTop = 0;
   }
   window._dossierClose = function(){ var ov = document.getElementById('th-dossier-ov'); if (ov) ov.hidden = true; };
-  window._dossierToTheatre = function(){
+  window._dossierToTheatre = async function(){
     var n = DOSSIER.n;
     var dov = document.getElementById('th-dossier-ov'); if (dov) dov.hidden = true;
     var sov = document.getElementById('th-shelfov'); if (sov) sov.hidden = true;   // leave the shelf; we're going into the film
+    try { if (typeof thOpen === 'function' && !(typeof TH !== 'undefined' && TH.open)) await thOpen(); } catch (e) {}   // v1275 (D3) — dossier can launch from the home (theatre closed): open it first
     if (typeof thLoadSession === 'function') thLoadSession(Number(n) || 1);
   };
   function thDossierLine(b){
@@ -5069,8 +5124,12 @@
         + ((sm.areas || []).length ? '<br>' + esc(sm.areas.slice(0, 3).join(' · ')) : '') + '</span>'
         + findsLine + '</div>';
     }).join('');
+    var body = cards
+      ? '<div class="sh-grid">' + cards + '</div>'
+      : '<div class="sh-empty-hero"><div class="she-emoji">🎞</div><div class="she-lead">No runs recorded yet</div>'   // v1275 (D3) — first-run/empty state (was a bare empty grid)
+        + '<div class="she-sub">Press <b>▶ On Air</b> to start a session. When it seals, the reel lands here — every screenshot, every read, and every grail KAI witnessed, ready to replay and explore.</div></div>';
     ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
-      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div><div class="sh-grid">' + cards + '</div>';
+      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>' + body;
     ov.hidden = false;
     ov.onclick = function(e){
       if (e.target.closest && e.target.closest('#th-shelf-x')){ ov.hidden = true; return; }
@@ -5535,6 +5594,34 @@
     if (!TH.open) { await thOpen(); }
     try { thShelf(true); } catch(e){}
   };
+  // v1275 (D3) — the HISTORY region's "see all →" opens the full shelf (same door as the 📚 rail button)
+  var _histAll = $('hd-hist-all');
+  if (_histAll) _histAll.onclick = async function(e){
+    e.stopPropagation();   // don't also toggle the collapsible header
+    if (!TH.open) { await thOpen(); }
+    try { thShelf(true); } catch(e2){}
+  };
+  // v1275 (D3) — HISTORY is COLLAPSIBLE so the off-air home stays no-scroll (Konyo's explicit ask). Default
+  // collapsed (slim one-line); tap the header to expand the run strip; state persists across reloads.
+  var _histHead = $('hd-hist-head');
+  if (_histHead){
+    var _histToggle = function(){
+      var reg = $('hd-history'); if (!reg) return;
+      var collapsed = reg.classList.toggle('hist-collapsed');
+      _histHead.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      try { localStorage.setItem('tvd_hist_open', collapsed ? '0' : '1'); } catch(e){}
+    };
+    _histHead.addEventListener('click', function(e){ if (e.target.closest && e.target.closest('#hd-hist-all')) return; _histToggle(); });
+    _histHead.addEventListener('keydown', function(e){ if ((e.key === 'Enter' || e.key === ' ') && !(e.target.closest && e.target.closest('#hd-hist-all'))){ e.preventDefault(); _histToggle(); } });
+    try { if (localStorage.getItem('tvd_hist_open') === '1'){ $('hd-history').classList.remove('hist-collapsed'); _histHead.setAttribute('aria-expanded', 'true'); } } catch(e){}
+  }
+  // v1275 (D3) — the D2 dossier can now be opened from the HOME history region (theatre closed), so Esc must
+  // close it there too. Capture phase wins before the theatre's keydown; closes the dossier as its own top layer.
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    var dov = document.getElementById('th-dossier-ov');
+    if (dov && !dov.hidden){ dov.hidden = true; e.preventDefault(); e.stopPropagation(); }
+  }, true);
   $('btn-board').onclick = function(){
     window.location.href = '/board?app=1#tvd';
   };
@@ -6332,6 +6419,43 @@
       box.hidden = false;
     } catch(e){}
   }
+  // ══ v1275 (SESSIONS FLAGSHIP D3 · HISTORY board region) — render the recorded runs as a compact horizontal
+  // strip on the off-air home. Tap a card → the D2 dossier (_sessionDossier). Empty/first-run → a teaching hero.
+  // Rides hdShelf's existing 12s /api/sessions poll (HD_ALL); no new fetch. TRUTHFUL: real runs only. ══
+  function _hdHistoryRender(){
+    var el = document.getElementById('hd-hist-strip'); if (!el) return;
+    var runs = HD_ALL || [], reg = document.getElementById('hd-history');
+    var sub = document.getElementById('hd-hist-sub'), chev = document.getElementById('hh-chev');
+    if (!runs.length){
+      if (reg) reg.classList.remove('hist-collapsed');   // first-run: auto-expand so the teaching hero shows
+      if (chev) chev.style.display = 'none';   // nothing to collapse yet
+      if (sub) sub.textContent = 'no runs yet';
+      el.innerHTML = '<div class="hd-hist-empty"><div class="hh-emoji">🎞</div>'
+        + '<div class="hh-lead">No runs recorded yet</div>'
+        + '<div class="hh-sub">Press <b>▶ On Air</b> — your first session seals a reel here, and KAI logs every grail it sees. Each run becomes a card you can open and explore.</div></div>';
+      return;
+    }
+    if (chev) chev.style.display = '';
+    if (sub) sub.textContent = runs.length + ' run' + (runs.length === 1 ? '' : 's') + ' · tap to explore';
+    el.innerHTML = runs.slice(0, 14).map(function(sm){
+      var n = sm.n || 1, d0 = sm.t0 ? new Date(sm.t0) : null;
+      var art = sm.thumb
+        ? '<img class="hh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'hh-art-fb\')">'
+        : '<div class="hh-art hh-art-fb"></div>';
+      var found = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || 0);
+      var topGrail = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0];
+      var sealed = (sm.kaiMissed != null), clean = !(sm.watchdogViolations > 0);
+      var badge = !sealed ? '' : (clean ? '<span class="hh-seal hh-clean">🛡</span>' : '<span class="hh-seal hh-flag">🚨</span>');
+      return '<button type="button" class="hh-card" data-hn="' + n + '" title="open session ' + n + ' dossier">'
+        + art + badge
+        + '<div class="hh-body"><div class="hh-t">Session ' + n + '</div>'
+        + '<div class="hh-when">' + (d0 ? d0.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—') + '</div>'
+        + '<div class="hh-meta">' + (sm.reads || 0) + ' reads' + (found ? ' · <b class="hh-found">🏆 ' + found + '</b>' : '') + '</div>'
+        + (topGrail ? '<div class="hh-grail" title="' + esc(topGrail.name) + '">🏆 ' + esc(topGrail.name) + '</div>' : '')
+        + '</div></button>';
+    }).join('');
+    el.onclick = function(e){ var c = e.target.closest('.hh-card'); if (c) _sessionDossier(Number(c.dataset.hn) || 1); };
+  }
   async function hdShelf(){
     try {
       var r = await fetch(API + '/api/sessions'); var j = await r.json();
@@ -6340,6 +6464,7 @@
       var anchorSid = (HD_ALL[HD_PAGE * HD_PER] || {}).sessionId;
       HD_ALL = (j.sessions || []).filter(function(x){ return !x.stub; });
       hdLastSession();   // v936 (STORY ARC R2b) — refresh the home digest on every poll
+      _hdHistoryRender();   // v1275 (D3) — the HISTORY board region rides the same poll
       if (!$('hd-shelf-grid')) return;   // v910 — data still feeds the task force; the grid lives in the shelf now
       if (!HD_ALL.length){ $('hd-shelf-grid').innerHTML = '<span class="hd-empty">no sessions yet — your first ON AIR seals one</span>'; $('hd-shelf-pager').innerHTML = ''; return; }
       if (anchorSid){
