@@ -9081,11 +9081,18 @@ function _magicFindCardHtml(name){
     var vt=_chk.verdict, lbl=vt==='keep'?'✅ KEEP':vt==='border'?'⚖ BORDERLINE':'🗑 TOSS',
         vc=vt==='keep'?'#66ff88':vt==='border'?'#f0c060':'#ff7a7a';
     var when=''; try{ if(_chk.checkedAt) when='checked '+new Date(_chk.checkedAt).toLocaleDateString(); }catch(e){}
+    // v1308 (E1b) — 2× funnel confidence: ✓✓ confirmed (both reads agreed) or ⚖ unclear (disputed).
+    var conf=''; if(_chk.checks>1){ conf = _chk.agree
+      ? '<span style="color:#66ff88;font-weight:700" title="two agreeing AI-Checker reads">✓✓ '+_chk.checks+'× confirmed</span>'
+      : '<span style="color:#f0c060;font-weight:700" title="'+_d2artEsc(_chk.verdictReads?('reads disagreed: '+_chk.verdictReads.join(' vs ')):((_chk.disputed?_chk.disputed.length:0)+' stat(s) only seen once'))+'">⚖ '+_chk.checks+'× — unclear</span>'; }
     return '<div class="mf-checked" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 2px;padding:7px 10px;border:1px solid '+vc+'55;border-radius:8px;background:'+vc+'12;font-size:12px">'
       + '<span style="color:#9fd4ff;font-weight:700">🔬 AI Checker</span>'
       + '<span style="color:'+vc+';font-weight:800">'+lbl+'</span>'
       + (_chk.score!=null?'<span style="color:var(--text-dim)">score '+_chk.score+'</span>':'')
-      + (when?'<span style="color:var(--text-dim);margin-left:auto">'+when+'</span>':'')+'</div>';
+      + (conf?conf:'')
+      + (when?'<span style="color:var(--text-dim);margin-left:auto">'+when+'</span>':'')+'</div>'
+      + ((_chk.checks>1 && !_chk.agree && _chk.disputed && _chk.disputed.length)
+          ? '<div style="font-size:11px;color:#f0c060;margin:0 0 4px;padding:0 2px">⚖ only seen in one read: '+_chk.disputed.map(_d2artEsc).join(' · ')+'</div>' : '');
   })() : '';
   // v376 — for a socketable magic/rare/etc item (weapon/armor/helm/shield), show the QUALITY-aware
   // Larzuk/cube guidance: a magic item is GEM-only (NOT a runeword base — runewords need white/normal).
@@ -34993,7 +35000,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1306', name:'🏆 Sessions Flagship D17 - Best-run / Streak Highlights', date:'2026-07-23', note:'🏆 Sessions flagship D17 - best runs and streaks. The top of the shelf now greets you with a short row of highlight cards drawn from your runs: your best run by grails, your highest read count, your best reads-per-hour, your best coverage, and your current farming streak of consecutive days. Each single-run card is a tap away from that runs full detail. It only ever shows real bests - if there is no data for a category, that card simply does not appear rather than inventing a number - and if one run happens to be the best on more than one measure it honestly shows up in each, since they measure different things. It reads off the run data already loaded and costs nothing extra. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1307', name:'🏦 E1b Vault - Funnel-2x Accuracy Reconcile (2x confirmed / honest disputed)', date:'2026-07-23', note:'🏦 E1b vault - check an item twice for a surer read. You asked to be able to funnel an item through the AI Item Checker a couple of times for accuracy, and now you can. If you mule an item that the checker has already read once, the second read is reconciled with the first rather than replacing it. If both reads agree, the vault marks it as twice-confirmed. If the two reads disagree on keep-or-toss, it says so honestly and keeps both verdicts for you rather than picking one. And if the two reads see slightly different stats, the stats that both reads saw are treated as confident while any stat seen in only one read is shown as disputed rather than quietly dropped, so nothing is lost or invented. Checking once still works exactly as before; the reconcile only kicks in when you run the same item again. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
