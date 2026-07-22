@@ -1358,6 +1358,20 @@
   /* ══ v1275 (SESSIONS FLAGSHIP D3 · HISTORY as a board region) — session history promoted to a first-class
      off-air home region (was only reachable via the 📚 button inside the Theatre). Compact horizontal run
      strip; tap a card → the D2 dossier. Empty/first-run → a teaching hero. ══ */
+  /* ══ v1274 (SESSIONS FLAGSHIP D4 · FARMING-PRODUCTIVITY KPIs) — an instrument cluster: bare stat tiles
+     (label sentence-case · value big tabular-mono, auto-compact) in the console palette. Ink numerals with
+     a restrained accent on the two headline metrics (grails = gold, reads/hr = mint). Off-air only. ══ */
+  .hd-kpi { border: none; background: none; padding: 0; }
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .kpi { background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.34)); border: 1px solid var(--edge);
+    border-radius: 11px; padding: 11px 8px 10px; text-align: center; min-width: 0; }
+  .kpi-v { font: 800 clamp(20px, 2vw, 28px)/1 var(--mono); color: #f0e4c6; font-variant-numeric: tabular-nums;
+    letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi-l { font: 700 var(--fs-2xs)/1.15 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #8a7e68; margin-top: 6px; }
+  .kpi.kpi-gold .kpi-v { color: var(--gold); }
+  .kpi.kpi-mint .kpi-v { color: var(--mint); }
+  .kpi.kpi-dim .kpi-v { color: #8a7e68; }   /* honest "—" (no data) reads as muted, not a bright zero */
+  @media (max-width: 1000px){ .kpi-row { grid-template-columns: repeat(3, 1fr); } }
   .hd-history .hd-h { display: flex; align-items: center; }
   .hd-hist-head { cursor: pointer; user-select: none; }
   .hd-hist-head:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 2px; }
@@ -1834,7 +1848,7 @@
   body[data-state="sim"] .home-dash { display: none; }
   /* v913 (Konyo: 'when the reader is on it should show all visually perfectly') — ON AIR keeps
      a LIVE strip: engines + intake feed breathe under the film; the heavy panels rest */
-  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession, body[data-state="on"] #hd-history { display: none; }   /* v1275 (D3) — HISTORY is an off-air exploration region; the live view stays compact */
+  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession, body[data-state="on"] #hd-history, body[data-state="on"] #hd-kpi { display: none; }   /* v1275 (D3)/v1274 (D4) — HISTORY + KPIs are off-air exploration/telemetry; the live view stays compact */
   body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; max-height: 180px; overflow-y: auto; }
   body[data-state="on"] .stage { min-height: 420px; }   /* v913-R6 (Grok) — the film NEVER starves for the live strip */
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
@@ -2023,6 +2037,12 @@
          forge quests + live 📸 intake feed + the shelf inline. Primary when OFF AIR;
          compact strip under the live stage when ON. -->
     <section class="home-dash" id="home-dash">
+      <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs: a Maxroll-grade instrument cluster at the
+           top of the off-air dash. Cross-session aggregates derived client-side from HD_ALL (the /api/sessions
+           poll) — no new fetch. Big tabular numerals, honest "—" when there's no data. -->
+      <div class="hd-col hd-wide hd-kpi" id="hd-kpi">
+        <div class="kpi-row" id="kpi-row"></div>
+      </div>
       <!-- v1252 (CONSOLE r4 · #3 logical grouping) — TASK FORCE + LAST SESSION are both "today's session
            activity" → paired side by side (no longer full-width), so related reads with related + saves a row. -->
       <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
@@ -5972,6 +5992,37 @@
   // ══ v1275 (SESSIONS FLAGSHIP D3 · HISTORY board region) — render the recorded runs as a compact horizontal
   // strip on the off-air home. Tap a card → the D2 dossier (_sessionDossier). Empty/first-run → a teaching hero.
   // Rides hdShelf's existing 12s /api/sessions poll (HD_ALL); no new fetch. TRUTHFUL: real runs only. ══
+  // ══ v1274 (SESSIONS FLAGSHIP D4 · FARMING-PRODUCTIVITY KPIs) — cross-session aggregates from HD_ALL (the
+  // /api/sessions poll), all client-side, no new fetch. TRUTHFUL: real sums/rates; honest "—" when there's no
+  // data; reads/hr guards divide-by-zero and counts only real session time (Σ(t1−t0)). LIGHT: rides the 12s poll. ══
+  function _kpiFmt(n){ n = +n || 0; if (n >= 100000) return Math.round(n / 1000) + 'K'; if (n >= 10000) return (n / 1000).toFixed(1) + 'K'; return n.toLocaleString(); }
+  function _kpiTile(val, label, accent){
+    var dim = (val === '—') ? ' kpi-dim' : (accent ? ' kpi-' + accent : '');
+    return '<div class="kpi' + dim + '"><div class="kpi-v">' + val + '</div><div class="kpi-l">' + esc(label) + '</div></div>';
+  }
+  function _hdKpiRender(){
+    var el = document.getElementById('kpi-row'); if (!el) return;
+    var runs = (HD_ALL || []).filter(function(s){ return !s.stub; }), n = runs.length;
+    if (!n){ el.innerHTML = ['sessions today','reads / hr','grails found','tallies banked','frames / run','named / run'].map(function(l){ return _kpiTile('—', l); }).join(''); return; }
+    var now = new Date(), startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var sToday = 0, reads = 0, frames = 0, named = 0, tallies = 0, grails = 0, ms = 0;
+    runs.forEach(function(s){
+      if (s.t0 && s.t0 >= startToday) sToday++;
+      reads += s.reads || 0; frames += s.frames || 0; named += s.named || 0; tallies += s.tallies || 0;
+      grails += (s.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
+      if (s.t0 && s.t1 && s.t1 > s.t0) ms += (s.t1 - s.t0);
+    });
+    var hrs = ms / 3.6e6;
+    var readsHr = (hrs > 0.02 && reads > 0) ? _kpiFmt(Math.round(reads / hrs)) : '—';   // guard: need real reading time
+    var avgFrames = _kpiFmt(Math.round(frames / n));
+    var npr = named / n, namedRun = npr >= 10 ? _kpiFmt(Math.round(npr)) : (Math.round(npr * 10) / 10).toString();
+    el.innerHTML = _kpiTile(_kpiFmt(sToday), 'sessions today')
+      + _kpiTile(readsHr, 'reads / hr', 'mint')
+      + _kpiTile(_kpiFmt(grails), 'grails found', 'gold')
+      + _kpiTile(_kpiFmt(tallies), 'tallies banked')
+      + _kpiTile(avgFrames, 'frames / run')
+      + _kpiTile(namedRun, 'named / run');
+  }
   function _hdHistoryRender(){
     var el = document.getElementById('hd-hist-strip'); if (!el) return;
     var runs = HD_ALL || [], reg = document.getElementById('hd-history');
@@ -6015,6 +6066,7 @@
       HD_ALL = (j.sessions || []).filter(function(x){ return !x.stub; });
       hdLastSession();   // v936 (STORY ARC R2b) — refresh the home digest on every poll
       _hdHistoryRender();   // v1275 (D3) — the HISTORY board region rides the same poll
+      _hdKpiRender();   // v1274 (D4) — farming-productivity KPIs ride the same poll
       if (!$('hd-shelf-grid')) return;   // v910 — data still feeds the task force; the grid lives in the shelf now
       if (!HD_ALL.length){ $('hd-shelf-grid').innerHTML = '<span class="hd-empty">no sessions yet — your first ON AIR seals one</span>'; $('hd-shelf-pager').innerHTML = ''; return; }
       if (anchorSid){
