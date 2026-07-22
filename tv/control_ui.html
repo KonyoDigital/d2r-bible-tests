@@ -6341,11 +6341,12 @@
     if (!best) return;
     var reel = (ER.reels||[]).filter(function(x){ return x.sessionId === ER.focusSid; })[0] || { n: ER.focusN };
     ER.focusBeat = best; ER.focusReelObj = reel;   // v950.3 — the beat under the cursor (for the drill-down)
-    // v1241 (GHOST MODE r12) — FILM STORYTELLING, on-demand: the inline "inspect this moment" deep view is
-    // never forced open (Konyo's "never in the way"); but ONCE you've opened it, scrubbing the film follows it
-    // frame by frame — the AI's-mind view (frame image · read · owner/verdict) tracks the cursor, deep OCR and
-    // raw enriched as they land. Truthful: only real captured frames + real reads, honest "no item named" gaps.
-    if (ER.detailOpen){ _engineRoomRenderDetail(best, reel); _engineRoomFetchBlob(best); }
+    // v1242 (GHOST MODE r12) — FILM STORYTELLING: scrubbing THE FILM auto-narrates the AI's mind frame-by-frame,
+    // INLINE on the ghosted console (never an overlay, never routes) — the frame-side sibling of the r9 journey
+    // narration. Land on any frame → the inline forensics (frame image · read raw→resolved · owner/verdict) open
+    // and track the cursor, deep OCR/raw enriched as they land. Snapping to NOW (_engineRoomLive) closes it.
+    // Truthful: only real captured frames + real reads, honest "no item named / not archived" gaps.
+    ER.detailOpen = true; _engineRoomRenderDetail(best, reel); _engineRoomFetchBlob(best);
     var spine = document.getElementById('er-spine');
     if (spine) spine.innerHTML = _engineOrganDataRetro(best, reel).map(function(o){ return _ehOrganHtml(o, true); }).join('<span class="eh-flow">→</span>');
     var band = document.getElementById('er-spine-band');
