@@ -42,7 +42,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1308 · D16 area heatmap **(landed v1303)** — ranked heat-bars by run frequency (opacity heat-scales), runs/%/reads/🏆 per area; honest — grails not zone-pinned (labeled + footnoted, no fabricated attribution). [in flight: D17 best-run/streak]
 - [x] v1309 · D17 best-run / streak highlights **(landed v1306)** — 🏆 best run · ⚡ most reads · 📈 top hr · 📊 best coverage · 🔥 streak; honest omission, tap-to-dossier. [in flight: D18 shelf card redesign]
 - [x] v1310 · D18 shelf card redesign **(landed v1309)** — film-reel-still: cover-art hero + broadcast lower-third (Cinzel title + verdict seal) + gold headline-grail + 4-cell stat grid + rarity accents. Machinery preserved, tap-to-dossier intact. [in flight: D19 beat-card chips]
-- [ ] v1311 · D19 beat-card chips (Theatre caption → iconographic)
+- [x] v1311 · D19 beat-card chips **(landed v1311)** — "⚡ The beats" story ribbon on the dossier (🔥entered·⚔farmed·🏛town·📸tallied·🏆grails·💎keeps·🔬judged·💔regrets·🛡seal); honest, no fabricated timestamps, chips omit when absent. [in flight: D20 count-ups]
 - [ ] v1312 · D20 animated stat count-ups on the dossier
 - [ ] v1313 · D21 verdict seal-stamp polish
 - [ ] v1314 · D22 filmstrip chapter markers (read/find/film beats)

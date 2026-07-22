@@ -736,3 +736,20 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   generic mechanism (proven via code path + unit test) backs the claim it would recover.
 - **Next step if this matters:** next session where a runes fire lands `ok:false`/`total:0` live,
   grep `tv/control_app.log` for `🚫0️⃣ engine-driver: runes` and confirm the retry lands a real count.
+
+## COHESION CERT — v1291→v1310 full-system verification (2026-07-23) · NO REGRESSIONS
+- **Scope:** the whole night's G3 (auto-route sweep + apply) · G4 (removable Grok layer) · E1
+  (vault stats: 2× reconcile + thrown-with-stats) · Vault Integrity deepening (G3/E1/checker
+  cross-reference + provenance). Verified the 20 rounds hold together, no seam.
+- **Result — ALL GREEN:** node suites **75/75** (G3 merge-max+3bucket 23 · hand-off+queue 12 ·
+  E1b reconcile 7 · E1c compare 8 · vault-integrity 9 · G4 toggle-paint 5 · flags 6 · toggle-states 5),
+  Python G4 **14/14** (OFF byte-identical · switch-vs-key · seams · hourly+daily caps · band ·
+  promotion · flag-collect). py_compile control_app.py + g4_grok.py OK; **16/16** bible inline
+  scripts `new Function`-compile; G4 removal test STILL clean (0 traces, stripped py_compile OK).
+- **Data contracts cross-checked (no mismatch):** `d2r_g3Filled` writer `{tracker,count,ts,by}` ↔
+  vault reader `.tracker` · `_mfChecker` fields ↔ vault-card + compare consumers · g4 flag
+  `{agree,verdict,note,ts,source,kind}` ↔ `_g4_collect_flags` · `/api/autoroute-sweep` keys ↔
+  `_arComputeDiff` · `/api/g4_flags` shape ↔ `_g4RenderFlags`. Real-data endpoints honest
+  (sweep sunders 4/6 · g4_flags empty, no key ran).
+- **Verdict:** the "one intelligent system, verified" cohesion holds. Zero regressions across
+  v1291→v1310; certification-only (no code change this round).
