@@ -1674,6 +1674,11 @@
     align-content: start; align-items: start; grid-auto-rows: max-content;   /* v906.1 — cards GROW, never overlap */
     min-height: 0; overflow-y: auto; }
   .home-dash .hd-col { height: fit-content; min-height: 0; }
+  /* v1289 (SESSIONS FLAGSHIP D6 · structure/symmetry) — the half-width regions pair up on a shared grid
+     row (Task Force ▸ Last Session, Forge ▸ Live Intake). Stretch them to the row's height so their
+     bottoms line up as a matched pair instead of reading ragged/lopsided. Full-width regions (.hd-wide)
+     are alone on their row and keep fit-content. */
+  .home-dash .hd-col:not(.hd-wide) { align-self: stretch; height: auto; }
   /* v903 — OFF AIR: the stage row shrinks to its compact self; the DASH owns the flex */
   body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
   /* v945 CONSOLE PARITY C1 — dashboard cards adopt the theatre's card language: warm hairline
