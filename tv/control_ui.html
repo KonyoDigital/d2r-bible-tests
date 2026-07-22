@@ -1628,6 +1628,12 @@
   .er-top { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-bottom: 15px; }
   .er-top-analysis { flex: 1 1 340px; min-width: 288px; display: flex; flex-direction: column; }
   .er-top-analysis .er-chain { margin: 2px 0 12px; }
+  /* v1221 (Engine Room r12) — READ TEXT vs FRAME: what the AI read, headline beside the frame it saw */
+  .er-readtext { margin-bottom: 12px; padding-bottom: 11px; border-bottom: 1px solid rgba(160,130,255,.16); }
+  .er-readtext .ert-lab { font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 5px; }
+  .er-readtext .ert-val { font: 700 var(--fs-base)/1.4 var(--mono); color: #e8dcc0; word-break: break-word; }
+  .er-readtext .ert-dot { color: #6f6a58; margin: 0 2px; }
+  .er-readtext .ert-empty { font: 500 var(--fs-sm)/1.3 var(--mono); color: #7a7160; font-style: italic; }
   .er-top-analysis .kv { border-bottom: none; padding: 4px 0; }
   /* v1216 (Engine Room r7) — the frame image: the ground truth the AI read, hero of the drill-down */
   .er-frame { flex: 0 0 auto; margin: 0; }
@@ -6242,6 +6248,22 @@
         }).join('')
       + '</div>';
   }
+  // v1221 (Engine Room r12) — READ TEXT vs FRAME: what the AI actually READ on this frame, beside the
+  // image of what it SAW. Resolves to the owning layer's output (KAI-caught / super-recovered / live
+  // names), falling back to any read text on the beat. Empty on a gameplay frame — honest "no item read".
+  function _erReadText(b, ov){
+    var k = ov && ov.key, t = null;
+    if (k === 'kai' && b.kaiMissTexts && b.kaiMissTexts.length) t = b.kaiMissTexts;
+    else if (k === 'super' && b.super && b.super.deepNames && b.super.deepNames.length) t = b.super.deepNames;
+    else if (b.names && b.names.length) t = b.names;
+    else if (b.kaiMissTexts && b.kaiMissTexts.length) t = b.kaiMissTexts;
+    else if (b.super && b.super.deepNames && b.super.deepNames.length) t = b.super.deepNames;
+    else if (b.ocr_names && b.ocr_names.length) t = b.ocr_names;
+    var val = (t && t.length)
+      ? '<div class="ert-val">' + t.slice(0, 10).map(function(n){ return esc(String(n)); }).join(' <span class="ert-dot">·</span> ') + '</div>'
+      : '<div class="ert-empty">— no item named on this frame</div>';
+    return '<div class="er-readtext"><div class="ert-lab">📖 the AI read this frame as</div>' + val + '</div>';
+  }
   function _engineRoomRenderDetail(b, reel){
     var el = document.getElementById('er-detail'); if (!el || !b) return;
     el.hidden = false;
@@ -6293,6 +6315,7 @@
       + '<div class="er-top">'
       + (b.frameId ? '<div class="er-frame"><img class="er-frame-img" src="/hist/' + encodeURIComponent(b.frameId) + '.jpg?w=560" loading="lazy" alt="the captured frame the AI read" title="click to open the full frame" onclick="window.open(\'/hist/' + encodeURIComponent(b.frameId) + '.jpg\',\'_blank\')" onerror="this.style.display=\'none\';var c=this.parentNode.querySelector(\'.er-frame-cap\');if(c){c.textContent=\'📸 this frame was not archived\';c.style.opacity=\'.6\';}"><div class="er-frame-cap">📸 the frame the AI read <span class="thd-dim">· click to enlarge</span></div></div>' : '')
       + '<div class="er-top-analysis">'
+      + _erReadText(b, ov)
       + _erReadChain(b, ov)
       + _erDetailRow('owns the final read', '<b>' + ov.owner + '</b> <span class="er-auth ' + (ov.auth ? 'er-auth-yes' : 'er-auth-no') + '" title="' + (ov.auth ? 'the reconciler\'s sealed verdict — authoritative' : 'inferred from the beat\'s reader signals (no reconciler frame yet)') + '">' + (ov.auth ? 'authoritative' : 'inferred') + '</span>' + (ov.why ? ' <span class="thd-dim">· ' + esc(String(ov.why)) + '</span>' : ''))
       + (ov.verdict ? _erDetailRow('⚖ verdict (Master Brain)', '<b>' + ov.verdict + '</b>') : '')
