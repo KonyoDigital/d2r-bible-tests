@@ -3635,6 +3635,8 @@
       + regretSec + decisionSec + montSec + missSec + findsSec + fpSec + storySec
       + '<div class="dsr-actions">'
         + '<button type="button" class="dsr-pin' + (_sesPinned(sm.sessionId) ? ' on' : '') + '" onclick="window._dossierTogglePin()">' + (_sesPinned(sm.sessionId) ? '★ Pinned' : '☆ Pin this run') + '</button>'
+        + '<button type="button" class="dsr-pin" id="dsr-copy" onclick="window._dossierCopyRecap()">📋 Copy recap</button>'
+        + '<button type="button" class="dsr-pin" id="dsr-save" onclick="window._dossierSaveRecap()">⬇ .txt</button>'
         + '<button type="button" class="dsr-open" onclick="window._dossierToTheatre()">▶ Open in Theatre</button></div>'
       + '</div>';
   }
@@ -3681,6 +3683,79 @@
     if (typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n);   // re-render the dossier toggle
     try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch(e){}   // reflow the shelf so the pin floats
   };
+  // ══ D27 · RECAP EXPORT — a clean, honest text recap of a run (title/name · when · area · stats · verdict ·
+  // finds · beats), copied to the clipboard or saved as a .txt. Only real data; absent fields are omitted. ══
+  function _recapBeats(sm){
+    var sr = sm.sceneReads || {}, b = [];
+    if ((sr.transition | 0) > 0) b.push('entered');
+    if ((sr.loot | 0) > 0 || (sr.gameplay | 0) > 0) b.push('farmed');
+    if ((sr.town | 0) > 0) b.push('town');
+    if ((sm.tallies | 0) > 0) b.push(sm.tallies + ' tallied');
+    var g = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
+    if (g > 0) b.push(g + ' grail' + (g > 1 ? 's' : ''));
+    var k = (sm.finds || []).filter(function(f){ return f.tier !== 'grail'; }).length;
+    if (k > 0) b.push(k + ' keep' + (k > 1 ? 's' : ''));
+    if ((sm.regrets | 0) > 0) b.push(sm.regrets + ' regret' + (sm.regrets > 1 ? 's' : ''));
+    b.push(sm.watchdogViolations > 0 ? 'flagged' : (sm.kaiMissed != null ? 'sealed' : 'unsealed'));
+    return b.join(' → ');
+  }
+  function _dossierRecapText(sm){
+    var n = sm.n || 1, nt = _sesNoteGet(sm.sessionId) || {}, L = [];
+    var d0 = sm.t0 ? new Date(sm.t0) : null;
+    var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
+    var dur = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '—';
+    L.push('TV DIABLO — Session Recap');
+    L.push('─────────────────────────');
+    L.push(nt.name ? (nt.name + '  (Session ' + n + ')') : ('Session ' + n));
+    if (nt.note) L.push('Note: ' + nt.note);
+    L.push((d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—') + '  ·  ran ' + dur);
+    if ((sm.areas || []).length) L.push('Area: ' + sm.areas.join(' · '));
+    L.push('');
+    var reg = (sm.registered != null) ? sm.registered : ((sm.finds || []).length);
+    var st = [];
+    if (sm.reads != null) st.push('Reads ' + sm.reads.toLocaleString());
+    if (sm.frames != null) st.push('Frames ' + sm.frames.toLocaleString());
+    if (sm.named != null) st.push('Named ' + sm.named);
+    st.push('Found ' + reg);
+    L.push(st.join(' · '));
+    if (sm.coverage && sm.coverage.total){ var pct = Math.round((sm.coverage.read || 0) / sm.coverage.total * 100);
+      L.push('Coverage ' + pct + '% (' + (sm.coverage.read || 0).toLocaleString() + ' / ' + sm.coverage.total.toLocaleString() + ' frames read)'); }
+    L.push('Verdict: ' + (sm.watchdogViolations > 0 ? ('🚨 ' + sm.watchdogViolations + ' flagged') : (sm.kaiMissed != null ? '🛡 clean run' : '◌ unsealed')));
+    var grails = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).map(function(f){ return f.name || 'grail'; });
+    var keeps = (sm.finds || []).filter(function(f){ return f.tier !== 'grail'; }).map(function(f){ return f.name; }).filter(Boolean);
+    if (grails.length){ L.push(''); L.push('🏆 Grails (' + grails.length + '): ' + grails.join(', ')); }
+    if (keeps.length){ if (!grails.length) L.push(''); L.push('💎 Keeps (' + keeps.length + '): ' + keeps.join(', ')); }
+    var beats = _recapBeats(sm);
+    if (beats){ L.push(''); L.push('Beats: ' + beats); }
+    L.push('');
+    L.push('— tvdiablo' + (sm.sessionId ? ' · ' + String(sm.sessionId).slice(0, 24) : ''));
+    return L.join('\n');
+  }
+  function _recapFlash(id, msg){ var b = document.getElementById(id); if (!b) return; var o = b.getAttribute('data-lab') || b.textContent;
+    b.setAttribute('data-lab', o); b.textContent = msg; clearTimeout(b.__t); b.__t = setTimeout(function(){ b.textContent = o; }, 1600); }
+  function _recapCopyFallback(txt, ok){
+    try { var ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; ta.style.top = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select(); var done = document.execCommand('copy'); document.body.removeChild(ta); ok(done); }
+    catch(e){ ok(false); }
+  }
+  window._dossierCopyRecap = function(){
+    if (!DOSSIER.sm) return; var txt = _dossierRecapText(DOSSIER.sm);
+    var ok = function(good){ _recapFlash('dsr-copy', good ? '✓ Copied to clipboard' : '⚠ Press ⌘C to copy'); };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ ok(true); }, function(){ _recapCopyFallback(txt, ok); });
+          else _recapCopyFallback(txt, ok); }
+    catch(e){ _recapCopyFallback(txt, ok); }
+  };
+  window._dossierSaveRecap = function(){
+    if (!DOSSIER.sm) return; var txt = _dossierRecapText(DOSSIER.sm);
+    var base = (_sesNoteGet(DOSSIER.sm.sessionId) || {}).name || ('session-' + (DOSSIER.sm.n || 1));
+    var fname = 'tvdiablo-' + base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') + '.txt';
+    try {
+      var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' }), url = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 120);
+      _recapFlash('dsr-save', '✓ Saved ' + fname);
+    } catch(e){ _recapFlash('dsr-save', '⚠ Save failed'); }
+  };
   function _sessionDossier(n){
     var ov = document.getElementById('th-dossier-ov'); if (!ov) return;
     var list = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length) ? TH.sessions
@@ -3690,7 +3765,7 @@
     for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n){ sm = list[i]; break; } }
     if (!sm){ ov.hidden = true; return; }
     var freshOpen = ov.hidden || DOSSIER.n !== n;   // D20 — only count up on a real open, not the 12s poll re-render
-    DOSSIER.n = n; DOSSIER.sid = sm.sessionId || '';   // D25 — stable key for notes/naming
+    DOSSIER.n = n; DOSSIER.sid = sm.sessionId || ''; DOSSIER.sm = sm;   // D25 — stable key for notes/naming · D27 — recap source
     ov.innerHTML = _dossierHtml(sm);
     ov.hidden = false; ov.scrollTop = 0;
     if (freshOpen){

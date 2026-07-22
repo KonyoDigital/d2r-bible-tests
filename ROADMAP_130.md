@@ -59,7 +59,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [ ] v1322 · B5 TOWN vs FARMING distinction (safe vs drops)
 - [ ] v1323 · B6 scene keyword-chips polish (live)
 - [ ] v1324 · B7 retro scene-sync polish (per-frame)
-- [ ] v1325 · B8 session scene fingerprint ("62% farming · 3 portals · 2 town")
+- [x] v1325 · B8 session scene fingerprint **(landed v1327)** — `_session_scene_fingerprint` via B4 labels → {farmingPct, townTrips, portals, topArea, areas}. Honest (None when thin; farmingPct=of-reads not wall-time). 27/107 real, 8/8 tests. [g3 next: expose native on live /api/status + field-contract doc; sessions-visual surfaces B4/B8 labels]
 - [ ] v1326 · B9 item-read Diablo precision (exact rarity + name; "inspecting <item>")
 - [ ] v1327 · B10 Diablo-language accuracy pass + edge states (honest "unclear")
 
