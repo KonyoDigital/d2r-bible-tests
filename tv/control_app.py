@@ -5931,7 +5931,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1298",
+        "ver": "v1299",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7550,6 +7550,31 @@ class Handler(BaseHTTPRequestHandler):
                                           "tag": _tag,
                                           "actions": [str(a)[:24] for a in (_app_acts or [])[:8]]}},
                        "note": _note[:100]}
+                # ══ GROK ADD-ON (G4) — touchpoint 2: borderline Item-Checker keep/toss (REMOVABLE) ══
+                # Cheap second-opinion ONLY on a keep/toss that landed in the narrow band around
+                # the score cutoff (keep barely cleared 14, or toss barely under 7 — the calls a
+                # single point would flip). Confident keeps/tosses, border, and grail skip Grok.
+                # OFF/un-keyed → _g4_verify returns None → zero calls, `rec` byte-identical. A Grok
+                # DISAGREEMENT attaches a review FLAG (judge['g4']); it NEVER changes the tier — it
+                # surfaces at the v1303 "🟣 Grok caught this" queue. Delete this block to remove it.
+                try:
+                    _g4s = int((body.get("verdict") or {}).get("score") or 0)
+                    _g4_border = (_tier == "keep" and 14 <= _g4s <= 16) or (_tier == "toss" and 5 <= _g4s <= 6)
+                    if _g4_border:
+                        _g4v = _g4_verify({"kind": "checker-keep-toss", "item": _vname,
+                                           "proposed": _tier, "confidence": _g4s,
+                                           "detail": {"base": str(body.get("base") or "")[:40],
+                                                      "q": str(body.get("q") or "")[:12],
+                                                      "score": _g4s,
+                                                      "why": str(body.get("why") or "")[:120]}})
+                        if _g4v is not None and _g4v.get("ok") and _g4v.get("agree") is False:
+                            rec["kai"]["judge"]["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
+                                                         "note": _g4v.get("note"), "ts": _g4v.get("ts"),
+                                                         "source": "grok"}
+                            print(f"🟣 G4 keep/toss re-check flagged: {_vname} ({_tier} score {_g4s})", flush=True)
+                except Exception as _g4e:
+                    print(f"⚠ G4 keep/toss touchpoint failed (ignored): {_g4e}", flush=True)
+                # ══ END GROK ADD-ON (G4) ══
                 with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 self._json(200, {"ok": True})
