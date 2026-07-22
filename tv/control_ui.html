@@ -1821,6 +1821,62 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; }
   }
+
+  /* ══ v1230 (GHOST MODE r1) — THE CONSOLE TIME MACHINE ══════════════════════════════════════════════
+     A pure add-on: the switch lives on the shell; ON adds body.ghost-on (recede/dim the console — CSS only,
+     nothing inline on the console) + shows the #ghost-mode overlay. OFF drops the class + hides the overlay
+     = ZERO trace. The Engine Room is untouched. ══ */
+  .ghost-switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-right: 10px;
+    font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #b9a6d8;
+    background: rgba(120,90,200,.12); border: 1px solid rgba(160,130,255,.35); border-radius: 8px; padding: 7px 11px;
+    transition: color .15s, border-color .15s, background .15s, box-shadow .15s; }
+  .ghost-switch:hover { color: #e0d4ff; border-color: rgba(160,130,255,.7); background: rgba(120,90,200,.22); box-shadow: 0 0 14px rgba(160,130,255,.25); }
+  .ghost-switch:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(160,130,255,.6); }
+  .ghost-switch.on { color: #1a1030; background: #c9a8ff; border-color: #c9a8ff; box-shadow: 0 0 16px rgba(201,168,255,.4); }
+  .ghost-switch .gs-ic { font-size: var(--fs-sm); }
+  @media (max-width: 900px){ .ghost-switch .gs-lab { display: none; } }
+
+  /* the console recedes into the past — EVERY line here is scoped to body.ghost-on, so dropping the class
+     leaves ZERO residue on the console (verified: computed transform/filter return to none when off). */
+  body.ghost-on .shell { transform: perspective(1700px) scale(.9); transform-origin: 50% 40%;
+    filter: grayscale(.72) brightness(.5) contrast(.96); transition: transform .55s cubic-bezier(.2,.7,.2,1), filter .55s; }
+  body.ghost-on #tvd-eng { filter: grayscale(.72) brightness(.5); transition: filter .55s; }
+  body:not(.ghost-on) .shell { transition: transform .4s ease, filter .4s ease; }
+
+  #ghost-mode { position: fixed; inset: 0; z-index: 960; display: flex; flex-direction: column;
+    background: radial-gradient(120% 90% at 50% 28%, rgba(24,20,46,.30), rgba(6,6,14,.66) 58%, rgba(2,2,6,.84));
+    animation: gmFade .5s ease-out; }
+  #ghost-mode[hidden] { display: none; }
+  @keyframes gmFade { from { opacity: 0; } to { opacity: 1; } }
+  .gm-stars { position: absolute; inset: 0; pointer-events: none; opacity: .55;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20% 30%, rgba(200,180,255,.8), transparent),
+      radial-gradient(1px 1px at 70% 62%, rgba(180,200,255,.6), transparent),
+      radial-gradient(1px 1px at 40% 82%, rgba(220,200,255,.5), transparent),
+      radial-gradient(1.5px 1.5px at 85% 18%, rgba(200,190,255,.6), transparent),
+      radial-gradient(1px 1px at 55% 45%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1px 1px at 12% 72%, rgba(190,180,255,.5), transparent),
+      radial-gradient(1px 1px at 92% 78%, rgba(200,200,255,.45), transparent);
+    background-size: 340px 340px, 280px 280px, 420px 420px, 300px 300px, 360px 360px, 260px 260px, 380px 380px; }
+  .gm-top { position: relative; z-index: 2; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; padding: 20px 28px; }
+  .gm-title { font: 800 var(--fs-lg)/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: #d8c8ff; text-shadow: 0 0 26px rgba(160,130,255,.5); }
+  .gm-title .gm-ic { margin-right: 6px; }
+  .gm-sub { font: 600 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .06em; color: #9a90c0; }
+  .gm-exit { margin-left: auto; cursor: pointer; font: 700 var(--fs-xs)/1 var(--mono); letter-spacing: .06em; color: #d8c8ff;
+    background: rgba(120,90,200,.2); border: 1px solid rgba(160,130,255,.5); border-radius: 8px; padding: 9px 14px; transition: background .15s, border-color .15s, box-shadow .15s; }
+  .gm-exit:hover { background: rgba(160,130,255,.34); border-color: #c9a8ff; box-shadow: 0 0 16px rgba(160,130,255,.3); }
+  .gm-exit:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(200,168,255,.7); }
+  .gm-scrubwrap { position: relative; z-index: 2; margin-top: auto; padding: 20px clamp(24px,4vw,60px) 34px; }
+  .gm-scrub-lab { display: flex; justify-content: space-between; font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #9a90c0; margin-bottom: 11px; }
+  .gm-scrub { position: relative; height: 48px; border-radius: 11px; border: 1px solid rgba(160,130,255,.3);
+    background: linear-gradient(180deg, rgba(30,24,54,.5), rgba(10,8,22,.5)); box-shadow: inset 0 0 30px rgba(120,90,200,.14); }
+  .gm-scrub-track { position: absolute; inset: 0; }
+  .gm-tick { position: absolute; top: 9px; bottom: 9px; width: 2px; margin-left: -1px; background: rgba(180,150,255,.4); border-radius: 1px; }
+  .gm-scrub-head { position: absolute; top: -7px; bottom: -7px; left: 100%; width: 3px; margin-left: -3px; background: #c9a8ff;
+    box-shadow: 0 0 14px rgba(201,168,255,.95); border-radius: 2px; }
+  .gm-scrub-cap { position: absolute; top: -23px; right: 0; white-space: nowrap; font: 800 var(--fs-2xs)/1 var(--mono);
+    letter-spacing: .06em; color: #1a1030; background: #c9a8ff; padding: 3px 8px; border-radius: 999px; }
+  .gm-scrub-note { margin-top: 11px; font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .04em; color: #7a729c; text-align: center; }
 </style>
 </head>
 <body data-state="off">
@@ -1841,6 +1897,9 @@
         </nav>
       </div>
       <div class="head-right">
+        <!-- v1230 (GHOST MODE r1) — the console's DEBUGGER SWITCH: flip ON → the whole console ghost-shells
+             into the past (a pure add-on overlay; OFF removes it with zero trace). -->
+        <button class="ghost-switch" id="ghost-switch" type="button" onclick="window._ghostToggle()" title="GHOST MODE — the console time machine (debug)"><span class="gs-ic">👻</span><span class="gs-lab">GHOST&nbsp;MODE</span></button>
         <div class="clock"><span id="clock-t">--:--:--</span><span class="d" id="clock-d">—</span></div>
         <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
       </div>
@@ -6531,6 +6590,59 @@
     var ob = document.getElementById('er-onboard'); if (ob) ob.hidden = true;
   };
   window._engineRoomClose = function(){ ER.open = false; ER.detailOpen = false; var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; };
+  // ══ v1230 (GHOST MODE r1) — THE CONSOLE TIME MACHINE ════════════════════════════════════════════
+  // A PURE ADD-ON overlay: flip the 👻 switch → the whole console recedes/dims into "the past" behind a
+  // starfield + a Time Machine scrubber. Flip OFF → the overlay is hidden and body.ghost-on is dropped =
+  // ZERO trace, the live console exactly as it was. Round 1 = the switch + the ghost-shell container; the
+  // drag-to-rewind wiring lands in later rounds (truthful — no fabricated past state yet).
+  var GHOST = { on: false };
+  function _ghostEl(){
+    var ov = document.getElementById('ghost-mode'); if (ov) return ov;
+    ov = document.createElement('div'); ov.id = 'ghost-mode'; ov.hidden = true;
+    ov.innerHTML = '<div class="gm-stars" aria-hidden="true"></div>'
+      + '<div class="gm-top"><span class="gm-title"><span class="gm-ic">👻</span> GHOST MODE</span>'
+        + '<span class="gm-sub">the console time machine · you are viewing the past</span>'
+        + '<button class="gm-exit" id="gm-exit" onclick="window._ghostToggle()" title="back to live (Esc)">✕ back to live</button></div>'
+      + '<div class="gm-scrubwrap"><div class="gm-scrub-lab"><span>◀ the past</span><span>now ▶</span></div>'
+        + '<div class="gm-scrub" id="gm-scrub"><div class="gm-scrub-track" id="gm-scrub-track"></div>'
+          + '<div class="gm-scrub-head" id="gm-scrub-head"><div class="gm-scrub-cap">NOW · live</div></div></div>'
+        + '<div class="gm-scrub-note">round 1 — the ghost-shell · drag-to-rewind lands next</div></div>';
+    ov.onclick = function(e){ if (e.target === ov || (e.target.classList && e.target.classList.contains('gm-stars'))) window._ghostToggle(); };
+    document.body.appendChild(ov);
+    return ov;
+  }
+  window._ghostToggle = function(){
+    try {
+      GHOST.on = !GHOST.on;
+      var sw = document.getElementById('ghost-switch');
+      if (GHOST.on){
+        var ov = _ghostEl(); ov.hidden = false;
+        document.body.classList.add('ghost-on');          // recede/dim the console — a CSS-only effect, reverted on off
+        if (sw) sw.classList.add('on');
+        try { _ghostScrubInit(); } catch (e) { console.error('[GhostMode] scrub', e); }
+      } else {
+        document.body.classList.remove('ghost-on');        // ZERO trace: class dropped, overlay hidden, console restored
+        var ov2 = document.getElementById('ghost-mode'); if (ov2) ov2.hidden = true;
+        if (sw) sw.classList.remove('on');
+      }
+    } catch (e) { console.error('[GhostMode] toggle', e); }
+  };
+  // round 1: the scrubber shows the REAL recorded time span (session t0s → now) as ticks — truthful, no fake
+  // state; the head parks at NOW. Dragging it to rewind is a later round.
+  function _ghostScrubInit(){
+    var track = document.getElementById('gm-scrub-track'); if (!track || track.__loaded) return;
+    fetch(API + '/api/sessions').then(function(r){ return r.json(); }).then(function(j){
+      var s = ((j && j.sessions) || []).filter(function(x){ return x.t0; }).sort(function(a, b){ return a.t0 - b.t0; });
+      if (!s.length) return;
+      var t0 = s[0].t0, t1 = Date.now(), span = Math.max(1, t1 - t0);
+      track.innerHTML = s.map(function(r){
+        var left = (r.t0 - t0) / span * 100;
+        return '<span class="gm-tick" style="left:' + left.toFixed(2) + '%" title="reel ' + (r.n || '?') + ' · ' + (r.t0 ? new Date(r.t0).toLocaleString() : '?') + '"></span>';
+      }).join('');
+      track.__loaded = true;
+    }).catch(function(){});
+  }
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && GHOST.on){ e.stopPropagation(); window._ghostToggle(); } }, true);
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
   // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
   function _tlyCount(){
