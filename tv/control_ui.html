@@ -1843,12 +1843,12 @@
   body.ghost-on #tvd-eng { filter: grayscale(.72) brightness(.5); transition: filter .55s; }
   body:not(.ghost-on) .shell { transition: transform .4s ease, filter .4s ease; }
 
-  #ghost-mode { position: fixed; inset: 0; z-index: 960; display: flex; flex-direction: column;
-    background: radial-gradient(120% 90% at 50% 28%, rgba(24,20,46,.30), rgba(6,6,14,.66) 58%, rgba(2,2,6,.84));
-    animation: gmFade .5s ease-out; }
-  #ghost-mode[hidden] { display: none; }
-  @keyframes gmFade { from { opacity: 0; } to { opacity: 1; } }
-  .gm-stars { position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  /* the ONE debugger opens INSIDE the ghost-shell: in ghost mode the Engine Room backdrop goes translucent
+     + gains a starfield, so the RECEDED live console shows behind it — "you left the live console, you're in
+     the debugger, viewing the past." Scoped to body.ghost-on, so the Engine Room's normal look is untouched
+     and dropping the class restores everything (zero trace). */
+  body.ghost-on #engine-room { background: radial-gradient(120% 90% at 50% 26%, rgba(20,18,40,.46), rgba(6,6,14,.74) 60%, rgba(2,2,6,.86)); }
+  body.ghost-on #engine-room::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5; z-index: 0;
     background-image:
       radial-gradient(1.5px 1.5px at 20% 30%, rgba(200,180,255,.8), transparent),
       radial-gradient(1px 1px at 70% 62%, rgba(180,200,255,.6), transparent),
@@ -1858,25 +1858,8 @@
       radial-gradient(1px 1px at 12% 72%, rgba(190,180,255,.5), transparent),
       radial-gradient(1px 1px at 92% 78%, rgba(200,200,255,.45), transparent);
     background-size: 340px 340px, 280px 280px, 420px 420px, 300px 300px, 360px 360px, 260px 260px, 380px 380px; }
-  .gm-top { position: relative; z-index: 2; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; padding: 20px 28px; }
-  .gm-title { font: 800 var(--fs-lg)/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: #d8c8ff; text-shadow: 0 0 26px rgba(160,130,255,.5); }
-  .gm-title .gm-ic { margin-right: 6px; }
-  .gm-sub { font: 600 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .06em; color: #9a90c0; }
-  .gm-exit { margin-left: auto; cursor: pointer; font: 700 var(--fs-xs)/1 var(--mono); letter-spacing: .06em; color: #d8c8ff;
-    background: rgba(120,90,200,.2); border: 1px solid rgba(160,130,255,.5); border-radius: 8px; padding: 9px 14px; transition: background .15s, border-color .15s, box-shadow .15s; }
-  .gm-exit:hover { background: rgba(160,130,255,.34); border-color: #c9a8ff; box-shadow: 0 0 16px rgba(160,130,255,.3); }
-  .gm-exit:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(200,168,255,.7); }
-  .gm-scrubwrap { position: relative; z-index: 2; margin-top: auto; padding: 20px clamp(24px,4vw,60px) 34px; }
-  .gm-scrub-lab { display: flex; justify-content: space-between; font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #9a90c0; margin-bottom: 11px; }
-  .gm-scrub { position: relative; height: 48px; border-radius: 11px; border: 1px solid rgba(160,130,255,.3);
-    background: linear-gradient(180deg, rgba(30,24,54,.5), rgba(10,8,22,.5)); box-shadow: inset 0 0 30px rgba(120,90,200,.14); }
-  .gm-scrub-track { position: absolute; inset: 0; }
-  .gm-tick { position: absolute; top: 9px; bottom: 9px; width: 2px; margin-left: -1px; background: rgba(180,150,255,.4); border-radius: 1px; }
-  .gm-scrub-head { position: absolute; top: -7px; bottom: -7px; left: 100%; width: 3px; margin-left: -3px; background: #c9a8ff;
-    box-shadow: 0 0 14px rgba(201,168,255,.95); border-radius: 2px; }
-  .gm-scrub-cap { position: absolute; top: -23px; right: 0; white-space: nowrap; font: 800 var(--fs-2xs)/1 var(--mono);
-    letter-spacing: .06em; color: #1a1030; background: #c9a8ff; padding: 3px 8px; border-radius: 999px; }
-  .gm-scrub-note { margin-top: 11px; font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .04em; color: #7a729c; text-align: center; }
+  body.ghost-on #engine-room .er-panel { position: relative; z-index: 1; }   /* the debugger sits above the starfield */
+  body.ghost-on #engine-room .er-title { color: #d8c8ff; text-shadow: 0 0 22px rgba(160,130,255,.45); }
 </style>
 </head>
 <body data-state="off">
@@ -2062,8 +2045,8 @@
         </details>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
         <button class="act b-sim" id="btn-sim" type="button"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
-        <!-- v950 (ENGINE_ARCH §THE ENGINE ROOM) — the Master Brain's cockpit: live + retro, one screen -->
-        <button class="act b-engine" id="btn-engine-room" type="button" onclick="window._engineRoomOpen()"><span class="ic">🧠</span><span class="lab"><b>Engine Room</b><span>the cockpit · every engine's state, live + retro, time-synced</span></span></button>
+        <!-- v1230 (GHOST MODE r1 · unified) — the Engine Room rail button is REMOVED: the debugger now lives
+             behind the ONE 👻 GHOST MODE switch on the shell (no duplicate debug affordance on the live console). -->
       </div>
       <div class="signal">
         <!-- v931 (Konyo: 'we have 3 eyes — put all 3 colored eyes/brains there') — the panel
@@ -6041,9 +6024,9 @@
     ov = document.createElement('div');
     ov.id = 'engine-room'; ov.hidden = true;
     ov.innerHTML = '<div class="er-panel">'
-      + '<div class="er-head"><span class="er-title">🧠🖥 ENGINE ROOM</span>'
-      + '<span class="er-sub">the Master Brain\'s cockpit · live + retro, time-synced · observes, never drives</span>'
-      + '<button class="er-x th-x" id="er-x" onclick="window._engineRoomClose()" title="close (Esc)">✕</button></div>'
+      + '<div class="er-head"><span class="er-title">👻 GHOST MODE</span>'
+      + '<span class="er-sub">the debugger · you are viewing the past · live + retro, time-synced · observes, never drives</span>'
+      + '<button class="er-x th-x" id="er-x" onclick="window._engineRoomClose()" title="back to live (Esc)">✕ back to live</button></div>'
       // v1226 (Engine Room r17) — ONBOARDING: a one-time first-open orientation (the retro half hides
       // behind a drag gesture a newcomer would never guess). Dismiss remembers via localStorage.
       + '<div class="er-onboard" id="er-onboard" hidden>'
@@ -6589,60 +6572,25 @@
     try { localStorage.setItem('tvd_er_onboarded', '1'); } catch (e) {}
     var ob = document.getElementById('er-onboard'); if (ob) ob.hidden = true;
   };
-  window._engineRoomClose = function(){ ER.open = false; ER.detailOpen = false; var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; };
-  // ══ v1230 (GHOST MODE r1) — THE CONSOLE TIME MACHINE ════════════════════════════════════════════
-  // A PURE ADD-ON overlay: flip the 👻 switch → the whole console recedes/dims into "the past" behind a
-  // starfield + a Time Machine scrubber. Flip OFF → the overlay is hidden and body.ghost-on is dropped =
-  // ZERO trace, the live console exactly as it was. Round 1 = the switch + the ghost-shell container; the
-  // drag-to-rewind wiring lands in later rounds (truthful — no fabricated past state yet).
-  var GHOST = { on: false };
-  function _ghostEl(){
-    var ov = document.getElementById('ghost-mode'); if (ov) return ov;
-    ov = document.createElement('div'); ov.id = 'ghost-mode'; ov.hidden = true;
-    ov.innerHTML = '<div class="gm-stars" aria-hidden="true"></div>'
-      + '<div class="gm-top"><span class="gm-title"><span class="gm-ic">👻</span> GHOST MODE</span>'
-        + '<span class="gm-sub">the console time machine · you are viewing the past</span>'
-        + '<button class="gm-exit" id="gm-exit" onclick="window._ghostToggle()" title="back to live (Esc)">✕ back to live</button></div>'
-      + '<div class="gm-scrubwrap"><div class="gm-scrub-lab"><span>◀ the past</span><span>now ▶</span></div>'
-        + '<div class="gm-scrub" id="gm-scrub"><div class="gm-scrub-track" id="gm-scrub-track"></div>'
-          + '<div class="gm-scrub-head" id="gm-scrub-head"><div class="gm-scrub-cap">NOW · live</div></div></div>'
-        + '<div class="gm-scrub-note">round 1 — the ghost-shell · drag-to-rewind lands next</div></div>';
-    ov.onclick = function(e){ if (e.target === ov || (e.target.classList && e.target.classList.contains('gm-stars'))) window._ghostToggle(); };
-    document.body.appendChild(ov);
-    return ov;
-  }
+  var GHOST = { on: false };   // v1230 (GHOST MODE) — the one debugger switch's state
+  window._engineRoomClose = function(){ ER.open = false; ER.detailOpen = false; var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true;
+    // v1230 (GHOST MODE r1 · unified) — leaving the debugger also leaves ghost mode: drop the console recede
+    // + the switch state so EVERY exit path (Esc · ✕ · the switch) restores the clean live console (zero trace).
+    document.body.classList.remove('ghost-on'); GHOST.on = false; var sw = document.getElementById('ghost-switch'); if (sw) sw.classList.remove('on'); };
+  // ══ v1230 (GHOST MODE r1 · UNIFIED) — THE ONE DEBUGGER SWITCH ═══════════════════════════════════════
+  // Konyo simplified: ONE switch, ONE debugger. 👻 GHOST MODE is the console's single debugger entry — flip it
+  // and the live console ghost-shells into "the past" (body.ghost-on recede/dim) while the debugger (the Engine
+  // Room's whole 20-round toolset, reframed) opens on top. No separate debug button on the live console. Flip
+  // OFF → recede dropped + debugger closed = ZERO trace, the clean live console exactly as it was. Pure add-on.
   window._ghostToggle = function(){
     try {
-      GHOST.on = !GHOST.on;
-      var sw = document.getElementById('ghost-switch');
-      if (GHOST.on){
-        var ov = _ghostEl(); ov.hidden = false;
-        document.body.classList.add('ghost-on');          // recede/dim the console — a CSS-only effect, reverted on off
-        if (sw) sw.classList.add('on');
-        try { _ghostScrubInit(); } catch (e) { console.error('[GhostMode] scrub', e); }
-      } else {
-        document.body.classList.remove('ghost-on');        // ZERO trace: class dropped, overlay hidden, console restored
-        var ov2 = document.getElementById('ghost-mode'); if (ov2) ov2.hidden = true;
-        if (sw) sw.classList.remove('on');
-      }
+      if (GHOST.on){ window._engineRoomClose(); return; }   // _engineRoomClose drops ghost-on + switch state
+      GHOST.on = true;
+      document.body.classList.add('ghost-on');              // the live console recedes into the past (CSS-only, reverted on close)
+      var sw = document.getElementById('ghost-switch'); if (sw) sw.classList.add('on');
+      window._engineRoomOpen();                             // enter the debugger
     } catch (e) { console.error('[GhostMode] toggle', e); }
   };
-  // round 1: the scrubber shows the REAL recorded time span (session t0s → now) as ticks — truthful, no fake
-  // state; the head parks at NOW. Dragging it to rewind is a later round.
-  function _ghostScrubInit(){
-    var track = document.getElementById('gm-scrub-track'); if (!track || track.__loaded) return;
-    fetch(API + '/api/sessions').then(function(r){ return r.json(); }).then(function(j){
-      var s = ((j && j.sessions) || []).filter(function(x){ return x.t0; }).sort(function(a, b){ return a.t0 - b.t0; });
-      if (!s.length) return;
-      var t0 = s[0].t0, t1 = Date.now(), span = Math.max(1, t1 - t0);
-      track.innerHTML = s.map(function(r){
-        var left = (r.t0 - t0) / span * 100;
-        return '<span class="gm-tick" style="left:' + left.toFixed(2) + '%" title="reel ' + (r.n || '?') + ' · ' + (r.t0 ? new Date(r.t0).toLocaleString() : '?') + '"></span>';
-      }).join('');
-      track.__loaded = true;
-    }).catch(function(){});
-  }
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && GHOST.on){ e.stopPropagation(); window._ghostToggle(); } }, true);
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
   // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
   function _tlyCount(){
