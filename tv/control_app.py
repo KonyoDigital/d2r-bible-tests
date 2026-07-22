@@ -5125,6 +5125,35 @@ def _kai_closer_loop():
                         report["register"] = _register
                     except Exception as _rce:
                         print(f"⚠ KAI register compile failed: {_rce}", flush=True)
+                    # ══ GROK ADD-ON (G4) — touchpoint 1: uncertain chronicle auto-route (REMOVABLE) ══
+                    # Cheap second-opinion on ONLY the borderline register entries (tier=='border'
+                    # = the low-confidence tier — the uncertain auto-routes, never the confident
+                    # grail/keep reads). OFF/un-keyed → _g4_verify returns None → zero calls and the
+                    # register is byte-identical to today. A Grok DISAGREEMENT attaches a review FLAG
+                    # (entry['g4']); it NEVER overrides the deterministic tier — the flag surfaces at
+                    # the v1303 "🟣 Grok caught this" review queue. Delete this block to remove it.
+                    try:
+                        _g4n = 0
+                        for _ge in (_register or []):
+                            if _g4n >= 10:
+                                break                      # never bulk — cap per seal (border is already rare)
+                            if (_ge.get("tier") or "") != "border":
+                                continue
+                            _g4v = _g4_verify({"kind": "chronicle-route", "item": _ge.get("name"),
+                                               "proposed": "border", "confidence": _ge.get("tier"),
+                                               "detail": {"loc": _ge.get("loc"), "frameId": _ge.get("frameId")}})
+                            if _g4v is None:
+                                continue                   # OFF / no key / over budget → nothing changes
+                            _g4n += 1
+                            if _g4v.get("ok") and _g4v.get("agree") is False:
+                                _ge["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
+                                             "note": _g4v.get("note"), "ts": _g4v.get("ts"), "source": "grok"}
+                        if _g4n:
+                            print(f"🟣 G4 chronicle re-check: {_g4n} border entr" +
+                                  ("y" if _g4n == 1 else "ies") + " verified", flush=True)
+                    except Exception as _g4e:
+                        print(f"⚠ G4 chronicle touchpoint failed (ignored): {_g4e}", flush=True)
+                    # ══ END GROK ADD-ON (G4) ══
                     # v946 — CHRONICLE INBOX propose (review gate; never silent grail write)
                     try:
                         if w2 is not None and _register and os.environ.get("TV_CHRONICLE_PROPOSE", "1") != "0":
@@ -5902,7 +5931,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1296",
+        "ver": "v1297",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

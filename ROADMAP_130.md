@@ -80,7 +80,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 
 ## PHASE G · 🔒 THE VISUAL LOCK ARC (Konyo's standing order — 20 rounds) — v1341–1360
 After the feature build, HALT feature depth and lock the visual side before going deeper toward v2000. Typography + structure + hardcode + lock, across the WHOLE app (console + bible + all tabs).
-- [~] v1341–1345 · TYPOGRAPHY — finalize ONE type scale/hierarchy across every surface (console + bible + all tabs); consistent weights/sizes/spacing; every surface obeys it. **BROUGHT FORWARD (Konyo's flagship-look emphasis):** [x] v1293 — console weights ALL tokenized onto --fw-* (0 residual) + dead override removed; [ ] letter-spacing/line-height token-set completion (next); [ ] bible-side + cross-app pass still Phase-G-proper.
+- [~] v1341–1345 · TYPOGRAPHY — finalize ONE type scale/hierarchy across every surface. **BROUGHT FORWARD (Konyo's flagship-look emphasis) — CONSOLE SIDE COMPLETE:** [x] v1293 console weights → --fw-* (0 residual) + dead override removed; [x] v1296 console letter-spacing + line-height → 7 --ls-* + 6 --lh-* roles (254 folds, annotated one-offs). Console type system fully single-sourced. [ ] bible.html-side + cross-app pass still Phase-G-proper.
 - [ ] v1346–1351 · STRUCTURE — lock the layout/IA of every screen (home · Sessions · Forge · F·Uniques · F·Sets · Tools/Vault); consistent regions/gutters/chrome family
 - [ ] v1352–1357 · HARDCODE + LOCK — freeze design tokens (colors/type/spacing/rarity+scene palettes/chrome) into one locked source of truth; invariant tests so the system can't drift; document it
 - [ ] v1358–1360 · the stable visual base sealed; feature work resumes on a frozen foundation
