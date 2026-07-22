@@ -1403,6 +1403,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .aic-bk{display:flex;justify-content:space-between;gap:10px;font-size:var(--fs-meta);font-family:ui-monospace,monospace;color:var(--text-dim)}
 .aic-bk .w{color:#9fd4ff;font-weight:700;white-space:nowrap}
 .aic-acts{display:flex;gap:10px;margin-top:2px}
+/* v1309 (E1c) — Kept vs Tossed comparison */
+.aicc-wrap{margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.aicc-title{font-size:13px;font-weight:700;color:var(--text)}
+.aicc-title .aicc-sub{font-size:11px;color:var(--text-dim);font-weight:400}
+.aicc-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+@media(max-width:560px){.aicc-cols{grid-template-columns:1fr}}
+.aicc-col{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.aicc-h{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.aicc-h .aicc-n{background:var(--surface-3);border-radius:5px;padding:0 6px;font-size:11px;color:var(--text-dim)}
+.aicc-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04)}
+.aicc-row:first-of-type{border-top:none}
+.aicc-name{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:90px}
+.aicc-v{font-size:11px;font-weight:700;white-space:nowrap}
+.aicc-v .aicc-s{color:var(--text-dim);font-weight:400}
+.aicc-2x{font-size:10px;font-weight:700}
+.aicc-why{flex-basis:100%;font-size:10.5px;color:var(--text-dim);font-style:italic}
+.aicc-empty{font-size:11px;color:var(--text-dim);padding:4px 0}
+.aicc-clear{margin-top:8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 9px;cursor:pointer;font-family:inherit}
 .aic-btn{flex:1;padding:10px;border-radius:9px;font-weight:800;font-size:var(--fs-body);cursor:pointer;border:1px solid;transition:.12s}
 .aic-btn.mule{border-color:rgba(127,212,255,.6);background:rgba(127,212,255,.12);color:#9fd4ff}
 .aic-btn.toss{border-color:rgba(255,90,90,.5);background:rgba(255,90,90,.1);color:#ff7a7a}
@@ -14756,6 +14774,44 @@ function _aicReconcile(prev, cur){
   return rec;
 }
 try { window._aicReconcile=_aicReconcile; } catch(e){}   // exposed for tests
+// v1309 (E1c — THROWN WITH STATS) — a tossed item used to vanish. Log it WITH the checker's read
+// (name · verdict · score · why · stats) so the vault can show muled-with-stats vs thrown-out
+// side by side. TRUTHFUL: only the checker's own computed verdict; a bare clear (empty draft) logs
+// nothing. Newest-first, capped. Backward-compatible (absent log → empty comparison).
+function _aicThrownGet(){ try { var a=JSON.parse(LS.getItem('d2r_aicThrownLog')||'[]'); return Array.isArray(a)?a:[]; } catch(e){ return []; } }
+function _aicThrownAdd(entry){ try { var a=_aicThrownGet(); a.unshift(entry); if(a.length>50) a=a.slice(0,50); LS.setItem('d2r_aicThrownLog', JSON.stringify(a)); } catch(e){} }
+function _aicThrownClear(){ try { LS.removeItem('d2r_aicThrownLog'); } catch(e){} if(typeof _aicRenderCompare==='function') _aicRenderCompare(); }
+try { window._aicThrownGet=_aicThrownGet; window._aicThrownAdd=_aicThrownAdd; window._aicThrownClear=_aicThrownClear; } catch(e){}
+// The 📊 Kept-vs-Tossed comparison: kept = checker-verified mules (magicFinds w/ _mfChecker); tossed
+// = the thrown log. Read-only review — nothing here changes any item.
+function _aicRenderCompare(){
+  var el=document.getElementById('aic-compare'); if(!el) return;
+  var esc=(typeof _d2artEsc==='function')?_d2artEsc:function(s){ return String(s==null?'':s); };
+  var vlbl=function(vt){ return vt==='keep'?'✅ KEEP':vt==='border'?'⚖ BORDER':vt==='toss'?'🗑 TOSS':'—'; };
+  var vcol=function(vt){ return vt==='keep'?'#66ff88':vt==='border'?'#f0c060':vt==='toss'?'#ff7a7a':'var(--text-dim)'; };
+  // kept, checker-verified
+  var kept=[];
+  try { Object.keys(magicFinds||{}).forEach(function(nm){ var c=(typeof _mfChecker==='function')?_mfChecker(nm):null; if(c) kept.push({name:nm, verdict:c.verdict, score:c.score, checks:c.checks, agree:c.agree, at:c.checkedAt}); }); } catch(e){}
+  kept.sort(function(a,b){ return (b.at||0)-(a.at||0); });
+  var thrown=_aicThrownGet();
+  if(!kept.length && !thrown.length){ el.innerHTML=''; return; }
+  var col=function(title, items, isThrown){
+    var rows=items.slice(0,8).map(function(x){
+      var extra = isThrown
+        ? (x.why?'<div class="aicc-why">'+esc(x.why)+'</div>':'')
+        : ((x.checks>1)?'<span class="aicc-2x" style="color:'+(x.agree?'#66ff88':'#f0c060')+'">'+(x.agree?'✓✓ '+x.checks+'×':'⚖ '+x.checks+'× unclear')+'</span>':'');
+      return '<div class="aicc-row"><span class="aicc-name">'+esc(x.name)+'</span>'
+        + '<span class="aicc-v" style="color:'+vcol(x.verdict)+'">'+vlbl(x.verdict)+(x.score!=null?' <span class="aicc-s">'+x.score+'</span>':'')+'</span>'
+        + (isThrown?extra:extra)+'</div>';
+    }).join('') || '<div class="aicc-empty">none yet</div>';
+    return '<div class="aicc-col"><div class="aicc-h">'+title+' <span class="aicc-n">'+items.length+'</span></div>'+rows+'</div>';
+  };
+  el.innerHTML = '<div class="aicc-wrap"><div class="aicc-title">📊 Kept vs Tossed <span class="aicc-sub">— your AI-Checker decisions, with the stats it read</span></div>'
+    + '<div class="aicc-cols">'+col('🏦 Muled (kept)', kept, false)+col('🗑 Tossed', thrown, true)+'</div>'
+    + (thrown.length?'<button class="aicc-clear" onclick="window._aicThrownClear&&window._aicThrownClear()">clear tossed log</button>':'')
+    + '</div>';
+}
+try { window._aicRenderCompare=_aicRenderCompare; } catch(e){}
 // rolled-name magic/rare items have no UNIQUE art — in-game they're the BASE sprite. Map base → a sprite
 // we self-host (charms + jewels + the elite bases); null falls back to a quality-coloured glyph.
 // Pass the base type OR the full rolled name — the rolled name usually ENDS with its base
@@ -29365,8 +29421,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +   '<div class="aic-panel"><h4>Affixes</h4>'+affixRows+'<button class="aic-add" onclick="window.aicAddAffix()">+ add affix</button></div>'
       + '</div>'
       + '<div id="aic-verdict"></div>'
-      + '<div class="aic-acts"><button class="aic-btn mule" onclick="window.aicMule()">🏦 Mule it (keep)</button><button class="aic-btn toss" onclick="window.aicToss()">🗑 Cancel out (toss)</button></div>';
+      + '<div class="aic-acts"><button class="aic-btn mule" onclick="window.aicMule()">🏦 Mule it (keep)</button><button class="aic-btn toss" onclick="window.aicToss()">🗑 Cancel out (toss)</button></div>'
+      + '<div id="aic-compare"></div>';
     _aicRenderVerdict();
+    try { if (typeof _aicRenderCompare==='function') _aicRenderCompare(); } catch(e){}
     try { var dz=document.getElementById('aic-drop');
       if(dz){ dz.ondragover=function(e){ e.preventDefault(); dz.classList.add('drag'); }; dz.ondragleave=function(){ dz.classList.remove('drag'); };
         dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove('drag'); var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) window.aicUpload(f); }; } } catch(e){}
@@ -29376,7 +29434,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.aicSetAffix = function(i,v){ if(!_aicItem.mods) _aicItem.mods=[]; _aicItem.mods[i]=v; _aicSave(); _aicRenderVerdict(); };
   window.aicAddAffix = function(){ if(!_aicItem.mods) _aicItem.mods=[]; _aicItem.mods.push(''); _aicSave(); renderAIItemChecker(); };
   window.aicDelAffix = function(i){ if(_aicItem.mods) _aicItem.mods.splice(i,1); _aicSave(); renderAIItemChecker(); };
-  window.aicToss = function(){ _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker(); status('🗑 cleared — not kept'); };
+  window.aicToss = function(){
+    // v1309 (E1c) — log the tossed item WITH its checker read (unless the draft is empty = a bare clear)
+    try {
+      var it=_aicItem||{}; var base=String(it.base||'').trim();
+      var hasMods=(it.mods||[]).some(function(m){ return String(m).trim(); });
+      if (base || hasMods){
+        var nm=String(it.name||'').trim() || ((it.q==='rare'?'Rare ':it.q==='crafted'?'Crafted ':'Magic ')+(base||'Item'));
+        var _av=null; try{ _av=_aicVerdict(it); }catch(e){}
+        var _why=(_av&&_av.breakdown&&_av.breakdown.length)?_av.breakdown.map(function(b){return b.label;}).join(', '):'no valuable affixes';
+        if (typeof _aicThrownAdd==='function') _aicThrownAdd({ name:nm, base:base, q:it.q||'magic',
+          mods:(it.mods||[]).map(function(m){return String(m).trim();}).filter(Boolean),
+          verdict:(_av&&_av.tier)||null, score:(_av&&typeof _av.score==='number')?_av.score:null,
+          why:_why, ts:Date.now() });
+        status('🗑 '+nm+' tossed — logged with stats (see 📊 Kept vs Tossed)');
+      } else { status('🗑 cleared — not kept'); }
+    } catch(e){ status('🗑 cleared'); }
+    _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker();
+  };
   window._aicSetDraft = function(o){ _aicItem = o || { name:'', base:'', q:'rare', mods:[] }; _aicSave(); };   // exposed for tests
   window._aicGetDraft = function(){ return _aicItem; };
   window.aicMule = function(){
@@ -35000,7 +35075,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1307', name:'🏦 E1b Vault - Funnel-2x Accuracy Reconcile (2x confirmed / honest disputed)', date:'2026-07-23', note:'🏦 E1b vault - check an item twice for a surer read. You asked to be able to funnel an item through the AI Item Checker a couple of times for accuracy, and now you can. If you mule an item that the checker has already read once, the second read is reconciled with the first rather than replacing it. If both reads agree, the vault marks it as twice-confirmed. If the two reads disagree on keep-or-toss, it says so honestly and keeps both verdicts for you rather than picking one. And if the two reads see slightly different stats, the stats that both reads saw are treated as confident while any stat seen in only one read is shown as disputed rather than quietly dropped, so nothing is lost or invented. Checking once still works exactly as before; the reconcile only kicks in when you run the same item again. bible.html only.' };
+  window.D2R_BUILD = { id:'v1308', name:'🏦 E1c Vault - Thrown-with-stats Comparison (Kept vs Tossed, side by side)', date:'2026-07-23', note:'🏦 E1c vault - see what you kept versus what you tossed. This finishes the vault stats picture you asked for. Now when you toss an item in the AI Item Checker it is not simply discarded - it is remembered along with what the checker read: its verdict, its score, the stats it had and why it was tossed. And the checker card gains a kept-versus-tossed panel that lays your muled keepers, each with its stats and its two-times-confirmed or unclear badge, right next to the items you threw out with their reasons, so you can see both sides at a glance. It is read-only and changes nothing; it just gives you the honest record of what was worth keeping and what was not. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

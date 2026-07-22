@@ -63,7 +63,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [ ] v1327 · B10 Diablo-language accuracy pass + edge states (honest "unclear")
 
 ## PHASE E · VAULT + E1 FOLLOW-UPS — v1328–1332
-- [ ] v1328 · E1b funnel-2× accuracy reconcile (check an item twice before attaching stats)
+- [x] v1328 · E1b funnel-2× accuracy reconcile **(landed v1307)** — 2nd checker read reconciles: agree→"✓✓ 2× confirmed", verdict-differ→honest "⚖ unclear", stat-differ→disputed (never dropped). 7/7 tests. [in flight: E1c thrown-with-stats]
 - [ ] v1329 · E1c thrown-with-stats comparison log (muled-with-stats vs thrown, side by side)
 - [ ] v1330 · Vault Integrity Checker deepening (more classes; the G3/checker/vault unification)
 - [ ] v1331 · Vault manager full pass (stats + mule + capacity + ladder)
