@@ -11,6 +11,8 @@ North star: v2000 = Level 2 rename/rebrand. This 100 gets us to ~v1369.
 4. v1273 · G2 MISSION BRIEF deepened — best boss + area + MF/players + route for the tasked target
 5. v1274 · G2 session-tasking — task you DURING live runs (what to hit next), synced to the brief
 6. v1275 · D3 History as a board region + first-run/empty states + shelf/transport z-index fix [UI]
+6b. (immediate) GHOST MODE RETIRED — broken + redundant with Sessions; removed cleanly (Konyo-approved). Header slot freed. [UI]
+6c. GRAIL JOURNEY SALVAGED → rebuilt in the SESSIONS tab (the cool scrubber: drag across months, watch grail climb from d2r_foundLog). The one piece kept from GHOST MODE, re-homed where it belongs. [UI]
 7. v1276 · G3 unified ROUTING BRAIN — map every read item-type → its correct tracker (one system) [engine]
 8. v1277 · G3 RETRO sweep: sunder charms — back-fill the 6 sunders from all recorded sessions
 9. v1278 · G3 RETRO sweep: runes / gems / materials trackers from read history
@@ -87,7 +89,7 @@ North star: v2000 = Level 2 rename/rebrand. This 100 gets us to ~v1369.
 70. v1339 · F3 Agent Mind glow-up (per-thought icon + rarity + landing anim)
 71. v1340 · F5 intake hero card ("📸 RUNES +14")
 72. v1341 · F6 live INTEREST gauge (money-moment needle) [engine+UI]
-73. v1342 · F1 GHOST MODE tasteful fidelity (opt, calm)
+73. v1342 · (freed — GHOST MODE retired; slot reused for a Sessions/console polish item)
 74. v1343 · driver dispatch mini-flow (seen→queued→fired animation)
 75. v1344 · mindStory as default mind view
 76. v1345 · "now reading" in-flight frame thumbnail [engine+UI]
