@@ -49,7 +49,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1315 · D24 live-session preview card **(landed v1322)** — on-air "● REC · recording now" card atop the shelf (elapsed · reads · scene chip · phase · newest find), in-place paint, hidden off-air, honest. [in flight: D25 notes/naming]
 - [x] v1316 · D25 session notes/naming **(landed v1323)** — inline name+note editor, stable-sessionId keyed, "SESSION N" eyebrow kept, overrides shelf card + feeds search, poll-guarded. [in flight: D26 pin/favorite]
 - [x] 🔒 **VISUAL-LOCK invariant TEST (v1323→v1324)** — `visual_lock_invariant.py` asserts 0 raw weights + --fw tokens on BOTH surfaces (fails file:line). Caught 3 console stragglers (v1323) THEN the `font:` SHORTHAND blind spot (v1324: 2 more console + 13 bible that the font-weight:-only scan missed) — folded all, widened the test to catch both `font-weight:NNN` AND `font:NNN`, proven green + catches injection. `LOCKED_TYPE_SYSTEM.md`. **Whole-app WEIGHT type system FULLY LOCKED + drift-tested (both syntaxes).** The test found what two "100%" human passes missed — truth standard working. (ls/lh + pre-push wiring = Konyo's morning calls.)
-- [ ] v1317 · D26 pin / favorite sessions
+- [x] v1317 · D26 pin/favorite sessions **(landed v1326)** — ⭐ toggle (card+dossier), pinned-first within any sort, "📌 Pinned" group + gold accent, ⭐ filter chip, sessionId-keyed. [in flight: D27 recap export; QUEUED: surface B4 native Diablo-labels]
 - [ ] v1318 · D27 recap export polish (+items +coverage)
 - [ ] v1319 · D28 grail-progress-this-session (Chronicle tie-in)
 - [ ] v1320 · D29 since-last-session deltas · D30 cover-art = best find · D31 Sessions cohesion pass

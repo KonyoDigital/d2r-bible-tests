@@ -3736,6 +3736,48 @@ def _diablo_scene_label(scene, area):
     return {"kind": "unclear", "area": None, "label": "unclear"}
 
 
+def _session_scene_fingerprint(sess_rows):
+    """v1326 B8 — a truthful per-session SCENE FINGERPRINT from the deep reads' (scene, area),
+    classified through _diablo_scene_label. Real counts ONLY; None when the session read no
+    scene/area (honest-absent, like coverage/classFrames). Feeds the shelf/dossier line
+    "62% farming · 3 town trips · 2 portals · mostly Dark Wood". Pure, no I/O."""
+    kinds, seen_areas, farm_area = [], [], {}
+    for r in sess_rows or []:
+        if r.get("lane") != "deep":
+            continue
+        sc = str(r.get("scene") or "").strip().lower()
+        ar = str(r.get("area") or "").strip()
+        if not (sc or ar):
+            continue
+        kind = _diablo_scene_label(sc, ar)["kind"]
+        kinds.append(kind)
+        if ar and ar not in seen_areas:
+            seen_areas.append(ar)
+        if ar and kind == "farming":
+            farm_area[ar] = farm_area.get(ar, 0) + 1
+    if not kinds:
+        return None
+    farming = kinds.count("farming")
+    town = kinds.count("town")
+    portals = kinds.count("entering")
+    # town TRIPS = distinct town visits = maximal runs of town-kind reads (a town read
+    # following a non-town read opens a new trip). Approx but honest (reads, not wall-time).
+    trips, prev = 0, None
+    for k in kinds:
+        if k == "town" and prev != "town":
+            trips += 1
+        prev = k
+    denom = farming + town   # world-time reads (menus/unclear excluded from the %)
+    return {
+        "farmingReads": farming, "townReads": town, "portals": portals,
+        "townTrips": trips,
+        "farmingPct": (round(100 * farming / denom) if denom else None),
+        "topArea": (max(farm_area, key=farm_area.get) if farm_area else None),
+        "areas": seen_areas[:8],
+        "sceneReads": len(kinds),
+    }
+
+
 def _kai_reconcile(routing, register, sess_rows):
     """THE reconciler — pure, no I/O, no threads. For each routing row (one per scanned
     frame) decides the OWNER — which layer's read is the ACCEPTED truth for that
@@ -5974,7 +6016,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1326",
+        "ver": "v1327",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6735,6 +6777,7 @@ class Handler(BaseHTTPRequestHandler):
                                 _seal_ms = _dlt
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
                             "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
+                            "sceneFingerprint": _session_scene_fingerprint(sess),   # v1326 B8 — farming%/townTrips/portals/topArea (Diablo-native, honest)
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
                             "finds": _finds, "topFind": _topFind,   # v1254 R1 — 📖 what KAI witnessed this session
                             "coverage": _coverage, "classFrames": (_class_frames or None),   # v1276 (D5 engine) — decision-story meter + montage
