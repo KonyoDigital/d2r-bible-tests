@@ -4082,8 +4082,24 @@ def _kai_closer_loop():
                         except Exception as _fe:
                             print(f"⚠ KAI funnel fire failed ({t3}): {_fe}", flush=True)
                             continue
+                        # v1201 — CLOCK-SKEW class (same sweep as engine-capture v1199 /
+                        # engine-read v1200): this 120s bounded wait used ONE wall-clock
+                        # anchor (`_t0f`) for BOTH the pacing deadline (`time.time() - _t0f`)
+                        # AND the journal cutoff (`completedTs >= _t0f*1000`, line below). The
+                        # journal cutoff MUST stay wall-clock (completedTs is a persisted
+                        # wall-clock timestamp — comparing it against anything else would be
+                        # wrong). But a pacing deadline built on the SAME wall clock means a
+                        # backward NTP/sleep-wake jump mid-wait makes `time.time() - _t0f` go
+                        # negative, so the loop keeps polling until REAL wall time claws back
+                        # past the original 120s window PLUS the jump size — a multi-minute
+                        # stall of the closer's ENTIRE post-seal pass (this loop is serial;
+                        # everything after it — other tabs' gap-funnels, judge ping-pong,
+                        # kai_report — waits behind it). Split the two: `_t0f` stays wall-clock
+                        # for the journal comparison; `_t0f_mono` (monotonic, immune to clock
+                        # jumps) drives the deadline.
                         _t0f = time.time()
-                        while time.time() - _t0f < 120.0:
+                        _t0f_mono = time.monotonic()
+                        while time.monotonic() - _t0f_mono < 120.0:
                             time.sleep(6.0)
                             try:
                                 if any(r3.get("lane") == "intake" and (r3.get("intake") or {}).get("kind") == "kai-funnel"
@@ -4244,9 +4260,15 @@ def _kai_closer_loop():
                                     continue
                                 # bounded wait for the verdict to journal — a real vision read;
                                 # never blocks forever (mirrors the funnel receipt-wait shape).
+                                # v1201 — CLOCK-SKEW class (same sweep as v1199/v1200): `_t0w`
+                                # is used ONLY for this pacing deadline (the journal comparison
+                                # a few lines below uses `_t0s`, a separate wall-clock anchor
+                                # captured before the fire — untouched, must stay wall-clock).
+                                # A clean swap to monotonic: immune to a backward NTP/sleep-wake
+                                # jump turning this bounded 40s wait into a multi-minute stall.
                                 _landed = None
-                                _t0w = time.time()
-                                while time.time() - _t0w < 40.0:
+                                _t0w = time.monotonic()
+                                while time.monotonic() - _t0w < 40.0:
                                     time.sleep(5.0)
                                     try:
                                         for _rw in reversed(_kai_journal_rows()[-80:]):
@@ -5074,7 +5096,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1200",
+        "ver": "v1201",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -1354,6 +1354,44 @@ class TestTabBestTotalSessionScoping(unittest.TestCase):
         self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
 
 
+class TestCloserLoopClockSkewImmunity(unittest.TestCase):
+    """v1201 — CLOCK-SKEW class swept from engine-capture (v1199) / engine-read (v1200): a
+    backward NTP/sleep-wake clock jump breaks any wait-loop built purely on time.time()
+    deltas, turning a bounded wait into a multi-minute stall. `_kai_closer_loop` has two
+    receipt-wait loops shaped exactly like that (funnel fire ~120s, super-analyze fire ~40s)
+    — and since this loop is serial, a stalled wait delays the ENTIRE post-seal pass behind
+    it (other tabs' gap-funnels, judge ping-pong, kai_report write). Structural pin (the
+    loops run inside a live background thread inside a huge function — not independently
+    callable): pins that pacing now uses time.monotonic() while the wall-clock anchors used
+    for journal `completedTs` comparisons (a persisted wall-clock field) correctly stay on
+    time.time(), the same split engine-read's own sweep drew."""
+
+    def test_funnel_wait_deadline_uses_monotonic(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn("_t0f_mono = time.monotonic()", src)
+        self.assertIn("while time.monotonic() - _t0f_mono < 120.0:", src)
+
+    def test_funnel_wait_journal_cutoff_stays_wall_clock(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        # completedTs is a persisted wall-clock timestamp — the cutoff compared against it
+        # must NOT switch to monotonic, only the pacing deadline above it does.
+        self.assertIn('int(r3.get("completedTs") or 0) >= int(_t0f * 1000)', src)
+
+    def test_super_analyze_wait_deadline_uses_monotonic(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn("_t0w = time.monotonic()", src)
+        self.assertIn("while time.monotonic() - _t0w < 40.0:", src)
+
+    def test_super_analyze_journal_cutoff_still_uses_separate_wall_clock_anchor(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn("_t0s = int(time.time() * 1000)", src)
+        self.assertIn('int(_rw.get("completedTs") or 0) >= _t0s', src)
+
+
 class TestFunnelRoutedRequiresOk(unittest.TestCase):
     """v1197 — `_kai_build_routing`'s `funnel_by_fid` used to mark a frame `routed` on ANY
     kind:'kai-funnel' journal receipt, success or not. But kind:'kai-funnel' receipts CAN be
