@@ -1864,6 +1864,71 @@ class TestKaiCompileRegisterBestTierWins(unittest.TestCase):
         self.assertEqual(reg[0]["frameId"], "earlier")
 
 
+class TestKaiGrailTooltipGrounding(unittest.TestCase):
+    """FIX C (F3, 2026-07-22 retro-vs-photos audit) — two fully-legible GRAIL tooltips in a
+    real session (Enigma Archon Plate 'JahIthBer', Harlequin Crest Shako) were reduced to OCR
+    garble and left UNNAMED in missed[] instead of register[]. Root cause: OCR leet-mangled the
+    NAME line ('H4RLEQVIN CR'), so _kai_itemish's isalpha() tokenizer threw the name token away
+    before it could ground. _kai_ground_lines de-leets and matches a distinctive signature token
+    against the real item lexicon — so a garbled grail gets its REAL name — while staying honest
+    (only names a frame that shows tooltip context AND carries a distinctive item word)."""
+
+    def test_leet_garbled_harlequin_grounds_to_real_name(self):
+        # the actual OCR of the real Harlequin frame f_1784736434248 (4→A, U→V, plus stats).
+        got = ca._kai_ground_lines(["H4RLEQVIN CR", "5wAK", "KtPVlRED STRQNGTH.. 50",
+                                    "t54 ON CHARACTER L", "eF GEtTINt MAGIC"])
+        self.assertIn("Harlequin Crest", got)
+
+    def test_hand_garbled_variants_ground(self):
+        # 'Harleouin Crest' / 'Eniqma' style single-substitution garble the audit called out.
+        self.assertIn("Harlequin Crest",
+                      ca._kai_ground_lines(["Harleouin Crest", "Required Strength 50"]))
+        self.assertIn("Enigma",
+                      ca._kai_ground_lines(["Eniqma", "Archon Plate", "Required Strength 103"]))
+
+    def test_clean_enigma_title_grounds(self):
+        got = ca._kai_ground_lines(["Enigma", "Archon Plate", "'JahIthBer'",
+                                    "Required Strength 103"])
+        self.assertIn("Enigma", got)
+
+    def test_genuine_non_name_stat_lines_stay_unnamed(self):
+        # no hallucination: pure stat/flavor text never mints an item name.
+        self.assertEqual(ca._kai_ground_lines(
+            ["Required Strength 103", "+69 to Strength",
+             "75% Better Chance of Getting Magic Items", "Socketed (3)"]), {})
+
+    def test_gameplay_narrative_produces_no_name(self):
+        # runeword words appear in gameplay narrative (Chaos SANCTUARY area) — must NOT ground:
+        # gameplay lacks item-tooltip context, so the grounder stays silent.
+        self.assertEqual(ca._kai_ground_lines(
+            ["Entering the Chaos Sanctuary", "You have slain Baal"]), {})
+        self.assertEqual(ca._kai_ground_lines(
+            ["Welcome to level 90", "Words of Wisdom echo"]), {})
+
+    def test_enigma_realframe_ocr_that_missed_the_title_stays_honest(self):
+        # the REAL Enigma frame f_1784736415366: roi-fast never captured the gold title lines,
+        # so there is no name token to recover — the grounder must NOT invent one.
+        self.assertEqual(ca._kai_ground_lines(
+            ["0-&f 60", "t4GTH.. 1O3", "REQ", "*IS% EHHANcED DEFENSE..",
+             ".69 T• STRENGTH", "IHrREA5E mAxrmvnr"]), {})
+
+    def test_grounded_names_reach_the_register(self):
+        # a journaled kai row carrying kai.grounded lands its real name in the register;
+        # a plain garbled miss (kai.texts, no grounding) does NOT.
+        rows = [
+            {"lane": "kai", "ts": 1000, "frameId": "reel_x/f1",
+             "kai": {"grounded": ["Harlequin Crest"]}},
+            {"lane": "kai", "ts": 1100, "frameId": "reel_x/f2",
+             "kai": {"grounded": ["Enigma"]}},
+            {"lane": "kai", "ts": 1200, "frameId": "reel_x/f3",
+             "kai": {"texts": ["eF GEtTINt MAGIC"]}},
+        ]
+        names = {r["name"] for r in ca._kai_compile_register(rows)}
+        self.assertIn("Harlequin Crest", names)
+        self.assertIn("Enigma", names)
+        self.assertNotIn("eF GEtTINt MAGIC", names)
+
+
 import stash_eye as se  # noqa: E402
 
 

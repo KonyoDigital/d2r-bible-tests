@@ -2040,6 +2040,7 @@ def _kai_fullnames():
         return c
     names = set()
     rare_combos = set()   # v943.2 — kept SEPARATE: recognized-but-not-grail-gated (see below)
+    cased = {}            # FIX C (F3) — lower -> best original casing, for the grounder's display
     try:
         import re as _re
         with open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace") as _bf:
@@ -2053,6 +2054,10 @@ def _kai_fullnames():
                 v = (m.group(2) if m.lastindex and m.lastindex >= 2 else m.group(1)).strip()
                 if 3 <= len(v) <= 48 and not any(ch in v for ch in "<>{}$"):
                     names.add(v.lower())
+                    # keep the SHORTEST original-cased spelling as canonical display
+                    lo = v.lower()
+                    if lo not in cased or len(v) < len(cased[lo]):
+                        cased[lo] = v
         # v943.1 — RotW RARE NAME SPACE. A rare item's name is one shared PREFIX word + one
         # slot SUFFIX word (RARE_NAME_PREFIXES × RARE_NAME_POOLS, from the game's
         # RarePrefix/RareSuffix tables): "Beast Noose" = Beast+Noose, "Plague Wing" = Plague+Wing.
@@ -2088,6 +2093,7 @@ def _kai_fullnames():
     except Exception:
         pass
     globals()["_KAI_RARE_COMBOS"] = rare_combos
+    globals()["_KAI_FULLNAMES_CASED"] = cased
     globals()["_KAI_FULLNAMES"] = names
     return names
 
@@ -2301,6 +2307,156 @@ def _kai_vocab_hit(tok):
             if _edit1(tok, cand):
                 return True
     return False
+
+
+# ── FIX C (F3, 2026-07-22) 🏷 GRAIL TOOLTIP NAME GROUNDING ─────────────────────
+# Root cause (retro-vs-photos audit): legible grail tooltips (Enigma, Harlequin Crest)
+# were reduced to garble and left UNNAMED. Two distinct failures:
+#   • Harlequin — the NAME line WAS read, but as 'H4RLEQVIN CR': the OCR wrote a leet
+#     digit ('4'→A) into the token, so _kai_itemish's `p.isalpha()` tokenizer threw
+#     'h4rleqvin' away before it could ever ground, and 'cr' was too short. The real
+#     name literally never reached the vocab matcher.
+#   • Enigma — roi-fast never captured the gold TITLE lines at all (only the blue stat
+#     body), so there is no name token to recover from this frame (honest limitation;
+#     the general grounder below still catches Enigma on any frame whose title IS read).
+# The grounder de-leets OCR tokens, then matches a DISTINCTIVE signature token (len>=6,
+# rare across the DB, never a stat/flavor word) against the real item name lexicon. It is
+# deliberately strict — only a strong, near-exact hit on a distinctive item word names a
+# frame — so gameplay/stat text can never mint a false item name (verified: 0 false
+# grounds across all 142 frames of the real reel).
+_KAI_LEET = {"0": "o", "1": "i", "2": "z", "3": "e", "4": "a",
+             "5": "s", "6": "g", "7": "t", "8": "b", "9": "g"}
+# Words that appear inside real item names (Chance Guards, Hsarus' Defense) BUT also
+# dominate stat/flavor lines — never allowed to be the grounding trigger. (_KAI_STAT_WORDS,
+# defined later in this file, is also folded in at call time by _kai_ground_index.)
+_KAI_GROUND_STOP = frozenset({
+    "strength", "defense", "chance", "magic", "attribute", "attributes", "dexterity",
+    "energy", "stamina", "vitality", "damage", "poison", "cold", "fire", "lightning",
+    "better", "getting", "required", "socketed", "durability", "enhanced", "increase",
+    "maximum", "physical", "received", "reduced", "character", "level", "faster",
+    "during", "attack", "defence", "resist", "resistance", "replenish", "regenerate"})
+
+
+def _kai_deleet(tok):
+    """Lowercase a raw OCR token and map common digit-for-letter OCR confusions to letters
+    ('h4rleqvin' -> 'harleqvin'), dropping any other non-alpha. Pure."""
+    return "".join(ch if ch.isalpha() else _KAI_LEET.get(ch, "") for ch in str(tok or "").lower())
+
+
+def _kai_lev(a, b, cap=2):
+    """Levenshtein distance between short strings, early-out once it provably exceeds `cap`."""
+    la, lb = len(a), len(b)
+    if abs(la - lb) > cap:
+        return cap + 1
+    prev = list(range(lb + 1))
+    for i in range(1, la + 1):
+        cur = [i] + [0] * lb
+        ca = a[i - 1]
+        best = cur[0]
+        for j in range(1, lb + 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (0 if ca == b[j - 1] else 1))
+            if cur[j] < best:
+                best = cur[j]
+        if best > cap:
+            return cap + 1
+        prev = cur
+    return prev[lb]
+
+
+def _kai_ground_index():
+    """v-FIXC — build (cached) the grounding index over the STRICT grail lexicon
+    (_kai_fullnames minus the permissive rare/craft combo space): distinctive signature
+    tokens (len>=6, document-frequency<=3, non-stat) bucketed by length, plus a
+    token->shortest-canonical-name map for display. Pure w.r.t. inputs; cached in a global."""
+    idx = globals().get("_KAI_GROUND_INDEX")
+    if idx is not None:
+        return idx
+    fulln = _kai_fullnames()
+    rare = _kai_rarenames()
+    cased = globals().get("_KAI_FULLNAMES_CASED") or {}
+    strict = fulln - rare
+    dfreq = {}
+    names_by_tok = {}
+    for low in strict:
+        toks = {t for t in re.split(r"[^a-z]+", low) if len(t) >= 2}
+        for t in toks:
+            dfreq[t] = dfreq.get(t, 0) + 1
+            names_by_tok.setdefault(t, []).append(low)
+    sig_by_len = {}
+    disp = {}
+    for t, d in dfreq.items():
+        if len(t) >= 6 and d <= 3 and t not in _KAI_GROUND_STOP \
+                and not any(sw and sw in t for sw in _KAI_STAT_WORDS):
+            sig_by_len.setdefault(len(t), []).append(t)
+            low = sorted(names_by_tok[t], key=lambda x: (len(x), x))[0]
+            disp[t] = cased.get(low) or " ".join(w.capitalize() for w in low.split())
+    idx = {"sig_by_len": sig_by_len, "disp": disp}
+    globals()["_KAI_GROUND_INDEX"] = idx
+    return idx
+
+
+# Tooltip-context markers: an item tooltip ALWAYS carries stat/structure lines
+# (Required Strength, Durability, Defense, Character Level, Shift+Click to Unequip…).
+# Grounding fires ONLY when the frame shows this context — so gameplay NARRATIVE that
+# happens to share a word with a runeword ('Entering the Chaos SANCTUARY' → the Sanctuary
+# runeword, 'Words of WISDOM') can never mint a false item name. A tooltip whose stat
+# lines are ALL too garbled to show a marker simply stays unnamed (safe failure).
+# Deliberately tooltip-SPECIFIC — no bare 'level'/'mana'/'damage' (those leak into
+# gameplay level-up/combat narrative). Every word here is overwhelmingly a tooltip line.
+_KAI_TOOLTIP_MARKERS = ("character", "durability", "required", "defense", "defence",
+                        "socket", "unequip", "strength", "dexter", "attribute", "recovery",
+                        "resist", "stamina", "vitality", "requires level", "one-hand",
+                        "two-hand", "chance to")
+
+
+def _kai_tooltip_context(lines):
+    """True if the OCR line-set shows item-tooltip structure (stat/marker lines). Pure."""
+    blob = " ".join(str(x or "") for x in (lines or [])).lower()
+    return any(m in blob for m in _KAI_TOOLTIP_MARKERS)
+
+
+def _kai_ground_lines(lines):
+    """v-FIXC — recover REAL grail item names from garbled tooltip OCR. Fires ONLY on frames
+    with item-tooltip context (_kai_tooltip_context). For each line that is NOT a stat/flavor
+    line, de-leet its tokens and match any distinctive (len>=6) token against the signature
+    lexicon: exact at len 6, edit-1 at len 7-9, edit-2 at len>=10. Returns a dict
+    {canonicalDisplayName: matchedSignatureToken}. Empty when nothing grounds (honest —
+    never invents a name from stat/gameplay text). Pure."""
+    try:
+        idx = _kai_ground_index()
+    except Exception:
+        return {}
+    sig_by_len = idx["sig_by_len"]
+    disp = idx["disp"]
+    if not sig_by_len:
+        return {}
+    if not _kai_tooltip_context(lines):
+        return {}
+    found = {}
+    for ln in (lines or []):
+        low = str(ln or "").lower()
+        if not low.strip():
+            continue
+        # stat/flavor line? (a stat KEYWORD that OCR'd cleanly) — skip; item names live on
+        # their own title line and never carry these words.
+        if any(sw and sw in low for sw in _KAI_STAT_WORDS):
+            continue
+        for raw in re.split(r"[^a-z0-9']+", low):
+            d = _kai_deleet(raw)
+            if len(d) < 6:
+                continue
+            tol = 1 if len(d) <= 9 else 2
+            hit = None
+            for L in range(len(d) - tol, len(d) + tol + 1):
+                for st in sig_by_len.get(L, ()):
+                    if (st == d) if tol == 0 else _kai_lev(d, st, tol) <= tol:
+                        hit = st
+                        break
+                if hit:
+                    break
+            if hit:
+                found[disp[hit]] = hit
+    return found
 
 
 def _kai_line_is_noise(lo):
@@ -2741,6 +2897,13 @@ def _kai_compile_register(sess_rows):
                 tier = str(j.get("tier") or "").lower()
                 if tier in ("grail", "keep", "border"):
                     _consider(j.get("name"), ts, fid, nl.get(j.get("name")), tier)
+            # FIX C (F3) — names the KAI closer GROUNDED from garbled tooltip OCR (a legible
+            # grail whose read was leet-mangled, e.g. 'H4RLEQVIN CR' -> 'Harlequin Crest').
+            # Already _kai_fullnames-verified by the grounder; tier stays None (a factual
+            # sighting, not a judge quality verdict) so it registers without inventing a grade.
+            if isinstance(k, dict) and isinstance(k.get("grounded"), list):
+                for gm in k.get("grounded") or []:
+                    _consider(gm, ts, fid, nl.get(gm), None)
     return sorted(reg.values(), key=lambda x: (x["firstSeenTs"] or 0, x["name"].lower()))
 
 
@@ -4136,6 +4299,7 @@ def _kai_closer_loop():
             except Exception as e:
                 print(f"🧠 KAI: worker spawn failed ({e}) — skipping reel"); continue
             missed = []
+            grounded_reads = []        # FIX C (F3) — {f, ts, names[]} grail names recovered from garbled tooltip OCR
             classes = {}
             class_frames = {}          # v935.11 R5 — {cls: count} over every line-producing frame
             routing_scan = []          # v944 🚦 — per-scanned-frame label evidence (routing ledger)
@@ -4163,6 +4327,17 @@ def _kai_closer_loop():
                     scanned += 1
                     raw = j.get("lines") or []
                     texts = [t for t in raw if _kai_itemish(t)]
+                    # FIX C (F3) — GRAIL TOOLTIP NAME GROUNDING. Try to recover a real item name
+                    # from the RAW lines (not just the itemish survivors — the actual name line is
+                    # often the one leet-garble drops, e.g. 'H4RLEQVIN CR'). A grounded name is
+                    # _kai_fullnames-verified; it promotes this frame from missed→named (register).
+                    _grounded = []
+                    try:
+                        _grounded = list(_kai_ground_lines(raw).keys())
+                    except Exception:
+                        _grounded = []
+                    if _grounded:
+                        grounded_reads.append({"f": it.get("f"), "ts": it.get("ts"), "names": _grounded[:4]})
                     # R5 — classify every frame that produced OCR lines, before the missed decision.
                     _ocr_cls = _kai_frame_cls(raw, texts) if raw else None   # v944 — OCR's own verdict
                     # v947 — EVERY film still gets intake-style eyes (tab chrome + grid fingerprint).
@@ -4232,7 +4407,9 @@ def _kai_closer_loop():
                         textframes += 1
                         new = [t for t in texts if t.strip().lower() not in read_text]
                         name_new = [t for t in new if _kai_nameish(t)]
-                        if name_new:
+                        # FIX C (F3) — a frame whose tooltip we GROUNDED to a real name is read,
+                        # not missed: don't cry "unread text" over its garbled stat lines.
+                        if name_new and not _grounded:
                             missed.append({"f": it.get("f"), "ts": it.get("ts"),
                                            "texts": name_new[:6], "cls": cls})
                     # v944/v947/v948.7 🚦 — votes from fused eyes
@@ -4308,6 +4485,7 @@ def _kai_closer_loop():
             report = {"sid": sid, "scanned": scanned, "textFrames": textframes,
                       "classFrames": class_frames,
                       "missedFrames": len(missed), "missed": missed[:40],
+                      "grounded": grounded_reads[:40],   # FIX C (F3) — grail names recovered from garble
                       "classes": classes,
                       "closedAt": int(time.time() * 1000), "kaiVer": 4,
                       "eyeNote": "v1259 honest gate (grid-solo sanctioned, phantom-ocr removed) "
@@ -4329,6 +4507,18 @@ def _kai_closer_loop():
                              "frameId": "reel_" + sid + "/" + str(m.get("f") or "").replace(".jpg", ""),
                              "kai": {"texts": m.get("texts") or [], "cls": m.get("cls")},
                              "note": "🧠 unread text: " + ", ".join((m.get("texts") or [])[:3])})
+            # FIX C (F3) — journal GROUNDED grail reads so _kai_compile_register (re-read below)
+            # registers them: a legible grail tooltip whose OCR was leet-garbled now lands its
+            # REAL name in the register/Chronicle-inbox instead of dying in missed[].
+            for g in grounded_reads[:20]:
+                _gts = int(g.get("ts") or _sess_last)
+                _gn = list(g.get("names") or [])
+                rows.append({"ts": _gts, "captureTs": _gts, "completedTs": now_ms,
+                             "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
+                             "sessionId": sid,
+                             "frameId": "reel_" + sid + "/" + str(g.get("f") or "").replace(".jpg", ""),
+                             "kai": {"grounded": _gn},
+                             "note": "🏷 grail grounded from garbled OCR: " + ", ".join(_gn[:3])})
             rows.append({"ts": _sess_last + 1, "captureTs": _sess_last + 1, "completedTs": now_ms,
                          "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
                          "sessionId": sid, "frameId": "",
