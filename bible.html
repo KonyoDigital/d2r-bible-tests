@@ -4493,6 +4493,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
+      <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
+      <div id="vault-audit" class="vault-audit" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
       <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
         <summary style="cursor:pointer;color:#7fd4ff;font-weight:600">📸 How to take screenshots the AI can actually read — example below</summary>
@@ -26708,6 +26710,24 @@ body{
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+/* v1282 — 🔍 Vault Integrity Checker banner (retro routing / dedup / grail-safety audit) */
+.vault-audit{margin:0 0 12px;border:1px solid rgba(212,168,71,.32);border-radius:10px;background:linear-gradient(180deg,rgba(60,42,20,.28),rgba(30,22,12,.18));padding:9px 12px}
+.vault-audit .va-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px}
+.vault-audit .va-title{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#e6c877;font-size:var(--fs-body)}
+.vault-audit .va-sum{font-size:12px;color:var(--text-muted)}
+.vault-audit .va-fixall{margin-left:auto;border:1px solid rgba(122,212,255,.45);background:rgba(122,212,255,.1);color:#bfe4ff;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer}
+.vault-audit .va-fixall:hover{background:rgba(122,212,255,.2)}
+.vault-audit .va-rows{display:flex;flex-direction:column;gap:5px}
+.vault-audit .va-row{display:flex;align-items:center;gap:9px;font-size:12px;padding:4px 7px;border-radius:6px;background:rgba(0,0,0,.16)}
+.vault-audit .va-row.va-high{box-shadow:inset 3px 0 0 #e0574f}
+.vault-audit .va-row.va-med{box-shadow:inset 3px 0 0 #d4a847}
+.vault-audit .va-ic{flex:0 0 auto}
+.vault-audit .va-item{font-weight:700;color:#e8dcc0;white-space:nowrap}
+.vault-audit .va-detail{flex:1;color:var(--text-muted);min-width:120px}
+.vault-audit .va-fix{flex:0 0 auto;border:1px solid rgba(122,212,255,.45);background:rgba(122,212,255,.08);color:#bfe4ff;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:600;cursor:pointer}
+.vault-audit .va-fix:hover{background:rgba(122,212,255,.2)}
+.vault-audit .va-review{flex:0 0 auto;font-size:11px;color:var(--text-dim);font-style:italic;padding:2px 6px}
+.vault-audit .va-more{margin-top:6px;font-size:11px;color:var(--text-dim)}
 .vdb-label{display:inline-flex;align-items:center;gap:8px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;font-size:var(--fs-body);letter-spacing:.07em;text-transform:uppercase;color:#d9bd7d}   /* v610 — echoes the plate titles */
 .vdb-count{font-family:var(--mono,monospace);font-weight:700;font-size:var(--fs-meta);color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.32);border-radius:20px;padding:1px 9px}
 .vdb-actions{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
@@ -28061,6 +28081,136 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       });
     } catch(e){}
   };
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // v1282 — 🔍 VAULT INTEGRITY CHECKER (Konyo: "an AI reader retro checking the muled items too — properly
+  // routed, rightly muled by judge, rightly thrown out, no duplicated.. like checking"). A DETERMINISTIC
+  // retro pass (deterministic-first per Konyo): it re-derives the correct home for every muled / kept / thrown
+  // item and flags where the stored reality disagrees. Catches the concrete bug classes with ZERO AI cost:
+  //   • MIS-ROUTE   — an item filed in the wrong locker (its rule-derived mule ≠ where it sits)
+  //   • RW-IN-MAGIC — a forged runeword stranded in Magic & Rare (the CTA gold-dot class), belongs in RUNEWORDS
+  //   • DUPLICATE   — the same item double-filed across the keep / magic / throw stores (double-counted)
+  //   • WRONGLY-THROWN — a thrown-out read that is actually a grail unique / runeword / real keeper (grail-safety)
+  //   • SHOULD-REVIEW — a muled item the rules would actually discard (surfaced, NOT auto-fixed — could be a real keep)
+  // TRUTHFUL: every finding is a genuine disagreement between a stored item and its rule-derived home — nothing
+  // invented. Unambiguous cases carry a safe one-click fix; the judgement-call case (should-review) is review-only.
+  function _muleName(id){ try{ var m=muleById(id); return m?m.name:(id||'?'); }catch(e){ return id||'?'; } }
+  function _vaStoreLabel(k){ return k==='keep' ? '✓ Kept / Muled' : k==='magic' ? 'Magic & Rare' : k==='throw' ? 'Throw-out' : k; }
+  function _vaIsGrailUni(n){ try{ return !!((typeof ITEM_REGISTRY!=='undefined'&&ITEM_REGISTRY[n]) || (window._UNI_EXTRA&&window._UNI_EXTRA[n]) || (window._GRAIL_SEED&&window._GRAIL_SEED[n])); }catch(e){ return false; } }
+  function _vaIsRW(n){ try{ return !!(window.findRuneword && window.findRuneword(n)); }catch(e){ return false; } }
+  function _vaultAudit(){
+    var F = [];
+    // group membership — the keep / magic / throw stores are meant to be MUTUALLY EXCLUSIVE
+    var inKeep={}, inMagic={}, inThrow={};
+    try { owned.forEach(function(n){ inKeep[n]=1; }); } catch(e){}
+    try { Object.keys(assign).forEach(function(n){ if(assign[n]!=='__throwout') inKeep[n]=1; }); } catch(e){}
+    try { if(magicFinds) Object.keys(magicFinds).forEach(function(n){ inMagic[n]=1; }); } catch(e){}
+    try { unknownReads.forEach(function(n){ inThrow[n]=1; }); } catch(e){}
+    // 1) MIS-ROUTE + SHOULD-REVIEW — every mule assignment vs the rule-derived locker
+    try { Object.keys(assign).forEach(function(n){
+      if (assign[n]==='__keep') return;
+      var sg=null; try{ sg=suggestMule(n); }catch(e){}
+      if (!sg) return;
+      if (sg.id==='__throwout'){
+        F.push({sev:'med', kind:'should-review', item:n, store:'keep', to:null, fixable:false,
+          detail:'muled in “'+_muleName(assign[n])+'”, but the rules would discard it — '+(sg.why||'low value')});
+      } else if (sg.id!=='__keep' && muleById(sg.id) && sg.id!==assign[n]){
+        F.push({sev:'high', kind:'misroute', item:n, store:assign[n], to:sg.id, fixable:true,
+          detail:'filed in “'+_muleName(assign[n])+'” — belongs in “'+_muleName(sg.id)+'”'+(sg.why?' ('+sg.why+')':'')});
+      }
+    }); } catch(e){}
+    // 2) RUNEWORD stranded in MAGIC & RARE (the CTA gold-dot class)
+    try { if(magicFinds) Object.keys(magicFinds).forEach(function(n){
+      if (_vaIsRW(n)) F.push({sev:'high', kind:'rw-in-magic', item:n, store:'magic', to:'runewords', fixable:true,
+        detail:'runeword mis-filed in Magic & Rare — belongs in RUNEWORDS (renders as a stray gold ◆ otherwise)'});
+    }); } catch(e){}
+    // 3) DUPLICATE — a name present in ≥2 of the three exclusive stores
+    try {
+      var all={}; [inKeep,inMagic,inThrow].forEach(function(g){ Object.keys(g).forEach(function(n){ all[n]=1; }); });
+      Object.keys(all).forEach(function(n){
+        if (_vaIsRW(n)) return;   // a runeword-in-magic is already the sharper rw-in-magic finding
+        var g=[]; if(inKeep[n])g.push('keep'); if(inMagic[n])g.push('magic'); if(inThrow[n])g.push('throw');
+        if (g.length>=2) F.push({sev:'med', kind:'dupe', item:n, store:g.join('+'), to:null, fixable:true,
+          detail:'double-filed — appears in '+g.map(_vaStoreLabel).join(' AND ')+'; it should live in one place'});
+      });
+    } catch(e){}
+    // 4) WRONGLY-THROWN — a thrown-out read that is actually worth keeping (grail-safety)
+    try { unknownReads.forEach(function(n){
+      if (inKeep[n]||inMagic[n]) return;   // the dupe finding already covers a thrown item also kept
+      var why=null, to=null;
+      if (_vaIsGrailUni(n)) { why='a grail unique'; }
+      else if (_vaIsRW(n)) { why='a forged runeword'; to='runewords'; }
+      else { var sg=null; try{ sg=suggestMule(n); }catch(e){}
+        if (sg && sg.id!=='__throwout' && sg.id!=='__keep' && muleById(sg.id)) { why='a keeper ('+_muleName(sg.id)+')'; to=sg.id; } }
+      if (why) F.push({sev:'high', kind:'wrongly-thrown', item:n, store:'throw', to:to, fixable:true,
+        detail:'thrown out — but it’s '+why+'. Rescue it.'});
+    }); } catch(e){}
+    // rank: high first, then by kind, then name
+    var SEV={high:0, med:1, low:2};
+    F.sort(function(a,b){ return (SEV[a.sev]-SEV[b.sev]) || String(a.kind).localeCompare(b.kind) || String(a.item).localeCompare(b.item); });
+    var fixable=F.filter(function(x){return x.fixable;}).length;
+    return { findings:F, total:F.length, fixable:fixable, review:F.length-fixable };
+  }
+  // apply ONE finding's safe fix in-memory (caller persists + re-renders)
+  function _vaultAuditApply(f){
+    if (!f || !f.fixable) return false;
+    try {
+      if (f.kind==='misroute'){ assign[f.item]=f.to; }
+      else if (f.kind==='rw-in-magic'){ try{ owned.add(f.item); }catch(e){} if(magicFinds) delete magicFinds[f.item]; assign[f.item]='runewords'; }
+      else if (f.kind==='dupe'){
+        var g=String(f.store).split('+');
+        // keep the highest-priority store (keep > magic > throw); drop the item from the lower one(s)
+        if (g.indexOf('throw')>=0) { try{ unknownReads.delete(f.item); }catch(e){} }
+        if (g.indexOf('magic')>=0 && g.indexOf('keep')>=0) { if(magicFinds) delete magicFinds[f.item]; }
+      }
+      else if (f.kind==='wrongly-thrown'){
+        try{ unknownReads.delete(f.item); }catch(e){}
+        try{ owned.add(f.item); }catch(e){}
+        var to=f.to; if(!to){ var sg2=null; try{ sg2=suggestMule(f.item); }catch(e){} if(sg2&&muleById(sg2.id)) to=sg2.id; }
+        if (to && muleById(to)) assign[f.item]=to;
+      }
+      else return false;
+      return true;
+    } catch(e){ return false; }
+  }
+  function _vaultAuditPersist(){ try{ saveA(); }catch(e){} try{ persist(); }catch(e){} }
+  window._vaultAuditFixAll = function(){
+    var fs=_vaultAudit().findings.filter(function(x){ return x.fixable; });
+    var n=0; fs.forEach(function(f){ if(_vaultAuditApply(f)) n++; });
+    if (n){ _vaultAuditPersist(); try{ renderVault(); }catch(e){} }
+    return n;
+  };
+  window._vaultAuditFixOne = function(kind, item){
+    var f=_vaultAudit().findings.filter(function(x){ return x.kind===kind && x.item===item && x.fixable; })[0];
+    if (f && _vaultAuditApply(f)){ _vaultAuditPersist(); try{ renderVault(); }catch(e){} return true; }
+    return false;
+  };
+  window._vaultAudit = _vaultAudit;
+  function renderVaultAudit(){
+    var box=document.getElementById('vault-audit'); if(!box) return;
+    var r; try{ r=_vaultAudit(); }catch(e){ box.hidden=true; return; }
+    if (!r || !r.total){ box.hidden=true; box.innerHTML=''; return; }
+    box.hidden=false;
+    var KIND_IC={ 'misroute':'📦', 'rw-in-magic':'📜', 'dupe':'♻️', 'wrongly-thrown':'🛟', 'should-review':'👁' };
+    var rows=r.findings.slice(0,40).map(function(f){
+      var art=''; try{ if(typeof _artRarity==='function'){ /* keep light — glyph only */ } }catch(e){}
+      var btn = f.fixable
+        ? '<button class="va-fix" onclick="window._vaultAuditFixOne(\''+f.kind+'\',\''+jsArg(f.item)+'\')">Fix</button>'
+        : '<span class="va-review" title="a judgement call — left for you">review</span>';
+      return '<div class="va-row va-'+f.sev+'"><span class="va-ic">'+(KIND_IC[f.kind]||'•')+'</span>'
+        + '<span class="va-item">'+esc(f.item)+'</span>'
+        + '<span class="va-detail">'+esc(f.detail)+'</span>'+btn+'</div>';
+    }).join('');
+    box.innerHTML =
+      '<div class="va-head"><span class="va-title">🔍 Vault integrity</span>'
+      + '<span class="va-sum">'+r.total+' issue'+(r.total===1?'':'s')
+      + (r.fixable?' · <b>'+r.fixable+'</b> auto-fixable':'')
+      + (r.review?' · '+r.review+' to review':'')+'</span>'
+      + (r.fixable? '<button class="va-fixall" onclick="var n=window._vaultAuditFixAll();window._toast&&window._toast(\'🔍 fixed \'+n+\' vault issue\'+(n===1?\'\':\'s\'))">🪄 Fix all safe ('+r.fixable+')</button>':'')
+      + '</div><div class="va-rows">'+rows+'</div>'
+      + (r.findings.length>40?'<div class="va-more">+ '+(r.findings.length-40)+' more</div>':'');
+  }
+  window.renderVaultAudit = renderVaultAudit;
+
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
@@ -28086,6 +28236,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       }
     } catch(e){}
+    try { renderVaultAudit(); } catch(e){}   // v1282 — 🔍 integrity checker banner (hidden when clean)
     var poolAll=ownedPool();
     // account-shared-stash items (runes/essences/shards/statues) are recorded but NEVER muled —
     // keep them OUT of the dock/mules (they live in the Registered panel's "not muled" group).
@@ -34190,7 +34341,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1280', name:'🔒 Sessions D7 Engine - Seal-Latency + Regret-Spotlight Feed', date:'2026-07-22', note:'🔒 Sessions flagship D7 engine - the seal-latency chip and regret spotlight now have their data source. The session feed carries how long each run took to seal after it ended, but only when that gap is genuinely a seal and not a later re-analysis: every run currently on file was re-swept hours or days after the fact, so the chip stays honestly hidden on the old runs and will show a real "sealed in minutes" the next time a fresh run closes. It also carries the named regret items - the things a run threw away that the judge later decided were worth keeping, each located to its frame for the jump - which stay empty for now because no run has thrown anything on record, and will surface the moment a real regret happens. Both read from the run own record and both stay silent rather than guess. control_app.py only.' };
+  window.D2R_BUILD = { id:'v1281', name:'🔍 Vault Integrity Checker (retro routing / dedup / grail-safety audit)', date:'2026-07-22', note:'🔍 Vault integrity checker - a retro pass that checks your muled items. Konyo asked for an AI reader that retro-checks the vault: that every item is properly routed, rightly muled or rightly thrown out, with no duplicates. This is the deterministic first pass he chose - it re-derives the correct home for every muled, kept and thrown item and flags where reality disagrees, at no AI cost. It catches five things: an item filed in the wrong locker, a forged runeword stranded in Magic and Rare where it shows as a stray gold dot instead of living in Runewords, the same item double-filed across the keep, magic and throw stores, a thrown-out item that is actually a grail unique or runeword or real keeper that should be rescued, and a muled item the rules would actually discard - the last one surfaced for you to judge rather than auto-changed. Clear-cut issues get a one-click fix and a fix-all button; every fix uses the same routing the vault already trusts. A banner sits above the vault and stays hidden whenever the vault is clean. The AI re-judge layer will build on top of this later. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
