@@ -600,6 +600,10 @@
   .signal .row .k { color: var(--gold-dim); letter-spacing: .14em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 7px; }
   .signal .row .k .sjewel { width: 1.25em; height: 1.25em; object-fit: contain; opacity: .8; filter: drop-shadow(0 0 4px rgba(240,192,96,.5)); flex: none; }
   .signal .row .val { color: var(--text); font-weight: 700; letter-spacing: .06em; font-variant-numeric: tabular-nums; transition: color .4s; }
+  /* v1259 (group C · C1) — the capture LOCK-ON pill gets its OWN line under "Watching" (in the narrow rail it was
+     wrapping "Diablo II" onto a second line). Column layout + nowrap pill = never breaks mid-label at any width. */
+  .signal .row.sig-watch-row { flex-direction: column; align-items: flex-start; gap: 5px; }
+  .signal .row.sig-watch-row .cap-pill { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   body[data-state="on"]  .signal .row .val#sig-bridge { color: var(--mint); }
   body[data-state="sim"] .signal .row .val#sig-bridge { color: var(--sim); }
   .bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,.06); overflow: hidden; }
@@ -1151,7 +1155,10 @@
   .eye .ex { font-size: var(--fs-base); line-height: 1; flex: none; filter: saturate(1.1); }
   .eye .en { font: 700 var(--fs-xs)/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #d6c8a6; white-space: nowrap; }
   .eye .es { margin-left: auto; font: 600 var(--fs-xs)/1.25 var(--mono); letter-spacing: .02em;
-    color: var(--text); text-align: right; }
+    color: var(--text); text-align: right;
+    /* v1259 (group C · C2) — clamp the eye status to 2 lines (KAI's "closed a session Xs ago (N missed-text frames)"
+       ran to 3, making the card tall). Full text on hover via the title set in the render. */
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .eye-live   { border-left-color: #e05545; }
   .eye-second { border-left-color: #5c9ded; }
   .eye-kai    { border-left-color: var(--gold); }
@@ -2738,6 +2745,8 @@
       eKaiS.textContent = _base + (_ka ? (' · closed a session ' + _ka
         + (_ey.kaiMissed != null ? (' (' + _ey.kaiMissed + ' missed-text frames)') : '')) : ' · no seals yet');
     }
+    // v1259 (group C · C2) — the status display clamps to 2 lines; keep the full text on hover
+    [eLiveS, eSecS, eKaiS].forEach(function(el){ if (el) el.title = el.textContent; });
     var eLiveB = $('eye-live'), eSecB = $('eye-second'), eKaiB = $('eye-kai');
     if (eLiveB) eLiveB.classList.toggle('off', !on);
     if (eSecB) eSecB.classList.toggle('off', !on);
@@ -6062,7 +6071,12 @@
       var chips = [
         '<span class="hd-chip ' + (on ? 'now' : 'dim') + '">🤖 AI READER · ' + (on ? ('ON · ' + (st.readCount || 0) + ' reads') : 'off') + '</span>',
         '<span class="hd-chip intk">📸 INTAKE · ' + ((st && st.intakeRing) || []).length + ' recent</span>',
-        (function(){ var c9 = fs && fs.chron; var _n9 = (fs && fs.counts && fs.counts.now) || 0, _o9 = (fs && fs.counts && fs.counts.onestep) || 0;
+        // v1259 (group C · C3) — read forge-ready from the SAME source as FORGE QUESTS + the Task Force (fs.now /
+        // fs.onestep arrays), so the ENGINES chip can never disagree with them (was fs.counts.now → could be 0 while
+        // fs.now had items). Falls back to counts if the arrays are absent.
+        (function(){ var c9 = fs && fs.chron;
+          var _n9 = (fs && fs.now && fs.now.length) || (fs && fs.counts && fs.counts.now) || 0,
+              _o9 = (fs && fs.onestep && fs.onestep.length) || (fs && fs.counts && fs.counts.onestep) || 0;
           return '<span class="hd-chip step">🔥 FORGE' + (c9 && c9.total ? ' · ' + c9.made + ' / ' + c9.total : '') + ' · ' + _n9 + ' ready · ' + _o9 + ' one-step</span>'; })(),   /* v923 (Konyo) — the runeword chronicle reads like its siblings: ALL THREE chronicles found/total */
         '<span class="hd-chip tly-btn" onclick="window._tlyOpen()" title="open the TALLY ENGINE — every shot, every count">🧰 TALLIES · '
           + (window.__tlyN != null ? (window.__tlyN + ' shot' + (window.__tlyN === 1 ? '' : 's')) : (led.length + ' synced')) + ' ▾</span>',
