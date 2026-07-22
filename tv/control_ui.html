@@ -6987,11 +6987,21 @@
     return _ER_OWNER[k] || (k === 'none' ? '— no read (film only)' : k);
   }
   function _erOwnerVerdict(b){
-    if (b && b.engineFrame && b.engineFrame.owner){   // RETRO — the reconciler's sealed frame
+    // v1261 (AUDIT FIX A5 · SEALED-WINS GUARD) — key on FRAME-PRESENCE, not owner-truthiness. A sealed EngineFrame
+    // exists ⇒ it is AUTHORITATIVE and the live ring is NEVER consulted for it — matching the canonical
+    // _kai_engine_frame_effective (which keys on the frame being in sealed_fs). Before, a sealed frame with
+    // owner=None (the honest majority: gameplay/transition/miss) fell through to ER.lastStatus.liveRing, surfacing
+    // a LIVE GUESS as the authoritative retro verdict (gold/auth) during scrub. That violated "sealed wins in retro."
+    if (b && b.engineFrame){   // RETRO — a sealed frame is present ⇒ authoritative (even when owner is None)
       var ef = b.engineFrame;
-      return { owner: _ER_OWNER[ef.owner] || ef.owner, key: ef.owner, verdict: ef.verdict ? (_ER_VERDICT[ef.verdict] || ef.verdict) : null, why: ef.why || null, auth: true };
+      if (ef.owner){
+        return { owner: _ER_OWNER[ef.owner] || ef.owner, key: ef.owner, verdict: ef.verdict ? (_ER_VERDICT[ef.verdict] || ef.verdict) : null, why: ef.why || null, auth: true };
+      }
+      // sealed WITH no owner is a real, honest state (no item to own — gameplay/portal/miss). Render it as such,
+      // authoritatively — never a live guess.
+      return { owner: '— no owner (sealed)', key: 'none', verdict: ef.verdict ? (_ER_VERDICT[ef.verdict] || ef.verdict) : null, why: ef.why || null, auth: true };
     }
-    var lr = (ER.lastStatus && ER.lastStatus.liveRing) || [];   // LIVE — the now-cursor ring
+    var lr = (ER.lastStatus && ER.lastStatus.liveRing) || [];   // LIVE — only when there's NO sealed frame (pre-Phase-C / unsealed now-edge)
     if (b && lr.length){
       var fk = _erFrameKey(b.frame || b.frameId || '');
       for (var i = lr.length - 1; i >= 0; i--){
