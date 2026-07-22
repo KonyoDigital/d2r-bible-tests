@@ -1955,9 +1955,27 @@
      overlapped them at fullscreen once R1 grew the fonts + the 250px cap clipped). No cap, no clip. The
      dash still owns the flex via the grid's 1fr row (the OFF stage is an `auto` grid row). */
   body[data-state="off"] .stage { min-height: clamp(256px, 26vh, 330px); }   /* v1252 (CONSOLE r4 · #2 no-scroll) — the resting hero is compacter (was 310-380) so the dash below fits; still roomy enough the STANDBY caption clears the meters */
-  body[data-state="off"] .stage .phase { font-size: var(--fs-2xl); margin-top: 18px; }   /* v956 R1 — deliberately smaller than the full .phase display size */
+  body[data-state="off"] .stage .phase { font-size: var(--fs-2xl); margin-top: 0; }   /* v956 R1 — deliberately smaller than the full .phase display size; v1290 — margin-top dropped, the flex column centers it now (was pushing the caption down into the meters) */
   body[data-state="off"] .stage .kicker { display: none; }        /* v903.1 — no overlap in compact */
   body[data-state="off"] .stage .marquee { top: 10px; }
+  /* v1290 (SESSIONS FLAGSHIP D7 · short-viewport OVERLAP FIX) — OFF AIR the stage becomes a deterministic
+     flex column: the centered hero text (.center) owns the space ABOVE the lower-third meters, which now
+     sit in normal flow at the bottom. Previously both were independent absolute layers, so a short stage
+     let the caption spill OVER the meters (measured 44px overlap @ ~617px viewport). This adds NO baseline
+     height — it partitions the existing stage box so the two can never collide at any viewport (the stage
+     only ever grows a few px past its 256 floor when a long caption + meters genuinely need it). The
+     decorative layers (hero, aura, runes, marquee, scan, sweep) stay absolute — background art, untouched.
+     ON AIR / SIM keep the absolute broadcast lower-third (meters overlay the film) — this is off-air only. */
+  body[data-state="off"] .stage { display: flex; flex-direction: column; }
+  body[data-state="off"] .center {
+    position: relative; inset: auto; flex: 1 1 auto; min-height: 0;
+    /* top padding clears the absolute marquee (top:10 + ~22h) so the centered hero never rides under it */
+    padding: clamp(34px,4.4vh,50px) clamp(18px,3vw,50px) clamp(8px,1.4vh,18px);
+  }
+  body[data-state="off"] .meters {
+    position: relative; left: auto; right: auto; bottom: auto; flex: 0 0 auto;
+    margin: 0 clamp(10px,1.5vw,22px) clamp(10px,1.5vw,22px);
+  }
   .hd-grid .sh-card { display: flex; flex-direction: column; }
   .hd-grid .sh-art { height: 84px; flex: 0 0 auto; }
   body[data-state="sim"] .home-dash { display: none; }
@@ -2064,7 +2082,7 @@
       <div class="center">
         <div class="kicker" id="kicker">Signal Idle</div>
         <div class="phase" id="phase">STANDBY</div>
-        <div class="caption" id="caption">Press <b>ON</b> to wake the hidden scanner and take the board live.</div>
+        <div class="caption" id="caption">Press <b>ON</b> — wake the hidden scanner, go live.</div>
       </div>
 
       <div class="meters">
@@ -2527,7 +2545,7 @@
     $('marquee-t').textContent = stopping ? 'Signing Off' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'Theatre' : (on ? 'On Air · Recording' : 'Standby'));
     $('kicker').textContent = stopping ? 'Farewell' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'Eyes on history' : (on ? 'Signal Live' : 'Signal Idle'));
 
-    var cap = 'Press <b>ON</b> to wake the hidden scanner and take the board live.';
+    var cap = 'Press <b>ON</b> — wake the hidden scanner, go live.';   /* v1290 B1 — one line keeps the off-air stage height-neutral (~259px); the flex-column overlap fix only grows the stage for genuinely 2-line transient captions */
     var H0 = st.health || {};
     var noGame = on && (H0.gameOk === false || H0.aiPaused || st.gameOk === false || st.aiPaused);
     if (stopping) cap = 'Signing off — saving the session (≤ ~15s). Then STANDBY.';

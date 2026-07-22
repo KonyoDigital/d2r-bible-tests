@@ -4446,11 +4446,57 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
   </div>
 
+  <!-- G3 — 🔄 AUTO-ROUTE SWEEP: KAI has already watched dozens of farming sessions. This pulls
+       what it witnessed (sealed reel registers + deep-lane reads + the AI-funnel intake counts),
+       classifies each item against the LIVE vocab (runes/gems/materials/statues/sunders +
+       ITEM_REGISTRY uniques + runewords + set pieces), and MERGE-MAX back-fills every tracker.
+       READ-ONLY until you press Apply — nothing writes before the click. Never lowers a count. -->
+  <style>
+    #autoroute-sweep-card .ars-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+    #autoroute-sweep-card .ars-apply-btn{background:linear-gradient(135deg,#1e7d4f,#134e33);color:#eafff0;border:1px solid rgba(120,255,170,.4);border-radius:8px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;transition:all .15s}
+    #autoroute-sweep-card .ars-apply-btn:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.5)}
+    #autoroute-sweep-card .ars-apply-btn:not(:disabled):hover{filter:brightness(1.15)}
+    #autoroute-sweep-card .ars-beta{font-size:9px;font-weight:800;letter-spacing:.6px;background:rgba(124,196,255,.18);color:#7cc4ff;border:1px solid rgba(124,196,255,.4);border-radius:5px;padding:1px 5px;vertical-align:middle;margin-left:6px}
+    #autoroute-sweep-card .ars-status{font-size:12px;color:var(--text-muted);margin:6px 0 10px;line-height:1.5}
+    #autoroute-sweep-card .ars-grp{border:1px solid var(--border);border-radius:8px;margin:8px 0;overflow:hidden}
+    #autoroute-sweep-card .ars-grp-h{background:rgba(255,255,255,.03);padding:7px 11px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    #autoroute-sweep-card .ars-grp-h .ars-count{font-size:11px;color:var(--text-dim);font-weight:600}
+    #autoroute-sweep-card .ars-rows{padding:4px 11px 9px;display:flex;flex-wrap:wrap;gap:6px}
+    #autoroute-sweep-card .ars-row{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+    #autoroute-sweep-card .ars-row .ars-delta{color:#7dffb0;font-family:ui-monospace,monospace;font-size:11px}
+    #autoroute-sweep-card .ars-row .ars-new{color:#ffd479;font-weight:700;font-size:10px}
+    #autoroute-sweep-card .ars-review{border:1px dashed rgba(255,180,90,.4);background:rgba(255,180,90,.05);border-radius:8px;padding:9px 11px;margin-top:10px;font-size:12px}
+    #autoroute-sweep-card .ars-review b{color:#ffb45a}
+    #autoroute-sweep-card .ars-review .ars-unk{display:inline-block;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:5px;padding:2px 7px;margin:3px 4px 0 0;font-size:11px;color:var(--text-muted)}
+    #autoroute-sweep-card .ars-nochange{color:var(--best);font-size:12px;padding:8px 0}
+  </style>
+  <div class="boss-card collapsible tool-premium tool-primary" id="autoroute-sweep-card" style="--tc:#7cc4ff">
+    <div class="boss-header" onclick="window.toggleCardCollapse('autoroute-sweep-card')" role="button" tabindex="0" aria-expanded="true">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:30px">🔄</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Auto-route Sweep <span class="ars-beta">KAI</span></p>
+        <p class="boss-subtitle">KAI already watched your sessions — back-fill every tracker from what it saw</p>
+        <p class="boss-loc">Read-only until you press Apply · merge-max never lowers a count · needs the TV control server (localhost)</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="ars-wrap">
+        <div class="ars-actions">
+          <button class="rs-ai-btn" id="ars-scan-btn" onclick="window.autorouteScan()">🔎 Scan my sessions</button>
+          <button class="ars-apply-btn" id="ars-apply-btn" onclick="window.autorouteApply()" disabled>✔ Apply (merge-max)</button>
+        </div>
+        <div class="ars-status" id="ars-status">Press <strong>Scan my sessions</strong> to see what KAI witnessed across every session and exactly what it would fill — nothing is written until you press Apply.</div>
+        <div class="ars-diff" id="ars-diff"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- v705 — TOOLS INDEX (Grok wave P3): 17 equal gold cards read as a warehouse. One chip row
        maps the room — grouped by JOB, each chip jumps to (and pulses) its card. No card moved,
        no card hidden: every id keeps its place, the index is pure wayfinding on top. -->
   <div class="tools-index" id="tools-index">
-    <span class="ti-g"><span class="ti-gl">⚡ do now</span><button class="ti-chip ti-hot" onclick="window._toolJump('mule-vault-card')">🏦 vault</button><button class="ti-chip ti-hot" onclick="window._toolJump('rune-stash-card')">🪨 runes</button><button class="ti-chip ti-hot" onclick="window._toolJump('rw-chronicle-card')">📜 chronicle</button><button class="ti-chip ti-hot" onclick="window._toolJump('smart-insights-card')">🧠 insights</button></span>
+    <span class="ti-g"><span class="ti-gl">⚡ do now</span><button class="ti-chip ti-hot" onclick="window._toolJump('autoroute-sweep-card')">🔄 sweep</button><button class="ti-chip ti-hot" onclick="window._toolJump('mule-vault-card')">🏦 vault</button><button class="ti-chip ti-hot" onclick="window._toolJump('rune-stash-card')">🪨 runes</button><button class="ti-chip ti-hot" onclick="window._toolJump('rw-chronicle-card')">📜 chronicle</button><button class="ti-chip ti-hot" onclick="window._toolJump('smart-insights-card')">🧠 insights</button></span>
     <span class="ti-g"><span class="ti-gl">📦 stashes</span><button class="ti-chip" onclick="window._toolJump('gem-stash-card')">💎 gems</button><button class="ti-chip" onclick="window._toolJump('material-stash-card')">🜍 materials</button></span>
     <span class="ti-g"><span class="ti-gl">⚗️ craft &amp; cube</span><button class="ti-chip" onclick="window._toolJump('craft-workshop-card')">⚗️ crafts</button><button class="ti-chip" onclick="window._toolJump('horadric-recipe-card')">🧪 recipes</button><button class="ti-chip" onclick="window._toolJump('sunder-recipe-card')">🌀 sunders</button></span>
     <span class="ti-g"><span class="ti-gl">🗺 planners</span><button class="ti-chip" onclick="window._toolJump('ai-item-checker-card')">🔬 AI checker</button><button class="ti-chip" onclick="window._toolJump('all-runewords-card')">📖 runewords</button><button class="ti-chip" onclick="window._toolJump('rw-bases-card')">🛡 bases</button><button class="ti-chip" onclick="window._toolJump('loot-filters-card')">🎯 loot filter</button><button class="ti-chip" onclick="window._toolJump('set-tracker-card')">🧩 sets</button></span>
@@ -34370,7 +34416,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1289', name:'🎨 Sessions Flagship Visual R2 - Structure / Symmetry (matched card heights)', date:'2026-07-23', note:'🎨 Sessions flagship visual pass, round 2 - matched card heights. The second half of making the main page symmetric. Where two half-width cards share a row - Task Force beside Last Session, Forge beside Live Intake - they used to end at different heights depending on how much each held, giving the dashboard a lopsided, ragged look. Now paired cards stretch to share a common bottom edge, so every row reads as a balanced pair, while the full-width regions that sit alone are left as they are. The column widths were already even, so the ragged heights were the real unevenness, now resolved. On the question of putting a title header on the big stat band at the top: that was measured to cost fixed vertical height on a page that must never scroll, and an untitled hero stat band is itself a flagship pattern, so it was deliberately left untitled - the unified type and the matched pairs already carry the symmetry. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1290', name:'🎨 Sessions Flagship Visual R3 - Off-Air Hero Overlap Fix (+ no-scroll-safe caption)', date:'2026-07-23', note:'🎨 Sessions flagship visual pass, round 3 - the off-air hero overlap fix. This completes the main-page visual arc. Off air, the centered standby text and the status meter tiles were two independent floating layers that did not know each others size, so whenever the caption ran to two lines - which the default text already did - it spilled over the meter tiles. It had been quietly overlapping for many versions, patched only by shrinking fonts. Now the off-air stage lays its parts out in a real column so the marquee, the hero text and the meters can never overlap at any screen size or caption length, while the on-air broadcast view is left exactly as it was. To keep the page from ever needing to scroll, the default standby line was tightened to one line in Konyos own voice, so the default height is unchanged; only rare multi-line messages grow the stage a little, and even then nothing overlaps. The top stat band stays untitled, which is a deliberate flagship pattern. control_ui.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
