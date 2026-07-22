@@ -392,6 +392,46 @@ class TestFootageArchivePromote(unittest.TestCase):
         self.assertTrue(ok, "primary archive still succeeds even if the bridge copy fails")
         self.assertEqual(os.path.getsize(last), 6000, "corrupt bridge copy must not clobber last-good")
 
+    def test_due_gate_still_blocks_a_second_full_consume_call(self):
+        """CONTROL — proves the due-gate itself still works: two calls at the SAME now_f, both
+        with the default _consume_due=True (the never-starve block's old, buggy shape), and the
+        second one must still be rejected by the slot the first one just advanced past. This is
+        the exact failure mode v1195 fixes for the never-starve fallback specifically."""
+        now_f = time.time()
+        self.assertTrue(tv._archive_footage_copy(self.src, now_f, why="first"))
+        self.assertFalse(
+            tv._archive_footage_copy(self.src, now_f, why="second-blocked-by-first"),
+            "a second full-consume call for the SAME slot must still be gated")
+
+    def test_consume_due_false_lets_a_fallback_fill_the_same_slot(self):
+        """v1195 REGRESSION — the never-starve block's actual shape: a primary write for now_f2
+        that FAILS (disk pressure / torn copy — simulated here as a short copy), followed by a
+        bridge write for the SAME now_f2. Before this fix, the primary call's internal due-advance
+        silently blocked the bridge call even though the caller had already paid for the slot
+        (both calls now pass _consume_due=False and let the CALLER own the due bookkeeping,
+        matching the real never-starve site)."""
+        import shutil, unittest.mock as mock
+        now_f2 = time.time()
+        # caller owns the due-gate/advance once, exactly like the real never-starve block does
+        self.assertGreaterEqual(now_f2, tv._FOOTAGE_DUE)
+        tv._FOOTAGE_DUE = now_f2 + tv.FOOTAGE_INTERVAL_S
+
+        def short_copy(src, dst):
+            with open(dst, "wb") as f:
+                f.write(b"X" * 10)   # primary write dies partway
+
+        with mock.patch.object(shutil, "copyfile", side_effect=short_copy):
+            primary_ok = tv._archive_footage_copy(self.src, now_f2, why="never-starve-full",
+                                                   _consume_due=False)
+        self.assertFalse(primary_ok, "the simulated torn write must still fail")
+        # the bridge fallback for the SAME now_f2 must be allowed to actually write —
+        # this is the call that used to be silently rejected by the due gate
+        bridge_ok = tv._archive_footage_copy(self.src, now_f2, why="bridge-last-good",
+                                             _consume_due=False)
+        self.assertTrue(bridge_ok, "bridge fallback must not be starved by its sibling's due-advance")
+        real = [f for f in self._footage_files() if f.startswith("f_") and f.endswith(".jpg")]
+        self.assertEqual(len(real), 1, "the bridge write must have actually landed a frame")
+
 
 class TestFarewellRead(unittest.TestCase):
     """v740 — shutdown farewell always publishes (run #7 race fix)."""

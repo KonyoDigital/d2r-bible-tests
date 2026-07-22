@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1194"   # 🚦 ROUTE/GATE round 4 — grid-vote independence: the reel-scan build in _kai_closer_loop credited the "grid" (layout) evidence class from the FUSED tab (_eye_tab) whenever it was a tally tab, WITHOUT checking grid was actually in the fusion's sources. But fuse_tab_signals rule 1 returns OCR-solo before grid is consulted — so a single chrome-OCR read could be double-counted as TWO independent classes (tabstrip + grid), alone clearing the ≥2 quorum an OCR misread should never clear. FIX: new pure _kai_grid_vote_label() adds the missing `"grid" in eye_sources` check; falls back to the raw pixel/layout classify_stash_grid() label (genuinely independent) otherwise — real grid solo/retro cases still honored, only the false-echo closed. +5 tests (control 88→93). ×3 parity (22/80 → v1252)
+VERSION = "v1195"   # 📷 CAPTURE round 4 — never-starve bridge un-starved: _archive_footage_copy advances the 1fps due-clock (_FOOTAGE_DUE) UNCONDITIONALLY the moment it passes its own due-gate, BEFORE the write. The never-starve fallback calls it TWICE for the same now_f2 (primary full-screen grab, then bridge-last-good). Call #1 advances the clock even when it then FAILS (disk pressure / torn copy — the class round 3 hardened), so call #2's due-gate sees now_f2<due and rejects itself without trying — the entire "never drop below ~1fps" bridge was silently DEAD CODE in exactly its failure scenario. FIX: _consume_due param — the never-starve caller owns the due-gate ONCE up front, both calls pass _consume_due=False so whichever has real bytes gets to write. Normal single-call lane unaffected (default True). +2 tests (agent 183→185). ×3 parity (23/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1133,7 +1133,7 @@ def _foot_fps_now():
     return round(len(recent) / 10.0, 2)
 
 
-def _archive_footage_copy(src_path, now_f, why="ok"):
+def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
     """v947 — 1fps archive helper. Always advances the due clock; never blocks on sips.
 
     v1190 — promote-via-tmp: this was the one archive writer in the file that skipped the
@@ -1145,13 +1145,24 @@ def _archive_footage_copy(src_path, now_f, why="ok"):
     silently pollutes the film reel forever. Now: copy to a private tmp, verify real bytes,
     os.replace (atomic on the same volume) into the final name — same law, same pattern as
     _cap_promote. Applied to the eye.last.jpg starve-bridge source too, since a corrupt bridge
-    source would re-propagate into every later 'bridge-last-good' frame until film recovers."""
+    source would re-propagate into every later 'bridge-last-good' frame until film recovers.
+
+    v1195 — _consume_due=False: the film loop's never-starve path can call this TWICE for the
+    SAME now_f in one tick — a fresh grab first, then a bridge-last-good fallback if that fresh
+    write fails (disk pressure, a torn copy). Both calls used to run the full due-gate: the
+    first one (whether it went on to succeed or fail) already advanced _FOOTAGE_DUE past now_f,
+    so the second call's OWN due-gate check (`now_f < _due`) then always rejected it before it
+    could even try — the exact fallback this file's anti-starve law exists for was silently
+    dead code whenever the primary write failed for a reason unrelated to frame content. The
+    caller now owns the due-gate/advance for that one shared now_f slot and passes
+    _consume_due=False to both attempts, so whichever one actually has bytes to write gets to."""
     try:
-        _iv = FOOTAGE_INTERVAL_S
-        _due = globals().get("_FOOTAGE_DUE", 0.0)
-        if now_f < _due:
-            return False
-        globals()["_FOOTAGE_DUE"] = max(_due + _iv, now_f - (_iv - 0.01)) if _due else now_f + _iv
+        if _consume_due:
+            _iv = FOOTAGE_INTERVAL_S
+            _due = globals().get("_FOOTAGE_DUE", 0.0)
+            if now_f < _due:
+                return False
+            globals()["_FOOTAGE_DUE"] = max(_due + _iv, now_f - (_iv - 0.01)) if _due else now_f + _iv
         globals()["_FOOTAGE_AT"] = now_f
         globals()["_FOOTAGE_WHY"] = why
         if not src_path or not os.path.isfile(src_path) or os.path.getsize(src_path) < 4000:
@@ -1349,10 +1360,20 @@ def _film_loop():
                 # never drops below ~1fps because a grab hung for 5s
                 try:
                     now_f2 = time.time()
-                    if now_f2 >= globals().get("_FOOTAGE_DUE", 0.0):
+                    _due2 = globals().get("_FOOTAGE_DUE", 0.0)
+                    if now_f2 >= _due2:
+                        # v1195 — the due-gate/advance for this now_f2 slot is paid ONCE here,
+                        # up front, so a fresh-grab attempt AND a bridge-last-good fallback can
+                        # both try to fill it (_consume_due=False on both archive calls below);
+                        # previously the first call's own internal advance silently locked the
+                        # second one out of the very slot it was meant to rescue.
+                        _iv2 = FOOTAGE_INTERVAL_S
+                        globals()["_FOOTAGE_DUE"] = (
+                            max(_due2 + _iv2, now_f2 - (_iv2 - 0.01)) if _due2 else now_f2 + _iv2)
                         got = False
                         if _grab_full_screen_frame(tmp):
-                            got = _archive_footage_copy(tmp, now_f2, why="never-starve-full")
+                            got = _archive_footage_copy(tmp, now_f2, why="never-starve-full",
+                                                        _consume_due=False)
                             try:
                                 os.replace(tmp, eye)
                                 globals()["_EYE_PREVIEW_AT"] = now_f2
@@ -1363,8 +1384,10 @@ def _film_loop():
                             last = globals().get("_FILM_LAST_GOOD") or (
                                 eye if os.path.isfile(eye) else None)
                             if last and os.path.isfile(last):
-                                _archive_footage_copy(last, now_f2, why="bridge-last-good")
-                                globals()["_FOOTAGE_BRIDGES"] = int(globals().get("_FOOTAGE_BRIDGES") or 0) + 1
+                                bridged = _archive_footage_copy(last, now_f2, why="bridge-last-good",
+                                                                _consume_due=False)
+                                if bridged:
+                                    globals()["_FOOTAGE_BRIDGES"] = int(globals().get("_FOOTAGE_BRIDGES") or 0) + 1
                 except Exception:
                     pass
                 try:
