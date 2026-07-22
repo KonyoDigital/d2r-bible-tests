@@ -28,7 +28,7 @@ Architecture (Konyo 2026-07-23): **chronicle/tracked items → full AI auto-pipe
 ## PHASE B · G4 GROK — CHEAP, REMOVABLE ACCURACY TOUCHPOINTS — v1299–1306
 Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy.. i want its fingers in a couple of places that are cheap and efficient" + "implement it to be taken out eventually." → NOT one big watchdog: a few surgical, low-cost Grok verify hooks at accuracy-critical points, behind ONE ON/OFF toggle (OFF default, cousin-safe, own xAI key), built as a **self-contained removable module with a clean seam** (lifts out with zero scars).
 - [x] v1299 · G4 module scaffold **(landed as v1295)** — self-contained `tv/g4_grok.py`, ON/OFF (switch AND key), OFF-default, cousin-safe, one-grep removal seam. 3 cheap seams chosen (uncertain auto-route · borderline keep/toss · grail promotion). OFF-path proven byte-identical (zero network). No touchpoint wired yet.
-- [ ] v1300 · G4 touchpoint #1 (cheap) — verify UNCERTAIN chronicle auto-routes only (not every item)
+- [x] v1300 · G4 touchpoint #1 **(landed v1297)** — uncertain chronicle auto-route: seal-time, tier==border only, capped 10/seal, flag-never-override (flag rides into kai_report for the review surface). OFF byte-identical.
 - [ ] v1301 · G4 touchpoint #2 (cheap) — verify BORDERLINE Item-Checker keep/toss calls
 - [ ] v1302 · G4 touchpoint #3 (cheap) — re-check an important grail claim / uncertain sealed find
 - [ ] v1303 · G4 "🟣 Grok verdict" surface + disagreement flag → review queue

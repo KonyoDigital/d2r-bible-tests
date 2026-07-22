@@ -60,17 +60,22 @@ def _state_on():
         return False
 
 
-def is_on():
-    """The toggle. ON only if BOTH the switch is on AND a key exists. Two ways to switch on:
-    env TV_G4_GROK=1 (the app's TV_* convention, e.g. CI), OR the persisted state file
-    (what a UI button flips). Either is honored; default is OFF."""
+def switch_on():
+    """The raw ON/OFF intent (the switch itself), INDEPENDENT of the key. Two ways to
+    switch on: env TV_G4_GROK=1 (the app's TV_* convention, e.g. CI), OR the persisted
+    state file (what the UI button flips). Default OFF. Lets a UI honestly show
+    'ON — needs your xAI key' (switch on, but still inert) distinct from plain OFF."""
     if os.environ.get("TV_G4_GROK", "0") == "1":
-        env_on = True
-    elif os.environ.get("TV_G4_GROK", "") == "0":
-        env_on = False
-    else:
-        env_on = _state_on()
-    return bool(env_on and _key())
+        return True
+    if os.environ.get("TV_G4_GROK", "") == "0":
+        return False
+    return _state_on()
+
+
+def is_on():
+    """The effective toggle: ON only if BOTH the switch is on AND a key exists.
+    is_on() is what actually gates any Grok call; switch_on() is the intent."""
+    return bool(switch_on() and _key())
 
 
 def set_on(on):
@@ -88,7 +93,8 @@ def status():
     """Lamp for a UI: whether the add-on is present/on/keyed + call stats. Never leaks the key."""
     return {
         "present": True,
-        "on": is_on(),
+        "switch": switch_on(),      # the raw intent (button state), independent of key
+        "on": is_on(),              # effective: switch AND key — what actually gates a call
         "hasKey": bool(_key()),
         "model": _XAI_MODEL_DEFAULT,
         "hourlyMax": _HOURLY_MAX,
