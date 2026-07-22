@@ -109,5 +109,5 @@ test('v556 — a pick-logic version bump invalidates a same-day cached pick', as
     return { asked, vNow: localStorage.getItem('d2r_createNowAiV') };
   });
   expect(r.asked).toBe(true);       // stale-version cache → re-asks despite same-day
-  expect(r.vNow).toBe('2');         // stamped with the current pick-logic version
+  expect(r.vNow).toBe('3');         // stamped with the current pick-logic version (v1270 bump — rotation descends to grail/sets)
 });

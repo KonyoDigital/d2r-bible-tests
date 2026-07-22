@@ -20344,7 +20344,7 @@ window.dailyCreateAi = function(force){
   var today; try{ today=new Date().toISOString().slice(0,10); }catch(e){ today=''; }
   // v556 — PICK-LOGIC VERSION stamp. When the pick's question/priority changes (e.g. v555.5 runewords-over-crafts),
   // a same-day cached blurb from the OLD logic must not survive until tomorrow — bump _PICK_V to auto-invalidate.
-  var _PICK_V='2';
+  var _PICK_V='3';   // v1270 — pick logic now DESCENDS to grail/sets when runewords are sealed; invalidate v2 cache
   try { if(!force && window.LSR.getItem('d2r_createNowAiV')!==_PICK_V) force=true; } catch(e){}
   // v555.3 — even within the same day, if the cached pick NAMES a runeword the player has since made (Chronicle),
   // it's stale ("Make Enigma" after Enigma is done) → force a fresh pick that respects the Chronicle.
@@ -20353,7 +20353,19 @@ window.dailyCreateAi = function(force){
   try{ window.LSR.setItem('d2r_createNowAiV', _PICK_V); }catch(e){}
   var tp=(typeof buildTopPicks==='function')?window._previewWrap(buildTopPicks):{makeNow:[],afterCubing:[],close:[]};
   try{ window.LSR.setItem('d2r_createNowAiDate', today); }catch(e){}
-  if(!(tp.makeNow.length||tp.afterCubing.length)){ try{ window.LSR.removeItem('d2r_createNowAi'); }catch(e){} return; }
+  // v1270 (G2) — DEAD-END FIX: no makeable runeword/craft used to just wipe the Daily Pick ("no runewords
+  // remain"). Now we DESCEND the chronicle rotation — grail uniques / sets get a real farm move instead —
+  // and only say "all sealed" when every chronicle is truly complete. No Sonnet call needed (truthful local pick).
+  if(!(tp.makeNow.length||tp.afterCubing.length)){
+    try {
+      var _rot = (typeof window._chronRotation==='function') ? window._chronRotation() : null;
+      if (_rot && _rot.target && _rot.target.pick){ window.LSR.setItem('d2r_createNowAi', _rot.target.pick); }
+      else if (_rot && _rot.sealed){ window.LSR.setItem('d2r_createNowAi', '🏅 All chronicles sealed — runewords, grail & sets complete. Enjoy the spoils or hunt trades.'); }
+      else { window.LSR.removeItem('d2r_createNowAi'); }
+    } catch(e){ try{ window.LSR.removeItem('d2r_createNowAi'); }catch(e2){} }
+    try { if(typeof window.renderCreateNow==='function') window.renderCreateNow(); } catch(e){}
+    return;
+  }
   var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
@@ -32135,6 +32147,68 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     window.renderForgeSets();
   };
+  // ── v1270 (G2, Konyo: "descend and intelligently ROTATE to the next incomplete chronicle") ──
+  // THE PRIORITY-ROTATION BRAIN. Reads EVERY chronicle's real completion (runewords · grail uniques ·
+  // sets), treats a sealed chronicle as DONE and descends past it, ranks the INCOMPLETE ones and picks
+  // the top target with a REAL, truthful farm move (from the same funiScan / fsetsScan / boss-source
+  // truth the Forge already uses — never an invented drop). The Daily Pick, OPS queue and Mission Brief
+  // all read this so nothing dead-ends at "99/99 — no runewords remain" while grail & sets still need hunting.
+  // Ranking: runewords are the priority tier (easiest, already-hit — per Konyo); once sealed, the closest-
+  // to-done chronicle wins (an 80%-sets outranks a 61%-grail), tie-broken by fewest items left.
+  window._chronRotation = function(){
+    try { if (window._chronRotMemo && (Date.now()-window._chronRotMemo.t) < 1500) return window._chronRotMemo.v; } catch(e){}
+    var chron = [];
+    // 1) RUNEWORDS chronicle
+    try {
+      var rwT = (typeof RUNEWORD_TIP!=='undefined') ? Object.keys(RUNEWORD_TIP).length : 0;
+      var rwM = 0;
+      try { rwM = Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){ return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n]; }).length; } catch(e){}
+      if (rwT) chron.push({ key:'rw', icon:'📜', label:'Runewords', done:rwM, total:rwT });
+    } catch(e){}
+    // 2) GRAIL UNIQUES chronicle
+    var fu=null; try { fu=window.funiScan(); } catch(e){}
+    if (fu) chron.push({ key:'grail', icon:'🏆', label:'Grail uniques', done:fu.found, total:(fu.chronTotal||fu.total), data:fu });
+    // 3) SETS chronicle
+    var fs=null; try { fs=window.fsetsScan(); } catch(e){}
+    if (fs) chron.push({ key:'sets', icon:'🧩', label:'Sets', done:fs.havePieces, total:fs.totalPieces, data:fs });
+    chron.forEach(function(c){ c.total=c.total||0; c.pct=c.total?c.done/c.total:1; c.left=Math.max(0,c.total-c.done); c.complete=c.left<=0; });
+    // build the actionable MOVE + one-line PICK per incomplete chronicle (truthful boss/odds only)
+    chron.forEach(function(c){
+      if (c.complete) return;
+      if (c.key==='rw'){
+        c.pick='📜 Runewords · '+c.done+'/'+c.total+' — '+c.left+' runeword'+(c.left===1?'':'s')+' still to forge; farm the runes/base for the next one (open the Forge queue)';
+      } else if (c.key==='grail' && c.data && c.data.runs && c.data.runs.length){
+        var run=c.data.runs[0], it=(run.items&&run.items[0])||null;
+        if (it){
+          var bs=it._bs, boss=bs?bs.s.boss:run.boss, oddsStr=bs?fmtOdds(bs.s.chance):'';
+          c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:run.bossId),
+                 route:(run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
+          c.pick='🏆 Grail · '+c.done+'/'+c.total+' — hunt '+it.n+' (best at '+boss+(oddsStr?', '+oddsStr:'')+'); '+c.left+' uniques left';
+        }
+      } else if (c.key==='sets' && c.data){
+        var w=(c.data.working&&c.data.working[0])||null;   // fewest pieces left = closest set
+        if (w){
+          var miss=w.pieces.filter(function(p){return !p.have;});
+          var next=miss[0], nextClean=next?next.name.replace(/\s*\([^)]+\)\s*$/,''):'';
+          var setClean=w.name.replace(/\s*\((set)\)\s*$/i,'');
+          var src=null; try { src=_setAggSrc(w.name); } catch(e){}
+          var sBoss=src?src.boss:'', sOdds=src?fmtOdds(src.chance):'';
+          c.op={ set:setClean, pieceClean:nextClean, boss:sBoss, oddsStr:sOdds,
+                 detail:(w.left===1?('LAST piece: '+nextClean):(w.left+' pieces left, next '+nextClean))+(sBoss?(' — '+sBoss+(sOdds?' '+sOdds:'')):'') };
+          c.pick='🧩 Sets · '+c.done+'/'+c.total+' pieces — finish '+setClean+' ('+(w.left===1?('1 piece left: '+nextClean):(w.left+' left, next '+nextClean))+(sBoss?(' at '+sBoss+(sOdds?' '+sOdds:'')):'')+')';
+        }
+      }
+    });
+    var incomplete = chron.filter(function(c){ return !c.complete; });
+    incomplete.sort(function(a,b){
+      var pa=(a.key==='rw')?1:0, pb=(b.key==='rw')?1:0;   // runewords = priority tier
+      if (pa!==pb) return pb-pa;
+      return (b.pct-a.pct) || (a.left-b.left);              // else closest-to-done first
+    });
+    var result = { all:chron, incomplete:incomplete, target:(incomplete[0]||null), sealed:(incomplete.length===0) };
+    try { window._chronRotMemo={ t:Date.now(), v:result }; } catch(e){}
+    return result;
+  };
   function _setArt(name, pieces){
     try { var rep=(typeof window._setRepArtName==='function')?window._setRepArtName(name):''; if(rep){ var u=(typeof artUrl==='function')?artUrl(rep):''; if(u) return '<img class="f-art" src="'+esc(u)+'" alt="" loading="lazy">'; } } catch(e){}
     // v560 — HD fallback: the first PIECE's art (piece names resolve art even when the set aggregate doesn't)
@@ -33556,6 +33630,9 @@ window.renderSessionCockpit = function(){
       });
       var tfAi = '';
       try { tfAi = window.LSR.getItem('d2r_createNowAi') || ''; } catch(e){}
+      // v1270 (G2) — if the daily cron hasn't run yet AND runewords are the only source above, DESCEND the
+      // chronicle rotation so the Daily Pick still names the next incomplete chronicle's real move (grail/set).
+      if (!tfAi){ try { var _tfRot = window._chronRotation && window._chronRotation(); if (_tfRot && _tfRot.target && _tfRot.target.pick) tfAi = _tfRot.target.pick; } catch(e){} }
       if (tfAi) tfRows.push('<div class="sc-tf-row ai"><span class="sc-tf-g">✶</span><span class="sc-tf-t">' + _scEsc(String(tfAi).slice(0, 110)) + '</span><span class="sc-tf-tag ai">DAILY PICK</span></div>');
       try {
         window._tfHistMemo = window._tfHistMemo || { t: 0, v: null };
@@ -33623,9 +33700,20 @@ window.renderSessionCockpit = function(){
     } else {
       var wish = null;
       try { if (typeof wishlist!=='undefined' && wishlist.size) wish = [...wishlist][0]; } catch(e){}
+      // v1270 (G2) — runewords are sealed (nothing above) → DESCEND the chronicle rotation to the top
+      // incomplete chronicle and task its REAL best move (grail unique or set piece with boss + odds),
+      // instead of dead-ending or just grabbing the alphabetically-first missing card.
+      var _rotM=null; try { _rotM = window._chronRotation && window._chronRotation(); } catch(e){}
+      var _tgt = _rotM && _rotM.target;
       if (wish) mission = { name:wish, kind:'grail', status:'hunt', label:'Wishlist priority', task:null, auto:true };
+      else if (_tgt && _tgt.key==='grail' && _tgt.op)
+        mission = { name:_tgt.op.item, kind:'grail', status:'hunt', label:'Grail rotation — best farm', task:null, auto:true, rot:_tgt };
+      else if (_tgt && _tgt.key==='sets' && _tgt.op)
+        mission = { name:_tgt.op.pieceClean, kind:'grail', status:'hunt', label:'Set rotation — '+_tgt.op.set, task:null, auto:true, rot:_tgt };
       else if (_scFuni && _scFuni.missing && _scFuni.missing[0])
         mission = { name:_scFuni.missing[0].n, kind:'grail', status:'hunt', label:'Nearest dark corner of the wall', task:null, auto:true };
+      else if (_rotM && _rotM.sealed)
+        mission = { name:null, kind:'sealed', status:'idle', label:'All chronicles sealed', task:null };
       else
         mission = { name:null, kind:'scan', status:'idle', label:'No live orders — update intel', task:null };
     }
@@ -33641,7 +33729,16 @@ window.renderSessionCockpit = function(){
       else if (mission.status === 'now') detail = 'Everything in hand — open Forge and socket in order';
       else if (t.base && t.base.base) detail = 'Base: <b>'+esc(t.base.base)+'</b>'+(t.need?(' · '+t.need+'os'):'');
     } else if (mission.kind === 'grail'){
-      detail = 'Open its card for best boss + 1:X under your current MF / players.';
+      // v1270 (G2) — rotation targets carry a real best-boss + odds + route; deepen the brief with them.
+      if (mission.rot && mission.rot.op){
+        var _o = mission.rot.op;
+        detail = 'Best at <b>'+esc(_o.boss||'—')+'</b>'+(_o.oddsStr?' · <b>'+esc(_o.oddsStr)+'</b> per kill under your MF / players':'')
+               + '. <span style="opacity:.85">'+esc(mission.rot.label)+' — '+mission.rot.left+' left'+(_o.route?(' · '+esc(_o.route)):'')+'.</span>';
+      } else {
+        detail = 'Open its card for best boss + 1:X under your current MF / players.';
+      }
+    } else if (mission.kind === 'sealed'){
+      detail = 'Every chronicle is complete — runewords, grail uniques &amp; sets all sealed. Hunt trades or enjoy the sun 🌞.';
     } else if (mission.kind === 'scan'){
       detail = 'Scan runes · gems · vault in Tools so Forge can build a real queue.';
     }
@@ -33649,7 +33746,13 @@ window.renderSessionCockpit = function(){
     // Mission brief HTML
     var mB = document.getElementById('sc-mission-body');
     if (mB){
-      if (!mission.name && mission.kind === 'scan'){
+      if (!mission.name && mission.kind === 'sealed'){
+        // v1270 (G2) — genuine end-state: EVERY chronicle complete. Only here do we celebrate "all sealed".
+        mB.innerHTML = '<div class="sc-mission-name">🏅 All chronicles sealed</div>'
+          + '<div class="sc-mission-status"><span class="sc-tag now">complete</span></div>'
+          + '<div class="sc-mission-detail">'+detail+'</div>'
+          + '<div class="sc-mission-actions"><button type="button" class="sc-cta ghost" onclick="switchTab(\'forge\')">Open Forge</button></div>';
+      } else if (!mission.name && mission.kind === 'scan'){
         mB.innerHTML = '<div class="sc-mission-name">Stand by</div>'
           + '<div class="sc-mission-status"><span class="sc-tag">idle</span></div>'
           + '<div class="sc-mission-detail">'+detail+'</div>'
@@ -33724,12 +33827,33 @@ window.renderSessionCockpit = function(){
         });
       }
     } catch(e){}
+    // v1270 (G2) — CHRONICLE ROTATION: the queue no longer dead-ends at "queue clear" when runewords are
+    // sealed. It DESCENDS to every incomplete chronicle (grail uniques / sets) and queues its real best move
+    // (specific missing item · best boss · odds), so the OPS queue keeps tasking the next hunt automatically.
+    var _rotOps=null; try { _rotOps = window._chronRotation && window._chronRotation(); } catch(e){}
+    if (_rotOps && _rotOps.incomplete){
+      _rotOps.incomplete.forEach(function(c){
+        if (c.key==='rw') return;   // runewords already surfaced above via liveNow / onestep / pipeline
+        if (c.key==='grail' && c.op){
+          if (mission && mission.name===c.op.item) return;   // don't duplicate the pinned/auto mission
+          rest.push({ tag:'grail', cls:'want', item:c.op.item, act:'Open',
+            txt:'🏆 <b>'+esc(c.op.item)+'</b> — '+esc(c.op.boss||'best run')+(c.op.oddsStr?' <span style="opacity:.72">'+esc(c.op.oddsStr)+'</span>':'')+' · '+c.left+' uniques left' });
+        } else if (c.key==='sets' && c.op){
+          rest.push({ tag:'set', cls:'want', item:c.op.pieceClean, act:'Open',
+            txt:'🧩 <b>'+esc(c.op.set)+'</b> — '+esc(c.op.detail) });
+        }
+      });
+    }
     ops = blockers.concat(rest).slice(0,6);
 
     var oB = document.getElementById('sc-ops-body');
     if (oB){
       if (!ops.length){
-        oB.innerHTML = '<div class="sc-empty">queue clear — Chronicle sealed or intel empty. Hunt grail or enjoy the sun 🌞</div>';
+        // v1270 (G2) — only truly-empty when EVERY chronicle is sealed; otherwise it's an intel gap, not a dead-end.
+        var _opsSealed=false; try { _opsSealed = _rotOps && _rotOps.sealed; } catch(e){}
+        oB.innerHTML = _opsSealed
+          ? '<div class="sc-empty">🏅 All chronicles sealed — runewords, grail &amp; sets complete. Hunt trades or enjoy the sun 🌞</div>'
+          : '<div class="sc-empty">Queue thin — 📸 scan runes / gems / vault in Tools and the rotation rebuilds the hunt.</div>';
       } else {
         oB.innerHTML = ops.map(function(op, idx){
           var btns = '';
@@ -34057,7 +34181,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1269', name:'📼 Sessions Flagship D2 - Session Detail Dossier', date:'2026-07-22', note:'📼🔍 SESSIONS FLAGSHIP - the session detail dossier. Tapping a session card now opens a full-page dossier before the replay Theatre, turning a list of cards into a place you explore. It shows a hero with the cover and run time, four headline stat tiles and a verdict seal, the full list of what you found as clickable cards that jump to the exact frame, the run scene-fingerprint at full size, and a verdict-and-story row of chips. A primary open-in-Theatre action and a back-to-shelf escape complete it, and the whole thing is a full-viewport page so a rich dossier can breathe rather than being crammed into the small off-air stage. Escape backs out cleanly to the shelf. All from real session data with honest blanks where a field is absent. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1270', name:'🧠 Task-Force AI Rotation (descends runewords -> grail/sets, real hunts)', date:'2026-07-22', note:'🧠🗓 the Task-Force priority-rotation brain. The daily pick, OPS queue and mission brief used to dead-end the moment the runeword chronicle was complete, saying no runewords remain and queue clear even though grail and set chronicles still needed hunting. Now a rotation engine reads every chronicles real completion, treats a sealed one as done and descends past it, ranks the incomplete chronicles - runewords first while any remain since they are easiest, then whichever is closest to done - and attaches a real farm move to each from the same verified boss and odds data the Forge uses. The daily pick, the mission brief and the OPS queue now all task the next incomplete chronicle with a specific item, its best boss and drop odds, a route hint and how many are left, and only say everything is sealed when it truly is. For the current state, with runewords done and sets closer to completion than grail, it targets the sets, telling you which set piece to finish and where, and points the grail hunt at a specific unique and its best source. It stays truthful, using real counts and verified sources and omitting a boss rather than inventing one. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
