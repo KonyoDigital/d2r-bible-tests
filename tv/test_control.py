@@ -1398,6 +1398,87 @@ class TestTabBestTotalSessionScoping(unittest.TestCase):
         self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
 
 
+class TestIntakeResultReceiptSessionBoundary(unittest.TestCase):
+    """v1208 — RECEIPT-BOUNDARY fix on /intake_result: `_sid` used to be picked by scanning
+    the WHOLE journal for whatever sessionId appeared LAST, with no regard for what session
+    the receipt actually describes. Concrete failure: the route's own reason for existing is
+    a receipt landing AFTER its session's bridge died (late auto-intake); if Konyo starts
+    ANOTHER short farming session before that straggler resolves, the old heuristic mis-tags
+    the stale receipt onto the NEW session's reel — where `_kai_build_routing`'s receipted-tab
+    check would wrongly treat a tab the new session never photographed as already covered,
+    suppressing a real gap-funnel for it. Now: when frameId carries `reel_<sid>/...` (the
+    shape every funnel/closer/driver fire in this file uses), sid is read straight off the
+    frame's own identity — immune to timing entirely. Only falls back to the old journal-scan
+    guess when frameId doesn't carry a session (e.g. bible.html's own board-side calls),
+    unchanged from before. Real server, real HTTP POST, real journal file (HERE monkeypatched
+    to an isolated tempdir — never touches Konyo's real sessions.jsonl)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        cls.port = cls.srv.server_address[1]
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self._old_here = ca.HERE
+        ca.HERE = self.tmp
+        # seed: an OLD session's rows, then a NEWER session already started (its own row
+        # logged) — simulating Konyo having moved on to another farming session before a
+        # straggler receipt from the old one finally lands.
+        rows = [
+            {"sessionId": "sid_old", "ts": 1000, "scene": "gameplay"},
+            {"sessionId": "sid_new", "ts": 5000, "scene": "gameplay"},   # the "latest" session
+        ]
+        with open(os.path.join(self.tmp, "sessions.jsonl"), "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r) + "\n")
+
+    def tearDown(self):
+        ca.HERE = self._old_here
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _post(self, body):
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/intake_result",
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status, json.loads(r.read())
+
+    def _last_journaled_sid(self):
+        with open(os.path.join(self.tmp, "sessions.jsonl"), encoding="utf-8") as f:
+            lines = [json.loads(ln) for ln in f if ln.strip()]
+        return lines[-1]["sessionId"]
+
+    def test_reel_shaped_frame_id_tags_the_frames_own_session_not_the_newest(self):
+        # a straggler receipt from sid_old's reel, landing after sid_new already exists
+        status, resp = self._post({"tab": "runes", "kind": "tally", "ok": True, "total": 40,
+                                    "frameId": "reel_sid_old/5_1000000"})
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertEqual(self._last_journaled_sid(), "sid_old")   # NOT sid_new
+
+    def test_frame_id_without_a_session_falls_back_to_latest_journal_guess(self):
+        # bible.html's own board-side calls don't always carry a reel-relative frameId —
+        # unchanged pre-existing behavior for that case.
+        status, resp = self._post({"tab": "vault", "kind": "vault", "ok": True, "total": 3,
+                                    "frameId": ""})
+        self.assertEqual(status, 200)
+        self.assertEqual(self._last_journaled_sid(), "sid_new")
+
+    def test_non_reel_frame_id_also_falls_back(self):
+        # a bare frameId (no reel_<sid>/ prefix at all) must not be mis-parsed as a session
+        status, resp = self._post({"tab": "vault", "kind": "vault", "ok": True, "total": 3,
+                                    "frameId": "12_1000000"})
+        self.assertEqual(status, 200)
+        self.assertEqual(self._last_journaled_sid(), "sid_new")
+
+
 class TestCloserOcrWorkerNeverOrphaned(unittest.TestCase):
     """v1207 — WORKER-ORPHAN-LEAK class on the funnel/closer side (same vein as v1206's core
     _WORKER/_OCR fix): `_kai_closer_loop` spawns its own `ocr_mac --worker` subprocess (`wp`)

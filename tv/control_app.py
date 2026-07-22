@@ -5164,7 +5164,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1207",
+        "ver": "v1208",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6576,11 +6576,31 @@ class Handler(BaseHTTPRequestHandler):
                     _rows = _kai_journal_rows()
                 except Exception:
                     _rows = []
+                # v1208 — RECEIPT-BOUNDARY fix: frameId encodes its OWNING session directly
+                # (reel_<sid>/<n>_<capturems> — the shape every funnel/closer/driver fire in
+                # this file uses, e.g. control_app.py:4034 and the Stage-3/driver JS bodies).
+                # Extracting sid straight from frameId is the frame's OWN ground truth,
+                # immune to the race the OLD "latest sessionId anywhere in the journal" guess
+                # had: that heuristic blindly wins even if a NEW session has already started
+                # (logged its own rows) by the time a SLOW/late receipt from the PREVIOUS
+                # session finally lands — precisely the bridge-death late-arrival case this
+                # whole route exists for (see the route's own opening comment), now compounded
+                # by Konyo starting another short farming session before the straggler
+                # resolves. Mis-tagging the stale receipt onto the NEW session's reel makes
+                # `_kai_build_routing`'s receipted-tab check wrongly treat a tab the new
+                # session never actually photographed as already covered — suppressing a real
+                # gap-funnel for it. Only fall back to the journal-scan guess when frameId
+                # doesn't carry a session (e.g. bible.html's own board-side vault/tally calls,
+                # which don't always pass a reel-relative frameId) — unchanged from before.
                 _sid = ""
-                for r in _rows:
-                    s = r.get("sessionId")
-                    if s:
-                        _sid = s   # latest sessionId wins (rows are append-ordered)
+                _sid_m = re.match(r"^reel_(.+?)/", _fid) if _fid else None
+                if _sid_m:
+                    _sid = _sid_m.group(1)
+                else:
+                    for r in _rows:
+                        s = r.get("sessionId")
+                        if s:
+                            _sid = s   # latest sessionId wins (rows are append-ordered)
                 # v935.11 R3 (Grok dedupe verdict) — the ±5min frame+tab dedupe was too greedy:
                 # (a) an empty frameId carries no identity, so those receipts must ALWAYS journal
                 #     (never collapse two anonymous shots into one); (b) a re-tally of the SAME
