@@ -3325,13 +3325,16 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
 // v635's: only ACCOUNT STATE forks; prefs/caches stay shared so both machines LOOK identical.
 // WINDOWS forks the ladder set PLUS the chronicle family (unlike ladder, the cousin shares no grail).
-window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads']));
+// v949 — CHRONICLE SYNC: d2r_foundLog/d2r_setPieces/d2r_grailImportReport left _LP_FORKED so Konyo's
+// MAC main↔ladder read the SAME shared grail/set chronicle; they are re-added to the _WP concat here
+// so the WINDOWS cousin still keeps its OWN isolated chronicle (W·) — nothing bleeds across machines.
+window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport']));
 try { window.localStorage.setItem('d2r_profile', window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'); } catch(e){}   // v911.1 — the console reads the ACTIVE profile
 window.LSR = (function(){
   var RAW = window.localStorage;
@@ -3425,6 +3428,58 @@ try {
     window.localStorage.removeItem('L·d2r_rwMade');
     window.localStorage.removeItem('L·d2r_rwUnmade');
     window.localStorage.removeItem('L·d2r_rwProfile');
+  }
+} catch(e){}
+// v949 — CHRONICLE SYNC MIGRATION (Konyo: "ladder↔non-ladder chronicles are the SAME — sync to
+// non-ladder; the vault manager and mules stay separate"). v635-v948 forked the grail found-log
+// (d2r_foundLog) and the set chronicle (d2r_setPieces) into the L· ladder account, so the two MAC
+// accounts held SEPARATE chronicles. Those keys are now shared (removed from _LP_FORKED). Existing
+// users therefore have BOTH a bare (main) AND an L· (ladder) copy with possibly-different progress:
+// MERGE them once into the shared key — UNION only, never overwrite, earliest date wins per grail
+// item — so the synced chronicle contains EVERYTHING from both accounts and nothing is ever lost.
+// Guarded by a one-time flag + idempotent (re-running unions the already-merged data = a no-op).
+// MAC only — the WINDOWS cousin keeps its own isolated W· chronicle (these keys stay in _WP_FORKED).
+// rwMade/rwUnmade/grailUnfound were ALREADY shared on MAC (never in _LP_FORKED). rwVerify STAYS
+// forked: its non-ladder FAIL verdicts are not ladder truth (a word that fails main can form on ladder).
+try {
+  if (window.D2R_MACHINE !== 'windows' && !window.localStorage.getItem('d2r_chronSyncMerged_v1')){
+    // d2r_foundLog = object map { itemName: dateStamp }. Union keys. A ladder-only find carries its
+    // ladder date across; on a collision the NON-LADDER stamp is authoritative and is kept untouched —
+    // we sync TO non-ladder, and both stamps are real recorded dates so nothing is invented either way.
+    // (No date-math: the grail stamp uses a custom "Mon D, YYYY · HH:MM" format that Date.parse can't
+    // read, so a numeric "earliest wins" compare would be unreliable across the mixed legacy formats.)
+    try {
+      var _bF = JSON.parse(window.localStorage.getItem('d2r_foundLog')||'{}')||{};
+      var _lF = JSON.parse(window.localStorage.getItem('L·d2r_foundLog')||'{}')||{};
+      var _fDirty = false;
+      Object.keys(_lF).forEach(function(k){
+        if (!(k in _bF)){ _bF[k] = _lF[k]; _fDirty = true; }   // ladder-only find joins the shared chronicle
+      });
+      if (_fDirty) window.localStorage.setItem('d2r_foundLog', JSON.stringify(_bF));
+    } catch(e){}
+    window.localStorage.removeItem('L·d2r_foundLog');
+    // d2r_setPieces = array of "Name (slot)" piece strings. Union.
+    try {
+      var _bS = JSON.parse(window.localStorage.getItem('d2r_setPieces')||'[]');
+      var _lS = JSON.parse(window.localStorage.getItem('L·d2r_setPieces')||'[]');
+      if (Array.isArray(_bS) && Array.isArray(_lS)){
+        var _seen = {}, _sDirty = false;
+        _bS.forEach(function(p){ _seen[p] = 1; });
+        _lS.forEach(function(p){ if (!_seen[p]){ _seen[p] = 1; _bS.push(p); _sDirty = true; } });
+        if (_sDirty) window.localStorage.setItem('d2r_setPieces', JSON.stringify(_bS));
+      }
+    } catch(e){}
+    window.localStorage.removeItem('L·d2r_setPieces');
+    // d2r_grailImportReport = a transient one-shot import summary (read-then-cleared). Not unionable —
+    // adopt the ladder copy only if the shared key is empty, then drop the orphan.
+    try {
+      if (!window.localStorage.getItem('d2r_grailImportReport')){
+        var _lr = window.localStorage.getItem('L·d2r_grailImportReport');
+        if (_lr) window.localStorage.setItem('d2r_grailImportReport', _lr);
+      }
+    } catch(e){}
+    window.localStorage.removeItem('L·d2r_grailImportReport');
+    try { window.localStorage.setItem('d2r_chronSyncMerged_v1','1'); } catch(e){}
   }
 } catch(e){}
 try {
@@ -34002,7 +34057,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1267', name:'🏆 Sessions Flagship D1 - What I Found Cards (click = jump to the frame)', date:'2026-07-22', note:'🏆📼 SESSIONS FLAGSHIP - what I found, the cards. The real grails and items KAI witnessed in a session now show as premium gold-glowing cards on the shelf and the home last-session digest, each with its item art, its name in its tier colour and a grail mark, led by the best find and with a plus-N-more when there are more. Clicking a find jumps the replay Theatre straight to the exact frame where KAI first saw that item - confirmed by landing on the precise frame for a real grail in a real session. It stays honest: the cards appear only when the reel actually recorded finds and simply show nothing otherwise rather than a fake zero, and it uses the real art system. This is the flagship moment for the sessions tab - it now answers, at a glance and from real data, what did I find this run. The finds are coloured by the reader tier since the console has no item-rarity database; true item-rarity colour would need a small backend addition later. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1268', name:'🔗 Chronicle-Sync Ladder<->Non-Ladder (vault stays separate)', date:'2026-07-22', note:'🔗 CHRONICLE-SYNC between ladder and non-ladder. Konyo asked for the chronicles to be the same and synced across ladder and non-ladder, with ladder keeping its extra ladder-only runewords and the vault and mules staying separate per account. Investigation showed the made-runeword chronicle was already shared on the Mac; the pieces still kept separate were the dated grail found-log, the set-piece chronicle and the transient import report. Those three are now shared across ladder and non-ladder, while the Windows cousin keeps its own isolated chronicle so no grail bleeds across machines. The runeword verify verdicts are deliberately left separate, because a word that fails on non-ladder can still form on ladder and sharing those fails would wrongly block the very words the tool exists to make. A one-time, guarded, idempotent migration merges the two accounts by union so nothing is ever lost, keeping the non-ladder date on any collision since both are real recorded dates. The vault, mules and inventories stay separate as required, and ladder-only runewords still show as ladder-only on non-ladder. Switching between Main and Ladder now shows the same grail, set and runeword chronicle progress. bible.html only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
