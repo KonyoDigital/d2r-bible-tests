@@ -2027,6 +2027,9 @@
   /* INSPECT — a dedicated zone at the foot; empty (detail hidden) it collapses, so opening it shoves nothing above */
   .gsh-inspect-zone { margin-top: 16px; }
   .gsh-inspect-zone:empty, .gsh-inspect-zone > .er-detail[hidden] { display: none; }
+  /* v1246 — when a frame is being inspected, the dock grows so the frame IMAGE + read fit in view (the picture
+     the AI saw is the point of inspecting); on scrub-open we also scroll it into view (see _engineRoomRenderRetro). */
+  .gsh-dock.gsh-inspecting { max-height: 82vh; }
   /* the Time Machine drill-in (#engine-room, z-index 930) already stacks above the ghost shell (z-index 60) */
 
   /* ══ v1244 (GHOST MODE r13, layered on the structure pass) — THE TRANSITION: stepping INTO / out of the
@@ -6389,7 +6392,16 @@
     // narration. Land on any frame → the inline forensics (frame image · read raw→resolved · owner/verdict) open
     // and track the cursor, deep OCR/raw enriched as they land. Snapping to NOW (_engineRoomLive) closes it.
     // Truthful: only real captured frames + real reads, honest "no item named / not archived" gaps.
+    // v1246 — REGRESSION FIX (Konyo "where are the pictures?"): the inspect zone lives at the foot of the docked
+    // Time Machine, so when it AUTO-opens on scrub it can land below the fold — the frame image was rendering but
+    // off-screen. On first open, bring it into view + mark the dock so it has room; the picture the AI saw shows.
+    var _det = document.getElementById('er-detail'), _wasHidden = !_det || _det.hidden;
     ER.detailOpen = true; _engineRoomRenderDetail(best, reel); _engineRoomFetchBlob(best);
+    if (_wasHidden && GHOST && GHOST.on){
+      var _dock = document.getElementById('gsh-dock'); if (_dock) _dock.classList.add('gsh-inspecting');
+      var _iz = document.getElementById('gsh-inspect-zone') || _det;
+      if (_iz && _iz.scrollIntoView){ try { _iz.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { _iz.scrollIntoView(); } }
+    }
     var spine = document.getElementById('er-spine');
     if (spine) spine.innerHTML = _engineOrganDataRetro(best, reel).map(function(o){ return _ehOrganHtml(o, true); }).join('<span class="eh-flow">→</span>');
     var band = document.getElementById('er-spine-band');
@@ -6779,7 +6791,7 @@
       // verdict) sit side-by-side as the hero, using the space that was empty beside the image; the raw
       // evidence rows read below. One clear read: "here's the frame → here's what the engines concluded".
       + '<div class="er-top">'
-      + (b.frameId ? '<div class="er-frame"><img class="er-frame-img" src="/hist/' + encodeURIComponent(b.frameId) + '.jpg?w=560" loading="lazy" alt="the captured frame the AI read" title="click to open the full frame" onclick="window.open(\'/hist/' + encodeURIComponent(b.frameId) + '.jpg\',\'_blank\')" onerror="this.style.display=\'none\';var c=this.parentNode.querySelector(\'.er-frame-cap\');if(c){c.textContent=\'📸 this frame was not archived\';c.style.opacity=\'.6\';}"><div class="er-frame-cap">📸 the frame the AI read <span class="thd-dim">· click to enlarge</span></div></div>' : '')
+      + (b.frameId ? '<div class="er-frame"><img class="er-frame-img" src="/hist/' + encodeURIComponent(b.frameId) + '.jpg?w=560" loading="eager" alt="the captured frame the AI read" title="click to open the full frame" onclick="window.open(\'/hist/' + encodeURIComponent(b.frameId) + '.jpg\',\'_blank\')" onerror="this.style.display=\'none\';var c=this.parentNode.querySelector(\'.er-frame-cap\');if(c){c.textContent=\'📸 this frame was not archived\';c.style.opacity=\'.6\';}"><div class="er-frame-cap">📸 the frame the AI read <span class="thd-dim">· click to enlarge</span></div></div>' : '')
       + '<div class="er-top-analysis">'
       + _erReadText(b, ov, reel)
       + _erReadChain(b, ov)
@@ -6888,7 +6900,8 @@
         if (ER.detailOpen && ER.focusBeat === b) _engineRoomRenderDetail(b, ER.focusReelObj); }
     }).catch(function(){});
   }
-  window._engineRoomDetailClose = function(){ ER.detailOpen = false; var el = document.getElementById('er-detail'); if (el) el.hidden = true; };
+  window._engineRoomDetailClose = function(){ ER.detailOpen = false; var el = document.getElementById('er-detail'); if (el) el.hidden = true;
+    var d = document.getElementById('gsh-dock'); if (d) d.classList.remove('gsh-inspecting'); };   // v1246 — shrink the dock back when the inspect closes
   // v1240 (GHOST MODE r11) — BUILD + WIRE + INIT the Engine Room WITHOUT showing it. This lets ghost-on
   // build the Time Machine, then RELOCATE its scrubber nodes (FILM/JOURNEY/CURRENT) into the ghost-shell dock
   // around the replica — the live wired elements, not clones — while the deep tools (spine/detail/key) stay in
