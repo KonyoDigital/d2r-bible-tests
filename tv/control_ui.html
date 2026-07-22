@@ -1164,6 +1164,32 @@
   .eye-kai    { border-left-color: var(--gold); }
   .eye.off { opacity: .42; }
   .eye.off .es { color: var(--muted); }
+  /* ══ v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — surface sessionHealth.gate.{proven,held} proudly:
+     the brain PROTECTING Konyo's accuracy. Sits under the 3 eyes, in the KAI READER cluster. proven =
+     reads that cleared the two-witness gate · held = uncertain reads the gate refused to certify (misreads
+     stopped). Hidden when no sealed reel exposes gate verdicts (TRUTHFUL — honest when absent/off-air). ══ */
+  .kai-gate { margin: 2px 0 5px; padding: 8px 11px 9px; border-radius: 9px;
+    background: linear-gradient(180deg, rgba(143,230,160,.06), rgba(0,0,0,.28));
+    border: 1px solid rgba(143,230,160,.22); border-left: 3px solid var(--mint);
+    display: flex; flex-direction: column; gap: 5px; }
+  .kai-gate.kg-guarding { background: linear-gradient(180deg, rgba(240,192,96,.07), rgba(0,0,0,.28));
+    border-color: rgba(240,192,96,.24); border-left-color: var(--gold); }   /* border-left-color LAST so the gold left rail wins over the all-sides border-color */
+  .kg-head { display: flex; align-items: center; gap: 7px; }
+  .kg-shield { font-size: var(--fs-base); line-height: 1; flex: none; filter: drop-shadow(0 0 5px rgba(143,230,160,.4)); }
+  .kai-gate.kg-guarding .kg-shield { filter: drop-shadow(0 0 5px rgba(240,192,96,.45)); }
+  .kg-title { font: 800 var(--fs-xs)/1 var(--mono); letter-spacing: .13em; text-transform: uppercase; color: var(--mint); }
+  .kai-gate.kg-guarding .kg-title { color: var(--gold-hi); }
+  .kg-tag { margin-left: auto; font: 700 var(--fs-xs)/1 var(--mono); letter-spacing: .04em; color: var(--muted);
+    padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,.3); border: 1px solid rgba(200,180,120,.14);
+    font-variant-numeric: tabular-nums; }
+  .kg-nums { display: flex; align-items: baseline; gap: 8px; font: 600 var(--fs-sm)/1 var(--mono); letter-spacing: .02em; color: var(--muted); }
+  .kg-nums b { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .kg-proven b { color: var(--mint); }
+  .kg-held b { color: var(--gold-hi); }
+  .kg-sep { opacity: .4; }
+  .kg-story { font: 600 var(--fs-xs)/1.35 var(--mono); letter-spacing: .01em; color: #cbb98a; }
+  .kg-story b { color: var(--gold-hi); font-weight: 800; }
+  @media (prefers-reduced-motion: no-preference) { .kai-gate { transition: border-color .4s, background .4s; } }
   /* ══ v1247 (CONSOLE UPGRADE r1 — THE LIVE PULSE) ══════════════════════════════════════════════════════ */
   /* the live eye PULSES while it's actually thinking on a frame (real visionBusyMs) — the reader net moves */
   .eye-live.reading { border-left-color: #ff6a58; box-shadow: -3px 0 0 -1px #e05545, 0 0 16px rgba(224,85,69,.22); }
@@ -2379,6 +2405,14 @@
           <div class="eye eye-live" id="eye-live"><span class="ex">🔴</span><span class="en">Live Eye</span><span class="es" id="eye-live-s">—</span></div>
           <div class="eye eye-second" id="eye-second"><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
           <div class="eye eye-kai" id="eye-kai"><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
+        </div>
+        <!-- v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — the accuracy gate's work, surfaced proudly under the eyes
+             (was buried in the FUNNELS organ sub-line). proven = reads that cleared the two-witness gate;
+             held = uncertain reads the gate refused to certify. Hidden until a sealed reel exposes gate verdicts. -->
+        <div class="kai-gate" id="kai-gate" hidden title="THE ACCURACY GATE — every tally needs two independent witnesses. proven = reads that cleared the gate · held = uncertain reads the gate refused to certify (misreads stopped). From the newest sealed reel.">
+          <div class="kg-head"><span class="kg-shield">🛡</span><span class="kg-title">KAI GATE</span><span class="kg-tag" id="kg-tag">accuracy</span></div>
+          <div class="kg-nums"><span class="kg-stat kg-proven"><b id="kg-proven">0</b> proven</span><span class="kg-sep">·</span><span class="kg-stat kg-held"><b id="kg-held">0</b> held</span></div>
+          <div class="kg-story" id="kg-story"></div>
         </div>
         <!-- v1253 (CONSOLE r5 · #d) — the capture LOCK-ON pill belongs WITH the reader cluster (what the eyes are
              pointed at), above the fold — moved up here from the old signal detail rows near the bottom. -->
@@ -6294,7 +6328,30 @@
     el.classList.remove('sp-in'); void el.offsetWidth; el.classList.add('sp-in');   // restart the entrance animation
     clearTimeout(_stagePulse._t); _stagePulse._t = setTimeout(function(){ el.hidden = true; }, 2600);
   }
-  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); try { _engineRoomRefresh(st); } catch(e){} hdEngines(st); hdTaskForce(st); try { hdLivePulse(st); } catch(e){} }
+  // ══ v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — the KAI READER cluster's accuracy scorecard.
+  // sessionHealth.gate = {proven, held} from the newest sealed reel's routing (control_app _newest_gate_count):
+  // proven = gatePass true (cleared the two-witness gate), held = gatePass false (uncertain, refused). Both null
+  // when no sealed reel exposes verdicts → badge hidden (TRUTHFUL). Rides the existing poll; no new fetch. ══
+  function hdKaiGate(st){
+    var el = document.getElementById('kai-gate'); if (!el) return;
+    var gt = ((st && st.sessionHealth) || {}).gate || {};
+    var proven = gt.proven, held = gt.held;
+    if (proven == null && held == null){ el.hidden = true; return; }   // no gate verdicts to show — stay honest, take no space
+    proven = proven || 0; held = held || 0;
+    el.hidden = false;
+    el.classList.toggle('kg-guarding', held > 0);   // gold = the gate is actively holding uncertain reads back
+    var pEl = document.getElementById('kg-proven'); if (pEl) pEl.textContent = proven;
+    var hEl = document.getElementById('kg-held');   if (hEl) hEl.textContent = held;
+    var total = proven + held, tag = document.getElementById('kg-tag');
+    if (tag) tag.textContent = total ? Math.round(proven / total * 100) + '% proven' : 'accuracy';
+    var story = document.getElementById('kg-story');
+    if (story){
+      if (held > 0)        story.innerHTML = '🛡 held <b>' + held + '</b> uncertain read' + (held === 1 ? '' : 's') + ' back — guarding your accuracy';
+      else if (proven > 0) story.innerHTML = 'every read cleared the two-witness gate ✓';
+      else                 story.innerHTML = '';
+    }
+  }
+  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); try { _engineRoomRefresh(st); } catch(e){} hdEngines(st); hdTaskForce(st); try { hdLivePulse(st); } catch(e){} try { hdKaiGate(st); } catch(e){} }
 
   // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it
   // came from. Data = /api/tallies (journaled intake beats — server truth, agent on or off).
