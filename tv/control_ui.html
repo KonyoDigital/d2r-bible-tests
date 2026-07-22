@@ -895,7 +895,8 @@
     letter-spacing: var(--ls-wide); color: #f2e4c0; text-shadow: 0 2px 7px rgba(0,0,0,.95); }
   .shc-ghost { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #b0a184; margin-left: 5px; }
   .shc-seal { position: absolute; top: 8px; right: 9px; z-index: 2; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono);
-    letter-spacing: var(--ls-tight); padding: 4px 7px; border-radius: 7px; background: rgba(6,8,6,.55); backdrop-filter: blur(3px); }
+    letter-spacing: var(--ls-tight); padding: 4px 7px; border-radius: 7px; background: rgba(6,8,6,.55); backdrop-filter: blur(3px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 5px rgba(0,0,0,.4); }   /* D21 — same pressed-seal language as the dossier stamp */
   .shc-seal.clean { color: var(--gold-hi); border: 1px solid rgba(240,192,96,.38); }
   .shc-seal.flag { color: #ff9a8a; border: 1px solid rgba(255,120,80,.5); }
   .shc-seal.open { color: #9a8d73; border: 1px solid rgba(255,255,255,.12); }
@@ -1462,7 +1463,7 @@
   .dsr-stat { background: rgba(10,9,6,.6); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 10px; text-align: center; }
   .dsr-sv { font: var(--fw-bold) var(--fs-lg)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; }
   .dsr-sl { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: #7d7358; margin-top: 6px; }
-  .dsr-sealrow { display: flex; justify-content: center; margin-bottom: 22px; }
+  .dsr-sealrow { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 22px; }
   /* ══ D19 · BEAT CHIPS — the run's story as an iconographic ribbon (scene/find/seal-derived, color-coded) ══ */
   .dsr-beats { display: flex; flex-wrap: wrap; gap: 7px; }
   .bt { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px;
@@ -1479,10 +1480,27 @@
   .bt.bt-seal { border-color: rgba(240,192,96,.35); color: var(--gold-dim); }
   .bt.bt-flag { border-color: rgba(255,120,80,.5); color: #ff9a8a; }
   .bt.bt-open { color: #8a7e68; }
-  .dsr-seal { font: var(--fw-bold) var(--fs-sm)/1 var(--mono); letter-spacing: var(--ls-wide); padding: 8px 16px; border-radius: 999px; text-transform: uppercase; }
-  .dsr-seal-clean { color: var(--gold); border: 1px solid rgba(240,192,96,.5); background: rgba(240,192,96,.08); }
-  .dsr-seal-flag { color: #ff7a7a; border: 1px solid rgba(255,122,122,.5); background: rgba(255,122,122,.08); }
-  .dsr-seal-open { color: #8a7e68; border: 1px dashed rgba(200,180,120,.3); }
+  /* ══ D21 · VERDICT SEAL-STAMP — the run's verdict pressed as an embossed wax/broadcast seal ══ */
+  .dsr-seal { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    width: 92px; height: 92px; border-radius: 50%; text-transform: uppercase; border: 2px solid; transform-origin: center;
+    box-shadow: inset 0 2px 5px rgba(255,255,255,.05), inset 0 -6px 13px rgba(0,0,0,.55), 0 5px 16px rgba(0,0,0,.45); }
+  .dsr-seal::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; border: 1px solid currentColor; opacity: .22; pointer-events: none; }
+  .dsr-seal .dss-ic { font-size: var(--fs-xl); line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+  .dsr-seal .dss-lab { font: var(--fw-bold) var(--fs-2xs)/1.05 var(--mono); letter-spacing: var(--ls-wide); text-align: center; max-width: 80px; }
+  .dsr-seal-clean { color: var(--gold); border-color: rgba(240,192,96,.55);
+    background: radial-gradient(circle at 50% 34%, rgba(240,192,96,.15), rgba(30,22,8,.5) 72%);
+    box-shadow: inset 0 2px 5px rgba(255,220,150,.14), inset 0 -6px 14px rgba(0,0,0,.55), 0 6px 18px rgba(240,192,96,.14); }
+  .dsr-seal-flag { color: #ff9a8a; border-color: rgba(255,120,80,.6);
+    background: radial-gradient(circle at 50% 34%, rgba(255,90,60,.16), rgba(30,10,8,.5) 72%);
+    box-shadow: inset 0 2px 5px rgba(255,150,120,.14), inset 0 -6px 14px rgba(0,0,0,.55), 0 6px 18px rgba(255,80,50,.16); }
+  .dsr-seal-open { color: #9a8d73; border-color: rgba(200,180,120,.3); border-style: dashed;
+    background: radial-gradient(circle at 50% 34%, rgba(255,255,255,.03), rgba(0,0,0,.35) 72%);
+    box-shadow: inset 0 -4px 10px rgba(0,0,0,.4); }
+  /* the stamp press-down — enters big + rotated + faint, overshoots, settles; fresh-open only (.dss-in) */
+  @keyframes dssStamp { 0% { transform: scale(1.55) rotate(-11deg); opacity: 0; }
+    55% { transform: scale(.92) rotate(3deg); opacity: 1; } 78% { transform: scale(1.04) rotate(-1deg); } 100% { transform: scale(1) rotate(0); } }
+  .dsr-seal.dss-in { animation: dssStamp .5s cubic-bezier(.2,.8,.3,1) both; }
+  @media (prefers-reduced-motion: reduce){ .dsr-seal.dss-in { animation: none; } }
   .dsr-sec { margin-bottom: 20px; }
   .dsr-h { font: var(--fw-bold) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
   .dsr-finds { gap: 8px; }
@@ -3466,9 +3484,9 @@
       ? '<img class="dsr-cover" src="/hist/' + encodeURI(sm.thumb) + '?w=420" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'dsr-cover-fb\')">'
       : '<div class="dsr-cover dsr-cover-none">🎞</div>';
     var sealed = (sm.kaiMissed != null), clean = !(sm.watchdogViolations > 0);
-    var seal = !sealed ? '<span class="dsr-seal dsr-seal-open">◌ unsealed</span>'
-      : (clean ? '<span class="dsr-seal dsr-seal-clean">🛡 clean run</span>'
-               : '<span class="dsr-seal dsr-seal-flag">🚨 ' + sm.watchdogViolations + ' flagged</span>');
+    var seal = !sealed ? '<span class="dsr-seal dsr-seal-open"><span class="dss-ic">◌</span><span class="dss-lab">unsealed</span></span>'
+      : (clean ? '<span class="dsr-seal dsr-seal-clean"><span class="dss-ic">🛡</span><span class="dss-lab">clean run</span></span>'
+               : '<span class="dsr-seal dsr-seal-flag"><span class="dss-ic">🚨</span><span class="dss-lab">' + sm.watchdogViolations + ' flagged</span></span>');
     function tile(label, val){ return '<div class="dsr-stat"><div class="dsr-sv">' + val + '</div><div class="dsr-sl">' + label + '</div></div>'; }
     var found = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || '—');
     var stats = tile('reads', (sm.reads != null ? sm.reads : '—')) + tile('frames', (sm.frames != null ? sm.frames : '—'))
@@ -3519,7 +3537,10 @@
     DOSSIER.n = n;
     ov.innerHTML = _dossierHtml(sm);
     ov.hidden = false; ov.scrollTop = 0;
-    if (freshOpen) _animCounts(ov);   // D20 — animate the key numbers up from 0 (cosmetic; lands on the exact value)
+    if (freshOpen){
+      _animCounts(ov);   // D20 — animate the key numbers up from 0 (cosmetic; lands on the exact value)
+      var _sl = ov.querySelector('.dsr-seal'); if (_sl) _sl.classList.add('dss-in');   // D21 — stamp the verdict seal in (CSS handles reduced-motion)
+    }
   }
   // ══ D20 · STAT COUNT-UPS — when the dossier opens, the key numbers tick up from 0 to their value (reads ·
   // frames · named · found · the decision funnel · coverage%). Purely cosmetic: the LAST frame writes the exact
