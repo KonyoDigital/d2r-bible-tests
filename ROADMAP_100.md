@@ -121,7 +121,7 @@ North star: v2000 = Level 2 rename/rebrand. This 100 gets us to ~v1369.
 _Order flexes to your live bugs + new ideas (they slot in, everything after shifts +1). bible.html items serialize; UI/engine parallelize. Grok pingpong on the meaty rounds. One ping per phase._
 
 ## 🔒 MILESTONE — THE VISUAL LOCK (Konyo standing order: after ~100-200 feature rounds, STOP and lock the visual side before going deeper toward v2000)
-After the feature build (Phases 1-7, ~v1370), HALT feature depth and run a dedicated VISUAL-CONSOLIDATION arc — do NOT push further/deeper toward v2000 until this is done + locked:
+After the feature build (Phases 1-7, ~v1370), HALT feature depth and run a dedicated 10-20 ROUND VISUAL-CONSOLIDATION arc (its own mini-arc, invest 10-20 gated rounds here) — do NOT push further/deeper toward v2000 until this is done + locked:
 - **TYPOGRAPHY** — finalize the type scale/hierarchy across the WHOLE app (console + bible + all tabs): one designed type system, consistent weights/sizes/spacing, big-and-clear, every surface obeying it. No drift.
 - **STRUCTURE** — lock the layout/IA of every screen (home, Sessions, Forge, F-Uniques, F-Sets, Tools/Vault, GHOST MODE): consistent regions, gutters, chrome family, one coherent product.
 - **HARDCODE + LOCK** — freeze the design tokens (colors, type, spacing, the rarity/scene palettes, the chrome) into a single locked source of truth; add invariant tests so the visual system can't silently drift; document the locked system. This becomes the STABLE VISUAL BASE.
