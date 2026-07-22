@@ -3546,7 +3546,14 @@ def _kai_reconcile(routing, register, sess_rows):
     funnel receipt (`routed`) is simply reported as the owner; the max-verified-total logic
     stays where it already lives (Stage 3 / the funnels), this fn only narrates it.
 
-    Returns one dict per routing row: {f, ts, owner, verdict, why}.
+    Returns one dict per routing row: {f, ts, owner, verdict, why, scene, tab, area}.
+    v1253 R1 (DIABLO-LANGUAGE) — scene/tab/area are ADDITIVE: the read's TRUE Diablo scene
+    (town|stash|inventory|loot|gameplay|transition), its stashTab, and its area, carried
+    through faithfully from the nearest deep read (±4s) so a portal/loading frame surfaces
+    as scene='transition' (NOT collapsed to 'gameplay / near black screen') and a stash
+    frame keeps scene='stash' + tab=<its read tab>. This NEVER changes owner/verdict/why —
+    it only threads the already-produced scene out to the session summary + retro. Honest:
+    no nearby read produced a scene ⇒ scene/tab/area stay None (never invented).
     owner  ∈ {'super','live','kai','ocr', None}
     verdict ∈ {'grail','keep','border','toss', None, 'miss'} — None means "a name landed
               but no judge tier has scored it yet" (a real, non-miss state); 'miss' means
@@ -3591,6 +3598,35 @@ def _kai_reconcile(routing, register, sess_rows):
         }
 
     _WIN = 4000   # ±4s tooltip-association window — mirrors _kai_build_routing/_kai_super_already_named
+
+    # v1253 R1 (DIABLO-LANGUAGE) — index EVERY deep read that produced a scene, names or
+    # not. `deep_names_ts` above deliberately drops name-less reads, but a portal/loading
+    # frame reads scene='transition' with EMPTY names — that is exactly the frame that was
+    # collapsing to "gameplay / near black screen". Carry the read's own scene/tab/area onto
+    # each routing row (nearest read within ±_WIN) so downstream renders the true Diablo
+    # scene. ADDITIVE + honest: tab-detection ACCURACY (the read that misnames the tab) is a
+    # later round's job — R1 only transports whatever the read faithfully said.
+    deep_scene_ts = []
+    for r in sess_rows or []:
+        if r.get("lane") != "deep":
+            continue
+        sc = str(r.get("scene") or "").strip().lower()
+        tb = str(r.get("stashTab") or "").strip().lower()
+        ar = str(r.get("area") or "").strip()
+        if not (sc or tb or ar):
+            continue
+        rt = int(r.get("captureTs") or r.get("ts") or 0)
+        if rt:
+            deep_scene_ts.append((rt, sc, tb, ar))
+
+    def _nearest_scene(ts):
+        best, best_d = None, _WIN + 1
+        for rt, sc, tb, ar in deep_scene_ts:
+            d = abs(rt - ts)
+            if d <= _WIN and d < best_d:
+                best, best_d = (sc, tb, ar), d
+        return best
+
     out = []
     for row in routing or []:
         f = str(row.get("f") or "")
@@ -3649,7 +3685,11 @@ def _kai_reconcile(routing, register, sess_rows):
                 verdict = "miss"
                 why = "tally panel frame with no reader evidence and no receipt — never-zero: re-fire, not a zero"
 
-        out.append({"f": f, "ts": ts, "owner": owner, "verdict": verdict, "why": why})
+        _sc = _nearest_scene(ts)
+        out.append({"f": f, "ts": ts, "owner": owner, "verdict": verdict, "why": why,
+                    "scene": (_sc[0] or None) if _sc else None,
+                    "tab": (_sc[1] or None) if _sc else None,
+                    "area": (_sc[2] or None) if _sc else None})
     return out
 
 
@@ -3802,7 +3842,11 @@ def _kai_build_engine_frames(routing, register, super_reads, maps):
         }
         out.append({"f": f, "ts": int(row.get("ts") or 0), "label": label, "layers": layers,
                     "owner": rec.get("owner"), "verdict": rec.get("verdict"),
-                    "why": rec.get("why")})
+                    "why": rec.get("why"),
+                    # v1253 R1 (DIABLO-LANGUAGE) — the read's TRUE Diablo scene, materialized
+                    # into kai_report.json beside owner/verdict so the sealed reel carries it
+                    # out to the Theatre (portal frame = 'transition', not collapsed gameplay).
+                    "scene": rec.get("scene"), "tab": rec.get("tab"), "area": rec.get("area")})
     return out
 
 
@@ -5375,7 +5419,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1253",
+        "ver": "v1254",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -5926,7 +5970,23 @@ class Handler(BaseHTTPRequestHandler):
                         _keepers.append(str(_jd["name"]).strip().lower())
                 # v940 💔 — a REGRET = the judge ruled KEEP on something this session threw out
                 _regrets = sum(1 for k2 in _keepers if k2 in _thrown)
+                # v1253 R1 (DIABLO-LANGUAGE) — richer scene breakdown ALONGSIDE kaiClasses
+                # (which collapses to stash/gameplay/tooltip). This tallies the READS' OWN
+                # Diablo scene + stashTab straight from the journal, so the shelf/fingerprint
+                # can say "transition ×N · stash ×M · gems ×K" in true Diablo language.
+                # Additive: kaiClasses stays untouched. Honest: only counts scenes reads made.
+                _scene_reads, _tab_reads = {}, {}
+                for r2 in sess:
+                    if r2.get("lane") != "deep":
+                        continue
+                    _sc2 = str(r2.get("scene") or "").strip().lower()
+                    if _sc2:
+                        _scene_reads[_sc2] = _scene_reads.get(_sc2, 0) + 1
+                    _tb2 = str(r2.get("stashTab") or "").strip().lower()
+                    if _tb2:
+                        _tab_reads[_tb2] = _tab_reads.get(_tb2, 0) + 1
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
+                            "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
@@ -6198,13 +6258,26 @@ class Handler(BaseHTTPRequestHandler):
                         if _efb:
                             _engine_frame = {"owner": _efb.get("owner"), "verdict": _efb.get("verdict"),
                                              "why": _efb.get("why"), "layers": _efb.get("layers"),
+                                             # v1253 R1 — the read's true Diablo scene rides the
+                                             # sealed EngineFrame out to the Theatre (retro sync).
+                                             "scene": _efb.get("scene"), "tab": _efb.get("tab"),
+                                             "area": _efb.get("area"),
                                              "sealed": True}
                         # pre-seed KAI miss texts into maps via beat fields for dossier
                         _foot.append({
                             "ts": fts, "captureTs": fts, "footage": True,
                             "frame": pref + fn, "frameId": _fid_reel,
-                            "names": [], "scene": "stash" if str(_lbl or "").startswith("stash") else "",
-                            "area": "", "lane": "footage",
+                            "names": [],
+                            # v1253 R1 (DIABLO-LANGUAGE) — a film still had no scene of its own
+                            # (only the collapsed routing label), so a portal/loading beat read
+                            # as blank. Prefer the sealed EngineFrame's TRUE read scene/area
+                            # (transition/town/loot/…); fall back to the old label-derived stash
+                            # hint only when no read scene covers this frame. Additive + honest.
+                            "scene": (_efb.get("scene") if _efb and _efb.get("scene")
+                                      else ("stash" if str(_lbl or "").startswith("stash") else "")),
+                            "tab": (_efb.get("tab") if _efb else None),
+                            "area": (_efb.get("area") if _efb and _efb.get("area") else ""),
+                            "lane": "footage",
                             "label": _lbl, "routeVerdict": _rv,
                             "route": _rr.get("route"),
                             "routed": _rr.get("routed"),

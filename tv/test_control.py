@@ -1212,6 +1212,57 @@ class TestDedupeNeverErasesARealReceipt(unittest.TestCase):
         self.assertEqual(f2["skipReason"], "dup-of:f1.jpg")
 
 
+class TestReconcileCarriesDiabloScene(unittest.TestCase):
+    """v1253 R1 (DIABLO-LANGUAGE) — the reconciler used to collapse the read's rich Diablo
+    scene (town/stash/inventory/loot/gameplay/transition + stashTab + area) down to the
+    generic routing label before it reached the session summary + retro, so a portal/loading
+    frame surfaced as "gameplay / near black screen". `_kai_reconcile` now carries the read's
+    OWN scene/tab/area through (nearest deep read within ±4s) — ADDITIVE, never touching
+    owner/verdict/why. This proves the scene now flows and stays honest when no read covers a
+    frame."""
+
+    def test_transition_frame_carries_scene_transition(self):
+        # a portal/loading frame: routing collapsed it to 'gameplay', but the read said
+        # scene='transition' with NO names — must survive as scene='transition'.
+        routing = [{"f": "f1.jpg", "ts": 10000, "label": "gameplay", "sources": []}]
+        sess_rows = [{"lane": "deep", "captureTs": 10200, "scene": "transition",
+                      "stashTab": "", "area": "", "names": []}]
+        rec = ca._kai_reconcile(routing, [], sess_rows)[0]
+        self.assertEqual(rec["scene"], "transition")
+        # additive-only: the owner/verdict decision is unchanged (still a non-item frame)
+        self.assertIsNone(rec["owner"])
+        self.assertIsNone(rec["verdict"])
+
+    def test_stash_gems_frame_carries_tab_and_scene(self):
+        # a stash frame whose read named the gems tab — scene='stash' + tab='gems' survive.
+        routing = [{"f": "f2.jpg", "ts": 20000, "label": "stash-gems", "sources": ["grid"]}]
+        sess_rows = [{"lane": "deep", "captureTs": 20100, "scene": "stash",
+                      "stashTab": "gems", "area": "Rogue Encampment", "names": []}]
+        rec = ca._kai_reconcile(routing, [], sess_rows)[0]
+        self.assertEqual(rec["scene"], "stash")
+        self.assertEqual(rec["tab"], "gems")
+        self.assertEqual(rec["area"], "Rogue Encampment")
+
+    def test_no_nearby_read_leaves_scene_none(self):
+        # honest: a frame with no deep read within ±4s invents nothing.
+        routing = [{"f": "f3.jpg", "ts": 90000, "label": "gameplay", "sources": []}]
+        sess_rows = [{"lane": "deep", "captureTs": 10000, "scene": "town",
+                      "stashTab": "", "area": "", "names": []}]
+        rec = ca._kai_reconcile(routing, [], sess_rows)[0]
+        self.assertIsNone(rec["scene"])
+        self.assertIsNone(rec["tab"])
+        self.assertIsNone(rec["area"])
+
+    def test_scene_flows_into_materialized_engine_frame(self):
+        # the sealed EngineFrame (kai_report.json, read back by the Theatre) carries it too.
+        routing = [{"f": "f4.jpg", "ts": 30000, "label": "gameplay", "sources": []}]
+        sess_rows = [{"lane": "deep", "captureTs": 30000, "scene": "transition",
+                      "stashTab": "", "area": "", "names": []}]
+        maps = ca._kai_engine_frame_maps(routing, [], sess_rows)
+        efs = ca._kai_build_engine_frames(routing, [], {}, maps)
+        self.assertEqual(efs[0]["scene"], "transition")
+
+
 class TestGridVoteRequiresGenuineGridSignal(unittest.TestCase):
     """v1194 ROUTE/GATE fix — `_kai_closer_loop`'s reel-scan build used to set a scan row's
     gridLabel (the 'layout' independent evidence class, _ROUTER_INDEP_CLASS) straight from
