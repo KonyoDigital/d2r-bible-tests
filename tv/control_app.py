@@ -3008,7 +3008,20 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         if not fid:
             continue
         ik = r.get("intake")
-        if isinstance(ik, dict) and str(ik.get("kind") or "") == "kai-funnel":
+        # v1197 — `routed` means "a REAL funnel receipt landed for this frame", not merely
+        # "a funnel attempt happened". The Stage-3 kai-funnel fire (control_app.py ~4045/4053,
+        # the v1185 honest-miss-on-rejection fix + the pre-existing guardHeld block) can and
+        # DOES land an ok:false receipt (a genuine rejection, or the never-zero guard holding)
+        # for kind:'kai-funnel' — that's the whole point of posting it (an honest miss, not a
+        # silent drop). But this loop used to mark `funnel_by_fid[fid]` on ANY kai-funnel
+        # receipt regardless of `ok`, so a FAILED attempt still made `routed` truthy for that
+        # frame. Two knock-on effects: (1) _kai_reconcile's stash-* narration then claimed
+        # "funnel receipt landed ... its tally count is the accepted read" for a read that
+        # never actually applied — an honest ok:false receipt getting reinterpreted as a
+        # success one layer up; (2) _kai_stage3_select's `if r.get("routed"): continue` row
+        # dedup permanently skipped re-selecting that exact frame, even though nothing real
+        # ever landed on it. Gate on ok so only a genuine success marks the frame routed.
+        if isinstance(ik, dict) and str(ik.get("kind") or "") == "kai-funnel" and ik.get("ok"):
             funnel_by_fid[fid] = "kai-funnel"
         if r.get("lane") == "kai" and r.get("mode") == "kai-judge":
             judge_fids.add(fid)
@@ -5053,7 +5066,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1196",
+        "ver": "v1197",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

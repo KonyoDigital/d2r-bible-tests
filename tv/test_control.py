@@ -1304,6 +1304,45 @@ class TestTabBestTotalSessionScoping(unittest.TestCase):
         self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
 
 
+class TestFunnelRoutedRequiresOk(unittest.TestCase):
+    """v1197 — `_kai_build_routing`'s `funnel_by_fid` used to mark a frame `routed` on ANY
+    kind:'kai-funnel' journal receipt, success or not. But kind:'kai-funnel' receipts CAN be
+    ok:false — the v1185 honest-miss-on-rejection fix and the pre-existing never-zero
+    guardHeld block (control_app.py ~4045/4053) both deliberately post an ok:false receipt
+    instead of dropping silently. Marking the frame routed anyway meant a FAILED attempt got
+    narrated by `_kai_reconcile` as 'funnel receipt landed ... its tally count is the accepted
+    read' (a lie one layer up from an otherwise-honest receipt), and `_kai_stage3_select`
+    permanently skipped re-selecting that exact frame even though nothing real ever landed."""
+
+    def _scan(self):
+        return [{"f": "f1.jpg", "ts": 1000,
+                  "tabstripLabel": "stash-runes", "tabstrip": True,
+                  "gridLabel": "stash-runes", "grid": True}]
+
+    def test_failed_funnel_receipt_does_not_mark_frame_routed(self):
+        journal_rows = [{"frameId": "reel_sid1/f1",
+                          "intake": {"kind": "kai-funnel", "tab": "runes", "ok": False,
+                                     "total": 0, "errors": 1}}]
+        routing = ca._kai_build_routing(self._scan(), [], "sid1", journal_rows)
+        self.assertIsNone(routing[0]["routed"])
+
+    def test_failed_funnel_receipt_not_narrated_as_accepted_by_reconcile(self):
+        journal_rows = [{"frameId": "reel_sid1/f1",
+                          "intake": {"kind": "kai-funnel", "tab": "runes", "ok": False,
+                                     "total": 0, "errors": 1}}]
+        routing = ca._kai_build_routing(self._scan(), [], "sid1", journal_rows)
+        rec = {r["f"]: r for r in ca._kai_reconcile(routing, [], [])}
+        self.assertNotEqual(rec["f1.jpg"]["owner"], "funnel")
+
+    def test_successful_funnel_receipt_still_marks_frame_routed(self):
+        # regression guard: the ok:True case (already pinned by TestDedupeNeverErasesARealReceipt)
+        # must keep working exactly as before this fix.
+        journal_rows = [{"frameId": "reel_sid1/f1",
+                          "intake": {"kind": "kai-funnel", "tab": "runes", "ok": True, "total": 40}}]
+        routing = ca._kai_build_routing(self._scan(), [], "sid1", journal_rows)
+        self.assertEqual(routing[0]["routed"], "kai-funnel")
+
+
 class TestKaiCompileRegisterBestTierWins(unittest.TestCase):
     """v1193 — _kai_compile_register's per-name tier used to be 'first non-blank tier wins'
     (see the OLD `if tier and not cur.get("tier")` rule): sess_rows is walked chronologically,
