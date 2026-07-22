@@ -1398,6 +1398,46 @@ class TestTabBestTotalSessionScoping(unittest.TestCase):
         self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
 
 
+class TestDrvLiveJudgedReserve(unittest.TestCase):
+    """v1205 — FUNNEL analog of engine-read's worker-orphan leak: `_engine_driver`'s
+    `live_judged` dedup set is owned by ONE daemon thread that runs for the process's entire
+    lifetime (started once at boot), spanning many game sessions over hours/days on Konyo's
+    always-on console. It used to grow by one entry per unique judge-candidate frameId
+    FOREVER, with no eviction. `_drv_live_judged_reserve` (extracted so this is directly
+    testable, not just source-pinnable) bounds it: a set that's still small keeps growing
+    normally; crossing the cap clears the whole thing and re-seeds just the current frame."""
+
+    def test_reserves_normally_under_the_cap(self):
+        s = {"a", "b"}
+        ca._drv_live_judged_reserve(s, "c", cap=2000)
+        self.assertEqual(s, {"a", "b", "c"})
+
+    def test_crossing_the_cap_clears_old_entries(self):
+        s = {str(i) for i in range(2001)}   # already over cap=2000
+        ca._drv_live_judged_reserve(s, "new_frame", cap=2000)
+        # every stale entry is gone — only the freshly reserved frame survives
+        self.assertEqual(s, {"new_frame"})
+
+    def test_crossing_the_cap_does_not_lose_protection_for_the_frame_just_reserved(self):
+        s = {str(i) for i in range(2001)}
+        ca._drv_live_judged_reserve(s, "just_fired", cap=2000)
+        self.assertIn("just_fired", s)
+
+    def test_growth_stays_bounded_across_many_reserves(self):
+        s = set()
+        for i in range(10000):
+            ca._drv_live_judged_reserve(s, f"frame_{i}", cap=2000)
+        # never allowed to run away — this is the actual leak-prevention guarantee
+        self.assertLessEqual(len(s), 2001)
+
+    def test_driver_wired_to_the_bounded_reserve_not_a_bare_add(self):
+        # structural pin: _engine_driver must route through the bounded helper, not fall
+        # back to a bare `live_judged.add(...)` that would reintroduce the leak.
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        self.assertIn("_drv_live_judged_reserve(live_judged, _jfid)", src)
+
+
 class TestIntakeLeaseClockSkewImmunity(unittest.TestCase):
     """v1202 — your own flagged follow-up from the v1201 closer-loop clock-skew round:
     _intake_lease_claim/_intake_lease_status used `until <= time.time()*1000` for the actual

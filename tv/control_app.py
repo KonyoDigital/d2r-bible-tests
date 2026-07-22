@@ -366,6 +366,28 @@ def _drv_empty_refire_plan(inflight, intake, freshest_fid, max_tries=3):
     return ("giveup", None)
 
 
+def _drv_live_judged_reserve(live_judged, fid, cap=2000):
+    """v1205 — bounded reserve for `_engine_driver`'s `live_judged` dedup set. Mutates
+    `live_judged` in place (mirrors the driver's own bare-set style); no return value.
+
+    `live_judged` exists purely to stop a frameId being re-queued for a live judge call
+    after it's already fired — `judge_q`'s own membership check independently covers "still
+    pending", so this set's ONLY remaining job is remembering frames that already fired.
+    `_engine_driver` is ONE daemon thread started once at process boot and runs `while True`
+    for the process's ENTIRE lifetime — spanning many game sessions across hours/days on
+    Konyo's always-on, launchd-supervised console — yet before this fix the set was never
+    trimmed: it grew by one entry per unique judge-candidate frameId FOREVER (the FUNNEL
+    analog of engine-read's worker-orphan leak). frameIds are globally unique per reel
+    (reel_<sid>/<n>_<capturems>), so nothing from a closed session's reel can ever reappear —
+    remembering it past the point it can fall out of the bridge's own rolling `reads` window
+    buys nothing. `cap` is far larger than any single session could plausibly produce;
+    crossing it clears the whole set, then immediately re-seeds it with `fid` so the frame
+    just reserved this pass doesn't lose its own protection."""
+    if len(live_judged) > cap:
+        live_judged.clear()
+    live_judged.add(fid)
+
+
 def _capture_ts_from_frame_id(frame_id):
     """Mirrors tv_diablo.py's helper (kept separate — control_app.py is a different process
     and does not import tv_diablo). frameId = '{n}_{captureMs}' — the exact settle freeze
@@ -4717,7 +4739,10 @@ def _engine_driver():
                             "sid": str(rd.get("sessionId") or "")[:48],
                             "names": _live_judge_interesting_names(rd)[:8],
                         })
-                        live_judged.add(_jfid)  # reserve so we never double-queue
+                        # v1205 — reserve so we never double-queue. Bounded (see
+                        # _drv_live_judged_reserve) — unbounded growth here is the FUNNEL
+                        # analog of engine-read's worker-orphan leak.
+                        _drv_live_judged_reserve(live_judged, _jfid)
                         globals()["_DRV_JUDGE_Q"] = globals().get("_DRV_JUDGE_Q", 0) + 1
                 if scene != "stash":
                     if visit_done:
@@ -5128,7 +5153,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1204",
+        "ver": "v1205",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
