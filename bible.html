@@ -4519,6 +4519,20 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     #g4-toggle-card .g4-detail:empty{display:none}
     #g4-toggle-card .g4-note{font-size:11.5px;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border);padding-top:8px}
     #g4-toggle-card .g4-beta{font-size:9px;font-weight:800;letter-spacing:.6px;background:rgba(176,124,255,.18);color:#b07cff;border:1px solid rgba(176,124,255,.42);border-radius:5px;padding:1px 5px;vertical-align:middle;margin-left:6px}
+    #g4-toggle-card .g4-flags{margin-top:10px}
+    #g4-toggle-card .g4-flags:empty{display:none}
+    #g4-toggle-card .g4-flags-h{font-size:12px;font-weight:700;color:#c9a9ff;border-top:1px solid var(--border);padding-top:8px;display:flex;align-items:center;gap:6px}
+    #g4-toggle-card .g4-flags-n{background:rgba(176,124,255,.2);color:#c9a9ff;border-radius:5px;padding:0 6px;font-size:11px}
+    #g4-toggle-card .g4-flags-empty{font-size:12px;color:var(--text-dim);margin-top:5px;line-height:1.5}
+    #g4-toggle-card .g4-flags-sub{font-size:11.5px;color:var(--text-muted);margin:3px 0 7px}
+    #g4-toggle-card .g4-flag{background:rgba(176,124,255,.06);border:1px solid rgba(176,124,255,.25);border-radius:7px;padding:7px 10px;margin-top:6px}
+    #g4-toggle-card .g4-flag-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    #g4-toggle-card .g4-flag-item{font-weight:700;font-size:13px;color:#dbeeff}
+    #g4-toggle-card .g4-flag-kind{font-size:10px;color:var(--text-dim);white-space:nowrap}
+    #g4-toggle-card .g4-flag-verdicts{font-size:12px;color:var(--text-muted);margin-top:3px}
+    #g4-toggle-card .g4-flag-verdicts .g4-eng{color:#8fd0ff}
+    #g4-toggle-card .g4-flag-verdicts .g4-grk{color:#c9a9ff}
+    #g4-toggle-card .g4-flag-note{font-size:11.5px;color:var(--text-dim);font-style:italic;margin-top:3px}
   </style>
   <div class="boss-card collapsible collapsed tool-premium" id="g4-toggle-card" style="--tc:#b07cff">
     <div class="boss-header" onclick="window.toggleCardCollapse('g4-toggle-card');window._g4RenderToggle&&window._g4RenderToggle()" role="button" tabindex="0" aria-expanded="false">
@@ -4538,6 +4552,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         </div>
         <div class="g4-detail" id="g4-detail"></div>
         <div class="g4-note">A <strong>power-user add-on</strong>. When ON <em>and</em> your xAI key is set, Grok gives a cheap second opinion on only the <strong>uncertain / important</strong> reads — borderline chronicle routes, close keep/toss calls, rare→grail promotions — <strong>never every item</strong>. It only <strong>flags disagreements</strong> for your review; it never overrides the app. Set <code>XAI_API_KEY</code> in your environment to activate. The whole add-on lifts out with zero effect on everything else.</div>
+        <div class="g4-flags" id="g4-flags"></div>
       </div>
     </div>
   </div>
@@ -19248,8 +19263,40 @@ async function _g4RenderToggle(){
     return;
   }
   _g4PaintToggle();
+  _g4RenderFlags(base);
 }
 window._g4RenderToggle = _g4RenderToggle;
+
+// "🟣 Grok caught this" — the read-only review surface. Reads /api/g4_flags (every
+// g4.agree===false disagreement across sessions). Empty tonight (no key ran) → a quiet
+// honest message. Konyo reviews; nothing here changes any verdict.
+async function _g4RenderFlags(base){
+  var el = document.getElementById('g4-flags'); if (!el) return;
+  var esc = (typeof escHtml === 'function') ? escHtml : function(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+  var flags = [];
+  try {
+    var res = await fetch(base + '/api/g4_flags', { cache: 'no-store' });
+    var d = await res.json();
+    flags = (d && d.ok && Array.isArray(d.flags)) ? d.flags : [];
+  } catch(e){ el.innerHTML = ''; return; }
+  if (!flags.length){
+    el.innerHTML = '<div class="g4-flags-h">🟣 Grok caught this</div><div class="g4-flags-empty">No disagreements — the engine and Grok agree, or Grok is off. (Flags appear here only when Grok is on and disputes an uncertain call.)</div>';
+    return;
+  }
+  var kindLabel = { 'chronicle': '📜 chronicle route', 'keep-toss': '🔬 keep/toss', 'grail-recheck': '🏆 grail promo' };
+  var rows = flags.map(function(f){
+    var k = kindLabel[f.kind] || f.kind || 'verify';
+    return '<div class="g4-flag">'
+      + '<div class="g4-flag-top"><span class="g4-flag-item">🟣 ' + esc(f.item || '?') + '</span><span class="g4-flag-kind">' + esc(k) + '</span></div>'
+      + '<div class="g4-flag-verdicts">engine said <b class="g4-eng">' + esc(f.engineVerdict || '?') + '</b> · Grok says <b class="g4-grk">' + esc(f.grokVerdict || '?') + '</b></div>'
+      + (f.note ? '<div class="g4-flag-note">“' + esc(f.note) + '”</div>' : '')
+      + '</div>';
+  }).join('');
+  el.innerHTML = '<div class="g4-flags-h">🟣 Grok caught this <span class="g4-flags-n">' + flags.length + '</span></div>'
+    + '<div class="g4-flags-sub">Grok disagreed with the engine on these uncertain calls — <strong>review only</strong>, nothing was changed.</div>'
+    + rows;
+}
+window._g4RenderFlags = _g4RenderFlags;
 
 function _g4PaintToggle(){
   var s = _g4Status || {};
@@ -34901,7 +34948,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1301', name:'📊 Sessions Flagship D14 - Session Comparison (diff two runs)', date:'2026-07-23', note:'📊 Sessions flagship D14 - compare two runs. The Sessions shelf now has a Compare button that opens a side-by-side comparison of two of your runs, defaulting to your last two. It lays their key numbers next to each other - reads, reads per hour, frames, finds, grails, named items, coverage and duration - with an up or down badge on the newer run showing how it did against the older one, coloured so an improvement reads green and a drop reads red, with the winning side gently highlighted. It also shows each runs scene mix side by side. Any figure a run doesnt have shows an honest dash rather than a guess, and the whole thing reads off the run data already loaded, so it costs nothing extra. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1302', name:'🟣 G4 Grok-Caught-This Review Surface (reads the flags, read-only, honest empty)', date:'2026-07-23', note:'🟣 G4 Grok review surface - where a caught disagreement shows up. Now that all three Grok checkpoints can flag an uncertain call, this adds the place you review those flags: a panel inside the Grok Accuracy card that lists every case where Grok disagreed with the reader - the item, what the reader said versus what Grok said, Groks short note, and which kind of call it was - with a clear reminder that nothing was changed and it is yours to judge. Right now, with Grok off, it simply says there are no disagreements, honestly, because none have been recorded. It never changes a verdict on its own; it only gathers the second opinions in one place for you. control_app.py + bible.html.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

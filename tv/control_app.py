@@ -5931,7 +5931,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1301",
+        "ver": "v1302",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6345,14 +6345,18 @@ def _read_ui():
 # Self-contained Grok accuracy bolt-on (Konyo: "fingers in a couple of places",
 # "implement it to be taken out eventually"). ON/OFF, OFF by default, cousin-safe,
 # needs his own xAI key. When OFF/un-keyed, _g4_verify() is an instant no-op → the
-# app is byte-identical to today. SCAFFOLD: the shell + the g4_verify shim + a
-# status/toggle control surface. NO engine touchpoints call _g4_verify yet.
+# app is byte-identical to today. This block = the module shim + status/toggle +
+# the read-only flags reader for the "🟣 Grok caught this" review surface. The 3
+# uncertain-only touchpoints call _g4_verify() from their own fenced blocks; each
+# only flags a Grok disagreement (never overrides the deterministic verdict).
 #
-# TO REMOVE THE WHOLE FEATURE, ZERO SCARS:
+# TO REMOVE THE WHOLE FEATURE, ZERO SCARS — grep -rn "GROK ADD-ON" . finds every trace:
 #   1) delete tv/g4_grok.py
-#   2) delete this block (to "# ══ END GROK ADD-ON (G4) ══") and the two
-#      "/api/g4_status" + "/api/g4_toggle" route stanzas in do_GET/do_POST
-#      (each fenced with the same GROK ADD-ON markers).
+#   2) delete this block (to "# ══ END GROK ADD-ON (G4) ══")
+#   3) delete the fenced route stanzas: /api/g4_status, /api/g4_flags (do_GET),
+#      /api/g4_toggle (do_POST)
+#   4) delete the 3 fenced touchpoint blocks (touchpoint 1/2/3) in the seal path +
+#      /kai_verdict handler, and the #g4-toggle-card markup + script in bible.html.
 try:
     if HERE not in sys.path:
         sys.path.insert(0, HERE)
@@ -6377,6 +6381,39 @@ def _g4_status():
         return _G4.status() if _G4 is not None else {"present": False, "on": False, "hasKey": False}
     except Exception:
         return {"present": False, "on": False, "hasKey": False}
+
+
+def _g4_collect_flags(rows, reel_reports):
+    """READ-ONLY: every Grok DISAGREEMENT (g4.agree === False) the touchpoints recorded,
+    across the sealed reel reports (seam 1 → register[].g4) and the journal (seams 2/3 →
+    kai.judge.g4). Powers GET /api/g4_flags → the "🟣 Grok caught this" review surface.
+    EMPTY until Konyo enables G4 and Grok actually disagrees — an empty list is the honest,
+    correct result tonight (no key ran). Writes nothing."""
+    out = []
+    for rep in (reel_reports or []):
+        sid = rep.get("sid") or ""
+        for e in (rep.get("register") or []):
+            g = e.get("g4")
+            if isinstance(g, dict) and g.get("agree") is False:
+                out.append({"item": e.get("name"), "session": sid,
+                            "kind": g.get("kind") or "chronicle",
+                            "engineVerdict": e.get("tier"), "grokVerdict": g.get("verdict"),
+                            "note": g.get("note"), "ts": g.get("ts")})
+    for r in (rows or []):
+        if r.get("lane") != "kai":
+            continue
+        k = r.get("kai")
+        j = k.get("judge") if isinstance(k, dict) else None
+        if not isinstance(j, dict):
+            continue
+        g = j.get("g4")
+        if isinstance(g, dict) and g.get("agree") is False:
+            out.append({"item": j.get("name"), "session": r.get("sessionId") or "",
+                        "kind": g.get("kind") or "keep-toss",
+                        "engineVerdict": j.get("tier"), "grokVerdict": g.get("verdict"),
+                        "note": g.get("note"), "ts": g.get("ts")})
+    out.sort(key=lambda x: (x.get("ts") or ""), reverse=True)
+    return out
 # ══ END GROK ADD-ON (G4) ════════════════════════════════════════════════════════
 
 
@@ -7116,6 +7153,24 @@ class Handler(BaseHTTPRequestHandler):
         # ══ GROK ADD-ON (G4) — REMOVABLE (delete this stanza) ══
         if path == "/api/g4_status":
             self._json(200, _g4_status())
+            return
+        if path == "/api/g4_flags":
+            # read-only: the "🟣 Grok caught this" disagreements. Empty until G4 runs.
+            try:
+                rows = self._load_journal_cached()
+                reels = []
+                try:
+                    for d in sorted(os.listdir(HIST_DIR)):
+                        if not d.startswith("reel_"):
+                            continue
+                        rep = _reel_report_cached(os.path.join(HIST_DIR, d))
+                        if isinstance(rep, dict):
+                            reels.append(rep)
+                except Exception:
+                    pass
+                self._json(200, {"ok": True, "flags": _g4_collect_flags(rows, reels)})
+            except Exception as e:
+                self._json(500, {"ok": False, "msg": str(e)})
             return
         # ══ END GROK ADD-ON (G4) ══
         if path == "/api/autoroute-sweep":

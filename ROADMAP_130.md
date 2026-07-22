@@ -38,7 +38,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [ ] v1306 · G4 cohesion + honest labeling pass
 
 ## PHASE C · SESSIONS FLAGSHIP DEPTH (remaining D-rounds) — v1307–1320
-- [ ] v1307 · D14 session comparison (diff two runs)
+- [x] v1307 · D14 session comparison **(landed v1301)** — ⚖ Compare overlay, 8 metric rows w/ ▲/▼ deltas (farming higher-better mint/red + winner glow), scene-mix diff, honest "—", pure UI. [in flight: D16 area heatmap]
 - [ ] v1308 · D16 area heatmap (where you farm most)
 - [ ] v1309 · D17 best-run / streak highlights
 - [ ] v1310 · D18 shelf card redesign (Maxroll-grade cinematic)
