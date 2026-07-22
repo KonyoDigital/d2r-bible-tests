@@ -1947,9 +1947,8 @@
      IDs namespaced) — the FACE of GHOST MODE is your console itself, ghosted, not the ER cockpit. The Time
      Machine (FILM/JOURNEY/CURRENT + deep tools) opens as a drill-in FROM here. Flip off → #ghost-shell removed
      entirely = zero trace. */
-  #ghost-shell { position: fixed; inset: 0; z-index: 60; overflow: auto; display: flex; flex-direction: column; align-items: center;
-    padding: clamp(10px, 1.6vw, 26px); gap: clamp(10px, 1.4vw, 20px);
-    background: radial-gradient(120% 90% at 50% 20%, rgba(20,18,40,.52), rgba(6,6,14,.72) 58%, rgba(2,2,6,.9)); }
+  #ghost-shell { position: fixed; inset: 0; z-index: 60; overflow-y: auto; overflow-x: hidden;
+    background: radial-gradient(120% 90% at 50% 18%, rgba(20,18,40,.52), rgba(6,6,14,.72) 56%, rgba(2,2,6,.9)); }
   #ghost-shell[hidden] { display: none; }
   /* the starfield you're time-travelling through — the receded real console shows behind it */
   #ghost-shell::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .6; z-index: 0;
@@ -1962,23 +1961,26 @@
       radial-gradient(1px 1px at 10% 70%, rgba(190,180,255,.5), transparent),
       radial-gradient(1px 1px at 93% 76%, rgba(200,200,255,.45), transparent);
     background-size: 340px 340px, 280px 280px, 420px 420px, 300px 300px, 360px 360px, 260px 260px, 380px 380px; }
-  .gsh-head, .gsh-stage, .gsh-dock { position: relative; z-index: 1; width: 100%; }
-  .gsh-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; max-width: 1280px; margin: 0 auto;
-    padding: 4px 6px 12px; border-bottom: 1px solid rgba(160,130,255,.22); }
+  /* v1240 (r11) — sticky header + docked scrubbers frame a (scrollable) ghost replica: on flip you see the
+     ghosted console AND its time-machine instruments at once, no extra tap. */
+  .gsh-head { position: sticky; top: 0; z-index: 4; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    max-width: 1400px; margin: 0 auto; padding: clamp(10px,1.3vw,16px) clamp(12px,2vw,28px);
+    background: linear-gradient(180deg, rgba(8,7,16,.94), rgba(8,7,16,.55)); backdrop-filter: blur(5px);
+    border-bottom: 1px solid rgba(160,130,255,.22); }
   .gsh-title { font: 800 var(--fs-xl)/1 var(--mono); letter-spacing: .16em; color: #d8c8ff; text-shadow: 0 0 20px rgba(160,130,255,.4); }
   .gsh-sub { font: 500 var(--fs-xs)/1.4 var(--mono); color: #9a8fc0; letter-spacing: .04em; }
   .gsh-x { margin-left: auto; cursor: pointer; font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; color: #d8c8ff;
     border: 1px solid rgba(160,130,255,.4); background: rgba(120,90,200,.14); border-radius: 8px; padding: 8px 13px; white-space: nowrap; }
   .gsh-x:hover { border-color: #c9a8ff; background: rgba(120,90,200,.26); box-shadow: 0 0 12px rgba(160,130,255,.3); }
-  /* THE REPLICA — the ghosted clone of the console, floating on top */
-  .gsh-stage { display: flex; justify-content: center; flex: 1 1 auto; }
-  .gsh-replica-wrap { position: relative; display: inline-block; max-width: 100%;
+  /* THE REPLICA — the ghosted clone of the console, scaled down so it reads as a copy FLOATING in the machine */
+  .gsh-stage { position: relative; z-index: 1; display: flex; justify-content: center; padding: clamp(12px,2vw,30px) clamp(12px,2vw,28px) 0; }
+  .gsh-replica-wrap { position: relative; display: inline-block; max-width: 100%; transform-origin: 50% 0;
     animation: gshFloat 7s ease-in-out infinite; }
-  .gsh-replica { pointer-events: none; user-select: none; transform-origin: 50% 30%;
-    filter: grayscale(.3) brightness(.94) contrast(.98); opacity: .96;
+  .gsh-replica { pointer-events: none; user-select: none; display: block; width: min(1180px, 90vw);
+    filter: grayscale(.3) brightness(.92) contrast(.98); opacity: .96;
     border-radius: 16px; outline: 1px solid rgba(160,130,255,.4); outline-offset: 3px;
     box-shadow: 0 0 0 1px rgba(160,130,255,.25), 0 0 70px rgba(120,90,200,.4), 0 40px 120px rgba(0,0,0,.7); }
-  .gsh-replica .shell, .gsh-replica.shell { border-radius: 16px; }
+  .gsh-replica, .gsh-replica * { animation: none !important; }   /* freeze the clone: a still snapshot of the past */
   /* a violet wash + "viewing the past" ribbon so the clone reads as a time-machine ghost, not the live console */
   .gsh-replica-wrap::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 16px;
     background: linear-gradient(180deg, rgba(120,90,200,.1), rgba(80,60,150,.06) 40%, rgba(40,30,80,.14));
@@ -1986,22 +1988,26 @@
   .gsh-ribbon { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;
     font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: #1a1030;
     background: linear-gradient(90deg, #c9a8ff, #b9a6d8); padding: 5px 13px; border-radius: 999px; box-shadow: 0 3px 14px rgba(0,0,0,.5); }
-  /* the ghosted head-tabs keep their flex layout even with the #id rule namespaced away */
-  .gsh-replica .head-tabs { display: flex; align-items: center; gap: 6px; }
-  @keyframes gshFloat { 0%,100% { transform: translateY(0) scale(.97); } 50% { transform: translateY(-8px) scale(.972); } }
-  /* THE DOCK — the Time Machine lives here as a drill-in FROM the ghost shell (not the headline) */
-  .gsh-dock { max-width: 1280px; margin: 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    padding: 13px 16px; border-radius: 12px; border: 1px solid rgba(160,130,255,.3);
-    background: linear-gradient(180deg, rgba(26,22,44,.6), rgba(10,9,18,.55)); }
+  .gsh-replica .head-tabs { display: flex; align-items: center; gap: 6px; }   /* keep the tab flex (the #id rule is namespaced away) */
+  @keyframes gshFloat { 0%,100% { transform: translateY(0) scale(.82); } 50% { transform: translateY(-7px) scale(.824); } }
+  /* THE DOCK — the FILM + JOURNEY + CURRENT scrubbers relocate into here, pinned at the foot, framing the replica */
+  .gsh-dock { position: sticky; bottom: 0; z-index: 4; max-width: 1400px; margin: 0 auto; max-height: 54vh; overflow-y: auto;
+    padding: 12px clamp(12px,2vw,26px) clamp(12px,1.6vw,20px);
+    background: linear-gradient(180deg, rgba(14,11,26,.72), rgba(10,8,20,.95)); backdrop-filter: blur(6px);
+    border-top: 1px solid rgba(160,130,255,.3); border-radius: 16px 16px 0 0; box-shadow: 0 -18px 50px rgba(0,0,0,.5); }
+  .gsh-dock-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
   .gsh-dock-lead { font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #c9b8ff; }
-  .gsh-dock-hint { font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .02em; color: #9a8fc0; flex: 1 1 220px; min-width: 0; }
-  .gsh-enter { cursor: pointer; font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #1a1030;
-    background: #c9a8ff; border: 1px solid #c9a8ff; border-radius: 9px; padding: 10px 16px; white-space: nowrap;
-    box-shadow: 0 0 16px rgba(201,168,255,.35); transition: box-shadow .15s, transform .1s; }
-  .gsh-enter:hover { box-shadow: 0 0 22px rgba(201,168,255,.6); }
-  .gsh-enter:active { transform: translateY(1px); }
+  .gsh-dock-hint { font: 500 var(--fs-2xs)/1.4 var(--mono); letter-spacing: .02em; color: #9a8fc0; flex: 1 1 200px; min-width: 0; }
+  .gsh-inspect { margin-left: auto; cursor: pointer; font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: #d8c8ff;
+    background: rgba(120,90,200,.16); border: 1px solid rgba(160,130,255,.5); border-radius: 9px; padding: 9px 15px; white-space: nowrap;
+    transition: box-shadow .15s, background .15s, transform .1s; }
+  .gsh-inspect:hover { background: rgba(120,90,200,.3); box-shadow: 0 0 16px rgba(160,130,255,.4); }
+  .gsh-inspect:active { transform: translateY(1px); }
+  .gsh-dock-slots { display: flex; flex-direction: column; gap: 4px; }
+  .gsh-dock-slots #er-film { margin-top: 0; }
+  .gsh-dock-slots #er-gj, .gsh-dock-slots #er-current { margin-top: 10px; }
   /* the Time Machine drill-in (#engine-room, z-index 930) already stacks above the ghost shell (z-index 60) */
-  @media (prefers-reduced-motion: reduce){ .gsh-replica-wrap { animation: none; } .gsh-replica { transform: scale(.97); } }
+  @media (prefers-reduced-motion: reduce){ .gsh-replica-wrap { animation: none; transform: scale(.82); } }
 </style>
 </head>
 <body data-state="off">
@@ -6180,7 +6186,7 @@
       + '</div>'
       + '<div class="er-spinewrap"><div class="er-band" id="er-spine-band">THE ENGINE SPINE — the whole loop, this instant</div>'
       + '<div class="eh-spine er-spine" id="er-spine"></div></div>'
-      + '<div class="er-tlwrap"><div class="er-band er-fam-tm">⏱ THE FILM <span class="er-band-sub">· this session, frame by frame</span> — <span class="er-live-tag">● LIVE</span> now rides the right edge · drag the cursor ◀ into the sealed reels for retro '
+      + '<div class="er-tlwrap" id="er-film"><div class="er-band er-fam-tm">⏱ THE FILM <span class="er-band-sub">· this session, frame by frame</span> — <span class="er-live-tag">● LIVE</span> now rides the right edge · drag the cursor ◀ into the sealed reels for retro '
         + '<button class="er-live-btn" id="er-live-btn" onclick="window._engineRoomLive()" title="snap back to NOW">● LIVE</button></div>'
       + '<div class="er-axiswrap"><div class="er-axis" id="er-axis"></div><div class="er-cursor" id="er-cursor" hidden></div></div>'
       + '<div class="er-readout" id="er-readout"></div>'
@@ -6513,7 +6519,9 @@
            : ('engine resting — press ON AIR to watch it think live, or drag ◀ into a sealed reel for retro'));
   }
   function _engineRoomRefresh(st){
-    var ov = document.getElementById('engine-room'); if (!ov || ov.hidden) return;
+    // v1240 (GHOST MODE r11) — also refresh while GHOST is on: the FILM/spine nodes are docked around the
+    // replica (moved out of the hidden #engine-room), so the live poll must still reach them by id.
+    var ov = document.getElementById('engine-room'); if (!ov || (ov.hidden && !(typeof GHOST !== 'undefined' && GHOST && GHOST.on))) return;
     if (st) ER.lastStatus = st;
     if (ER.focusTs != null) return;   // frozen in retro — live poll never overwrites the past
     var spine = document.getElementById('er-spine');
@@ -6830,16 +6838,15 @@
     }).catch(function(){});
   }
   window._engineRoomDetailClose = function(){ ER.detailOpen = false; var el = document.getElementById('er-detail'); if (el) el.hidden = true; };
-  window._engineRoomOpen = function(){
-    // v1191 — BULLETPROOF OPEN (Konyo: "click Engine Room, nothing happens"). Show the cockpit FIRST, then
-    // render each panel inside its own guard so a single panel error can never again silently swallow the
-    // whole open. Any failure logs loudly ([EngineRoom] …) instead of vanishing, so a recurrence is diagnosable.
+  // v1240 (GHOST MODE r11) — BUILD + WIRE + INIT the Engine Room WITHOUT showing it. This lets ghost-on
+  // build the Time Machine, then RELOCATE its scrubber nodes (FILM/JOURNEY/CURRENT) into the ghost-shell dock
+  // around the replica — the live wired elements, not clones — while the deep tools (spine/detail/key) stay in
+  // #engine-room as the "inspect this moment" drill-in. Same bulletproof per-panel guards as the v1191 open.
+  function _engineRoomEnsure(){
     var ov;
     try { ov = _engineRoomEl(); }
-    catch (e) { console.error('[EngineRoom] element build failed — cockpit could not open', e); return; }
-    try { ER.open = true; } catch (e) {}
-    ov.hidden = false;                       // cockpit is visible no matter what renders below
-    ER.focusTs = null; ER.focusSid = null;   // always open at NOW
+    catch (e) { console.error('[EngineRoom] element build failed', e); return null; }
+    ER.focusTs = null; ER.focusSid = null;   // always at NOW on (re)entry
     try { _engineRoomWireAxis(); }   catch (e) { console.error('[EngineRoom] wireAxis', e); }
     try { _engineRoomLoadRuler(); }  catch (e) { console.error('[EngineRoom] loadRuler', e); }
     try { _engineRoomRefresh(ER.lastStatus || {}); } catch (e) { console.error('[EngineRoom] refresh', e); }
@@ -6854,6 +6861,12 @@
     } catch (e) { console.error('[EngineRoom] onboard', e); }
     try { _erGrailJourneyInit(); } catch (e) { console.error('[EngineRoom] grailJourney', e); }   // v1233 GHOST r4
     try { _erCurrentInit(); } catch (e) { console.error('[EngineRoom] currentState', e); }   // v1235 r6 forge + v1236 r7 tallies/vault
+    return ov;
+  }
+  window._engineRoomOpen = function(){
+    var ov = _engineRoomEnsure(); if (!ov) return;
+    try { ER.open = true; } catch (e) {}
+    ov.hidden = false;                       // cockpit is visible no matter what renders below
   };
   window._engineRoomOnboardDismiss = function(){
     try { localStorage.setItem('tvd_er_onboarded', '1'); } catch (e) {}
@@ -6898,20 +6911,44 @@
     var head = '<div class="gsh-head"><span class="gsh-title">👻 GHOST MODE</span>'
       + '<span class="gsh-sub">your console, ghosted — you\'re in the time machine, viewing the past</span>'
       + '<button class="gsh-x" type="button" onclick="window._ghostExit()" title="back to the live console (Esc)">✕ back to live</button></div>';
-    var dock = '<div class="gsh-dock"><span class="gsh-dock-lead">⏪ the time machine</span>'
-      + '<span class="gsh-dock-hint">scrub your grail journey &amp; the film, replay what the AI saw, read current state — all on this ghosted console</span>'
-      + '<button class="gsh-enter" type="button" onclick="window._ghostEnterTimeMachine()" title="open the Time Machine controls">⏪ enter the time machine</button></div>';
+    // v1240 (r11) — the DOCKED Time Machine: the FILM + JOURNEY + CURRENT scrubbers relocate INTO these slots
+    // (see _ghostDockNodes), framing the ghost replica — visible the moment you flip GHOST MODE, no extra tap.
+    // The deep engine forensics (spine · read-chain · owner/verdict · frame image) stay behind "inspect this moment".
+    var dock = '<div class="gsh-dock" id="gsh-dock">'
+      + '<div class="gsh-dock-bar"><span class="gsh-dock-lead">⏪ the time machine</span>'
+      + '<span class="gsh-dock-hint">scrub the film &amp; your grail journey on this ghosted console — every readout truthful</span>'
+      + '<button class="gsh-inspect" type="button" onclick="window._ghostInspectMoment()" title="open the deep engine forensics for the scrubbed moment">🔬 inspect this moment</button></div>'
+      + '<div class="gsh-dock-slots" id="gsh-dock-slots"></div></div>';
     gs.innerHTML = head + '<div class="gsh-stage"><div class="gsh-replica-wrap"><div class="gsh-ribbon" aria-hidden="true">📼 viewing the past</div></div></div>' + dock;
-    // inject the (namespaced, inert) clone into the stage wrap
     if (clone){ var wrap = gs.querySelector('.gsh-replica-wrap'); if (wrap) wrap.appendChild(clone); }
     document.body.appendChild(gs);
+    // build+init the Time Machine (stays hidden), then relocate its scrubbers into the dock around the replica
+    try { _engineRoomEnsure(); } catch (e) { console.error('[GhostMode] ensure', e); }
+    try { _ghostDockNodes(document.getElementById('gsh-dock-slots')); } catch (e) { console.error('[GhostMode] dock', e); }
   }
   function _ghostShellRemove(){ var gs = document.getElementById('ghost-shell'); if (gs) gs.remove(); }
-  // open the Time Machine (the Engine Room deck) as the drill-in, ON TOP of the ghost shell
-  window._ghostEnterTimeMachine = function(){ try { window._engineRoomOpen(); } catch (e) { console.error('[GhostMode] enterTimeMachine', e); } };
-  // leave GHOST MODE entirely → tear the clone down → ZERO trace, the live console exactly as it was
+  // v1240 (r11) — relocate the LIVE (wired) scrubber nodes into the ghost dock, recording each one's home so
+  // flip-off restores them EXACTLY (→ #engine-room intact for next time, real console byte-identical).
+  var GHOST_MOVED = [];
+  function _ghostDockNodes(slots){
+    if (!slots) return; GHOST_MOVED = [];
+    ['er-film', 'er-gj', 'er-reelcard', 'er-livefeed', 'er-current'].forEach(function(id){
+      var n = document.getElementById(id); if (n){ GHOST_MOVED.push({ node: n, parent: n.parentNode, next: n.nextSibling }); slots.appendChild(n); }
+    });
+  }
+  function _ghostUndockNodes(){
+    for (var i = GHOST_MOVED.length - 1; i >= 0; i--){ var m = GHOST_MOVED[i];   // reverse: each node's anchor is restored just before it
+      if (m.node && m.parent){ if (m.next && m.next.parentNode === m.parent) m.parent.insertBefore(m.node, m.next); else m.parent.appendChild(m.node); } }
+    GHOST_MOVED = [];
+  }
+  // show the deep-forensics drill-in (spine · read-chain · owner/verdict · frame image) for the scrubbed moment
+  window._engineRoomShowDrillin = function(){ var ov = document.getElementById('engine-room'); if (!ov){ ov = _engineRoomEnsure(); } if (ov){ ER.open = true; ov.hidden = false; } };
+  window._ghostInspectMoment = function(){ try { window._engineRoomShowDrillin(); window._engineRoomInspect(); } catch (e) { console.error('[GhostMode] inspect', e); } };
+  window._ghostEnterTimeMachine = window._ghostInspectMoment;   // back-compat alias
+  // leave GHOST MODE entirely → restore the docked scrubbers to #engine-room, tear the clone down → ZERO trace
   window._ghostExit = function(){
     var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; ER.open = false; ER.detailOpen = false;
+    try { _ghostUndockNodes(); } catch (e) { console.error('[GhostMode] undock', e); }   // MUST run before removing the shell (the scrubbers live inside it)
     _ghostShellRemove();
     document.body.classList.remove('ghost-on'); GHOST.on = false;
     var sw = document.getElementById('ghost-switch'); if (sw) sw.classList.remove('on');
