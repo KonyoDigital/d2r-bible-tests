@@ -331,3 +331,7 @@ NOTE: :17772 was down + supervisor pause-flag STALE (Konyo's scan ended) → cle
 ### ENGINE ROOM ARC PROGRESS: 1/20. Remaining ~19 rounds of cockpit polish (control_ui.html primary): spine engine-health clarity, retro scrub UX, timeline "you are here", per-organ readouts, owner/verdict legend, live+retro time-sync visual, typography/visual polish of the cockpit, "see what the AI sees" completeness. polish-ui-2 owns the lane.
 
 ## ✅ CONFIRMED: v1211 (39/80) landed HEAD 188996c — ER arc 2/20 (labeled playhead flag). LESSON: do NOT pkill/restart the headless console until AFTER the pre-push demo hook clears — a mid-respawn console flaked the demo hook once (false "push blocked"); re-push clean succeeded. Console live @ v1211. NEXT: ER arc round 3 → v1212.
+
+## ✅ GATED: v1212 (40/80 MILESTONE) — HEAD 70444c2 — 🧠🖥 ENGINE ROOM ARC ROUND 3 (live health pills)
+polish-ui-2 (control_ui.html): HEALTHY/STRAINED/DOWN/IDLE pills per organ on the cockpit LIVE spine (bottleneck reads at a glance). Scoped to big cockpit organs (home small-cards + retro spine = 0 pills, verified). Mirrors existing pulse, no new semantics. ×3 parity, floor control 125 · agent 198, demo 7/7, smoke+deploy. Console restored @ v1212. Counter: 40/80 (HALFWAY to v1252) · at v1212 · ER arc 3/20 → v1272.
+PUSH LESSON REINFORCED: detached push can look "died" if checked too early — the harness task notification is the source of truth (exit 0 = landed). Round 4 dispatched (in flight → v1213).
