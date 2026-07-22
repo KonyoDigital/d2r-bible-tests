@@ -222,3 +222,8 @@ The Engine-Room 20-arc (v1253→v1272) = deep polish of the cockpit: bulletproof
 engine-read r3 (tv_diablo.py + test_agent.py): _rewarm fires a 60s background health-ping holding w.lock on the SINGLE worker (POOL_N==1, live default) → next live read blocks up to 60s invisibly to LIVE_READ_TIMEOUT_S. FIX: `if POOL_N<=1: return` (worker self-heals on next ask()). +2 tests (agent 181→183). ×3 parity, floor agent 183 · control 83, smoke+deploy. Counter: 20/80 (QUARTER) · at v1192 · target v1252.
 ROUND-3 SWEEP: route/gate(v1189) · capture(v1190) · read(v1192) done; funnel round 3 pending (→ v1193). [v1191 Engine Room bulletproof-open interleaved.] Test floor climbed 171→183 agent / 43→83 control across the mandate.
 NEXT: funnel round 3 (dispatch → v1193).
+
+## ✅ GATED: v1193 (21/80) — HEAD 1e25eb9 — FUNNEL round 3 (register tier best-wins) — ROUND-3 SWEEP COMPLETE
+engine-funnel r3 (control_app.py + test_control.py): _kai_compile_register used "first tier wins" → a stale early border froze the register even after a later super-analyze proved grail. FIX: _KAI_TIER_RANK best-wins (grail>keep>border), tier-domain analog of never-zero. +5 tests (new coverage, control 83→88). ×3 parity, floor control 88 · agent 183, smoke+deploy.
+### ROUND-3 SWEEP DONE (v1189/v1190/v1192/v1193 + v1191 ER open): route/gate·capture·read·funnel all 3× hardened. Test floor: agent 171→183, control 43→88 (65 new regression tests). Counter: 21/80 · at v1193 · target v1252 → then +20 Engine Room (v1253→v1272).
+NEXT: round 4 of per-engine polish (dispatch → v1194+). Diminishing obvious bugs — watch for honest "no new gap" hand-backs and rotate/escalate to deeper/rarer classes.
