@@ -1496,6 +1496,19 @@
   .sh-daygroup:first-child { margin-top: 0; }
   .shg-lab { font: 800 var(--fs-md)/1 var(--serif); letter-spacing: .1em; color: #e8cf96; }
   .shg-n { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: #8a7e68; }
+  /* v1286 (D12) — history activity sparkline: runs-per-day bars, gold on grail days, today highlighted */
+  .sh-timeline { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--edge); border-radius: 11px; background: rgba(10,9,6,.4); }
+  .shtl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+  .shtl-lab { font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold-dim); }
+  .shtl-sum { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .04em; color: #8a7e68; font-variant-numeric: tabular-nums; }
+  .shtl-bars { display: flex; align-items: flex-end; gap: 3px; height: 42px; }
+  .shtl-bar { flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; border-radius: 3px;
+    background: linear-gradient(180deg, transparent 55%, rgba(200,180,120,.05)); }
+  .shtl-bar > i { display: block; width: 100%; min-height: 0; background: rgba(200,180,120,.42); border-radius: 3px 3px 0 0; transition: height .35s ease; }
+  .shtl-bar.shtl-grail > i { background: linear-gradient(180deg, var(--gold-hi), var(--gold-dim)); }
+  .shtl-bar.shtl-today { background: rgba(240,192,96,.08); }
+  .shtl-bar.shtl-today > i { box-shadow: 0 0 8px rgba(240,192,96,.4); }
+  .shtl-bar:hover > i { background: var(--gold); }
   @media (prefers-reduced-motion: no-preference) { .hh-card { transition: border-color .14s, box-shadow .14s, transform .14s; } .hh-card:hover { transform: translateY(-2px); } }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
@@ -4936,9 +4949,11 @@
         + '</div>'
         + '<div class="sh-no-match" id="sh-no-match" hidden>No runs match these filters — clear one to widen the search.</div>'
       : '';
+    var timelineDiv = cards ? '<div class="sh-timeline" id="sh-timeline" hidden></div>' : '';   // v1286 (D12) — activity sparkline
     ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
-      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>' + searchBar + body;
+      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>' + searchBar + timelineDiv + body;
     ov.hidden = false;
+    _shTimeline();   // v1286 (D12) — draw the runs-per-day activity strip (all runs, stable overview)
     var _si = $('sh-search');
     if (_si){
       _si.value = SHELF_Q;                       // restore the query across the poll's re-renders
@@ -5007,6 +5022,34 @@
         grid.insertBefore(h, c);
       }
     });
+  }
+  // v1286 (D12) — HISTORY TIMELINE: a compact runs-per-day activity sparkline over the last 14 days, from every
+  // recorded run's t0 (client-side bucketing, no engine). Honest: real counts, no smoothing; a day with a grail
+  // gets a gold bar; today is highlighted; hover names the day + counts. A stable overview of ALL runs (not the
+  // filtered set) — the bird's-eye above the shelf. Dark-surface styling (the console is a dark app).
+  function _shTimeline(){
+    var el = $('sh-timeline'); if (!el) return;
+    var runs = (TH.sessions || []).filter(function(s){ return !s.stub && s.t0; });
+    if (!runs.length){ el.hidden = true; el.innerHTML = ''; return; }
+    var now = new Date(), startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var DAYS = 14, DAY = 864e5, first = startToday - (DAYS - 1) * DAY;
+    var buckets = []; for (var i = 0; i < DAYS; i++) buckets.push({ start: first + i * DAY, runs: 0, grails: 0 });
+    runs.forEach(function(s){
+      var idx = Math.floor((s.t0 - first) / DAY);
+      if (idx >= 0 && idx < DAYS){ buckets[idx].runs++; buckets[idx].grails += (s.finds || []).filter(function(f){ return f.tier === 'grail'; }).length; }
+    });
+    var max = 1; buckets.forEach(function(b){ if (b.runs > max) max = b.runs; });
+    var totR = 0, totG = 0; buckets.forEach(function(b){ totR += b.runs; totG += b.grails; });
+    var bars = buckets.map(function(b, i){
+      var h = b.runs ? Math.max(9, Math.round(b.runs / max * 100)) : 0;
+      var d = new Date(b.start);
+      var tip = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + b.runs + ' run' + (b.runs === 1 ? '' : 's') + (b.grails ? ' · ' + b.grails + ' grail' + (b.grails === 1 ? '' : 's') : '');
+      return '<span class="shtl-bar' + (b.grails > 0 ? ' shtl-grail' : '') + (i === DAYS - 1 ? ' shtl-today' : '') + '" title="' + esc(tip) + '"><i style="height:' + h + '%"></i></span>';
+    }).join('');
+    el.hidden = false;
+    el.innerHTML = '<div class="shtl-head"><span class="shtl-lab">📈 Activity · last ' + DAYS + ' days</span>'
+      + '<span class="shtl-sum">' + totR + ' run' + (totR === 1 ? '' : 's') + (totG ? ' · ' + totG + ' 🏆' : '') + '</span></div>'
+      + '<div class="shtl-bars">' + bars + '</div>';
   }
   function _shToggleFilter(f){
     if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
