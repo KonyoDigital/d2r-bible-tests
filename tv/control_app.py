@@ -5902,7 +5902,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1294",
+        "ver": "v1295",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6310,6 +6310,45 @@ def _read_ui():
         with open(UI_PATH, "rb") as f:
             return f.read()
     return b"<h1>TV DIABLO control_ui.html missing</h1>"
+
+
+# ══ GROK ADD-ON (G4) — REMOVABLE ════════════════════════════════════════════════
+# Self-contained Grok accuracy bolt-on (Konyo: "fingers in a couple of places",
+# "implement it to be taken out eventually"). ON/OFF, OFF by default, cousin-safe,
+# needs his own xAI key. When OFF/un-keyed, _g4_verify() is an instant no-op → the
+# app is byte-identical to today. SCAFFOLD: the shell + the g4_verify shim + a
+# status/toggle control surface. NO engine touchpoints call _g4_verify yet.
+#
+# TO REMOVE THE WHOLE FEATURE, ZERO SCARS:
+#   1) delete tv/g4_grok.py
+#   2) delete this block (to "# ══ END GROK ADD-ON (G4) ══") and the two
+#      "/api/g4_status" + "/api/g4_toggle" route stanzas in do_GET/do_POST
+#      (each fenced with the same GROK ADD-ON markers).
+try:
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import g4_grok as _G4          # optional; absent file = feature simply not present
+except Exception:
+    _G4 = None
+
+
+def _g4_verify(context):
+    """The engine seam. Cheap Grok second-opinion on ONE uncertain/important decision.
+    Returns None instantly unless the G4 add-on is present AND toggled on AND keyed —
+    so any future touchpoint can call `v = _g4_verify(ctx)` with zero risk when OFF.
+    NOT wired to anything yet (scaffold round)."""
+    try:
+        return _G4.g4_verify(context) if _G4 is not None else None
+    except Exception:
+        return None
+
+
+def _g4_status():
+    try:
+        return _G4.status() if _G4 is not None else {"present": False, "on": False, "hasKey": False}
+    except Exception:
+        return {"present": False, "on": False, "hasKey": False}
+# ══ END GROK ADD-ON (G4) ════════════════════════════════════════════════════════
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -7045,6 +7084,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
             return
+        # ══ GROK ADD-ON (G4) — REMOVABLE (delete this stanza) ══
+        if path == "/api/g4_status":
+            self._json(200, _g4_status())
+            return
+        # ══ END GROK ADD-ON (G4) ══
         if path == "/api/autoroute-sweep":
             # G3 — read-only de-duped sweep of what KAI witnessed → per-tracker tally.
             # Writes nothing; the bible.html panel diffs merge-max + applies on click.
@@ -7398,6 +7442,20 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        # ══ GROK ADD-ON (G4) — REMOVABLE (delete this stanza) ══
+        if path == "/api/g4_toggle":
+            # flip the persisted ON/OFF switch (a future UI button posts {on:true|false}).
+            # Never turns on without a key — g4_status().on reflects key+switch AND.
+            if _G4 is None:
+                self._json(200, {"present": False, "on": False, "hasKey": False})
+                return
+            try:
+                _G4.set_on(bool(body.get("on")))
+            except Exception:
+                pass
+            self._json(200, _g4_status())
+            return
+        # ══ END GROK ADD-ON (G4) ══
         if path == "/kai_verdict":
             # v940 🔬 — KAI's judge receipts: the engine iframe POSTs aicJudge results here.
             # Ghost-proof journaling: ts == captureTs == the FRAME's moment (passed as fts).

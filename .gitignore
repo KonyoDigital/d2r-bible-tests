@@ -32,3 +32,6 @@ tv/sessions.*.jsonl
 tv/*.log
 tv/.tvd_supervisor_pause
 tv/.tvd_window.pid
+
+# G4 Grok add-on — per-machine ON/OFF toggle state (cousin-safe; never inherit an ON state)
+tv/g4_grok.state

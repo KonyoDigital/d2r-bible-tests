@@ -21,7 +21,7 @@ Architecture (Konyo 2026-07-23): **chronicle/tracked items → full AI auto-pipe
 - [ ] v1293 · G3 live-routing forward — chronicle items auto-route into trackers as scanned (same brain, going forward)
 - [ ] v1294 · (folded into v1291 — provenance done)
 - [ ] v1295 · G3 sunder(4/6)+statue(5/5) seed verified on Konyo's real apply (happens when he clicks Apply); de-dup/held-count truth
-- [ ] v1296 · (folded — the non-chronicle→checker list is in v1291; the action is v1292)
+- [x] v1296 · (folded — non-chronicle→checker list in v1291) **+ v1294 the live HAND-OFF: per-item "🔬 send to checker" + bulk send-all queue + load-next; seeds the aic draft (rolled→name/base→base). 12/12 tests, regression 23/23. Konyo's chronicle/else model now COMPLETE end-to-end.**
 - [ ] v1297 · G3 auto-route audit/verify pass (no false tallies; honest "unclear"; RotW-base labels)
 - [ ] v1298 · G3 cohesion + verify — one unified smart routing brain, end to end
 
