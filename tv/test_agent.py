@@ -2557,6 +2557,63 @@ class TestFilmLoopMonotonicCadence(unittest.TestCase):
                          "a multi-minute film freeze")
 
 
+class TestReadLaneMonotonicClocks(unittest.TestCase):
+    """v1200 — the SAME class v1199 fixed in the film loop, swept across the read lane's own
+    timeout/retry clocks (Konyo's read-round-5 hint: 'check the read lane for the same class').
+    Each of these is a pure pacing/deadline computation — never a value that's journaled,
+    persisted, or compared against a wall-clock timestamp elsewhere — so time.monotonic() is a
+    drop-in fix with no behavior change except immunity to a backward NTP jump:
+      - VisionWorker.ask(): the LITERAL enforcement of LIVE_READ_TIMEOUT_S (the Master Brain
+        law rounds 1-4 all protected from other angles) — a jump here reopens the exact
+        'hang the entire live lane' failure this whole arc exists to close.
+      - OcrWorker.read(): same deadline-loop shape, feeds the OCR/text-eye fast lane.
+      - _pool_shutdown() / _verify_drain(): the round-1 CLOSER's shutdown budget — the two
+        share ONE deadline value end-to-end, so they must agree on its clock domain or the
+        comparison is nonsense (monotonic vs wall-clock are different epochs entirely).
+      - _oneshot(): the round-4 gate-wait budget — bends the OTHER way under a backward jump
+        (INFLATES the run's remaining budget instead of collapsing it), same root cause.
+    Source-locked (not behavioral) for the same reason _film_loop's fix was: proving a real
+    backward-jump recovery deterministically would need to fight the exact clock these
+    functions now correctly ignore."""
+
+    def _src(self, obj):
+        import inspect
+        return "\n".join(ln.split("#", 1)[0] for ln in inspect.getsource(obj).splitlines())
+
+    def test_vision_worker_ask_deadline_is_monotonic(self):
+        code = self._src(tv.VisionWorker.ask)
+        self.assertIn("time.monotonic()", code)
+        self.assertNotIn("time.time()", code,
+                         "REGRESSION: a backward NTP jump mid-read can hang the live lane for "
+                         "however long the clock jumped, past LIVE_READ_TIMEOUT_S")
+
+    def test_ocr_worker_read_deadline_is_monotonic(self):
+        code = self._src(tv.OcrWorker.read)
+        self.assertIn("time.monotonic()", code)
+        self.assertNotIn("time.time()", code,
+                         "REGRESSION: a backward NTP jump can stall the OCR/text-eye fast lane")
+
+    def test_pool_shutdown_deadline_is_monotonic(self):
+        code = self._src(tv._pool_shutdown)
+        self.assertIn("deadline = time.monotonic()", code)
+        self.assertNotIn("time.time() < deadline", code)
+        self.assertNotIn("deadline - time.time()", code)
+
+    def test_verify_drain_deadline_check_is_monotonic(self):
+        code = self._src(tv._verify_drain)
+        self.assertIn("time.monotonic() >= deadline", code,
+                      "must match _pool_shutdown's monotonic deadline — comparing a monotonic "
+                      "deadline against wall-clock time.time() is comparing different epochs")
+
+    def test_oneshot_gate_budget_is_monotonic(self):
+        code = self._src(tv._oneshot)
+        self.assertIn("t0 = time.monotonic()", code)
+        self.assertIn("time.monotonic() - t0", code)
+        self.assertNotIn("time.time() - t0", code,
+                         "REGRESSION: a backward jump during the gate wait can INFLATE the "
+                         "run's remaining budget well past the caller's intended timeout")
+
+
 class TestV926SecondLook(unittest.TestCase):
     """v926 — the verify lane: re-read the SAME frame, correct the tally, journal a distinct
     `lane=verify` beat so the funnel's exactly-once holds. Stub-driven (zero vision cost)."""
@@ -2640,12 +2697,15 @@ class TestV926SecondLook(unittest.TestCase):
     def test_close_time_drain_respects_a_past_deadline(self):
         # v1179 CLOSER — a deadline already in the past (the shutdown budget is spent) must
         # leave the queue untouched rather than overrun the caller's time box.
+        # v1200 — `deadline` is a time.monotonic() value now (matching _pool_shutdown, the
+        # real caller); a wall-clock time.time() value here would silently never compare
+        # correctly (different epoch/scale entirely).
         with open(self.man, "w") as _mf:
             json.dump({os.path.basename(self.fid + ".jpg") + "#verify":
                        {"confirm": ["Ist Rune"], "not_present": [], "missed": [], "conf": 0.9}}, _mf)
         tv._VERIFY_Q.append({"fid": self.fid, "names": ["Ist Rune"], "vaulted": ["Ist Rune"],
                              "n": 7, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000000})
-        tv._verify_drain(budget=len(tv._VERIFY_Q), deadline=time.time() - 1.0)
+        tv._verify_drain(budget=len(tv._VERIFY_Q), deadline=time.monotonic() - 1.0)
         self.assertEqual(len(tv._VERIFY_Q), 1)   # nothing spent — the job is still queued
         tv._VERIFY_Q.clear()
 
@@ -2667,7 +2727,7 @@ class TestV926SecondLook(unittest.TestCase):
                              "n": 7, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000000})
         tv._VERIFY_Q.append({"fid": fid2, "names": ["Ohm Rune"], "vaulted": ["Ohm Rune"],
                              "n": 8, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000100})
-        tv._verify_drain(budget=len(tv._VERIFY_Q), deadline=time.time() + 30.0)
+        tv._verify_drain(budget=len(tv._VERIFY_Q), deadline=time.monotonic() + 30.0)   # v1200 — monotonic
         self.assertEqual(len(tv._VERIFY_Q), 0)   # both jobs drained, none silently dropped
         vrows = [r for r in self._rows() if r.get("lane") == "verify"]
         self.assertEqual(len(vrows), 2)

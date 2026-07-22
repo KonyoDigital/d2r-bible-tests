@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1199"   # 📷 CAPTURE round 5 — film cadence CLOCK-SKEW: _film_loop paced with wall-clock time.time() not time.monotonic(). A backward wall-clock jump (NTP resync on macOS sleep/wake — routine over a multi-hour session) makes dt = time.time()-t0 deeply negative → sleep(max(0.02, FILM_INTERVAL_S - dt)) sleeps for the WHOLE jump (e.g. 600s), blacking out the film thread for minutes = 0 frames captured. Multi-minute total outage vs the per-frame issues rounds 1-4 fixed. Same class the window-pin _PICK_CACHE already uses time.monotonic() to avoid. FIX: the 3 t0-elapsed exprs in _film_loop → time.monotonic() (pure pacing/telemetry; captureTs/frame_id/_FOOTAGE_DUE keep wall-clock, which they require). +1 test (source-lock). ×3 parity (27/80 → v1252)
+VERSION = "v1200"   # 🔴 READ round 5 — read-lane CLOCK-SKEW sweep (5 spots): took v1199's hint and audited every deadline/elapsed in the read lane for the wall-clock-vs-monotonic class. Found it 5×, incl. THE critical one — VisionWorker.ask()'s deadline loop, the literal enforcement of LIVE_READ_TIMEOUT_S the whole 5-round arc protects: a backward clock jump there reopens the exact live-lane hang. Also OcrWorker.read(), _pool_shutdown+_verify_drain (shared deadline, fixed together), _oneshot (bends the OTHER way — negative elapsed INFLATES the budget). FIX: time.time()→time.monotonic() in the 5 pure pacing/deadline exprs (journaled/persisted/cross-referenced timestamps stay wall-clock). Updated 2 round-1 tests to the monotonic deadline domain (verified the mismatch was real). Flagged _live_stall_ms out-of-scope (cross-ref'd vs wall-clock in _health). +5 tests (agent 188→193). ×3 parity (28/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2065,9 +2065,17 @@ class VisionWorker:
                     self.stop(); self._spawn()
                 msg = {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": prompt}]}}
                 self.p.stdin.write(json.dumps(msg) + "\n"); self.p.stdin.flush()
-                deadline = time.time() + timeout
-                while time.time() < deadline:
-                    try: line = self.q.get(timeout=max(0.1, deadline - time.time()))
+                # v1200 — monotonic, not wall-clock: this deadline is the LITERAL enforcement of
+                # LIVE_READ_TIMEOUT_S, the Master Brain law rounds 1-4 all protected from other
+                # angles. time.time() can jump BACKWARD (NTP resync on sleep/wake — routine over
+                # a multi-hour session, same class engine-capture just fixed in _film_loop
+                # v1199); mid-read, that makes `deadline - time.time()` balloon to the size of
+                # the jump, so `self.q.get(timeout=...)` blocks for however long the clock
+                # jumped — reintroducing the exact "hang the entire live lane" failure this whole
+                # arc exists to eliminate, in the ONE place that's supposed to guarantee it can't.
+                deadline = time.monotonic() + timeout
+                while time.monotonic() < deadline:
+                    try: line = self.q.get(timeout=max(0.1, deadline - time.monotonic()))
                     except Exception: break
                     if line is None: break
                     line = line.strip()
@@ -2342,12 +2350,15 @@ FAREWELL_READ_ON = str(os.environ.get("TV_FAREWELL", "0" if LIGHT_MODE else "1")
 
 
 def _pool_shutdown(timeout=None):
-    """v864/v899 — join in-flight briefly, then inert late threads. Hard-capped (default ~12s)."""
+    """v864/v899 — join in-flight briefly, then inert late threads. Hard-capped (default ~12s).
+    v1200 — `deadline` here is monotonic (see the `_verify_drain` note below): a shutdown that
+    straddles a backward wall-clock jump must not join in-flight reads for the length of the
+    jump instead of FAREWELL_MAX_S."""
     if timeout is None:
         timeout = FAREWELL_MAX_S
     globals()["_POOL_STOPPING"] = True
-    deadline = time.time() + max(0.0, float(timeout))
-    while time.time() < deadline:
+    deadline = time.monotonic() + max(0.0, float(timeout))
+    while time.monotonic() < deadline:
         with _pool_lock:
             if not _in_flight:
                 break
@@ -2365,12 +2376,12 @@ def _pool_shutdown(timeout=None):
     # then never runs at all — a silent starve, not an honest miss. Spend only what's LEFT of
     # this function's own `deadline` (never extends shutdown time): if the in-flight join above
     # finished early, as it usually does, there's a few spare seconds to spend here instead of
-    # going idle; if it already ate the whole budget, `time.time() < deadline` is false and this
-    # is a no-op.
+    # going idle; if it already ate the whole budget, `time.monotonic() < deadline` is false and
+    # this is a no-op.
     try:
-        if VERIFY_ON and _VERIFY_Q and time.time() < deadline:
+        if VERIFY_ON and _VERIFY_Q and time.monotonic() < deadline:
             _verify_drain(worker=_WORKER, budget=len(_VERIFY_Q),
-                          timeout=max(3.0, deadline - time.time()), deadline=deadline)
+                          timeout=max(3.0, deadline - time.monotonic()), deadline=deadline)
     except Exception:
         pass
     for w in _WORKERS[1:]:
@@ -2740,10 +2751,14 @@ class OcrWorker:
                 ap = os.path.abspath(path)
                 self.p.stdin.write(ap + "\n")
                 self.p.stdin.flush()
-                deadline = time.time() + timeout
-                while time.time() < deadline:
+                # v1200 — same class as VisionWorker.ask(): monotonic, not wall-clock, so a
+                # backward NTP jump mid-poll can't balloon the wait past the intended budget
+                # (short window here, 1.2-1.5s, but the OCR/text-eye lane depends on it staying
+                # fast every single poll — a stuck wait here starves the whole fast lane).
+                deadline = time.monotonic() + timeout
+                while time.monotonic() < deadline:
                     try:
-                        line = self.q.get(timeout=max(0.05, deadline - time.time()))
+                        line = self.q.get(timeout=max(0.05, deadline - time.monotonic()))
                     except Exception:
                         break
                     if line is None:
@@ -3779,12 +3794,18 @@ def _oneshot(ap, model, timeout=90):
     2×timeout wall-clock for one call. Every caller passes LIVE_READ_TIMEOUT_S here specifically
     so a single live read can't exceed that budget (the Master Brain law); silently doubling it
     under the exact contention this gate was built to serialize defeated that. Spend the two
-    phases OUT OF the same budget instead: whatever the wait cost, the run gets what's left."""
-    t0 = time.time()
+    phases OUT OF the same budget instead: whatever the wait cost, the run gets what's left.
+
+    v1200 — `t0`/elapsed here is monotonic, not wall-clock: a backward NTP jump during the
+    gate wait would otherwise make the wall-clock elapsed calculation go negative, INFLATING
+    `remaining` well past the caller's intended budget — the same clock-skew class as
+    VisionWorker.ask(), just bending the number the other way (too much budget instead of
+    too little)."""
+    t0 = time.monotonic()
     if not _ONESHOT_GATE.acquire(timeout=timeout):
         return None
     try:
-        remaining = max(1.0, float(timeout) - (time.time() - t0))
+        remaining = max(1.0, float(timeout) - (time.monotonic() - t0))
         return _oneshot_inner(ap, model, remaining)
     finally:
         _ONESHOT_GATE.release()
@@ -4025,14 +4046,18 @@ def _verify_apply(job, worker=None, timeout=75):
 
 def _verify_drain(worker=None, budget=1, timeout=75, deadline=None):
     """Drain up to `budget` verify jobs. Called from the main loop's idle gap (default: one
-    job, no deadline) AND — v1179 CLOSER — from `_pool_shutdown` with a wall-clock `deadline`
-    so a job queued for the last read(s) before session close still gets its second-look
-    correction instead of vanishing with the queue when the process exits."""
+    job, no deadline) AND — v1179 CLOSER — from `_pool_shutdown` with a `deadline` so a job
+    queued for the last read(s) before session close still gets its second-look correction
+    instead of vanishing with the queue when the process exits.
+
+    v1200 — `deadline` is a time.monotonic() value (the caller, `_pool_shutdown`, computes it
+    that way) specifically so a backward wall-clock jump mid-shutdown can't turn 'spend the
+    leftover shutdown budget' into 'wait out however long the clock jumped'."""
     if not VERIFY_ON:
         return
     n = 0
     while _VERIFY_Q and n < budget:
-        if deadline is not None and time.time() >= deadline:
+        if deadline is not None and time.monotonic() >= deadline:
             break   # out of shutdown budget — leave the rest un-drained rather than overrun
         try:
             _verify_apply(_VERIFY_Q.popleft(), worker=worker, timeout=timeout)
