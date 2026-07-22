@@ -4204,11 +4204,19 @@ def _kai_closer_loop():
                             _pp_tries = {}
                         _pp_retry, _pp_pinned, _pp_next = _kai_gate_pingpong_plan(_plan, _pp_tries)
                         if _pp_next != _pp_tries:
-                            try:
-                                with open(_pp_path, "w", encoding="utf-8") as _ppf:
-                                    json.dump(_pp_next, _ppf)
-                            except Exception:
-                                pass
+                            # v1209 — TORN-WRITE class (same fix as _kai_write_report_atomic /
+                            # v948.17 Grok P0-3, applied to this sibling persisted file): this
+                            # used to be a plain `open(...,'w') + json.dump` — a crash or
+                            # exception mid-write leaves gate_pingpong.json truncated. The read
+                            # side already swallows a bad parse into `_pp_tries = {}` (silently
+                            # forgetting how many tries every held frame has already used), which
+                            # defeats the WHOLE POINT of persisting this file (the docstring's own
+                            # law: "a reel never retries forever") — a torn write lets an already-
+                            # pinned "honest miss, tries maxed" frame get re-queued and re-tried
+                            # past its cap after a crash. Reuse the existing atomic helper (it's
+                            # generic — any path, any JSON dict) instead of a second bespoke
+                            # torn-write bug.
+                            _kai_write_report_atomic(_pp_path, _pp_next)
                         if _pp_retry:
                             _have_j = {str(j.get("f") or "") for j in _judge_jobs}
                             for _rj in _pp_retry:
@@ -5164,7 +5172,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1208",
+        "ver": "v1209",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

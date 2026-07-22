@@ -1016,6 +1016,18 @@ class TestKaiCloserAtomicWiring(unittest.TestCase):
         self.assertIn("KAI routing build failed", src)
         self.assertIn("KAI completeness failed", src)
 
+    def test_gate_pingpong_write_uses_the_atomic_helper(self):
+        # v1209 — TORN-WRITE class, same fix as kai_report.json (Grok P0-3 / v948.17) applied
+        # to the sibling gate_pingpong.json persisted file: a plain `open(...,'w') + json.dump`
+        # left it truncatable on a crash mid-write, and the read side silently resets tries to
+        # {} on a bad parse — defeating the file's own "a reel never retries forever" law by
+        # letting an already-pinned honest-miss frame get re-queued past its cap after a crash.
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn('_kai_write_report_atomic(_pp_path, _pp_next)', src)
+        # regression guard: must not have regressed back to a bare write for this file
+        self.assertNotIn('with open(_pp_path, "w"', src)
+
 
 class TestGateTallyPromotionHonestSources(unittest.TestCase):
     """v1180 ROUTE/GATE fix — the v947 tally-promotion branch in `_kai_build_routing`
