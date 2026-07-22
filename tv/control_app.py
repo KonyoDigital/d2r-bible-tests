@@ -4151,6 +4151,26 @@ def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
 
 
 _COMPLETENESS_CACHE = {"reel": None, "mtime": 0.0, "val": None}
+_REEL_REPORT_CACHE = {}
+
+
+def _reel_report_cached(reel_dir):
+    """v1276 (D5 engine) — memoized read of a sealed reel's kai_report.json, keyed by
+    path+mtime so the /api/sessions poll (~12s) never re-parses a hot report. Returns the
+    parsed dict, or None when the reel has no report (unsealed / old / live reels) — the
+    caller then leaves coverage + classFrames absent so the UI honestly hides both."""
+    try:
+        rp = os.path.join(reel_dir, "kai_report.json")
+        mt = os.path.getmtime(rp)
+        c = _REEL_REPORT_CACHE.get(reel_dir)
+        if c and c[0] == mt:
+            return c[1]
+        with open(rp) as fh:
+            val = json.load(fh)
+        _REEL_REPORT_CACHE[reel_dir] = (mt, val)
+        return val
+    except Exception:
+        return None
 
 
 def _newest_completeness():
@@ -5657,7 +5677,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1275",
+        "ver": "v1276",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6244,10 +6264,46 @@ class Handler(BaseHTTPRequestHandler):
                     _tb2 = str(r2.get("stashTab") or "").strip().lower()
                     if _tb2:
                         _tab_reads[_tb2] = _tab_reads.get(_tb2, 0) + 1
+                # v1276 (D5 engine) — feed the DECISION-STORY coverage meter + classFrames montage
+                # (polish-ui-2's two fields) from the sealed reel's OWN kai_report.json — the reconciled
+                # ground truth built at seal time — NOT the journal. Why the report: (a) its `completeness`
+                # already matches reads↔film across the two frame namespaces (deep reads reference loose
+                # capture frames; the reel archives f_*.jpg stills — a raw journal ratio mixes them and lies);
+                # (b) its `classFrames` picks one representative REEL still per real scene, servable in the
+                # exact `/hist/reel_<sid>/f_*.jpg` form the shelf thumb already uses. Sealed-reels-ONLY:
+                # unswept / live reels have no report → both stay None → the UI's honest-absent contract
+                # hides the meter + montage (no fake zeros). coverage = {read, total(=text moments KAI saw),
+                # gaps(=text seen-but-unread)} so read/total is the real read-completeness %; omitted when
+                # the reel had no item text at all (nothing to report).
+                _coverage, _class_frames = None, None
+                _rreport = _reel_report_cached(
+                    os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or "")))
+                if _rreport:
+                    _cmp = _rreport.get("completeness")
+                    if isinstance(_cmp, dict) and _cmp.get("hovers_estimated"):
+                        _cg = _cmp.get("gaps")
+                        _coverage = {"read": int(_cmp.get("reads") or 0),
+                                     "total": int(_cmp.get("hovers_estimated") or 0),
+                                     "gaps": (len(_cg) if isinstance(_cg, list) else int(_cg or 0))}
+                    _cfd = _rreport.get("classFrames")
+                    if isinstance(_cfd, dict) and _cfd:
+                        _sidr = str(sess[0].get("sessionId") or "")
+                        _cf = []
+                        for _scn, _fr in _cfd.items():
+                            if not isinstance(_fr, dict) or not _fr.get("f"):
+                                continue
+                            _cf.append({"scene": str(_scn).strip().lower(),
+                                        "thumb": "reel_" + _sidr + "/" + _fr["f"],
+                                        "frameId": str(_fr["f"]).rsplit(".", 1)[0],
+                                        "ts": _fr.get("ts")})
+                            if len(_cf) >= 6:
+                                break
+                        _class_frames = _cf or None
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
                             "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
                             "finds": _finds, "topFind": _topFind,   # v1254 R1 — 📖 what KAI witnessed this session
+                            "coverage": _coverage, "classFrames": (_class_frames or None),   # v1276 (D5 engine) — decision-story meter + montage
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
