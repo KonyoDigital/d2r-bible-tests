@@ -4173,6 +4173,223 @@ def _reel_report_cached(reel_dir):
         return None
 
 
+# ── G3 auto-route sweep ──────────────────────────────────────────────────────
+# READ-ONLY aggregation of what KAI witnessed across every session (reel registers
+# + deep-lane journal names + the AI-funnel INTAKE counts) → a de-duped per-tracker
+# tally. Powers GET /api/autoroute-sweep, which the bible.html "🔄 Auto-route sweep"
+# panel fetches, diffs merge-max against the live trackers, and applies ONLY on an
+# explicit in-UI click. This endpoint writes NOTHING. (built by g3-sweep, gated by lead)
+#
+# Design honesty (from the G3 read-only sweep report):
+#  · INTAKE lane is aggregated (the register alone misses the sunders — caveat 6).
+#  · Held counts use MAX-of-snapshot, never SUM (the funnel re-reads the same photo).
+#  · Stable game constants (runes/gems/sunders/statues/materials) are hardcoded here
+#    (robust vs bible.html line drift); runewords come from the live _RWC_SEED list.
+#  · UNIQUES are deliberately left to the browser: only the runtime ITEM_REGISTRY
+#    (~403, built from BOSSES[].dropTable) is authoritative, so every non-stackable
+#    name ships as a `candidate` for the UI to classify against live vocab (caveat 3).
+
+_AUTOROUTE_RUNES = [
+    "El", "Eld", "Tir", "Nef", "Eth", "Ith", "Tal", "Ral", "Ort", "Thul", "Amn",
+    "Sol", "Shael", "Dol", "Hel", "Io", "Lum", "Ko", "Fal", "Lem", "Pul", "Um",
+    "Mal", "Ist", "Gul", "Vex", "Ohm", "Lo", "Sur", "Ber", "Jah", "Cham", "Zod",
+]
+_AUTOROUTE_GEM_TYPES = ["Amethyst", "Diamond", "Emerald", "Ruby", "Sapphire", "Topaz", "Skull"]
+_AUTOROUTE_GEM_QUALS = ["Chipped", "Flawed", "", "Flawless", "Perfect"]  # "" = Normal (bare)
+_AUTOROUTE_SUNDER_BASES = [
+    "Bone Break", "Black Cleft", "Crack of the Heavens",
+    "Cold Rupture", "Flame Rift", "Rotting Fissure",
+]
+_AUTOROUTE_STATUES = [
+    "Talic's Anguish", "Korlic's Pain", "Madawc's Ire",
+    "Bul-Kathos' Nightmare", "Worusk's End",
+]
+# SPECIAL_DROPS materials (non-sunder, non-statue). Essence display-name variants
+# (Twisted/Charged/Burning/Festering …) normalize to the raw essence — caveat 5.
+_AUTOROUTE_MATERIALS = [
+    "Essence of Suffering", "Essence of Hatred", "Essence of Terror", "Essence of Destruction",
+    "Token of Absolution", "Key of Terror", "Key of Hate", "Key of Destruction",
+    "Diablo's Horn", "Baal's Eye", "Mephisto's Brain",
+    "Worldstone Shard (Western)", "Worldstone Shard (Eastern)", "Worldstone Shard (Southern)",
+    "Worldstone Shard (Northern)", "Worldstone Shard (Deep)",
+    "Full Rejuvenation Potion", "Partial Rejuvenation Potion",
+    "Annihilus", "Hellfire Torch", "Wirt's Leg",
+    "Colossal Ancient Jewels", "Colossal Ancient Statue",
+]
+_AUTOROUTE_ESSENCE_ALIAS = {
+    "twisted essence of suffering": "Essence of Suffering",
+    "charged essence of hatred": "Essence of Hatred",
+    "burning essence of terror": "Essence of Terror",
+    "festering essence of destruction": "Essence of Destruction",
+}
+
+
+def _autoroute_gem_names():
+    out = []
+    for t in _AUTOROUTE_GEM_TYPES:
+        for q in _AUTOROUTE_GEM_QUALS:
+            out.append((q + " " + t).strip() if q else t)
+    return out
+
+
+def _autoroute_norm(s):
+    return re.sub(r"\s+", " ", (s or "").strip().lower())
+
+
+def _autoroute_runewords():
+    """Live runeword vocabulary from bible.html's _RWC_SEED map (flat one-liner).
+    Memoized by bible.html mtime. Falls back to an empty set if unreadable."""
+    try:
+        mt = os.path.getmtime(BIBLE)
+    except Exception:
+        mt = 0.0
+    c = globals().setdefault("_AUTOROUTE_RW_CACHE", {"mtime": None, "val": set()})
+    if c["mtime"] == mt and c["val"]:
+        return c["val"]
+    names = set()
+    try:
+        with open(BIBLE, encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+        m = re.search(r"const\s+_RWC_SEED\s*=\s*\{(.*?)\};", src, re.S)
+        if m:
+            names = set(re.findall(r'"([^"]+)"\s*:', m.group(1)))
+        # union RUNEWORD_TIP keys too (some RotW words live only there)
+        m2 = re.search(r"const\s+RUNEWORD_TIP\s*=\s*\{(.*?)\};", src, re.S)
+        if m2:
+            names |= set(re.findall(r'"([^"]+)"\s*:\s*\{', m2.group(1)))
+    except Exception:
+        names = set()
+    c["mtime"], c["val"] = mt, names
+    return names
+
+
+def _autoroute_sunder_family(name):
+    n = _autoroute_norm(name)
+    n = re.sub(r"\bgrand charm\b", "", n).strip()
+    n = re.sub(r"^\s*(latent|renewed)\s+", "", n).strip()
+    for b in _AUTOROUTE_SUNDER_BASES:
+        if _autoroute_norm(b) == n:
+            return b
+    return None
+
+
+def _autoroute_aggregate(rows, reel_reports):
+    """Collect every distinct witnessed name → {intake_max, reads, sources}. READ-ONLY."""
+    agg = {}
+
+    def bump(name, reads=0, intake=0, source=None):
+        if not isinstance(name, str) or not name.strip():
+            return
+        e = agg.setdefault(name, {"intake": 0, "reads": 0, "sources": set()})
+        if intake:
+            e["intake"] = max(e["intake"], intake)
+        e["reads"] += reads
+        if source:
+            e["sources"].add(source)
+
+    name_fields = ("names", "names_new", "confirmed_names", "discovered_names",
+                   "farmed_names", "vault_names")
+    for r in rows or []:
+        lane = r.get("lane")
+        if lane == "deep":
+            for fl in name_fields:
+                v = r.get(fl)
+                if isinstance(v, list):
+                    for x in v:
+                        bump(x, reads=1, source="journal")
+        elif lane == "intake":
+            counts = (r.get("intake") or {}).get("counts") or {}
+            for k, v in counts.items():
+                if isinstance(v, int) and k != "items":   # "items" = funnel meta total
+                    bump(k, intake=v, source="intake")
+    for rep in reel_reports or []:
+        for it in (rep.get("register") or []):
+            bump(it.get("name"), reads=1, source="register")
+    return agg
+
+
+def _autoroute_classify(agg):
+    """De-dupe the witnessed aggregate into per-tracker buckets. READ-ONLY, no writes."""
+    rune_l = {_autoroute_norm(x): x for x in _AUTOROUTE_RUNES}
+    gem_l = {_autoroute_norm(x): x for x in _autoroute_gem_names()}
+    mat_l = {_autoroute_norm(x): x for x in _AUTOROUTE_MATERIALS}
+    stat_l = {_autoroute_norm(x): x for x in _AUTOROUTE_STATUES}
+    rw_l = {_autoroute_norm(x) for x in _autoroute_runewords()}
+
+    sunders, runes, gems, materials, statues = {}, {}, {}, {}, {}
+    candidates = {}   # name -> {count, sources}  (non-stackables → UI classifies)
+    uniques, runewords, unclear = [], [], []
+
+    for name, e in agg.items():
+        held = max(e["intake"], e["reads"], 1)
+        n = _autoroute_norm(name)
+        srcs = sorted(e["sources"])
+
+        fam = _autoroute_sunder_family(name)
+        if fam:
+            sunders[fam] = max(sunders.get(fam, 0), e["intake"] or e["reads"] or 1)
+            continue
+        base = re.sub(r"\s+rune$", "", n)
+        if base in rune_l:
+            k = rune_l[base]
+            runes[k] = max(runes.get(k, 0), held)
+            continue
+        if n in gem_l:
+            k = gem_l[n]
+            gems[k] = max(gems.get(k, 0), held)
+            continue
+        if n in _AUTOROUTE_ESSENCE_ALIAS:
+            k = _AUTOROUTE_ESSENCE_ALIAS[n]
+            materials[k] = max(materials.get(k, 0), held)
+            continue
+        if n in stat_l:
+            k = stat_l[n]
+            statues[k] = max(statues.get(k, 0), e["intake"] or e["reads"] or 1)
+            continue
+        if n in mat_l:
+            k = mat_l[n]
+            materials[k] = max(materials.get(k, 0), held)
+            continue
+        # non-stackable → candidate for the browser's live-vocab classifier
+        candidates[name] = {"count": e["reads"] or 1, "sources": srcs}
+        if n in rw_l:
+            runewords.append(name)
+        else:
+            unclear.append(name)   # UI re-buckets vs live ITEM_REGISTRY (uniques/sets)
+
+    # drop the two never-seen sunder families entirely (honesty: never seed them)
+    sunders = {k: v for k, v in sunders.items() if v > 0}
+    return {
+        "sunders": sunders,
+        "runes": runes,
+        "gems": gems,
+        "materials": materials,
+        "statues": statues,
+        "candidates": candidates,
+        "uniques": sorted(uniques),
+        "runewords": sorted(runewords),
+        "unclear": sorted(unclear),
+    }
+
+
+def _autoroute_sweep_cached(rows, reel_reports, cache_key):
+    """Memoized sweep result. Keyed by (bible mtime, journal identity, reels signature)
+    so the panel poll never re-aggregates a cold journal. READ-ONLY."""
+    c = globals().setdefault("_AUTOROUTE_SWEEP_CACHE", {"key": None, "val": None})
+    if c["key"] == cache_key and c["val"] is not None:
+        return c["val"]
+    out = _autoroute_classify(_autoroute_aggregate(rows, reel_reports))
+    out["stats"] = {
+        "reels": len(reel_reports),
+        "deepRows": sum(1 for r in (rows or []) if r.get("lane") == "deep"),
+        "intakeEvents": sum(1 for r in (rows or []) if r.get("lane") == "intake"),
+        "distinctNames": (len(out["runes"]) + len(out["gems"]) + len(out["materials"])
+                          + len(out["statues"]) + len(out["sunders"]) + len(out["candidates"])),
+    }
+    c["key"], c["val"] = cache_key, out
+    return out
+
+
 def _newest_completeness():
     """{reads, film, coverage%} from the newest sealed reel's completeness stat (post-seal;
     ENGINE_ARCHITECTURE.md target #2). Cached by reel+mtime like _newest_gate_count so
@@ -5677,7 +5894,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1290",
+        "ver": "v1291",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6819,6 +7036,31 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
+            return
+        if path == "/api/autoroute-sweep":
+            # G3 — read-only de-duped sweep of what KAI witnessed → per-tracker tally.
+            # Writes nothing; the bible.html panel diffs merge-max + applies on click.
+            try:
+                rows = self._load_journal_cached()
+                reels = []
+                try:
+                    for d in sorted(os.listdir(HIST_DIR)):
+                        if not d.startswith("reel_"):
+                            continue
+                        rep = _reel_report_cached(os.path.join(HIST_DIR, d))
+                        if isinstance(rep, dict):
+                            reels.append(rep)
+                except Exception:
+                    pass
+                try:
+                    bmt = os.path.getmtime(BIBLE)
+                except Exception:
+                    bmt = 0.0
+                cache_key = (round(bmt, 3), len(rows), id(rows), len(reels))
+                out = _autoroute_sweep_cached(rows, reels, cache_key)
+                self._json(200, dict(out, ok=True))
+            except Exception as e:
+                self._json(500, {"ok": False, "msg": str(e)})
             return
         if path == "/api/reel_path":
             # v946.2 — physical film folder for a theatre session (Finder open + path toast)

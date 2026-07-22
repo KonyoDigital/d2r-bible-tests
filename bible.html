@@ -18815,6 +18815,306 @@ window._rwChronicleChanged = function(name){
   // the Chronicle + vault, so the finished task lingered on the Forge until you left and came back).
   try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
 };
+
+// ── G3 — 🔄 Auto-route Sweep (review-gated apply) ───────────────────────────
+// Fetches the READ-ONLY server sweep (/api/autoroute-sweep), classifies its
+// `candidates` against the LIVE vocab (ITEM_REGISTRY uniques + RUNEWORD_TIP +
+// set pieces — the server can't, caveat 3), diffs MERGE-MAX vs the current
+// trackers, and applies ONLY on the explicit Apply click. Never lowers a value.
+// Lives in the main script scope for direct access to runeStash/gemStash/
+// materialStash/owned/setPieces/statues/rwMade/persist/toggleOwned/_gFound.
+var _ARSweep = { raw: null, diff: null };
+
+function _arNorm(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase(); }
+
+// runeword-capable base words, harvested from RW_BASES (split "A / B / C").
+var _AR_RWBASES = (function(){
+  var set = {};
+  try {
+    (typeof RW_BASES !== 'undefined' ? RW_BASES : []).forEach(function(grp){
+      (grp.items || []).forEach(function(it){
+        String(it.n || '').split(' / ').forEach(function(p){ set[_arNorm(p)] = 1; });
+      });
+    });
+  } catch(e){}
+  return set;
+})();
+
+// set-piece vocab: bare name + full "Name (slot)" → canonical piece string.
+var _AR_SETPIECES = (function(){
+  var map = {};
+  var eat = function(arr){
+    (arr || []).forEach(function(s){
+      (s.pieces || []).forEach(function(pc){
+        map[_arNorm(pc)] = pc;
+        map[_arNorm(pc.replace(/\s*\([^)]*\)\s*$/, ''))] = pc;
+      });
+    });
+  };
+  try { eat(typeof ITEM_SETS !== 'undefined' ? ITEM_SETS : []); } catch(e){}
+  try { eat(typeof SET_PIECES_EXTRA !== 'undefined' ? SET_PIECES_EXTRA : []); } catch(e){}
+  return map;
+})();
+
+function _arUniqueCanon(name){
+  var hit = function(n){
+    if (typeof ITEM_REGISTRY !== 'undefined' && ITEM_REGISTRY[n]) return n;
+    if (typeof _UNI_EXTRA !== 'undefined' && _UNI_EXTRA[n]) return n;
+    if (typeof _GRAIL_SEED !== 'undefined' && _GRAIL_SEED[n]) return n;
+    if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[n] && EXTRA_ITEMS[n].rarity === 'unique') return n;
+    return null;
+  };
+  var h = hit(name); if (h) return h;
+  var w = String(name).split(/\s+/);
+  for (var k = w.length - 1; k >= 1; k--){ var c = hit(w.slice(0, k).join(' ')); if (c) return c; }  // strip trailing base ("Harlequin Crest Shako" → "Harlequin Crest")
+  return null;
+}
+
+function _arRwCanon(name){
+  var tips = (typeof RUNEWORD_TIP !== 'undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP || {});
+  if (tips[name]) return name;
+  var w = String(name).split(/\s+/);
+  for (var k = 1; k < w.length; k++){
+    var rw = w.slice(0, k).join(' ');
+    if (tips[rw] && _AR_RWBASES[_arNorm(w.slice(k).join(' '))]) return rw;  // "Spirit Monarch" → Spirit (Monarch is a real RW base; "Plague Wing" is not)
+  }
+  return null;
+}
+
+function _arApiBase(){
+  // the app is served same-origin at /board by control_app; file:// has no server.
+  try { if (location.protocol === 'file:') return null; } catch(e){}
+  return '';
+}
+
+async function autorouteScan(){
+  var statusEl = document.getElementById('ars-status');
+  var diffEl = document.getElementById('ars-diff');
+  var applyBtn = document.getElementById('ars-apply-btn');
+  if (applyBtn) applyBtn.disabled = true;
+  var base = _arApiBase();
+  if (base === null){
+    if (statusEl) statusEl.innerHTML = '⚠️ Open the app through the <strong>TV control server</strong> (the localhost board) to run the sweep — a <code>file://</code> page can’t reach <code>/api/autoroute-sweep</code>.';
+    return;
+  }
+  if (statusEl) statusEl.textContent = '🔎 Scanning every session KAI has watched…';
+  var data;
+  try {
+    var res = await fetch(base + '/api/autoroute-sweep', { cache: 'no-store' });
+    data = await res.json();
+    if (!data || !data.ok) throw new Error((data && data.msg) || 'sweep failed');
+  } catch(e){
+    if (statusEl) statusEl.innerHTML = '⚠️ Sweep unavailable: ' + (e && e.message ? e.message : e) + '. Is the TV control server running?';
+    return;
+  }
+  _ARSweep.raw = data;
+  _ARSweep.diff = _arComputeDiff(data);
+  _arRenderDiff();
+}
+window.autorouteScan = autorouteScan;
+
+// consumables/gold KAI read but that belong in NO collection and aren't vault-worthy.
+function _arIsJunk(name){ return /\b(gold|potion|arrows?|bolts?|quiver)\b|\btome of\b|\bscroll of\b|horadric cube|key to the|wirt's leg/i.test(name); }
+// genuinely unreadable OCR noise (bucket 3) — a real item name always has a 3+ letter word.
+function _arIsGarbled(name){ var s = String(name || '').trim(); if (s.length < 2) return true; if (!/[a-z]{3,}/i.test(s)) return true; var alpha = (s.match(/[a-z]/gi) || []).length; return alpha / s.length < 0.4; }
+
+function _arComputeDiff(data){
+  // Konyo's routing model → THREE outcomes, no dead-end:
+  //  1) tracked/chronicle item → auto-route (runes/gems/materials/sunders/statues/
+  //     uniques/runewords/setpieces) — the merge-max apply.
+  //  2) non-chronicle real item (RotW class bases · white bases · rolled magic/rare)
+  //     → itemChecker: hand off to the 🔬 AI Item Checker → vault (NOT auto-tallied).
+  //  3) genuinely unreadable → unclear · needs a look (should be tiny).
+  var d = { runes: [], gems: [], materials: [], sunders: [], statues: [],
+            uniques: [], runewords: [], setpieces: [],
+            itemChecker: [], unclear: [], ignored: [] };
+  var mS = (typeof materialStash !== 'undefined') ? materialStash : {};
+  var rS = (typeof runeStash !== 'undefined') ? runeStash : {};
+  var gS = (typeof gemStash !== 'undefined') ? gemStash : {};
+
+  var countDiff = function(store, obj, bucket){
+    Object.keys(obj || {}).forEach(function(name){
+      var swept = parseInt(obj[name], 10) || 0;
+      var cur = parseInt(store[name], 10) || 0;
+      var next = Math.max(cur, swept);
+      if (next > cur) bucket.push({ name: name, cur: cur, next: next });
+    });
+  };
+  countDiff(rS, data.runes, d.runes);
+  countDiff(gS, data.gems, d.gems);
+  countDiff(mS, data.materials, d.materials);
+  // sunders live in materialStash keyed by base name (server already dropped the 2 never-seen)
+  Object.keys(data.sunders || {}).forEach(function(fam){
+    var swept = parseInt(data.sunders[fam], 10) || 0;
+    var cur = parseInt(mS[fam], 10) || 0;
+    var next = Math.max(cur, swept);
+    if (next > cur) d.sunders.push({ name: fam, cur: cur, next: next });
+  });
+  // statues → Set membership + count in materialStash
+  Object.keys(data.statues || {}).forEach(function(name){
+    var swept = parseInt(data.statues[name], 10) || 0;
+    var cur = parseInt(mS[name], 10) || 0;
+    var next = Math.max(cur, swept);
+    var isNew = !(typeof statues !== 'undefined' && statues.has(name));
+    if (isNew || next > cur) d.statues.push({ name: name, cur: cur, next: next, isNew: isNew });
+  });
+  // candidates → live-vocab classify: setpiece → unique → runeword (bucket 1),
+  // else junk→ignored / garbled→unclear / real non-chronicle item→itemChecker.
+  var cands = data.candidates || {};
+  Object.keys(cands).forEach(function(name){
+    var srcs = (cands[name] && cands[name].sources) || [];
+    var sp = _AR_SETPIECES[_arNorm(name)];
+    if (sp){ if (!(typeof setPieces !== 'undefined' && setPieces.has(sp))) d.setpieces.push({ name: name, piece: sp }); return; }
+    var uc = _arUniqueCanon(name);
+    if (uc){ if (!(window._gFound && window._gFound(uc))) d.uniques.push({ name: uc, from: name }); return; }
+    var rc = _arRwCanon(name);
+    if (rc){ if (!(typeof rwMade !== 'undefined' && rwMade[rc])) d.runewords.push({ name: rc, from: name }); return; }
+    if (_arIsJunk(name)){ d.ignored.push({ name: name }); return; }        // consumables/gold — routed nowhere
+    if (_arIsGarbled(name)){ d.unclear.push({ name: name, sources: srcs }); return; }  // bucket 3
+    d.itemChecker.push({ name: name, sources: srcs });                     // bucket 2 → Item Checker → vault
+  });
+  // de-dupe presence buckets (canon collisions)
+  var uniqBy = function(arr, key){ var seen = {}, out = []; arr.forEach(function(x){ var k = x[key]; if (!seen[k]){ seen[k] = 1; out.push(x); } }); return out; };
+  d.uniques = uniqBy(d.uniques, 'name');
+  d.runewords = uniqBy(d.runewords, 'name');
+  d.setpieces = uniqBy(d.setpieces, 'piece');
+  return d;
+}
+
+function _arRenderDiff(){
+  var diffEl = document.getElementById('ars-diff');
+  var statusEl = document.getElementById('ars-status');
+  var applyBtn = document.getElementById('ars-apply-btn');
+  var d = _ARSweep.diff;
+  if (!d){ return; }
+  var raw = _ARSweep.raw || {};
+  var esc = (typeof escHtml === 'function') ? escHtml : function(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+  var html = '';
+
+  var countGrp = function(title, rows, unit){
+    if (!rows.length) return '';
+    var s = '<div class="ars-grp"><div class="ars-grp-h"><span>' + title + '</span><span class="ars-count">' + rows.length + ' ' + (unit || 'change' + (rows.length === 1 ? '' : 's')) + '</span></div><div class="ars-rows">';
+    rows.forEach(function(r){
+      s += '<span class="ars-row">' + esc(r.name) + ' <span class="ars-delta">' + r.cur + '→' + r.next + '</span></span>';
+    });
+    return s + '</div></div>';
+  };
+  var presenceGrp = function(title, rows, label){
+    if (!rows.length) return '';
+    var s = '<div class="ars-grp"><div class="ars-grp-h"><span>' + title + '</span><span class="ars-count">+' + rows.length + ' new</span></div><div class="ars-rows">';
+    rows.forEach(function(r){
+      s += '<span class="ars-row">' + esc(r.name) + ' <span class="ars-new">' + (label || 'NEW') + '</span></span>';
+    });
+    return s + '</div></div>';
+  };
+
+  html += countGrp('🌀 Sunders → materials', d.sunders);
+  html += countGrp('🧮 Runes → rune stash', d.runes);
+  html += countGrp('💎 Gems → gem stash', d.gems);
+  html += countGrp('🜍 Materials → material stash', d.materials);
+  // statues: mix of new membership + count raise
+  if (d.statues.length){
+    html += '<div class="ars-grp"><div class="ars-grp-h"><span>🗿 Statues → statue tracker</span><span class="ars-count">' + d.statues.length + '</span></div><div class="ars-rows">';
+    d.statues.forEach(function(r){
+      html += '<span class="ars-row">' + esc(r.name) + (r.isNew ? ' <span class="ars-new">NEW</span>' : '') + (r.next > r.cur ? ' <span class="ars-delta">' + r.cur + '→' + r.next + '</span>' : '') + '</span>';
+    });
+    html += '</div></div>';
+  }
+  html += presenceGrp('🏆 Grail uniques → found ledger', d.uniques, 'FOUND');
+  html += presenceGrp('📜 Runewords → chronicle', d.runewords, 'MADE');
+  html += presenceGrp('🧩 Set pieces → set tracker', d.setpieces.map(function(x){ return { name: x.piece }; }));
+
+  var total = d.sunders.length + d.runes.length + d.gems.length + d.materials.length +
+              d.statues.length + d.uniques.length + d.runewords.length + d.setpieces.length;
+
+  if (!total){
+    html += '<div class="ars-nochange">✓ Your trackers already hold every tracked item KAI witnessed — nothing to merge.</div>';
+  }
+  // BUCKET 2 — non-chronicle real items → the 🔬 AI Item Checker → vault path (never auto-tallied).
+  if (d.itemChecker && d.itemChecker.length){
+    var chips = d.itemChecker.map(function(x){ return '<span class="ars-unk" title="seen in: ' + esc((x.sources || []).join(', ')) + '">' + esc(x.name) + '</span>'; }).join('');
+    html += '<div class="ars-review ars-checker">🔬 <b>' + d.itemChecker.length + ' → Item Checker &amp; vault</b> — RotW bases, white bases &amp; rolled magic/rare aren’t tracked-collection items, so KAI hands them to the checker to keep-or-toss + vault-mule (not auto-tallied). '
+          + '<button class="ars-jump-btn" onclick="window._toolJump &amp;&amp; window._toolJump(\'ai-item-checker-card\')">open Item Checker →</button>'
+          + '<div style="margin-top:5px">' + chips + '</div></div>';
+  }
+  // BUCKET 3 — genuinely unreadable (tiny). Shown, NEVER applied.
+  if (d.unclear && d.unclear.length){
+    var unk = d.unclear.map(function(x){ return '<span class="ars-unk" title="seen in: ' + esc((x.sources || []).join(', ')) + '">' + esc(x.name) + '</span>'; }).join('');
+    html += '<div class="ars-review">❓ <b>' + d.unclear.length + ' unclear · needs a look</b> — KAI couldn’t read these cleanly (OCR noise / no match anywhere). Not applied.<div style="margin-top:5px">' + unk + '</div></div>';
+  }
+  // ignored consumables — a quiet footnote, routed nowhere
+  if (d.ignored && d.ignored.length){
+    html += '<div class="ars-status" style="margin-top:6px;opacity:.7">↩ Ignored ' + d.ignored.length + ' consumable' + (d.ignored.length === 1 ? '' : 's') + ' / gold (potions, tomes, scrolls — not a collection or vault item).</div>';
+  }
+  // sunder honesty footnote
+  var sSeen = Object.keys(raw.sunders || {}).length;
+  var stats = raw.stats || {};
+  html += '<div class="ars-status" style="margin-top:10px">Swept ' + (stats.deepRows || 0) + ' deep reads · ' + (stats.intakeEvents || 0) + ' intake events · ' + (stats.reels || 0) + ' reels. Sunders witnessed: <strong>' + sSeen + ' of 6</strong> (only what KAI actually read — never seeded blind).</div>';
+
+  if (diffEl) diffEl.innerHTML = html;
+  if (applyBtn) applyBtn.disabled = !total;
+  if (statusEl){
+    statusEl.innerHTML = total
+      ? '✅ Found <strong>' + total + '</strong> merge-max change' + (total === 1 ? '' : 's') + ' below. Review, then press <strong>Apply</strong> — merge-max only raises, never lowers.'
+      : '✅ Scan complete — nothing to change (see below).';
+  }
+}
+
+async function autorouteApply(){
+  var d = _ARSweep.diff;
+  if (!d) return;
+  var statusEl = document.getElementById('ars-status');
+  var total = d.sunders.length + d.runes.length + d.gems.length + d.materials.length +
+              d.statues.length + d.uniques.length + d.runewords.length + d.setpieces.length;
+  if (!total) return;
+  if (typeof uiConfirm === 'function'){
+    var ok = await uiConfirm('Apply ' + total + ' merge-max change' + (total === 1 ? '' : 's') + ' to your trackers? This only RAISES counts / adds items — it never lowers or removes anything.');
+    if (!ok) return;
+  }
+  var filled = {};
+  var stamp = (window._grailStamp ? window._grailStamp() : new Date().toLocaleString());
+  var note = function(name, tracker, count){ filled[name] = { tracker: tracker, count: count, ts: stamp, by: 'g3' }; };
+
+  try {
+    d.runes.forEach(function(r){ runeStash[r.name] = r.next; note(r.name, 'runes', r.next); });
+    d.gems.forEach(function(r){ gemStash[r.name] = r.next; note(r.name, 'gems', r.next); });
+    d.materials.forEach(function(r){ materialStash[r.name] = r.next; note(r.name, 'materials', r.next); });
+    d.sunders.forEach(function(r){ materialStash[r.name] = r.next; note(r.name, 'sunders', r.next); });
+    d.statues.forEach(function(r){
+      try { if (typeof statues !== 'undefined' && !statues.has(r.name)) statues.add(r.name); } catch(e){}
+      if (r.next > r.cur) materialStash[r.name] = r.next;
+      note(r.name, 'statues', r.next);
+    });
+    // persist the stash/set mutations in one shot
+    try { persist(); } catch(e){}
+    // presence trackers via their canonical mutators (each persists + fans out; guarded so no un-tick)
+    d.uniques.forEach(function(r){ try { if (!(window._gFound && window._gFound(r.name))) toggleOwned(r.name); note(r.name, 'unique', 1); } catch(e){} });
+    d.runewords.forEach(function(r){ try { if (!rwMade[r.name] && window.rwToggleMade) window.rwToggleMade(r.name); note(r.name, 'runeword', 1); } catch(e){} });
+    d.setpieces.forEach(function(r){ try { if (!setPieces.has(r.piece) && typeof toggleSetPiece === 'function') toggleSetPiece(r.piece); note(r.piece, 'setpiece', 1); } catch(e){} });
+  } catch(e){}
+
+  // provenance: "🤖 KAI filled this" — merge into d2r_g3Filled, expose on window
+  try {
+    var prov = {};
+    try { prov = JSON.parse(LS.getItem('d2r_g3Filled') || '{}') || {}; } catch(e){}
+    Object.keys(filled).forEach(function(k){ prov[k] = filled[k]; });
+    LS.setItem('d2r_g3Filled', JSON.stringify(prov));
+    window._g3Filled = prov;
+  } catch(e){}
+
+  // re-render the trackers the sweep touched
+  try { if (typeof renderRuneStash === 'function') renderRuneStash(); } catch(e){}
+  try { if (typeof renderGemStash === 'function') renderGemStash(); } catch(e){}
+  try { if (typeof renderMaterialStash === 'function') renderMaterialStash(); } catch(e){}
+  try { if (typeof renderStatueTracker === 'function') renderStatueTracker(); } catch(e){}
+
+  if (statusEl) statusEl.innerHTML = '✅ Applied — <strong>' + total + '</strong> merge-max change' + (total === 1 ? '' : 's') + ' filed to your trackers (🤖 tagged “KAI filled”). Re-scanning…';
+  try { if (typeof showCelebrate === 'function') showCelebrate('🤖 KAI back-filled ' + total + ' item' + (total === 1 ? '' : 's')); } catch(e){}
+  // re-scan so the diff reflects the new (now-merged) state → should read clean
+  setTimeout(function(){ try { autorouteScan(); } catch(e){} }, 400);
+}
+window.autorouteApply = autorouteApply;
+
 // v369.2 — runeword base-string → a verified-present base sprite (same files as the EXTRA_ITEMS art map),
 // so every Chronicle row shows a slot-appropriate icon (shield/armor/helm/weapon) instead of a bare glyph.
 function _rwcCatArt(b){
@@ -34416,7 +34716,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1290', name:'🎨 Sessions Flagship Visual R3 - Off-Air Hero Overlap Fix (+ no-scroll-safe caption)', date:'2026-07-23', note:'🎨 Sessions flagship visual pass, round 3 - the off-air hero overlap fix. This completes the main-page visual arc. Off air, the centered standby text and the status meter tiles were two independent floating layers that did not know each others size, so whenever the caption ran to two lines - which the default text already did - it spilled over the meter tiles. It had been quietly overlapping for many versions, patched only by shrinking fonts. Now the off-air stage lays its parts out in a real column so the marquee, the hero text and the meters can never overlap at any screen size or caption length, while the on-air broadcast view is left exactly as it was. To keep the page from ever needing to scroll, the default standby line was tightened to one line in Konyos own voice, so the default height is unchanged; only rare multi-line messages grow the stage a little, and even then nothing overlaps. The top stat band stays untitled, which is a deliberate flagship pattern. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1291', name:'🔄 G3 Auto-route Sweep - Sunder/Rune/Gem/Material/Statue Tally Back-fill (merge-max, review-gated)', date:'2026-07-23', note:'🔄 G3 auto-route sweep - your sunder charms, finally tallied. You said the AI read your sunder charms dozens of times but the tracker stayed empty. The reason: those reads came in through the intake photo tally, and the tracker only ever looked at the session register, which does not carry them. This adds a "🔄 Auto-route Sweep" panel in Tools that reads everything KAI witnessed across all your sessions - from the intake lane included - and shows you exactly what it would add to each tracker, as a diff you review before anything is written. Scan shows the changes; Apply only ever RAISES a count, never lowers or removes what you already have, and tags what it filled as "KAI filled" so you can always tell. It seeds the 4 sunders it genuinely saw (Crack, Rotting, Bone, Flame) and never invents Black Cleft or Cold Rupture because they were never read; the runes, gems, materials and all 5 Ancient statues fill in too. Anything it cannot confidently classify - the RotW class bases and rolled magic/rare items - is listed for you to run through the Item Checker and vault, never auto-filled. Nothing touches your trackers until you scan, review the diff, and click Apply.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
