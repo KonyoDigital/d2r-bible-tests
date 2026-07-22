@@ -1285,6 +1285,32 @@
   .sfp-tooltip { color: #d0bcff; }
   .sh-fp-line { display: inline-block; margin-top: 3px; }
   .tf-fp { margin: 4px 0 0; }
+  /* ══ v1267 (SESSIONS FLAGSHIP D1 · WHAT I FOUND) — the grails/keeps KAI witnessed each session, as premium
+     item cards: HD art (thArtImg) + name in its KAI-tier colour + 🏆 grail mark + subtle loc. Click → jump to
+     the frame KAI saw it. TRUTHFUL: rendered only when the reel has real finds; grail tier glows gold. ══ */
+  .finds-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
+  .finds-lead { font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; color: var(--gold); text-transform: uppercase; margin-right: 1px; }
+  .find-card { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 4px; border-radius: 8px;
+    background: rgba(0,0,0,.3); border: 1px solid var(--edge); cursor: pointer; max-width: 100%; }
+  .find-card:hover { border-color: var(--gold-antique); background: rgba(20,16,8,.62); }
+  .find-card:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 1px; }
+  .find-card .fc-art { width: 22px; height: 22px; object-fit: contain; flex: none; }
+  .find-card .fc-noart { width: 22px; text-align: center; opacity: .5; flex: none; }
+  .find-card .fc-name { font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .01em; color: #cbbb90;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 132px; }
+  .find-card .fc-mark { font-size: .95em; flex: none; }
+  .find-card .fc-loc { font: 600 var(--fs-2xs)/1 var(--mono); color: #7d7358; flex: none; }
+  .find-card.fc-grail { border-color: rgba(240,192,96,.5);
+    background: linear-gradient(180deg, rgba(240,192,96,.09), rgba(0,0,0,.34)); box-shadow: inset 0 0 12px rgba(240,192,96,.08); }
+  .find-card.fc-grail .fc-name { color: #ffdf9a; }
+  .find-card.fc-grail:hover { border-color: var(--gold); box-shadow: inset 0 0 14px rgba(240,192,96,.16), 0 4px 14px rgba(0,0,0,.4); }
+  .find-card.fc-keep { border-color: rgba(143,230,160,.3); } .find-card.fc-keep .fc-name { color: #9df0bd; }
+  .find-card.fc-border .fc-name { color: #d8c69a; }
+  .find-card.fc-seen .fc-name { color: #b7a884; }
+  .find-more { font: 700 var(--fs-2xs)/1 var(--mono); color: var(--gold-dim); padding: 3px 9px; border-radius: 999px;
+    border: 1px dashed rgba(200,180,120,.28); cursor: pointer; }
+  .find-more:hover { color: var(--gold); border-color: var(--gold-antique); }
+  @media (prefers-reduced-motion: no-preference) { .find-card { transition: border-color .12s, background .12s, box-shadow .12s, transform .12s; } .find-card:hover { transform: translateY(-1px); } }
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
      re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
@@ -3273,6 +3299,56 @@
     return '<span class="scene-fp" title="what this run was, in Diablo terms — % of KAI\'s reads per scene (real reads)">'
       + segs.join('<span class="sfp-x"> · </span>') + '</span>';
   }
+  // ══ v1267 (SESSIONS FLAGSHIP D1 · WHAT I FOUND) — render the session's register `finds` (from /api/sessions,
+  // D1 backend v1265: [{name, tier, loc, frameId, ts}], grail-tier-first then newest, capped) as premium item
+  // cards. Colour by KAI TIER (grail/keep/border) — the console has no D2-rarity DB, so tier IS the honest
+  // premium signal. Click a card → jump to the frame KAI first saw it (_thJumpToFind). TRUTHFUL: '' when no finds. ══
+  var _FIND_TIER = { grail: { cls: 'grail', mark: '🏆' }, keep: { cls: 'keep', mark: '✦' }, border: { cls: 'border', mark: '' } };
+  function _findCard(f, n){
+    if (!f || !f.name) return '';
+    var t = _FIND_TIER[f.tier] || { cls: 'seen', mark: '' };
+    var art = (typeof thArtImg === 'function') ? thArtImg(f.name, 'fc-art') : '';
+    var loc = f.loc ? '<span class="fc-loc">' + esc(f.loc) + '</span>' : '';
+    var fid = String(f.frameId || '').replace(/"/g, '');   // frameIds are N_ts or reel_<sid>/f_<ms> — no quotes, strip defensively
+    var ts = Number(f.ts) || 0;   // NB: ts is > 2^31 — never bit-op it
+    var canJump = !!(fid || ts);
+    var jump = canJump
+      ? ' role="button" tabindex="0" onclick="window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;' + esc(fid) + '&quot;,' + ts + ')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;' + esc(fid) + '&quot;,' + ts + ');}"'
+        + ' title="jump to the frame KAI saw this — ' + esc(f.name) + '"'
+      : ' title="' + esc(f.name) + '"';
+    return '<span class="find-card fc-' + t.cls + '"' + jump + '>'
+      + (art || '<span class="fc-noart">◆</span>')
+      + (t.mark ? '<span class="fc-mark">' + t.mark + '</span>' : '')
+      + '<span class="fc-name">' + esc(f.name) + '</span>' + loc + '</span>';
+  }
+  function _findsStrip(sm, cap){
+    var finds = sm && sm.finds;
+    if (!Array.isArray(finds) || !finds.length) return '';   // honest: nothing to show when no finds (unsealed/older reel)
+    var n = sm.n || 1, lim = cap || 5;
+    var cards = finds.slice(0, lim).map(function(f){ return _findCard(f, n); }).join('');
+    var reg = (sm.registered != null) ? sm.registered : finds.length;   // registered null → fall back to shown count (never fake a total)
+    var more = (reg > lim)
+      ? '<span class="find-more" role="button" tabindex="0" onclick="window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0)"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0);}"'
+        + ' title="open this run in the Theatre to see them all">+' + (reg - lim) + ' more</span>'
+      : '';
+    return '<div class="finds-strip"><span class="finds-lead">🏆 What I found</span>' + cards + more + '</div>';
+  }
+  // click a find → open the session's Theatre and seek to the exact frame KAI witnessed the item (by frameId,
+  // ts fallback). Empty frameId+ts (the "+N more" chip) just opens the run. Best-effort: never throws into the UI.
+  async function _thJumpToFind(n, frameId, ts){
+    try {
+      if (typeof thOpen === 'function' && !(typeof TH !== 'undefined' && TH.open)) await thOpen();
+      if (typeof thLoadSession === 'function') await thLoadSession(Number(n) || 1, true);
+      var beats = (typeof TH !== 'undefined' && TH.beats) || [], idx = -1, i;
+      if (frameId){ for (i = 0; i < beats.length; i++){ if (beats[i] && beats[i].frameId === frameId){ idx = i; break; } } }
+      if (idx < 0 && ts){ var best = Infinity; for (i = 0; i < beats.length; i++){ var d = Math.abs((beats[i].ts || 0) - ts); if (d < best){ best = d; idx = i; } } }
+      if (idx >= 0 && typeof thGo === 'function') thGo(idx);
+      var ov = document.getElementById('th-shelfov'); if (ov) ov.hidden = true;   // leave the shelf; we're in the Theatre now
+    } catch (e) {}
+  }
+  window._tvdJumpFind = function(ev, n, frameId, ts){ if (ev){ ev.stopPropagation(); ev.preventDefault(); } _thJumpToFind(n, frameId, ts); };
   function thDossierLine(b){
     var d = b && b.dossier;
     if (!d || typeof d !== 'object') return '';
@@ -3457,6 +3533,9 @@
     try { if (typeof CARD !== 'undefined' && CARD.open) thCardRender(); } catch (e) {}
     try { if (typeof TLY !== 'undefined' && TLY.open) _tlyRender(); } catch (e) {}
     try { if (TH.open && TH.filmstrip) thFilmstrip(); } catch (e) {}
+    // v1267 (D1) — the WHAT I FOUND cards carry HD item art; repaint them once the art map arrives
+    try { if (typeof hdLastSession === 'function') hdLastSession(); } catch (e) {}
+    try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch (e) {}
   }
   // tally counts arrive as an ARRAY of [name,n] (dossier) OR an OBJECT {name:n} (/api/tallies) — take both.
   function thCountPairs(counts){
@@ -4854,6 +4933,7 @@
       }
       var verdictLine = vparts.length ? '<br><span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '';
       var fpLine = _fp ? '<br><span class="sh-fp-line">' + _fp + '</span>' : '';
+      var findsLine = _findsStrip(sm, 6);   // v1267 (D1) — WHAT I FOUND: the grails/keeps KAI witnessed this run
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '">'
         + art
         + '<b>session ' + n + '</b>' + (sm.stub ? ' <span class="sh-dim">· ghost</span>' : '') + '<br>'
@@ -4863,7 +4943,8 @@
         + verdictLine
         + fpLine
         + (footLine ? '<br>' + footLine : '')
-        + ((sm.areas || []).length ? '<br>' + esc(sm.areas.slice(0, 3).join(' · ')) : '') + '</span></div>';
+        + ((sm.areas || []).length ? '<br>' + esc(sm.areas.slice(0, 3).join(' · ')) : '') + '</span>'
+        + findsLine + '</div>';
     }).join('');
     ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
       + '<div class="sh-head">🎞 THE SHELF — every recorded run</div><div class="sh-grid">' + cards + '</div>';
@@ -6118,10 +6199,12 @@
         ? '<span class="tf-tag" style="border-color:rgba(240,192,96,.4);color:var(--gold)">🛡 CLEAN</span>'
         : '<span class="tf-tag" style="border-color:rgba(255,122,122,.5);color:#ff7a7a">🚨 ' + t.watchdogViolations + '</span>';
       var _fp = _sceneFingerprint(t);   // v1265 (B8) — the run's Diablo-language scene fingerprint, honest-absent
+      var _finds = _findsStrip(t, 4);   // v1267 (D1) — WHAT I FOUND: the grails/keeps KAI witnessed this run
       $('hd-ls-row').innerHTML = '<div class="tf-row tf-stat"><span class="tf-g">📼</span>'
         + '<span class="tf-t"><b>session ' + (t.n || '') + '</b> · ' + esc(parts.join(' · ')) + '</span>'
         + badge + '</div>'
-        + (_fp ? '<div class="tf-fp">' + _fp + '</div>' : '');
+        + (_fp ? '<div class="tf-fp">' + _fp + '</div>' : '')
+        + _finds;
       box.hidden = false;
     } catch(e){}
   }
