@@ -1584,7 +1584,7 @@
   .er-key { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 11px; padding-top: 10px;
     border-top: 1px solid rgba(240,192,96,.12); font: 600 var(--fs-2xs)/1.5 var(--mono); color: #8a7e68; letter-spacing: .03em; }
   .er-key .erk-grp { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .er-key .erk-grp b { color: var(--gold-dim); font-weight: 800; text-transform: uppercase; letter-spacing: .1em; margin-right: 3px; }
+  .er-key .erk-grp b { color: var(--gold-dim); font-weight: 800; text-transform: uppercase; letter-spacing: .12em; margin-right: 3px; }   /* v1229 r20 — unified eyebrow spacing */
   .er-key .erk-sep { color: #4f4a3d; } .er-key .erk-arrow { color: var(--gold-dim); }
   .er-key .erk-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; }
   .er-key .erk-ok { background: var(--mint); box-shadow: 0 0 5px rgba(143,230,160,.5); }
@@ -1619,10 +1619,10 @@
     font: 700 var(--fs-2xs)/1.35 var(--mono); color: #8a7e68; background: rgba(255,255,255,.045);
     border: 1px solid rgba(255,255,255,.14); border-bottom-width: 2px; }
   /* v1217 (Engine Room r8) — MISS SPOTLIGHT bar: the reel's flagged frames + jump-to-problem */
-  .er-flagbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 13px; margin-bottom: 15px; padding: 9px 13px;
-    border-radius: 8px; background: rgba(30,26,44,.4); border: 1px solid rgba(160,130,255,.22); font: 600 var(--fs-2xs)/1.4 var(--mono); }
+  .er-flagbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 13px; margin-bottom: 15px; padding: 11px 14px;
+    border-radius: 10px; background: rgba(30,26,44,.4); border: 1px solid rgba(160,130,255,.22); font: 600 var(--fs-2xs)/1.4 var(--mono); }   /* v1229 r20 — unified info-strip padding/radius */
   .er-flagbar.er-flag-clean { color: #9df0bd; border-color: rgba(143,230,160,.3); background: rgba(143,230,160,.06); }
-  .er-flagbar .ef-lead { font-weight: 800; color: #c9b8ff; letter-spacing: .08em; text-transform: uppercase; }
+  .er-flagbar .ef-lead { font-weight: 800; color: #c9b8ff; letter-spacing: .12em; text-transform: uppercase; }   /* v1229 r20 — unified eyebrow spacing */
   .er-flagbar .ef-k { color: #b7a8d8; }
   .er-flagbar .ef-held { color: #f0d89a; } .er-flagbar .ef-caught { color: #9df0bd; } .er-flagbar .ef-super { color: #cbbcff; } .er-flagbar .ef-stall { color: #ffb0a0; }
   .er-flagbar .ef-here { color: #ffcf8a; font-weight: 700; }
@@ -1635,7 +1635,7 @@
   .er-top-analysis .er-chain { margin: 2px 0 12px; }
   /* v1221 (Engine Room r12) — READ TEXT vs FRAME: what the AI read, headline beside the frame it saw */
   .er-readtext { margin-bottom: 12px; padding-bottom: 11px; border-bottom: 1px solid rgba(160,130,255,.16); }
-  .er-readtext .ert-lab { font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 5px; }
+  .er-readtext .ert-lab { font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 5px; }   /* v1229 r20 — unified eyebrow weight/spacing */
   .er-readtext .ert-val { font: 700 var(--fs-base)/1.4 var(--mono); color: #e8dcc0; word-break: break-word; }
   .er-readtext .ert-dot { color: #6f6a58; margin: 0 2px; }
   .er-readtext .ert-empty { font: 500 var(--fs-sm)/1.3 var(--mono); color: #7a7160; font-style: italic; }
@@ -1656,7 +1656,7 @@
   /* v1225 (Engine Room r16) — empty evidence rows recede so the ones that fired lead the eye */
   .er-detail-body .kv.kv-empty { opacity: .4; padding: 3px 0; border-bottom-color: rgba(255,255,255,.02); }
   /* v1226 (Engine Room r17) — first-open onboarding: subtle, one-time, dismissable orientation strip */
-  .er-onboard { display: flex; align-items: center; gap: 14px; margin-bottom: 2px; padding: 10px 14px; border-radius: 9px;
+  .er-onboard { display: flex; align-items: center; gap: 14px; margin-bottom: 2px; padding: 11px 14px; border-radius: 10px;   /* v1229 r20 — unified info-strip padding/radius */
     border: 1px solid rgba(240,192,96,.3); background: linear-gradient(180deg, rgba(42,33,14,.5), rgba(20,16,8,.4)); }
   .er-onboard[hidden] { display: none; }
   .er-onboard .ero-body { flex: 1 1 auto; font: 600 var(--fs-2xs)/1.6 var(--mono); color: #b7a884; letter-spacing: .02em; }
