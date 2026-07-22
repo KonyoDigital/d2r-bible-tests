@@ -239,3 +239,6 @@ NEXT: read round 4 or funnel round 4 (dispatch → v1196). Round 4: route/gate �
 ## ✅ GATED: v1196 (24/80) — HEAD dfc83ef — READ round 4 (one-shot budget compounding)
 engine-read r4 (tv_diablo.py + test_agent.py): _oneshot spent LIVE_READ_TIMEOUT_S twice (gate-acquire wait + subprocess run) → up to 2×budget under the throttle-cascade the gate serializes. FIX: deduct gate-wait, pass max(1.0, timeout-elapsed). +2 tests (agent 185→187). ×3 parity, floor agent 187 · control 93, smoke+deploy. Counter: 24/80 · at v1196 · target v1252 → +20 ER (v1272).
 NEXT: funnel round 4 (dispatch → v1197) completes round-4 sweep. Test floor: agent 171→187, control 43→93. Honesty clause active.
+
+## 🎯 PRIORITY (Konyo 2026-07-22): THE CONSOLE > the website
+The TV DIABLO CONSOLE (tv_diablo.py capture/read · control_app.py route/gate/funnel · control_ui.html cockpit) is the priority — MORE important than the website (bible.html D2R farming bible). The per-engine rounds + the +20 Engine Room arc ARE all console. bible.html is touched ONLY for the version-stamp/note (parity contract), not website features. Website feature work happens ONLY on explicit Konyo request (e.g. v1183 Blood, v1184 cube-up were his live reports). Keep autonomous effort on the console.
