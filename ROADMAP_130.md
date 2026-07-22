@@ -39,7 +39,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 
 ## PHASE C · SESSIONS FLAGSHIP DEPTH (remaining D-rounds) — v1307–1320
 - [x] v1307 · D14 session comparison **(landed v1301)** — ⚖ Compare overlay, 8 metric rows w/ ▲/▼ deltas (farming higher-better mint/red + winner glow), scene-mix diff, honest "—", pure UI. [in flight: D16 area heatmap]
-- [ ] v1308 · D16 area heatmap (where you farm most)
+- [x] v1308 · D16 area heatmap **(landed v1303)** — ranked heat-bars by run frequency (opacity heat-scales), runs/%/reads/🏆 per area; honest — grails not zone-pinned (labeled + footnoted, no fabricated attribution). [in flight: D17 best-run/streak]
 - [ ] v1309 · D17 best-run / streak highlights
 - [ ] v1310 · D18 shelf card redesign (Maxroll-grade cinematic)
 - [ ] v1311 · D19 beat-card chips (Theatre caption → iconographic)

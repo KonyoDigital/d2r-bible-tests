@@ -19321,8 +19321,11 @@ function _g4PaintToggle(){
     if (detailEl) detailEl.innerHTML = 'Switched on, but no <code>XAI_API_KEY</code> found in your environment — so it’s still <strong>inert</strong> (zero Grok calls). Add your key and it activates.';
   } else {
     var st = s.stats || {};
+    var b = s.budget || {};
+    var seamsArr = s.seams || [];
+    var seamTxt = (seamsArr.length === 3 || !seamsArr.length) ? 'all 3 seams' : seamsArr.join(', ');
     stateEl.className = 'g4-state active'; stateEl.textContent = 'ON — active';
-    if (detailEl) detailEl.innerHTML = 'Grok is double-checking only the uncertain calls. Model <code>' + (s.model || '?') + '</code> · hourly cap ' + (s.hourlyMax || 0) + ' · checks so far ' + (st.calls || 0) + (st.disagree ? ' · 🟣 ' + st.disagree + ' flagged' : '') + '.';
+    if (detailEl) detailEl.innerHTML = 'Grok double-checks only the uncertain calls (' + seamTxt + '). Model <code>' + (s.model || '?') + '</code> · this hour ' + (b.hourlyUsed || 0) + '/' + (b.hourlyMax || s.hourlyMax || 0) + ' · today ' + (b.dailyUsed || 0) + '/' + (b.dailyMax || 0) + (st.disagree ? ' · 🟣 ' + st.disagree + ' flagged' : '') + '.';
   }
 }
 
@@ -34948,7 +34951,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1303', name:'🗺 Sessions Flagship D16 - Area Heatmap (where you farm most)', date:'2026-07-23', note:'🗺 Sessions flagship D16 - area heatmap. The shelf now has an Areas button that opens a heatmap of where you farm most, built from the areas your runs visited. Each area is a heat-bar ranked by how often you run it, the bar glowing hotter the more frequent it is, and showing how many runs visited it, what share of your runs that is, the reads gathered there and the grails found on those runs. It is honest about the data: the game does not tag a grail to a specific zone, so it weighs areas by how often you visit and says plainly that the grail counts are for the runs that visited an area rather than pinned to the zone, never inventing a false attribution. It reads off the run data already loaded and costs nothing extra. control_ui.html only.' };
+  window.D2R_BUILD = { id:'v1304', name:'🟣 G4 Grok Spend Controls - Daily+Hourly Caps + Per-Seam Selection (cheap, opt-in)', date:'2026-07-23', note:'🟣 G4 Grok spend controls - keep it cheap and only where you want it. This adds real guardrails on how much Grok can ever cost and lets you pick exactly which checks it runs. There is now a daily limit as well as an hourly one, and Grok only fires when it is under both, so even switched on it can never run away with your credits. And you can narrow it to just the checks you care about - for instance only the grail double-check, which is the rarest and most valuable one, for the smallest possible spend - just by naming the seams you want. The toggle card shows, when active, which checks are on, how many it has used this hour and today against the caps, and how many disagreements it has flagged, so the cost is always in plain sight. Off, nothing runs and nothing is spent. bible.html + the Grok module.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

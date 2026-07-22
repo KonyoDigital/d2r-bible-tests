@@ -37,12 +37,42 @@ _STATE_FILE = os.path.join(HERE, "g4_grok.state")   # {"on": bool} — per-machi
 # xAI (OpenAI-compatible) endpoint. Everything is env-overridable; nothing fires OFF.
 _XAI_URL = os.environ.get("G4_GROK_URL", "https://api.x.ai/v1/chat/completions")
 _XAI_MODEL_DEFAULT = os.environ.get("G4_GROK_MODEL", "grok-4-latest")
-_HOURLY_MAX = max(0, int(os.environ.get("G4_GROK_HOURLY_MAX", "40")))   # credit guard: never bulk
+_HOURLY_MAX = max(0, int(os.environ.get("G4_GROK_HOURLY_MAX", "40")))    # credit guard: never bulk
+_DAILY_MAX = max(0, int(os.environ.get("G4_GROK_DAILY_MAX", "300")))     # credit guard: 24h ceiling
 _TIMEOUT_S = float(os.environ.get("G4_GROK_TIMEOUT_S", "12"))
 
-# in-process budget ring (cheap, never bulk): timestamps of recent live calls
+# Selective config: which of the 3 uncertain-only seams may fire. Default = all.
+# Set G4_GROK_SEAMS to a comma list (aliases ok) to run only some — e.g.
+# G4_GROK_SEAMS=grail-recheck runs ONLY the highest-value seam (cheapest spend).
+_SEAM_ALIASES = {
+    "chronicle": "chronicle-route", "chronicle-route": "chronicle-route",
+    "keep-toss": "checker-keep-toss", "keeptoss": "checker-keep-toss",
+    "checker-keep-toss": "checker-keep-toss", "checker": "checker-keep-toss",
+    "grail": "grail-recheck", "grail-recheck": "grail-recheck",
+}
+_ALL_SEAMS = ("chronicle-route", "checker-keep-toss", "grail-recheck")
+
+
+def _seams_enabled():
+    raw = os.environ.get("G4_GROK_SEAMS", "").strip()
+    if not raw:
+        return set(_ALL_SEAMS)
+    out = set()
+    for tok in raw.replace(";", ",").split(","):
+        c = _SEAM_ALIASES.get(tok.strip().lower())
+        if c:
+            out.add(c)
+    return out or set(_ALL_SEAMS)
+
+
+def _seam_on(kind):
+    return str(kind or "") in _seams_enabled()
+
+
+# in-process budget ring (cheap, never bulk): timestamps of recent live calls (24h kept)
 _CALL_LOG: list[float] = []
-_STATS = {"calls": 0, "agree": 0, "disagree": 0, "errors": 0, "skipped_budget": 0, "last": None}
+_STATS = {"calls": 0, "agree": 0, "disagree": 0, "errors": 0,
+          "skipped_budget": 0, "skipped_seam": 0, "last": None}
 
 
 # ── key + toggle (OFF default, cousin-safe) ─────────────────────────────────────
@@ -90,7 +120,8 @@ def set_on(on):
 
 
 def status():
-    """Lamp for a UI: whether the add-on is present/on/keyed + call stats. Never leaks the key."""
+    """Lamp for a UI: whether the add-on is present/on/keyed + budget + call stats. Never leaks the key."""
+    _hourly, _daily = _budget_counts()
     return {
         "present": True,
         "switch": switch_on(),      # the raw intent (button state), independent of key
@@ -98,17 +129,28 @@ def status():
         "hasKey": bool(_key()),
         "model": _XAI_MODEL_DEFAULT,
         "hourlyMax": _HOURLY_MAX,
+        "seams": sorted(_seams_enabled()),   # which uncertain-only seams may fire
+        "budget": {"hourlyUsed": _hourly, "hourlyMax": _HOURLY_MAX,
+                   "dailyUsed": _daily, "dailyMax": _DAILY_MAX},
         "stats": dict(_STATS),
     }
 
 
 # ── budget guard (only fire on uncertain/important; never bulk) ──────────────────
-def _budget_ok(now=None):
+def _budget_counts(now=None):
+    """Trim the ring to 24h; return (hourlyUsed, dailyUsed). Cheap."""
     now = now if now is not None else time.time()
-    cutoff = now - 3600.0
-    while _CALL_LOG and _CALL_LOG[0] < cutoff:
+    day = now - 86400.0
+    while _CALL_LOG and _CALL_LOG[0] < day:
         _CALL_LOG.pop(0)
-    return len(_CALL_LOG) < _HOURLY_MAX
+    hour = now - 3600.0
+    hourly = sum(1 for t in _CALL_LOG if t >= hour)
+    return hourly, len(_CALL_LOG)
+
+
+def _budget_ok(now=None):
+    hourly, daily = _budget_counts(now)
+    return hourly < _HOURLY_MAX and daily < _DAILY_MAX
 
 
 # ── the one entry point the touchpoints will call (no-op when OFF) ───────────────
@@ -128,8 +170,11 @@ def g4_verify(context):
         return None                      # ← OFF / no key: instant no-op, no network
     if not isinstance(context, dict):
         return None
+    if not _seam_on(context.get("kind")):
+        _STATS["skipped_seam"] += 1      # this seam is disabled in G4_GROK_SEAMS
+        return None
     if not _budget_ok():
-        _STATS["skipped_budget"] += 1
+        _STATS["skipped_budget"] += 1    # hourly or daily credit ceiling hit
         return None
     try:
         out = _grok_call(context)
