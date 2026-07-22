@@ -341,3 +341,4 @@ polish-ui-2 (control_ui.html): compact always-visible KEY footer decoding read-c
 
 ## ✅ GATED: v1214 (42/80) — HEAD 90e2c84 — 🧠🖥 ENGINE ROOM ARC ROUND 5 (sealed|live boundary). Console @ v1214. ER arc 5/20 → v1272. Round 6 in flight → v1215.
 ## ✅ GATED: v1215 (43/80) — c531c05 — ER arc round 6 frame-nav. Console @ v1215. ER 6/20. Round 7 → v1216.
+## ✅ GATED: v1216 (44/80) — 94962b9 — ER arc round 7 THE FRAME IMAGE (north star: see what the AI saw; existing /hist/ endpoint, updates on frame-step). Console @ v1216. ER 7/20. Round 8 → v1217 (miss-spotlight/session-story).
