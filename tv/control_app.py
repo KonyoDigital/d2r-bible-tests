@@ -3602,8 +3602,19 @@ def _kai_live_routing_row(rd):
         label = "gameplay"
     fid = str(rd.get("frameId") or "")
     f = (fid.rsplit("/", 1)[-1] + ".jpg") if fid else ""
+    # v1203 — sources/confidence must track the LABEL THAT ACTUALLY WON, not raw `names`
+    # presence. scene=='stash' is checked first above, so a read row that is on a stash tab
+    # AND happens to carry a (stale/co-reported) `names` field used to come out with
+    # label='stash-runes' but sources=['read'] anyway — 'read' is only ever a real witness
+    # for a 'tooltip' label everywhere else in the routing model (_kai_build_routing).
+    # _kai_reconcile then narrated that as owner='ocr' for the stash-* row (matching
+    # `elif row.get("sources"): owner="ocr"`), a real evidence class that never actually
+    # looked at this frame — the same borrowed/mislabeled-witness class the v1194/v1198
+    # fixes closed elsewhere. This dict is documented as 'routing-row-compatible', so it
+    # must honor the same 'sources = brains whose vote equals the final label' contract.
+    is_tooltip = label == "tooltip"
     return {"f": f, "ts": int(rd.get("captureTs") or rd.get("ts") or 0), "label": label,
-            "sources": ["read"] if names else [], "confidence": (1 if names else 0),
+            "sources": ["read"] if is_tooltip else [], "confidence": (1 if is_tooltip else 0),
             "super": None, "gatePass": None, "gateReason": None, "gateSources": [],
             "routed": None, "route": None}
 
@@ -5117,7 +5128,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1202",
+        "ver": "v1203",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

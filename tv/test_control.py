@@ -1256,6 +1256,50 @@ class TestRetroPromoteNeverFabricatesAGridWitness(unittest.TestCase):
         self.assertEqual(b.get("gridLabel"), "stash-runes")
 
 
+class TestLiveRoutingRowSourcesMatchTheWinningLabel(unittest.TestCase):
+    """v1203 ROUTE/GATE fix — `_kai_live_routing_row` (the _engine_driver 2s-poll bridge that
+    hands a lightweight live guess to the SAME `_kai_reconcile` the closer uses) set
+    `sources`/`confidence` from raw `names` presence alone, regardless of which label branch
+    actually won. `scene == 'stash'` is checked BEFORE `names` — so a live read that is on a
+    stash tab AND happens to carry a (stale/co-reported) `names` field came out labeled
+    'stash-runes' but with `sources=['read']` anyway. 'read' is only ever a real witness for
+    a 'tooltip' label everywhere else in the routing model — this dict is documented as
+    'routing-row-compatible' and must honor that same contract (the same one v1180's fix
+    enforced in `_kai_build_routing`). The mislabeled sources fed `_kai_reconcile`'s
+    stash-* branch (`elif row.get("sources"): owner="ocr"`), narrating a live 'read' event
+    as 'ocr' tab-eye evidence it never was — real-only during the live/pre-seal window
+    (gatePass is always None here; the sealed pass always wins per SEALED-WINS LAW)."""
+
+    def test_stash_label_with_stray_names_carries_no_read_source(self):
+        rd = {"scene": "stash", "stashTab": "runes", "names": ["Vex Rune"],
+              "captureTs": 1000, "frameId": "reel_sid1/f1"}
+        row = ca._kai_live_routing_row(rd)
+        self.assertEqual(row["label"], "stash-runes")
+        self.assertEqual(row["sources"], [])
+        self.assertEqual(row["confidence"], 0)
+
+    def test_reconcile_no_longer_mislabels_it_as_ocr_owned(self):
+        rd = {"scene": "stash", "stashTab": "runes", "names": ["Vex Rune"],
+              "captureTs": 1000, "frameId": "reel_sid1/f1"}
+        row = ca._kai_live_routing_row(rd)
+        rec = ca._kai_reconcile([row], [], [])[0]
+        self.assertIsNone(rec["owner"])
+
+    def test_normal_tooltip_row_unaffected(self):
+        rd = {"scene": "", "names": ["Vex Rune"], "captureTs": 2000, "frameId": "reel_sid1/f2"}
+        row = ca._kai_live_routing_row(rd)
+        self.assertEqual(row["label"], "tooltip")
+        self.assertEqual(row["sources"], ["read"])
+        self.assertEqual(row["confidence"], 1)
+
+    def test_normal_stash_row_with_no_names_unaffected(self):
+        rd = {"scene": "stash", "stashTab": "gems", "captureTs": 3000, "frameId": "reel_sid1/f3"}
+        row = ca._kai_live_routing_row(rd)
+        self.assertEqual(row["label"], "stash-gems")
+        self.assertEqual(row["sources"], [])
+        self.assertEqual(row["confidence"], 0)
+
+
 class TestDriverLiveHonestRejectionReceipt(unittest.TestCase):
     """v1185 — the engine-driver's OWN live fire chains (vaultcount_/vault_/tally, the same
     three sites hardened for never-zero at v1182) each ended their promise chain in a bare
