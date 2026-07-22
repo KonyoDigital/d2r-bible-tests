@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1195"   # 📷 CAPTURE round 4 — never-starve bridge un-starved: _archive_footage_copy advances the 1fps due-clock (_FOOTAGE_DUE) UNCONDITIONALLY the moment it passes its own due-gate, BEFORE the write. The never-starve fallback calls it TWICE for the same now_f2 (primary full-screen grab, then bridge-last-good). Call #1 advances the clock even when it then FAILS (disk pressure / torn copy — the class round 3 hardened), so call #2's due-gate sees now_f2<due and rejects itself without trying — the entire "never drop below ~1fps" bridge was silently DEAD CODE in exactly its failure scenario. FIX: _consume_due param — the never-starve caller owns the due-gate ONCE up front, both calls pass _consume_due=False so whichever has real bytes gets to write. Normal single-call lane unaffected (default True). +2 tests (agent 183→185). ×3 parity (23/80 → v1252)
+VERSION = "v1196"   # 🔴 READ round 4 — oneshot budget compounding: _oneshot (the serialized bridge every live read falls to when the warm worker misses) spent the SAME timeout TWICE — once as _ONESHOT_GATE.acquire(timeout) wait, then again as _oneshot_inner's subprocess timeout once acquired. Under the exact throttle-cascade the gate exists to serialize, a queued caller could wait up to timeout for the gate then get a FRESH timeout for the run = up to 2×timeout wall-clock, silently DOUBLING the LIVE_READ_TIMEOUT_S budget the Master-Brain law protects (on the fallback path every live read uses). FIX: track gate-acquire elapsed, pass _oneshot_inner what's LEFT (max(1.0, timeout-elapsed)). Uncontended common path unchanged; contended stays bounded near timeout. +2 tests (agent 185→187). ×3 parity (24/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3763,11 +3763,22 @@ _ONESHOT_GATE = threading.Semaphore(1)   # v864 — a throttled pool must not he
 _ASK_NONE_STREAK = 0
 def _oneshot(ap, model, timeout=90):
     """v864 — serialized: under subscription throttle all 8 workers can time out together;
-    eight parallel one-shot bridges would herd the same throttle. One at a time."""
+    eight parallel one-shot bridges would herd the same throttle. One at a time.
+
+    v1196 — the gate wait and the subprocess call each got the FULL `timeout` independently:
+    a caller queued behind another one-shot (exactly the throttle-cascade this gate exists
+    for — the scenario where several readers ALL fall to the bridge at once) could wait up to
+    `timeout` just to acquire the gate, then get a fresh `timeout` for the run itself — up to
+    2×timeout wall-clock for one call. Every caller passes LIVE_READ_TIMEOUT_S here specifically
+    so a single live read can't exceed that budget (the Master Brain law); silently doubling it
+    under the exact contention this gate was built to serialize defeated that. Spend the two
+    phases OUT OF the same budget instead: whatever the wait cost, the run gets what's left."""
+    t0 = time.time()
     if not _ONESHOT_GATE.acquire(timeout=timeout):
         return None
     try:
-        return _oneshot_inner(ap, model, timeout)
+        remaining = max(1.0, float(timeout) - (time.time() - t0))
+        return _oneshot_inner(ap, model, remaining)
     finally:
         _ONESHOT_GATE.release()
 

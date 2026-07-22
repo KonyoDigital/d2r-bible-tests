@@ -836,6 +836,54 @@ class TestLiveReadTimeoutCap(unittest.TestCase):
         self.assertGreaterEqual(tv.LIVE_READ_TIMEOUT_S, 15.0)
 
 
+class TestOneshotGateBudget(unittest.TestCase):
+    """v1196 — `_oneshot()` serializes callers behind `_ONESHOT_GATE` (v864: under a
+    subscription throttle, several readers ALL fall to the one-shot bridge at once — exactly
+    the contention this gate exists to serialize). The gate-acquire wait and the subprocess
+    run each used to get the FULL `timeout` independently, so a queued caller could total up
+    to 2×timeout — silently doubling the Master Brain law's LIVE_READ_TIMEOUT_S budget under
+    the very contention the gate was built for. The run must get what's LEFT of `timeout`
+    after the wait, not a fresh copy of it."""
+
+    def setUp(self):
+        # a stray held gate from another test/interrupted run must never leak into this one
+        self._orig_gate = tv._ONESHOT_GATE
+        tv._ONESHOT_GATE = threading.Semaphore(1)
+
+    def tearDown(self):
+        tv._ONESHOT_GATE = self._orig_gate
+
+    def test_gate_wait_is_deducted_from_the_run_budget(self):
+        import unittest.mock as mock
+        hold_s = 0.5
+        holder_ready = threading.Event()
+        def _hold_and_release():
+            tv._ONESHOT_GATE.acquire()
+            holder_ready.set()
+            time.sleep(hold_s)
+            tv._ONESHOT_GATE.release()
+        th = threading.Thread(target=_hold_and_release, daemon=True)
+        th.start()
+        self.assertTrue(holder_ready.wait(timeout=2), "holder never acquired the gate")
+        with mock.patch.object(tv, "_oneshot_inner", return_value=None) as m_inner:
+            tv._oneshot("/fake/x.jpg", "sonnet", timeout=3.0)
+        th.join(timeout=5)
+        m_inner.assert_called_once()
+        got_timeout = m_inner.call_args.args[2]
+        # OLD behavior: always the full 3.0s regardless of the wait. FIXED: reduced by
+        # (roughly) the time spent waiting for the gate, with a 1.0s floor.
+        self.assertLess(got_timeout, 3.0 - hold_s + 0.3,
+                        f"run budget {got_timeout:.2f}s — gate wait not deducted")
+        self.assertGreaterEqual(got_timeout, 1.0)   # never starved below the floor
+
+    def test_uncontended_call_keeps_the_full_budget(self):
+        import unittest.mock as mock
+        with mock.patch.object(tv, "_oneshot_inner", return_value=None) as m_inner:
+            tv._oneshot("/fake/x.jpg", "sonnet", timeout=3.0)
+        got_timeout = m_inner.call_args.args[2]
+        self.assertGreaterEqual(got_timeout, 2.8)   # a free gate costs ~nothing — no regression
+
+
 class TestStallDrainDecision(unittest.TestCase):
     """v948.17 — Grok P1-4 pin (2026-07-21 fast-run soak): 'a 66s live stall means 0 second-eye
     drains.' Outside ROBOT_MODE, POOL_N==1, so the OLD gate (`_vision_in_flight_n() < POOL_N`)
