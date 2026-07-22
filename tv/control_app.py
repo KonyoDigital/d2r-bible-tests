@@ -5931,7 +5931,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1299",
+        "ver": "v1300",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7574,6 +7574,31 @@ class Handler(BaseHTTPRequestHandler):
                             print(f"🟣 G4 keep/toss re-check flagged: {_vname} ({_tier} score {_g4s})", flush=True)
                 except Exception as _g4e:
                     print(f"⚠ G4 keep/toss touchpoint failed (ignored): {_g4e}", flush=True)
+                # ══ END GROK ADD-ON (G4) ══
+                # ══ GROK ADD-ON (G4) — touchpoint 3: grail-promotion re-check (REMOVABLE) ══
+                # The highest-value, rarest seam: fire ONLY when the grail gate just PROMOTED a
+                # weak read (the incoming verdict was toss/border) up to 'grail' — the split-brain
+                # class (a low-quality read of a unique/set name auto-becoming a grail tick). A
+                # wrong promotion corrupts the Chronicle, so it's worth one Grok confirm. Confident
+                # grails (already grail on arrival) and non-promotions skip Grok. OFF/un-keyed →
+                # _g4_verify None → zero calls, `rec` byte-identical. DISAGREEMENT (Grok says "not
+                # grail") attaches a review FLAG (judge['g4']); it NEVER un-promotes — Konyo reviews
+                # it at the v1303 queue. Delete this block to remove the touchpoint.
+                try:
+                    _g4orig = str((body.get("verdict") or {}).get("tier") or "").lower()
+                    if _tier == "grail" and _g4orig in ("toss", "border"):
+                        _g4v = _g4_verify({"kind": "grail-recheck", "item": _vname,
+                                           "proposed": "grail", "confidence": _g4orig,
+                                           "detail": {"promotedFrom": _g4orig,
+                                                      "base": str(body.get("base") or "")[:40],
+                                                      "score": int((body.get("verdict") or {}).get("score") or 0)}})
+                        if _g4v is not None and _g4v.get("ok") and _g4v.get("agree") is False:
+                            rec["kai"]["judge"]["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
+                                                         "note": _g4v.get("note"), "ts": _g4v.get("ts"),
+                                                         "source": "grok", "kind": "grail-recheck"}
+                            print(f"🟣 G4 grail re-check flagged: {_vname} (promoted {_g4orig}→grail)", flush=True)
+                except Exception as _g4e:
+                    print(f"⚠ G4 grail touchpoint failed (ignored): {_g4e}", flush=True)
                 # ══ END GROK ADD-ON (G4) ══
                 with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")

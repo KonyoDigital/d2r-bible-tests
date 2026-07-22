@@ -30,8 +30,8 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1299 · G4 module scaffold **(landed as v1295)** — self-contained `tv/g4_grok.py`, ON/OFF (switch AND key), OFF-default, cousin-safe, one-grep removal seam. 3 cheap seams chosen (uncertain auto-route · borderline keep/toss · grail promotion). OFF-path proven byte-identical (zero network). No touchpoint wired yet.
 - [x] v1300 · G4 touchpoint #1 **(landed v1297)** — uncertain chronicle auto-route: seal-time, tier==border only, capped 10/seal, flag-never-override (flag rides into kai_report for the review surface). OFF byte-identical.
 - [x] (v1298) · G4 TOGGLE — 🟣 Grok Accuracy card in Tools (honest 3-state OFF/needs-key/active, POWER-USER opt-in), reads g4_status/posts g4_toggle. 5/5 paint tests.
-- [ ] v1301 · G4 touchpoint #2 (cheap) — verify BORDERLINE Item-Checker keep/toss calls [in flight]
-- [ ] v1302 · G4 touchpoint #3 (cheap) — re-check an important grail claim / uncertain sealed find [next]
+- [x] v1301 · G4 touchpoint #2 **(landed v1299)** — borderline keep/toss: fires only near-cutoff (keep 14–16, toss 5–6), flag-never-override into the journal. 12/12 band test. OFF byte-identical.
+- [ ] v1302 · G4 touchpoint #3 (cheap) — grail-promotion re-check (split-brain class) [in flight]
 - [ ] v1303 · G4 "🟣 Grok verdict" surface + disagreement flag → review queue
 - [ ] v1304 · G4 credit-aware rate limit + selective config (only uncertain/important; never bulk)
 - [ ] v1305 · G4 REMOVAL TEST — prove the whole module lifts out clean (toggle off = identical to today) + docs
