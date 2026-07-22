@@ -65,7 +65,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 ## PHASE E · VAULT + E1 FOLLOW-UPS — v1328–1332
 - [x] v1328 · E1b funnel-2× accuracy reconcile **(landed v1307)** — 2nd checker read reconciles: agree→"✓✓ 2× confirmed", verdict-differ→honest "⚖ unclear", stat-differ→disputed (never dropped). 7/7 tests. [in flight: E1c thrown-with-stats]
 - [x] v1329 · E1c thrown-with-stats comparison **(landed v1308)** — aicToss logs tossed items w/ their read; "📊 Kept vs Tossed" side-by-side panel. 8/8 tests. **✅ E1 follow-ups COMPLETE (Konyo's full muled-vs-thrown vision).**
-- [ ] v1330 · Vault Integrity Checker deepening (more classes; the G3/checker/vault unification)
+- [x] v1330 · Vault Integrity Checker deepening **(landed v1310)** — +2 classes (🔬 checker-toss-kept review-only, 🤖 g3-vault-conflict auto-fix) + provenance on every finding (✋manual/🤖G3/🔬checked). Cross-references G3+E1+Checker. 9/9 tests. [in flight: full-system cohesion/verify round]
 - [ ] v1331 · Vault manager full pass (stats + mule + capacity + ladder)
 - [ ] v1332 · Vault cohesion + verify
 

@@ -1463,6 +1463,22 @@
   .dsr-sv { font: var(--fw-bold) var(--fs-lg)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; }
   .dsr-sl { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: #7d7358; margin-top: 6px; }
   .dsr-sealrow { display: flex; justify-content: center; margin-bottom: 22px; }
+  /* ══ D19 · BEAT CHIPS — the run's story as an iconographic ribbon (scene/find/seal-derived, color-coded) ══ */
+  .dsr-beats { display: flex; flex-wrap: wrap; gap: 7px; }
+  .bt { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px;
+    font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-tight);
+    border: 1px solid var(--edge); background: rgba(255,255,255,.02); color: #cbbf9f; white-space: nowrap; }
+  .bt .bt-ic { font-size: 1.05em; line-height: 1; }
+  .bt.bt-portal { border-color: rgba(255,138,90,.45); color: #ffb08a; }
+  .bt.bt-farm { border-color: rgba(143,230,160,.35); color: #9df0bd; }
+  .bt.bt-town { border-color: rgba(111,168,220,.4); color: #a8ccef; }
+  .bt.bt-intake { border-color: rgba(185,165,255,.45); color: #cbbcff; }
+  .bt.bt-grail { border-color: rgba(240,192,96,.5); color: var(--gold-hi); background: rgba(240,192,96,.08); }
+  .bt.bt-keep { border-color: rgba(143,230,160,.4); color: #bfead0; }
+  .bt.bt-regret { border-color: rgba(255,120,80,.4); color: #ff9a8a; }
+  .bt.bt-seal { border-color: rgba(240,192,96,.35); color: var(--gold-dim); }
+  .bt.bt-flag { border-color: rgba(255,120,80,.5); color: #ff9a8a; }
+  .bt.bt-open { color: #8a7e68; }
   .dsr-seal { font: var(--fw-bold) var(--fs-sm)/1 var(--mono); letter-spacing: var(--ls-wide); padding: 8px 16px; border-radius: 999px; text-transform: uppercase; }
   .dsr-seal-clean { color: var(--gold); border: 1px solid rgba(240,192,96,.5); background: rgba(240,192,96,.08); }
   .dsr-seal-flag { color: #ff7a7a; border: 1px solid rgba(255,122,122,.5); background: rgba(255,122,122,.08); }
@@ -3416,6 +3432,30 @@
     }
     return '<div class="dsr-regret">' + head + '</div>';   // count only until the engine names the items
   }
+  // ══ D19 · BEAT CHIPS — the run's story as an iconographic ribbon: entered → farmed → town → finds → seal.
+  // Derived honestly from the session summary (sceneReads + finds + tally/seal counts) — no fabricated
+  // timestamps; it's "what the run contained," ordered as a rough narrative arc. Pure UI. ══
+  function _dossierBeats(sm){
+    var sr = sm.sceneReads || {}, beats = [];
+    if ((sr.transition | 0) > 0) beats.push(['🔥', 'entered', 'bt-portal']);
+    if ((sr.loot | 0) > 0 || (sr.gameplay | 0) > 0) beats.push(['⚔', 'farmed', 'bt-farm']);
+    if ((sr.town | 0) > 0) beats.push(['🏛', 'town', 'bt-town']);
+    if ((sm.tallies | 0) > 0) beats.push(['📸', sm.tallies + ' tallied', 'bt-intake']);
+    var grails = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; });
+    grails.slice(0, 4).forEach(function(g){ beats.push(['🏆', esc(g.name || 'grail'), 'bt-grail']); });
+    if (grails.length > 4) beats.push(['🏆', '+' + (grails.length - 4) + ' more', 'bt-grail']);
+    var keeps = (sm.finds || []).filter(function(f){ return f.tier !== 'grail'; }).length;
+    if (keeps > 0) beats.push(['💎', keeps + ' keep' + (keeps > 1 ? 's' : ''), 'bt-keep']);
+    if ((sm.judged | 0) > 0) beats.push(['🔬', sm.judged + ' judged', 'bt-judge']);
+    if ((sm.regrets | 0) > 0) beats.push(['💔', sm.regrets + ' regret' + (sm.regrets > 1 ? 's' : ''), 'bt-regret']);
+    if (sm.watchdogViolations > 0) beats.push(['🚨', 'flagged', 'bt-flag']);
+    else if (sm.kaiMissed != null) beats.push(['🛡', 'sealed', 'bt-seal']);
+    else beats.push(['◌', 'unsealed', 'bt-open']);
+    if (!beats.length) return '';
+    return '<div class="dsr-beats">' + beats.map(function(b){
+      return '<span class="bt ' + b[2] + '"><span class="bt-ic">' + b[0] + '</span>' + b[1] + '</span>';
+    }).join('') + '</div>';
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
     var d0 = sm.t0 ? new Date(sm.t0) : null;
@@ -3462,6 +3502,7 @@
       + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur) + '</div></div></div>'
       + '<div class="dsr-stats">' + stats + '</div>'
       + '<div class="dsr-sealrow">' + seal + sealLat + '</div>'
+      + (function(){ var _b = _dossierBeats(sm); return _b ? '<div class="dsr-sec"><div class="dsr-h">⚡ The beats</div>' + _b + '</div>' : ''; })()   // D19 — the run's story as an iconographic beat ribbon
       + regretSec + decisionSec + montSec + missSec + findsSec + fpSec + storySec
       + '<div class="dsr-actions"><button type="button" class="dsr-open" onclick="window._dossierToTheatre()">▶ Open in Theatre</button></div>'
       + '</div>';
