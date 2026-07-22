@@ -556,6 +556,12 @@
   button.act.b-stop { border-color: rgba(255,122,122,.42); color: var(--danger); background: linear-gradient(180deg, rgba(46,17,17,.9), rgba(14,8,8,.95)); }
   button.act.b-restart { border-color: rgba(126,200,255,.4); color: var(--info); }
   button.act.b-sim { border-color: rgba(201,168,255,.42); color: var(--sim); background: linear-gradient(180deg, rgba(34,24,50,.92), rgba(12,8,18,.96)); }
+  /* v1253 (CONSOLE r5 · #c) — Theatre + Shelf are secondary controls → compact (tighter, single-line label with
+     ellipsis) so the rail fits no-scroll. The primary ON AIR button stays full-size + prominent. */
+  .primary button.act.b-sim { min-height: 0; padding-top: 9px; padding-bottom: 9px; }
+  button.act.b-sim .lab b { font-size: var(--fs-sm); }
+  button.act.b-sim .lab span { font-size: var(--fs-2xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #btn-shelf { min-height: 0; padding: 9px 12px; }
   /* active-state cue: the button matching current state gets a lit ring */
   /* v768 (item 8) — the old per-state CSS rings are RETIRED. ONE lit/dim mechanism now: paint()/thLit()
      add .lit to the truly-active button; the rules live with button.act.lit below. */
@@ -1213,11 +1219,13 @@
   @keyframes stagePulseIn { 0% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.9); } 60% { transform: translateX(-50%) translateY(2px) scale(1.03); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
   @media (prefers-reduced-motion: reduce){ .eye-live.reading .ex { animation: none; } .stage-pulse.sp-in { animation: none; } }
   /* v946 — session health strip */
-  .sess-health { margin: 6px 0 8px; padding: 8px 10px; border-radius: 9px;
-    border: 1px solid rgba(240,192,96,.22); background: rgba(0,0,0,.32); display: flex; flex-direction: column; gap: 4px; }
-  .sess-health .sh-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; font: 600 var(--fs-xs)/1.4 var(--mono); }
-  .sess-health .sh-k { color: #9a8f72; letter-spacing: .04em; flex: 0 0 auto; }   /* v1177 R4 — label tops-aligns to the value's first line (was ragged when the value wrapped) */
-  .sess-health .sh-v { color: #e8dcc0; text-align: right; font-variant-numeric: tabular-nums; }
+  /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
+     re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
+  .sess-health { margin: 6px 0 8px; padding: 7px 10px; border-radius: 9px;
+    border: 1px solid rgba(240,192,96,.22); background: rgba(0,0,0,.32); display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px; }
+  .sess-health .sh-row { display: inline-flex; align-items: baseline; gap: 6px; font: 600 var(--fs-2xs)/1.35 var(--mono); }
+  .sess-health .sh-k { color: #9a8f72; letter-spacing: .04em; flex: 0 0 auto; }
+  .sess-health .sh-v { color: #e8dcc0; text-align: left; font-variant-numeric: tabular-nums; }
   /* v1177 R4 — STRUCTURE: the rail's grouped blocks earn the same section-label discipline the dash
      has (a gold accent-bar header) — via CSS ::before, so no markup/ID/tested-structure changes. */
   .signal .eyes::before, .sess-health::before {
@@ -1229,9 +1237,9 @@
      watches. Slightly larger + mint accent-bar, distinct from the gold SESSION HEALTH label below it. */
   .signal .eyes::before { content: "🧠 THE KAI READER · live engine"; color: var(--mint);
     border-left-color: var(--mint); font-size: var(--fs-xs); letter-spacing: .12em; }
-  .sess-health::before { content: "SESSION HEALTH"; }
-  .sess-health .sh-verdict { margin-top: 3px; font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .12em;
-    text-transform: uppercase; text-align: center; padding: 4px 6px; border-radius: 6px;
+  .sess-health::before { content: "SESSION HEALTH"; flex: 0 0 100%; margin-bottom: 3px; padding-bottom: 3px; }   /* v1253 — header on its own line, values inline below */
+  .sess-health .sh-verdict { margin: 0 0 0 auto; font: 800 var(--fs-2xs)/1.1 var(--mono); letter-spacing: .1em;
+    text-transform: uppercase; text-align: center; padding: 3px 9px; border-radius: 999px;
     border: 1px solid rgba(143,208,160,.3); color: #9df0bd; background: rgba(30,60,40,.35); }
   .sess-health.v-partial .sh-verdict { color: #e9b96e; border-color: rgba(233,185,110,.45); background: rgba(60,40,10,.35); }
   .sess-health.v-miss .sh-verdict { color: #ffb0a0; border-color: rgba(255,120,90,.5); background: rgba(70,26,20,.4); }
@@ -2332,6 +2340,9 @@
           <div class="eye eye-second" id="eye-second"><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
           <div class="eye eye-kai" id="eye-kai"><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
         </div>
+        <!-- v1253 (CONSOLE r5 · #d) — the capture LOCK-ON pill belongs WITH the reader cluster (what the eyes are
+             pointed at), above the fold — moved up here from the old signal detail rows near the bottom. -->
+        <div class="row sig-watch-row"><span class="k">🎯 Watching</span><span class="val" id="sig-capture">—</span></div>
         <!-- v1249 (CONSOLE UPGRADE r3 · #2 READER-POOL EYE-DOTS) — N reader-worker eyes, lit = reading right now
              (st.health.poolInFlight/poolN/poolWarm). On-air only; hidden off-air. The reader net finally moves. -->
         <div class="rn-pool" id="rn-pool" hidden></div>
@@ -2352,10 +2363,12 @@
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
         <!-- Vision folded into the 🔴 Live Eye badge; element kept (hidden) so JS keeps writing it -->
         <div class="row" id="sig-vision-row" hidden><span class="k">👁 Vision</span><span class="val" id="sig-vision">—</span></div>
-        <div class="row"><span class="k">⏱ Last thought</span><span class="val" id="sig-lastread">—</span></div>
-        <div class="bar"><i id="sig-bar"></i></div>
-        <div class="row"><span class="k">🎯 Watching</span><span class="val" id="sig-capture">—</span></div>
-        <div class="sig-foot">mind: <span id="sig-model">—</span></div>
+        <!-- v1253 (CONSOLE r5 · #a de-dup) — Last thought / reads-bar / mind duplicate the header's ON-AIR
+             indicator + the AGENT MIND ticker, so they're folded away (kept in DOM, hidden — JS still writes
+             them for compat). The capture pill (🎯 Watching) moved UP to the reader cluster. -->
+        <div class="row" id="sig-lastthought-row" hidden><span class="k">⏱ Last thought</span><span class="val" id="sig-lastread">—</span></div>
+        <div class="bar" id="sig-bar-wrap" hidden><i id="sig-bar"></i></div>
+        <div class="sig-foot" hidden>mind: <span id="sig-model">—</span></div>
       </div>
       <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
            the header tabs are the one nav. The util row inherits the room. -->
@@ -2809,7 +2822,7 @@
         capCls = 'cap-lock';
         capTxt = /d2r|diablo/i.test(ct.label || '') ? '🎯 Locked · Diablo II' : ('🎯 Locked · ' + (ct.label || 'game window'));
       } else if (on){ capCls = 'cap-screen'; capTxt = '🖥 whole screen'; }
-      else { capCls = 'cap-idle'; capTxt = '⊙ idle · locks onto the game when live'; }   // v1249 r3 — clear at rest, so its meaning reads before ON AIR
+      else { capCls = 'cap-idle'; capTxt = '⊙ idle · locks on when live'; }   // v1249 r3 / v1253 — clear + compact at rest
       capEl.textContent = capTxt;
       capEl.className = 'val cap-pill ' + capCls;
       capEl.style.color = '';
@@ -6123,8 +6136,9 @@
           else { el.innerHTML = head + '<div class="rnf-rows">' + ring.slice(-5).reverse().map(_rnFeedRow).join('') + '</div>'; }
         } else {
           // RESTING — a discoverable, labeled placeholder so Konyo always knows the feed is here + what it does.
+          // v1253 (r5) — one tight line (was 2-3) so the rail fits no-scroll; still discoverable.
           var rest = '<div class="rnf-head"><span class="rnf-t rnf-t-rest">👁 KAI READ FEED</span><span class="rnf-rest">at rest</span></div>'
-            + '<div class="rnf-restnote">press <b>ON</b> to wake the eyes — every read the AI makes streams here as it lands</div>';
+            + '<div class="rnf-restnote">press <b>ON</b> — reads stream here as they land</div>';
           var last = hdLivePulse._lastRing;   // real reads from THIS page-session's last on-air spell → truthful "last session" preview
           if (last && last.length){ rest += '<div class="rnf-lastlab">— last session · not live —</div>'
             + '<div class="rnf-rows rnf-faded">' + last.slice().reverse().map(_rnFeedRow).join('') + '</div>'; }
