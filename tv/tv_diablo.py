@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1203"   # 🚦 ROUTE/GATE round 6 — live-row telemetry honesty: _kai_live_routing_row (the driver's 2s-poll live guess, routing-row-compatible) set sources=["read"]/confidence=1 from raw `names` truthiness — independent of which label branch won. Since scene=="stash" is checked first, a stash-tab row also carrying a stale `names` came out label="stash-runes" but sources=["read"] — and "read" is never a valid witness for a stash-* label — so _kai_reconcile narrated it owner="ocr" (a false witness that never looked at the frame). Live/pre-seal telemetry only (gatePass always None here; sealed-wins overrides) — accuracy, not mis-fire. FIX: sources/confidence track the WINNING label (["read"] only when label=="tooltip", else []). Honors the v1180 "sources = brains whose vote equals the label" contract. +4 tests (control 110→114). ×3 parity (31/80 → v1252)
+VERSION = "v1204"   # 🔴 READ round 6 — stall-worker ORPHAN-PROCESS leak at shutdown: _STALL_WORKER (the v948.17 second-eye stall-drain safety net, kept OUTSIDE _WORKERS by design so a hung live reader can't silence the sweep) is never .stop()'d anywhere. _pool_shutdown only sweeps _WORKERS[1:], and every shutdown path ends in os._exit(0) (skips __del__/atexit). So whenever a live read stalls ≥20s with backlog to sweep (the exact scenario the net exists for, plausible over multi-hour play), the warm claude -p subprocess (~200-600MB, authenticated — may keep burning subscription quota) becomes an ORPHAN forever, reparented to launchd, invisible — accumulating one per supervisor-respawned session that hit the stall path. FIX: stop _STALL_WORKER in _pool_shutdown after the _WORKERS sweep (no-op if never lazily created). +2 tests (agent 193→195). ×3 parity (32/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2386,6 +2386,18 @@ def _pool_shutdown(timeout=None):
         pass
     for w in _WORKERS[1:]:
         try: w.stop()
+        except Exception: pass
+    # v1204 — the stall-drain worker (`_stall_worker()`) is a SEPARATE VisionWorker deliberately
+    # kept OUTSIDE _WORKERS/_pool_free (never claimed by ordinary live dispatch — see the
+    # v948.17 STALL-DRAIN block above), so a hung live reader can never also silence it. That
+    # also means it's outside THIS sweep: if the stall-drain safety net ever fired even once
+    # this session, its warm `claude -p` child (a ~200-600MB subprocess, same as any pool
+    # worker) is a genuine ORPHAN at shutdown — close_session ends in os._exit(0), which skips
+    # __del__/atexit entirely, so nothing else was ever going to kill it. Stop it here too, only
+    # if it was ever actually created (the common case: the stall-drain path never fired).
+    _sw = globals().get("_STALL_WORKER")
+    if _sw is not None:
+        try: _sw.stop()
         except Exception: pass
 
 

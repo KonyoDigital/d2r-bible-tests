@@ -953,6 +953,50 @@ class TestStallDrainParallelWorker(unittest.TestCase):
         tv._pool_free[:] = before   # restore exactly (defensive — _pool_release may have no-opped)
 
 
+class TestPoolShutdownStopsStallWorker(unittest.TestCase):
+    """v1204 — _stall_worker() is deliberately kept OUTSIDE _WORKERS/_pool_free (v948.17: a
+    hung live reader must never be able to silence the parallel stall-drain sweep too). But
+    `_pool_shutdown()`'s cleanup sweep (`for w in _WORKERS[1:]: w.stop()`) only walks
+    _WORKERS — so once the stall-drain safety net fired even ONCE in a session, its warm
+    `claude -p` child (a real subprocess, same ~200-600MB footprint as any pool worker) was
+    NEVER stopped by any shutdown path: close_session ends in os._exit(0), which skips
+    __del__/atexit entirely, so nothing else was ever going to kill it either. A genuine
+    orphan process leak, one per session that ever needed the safety net."""
+
+    def setUp(self):
+        self.fake = os.path.join(tv.HERE, "fake_claude.py")
+        self._orig_bin = tv.CLAUDE_BIN
+        tv.CLAUDE_BIN = self.fake
+        self._orig_stall_worker = tv._STALL_WORKER
+        self._orig_pool_stopping = tv._POOL_STOPPING
+        self._orig_verify_q = list(tv._VERIFY_Q)
+        tv._VERIFY_Q.clear()
+        os.environ.pop("TV_FAKE_MODE", None)
+
+    def tearDown(self):
+        tv.CLAUDE_BIN = self._orig_bin
+        if tv._STALL_WORKER is not None and tv._STALL_WORKER is not self._orig_stall_worker:
+            try: tv._STALL_WORKER.stop()
+            except Exception: pass
+        tv._STALL_WORKER = self._orig_stall_worker
+        tv._POOL_STOPPING = self._orig_pool_stopping
+        tv._VERIFY_Q.clear()
+        tv._VERIFY_Q.extend(self._orig_verify_q)
+
+    def test_shutdown_stops_a_created_stall_worker(self):
+        tv._STALL_WORKER = None
+        w = tv._stall_worker()          # create + warm it, same as a real stall-drain sweep would
+        w.ask("t", timeout=10)
+        self.assertIsNotNone(w.p)        # sanity: it's actually alive before shutdown
+        tv._pool_shutdown(timeout=1.0)
+        self.assertIsNone(w.p)           # v1204 — shutdown must stop it, not leak it as an orphan
+
+    def test_shutdown_is_a_noop_when_no_stall_worker_was_ever_created(self):
+        tv._STALL_WORKER = None
+        tv._pool_shutdown(timeout=0.2)   # must not raise, and must not lazily CREATE one just to stop it
+        self.assertIsNone(tv._STALL_WORKER)
+
+
 class TestKnownFrames(unittest.TestCase):
     """v741 — the agent LEARNS dead frames (loading/portal screens are the same pixels every
     time): an empty deep read caches the frame signature; a re-match skips vision entirely
