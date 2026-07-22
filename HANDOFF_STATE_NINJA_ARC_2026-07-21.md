@@ -242,3 +242,8 @@ NEXT: funnel round 4 (dispatch → v1197) completes round-4 sweep. Test floor: a
 
 ## 🎯 PRIORITY (Konyo 2026-07-22): THE CONSOLE > the website
 The TV DIABLO CONSOLE (tv_diablo.py capture/read · control_app.py route/gate/funnel · control_ui.html cockpit) is the priority — MORE important than the website (bible.html D2R farming bible). The per-engine rounds + the +20 Engine Room arc ARE all console. bible.html is touched ONLY for the version-stamp/note (parity contract), not website features. Website feature work happens ONLY on explicit Konyo request (e.g. v1183 Blood, v1184 cube-up were his live reports). Keep autonomous effort on the console.
+
+## ✅ GATED: v1197 (25/80) — HEAD 6283e2f — FUNNEL round 4 (routed-mark requires ok) — ROUND-4 SWEEP COMPLETE
+engine-funnel r4 (control_app.py + test_control.py): _kai_build_routing marked a frame routed for any kai-funnel receipt without checking ok → a v1185 honest-miss (ok:false) got narrated as success + blocked re-selection (audit-trail bug; tally path safe via _intake_is_real). FIX: gate routed-mark on ik.get("ok"). +3 tests (control 93→96). ×3 parity, floor control 96 · agent 187, smoke+deploy.
+### ROUND-4 SWEEP DONE (v1194/v1195/v1196/v1197): route/gate(grid-vote indep) · capture(never-starve bridge) · read(oneshot budget) · funnel(routed-requires-ok). All evidence-based, honesty-clause held. Test floor: agent 171→187, control 43→96 (85 new regression tests). Counter: 25/80 · at v1197 · target v1252 → +20 ER (v1272).
+NEXT: round 5 (dispatch → v1198). 4 rounds deep — obvious bugs thinning; expect more honest "no new gap" → rotate/escalate to Grok third-eye audit or move toward the Engine Room arc early if engines converge clean.
