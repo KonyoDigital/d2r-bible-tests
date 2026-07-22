@@ -2527,6 +2527,36 @@ class TestSourceShapeLocks(unittest.TestCase):
             self.assertTrue(r is None or isinstance(r, dict), repr(c[:40]))
 
 
+class TestFilmLoopMonotonicCadence(unittest.TestCase):
+    """v1199 — the film loop's cadence timer must use time.monotonic(), never wall-clock
+    time.time(), for its OWN elapsed-time measurement. time.time() can jump BACKWARD (NTP
+    correction, sleep/wake resync — routine on a Mac left running for hours of TV DIABLO); when
+    it does, `dt = time.time() - t0` goes deeply negative and
+    `time.sleep(max(0.02, FILM_INTERVAL_S - dt))` turns into a sleep of however long the clock
+    jumped — freezing the film thread (0 real frames captured) for the whole gap. _film_loop is
+    an infinite background thread (can't be run to completion in a test) and mocking time.time()
+    doesn't isolate the bug (t0 is captured with the same mocked call) — so this locks the
+    SOURCE shape instead, same technique as TestSourceShapeLocks above for main()."""
+
+    def _film_loop_code_lines(self):
+        """Source lines with comments stripped — a prose comment explaining the OLD bug
+        (which necessarily quotes the old buggy expression) must never false-positive this
+        lock; only actual code is checked."""
+        import inspect
+        src = inspect.getsource(tv._film_loop)
+        return [ln.split("#", 1)[0] for ln in src.splitlines()]
+
+    def test_t0_and_dt_use_monotonic_not_walltime(self):
+        code = "\n".join(self._film_loop_code_lines())
+        self.assertIn("t0 = time.monotonic()", code,
+                      "cadence timer must start from monotonic, not wall-clock time.time()")
+        self.assertIn("dt = time.monotonic() - t0", code,
+                      "elapsed-time computation must use monotonic, immune to backward clock jumps")
+        self.assertNotIn("time.time() - t0", code,
+                         "REGRESSION: a wall-clock backward jump can turn the cadence sleep into "
+                         "a multi-minute film freeze")
+
+
 class TestV926SecondLook(unittest.TestCase):
     """v926 — the verify lane: re-read the SAME frame, correct the tally, journal a distinct
     `lane=verify` beat so the funnel's exactly-once holds. Stub-driven (zero vision cost)."""

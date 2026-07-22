@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1198"   # 🚦 ROUTE/GATE round 5 — retro-promote no longer FABRICATES a grid witness: _kai_retro_promote_tally (runs before _kai_build_routing) walks a cluster of stash frames and promotes the majority tab as the display label (honest cluster context) — but it ALSO stamped grid=True/gridLabel onto cluster frames that grid never actually looked at, borrowing OTHER frames' evidence and impersonating it as THIS frame's own independent pixel/layout witness. A frame with one real vote (tabstrip 'chrome') could then clear the 2-independent-class quorum on a fabricated 'layout' witness — the same false-independence as round 4, one layer up (cluster level). Not even load-bearing: _kai_stage3_gap_funnels honestly accepts conf>=1 for isolated single-witness frames. FIX: removed the grid/gridLabel fabrication, kept the honest majority-label rewrite. +3 tests (control 96→99). ×3 parity (26/80 → v1252)
+VERSION = "v1199"   # 📷 CAPTURE round 5 — film cadence CLOCK-SKEW: _film_loop paced with wall-clock time.time() not time.monotonic(). A backward wall-clock jump (NTP resync on macOS sleep/wake — routine over a multi-hour session) makes dt = time.time()-t0 deeply negative → sleep(max(0.02, FILM_INTERVAL_S - dt)) sleeps for the WHOLE jump (e.g. 600s), blacking out the film thread for minutes = 0 frames captured. Multi-minute total outage vs the per-frame issues rounds 1-4 fixed. Same class the window-pin _PICK_CACHE already uses time.monotonic() to avoid. FIX: the 3 t0-elapsed exprs in _film_loop → time.monotonic() (pure pacing/telemetry; captureTs/frame_id/_FOOTAGE_DUE keep wall-clock, which they require). +1 test (source-lock). ×3 parity (27/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1260,7 +1260,14 @@ def _film_loop():
     _lane_fail = 0
     _lane_full_until = 0.0
     while True:
-        t0 = time.time()
+        # v1199 — monotonic, not wall-clock: t0 only ever measures THIS iteration's own elapsed
+        # time (capture duration + the cadence sleep below), never a stamp anyone else reads.
+        # time.time() can jump BACKWARD (NTP correction, sleep/wake resync — routine on a Mac
+        # left running for hours) — when it does, `dt = time.time() - t0` goes deeply negative
+        # and `time.sleep(max(0.02, FILM_INTERVAL_S - dt))` turns into a sleep of however long
+        # the clock jumped, freezing the film thread (0 real frames) for the whole gap. monotonic
+        # never jumps backward, so cadence pacing can't be hijacked by a wall-clock correction.
+        t0 = time.monotonic()
         try:
             if globals().get("_AI_PAUSED") and not WATCH_MODE:
                 time.sleep(1.5)
@@ -1323,7 +1330,7 @@ def _film_loop():
                 "window" if (wid and wrote and not white_reject and time.time() >= _lane_full_until)
                 else ("full(demoted)" if time.time() < _lane_full_until else "full")
             )
-            globals()["_FILM_CAP_MS"] = int((time.time() - t0) * 1000)
+            globals()["_FILM_CAP_MS"] = int((time.monotonic() - t0) * 1000)
             if wrote and os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                 now_f = time.time()
                 _archive_footage_copy(tmp, now_f, why="grab")
@@ -1397,7 +1404,7 @@ def _film_loop():
                     pass
         except Exception:
             pass
-        dt = time.time() - t0
+        dt = time.monotonic() - t0
         time.sleep(max(0.02, FILM_INTERVAL_S - dt))
 
 
