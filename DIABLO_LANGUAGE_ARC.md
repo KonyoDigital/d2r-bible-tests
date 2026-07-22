@@ -57,3 +57,14 @@ fixed). This arc actually FIXES the confusion: that black moment reads as "🔥 
 
 ## QUEUE (2026-07-22): 1) Console home fix (round 4, in flight → v1252) · 2) THIS + Sessions flagship interleave
 after. Both are big arcs; run Diablo-Language rounds and Sessions rounds in sequence, gating each. 🗣️🎮🥷
+
+## 🎯 CONCRETE TEST CASE (Konyo 2026-07-22, from retro) — the GEMS-tab MISS
+Session s_1784736270319 (Session 1, 19:04-19:07), frame f_1784736381363 (capture 19:06:21) VISUALLY shows the
+GEMS stash tab (all gem counts visible). But: kai_report classes = {stash:77, gameplay:27, stash-materials:2,
+tooltip:12} — NO 'gems' class. The Gems tab was lumped into generic 'stash' (77 frames), register empty, intake
+fired but tallied 0 ("⚠ MISS — intake fired but read nothing"). The retro dossier showed nearby reads bleeding
+onto this frame (tab=personal from 17s earlier, "transition/through the portal"). ROOT: (1) no active-tab-strip
+recognition → Gems never classified stash-gems; (2) gem counts never tallied; (3) retro doesn't isolate THIS
+frame's own read (nearby-stamp bleed). ARC MUST FIX + VERIFY against this exact frame: engine reads the tab strip
+("Gems" active) → stash-gems in Diablo language → tallies the gem counts → retro cleanly traces which eye/read/
+tally/route belongs to THIS frame. This is R1-R2 + R6 (retro sync) proof.
