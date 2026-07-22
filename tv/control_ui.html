@@ -1641,6 +1641,8 @@
   .er-readtext .ert-empty { font: 500 var(--fs-sm)/1.3 var(--mono); color: #7a7160; font-style: italic; }
   .er-readtext .ert-raw { margin-top: 6px; font: 500 var(--fs-2xs)/1.5 var(--mono); color: #8a7e68; word-break: break-word; }
   .er-readtext .ert-raw-lab { font-weight: 700; color: var(--gold-dim); letter-spacing: .05em; text-transform: uppercase; margin-right: 4px; }
+  /* v1224 (Engine Room r15) — the gate decision's plain-language "why", for debugging the verdict */
+  .er-detail-body .er-gate-why { margin-top: 3px; font: 500 var(--fs-2xs)/1.45 var(--mono); color: #9a8d73; }
   .er-top-analysis .kv { border-bottom: none; padding: 4px 0; }
   /* v1216 (Engine Room r7) — the frame image: the ground truth the AI read, hero of the drill-down */
   .er-frame { flex: 0 0 auto; margin: 0; }
@@ -2839,6 +2841,14 @@
   // so it lights up the moment the engine attaches those fields to the beat. ══
   var _GATE_WHY = { 'no-hard-signal': 'no hard signal', 'name-not-in-db': 'not in DB',
     'quorum<2': 'quorum < 2', 'wrong-cell': 'wrong cell', 'no-label': 'no label' };
+  // v1224 (Engine Room r15) — plain-language gate reasons for the drill-down (the terse _GATE_WHY stays
+  // for the space-tight organ/drawer). Answers "why did the engine decide this?" for debugging.
+  var _GATE_WHY_LONG = {
+    'no-hard-signal': 'no hard OCR/DB signal backed the read — nothing solid to confirm it',
+    'name-not-in-db': 'the read isn’t a known item name in the database',
+    'quorum<2': 'only one evidence source agreed — the gate needs at least two',
+    'wrong-cell': 'the read landed in the wrong stash cell (a mis-locate)',
+    'no-label': 'no item label was detected on this frame' };
   function thGateNote(b){
     if (!b || b.gatePass === undefined || b.gatePass === null) return '';
     var src = (b.gateSources || []).length ? ' <span class="gate-src">· ' + esc(b.gateSources.slice(0, 5).join(' ')) + '</span>' : '';
@@ -6297,8 +6307,19 @@
     var ov = _erOwnerVerdict(b);
     var badges = thReaderBadge(b) + ' ' + thHandoffNote(b) + ' ' + thSuperNote(b) + ' ' + thStallNote(b);
     var quorum = (b.routeSources && b.routeSources.length) ? b.routeSources : (b.gateSources || []);
-    var gate = (b.gatePass === false) ? ('<span style="color:#ffcf8a">🛡 HELD · ' + esc(_GATE_WHY[b.gateReason] || b.gateReason || 'held') + '</span>')
-      : (b.gatePass === true ? '<span style="color:#9df0bd">🛡 ✓ proven' + (b.routed ? ' · fired' : '') + '</span>' : '—');
+    // v1224 (Engine Room r15) — CONFIDENCE/VERDICT clarity: the gate decision spells out WHY in plain
+    // language (held reason explained · proven = how many sources agreed + confidence), for debugging.
+    var _gateWhyLong = _GATE_WHY_LONG[b.gateReason];
+    var _qN = (b.routeSources && b.routeSources.length) || (b.gateSources && b.gateSources.length) || 0;
+    var gate;
+    if (b.gatePass === false){
+      gate = '<span style="color:#ffcf8a">🛡 HELD · ' + esc(_GATE_WHY[b.gateReason] || b.gateReason || 'held') + '</span>'
+        + (_gateWhyLong ? '<div class="er-gate-why">' + esc(_gateWhyLong) + '</div>' : '');
+    } else if (b.gatePass === true){
+      gate = '<span style="color:#9df0bd">🛡 ✓ proven' + (b.routed ? ' · fired' : '') + '</span>'
+        + '<div class="er-gate-why">' + (_qN ? (_qN + ' evidence source' + (_qN === 1 ? '' : 's') + ' agreed') : '≥ 2 evidence sources agreed')
+        + (b.routeConf != null ? ' <span class="eh-x">·</span> confidence ' + esc(String(b.routeConf)) : '') + '</div>';
+    } else gate = '—';
     var ik = b.intake || {};
     // v1215 (Engine Room r6) — FRAME NAVIGATION: step ◀ ▶ through this reel's frames to watch the AI's
     // reads evolve, instead of only jumping by reel. Reads the reel's already-cached beats (no fetch).
