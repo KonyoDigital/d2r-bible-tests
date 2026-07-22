@@ -997,6 +997,85 @@ class TestPoolShutdownStopsStallWorker(unittest.TestCase):
         self.assertIsNone(tv._STALL_WORKER)
 
 
+class TestPoolShutdownSweepsWorker0AndOcr(unittest.TestCase):
+    """v1206 — two siblings to the round-6 stall-worker leak, found by asking the same
+    question of the OTHER long-lived subprocesses this file owns:
+
+    `_WORKER` (Worker 0) is deliberately exempted from `_pool_shutdown`'s `_WORKERS[1:]` sweep
+    so it stays warm for farewell_read() right after (v863). But v925 LIGHT made the farewell
+    vision read OPT-IN (FAREWELL_READ_ON defaults False outside ROBOT_MODE) — so in Konyo's
+    actual default config, close_session never runs a farewell read, and `_WORKER`'s warm
+    `claude -p` child was being kept alive for a reason that no longer applies, then orphaned
+    by os._exit(0) anyway. Every session close leaked one, not just the rare stall-drain case.
+
+    `_OCR` (the persistent OcrWorker) was never stopped anywhere at all, for any reason —
+    farewell_read() explicitly skips OCR, so there was never even a rationale to keep it warm."""
+
+    def setUp(self):
+        self.fake_claude = os.path.join(tv.HERE, "fake_claude.py")
+        self._orig_bin = tv.CLAUDE_BIN
+        tv.CLAUDE_BIN = self.fake_claude
+        self._orig_worker = tv._WORKER
+        self._orig_pool_stopping = tv._POOL_STOPPING
+        self._orig_verify_q = list(tv._VERIFY_Q)
+        tv._VERIFY_Q.clear()
+        os.environ.pop("TV_FAKE_MODE", None)
+        # a fake OCR worker speaking the same stdin-path -> stdout-JSON protocol as ocr_mac
+        d = tempfile.mkdtemp()
+        self.fake_ocr = os.path.join(d, "fake_ocr")
+        with open(self.fake_ocr, "w") as f:
+            f.write("#!/usr/bin/env bash\n"
+                    "if [[ \"${1:-}\" == --worker ]]; then\n"
+                    "  while IFS= read -r line; do\n"
+                    "    [[ \"$line\" == quit ]] && break\n"
+                    "    echo '{\"ms\":5,\"lines\":[],\"confs\":[],\"mode\":\"roi-fast\"}'\n"
+                    "  done\n"
+                    "fi\n")
+        os.chmod(self.fake_ocr, 0o755)
+        self._orig_ocr_bin, self._orig_ocr_en = tv.OCR_BIN, tv.OCR_ENABLED
+        self._orig_ocr = tv._OCR
+
+    def tearDown(self):
+        tv.CLAUDE_BIN = self._orig_bin
+        if tv._WORKER is not self._orig_worker:
+            try: tv._WORKER.stop()
+            except Exception: pass
+        tv._WORKER = self._orig_worker
+        tv._POOL_STOPPING = self._orig_pool_stopping
+        tv._VERIFY_Q.clear()
+        tv._VERIFY_Q.extend(self._orig_verify_q)
+        if tv._OCR is not self._orig_ocr:
+            try: tv._OCR.stop()
+            except Exception: pass
+        tv._OCR = self._orig_ocr
+        tv.OCR_BIN, tv.OCR_ENABLED = self._orig_ocr_bin, self._orig_ocr_en
+
+    def test_keep_worker0_true_preserves_the_warm_worker_for_a_real_farewell(self):
+        tv._WORKER = tv.VisionWorker()
+        tv._WORKER.ask("t", timeout=10)
+        self.assertIsNotNone(tv._WORKER.p)
+        tv._pool_shutdown(timeout=1.0, keep_worker0=True)   # a real farewell read is coming next
+        self.assertIsNotNone(tv._WORKER.p)   # unchanged from pre-v1206 behavior
+
+    def test_keep_worker0_false_stops_worker0_instead_of_orphaning_it(self):
+        tv._WORKER = tv.VisionWorker()
+        tv._WORKER.ask("t", timeout=10)
+        self.assertIsNotNone(tv._WORKER.p)
+        tv._pool_shutdown(timeout=1.0, keep_worker0=False)   # LIGHT end — no farewell read coming
+        self.assertIsNone(tv._WORKER.p)   # v1206 — must not be left running as an orphan
+
+    def test_shutdown_always_stops_ocr_regardless_of_keep_worker0(self):
+        tv.OCR_BIN = self.fake_ocr
+        tv.OCR_ENABLED = True
+        tv._OCR = tv.OcrWorker()
+        p = os.path.join(tempfile.mkdtemp(), "frame.jpg")
+        open(p, "wb").write(b"x")
+        tv._OCR.read(p)
+        self.assertIsNotNone(tv._OCR.p)
+        tv._pool_shutdown(timeout=1.0, keep_worker0=True)
+        self.assertIsNone(tv._OCR.p)   # v1206 — OCR has no farewell rationale to stay warm for
+
+
 class TestKnownFrames(unittest.TestCase):
     """v741 — the agent LEARNS dead frames (loading/portal screens are the same pixels every
     time): an empty deep read caches the frame signature; a re-match skips vision entirely

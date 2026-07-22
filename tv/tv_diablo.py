@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1205"   # 🩹 FUNNEL round 7 — _engine_driver unbounded memory leak: live_judged = set() is declared ONCE at _engine_driver's function scope, and _engine_driver is ONE daemon thread running while True: for the ENTIRE process lifetime (across many sessions on the always-on supervised console). It's .add()'d one entry per unique live-judge candidate frame, never trimmed (judge_q's own membership already covers "still pending", so live_judged only remembers ALREADY-fired frames forever). frameIds are globally unique per reel → a closed session's ids never recur, so keeping them buys nothing. Pure unbounded growth for the life of the process — worse than per-session since the thread never restarts. FIX: bounded _drv_live_judged_reserve(set, fid, cap=2000) — clears + re-adds the just-reserved frame on cap-cross. (_kai_closer_loop checked, clean.) +5 real behavioral tests incl 10k-reserve growth guarantee (control 114→119). ×3 parity (33/80 → v1252)
+VERSION = "v1206"   # 🔴 READ round 7 — TWO more orphan-process siblings (bigger than r6): (1) _pool_shutdown's _WORKERS[1:] sweep SKIPS index 0 (_WORKER, the CORE live-read subprocess) to keep it warm for farewell_read — but v925 made farewell OPT-IN (FAREWELL_READ_ON defaults False in LIGHT_MODE = Konyo's live default), so close_session sets farewell=False then os._exit(0)s: _WORKER's warm claude -p child orphans on EVERY session close (vs r6's stall-worker only when the stall path fired). (2) _OCR (persistent OcrWorker, text-eye lane) is never .stop()'d ANYWHERE (grep-confirmed 0 hits) — no farewell excuse (farewell is deep-only). FIX: _pool_shutdown(keep_worker0=True) — when False also stops _WORKER; unconditional _OCR.stop(); close_session passes keep_worker0=farewell (existing info). +3 tests (agent 195→198). ×3 parity (34/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2349,11 +2349,22 @@ FAREWELL_MAX_S = max(3.0, min(45.0, float(os.environ.get("TV_FAREWELL_S", "6") o
 FAREWELL_READ_ON = str(os.environ.get("TV_FAREWELL", "0" if LIGHT_MODE else "1")).strip().lower() in ("1", "true", "yes", "on")
 
 
-def _pool_shutdown(timeout=None):
+def _pool_shutdown(timeout=None, keep_worker0=True):
     """v864/v899 — join in-flight briefly, then inert late threads. Hard-capped (default ~12s).
     v1200 — `deadline` here is monotonic (see the `_verify_drain` note below): a shutdown that
     straddles a backward wall-clock jump must not join in-flight reads for the length of the
-    jump instead of FAREWELL_MAX_S."""
+    jump instead of FAREWELL_MAX_S.
+
+    v1206 — `keep_worker0`: Worker 0 (`_WORKER`) is exempted from the stop sweep below ONLY
+    because farewell_read() needs it warm right after this call returns (v863: 'Worker 0 ==
+    _WORKER, the farewell / POOL_N=1 fast path'). But v925 LIGHT made the farewell vision read
+    OPT-IN — FAREWELL_READ_ON defaults False outside ROBOT_MODE — so in Konyo's actual default
+    config `close_session` never runs a farewell read at all, and `_WORKER`'s warm `claude -p`
+    child was NEVER being stopped by anything: close_session ends in os._exit(0) right after,
+    same orphan-process leak as the round-6 stall-worker fix, except this sibling leaks on
+    EVERY session close instead of only when the stall-drain safety net fires. The caller
+    (`close_session`) knows by this point whether a real farewell read is actually coming —
+    pass keep_worker0=False whenever it isn't, and worker 0 gets swept too."""
     if timeout is None:
         timeout = FAREWELL_MAX_S
     globals()["_POOL_STOPPING"] = True
@@ -2387,6 +2398,9 @@ def _pool_shutdown(timeout=None):
     for w in _WORKERS[1:]:
         try: w.stop()
         except Exception: pass
+    if not keep_worker0:
+        try: _WORKER.stop()
+        except Exception: pass
     # v1204 — the stall-drain worker (`_stall_worker()`) is a SEPARATE VisionWorker deliberately
     # kept OUTSIDE _WORKERS/_pool_free (never claimed by ordinary live dispatch — see the
     # v948.17 STALL-DRAIN block above), so a hung live reader can never also silence it. That
@@ -2399,6 +2413,12 @@ def _pool_shutdown(timeout=None):
     if _sw is not None:
         try: _sw.stop()
         except Exception: pass
+    # v1206 — a second sibling: `_OCR` (the persistent OcrWorker behind the fast/text-eye lane)
+    # is likewise never stopped anywhere in the file. Unlike `_WORKER`, it has no "keep it warm
+    # for farewell" reason to survive shutdown — farewell_read() explicitly skips OCR ("deep
+    # only — farewell must land; OCR is optional and can wait") — so it's always safe to stop.
+    try: _OCR.stop()
+    except Exception: pass
 
 
 def _game_window_present():
@@ -5338,7 +5358,10 @@ def close_session(reason="stop", farewell=True):
     try:
         # v925-R4 (Grok) — a light end must not join a stuck mid-flight read for 8s. Give the
         # pool ~2s to wind down; a full farewell run still gets the longer cap.
-        _pool_shutdown(timeout=(min(FAREWELL_MAX_S, 8.0) if farewell else 2.0))
+        # v1206 — keep_worker0 only when a real farewell read is actually about to run right
+        # after this call; otherwise `_WORKER`'s warm claude -p child gets swept too instead of
+        # orphaned (see _pool_shutdown's v1206 note).
+        _pool_shutdown(timeout=(min(FAREWELL_MAX_S, 8.0) if farewell else 2.0), keep_worker0=farewell)
     except Exception:
         pass
     if farewell:
