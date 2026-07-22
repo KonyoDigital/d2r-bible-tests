@@ -97,8 +97,8 @@
       "dash  rail"
       "tick  tick"
       "foot  foot";
-    gap: clamp(9px, 1.3vw, 20px);
-    padding: clamp(12px, 1.7vw, 30px);
+    gap: clamp(7px, 1vw, 14px);          /* v1252 (CONSOLE r4 · #2 no-scroll) — tighter gaps reclaim vertical budget (gap doesn't affect the cross-frame head-tab alignment) */
+    padding: clamp(12px, 1.7vw, 30px);   /* v1252 — MUST match the board pane's shell padding (0.00px head-tab invariant); do NOT change */
     position: relative;
     z-index: 1;
   }
@@ -646,6 +646,11 @@
   }
   .brain .line .k { color: var(--gold-dim); margin-right: .5em; }
   .brain .empty { color: #45563f; font-style: italic; }
+  /* v1252 (CONSOLE r4 · #1 fix AGENT MIND blocking · #2 no-scroll) — at rest the ticker is a slim bar (it only
+     streams thoughts when LIVE), so it stops eating the home's vertical budget + covering the dash. Full height
+     on air. */
+  body[data-state="off"] .ticker { height: clamp(38px, 4.6vh, 50px); }
+  body[data-state="off"] .ticker .brain { padding-top: 0; padding-bottom: 0; }
 
   /* ══ FOOTER ══ */
   footer {
@@ -1357,11 +1362,13 @@
   /* v945 CONSOLE PARITY C1 — dashboard cards adopt the theatre's card language: warm hairline
      border, a faint top-surface highlight, roomier padding. One product, one surface. */
   .hd-col { border: 1px solid rgba(240,192,96,.13); border-radius: 12px;
-    background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32)); padding: 14px 16px; min-height: 92px; }
+    background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32)); padding: 11px 14px; min-height: 0; }
   .hd-wide { grid-column: 1 / -1; }
   /* C2 — section headers match the theatre drawer h4: gold accent bar + hairline underline */
-  .hd-h { font: 700 var(--fs-sm)/1.1 var(--mono); letter-spacing: .12em; color: var(--gold); margin-bottom: 12px;
-    padding: 0 0 8px 10px; border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.12); }
+  /* v1252 (CONSOLE r4 · #4 typography + #2 no-scroll) — tighter, consistent card headers (less margin/pad) so the
+     home reclaims vertical space and the heading hierarchy reads uniformly across every card. */
+  .hd-h { font: 700 var(--fs-sm)/1.1 var(--mono); letter-spacing: .12em; color: var(--gold); margin-bottom: 8px;
+    padding: 0 0 6px 10px; border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.12); }
   .hd-sub { font-weight: 400; opacity: .55; letter-spacing: .04em; margin-left: 8px; font-size: var(--fs-xs); }
   .hd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: 8px; padding: 7px 10px; font: 600 var(--fs-xs)/1.3 var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
@@ -1896,7 +1903,7 @@
   /* v1175 R3 — the OFF hero is tall enough to clear its own bottom-pinned .meters (the caption's 2nd line
      overlapped them at fullscreen once R1 grew the fonts + the 250px cap clipped). No cap, no clip. The
      dash still owns the flex via the grid's 1fr row (the OFF stage is an `auto` grid row). */
-  body[data-state="off"] .stage { min-height: clamp(310px, 30vh, 380px); }
+  body[data-state="off"] .stage { min-height: clamp(256px, 26vh, 330px); }   /* v1252 (CONSOLE r4 · #2 no-scroll) — the resting hero is compacter (was 310-380) so the dash below fits; still roomy enough the STANDBY caption clears the meters */
   body[data-state="off"] .stage .phase { font-size: var(--fs-2xl); margin-top: 18px; }   /* v956 R1 — deliberately smaller than the full .phase display size */
   body[data-state="off"] .stage .kicker { display: none; }        /* v903.1 — no overlap in compact */
   body[data-state="off"] .stage .marquee { top: 10px; }
@@ -2262,12 +2269,14 @@
          forge quests + live 📸 intake feed + the shelf inline. Primary when OFF AIR;
          compact strip under the live stage when ON. -->
     <section class="home-dash" id="home-dash">
-      <div class="hd-col hd-wide hd-taskforce" id="hd-taskforce" hidden>
+      <!-- v1252 (CONSOLE r4 · #3 logical grouping) — TASK FORCE + LAST SESSION are both "today's session
+           activity" → paired side by side (no longer full-width), so related reads with related + saves a row. -->
+      <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
         <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
         <div class="hd-tf-rows" id="hd-tf-rows"></div>
       </div>
       <!-- v936 (STORY ARC R2b) — LAST SESSION digest: the newest sealed reel, at a glance -->
-      <div class="hd-col hd-wide hd-lastsession" id="hd-lastsession" hidden>
+      <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
         <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
         <div class="hd-tf-rows" id="hd-ls-row"></div>
       </div>
