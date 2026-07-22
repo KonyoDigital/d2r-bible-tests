@@ -17,7 +17,7 @@ Rules: integer version per round · ×3 stamp parity (tv_diablo VERSION == contr
 ## PHASE A · G3 UNIFIED AUTO-ROUTE / TALLY (finish the sunder-tally arc) — v1291–1298
 Architecture (Konyo 2026-07-23): **chronicle/tracked items → full AI auto-pipeline (judge→route→verify→tally); everything else → AI Item Checker → vault mule/throw.** Sweep already built read-only + reviewed.
 - [x] v1291 · G3 server `/api/autoroute-sweep` endpoint (read-only, intake-inclusive, MAX-snapshot) **+ the bible apply UI (merge-max diff + Apply + provenance "🤖 KAI filled" + honest "review manually" bucket)** — delivered TOGETHER; endpoint JSON-verified on real data, merge-max 13/13 in node, live-vocab recovers the undercount uniques. **Folds in what I'd planned as 1292 (apply UI) + 1294 (provenance).**
-- [ ] v1292 · G3 two-bucket completion — a "→ send to Item Checker" action on the review-manually list (route non-chronicle bases/rolled into the checker→vault flow) + a live-intake "run the sweep" nudge
+- [x] v1292 · G3 THREE-OUTCOME routing — chronicle→auto-tally · non-chronicle (RotW bases/white/rolled)→"🔬 Item Checker & vault" section + open-checker button · genuinely-unreadable→tiny "unclear" (0 on real data). 23/23 node tests; real-data buckets itemChecker 36 / ignored 18 / unclear 0. Clean G4 seam left.
 - [ ] v1293 · G3 live-routing forward — chronicle items auto-route into trackers as scanned (same brain, going forward)
 - [ ] v1294 · (folded into v1291 — provenance done)
 - [ ] v1295 · G3 sunder(4/6)+statue(5/5) seed verified on Konyo's real apply (happens when he clicks Apply); de-dup/held-count truth
