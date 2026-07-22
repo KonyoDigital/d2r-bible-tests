@@ -47,7 +47,8 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1313 · D21 verdict seal-stamp polish **(landed v1315)** — embossed wax/broadcast stamp (92px, double-ring, 🛡/🚨/◌), press-down stamp-in (poll-guarded, reduced-motion CSS), unified with D18 card chip. [in flight: D22 chapter markers]
 - [x] v1314 · D22 filmstrip chapter markers **(landed v1318)** — 🎞 jump-to-chapter ribbon (scene chapters collapse, click→jump) + truthful find-markers (badge only on exact frameId match); honest limit (real chapters, not fabricated timeline). [in flight: D24 live preview]
 - [x] v1315 · D24 live-session preview card **(landed v1322)** — on-air "● REC · recording now" card atop the shelf (elapsed · reads · scene chip · phase · newest find), in-place paint, hidden off-air, honest. [in flight: D25 notes/naming]
-- [ ] v1316 · D25 session notes / naming ("Meph 200x")
+- [x] v1316 · D25 session notes/naming **(landed v1323)** — inline name+note editor, stable-sessionId keyed, "SESSION N" eyebrow kept, overrides shelf card + feeds search, poll-guarded. [in flight: D26 pin/favorite]
+- [x] 🔒 **VISUAL-LOCK invariant TEST (v1323)** — `visual_lock_invariant.py` asserts 0 raw font-weight + --fw tokens on BOTH surfaces (fails file:line). Caught 3 real console stragglers → folded. GREEN both. `LOCKED_TYPE_SYSTEM.md` doc. **Whole-app WEIGHT type system LOCKED + drift-tested.** (ls/lh + pre-push wiring = Konyo's morning calls.)
 - [ ] v1317 · D26 pin / favorite sessions
 - [ ] v1318 · D27 recap export polish (+items +coverage)
 - [ ] v1319 · D28 grail-progress-this-session (Chronicle tie-in)

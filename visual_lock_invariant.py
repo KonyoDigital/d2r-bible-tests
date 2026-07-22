@@ -31,6 +31,10 @@ SURFACES = {
 }
 
 RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-agnostic
+# v1324 — also catch the `font:` SHORTHAND weight (font: 700 11px/1 …), which the
+# font-weight:-only pattern missed (a real blind spot found after v1321). Only the 6
+# named weight values, boundary-terminated so `font: 14px`/`font: var(--fw-*)` never match.
+RAW_SHORTHAND = re.compile(r"font: *(?:400|500|600|700|800|900)\b")
 
 
 def check():
@@ -48,6 +52,9 @@ def check():
             for m in RAW_WEIGHT.finditer(line):
                 failures.append(
                     f"{name}:{i}  RAW weight '{m.group(0).strip()}' — use var(--fw-*) instead")
+            for m in RAW_SHORTHAND.finditer(line):
+                failures.append(
+                    f"{name}:{i}  RAW shorthand weight '{m.group(0).strip()}' — use font:var(--fw-*) instead")
         # 2) the --fw token set is defined
         for tok in cfg["fw"]:
             if not re.search(r"--fw-" + tok + r": *[0-9]+", text):

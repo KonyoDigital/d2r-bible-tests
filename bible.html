@@ -4405,7 +4405,7 @@ body.app-ctx #tab-tvd.active{animation:tvdFadeIn .28s ease}
 body.app-ctx #tab-tvd.active~#tvd-return-pill, body.app-ctx #tvd-return-pill.show{display:inline-flex;position:fixed;top:64px;right:18px;z-index:9600;
   align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid var(--tvz-edge-hi,#7a6a3a);
   background:linear-gradient(180deg,rgba(38,30,17,.92),rgba(12,10,7,.95));color:var(--gold-bright,#f0c060);
-  font:700 11px/1 var(--mono,ui-monospace,monospace);letter-spacing:.08em;cursor:pointer}
+  font:var(--fw-semibold) 11px/1 var(--mono,ui-monospace,monospace);letter-spacing:.08em;cursor:pointer}
 /* full-bleed surfaces — every container stretches to the window */
 body.app-ctx .tab-content,body.app-ctx .gsearch-wrap{max-width:none;margin-left:14px;margin-right:14px}
 body.app-ctx .tvf-spine{border-radius:10px;margin:8px 0 12px}
@@ -7258,14 +7258,14 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 /* v907 — DAILY TASK FORCE rows (the console motherboard design, board-native) */
 .sc-tf-rows{display:flex;flex-direction:column;gap:7px;padding:4px 0 2px}
 .sc-tf-row{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid rgba(240,192,96,.2);
-  border-radius:9px;background:rgba(0,0,0,.28);font:500 12.5px/1.3 var(--mono,ui-monospace,monospace);color:#d9c9a0}
+  border-radius:9px;background:rgba(0,0,0,.28);font:var(--fw-normal) 12.5px/1.3 var(--mono,ui-monospace,monospace);color:#d9c9a0}
 .sc-tf-row.ready{border-color:rgba(143,230,160,.5);box-shadow:inset 3px 0 0 #8fe6a0}
 .sc-tf-row.ai{border-color:rgba(185,165,255,.4)}
 .sc-tf-row.stat{opacity:.75}
 .sc-tf-g{font-size:15px;flex:0 0 auto}
 .sc-tf-t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc-tf-t b{color:#f0dfae}
-.sc-tf-tag{flex:0 0 auto;font:700 9px/1 var(--mono,ui-monospace,monospace);letter-spacing:.1em;padding:4px 8px;
+.sc-tf-tag{flex:0 0 auto;font:var(--fw-semibold) 9px/1 var(--mono,ui-monospace,monospace);letter-spacing:.1em;padding:4px 8px;
   border-radius:6px;border:1px solid rgba(143,230,160,.5);color:#8fe6a0;cursor:pointer}
 .sc-tf-tag.dim{border-color:rgba(240,192,96,.25);color:#9a8d73}
 .sc-tf-tag.ai{border-color:rgba(185,165,255,.5);color:#cbbcff}
@@ -7433,7 +7433,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   box-shadow:0 0 0 1px rgba(240,192,96,.08), inset 0 1px 0 rgba(255,220,140,.1);
 }
 #tab-session .sc-mission-label{
-  font:700 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;
+  font:var(--fw-semibold) 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;
   color:var(--gold-bright,#f0c060);opacity:.9;margin-bottom:8px;
 }
 #tab-session .sc-mission-name{
@@ -7451,7 +7451,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-session .sc-mission-detail b{color:var(--text,#f4e8d0)}
 #tab-session .sc-mission-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 #tab-session .sc-cta{
-  cursor:pointer;font:700 12px/1.2 inherit;padding:9px 14px;border-radius:8px;
+  cursor:pointer;font:var(--fw-semibold) 12px/1.2 inherit;padding:9px 14px;border-radius:8px;
   border:1px solid rgba(240,192,96,.65);
   background:linear-gradient(135deg,rgba(240,192,96,.38),rgba(240,192,96,.12));
   color:var(--gold-bright,#f0c060);
@@ -7480,7 +7480,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 }
 #tab-session .sc-ops-row:last-child{border-bottom:0}
 #tab-session .sc-ops-n{
-  font:700 11px/1 ui-monospace,Menlo,monospace;color:var(--gold-bright);
+  font:var(--fw-semibold) 11px/1 ui-monospace,Menlo,monospace;color:var(--gold-bright);
   width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   border:1px solid rgba(240,192,96,.35);background:rgba(240,192,96,.08);
 }
@@ -7497,7 +7497,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px;padding-top:4px;
 }
 #tab-session .sc-strip-btn{
-  cursor:pointer;font:600 11.5px/1.2 inherit;padding:7px 11px;border-radius:8px;
+  cursor:pointer;font:var(--fw-medium) 11.5px/1.2 inherit;padding:7px 11px;border-radius:8px;
   border:1px solid var(--border,#3a2f1e);background:var(--surface-3,#2f261a);color:var(--text,#f4e8d0);
 }
 #tab-session .sc-strip-btn:hover{border-color:var(--gold-bright);color:var(--gold-bright)}
@@ -7788,7 +7788,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <img class="tvz-th-film" id="tvz-th-film" alt="">
     <div class="tvz-th-topline">
       <span class="tvz-th-tag">🎞 THE THEATRE · EYES ON HISTORY</span>
-      <span class="tvz-th-clock" id="tvz-th-clock" style="font:600 11px/1 var(--mono,ui-monospace,monospace);color:#bfae7f;letter-spacing:.06em;margin-left:14px;font-variant-numeric:tabular-nums"></span>
+      <span class="tvz-th-clock" id="tvz-th-clock" style="font:var(--fw-medium) 11px/1 var(--mono,ui-monospace,monospace);color:#bfae7f;letter-spacing:.06em;margin-left:14px;font-variant-numeric:tabular-nums"></span>
       <span class="tvz-th-sess" id="tvz-th-sess">—</span>
       <button class="tvz-th-x" id="tvz-th-close" type="button" title="close the theatre">✕</button>
     </div>
@@ -33395,7 +33395,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 <style>
 /* v635 — account pill + the unmistakable ladder cue */
 .profile-pill{position:absolute;top:14px;right:16px;z-index:60;display:flex;border:1px solid rgba(233,208,122,.4);border-radius:999px;overflow:hidden;background:rgba(0,0,0,.35);backdrop-filter:blur(3px)}
-.profile-pill .pp-btn{border:0;background:none;color:var(--text-dim,#9a8c72);font:600 11px/1 inherit;letter-spacing:.08em;padding:7px 12px;cursor:pointer}
+.profile-pill .pp-btn{border:0;background:none;color:var(--text-dim,#9a8c72);font:var(--fw-medium) 11px/1 inherit;letter-spacing:.08em;padding:7px 12px;cursor:pointer}
 .profile-pill .pp-btn:hover{color:#ffe08a}
 body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgba(233,208,122,.18);color:#ffe08a}
 .machine-pill{top:14px;right:200px}   /* v663 — master pill sits left of the account pill */
@@ -33403,12 +33403,12 @@ body:not(.cousin-shell) .pp-mac,body.cousin-shell .pp-win{background:rgba(140,20
 body.cousin-shell .pp-win{background:rgba(140,200,255,.3)}
 body.cousin-shell .h-title{filter:drop-shadow(0 0 14px rgba(120,190,255,.4))}
 body.cousin-shell #ladder-ribbon{top:24px}   /* v665.1 — WINDOWS has Main/Ladder too; the two ribbons stack instead of overlap */
-#cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:var(--fw-semibold) 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:700px){#cousin-ribbon{font-size:9px;letter-spacing:.06em;padding:3px 10px 4px}}
 @media (max-width:700px){.machine-pill{position:static;margin:6px auto;width:max-content}}
 body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
 body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
-#ladder-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;   /* v635.2 — the site header is sticky z:100 and opaque; the account cue must never hide behind it */font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
+#ladder-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;   /* v635.2 — the site header is sticky z:100 and opaque; the account cue must never hide behind it */font:var(--fw-semibold) 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
 @media (max-width:700px){.profile-pill{position:static;margin:6px auto;width:max-content}}
 </style>
 <style id="v640-compact-header">
@@ -34028,7 +34028,7 @@ html{overflow-x:clip}
 .tvz-th-chip{display:inline-block;margin:0 4px;padding:2px 9px;border-radius:999px;border:1px solid rgba(240,192,96,.4);background:rgba(240,192,96,.1);color:var(--gold-bright);font-weight:var(--fw-semibold);font-size:.92em}
   .tvz-airead { display:inline-block; text-align:left; margin-top:6px; padding:8px 14px;
     background:rgba(6,9,7,.82); border:1px solid rgba(200,180,120,.22); border-left:3px solid #c8a24a;
-    border-radius:4px; font:500 11.5px/1.75 ui-monospace,monospace; color:#bcc9c0; }
+    border-radius:4px; font:var(--fw-normal) 11.5px/1.75 ui-monospace,monospace; color:#bcc9c0; }
   .tvz-airead .ar-row { white-space:nowrap; }
   .tvz-airead .ar-k { display:inline-block; min-width:86px; color:#8fa398; letter-spacing:.08em; font-size:10px; }
   .tvz-airead b { color:#e4d2a4; font-variant-numeric:tabular-nums; }
@@ -35092,7 +35092,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 }
 .v687-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:8px}
 .v687-btn{
-  cursor:pointer;font:600 12px/1.2 inherit;padding:7px 12px;border-radius:7px;
+  cursor:pointer;font:var(--fw-medium) 12px/1.2 inherit;padding:7px 12px;border-radius:7px;
   border:1px solid var(--border,#3a2f1e);background:var(--surface-3,#2f261a);color:var(--text,#f4e8d0);
 }
 .v687-btn:hover{border-color:var(--gold-bright,#f0c060);color:var(--gold-bright,#f0c060)}
@@ -35103,7 +35103,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1323', name:'🔒 Sessions D25 Notes/Naming + Visual-Lock Test GREEN (weight system locked both surfaces)', date:'2026-07-23', note:'🔒 Session naming + the type system is now locked and self-checking. Two things land together. First, you can now name a run and add a note right on its detail - call a run "Meph 200x" and it shows that name, keeps the session number as a small label, carries a note, and the name follows the run everywhere including the shelf card and search, saved on this machine. Second, and bigger: the whole apps font-weight system is now locked with an automatic test that fails if any raw weight ever creeps back in - and writing that test immediately caught three weights on the console the earlier pass had missed, which are now folded in, so the test passes clean on both the board and the console. A short document records the frozen weight system. The finer letter-spacing side still awaits your design eye. control_ui.html + the lock test + docs.' };
+  window.D2R_BUILD = { id:'v1324', name:'🔒 Visual-Lock - font: Shorthand Weight Blind Spot Closed (weight lock complete, both syntaxes)', date:'2026-07-23', note:'🔒 Visual lock - the last hidden weights, and the test made airtight. Just after the weight system was declared locked, a second look found a handful of weights written in a shorthand form the lock test had not been checking for - two on the console and thirteen on the board - so they were quietly still raw. All fifteen are now folded onto the shared weight tokens like the rest, a pure identity change, and the lock test was widened to check that shorthand form too. It was verified that the test now passes clean on both surfaces and that it correctly fails the moment a shorthand weight is slipped back in. So the boards and consoles font weights are now genuinely, completely unified and guarded against drift in either form. control_ui + bible + the lock test.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

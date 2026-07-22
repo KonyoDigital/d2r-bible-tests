@@ -2050,7 +2050,7 @@
      and overflows the card (home-dash overflow-y:auto clips it horizontally, cutting the text
      mid-word). Give it the whole row so it wraps cleanly to two lines — no clip, no scrollbar. */
   /* v945 CONSOLE PARITY C10 — empty states are readable guidance, not a .4-opacity whisper */
-  .hd-empty { opacity: .58; font: 400 var(--fs-xs)/var(--lh-normal) var(--mono); flex: 1 1 100%; min-width: 0; overflow-wrap: break-word; color: #b0a184; }
+  .hd-empty { opacity: .58; font: var(--fw-regular) var(--fs-xs)/var(--lh-normal) var(--mono); flex: 1 1 100%; min-width: 0; overflow-wrap: break-word; color: #b0a184; }
   .hd-engines { min-height: 0; }
   .hd-chip.warn { border-color: rgba(255,120,80,.6); color: #ffb49a; }
   /* v949 — 🩺 ENGINE HEALTH SPINE: the whole loop's pulse, capture → readers → router → funnels → ledger */
@@ -3652,6 +3652,18 @@
   }
   window._dossierEditName = function(){ _dossierEdit('name'); };
   window._dossierEditNote = function(){ _dossierEdit('note'); };
+  // ══ D26 · PIN / FAVORITE — star a run so it floats to the top of the shelf. Persisted to localStorage by the
+  // stable sessionId (like D25). Pure UI; composes with search/filter/sort + gets a "📌 Pinned" group header. ══
+  function _sesPins(){ try { return JSON.parse(localStorage.getItem('tvd_sespins') || '{}') || {}; } catch(e){ return {}; } }
+  function _sesPinned(id){ return !!(id && _sesPins()[id]); }
+  function _sesPinToggle(id){ if (!id) return false; var m = _sesPins(); if (m[id]) delete m[id]; else m[id] = 1;
+    try { localStorage.setItem('tvd_sespins', JSON.stringify(m)); } catch(e){} return !!m[id]; }
+  window._dossierTogglePin = function(){
+    if (!DOSSIER.sid) return;
+    _sesPinToggle(DOSSIER.sid);
+    if (typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n);   // re-render the dossier toggle
+    try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch(e){}   // reflow the shelf so the pin floats
+  };
   function _sessionDossier(n){
     var ov = document.getElementById('th-dossier-ov'); if (!ov) return;
     var list = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length) ? TH.sessions
@@ -5520,6 +5532,8 @@
       var headFind = _tf ? '<div class="shc-headfind' + (_tf.tier === 'grail' ? ' grail' : '') + '">' + (_tf.tier === 'grail' ? '🏆 ' : '') + esc(_tf.name || 'a keep') + '</div>' : '';
       var seal = sm.watchdogViolations > 0 ? '<span class="shc-seal flag">🚨 ' + sm.watchdogViolations + '</span>'
                : (sm.kaiMissed != null ? '<span class="shc-seal clean">🛡 clean</span>' : '<span class="shc-seal open">◌ open</span>');
+      var _pin = _sesPinned(sm.sessionId);   // D26 — favorite/pin state
+      var pinBtn = '<button type="button" class="shc-pin' + (_pin ? ' on' : '') + '" data-pin-sid="' + esc(sm.sessionId || '') + '" title="' + (_pin ? 'unpin this run' : 'pin to the top') + '" aria-label="pin run">' + (_pin ? '★' : '☆') + '</button>';
       var heroOpen = sm.thumb
         ? '<div class="shc-hero" style="background-image:url(/hist/' + encodeURI(sm.thumb) + '?w=440)">'
         : '<div class="shc-hero noimg">';
@@ -7413,7 +7427,7 @@
         ? '<img class="tsh" src="/hist/'+encodeURIComponent(s.frameId)+'.jpg?w=160" loading="lazy" '
           + 'onclick="event.stopPropagation();window.open(\'/hist/'+encodeURIComponent(s.frameId)+'.jpg\',\'_blank\')" '
           + 'onerror="this.style.opacity=.25;this.style.cursor=\'default\';this.onclick=null;this.title=\'frame not archived\'">'
-        : '<div class="tsh" style="display:flex;align-items:center;justify-content:center;color:#6b5a3e;font: 600 var(--fs-2xs) var(--mono)">no frame</div>';
+        : '<div class="tsh" style="display:flex;align-items:center;justify-content:center;color:#6b5a3e;font: var(--fw-medium) var(--fs-2xs) var(--mono)">no frame</div>';
       var open = (TLY.expanded === gi);
       // the expanded detail: EVERY count, larger frame, ok/total/errors, the ids
       var detail = '';
