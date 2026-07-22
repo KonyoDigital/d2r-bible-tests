@@ -5147,7 +5147,8 @@ def _kai_closer_loop():
                             _g4n += 1
                             if _g4v.get("ok") and _g4v.get("agree") is False:
                                 _ge["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
-                                             "note": _g4v.get("note"), "ts": _g4v.get("ts"), "source": "grok"}
+                                             "note": _g4v.get("note"), "ts": _g4v.get("ts"),
+                                             "source": "grok", "kind": "chronicle"}
                         if _g4n:
                             print(f"🟣 G4 chronicle re-check: {_g4n} border entr" +
                                   ("y" if _g4n == 1 else "ies") + " verified", flush=True)
@@ -5931,7 +5932,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1304",
+        "ver": "v1305",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7625,7 +7626,7 @@ class Handler(BaseHTTPRequestHandler):
                         if _g4v is not None and _g4v.get("ok") and _g4v.get("agree") is False:
                             rec["kai"]["judge"]["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
                                                          "note": _g4v.get("note"), "ts": _g4v.get("ts"),
-                                                         "source": "grok"}
+                                                         "source": "grok", "kind": "keep-toss"}
                             print(f"🟣 G4 keep/toss re-check flagged: {_vname} ({_tier} score {_g4s})", flush=True)
                 except Exception as _g4e:
                     print(f"⚠ G4 keep/toss touchpoint failed (ignored): {_g4e}", flush=True)
