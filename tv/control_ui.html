@@ -1400,6 +1400,22 @@
   .dmr-t .dmr-none { color: #7a7160; font-style: italic; }
   .dmr-jump { flex: none; font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--gold-dim); }
   .dsr-miss-row:hover .dmr-jump { color: var(--gold); }
+  /* ══ v1279 (SESSIONS FLAGSHIP D7 · SEAL-LATENCY CHIP + REGRET SPOTLIGHT) ══ */
+  .dsr-sealrow { gap: 10px; flex-wrap: wrap; }
+  .dsr-seal-lat { font: 700 var(--fs-sm)/1 var(--mono); letter-spacing: .04em; color: #a8ccef; padding: 8px 15px;
+    border-radius: 999px; background: rgba(111,168,220,.08); border: 1px solid rgba(111,168,220,.34); }
+  .dsr-regret { border: 1px solid rgba(255,122,122,.4); border-left: 3px solid #ff7a7a; border-radius: 11px;
+    background: linear-gradient(180deg, rgba(255,122,122,.08), rgba(0,0,0,.32)); padding: 13px 16px; }
+  .dsr-regret-h { font: 700 var(--fs-sm)/1.4 var(--mono); letter-spacing: .01em; color: #ffb0a0; }
+  .dsr-regret-h .drg-hic { margin-right: 4px; }
+  .dsr-regret-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+  .dsr-regret-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: inherit;
+    background: rgba(0,0,0,.3); border: 1px solid rgba(255,122,122,.3); border-radius: 8px; padding: 7px 11px; }
+  .dsr-regret-row:hover { border-color: rgba(255,122,122,.6); background: rgba(30,12,12,.5); }
+  .dsr-regret-row:focus-visible { outline: 2px solid rgba(255,122,122,.6); outline-offset: 1px; }
+  .drg-n { font: 700 var(--fs-sm)/1 var(--mono); color: #ffd0c4; }
+  .drg-jump { font: 700 var(--fs-2xs)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: #c98a7a; }
+  .dsr-regret-row:hover .drg-jump { color: #ff9a8a; }
   /* ══ v1275 (SESSIONS FLAGSHIP D3 · HISTORY as a board region) — session history promoted to a first-class
      off-air home region (was only reachable via the 📚 button inside the Theatre). Compact horizontal run
      strip; tap a card → the D2 dossier. Empty/first-run → a teaching hero. ══ */
@@ -3165,6 +3181,32 @@
       return '<button type="button" class="dsr-miss-row"' + jump + '><span class="dmr-ic">🔍</span><span class="dmr-t">' + lab + '</span><span class="dmr-jump">jump →</span></button>';
     }).join('') + '</div>';
   }
+  // ══ v1279 (SESSIONS FLAGSHIP D7 · SEAL-LATENCY CHIP) — how fast KAI sealed the reel after the run ended.
+  // Consumes the engine's sm.sealMs (closeAt − last-activity); omitted until exposed (I don't have closeAt client-side). ══
+  function _dossierSealLatency(sm){
+    var ms = sm.sealMs;
+    if (ms == null || ms < 0) return '';
+    var s = Math.round(ms / 1000);
+    var txt = s < 60 ? s + 's' : (Math.floor(s / 60) + 'm' + ('0' + s % 60).slice(-2) + 's');
+    return '<span class="dsr-seal-lat" title="time from the run ending to KAI sealing the reel">🔒 sealed in ' + txt + '</span>';
+  }
+  // REGRET SPOTLIGHT — "you threw a KEEP": the judge later ruled a thrown item worth keeping. Consumes the
+  // engine's sm.regretItems = [{name, frameId, ts}] for item + jump-to-frame; degrades to the sm.regrets count;
+  // shows nothing at zero. A learn-from-it moment, surfaced honestly.
+  function _dossierRegret(sm){
+    var items = sm.regretItems, n = (Array.isArray(items) && items.length) || sm.regrets || 0;
+    if (!n) return '';
+    var head = '<div class="dsr-regret-h"><span class="drg-hic">💔</span> you threw a KEEP — the judge later ruled '
+      + (n === 1 ? 'an item' : n + ' items') + ' worth keeping</div>';
+    if (Array.isArray(items) && items.length){
+      var rows = items.slice(0, 12).map(function(it){
+        var jump = (it.frameId || it.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(it.frameId || '')) + '&quot;,' + (Number(it.ts) || 0) + ')"' : '';
+        return '<button type="button" class="dsr-regret-row"' + jump + '><span class="drg-n">' + esc(it.name || '?') + '</span><span class="drg-jump">jump →</span></button>';
+      }).join('');
+      return '<div class="dsr-regret">' + head + '<div class="dsr-regret-list">' + rows + '</div></div>';
+    }
+    return '<div class="dsr-regret">' + head + '</div>';   // count only until the engine names the items
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
     var d0 = sm.t0 ? new Date(sm.t0) : null;
@@ -3200,14 +3242,18 @@
     // v1277 (D6) — missed-text drill (engine, honest-absent): every frame KAI couldn't read, jump to it
     var missDrill = _dossierMissedDrill(sm);
     var missSec = missDrill ? '<div class="dsr-sec"><div class="dsr-h">🔬 Missed text · tap to jump</div>' + missDrill + '</div>' : '';
+    // v1279 (D7) — seal-latency chip (engine) + regret spotlight (engine, degrades to count)
+    var sealLat = _dossierSealLatency(sm);
+    var regret = _dossierRegret(sm);
+    var regretSec = regret ? '<div class="dsr-sec">' + regret + '</div>' : '';
     return '<div class="dsr-wrap">'
       + '<div class="dsr-top"><button type="button" class="dsr-back" onclick="window._dossierClose()">‹ back to the shelf</button></div>'
       + '<div class="dsr-hero">' + cover
       + '<div class="dsr-htext"><div class="dsr-title">Session ' + esc(String(n)) + '</div>'
       + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur) + '</div></div></div>'
       + '<div class="dsr-stats">' + stats + '</div>'
-      + '<div class="dsr-sealrow">' + seal + '</div>'
-      + decisionSec + montSec + missSec + findsSec + fpSec + storySec
+      + '<div class="dsr-sealrow">' + seal + sealLat + '</div>'
+      + regretSec + decisionSec + montSec + missSec + findsSec + fpSec + storySec
       + '<div class="dsr-actions"><button type="button" class="dsr-open" onclick="window._dossierToTheatre()">▶ Open in Theatre</button></div>'
       + '</div>';
   }
