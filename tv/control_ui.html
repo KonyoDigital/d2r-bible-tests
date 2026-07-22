@@ -2028,7 +2028,30 @@
   .gsh-inspect-zone { margin-top: 16px; }
   .gsh-inspect-zone:empty, .gsh-inspect-zone > .er-detail[hidden] { display: none; }
   /* the Time Machine drill-in (#engine-room, z-index 930) already stacks above the ghost shell (z-index 60) */
-  @media (prefers-reduced-motion: reduce){ .gsh-replica-wrap { animation: none; transform: scale(.82); } }
+
+  /* ══ v1244 (GHOST MODE r13, layered on the structure pass) — THE TRANSITION: stepping INTO / out of the
+     machine. Flip on → the overlay fades in as the real console recedes behind; the replica materializes
+     (rise + un-blur). Flip off → .gsh-closing plays the reverse, then the shell is torn down. All animation
+     lives on #ghost-shell (removed on exit) → zero lingering state. Calm, quick, reduced-motion honored. */
+  #ghost-shell { animation: gshShellIn .32s cubic-bezier(.2,.7,.2,1) both; }
+  #ghost-shell.gsh-closing { animation: gshShellOut .26s cubic-bezier(.4,0,.7,.3) both; }
+  @keyframes gshShellIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes gshShellOut { from { opacity: 1; } to { opacity: 0; } }
+  #ghost-shell .gsh-replica-wrap { animation: gshFloat 7s ease-in-out infinite, gshReplicaIn .42s cubic-bezier(.2,.8,.25,1) both; }
+  #ghost-shell.gsh-closing .gsh-replica-wrap { animation: gshReplicaOut .24s ease-in both; }
+  @keyframes gshReplicaIn { from { transform: translateY(26px) scale(.7); filter: blur(6px); opacity: 0; } to { transform: translateY(0) scale(.82); filter: none; opacity: 1; } }
+  @keyframes gshReplicaOut { from { transform: translateY(0) scale(.82); opacity: 1; } to { transform: translateY(20px) scale(.72); opacity: 0; } }
+  #ghost-shell.gsh-closing .gsh-head, #ghost-shell.gsh-closing .gsh-dock { opacity: 0; transition: opacity .2s ease; }
+
+  /* KEYBOARD SCRUBBING — the ACTIVE scrubber (film | journey) gets a subtle rim + a "⌨ ◀ ▶" affordance so
+     you can time-travel precisely from the keyboard. Scoped to the Time Machine body → never affects the drill-in. */
+  .gsh-tm-body .er-band.gsh-scrub-active { color: #ece3ff; box-shadow: -3px 0 0 -1px #c9a8ff; }
+  .gsh-tm-body .er-band.gsh-scrub-active::after { content: " ⌨ ◀ ▶"; margin-left: 8px; color: #b9a9de;
+    font-weight: 700; letter-spacing: .06em; text-transform: none; }
+  @media (prefers-reduced-motion: reduce){
+    .gsh-replica-wrap { animation: none !important; transform: scale(.82) !important; }
+    #ghost-shell, #ghost-shell.gsh-closing { animation: none !important; }
+    #ghost-shell .gsh-replica-wrap { animation: none !important; transform: scale(.82) !important; } }
   /* narrow: the side column drops below the Time Machine */
   @media (max-width: 900px){ .gsh-panel-tm { flex-basis: 100%; } .gsh-side { flex-basis: 100%; } }
 </style>
@@ -6948,7 +6971,7 @@
       + '<div class="gsh-dock-grid">'
         + '<section class="gsh-panel-tm" id="gsh-tm" aria-label="The Time Machine">'
           + '<div class="gsh-panel-head"><span class="gsh-ph-ic" aria-hidden="true">⏪</span><span class="gsh-ph-t">The Time Machine</span>'
-          + '<span class="gsh-ph-sub">rewind — drag the film or the journey to travel back in time</span>'
+          + '<span class="gsh-ph-sub">rewind — drag the film or the journey, or click one &amp; use ◀ ▶ (▲ ▼ jumps)</span>'
           + '<button class="gsh-inspect" type="button" onclick="window._ghostInspectMoment()" title="reveal what the AI saw &amp; decided on this frame — inline, right here (no routing)">🔬 inspect this moment</button></div>'
           + '<div class="gsh-tm-body" id="gsh-tm-body"></div>'
         + '</section>'
@@ -6962,6 +6985,11 @@
     // build+init the Time Machine (stays hidden), then relocate its scrubbers into the dock around the replica
     try { _engineRoomEnsure(); } catch (e) { console.error('[GhostMode] ensure', e); }
     try { _ghostDockNodes(); } catch (e) { console.error('[GhostMode] dock', e); }
+    // v1244 (r13) — clicking either scrubber makes it the ACTIVE one for keyboard scrubbing (listener rides on
+    // the Time Machine panel, removed with the shell → no leak)
+    try { var tm = document.getElementById('gsh-tm');
+      if (tm) tm.addEventListener('pointerdown', function(e){ if (e.target && e.target.closest){ if (e.target.closest('#er-gj')) _ghostSetActive('journey'); else if (e.target.closest('#er-film')) _ghostSetActive('film'); } }, true);
+    } catch (e) { console.error('[GhostMode] activeWire', e); }
   }
   function _ghostShellRemove(){ var gs = document.getElementById('ghost-shell'); if (gs) gs.remove(); }
   // v1240 (r11) — relocate the LIVE (wired) scrubber nodes into the ghost dock, recording each one's home so
@@ -6989,28 +7017,81 @@
   window._ghostInspectMoment = function(){ try { window._engineRoomInspect(); var d = document.getElementById('er-detail'); if (d && !d.hidden) d.scrollIntoView({ block: 'nearest' }); } catch (e) { console.error('[GhostMode] inspect', e); } };
   window._engineRoomShowDrillin = window._ghostInspectMoment;   // back-compat alias (inline, no overlay)
   window._ghostEnterTimeMachine = window._ghostInspectMoment;   // back-compat alias
-  // leave GHOST MODE entirely → restore the docked scrubbers to #engine-room, tear the clone down → ZERO trace
+  // v1244 (r13) — KEYBOARD SCRUBBING helpers. The ACTIVE scrubber (film | journey) is driven by ←/→ (one step)
+  // and ↑/↓ (coarse jump). Clicking a scrubber makes it active; a subtle rim + "⌨ ◀ ▶" marks which one.
+  var _reducedMotion = function(){ try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  function _ghostSetActive(which){
+    GHOST.activeScrubber = which;
+    var fb = document.querySelector('#gsh-tm-body #er-film > .er-band'), jb = document.querySelector('#gsh-tm-body #er-gj > .er-band');
+    if (fb) fb.classList.toggle('gsh-scrub-active', which === 'film');
+    if (jb) jb.classList.toggle('gsh-scrub-active', which === 'journey');
+  }
+  function _ghostFilmReelStep(dir){
+    // only reels the AI actually READ frames in (skip empty/footage-only reels like a 1-frame idle session)
+    var reels = (ER.reels || []).filter(function(r){ return (r.reads || 0) > 0; });
+    if (!reels.length) reels = ER.reels || []; if (!reels.length) return;
+    var idx = -1; for (var i = 0; i < reels.length; i++){ if (reels[i].sessionId === ER.focusSid){ idx = i; break; } }
+    if (idx < 0) idx = reels.length - 1;
+    var ni = Math.max(0, Math.min(reels.length - 1, idx + dir)); if (ni === idx && ER.focusReelObj) return;
+    var rl = reels[ni]; ER.focusSid = rl.sessionId; ER.focusN = rl.n; ER.focusReelObj = rl;
+    _engineRoomLoadReel(rl.sessionId, rl.n, function(beats){ var f = (beats || []).filter(function(x){ return x.frame; }).sort(function(a, c){ return (a.ts || 0) - (c.ts || 0); }); if (f.length) _engineRoomGotoFrame(f[Math.floor(f.length / 2)]); });
+  }
+  function _ghostFilmStep(dir, coarse){
+    if (coarse){ _ghostFilmReelStep(dir); return; }
+    if (!ER.focusReelObj || !ER.focusReelObj.sessionId){ _ghostFilmReelStep(0); return; }   // seed the newest reel with reads, then step
+    _engineRoomStepFrame(dir);
+  }
+  function _ghostJourneyStep(dir, coarse){
+    var st = GJ.stamps || []; if (!st.length) return;
+    var T = GJ.t0 + (GJ.frac == null ? 1 : GJ.frac) * (GJ.t1 - GJ.t0);
+    var idx = 0, bd = 1e18; for (var i = 0; i < st.length; i++){ var d = Math.abs(st[i] - T); if (d < bd){ bd = d; idx = i; } }
+    var ni = Math.max(0, Math.min(st.length - 1, idx + dir * (coarse ? 7 : 1)));
+    _erGjRender((st[ni] - GJ.t0) / Math.max(1, GJ.t1 - GJ.t0));
+  }
+  // leave GHOST MODE entirely → play the "step out" transition, restore the docked scrubbers to #engine-room,
+  // tear the clone down → ZERO trace (all animation lives on #ghost-shell, which is removed).
   window._ghostExit = function(){
-    var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; ER.open = false; ER.detailOpen = false;
-    try { _ghostUndockNodes(); } catch (e) { console.error('[GhostMode] undock', e); }   // MUST run before removing the shell (the scrubbers live inside it)
-    _ghostShellRemove();
-    document.body.classList.remove('ghost-on'); GHOST.on = false;
+    if (GHOST._closing) return;
+    var gs = document.getElementById('ghost-shell');
+    document.body.classList.remove('ghost-on');   // the real console steps forward out of the past (its own .55s transition)
     var sw = document.getElementById('ghost-switch'); if (sw) sw.classList.remove('on');
+    var finish = function(){
+      var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; ER.open = false; ER.detailOpen = false;
+      try { _ghostUndockNodes(); } catch (e) { console.error('[GhostMode] undock', e); }   // MUST run before removing the shell
+      try { var a = document.querySelectorAll('.gsh-scrub-active'); for (var i = 0; i < a.length; i++) a[i].classList.remove('gsh-scrub-active'); } catch (e) {}   // clear active trace on the restored nodes
+      _ghostShellRemove();
+      GHOST.on = false; GHOST._closing = false;
+    };
+    if (gs && !_reducedMotion()){
+      GHOST._closing = true; gs.classList.add('gsh-closing'); var done = false;
+      var end = function(){ if (done) return; done = true; finish(); };
+      gs.addEventListener('animationend', end, { once: true }); setTimeout(end, 380);   // fallback if animationend doesn't fire
+    } else { finish(); }
   };
   window._ghostToggle = function(){
     try {
+      if (GHOST._closing) return;   // ignore clicks mid-transition
       if (GHOST.on){ window._ghostExit(); return; }
       GHOST.on = true;
       document.body.classList.add('ghost-on');              // the live console recedes into the past (CSS-only, reverted on exit)
       var sw = document.getElementById('ghost-switch'); if (sw) sw.classList.add('on');
-      _ghostReplicaBuild();                                  // the ghost REPLICA of the console is the face
+      _ghostReplicaBuild();                                  // the ghost REPLICA of the console is the face (animates in via CSS)
+      try { _ghostSetActive('film'); } catch (e) {}          // the film is the default active scrubber
     } catch (e) { console.error('[GhostMode] toggle', e); }
   };
-  // Esc from the ghost shell (when the Time Machine drill-in is NOT open) exits ghost mode. Added once; inert
-  // when ghost is off (guarded by GHOST.on), so it leaves no residue. The drill-in's own Esc is handled in _engineRoomEl.
+  // Esc + ARROW-KEY SCRUBBING from the ghost shell. Added once; inert when ghost is off (guarded by GHOST.on),
+  // so it leaves no residue. The drill-in's own keys are handled in _engineRoomEl (only when ER.open).
   if (!GHOST._escWired){ GHOST._escWired = true;
-    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && GHOST.on && !ER.open){ e.stopPropagation();
-      if (ER.detailOpen){ window._engineRoomDetailClose(); } else { window._ghostExit(); } } }, true); }
+    document.addEventListener('keydown', function(e){
+      if (!GHOST.on || GHOST._closing || ER.open) return;
+      var t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.key === 'Escape'){ e.stopPropagation(); if (ER.detailOpen){ window._engineRoomDetailClose(); } else { window._ghostExit(); } return; }
+      var active = GHOST.activeScrubber || 'film';
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){ e.preventDefault(); e.stopPropagation(); var dir = (e.key === 'ArrowRight') ? 1 : -1;
+        if (active === 'journey') _ghostJourneyStep(dir, false); else _ghostFilmStep(dir, false); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown'){ e.preventDefault(); e.stopPropagation(); var d2 = (e.key === 'ArrowUp') ? 1 : -1;
+        if (active === 'journey') _ghostJourneyStep(d2, true); else _ghostFilmStep(d2, true); }
+    }, true); }
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
   // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
   function _tlyCount(){
