@@ -1546,7 +1546,7 @@
   .er-detail-head .thd-dim { font-weight: 500; letter-spacing: .02em; color: #9a8d73; }
   .er-detail-head .th-x { margin-left: auto; }
   .er-detail-body { padding: 12px 16px 14px; font: 500 var(--fs-sm)/1.6 var(--mono); color: #c8d0d6; }
-  .er-detail-body .kv { display: grid; grid-template-columns: 168px 1fr; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }
+  .er-detail-body .kv { display: grid; grid-template-columns: clamp(172px, 10vw, 240px) 1fr; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }   /* v1210 (Engine Room r1) — label col wide enough that no row-label wraps to two lines at fullscreen */
   .er-detail-body .kv .k { color: #94a89c; opacity: .85; } .er-detail-body .kv .v { color: #d9e2da; word-break: break-word; }
   .er-detail-body .kv .v b { color: #e4d2a4; }
   .er-auth { display: inline-block; font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase;
@@ -1554,6 +1554,29 @@
   .er-auth.er-auth-yes { color: #9df0bd; background: rgba(143,230,160,.12); border: 1px solid rgba(143,230,160,.45); }
   .er-auth.er-auth-no  { color: #9a8d73; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.1); }
   .er-detail-body details.th-raw { margin-top: 8px; }
+  /* v1210 (Engine Room r1) — THE READ-CHAIN STRIP: the fixed 5-layer pipeline for THIS frame, at a
+     glance. Lit node = that layer fired; a gold-ringed node OWNS the final read. Konyo's north star:
+     SEE which eye caught it and who won, without reading the rows below. Built from beat fields only. */
+  .er-chain { display: flex; align-items: stretch; gap: 0; margin: 2px 0 14px; }
+  .er-chain .ec-node { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 9px 6px 8px; border: 1px solid rgba(240,192,96,.14); border-radius: 9px; background: rgba(20,16,10,.28);
+    text-align: center; position: relative; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .er-chain .ec-arrow { flex: 0 0 auto; align-self: center; color: #5f5a4a; padding: 0 7px; font: 600 var(--fs-sm)/1 var(--mono); }
+  .er-chain .ec-ic { font-size: var(--fs-md); line-height: 1; filter: grayscale(.75) opacity(.4); transition: filter .15s; }
+  .er-chain .ec-lab { font: 700 var(--fs-2xs)/1.05 var(--mono); letter-spacing: .09em; text-transform: uppercase; color: #7a7160; }
+  .er-chain .ec-st { font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: .03em; color: #6f6a58; }
+  .er-chain .ec-node.on { background: rgba(30,24,12,.5); }
+  .er-chain .ec-node.on .ec-ic { filter: none; }
+  .er-chain .ec-node.live.on   { border-color: rgba(240,120,120,.5); }  .er-chain .ec-node.live.on   .ec-lab, .er-chain .ec-node.live.on   .ec-st { color: #ffb0a0; }
+  .er-chain .ec-node.second.on { border-color: rgba(126,200,255,.5); }  .er-chain .ec-node.second.on .ec-lab, .er-chain .ec-node.second.on .ec-st { color: #9fd0ff; }
+  .er-chain .ec-node.kai.on    { border-color: rgba(143,230,160,.5); }  .er-chain .ec-node.kai.on    .ec-lab, .er-chain .ec-node.kai.on    .ec-st { color: #9df0bd; }
+  .er-chain .ec-node.super.on  { border-color: rgba(201,168,255,.55); } .er-chain .ec-node.super.on  .ec-lab, .er-chain .ec-node.super.on  .ec-st { color: #cbbcff; }
+  .er-chain .ec-node.gate.proven { border-color: rgba(143,230,160,.5); background: rgba(30,24,12,.5); } .er-chain .ec-node.gate.proven .ec-ic { filter: none; } .er-chain .ec-node.gate.proven .ec-lab, .er-chain .ec-node.gate.proven .ec-st { color: #9df0bd; }
+  .er-chain .ec-node.gate.held   { border-color: rgba(240,192,96,.5);  background: rgba(30,24,12,.5); } .er-chain .ec-node.gate.held   .ec-ic { filter: none; } .er-chain .ec-node.gate.held   .ec-lab, .er-chain .ec-node.gate.held   .ec-st { color: #f0d89a; }
+  .er-chain .ec-node.owns { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-antique), 0 0 18px rgba(240,192,96,.2); }
+  .er-chain .ec-node.owns .ec-lab { color: var(--gold-hi); }
+  .er-chain .ec-node.owns::after { content: "OWNS"; position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+    font: 800 var(--fs-2xs)/1 var(--mono); letter-spacing: .12em; color: #1a1206; background: var(--gold); padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
   /* ══ v1174 (R2 — TOGGLE SWEEP) — the one-shell law, applied to every remaining toggle: nothing
      SNAPS on/off anymore. Every overlay rises in, every drawer slides, every disclosure reveals —
      one smooth shell. CSS-only; no logic/ID changes (the JS still flips `hidden`, we just make the
@@ -6003,25 +6026,55 @@
   var _ER_OWNER = { super: '🧠🔬 super-analyze', live: '🔴 live eye', second: '🔵 second eye', kai: '🧠 KAI retro', ocr: '⚡ OCR (text eye)', funnel: '🩹 funnel' };
   var _ER_VERDICT = { grail: '🏆 grail', keep: '✓ keep', border: '◐ border', toss: '🗑 toss', miss: '⚠ miss' };
   function _erFrameKey(s){ var m = String(s || '').match(/f_(\d+)/); return m ? ('f_' + m[1]) : String(s || ''); }
+  function _erInferOwnerKey(b){   // the raw layer key when there's no reconciler frame — mirrors _erInferOwner
+    return (b.super && b.super.reread) ? 'super'
+      : ((b.kaiMissTexts && b.kaiMissTexts.length) ? 'kai'
+      : (b.lane === 'verify' ? 'second' : (((b.names || []).length) || b.lane === 'deep' ? 'live' : 'none')));
+  }
   function _erInferOwner(b){
-    return (b.super && b.super.reread) ? '🧠🔬 super-analyze'
-      : ((b.kaiMissTexts && b.kaiMissTexts.length) ? '🧠 KAI retro'
-      : (b.lane === 'verify' ? '🔵 second eye' : (((b.names || []).length) || b.lane === 'deep' ? '🔴 live eye' : '— no read (film only)')));
+    var k = _erInferOwnerKey(b);
+    return _ER_OWNER[k] || (k === 'none' ? '— no read (film only)' : k);
   }
   function _erOwnerVerdict(b){
     if (b && b.engineFrame && b.engineFrame.owner){   // RETRO — the reconciler's sealed frame
       var ef = b.engineFrame;
-      return { owner: _ER_OWNER[ef.owner] || ef.owner, verdict: ef.verdict ? (_ER_VERDICT[ef.verdict] || ef.verdict) : null, why: ef.why || null, auth: true };
+      return { owner: _ER_OWNER[ef.owner] || ef.owner, key: ef.owner, verdict: ef.verdict ? (_ER_VERDICT[ef.verdict] || ef.verdict) : null, why: ef.why || null, auth: true };
     }
     var lr = (ER.lastStatus && ER.lastStatus.liveRing) || [];   // LIVE — the now-cursor ring
     if (b && lr.length){
       var fk = _erFrameKey(b.frame || b.frameId || '');
       for (var i = lr.length - 1; i >= 0; i--){
         if (lr[i] && _erFrameKey(lr[i].f) === fk && lr[i].owner)
-          return { owner: _ER_OWNER[lr[i].owner] || lr[i].owner, verdict: lr[i].verdict ? (_ER_VERDICT[lr[i].verdict] || lr[i].verdict) : null, why: lr[i].why || null, auth: true };
+          return { owner: _ER_OWNER[lr[i].owner] || lr[i].owner, key: lr[i].owner, verdict: lr[i].verdict ? (_ER_VERDICT[lr[i].verdict] || lr[i].verdict) : null, why: lr[i].why || null, auth: true };
       }
     }
-    return { owner: _erInferOwner(b), verdict: null, why: null, auth: false };   // pre-Phase-C → inference
+    return { owner: _erInferOwner(b), key: _erInferOwnerKey(b), verdict: null, why: null, auth: false };   // pre-Phase-C → inference
+  }
+  // v1210 (Engine Room r1) — the 5-layer read chain for ONE frame: lit = that layer fired, gold = owns
+  // the final read. Reads only beat fields (no server call). ov = _erOwnerVerdict(b) for the owner key.
+  function _erReadChain(b, ov){
+    var ownKey = (ov && ov.key) || '';
+    var gateOwns = /^(router|funnel|ocr|gate)$/.test(ownKey);
+    // the item-read pipeline, per frame — same fire logic the owner inference uses, so the lit chain
+    // always agrees with the "owns the final read" row (a rune/tally/film frame reads all-dark).
+    var liveRead = !!(((b.names || []).length) || b.lane === 'deep');
+    var kai = !!(b.kaiMissTexts && b.kaiMissTexts.length), sup = !!(b.super && b.super.reread), sec = (b.lane === 'verify');
+    var gp = b.gatePass;
+    var nodes = [
+      { cls: 'live',   ic: '🔴',   lab: 'live',   on: liveRead, st: liveRead ? 'read' : '—', owns: ownKey === 'live' },
+      { cls: 'second', ic: '🔵',   lab: 'second', on: sec,       st: sec ? 're-read' : '—',       owns: ownKey === 'second' },
+      { cls: 'kai',    ic: '🧠',   lab: 'KAI',    on: kai,       st: kai ? 'caught' : '—',        owns: ownKey === 'kai' },
+      { cls: 'super',  ic: '🧠🔬', lab: 'super',  on: sup,       st: sup ? 'caught' : '—',        owns: ownKey === 'super' },
+      { cls: 'gate' + (gp === true ? ' proven' : (gp === false ? ' held' : '')), ic: '🚦', lab: 'gate',
+        on: gp != null, st: (gp === true ? 'proven' : (gp === false ? 'held' : '—')), owns: gateOwns }
+    ];
+    return '<div class="er-chain" title="the 5-layer read chain for this frame — a lit node fired, the gold node owns the final read">'
+      + nodes.map(function(n, i){
+          return (i ? '<span class="ec-arrow">→</span>' : '')
+            + '<div class="ec-node ' + n.cls + (n.on ? ' on' : '') + (n.owns ? ' owns' : '') + '">'
+            + '<span class="ec-ic">' + n.ic + '</span><span class="ec-lab">' + n.lab + '</span><span class="ec-st">' + n.st + '</span></div>';
+        }).join('')
+      + '</div>';
   }
   function _engineRoomRenderDetail(b, reel){
     var el = document.getElementById('er-detail'); if (!el || !b) return;
@@ -6036,6 +6089,7 @@
     el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>'
       + '<button class="th-x" id="er-detail-x" onclick="window._engineRoomDetailClose()" title="close (Esc)">✕</button></div>'
       + '<div class="er-detail-body">'
+      + _erReadChain(b, ov)
       + _erDetailRow('👁 the reader net', badges || '—')
       + _erDetailRow('owns the final read', '<b>' + ov.owner + '</b> <span class="er-auth ' + (ov.auth ? 'er-auth-yes' : 'er-auth-no') + '" title="' + (ov.auth ? 'the reconciler\'s sealed verdict — authoritative' : 'inferred from the beat\'s reader signals (no reconciler frame yet)') + '">' + (ov.auth ? 'authoritative' : 'inferred') + '</span>' + (ov.why ? ' <span class="thd-dim">· ' + esc(String(ov.why)) + '</span>' : ''))
       + (ov.verdict ? _erDetailRow('⚖ verdict (Master Brain)', '<b>' + ov.verdict + '</b>') : '')
