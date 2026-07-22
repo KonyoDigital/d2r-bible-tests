@@ -31,3 +31,4 @@ tv/control_capture.pid
 tv/sessions.*.jsonl
 tv/*.log
 tv/.tvd_supervisor_pause
+tv/.tvd_window.pid

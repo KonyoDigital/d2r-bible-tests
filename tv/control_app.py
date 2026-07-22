@@ -42,6 +42,7 @@ ART_DIR = os.path.realpath(os.path.join(REPO, "art"))
 CAPTURE_PS1 = os.path.join(HERE, "capture_win.ps1")
 HIST_DIR = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")   # v765 · v885 — TV_HIST = harness isolation
 BOARD_PID_PATH = os.path.join(HERE, "board_window.pid")   # v773.1 — the ONE board window
+WINDOW_PID_PATH = os.path.join(HERE, ".tvd_window.pid")   # v1248 — pid of a live native window (takeover guard)
 
 
 def _hist_frame_paths(fid):
@@ -1726,6 +1727,43 @@ def _open_browser_app_fallback(url):
         pass
 
 
+def _window_lock_write():
+    """v1248 — mark that THIS process holds a live native window (takeover guard)."""
+    try:
+        with open(WINDOW_PID_PATH, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
+
+def _window_lock_clear():
+    try:
+        if os.path.isfile(WINDOW_PID_PATH):
+            os.remove(WINDOW_PID_PATH)
+    except Exception:
+        pass
+
+
+def _window_present():
+    """v1248 — True iff a live native TV DIABLO window (this or another process) is open.
+    Self-healing: a stale lock whose pid is dead reads as NOT present."""
+    try:
+        if not os.path.isfile(WINDOW_PID_PATH):
+            return False
+        pid = int((open(WINDOW_PID_PATH).read().strip() or 0))
+        if pid <= 0:
+            return False
+        try:
+            os.kill(pid, 0)          # raises if the pid is dead
+        except ProcessLookupError:
+            return False             # stale lock → no window
+        except PermissionError:
+            return True              # alive, owned by another user/context
+        return True
+    except Exception:
+        return False
+
+
 def open_control_window():
     """Open the real native app window (pywebview). Blocks until the user closes it."""
     url = f"http://127.0.0.1:{CONTROL_PORT}/"
@@ -1806,28 +1844,43 @@ def open_control_window():
     # and v930's mini tile are DEAD: the engine is now an invisible same-origin iframe
     # (#tvd-eng) inside control_ui.html itself — one window, JS alive because the console
     # is visible. The control-side driver reaches its board through contentWindow.
-    try:
-        threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
-        threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
-    except Exception as _ee:
-        print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
+    # v1248 — a --window-only / takeover attach must NOT start a second engine driver:
+    # the PRIMARY (the process that bound :17772) owns the driver + closer. A duplicate
+    # driver would double-fire the board. Only the primary starts these.
+    if not globals().get("_WINDOW_ONLY"):
+        try:
+            threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
+            threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
+        except Exception as _ee:
+            print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
     # v928 — private_mode=False FOR REAL: the comment below claimed it since forever, but
     # the call never passed it. pywebview defaults to private (ephemeral) storage, so every
     # tally/grail state in the app board silently evaporated on quit.
+    # v1248 — hold the window-presence lock for this window's lifetime (takeover guard);
+    # cleared on close/crash so a second launch knows whether a real window is already open.
+    _window_lock_write()
     try:
-        webview.start(debug=False, private_mode=False)
-    except TypeError:
-        # older pywebview without private_mode — ephemeral storage beats no window
-        print("⚠ pywebview too old for private_mode=False — board storage is EPHEMERAL this run (tallies/grail reset on quit); pip install -U pywebview")
+        import atexit as _atexit
+        _atexit.register(_window_lock_clear)
+    except Exception:
+        pass
+    try:
         try:
-            webview.start(debug=False)
+            webview.start(debug=False, private_mode=False)
+        except TypeError:
+            # older pywebview without private_mode — ephemeral storage beats no window
+            print("⚠ pywebview too old for private_mode=False — board storage is EPHEMERAL this run (tallies/grail reset on quit); pip install -U pywebview")
+            try:
+                webview.start(debug=False)
+            except Exception as e:
+                print(f"⚠ pywebview failed ({e}) — browser fallback")
+                _open_browser_app_fallback(url)
         except Exception as e:
             print(f"⚠ pywebview failed ({e}) — browser fallback")
             _open_browser_app_fallback(url)
-    except Exception as e:
-        print(f"⚠ pywebview failed ({e}) — browser fallback")
-        _open_browser_app_fallback(url)
+    finally:
+        _window_lock_clear()
     # webview.start() returns when the user closes the window — always stop ON AIR
     _console_exit_stop_onair("webview-returned")
 
@@ -5172,7 +5225,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1247",
+        "ver": "v1248",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7028,11 +7081,22 @@ def main():
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
     except OSError as e:
-        # v781 — ONE WINDOW: a second Desktop launch used to open another pywebview on the
-        # already-running control (Konyo: 'another window open sometimes'). Refuse.
+        # v1248 — TAKEOVER (Konyo: "it says already open"). The port is held, usually by the
+        # supervisor's always-up HEADLESS console (--no-open, no window). The old behavior
+        # refused and exited with a notification → a double-click gave NO window. Now: if a
+        # window was requested (--open) and no REAL window is already open, ATTACH one to the
+        # running server (window-only takeover) instead of refusing. Only when a live window
+        # already exists (genuine double-launch) do we keep the v781 one-window refuse.
+        if open_ui and not _window_present():
+            print(f"📺 TV DIABLO already serving on :{CONTROL_PORT} (headless) — "
+                  f"attaching a window (takeover, not a second server)…", flush=True)
+            globals()["_WINDOW_ONLY"] = True   # window-close won't kill the primary's ON AIR / driver
+            open_control_window()
+            return
+        # v781 — a REAL window already exists → refuse a second one, point at the existing.
         print(
-            f"📺 TV DIABLO is already running on :{CONTROL_PORT} — not opening a second window.\n"
-            f"   Use the existing app (or STOP/quit it first).\n   ({e})"
+            f"📺 TV DIABLO window is already open on :{CONTROL_PORT} — not opening a second one.\n"
+            f"   Use the existing window (or STOP/quit it first).\n   ({e})"
         )
         try:
             if sys.platform == "darwin":

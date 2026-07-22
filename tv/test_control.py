@@ -172,14 +172,46 @@ class TestStopDiscipline(unittest.TestCase):
         src = inspect.getsource(ca.open_board)
         self.assertIn("_MAC_BROWSERS", src)                  # fragment-surviving spawn path
 
-    def test_second_control_launch_does_not_open_window(self):
-        """v781 — port-in-use path must exit, not open_control_window()."""
+    def test_second_launch_takes_over_when_headless_else_refuses(self):
+        """v1248 — TAKEOVER (Konyo: "it says already open"): a second --open launch against a
+        HEADLESS server (the supervisor's always-up console, no window) now ATTACHES a window
+        instead of refusing; only a genuine live window keeps the v781 one-window refuse."""
         import inspect
         src = inspect.getsource(ca.main)
-        # the OSError branch should refuse a second window
-        self.assertIn("not opening a second window", src)
-        # ensure the old "opening another app window" path is gone
-        self.assertNotIn("opening another app window", src)
+        # takeover path: bind-fail + --open + no live window → attach a window
+        self.assertIn("_window_present", src)
+        self.assertIn("open_control_window()", src)
+        self.assertIn("takeover", src.lower())
+        # a genuine live window still gets the one-window refuse
+        self.assertIn("already open", src.lower())
+
+    def test_window_presence_lock_self_heals(self):
+        """v1248 — the takeover guard: no file → absent; a live pid → present; a dead pid →
+        absent (stale lock self-heals so a crashed window never wedges the takeover)."""
+        import tempfile
+        orig = ca.WINDOW_PID_PATH
+        try:
+            ca.WINDOW_PID_PATH = os.path.join(tempfile.gettempdir(), "tvd_window_test.pid")
+            ca._window_lock_clear()
+            self.assertFalse(ca._window_present())          # no file
+            ca._window_lock_write()
+            self.assertTrue(ca._window_present())            # our live pid
+            with open(ca.WINDOW_PID_PATH, "w") as f:
+                f.write("999999")                            # a dead pid
+            self.assertFalse(ca._window_present())           # stale → absent
+        finally:
+            ca._window_lock_clear()
+            ca.WINDOW_PID_PATH = orig
+
+    def test_window_only_attach_does_not_start_a_second_engine_driver(self):
+        """v1248 — a window-only/takeover attach must NOT spin up a second engine driver;
+        the primary (port owner) owns it. The driver start is guarded by _WINDOW_ONLY."""
+        import inspect
+        src = inspect.getsource(ca.open_control_window)
+        self.assertIn("_WINDOW_ONLY", src)
+        self.assertIn("tvd-engine-driver", src)
+        # the guard must sit before the driver thread start
+        self.assertLess(src.index("_WINDOW_ONLY"), src.index("tvd-engine-driver"))
 
 
 class TestBoardHost(unittest.TestCase):
