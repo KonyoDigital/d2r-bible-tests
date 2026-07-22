@@ -1681,6 +1681,25 @@
   .shi-lab { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--gold-dim); }
   .shi-val { font: var(--fw-bold) var(--fs-sm)/var(--lh-tight) var(--mono); color: #e8dcc0; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .shi-sub { font: var(--fw-medium) var(--fs-2xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-tight); color: #8a7e68; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ══ D24 · LIVE "RECORDING NOW" CARD — top of the shelf, shown only on-air (mint reel accent + ● REC pulse) ══ */
+  .sh-live { border: 1px solid rgba(143,230,160,.42); border-radius: 12px; padding: 12px 14px; margin: 0 0 14px;
+    background: linear-gradient(180deg, rgba(30,60,42,.28), rgba(0,0,0,.35)); box-shadow: 0 0 20px rgba(143,230,160,.1); }
+  .sh-live[hidden] { display: none !important; }
+  .shl-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .shl-rec { display: inline-flex; align-items: center; gap: 6px; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--mint); }
+  .shl-dot { width: 9px; height: 9px; border-radius: 50%; background: #ff5a4a; box-shadow: 0 0 9px #ff5a4a; flex: none; }
+  @keyframes shlRec { 0%,49% { opacity: 1; } 50%,100% { opacity: .25; } }
+  @media (prefers-reduced-motion: no-preference){ .shl-dot { animation: shlRec 1.4s steps(1) infinite; } }
+  .shl-title { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); color: #d9c9a0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .shl-elapsed { margin-left: auto; font: var(--fw-bold) var(--fs-sm)/1 var(--mono); color: #bfead0; font-variant-numeric: tabular-nums; flex: none; }
+  .shl-body { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .shl-reads { display: inline-flex; align-items: baseline; gap: 5px; }
+  .shl-reads .shl-v { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; }
+  .shl-reads .shl-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); text-transform: uppercase; letter-spacing: var(--ls-snug); color: #7d7358; }
+  .shl-phase { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: #9df0bd; }
+  .shl-find { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-tight); }
+  .shl-find.grail { color: var(--gold-hi); } .shl-find.keep { color: #bfead0; }
   .sh-no-match { font: var(--fw-normal) var(--fs-base)/var(--lh-normal) var(--mono); color: #9a8e70; font-style: italic; text-align: center; padding: 6vh 20px; }
   /* v1285 (D10) — day-group headers span the shelf grid, sectioning the newest-sorted runs by date */
   .sh-daygroup { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; margin: 10px 2px 0;
@@ -2921,6 +2940,12 @@
       if (_scEl.__dl !== _scVal){ _scEl.__dl = _scVal;
         if (_scChip) _scEl.innerHTML = _scChip; else _scEl.textContent = st.scene || st.phase || '—'; } }
 
+    // D24 — the LIVE "recording now" card at the top of the shelf reads from this poll. Track on-air start for
+    // elapsed; stash the status so the shelf can render the card the moment it opens, and refresh it live here.
+    if (state === 'on'){ if (!window.__onairSince) window.__onairSince = Date.now(); } else { window.__onairSince = 0; }
+    st.__on = (state === 'on'); st.__rc = rc; window.__lastStatus = st;
+    try { if (typeof _shLiveRender === 'function') _shLiveRender(st); } catch(e){}
+
     $('sig-bridge').textContent = on ? 'connected' : (state === 'off' ? 'resting · off air' : 'no signal');   // v938.4 — 'no signal' only when it's actually wrong
     $('sig-model').textContent = st.model || '—';
     // v779-pre (Konyo: 'is it targeting the diablo II window? I don't see that it is') —
@@ -3771,6 +3796,35 @@
   // ══ D17 · BEST-RUN / STREAK HIGHLIGHTS — a compact strip of standout runs + a farming streak, at the top
   // of the shelf. Real bests only off the /api/sessions run set (reuses _cmpList); honest "—" / omit when the
   // data can't support a card. Cards that reference a single run are tap-to-dossier. Pure UI. ══
+  // ══ D24 · LIVE "RECORDING NOW" CARD — a live preview of the reel building right now, at the top of the shelf.
+  // Reads the /api/status poll already in hand (readCount · scene/area · phase · liveRing newest keep/grail) and
+  // updates in place each poll (no re-render, so the ● REC pulse never restarts). Hidden entirely off-air. ══
+  function _livePhaseLabel(ph){
+    ph = String(ph || 'watching').toLowerCase();
+    var M = { watching: 'WATCHING', reading: 'READING', settle: 'SETTLING', hunt: 'HUNTING', signing: 'SEALING' };
+    return M[ph] || ph.toUpperCase();
+  }
+  function _shLiveRender(st){
+    var el = document.getElementById('sh-live'); if (!el) return;   // only exists while the shelf is open
+    if (!st || !st.__on){ el.hidden = true; return; }               // off-air (or sim) → card hidden
+    el.hidden = false;
+    var set = function(id, txt){ var e = document.getElementById(id); if (e) e.textContent = txt; };
+    set('shl-reads', _kpiFmt(st.__rc || 0));
+    var sEl = document.getElementById('shl-scene');
+    if (sEl){ var chip = _diabloChip(st.scene, st.tab, st.area) || ''; sEl.innerHTML = chip; sEl.hidden = !chip; }
+    set('shl-phase', _livePhaseLabel(st.phase));
+    var nEl = document.getElementById('shl-find');
+    if (nEl){
+      var ring = st.liveRing || [], find = null;
+      for (var i = ring.length - 1; i >= 0; i--){ if (ring[i].verdict === 'grail' || ring[i].verdict === 'keep'){ find = ring[i]; break; } }
+      if (find){ nEl.hidden = false; nEl.className = 'shl-find ' + (find.verdict === 'grail' ? 'grail' : 'keep');
+        nEl.innerHTML = (find.verdict === 'grail' ? '🏆 ' : '✦ ') + esc(find.label || (find.verdict === 'grail' ? 'grail' : 'keep')); }
+      else nEl.hidden = true;
+    }
+    var eEl = document.getElementById('shl-elapsed');
+    if (eEl && window.__onairSince){ var s = Math.max(0, Math.floor((Date.now() - window.__onairSince) / 1000));
+      eEl.textContent = Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  }
   function _shHighlights(){
     var runs = _cmpList(); if (!runs.length) return '';
     var ms = runs.map(function(s){
@@ -5457,8 +5511,20 @@
       : '';
     var timelineDiv = cards ? '<div class="sh-timeline" id="sh-timeline" hidden></div>' : '';   // v1286 (D12) — activity sparkline
     ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
-      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>' + _shHighlights() + searchBar + timelineDiv + body;
+      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>'
+      + '<div class="sh-live" id="sh-live" hidden>'   // D24 — live "recording now" card, filled + shown by _shLiveRender when on-air
+        + '<div class="shl-top"><span class="shl-rec"><span class="shl-dot"></span>rec</span>'
+          + '<span class="shl-title">Recording now — this reel is building</span>'
+          + '<span class="shl-elapsed" id="shl-elapsed">0:00</span></div>'
+        + '<div class="shl-body">'
+          + '<span class="shl-reads"><span class="shl-v" id="shl-reads">0</span><span class="shl-l">reads</span></span>'
+          + '<span class="shl-scene" id="shl-scene"></span>'
+          + '<span class="shl-phase" id="shl-phase"></span>'
+          + '<span class="shl-find" id="shl-find" hidden></span>'
+        + '</div></div>'
+      + _shHighlights() + searchBar + timelineDiv + body;
     ov.hidden = false;
+    try { _shLiveRender(window.__lastStatus); } catch(e){}   // D24 — populate the live "recording now" card from the last poll (shown only on-air)
     _shTimeline();   // v1286 (D12) — draw the runs-per-day activity strip (all runs, stable overview)
     var _si = $('sh-search');
     if (_si){
