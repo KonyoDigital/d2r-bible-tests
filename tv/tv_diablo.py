@@ -2130,7 +2130,9 @@ def _claude_lean_args(model, *, stream=False, add_dirs=None):
             args += ["--add-dir", d]
     return args
 
-# v1379 — hard subscription circuit breaker for cold oneshots + optional warm budget log
+# v1379 — hard subscription circuit breaker for cold oneshots + warm budget log.
+# Armed only for REAL claude CLI vision — never for TV_STUB / fake_claude (tests would
+# burn the hourly cap on themselves and return None without spawning a worker).
 _SUB_BUDGET_PATH = os.path.join(HERE, ".subscription_budget.json")
 try:
     _SUB_HOURLY_MAX = max(0, int(os.environ.get("TV_VISION_HOURLY_MAX", "60") or 60))
@@ -2142,8 +2144,22 @@ except Exception:
     _SUB_DAILY_MAX = 250
 _sub_budget_lock = threading.Lock()
 
+def _vision_budget_armed():
+    """True only when a real subscription-costing Claude binary is in play."""
+    if os.environ.get("TV_STUB") or os.environ.get("TV_NO_BUDGET") == "1":
+        return False
+    try:
+        base = os.path.basename(str(CLAUDE_BIN or "")).lower()
+    except Exception:
+        base = ""
+    if "fake_claude" in base:
+        return False
+    return True
+
 def _sub_budget_check(kind="vision"):
     """Return None if allowed, else a short reason string (circuit open)."""
+    if not _vision_budget_armed():
+        return None
     if _SUB_HOURLY_MAX <= 0 or _SUB_DAILY_MAX <= 0:
         return "subscription circuit open (TV_VISION_*_MAX=0)"
     now = time.time()
@@ -2161,6 +2177,8 @@ def _sub_budget_check(kind="vision"):
         return None
 
 def _sub_budget_record():
+    if not _vision_budget_armed():
+        return
     now = time.time()
     with _sub_budget_lock:
         try:
