@@ -6059,6 +6059,104 @@ def _engines_status():
             "router": router, "watchdog": watchdog}
 
 
+# 🧾 ENGINE-EXPOSURE — the READ-RECEIPT STREAM (Konyo's org backbone). Every real AI read gets a
+# canonical, ROUTABLE identity so the bottom-of-TV-D feed can label + click-route + hover-art each
+# one. Grounded in refs that already exist (sessionId/frameId on disk); no invented id-space.
+#   id       = DETERMINISTIC from real refs ("engine:frameKey:seq") — same journal row → same id
+#              every poll, so the streaming feed self-dedupes; only REAL rows get ids.
+#   itemName = the item-id (the DB is name-keyed); the CLIENT resolves name→canonical dossier when
+#              grounded, else →🔬 Checker (server stays DB-agnostic — no fake dossier links).
+#   route    = click target: 'item'→dossier/checker · 'session'→shelf · 'flag'→watchdog panel.
+#   diablo.label = game-true WHERE via _diablo_scene_label; null when there's no real scene.
+# Read-only DISPLAY projection — NO grail writes. mtime-cached like eyes/gate; empty off-air.
+_RECEIPTS_CAP = 30
+_RECEIPT_LANE_ENGINE = {
+    "deep": ("liveEye", "read"),
+    "verify": ("secondEye", "verify"),
+    "kai": ("kai", "judge"),
+    "intake": ("router", "route"),
+    "watchdog": ("watchdog", "flag"),
+}
+
+
+def _receipts_stream():
+    try:
+        key = os.path.getmtime(os.path.join(HERE, "sessions.jsonl"))
+    except Exception:
+        key = None
+    c = globals().get("_RECEIPTS_CACHE")
+    if c and c[0] == key:
+        return c[1]
+    out = []
+    try:
+        for r in _kai_journal_rows()[-160:]:   # tail is plenty for ~30 newest receipts
+            lane = str(r.get("lane") or "")
+            em = _RECEIPT_LANE_ENGINE.get(lane)
+            if not em:
+                continue
+            engine, kind = em
+            ts = int(r.get("completedTs") or r.get("ts") or 0)
+            sid = str(r.get("sessionId") or "")
+            fid = str(r.get("frameId") or "")
+            frame_key = fid if fid else (lane + "_" + str(r.get("ts") or ts))
+            scene = str(r.get("scene") or "")
+            area = str(r.get("area") or "")
+            _dl = _diablo_scene_label(scene, area)
+            diablo = {"label": _dl["label"]} if _dl.get("kind") != "unclear" else None
+
+            def _refs(**extra):
+                base = {"sessionId": sid or None, "frameId": fid or None,
+                        "area": area or None, "scene": scene or None}
+                base.update(extra)
+                return {k: v for k, v in base.items() if v is not None}
+
+            # 🛡 watchdog → one flag receipt, routes to the flag panel
+            if lane == "watchdog":
+                wd = r.get("watchdog") if isinstance(r.get("watchdog"), dict) else {}
+                rule = str(wd.get("rule") or "")
+                note = str(r.get("note") or "")
+                out.append({"id": "%s:%s:0" % (engine, frame_key), "engine": engine, "kind": kind,
+                            "ts": ts, "refs": _refs(),
+                            "diablo": {"label": ("WATCHDOG: " + (note or rule))[:70]} if (rule or note) else None,
+                            "route": {"type": "flag", "target": rule} if rule else ({"type": "session", "target": sid} if sid else None)})
+                continue
+
+            # 🚦 intake (router fire) → one route receipt, routes to the session shelf
+            if lane == "intake":
+                ik = r.get("intake") if isinstance(r.get("intake"), dict) else {}
+                tab = str(ik.get("tab") or ik.get("kind") or "")
+                tot = int(ik.get("total") or 0)
+                if not tot and isinstance(ik.get("counts"), dict):
+                    try:
+                        tot = int(sum(int(v) for v in ik["counts"].values()))
+                    except Exception:
+                        tot = 0
+                out.append({"id": "%s:%s:0" % (engine, frame_key), "engine": engine, "kind": kind,
+                            "ts": ts, "refs": _refs(),
+                            "diablo": {"label": ("ROUTED " + tab + (" ×%d" % tot if tot else "")).strip()} if tab else None,
+                            "route": {"type": "session", "target": sid} if sid else None})
+                continue
+
+            # 🔴🔵🧠 named lanes (deep read / verify / kai judge) → one receipt PER item name
+            names = r.get("names") if isinstance(r.get("names"), list) else []
+            if lane == "kai" and isinstance(r.get("kai"), dict) and isinstance(r["kai"].get("judge"), dict):
+                jn = r["kai"]["judge"].get("name")
+                if isinstance(jn, str) and jn.strip() and jn not in names:
+                    names = [jn] + list(names)
+            names = [str(n).strip() for n in names if isinstance(n, str) and str(n).strip()]
+            for i, nm in enumerate(names):
+                out.append({"id": "%s:%s:%d" % (engine, frame_key, i), "engine": engine, "kind": kind,
+                            "ts": ts, "refs": _refs(itemName=nm),
+                            "diablo": diablo,
+                            "route": {"type": "item", "target": nm}})   # client grounds name→dossier|checker
+    except Exception:
+        out = []
+    out.sort(key=lambda x: x.get("ts") or 0, reverse=True)
+    out = out[:_RECEIPTS_CAP]
+    globals()["_RECEIPTS_CACHE"] = (key, out)
+    return out
+
+
 # ── v948.26 🥷🧠 PHASE D — SURFACE THE LIVE RING (ARCH_PINGPONG §6-Q4 SETTLED) ────────
 # The _ENGINE_FRAMES_LIVE deque (filled provisionally by _engine_driver's 2s loop via
 # _kai_reconcile — the CHEAP live guess, no OCR sweep/gate) is the console's NOW-CURSOR.
@@ -6160,7 +6258,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1353",
+        "ver": "v1354",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6173,6 +6271,7 @@ def status_payload():
         "liveRing": _project_live_ring(),   # v948.26 🥷🧠 Phase D — Master-Brain NOW-CURSOR (provisional; sealed reel engineFrames win in retro)
         "eyes": _eyes,
         "engines": _engines_status(),   # 🔌 per-engine wired/running/last-beat — nothing hidden; a dead wire renders ⚫
+        "receipts": _receipts_stream(),   # 🧾 bounded newest-first read-receipt stream (routable ids); empty off-air
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
