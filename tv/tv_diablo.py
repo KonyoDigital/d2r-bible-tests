@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1347"   # 🔒 DESIGN-LOCK R4 (the FINALE) - CONSOLE VISUAL LOCK CLOSED. The last console spacing tokens are now single-sourced + invariant-guarded, and the console shares ONE type vocabulary with the bible. LS/LH: console ls already had all 7 roles; added --lh-loose:1.8 to complete the 7-role lh set = the bibles exact scale (none/tightest/tight/snug/normal/relaxed/loose). Folded the trailing raw line-height literals onto tokens (.brain/.th-drawer 1.65 -> --lh-relaxed EXACT; .hd-empty 1.6 -> relaxed +.05; .tf-row/.sh-card 1.55 -> --lh-normal -.05), kept genuine one-offs (.42em kicker, letter-spacing:0 reset, .6px inline JS verdict) documented. --hd-pad-compact:5/9 closes the padding lock (the 3 compact rows are genuinely 3 densities - anchored on the pool value: .rn-pool EXACT, .rnf-row 4/8->5/9 +1px negligible; .eye 8/10 !important + .kpi asymmetric kept as documented one-offs). INVARIANT EXTENDED: console ls/lh lists (7+7, bible-mirrored) + pad-compact-y/x added; negative-tested (removing --lh-loose or --hd-pad-compact-x fails). NOW EVERY weight/structure/spacing/line-height token on BOTH surfaces is single-sourced AND presence-locked, one shared vocabulary. Verified: invariant GREEN ("Weight, structure, spacing + line-height are all locked"), JS 0, R4 touched zero JS (demo-safe by construction; pre-push runs full 7/7 vs live server), no-scroll intact. control_ui.html + visual_lock_invariant.py (bible.html = stamp only). x3 parity.
+VERSION = "v1348"   # 🗺🌐 G3 LIVE-FORWARD (3 deltas complete) + READER-PROMPT HUD-tell (p832). Konyo-approved: auto-accept-with-undo (smart automation) + the dark-frame ENTERING fix. LIVE-FORWARD (engine half landed v1347, UI/functions half here) - behind TV_G3_LIVE toggle (a): OFF = byte-identical. Delta 1 G4-into-gate: kaiChronicleTriage HOLDs->inbox when item.g4.agree===false (only when TV_G3_LIVE passes g4 in _items; OFF = no g4 key = no-op); the grounded confidence-gate + Spirit ungrounded-grail guard stay. Delta 2 one-tap undo: kaiForwardUndo (un-ticks via canonical toggleOwned + logs undone) + the always-available "KAI auto-added N grails - undo" strip (always-on by design: it protects the grounded auto-accept that runs regardless of the toggle - undo must cover real auto-ticks; strip only shows when there ARE un-undone auto-adds). Delta 3 non-chronicle->checker: seal routes rolled/base deep-reads to d2r_aicQueue (skips grail/runeword/rune-gem-material-sunder-stackable/junk). Node 15/15 green incl toggle-off byte-identical + undo round-trip + Spirit guard. READER-PROMPT: READ_PROMPT transition def sharpened with the decisive HUD tell (dark frame = transition ONLY if the bottom HUD - belt/orbs/skill bar - is ABSENT; dark COMBAT keeps its HUD -> gameplay; legible ENTERING banner -> area). PROMPT_VER p831->p832. Safe-on (transition writes no items/counts - zero grail risk; makes classification MORE precise). Verified: py_compile OK, 16 bible scripts compile, invariant GREEN, sweep sunders unaffected. bible.html + tv_diablo.py (control_app stamp only - engine in v1347). x3 parity.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -89,15 +89,18 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p831"   # v946.5 — added sockets; bump whenever READ_PROMPT changes
+PROMPT_VER = "p832"   # HUD-tell — dark frame is transition only if the bottom HUD is ABSENT (dark COMBAT keeps its HUD → gameplay); bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
     "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"names_loc\":{{}},\"sockets\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
     "scene = one of: town | stash | inventory | loot | gameplay | transition.\n"
     "transition = fullscreen loading/portal art: the burning fire portal, act loading screen, or a "
-    "dark frame with NO HUD (no belt/orbs/automap). The player is entering a portal, waypoint, or a "
-    "new game — names/area are expected empty.\n"
+    "dark frame with NO bottom HUD. THE DECIDING TELL: if the bottom HUD (belt row / red life + blue "
+    "mana orbs / skill bar) is ABSENT the frame is transition; a dark COMBAT frame (night, a cave, a "
+    "dim boss room) STILL shows that HUD, so it stays gameplay. The player is entering a portal, "
+    "waypoint, or a new game — names are expected empty; if an 'ENTERING <zone>' banner is legible put "
+    "that zone in area, else leave area \"\".\n"
     "area = zone name from top-right Game block / ENTERING banner / automap, else \"\".\n"
     "tz = purple terror-zone lines in that block, else [].\n"
     "stashTab = ONLY when scene=stash: which LEFT stash tab is active — "
