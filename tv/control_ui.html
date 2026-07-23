@@ -1322,6 +1322,8 @@
   .eye-kai    { border-left-color: var(--gold); }
   .eye-router   { border-left-color: #b58cff; }
   .eye-watchdog { border-left-color: #ff9d5c; }
+  .eye-mind     { border-left-color: #8fe6a0; }
+  .eye-master   { border-left-color: #c9a8ff; }
   .eye.off { opacity: .42; }
   .eye.off .es { color: var(--muted); }
   /* ══ v1348 (TV-D ENGINE-BAY R2 · ANTI-HIDDEN DOCTRINE, Konyo) — every engine wears an honest
@@ -2648,6 +2650,10 @@
                frames, and the watchdog that guards accuracy. Honest lamp + state; DARK "not connected" when unwired. -->
           <div class="eye eye-router" id="eye-router"><span class="eng-lamp" id="lamp-router"></span><span class="ex">🚦</span><span class="en">Router</span><span class="es" id="eye-router-s">—</span></div>
           <div class="eye eye-watchdog" id="eye-watchdog"><span class="eng-lamp" id="lamp-watchdog"></span><span class="ex">🛡</span><span class="en">Watchdog</span><span class="es" id="eye-watchdog-s">—</span></div>
+          <!-- v1352 R4 — the last two engines, so the bay shows the WHOLE mind: the Agent Mind (its live thoughts)
+               and the Master Brain now-cursor (the frame it's tracking this instant). Honest-absent when quiet. -->
+          <div class="eye eye-mind" id="eye-mind"><span class="eng-lamp" id="lamp-mind"></span><span class="ex">💭</span><span class="en">Agent Mind</span><span class="es" id="eye-mind-s">—</span></div>
+          <div class="eye eye-master" id="eye-master"><span class="eng-lamp" id="lamp-master"></span><span class="ex">🥷</span><span class="en">Master Brain</span><span class="es" id="eye-master-s">—</span></div>
         </div>
         <!-- v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — the accuracy gate's work, surfaced proudly under the eyes
              (was buried in the FUNNELS organ sub-line). proven = reads that cleared the two-witness gate;
@@ -3124,9 +3130,12 @@
     if (eLiveB) eLiveB.classList.toggle('off', !on);
     if (eSecB) eSecB.classList.toggle('off', !on);
     if (eKaiB) eKaiB.classList.toggle('off', st.engineAlive !== true);
-    // v1247 (CONSOLE UPGRADE r1) — the reader net MOVES: the live eye pulses while it's actually thinking on a
-    // frame (real H.visionBusyMs), so Konyo SEES it working. Truthful — only when genuinely mid-read.
-    if (eLiveB) eLiveB.classList.toggle('reading', on && (H.visionBusyMs || 0) > 1200);
+    // v1352 (R4) — the live eye pulses while it's genuinely mid-read. Fidelity now off g3's eyes.liveAgeMs
+    // (ms since the last deep read) when present — pulse only when a read landed in the last ~3s; falls back
+    // to H.visionBusyMs on older payloads. Honest: null age → no pulse.
+    var _liveAge = (st.eyes && st.eyes.liveAgeMs);
+    var _reading = (_liveAge != null) ? (_liveAge < 3000) : ((H.visionBusyMs || 0) > 1200);
+    if (eLiveB) eLiveB.classList.toggle('reading', on && _reading);
 
     // v1350 (TV-D ENGINE BAY) — the LAMPS + engine states now read g3's authoritative engines{}
     // connected-status contract. ONE honest source: 🟢 lit only when state=='live' (watchdog 'armed' =
@@ -3149,6 +3158,20 @@
         row.title = e.note || '';
       }
     });
+    // v1352 (R4) — the last two engines, NOT in engines{}: wired straight from the real streams so the bay
+    // shows the whole mind. Honest-absent: [] → ⚫ dark + "quiet"/"cold", never a faked pulse.
+    function _engRow(id, lit, txt){
+      var lampEl = $('lamp-' + id), sEl = $('eye-' + id + '-s'), row = $('eye-' + id);
+      if (lampEl) lampEl.classList.toggle('lit', !!lit);
+      if (sEl) sEl.textContent = txt;
+      if (row){ row.classList.toggle('off', !lit); row.title = txt; }
+    }
+    var _story = st.mindStory || ((st.sessionHealth || {}).story) || [];   // 💭 Agent Mind — its live thoughts
+    _engRow('mind', on && _story.length > 0,
+      (on && _story.length) ? ('thinking · ' + _story.length + ' thought' + (_story.length > 1 ? 's' : '')) : 'quiet · no thoughts yet');
+    var _ring = st.liveRing || [];   // 🥷 Master Brain — the frame it's tracking this instant
+    _engRow('master', on && _ring.length > 0,
+      (on && _ring.length) ? ('tracking · ' + _ring.length + ' live frame' + (_ring.length > 1 ? 's' : '')) : 'cold · no live cursor');
 
     // v946 — SESSION HEALTH strip
     try {
