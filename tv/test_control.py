@@ -236,6 +236,16 @@ class TestBoardHost(unittest.TestCase):
         self.assertIn("text/html", hdr.get("Content-Type", ""))
         self.assertIn(b"D2R_BUILD", body)
 
+    def test_board_served_no_cache(self):
+        # U2 — the /board bible is the anti-stale guarantee: WKWebView must NEVER hard-cache it,
+        # or Konyo sees an old D2R_BUILD ("I only see v1248"). Lock the no-cache header on both the
+        # plain board and the engine-iframe variant so a future edit can't reintroduce staleness.
+        for p in ("/board", "/board?app=1&engine=1"):
+            st, _, hdr = _get(self.port, p)
+            self.assertEqual(st, 200, p)
+            self.assertIn("no-cache", (hdr.get("Cache-Control", "") or "").lower(),
+                          "%s must be served no-cache (anti-stale board guard)" % p)
+
     def test_hist_alias_traversal_blocked(self):
         try:
             st, _, _ = _get(self.port, "/tv/frames/hist/..%2Fcontrol_app.py")
@@ -261,6 +271,15 @@ class TestVersionTruth(unittest.TestCase):
         m = re.search(r'"ver": "(v[\d.]+)"', src)
         self.assertIsNotNone(m)
         self.assertEqual(m.group(1), tvmod.VERSION)
+
+    def test_app_ver_equals_ship_version(self):
+        # U2 — _app_ver() is the value the WKWebView cache-bust URL (?v=) uses; it MUST equal the
+        # ship VERSION or a relaunch busts to the wrong (or a constant) tag and staleness returns.
+        # Existing tests cover status-ver==VERSION transitively; this locks the cache-bust value
+        # directly against the ship tag.
+        import tv_diablo as tvmod
+        self.assertEqual(ca._app_ver(), tvmod.VERSION,
+                         "the cache-bust value _app_ver() drifted from the ship VERSION")
 
     def test_board_window_fallback_defines_url(self):
         """Regression: board_window except used undefined `url` → NameError on crash path."""
