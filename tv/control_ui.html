@@ -1535,6 +1535,17 @@
   .dfp { font-weight: var(--fw-bold); }
   .dfp-farm { color: #9df0bd; } .dfp-town { color: #a8ccef; } .dfp-portal { color: #ffb08a; } .dfp-area { color: #e4d2a4; }
   .dfp-note { color: #6f6a58; font-weight: var(--fw-normal); margin-left: 3px; font-size: .92em; }
+  /* ══ D28 · GRAIL PROGRESS — this run's contribution to the Holy Grail hunt + the ledger total ══ */
+  .dgp { border: 1px solid rgba(240,192,96,.28); border-radius: 10px; padding: 12px 14px; background: linear-gradient(180deg, rgba(240,192,96,.07), rgba(0,0,0,.3)); }
+  .dgp-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .dgp-plus { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: var(--gold-hi); letter-spacing: var(--ls-tight); flex: none; }
+  .dgp-names { font: var(--fw-semibold) var(--fs-sm)/var(--lh-snug) var(--mono); letter-spacing: var(--ls-tight); color: #e4d2a4; min-width: 0; }
+  .dgp-total { margin-top: 11px; }
+  .dgp-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.06); overflow: hidden; }
+  .dgp-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold-antique), var(--gold-hi)); box-shadow: 0 0 10px rgba(240,192,96,.35); }
+  .dgp-lab { margin-top: 7px; font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-tight); color: #b9c9be; }
+  .dgp-lab b { color: var(--gold-hi); font-variant-numeric: tabular-nums; }
+  .dgp-togo { color: #8a7e68; }
   .dsr-story { display: flex; flex-wrap: wrap; gap: 8px; }
   .dsr-chip { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-tight); color: #b7a884; background: rgba(0,0,0,.3);
     border: 1px solid var(--edge); border-radius: 8px; padding: 6px 11px; }
@@ -3601,6 +3612,44 @@
       return '<span class="bt ' + b[2] + '"><span class="bt-ic">' + b[0] + '</span>' + b[1] + '</span>';
     }).join('') + '</div>';
   }
+  // ══ D28 · GRAIL PROGRESS THIS SESSION — ties the run's grails to the Holy Grail hunt. Shows this run's
+  // contribution (+N, counting genuinely-new grails via firstSeenTs) + the current ledger total (from the bible's
+  // d2r_forgeSummary). HONEST: no fabricated per-run before/after — the engine exposes no per-session grail
+  // snapshot, so we show the run's real contribution + the current total, never a reconstructed "241→243". ══
+  function _dossierGrailProgress(sm){
+    var grails = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; });
+    if (!grails.length) return '';
+    var t0 = sm.t0, t1 = sm.t1;
+    var newG = grails.filter(function(f){ return f.firstSeenTs && (!t0 || !t1 || (f.firstSeenTs >= t0 && f.firstSeenTs <= t1)); }).length;
+    if (!newG) newG = grails.length;   // no firstSeenTs on the reel → treat this run's grails as its contribution
+    var names = grails.map(function(f){ return esc(f.name || 'grail'); }).join(', ');
+    var fs = null; try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
+    var g = (fs && fs.grail && fs.grail.total) ? fs.grail : null;   // {found,total} — the Holy Grail ledger (current snapshot)
+    var total = g ? ('<div class="dgp-total"><div class="dgp-bar"><i style="width:' + Math.max(0, Math.min(100, Math.round((g.found || 0) / g.total * 100))) + '%"></i></div>'
+      + '<div class="dgp-lab"><b>' + (g.found || 0) + '</b> / ' + g.total + ' Holy Grail · <span class="dgp-togo">' + Math.max(0, g.total - (g.found || 0)) + ' to go</span></div></div>') : '';
+    return '<div class="dsr-sec"><div class="dsr-h">🏆 Grail progress</div>'
+      + '<div class="dgp"><div class="dgp-head"><span class="dgp-plus">+' + newG + ' to the hunt</span>'
+      + '<span class="dgp-names">' + names + '</span></div>' + total + '</div></div>';
+  }
+  // ══ D29 · SINCE-LAST-SESSION DELTAS — how this run compares to the run immediately before it (by time).
+  // Reuses the D14 metric derivation; each metric is higher-is-better (▲ mint / ▼ red). Honest: omits the whole
+  // strip on the first run, and any metric where either side is absent or unchanged. Pure UI. ══
+  function _dossierSinceLast(sm){
+    if (!sm.t0) return '';
+    var runs = _cmpList(), prev = null;   // real runs; find the one with the largest t0 that is still < this run's t0
+    runs.forEach(function(r){ if (r.sessionId !== sm.sessionId && r.t0 && r.t0 < sm.t0 && (!prev || r.t0 > prev.t0)) prev = r; });
+    if (!prev) return '';   // first recorded run → nothing to compare against
+    var a = _cmpMetrics(prev), b = _cmpMetrics(sm), chips = [];
+    var d = function(label, key, opt){
+      opt = opt || {}; var av = a[key], bv = b[key];
+      if (av == null || bv == null || av === bv) return;   // no delta / equal → omit (honest)
+      var diff = bv - av, up = diff > 0, fmt = opt.fmt || function(v){ return _kpiFmt(v); };
+      chips.push('<span class="dsl-chip ' + (up ? 'up' : 'down') + '">' + label + ' ' + (up ? '+' : '−') + fmt(Math.abs(diff)) + '</span>');
+    };
+    d('👁', 'reads'); d('⚡', 'rph'); d('📖', 'found'); d('🏆', 'grails'); d('📊', 'cov', { fmt: function(v){ return v + '%'; } });
+    if (!chips.length) return '';
+    return '<div class="dsl"><span class="dsl-lab">vs last run</span>' + chips.join('') + '</div>';
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
     var d0 = sm.t0 ? new Date(sm.t0) : null;
@@ -3658,8 +3707,10 @@
           return title + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur) + '</div>' + note;
         })() + '</div></div>'
       + '<div class="dsr-stats">' + stats + '</div>'
+      + _dossierSinceLast(sm)   // D29 — how this run compares to the previous one (honest-absent on the first run)
       + '<div class="dsr-sealrow">' + seal + sealLat + '</div>'
       + (function(){ var _b = _dossierBeats(sm); return _b ? '<div class="dsr-sec"><div class="dsr-h">⚡ The beats</div>' + _b + '</div>' : ''; })()   // D19 — the run's story as an iconographic beat ribbon
+      + _dossierGrailProgress(sm)   // D28 — this run's contribution to the Holy Grail hunt (honest-absent when no grails)
       + regretSec + decisionSec + montSec + missSec + findsSec + fpSec + storySec
       + '<div class="dsr-actions">'
         + '<button type="button" class="dsr-pin' + (_sesPinned(sm.sessionId) ? ' on' : '') + '" onclick="window._dossierTogglePin()">' + (_sesPinned(sm.sessionId) ? '★ Pinned' : '☆ Pin this run') + '</button>'
