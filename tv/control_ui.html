@@ -674,7 +674,36 @@
     0%   { opacity: 0; transform: translateX(-16px); text-shadow: 0 0 12px rgba(143,230,160,.8); }
     100% { opacity: 1; transform: translateX(0); text-shadow: none; }
   }
-  .brain .line .k { color: var(--gold-dim); margin-right: .5em; }
+  .brain .line .k { color: var(--gold-dim); margin-right: .5em; display: inline-block; }
+  /* ══ F3 · AGENT MIND GLOW-UP — per-thought icon + honest rarity/kind accent + landing pop ══
+     The kind icon leads unless the engine's own thought already opens with an emoji (that one is
+     more specific, so it wins); the accent color is derived from the thought's real words — never
+     fabricated. A grail thought glows gold, a good read mint, a failure amber, the rest stay dim so
+     the money-moments pop out of the stream at a glance. */
+  .brain .line.mind-grail { color: #f4cd6a; text-shadow: 0 0 10px rgba(226,183,92,.4); }
+  .brain .line.mind-grail .k { filter: drop-shadow(0 0 7px rgba(244,205,106,.9)); }
+  .brain .line.mind-good  { color: #a9e6ba; }
+  .brain .line.mind-good .k { filter: drop-shadow(0 0 5px rgba(102,255,136,.55)); }
+  .brain .line.mind-read  { color: #b7ecc4; }
+  .brain .line.mind-scene { color: #9db8d8; }
+  .brain .line.mind-scene .k { filter: drop-shadow(0 0 5px rgba(120,160,220,.5)); }
+  .brain .line.mind-ocr   { color: #c7b6e6; }
+  .brain .line.mind-ocr .k { filter: drop-shadow(0 0 5px rgba(170,140,230,.5)); }
+  .brain .line.mind-warn  { color: #cc9455; }
+  .brain .line.mind-warn .k { filter: drop-shadow(0 0 5px rgba(204,148,85,.5)); }
+  .brain .line.mind-mute  { color: #5f7a63; }
+  .brain .line.mind-sys   { color: #7fae87; }
+  /* the newest thought's icon pops as it lands (reduced-motion guard below) */
+  .brain .line.hi.in .k { animation: mindPop .5s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes mindPop {
+    0%   { transform: scale(.55); opacity: 0; }
+    60%  { transform: scale(1.18); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .brain .line.in, .brain .line.hi.in { animation: none !important; }
+    .brain .line.hi.in .k { animation: none !important; }
+  }
   .brain .empty { color: #45563f; font-style: italic; }
   /* v1252 (CONSOLE r4 · #1 fix AGENT MIND blocking · #2 no-scroll) — at rest the ticker is a slim bar (it only
      streams thoughts when LIVE), so it stops eating the home's vertical budget + covering the dash. Full height
@@ -2777,6 +2806,37 @@
       var area = spark.querySelector('.tkv-area'); if (area) area.setAttribute('points', '0,' + Hh + ' ' + pts + ' ' + W + ',' + Hh);
     }
   }
+  // ══ F3 · AGENT MIND GLOW-UP — one honest icon + accent per thought ══
+  // Kind → default icon; but if the engine's own thought already opens with an emoji, THAT one
+  // leads (it's the more specific choice the scanner made). Accent is derived from the thought's
+  // real words — grail money-moment gold, good read mint, failure amber, scene/text-eye their own
+  // hue, the rest dim — never a fabricated signal.
+  var _MIND_KIND = {
+    cap:        { icon: '📷', cls: 'mind-sys'   },
+    skip:       { icon: '⏭', cls: 'mind-mute'  },
+    boot:       { icon: '⚙', cls: 'mind-sys'   },
+    settle:     { icon: '👁', cls: 'mind-good'  },
+    read:       { icon: '📖', cls: 'mind-read'  },
+    transition: { icon: '🌀', cls: 'mind-scene' },
+    ocr:        { icon: '⚡', cls: 'mind-ocr'   },
+    heartbeat:  { icon: '💓', cls: 'mind-mute'  }
+  };
+  var _MIND_LEAD_RE = /^\s*((?:[\u{1F000}-\u{1FAFF}←-⇿⌀-➿⬀-⯿][\u{1F3FB}-\u{1F3FF}‍️⃣]*)+)\s*/u;
+  function _mindThought(k, t){
+    t = String(t == null ? '' : t);
+    var base = _MIND_KIND[k] || { icon: '·', cls: 'mind-sys' };
+    var icon = base.icon, cls = base.cls, txt = t;
+    var lead = null;
+    try { lead = t.match(_MIND_LEAD_RE); } catch (e) { lead = null; }
+    if (lead && lead[1]) { icon = lead[1]; txt = t.slice(lead[0].length); }
+    var low = t.toLowerCase();
+    if (/🏆|grail|holy grail/.test(t)) cls = 'mind-grail';
+    else if (/⚠|fail|died|timed out|denied|throttl|error|dropped|no signal/.test(low)) cls = 'mind-warn';
+    else if (/👋|🎯|✓|reads live|new text|second look|found/.test(low) || k === 'settle') cls = 'mind-good';
+    else if (k === 'transition' || /⏳|entering|portal|town/.test(low)) cls = 'mind-scene';
+    else if (k === 'ocr') cls = 'mind-ocr';
+    return { icon: icon, txt: txt || t, cls: cls };
+  }
   function paint(st){
     var mode = st.mode || 'off';
     // v899 — SIGNING OFF only while a stop is truly in flight AND bridge still up.
@@ -3141,8 +3201,9 @@
     } else {
       brain.innerHTML = ev.slice(-4).map(function(e, i, a){
         var last = i === a.length - 1;
-        var cls = 'line' + (last ? ' hi' : '') + (last && advanced ? ' in' : '');
-        return '<div class="'+cls+'"><span class="k">'+esc(e.k||'·')+'</span>'+esc(e.t||'')+'</div>';
+        var m = _mindThought(e.k, e.t);
+        var cls = 'line ' + m.cls + (last ? ' hi' : '') + (last && advanced ? ' in' : '');
+        return '<div class="'+cls+'"><span class="k">'+m.icon+'</span>'+esc(m.txt)+'</div>';
       }).join('');
     }
   }
