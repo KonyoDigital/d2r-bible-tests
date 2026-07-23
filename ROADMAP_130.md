@@ -73,8 +73,8 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1332 · Vault cohesion + verify **(landed v1312)** — FULL-SYSTEM COHESION CERT: 89 assertions green (75 node + 14 py), 0 regressions across v1291→v1310, data contracts aligned, G4 removal still clean. BUGS.md cert note. [next g3: bible-side visual-lock typography]
 
 ## PHASE F · CONSOLE POLISH (F-group) — v1333–1340
-- [ ] v1333 · F2 reads sparkline / session-vitals ribbon
-- [ ] v1334 · F3 Agent Mind glow-up (per-thought icon + rarity + landing anim)
+- [x] v1333 · F2 reads sparkline / session-vitals ribbon **(landed v1338)** — live reads-sparkline + ⚡reads/hr·👁reads·⏱elapsed on the Agent Mind ticker, on-air only, "—" until 5s, zero layout cost.
+- [x] v1334 · F3 Agent Mind glow-up **(landed v1339)** — per-thought icons (8 real kinds, no double-emoji) + honest rarity accents from the thought's own words (🏆 gold glow · fail amber · read mint …) + reduced-motion landing pop. [in flight: F5 intake hero]
 - [ ] v1335 · F5 intake hero card ("📸 RUNES +14")
 - [ ] v1336 · F6 live INTEREST gauge (money-moment needle)
 - [ ] v1337 · "now reading" in-flight frame thumbnail

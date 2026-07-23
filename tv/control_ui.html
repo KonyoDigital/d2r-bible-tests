@@ -1358,6 +1358,29 @@
   .stage-pulse.sp-in { animation: stagePulseIn .4s cubic-bezier(.2,.9,.25,1) both; }
   @keyframes stagePulseIn { 0% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.9); } 60% { transform: translateX(-50%) translateY(2px) scale(1.03); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
   @media (prefers-reduced-motion: reduce){ .eye-live.reading .ex { animation: none; } .stage-pulse.sp-in { animation: none; } }
+  /* ══ F5 (v1340) · 📸 INTAKE HERO CARD — a premium broadcast confirmation when a real photo tally lands ══
+     the intake lane's violet identity (#b9a5ff, matching the theatre intake ticks), a camera-flash on entry,
+     the tab + the count. Absolute over the stage, auto-dismissed, pointer-transparent, on-air only. */
+  .intake-hero { position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%); z-index: 8; pointer-events: none;
+    display: flex; align-items: center; gap: clamp(12px,1.4vw,20px); overflow: hidden;
+    padding: clamp(14px,1.6vw,22px) clamp(20px,2.2vw,32px); border-radius: clamp(14px,1.4vw,18px);
+    background: linear-gradient(135deg, rgba(42,34,66,.97), rgba(21,17,34,.97));
+    border: 1px solid rgba(185,165,255,.5); border-left: 3px solid #b9a5ff;
+    box-shadow: 0 18px 60px rgba(0,0,0,.6), 0 0 42px rgba(185,165,255,.32); }
+  .intake-hero[hidden] { display: none; }
+  .ih-cam { font-size: clamp(26px,3vw,40px); line-height: 1; flex: none;
+    filter: drop-shadow(0 0 10px rgba(185,165,255,.65)); }
+  .ih-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .ih-tab { font: var(--fw-bold) var(--fs-lg)/1 var(--serif); letter-spacing: var(--ls-wider); text-transform: uppercase; color: #e6dfff; }
+  .ih-plus { font: var(--fw-bold) var(--fs-2xl)/1 var(--mono); color: #cdbcff; font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(185,165,255,.55); }
+  .ih-flash { position: absolute; inset: 0; border-radius: inherit; background: #fff; opacity: 0; pointer-events: none; }
+  .intake-hero.ih-in { animation: intakeHeroIn .5s cubic-bezier(.2,.9,.25,1) both; }
+  .intake-hero.ih-in .ih-flash { animation: intakeFlash .55s ease-out both; }
+  .intake-hero.ih-in .ih-cam { animation: intakeCam .55s ease-out both; }
+  @keyframes intakeHeroIn { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.86); } 55% { transform: translate(-50%,-50%) scale(1.04); } 100% { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+  @keyframes intakeFlash { 0% { opacity: .8; } 100% { opacity: 0; } }
+  @keyframes intakeCam { 0% { transform: scale(.6) rotate(-8deg); opacity: 0; } 60% { transform: scale(1.22) rotate(3deg); } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce){ .intake-hero.ih-in, .intake-hero.ih-in .ih-flash, .intake-hero.ih-in .ih-cam { animation: none !important; } .ih-flash { display: none; } }
   /* ══ v1255 (DIABLO-LANGUAGE r1 · UI) — the scene chip (live) + retro trace (theatre), one look, one dictionary ══ */
   .dl-chip { display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 9px; border-radius: 999px;
     font: var(--fw-bold) var(--fs-xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-wide); border: 1px solid rgba(240,192,96,.3); background: rgba(0,0,0,.32); }
@@ -2372,6 +2395,10 @@
            lands, for that "the AI just found something" dopamine while gaming. Never covers mid-game (top-center,
            auto-dismiss); only fires on real liveRing keep/grail verdicts. -->
       <div class="stage-pulse" id="stage-pulse" hidden></div>
+      <!-- F5 (v1340) — 📸 INTAKE HERO CARD: a premium broadcast confirmation when a real photo tally
+           lands mid-scan ("📸 RUNES +14"). Camera-flash + count; auto-dismiss; on-air only; honest —
+           only fires on a NEW real intake (ok + counted>0), never the first-poll backlog. -->
+      <div class="intake-hero" id="intake-hero" hidden></div>
 
       <div class="center">
         <div class="kicker" id="kicker">Signal Idle</div>
@@ -7266,8 +7293,10 @@
   function hdIntake(st){
     try {
       var ring = (st && st.intakeRing) || [];
+      var onLive = (st && st.mode) === 'live';
       if (!ring.length){   // v911.1 (Grok) — an OFF console never wears stale ON chips
         $('hd-intake-chips').innerHTML = '<span class="hd-empty">ON AIR + pause on Runes/Gems/Materials/stash — shots land here</span>';
+        if (!onLive) hdIntake._heroKey = null;
         return;
       }
       $('hd-intake-chips').innerHTML = ring.slice(-8).reverse().map(function(x){
@@ -7278,6 +7307,24 @@
           + (tot ? ' <b style="color:var(--mint)">+' + tot + '</b>' : '')
           + ' <span style="opacity:.5">· ' + t.toLocaleTimeString() + '</span></span>';
       }).join('');
+      // F5 — 📸 INTAKE HERO: flash a premium confirmation when a NEW real tally lands mid-scan.
+      // Honest — only a shot that actually counted (ok + total>0); the first poll seeds the key
+      // WITHOUT firing (never replays the backlog on page load / reconnect).
+      if (onLive){
+        var newest = null, ni;
+        for (ni = ring.length - 1; ni >= 0; ni--){
+          var rk = ring[ni] && ring[ni].intake; if (!rk) continue;
+          var rt = rk.total || Object.keys(rk.counts || {}).length || 0;
+          if (rk.ok !== false && rt > 0){ newest = { ts: ring[ni].ts, tab: rk.tab || rk.kind || 'shot', total: rt }; break; }
+        }
+        if (newest){
+          var hk = String(newest.ts || (newest.tab + '·' + newest.total));
+          if (hk !== hdIntake._heroKey){
+            var hadPrev = hdIntake._heroKey != null; hdIntake._heroKey = hk;
+            if (hadPrev) _intakeHero(newest.tab, newest.total);
+          }
+        }
+      } else { hdIntake._heroKey = null; }
     } catch(e){}
   }
   var HD_PAGE = 0, HD_PER = 8, HD_ALL = [];
@@ -7664,6 +7711,17 @@
     el.textContent = text; el.className = 'stage-pulse ' + (verdict === 'grail' ? 'sp-grail' : 'sp-keep'); el.hidden = false;
     el.classList.remove('sp-in'); void el.offsetWidth; el.classList.add('sp-in');   // restart the entrance animation
     clearTimeout(_stagePulse._t); _stagePulse._t = setTimeout(function(){ el.hidden = true; }, 2600);
+  }
+  // F5 — 📸 INTAKE HERO: the premium "the tally registered" broadcast card (camera-flash + count).
+  function _intakeHero(tab, total){
+    var el = document.getElementById('intake-hero'); if (!el) return;
+    var TAB = String(tab || 'shot').toUpperCase();
+    el.innerHTML = '<span class="ih-flash"></span><span class="ih-cam">📸</span>'
+      + '<span class="ih-body"><span class="ih-tab">' + esc(TAB) + '</span>'
+      + '<span class="ih-plus">+' + (total | 0) + '</span></span>';
+    el.hidden = false;
+    el.classList.remove('ih-in'); void el.offsetWidth; el.classList.add('ih-in');   // restart the entrance
+    clearTimeout(_intakeHero._t); _intakeHero._t = setTimeout(function(){ el.hidden = true; }, 2600);
   }
   // ══ v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — the KAI READER cluster's accuracy scorecard.
   // sessionHealth.gate = {proven, held} from the newest sealed reel's routing (control_app _newest_gate_count):
