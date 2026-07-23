@@ -3343,7 +3343,7 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -15156,6 +15156,7 @@ const persist = () => {
   LS.setItem('d2r_craftBaseStash', JSON.stringify(craftBaseStash));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
   try { _writeGrailFarm(); } catch(e){}   // MF/players (odds) may have changed → re-rank the /api/evrank bridge
+  try { if (window._writeCraftReady) window._writeCraftReady(); } catch(e){}   // gem/rune/craft-stash change → refresh craft-readiness
 };
 
 // v42 Finding N (CC): one-shot boot-time sanitization. Wishlist + owned Sets
@@ -32790,6 +32791,46 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   window.forgeScan=forgeScan;
   window.renderForge=renderForge;
+  // CRAFT-READINESS BRIDGE — export what Konyo can craft NOW (+ one ingredient away) to
+  // d2r_craftReady, so the console flagship CREATE pillar shows crafts alongside forge runewords.
+  // Reuses forgeScan().crafts (gem owned-OR-cube-up-able via _craftGemReady + slot rune owned) for
+  // `now` — zero reinvent, consistent with the Workshop. `onestep` = gem ready but the slot rune not
+  // owned; honest missing tell distinguishes cube-up-able ("cube up X") vs not ("get X"). Fork-aware
+  // (d2r_craftReady in _LP_FORKED); writes only on change. Option (A): rune-cube-up lands in onestep
+  // here — the forgeScan rune-cube-up round moves it to `now` for BOTH surfaces together.
+  function _writeCraftReady(){
+    try {
+      var sc = (typeof window.forgeScan==='function') ? window.forgeScan() : null;
+      if (!sc) return;
+      var kindOf = function(k){ return String(k||'').toLowerCase().replace(/\s+/g,''); };
+      var gemShort = function(g){ return String(g||'').replace('Perfect ','P.'); };
+      var now = (sc.crafts||[]).map(function(t){
+        return { name: String(t.craft)+' '+t.slot, kind: kindOf(t.craft), slot: t.slot,
+                 recipe: 'Magic '+t.slot+' + '+gemShort(t.gem)+' + '+t.rune };
+      });
+      var onestep = [];
+      try {
+        if (typeof CRAFTS!=='undefined' && CRAFTS) CRAFTS.forEach(function(c){
+          var gemReady = (typeof _craftGemReady==='function') ? _craftGemReady(c.gem).ready : false;
+          if (!gemReady) return;
+          var slots = (c.best && c.best.length) ? c.best : Object.keys(c.slots||{});
+          slots.forEach(function(slot){
+            var rec = c.slots && c.slots[slot]; if (!rec || !rec.rune) return;
+            if ((typeof _runeCount==='function' ? _runeCount(rec.rune) : 0) >= 1) return;   // owned → it is in NOW
+            var cubeable = (typeof window._runeCubeUpTo==='function') && window._runeCubeUpTo(rec.rune) >= 1;
+            onestep.push({ name: String(c.key)+' '+slot, kind: kindOf(c.key), slot: slot,
+                           missing: (cubeable ? 'cube up ' : 'get ') + rec.rune });
+          });
+        });
+      } catch(e){}
+      var payload = { now: now.slice(0,12), onestep: onestep.slice(0,12), ts: Date.now() };
+      var _cmp = function(p){ try { var o=JSON.parse(p||'{}'); return JSON.stringify({now:o.now,onestep:o.onestep}); } catch(e){ return String(p); } };
+      var _old = null; try { _old = LS.getItem('d2r_craftReady'); } catch(e){}
+      if (_cmp(JSON.stringify(payload)) !== _cmp(_old)) LS.setItem('d2r_craftReady', JSON.stringify(payload));
+    } catch(e){}
+  }
+  try { window._writeCraftReady = _writeCraftReady; } catch(e){}
+  try { setTimeout(function(){ try { _writeCraftReady(); } catch(e){} }, 1600); } catch(e){}
   try { window._ownedBases=_ownedBases; } catch(e){}   // v545 — debug/spec hook for the tagged-base parser
   try { window._baseHandClass=_baseHandClass; } catch(e){}  // v547 — so the Socketed/throw-out review can word 1H/2H-merc/caster IN SYNC with the Forge
   // v546.1 — do NOT re-expose _baseTier here: the canonical window._baseTier already exists (defined ~L8022; it
