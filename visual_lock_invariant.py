@@ -38,7 +38,7 @@ SURFACES = {
                            "fw": ["normal", "medium", "semibold", "bold"],
                            # STRUCTURE-LOCK (v1343): the console's shared spacing/structure rhythm.
                            "hd": ["gap", "gap-in", "gap-row", "pad-y", "pad-x", "head-mb",
-                                  "head-ls", "radius", "radius-in"]},
+                                  "head-ls", "radius", "radius-in", "pad-row-y", "pad-row-x"]},
 }
 
 RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-agnostic
@@ -75,6 +75,13 @@ def check():
         for tok in cfg.get("hd", []):
             if not re.search(r"--hd-" + re.escape(tok) + r": *\S", text):
                 failures.append(f"{name}  MISSING :root token --hd-{tok} (the structure rhythm source of truth)")
+        # 4) LS/LH-LOCK — the letter-spacing / line-height token scales are defined (value-agnostic).
+        for tok in cfg.get("ls", []):
+            if not re.search(r"--ls-" + re.escape(tok) + r": *\S", text):
+                failures.append(f"{name}  MISSING :root token --ls-{tok} (the letter-spacing scale source of truth)")
+        for tok in cfg.get("lh", []):
+            if not re.search(r"--lh-" + re.escape(tok) + r": *\S", text):
+                failures.append(f"{name}  MISSING :root token --lh-{tok} (the line-height scale source of truth)")
     return failures
 
 

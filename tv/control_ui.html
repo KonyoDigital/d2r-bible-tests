@@ -77,6 +77,12 @@
        --hd-radius-in = inner rows/chips/pills (shorter elements, kept tighter so they don't over-round
        into lozenges). Every console card + inner element resolves to one of these two. */
     --hd-radius-in: 8px;
+    /* v1345 (Phase G · design-lock R2, Konyo-approved) — the console PADDING SCALE. Card interiors
+       resolve to --hd-pad-y/-x (12/14); interactive rows+chips (.hd-chip/.tf-row, already a matched
+       9/13) resolve to --hd-pad-row-* — one tier tighter than a card. (The compact live-feed rows +
+       the 6-across KPI tile keep their own denser padding by intent — flagged, not folded, so the feed
+       stays dense and the KPI numbers don't cramp.) */
+    --hd-pad-row-y: 9px; --hd-pad-row-x: 13px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -1000,7 +1006,7 @@
   #th-shelfov .sh-card .sh-verdict { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); letter-spacing: var(--ls-tight); color: #94a89c; display: block; }
   #th-shelfov .sh-card .sh-verdict .sh-clean { color: var(--gold-dim); }
   #th-shelfov .sh-card .sh-verdict .sh-warn { color: #ff7a7a; }
-  .shc-fp { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); }
+  .shc-fp { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); display: block; color: #94a89c; letter-spacing: var(--ls-tight); }
   .shc-foot { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #7d8b80; }
   @keyframes thChipIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }
   .th-caption .th-chip { display: inline-block; margin: 0 4px; padding: 2px 9px; border-radius: 999px;
@@ -1306,7 +1312,7 @@
      the brain PROTECTING Konyo's accuracy. Sits under the 3 eyes, in the KAI READER cluster. proven =
      reads that cleared the two-witness gate · held = uncertain reads the gate refused to certify (misreads
      stopped). Hidden when no sealed reel exposes gate verdicts (TRUTHFUL — honest when absent/off-air). ══ */
-  .kai-gate { margin: 2px 0 5px; padding: 8px 11px 9px; border-radius: var(--hd-radius);
+  .kai-gate { margin: 2px 0 5px; padding: var(--hd-pad-y) var(--hd-pad-x); border-radius: var(--hd-radius);
     background: linear-gradient(180deg, rgba(143,230,160,.06), rgba(0,0,0,.28));
     border: 1px solid rgba(143,230,160,.22); border-left: 3px solid var(--mint);
     display: flex; flex-direction: column; gap: 5px; }
@@ -1339,7 +1345,7 @@
   .cap-screen { color: #1c1607; background: #e9b96e; }
   .cap-idle { color: var(--muted); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
   /* #1 LIVE READ FEED — the KAI reconciler's live-guess stream, under the reader net (mint = live/keep family) */
-  .rn-feed { margin-top: 10px; padding: 10px 11px; border-radius: var(--hd-radius); border: 1px solid rgba(143,230,160,.24);
+  .rn-feed { margin-top: 10px; padding: var(--hd-pad-y) var(--hd-pad-x); border-radius: var(--hd-radius); border: 1px solid rgba(143,230,160,.24);
     background: linear-gradient(180deg, rgba(16,26,18,.4), rgba(8,10,8,.3)); }
   .rn-feed[hidden] { display: none; }
   .rnf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -1871,7 +1877,7 @@
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
      re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
-  .sess-health { margin: 6px 0 8px; padding: 7px 10px; border-radius: var(--hd-radius);
+  .sess-health { margin: 6px 0 8px; padding: var(--hd-pad-y) var(--hd-pad-x); border-radius: var(--hd-radius);
     border: 1px solid rgba(240,192,96,.22); background: rgba(0,0,0,.32); display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px; }
   .sess-health .sh-row { display: inline-flex; align-items: baseline; gap: 6px; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); }
   .sess-health .sh-k { color: #9a8f72; letter-spacing: var(--ls-snug); flex: 0 0 auto; }
@@ -2042,7 +2048,7 @@
     border-bottom: 1px solid rgba(200,180,120,.12); }
   .hd-sub { font-weight: var(--fw-normal); opacity: .55; letter-spacing: var(--ls-normal); margin-left: 8px; font-size: var(--fs-xs); }
   .hd-chips { display: flex; flex-wrap: wrap; gap: var(--hd-gap-in); }
-  .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: var(--hd-radius-in); padding: 9px 13px; font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
+  .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: var(--hd-radius-in); padding: var(--hd-pad-row-y) var(--hd-pad-row-x); font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
   /* v945.4 — ENGINE-CHIP STATE LANGUAGE (Konyo needs to read liveness at a glance):
      mint = LIVE/driving · gold = booting/transitional · amber = achievement progress ·
      gray(dim) = idle/off · red(warn) = dead/alert · purple(intk) = the intake lane's identity. */
@@ -2187,7 +2193,7 @@
   /* v949 — 🩺 ENGINE HEALTH SPINE: the whole loop's pulse, capture → readers → router → funnels → ledger */
   .eh-spine { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
   .eh-organ { position: relative; flex: 1 1 130px; min-width: 128px; border: 1px solid rgba(240,192,96,.14);
-    border-radius: var(--hd-radius); padding: 10px 11px 9px; background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32));
+    border-radius: var(--hd-radius); padding: var(--hd-pad-y) var(--hd-pad-x); background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32));
     display: flex; flex-direction: column; gap: 3px; }
   .eh-dot { position: absolute; top: 10px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #6b6455; }
   .eh-head { display: flex; align-items: center; gap: 6px; }
@@ -2217,7 +2223,7 @@
   body[data-endurance="1"] .eh-dot { animation: none !important; }
   @media (max-width: 720px){ .eh-flow { display: none; } .eh-organ { flex: 1 1 44%; } }
   /* the big organ cards — the engine-health organs, cockpit-sized */
-  .eh-organ.eh-big { flex: 1 1 200px; min-width: 190px; padding: 16px 16px 14px; border-radius: var(--hd-radius); cursor: default; }
+  .eh-organ.eh-big { flex: 1 1 200px; min-width: 190px; padding: var(--hd-pad-y) var(--hd-pad-x); border-radius: var(--hd-radius); cursor: default; }
   .eh-organ.eh-big .eh-title { font-size: var(--fs-sm); letter-spacing: var(--ls-label); }
   .eh-organ.eh-big .eh-ic { font-size: var(--fs-xl); }
   .eh-organ.eh-big .eh-stat { font-size: var(--fs-md); margin-top: 6px; }
@@ -2260,7 +2266,7 @@
   .hd-lastsession { border-color: rgba(143,230,160,.28); box-shadow: inset 3px 0 0 rgba(143,230,160,.5); }
   .hd-tf-rows { display: flex; flex-direction: column; gap: var(--hd-gap-row); }
   /* v945 CONSOLE PARITY C5 — task-force + digest rows read as app list-cards: warm surface, hover */
-  .tf-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border: 1px solid rgba(240,192,96,.13);
+  .tf-row { display: flex; align-items: center; gap: 10px; padding: var(--hd-pad-row-y) var(--hd-pad-row-x); border: 1px solid rgba(240,192,96,.13);
     border-radius: var(--hd-radius-in); background: rgba(255,255,255,.022); font: var(--fw-normal) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0;
     transition: border-color .15s, background .15s; }
   .tf-row:not(.tf-stat):hover { border-color: rgba(240,192,96,.32); background: rgba(255,255,255,.04); }
@@ -5951,7 +5957,7 @@
           + ((sm.areas || []).length ? '<div class="shc-area">📍 ' + esc(sm.areas.slice(0, 2).join(' · ')) + '</div>' : '')
           + statRow
           + (vparts.length ? '<span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '')
-          + (_fp ? '<span class="sh-verdict shc-fp">' + _fp + '</span>' : '')
+          + (_fp ? '<span class="shc-fp">' + _fp + '</span>' : '')
           + (footLine ? '<div class="shc-foot">' + footLine + '</div>' : '')
         + '</div></div>';
     }).join('');
