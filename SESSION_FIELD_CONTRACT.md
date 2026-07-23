@@ -17,7 +17,11 @@ Each session object (from `_theatre_sessions`):
 
 **Decision story (D5–D7)**
 - `coverage: {read, total, gaps}` | **null** — read-completeness %; null when the reel had no item text.
-- `classFrames: [{scene, thumb, frameId, ts}]` | **null** — one representative still per scene (montage).
+- `classFrames: [{scene, thumb, frameId, ts, native}]` | **null** — one representative still per scene
+  (montage). Each frame now carries **`native`** (B4) = `{kind, label, area}` for that frame's scene (area
+  sourced from the nearest deep read ±5s; area-less label like "STASH"/"FARMING" when none is near). The B4
+  **chapter ribbon** reads `classFrame.native`. `stash`/`stash-gems`/`stash-runes`/`stash-materials` → STASH;
+  `gameplay` → FARMING; `transition` → ENTERING; `tooltip` → `unclear` (an item-read moment, not a location).
 - `superRecovery: {recovered, missed}` | **null** · `missedFrames: […]` | **null**
 - `sealMs` int | **null** (seal latency; null unless a clean ≤30min seal) · `regretItems: [{name,frameId,ts}]` | **null**
 - `judged` int · `regrets` int

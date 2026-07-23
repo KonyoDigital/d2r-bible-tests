@@ -3721,9 +3721,10 @@ def _diablo_scene_label(scene, area):
     if sc in ("transition", "loading"):
         return {"kind": "entering", "area": ar or None,
                 "label": ("ENTERING " + ar) if ar else "ENTERING (loading)"}
-    if sc in ("stash", "inventory", "loot"):
-        # an open panel is what's ON SCREEN — it wins over the underlying town/area context
-        nm = {"stash": "STASH", "inventory": "INVENTORY", "loot": "LOOT"}[sc]
+    if sc.startswith("stash") or sc in ("inventory", "loot"):
+        # an open panel is what's ON SCREEN — it wins over the underlying town/area context.
+        # `stash`, `stash-gems`, `stash-runes`, `stash-materials` (tab-classified) all → STASH.
+        nm = "INVENTORY" if sc == "inventory" else ("LOOT" if sc == "loot" else "STASH")
         return {"kind": "menu", "area": ar or None, "label": nm + (" · " + ar if ar else "")}
     if is_town or sc == "town":
         return {"kind": "town", "area": ar or None,
@@ -6016,7 +6017,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1332",
+        "ver": "v1333",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6719,14 +6720,35 @@ class Handler(BaseHTTPRequestHandler):
                     _cfd = _rreport.get("classFrames")
                     if isinstance(_cfd, dict) and _cfd:
                         _sidr = str(sess[0].get("sessionId") or "")
+                        # v1332 B4 — the reel's classFrame carries only {f, ts}; source each frame's
+                        # AREA from the nearest deep read (±5s) so its game-true label can name the zone.
+                        _cf_areas = [(int(r2.get("captureTs") or r2.get("ts") or 0), str(r2.get("area") or "").strip())
+                                     for r2 in sess if r2.get("lane") == "deep" and str(r2.get("area") or "").strip()]
+
+                        def _cf_nearest_area(ts):
+                            if not ts:
+                                return ""
+                            best, bd = "", 5001
+                            for _rt, _ar in _cf_areas:
+                                _d = abs(_rt - ts)
+                                if _d <= 5000 and _d < bd:
+                                    best, bd = _ar, _d
+                            return best
+
                         _cf = []
                         for _scn, _fr in _cfd.items():
                             if not isinstance(_fr, dict) or not _fr.get("f"):
                                 continue
-                            _cf.append({"scene": str(_scn).strip().lower(),
+                            _cf_scn = str(_scn).strip().lower()
+                            _cf_ts = _fr.get("ts")
+                            # v1332 B4 — game-true label on each classFrame so the chapter ribbon
+                            # lights up on real reels (was reading a `native` that wasn't here yet).
+                            _cf.append({"scene": _cf_scn,
                                         "thumb": "reel_" + _sidr + "/" + _fr["f"],
                                         "frameId": str(_fr["f"]).rsplit(".", 1)[0],
-                                        "ts": _fr.get("ts")})
+                                        "ts": _cf_ts,
+                                        "native": (_diablo_scene_label(_cf_scn, _cf_nearest_area(_cf_ts))
+                                                   if _cf_scn else None)})
                             if len(_cf) >= 6:
                                 break
                         _class_frames = _cf or None
