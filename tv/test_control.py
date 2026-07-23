@@ -2129,6 +2129,85 @@ class TestCrossFrameQuorum(unittest.TestCase):
         self.assertEqual(rows[1]["gateReason"], "name-not-in-db")
 
 
+class TestReadsForensicsProjection(unittest.TestCase):
+    """🔬 READS FORENSICS — the pure read-only projection re-derives, from stored raw only, the
+    per-item forensic X-ray: clean reads (grounded), garble the AI CORRECTED (resolved-corrected /
+    recovered-2witness), near-misses it correctly REFUSED (blocked-fp), and honest unresolved.
+    Deterministic (re-runs the SAME grounder/near-miss helpers the closer used) — no drift, no
+    writes, works retroactively. Verified against 29 real reels: War Traveler ×7 recovered, the
+    'Diablo's'/'ancients' chat blocked, 0 fabricated resolutions."""
+
+    def _report(self):
+        return {"sid": "s_test",
+                "register": [{"name": "Death Torc", "firstSeenTs": 900, "frameId": "reel/f0", "loc": "floor"}],
+                "routing": [{"f": "f_5.jpg", "ts": 5000, "label": "tooltip",
+                             "gateReason": "cross-frame", "crossFrame": ["content"]}],
+                "missed": [
+                    {"f": "f_1.jpg", "ts": 1000, "texts": ["WAA TRAVELIR", "BATYLE B**Ys"], "cls": "tooltip"},
+                    {"f": "f_2.jpg", "ts": 2000, "texts": ["worlU. DiablOS rThnlon"], "cls": "gameplay"},
+                    {"f": "f_3.jpg", "ts": 3000, "texts": ["DEATH TOAC"], "cls": "floor"},
+                    {"f": "f_4.jpg", "ts": 4000, "texts": ["zzz qqq"], "cls": "gameplay"},
+                ]}
+
+    def _find(self, out, status):
+        return [r for it in out["items"] for r in it["reads"] if r["status"] == status]
+
+    def test_war_traveler_reconstructs_as_two_witness(self):
+        out = ca._kai_forensics_project(self._report())
+        wt = self._find(out, "recovered-2witness")
+        self.assertTrue(any(r["item"] == "War Traveler" for r in wt))
+        r = next(r for r in wt if r["item"] == "War Traveler")
+        self.assertTrue(r["corrected"])
+        self.assertEqual(r["correction"]["via"], "name+base")
+        self.assertIn("travelir", r["correction"]["raw"])
+        self.assertIn("WAA TRAVELIR", r["frames"][0]["raw"])   # RAW garble verbatim
+
+    def test_chat_garble_reconstructs_as_blocked_fp(self):
+        out = ca._kai_forensics_project(self._report())
+        blk = self._find(out, "blocked-fp")
+        self.assertTrue(blk)
+        self.assertEqual(blk[0]["item"], None)
+        self.assertIn("blockedBy", blk[0]["block"])
+        self.assertIn("refused", blk[0]["synthesis"])
+
+    def test_clean_register_read_is_grounded(self):
+        out = ca._kai_forensics_project(self._report())
+        cln = self._find(out, "grounded")
+        self.assertTrue(any(r["item"] == "Death Torc" and not r["corrected"] for r in cln))
+
+    def test_garble_associates_to_clean_same_session_read(self):
+        # 'DEATH TOAC' garble + a clean 'Death Torc' in register → resolved-corrected (same item)
+        out = ca._kai_forensics_project(self._report())
+        corr = [r for r in self._find(out, "resolved-corrected") if r["item"] == "Death Torc"]
+        self.assertTrue(corr)
+        self.assertTrue(corr[0]["corrected"])
+        self.assertEqual(corr[0]["correction"]["via"], "clean-match-nearby")
+
+    def test_pure_noise_is_unresolved_not_fabricated(self):
+        out = ca._kai_forensics_project(self._report())
+        unr = self._find(out, "unresolved")
+        self.assertTrue(any(r["frames"][0]["raw"].startswith("zzz") for r in unr))
+        self.assertTrue(all(r["item"] is None for r in unr))
+
+    def test_crossframe_routing_becomes_recovered_crossframe(self):
+        out = ca._kai_forensics_project(self._report())
+        self.assertTrue(self._find(out, "recovered-crossframe"))
+
+    def test_summary_counts_and_grouping(self):
+        out = ca._kai_forensics_project(self._report())
+        s = out["summary"]
+        self.assertEqual(set(s.keys()), {"clean", "corrected", "recovered", "blocked", "unresolved"})
+        # recovered = War Traveler (2witness) + the cross-frame route
+        self.assertGreaterEqual(s["recovered"], 2)
+        self.assertGreaterEqual(s["blocked"], 1)
+        self.assertGreaterEqual(s["clean"], 1)
+
+    def test_bad_sid_payload_is_honest_absent(self):
+        p = ca._forensics_payload("no_such_reel_zzz")
+        self.assertFalse(p["ok"])
+        self.assertEqual(p["items"], [])
+
+
 import stash_eye as se  # noqa: E402
 
 

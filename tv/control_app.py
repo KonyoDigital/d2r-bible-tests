@@ -2512,6 +2512,276 @@ def _kai_ground_lines(lines):
     return found
 
 
+# ── 🔬 READS FORENSICS (pure read-only PROJECTION) ─────────────────────────────
+# Konyo's forensic X-ray, exposed: what the AI read cleanly, what garble it CORRECTED, what it
+# recovered via corroboration, what near-misses it correctly REFUSED, what stayed unresolved —
+# per item, with the RAW OCR verbatim + a plain-language Diablo-terms synthesis. DETERMINISTIC:
+# re-runs the SAME pure grounder/near-miss helpers the closer used, over the already-stored raw
+# (report.missed[].texts + register + routing) — no live writes, no drift, works retroactively on
+# every existing reel. Honest-absent where a reel stored no raw.
+
+def _kai_forensic_correction(texts):
+    """A garbled line that grounds to a REAL grail name → (name, raw_token, edit, via). via =
+    'name+base' (E1 ground-label two-witness) or 'de-leet' (tooltip). None if nothing grounds."""
+    g = _kai_ground_lines(texts)
+    if not g:
+        return None
+    name, sig = next(iter(g.items()))
+    via = "name+base" if (not _kai_tooltip_context(texts) and _kai_groundlabel_ctx(texts)) else "de-leet"
+    raw_tok, ed = None, None
+    for t in (texts or []):
+        for raw in re.split(r"[^a-z0-9']+", str(t).lower()):
+            d = _kai_deleet(raw)
+            if len(d) >= 6:
+                tol = 1 if len(d) <= 9 else 2
+                e = _kai_lev(d, sig, tol)
+                if e <= tol:
+                    raw_tok, ed = raw, e
+                    break
+        if raw_tok:
+            break
+    return (name, raw_tok, ed, via)
+
+
+def _kai_forensic_block(texts):
+    """A token that edit-matched a grail signature but the grounder REFUSED (the discipline) →
+    {raw, nearest, edit, blockedBy}. The exact inverse of _kai_ground_lines' gate, re-derived
+    deterministically. None if nothing near-matched (genuine noise / unresolved)."""
+    if _kai_ground_lines(texts):
+        return None
+    try:
+        idx = _kai_ground_index()
+    except Exception:
+        return None
+    sig_by_len, disp = idx["sig_by_len"], idx["disp"]
+    terse = all(len(re.findall(r"[a-z0-9']+", str(t).lower())) <= 3 for t in (texts or []))
+    for t in (texts or []):
+        low = str(t).lower()
+        if any(sw and sw in low for sw in _KAI_STAT_WORDS):
+            continue
+        for raw in re.split(r"[^a-z0-9']+", low):
+            d = _kai_deleet(raw)
+            if len(d) < 6:
+                continue
+            tol = 1 if len(d) <= 9 else 2
+            for L in range(len(d) - tol, len(d) + tol + 1):
+                for st in sig_by_len.get(L, ()):
+                    e = _kai_lev(d, st, tol)
+                    if e <= tol:
+                        by = "no-base-witness" if terse else "no-tooltip-context"
+                        return {"raw": raw, "nearest": disp.get(st), "edit": e, "blockedBy": by}
+    return None
+
+
+_FORENSIC_RIGHT = ("grounded", "resolved-corrected", "recovered-2witness", "recovered-crossframe")
+
+
+def _kai_forensics_project(report, journal_rows=None, cap=300):
+    """🔬 Pure projection → {sid, items:[grouped by item+status], summary}. Reconstructs the
+    forensic record from stored raw only. Statuses: grounded (clean DB read) · resolved-corrected
+    (garble fixed to the right name) · recovered-2witness (name+base) · recovered-crossframe
+    (gate cross-frame proof) · blocked-fp (near-match correctly refused) · unresolved. The first
+    four = 'the AI got it right' (corrected:true where a garble was fixed). Diablo-language
+    synthesis per record. Deterministic + honest-absent."""
+    report = report or {}
+    sid = report.get("sid") or ""
+    reg = {}
+    for r in (report.get("register") or []):
+        nm = r.get("name")
+        if nm:
+            reg[nm.lower()] = {"name": nm, "loc": r.get("loc"), "tier": r.get("tier"),
+                               "frameId": r.get("frameId"), "ts": r.get("firstSeenTs")}
+    # a per-frame scene/area hint from the routing ledger (for the Diablo-language synthesis)
+    scene_by_f = {}
+    crossframe_frames = []
+    for rr in (report.get("routing") or []):
+        f = str(rr.get("f") or "")
+        if f:
+            scene_by_f[f] = rr.get("label") or ""
+        if rr.get("gateReason") == "cross-frame":
+            crossframe_frames.append(rr)
+
+    reads = []
+
+    def _syn(where, body):
+        lab = _diablo_scene_label(where or "", "")
+        tail = (" · " + lab["label"]) if lab.get("kind") != "unclear" else ""
+        return body + tail
+
+    # ① CLEAN reads — the register (DB-verified sightings the AI read right)
+    for low, r in reg.items():
+        reads.append({
+            "item": r["name"], "status": "grounded", "corrected": False,
+            "reason": "read cleanly, matched the item database",
+            "synthesis": _syn(scene_by_f.get(str(r.get("frameId") or "")),
+                              "read " + r["name"] + " cleanly"),
+            "engine": "liveEye", "sessionId": sid, "ts": r.get("ts"),
+            "frames": [{"frameId": r.get("frameId"), "raw": None, "scene": None}],
+            "witnesses": {"content": True}, "resolvedFrom": {"frameId": r.get("frameId"), "witness": "read"}})
+
+    # ② cross-frame gate proofs (② quorum) — recovered-crossframe
+    for rr in crossframe_frames:
+        reads.append({
+            "item": None, "status": "recovered-crossframe", "corrected": True,
+            "reason": "held at quorum<2, proven by a distinct witness across the item's on-screen lifetime",
+            "synthesis": _syn(rr.get("label"),
+                              "one still was uncertain — a neighbouring frame's independent read confirmed it"),
+            "engine": "router", "sessionId": sid, "ts": rr.get("ts"),
+            "frames": [{"frameId": str(rr.get("f") or "").rsplit(".", 1)[0], "raw": None, "scene": rr.get("label")}],
+            "witnesses": {"crossFrameNeighbors": rr.get("crossFrame") or []},
+            "resolvedFrom": {"frameId": str(rr.get("f") or "").rsplit(".", 1)[0], "witness": "cross-frame"}})
+
+    # ③ garbled frames (missed[].texts hold the raw) — correction / block / association / unresolved
+    for m in (report.get("missed") or []):
+        texts = m.get("texts") or []
+        if not texts:
+            continue
+        fid = str(m.get("f") or "").rsplit(".", 1)[0]
+        where = m.get("cls") or scene_by_f.get(str(m.get("f") or "")) or ""
+        base = {"engine": "kai", "sessionId": sid, "ts": m.get("ts"),
+                "frames": [{"frameId": fid, "raw": " · ".join(str(t) for t in texts)[:240], "scene": where}]}
+        corr = _kai_forensic_correction(texts)
+        if corr:
+            name, raw, ed, via = corr
+            st = "recovered-2witness" if via == "name+base" else "resolved-corrected"
+            body = ("saw '" + str(raw) + "' garbled" +
+                    (", matched the base → grounded " if via == "name+base" else "', de-garbled to ") + name)
+            reads.append(dict(base, item=name, status=st, corrected=True,
+                              reason=("name+base two-witness" if via == "name+base" else "leet/edit de-garble"),
+                              correction={"raw": raw, "resolved": name, "via": via, "edit": ed},
+                              synthesis=_syn(where, body),
+                              witnesses=({"name": True, "base": True} if via == "name+base" else {"name": True}),
+                              resolvedFrom={"frameId": fid, "witness": via}))
+            continue
+        blk = _kai_forensic_block(texts)
+        if blk:
+            reads.append(dict(base, item=None, status="blocked-fp", corrected=False,
+                              reason="near-matched " + str(blk.get("nearest")) + " but no witness — refused",
+                              block=blk,
+                              synthesis=_syn(where, "'" + str(blk.get("raw")) + "' edit-matched " +
+                                             str(blk.get("nearest")) + " but had no " +
+                                             ("base" if blk.get("blockedBy") == "no-base-witness" else "tooltip") +
+                                             " witness — correctly refused"),
+                              witnesses={}, resolvedFrom=None))
+            continue
+        # associate to a CLEAN same-session read (non-grail corrected — potions/bases)
+        assoc = None
+        for t in texts:
+            for raw in re.split(r"[^a-z0-9']+", str(t).lower()):
+                d = _kai_deleet(raw)
+                if len(d) < 5:
+                    continue
+                for low, rr in reg.items():
+                    for tk in re.split(r"[^a-z]+", low):
+                        if len(tk) >= 5 and _kai_lev(d, tk, 2) <= 1:
+                            assoc = (raw, rr["name"])
+                            break
+                    if assoc:
+                        break
+                if assoc:
+                    break
+            if assoc:
+                break
+        if assoc:
+            raw, name = assoc
+            reads.append(dict(base, item=name, status="resolved-corrected", corrected=True,
+                              reason="garbled here, read cleanly elsewhere this session — same item",
+                              correction={"raw": raw, "resolved": name, "via": "clean-match-nearby", "edit": None},
+                              synthesis=_syn(where, "one frame garbled to '" + str(raw) +
+                                             "' — same " + name + " read cleanly nearby, corrected"),
+                              witnesses={"content": True}, resolvedFrom={"frameId": fid, "witness": "clean-match-nearby"}))
+        else:
+            reads.append(dict(base, item=None, status="unresolved", corrected=False,
+                              reason="garbled text, no confident resolution",
+                              synthesis=_syn(where, "unreadable garble — left honestly unresolved"),
+                              witnesses={}, resolvedFrom=None))
+
+    # deterministic id per read (sid:frameId:status) — stable across polls, for UI keying
+    for r in reads:
+        _fr = (r.get("frames") or [{}])[0].get("frameId") or "-"
+        r["id"] = "%s:%s:%s" % (sid, _fr, r["status"])
+    # group by item (unresolved/blocked bucket under a status key) + status
+    groups = {}
+    for r in reads:
+        key = r.get("item") or ("__" + r["status"] + "__")
+        g = groups.setdefault(key, {"item": r.get("item"), "statuses": {}, "count": 0,
+                                    "firstTs": None, "lastTs": None, "reads": []})
+        g["reads"].append(r)
+        g["count"] += 1
+        g["statuses"][r["status"]] = g["statuses"].get(r["status"], 0) + 1
+        ts = r.get("ts") or 0
+        g["firstTs"] = ts if g["firstTs"] is None else min(g["firstTs"], ts)
+        g["lastTs"] = ts if g["lastTs"] is None else max(g["lastTs"], ts)
+    items = sorted(groups.values(), key=lambda x: (x["lastTs"] or 0), reverse=True)[:cap]
+
+    summary = {"clean": 0, "corrected": 0, "recovered": 0, "blocked": 0, "unresolved": 0}
+    for r in reads:
+        s = r["status"]
+        if s == "grounded":
+            summary["clean"] += 1
+        elif s == "resolved-corrected":
+            summary["corrected"] += 1
+        elif s in ("recovered-2witness", "recovered-crossframe"):
+            summary["recovered"] += 1
+        elif s == "blocked-fp":
+            summary["blocked"] += 1
+        else:
+            summary["unresolved"] += 1
+    return {"sid": sid, "items": items, "summary": summary, "total": len(reads)}
+
+
+_FORENSICS_SUM_CACHE = {"reel": None, "mtime": None, "val": None}
+
+
+def _newest_forensics_summary():
+    """Lean {clean,corrected,recovered,blocked,unresolved} counts from the newest sealed reel —
+    the /api/status badge. mtime-cached (the full projection only re-runs when a reel re-seals)."""
+    try:
+        hist = HIST_DIR
+        reels = sorted((d for d in os.listdir(hist)
+                        if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
+                       reverse=True)
+        if not reels:
+            return None
+        rp = os.path.join(hist, reels[0], "kai_report.json")
+        mt = os.path.getmtime(rp)
+        if _FORENSICS_SUM_CACHE["reel"] == reels[0] and _FORENSICS_SUM_CACHE["mtime"] == mt:
+            return _FORENSICS_SUM_CACHE["val"]
+        with open(rp, encoding="utf-8") as fh:
+            report = json.load(fh) or {}
+        val = _kai_forensics_project(report)["summary"]
+        _FORENSICS_SUM_CACHE.update(reel=reels[0], mtime=mt, val=val)
+        return val
+    except Exception:
+        return None
+
+
+def _forensics_payload(sid=""):
+    """🔬 /api/forensics — the reel's full forensic X-ray. sid → reel_<sid>; empty → newest sealed
+    reel. Pure read-only projection; honest {ok:False} when there's no reel for that sid."""
+    try:
+        hist = HIST_DIR
+        if sid:
+            rp = os.path.join(hist, "reel_" + sid, "kai_report.json")
+            if not os.path.isfile(rp):
+                return {"ok": False, "err": "no forensics for that session", "sid": sid,
+                        "items": [], "summary": {}}
+        else:
+            reels = sorted((d for d in os.listdir(hist)
+                            if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
+                           reverse=True)
+            if not reels:
+                return {"ok": True, "sid": "", "items": [], "summary": {}, "total": 0}
+            rp = os.path.join(hist, reels[0], "kai_report.json")
+        with open(rp, encoding="utf-8") as fh:
+            report = json.load(fh) or {}
+        out = _kai_forensics_project(report)
+        out["ok"] = True
+        return out
+    except Exception as e:
+        return {"ok": False, "err": str(e)[:120], "items": [], "summary": {}}
+
+
 def _kai_line_is_noise(lo):
     """v939.1 — noise must match as a WORD, not a substring.
     Substring noise killed real items: 'left'⊂cleft (Black Cleft), 'shift'⊂shifter
@@ -6386,7 +6656,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1359",
+        "ver": "v1360",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6400,6 +6670,7 @@ def status_payload():
         "eyes": _eyes,
         "engines": _engines_status(),   # 🔌 per-engine wired/running/last-beat — nothing hidden; a dead wire renders ⚫
         "receipts": _receipts_stream(),   # 🧾 bounded newest-first read-receipt stream (routable ids); empty off-air
+        "forensicsSummary": _newest_forensics_summary(),   # 🔬 lean {clean,corrected,recovered,blocked,unresolved} badge; full detail at /api/forensics
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
@@ -7884,6 +8155,13 @@ class Handler(BaseHTTPRequestHandler):
             if pack not in ("debug", "raw", "fast"):
                 pack = "debug"
             self._json(200, self._theatre_session(num, pack=pack))
+            return
+        if path == "/api/forensics":
+            # 🔬 READS FORENSICS — the per-item forensic X-ray for one reel (sid) or the newest.
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            sid = (q.get("sid") or [""])[0].strip()
+            self._json(200, _forensics_payload(sid))
             return
         if path.startswith("/hist/"):
             self._serve_hist(path[len("/hist/"):])
