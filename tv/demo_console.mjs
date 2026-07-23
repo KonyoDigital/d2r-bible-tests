@@ -91,7 +91,7 @@ async function j1_shellMatrix(page) {
     const s = document.getElementById('stage');
     return !!(s && s.getClientRects().length);
   }, null, { timeout: 8000 });
-  record(name, true, `5 panes routed [${PANE_TABS.join(', ')}] + tvd→stage`);
+  record(name, true, `${PANE_TABS.length} panes routed [${PANE_TABS.join(', ')}] + tvd→stage`);
 }
 
 async function j2_alignment(page) {
@@ -258,6 +258,27 @@ async function j7_shelfStory(page) {
   record(name, true, `${r.cards} .sh-card, ${r.verdicts} verdict line(s) all glyph-tagged, closed → home`);
 }
 
+// v1378 — J8: the console-native Sessions flagship. 'session' nav sets data-view=sessions and
+// shows the hunt hub as the console home (NO bible pane / shell-open); TV·D restores the cockpit.
+async function j8_sessionsFlagship(page) {
+  const name = 'J8 SESSIONS FLAGSHIP';
+  await goHome(page);
+  await page.click('#head-tabs .ht[data-tab="session"]');
+  await page.waitForFunction(() => {
+    if (document.body.classList.contains('shell-open')) return false;          // console-native, not a bible pane
+    if (document.body.getAttribute('data-view') !== 'sessions') return false;
+    const hunt = document.querySelector('.zone-hunt'), stage = document.getElementById('stage');
+    return hunt && getComputedStyle(hunt).display !== 'none' && (!stage || getComputedStyle(stage).display === 'none');
+  }, null, { timeout: 8000 });
+  await page.click('#head-tabs .ht[data-tab="tvd"]');
+  await page.waitForFunction(() => {
+    if (document.body.getAttribute('data-view') === 'sessions') return false;
+    const s = document.getElementById('stage');
+    return !!(s && s.getClientRects().length);
+  }, null, { timeout: 8000 });
+  record(name, true, 'session→data-view=sessions (hunt shown, stage hidden, no shell) · tvd→cockpit');
+}
+
 // ── runner ──────────────────────────────────────────────────────────────────────
 async function main() {
   const t0 = Date.now();
@@ -272,13 +293,13 @@ async function main() {
     await warmEngine(page);
   } catch (e) {
     console.log(`❌ BOOT — ${e.message}`);
-    console.log('DEMOS: 0/7 ✅');
+    console.log('DEMOS: 0/8 ✅');
     await browser.close();
     process.exitCode = 1;
     return;
   }
 
-  const journeys = [j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory];
+  const journeys = [j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship];
   for (const j of journeys) {
     try {
       await j(page);
@@ -291,8 +312,8 @@ async function main() {
   await browser.close();
   const pass = results.filter((r) => r.ok).length;
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(`DEMOS: ${pass}/7 ✅  (${secs}s)`);
-  process.exitCode = pass === 7 ? 0 : 1;
+  console.log(`DEMOS: ${pass}/8 ✅  (${secs}s)`);
+  process.exitCode = pass === 8 ? 0 : 1;
 }
 
 main().catch((e) => {

@@ -2206,6 +2206,11 @@
     font: var(--fw-bold) var(--fs-sm)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-widest); text-transform: uppercase; }
   .zone-banner:first-child, .home-dash > .zone-banner:first-of-type { margin-top: 0; }
   .zone-banner .zb-ico { font-size: 1.08em; line-height: 1; }
+  /* v1378.1 (Konyo live) — the movement numeral (Ⅰ/Ⅱ/Ⅲ): engraved Cinzel badge that leads each section in the
+     Sessions flagship, keeping the titles emphasized. Only in the flagship — on the cockpit the emoji leads. */
+  .zb-no { display: none; font: var(--fw-bold) 1.05em/1 var(--serif); color: currentColor; opacity: .92; }
+  body[data-view="sessions"] .zone-banner .zb-no { display: inline-grid; place-items: center; min-width: 1.2em; margin-right: 2px; }
+  body[data-view="sessions"] .zone-banner .zb-ico { display: none; }
   .zone-banner .zb-sub { margin-left: auto; align-self: center; font: var(--fw-medium) var(--fs-2xs)/1 var(--mono);
     letter-spacing: var(--ls-normal); text-transform: none; color: var(--muted); }
   .zone-hunt { color: var(--gold); } .zone-mission { color: var(--mint); } .zone-record { color: var(--info); }
@@ -2234,6 +2239,58 @@
     background: rgba(0,0,0,.35); color: var(--gold-dim); font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
     letter-spacing: var(--ls-wide); text-transform: uppercase; text-decoration: none; cursor: pointer; transition: border-color .15s, color .15s; }
   body[data-view="sessions"] .hub-bible:hover { border-color: var(--gold); color: var(--gold); }
+  /* ══ v1378 (SESSIONS FLAGSHIP R4) — the chronicle CREST + GRAIL-METER signature + the NEXT GRAIL hero.
+     Flagship-only: shown in the console-native Sessions view, never on the TV·D cockpit. Locked tokens
+     (Cinzel via --serif, --fw-*, gold), disciplined motion. ══ */
+  .hub-crown, .hub-hero { display: none; }
+  body[data-view="sessions"] .hub-crown { display: flex; }
+  body[data-view="sessions"] .hub-hero { display: block; }
+  .hub-crown { grid-column: 1 / -1; order: -3; align-items: flex-end; justify-content: space-between; gap: 24px;
+    flex-wrap: wrap; padding-bottom: 13px; border-bottom: 1px solid var(--edge); margin-bottom: 2px; }
+  .hub-crest .hc-ey { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .34em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 8px; }
+  .hub-crest .hc-t { font: var(--fw-bold) clamp(24px,3vw,40px)/1 var(--serif); letter-spacing: .10em; text-transform: uppercase; color: var(--parch-hi); text-shadow: 0 0 26px rgba(240,192,96,.16); }
+  .hub-crest .hc-t span { color: var(--gold); }
+  /* the grail meter — the signature vessel */
+  .hub-meter { min-width: 280px; flex: 1 1 320px; max-width: 440px; }
+  .hm-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; }
+  .hm-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--gold-dim); }
+  .hm-v { font: var(--fw-bold) var(--fs-md)/1 var(--serif); color: var(--gold); letter-spacing: .03em; }
+  .hm-v small { color: var(--parch-dim); font-weight: var(--fw-semibold); font-size: var(--fs-xs); }
+  .hm-bar { position: relative; height: 15px; border-radius: 8px; border: 1px solid rgba(240,192,96,.32);
+    background: linear-gradient(180deg, rgba(0,0,0,.6), rgba(20,15,6,.5)); overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,.7); }
+  .hm-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 7px; min-width: 3px;
+    background: linear-gradient(180deg,#ffe6a6,#f0c060 45%,#b8842f); box-shadow: 0 0 16px rgba(240,192,96,.5), inset 0 1px 0 rgba(255,255,255,.5); }
+  .hm-cap { margin-top: 6px; font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: var(--muted); }
+  .hm-cap b { color: var(--parch-dim); font-weight: var(--fw-semibold); }
+  .hm-idle, .hh-idle { font: var(--fw-regular) var(--fs-xs)/1.5 var(--mono); color: var(--muted); font-style: italic; }
+  /* THE NEXT GRAIL hero — the one bold moment */
+  /* v1378.1 (Konyo live) — hero shrunk + BALANCED: a two-column composition (the grail name leads left, the
+     ETA anchors right) so it reads symmetric instead of left-heavy, tighter vertical padding so it no longer
+     fills the whole fold. The name is a tad smaller; the crest + movement headers keep their full emphasis. */
+  .hub-hero { order: -2; grid-column: 1 / -1; position: relative; overflow: hidden;
+    align-items: center; justify-content: space-between; gap: clamp(18px,3vw,40px);
+    border: 1px solid rgba(240,192,96,.34); border-radius: var(--hd-radius); margin-bottom: 2px;
+    padding: clamp(15px,1.9vw,24px) clamp(20px,2.6vw,34px);
+    background: radial-gradient(120% 130% at 88% 30%, rgba(240,192,96,.12), transparent 56%), linear-gradient(180deg, rgba(28,22,10,.72), rgba(8,6,4,.6));
+    box-shadow: 0 0 0 1px rgba(0,0,0,.5) inset, 0 18px 44px -30px rgba(240,192,96,.26); }
+  body[data-view="sessions"] .hub-hero { display: flex; }
+  body[data-view="sessions"] .hub-hero.idle { display: block; }
+  .hub-hero.idle { border-color: var(--edge); background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.28)); box-shadow: none; }
+  .hub-hero::before { content: "✦"; position: absolute; right: clamp(18px,2vw,30px); top: 50%; transform: translateY(-50%);
+    font: 96px/1 var(--serif); color: rgba(240,192,96,.05); pointer-events: none; }
+  .hh-main { min-width: 0; }
+  .hh-eye { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .28em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 9px; }
+  .hh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); flex: none; }
+  .hh-name { font: var(--fw-bold) clamp(26px,3.9vw,44px)/1.04 var(--serif); letter-spacing: .03em; text-transform: uppercase; margin: 9px 0 8px;
+    color: #ffdf9b; text-shadow: 0 0 26px rgba(240,192,96,.34), 0 2px 0 rgba(0,0,0,.4); animation: hhBreathe 5.5s ease-in-out infinite; }
+  @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px rgba(240,192,96,.28), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px rgba(240,192,96,.5), 0 2px 0 rgba(0,0,0,.4);} }
+  .hh-src { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); color: var(--parch-dim); letter-spacing: .02em; }
+  .hh-src b { color: var(--mint); font-weight: var(--fw-semibold); }
+  .hh-eta { position: relative; flex: none; text-align: right; }
+  .hh-eta b { display: block; font: var(--fw-bold) clamp(24px,3vw,38px)/1 var(--serif); color: var(--gold); letter-spacing: .02em; }
+  .hh-eta span { display: block; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); letter-spacing: .10em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  @media (prefers-reduced-motion: reduce){ .hh-name { animation: none; } }
+  @media (max-width: 640px){ .hub-hero { flex-direction: column; align-items: flex-start; } .hh-eta { text-align: left; } }
   /* ══ v1370 (SESSIONS R6 · cohesion) — each zone OWNS a colour and its cards carry it: the card header
      text + its 2px accent bar (and each zone's lead card gets a matching 3px left accent) inherit the
      zone hue, so the three zones read as three coherent GROUPS instead of gold cards floating under
@@ -2777,10 +2834,18 @@
     <section class="home-dash" id="home-dash">
       <!-- v1376 (SESSIONS FLAGSHIP R3) — the console-native Sessions view's link into bible.html for deep data -->
       <a class="hub-bible" id="hub-bible" href="#" title="open the full grail bible — deep session data, ledgers, tools" onclick="if(window._shellOpen){window._shellOpen('session');}return false;">📖 full grail bible →</a>
-      <!-- v1362 (SESSIONS R2) — the 3 HUNT zones (ordered by CSS: hunt leads · missions · record) -->
-      <div class="zone-banner zone-hunt"><span class="zb-ico">🏆</span>YOUR HUNT<span class="zb-sub">what to hunt today</span></div>
-      <div class="zone-banner zone-mission"><span class="zb-ico">📋</span>DAILY MISSIONS<span class="zb-sub">quests · daily goals</span></div>
-      <div class="zone-banner zone-record"><span class="zb-ico">🗂</span>YOUR RECORD<span class="zb-sub">stats · past runs</span></div>
+      <!-- v1378 (SESSIONS FLAGSHIP R4) — the chronicle CREST + GRAIL-METER signature, then the NEXT GRAIL hero (EV-rank) -->
+      <div class="hub-crown">
+        <div class="hub-crest"><div class="hc-ey">⚔ the grail chronicle</div><div class="hc-t">My <span>Hunt</span></div></div>
+        <div class="hub-meter" id="hub-meter"></div>
+      </div>
+      <div class="hub-hero idle" id="hub-hero"></div>
+      <!-- v1362 (SESSIONS R2) — the 3 zones · v1378.1 (Konyo live) — restyled as the flagship's three MOVEMENTS
+           (Ⅰ/Ⅱ/Ⅲ, shown only in the Sessions view) — the section "THE HUNT" dedups the old "YOUR HUNT" that
+           doubled the crest "MY HUNT". The roman numeral leads under Sessions; the emoji leads on the cockpit. -->
+      <div class="zone-banner zone-hunt"><span class="zb-no">Ⅰ</span><span class="zb-ico">🏆</span>THE HUNT<span class="zb-sub">what to hunt today</span></div>
+      <div class="zone-banner zone-mission"><span class="zb-no">Ⅱ</span><span class="zb-ico">📋</span>THE MISSIONS<span class="zb-sub">forge &amp; craft — what to make</span></div>
+      <div class="zone-banner zone-record"><span class="zb-no">Ⅲ</span><span class="zb-ico">🗂</span>THE RECORD<span class="zb-sub">the chronicle of your runs</span></div>
       <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs: a Maxroll-grade instrument cluster at the
            top of the off-air dash. Cross-session aggregates derived client-side from HD_ALL (the /api/sessions
            poll) — no new fetch. Big tabular numerals, honest "—" when there's no data. -->
@@ -7357,6 +7422,8 @@
     _shellTab = 'session';
     document.body.setAttribute('data-view', 'sessions');
     _shellLight('session');
+    try { hubMeter(); } catch(e){}
+    try { hubNextGrail(); } catch(e){}   // v1378 — load the EV-rank hero when the flagship opens
     try { requestAnimationFrame(function(){ _shellDemotePane(); _shellRestoreConsole(); }); } catch(e){}
   }
   window._showSessions = showSessions;
@@ -8436,7 +8503,60 @@
       else                 story.innerHTML = '';
     }
   }
-  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); hdEngines(st); hdTaskForce(st); try { hdLivePulse(st); } catch(e){} try { hdKaiGate(st); } catch(e){} }
+  // ══ v1378 (SESSIONS FLAGSHIP R4) — the chronicle's crest signature + hero.
+  // GRAIL METER: reads the real found ledger off d2r_forgeSummary.grail (the same source the Task Force
+  // uses). Honest-absent when there's no grail data. Cheap (localStorage) → rides every poll. ══
+  function hubMeter(){
+    try {
+      var host = $('hub-meter'); if (!host) return;
+      var fs = null; try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
+      var g = fs && fs.grail;
+      if (!g || !g.total){ host.innerHTML = '<div class="hm-idle">grail progress appears here</div>'; return; }
+      var found = g.found || 0, total = g.total, pct = Math.round(found / total * 100), left = Math.max(0, total - found);
+      host.innerHTML = '<div class="hm-h"><span class="hm-l">🏆 Holy Grail</span><span class="hm-v">' + found + '<small> / ' + total + '</small></span></div>'
+        + '<div class="hm-bar"><i style="width:' + (found / total * 100).toFixed(1) + '%"></i></div>'
+        + '<div class="hm-cap"><b>' + left + '</b> grails still out there · <b>' + pct + '%</b> claimed</div>';
+    } catch(e){}
+  }
+  function _hubHrs(h){ h = +h; if (!isFinite(h) || h <= 0) return '—'; return (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10) + 'h'; }
+  // THE NEXT GRAIL hero: read the live grail-farm bridge (fork-aware, like d2r_forgeSummary) → POST the
+  // missing-grails array to /api/evrank → render ranked[0] as the illuminated objective. Honest-absent when
+  // the bridge is empty or the ranker is unreachable — NEVER a fabricated target. _HUB_RANK caches the full
+  // ranked/unranked for the hunt ledger (R5). Guarded so overlapping calls don't clobber (token check).
+  var _HUB_RANK = null, _hubReq = 0;
+  async function hubNextGrail(){
+    var host = $('hub-hero'); if (!host) return;
+    var farm = null; try { farm = JSON.parse(lsFork('d2r_grailFarm') || 'null'); } catch(e){}
+    if (!farm || !farm.length){
+      host.className = 'hub-hero idle';
+      host.innerHTML = '<div class="hh-eye">✦ the next grail</div><div class="hh-idle">— your grail-farm data lands here · find a grail and the ledger updates live —</div>';
+      _HUB_RANK = null; return;
+    }
+    var my = ++_hubReq, data = null;
+    try {
+      var r = await fetch(API + '/api/evrank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: farm }) });
+      data = await r.json();
+    } catch(e){ data = null; }
+    if (my !== _hubReq) return;   // a newer call superseded this one
+    if (!data || !data.ranked || !data.ranked.length){
+      host.className = 'hub-hero idle';
+      host.innerHTML = '<div class="hh-eye">✦ the next grail</div><div class="hh-idle">— ' + farm.length + ' grails still out there · ranking unavailable right now —</div>';
+      _HUB_RANK = null; return;
+    }
+    _HUB_RANK = data;
+    var top = data.ranked[0], hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
+    host.className = 'hub-hero';
+    host.innerHTML = '<div class="hh-main">'
+      + '<div class="hh-eye"><span class="hh-dot"></span>the next grail · your fastest find</div>'
+      + '<div class="hh-name">' + esc(top.name || '—') + '</div>'
+      + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b></div>' : '')
+      + '</div>'
+      + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span></div>' : '');
+  }
+  window._hubNextGrail = hubNextGrail;
+  // live refresh: the bridge rewrites d2r_grailFarm on grail found/unfound + MF/players change → re-rank.
+  try { window.addEventListener('storage', function(e){ if (e && e.key && e.key.indexOf('grailFarm') !== -1) hubNextGrail(); }); } catch(e){}
+  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); hdEngines(st); hdTaskForce(st); hubMeter(); try { hdLivePulse(st); } catch(e){} try { hdKaiGate(st); } catch(e){} }
 
   // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it
   // came from. Data = /api/tallies (journaled intake beats — server truth, agent on or off).
