@@ -3656,14 +3656,25 @@
     if (!chips.length) return '';
     return '<div class="dsl"><span class="dsl-lab">vs last run</span>' + chips.join('') + '</div>';
   }
+  // ══ D30 · COVER = BEST-FIND FRAME — the run's cover art is the actual frame where its best find (top grail
+  // else top find) was captured — the money moment — via the /hist/<frameId>.jpg convention. Falls back to the
+  // reel thumb, then the placeholder. Honest: only when the find carries a frameId. ══
+  function _bestFindFrame(sm){
+    var finds = sm.finds || [], bf = finds.filter(function(f){ return f.tier === 'grail'; })[0] || finds[0];
+    return (bf && bf.frameId) ? ('/hist/' + encodeURIComponent(String(bf.frameId)) + '.jpg') : '';
+  }
+  function _coverSrc(sm){   // the best-find frame, else the reel thumb, else '' (→ placeholder)
+    return _bestFindFrame(sm) || (sm.thumb ? ('/hist/' + encodeURI(sm.thumb)) : '');
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
     var d0 = sm.t0 ? new Date(sm.t0) : null;
     var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
     var dur = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '—';
     var when = d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—';
-    var cover = sm.thumb
-      ? '<img class="dsr-cover" src="/hist/' + encodeURI(sm.thumb) + '?w=420" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'dsr-cover-fb\')">'
+    var _dcov = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder
+    var cover = _dcov
+      ? '<img class="dsr-cover" src="' + _dcov + '?w=420" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'dsr-cover-fb\')">'
       : '<div class="dsr-cover dsr-cover-none">🎞</div>';
     var sealed = (sm.kaiMissed != null), clean = !(sm.watchdogViolations > 0);
     var seal = !sealed ? '<span class="dsr-seal dsr-seal-open"><span class="dss-ic">◌</span><span class="dss-lab">unsealed</span></span>'
@@ -5720,8 +5731,9 @@
                : (sm.kaiMissed != null ? '<span class="shc-seal clean">🛡 clean</span>' : '<span class="shc-seal open">◌ open</span>');
       var _pin = _sesPinned(sm.sessionId);   // D26 — favorite/pin state
       var pinBtn = '<button type="button" class="shc-pin' + (_pin ? ' on' : '') + '" data-pin-sid="' + esc(sm.sessionId || '') + '" title="' + (_pin ? 'unpin this run' : 'pin to the top') + '" aria-label="pin run">' + (_pin ? '★' : '☆') + '</button>';
-      var heroOpen = sm.thumb
-        ? '<div class="shc-hero" style="background-image:url(/hist/' + encodeURI(sm.thumb) + '?w=440)">'
+      var _cov = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder gradient
+      var heroOpen = _cov
+        ? '<div class="shc-hero" style="background-image:url(' + _cov + '?w=440)">'
         : '<div class="shc-hero noimg">';
       var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
       var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
