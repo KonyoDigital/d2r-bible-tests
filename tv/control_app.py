@@ -4220,7 +4220,7 @@ _AREA_ACT = {
     "den of evil": 1, "burial grounds": 1, "crypt": 1, "mausoleum": 1, "forgotten tower": 1,
     "tower cellar": 1, "monastery gate": 1, "outer cloister": 1, "barracks": 1, "jail": 1,
     "inner cloister": 1, "cathedral": 1, "catacombs": 1, "tristram": 1, "moo moo farm": 1,
-    "secret cow level": 1, "cow level": 1,
+    "secret cow level": 1, "cow level": 1, "pit": 1, "hole": 1, "pit of the dead": 1,
     # ── Act 2 ──
     "lut gholein": 2, "rocky waste": 2, "sewers": 2, "dry hills": 2, "halls of the dead": 2,
     "far oasis": 2, "lost city": 2, "valley of snakes": 2, "claw viper temple": 2,
@@ -4456,6 +4456,19 @@ def _kai_reconcile(routing, register, sess_rows):
                 best, best_d = (sc, tb, ar), d
         return best
 
+    # B5 AREA-INFERENCE — a transition/loading frame is a DARK screen with no area of its own, so
+    # nearest-read can't name it. The zone being ENTERED is named by the NEXT deep read that has an
+    # area (forward-looking, loading precedes the zone by a few seconds) → "ENTERING The Pit".
+    # Honest-absent: no forward zone → None → "ENTERING (loading)" unchanged. Never over-claims.
+    _FWD_WIN = 8000
+    def _forward_area(ts):
+        best, best_d = "", _FWD_WIN + 1
+        for rt, sc, tb, ar in deep_scene_ts:
+            fwd = rt - ts
+            if ar and 0 < fwd <= _FWD_WIN and fwd < best_d:
+                best, best_d = ar, fwd
+        return best
+
     out = []
     for row in routing or []:
         f = str(row.get("f") or "")
@@ -4517,6 +4530,11 @@ def _kai_reconcile(routing, register, sess_rows):
         _sc = _nearest_scene(ts)
         _scene = (_sc[0] or None) if _sc else None
         _area = (_sc[2] or None) if _sc else None
+        # B5 — a transition frame borrows the zone being ENTERED from the next deep read (forward).
+        if _scene == "transition" and not _area:
+            _fa = _forward_area(ts)
+            if _fa:
+                _area = _fa
         out.append({"f": f, "ts": ts, "owner": owner, "verdict": verdict, "why": why,
                     "scene": _scene,
                     "tab": (_sc[1] or None) if _sc else None,
@@ -6842,7 +6860,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1371",
+        "ver": "v1372",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

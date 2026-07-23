@@ -35121,7 +35121,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1371', name:'Sessions R6 cohesion (3 colour-coded hunt zones) + autoroute tally honesty (sighting != quantity)', date:'2026-07-23', note:'Sessions tab cohesion + a tally honesty fix. The Sessions hunt hub now reads as three clean colour-coded zones - your hunt (gold), daily missions (mint), your record (blue) - each with matching headers and accents, so it feels like one designed page. And an honesty fix: an item that was seen but never actually tallied could be reported by how many times its name was glimpsed (e.g. 5 when there was really 1); it now says seen-uncounted rather than inventing a quantity. This only surfaces in the review-before-apply sweep and never changed your real counts, but it is now honest.' };
+  window.D2R_BUILD = { id:'v1372', name:'Area-inference - ENTERING The Pit (dark transition borrows the next real zone; honest-absent when unknown)', date:'2026-07-23', note:'ENTERING the zone by name. The dark loading screen between areas used to just say ENTERING (loading); now it looks ahead to the next real read and names the zone you are entering, e.g. ENTERING Act 1 The Pit - exactly the ENTERING The Pit you asked for. It only ever uses a real upcoming zone, never a guess, and if it cannot tell it honestly stays as loading. This shows on the theatre and forensics replays; it changes no counts.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

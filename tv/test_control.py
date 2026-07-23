@@ -2232,6 +2232,33 @@ class TestAreaActDiabloLanguage(unittest.TestCase):
             self.assertEqual(ca._area_act(area), act, area)
 
 
+class TestAreaInferenceEntering(unittest.TestCase):
+    """B5 area-inference — a transition/loading frame (dark screen, no area of its own) borrows the
+    zone being ENTERED from the NEXT deep read that names one (forward-looking, ≤8s). "ENTERING The
+    Pit" instead of "ENTERING (loading)". Honest-absent: no forward zone → "(loading)" unchanged;
+    a zone too far forward isn't borrowed. Retro (needs the future read); never over-claims."""
+
+    def _reconcile_one(self, sess):
+        routing = [{"f": "f_1000.jpg", "ts": 1000, "label": "gameplay"}]
+        return ca._kai_reconcile(routing, [], sess)[0]
+
+    def test_transition_borrows_the_next_zone(self):
+        sess = [{"lane": "deep", "scene": "transition", "area": "", "captureTs": 1000, "ts": 1000},
+                {"lane": "deep", "scene": "gameplay", "area": "The Pit", "captureTs": 4000, "ts": 4000}]
+        r = self._reconcile_one(sess)
+        self.assertEqual(r["area"], "The Pit")
+        self.assertEqual(r["native"]["label"], "ENTERING Act 1 · The Pit")   # + B10 act
+
+    def test_no_forward_zone_stays_honest_loading(self):
+        sess = [{"lane": "deep", "scene": "transition", "area": "", "captureTs": 1000, "ts": 1000}]
+        self.assertEqual(self._reconcile_one(sess)["native"]["label"], "ENTERING (loading)")
+
+    def test_forward_zone_beyond_window_not_borrowed(self):
+        sess = [{"lane": "deep", "scene": "transition", "area": "", "captureTs": 1000, "ts": 1000},
+                {"lane": "deep", "scene": "gameplay", "area": "The Pit", "captureTs": 20000, "ts": 20000}]
+        self.assertEqual(self._reconcile_one(sess)["native"]["label"], "ENTERING (loading)")
+
+
 class TestAutorouteStackableHonesty(unittest.TestCase):
     """Autoroute sweep — a STACKABLE's count is its TALLY (intake), never its frame-SIGHTING count.
     A rune/gem/material read N× but never tallied is NOT N owned (sightings ≠ quantity) — it reports
