@@ -2232,6 +2232,37 @@ class TestAreaActDiabloLanguage(unittest.TestCase):
             self.assertEqual(ca._area_act(area), act, area)
 
 
+class TestCompletenessCoverageHonesty(unittest.TestCase):
+    """`_session_completeness.coveragePct` — an empty session (0 reads AND 0 unread) must be
+    honest-absent (None), NOT a fabricated 100% ("100% coverage" when nothing was there to cover
+    — 4/27 real reels did this). A LEGITIMATE 100% (read everything, nothing unread) is preserved;
+    0% (text seen, nothing read) stays an honest 0.0."""
+
+    _F = [{"f": "f1", "ts": 1}]
+
+    def _deep(self, ts=1):
+        return {"lane": "deep", "names": ["A"], "ts": ts, "captureTs": ts}
+
+    def _kai(self, ts=1):
+        return {"lane": "kai", "frameId": "reel/f", "ts": ts, "kai": {"texts": ["x"]}}
+
+    def test_empty_session_is_honest_absent_not_fabricated_100(self):
+        self.assertIsNone(ca._session_completeness([], self._F)["coveragePct"])
+
+    def test_legitimate_all_read_is_100(self):
+        cov = ca._session_completeness([self._deep(1), self._deep(2)], self._F)["coveragePct"]
+        self.assertEqual(cov, 100.0)   # read everything, nothing unread → a real 100%
+
+    def test_zero_coverage_stays_honest_zero(self):
+        cov = ca._session_completeness([self._kai(1), self._kai(2)], self._F)["coveragePct"]
+        self.assertEqual(cov, 0.0)     # text seen, nothing read → honest 0%, not None
+
+    def test_partial_coverage_is_the_real_rate(self):
+        cov = ca._session_completeness(
+            [self._deep(1), self._deep(2), self._kai(3), self._kai(4)], self._F)["coveragePct"]
+        self.assertEqual(cov, 50.0)
+
+
 class TestSceneFingerprintPortals(unittest.TestCase):
     """Scene-fingerprint honesty — `portals` now counts distinct portal/loading EVENTS (maximal
     runs of 'entering' reads, same law as townTrips), not the raw 'entering' read count. A single

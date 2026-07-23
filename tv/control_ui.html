@@ -2454,6 +2454,21 @@
   .tf-row.tf-chron.tf-chron-done { border-color: rgba(240,192,96,.12); box-shadow: none; opacity: .72; }
   .tf-chron-note { color: #b7a884; font-weight: var(--fw-medium); }
   .tf-tag.hunt { border-color: rgba(240,192,96,.55); color: var(--gold); }
+  /* v1368 (SESSIONS R5) — TODAY'S TARGET hero: the single clearest next hunt, front-and-center so the
+     hunt SINGS (Konyo: the hunt is the point of this tab). A prominent gold callout — mint when it's a
+     make-it-now win, violet-ish when it's the AI daily pick; gold for a one-step or grail chase. */
+  .tf-row.tf-hero { padding: var(--hd-pad-y) var(--hd-pad-x); border-radius: var(--hd-radius);
+    background: linear-gradient(180deg, rgba(240,192,96,.10), rgba(0,0,0,.26)); border-color: rgba(240,192,96,.44);
+    box-shadow: inset 3px 0 0 var(--gold); }
+  .tf-row.tf-hero .tf-t { font-size: var(--fs-sm); color: #ecdfbb; white-space: normal; }
+  .tf-row.tf-hero .tf-g { font-size: var(--fs-lg); }
+  .tf-row.tf-hero-ready { border-color: rgba(143,230,160,.5); box-shadow: inset 3px 0 0 var(--mint);
+    background: linear-gradient(180deg, rgba(143,230,160,.10), rgba(0,0,0,.26)); }
+  .tf-row.tf-hero-ai { border-color: rgba(185,165,255,.45); box-shadow: inset 3px 0 0 #b9a5ff;
+    background: linear-gradient(180deg, rgba(185,165,255,.09), rgba(0,0,0,.26)); }
+  .tf-tag.tgt { border-color: rgba(240,192,96,.6); color: var(--gold); font-weight: var(--fw-bold); letter-spacing: var(--ls-wide); }
+  .tf-hero-ready .tf-tag.tgt { border-color: rgba(143,230,160,.6); color: var(--mint); }
+  .tf-hero-ai .tf-tag.tgt { border-color: rgba(185,165,255,.55); color: #cbbcff; }
   .hd-pager { float: right; display: inline-flex; gap: 8px; align-items: center; }
   .hd-pg { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.4); color: var(--gold-dim);
     border-radius: 6px; padding: 3px 10px; font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); cursor: pointer; }
@@ -8077,12 +8092,41 @@
       try { ai = lsFork('d2r_createNowAi') || ''; } catch(e){}
       try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
       var rows = [];
-      ((fs && fs.now) || []).slice(0, 3).forEach(function(rw){
+      var nowList = (fs && fs.now) || [], oneList = (fs && fs.onestep) || [];
+      // v1368 (SESSIONS R5) — TODAY'S TARGET: the single clearest next hunt, front-and-center so the hunt
+      // SINGS (Konyo: the hunt is the point of this tab). Honest priority over real forge data — a make-it-
+      // now win first, else a one-step hunt, else the AI daily pick, else the grail still out there. Nothing
+      // actionable → no hero (the roster + today stat carry). Whatever the hero surfaces is dropped from the
+      // roster below so the lead never duplicates.
+      var heroNow = false, heroOne = false, heroAi = false, hero = null;
+      if (nowList.length){
+        heroNow = true;
+        hero = { g: '⚒', t: 'Forge <b>' + esc(String(nowList[0])) + '</b> — you own every rune', tag: 'READY NOW', cls: 'ready' };
+      } else if (oneList.length){
+        heroOne = true;
+        var o0 = oneList[0], on0 = o0.rw || o0;
+        hero = { g: '🎯', t: 'Hunt <b>' + esc(String(on0)) + '</b> — ' + (o0.sub === 'runes' ? 'one rune away' : o0.sub === 'base' ? 'one base away' : 'one step away'), tag: 'ONE STEP', cls: 'step' };
+      } else if (ai){
+        heroAi = true;
+        hero = { g: '✶', t: esc(String(ai).slice(0, 84)), tag: 'DAILY PICK', cls: 'ai' };
+      } else if (fs && fs.grail && fs.grail.total && (fs.grail.total - (fs.grail.found || 0)) > 0){
+        var gl = fs.grail.total - (fs.grail.found || 0);
+        hero = { g: '🏆', t: 'Chase the Grail — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'GRAIL', cls: 'grail' };
+      }
+      if (hero) rows.push('<div class="tf-row tf-hero tf-hero-' + hero.cls + '"><span class="tf-g">' + hero.g + '</span><span class="tf-t">' + hero.t + '</span><span class="tf-tag tgt">' + hero.tag + '</span></div>');
+      // READY — make-it-now wins (the hero already surfaced the first if it led with one)
+      nowList.slice(heroNow ? 1 : 0, 3).forEach(function(rw){
         rows.push('<div class="tf-row tf-ready"><span class="tf-g">⚒</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
       });
-      // v1256 (Konyo: "what about my OTHER chronicles?") — the Task Force is MULTI-CHRONICLE now: runewords AND
-      // grail uniques AND sets, steering the daily focus at the INCOMPLETE ones (where the hunt still is), instead
-      // of dead-ending on "runewords done." Truthful — a chronicle with no data (absent) omits its row.
+      // v1368 (R5) — THE HUNT leads over PROGRESS: one-step-out targets (what to hunt next) + the AI daily
+      // pick sit directly under the ready wins; the chronicle progress bars drop below them as context.
+      oneList.slice(heroOne ? 1 : 0, 2).forEach(function(t){
+        rows.push('<div class="tf-row"><span class="tf-g">◈</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
+      });
+      if (ai && !heroAi) rows.push('<div class="tf-row tf-ai"><span class="tf-g">✶</span><span class="tf-t">' + esc(String(ai).slice(0, 90)) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');
+      // v1256 (Konyo: "what about my OTHER chronicles?") — MULTI-CHRONICLE PROGRESS context: runewords AND
+      // grail uniques AND sets, steering the focus at the INCOMPLETE ones (where the hunt still is). Truthful
+      // — a chronicle with no data (absent) omits its row.
       var _tfChron = function(icon, name, found, total, leftLabel){
         var left = Math.max(0, total - found), done = left === 0, pct = total ? Math.round(found / total * 100) : 0;
         return '<div class="tf-row tf-chron' + (done ? ' tf-chron-done' : '') + '"><span class="tf-g">' + icon + '</span>'
@@ -8093,10 +8137,6 @@
       if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('🔨', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build'));
       if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('🏆', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt'));
       if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('🧩', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left'));
-      ((fs && fs.onestep) || []).slice(0, 2).forEach(function(t){
-        rows.push('<div class="tf-row"><span class="tf-g">◈</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
-      });
-      if (ai) rows.push('<div class="tf-row tf-ai"><span class="tf-g">✶</span><span class="tf-t">' + esc(String(ai).slice(0, 90)) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');
       var runsToday = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); }).length;
       rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + led.length + ' tallies synced</span><span class="tf-tag dim">TODAY</span></div>');
       var box = $('hd-taskforce');

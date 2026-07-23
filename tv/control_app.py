@@ -4786,7 +4786,10 @@ def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
     n_reads = len(reads)
     n_unread = len(kai_item_rows)
     hovers_estimated = n_reads + n_unread
-    coverage_pct = round(100.0 * n_reads / hovers_estimated, 1) if hovers_estimated else 100.0
+    # honest-absent: NO item-moments (0 reads AND 0 unread) → None, never a fabricated 100%
+    # ("100% coverage" on a session with nothing to cover is a real over-claim — 4/27 reels). A
+    # LEGITIMATE 100% (reads>0, unread=0 = read everything, nothing unread) still computes to 100.
+    coverage_pct = round(100.0 * n_reads / hovers_estimated, 1) if hovers_estimated else None
     return {
         "hovers_estimated": hovers_estimated,
         "reads": n_reads,
