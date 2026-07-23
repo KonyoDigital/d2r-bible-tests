@@ -2415,13 +2415,66 @@ def _kai_tooltip_context(lines):
     return any(m in blob for m in _KAI_TOOLTIP_MARKERS)
 
 
+def _kai_base_sig():
+    """v-E1 — distinctive BASE-TYPE tokens (len>=6), length-bucketed, from bible's lf-base-codes
+    lexicon (Battle Boots, Archon Plate, …). The SECOND WITNESS for the ground-label grounding
+    path. Parsed independently of _kai_fullnames (base names live in the lf-base-codes JSON, whose
+    "Name":"code" string values the fullnames name:/n: patterns deliberately skip). Cached."""
+    c = globals().get("_KAI_BASE_SIG")
+    if c is not None:
+        return c
+    by_len = {}
+    try:
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace") as f:
+            m = re.search(r'id="lf-base-codes">(\{.*?\})</script>', f.read(), re.S)
+        if m:
+            for k in re.findall(r'"([^"]+)"\s*:', m.group(1)):
+                for t in re.split(r"[^a-z]+", k.lower()):
+                    if len(t) >= 6:
+                        by_len.setdefault(len(t), set()).add(t)
+    except Exception:
+        pass
+    globals()["_KAI_BASE_SIG"] = by_len
+    return by_len
+
+
+def _kai_groundlabel_ctx(lines):
+    """v-E1 — TWO-WITNESS ground-label context. A grail dropped on the FLOOR shows its gold NAME
+    over its BASE type with NO tooltip stat lines, so _kai_tooltip_context can't fire and the name
+    was being dropped (real miss: War Traveler read as 'WAA TRAVELIR' / 'BATYLE B**Ys', missed in
+    7 frames across 6 real reels). Recognized ONLY when EVERY line is terse (<=3 tokens — ground
+    labels are name/base, never prose) AND a distinctive BASE-TYPE token is present (the second
+    witness). A distinctive item NAME paired with a real BASE type, tersely, is what chat / loot-
+    filter / gameplay garble never produces — verified against 29 reels: grounds all 7 War Traveler
+    floor-drops, 0 false grounds (the chat 'Diablo's' -> Ars Al'Diabolos stays blocked: no base
+    witness). Pure."""
+    base_by_len = _kai_base_sig()
+    if not base_by_len:
+        return False
+    has_base = False
+    for ln in (lines or []):
+        toks = re.findall(r"[a-z0-9']+", str(ln or "").lower())
+        if len(toks) > 3:
+            return False   # a prose line — not a ground label
+        for raw in toks:
+            d = _kai_deleet(raw)
+            if len(d) < 6:
+                continue
+            for L in (len(d) - 1, len(d), len(d) + 1):
+                if any(_kai_lev(d, bt, 1) <= 1 for bt in base_by_len.get(L, ())):
+                    has_base = True
+                    break
+    return has_base
+
+
 def _kai_ground_lines(lines):
-    """v-FIXC — recover REAL grail item names from garbled tooltip OCR. Fires ONLY on frames
-    with item-tooltip context (_kai_tooltip_context). For each line that is NOT a stat/flavor
-    line, de-leet its tokens and match any distinctive (len>=6) token against the signature
-    lexicon: exact at len 6, edit-1 at len 7-9, edit-2 at len>=10. Returns a dict
-    {canonicalDisplayName: matchedSignatureToken}. Empty when nothing grounds (honest —
-    never invents a name from stat/gameplay text). Pure."""
+    """v-FIXC — recover REAL grail item names from garbled OCR. Fires on TWO honest contexts:
+    (1) item-TOOLTIP context (_kai_tooltip_context — stat/marker lines present), or (2) v-E1
+    GROUND-LABEL context (_kai_groundlabel_ctx — a terse floor-drop name+base, second-witnessed
+    by a distinctive base type). For each non-stat line, de-leet its tokens and match any
+    distinctive (len>=6) token against the signature lexicon: edit-1 at len<=9, edit-2 at len>=10.
+    Returns {canonicalDisplayName: matchedSignatureToken}. Empty when nothing grounds (honest —
+    never invents a name from stat/gameplay/chat text). Pure."""
     try:
         idx = _kai_ground_index()
     except Exception:
@@ -2430,7 +2483,7 @@ def _kai_ground_lines(lines):
     disp = idx["disp"]
     if not sig_by_len:
         return {}
-    if not _kai_tooltip_context(lines):
+    if not _kai_tooltip_context(lines) and not _kai_groundlabel_ctx(lines):
         return {}
     found = {}
     for ln in (lines or []):
@@ -6258,7 +6311,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1357",
+        "ver": "v1358",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

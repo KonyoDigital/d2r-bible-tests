@@ -2012,6 +2012,29 @@ class TestKaiGrailTooltipGrounding(unittest.TestCase):
             ["0-&f 60", "t4GTH.. 1O3", "REQ", "*IS% EHHANcED DEFENSE..",
              ".69 T• STRENGTH", "IHrREA5E mAxrmvnr"]), {})
 
+    def test_e1_groundlabel_two_witness_war_traveler(self):
+        # E1 — a grail dropped on the FLOOR shows name-over-base with NO tooltip stat lines, so
+        # _kai_tooltip_context can't fire. A distinctive UNIQUE token + its BASE type, tersely, is
+        # the TWO-WITNESS ground-label path: War Traveler read as 'WAA TRAVELIR' / 'BATYLE B**Ys'
+        # (missed in 7 frames across 6 real reels) now grounds to its real name.
+        self.assertIn("War Traveler", ca._kai_ground_lines(["WAA TRAVELIR", "BATYLE B**Ys"]))
+
+    def test_e1_groundlabel_needs_the_base_witness(self):
+        # honesty: a bare unique-name garble with NO base witness (and no tooltip) stays unnamed —
+        # the second witness is required. This is what keeps chat/loot-filter garble from grounding.
+        self.assertEqual(ca._kai_ground_lines(["WAA TRAVELIR"]), {})
+
+    def test_e1_chat_that_garbles_to_a_unique_stays_blocked(self):
+        # the real chat FP the audit found: 'worlU. DiablOS rThnlon' ("Diablo's reunion") edit-
+        # matches Ars Al'Diabolos — but has NO base witness, so the two-witness path blocks it.
+        self.assertEqual(ca._kai_ground_lines(["worlU. DiablOS rThnlon"]), {})
+
+    def test_e1_non_terse_prose_with_a_base_word_is_not_a_ground_label(self):
+        # a ground label is terse (name/base, <=3 tokens/line); a prose/chat line that happens to
+        # contain a base word is NOT a ground label and must not ground a unique in it.
+        self.assertEqual(ca._kai_ground_lines(
+            ["hey anyone want to trade battle boots for a war traveler today"]), {})
+
     def test_grounded_names_reach_the_register(self):
         # a journaled kai row carrying kai.grounded lands its real name in the register;
         # a plain garbled miss (kai.texts, no grounding) does NOT.

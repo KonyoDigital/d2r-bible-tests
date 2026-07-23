@@ -1232,6 +1232,15 @@
   .rd-badge.rd-second { color: #9dc4ff; background: rgba(92,157,237,.14); border-color: rgba(92,157,237,.5); }
   .rd-badge.rd-kai    { color: #f0c060; background: rgba(240,192,96,.13); border-color: rgba(240,192,96,.5); }
   .rd-badge.rd-super  { color: #c9b8ff; background: rgba(160,130,255,.15); border-color: rgba(160,130,255,.55); }   /* v950.3 — 🧠🔬 the 4th layer */
+  /* E4 (sealed-vs-live) — a SEALED owner reads solid + a shield; a PROVISIONAL (unsealed) owner is visibly muted
+     with a "· provisional" tag so a live guess can never be mistaken for the sealed verdict. */
+  .rd-badge.rd-sealed { box-shadow: inset 2px 0 0 var(--mint); }
+  .rd-badge.rd-provisional { opacity: .72; border-style: dashed; }
+  .rd-badge .rd-prov-tag { font-weight: var(--fw-normal); opacity: .7; letter-spacing: var(--ls-tight); text-transform: none; }
+  .rd-badge.rd-prov { color: #8fa398; background: rgba(143,163,152,.1); border-color: rgba(143,163,152,.32); border-style: dashed; }
+  .th-seal-tell { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-tight); text-transform: none; padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+  .th-seal-tell.th-seal-yes { color: #9df0bd; background: rgba(143,230,160,.12); border: 1px solid rgba(143,230,160,.4); }
+  .th-seal-tell.th-seal-no  { color: #cdb89a; background: rgba(180,160,120,.1); border: 1px dashed rgba(180,160,120,.4); }
   .rd-handoff { display: inline-block; font: var(--fw-medium) var(--fs-xs)/var(--lh-snug) var(--mono); letter-spacing: var(--ls-tight); padding: 2px 8px; border-radius: 6px; }
   .rd-handoff.rd-hf-caught  { color: #9df0bd; background: rgba(143,230,160,.12); border: 1px solid rgba(143,230,160,.4); }   /* a later net CAUGHT a miss — the engine self-correcting */
   .rd-handoff.rd-hf-correct { color: #ffcf8a; background: rgba(240,180,96,.12); border: 1px solid rgba(240,180,96,.42); }   /* second eye overturned the live read */
@@ -4595,17 +4604,41 @@
   // visible per frame: 🔴 live eye (first-pass deep read) · 🔵 second eye (idle-gap re-read /
   // correction) · 🧠 KAI (post-seal retro sweep from the film). "Law: no reader is authoritative
   // alone — the FILM is. Live miss → 🔵 catches → 🧠 retro catches." Make that loop auditable. ══
+  // v1357 (E4 · SEALED-vs-LIVE honesty, Grok) — a scrubbed retro frame's OWNER is authoritative ONLY from the
+  // reel's sealed engineFrame (materialized at close, kaiVer>=3). Absence of engineFrame ⇒ this frame was NOT
+  // sealed-attributed ⇒ the beat-derived owner is a PROVISIONAL live guess and is labelled as such — it never
+  // masquerades as the sealed verdict. (b.engineFrame is always sealed:true when present — presence is the tell.)
+  var _EF_OWNER = {
+    super:  { cls: 'rd-super',  ic: '🧠🔬', lab: 'SUPER-ANALYZE', tip: 'Super-analyze — the 4th-layer deep re-read of the film frame' },
+    kai:    { cls: 'rd-kai',    ic: '🧠',   lab: 'KAI',           tip: 'KAI — post-seal retro sweep of the whole reel from the film' },
+    second: { cls: 'rd-second', ic: '🔵',   lab: 'SECOND EYE',    tip: 'Second eye — re-reads the backlog the live eye rushed past' },
+    live:   { cls: 'rd-live',   ic: '🔴',   lab: 'LIVE EYE',      tip: 'Live eye — the first-pass deep read of this frame' },
+    ocr:    { cls: 'rd-second', ic: '👁‍🗨', lab: 'TEXT EYE',      tip: 'Text eye — the OCR flash that flagged this frame' },
+    funnel: { cls: 'rd-kai',    ic: '🚦',   lab: 'ROUTER',        tip: 'Router — dispatched this frame to a funnel' }
+  };
+  function _thReaderGuess(b){   // beat-field truthiness → the PROVISIONAL owner (only shown when not sealed-attributed)
+    if (!b) return null;
+    if (b.super && b.super.reread) return _EF_OWNER.super;
+    if (b.lane === 'kai' || b.eye === 'kai' || (b.kaiMissTexts && b.kaiMissTexts.length)) return _EF_OWNER.kai;
+    if (b.lane === 'verify' || b.eye === 'second') return _EF_OWNER.second;
+    if ((b.names || []).length || b.lane === 'deep' || b.eye === 'live') return _EF_OWNER.live;
+    return null;
+  }
+  function _thSealed(b){ return !!(b && b.engineFrame && b.engineFrame.sealed === true); }
   function thReaderBadge(b){
     if (!b) return '';
-    if (b.super && b.super.reread)
-      return '<span class="rd-badge rd-super" title="Super-analyze — the 4th layer: a full independent deep AI re-read of the film frame, recovering what live+OCR garbled">🧠🔬 SUPER-ANALYZE</span>';
-    if (b.lane === 'kai' || b.eye === 'kai' || (b.kaiMissTexts && b.kaiMissTexts.length))
-      return '<span class="rd-badge rd-kai" title="KAI — post-seal retro sweep of the whole reel from the film">🧠 KAI</span>';
-    if (b.lane === 'verify' || b.eye === 'second')
-      return '<span class="rd-badge rd-second" title="Second eye — re-reads the backlog the live eye rushed past, in idle gaps">🔵 SECOND EYE</span>';
-    if ((b.names || []).length || b.lane === 'deep' || b.eye === 'live')
-      return '<span class="rd-badge rd-live" title="Live eye — the first-pass deep read of this frame">🔴 LIVE EYE</span>';
-    return '';
+    var sealed = _thSealed(b);
+    var o = sealed ? _EF_OWNER[b.engineFrame.owner] : _thReaderGuess(b);
+    if (!o) return sealed ? '<span class="rd-badge rd-prov" title="sealed frame — the reel attributed no single owner">◌ sealed · no owner</span>' : '';
+    return '<span class="rd-badge ' + o.cls + (sealed ? ' rd-sealed' : ' rd-provisional') + '" title="' + o.tip
+      + (sealed ? ' · from the SEALED reel (authoritative)' : ' · PROVISIONAL live guess — the sealed reel wins in retro') + '">'
+      + o.ic + ' ' + o.lab + (sealed ? '' : '<span class="rd-prov-tag"> · provisional</span>') + '</span>';
+  }
+  // E4 — the frame-level honesty tell that frames the whole read block: sealed (authoritative) vs provisional (live guess)
+  function _thSealTell(b){
+    return _thSealed(b)
+      ? '<span class="th-seal-tell th-seal-yes" title="from the SEALED reel — the authoritative post-close read">🛡 sealed</span>'
+      : '<span class="th-seal-tell th-seal-no" title="NOT sealed-attributed — this frame\'s read is provisional (a live guess); the sealed reel wins in retro">◌ provisional</span>';
   }
   // the hand-off: did THIS net catch/correct what an earlier one missed? (the self-correction, shown)
   function thHandoffNote(b){
@@ -5735,7 +5768,7 @@
         // NOT a nearby-stamp bleed). Honest "— no read —" when the frame carries no scene. Konyo's "pinpoint each photo".
         + '<div class="dl-lead">' + _diabloTrace(bF.scene, bF.tab, bF.area) + '</div>'
         + (_rs ? '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rp ? _rp + ' ' : '') + _rs + '</div>' : '')
-        + (_fRetro ? '<h4>reader — who owns this frame</h4><div class="rd-card">' + thReaderBadge(bF) + '<div class="rd-handoff-row">' + _fRetro + '</div></div>' : '')
+        + (_fRetro ? '<h4>reader — who owns this frame ' + _thSealTell(bF) + '</h4><div class="rd-card">' + thReaderBadge(bF) + '<div class="rd-handoff-row">' + _fRetro + '</div></div>' : '')
         + '<h4>📹 footage · capture-synced debug</h4>'
         + '<div class="kv"><span class="k">capture</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '.' + ('00' + (bF.ts % 1000)).slice(-3) + '</span></div>'
         + '<div class="kv"><span class="k">file</span><span class="v">' + esc(bF.frameId || '') + '.jpg</span></div>'
@@ -5777,7 +5810,7 @@
     // v948.9 — READER HAND-OFF: which net owns this frame + whether it caught what the last missed
     // v949 — + the live-stall note (Master Brain law: a stall must be visible)
     var _rdB = thReaderBadge(b), _rdH = thHandoffNote(b), _rdG = thGateNote(b), _rdS = thStallNote(b);
-    if (_rdB || _rdG || _rdS) h += '<h4>reader — who owns this frame</h4><div class="rd-card">'
+    if (_rdB || _rdG || _rdS) h += '<h4>reader — who owns this frame ' + _thSealTell(b) + '</h4><div class="rd-card">'
       + (_rdB || '') + (_rdH ? '<div class="rd-handoff-row">' + _rdH + '</div>' : '')
       + (_rdS ? '<div class="rd-handoff-row">' + _rdS + '</div>' : '')
       + (_rdG ? '<div class="rd-handoff-row">' + _rdG + '</div>' : '') + '</div>';
