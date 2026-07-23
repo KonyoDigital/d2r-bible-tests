@@ -1369,6 +1369,10 @@ def _console_exit_stop_onair(reason="quit"):
     :17771 (the banner even said 'agent left as-is'). That orphan kept ON AIR forever.
     Now every real exit path — window close, atexit, SIGTERM/SIGINT — seals + stops the
     agent (same as tvd stop /api/stop, farewell OFF so quit is instant). Idempotent.
+
+    v1379.2 — also CLEAR the supervisor pause flag after a primary --open session ends, so
+    tvd_supervisor can bring headless :17772 back up. Reclaim writes the pause so Desktop
+    can steal the port; without clearing it, the always-up console stays dead forever.
     """
     global _EXIT_STOP_DONE
     # Secondary --window-only attach: the primary control process owns the agent.
@@ -1379,29 +1383,40 @@ def _console_exit_stop_onair(reason="quit"):
             return {"ok": True, "msg": "exit stop already ran", "skipped": True}
         _EXIT_STOP_DONE = True
     print(f"📺 exit safeguard — stopping ON AIR ({reason})…", flush=True)
+    result = {"ok": True, "msg": "already off", "farewell": False}
     try:
         # If nothing is on air, stop_agent is cheap and returns already-off.
         if not _agent_alive() and _port_listener_pid() is None and _agent_mode == "off":
             print("   already off — nothing to stop", flush=True)
-            return {"ok": True, "msg": "already off", "farewell": False}
+        else:
+            try:
+                r = stop_agent(farewell=False)
+                print(f"   stop_agent → {r.get('msg') or r}", flush=True)
+                # Belt + suspenders: anything still holding :17771 dies now
+                if _port_listener_pid() is not None or _agent_alive():
+                    r2 = _force_kill_all_agents(f"exit-safeguard residual ({reason})")
+                    print(f"   residual force → {r2.get('msg') or r2}", flush=True)
+                    result = r2
+                else:
+                    result = r
+            except Exception as e:
+                print(f"   stop_agent raised ({e}) — force kill", flush=True)
+                try:
+                    result = _force_kill_all_agents(f"exit-safeguard ({reason}): {e}")
+                except Exception as e2:
+                    print(f"   force kill failed: {e2}", flush=True)
+                    result = {"ok": False, "msg": str(e2)}
     except Exception:
         pass
+    # Resume always-up headless console after a real window session ends
     try:
-        r = stop_agent(farewell=False)
-        print(f"   stop_agent → {r.get('msg') or r}", flush=True)
-        # Belt + suspenders: anything still holding :17771 dies now
-        if _port_listener_pid() is not None or _agent_alive():
-            r2 = _force_kill_all_agents(f"exit-safeguard residual ({reason})")
-            print(f"   residual force → {r2.get('msg') or r2}", flush=True)
-            return r2
-        return r
-    except Exception as e:
-        print(f"   stop_agent raised ({e}) — force kill", flush=True)
-        try:
-            return _force_kill_all_agents(f"exit-safeguard ({reason}): {e}")
-        except Exception as e2:
-            print(f"   force kill failed: {e2}", flush=True)
-            return {"ok": False, "msg": str(e2)}
+        pause = os.path.join(HERE, ".tvd_supervisor_pause")
+        if os.path.isfile(pause) and not globals().get("_WINDOW_ONLY"):
+            os.remove(pause)
+            print("   supervisor pause cleared — headless console may resume", flush=True)
+    except Exception as _pe:
+        print(f"   pause clear skipped: {_pe}", flush=True)
+    return result
 
 
 def stop_agent(farewell=True):
@@ -6945,7 +6960,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1379.1",
+        "ver": "v1379.2",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
