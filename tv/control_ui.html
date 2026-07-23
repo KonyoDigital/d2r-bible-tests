@@ -4002,7 +4002,16 @@
     var set = function(id, txt){ var e = document.getElementById(id); if (e) e.textContent = txt; };
     set('shl-reads', _kpiFmt(st.__rc || 0));
     var sEl = document.getElementById('shl-scene');
-    if (sEl){ var chip = _diabloChip(st.scene, st.tab, st.area) || ''; sEl.innerHTML = chip; sEl.hidden = !chip; }
+    if (sEl){
+      // B4-LIVE — the engine's game-true native label wins ("🏛 ENTERING The Pit" / "⚔ FARMING · Chaos Sanctuary");
+      // null (dark frame / no live scene) → fall back to the scene chip, and that to hidden. Never show "unclear" live.
+      var chip;
+      if (st.native && st.native.label){
+        chip = '<span class="dl-chip dl-' + esc(_NATIVE_SCENE[st.native.kind] || '') + '"><span class="dl-ic">'
+          + (_NATIVE_ICON[st.native.kind] || '·') + '</span><span class="dl-key">' + esc(st.native.label) + '</span></span>';
+      } else { chip = _diabloChip(st.scene, st.tab, st.area) || ''; }
+      sEl.innerHTML = chip; sEl.hidden = !chip;
+    }
     set('shl-phase', _livePhaseLabel(st.phase));
     var nEl = document.getElementById('shl-find');
     if (nEl){
