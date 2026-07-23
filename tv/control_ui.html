@@ -2197,6 +2197,16 @@
   .zone-record { order: 5; } #hd-kpi { order: 6; } #hd-lastsession { order: 7; } #hd-history { order: 8; }
   /* the ENGINE cards belong on TV-D, not the Sessions hunt hub — re-homed off here */
   #hd-enghealth, #hd-engines, #hd-intake { display: none !important; }
+  /* ══ v1370 (SESSIONS R6 · cohesion) — each zone OWNS a colour and its cards carry it: the card header
+     text + its 2px accent bar (and each zone's lead card gets a matching 3px left accent) inherit the
+     zone hue, so the three zones read as three coherent GROUPS instead of gold cards floating under
+     coloured banners. HUNT=gold · MISSIONS=mint · RECORD=info-blue. The LAST SESSION reel-digest joins
+     the RECORD group (it was a lone mint accent stranded in the blue zone). ══ */
+  #hd-taskforce { box-shadow: inset 3px 0 0 var(--gold-antique); }
+  #hd-forge .hd-h { color: var(--mint); border-left-color: rgba(143,230,160,.5); }
+  #hd-forge { box-shadow: inset 3px 0 0 rgba(143,230,160,.4); }
+  #hd-kpi .hd-h, #hd-lastsession .hd-h, #hd-history .hd-h { color: var(--info); border-left-color: rgba(126,200,255,.5); }
+  #hd-lastsession { border-color: rgba(126,200,255,.28); box-shadow: inset 3px 0 0 var(--info); }
   /* v1289 (SESSIONS FLAGSHIP D6 · structure/symmetry) — the half-width regions pair up on a shared grid
      row (Task Force ▸ Last Session, Forge ▸ Live Intake). Stretch them to the row's height so their
      bottoms line up as a matched pair instead of reading ragged/lopsided. Full-width regions (.hd-wide)

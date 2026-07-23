@@ -4980,13 +4980,19 @@ def _autoroute_classify(agg):
     uniques, runewords, unclear = [], [], []
 
     for name, e in agg.items():
-        held = max(e["intake"], e["reads"], 1)
+        # STACKABLE count = the TALLY (intake) — the AI's actual count in the stash panel. A
+        # stackable read but NEVER tallied (intake=0) reports 1 ("seen, uncounted"), NEVER the
+        # frame-SIGHTING count (reads): sightings ≠ quantity (a rune read 5× is not 5 runes; the
+        # audit found "Hellfire Torch ×5" fabricated from 5 sightings). Tallied stackables are
+        # unchanged (0 in the data have reads>intake). Non-stackable candidates below keep reads
+        # (a unique seen N× may be N distinct drops — UI-classified + reviewed).
+        held = e["intake"] if e["intake"] > 0 else 1
         n = _autoroute_norm(name)
         srcs = sorted(e["sources"])
 
         fam = _autoroute_sunder_family(name)
         if fam:
-            sunders[fam] = max(sunders.get(fam, 0), e["intake"] or e["reads"] or 1)
+            sunders[fam] = max(sunders.get(fam, 0), held)
             continue
         base = re.sub(r"\s+rune$", "", n)
         if base in rune_l:
@@ -5003,7 +5009,7 @@ def _autoroute_classify(agg):
             continue
         if n in stat_l:
             k = stat_l[n]
-            statues[k] = max(statues.get(k, 0), e["intake"] or e["reads"] or 1)
+            statues[k] = max(statues.get(k, 0), held)
             continue
         if n in mat_l:
             k = mat_l[n]
@@ -6836,7 +6842,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1370",
+        "ver": "v1371",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

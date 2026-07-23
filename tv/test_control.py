@@ -2232,6 +2232,26 @@ class TestAreaActDiabloLanguage(unittest.TestCase):
             self.assertEqual(ca._area_act(area), act, area)
 
 
+class TestAutorouteStackableHonesty(unittest.TestCase):
+    """Autoroute sweep — a STACKABLE's count is its TALLY (intake), never its frame-SIGHTING count.
+    A rune/gem/material read N× but never tallied is NOT N owned (sightings ≠ quantity) — it reports
+    1 ('seen, uncounted'). The audit found "Hellfire Torch ×5" fabricated from 5 sightings; tallied
+    stackables (the real counts El=14 etc.) are unchanged. Sweep is read-only + review-gated."""
+
+    def test_tallied_stackable_reports_its_tally(self):
+        rows = [{"lane": "intake", "intake": {"tab": "runes", "counts": {"Vex": 3}}},
+                {"lane": "deep", "names": ["Vex"], "ts": 1},
+                {"lane": "deep", "names": ["Vex"], "ts": 2}]  # read twice, but tally says 3
+        out = ca._autoroute_classify(ca._autoroute_aggregate(rows, []))
+        self.assertEqual(out["runes"].get("Vex"), 3)   # the tally, not max(3, 2 sightings)
+
+    def test_untallied_stackable_is_one_not_sightings(self):
+        # a stackable read 5× but NEVER tallied → 1 ("seen, uncounted"), never a fabricated 5
+        rows = [{"lane": "deep", "names": ["Ral"], "ts": i} for i in range(5)]
+        out = ca._autoroute_classify(ca._autoroute_aggregate(rows, []))
+        self.assertEqual(out["runes"].get("Ral"), 1)   # NOT 5 sightings-as-quantity
+
+
 class TestCompletenessCoverageHonesty(unittest.TestCase):
     """`_session_completeness.coveragePct` — an empty session (0 reads AND 0 unread) must be
     honest-absent (None), NOT a fabricated 100% ("100% coverage" when nothing was there to cover

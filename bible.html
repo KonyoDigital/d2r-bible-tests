@@ -35121,7 +35121,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1370', name:'coveragePct None-guard (no None% in log/note) + rate-fabrication class confirmed clean', date:'2026-07-23', note:'Coverage display polish. After making empty-session coverage honestly blank instead of a fake 100 percent, this stops a couple of readouts from literally printing "None% covered" - the log now says n/a and the session note simply omits the film-complete line when there is no coverage to report. Display only, no counts change.' };
+  window.D2R_BUILD = { id:'v1371', name:'Sessions R6 cohesion (3 colour-coded hunt zones) + autoroute tally honesty (sighting != quantity)', date:'2026-07-23', note:'Sessions tab cohesion + a tally honesty fix. The Sessions hunt hub now reads as three clean colour-coded zones - your hunt (gold), daily missions (mint), your record (blue) - each with matching headers and accents, so it feels like one designed page. And an honesty fix: an item that was seen but never actually tallied could be reported by how many times its name was glimpsed (e.g. 5 when there was really 1); it now says seen-uncounted rather than inventing a quantity. This only surfaces in the review-before-apply sweep and never changed your real counts, but it is now honest.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
