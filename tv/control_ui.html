@@ -970,9 +970,11 @@
   /* v825 (Konyo: 'the info window opened but i cant close it back') — the drawer COVERED the
      strip buttons including its own ℹ toggle. It now stops above the transport, carries its own
      ✕, and never outranks the controls. */
+  /* v1379 — drawer MUST outrank the 📼 REPLAY ribbon (z-index 8). When drawer was z=5 the
+     sticky ✕ sat UNDER the ribbon and Playwright (and humans) could not click "close". */
   .th-drawer { position: absolute; top: 0; right: 0; bottom: clamp(54px, 9vh, 72px); width: min(380px, 44%);
 
-    z-index: 5; overflow-y: auto; background: rgba(8,10,9,.94); border-left: 1px solid var(--edge);
+    z-index: 12; overflow-y: auto; background: rgba(8,10,9,.94); border-left: 1px solid var(--edge);
     padding: 38px 16px 16px;   /* v859 — ✕ clearance survives the shorthand */ font: var(--fw-normal) var(--fs-sm)/var(--lh-relaxed) var(--mono); color: #c2d1c6;   /* v945 — readable app scale (was 11px) */
     letter-spacing: var(--ls-tight); box-shadow: -12px 0 30px rgba(0,0,0,.5); }
   /* v945 R1 — drawer section headers read as app-grade card labels: gold accent bar + hairline */
@@ -984,7 +986,7 @@
      the ✕ unclickable for 30s — the drawer trap reborn). Absolute inside the drawer, always. */
   /* v943 (Konyo: 'after I click I cant escape') — the panel's ✕ is now a sticky, always-visible
      pill with a real ≥36px hit target; Esc and click-outside also dismiss the panel (see JS). */
-  .th-drawer-x { position: sticky; top: 0; float: right; z-index: 3; background: rgba(30,16,16,.97);
+  .th-drawer-x { position: sticky; top: 0; float: right; z-index: 4; background: rgba(30,16,16,.97);
     border: 1px solid rgba(240,150,120,.4); color: #f0c8a0; border-radius: 6px; padding: 7px 12px;
     min-height: 34px; margin: -30px -6px 6px 0; cursor: pointer; font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--mono);
     transition: border-color .15s, box-shadow .15s, transform .08s; }
@@ -2476,6 +2478,25 @@
   .eh-stat .eh-x { opacity: .35; margin: 0 1px; } .eh-stat .eh-arrow { color: var(--gold-dim); margin: 0 2px; }
   .eh-sub { font: var(--fw-normal) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9a8d73; opacity: .85; }
   .eh-flow { align-self: center; color: var(--gold-dim); font: var(--fw-semibold) var(--fs-md)/1 var(--mono); opacity: .5; flex: 0 0 auto; }
+  /* v1379 #12 — driver dispatch mini-flow under the organ spine */
+  .eh-dispatch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 10px; padding: 8px 12px; border-radius: 10px;
+    border: 1px solid rgba(240,192,96,.14); background: rgba(0,0,0,.22); }
+  .eh-dispatch[hidden] { display: none !important; }
+  .eh-d-lab { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
+    color: var(--gold-dim); text-transform: uppercase; margin-right: 4px; }
+  .eh-d-step { display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+    min-width: 52px; padding: 4px 8px; border-radius: 8px; background: rgba(255,255,255,.03);
+    border: 1px solid rgba(240,192,96,.1); }
+  .eh-d-step b { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: #e8d9a8; }
+  .eh-d-step i { font: var(--fw-medium) 9px/1 var(--mono); letter-spacing: .4px; color: var(--text-dim);
+    font-style: normal; text-transform: uppercase; }
+  .eh-d-step.hot { border-color: rgba(143,230,160,.45); box-shadow: 0 0 10px rgba(143,230,160,.15); }
+  .eh-d-step.hot b { color: #b6f0c0; }
+  .eh-d-step.warn { border-color: rgba(233,185,110,.45); }
+  .eh-d-step.warn b { color: #e9b96e; }
+  .eh-d-arr { color: var(--gold-dim); opacity: .55; font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); }
+  .eh-d-meta { margin-left: auto; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); color: var(--text-dim); }
   /* health pulse — ok green · warn amber · bad red · idle gray (OFF AIR = idle, a sleeping engine is healthy) */
   .eh-organ.eh-ok   .eh-dot { background: var(--mint); box-shadow: 0 0 8px rgba(143,230,160,.7); animation: ehPulse 2.2s ease-in-out infinite; }
   .eh-organ.eh-warn .eh-dot { background: #e9b96e; box-shadow: 0 0 8px rgba(233,185,110,.7); animation: ehPulse 1.5s ease-in-out infinite; }
@@ -2886,6 +2907,16 @@
         <div class="hd-h">🩺 ENGINE HEALTH <span class="hd-sub">the whole loop, one pulse · capture → readers → router → funnels → ledger</span>
           <button type="button" class="eh-legend-btn" onclick="window._legendOpen('health')" title="the key — what every organ + pulse means">? key</button></div>
         <div class="eh-spine" id="hd-spine"><span class="hd-empty">…</span></div>
+        <!-- v1379 #12 — DRIVER DISPATCH mini-flow: seen → queued → fired (live from st.driver) -->
+        <div class="eh-dispatch" id="eh-dispatch" hidden title="control-side engine driver: stash/judge dispatch">
+          <span class="eh-d-lab">DISPATCH</span>
+          <span class="eh-d-step" data-k="seen"><b id="eh-d-seen">0</b><i>seen</i></span>
+          <span class="eh-d-arr">→</span>
+          <span class="eh-d-step" data-k="queued"><b id="eh-d-queued">0</b><i>queued</i></span>
+          <span class="eh-d-arr">→</span>
+          <span class="eh-d-step" data-k="fired"><b id="eh-d-fired">0</b><i>fired</i></span>
+          <span class="eh-d-meta" id="eh-d-meta"></span>
+        </div>
       </div>
       <div class="hd-col hd-wide hd-engines" id="hd-engines">
         <div class="hd-h">🖥 ENGINES <span class="hd-sub">every lane, one glance</span></div>
@@ -8398,6 +8429,44 @@
   function hdEngineHealth(st){
     var el = $('hd-spine'); if (!el) return;
     el.innerHTML = _engineOrganData(st).map(function(o){ return _ehOrganHtml(o, false); }).join('<span class="eh-flow">→</span>');
+    // v1379 #12 — DISPATCH mini-flow (seen → queued → fired) under the spine
+    try {
+      var box = document.getElementById('eh-dispatch');
+      if (box){
+        var dr = (st && st.driver) || {};
+        var seen = dr.seen || 0, queued = dr.queued || 0, fired = dr.fired || 0;
+        var jq = dr.judgeQ || 0, jf = dr.judgeFire || 0, refire = dr.refire || 0;
+        var on = (st && st.mode) === 'live';
+        var has = on || seen || queued || fired || jq || jf;
+        box.hidden = !has;
+        if (has){
+          var sb = document.getElementById('eh-d-seen');
+          var qb = document.getElementById('eh-d-queued');
+          var fb = document.getElementById('eh-d-fired');
+          if (sb) sb.textContent = String(seen);
+          if (qb) qb.textContent = String(queued + jq);
+          if (fb) fb.textContent = String(fired + jf);
+          box.querySelectorAll('.eh-d-step').forEach(function(n){ n.classList.remove('hot','warn'); });
+          var qEl = box.querySelector('.eh-d-step[data-k="queued"]');
+          var fEl = box.querySelector('.eh-d-step[data-k="fired"]');
+          var sEl = box.querySelector('.eh-d-step[data-k="seen"]');
+          var backlog = (queued + jq) - (fired + jf);
+          if (on && backlog > 2 && qEl) qEl.classList.add('warn');
+          else if (on && (queued + jq) > (fired + jf) && qEl) qEl.classList.add('hot');
+          else if (on && fired > 0 && fEl) fEl.classList.add('hot');
+          else if (on && sEl) sEl.classList.add('hot');
+          var meta = document.getElementById('eh-d-meta');
+          if (meta){
+            var bits = [];
+            if (refire) bits.push(refire + ' re-fire');
+            if (jq || jf) bits.push('judge ' + jf + '/' + (jq || jf));
+            if (dr.err) bits.push('⚠ ' + String(dr.err).slice(0, 28));
+            else if (!on) bits.push('off air');
+            meta.textContent = bits.join(' · ');
+          }
+        }
+      }
+    } catch(e){}
   }
   // ══ v1247 (CONSOLE UPGRADE r1 — THE LIVE PULSE) — surface the KAI reconciler's LIVE opinion of each frame on
   // the live console (st.liveRing), + a stage toast when a KEEP/GRAIL lands. LIGHT: rides the existing poll, no

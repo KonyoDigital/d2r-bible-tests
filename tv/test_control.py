@@ -825,6 +825,8 @@ class TestV919IntakeLane(unittest.TestCase):
             stderr = b""
         old = ca.subprocess.run
         ca.subprocess.run = lambda *a, **k: _PR()
+        ca._INTAKE_LAST_TS = 0
+        ca._INTAKE_INFLIGHT = 0
         try:
             status, body, hdrs = self._post_intake()
         finally:
@@ -841,6 +843,10 @@ class TestV919IntakeLane(unittest.TestCase):
         old_run = ca.subprocess.run
         ca.subprocess.run = lambda *a, **k: _PR()
         os.environ["TV_INTAKE_LOCAL_STRICT"] = "1"
+        # v1379 — clear the subscription rate-limit so a prior test's successful
+        # intake (within TV_INTAKE_MIN_GAP_S) cannot 429 this strict-mode probe.
+        ca._INTAKE_LAST_TS = 0
+        ca._INTAKE_INFLIGHT = 0
         try:
             status, body, _ = self._post_intake()
         finally:

@@ -79,7 +79,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1335 · F5 intake hero card **(landed v1340)** — premium violet "📸 RUNES +14" flash on a real tally (camera-flash, auto-dismiss), backlog-seeded so a reconnect never replays, errored/zero never fire, reduced-motion aware. [in flight: F6 interest gauge]
 - [x] v1336 · F6 live INTEREST gauge **(landed v1341)** — semicircular money-moment needle off the real interest signal (calm→warm→hot-gold), honest parked-grey "no signal" when absent, reduced-motion, rides F2 ribbon at zero cost. [in flight: cockpit cohesion pass — Phase F finish]
 - [ ] v1337 · "now reading" in-flight frame thumbnail
-- [ ] v1338 · driver dispatch mini-flow (seen→queued→fired)
+- [x] v1338 · driver dispatch mini-flow (seen→queued→fired) **(landed v1379)**
 - [ ] v1339 · engine-health inline drilldown
 - [ ] v1340 · console polish cohesion + verify
 

@@ -4503,8 +4503,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     #autoroute-sweep-card .g3f-undo{background:none;border:1px solid rgba(255,180,90,.4);color:#ffb45a;border-radius:5px;font-size:10px;padding:1px 6px;cursor:pointer;font-family:inherit}
     #autoroute-sweep-card .g3f-undo:hover{background:rgba(255,180,90,.15)}
   </style>
-  <div class="boss-card collapsible tool-premium tool-primary" id="autoroute-sweep-card" style="--tc:#7cc4ff">
-    <div class="boss-header" onclick="window.toggleCardCollapse('autoroute-sweep-card')" role="button" tabindex="0" aria-expanded="true">
+  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="autoroute-sweep-card" style="--tc:#7cc4ff">
+    <div class="boss-header" onclick="window.toggleCardCollapse('autoroute-sweep-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:30px">🔄</span>
       <div class="boss-title-block">
         <p class="boss-name">Auto-route Sweep <span class="ars-beta">KAI</span></p>
@@ -33181,13 +33181,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (c.complete) return;
       if (c.key==='rw'){
         c.pick='📜 Runewords · '+c.done+'/'+c.total+' — '+c.left+' runeword'+(c.left===1?'':'s')+' still to forge; farm the runes/base for the next one (open the Forge queue)';
-      } else if (c.key==='grail' && c.data && c.data.runs && c.data.runs.length){
-        var run=c.data.runs[0], it=(run.items&&run.items[0])||null;
+      } else if (c.key==='grail' && c.data){
+        // Prefer ranked best-run (runs[0]); fall back to first missing unique so the OPS
+        // queue never dead-ends when runs[] is empty but the wall still has dark corners.
+        var run=(c.data.runs&&c.data.runs[0])||null;
+        var it=(run&&run.items&&run.items[0])||null;
+        if (!it && c.data.missing && c.data.missing.length){
+          var m0=c.data.missing[0];
+          it={ n:m0.n||m0.name||m0, _bs:m0._bs||null };
+          run={ boss:(m0._bs&&m0._bs.s&&m0._bs.s.boss)||(m0.boss||''), bossId:(m0._bs&&m0._bs.s&&m0._bs.s.bossId)||m0.bossId||'', items:[it], ev:0 };
+        }
         if (it){
-          var bs=it._bs, boss=bs?bs.s.boss:run.boss, oddsStr=bs?fmtOdds(bs.s.chance):'';
-          c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:run.bossId),
-                 route:(run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
-          c.pick='🏆 Grail · '+c.done+'/'+c.total+' — hunt '+it.n+' (best at '+boss+(oddsStr?', '+oddsStr:'')+'); '+c.left+' uniques left';
+          var bs=it._bs, boss=bs?bs.s.boss:(run&&run.boss)||'', oddsStr=bs?fmtOdds(bs.s.chance):'';
+          c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:(run&&run.bossId)||''),
+                 route:(run&&run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
+          c.pick='🏆 Grail · '+c.done+'/'+c.total+' — hunt '+it.n+(boss?(' (best at '+boss+(oddsStr?', '+oddsStr:'')+')'):'')+'; '+c.left+' uniques left';
         }
       } else if (c.key==='sets' && c.data){
         var w=(c.data.working&&c.data.working[0])||null;   // fewest pieces left = closest set
@@ -35194,7 +35202,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1378', name:'🏛 Sessions FLAGSHIP R4 (hero shrunk + symmetric, MY HUNT/YOUR HUNT dedup -> I THE HUNT) + craft-readiness bridge (d2r_craftReady) for the CREATE pillar', date:'2026-07-23', note:'🏛 The MY HUNT flagship, tightened, plus the craft bridge live. Your feedback landed: the doubled title is gone (MY HUNT is the one crest, the section below reads I THE HUNT), the NEXT GRAIL hero is a touch smaller and balanced left-to-right so it no longer swallows the screen, and the titles stay bold. And the craft side of your missions now has real data: the bible exports which caster amulets and crafts you can make right now (or are one ingredient away) for the flagship to show - owned or cube-up-able, honest, never a faked ready. console + engine.' };
+  window.D2R_BUILD = { id:'v1379', name:'v1379 · near-black local transition + dispatch mini-flow + leak guards · Sessions FLAGSHIP R4 (hero shrunk + symmetric, MY HUNT/YOUR HUNT dedup -> I THE HUNT) + craft-readiness bridge (d2r_craftReady) for the CREATE pillar', date:'2026-07-23', note:'🏛 The MY HUNT flagship, tightened, plus the craft bridge live. Your feedback landed: the doubled title is gone (MY HUNT is the one crest, the section below reads I THE HUNT), the NEXT GRAIL hero is a touch smaller and balanced left-to-right so it no longer swallows the screen, and the titles stay bold. And the craft side of your missions now has real data: the bible exports which caster amulets and crafts you can make right now (or are one ingredient away) for the flagship to show - owned or cube-up-able, honest, never a faked ready. console + engine.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

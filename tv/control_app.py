@@ -6195,14 +6195,17 @@ def _engine_driver():
     live_judged = set()   # frameIds already fired (or queued)
     last_judge_ms = 0
     live_judge_n = 0
+    # v1379 — was 24 live subscription judges/session @ 18s; that alone could burn dozens
+    # of Claude Code sessions (each a full project load). Default now 6 @ 45s; set
+    # TV_KAI_JUDGE_LIVE_MAX=0 to disable live judges entirely.
     try:
-        _jlive_max = max(0, int(os.environ.get("TV_KAI_JUDGE_LIVE_MAX", "24")))
+        _jlive_max = max(0, int(os.environ.get("TV_KAI_JUDGE_LIVE_MAX", "6")))
     except Exception:
-        _jlive_max = 24
+        _jlive_max = 6
     try:
-        _jlive_gap = max(5, int(os.environ.get("TV_KAI_JUDGE_LIVE_GAP_S", "18")))
+        _jlive_gap = max(5, int(os.environ.get("TV_KAI_JUDGE_LIVE_GAP_S", "45")))
     except Exception:
-        _jlive_gap = 18
+        _jlive_gap = 45
     _probes_out = 0
     while True:
         try:
@@ -6923,7 +6926,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1378",
+        "ver": "v1379",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -8836,6 +8839,20 @@ class Handler(BaseHTTPRequestHandler):
             # v874 — SUBSCRIPTION LANE FIRST (Konyo: 'use the subscription, not API tokens'):
             # tv/intake_local.mjs runs the REAL intake.js/ask.js with a fetch shim that rides
             # the locally-authorized `claude` CLI. Website proxy = fallback only.
+            # v1379 — server-side gate so a stuck engine driver cannot stampede intake:
+            # max 1 in-flight + min gap between starts (also enforced inside intake_local.mjs).
+            _now_i = time.time()
+            _last_i = float(globals().get("_INTAKE_LAST_TS") or 0)
+            _inflight_i = int(globals().get("_INTAKE_INFLIGHT") or 0)
+            try:
+                _gap_i = float(os.environ.get("TV_INTAKE_MIN_GAP_S", "12") or 12)
+            except Exception:
+                _gap_i = 12.0
+            if _inflight_i > 0 or (_now_i - _last_i) < _gap_i:
+                self._json(429, {"ok": False, "lane": "subscription-throttled",
+                                 "msg": "intake rate-limited (subscription leak guard)",
+                                 "retry_s": max(1, int(_gap_i - (_now_i - _last_i)))})
+                return
             _runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intake_local.mjs")
             # v919 (Grok REAL EYES R1) — STRICT mode: a silent local-lane failure falling
             # through to the website proxy can fake-green a "real subscription" run on the
@@ -8843,6 +8860,8 @@ class Handler(BaseHTTPRequestHandler):
             _strict = os.environ.get("TV_INTAKE_LOCAL_STRICT") == "1"
             if os.environ.get("TV_INTAKE_LOCAL", "1") != "0" and os.path.isfile(_runner):
                 try:
+                    globals()["_INTAKE_INFLIGHT"] = _inflight_i + 1
+                    globals()["_INTAKE_LAST_TS"] = _now_i
                     _nice_kw = ({"creationflags": 0x4000 | _WIN_CREATE} if IS_WIN
                                 else {"preexec_fn": (lambda: os.nice(10))})   # v879 — intake yields to the game
                     _pr = subprocess.run(
@@ -8871,6 +8890,9 @@ class Handler(BaseHTTPRequestHandler):
                                          "msg": "local intake runner error (strict): " + str(_ex)[:200]})
                         return
                     pass   # any local failure → website proxy below
+                finally:
+                    globals()["_INTAKE_INFLIGHT"] = max(
+                        0, int(globals().get("_INTAKE_INFLIGHT") or 1) - 1)
             elif _strict:
                 self._json(502, {"ok": False, "lane": "subscription-failed",
                                  "msg": "local intake lane disabled/missing (strict: no website fallback)"})

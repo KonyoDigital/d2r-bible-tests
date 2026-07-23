@@ -30,11 +30,11 @@
 #   tiny chip. OFF/STOP seal session_end into sessions.jsonl. Claude deep is multi-second
 #   by nature — OCR chips + smooth film are the live-drive feel.
 # ═══════════════════════════════════════════════════════════════════════════════
-import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
+import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempfile
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1378"   # 🏛 SESSIONS FLAGSHIP R4 + CRAFT BRIDGE gated. R4 (control_ui.html, Konyo live typography feedback): (1) DEDUP - MY HUNT crest is the single identity, the section below is now the movement label I THE HUNT (pulled the I/II/III roman-numeral movement headers forward, flagship-only; the cockpit keeps its emoji headers, no numerals leak to TV-D). (2) The NEXT GRAIL hero SHRUNK + made symmetric - a balanced two-column composition (grail name + hunt-at on the left, the approx-hours anchor on the right filling the old dead space), tighter vertical padding, still the one bold moment. (3) Title/section emphasis KEPT (Cinzel/gold/wide tracking on the crest + movement headers, only the hero name shrank). CRAFT BRIDGE (g3 765399d, bible.html): _writeCraftReady exports craftable-now + one-away to forked d2r_craftReady {now, onestep, ts} (kinds caster/blood/safety/hitpower), honest cube-up/get tell, for the flagship CREATE pillar. Demo J8 added (session nav -> data-view=sessions, hunt shown, no shell-open; tvd -> cockpit); demos 8/8. Verified: invariant GREEN, JS 0, brace delta 0, control 226/226, routes 181/181, agent 199/199, x3 parity. R5 next = the ranked hunt ledger under the hero. control_ui.html + demo_console.mjs.
+VERSION = "v1379"   # 🏛 SESSIONS FLAGSHIP R4 + CRAFT BRIDGE gated. R4 (control_ui.html, Konyo live typography feedback): (1) DEDUP - MY HUNT crest is the single identity, the section below is now the movement label I THE HUNT (pulled the I/II/III roman-numeral movement headers forward, flagship-only; the cockpit keeps its emoji headers, no numerals leak to TV-D). (2) The NEXT GRAIL hero SHRUNK + made symmetric - a balanced two-column composition (grail name + hunt-at on the left, the approx-hours anchor on the right filling the old dead space), tighter vertical padding, still the one bold moment. (3) Title/section emphasis KEPT (Cinzel/gold/wide tracking on the crest + movement headers, only the hero name shrank). CRAFT BRIDGE (g3 765399d, bible.html): _writeCraftReady exports craftable-now + one-away to forked d2r_craftReady {now, onestep, ts} (kinds caster/blood/safety/hitpower), honest cube-up/get tell, for the flagship CREATE pillar. Demo J8 added (session nav -> data-view=sessions, hunt shown, no shell-open; tvd -> cockpit); demos 8/8. Verified: invariant GREEN, JS 0, brace delta 0, control 226/226, routes 181/181, agent 199/199, x3 parity. R5 next = the ranked hunt ledger under the hero. control_ui.html + demo_console.mjs.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2080,6 +2080,8 @@ def _claude_env():
     """Env for vision subprocesses: subscription login, not shell API keys."""
     env = os.environ.copy()
     stripped = [k for k in _API_AUTH_ENV if env.pop(k, None) is not None]
+    # v1379 — agent-teams auto mode must never ride vision children (subscription burn)
+    env.pop("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", None)
     return env, stripped
 
 def _log_auth_once(stripped):
@@ -2087,6 +2089,90 @@ def _log_auth_once(stripped):
         return
     globals()["_AUTH_LOGGED"] = True
     ev("boot", f"vision auth: stripped {','.join(stripped)} — using Claude subscription login")
+
+# v1379 LEAK FIX — every cold/warm `claude -p` used to inherit cwd=d2r_bible_tests + full
+# project settings (CLAUDE.md, agent teams, high effort). Each screenshot became a
+# ~1.3MB Claude Code session with 20k+ cache tokens. Lean args skip project context, do
+# not persist sessions, keep effort low, and ALWAYS pin --model so the global Claude
+# default (fable in ~/.claude/settings.json) never hijacks vision. Product model = sonnet.
+# Auth stays subscription OAuth (not --bare).
+_VISION_CWD = os.environ.get("TV_VISION_CWD") or os.path.join(tempfile.gettempdir(), "tvd-vision-cwd")
+try:
+    os.makedirs(_VISION_CWD, exist_ok=True)
+except Exception:
+    _VISION_CWD = tempfile.gettempdir()
+
+def _vision_model(model=None):
+    """Pin vision to sonnet (product). Never allow empty/fable to inherit user settings."""
+    m = str(model or FAST_MODEL or "sonnet").strip() or "sonnet"
+    lo = m.lower()
+    if "fable" in lo:
+        return "sonnet"
+    return m
+
+def _claude_lean_args(model, *, stream=False, add_dirs=None):
+    """CLI argv for vision/intake calls that must not load the monorepo project."""
+    args = [CLAUDE_BIN, "-p"]
+    if stream:
+        args += ["--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]
+    else:
+        args += ["--output-format", "text"]
+    args += [
+        "--model", _vision_model(model),
+        "--allowedTools", "Read",
+        "--strict-mcp-config",
+        "--no-session-persistence",
+        "--setting-sources", "user",
+        "--effort", os.environ.get("TV_VISION_EFFORT", "low") or "low",
+    ]
+    for d in (add_dirs or []):
+        if d and os.path.isdir(d):
+            args += ["--add-dir", d]
+    return args
+
+# v1379 — hard subscription circuit breaker for cold oneshots + optional warm budget log
+_SUB_BUDGET_PATH = os.path.join(HERE, ".subscription_budget.json")
+try:
+    _SUB_HOURLY_MAX = max(0, int(os.environ.get("TV_VISION_HOURLY_MAX", "60") or 60))
+except Exception:
+    _SUB_HOURLY_MAX = 60
+try:
+    _SUB_DAILY_MAX = max(0, int(os.environ.get("TV_VISION_DAILY_MAX", "250") or 250))
+except Exception:
+    _SUB_DAILY_MAX = 250
+_sub_budget_lock = threading.Lock()
+
+def _sub_budget_check(kind="vision"):
+    """Return None if allowed, else a short reason string (circuit open)."""
+    if _SUB_HOURLY_MAX <= 0 or _SUB_DAILY_MAX <= 0:
+        return "subscription circuit open (TV_VISION_*_MAX=0)"
+    now = time.time()
+    with _sub_budget_lock:
+        try:
+            st = json.loads(open(_SUB_BUDGET_PATH).read()) if os.path.isfile(_SUB_BUDGET_PATH) else {}
+        except Exception:
+            st = {}
+        calls = [float(t) for t in (st.get("calls") or []) if now - float(t) < 86400]
+        hour = [t for t in calls if now - t < 3600]
+        if len(hour) >= _SUB_HOURLY_MAX:
+            return "subscription hourly cap %d/%d (%s)" % (len(hour), _SUB_HOURLY_MAX, kind)
+        if len(calls) >= _SUB_DAILY_MAX:
+            return "subscription daily cap %d/%d (%s)" % (len(calls), _SUB_DAILY_MAX, kind)
+        return None
+
+def _sub_budget_record():
+    now = time.time()
+    with _sub_budget_lock:
+        try:
+            st = json.loads(open(_SUB_BUDGET_PATH).read()) if os.path.isfile(_SUB_BUDGET_PATH) else {}
+        except Exception:
+            st = {}
+        calls = [float(t) for t in (st.get("calls") or []) if now - float(t) < 86400]
+        calls.append(now)
+        try:
+            open(_SUB_BUDGET_PATH, "w").write(json.dumps({"calls": calls, "last": now}))
+        except Exception:
+            pass
 
 class VisionWorker:
     def __init__(self, model=None):
@@ -2097,11 +2183,15 @@ class VisionWorker:
         import queue
         env, stripped = _claude_env()
         _log_auth_once(stripped)
+        # Allow Read on frames + hist so absolute paths resolve even with empty vision cwd
+        add = [FRAMES]
+        hist = os.path.join(FRAMES, "hist")
+        if os.path.isdir(hist):
+            add.append(hist)
         self.p = subprocess.Popen(
-            [CLAUDE_BIN, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
-             "--verbose", "--model", self.model, "--allowedTools", "Read", "--strict-mcp-config"],
+            _claude_lean_args(self.model, stream=True, add_dirs=add),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, bufsize=1, env=env,
+            text=True, bufsize=1, env=env, cwd=_VISION_CWD,
             preexec_fn=(None if sys.platform == "win32" else (lambda: os.nice(10))))   # v876 — D2R owns the CPU
         self.q = queue.Queue(); self.turns = 0
         def _pump(proc, q):
@@ -2133,6 +2223,13 @@ class VisionWorker:
             pass
     def ask(self, prompt, timeout=75):
         """one turn → the result text, or None (caller falls back to one-shot). Serialized."""
+        blocked = _sub_budget_check("warm")
+        if blocked:
+            try:
+                ev("cap", blocked)
+            except Exception:
+                pass
+            return None
         with self.lock:
             try:
                 if self.p is None or self.p.poll() is not None or self.turns >= WORKER_MAX_TURNS:
@@ -2158,6 +2255,7 @@ class VisionWorker:
                     except Exception: continue
                     if j.get("type") == "result":
                         self.turns += 1
+                        _sub_budget_record()
                         return j.get("result") or ""
                 self.stop()   # timed out / stream ended — never reuse a wedged worker
                 return None
@@ -2966,15 +3064,30 @@ def _text_eye_loop():
                 key = _norm_name(nm)
                 if not key:
                     continue
+                # v1379 — OCR garble ("haTrng1.. Lobby", "'Ii'", "ING THe R") was enqueuing
+                # priority Sonnet reads every ~0.7s. Gate on _text_eye_worthy (stricter than
+                # _itemish) so only real-looking item labels burn a subscription vision turn.
+                if not _text_eye_worthy(nm):
+                    seen[key] = now   # still mark seen so garble doesn't re-arm forever
+                    continue
                 if key not in seen:
                     fresh.append(nm)
                 seen[key] = now
             if not fresh:
                 continue
+            # v1379 — cooldown: after a text-eye fire, wait before another (cap spam)
+            last_fire = globals().get("_TEXT_EYE_LAST_FIRE") or 0.0
+            try:
+                min_gap = float(os.environ.get("TV_TEXT_EYE_MIN_GAP_S", "4") or 4)
+            except Exception:
+                min_gap = 4.0
+            if now - last_fire < min_gap:
+                continue
             try:
                 sig = frame_sig(eye)
             except Exception:
                 continue
+            globals()["_TEXT_EYE_LAST_FIRE"] = now
             _settle_enqueue(eye, sig, interest=0.95, priority=True, origin="text-eye")
             ev("settle", "👁‍🗨 text eye — new text: " + ", ".join(fresh[:3])
                + (" …" if len(fresh) > 3 else "") + " → priority read of the frozen frame")
@@ -3929,14 +4042,28 @@ def _oneshot(ap, model, timeout=90):
 
 
 def _oneshot_inner(ap, model, timeout=90):
-    """One cold `claude -p` on subscription (strict-mcp, no API key)."""
+    """One cold `claude -p` on subscription (strict-mcp, no API key).
+
+    v1379 — circuit-breaker + lean CLI (no monorepo project load / no session persist)."""
+    blocked = _sub_budget_check("oneshot")
+    if blocked:
+        ev("cap", blocked)
+        journal_skip("sub-budget", blocked)
+        return None
     env, stripped = _claude_env()
     _log_auth_once(stripped)
+    add = [FRAMES]
+    ap_dir = os.path.dirname(os.path.abspath(ap)) if ap else ""
+    if ap_dir and os.path.isdir(ap_dir):
+        add.append(ap_dir)
+    args = _claude_lean_args(model, stream=False, add_dirs=add)
+    # prompt is the first argument after -p
+    # _claude_lean_args starts [bin, -p, ...]; insert prompt after -p
+    args = args[:2] + [READ_PROMPT.format(path=ap)] + args[2:]
     r = subprocess.run(
-        [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
-         "--model", model, "--allowedTools", "Read", "--output-format", "text",
-         "--strict-mcp-config"],
+        args,
         capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, env=env,
+        cwd=_VISION_CWD,
         preexec_fn=(None if sys.platform == "win32" else (lambda: os.nice(10))))   # v876
     out = (r.stdout or "").strip()
     a, b = out.find("{"), out.rfind("}")
@@ -3947,6 +4074,7 @@ def _oneshot_inner(ap, model, timeout=90):
         if r.returncode != 0:
             print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
         return None
+    _sub_budget_record()
     globals()["_LAST_RAW"] = str(out)[:2048]   # v832 — THE THOUGHT (one-shot lane)
     _pr = _parse_read(out)
     if _pr is not None:
@@ -4807,9 +4935,52 @@ def main():
             stable = 0
             _AP.update({"mode": "hold", "interest": 0.0, "peak": 0.0, "priority": False})
             continue
-        # loading screens between zones are static + near-black — they settle but hold nothing readable
+        # loading screens between zones are static + near-black — they settle but hold nothing
+        # readable. v1379 B5-lite: on ENTERING the loading phase, stamp a local transition row
+        # (0 vision cost) so LIVE/native flips to ENTERING <area> instead of stuck "gameplay".
+        # Continuous near-black only beats "loading" after that one stamp — no journal spam.
         if sum(cur) / max(1, len(cur)) < 14:
-            if _BEAT["phase"] != "loading": ev("skip", "near-black frame (loading screen) — not worth a read")
+            entering_load = _BEAT.get("phase") != "loading"
+            if entering_load:
+                note = transition_note(LAST_AREA, reads)
+                ev("transition", f"⏳ {note} · near-black loading (local · 0 vision)")
+                print(f"  ⏳ {note}  [near-black · 0ms]")
+                t_ts = int(time.time() * 1000)
+                try:
+                    t_fid = archive_read_frame(frame, reads + 1, t_ts)
+                except Exception:
+                    t_fid = ""
+                try:
+                    _journal({"ts": t_ts, "n": reads + 1, "scene": "transition", "names": [],
+                              "area": "", "frameId": t_fid, "note": note,
+                              "transition_from": LAST_AREA, "ms": 0,
+                              "mode": "near-black", "lane": "known", "sessionId": SESSION_ID})
+                except Exception:
+                    pass
+                try:
+                    with _state_lock:
+                        st = _load()
+                        st["reads"].append({
+                            "ts": t_ts, "names": [], "n": reads + 1, "area": "",
+                            "scene": "transition", "tz": [], "ms": 0,
+                            "mode": "near-black", "lane": "known", "model": "local",
+                            "conf": 1.0, "intent": "context",
+                            "transition_from": LAST_AREA, "note": note,
+                            "frameId": t_fid, "sessionId": SESSION_ID,
+                            "escalated": False, "interest": 0.0, "priority": False,
+                            "provisional": False,
+                            "vault_names": [], "farmed_names": [], "pending_names": [],
+                            "thrown_names": [], "unvault_names": [], "lifecycle_tags": {},
+                            "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
+                        })
+                        st["reads"] = st["reads"][-200:]
+                        reads += 1
+                        st["readCount"] = reads
+                        st["ap"] = dict(_AP)
+                        _save(st)
+                except Exception:
+                    pass
+                last_read_t = time.time()
             beat("loading", motion); last_md5 = cur; peak = 0.0; stable = 0
             _AP.update({"mode": "load", "interest": 0.0, "peak": 0.0}); continue
         # L2 prediction: track motion peaks (drive → stop is the pile/panel moment)
@@ -4977,6 +5148,49 @@ def _itemish(name):
     if letters / max(1, len(t)) < 0.8:
         return False
     if not any(c in "aeiouAEIOU" for c in t):
+        return False
+    return True
+
+
+def _text_eye_worthy(name):
+    """v1379 — STRICTER than _itemish. Text-eye fires a full Sonnet subscription read;
+    OCR garble like 'haTrng1.. Lobby' / 'ING THe R' / \"'Ii'\" must NEVER open that valve.
+    Real item names are clean letter words (optionally multi-word); bare runes pass."""
+    t = str(name or "").strip().strip("'\"`").strip()
+    if not t:
+        return False
+    lo = t.lower()
+    _RUNES = {"el","eld","tir","nef","eth","ith","tal","ral","ort","thul","amn","sol","shael",
+              "dol","hel","io","lum","ko","fal","lem","pul","um","mal","ist","gul","vex","ohm",
+              "lo","sur","ber","jah","cham","zod"}
+    if lo in _RUNES or lo.replace(" rune", "").strip() in _RUNES:
+        return True
+    if not _itemish(t):
+        return False
+    # reject digit-heavy leetspeak / dotted OCR trash
+    if sum(c.isdigit() for c in t) >= 1 and sum(c.isalpha() for c in t) < 8:
+        return False
+    if ".." in t or ",," in t:
+        return False
+    # pure letter words only (no leftover punctuation)
+    words = [w for w in "".join(c if c.isalpha() or c == " " or c == "-" else " " for c in t).split() if w]
+    if not words:
+        return False
+    alpha_n = sum(len(w) for w in words)
+    if alpha_n < 4:
+        return False
+    # Real D2 names: one solid word (≥5, e.g. Shako) OR ≥2 words with a ≥4 letter piece
+    # (Arachnid Mesh / Call to Arms). OCR crumbs like "ING THe R" fail this.
+    long4 = sum(1 for w in words if len(w) >= 4)
+    long5 = sum(1 for w in words if len(w) >= 5)
+    if not (long5 >= 1 or (len(words) >= 2 and long4 >= 2) or (len(words) == 1 and len(words[0]) >= 5)):
+        return False
+    # reject all-caps single short fragments that are almost never full item names
+    if len(words) == 1 and len(words[0]) <= 5 and words[0].isupper():
+        return False
+    # reject fragments with no real word shape (too few vowels relative to length)
+    vowels = sum(1 for c in t if c.lower() in "aeiou")
+    if vowels < 1 or (alpha_n >= 6 and vowels / alpha_n < 0.15):
         return False
     return True
 

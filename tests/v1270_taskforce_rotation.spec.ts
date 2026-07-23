@@ -116,8 +116,9 @@ test('OPS queue + Mission Brief descend to a real grail/set op instead of "queue
   // OPS queue is NOT the dead-end message and carries a real grail/set hunt
   expect(r.ops).not.toContain('queue clear');
   expect(r.ops).toMatch(/🏆|🧩|uniques left/);
-  // Mission Brief descended to a grail/set target (not "Stand by") with real boss detail
-  expect(r.mkind).toBe('grail');
+  // Mission Brief descended to a grail OR set target (rotation ranks closest-to-done;
+  // sets can outrank grail when their completion % is higher — both are valid hunts).
+  expect(['grail', 'set']).toContain(r.mkind);
   expect(r.mission).not.toContain('Stand by');
   expect(r.mission.length).toBeGreaterThan(15);
 });

@@ -36,7 +36,10 @@ function fixtureJournal(): string {
 
 test.describe('v877 RINSE (self-hosted console)', () => {
   test.beforeAll(async () => {
-    server = spawn('python3', ['tv/control_app.py'], {
+    // v1379 — MUST pass --no-open. Without it control_app opens a pywebview window
+    // (blocks / steals focus / flakes in CI) and the rinse suite was timing out on
+    // every keyboard/arrow assertion waiting for a stable #btn-sim.
+    server = spawn('python3', ['tv/control_app.py', '--no-open'], {
       env: {
         ...process.env,
         TV_CONTROL_PORT: String(PORT),
