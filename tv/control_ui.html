@@ -1531,6 +1531,10 @@
   .dsr-h { font: var(--fw-bold) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
   .dsr-finds { gap: 8px; }
   .dsr-fp .scene-fp { font-size: var(--fs-xs); }
+  /* B8 · Diablo-native fingerprint chips (farming/town/portal/area), coloured by the scene palette */
+  .dfp { font-weight: var(--fw-bold); }
+  .dfp-farm { color: #9df0bd; } .dfp-town { color: #a8ccef; } .dfp-portal { color: #ffb08a; } .dfp-area { color: #e4d2a4; }
+  .dfp-note { color: #6f6a58; font-weight: var(--fw-normal); margin-left: 3px; font-size: .92em; }
   .dsr-story { display: flex; flex-wrap: wrap; gap: 8px; }
   .dsr-chip { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-tight); color: #b7a884; background: rgba(0,0,0,.3);
     border: 1px solid var(--edge); border-radius: 8px; padding: 6px 11px; }
@@ -3451,6 +3455,22 @@
   // classFrames MONTAGE — a visual strip of the run, one representative frame per scene. Consumes the engine's
   // sm.classFrames = [{scene, thumb, frameId, ts}] (thumb = a /hist-relative path like sm.thumb). Each tile
   // click → jump to that frame (reuses _thJumpToFind). OMITTED until the engine provides it (never faked).
+  // ══ B8 · DIABLO-NATIVE SCENE FINGERPRINT — the run in Diablo terms from sm.sceneFingerprint (v1326 engine):
+  // "⚔ 89% farming · 🏛 2 town trips · 🌀 1 portal · 📍 mostly Chaos Sanctuary". HONEST: farming% is a share of
+  // READS (not wall-time — the reader reads panels more than gameplay), labelled "of reads"; null → falls back
+  // to the older sceneReads% line, and that to nothing (honest-absent on thin reels). ══
+  function _diabloFingerprint(sm){
+    var fp = sm && sm.sceneFingerprint;
+    if (!fp) return _sceneFingerprint(sm);   // no B8 on this reel → the older sceneReads% line (still honest)
+    var P = [];
+    if (fp.farmingPct != null) P.push('<span class="dfp dfp-farm">⚔ ' + fp.farmingPct + '% farming</span><span class="dfp-note">(of reads)</span>');
+    if ((fp.townTrips | 0) > 0) P.push('<span class="dfp dfp-town">🏛 ' + fp.townTrips + ' town trip' + (fp.townTrips > 1 ? 's' : '') + '</span>');
+    if ((fp.portals | 0) > 0) P.push('<span class="dfp dfp-portal">🌀 ' + fp.portals + ' portal' + (fp.portals > 1 ? 's' : '') + '</span>');
+    if (fp.topArea) P.push('<span class="dfp dfp-area">📍 mostly ' + esc(fp.topArea) + '</span>');
+    if (!P.length) return _sceneFingerprint(sm);   // B8 present but empty (0 world reads, no portals) → older line
+    return '<span class="scene-fp" title="the run in Diablo terms · farming % is a share of KAI\'s READS (it reads panels more than gameplay), not wall-time">'
+      + P.join('<span class="sfp-x"> · </span>') + '</span>';
+  }
   // shared scene → {key,ic,colorScene} label (same vocab as the live chips: _DIABLO_SCENES + stash sub-tabs)
   function _sceneLabel(sc){
     sc = String(sc || '').toLowerCase();
@@ -3463,22 +3483,30 @@
   // ══ D22 · FILMSTRIP CHAPTER MARKERS — the run's structure at a glance: collapse the ordered classFrames
   // into scene CHAPTERS (consecutive same-scene frames = one chapter), shown as a jump-to-chapter ribbon above
   // the montage. Honest — chapters ARE the real scene transitions; omitted when there's <2 (no structure). ══
+  var _NATIVE_ICON = { entering: '🌀', town: '🏛', farming: '⚔', menu: '🎒', unclear: '·' };   // B4 — native kind → icon
+  var _NATIVE_SCENE = { entering: 'transition', town: 'town', farming: 'loot', menu: 'stash', unclear: '' };   // → dl- colour class
   function _dossierChapters(sm){
     var cf = sm.classFrames;
     if (!Array.isArray(cf) || !cf.length) return '';
     var chaps = [];
     cf.forEach(function(f){
-      var sc = String(f.scene || '').toLowerCase(), last = chaps[chaps.length - 1];
-      if (last && last.scene === sc) last.count++;
-      else chaps.push({ scene: sc, count: 1, frameId: f.frameId, ts: f.ts });
+      // B4 — prefer the game-true native label ("ENTERING The Pit" / "FARMING · Chaos Sanctuary") when the frame
+      // carries it; else collapse by raw scene (honest fallback for reels/frames without native).
+      var nat = (f.native && f.native.label) ? f.native : null;
+      var key = nat ? nat.label : String(f.scene || '').toLowerCase();
+      var last = chaps[chaps.length - 1];
+      if (last && last.key === key) last.count++;
+      else chaps.push({ key: key, native: nat, scene: f.scene, count: 1, frameId: f.frameId, ts: f.ts });
     });
-    if (chaps.length < 2) return '';   // single scene → no chapter structure to show; the tiles suffice
+    if (chaps.length < 2) return '';   // single chapter → no structure to show; the tiles suffice
     return '<div class="dsr-chaps">' + chaps.map(function(c, i){
-      var L = _sceneLabel(c.scene);
+      var ic, txt, colorScene;
+      if (c.native){ ic = _NATIVE_ICON[c.native.kind] || '·'; txt = c.native.label; colorScene = _NATIVE_SCENE[c.native.kind] || ''; }
+      else { var L = _sceneLabel(c.scene); ic = L.ic; txt = L.key || 'scene'; colorScene = L.colorScene; }
       var jump = (c.frameId || c.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(c.frameId || '')) + '&quot;,' + (Number(c.ts) || 0) + ')"' : '';
       return (i ? '<span class="dsr-chap-arrow">→</span>' : '')
-        + '<button type="button" class="dsr-chap' + (L.colorScene ? ' dl-' + L.colorScene : '') + '"' + jump + ' title="jump to this chapter">'
-        + '<span class="dsr-chap-ic">' + L.ic + '</span>' + esc(L.key || 'scene')
+        + '<button type="button" class="dsr-chap' + (colorScene ? ' dl-' + colorScene : '') + '"' + jump + ' title="jump to this chapter">'
+        + '<span class="dsr-chap-ic">' + ic + '</span>' + esc(txt)
         + (c.count > 1 ? '<span class="dsr-chap-n">×' + c.count + '</span>' : '') + '</button>';
     }).join('') + '</div>';
   }
@@ -3593,8 +3621,8 @@
     var findsBody = _findsStrip(sm, 16, true);
     var findsSec = '<div class="dsr-sec"><div class="dsr-h">🏆 What I found</div>'
       + (findsBody || '<div class="dsr-empty">— no items registered this run —</div>') + '</div>';
-    var fp = _sceneFingerprint(sm);
-    var fpSec = '<div class="dsr-sec"><div class="dsr-h">🎬 The run</div>'
+    var fp = _diabloFingerprint(sm);   // B8 — the run in Diablo terms (farming%/town trips/portals/top area), honest fallback
+    var fpSec = '<div class="dsr-sec"><div class="dsr-h">🗺 The run · in Diablo terms</div>'
       + (fp ? '<div class="dsr-fp">' + fp + '</div>' : '<div class="dsr-empty">— no scene reads on this reel —</div>') + '</div>';
     var storySec = '<div class="dsr-sec"><div class="dsr-h">📼 Verdict &amp; story</div>' + _dossierStory(sm) + '</div>';
     // v1275 (D5) — THE DECISION: the routing funnel (derived now) + coverage meter (engine, honest-absent)
@@ -5594,7 +5622,7 @@
       else if (sm.judged > 0) vparts.push('🔬 ' + sm.judged + ' judged');
       // v1265 (B8) — the run's DIABLO-LANGUAGE fingerprint (sceneReads %). Supersedes the v938 collapsed
       // kaiClasses 🎞 line, which now only shows as the fallback when a reel has no sceneReads (older/unsealed).
-      var _fp = _sceneFingerprint(sm);
+      var _fp = _diabloFingerprint(sm);   // B8 — Diablo-terms fingerprint on the card (falls back to sceneReads%)
       if (!_fp && sm.kaiClasses && typeof sm.kaiClasses === 'object'){
         var _kc = Object.keys(sm.kaiClasses).filter(function(k){ return sm.kaiClasses[k] > 0 && k !== 'gameplay'; })
           .sort(function(a,b){ return sm.kaiClasses[b] - sm.kaiClasses[a]; }).slice(0,3)

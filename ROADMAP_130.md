@@ -88,6 +88,7 @@ After the feature build, HALT feature depth and lock the visual side before goin
 - [ ] v1358–1360 · the stable visual base sealed; feature work resumes on a frozen foundation
 
 ## PHASE H · HARDENING → v2000 RUNWAY — v1361–1420
+- [x] **CAPSTONE CERT (v1330)** — full engine arc re-verified: node 75/75 + python 41/41 = **116/116, 0 regressions**; py_compile, 16 bible scripts, visual_lock GREEN both surfaces, G4 removal still clean, every SESSION_FIELD_CONTRACT field present in real /api output. `HANDOFF_MORNING_2026-07-23.md` written (complete night state + what waits for Konyo). Engine lane comprehensively DONE + certified + documented.
 - [ ] v1361 · full-suite CI green pass (Windows) — first full-green since the arc
 - [ ] v1362 · accuracy RE-AUDIT swarm (verify fixes held on real data)
 - [ ] v1363 · Grok-watchdog full historical audit (if G4 on) / retro RE-SEAL sweep (kaiVer truth)
