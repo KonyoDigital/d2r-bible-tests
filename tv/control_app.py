@@ -2573,6 +2573,51 @@ def _kai_forensic_block(texts):
     return None
 
 
+def _kai_base_names():
+    """B9 — the full set of base-type names (lowercased) from bible's lf-base-codes, for the grail
+    EXCLUSION (a base like 'Battle Boots' is a name in the flat lexicon but is never a grail).
+    Cached; parsed like _kai_base_sig but keeps whole names, not just distinctive tokens."""
+    c = globals().get("_KAI_BASE_NAMES")
+    if c is not None:
+        return c
+    names = set()
+    try:
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace") as f:
+            m = re.search(r'id="lf-base-codes">(\{.*?\})</script>', f.read(), re.S)
+        if m:
+            for k in re.findall(r'"([^"]+)"\s*:', m.group(1)):
+                names.add(k.lower())
+    except Exception:
+        pass
+    globals()["_KAI_BASE_NAMES"] = names
+    return names
+
+
+def _kai_item_class(name, tier=None, grounded=False):
+    """B9 — the item rarity CLASS the engine can PROVE, honestly:
+      'runeword' — derivable (_kai_runeword_bare).
+      'grail'    — grounder-proven (grounded=True) OR register tier=='grail', with BASES EXCLUDED
+                   (a base name never becomes 'the grail Battle Boots').
+      None       — plain / unknown.
+    NEVER fakes unique-vs-set (not derivable engine-side — that's the client's tipOf, per the
+    receipt contract). Pure."""
+    nm = str(name or "").strip()
+    if not nm:
+        return None
+    if _kai_runeword_bare(nm):
+        return "runeword"
+    if nm.lower() in _kai_base_names():
+        return None   # the Battle Boots guard — a base type is never a grail
+    if grounded or str(tier or "").lower() == "grail":
+        return "grail"
+    return None
+
+
+def _kai_item_phrase(name, cls):
+    """'War Traveler' + 'grail' → 'the grail War Traveler'; None class → the bare name."""
+    return ("the " + cls + " " + name) if cls else name
+
+
 _FORENSIC_RIGHT = ("grounded", "resolved-corrected", "recovered-2witness", "recovered-crossframe")
 
 
@@ -2610,11 +2655,12 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
 
     # ① CLEAN reads — the register (DB-verified sightings the AI read right)
     for low, r in reg.items():
+        _cls = _kai_item_class(r["name"], tier=r.get("tier"), grounded=False)
         reads.append({
-            "item": r["name"], "status": "grounded", "corrected": False,
+            "item": r["name"], "status": "grounded", "corrected": False, "itemClass": _cls,
             "reason": "read cleanly, matched the item database",
             "synthesis": _syn(scene_by_f.get(str(r.get("frameId") or "")),
-                              "read " + r["name"] + " cleanly"),
+                              "read " + _kai_item_phrase(r["name"], _cls) + " cleanly"),
             "engine": "liveEye", "sessionId": sid, "ts": r.get("ts"),
             "frames": [{"frameId": r.get("frameId"), "raw": None, "scene": None}],
             "witnesses": {"content": True}, "resolvedFrom": {"frameId": r.get("frameId"), "witness": "read"}})
@@ -2622,7 +2668,7 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
     # ② cross-frame gate proofs (② quorum) — recovered-crossframe
     for rr in crossframe_frames:
         reads.append({
-            "item": None, "status": "recovered-crossframe", "corrected": True,
+            "item": None, "status": "recovered-crossframe", "corrected": True, "itemClass": None,
             "reason": "held at quorum<2, proven by a distinct witness across the item's on-screen lifetime",
             "synthesis": _syn(rr.get("label"),
                               "one still was uncertain — a neighbouring frame's independent read confirmed it"),
@@ -2644,9 +2690,11 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
         if corr:
             name, raw, ed, via = corr
             st = "recovered-2witness" if via == "name+base" else "resolved-corrected"
+            _cls = _kai_item_class(name, grounded=True)   # grounder-proven → grail/runeword
+            _phrase = _kai_item_phrase(name, _cls)
             body = ("saw '" + str(raw) + "' garbled" +
-                    (", matched the base → grounded " if via == "name+base" else "', de-garbled to ") + name)
-            reads.append(dict(base, item=name, status=st, corrected=True,
+                    (", matched the base → grounded " if via == "name+base" else "', de-garbled to ") + _phrase)
+            reads.append(dict(base, item=name, status=st, corrected=True, itemClass=_cls,
                               reason=("name+base two-witness" if via == "name+base" else "leet/edit de-garble"),
                               correction={"raw": raw, "resolved": name, "via": via, "edit": ed},
                               synthesis=_syn(where, body),
@@ -2655,7 +2703,7 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
             continue
         blk = _kai_forensic_block(texts)
         if blk:
-            reads.append(dict(base, item=None, status="blocked-fp", corrected=False,
+            reads.append(dict(base, item=None, status="blocked-fp", corrected=False, itemClass=None,
                               reason="near-matched " + str(blk.get("nearest")) + " but no witness — refused",
                               block=blk,
                               synthesis=_syn(where, "'" + str(blk.get("raw")) + "' edit-matched " +
@@ -2684,14 +2732,15 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
                 break
         if assoc:
             raw, name = assoc
-            reads.append(dict(base, item=name, status="resolved-corrected", corrected=True,
+            _cls = _kai_item_class(name, tier=(reg.get(name.lower()) or {}).get("tier"))
+            reads.append(dict(base, item=name, status="resolved-corrected", corrected=True, itemClass=_cls,
                               reason="garbled here, read cleanly elsewhere this session — same item",
                               correction={"raw": raw, "resolved": name, "via": "clean-match-nearby", "edit": None},
                               synthesis=_syn(where, "one frame garbled to '" + str(raw) +
-                                             "' — same " + name + " read cleanly nearby, corrected"),
+                                             "' — same " + _kai_item_phrase(name, _cls) + " read cleanly nearby, corrected"),
                               witnesses={"content": True}, resolvedFrom={"frameId": fid, "witness": "clean-match-nearby"}))
         else:
-            reads.append(dict(base, item=None, status="unresolved", corrected=False,
+            reads.append(dict(base, item=None, status="unresolved", corrected=False, itemClass=None,
                               reason="garbled text, no confident resolution",
                               synthesis=_syn(where, "unreadable garble — left honestly unresolved"),
                               witnesses={}, resolvedFrom=None))
@@ -6728,7 +6777,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1363",
+        "ver": "v1364",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

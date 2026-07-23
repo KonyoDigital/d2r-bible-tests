@@ -2148,6 +2148,46 @@ class TestCrossFrameQuorum(unittest.TestCase):
         self.assertEqual(rows[1]["gateReason"], "name-not-in-db")
 
 
+class TestItemClassB9(unittest.TestCase):
+    """B9 — item-read rarity precision. `_kai_item_class` claims ONLY the two classes the engine
+    can PROVE: 'runeword' (derivable) and 'grail' (grounder-proven or register tier=='grail', with
+    BASES excluded). Never fakes unique-vs-set (client's tipOf). The forensics synthesis reads
+    "grounded the grail War Traveler" / "identified the runeword Spirit", plain otherwise."""
+
+    def test_runeword_class_is_derivable(self):
+        self.assertEqual(ca._kai_item_class("Spirit"), "runeword")
+        self.assertEqual(ca._kai_item_class("Enigma", grounded=True), "runeword")
+
+    def test_grounded_grail_is_grail(self):
+        self.assertEqual(ca._kai_item_class("War Traveler", grounded=True), "grail")
+        self.assertEqual(ca._kai_item_class("Griffon's Eye", grounded=True), "grail")
+
+    def test_register_tier_grail_is_grail(self):
+        # a non-base grail name with register tier=='grail' → grail. (NB "Shako" would correctly
+        # return None — it's the BASE type of Harlequin Crest, not a grail; the base guard is right.)
+        self.assertEqual(ca._kai_item_class("The Stone of Jordan", tier="grail"), "grail")
+
+    def test_base_is_never_grail_even_grounded(self):
+        # the Battle Boots guard — a base name can never print "the grail Battle Boots"
+        self.assertIsNone(ca._kai_item_class("Battle Boots", grounded=True))
+        self.assertIsNone(ca._kai_item_class("Archon Plate", tier="grail"))
+
+    def test_plain_read_has_no_class(self):
+        # not grounded, no grail tier → no class claimed (honest; the client can still add rarity)
+        self.assertIsNone(ca._kai_item_class("War Traveler"))          # sighting, not proven grail here
+        self.assertIsNone(ca._kai_item_class("Super Healing Potion"))  # consumable
+
+    def test_phrase_and_synthesis_carry_the_class(self):
+        self.assertEqual(ca._kai_item_phrase("War Traveler", "grail"), "the grail War Traveler")
+        self.assertEqual(ca._kai_item_phrase("Spirit", "runeword"), "the runeword Spirit")
+        self.assertEqual(ca._kai_item_phrase("Some Base", None), "Some Base")
+        rep = {"sid": "s", "register": [], "routing": [],
+               "missed": [{"f": "f1.jpg", "ts": 1, "texts": ["WAA TRAVELIR", "BATYLE B**Ys"], "cls": "gameplay"}]}
+        r = ca._kai_forensics_project(rep)["items"][0]["reads"][0]
+        self.assertEqual(r["itemClass"], "grail")
+        self.assertIn("the grail War Traveler", r["synthesis"])
+
+
 class TestAreaActDiabloLanguage(unittest.TestCase):
     """B10 — Diablo-language area/ACT truth. `_diablo_scene_label` carries the ACT ("FARMING ·
     Act 1 · Dark Wood") when the area is in the canonical `_AREA_ACT` map; an unmapped area
