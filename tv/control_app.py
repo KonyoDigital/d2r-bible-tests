@@ -4342,6 +4342,25 @@ def _session_scene_fingerprint(sess_rows):
     }
 
 
+def _forward_area_from(ts, area_ts, window=8000):
+    """B5 — the zone being ENTERED after a transition/loading frame = the NEXT area-naming read
+    within `window` ms FORWARD (loading precedes the zone by a few seconds), NOT the nearest (which
+    can be the PREVIOUS zone → "ENTERING <wrong zone>"). `area_ts` = [(readTs, area), …]. Returns
+    "" when none — honest-absent → "ENTERING (loading)". Pure. The ONE shared law for both the
+    reconciler (engineFrames) and the classFrames ribbon, so both name the entering zone identically."""
+    ts = int(ts or 0)
+    if not ts:
+        return ""
+    best, bd = "", int(window) + 1
+    for rt, ar in area_ts or []:
+        if not ar:
+            continue
+        fwd = int(rt or 0) - ts
+        if 0 < fwd <= window and fwd < bd:
+            best, bd = ar, fwd
+    return best
+
+
 def _kai_reconcile(routing, register, sess_rows):
     """THE reconciler — pure, no I/O, no threads. For each routing row (one per scanned
     frame) decides the OWNER — which layer's read is the ACCEPTED truth for that
@@ -4462,12 +4481,7 @@ def _kai_reconcile(routing, register, sess_rows):
     # Honest-absent: no forward zone → None → "ENTERING (loading)" unchanged. Never over-claims.
     _FWD_WIN = 8000
     def _forward_area(ts):
-        best, best_d = "", _FWD_WIN + 1
-        for rt, sc, tb, ar in deep_scene_ts:
-            fwd = rt - ts
-            if ar and 0 < fwd <= _FWD_WIN and fwd < best_d:
-                best, best_d = ar, fwd
-        return best
+        return _forward_area_from(ts, [(rt, ar) for rt, sc, tb, ar in deep_scene_ts], _FWD_WIN)
 
     out = []
     for row in routing or []:
@@ -6860,7 +6874,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1373",
+        "ver": "v1374",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7583,18 +7597,10 @@ class Handler(BaseHTTPRequestHandler):
                             return best
 
                         def _cf_forward_area(ts):
-                            # B5 (ribbon consistency) — a transition frame's zone is the one being
-                            # ENTERED = the next area-naming read (forward, ≤8s), NOT the nearest
-                            # (which can be the PREVIOUS zone → "ENTERING <wrong zone>"). Honest-
-                            # absent: "" when none → "ENTERING (loading)". Mirrors the reconciler.
-                            if not ts:
-                                return ""
-                            best, bd = "", 8001
-                            for _rt, _ar in _cf_areas:
-                                _fwd = _rt - ts
-                                if 0 < _fwd <= 8000 and _fwd < bd:
-                                    best, bd = _ar, _fwd
-                            return best
+                            # B5 (ribbon consistency) — a transition frame borrows the zone being
+                            # ENTERED (the forward law shared with the reconciler), never the nearest
+                            # (which can be the PREVIOUS zone). Honest-absent → "ENTERING (loading)".
+                            return _forward_area_from(ts, _cf_areas, 8000)
 
                         _cf = []
                         for _scn, _fr in _cfd.items():

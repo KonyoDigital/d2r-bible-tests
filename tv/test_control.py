@@ -2258,6 +2258,15 @@ class TestAreaInferenceEntering(unittest.TestCase):
                 {"lane": "deep", "scene": "gameplay", "area": "The Pit", "captureTs": 20000, "ts": 20000}]
         self.assertEqual(self._reconcile_one(sess)["native"]["label"], "ENTERING (loading)")
 
+    def test_forward_area_law_shared_by_both_surfaces(self):
+        # the ONE forward law (reconciler + classFrames ribbon both call it): next area-naming
+        # read forward within the window; nearest-PREVIOUS never wins; honest-absent otherwise.
+        area_ts = [(500, "Cold Plains"), (4000, "The Pit"), (20000, "Far Oasis")]
+        self.assertEqual(ca._forward_area_from(1000, area_ts, 8000), "The Pit")   # forward, not the closer PREVIOUS
+        self.assertEqual(ca._forward_area_from(1000, [(500, "Cold Plains")], 8000), "")   # only a previous → honest-absent
+        self.assertEqual(ca._forward_area_from(1000, [(20000, "Far Oasis")], 8000), "")   # beyond window
+        self.assertEqual(ca._forward_area_from(0, area_ts, 8000), "")   # no ts
+
 
 class TestAutorouteStackableHonesty(unittest.TestCase):
     """Autoroute sweep — a STACKABLE's count is its TALLY (intake), never its frame-SIGHTING count.
