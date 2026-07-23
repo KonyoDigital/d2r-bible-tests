@@ -23,7 +23,7 @@ try {
 }
 
 const URL = 'http://127.0.0.1:17772/';
-const PANE_TABS = ['forge', 'funi', 'fsets', 'session', 'tools'];
+const PANE_TABS = ['forge', 'funi', 'fsets', 'tools'];  // v1377 — 'session' removed: Sessions is now console-native (data-view=sessions), no longer opens a bible pane
 
 const results = [];
 function record(name, ok, detail) {

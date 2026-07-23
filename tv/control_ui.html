@@ -2217,12 +2217,23 @@
   #hd-tallybar { padding: var(--hd-pad-compact-y) var(--hd-pad-x); border-color: rgba(126,200,255,.2); }
   /* the ENGINE cards belong on TV-D, not the Sessions hunt hub — re-homed off here */
   #hd-enghealth, #hd-engines, #hd-intake { display: none !important; }
-  /* ══ v1373 (FLAGSHIP SPLIT · the MIRROR — Konyo-caught) — complete the bidirectional Sessions↔TV-D split.
-     Engines already moved OFF Sessions → TV-D (the engine cards above). This is the mirror: the forward-
-     looking HUNT + DAILY-MISSIONS task content is SESSIONS content, so it moves OFF the TV-D console home
-     (which is the only surface these render on). TV-D = engines + reads + the session RECORD (kept as
-     vitals/telemetry) + stage; the hunt/tasks/missions live on the Sessions tab. ══ */
-  .zone-hunt, #hd-taskforce, .zone-mission, #hd-forge { display: none !important; }
+  /* ══ v1376 (SESSIONS FLAGSHIP R3 · PER-CONTEXT split) — the bidirectional Sessions↔TV-D split, refined
+     from a blanket hide into a per-tab one. The HUNT + MISSIONS task content is the SESSIONS flagship: it
+     shows ONLY under the console-native Sessions view (`data-view="sessions"`), and stays hidden on the
+     TV·D cockpit. Mirror of the engines living on TV·D. (Was a blanket hide in v1373.) ══ */
+  body:not([data-view="sessions"]) .zone-hunt,
+  body:not([data-view="sessions"]) #hd-taskforce,
+  body:not([data-view="sessions"]) .zone-mission,
+  body:not([data-view="sessions"]) #hd-forge { display: none !important; }
+  /* the Sessions flagship view: the cockpit stage steps aside so the hunt leads; the RECORD chronicles below.
+     The "full grail bible →" link appears here to reach bible.html's deep session data. */
+  body[data-view="sessions"] .stage { display: none !important; }   /* beats body[data-state] .stage rules — the flagship leads, no broadcast stage */
+  .hub-bible { display: none; }
+  body[data-view="sessions"] .hub-bible { display: inline-flex; align-items: center; gap: 7px; grid-column: 1 / -1;
+    justify-self: end; margin: -2px 0 2px; padding: 6px 12px; border: 1px solid var(--edge); border-radius: 8px;
+    background: rgba(0,0,0,.35); color: var(--gold-dim); font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; text-decoration: none; cursor: pointer; transition: border-color .15s, color .15s; }
+  body[data-view="sessions"] .hub-bible:hover { border-color: var(--gold); color: var(--gold); }
   /* ══ v1370 (SESSIONS R6 · cohesion) — each zone OWNS a colour and its cards carry it: the card header
      text + its 2px accent bar (and each zone's lead card gets a matching 3px left accent) inherit the
      zone hue, so the three zones read as three coherent GROUPS instead of gold cards floating under
@@ -2764,6 +2775,8 @@
          forge quests + live 📸 intake feed + the shelf inline. Primary when OFF AIR;
          compact strip under the live stage when ON. -->
     <section class="home-dash" id="home-dash">
+      <!-- v1376 (SESSIONS FLAGSHIP R3) — the console-native Sessions view's link into bible.html for deep data -->
+      <a class="hub-bible" id="hub-bible" href="#" title="open the full grail bible — deep session data, ledgers, tools" onclick="if(window._shellOpen){window._shellOpen('session');}return false;">📖 full grail bible →</a>
       <!-- v1362 (SESSIONS R2) — the 3 HUNT zones (ordered by CSS: hunt leads · missions · record) -->
       <div class="zone-banner zone-hunt"><span class="zb-ico">🏆</span>YOUR HUNT<span class="zb-sub">what to hunt today</span></div>
       <div class="zone-banner zone-mission"><span class="zb-ico">📋</span>DAILY MISSIONS<span class="zb-sub">quests · daily goals</span></div>
@@ -7333,6 +7346,20 @@
   }
   window._shellHome = shellHome;
   window._shellOpen = shellOpen;
+  // ══ v1376 (SESSIONS FLAGSHIP R3) — the console-native SESSIONS view. Unlike the other pane tabs, the
+  // Sessions tab does NOT open the bible iframe — the flagship hunt hub IS the console home under
+  // data-view="sessions". Same shell-close mechanics as shellHome, but keyed to the Sessions context; the
+  // "full grail bible →" link (in the hub) opens the bible pane when Konyo wants the deep data. ══
+  function showSessions(){
+    if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
+    _shellDemotePane();
+    _shellRestoreConsole();
+    _shellTab = 'session';
+    document.body.setAttribute('data-view', 'sessions');
+    _shellLight('session');
+    try { requestAnimationFrame(function(){ _shellDemotePane(); _shellRestoreConsole(); }); } catch(e){}
+  }
+  window._showSessions = showSessions;
   window.addEventListener('resize', function(){
     if (document.body.classList.contains('shell-open')) _shellSizePane();
   });
@@ -7340,8 +7367,9 @@
     var b = e.target.closest('.ht'); if (!b) return;
     e.preventDefault();
     e.stopPropagation();
-    if (b.dataset.tab === 'tvd'){ shellHome(); return; }   // TV·D = HOME = this console
-    shellOpen(b.dataset.tab);
+    if (b.dataset.tab === 'tvd'){ document.body.removeAttribute('data-view'); shellHome(); return; }   // TV·D = the cockpit home
+    if (b.dataset.tab === 'session'){ showSessions(); return; }   // v1376 — Sessions = console-native flagship hunt hub
+    document.body.removeAttribute('data-view'); shellOpen(b.dataset.tab);
   });
   var _brl = document.getElementById('bible-rail');
   if (_brl) _brl.addEventListener('click', function(e){
