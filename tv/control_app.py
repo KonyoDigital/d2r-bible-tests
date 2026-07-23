@@ -5453,7 +5453,13 @@ def _watchdog_check(sid, sess_rows):
         except Exception as e:
             print(f"🚨 watchdog: journal append failed ({e})", flush=True)
 
-    globals()["_WATCHDOG_LAST"] = {"sid": sid, "violations": len(out_rows)}
+    # 🔌 ENGINE-EXPOSURE — deepen the exposure (engine-reality audit): the console can't paint an honest
+    # watchdog dial from a bare count. Surface WHAT tripped (rule names), WHEN (ts), and a
+    # clean/violations verdict. Still null until the first seal (honest-absent → no dial yet).
+    globals()["_WATCHDOG_LAST"] = {"sid": sid, "violations": len(out_rows),
+                                   "rules": [v["rule"] for v in violations],
+                                   "ts": now_ms,
+                                   "verdict": "violations" if out_rows else "clean"}
     if out_rows:
         print(f"🚨 watchdog: {len(out_rows)} violation(s) for {sid}", flush=True)
     else:
@@ -5927,11 +5933,17 @@ def _eyes_pulse():
     c = globals().get("_EYES_CACHE")
     if c and c[0] == key:
         return c[1]
-    out = {"verifyTs": 0, "kaiTs": 0, "kaiMissed": None}
+    # 🔌 ENGINE-EXPOSURE — the LIVE EYE (primary reader) joins verify+kai so all three eyes share
+    # ONE shape {liveTs, verifyTs, kaiTs}. liveTs = newest deep read's completed ts (journal-derived,
+    # same source + cache as the other two). status_payload adds a FRESH liveAgeMs on top (the "now"
+    # eye's age matters live, so it's computed per-poll, not frozen in this mtime cache). 0 = no read yet.
+    out = {"liveTs": 0, "verifyTs": 0, "kaiTs": 0, "kaiMissed": None}
     try:
         for r in _kai_journal_rows()[-400:]:
             ln = r.get("lane")
-            if ln == "verify":
+            if ln == "deep":
+                out["liveTs"] = max(out["liveTs"], int(r.get("completedTs") or r.get("ts") or 0))
+            elif ln == "verify":
                 out["verifyTs"] = max(out["verifyTs"], int(r.get("completedTs") or r.get("ts") or 0))
             elif ln == "kai":
                 out["kaiTs"] = max(out["kaiTs"], int(r.get("completedTs") or r.get("ts") or 0))
@@ -6037,9 +6049,13 @@ def status_payload():
     except Exception:
         _sess_h = {"tabs": {}, "leases": {}, "verdict": "idle", "story": [], "tabSummary": {}}
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
+    # 🔌 ENGINE-EXPOSURE — the eyes object gets a FRESH liveAgeMs (the primary eye's "now" age,
+    # computed per-poll so it isn't frozen in _eyes_pulse's mtime cache). null when no read yet.
+    _eyes = _eyes_pulse()
+    _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1348",
+        "ver": "v1349",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6050,7 +6066,7 @@ def status_payload():
                    "engineDeadHard": bool(globals().get("_ENGINE_DEAD_HARD"))},
         "watchdog": globals().get("_WATCHDOG_LAST"),
         "liveRing": _project_live_ring(),   # v948.26 🥷🧠 Phase D — Master-Brain NOW-CURSOR (provisional; sealed reel engineFrames win in retro)
-        "eyes": _eyes_pulse(),
+        "eyes": _eyes,
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
         "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),
