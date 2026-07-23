@@ -4318,13 +4318,18 @@ def _session_scene_fingerprint(sess_rows):
         return None
     farming = kinds.count("farming")
     town = kinds.count("town")
-    portals = kinds.count("entering")
     # town TRIPS = distinct town visits = maximal runs of town-kind reads (a town read
     # following a non-town read opens a new trip). Approx but honest (reads, not wall-time).
-    trips, prev = 0, None
+    # PORTALS = distinct portal/loading EVENTS = maximal runs of 'entering' reads (same run-
+    # counting law as trips), NOT the raw 'entering' read count — a single portal's loading
+    # screen spans several frames, so the raw count over-counted up to 4× on real sessions
+    # ("took 4 portals" when Konyo took 1). Reads, not wall-time; honest + consistent with trips.
+    trips, portals, prev = 0, 0, None
     for k in kinds:
         if k == "town" and prev != "town":
             trips += 1
+        if k == "entering" and prev != "entering":
+            portals += 1
         prev = k
     denom = farming + town   # world-time reads (menus/unclear excluded from the %)
     return {
@@ -6825,7 +6830,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1367",
+        "ver": "v1368",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

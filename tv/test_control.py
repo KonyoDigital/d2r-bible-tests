@@ -2232,6 +2232,77 @@ class TestAreaActDiabloLanguage(unittest.TestCase):
             self.assertEqual(ca._area_act(area), act, area)
 
 
+class TestSceneFingerprintPortals(unittest.TestCase):
+    """Scene-fingerprint honesty — `portals` now counts distinct portal/loading EVENTS (maximal
+    runs of 'entering' reads, same law as townTrips), not the raw 'entering' read count. A single
+    portal's loading screen spans several frames, so the raw count over-counted up to 4× on real
+    sessions ("took 4 portals" when Konyo took 1). Honest + consistent with townTrips; the rest of
+    the fingerprint (of-real-reads, honest-absent, farmingPct-of-reads) is confirmed honest."""
+
+    def _deep(self, scene, area=""):
+        return {"lane": "deep", "scene": scene, "area": area, "ts": 1}
+
+    def test_a_run_of_entering_reads_is_one_portal(self):
+        rows = [self._deep("transition", "Dark Wood")] * 4 + [self._deep("gameplay", "Dark Wood")]
+        self.assertEqual(ca._session_scene_fingerprint(rows)["portals"], 1)
+
+    def test_two_separated_runs_are_two_portals(self):
+        rows = ([self._deep("transition", "Dark Wood")] * 3 + [self._deep("gameplay", "Dark Wood")] * 2
+                + [self._deep("transition", "Cold Plains")] * 2 + [self._deep("gameplay", "Cold Plains")])
+        self.assertEqual(ca._session_scene_fingerprint(rows)["portals"], 2)
+
+    def test_towntrips_still_distinct_and_consistent(self):
+        rows = ([self._deep("town", "Harrogath")] * 3 + [self._deep("gameplay", "Frigid Highlands")]
+                + [self._deep("town", "Harrogath")] * 2)
+        fp = ca._session_scene_fingerprint(rows)
+        self.assertEqual(fp["townTrips"], 2)   # two distinct visits, not 5 town reads
+
+    def test_honest_absent_and_farming_pct_of_reads(self):
+        self.assertIsNone(ca._session_scene_fingerprint([]))                       # no reads → None
+        self.assertIsNone(ca._session_scene_fingerprint([self._deep("", "")]))     # no scene/area → None
+        rows = [self._deep("gameplay", "Dark Wood")] * 3 + [self._deep("town", "Rogue Encampment")]
+        fp = ca._session_scene_fingerprint(rows)
+        self.assertEqual(fp["farmingPct"], 75)   # 3 farming / (3 farming + 1 town) reads, not wall-time
+
+
+class TestRegisterMergeMax(unittest.TestCase):
+    """Merge-max audit — found grails only ever ADD, never auto-un-tick. This is the safety the
+    E3 re-seal (kaiVer 4→5, re-closes every reel) depends on: `_kai_compile_register` MUST be
+    monotonic-additive so a re-close can only grow the register / upgrade a tier — never drop a
+    grail from Konyo's count. (The never-zero funnel guard is locked separately; the only un-tick
+    anywhere is the explicit user `d2r_grailUnfound`, never an automatic path.)"""
+
+    def test_register_is_monotonic_under_reclose(self):
+        base = [{"lane": "deep", "ts": 100, "frameId": "f1", "names": ["Shako"],
+                 "names_loc": {"Shako": "floor"}},
+                {"lane": "kai", "ts": 150, "frameId": "f2",
+                 "kai": {"judge": {"name": "The Stone of Jordan", "tier": "border"}}}]
+        # a re-close under newer logic grounds MORE (E1 War Traveler) + upgrades a tier
+        more = base + [{"lane": "kai", "ts": 200, "frameId": "f3", "kai": {"grounded": ["War Traveler"]}},
+                       {"lane": "kai", "ts": 250, "frameId": "f4",
+                        "kai": {"judge": {"name": "The Stone of Jordan", "tier": "grail"}}}]
+        r1 = {r["name"]: r for r in ca._kai_compile_register(base)}
+        r2 = {r["name"]: r for r in ca._kai_compile_register(more)}
+        self.assertTrue(set(r1) <= set(r2), "re-close DROPPED a name — merge-max violated")
+        self.assertIn("War Traveler", r2)                       # E1 recovery lands
+        self.assertEqual(r1["Shako"]["firstSeenTs"], r2["Shako"]["firstSeenTs"])  # earliest preserved
+
+    def test_best_tier_wins_never_downgrades(self):
+        # a later border read can NEVER bury a proven grail (BEST-tier wins, not last-wins)
+        rows = [{"lane": "kai", "ts": 100, "frameId": "f1",
+                 "kai": {"judge": {"name": "Griffon's Eye", "tier": "grail"}}},
+                {"lane": "kai", "ts": 200, "frameId": "f2",
+                 "kai": {"judge": {"name": "Griffon's Eye", "tier": "border"}}}]
+        reg = {r["name"]: r for r in ca._kai_compile_register(rows)}
+        self.assertEqual(reg["Griffon's Eye"]["tier"], "grail")  # never downgraded to border
+
+    def test_never_zero_guard_holds(self):
+        # the funnel tally can never lower a real bigger count (Konyo's "404 then 4 keeps 404")
+        self.assertFalse(ca._funnel_never_zero_guard(404, 4))
+        self.assertTrue(ca._funnel_never_zero_guard(0, 4))
+        self.assertTrue(ca._funnel_never_zero_guard(404, 500))
+
+
 class TestForensicsUnresolvedSplit(unittest.TestCase):
     """② forensics honesty — "unresolved 103" reads like 103 missed items when the truth is 0
     grail misses + screen-text/noise. Backward-compatible (status STAYS 'unresolved'): adds an
