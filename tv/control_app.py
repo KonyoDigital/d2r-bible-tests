@@ -6860,7 +6860,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1372",
+        "ver": "v1373",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7582,6 +7582,20 @@ class Handler(BaseHTTPRequestHandler):
                                     best, bd = _ar, _d
                             return best
 
+                        def _cf_forward_area(ts):
+                            # B5 (ribbon consistency) — a transition frame's zone is the one being
+                            # ENTERED = the next area-naming read (forward, ≤8s), NOT the nearest
+                            # (which can be the PREVIOUS zone → "ENTERING <wrong zone>"). Honest-
+                            # absent: "" when none → "ENTERING (loading)". Mirrors the reconciler.
+                            if not ts:
+                                return ""
+                            best, bd = "", 8001
+                            for _rt, _ar in _cf_areas:
+                                _fwd = _rt - ts
+                                if 0 < _fwd <= 8000 and _fwd < bd:
+                                    best, bd = _ar, _fwd
+                            return best
+
                         _cf = []
                         for _scn, _fr in _cfd.items():
                             if not isinstance(_fr, dict) or not _fr.get("f"):
@@ -7594,7 +7608,9 @@ class Handler(BaseHTTPRequestHandler):
                                         "thumb": "reel_" + _sidr + "/" + _fr["f"],
                                         "frameId": str(_fr["f"]).rsplit(".", 1)[0],
                                         "ts": _cf_ts,
-                                        "native": (_diablo_scene_label(_cf_scn, _cf_nearest_area(_cf_ts))
+                                        "native": (_diablo_scene_label(_cf_scn,
+                                                   _cf_forward_area(_cf_ts) if _cf_scn == "transition"
+                                                   else _cf_nearest_area(_cf_ts))
                                                    if _cf_scn else None)})
                             if len(_cf) >= 6:
                                 break

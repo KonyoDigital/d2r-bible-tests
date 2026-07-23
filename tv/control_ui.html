@@ -794,6 +794,24 @@
   .fx-sec .fx-sec-n { margin-left: auto; font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: none; color: var(--muted); }
   .fx-sec.s-win { color: var(--mint); } .fx-sec.s-refused { color: var(--amber, #e0b477); } .fx-sec.s-look { color: var(--danger); }
   .fx-secsub { color: var(--dim, #5f6a5a); font-size: var(--fs-2xs); font-style: italic; margin: -2px 0 8px 16px; }
+  /* v1372 (🔬 forensics enhancement) — GRAIL-MISS reassurance headline: reframes the scary "unresolved N"
+     into the calm truth (did the AI drop any actual grails?). Mint when 0, danger when >0; hidden entirely
+     on older reels that predate the grailMisses field (honest-absent). */
+  .fx-reassure { padding: 10px 18px; border-bottom: 1px solid var(--edge); display: flex; align-items: center; gap: 10px;
+    font: var(--fw-semibold) var(--fs-sm)/var(--lh-snug) var(--mono); flex: none; }
+  .fx-reassure[hidden] { display: none; }
+  .fx-reassure .fxr-ic { font-size: var(--fs-lg); line-height: 1; flex: none; }
+  .fx-reassure b { font-weight: var(--fw-bold); }
+  .fx-reassure .fxr-sub { color: var(--muted); font-weight: var(--fw-normal); font-size: var(--fs-2xs); }
+  .fx-reassure.ok { background: linear-gradient(180deg, rgba(143,230,160,.08), transparent); color: var(--mint); }
+  .fx-reassure.ok .fxr-ic { color: var(--mint); }
+  .fx-reassure.miss { background: linear-gradient(180deg, rgba(224,90,90,.10), transparent); color: var(--danger); }
+  .fx-reassure.miss .fxr-ic { color: var(--danger); }
+  /* the NEEDS-YOUR-EYE split — screen text (not loot) vs truly unreadable, so "unresolved" reads honestly */
+  .fx-subgroup { display: flex; align-items: baseline; gap: 8px; margin: 11px 0 4px 16px; padding-left: 10px;
+    border-left: 2px solid rgba(120,110,90,.4); font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: #b7a884; }
+  .fx-subgroup .fxg-n { margin-left: auto; color: var(--muted); font-weight: var(--fw-normal); }
   /* read row */
   .fx-read { display: grid; grid-template-columns: 24px 1fr auto; gap: 9px; padding: 8px 11px 9px; border-radius: 8px;
     border-left: 2px solid transparent; cursor: pointer; margin-bottom: 3px; }
@@ -2194,9 +2212,17 @@
   /* HUNT leads · MISSIONS · RECORD — arranged by flex/grid order (no DOM churn) */
   .zone-hunt { order: 1; } #hd-taskforce { order: 2; }
   .zone-mission { order: 3; } #hd-forge { order: 4; }
-  .zone-record { order: 5; } #hd-kpi { order: 6; } #hd-lastsession { order: 7; } #hd-history { order: 8; }
+  .zone-record { order: 5; } #hd-kpi { order: 6; } #hd-tallybar { order: 7; } #hd-lastsession { order: 8; } #hd-history { order: 9; }
+  /* v1374 — the re-homed TALLY ENGINE launcher: a slim, always-visible bar in the RECORD zone (blue group) */
+  #hd-tallybar { padding: var(--hd-pad-compact-y) var(--hd-pad-x); border-color: rgba(126,200,255,.2); }
   /* the ENGINE cards belong on TV-D, not the Sessions hunt hub — re-homed off here */
   #hd-enghealth, #hd-engines, #hd-intake { display: none !important; }
+  /* ══ v1373 (FLAGSHIP SPLIT · the MIRROR — Konyo-caught) — complete the bidirectional Sessions↔TV-D split.
+     Engines already moved OFF Sessions → TV-D (the engine cards above). This is the mirror: the forward-
+     looking HUNT + DAILY-MISSIONS task content is SESSIONS content, so it moves OFF the TV-D console home
+     (which is the only surface these render on). TV-D = engines + reads + the session RECORD (kept as
+     vitals/telemetry) + stage; the hunt/tasks/missions live on the Sessions tab. ══ */
+  .zone-hunt, #hd-taskforce, .zone-mission, #hd-forge { display: none !important; }
   /* ══ v1370 (SESSIONS R6 · cohesion) — each zone OWNS a colour and its cards carry it: the card header
      text + its 2px accent bar (and each zone's lead card gets a matching 3px left accent) inherit the
      zone hue, so the three zones read as three coherent GROUPS instead of gold cards floating under
@@ -2537,7 +2563,7 @@
   body[data-state="sim"] .home-dash { display: none; }
   /* v913 (Konyo: 'when the reader is on it should show all visually perfectly') — ON AIR keeps
      a LIVE strip: engines + intake feed breathe under the film; the heavy panels rest */
-  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession, body[data-state="on"] #hd-history, body[data-state="on"] #hd-kpi { display: none; }   /* v1275 (D3)/v1274 (D4) — HISTORY + KPIs are off-air exploration/telemetry; the live view stays compact */
+  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession, body[data-state="on"] #hd-history, body[data-state="on"] #hd-kpi, body[data-state="on"] #hd-tallybar { display: none; }   /* v1275 (D3)/v1274 (D4) — HISTORY + KPIs are off-air exploration/telemetry; the live view stays compact */
   /* v1350 (TV-D R3 · KILL THE BLEED) — on-air, the off-air dashboard (task-force/KPIs/engine-health cards)
      was overflowing the fixed-height shell behind the stage and GHOSTING through the meters (the muddy
      "dull" bleed). On air the cockpit IS the stage + the AI-ENGINES rail + the vitals ticker — the dash is
@@ -2748,6 +2774,12 @@
       <div class="hd-col hd-wide hd-kpi" id="hd-kpi">
         <div class="kpi-row" id="kpi-row"></div>
       </div>
+      <!-- v1374 — TALLY ENGINE launcher, RE-HOMED to the visible RECORD zone. It used to live inside the
+           ENGINES card, which the flagship split hid (display:none) — so the launcher (a real feature +
+           the J3 demo target) went unreachable off-air. It belongs with the session RECORD/vitals. -->
+      <div class="hd-col hd-wide hd-tallybar" id="hd-tallybar">
+        <div class="hd-chips" id="hd-tallybar-chips"></div>
+      </div>
       <!-- v1252 (CONSOLE r4 · #3 logical grouping) — TASK FORCE + LAST SESSION are both "today's session
            activity" → paired side by side (no longer full-width), so related reads with related + saves a row. -->
       <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
@@ -2941,6 +2973,7 @@
         <label class="fx-sidwrap">session <select class="fx-sid" id="fx-sid"></select></label>
         <button class="fx-x" id="fx-close" type="button" title="close (Esc)">✕</button>
       </div>
+      <div class="fx-reassure" id="fx-reassure" hidden></div>
       <div class="fx-summary" id="fx-summary"></div>
       <div class="fx-body">
         <div class="fx-list" id="fx-list"><div class="fx-empty">loading the reel's reads…</div></div>
@@ -3267,9 +3300,25 @@
     _fxRender();
   }
   function _fxRender(){
-    var d = _FX.data, list = $('fx-list'), sum = $('fx-summary');
-    if (!d || d.ok === false){ if (list) list.innerHTML = '<div class="fx-empty">— no forensics for this reel (raw-less, or not yet sealed) —</div>'; if (sum) sum.innerHTML = ''; return; }
+    var d = _FX.data, list = $('fx-list'), sum = $('fx-summary'), reass = $('fx-reassure');
+    if (!d || d.ok === false){ if (list) list.innerHTML = '<div class="fx-empty">— no forensics for this reel (raw-less, or not yet sealed) —</div>'; if (sum) sum.innerHTML = ''; if (reass){ reass.hidden = true; reass.className = 'fx-reassure'; } return; }
     var s = d.summary || {};
+    // v1372 (🔬 enhancement) — GRAIL-MISS reassurance: the honest counterweight to a big "unresolved" count.
+    // grailMisses is the ONLY number that means lost loot; everything else in "needs your eye" is screen text
+    // or unreadable scraps. Honest-absent when the reel predates the field (older reels stay silent).
+    if (reass){
+      var gm = s.grailMisses;
+      if (gm == null){ reass.hidden = true; reass.className = 'fx-reassure'; }
+      else if ((gm | 0) === 0){
+        reass.hidden = false; reass.className = 'fx-reassure ok';
+        reass.innerHTML = '<span class="fxr-ic">✓</span><span><b>0 grail misses</b> — the AI dropped no grails this reel.'
+          + '<span class="fxr-sub"> the “needs your eye” reads below are screen text and unreadable scraps, not lost loot.</span></span>';
+      } else {
+        reass.hidden = false; reass.className = 'fx-reassure miss';
+        reass.innerHTML = '<span class="fxr-ic">⚠</span><span><b>' + (gm | 0) + ' grail miss' + ((gm | 0) === 1 ? '' : 'es') + '</b> — grail-tier read' + ((gm | 0) === 1 ? '' : 's') + ' went unresolved.'
+          + '<span class="fxr-sub"> check “needs your eye” below — pinpoint &amp; re-scan.</span></span>';
+      }
+    }
     if (sum){
       var C = [['clean','fx-sc-ok','var(--mint)',s.clean|0],['corrected','fx-sc-fix','var(--info)',s.corrected|0],['recovered','fx-sc-rec','var(--gold)',s.recovered|0],['blocked','fx-sc-blk','#e0b477',s.blocked|0],['unresolved','fx-sc-un','var(--danger)',s.unresolved|0]];
       var tot = C.reduce(function(a,c){ return a + c[3]; }, 0) || (d.total | 0);
@@ -3282,8 +3331,19 @@
     _FX_SECTIONS.forEach(function(sec){
       var rows = all.filter(function(rd){ return sec.statuses.indexOf(rd.status) !== -1; }).sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
       html += '<div class="fx-sec '+sec.key+'"><span>'+sec.ic+' '+sec.lab+'</span><span class="fx-sec-n">'+rows.length+' read'+(rows.length===1?'':'s')+'</span></div>'
-        + '<div class="fx-secsub">'+sec.sub+'</div>'
-        + (rows.length ? rows.map(_fxRow).join('') : '<div class="fx-empty" style="padding:5px 8px">— none —</div>');
+        + '<div class="fx-secsub">'+sec.sub+'</div>';
+      // v1372 (🔬 enhancement) — NEEDS-YOUR-EYE split by unresolvedKind so a big "unresolved" count reads
+      // honestly: screen text (chat/UI, never loot) vs truly unreadable item scraps. Backward-compatible:
+      // a reel with no unresolvedKind on any read renders flat, exactly as before.
+      if (sec.key === 's-look' && rows.some(function(rd){ return rd.unresolvedKind; })){
+        var _grp = function(ic, lab, gr){ return gr.length
+          ? '<div class="fx-subgroup"><span>'+ic+' '+lab+'</span><span class="fxg-n">'+gr.length+'</span></div>' + gr.map(_fxRow).join('') : ''; };
+        html += _grp('📺', 'Screen text · not loot', rows.filter(function(rd){ return rd.unresolvedKind === 'non-item'; }));
+        html += _grp('🔍', 'Truly unreadable', rows.filter(function(rd){ return rd.unresolvedKind === 'unreadable-item'; }));
+        html += _grp('◌', 'Unclassified', rows.filter(function(rd){ return rd.unresolvedKind !== 'non-item' && rd.unresolvedKind !== 'unreadable-item'; }));
+      } else {
+        html += (rows.length ? rows.map(_fxRow).join('') : '<div class="fx-empty" style="padding:5px 8px">— none —</div>');
+      }
     });
     if (list) list.innerHTML = html || '<div class="fx-empty">— no reads on this reel —</div>';
     _fxBindList(); _fxPopulateSid();
@@ -8069,8 +8129,7 @@
           var _n9 = (fs && fs.now && fs.now.length) || (fs && fs.counts && fs.counts.now) || 0,
               _o9 = (fs && fs.onestep && fs.onestep.length) || (fs && fs.counts && fs.counts.onestep) || 0;
           return '<span class="hd-chip step">🔥 FORGE' + (c9 && c9.total ? ' · ' + c9.made + ' / ' + c9.total : '') + ' · ' + _n9 + ' ready · ' + _o9 + ' one-step</span>'; })(),   /* v923 (Konyo) — the runeword chronicle reads like its siblings: ALL THREE chronicles found/total */
-        '<span class="hd-chip tly-btn" onclick="window._tlyOpen()" title="open the TALLY ENGINE — every shot, every count">🧰 TALLIES · '
-          + (window.__tlyN != null ? (window.__tlyN + ' shot' + (window.__tlyN === 1 ? '' : 's')) : (led.length + ' synced')) + ' ▾</span>',
+        '',   /* v1374 — TALLIES launcher relocated OUT of this (hidden) ENGINES card to the visible RECORD-zone #hd-tallybar (rendered below) so it stays reachable + the J3 demo can click one visible launcher. */
         (function(){   /* v935.11 — watchdog verdict surfaces on home when it has something to say */
           var wd = st.watchdog;
           if (!wd || !wd.violations) return '';
@@ -8093,6 +8152,11 @@
         '<span class="hd-chip ' + (H.freeGB != null && H.freeGB < (H.minFreeGB || 8) ? 'warn' : '') + '">💾 ' + (H.freeGB != null ? H.freeGB + 'GB free' : 'disk —') + '</span>'
       ];
       $('hd-engine-chips').innerHTML = chips.join('');
+      // v1374 — render the TALLY ENGINE launcher into the VISIBLE record-zone bar (single instance; the
+      // ENGINES card above is hidden). Same chip, same _tlyOpen, same live count — just a reachable home.
+      var _tly = $('hd-tallybar-chips');
+      if (_tly) _tly.innerHTML = '<span class="hd-chip tly-btn" onclick="window._tlyOpen()" title="open the TALLY ENGINE — every shot, every count">🧰 TALLIES · '
+        + (window.__tlyN != null ? (window.__tlyN + ' shot' + (window.__tlyN === 1 ? '' : 's')) : (led.length + ' synced')) + ' ▾</span>';
     } catch(e){}
   }
   function hdTaskForce(st){
