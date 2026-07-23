@@ -66,3 +66,32 @@ card, notes/naming) + the console typography lock.
 - Grails are **not zone-pinned** (heatmap + fingerprint say so).
 - Two live paths (G4 xAI, G3 live-forward) + the reader-prompt round are deferred to daytime so you
   verify them live — not risked autonomously overnight.
+
+---
+
+## ADDENDUM — the run continued to v1343 (post-capstone)
+
+After the v1330 engine capstone, the night kept shipping (all clean, all verified):
+
+**Diablo-language fully surfaced (v1331–1333):** the B8 fingerprint line ("⚔ 89% farming · 🏛 2 town
+trips · 🌀 2 portals · mostly Chaos Sanctuary", honest "of reads") + B4 native labels in the D22
+chapters + the D24 live banner + `classFrame.native` lighting them up on 81 real reels + a stash-sub-scene
+bug fixed. **Your "it says gameplay on a loading screen" complaint is resolved end-to-end (engine · retro ·
+live · real reels).**
+
+**Sessions flagship D-arc COMPLETE (v1301–1337):** D14 compare · D16 heatmap · D17 highlights · D18
+cinematic card · D19 beats · D20 count-ups · D21 wax seal-stamp · D22 chapters · D24 live card · D25
+notes/naming · D26 pin · D27 recap export · D28 grail-progress · D29 since-last · D30 cover=best-find ·
+D31 cohesion. The Sessions tab is flagship.
+
+**Console Phase F COMPLETE (v1338–1342):** F2 vitals ribbon (sparkline + reads/hr) · F3 Agent Mind glow-up ·
+F5 intake hero ("📸 RUNES +14") · F6 interest gauge · cockpit cohesion. The live console is flagship too.
+
+**Visual-lock extended (v1343):** the console `--hd-*` STRUCTURE rhythm is now single-sourced + invariant-
+tested (alongside the weight lock). `visual_lock_invariant.py` now checks weights (both surfaces, both
+syntaxes) AND the structure tokens.
+
+**State at rest:** ~53 rounds shipped this night (v1291→v1343), both tabs flagship, type + structure locked
++ drift-tested on both surfaces, engine certified 116/116, both agents on standby. The remaining VISUAL-LOCK
+unification (card-radius/padding/header + ls/lh) is flagged for YOUR design eye in MORNING_QUESTIONS — I did
+NOT force those (they're look changes, your call). Say the word on any of it and both agents resume instantly.
