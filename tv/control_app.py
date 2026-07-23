@@ -1800,56 +1800,75 @@ def _reclaim_headless_for_scan():
 
     The v1248 window-only takeover left the headless process owning the agent child,
     so ON AIR always ran without Screen Recording → window pin failed → desktop feed.
-    Returns True when a reclaim was attempted (caller should re-bind)."""
+    Returns True when a reclaim was attempted (caller should re-bind).
+
+    v1379.1 — ALSO kill whoever is LISTENING on CONTROL_PORT (not only
+    `control_app.py --no-open`). Log evidence: reclaim reported killed=0 while bind
+    still got Address already in use → fell through to window-only on a STALE primary
+    (Desktop double-click never showed the new ship stamp)."""
     pause = os.path.join(HERE, ".tvd_supervisor_pause")
     try:
         with open(pause, "a", encoding="utf-8") as f:
             f.write("scan-reclaim %s\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
     except Exception:
         pass
-    # Prefer a clean kill of the known headless launcher only (never kill ourselves).
-    killed = 0
+    me = os.getpid()
+    victims = set()
+    # 1) known headless launcher argv
     try:
         out = subprocess.run(
-            ["pgrep", "-f", "control_app.py --no-open"],
+            ["pgrep", "-f", "control_app.py"],
             capture_output=True, text=True, timeout=3)
         for line in (out.stdout or "").splitlines():
             try:
                 pid = int(line.strip())
             except Exception:
                 continue
-            if pid == os.getpid() or pid <= 1:
+            if pid == me or pid <= 1:
+                continue
+            victims.add(pid)
+    except Exception:
+        pass
+    # 2) whoever actually holds the port (covers half-dead / non --no-open leftovers)
+    try:
+        holder = _port_listener_pid(CONTROL_PORT)
+        if holder and holder != me and holder > 1:
+            victims.add(int(holder))
+    except Exception:
+        pass
+    killed = 0
+    for pid in sorted(victims):
+        try:
+            os.kill(pid, signal.SIGTERM)
+            killed += 1
+        except Exception:
+            pass
+    if killed:
+        time.sleep(0.7)
+        for pid in sorted(victims):
+            try:
+                os.kill(pid, 0)  # still alive?
+            except Exception:
                 continue
             try:
-                os.kill(pid, signal.SIGTERM)
+                os.kill(pid, signal.SIGKILL)
+            except Exception:
+                pass
+        time.sleep(0.35)
+    # 3) last chance — lsof the port again and SIGKILL
+    try:
+        holder2 = _port_listener_pid(CONTROL_PORT)
+        if holder2 and holder2 != me and holder2 > 1:
+            try:
+                os.kill(int(holder2), signal.SIGKILL)
                 killed += 1
+                time.sleep(0.25)
             except Exception:
                 pass
     except Exception:
         pass
-    if killed:
-        time.sleep(0.6)
-        # escalate stragglers
-        try:
-            out2 = subprocess.run(
-                ["pgrep", "-f", "control_app.py --no-open"],
-                capture_output=True, text=True, timeout=3)
-            for line in (out2.stdout or "").splitlines():
-                try:
-                    pid = int(line.strip())
-                except Exception:
-                    continue
-                if pid == os.getpid() or pid <= 1:
-                    continue
-                try:
-                    os.kill(pid, signal.SIGKILL)
-                except Exception:
-                    pass
-            time.sleep(0.25)
-        except Exception:
-            pass
-    print(f"📺 reclaimed headless console for live scan "
-          f"(paused supervisor · killed {killed} --no-open) — "
+    print(f"📺 reclaimed :{CONTROL_PORT} for live scan "
+          f"(paused supervisor · killed {killed} control process(es)) — "
           f"this process is now PRIMARY with Screen Recording chain", flush=True)
     return True
 
@@ -6926,7 +6945,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1379",
+        "ver": "v1379.1",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

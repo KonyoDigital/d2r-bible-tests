@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 📺 TV DIABLO — Mac launcher (Desktop app · v761 native pywebview window)
+# 📺 TV DIABLO — Mac launcher (Desktop app · v1379.1 native pywebview window)
 # Real OS app window (not Chrome). Agent stays hidden behind ON/OFF/STOP/RESTART/SIM.
 set -euo pipefail
 
@@ -61,7 +61,22 @@ if [[ -d "$REPO/.git" ]]; then
   git -C "$REPO" pull --ff-only >/dev/null 2>&1 || true
 fi
 
-# Foreground: this process IS the app window (must not nohup/disown)
-# If control server already up, --open still attaches a second window then exits when closed.
+# Foreground: this process IS the app window (must not nohup/disown).
+# v1379.1 — before attach, free :17772 so double-click always boots THIS checkout
+# (never window-only onto a stale headless that still holds the port).
 LOG="$HERE/control_app.log"
+VER=$(python3 -c "import re,pathlib; t=pathlib.Path('$HERE/control_app.py').read_text(); m=re.search(r'\"ver\": \"(v[\\d.]+)\"', t); print(m.group(1) if m else 'v?')" 2>/dev/null || echo "v?")
+# soft-kill anything still listening on the control port (not us — we have not bound yet)
+if command -v lsof >/dev/null 2>&1; then
+  for pid in $(lsof -tiTCP:17772 -sTCP:LISTEN 2>/dev/null); do
+    kill "$pid" 2>/dev/null || true
+  done
+  sleep 0.4
+  for pid in $(lsof -tiTCP:17772 -sTCP:LISTEN 2>/dev/null); do
+    kill -9 "$pid" 2>/dev/null || true
+  done
+  sleep 0.2
+fi
+# brief dock notification so Konyo can SEE the ship stamp on every double-click
+osascript -e "display notification \"starting ${VER}\" with title \"TV DIABLO\"" 2>/dev/null || true
 exec python3 "$HERE/control_app.py" --open >>"$LOG" 2>&1
