@@ -767,3 +767,15 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Lesson (same as the bible finish-pass):** the SPACED syntax `font-weight: NNN` slips past a
   `font-weight:NNN`(no-space) grep — always match `font-weight: *[0-9]+`. The invariant test uses
   the spaced-tolerant pattern so this class can't recur silently.
+
+## CAPSTONE CERT — full engine arc v1291→v1329 (2026-07-23) · NO REGRESSIONS
+- **Scope:** the whole night's engine lane — G3 auto-route/tally · G4 removable Grok · E1 vault stats ·
+  vault-integrity deepening · Diablo-language (B4 labels + B8 fingerprint + B4-live /api/status).
+  Final re-run against HEAD (all extracts + sweep data refreshed from the current tree).
+- **Result — ALL GREEN:** node **75/75** (G3 23 · hand-off 12 · E1b 7 · E1c 8 · vault 9 · G4 paint 5 ·
+  flags 6 · toggle 5) · python **41/41** (G4 13 · B4 15 · B8 8 · B4-live 5) = **116 assertions, 0 failed**.
+  py_compile (control_app + g4_grok) OK · 16 bible scripts compile · `visual_lock_invariant.py` GREEN
+  BOTH surfaces · G4 removal test still clean (0 traces) · every SESSION_FIELD_CONTRACT field present
+  in real /api/sessions + /api/status.
+- **Docs:** `HANDOFF_MORNING_2026-07-23.md` (night state + waiting-for-Konyo + cert) · SESSION_FIELD_CONTRACT.md ·
+  LOCKED_TYPE_SYSTEM.md · G4_GROK_REMOVAL.md. Zero regressions across the arc.

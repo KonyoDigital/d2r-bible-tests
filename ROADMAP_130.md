@@ -56,7 +56,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 
 ## PHASE D · DIABLO-LANGUAGE COMPLETION (B4–B10) — v1321–1327
 - [x] v1321 · B4 AREA/ZONE in Diablo terms **(engine landed v1324, recorded v1325)** — `_diablo_scene_label`+`_TOWN_AREAS`: transition→ENTERING <area> · panel→STASH · town(deterministic)→TOWN · gameplay-nontown→FARMING · no-signal→unclear. Additive `native` field, 15/15 tests. B5-B7 reader-prompt (dark-frame transition detect) = daytime; UI surfacing = a sessions-visual round.
-- [ ] v1322 · B5 TOWN vs FARMING distinction (safe vs drops)
+- [x] v1322 · B5 TOWN vs FARMING distinction **(folded into B4)** — the deterministic `_TOWN_AREAS` split (TOWN=safe vs FARMING=drops) IS B5, decided truthfully not guessed. **+ B4 LIVE exposure (v1329): `native` on /api/status + SESSION_FIELD_CONTRACT.md — Diablo-language wired engine→retro+live→documented.**
 - [ ] v1323 · B6 scene keyword-chips polish (live)
 - [ ] v1324 · B7 retro scene-sync polish (per-frame)
 - [x] v1325 · B8 session scene fingerprint **(landed v1327)** — `_session_scene_fingerprint` via B4 labels → {farmingPct, townTrips, portals, topArea, areas}. Honest (None when thin; farmingPct=of-reads not wall-time). 27/107 real, 8/8 tests. [g3 next: expose native on live /api/status + field-contract doc; sessions-visual surfaces B4/B8 labels]
