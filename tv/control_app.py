@@ -5241,11 +5241,17 @@ def _kai_closer_loop():
                         print(f"⚠ G4 chronicle touchpoint failed (ignored): {_g4e}", flush=True)
                     # ══ END GROK ADD-ON (G4) ══
                     # v946 — CHRONICLE INBOX propose (review gate; never silent grail write)
+                    # v1348 G3-LIVE-FORWARD (TV_G3_LIVE, default OFF = byte-identical): when ON, (delta 1)
+                    # feed G4's chronicle-disagreement flag into the triage gate so a Grok-doubted grail
+                    # HOLDs instead of auto-ticking, and (delta 3) route the session's non-chronicle reads
+                    # to the AI-Checker queue. The grounded auto-accept itself is UNCHANGED (already smart).
+                    _g3live = os.environ.get("TV_G3_LIVE", "0") == "1"
                     try:
                         if w2 is not None and _register and os.environ.get("TV_CHRONICLE_PROPOSE", "1") != "0":
-                            _items = [{"name": x.get("name"), "firstSeenTs": x.get("firstSeenTs"),
-                                       "frameId": x.get("frameId"), "tier": x.get("tier"),
-                                       "sessionId": sid, "loc": x.get("loc")}
+                            _items = [dict({"name": x.get("name"), "firstSeenTs": x.get("firstSeenTs"),
+                                            "frameId": x.get("frameId"), "tier": x.get("tier"),
+                                            "sessionId": sid, "loc": x.get("loc")},
+                                           **({"g4": x.get("g4")} if (_g3live and x.get("g4")) else {}))
                                       for x in (_register or [])[:40]]
                             _cjs = ("(function(){try{var F=document.getElementById('tvd-eng');"
                                     "if(!F||!F.contentWindow||typeof F.contentWindow.kaiChroniclePropose!=='function')return 0;"
@@ -5253,8 +5259,24 @@ def _kai_closer_loop():
                                     ) % json.dumps(_items)
                             _cq = _ejs(w2, _cjs, timeout=4.0)
                             print(f"📖 Chronicle propose: queued={_cq} from {len(_items)} register items", flush=True)
+                        # v1348 delta 3 — non-chronicle reads → the AI Item Checker queue (live-forward ON only)
+                        if w2 is not None and _g3live:
+                            _nc = []
+                            for _r3 in (sess_rows or []):
+                                if _r3.get("lane") == "deep":
+                                    for _n3 in (_r3.get("names") or []):
+                                        if isinstance(_n3, str) and _n3.strip():
+                                            _nc.append(_n3.strip())
+                            _nc = list(dict.fromkeys(_nc))[:60]
+                            if _nc:
+                                _ncjs = ("(function(){try{var F=document.getElementById('tvd-eng');"
+                                         "if(!F||!F.contentWindow||typeof F.contentWindow.kaiForwardNonChronicle!=='function')return 0;"
+                                         "var r=F.contentWindow.kaiForwardNonChronicle(%s);return (r&&r.queued)||0}catch(e){return -1}})()"
+                                         ) % json.dumps(_nc)
+                                _ncq = _ejs(w2, _ncjs, timeout=4.0)
+                                print(f"🔬 G3-live non-chronicle → checker queue: {_ncq} from {len(_nc)} reads", flush=True)
                     except Exception as _cpe:
-                        print(f"⚠ Chronicle propose failed: {_cpe}", flush=True)
+                        print(f"⚠ Chronicle propose / G3-live failed: {_cpe}", flush=True)
                     # v944 🚦 — the ROUTING LEDGER rides the same re-read (funnel/judge receipts
                     # are now in the journal, so 'routed' is truthful). Evidence only — no firing.
                     try:
@@ -6017,7 +6039,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1346",
+        "ver": "v1347",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

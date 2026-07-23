@@ -48,7 +48,7 @@
        Folded app-wide by ROLE; near-duplicates collapsed to one token (≤.05 lh / ≤.04 ls — visually
        identical). `1` (solid) stays literal; a few display one-offs (.42em kicker · .96/1.72/1.85/1.9 lh)
        stay literal WITH an /* intentional one-off */ note. */
-    --lh-none: 1; --lh-tightest: 1.1; --lh-tight: 1.2; --lh-snug: 1.35; --lh-normal: 1.5; --lh-relaxed: 1.65;
+    --lh-none: 1; --lh-tightest: 1.1; --lh-tight: 1.2; --lh-snug: 1.35; --lh-normal: 1.5; --lh-relaxed: 1.65; --lh-loose: 1.8;   /* v1347 — --lh-loose completes the role set (mirrors bible's --lh scale; both surfaces share one vocabulary) */
     --ls-tight: .02em;   /* micro/dense (←.01/.02/.03) */
     --ls-snug: .04em;    /* subtle (←.04/.05) */
     --ls-normal: .06em;  /* default label (←.06/.07) */
@@ -88,6 +88,11 @@
        chrome: this size + uppercase + --hd-head-mb margin + 0 0 6px 10px pad + the 2px accent-bar. Only the
        accent COLOR varies by identity (gold sections · mint = the live engine). */
     --hd-head-size: var(--fs-xs);
+    /* v1347 (Phase G · design-lock R4) — the COMPACT row tier, closing the padding lock. The dense
+       live-feed rows (.rnf-row · .rn-pool) resolve here — one tier tighter than --hd-pad-row. (The eye
+       readout row keeps its own roomier 8/10 via its !important override — a genuine one-off, not this
+       tier; the 6-across KPI tile likewise stays its own asymmetric 11/8/10.) */
+    --hd-pad-compact-y: 5px; --hd-pad-compact-x: 9px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -1360,7 +1365,7 @@
   .rnf-empty { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #7f958a; letter-spacing: var(--ls-tight); }
   .rnf-rows { display: flex; flex-direction: column; gap: 5px; }
   .rnf-row { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono);
-    padding: 4px 8px; border-radius: var(--hd-radius-in); background: rgba(0,0,0,.28); border-left: 2px solid rgba(143,230,160,.2); }
+    padding: var(--hd-pad-compact-y) var(--hd-pad-compact-x); border-radius: var(--hd-radius-in); background: rgba(0,0,0,.28); border-left: 2px solid rgba(143,230,160,.2); }
   .rnf-row.rnf-keep { border-left-color: var(--mint); }
   .rnf-row.rnf-grail { border-left-color: var(--gold); background: rgba(240,192,96,.06); }
   .rnf-row.rnf-toss { border-left-color: #6f6a58; opacity: .82; }
@@ -1378,7 +1383,7 @@
   .rnf-lastlab { margin: 8px 0 5px; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-wide); text-transform: uppercase; color: #6f6a58; text-align: center; }
   .rnf-faded { opacity: .5; filter: saturate(.7); }
   /* v1249 r3 · #2 READER-POOL EYE-DOTS — N worker eyes, lit = reading now */
-  .rn-pool { display: flex; align-items: center; gap: 9px; margin: 7px 0 2px; padding: 5px 9px; border-radius: var(--hd-radius-in);
+  .rn-pool { display: flex; align-items: center; gap: 9px; margin: 7px 0 2px; padding: var(--hd-pad-compact-y) var(--hd-pad-compact-x); border-radius: var(--hd-radius-in);
     background: rgba(143,230,160,.05); border: 1px solid rgba(143,230,160,.14); }
   .rn-pool[hidden] { display: none; }
   .rnp-dots { display: inline-flex; gap: 5px; }
@@ -8200,20 +8205,20 @@ body:not(.shell-open) #tvd-eng {
 .signal .row { padding: 7px 0 !important; }
 .eyes .eye { padding: 8px 10px !important; }
 .eyes .eye .es { opacity: .92; }
-.tf-row, .tf-row .tf-t { line-height: 1.55 !important; }
+.tf-row, .tf-row .tf-t { line-height: var(--lh-normal) !important; }
 .tf-tag { padding: 3px 9px !important; }
-#mind-feed, #mind-feed *, .mind-line, .brain { line-height: 1.65 !important; }
-.hd-empty { line-height: 1.6 !important; }
+#mind-feed, #mind-feed *, .mind-line, .brain { line-height: var(--lh-relaxed) !important; }
+.hd-empty { line-height: var(--lh-relaxed) !important; }
 .meter .m-lab, .meter label, .m-name { letter-spacing: var(--ls-label) !important; }
 .status-chip { padding: 7px 12px !important; }
 .head-tabs .ht { padding: 9px 13px !important; }
 .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { padding: 9px 11px !important; opacity: .8 !important; }
-.sh-card, #th-shelfov .sh-card { line-height: 1.55 !important; }
+.sh-card, #th-shelfov .sh-card { line-height: var(--lh-normal) !important; }
 .tly-k { padding: 5px 9px !important; }
 /* VISUAL LOCK typography (type-token fold) — removed a dead .panel-h/.section/.console-h !important rule:
    those selectors don't exist in this file (the console headers are .rail-h / .hd-h / drawer h4). One less
    phantom override fighting the token system. */
-.th-drawer { line-height: 1.65 !important; }
+.th-drawer { line-height: var(--lh-relaxed) !important; }
 .th-drawer h4 { letter-spacing: var(--ls-label) !important; }
 </style>
 </body>

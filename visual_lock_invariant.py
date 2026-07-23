@@ -36,9 +36,15 @@ SURFACES = {
                           "lh": ["none", "tightest", "tight", "snug", "normal", "relaxed", "loose"]},
     "tv/control_ui.html": {"path": os.path.join(ROOT, "tv", "control_ui.html"),
                            "fw": ["normal", "medium", "semibold", "bold"],
-                           # STRUCTURE-LOCK (v1343): the console's shared spacing/structure rhythm.
+                           # STRUCTURE-LOCK (v1343+): the console's shared spacing/structure rhythm —
+                           # every padding tier (card · row · compact), the radius pair, header chrome.
                            "hd": ["gap", "gap-in", "gap-row", "pad-y", "pad-x", "head-mb",
-                                  "head-ls", "head-size", "radius", "radius-in", "pad-row-y", "pad-row-x"]},
+                                  "head-ls", "head-size", "radius", "radius-in", "pad-row-y", "pad-row-x",
+                                  "pad-compact-y", "pad-compact-x"],
+                           # LS/LH-LOCK (v1347) — the console's letter-spacing + line-height scales,
+                           # SAME role-names as the bible so both surfaces share one vocabulary.
+                           "ls": ["tight", "snug", "normal", "wide", "label", "wider", "widest"],
+                           "lh": ["none", "tightest", "tight", "snug", "normal", "relaxed", "loose"]},
 }
 
 RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-agnostic
@@ -97,8 +103,8 @@ def main():
               "e.g. font-weight:var(--fw-semibold). See LOCKED_TYPE_SYSTEM.md.")
         return 1
     print("✅ VISUAL-LOCK OK — 0 raw font-weight literals in both surfaces; "
-          "--fw-* token sets intact; console --hd-* structure rhythm defined. "
-          "The weight type system AND the structure rhythm are locked.")
+          "--fw-* intact; console --hd-* structure rhythm + --ls-*/--lh-* scales defined "
+          "(both surfaces share one vocabulary). Weight, structure, spacing + line-height are all locked.")
     return 0
 
 
