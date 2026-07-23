@@ -76,7 +76,7 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [x] v1333 · F2 reads sparkline / session-vitals ribbon **(landed v1338)** — live reads-sparkline + ⚡reads/hr·👁reads·⏱elapsed on the Agent Mind ticker, on-air only, "—" until 5s, zero layout cost.
 - [x] v1334 · F3 Agent Mind glow-up **(landed v1339)** — per-thought icons (8 real kinds, no double-emoji) + honest rarity accents from the thought's own words (🏆 gold glow · fail amber · read mint …) + reduced-motion landing pop. [in flight: F5 intake hero]
 - [x] v1335 · F5 intake hero card **(landed v1340)** — premium violet "📸 RUNES +14" flash on a real tally (camera-flash, auto-dismiss), backlog-seeded so a reconnect never replays, errored/zero never fire, reduced-motion aware. [in flight: F6 interest gauge]
-- [ ] v1336 · F6 live INTEREST gauge (money-moment needle)
+- [x] v1336 · F6 live INTEREST gauge **(landed v1341)** — semicircular money-moment needle off the real interest signal (calm→warm→hot-gold), honest parked-grey "no signal" when absent, reduced-motion, rides F2 ribbon at zero cost. [in flight: cockpit cohesion pass — Phase F finish]
 - [ ] v1337 · "now reading" in-flight frame thumbnail
 - [ ] v1338 · driver dispatch mini-flow (seen→queued→fired)
 - [ ] v1339 · engine-health inline drilldown

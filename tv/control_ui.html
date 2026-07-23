@@ -730,6 +730,9 @@
     transform-box: view-box; transform-origin: 24px 26px; transform: rotate(-90deg);
     transition: transform .5s cubic-bezier(.2,.85,.3,1), stroke .4s; }
   .tkvg-hub { fill: #8fb89a; transition: fill .4s; }
+  /* the four honest levels, one place: calm (base green, no glow) · warm · hot (gold money-moment) · unknown */
+  .tkv-gauge.tkvg-calm .tkvg-needle { stroke: #8fb89a; filter: none; }
+  .tkv-gauge.tkvg-calm .tkvg-hub { fill: #8fb89a; }
   .tkv-gauge.tkvg-warm .tkvg-needle { stroke: var(--mint); filter: drop-shadow(0 0 4px rgba(143,230,160,.55)); }
   .tkv-gauge.tkvg-warm .tkvg-hub { fill: var(--mint); }
   .tkv-gauge.tkvg-hot .tkvg-needle { stroke: var(--gold-hi); filter: drop-shadow(0 0 6px rgba(240,192,96,.7)); }
