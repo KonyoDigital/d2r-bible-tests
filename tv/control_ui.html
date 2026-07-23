@@ -722,6 +722,23 @@
   .tkv-stat { text-align: center; flex: none; }
   .tkv-v { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: #bfead0; font-variant-numeric: tabular-nums; }
   .tkv-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #6f8a72; margin-top: 4px; }
+  /* ══ F6 · LIVE INTEREST GAUGE — the money-moment needle (leftmost in the on-air vitals ribbon) ══ */
+  .tkv-gauge { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .tkvg-svg { width: clamp(42px,5vw,56px); height: auto; overflow: visible; }
+  .tkvg-track { fill: none; stroke: url(#tkvgArc); stroke-width: 3; stroke-linecap: round; opacity: .5; }
+  .tkvg-needle { stroke: #8fb89a; stroke-width: 2; stroke-linecap: round;
+    transform-box: view-box; transform-origin: 24px 26px; transform: rotate(-90deg);
+    transition: transform .5s cubic-bezier(.2,.85,.3,1), stroke .4s; }
+  .tkvg-hub { fill: #8fb89a; transition: fill .4s; }
+  .tkv-gauge.tkvg-warm .tkvg-needle { stroke: var(--mint); filter: drop-shadow(0 0 4px rgba(143,230,160,.55)); }
+  .tkv-gauge.tkvg-warm .tkvg-hub { fill: var(--mint); }
+  .tkv-gauge.tkvg-hot .tkvg-needle { stroke: var(--gold-hi); filter: drop-shadow(0 0 6px rgba(240,192,96,.7)); }
+  .tkv-gauge.tkvg-hot .tkvg-hub { fill: var(--gold-hi); animation: gaugePulse 1.1s ease-in-out infinite; }
+  .tkv-gauge.tkvg-hot .tkv-l { color: var(--gold); }
+  .tkv-gauge.tkvg-unknown .tkvg-needle { stroke: #4d5f52; opacity: .5; }
+  .tkv-gauge.tkvg-unknown .tkvg-hub { fill: #4d5f52; }
+  @keyframes gaugePulse { 0%,100% { filter: drop-shadow(0 0 2px rgba(240,192,96,.5)); } 50% { filter: drop-shadow(0 0 7px rgba(240,192,96,.95)); } }
+  @media (prefers-reduced-motion: reduce){ .tkvg-needle { transition: none; } .tkv-gauge.tkvg-hot .tkvg-hub { animation: none; } }
 
   /* ══ FOOTER ══ */
   footer {
@@ -2634,6 +2651,21 @@
       <!-- F2 · SESSION-VITALS RIBBON — a live reads-activity sparkline + rate vitals, shown only during a scan
            (on-air). Off /api/status via paint(); hidden off-air so the resting console stays slim/no-scroll. -->
       <div class="tk-vitals" id="tk-vitals">
+        <!-- F6 (v1341) · LIVE INTEREST GAUGE — the money-moment needle. Swings up off the engine's real
+             `interest` signal (how badly the AI wants to look right now); glows gold when it spikes. -->
+        <div class="tkv-gauge" id="tkv-gauge" title="live interest — how much the AI wants to look right now">
+          <svg class="tkvg-svg" viewBox="0 0 48 30" aria-hidden="true">
+            <defs><linearGradient id="tkvgArc" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#6f8a72"></stop>
+              <stop offset="0.62" stop-color="var(--mint)"></stop>
+              <stop offset="1" stop-color="var(--gold-hi)"></stop>
+            </linearGradient></defs>
+            <path class="tkvg-track" d="M6 26 A18 18 0 0 1 42 26"></path>
+            <line class="tkvg-needle" id="tkvg-needle" x1="24" y1="26" x2="24" y2="9"></line>
+            <circle class="tkvg-hub" cx="24" cy="26" r="2.4"></circle>
+          </svg>
+          <div class="tkv-l">interest</div>
+        </div>
         <svg class="tkv-spark" id="tkv-spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
           <defs><linearGradient id="tkvGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(143,230,160,.34)"></stop><stop offset="1" stop-color="rgba(143,230,160,0)"></stop></linearGradient></defs>
           <polygon class="tkv-area" points=""></polygon>
@@ -2832,6 +2864,23 @@
       var line = spark.querySelector('.tkv-line'); if (line) line.setAttribute('points', pts);
       var area = spark.querySelector('.tkv-area'); if (area) area.setAttribute('points', '0,' + Hh + ' ' + pts + ' ' + W + ',' + Hh);
     }
+    // F6 — live interest needle, off the engine's real `interest` signal (0..1) carried on /api/status.
+    try { _tkGauge(on, (window.__lastStatus || {}).interest); } catch(e){}
+  }
+  // F6 · LIVE INTEREST GAUGE — swing the needle off the real interest value (honest: absent → muted
+  // "unknown", never a fabricated 0). 0→calm(left) · .4→warm · .7+→hot(gold money-moment, pulsing).
+  function _tkGauge(on, iv){
+    if (!on) return;
+    var g = document.getElementById('tkv-gauge'), nd = document.getElementById('tkvg-needle');
+    if (!g || !nd) return;
+    var has = (typeof iv === 'number' && isFinite(iv));
+    var v = has ? Math.max(0, Math.min(1, iv)) : 0;
+    var deg = (v * 180 - 90).toFixed(1);
+    var tf = 'rotate(' + deg + 'deg)';
+    if (nd.style.transform !== tf) nd.style.transform = tf;
+    var lvl = !has ? 'unknown' : (v >= 0.7 ? 'hot' : (v >= 0.4 ? 'warm' : 'calm'));
+    var cls = 'tkv-gauge tkvg-' + lvl;
+    if (g.className !== cls) g.className = cls;
   }
   // ══ F3 · AGENT MIND GLOW-UP — one honest icon + accent per thought ══
   // Kind → default icon; but if the engine's own thought already opens with an emoji, THAT one
