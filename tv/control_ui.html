@@ -5684,7 +5684,6 @@
       var inLine = (sm.intakes || 0) ? ('📸 ' + sm.intakes + ' intake' + (sm.intakes > 1 ? 's' : '') + ' · ') : '';
       var footLine = foot ? (inLine + '📹 ' + foot + ' frames · full video')
         : (sm.stub ? '' : inLine + '<span style="opacity:.45">📹 footage retired</span>');
-      var art = sm.thumb ? '<img class="sh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
       // v936 (STORY ARC R2a) — the SEAL VERDICT: one line telling if the reel ran clean.
       // watchdog + KAI sweep + tally count, all in the shelf card's .sh-dim aesthetic.
       var vparts = [];
@@ -5706,9 +5705,9 @@
           .map(function(k){ return k.replace('stash-','🏦') + '×' + sm.kaiClasses[k]; });
         if (_kc.length) vparts.push('<span style="opacity:.6">🎞 ' + _kc.join(' ') + '</span>');
       }
-      var verdictLine = vparts.length ? '<br><span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '';
-      var fpLine = _fp ? '<br><span class="sh-fp-line">' + _fp + '</span>' : '';
-      var findsLine = _findsStrip(sm, 6);   // v1267 (D1) — WHAT I FOUND: the grails/keeps KAI witnessed this run
+      // D31 cohesion — removed dead vars (art/verdictLine/fpLine/findsLine): the D18 cinematic card renders from
+      // heroOpen + vparts + _fp + the stat grid and dropped the inline finds-strip, so these were unused (and
+      // findsLine needlessly ran _findsStrip on every card render).
       // v1282 (D8) — the searchable index for live shelf filtering: session/date + item names + areas + verdict/grail
       var _cnm = _sesNoteGet(sm.sessionId) || {};   // D25 — custom name/note override for display + search
       var _sq = ['session ' + n];
