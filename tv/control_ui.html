@@ -336,6 +336,24 @@
   /* Soften FX so they don't veil loot text / HUD */
   body.film-on .stage .scan { opacity: .12; mix-blend-mode: soft-light; }
   body.film-on .stage .sweep { opacity: .15; }
+  /* v1379.3 — hold card (no D2R / no eye) — never a silent black stage */
+  .stage-hold { position: absolute; inset: 12% 10% auto; z-index: 5; margin: 0 auto;
+    max-width: 520px; left: 0; right: 0; padding: 22px 26px 20px; text-align: center;
+    border-radius: 16px; border: 1px solid rgba(240,192,96,.35);
+    background: linear-gradient(165deg, rgba(28,18,10,.96), rgba(10,10,12,.94));
+    box-shadow: 0 18px 50px rgba(0,0,0,.55), inset 0 0 40px rgba(240,192,96,.04);
+    pointer-events: none; }
+  .stage-hold[hidden] { display: none !important; }
+  .stage-hold .sh-ic { font-size: 28px; line-height: 1; margin-bottom: 8px; opacity: .9; }
+  .stage-hold .sh-title { font: var(--fw-bold) clamp(15px,1.6vw,20px)/1.2 var(--mono);
+    letter-spacing: var(--ls-wide); color: #f0d89a; text-transform: uppercase; margin-bottom: 8px; }
+  .stage-hold .sh-body { font: var(--fw-medium) var(--fs-sm)/1.45 var(--mono); color: #c8b89a; margin-bottom: 10px; }
+  .stage-hold .sh-body b { color: #ffe6b0; }
+  .stage-hold .sh-hint { font: var(--fw-medium) var(--fs-2xs)/1.35 var(--mono); color: #8a7a60;
+    letter-spacing: var(--ls-snug); border-top: 1px solid rgba(240,192,96,.12); padding-top: 10px; }
+  body.hold-on .center { opacity: .25; }
+  body.hold-on .stage-film { opacity: 0 !important; }
+  body.hold-on .hero { opacity: .18 !important; filter: grayscale(.6); }
 
   /* v846 — professional status chip (film-on only). Tiny · structured · never covers mid-frame */
   .status-chip {
@@ -2738,6 +2756,14 @@
       <!-- v768 — film-first live stage: when ON and a frame resolves, THIS becomes the star -->
       <img class="stage-film" id="stage-film" alt="" onerror="this.style.opacity=0">
       <div id="fault-banner" style="display:none"></div>
+      <!-- v1379.3 — HOLD card: ON AIR without a live D2R eye used to look like a broken black
+           recorder. This is the honest "not recording the game yet" surface. -->
+      <div class="stage-hold" id="stage-hold" hidden>
+        <div class="sh-ic" aria-hidden="true">⏸</div>
+        <div class="sh-title" id="stage-hold-title">Waiting for Diablo II</div>
+        <div class="sh-body" id="stage-hold-body">Open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). The AI stays off the desktop until the game window is found.</div>
+        <div class="sh-hint" id="stage-hold-hint">CrossOver bottle · D2R.exe running · Screen Recording granted to Python</div>
+      </div>
       <div class="scan"></div>
       <div class="sweep"></div>
 
@@ -3590,14 +3616,47 @@
 
     var cap = 'Press <b>ON</b> — wake the hidden scanner, go live.';   /* v1290 B1 — one line keeps the off-air stage height-neutral (~259px); the flex-column overlap fix only grows the stage for genuinely 2-line transient captions */
     var H0 = st.health || {};
+    var ct0 = st.captureTarget || {};
     var noGame = on && (H0.gameOk === false || H0.aiPaused || st.gameOk === false || st.aiPaused);
+    var eyeWaiting = on && (ct0.mode === 'waiting' || /held|not found|not listed|missing/i.test(ct0.label || ''));
+    var eyeStaleHard = on && st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 8000 && !noGame;
+    // v1379.3 — no eye file at all (eyeAgeMs < 0) used to leave a silent black stage for the
+    // first seconds of ON AIR (and forever if D2R never pins). Treat missing eye as HOLD too.
+    var noEye = on && (st.eyeAgeMs == null || st.eyeAgeMs < 0);
+    var holdOn = !!(noGame || eyeWaiting || eyeStaleHard || noEye);
     if (stopping) cap = 'Signing off — saving the session (≤ ~15s). Then STANDBY.';
     else if (on && state === 'sim') cap = 'Theatre · canned feed · <b>zero vision cost</b>. Watch the cinema or flip D2R.';
     else if (typeof TH !== 'undefined' && TH.open) cap = 'Theatre open · eyes on a real session · scrub frames, dossier, receipts.';
     else if (noGame) cap = '<b>D2R window missing</b> — open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). AI reads are paused until the game window is found.';
+    else if (eyeWaiting || noEye) cap = '<b>Eye held</b> — ' + (ct0.label || 'waiting for a clean D2R window pin') + '. Not recording your desktop.';
+    else if (eyeStaleHard) cap = '<b>Capture stalled</b> — last eye frame is old. Check Screen Recording for Python / focus D2R.';
     else if (on) cap = 'Auto Intake live · pause on <b>Runes / Gems / Materials / stash</b> — same AI as Tools 📸. Board: <b>SESSIONS</b>.';
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
     $('caption').innerHTML = cap;
+    // v1379.3 — stage HOLD card (replaces silent black feed when the game isn't pinned)
+    try {
+      var sh = $('stage-hold'), sht = $('stage-hold-title'), shb = $('stage-hold-body'), shh = $('stage-hold-hint');
+      document.body.classList.toggle('hold-on', holdOn && state !== 'sim' && !(typeof TH !== 'undefined' && TH.open));
+      if (sh) {
+        sh.hidden = !(holdOn && state !== 'sim' && !(typeof TH !== 'undefined' && TH.open));
+        if (!sh.hidden) {
+          if (sht) sht.textContent = noGame ? 'Waiting for Diablo II'
+            : ((eyeWaiting || noEye) ? 'Eye held — no game pin' : 'Capture stalled');
+          if (shb) {
+            if (noGame) shb.innerHTML = 'Open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). The AI stays off your desktop until the game window is found.';
+            else if (eyeWaiting || noEye) shb.innerHTML = '<b>' + (ct0.label || 'waiting for D2R window') + '</b><br>Not a black recorder bug — the eye refuses to film the Mac wallpaper.';
+            else shb.innerHTML = 'Last frame is stale. Grant <b>Screen Recording</b> to Python / TV DIABLO, focus D2R, or press <b>RESTART</b>.';
+          }
+          if (shh) shh.textContent = (ct0.mode ? ('capture: ' + ct0.mode + (ct0.label ? ' · ' + ct0.label : '')) : 'CrossOver bottle · D2R.exe · Screen Recording → Python');
+        }
+      }
+      if (noGame || eyeWaiting || noEye) {
+        $('phase').textContent = 'HOLD';
+        if ($('sc-phase')) $('sc-phase').textContent = 'HOLD';
+        $('kicker').textContent = 'No game pin';
+        $('marquee-t').textContent = 'On Air · waiting for D2R';
+      }
+    } catch (eHold) {}
 
     // v768 (item 8) — ONE lit/dim truth for every console button: the button whose mode is truly
     // active glows (.lit); every other button reads clearly dim. OFF gets a subtle resting cue.
@@ -3626,6 +3685,7 @@
         fault = (H.gameMsg || st.gameMsg || 'D2R window missing — open Diablo II: Resurrected for live reads');
       }
       else if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture process died';   // v793
+      else if (st.eyeAgeMs == null || st.eyeAgeMs < 0) fault = 'NO EYE — waiting for D2R pin (not filming desktop)';
       else if (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 6000) fault = 'NO EYE — capture stalled';
       else if ((H.visionBusyMs || 0) > 45000) fault = 'VISION SLOW — read in flight ' + Math.round(H.visionBusyMs / 1000) + 's';
       else if (H.freeGB != null && H.minFreeGB != null && H.freeGB < H.minFreeGB) fault = 'DISK FULL — ' + H.freeGB + 'GB free (<' + H.minFreeGB + 'GB): footage is being SHED as it records — free disk space';   // v872.1 — THE 4GB night
@@ -3843,15 +3903,29 @@
       var ct = st.captureTarget || {};
       // v1247 (CONSOLE UPGRADE r1 · #4 CAPTURE LOCK-ON) — Konyo asks "is it targeting the D2R window?" REPEATEDLY;
       // give a permanent, glanceable answer: a GREEN lock pill on the game window vs AMBER whole-screen vs grey idle.
+      // v1379.3 — waiting/held must NEVER read as "whole screen" (that lied during D2R-missing black stage).
       var capTxt, capCls;
       if (ct.mode === 'window'){
         capCls = 'cap-lock';
         capTxt = /d2r|diablo/i.test(ct.label || '') ? '🎯 Locked · Diablo II' : ('🎯 Locked · ' + (ct.label || 'game window'));
-      } else if (on){ capCls = 'cap-screen'; capTxt = '🖥 whole screen'; }
-      else { capCls = 'cap-idle'; capTxt = '⊙ idle · locks on when live'; }   // v1249 r3 / v1253 — clear + compact at rest
+      } else if (ct.mode === 'waiting' || /held|not found|not listed|missing/i.test(ct.label || '')){
+        capCls = 'cap-wait';
+        capTxt = '⏸ waiting · D2R';
+      } else if (on && (st.eyeAgeMs == null || st.eyeAgeMs < 0)){
+        // v1379.3 — no frame yet must never claim "whole screen"
+        capCls = 'cap-wait';
+        capTxt = '⏸ waiting · D2R';
+      } else if (ct.mode === 'full' && on){
+        capCls = 'cap-screen';
+        capTxt = '🖥 full screen (game lane)';
+      } else if (on){
+        capCls = 'cap-screen';
+        capTxt = ct.label ? ('⊙ ' + String(ct.label).slice(0, 28)) : '⊙ seeking D2R window';
+      } else { capCls = 'cap-idle'; capTxt = '⊙ idle · locks on when live'; }
       capEl.textContent = capTxt;
       capEl.className = 'val cap-pill ' + capCls;
       capEl.style.color = '';
+      if (capCls === 'cap-wait') capEl.style.color = '#e9b96e';
     }
     if (rc > readMax) readMax = rc;
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
