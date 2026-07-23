@@ -3441,6 +3441,70 @@ def _kai_gate_pingpong_plan(routing, tries_state, max_tries=3):
     return retry, pinned, new_tries
 
 
+def _kai_crossframe_quorum(rows, window_idx=3, window_ms=6000):
+    """② CROSS-FRAME QUORUM (multi-witness sweep, evidence-backed: 9 genuine tooltip recoveries
+    across 29 real reels, 0 new false — the honest number after the correctness guards below, down
+    from a 49 raw class-union ceiling: 35 were route-nulled dedup frames the cluster head already
+    covers, and stash/inventory are out of scope). The accuracy gate judges each frame in ISOLATION, but a
+    tooltip/stash panel LINGERS across several frames and different independent brains catch it on
+    different stills. A frame the gate HELD purely at 'quorum<2' is PROVEN when a same-label
+    neighbor WITHIN THE ITEM'S ON-SCREEN LIFETIME (±window_idx frames AND ≤window_ms apart)
+    contributes a DISTINCT independent evidence class, so the union clears the ≥2-independent-class
+    bar. A conservative EXTENSION of _router_conf's per-frame quorum — the SAME discipline, measured
+    across the item's screen-lifetime, NOT a loosening:
+      · only rows held specifically at 'quorum<2' (check-1 hard-signal already passed);
+      · only DISTINCT independent classes count — a same-class neighbor re-firing NEVER clears it
+        (the 192 same-class-only holds in the reels stay held);
+      · never crosses labels (a different item's frame can't corroborate);
+      · re-runs the FULL gate (cell-correctness included) with the frame's own chrome votes, so a
+        dissenting chrome witness still vetoes — promotion can only ADD proof the discipline allows.
+    Mutates rows in place: sets gatePass=True, gateReason='cross-frame', folds the borrowed classes
+    into gateSources, and records `crossFrame` (the borrowed classes) for the drill-down. Never
+    fires a funnel (routed is historical) — this is post-hoc PROOF, not a new route. Pure."""
+    n = len(rows)
+    for i, r in enumerate(rows):
+        if r.get("gatePass") is not False or r.get("gateReason") != "quorum<2":
+            continue
+        lbl = r.get("label")
+        # SCOPE: tooltip only. Tooltip witnesses (read=content · ocr=pixel · journal=time) are
+        # genuinely independent, so a cross-frame union is honest. Stash/inventory lean on chrome
+        # witnesses (tabstrip/grid) whose independence is deliberately guarded (the grid-solo
+        # sanction + the phantom-ocr defense) — cross-frame borrowing there risks the exact
+        # tabstrip+grid non-independence the per-frame gate carefully avoids, so it stays out.
+        if lbl != "tooltip":
+            continue
+        my_cls = {_ROUTER_INDEP_CLASS.get(b, b) for b in (r.get("sources") or [])}
+        if len(my_cls) >= 2:
+            continue   # not actually solo — leave the router's own verdict
+        ts = int(r.get("ts") or 0)
+        union, borrowed = set(my_cls), set()
+        for j in range(max(0, i - window_idx), min(n, i + window_idx + 1)):
+            if j == i:
+                continue
+            nb = rows[j]
+            if nb.get("label") != lbl:
+                continue   # never cross labels — a different item can't corroborate
+            if abs(int(nb.get("ts") or 0) - ts) > window_ms:
+                continue   # outside the item's on-screen lifetime
+            nb_cls = {_ROUTER_INDEP_CLASS.get(b, b) for b in (nb.get("sources") or [])}
+            new_cls = nb_cls - union
+            if new_cls:
+                union |= nb_cls
+                borrowed |= new_cls
+        if len(union) < 2:
+            continue   # no distinct 2nd class across the lifetime — stays honestly held
+        # re-run the FULL gate with the cross-frame confidence + THIS frame's own cell inputs
+        gate = _kai_gate_check(lbl, r.get("sources") or [], len(union), r.get("route"),
+                               chrome_votes=r.get("_cv"), name_hit=r.get("_nh"),
+                               grid_solo_ok=bool(r.get("_gs")))
+        if gate.get("pass"):
+            r["gatePass"] = True
+            r["gateReason"] = "cross-frame"
+            r["gateSources"] = sorted(set(r.get("gateSources") or []) | union)
+            r["crossFrame"] = sorted(borrowed)
+    return rows
+
+
 def _kai_build_routing(scan, sess_rows, sid, journal_rows):
     """v944/v944.1/v949 — THE ROUTING LEDGER. One row per scanned frame:
     {f, ts, label, sources, confidence, route, routed, skipReason, gatePass, gateReason,
@@ -3659,7 +3723,18 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
                     "confidence": conf, "voteCount": len(sources), "route": route,
                     "routed": routed, "skipReason": skip,
                     "gatePass": gate["pass"], "gateReason": gate["reason"],
-                    "gateSources": sorted(set(sources) | set(chrome_votes.keys()))})
+                    "gateSources": sorted(set(sources) | set(chrome_votes.keys())),
+                    # ② cross-frame quorum re-check inputs (private; stripped below)
+                    "_cv": chrome_votes, "_nh": name_hit, "_gs": grid_solo_ok})
+    # ② CROSS-FRAME QUORUM — promote frames held at quorum<2 that a same-label neighbor within the
+    # item's on-screen lifetime corroborates with a DISTINCT independent class (union ≥2). Runs on
+    # the full ledger (needs every frame's classes), re-runs the full gate, then the private inputs
+    # are stripped so the row shape is unchanged (plus an optional `crossFrame` marker).
+    _kai_crossframe_quorum(out)
+    for _r in out:
+        _r.pop("_cv", None)
+        _r.pop("_nh", None)
+        _r.pop("_gs", None)
     return out
 
 
@@ -6311,7 +6386,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1358",
+        "ver": "v1359",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -2052,6 +2052,83 @@ class TestKaiGrailTooltipGrounding(unittest.TestCase):
         self.assertNotIn("eF GEtTINt MAGIC", names)
 
 
+class TestCrossFrameQuorum(unittest.TestCase):
+    """② CROSS-FRAME QUORUM (multi-witness sweep) — the accuracy gate judges each frame in
+    ISOLATION, but a tooltip/panel lingers across frames and different independent brains catch
+    it on different stills. A frame HELD at 'quorum<2' is proven when a same-label neighbor within
+    the item's on-screen lifetime adds a DISTINCT independent evidence class (union >=2). A
+    conservative extension of _router_conf's per-frame quorum — SAME >=2-independent-class
+    discipline, measured across the lifetime; re-runs the FULL gate so cell-correctness still
+    vetoes. SCOPED to tooltip labels (read/ocr/journal are genuinely independent; stash/inventory
+    lean on tabstrip/grid chrome witnesses whose independence the per-frame gate deliberately
+    guards, so they stay out). Measured on 29 real reels: 9 genuine tooltip recoveries — the honest
+    figure after the guards, down from a 49 raw class-union ceiling (35 were route-nulled dedup
+    frames the cluster head already covers; stash out of scope), 0 new false."""
+
+    def _row(self, f, ts, label, sources, route, gr="quorum<2", cv=None):
+        return {"f": f, "ts": ts, "label": label, "sources": sources, "route": route,
+                "gatePass": False, "gateReason": gr, "gateSources": sorted(sources),
+                "_cv": cv or {}, "_nh": None, "_gs": False}
+
+    def test_distinct_class_neighbor_promotes(self):
+        # a lingering tooltip: frame A has a 'read' (content) witness, held frame B has 'ocr'
+        # (pixel) — DISTINCT classes across the pair clear the >=2 bar.
+        rows = [self._row("A", 1000, "tooltip", ["read"], "judge"),
+                self._row("B", 1001, "tooltip", ["ocr"], "judge")]
+        ca._kai_crossframe_quorum(rows)
+        self.assertTrue(rows[1]["gatePass"])
+        self.assertEqual(rows[1]["gateReason"], "cross-frame")
+        self.assertIn("content", rows[1].get("crossFrame") or [])
+
+    def test_same_class_neighbor_does_not_promote(self):
+        # both frames only have 'ocr' (pixel) — a same-class re-fire is NOT a second witness.
+        rows = [self._row("A", 1000, "tooltip", ["ocr"], "judge"),
+                self._row("B", 1001, "tooltip", ["ocr"], "judge")]
+        ca._kai_crossframe_quorum(rows)
+        self.assertFalse(rows[1]["gatePass"])
+
+    def test_never_crosses_labels(self):
+        rows = [self._row("A", 1000, "stash", ["grid"], "vault"),
+                self._row("B", 1001, "tooltip", ["read"], "judge")]
+        ca._kai_crossframe_quorum(rows)
+        self.assertFalse(rows[1]["gatePass"])
+
+    def test_outside_lifetime_window_does_not_promote(self):
+        rows = [self._row("A", 1000, "tooltip", ["read"], "judge"),
+                self._row("B", 99000, "tooltip", ["ocr"], "judge")]
+        ca._kai_crossframe_quorum(rows)
+        self.assertFalse(rows[1]["gatePass"])
+
+    def test_cell_correctness_still_vetoes(self):
+        # a dissenting chrome (grid) vote on the held frame → wrong-cell veto even with 2 classes.
+        rows = [self._row("A", 1000, "tooltip", ["read"], "judge"),
+                self._row("B", 1001, "tooltip", ["ocr"], "judge", cv={"grid": "stash-runes"})]
+        ca._kai_crossframe_quorum(rows)
+        self.assertFalse(rows[1]["gatePass"])
+
+    def test_route_nulled_dedup_frame_not_promoted(self):
+        # a near-dup whose route was nulled (the cluster head carries the verdict) fails cell-
+        # correctness (route != want) — this is the 35-of-49 the full gate correctly excludes.
+        rows = [self._row("A", 1000, "tooltip", ["read"], "judge"),
+                self._row("B", 1001, "tooltip", ["ocr"], None)]  # route nulled by dedup
+        ca._kai_crossframe_quorum(rows)
+        self.assertFalse(rows[1]["gatePass"])
+
+    def test_gameplay_never_promotes(self):
+        rows = [self._row("A", 1000, "gameplay", ["read"], None),
+                self._row("B", 1001, "gameplay", ["ocr"], None)]
+        ca._kai_crossframe_quorum(rows)
+        self.assertFalse(rows[1]["gatePass"])
+
+    def test_non_quorum_hold_untouched(self):
+        # only 'quorum<2' holds are eligible — a 'name-not-in-db' hold is left exactly as-is.
+        rows = [self._row("A", 1000, "tooltip", ["read"], "judge"),
+                self._row("B", 1001, "tooltip", ["ocr"], "judge", gr="name-not-in-db")]
+        ca._kai_crossframe_quorum(rows)
+        self.assertFalse(rows[1]["gatePass"])
+        self.assertEqual(rows[1]["gateReason"], "name-not-in-db")
+
+
 import stash_eye as se  # noqa: E402
 
 
