@@ -1789,10 +1789,12 @@ class TestFilmCompleteness(unittest.TestCase):
         self.assertEqual(c["hovers_estimated"], 1)
         self.assertEqual(c["coveragePct"], 0.0)
 
-    def test_empty_session_is_fully_covered(self):
+    def test_empty_session_coverage_is_honest_absent(self):
+        # honesty fix: an empty session (0 item-moments) is coveragePct=None, NOT a fabricated
+        # 100% ("100% coverage" when nothing was there to cover is an over-claim — 4/27 real reels).
         c = ca._session_completeness([], [])
         self.assertEqual(c, {"hovers_estimated": 0, "reads": 0, "reel_frames": 0, "gaps": [],
-                             "unread": 0, "dropped": 0, "coveragePct": 100.0})
+                             "unread": 0, "dropped": 0, "coveragePct": None})
 
     def test_gaps_sorted_by_ts(self):
         sess_rows = [
