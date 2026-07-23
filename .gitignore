@@ -37,3 +37,8 @@ tv/.tvd_window.pid
 tv/g4_grok.state
 .wrangler/
 tv/.subscription_budget.json
+
+# Point-in-time restore snapshots (large art dumps — keep local, never ship)
+backups/RESTORE_*/
+backups/RESTORE_*.tar.gz
+backups/*.tar.gz
