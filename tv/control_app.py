@@ -4958,7 +4958,11 @@ def _kai_closer_loop():
             # v1259 — bump target to 4 so ALREADY-SEALED reels re-sweep to pick up v1254 scene
             # carry-through, v1256 gems detection, the v1258 panel-open guard, and the v1259
             # honest gate. The two wallpaper reels re-seal as gameplay (0 gems) via the guard.
-            _KAIVER_TARGET = 4
+            # E3 — bump target to 5 so kaiVer-4 reels re-sweep to pick up E1 ground-label two-
+            # witness grounding (War Traveler etc. → real registers, not just the forensics X-ray)
+            # + the ② cross-frame quorum. Additive/merge-max; wallpaper re-seals gameplay
+            # (deterministic panel-open guard, verified 0 not_d2r leaks across 29 reels).
+            _KAIVER_TARGET = 5
             reels = []
             for d in sorted(os.listdir(hist)):
                 if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
@@ -5215,9 +5219,14 @@ def _kai_closer_loop():
                       "missedFrames": len(missed), "missed": missed[:40],
                       "grounded": grounded_reads[:40],   # FIX C (F3) — grail names recovered from garble
                       "classes": classes,
-                      "closedAt": int(time.time() * 1000), "kaiVer": 4,
-                      "eyeNote": "v1259 honest gate (grid-solo sanctioned, phantom-ocr removed) "
-                                 "+ v1258 panel-open guard + v948.7 retro grid-solo/gap funnel"}
+                      # ⚠️ CONVENTION (E3 lesson): ANY change to seal-time logic (grounding /
+                      # gate / routing) MUST bump this kaiVer AND _KAIVER_TARGET above in lockstep,
+                      # so already-sealed reels auto-resweep and pick it up. Skip the bump and old
+                      # reels silently strand with stale registers (E3 found E1/②/E4 had done exactly
+                      # that — 29 reels frozen pre-E1). kaiVer 5 = E1 two-witness + ② cross-frame.
+                      "closedAt": int(time.time() * 1000), "kaiVer": 5,
+                      "eyeNote": "E1 ground-label two-witness + ② cross-frame quorum + v1259 honest "
+                                 "gate (grid-solo sanctioned) + v1258 panel-open guard + retro gap funnel"}
             _kai_write_report_atomic(os.path.join(rd, "kai_report.json"), report)
             # journal the ledger onto the session's timeline (🧠 gold in SIM).
             # v934.1 — GHOST-PROOF: split_sessions sorts by ts and cuts on sid change, so
@@ -6656,7 +6665,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1360",
+        "ver": "v1361",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

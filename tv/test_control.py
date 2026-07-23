@@ -2129,6 +2129,56 @@ class TestCrossFrameQuorum(unittest.TestCase):
         self.assertEqual(rows[1]["gateReason"], "name-not-in-db")
 
 
+class TestKaiVerReseal(unittest.TestCase):
+    """E3 — kaiVer re-seal lag. Seal-time logic (E1 two-witness grounding, ② cross-frame) changed
+    without bumping kaiVer, so already-sealed reels stranded with pre-E1 registers (recoveries lived
+    only in the forensics X-ray, not the real vault/grail registers). Fix: bump _KAIVER_TARGET +
+    the seal stamp to 5 IN LOCKSTEP so every kaiVer-4 reel auto-re-closes under the new logic. These
+    tests lock the convention (the two literals must always match) + the missed→register recovery
+    the resweep unlocks, and confirm wallpaper still re-seals as junk on a resweep."""
+
+    def _src(self):
+        import inspect
+        return inspect.getsource(ca)
+
+    def test_kaiver_target_and_seal_stamp_match_in_lockstep(self):
+        # THE CONVENTION: a newly-sealed reel must be stamped AT the resweep target (not below, or
+        # it would re-sweep forever; not above, or old reels never catch up). A future seal-logic
+        # change that bumps one literal but not the other trips this test.
+        import re
+        src = self._src()
+        target = int(re.search(r"_KAIVER_TARGET\s*=\s*(\d+)", src).group(1))
+        stamp = int(re.search(r'"kaiVer":\s*(\d+)', src).group(1))
+        self.assertEqual(target, stamp,
+                         "kaiVer seal stamp (%d) must equal _KAIVER_TARGET (%d) — bump in lockstep "
+                         "(E3 convention: seal-logic change ⇒ bump both)" % (stamp, target))
+        self.assertGreaterEqual(target, 5, "E3 bump should land kaiVer >= 5")
+
+    def test_resweep_selects_a_below_target_reel(self):
+        # a reel stamped below the target is stale → eligible for re-close; one at the target is not.
+        import re
+        target = int(re.search(r"_KAIVER_TARGET\s*=\s*(\d+)", self._src()).group(1))
+        self.assertTrue(4 < target)      # the 29 pre-E1 kaiVer-4 reels re-sweep
+        self.assertFalse(target < target)  # a freshly-sealed reel does not loop
+
+    def test_resweep_recovers_war_traveler_into_the_register(self):
+        # the payoff: on re-close, the ground-label two-witness re-grounds the floor drop, and the
+        # grounded name lands in the REGISTER (missed[] → register[]) — no longer X-ray only.
+        self.assertIn("War Traveler", ca._kai_ground_lines(["WAA TRAVELIR", "BATYLE B**Ys"]))
+        rows = [{"lane": "kai", "ts": 1000, "frameId": "reel/f1",
+                 "kai": {"grounded": ["War Traveler"]}}]
+        names = {r["name"] for r in ca._kai_compile_register(rows)}
+        self.assertIn("War Traveler", names)
+
+    def test_resweep_keeps_wallpaper_as_junk(self):
+        # a resweep must NEVER re-label a quarantined wallpaper frame as gems — the panel-open
+        # guard is deterministic geometry, re-applied on every close.
+        import stash_eye as _se
+        panel_open, not_d2r = _se._panel_open_from_features(0.01, 0)
+        self.assertFalse(panel_open)
+        self.assertTrue(not_d2r)
+
+
 class TestReadsForensicsProjection(unittest.TestCase):
     """🔬 READS FORENSICS — the pure read-only projection re-derives, from stored raw only, the
     per-item forensic X-ray: clean reads (grounded), garble the AI CORRECTED (resolved-corrected /
@@ -2264,6 +2314,34 @@ class TestStashPanelOpenGuard(unittest.TestCase):
         label, detail = se.classify_stash_grid(self._GEMS)
         self.assertEqual(label, "stash-gems", "real gems frame regressed: %r" % (detail,))
         self.assertTrue(detail.get("panel_open"))
+
+    # ── E2 REGRESSION GUARD (locks the 209/209 proof: no stash-* tally fires without an
+    # is-D2R, panel-open frame). Verified across 29 real reels — 209 fired tallies, 209 on
+    # genuine panels, 0 wallpaper/boot leaks. These fixtures freeze the two enforcement points
+    # so a future edit can't silently reintroduce the desktop-wallpaper false-tally bug.
+    def test_gate_holds_a_gridsolo_tally_when_not_panel_open(self):
+        # a lone grid pick on a frame that is NOT panel-open sanctioned (grid_solo_ok False) —
+        # the closer only sets gridSolo/grid_solo_ok when _panel_open — MUST stay held at quorum<2
+        # (one 'layout' witness never self-certifies). This is the not-D2R / wallpaper safety.
+        g = ca._kai_gate_check("stash-gems", ["grid"], 1, "tally:gems", grid_solo_ok=False)
+        self.assertFalse(g["pass"])
+        self.assertEqual(g["reason"], "quorum<2")
+
+    def test_gate_fires_a_gridsolo_tally_only_when_panel_open_sanctioned(self):
+        # the SAME lone-grid pick fires ONLY when panel-open sanctioned it (grid_solo_ok True) —
+        # a real open RotW Gems tab, where OCR can't read the tab strip and grid is the legit
+        # sole signal. Panel-open is the geometric gate that separates the two.
+        g = ca._kai_gate_check("stash-gems", ["grid"], 1, "tally:gems", grid_solo_ok=True)
+        self.assertTrue(g["pass"])
+
+    def test_wallpaper_geometry_can_never_sanction_a_tally(self):
+        # the linkage: a wallpaper's geometry (no dark cells) yields panel_open False → the closer
+        # never sets grid_solo_ok → the gate above holds it. Freeze both ends of that chain.
+        panel_open, not_d2r = se._panel_open_from_features(0.01, 0)   # lit photograph
+        self.assertFalse(panel_open)
+        self.assertTrue(not_d2r)
+        self.assertFalse(ca._kai_gate_check("stash-gems", ["grid"], 1, "tally:gems",
+                                            grid_solo_ok=panel_open)["pass"])
 
 
 class TestSingleGridSignalIsOneWitness(unittest.TestCase):
