@@ -29,6 +29,17 @@ set -u
 
 REPO="$(git rev-parse --show-toplevel)" || exit 1
 
+# v1359 — VISUAL-LOCK gate (instant, pure stdlib, no deps): the tokenized type system
+# (font-weights + structure/spacing/line-height on bible.html + tv/control_ui.html) must
+# never regress to a raw literal instead of a var(--fw/--hd/--ls/--lh) token. Runs on every
+# push; catches drift BEFORE the remote. See LOCKED_TYPE_SYSTEM.md.  (bypass: git push --no-verify)
+if ! python3 "$REPO/visual_lock_invariant.py" >/dev/null 2>&1; then
+  echo "pre-push: ❌ VISUAL-LOCK DRIFT — a raw font-weight/spacing literal crept in (or a token went missing)."
+  echo "          Run: python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)"
+  exit 1
+fi
+echo "pre-push: ✅ visual-lock intact."
+
 # v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
 # no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
 if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
