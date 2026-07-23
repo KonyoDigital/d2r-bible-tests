@@ -3149,7 +3149,15 @@
       var row = $(m[1]), lampEl = $('lamp-' + m[1].slice(4)), sEl = $(m[1] + '-s');
       var live = e.state === 'live', armed = e.state === 'armed';
       if (lampEl){ lampEl.classList.toggle('lit', live || armed); lampEl.classList.toggle('steady', armed && !live); }
-      if (sEl && e.note != null) sEl.textContent = e.note;
+      if (sEl && e.note != null){
+        // v1353 (R5) — enrich the note with the honest ACT-AGE from eyes{}: when did the second eye last verify,
+        // when did KAI last close (+ any missed-text frames). Appended only when the ts is real (null → nothing).
+        var _txt = e.note, _ey = st.eyes || {};
+        if (m[0] === 'secondEye'){ var _va = _ago(_ey.verifyTs); if (_va) _txt += ' · last check ' + _va; }
+        else if (m[0] === 'kai'){ var _ka = _ago(_ey.kaiTs);
+          if (_ka) _txt += ' · closed ' + _ka + (((_ey.kaiMissed | 0) > 0) ? (' · ' + _ey.kaiMissed + ' missed') : ''); }
+        sEl.textContent = _txt;
+      }
       if (row){
         row.classList.toggle('off', e.wired === false || e.state === 'down' || e.state === 'idle');
         // honest alert-red ONLY on a watchdog that actually tripped (real violations verdict)
