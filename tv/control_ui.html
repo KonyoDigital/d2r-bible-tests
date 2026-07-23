@@ -1303,7 +1303,7 @@
   .sig-adv > summary:hover { color: var(--gold-dim); }
   .sig-adv .util-strip { margin-top: 5px; }
   /* v931 — 👁👁🧠 THREE EYES: the panel opens with who's watching, in plain words. */
-  .eyes { display: flex; flex-direction: column; gap: 5px; margin-bottom: 3px; }
+  .eyes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 3px; }
   /* v945 R15 — the three eyes read as status cards: brighter surface, hover feedback */
   .eye { display: flex; align-items: center; gap: 9px; padding: 7px 10px;
     border-radius: var(--hd-radius-in); background: rgba(0,0,0,.28); transition: background .15s, border-color .15s;
@@ -1324,6 +1324,14 @@
   .eye-watchdog { border-left-color: #ff9d5c; }
   .eye-mind     { border-left-color: #8fe6a0; }
   .eye-master   { border-left-color: #c9a8ff; }
+  /* v1354 (density R6, Konyo) — the 4 SUPPORT dials pair two-up so all 7 lamps fit above the fold; each half
+     keeps its FULL status by wrapping it to a second line (no truncation, no hover needed). */
+  .eye-pair { display: flex; gap: 5px; align-items: stretch; }
+  .eye-pair .eye { flex: 1 1 0; min-width: 0; flex-wrap: wrap; align-items: center; }
+  .eye-pair .eye .en { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .eye-pair .eye .es { margin-left: 0; flex-basis: 100%; text-align: left; margin-top: 1px; font-size: var(--fs-2xs); }
+  /* the secondary controls (advanced · Theatre), now below the engine bay */
+  .rail-secondary { display: flex; flex-direction: column; gap: clamp(8px,.9vw,13px); flex: 0 0 auto; margin-top: 4px; }
   .eye.off { opacity: .42; }
   .eye.off .es { color: var(--muted); }
   /* ══ v1348 (TV-D ENGINE-BAY R2 · ANTI-HIDDEN DOCTRINE, Konyo) — every engine wears an honest
@@ -1923,7 +1931,7 @@
   /* v1249 (CONSOLE UPGRADE r3 · #3 PROMINENCE) — the reader cluster (eyes + pool + live feed) reads as one clear,
      findable section: a mint "THE KAI READER" header (mint = the live engine), so Konyo can't miss where the AI
      watches. Slightly larger + mint accent-bar, distinct from the gold SESSION HEALTH label below it. */
-  .signal .eyes::before { content: "⚙ AI ENGINES · the scanner"; color: var(--mint);
+  .signal .eyes::before { content: "⚙ AI ENGINES"; color: var(--mint);
     border-left-color: var(--mint); }   /* canonical card-title chrome; only the mint identity overrides */
   .sess-health::before { content: "SESSION HEALTH"; flex: 0 0 100%; }   /* header on its own line, values inline below; spacing now the canonical card-title chrome */
   .sess-health .sh-verdict { margin: 0 0 0 auto; font: var(--fw-bold) var(--fs-2xs)/var(--lh-tightest) var(--mono); letter-spacing: var(--ls-wide);
@@ -2623,21 +2631,10 @@
       <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console</div>
       <div class="primary">
         <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>auto intake · pause on stash</span></span></button>
-        <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
-             The utility strip keeps the rare paths one small click away, out of the flow. -->
-        <details class="sig-adv">
-          <summary>⚙ advanced</summary>
-          <div class="util-strip">
-            <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
-            <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
-            <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
-            <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
-          </div>
-          <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
-        </details>
-        <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
-        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
+      <!-- v1354 (density R6, Konyo) — ENGINES FIRST: the AI-ENGINES bay sits directly under the primary
+           On Air / End Session button; the secondary controls (⚙ advanced · Theatre) drop BELOW the bay
+           (see .rail-secondary) so ALL 7 engine lamps are visible at a glance. Engines are the stars of TV-D. -->
       <div class="signal">
         <!-- v931 (Konyo: 'we have 3 eyes — put all 3 colored eyes/brains there') — the panel
              opens with WHO is watching, in his words: the live eye, the second eye that
@@ -2646,14 +2643,16 @@
           <div class="eye eye-live" id="eye-live"><span class="eng-lamp" id="lamp-live"></span><span class="ex">🔴</span><span class="en">Live Eye</span><span class="es" id="eye-live-s">—</span></div>
           <div class="eye eye-second" id="eye-second"><span class="eng-lamp" id="lamp-second"></span><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
           <div class="eye eye-kai" id="eye-kai"><span class="eng-lamp" id="lamp-kai"></span><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
-          <!-- v1348 R2 — surface the previously-HIDDEN engines (anti-hidden doctrine): the router that dispatches
-               frames, and the watchdog that guards accuracy. Honest lamp + state; DARK "not connected" when unwired. -->
-          <div class="eye eye-router" id="eye-router"><span class="eng-lamp" id="lamp-router"></span><span class="ex">🚦</span><span class="en">Router</span><span class="es" id="eye-router-s">—</span></div>
-          <div class="eye eye-watchdog" id="eye-watchdog"><span class="eng-lamp" id="lamp-watchdog"></span><span class="ex">🛡</span><span class="en">Watchdog</span><span class="es" id="eye-watchdog-s">—</span></div>
-          <!-- v1352 R4 — the last two engines, so the bay shows the WHOLE mind: the Agent Mind (its live thoughts)
-               and the Master Brain now-cursor (the frame it's tracking this instant). Honest-absent when quiet. -->
-          <div class="eye eye-mind" id="eye-mind"><span class="eng-lamp" id="lamp-mind"></span><span class="ex">💭</span><span class="en">Agent Mind</span><span class="es" id="eye-mind-s">—</span></div>
-          <div class="eye eye-master" id="eye-master"><span class="eng-lamp" id="lamp-master"></span><span class="ex">🥷</span><span class="en">Master Brain</span><span class="es" id="eye-master-s">—</span></div>
+          <!-- v1348 R2 / v1354 density R6 — the 4 SUPPORT engines pair two-per-row (the 3 eyes above stay
+               full-width) so all 7 lamps + full detail fit above the fold. Honest lamp + state each; DARK when unwired. -->
+          <div class="eye-pair">
+            <div class="eye eye-router" id="eye-router"><span class="eng-lamp" id="lamp-router"></span><span class="ex">🚦</span><span class="en">Router</span><span class="es" id="eye-router-s">—</span></div>
+            <div class="eye eye-watchdog" id="eye-watchdog"><span class="eng-lamp" id="lamp-watchdog"></span><span class="ex">🛡</span><span class="en">Watchdog</span><span class="es" id="eye-watchdog-s">—</span></div>
+          </div>
+          <div class="eye-pair">
+            <div class="eye eye-mind" id="eye-mind"><span class="eng-lamp" id="lamp-mind"></span><span class="ex">💭</span><span class="en">Agent Mind</span><span class="es" id="eye-mind-s">—</span></div>
+            <div class="eye eye-master" id="eye-master"><span class="eng-lamp" id="lamp-master"></span><span class="ex">🥷</span><span class="en">Master Brain</span><span class="es" id="eye-master-s">—</span></div>
+          </div>
         </div>
         <!-- v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — the accuracy gate's work, surfaced proudly under the eyes
              (was buried in the FUNNELS organ sub-line). proven = reads that cleared the two-witness gate;
@@ -2694,6 +2693,23 @@
         <div class="row" id="sig-lastthought-row" hidden><span class="k">⏱ Last thought</span><span class="val" id="sig-lastread">—</span></div>
         <div class="bar" id="sig-bar-wrap" hidden><i id="sig-bar"></i></div>
         <div class="sig-foot" hidden>mind: <span id="sig-model">—</span></div>
+      </div>
+      <!-- v1354 (density R6) — the SECONDARY controls, moved BELOW the engine bay so the engines lead -->
+      <div class="rail-secondary">
+        <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
+             The utility strip keeps the rare paths one small click away, out of the flow. -->
+        <details class="sig-adv">
+          <summary>⚙ advanced</summary>
+          <div class="util-strip">
+            <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
+            <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
+            <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
+            <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
+          </div>
+          <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
+        </details>
+        <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
+        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
       <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
            the header tabs are the one nav. The util row inherits the room. -->
@@ -8284,7 +8300,7 @@ body:not(.shell-open) #tvd-eng {
    (folded, no value change) so the dashboard has ONE authoritative source, not a fighting layer. */
 .signal .row, .signal .row .val, .signal .row .lab { letter-spacing: var(--ls-normal); }
 .signal .row { padding: 7px 0 !important; }
-.eyes .eye { padding: 8px 10px !important; }
+.eyes .eye { padding: 6px 10px !important; }
 .eyes .eye .es { opacity: .92; }
 .tf-row, .tf-row .tf-t { line-height: var(--lh-normal) !important; }
 .tf-tag { padding: 3px 9px !important; }
