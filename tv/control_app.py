@@ -5883,9 +5883,11 @@ def _kai_closer_loop():
                     try:
                         _completeness = _session_completeness(_reg_rows, frames)
                         report["completeness"] = _completeness
+                        _cp = _completeness.get("coveragePct")
+                        _cp_disp = (f"{_cp}%" if _cp is not None else "n/a (no item reads)")
                         print(f"🎞 KAI completeness: {_completeness['reads']} reads · "
                               f"{_completeness['reel_frames']} reel frames · "
-                              f"{_completeness['coveragePct']}% covered · "
+                              f"{_cp_disp} covered · "
                               f"{_completeness['dropped']} film drops · "
                               f"{_completeness['unread']} unread", flush=True)
                     except Exception as _cme:
@@ -5924,7 +5926,8 @@ def _kai_closer_loop():
                                 "note": f"📖 KAI register ledger — {len(_register)} items witnessed · "
                                         f"🚦 {len(_routing)} frames routed-labelled ({_routed_n} fired)"
                                         + (f" · 🎞 {_completeness['coveragePct']}% film-complete "
-                                           f"({_completeness['dropped']} drops)" if _completeness else "")
+                                           f"({_completeness['dropped']} drops)"
+                                           if _completeness and _completeness.get("coveragePct") is not None else "")
                                         + (f" · 🧠🔬 super-analyze recovered {len(_super_recovered_names)}/"
                                            f"{len(_super_attempted)}" if _super_attempted else "")}
                     with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf3:
@@ -6833,7 +6836,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1369",
+        "ver": "v1370",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

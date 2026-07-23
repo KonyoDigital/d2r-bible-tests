@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1369"   # STAMP CATCH-UP to v1369 (Sessions R5 TODAYS TARGET hero + coveragePct honest-absent already landed in 5af2911; the bump script failed on an apostrophe so stamps lagged at v1368 - this corrects the reported version). No code change - x3 parity restored at v1369.
+VERSION = "v1370"   # coveragePct None-guard follow-on (display-only, no logic change): after 100->None honest-absent, two formatters would print "None% covered"/"None% film-complete" for an empty session - now the console log shows "n/a (no item reads)" and the journal note OMITS the film-complete clause entirely when None (honest - no coverage to report; the note is semi-user-facing via Theatre). Plus the fabrication-pattern sweep result: farmingPct + coveragePct are the only rate computations and both are now honest-absent; gameOk defaults True but is benign (no-problem-detected, UI shows off anyway) - the rate-fabrication CLASS is clean. Verified: 213/213 control, 181/181 routes, invariant GREEN, py OK. control_app only. x3 parity.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
