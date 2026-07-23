@@ -6258,7 +6258,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1356",
+        "ver": "v1357",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7285,7 +7285,14 @@ class Handler(BaseHTTPRequestHandler):
                             # → beats carry no `engineFrame` → the UI no-ops (gate/HD-art
                             # light-up pattern). This is what swaps the Engine Room drill-down's
                             # "owns the final read" from INFERRED to AUTHORITATIVE.
-                            for _ef in (_krep.get("engineFrames") or []):
+                            # E4 — route the sealed-marking through the ONE tested law
+                            # (_kai_engine_frame_effective) instead of an inline copy: it enforces
+                            # the kaiVer≥3 gate, so a sub-Phase-C reel yields NO authoritative
+                            # frames (honest-absent → the UI shows provisional, never a weak guess
+                            # as sealed), and the serve path can never drift from the tested law.
+                            # kaiVer-4 reels (all current) → identical _engmap.
+                            for _ef in _kai_engine_frame_effective(
+                                    _krep.get("engineFrames") or [], [], _krep.get("kaiVer")):
                                 _engmap[str(_ef.get("f") or "")] = _ef
                     except Exception:
                         _routemap, _kai_miss, _engmap = {}, {}, {}
