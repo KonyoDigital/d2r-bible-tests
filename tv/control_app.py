@@ -16,6 +16,7 @@ import bisect
 import collections
 import inspect
 import json
+import math
 import os
 import re
 import shutil
@@ -4342,6 +4343,51 @@ def _session_scene_fingerprint(sess_rows):
     }
 
 
+# ── ⚔ EV-RANK — the flagship's "hunt next" intelligence (engine owns the pure ranking; the
+# CLIENT provides each missing grail's best-source odds from its Calculator, so the odds model
+# never drifts). Ranks missing grails by expected-HOURS-to-next-find, fastest first. ───────────
+def _ev_hours(drop_chance, kills_per_hr, confidence=0.5):
+    """Expected HOURS to reach `confidence` probability of finding a grail whose PER-RUN drop
+    probability is `drop_chance`, farming at `kills_per_hr`. Matches the Calculator EXACTLY (no
+    reimplementation-drift): runs = log(1 - confidence) / log(1 - drop_chance); hours = runs /
+    kph. Returns None — honest-absent, NEVER a fabricated EV — when the odds are invalid:
+    drop_chance ∉ (0,1), kph ≤ 0, or confidence ∉ (0,1). Pure."""
+    try:
+        p = float(drop_chance)
+        kph = float(kills_per_hr)
+        c = float(confidence)
+    except (TypeError, ValueError):
+        return None
+    if not (0.0 < p < 1.0) or kph <= 0 or not (0.0 < c < 1.0):
+        return None
+    return (math.log(1.0 - c) / math.log(1.0 - p)) / kph
+
+
+def _ev_rank(items, confidence=0.5):
+    """Rank missing grails by expected-hours-to-next-find (ascending = hunt these first). `items`
+    = the client's missing grails, each {name, dropChance (per-run prob), killsPerHr, source?}.
+    Returns {ranked: [...ascending by expectedHours, name tiebreak...], unranked: [{name, why}],
+    confidence}. An item with invalid/unknown odds is honest-absent in `unranked` — never given a
+    fabricated rank. Pure + deterministic (stable sort). The engine's intelligence; the client's
+    Calculator supplies the honest odds."""
+    ranked, unranked = [], []
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        name = str(it.get("name") or "").strip()
+        if not name:
+            continue
+        h = _ev_hours(it.get("dropChance"), it.get("killsPerHr"), confidence)
+        if h is None:
+            unranked.append({"name": name, "why": "no known farm / odds"})
+        else:
+            ranked.append({"name": name, "source": it.get("source"),
+                           "expectedHours": round(h, 2),
+                           "dropChance": it.get("dropChance"), "killsPerHr": it.get("killsPerHr")})
+    ranked.sort(key=lambda r: (r["expectedHours"], r["name"].lower()))
+    return {"ranked": ranked, "unranked": unranked, "confidence": confidence}
+
+
 def _forward_area_from(ts, area_ts, window=8000):
     """B5 — the zone being ENTERED after a transition/loading frame = the NEXT area-naming read
     within `window` ms FORWARD (loading precedes the zone by a few seconds), NOT the nearest (which
@@ -6874,7 +6920,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1374",
+        "ver": "v1375",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -8521,6 +8567,17 @@ class Handler(BaseHTTPRequestHandler):
                 body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
             except Exception:
                 body = {}
+
+        if path == "/api/evrank":
+            # ⚔ EV-RANK — the client POSTs its MISSING grails + each one's best-source odds/kph
+            # (from its Calculator); the engine ranks them by expected-hours-to-next-find. Stateless,
+            # honest-absent (invalid odds → unranked, never a fabricated rank).
+            try:
+                _conf = float(body.get("confidence", 0.5))
+            except (TypeError, ValueError):
+                _conf = 0.5
+            self._json(200, _ev_rank(body.get("items"), _conf))
+            return
 
         # ══ GROK ADD-ON (G4) — REMOVABLE (delete this stanza) ══
         if path == "/api/g4_toggle":

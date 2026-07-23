@@ -2232,6 +2232,65 @@ class TestAreaActDiabloLanguage(unittest.TestCase):
             self.assertEqual(ca._area_act(area), act, area)
 
 
+class TestEvRank(unittest.TestCase):
+    """⚔ EV-RANK — the flagship's "hunt next" intelligence. Pure engine ranking of missing grails
+    by expected-hours-to-next-find; the CLIENT provides the odds (its Calculator) so the model
+    never drifts. `_ev_hours` matches the Calculator formula exactly; honest-absent (None →
+    unranked) on invalid odds — never a fabricated EV."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        cls.port = cls.srv.server_address[1]
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def test_ev_hours_matches_calculator_formula(self):
+        import math
+        p, kph, c = 1 / 2293.0, 85, 0.5
+        expected = (math.log(1 - c) / math.log(1 - p)) / kph
+        self.assertAlmostEqual(ca._ev_hours(p, kph, c), expected, places=9)
+
+    def test_invalid_odds_are_honest_absent(self):
+        self.assertIsNone(ca._ev_hours(0, 85))       # dropChance 0
+        self.assertIsNone(ca._ev_hours(1, 85))       # dropChance 1
+        self.assertIsNone(ca._ev_hours(0.01, 0))     # kph 0
+        self.assertIsNone(ca._ev_hours("x", 85))     # non-numeric
+
+    def test_rarer_ranks_later_at_equal_kph(self):
+        out = ca._ev_rank([{"name": "Common", "dropChance": 1 / 500.0, "killsPerHr": 100},
+                           {"name": "Rare", "dropChance": 1 / 5000.0, "killsPerHr": 100}])
+        self.assertEqual([r["name"] for r in out["ranked"]], ["Common", "Rare"])
+
+    def test_higher_kph_ranks_sooner_at_equal_odds(self):
+        out = ca._ev_rank([{"name": "Slow", "dropChance": 1 / 1000.0, "killsPerHr": 30},
+                           {"name": "Fast", "dropChance": 1 / 1000.0, "killsPerHr": 300}])
+        self.assertEqual([r["name"] for r in out["ranked"]], ["Fast", "Slow"])
+
+    def test_unknown_odds_go_unranked_not_fabricated(self):
+        out = ca._ev_rank([{"name": "Known", "dropChance": 1 / 500.0, "killsPerHr": 100},
+                           {"name": "NoFarm", "dropChance": 0, "killsPerHr": 0}])
+        self.assertEqual([r["name"] for r in out["ranked"]], ["Known"])
+        self.assertEqual(out["unranked"], [{"name": "NoFarm", "why": "no known farm / odds"}])
+
+    def test_empty_is_empty(self):
+        self.assertEqual(ca._ev_rank([]), {"ranked": [], "unranked": [], "confidence": 0.5})
+
+    def test_post_endpoint_ranks(self):
+        payload = json.dumps({"items": [
+            {"name": "Common", "dropChance": 1 / 500.0, "killsPerHr": 300, "source": "Pindle"},
+            {"name": "Rare", "dropChance": 1 / 5000.0, "killsPerHr": 80, "source": "Mephisto"}]}).encode()
+        req = urllib.request.Request("http://127.0.0.1:%d/api/evrank" % self.port, data=payload,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=3) as r:
+            out = json.loads(r.read())
+        self.assertEqual([x["name"] for x in out["ranked"]], ["Common", "Rare"])
+        self.assertTrue(out["ranked"][0]["expectedHours"] < out["ranked"][1]["expectedHours"])
+
+
 class TestAreaInferenceEntering(unittest.TestCase):
     """B5 area-inference — a transition/loading frame (dark screen, no area of its own) borrows the
     zone being ENTERED from the NEXT deep read that names one (forward-looking, ≤8s). "ENTERING The
