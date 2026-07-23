@@ -29,12 +29,16 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 # (bible uses the full 6-weight range; the console uses the 4 it needs.)
 SURFACES = {
     "bible.html":        {"path": os.path.join(ROOT, "bible.html"),
-                          "fw": ["regular", "normal", "medium", "semibold", "bold", "black"]},
+                          "fw": ["regular", "normal", "medium", "semibold", "bold", "black"],
+                          # LS/LH-LOCK (v1344) — the bible's letter-spacing + line-height token scale
+                          # (console-mirrored role names; the approved deliberate normalization).
+                          "ls": ["tight", "snug", "normal", "wide", "label", "wider", "widest"],
+                          "lh": ["none", "tightest", "tight", "snug", "normal", "relaxed", "loose"]},
     "tv/control_ui.html": {"path": os.path.join(ROOT, "tv", "control_ui.html"),
                            "fw": ["normal", "medium", "semibold", "bold"],
                            # STRUCTURE-LOCK (v1343): the console's shared spacing/structure rhythm.
                            "hd": ["gap", "gap-in", "gap-row", "pad-y", "pad-x", "head-mb",
-                                  "head-ls", "radius"]},
+                                  "head-ls", "radius", "radius-in"]},
 }
 
 RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-agnostic

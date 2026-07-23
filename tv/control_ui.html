@@ -72,6 +72,11 @@
        off-air dashboard radii 9/10/11/12 are a separate, still-drifted family — flagged for a design
        call, not folded here since unifying them would change their look.) */
     --hd-radius: clamp(10px, 1vw, 14px);
+    /* v1344 (Phase G · design-lock R1, Konyo-approved) — the console radius SCALE, two intentional
+       tiers replacing the old 7/8/9/10/11/12 spread: --hd-radius = card/panel corners (containers);
+       --hd-radius-in = inner rows/chips/pills (shorter elements, kept tighter so they don't over-round
+       into lozenges). Every console card + inner element resolves to one of these two. */
+    --hd-radius-in: 8px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -1281,7 +1286,7 @@
   .eyes { display: flex; flex-direction: column; gap: 5px; margin-bottom: 3px; }
   /* v945 R15 — the three eyes read as status cards: brighter surface, hover feedback */
   .eye { display: flex; align-items: center; gap: 9px; padding: 7px 10px;
-    border-radius: 8px; background: rgba(0,0,0,.28); transition: background .15s, border-color .15s;
+    border-radius: var(--hd-radius-in); background: rgba(0,0,0,.28); transition: background .15s, border-color .15s;
     border: 1px solid var(--edge); border-left-width: 3px;
     transition: opacity .3s, border-color .3s, background .15s; }
   .eye:hover { background: rgba(255,255,255,.035); border-color: rgba(240,192,96,.22); }
@@ -1301,7 +1306,7 @@
      the brain PROTECTING Konyo's accuracy. Sits under the 3 eyes, in the KAI READER cluster. proven =
      reads that cleared the two-witness gate · held = uncertain reads the gate refused to certify (misreads
      stopped). Hidden when no sealed reel exposes gate verdicts (TRUTHFUL — honest when absent/off-air). ══ */
-  .kai-gate { margin: 2px 0 5px; padding: 8px 11px 9px; border-radius: 9px;
+  .kai-gate { margin: 2px 0 5px; padding: 8px 11px 9px; border-radius: var(--hd-radius);
     background: linear-gradient(180deg, rgba(143,230,160,.06), rgba(0,0,0,.28));
     border: 1px solid rgba(143,230,160,.22); border-left: 3px solid var(--mint);
     display: flex; flex-direction: column; gap: 5px; }
@@ -1334,7 +1339,7 @@
   .cap-screen { color: #1c1607; background: #e9b96e; }
   .cap-idle { color: var(--muted); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
   /* #1 LIVE READ FEED — the KAI reconciler's live-guess stream, under the reader net (mint = live/keep family) */
-  .rn-feed { margin-top: 10px; padding: 10px 11px; border-radius: 10px; border: 1px solid rgba(143,230,160,.24);
+  .rn-feed { margin-top: 10px; padding: 10px 11px; border-radius: var(--hd-radius); border: 1px solid rgba(143,230,160,.24);
     background: linear-gradient(180deg, rgba(16,26,18,.4), rgba(8,10,8,.3)); }
   .rn-feed[hidden] { display: none; }
   .rnf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -1344,7 +1349,7 @@
   .rnf-empty { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #7f958a; letter-spacing: var(--ls-tight); }
   .rnf-rows { display: flex; flex-direction: column; gap: 5px; }
   .rnf-row { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono);
-    padding: 4px 8px; border-radius: 7px; background: rgba(0,0,0,.28); border-left: 2px solid rgba(143,230,160,.2); }
+    padding: 4px 8px; border-radius: var(--hd-radius-in); background: rgba(0,0,0,.28); border-left: 2px solid rgba(143,230,160,.2); }
   .rnf-row.rnf-keep { border-left-color: var(--mint); }
   .rnf-row.rnf-grail { border-left-color: var(--gold); background: rgba(240,192,96,.06); }
   .rnf-row.rnf-toss { border-left-color: #6f6a58; opacity: .82; }
@@ -1362,7 +1367,7 @@
   .rnf-lastlab { margin: 8px 0 5px; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-wide); text-transform: uppercase; color: #6f6a58; text-align: center; }
   .rnf-faded { opacity: .5; filter: saturate(.7); }
   /* v1249 r3 · #2 READER-POOL EYE-DOTS — N worker eyes, lit = reading now */
-  .rn-pool { display: flex; align-items: center; gap: 9px; margin: 7px 0 2px; padding: 5px 9px; border-radius: 8px;
+  .rn-pool { display: flex; align-items: center; gap: 9px; margin: 7px 0 2px; padding: 5px 9px; border-radius: var(--hd-radius-in);
     background: rgba(143,230,160,.05); border: 1px solid rgba(143,230,160,.14); }
   .rn-pool[hidden] { display: none; }
   .rnp-dots { display: inline-flex; gap: 5px; }
@@ -1742,7 +1747,7 @@
   .hd-kpi { border: none; background: none; padding: 0; }
   .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--hd-gap-in); }
   .kpi { background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.34)); border: 1px solid var(--edge);
-    border-radius: 11px; padding: 11px 8px 10px; text-align: center; min-width: 0; }
+    border-radius: var(--hd-radius); padding: 11px 8px 10px; text-align: center; min-width: 0; }
   .kpi-v { font: var(--fw-bold) var(--fs-lg)/1 var(--mono); color: #f0e4c6; font-variant-numeric: tabular-nums;
     letter-spacing: var(--ls-tight); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kpi-l { font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-wide); text-transform: uppercase; color: #8a7e68; margin-top: 6px; }
@@ -1763,7 +1768,7 @@
   .hd-hist-all:hover { color: var(--gold); border-color: var(--gold-antique); }
   .hd-hist-strip { display: flex; gap: var(--hd-gap-in); overflow-x: auto; overflow-y: hidden; padding: 2px 2px 8px; scrollbar-width: thin; }
   .hh-card { position: relative; flex: 0 0 auto; width: 150px; text-align: left; display: flex; flex-direction: column;
-    background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(0,0,0,.34)); border: 1px solid var(--edge); border-radius: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(0,0,0,.34)); border: 1px solid var(--edge); border-radius: var(--hd-radius);
     overflow: hidden; cursor: pointer; padding: 0; color: inherit; }
   .hh-card:hover { border-color: var(--gold-antique); box-shadow: 0 5px 16px rgba(0,0,0,.45); }
   .hh-card:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 1px; }
@@ -1866,7 +1871,7 @@
   /* v946 — session health strip */
   /* v1253 (CONSOLE r5 · #b) — SESSION HEALTH compacted from a 4-line card to a tight inline strip (tabs · lease ·
      re-fires, then the verdict) — same info, ~half the height, so the rail fits no-scroll. IDs unchanged. */
-  .sess-health { margin: 6px 0 8px; padding: 7px 10px; border-radius: 9px;
+  .sess-health { margin: 6px 0 8px; padding: 7px 10px; border-radius: var(--hd-radius);
     border: 1px solid rgba(240,192,96,.22); background: rgba(0,0,0,.32); display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px; }
   .sess-health .sh-row { display: inline-flex; align-items: baseline; gap: 6px; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); }
   .sess-health .sh-k { color: #9a8f72; letter-spacing: var(--ls-snug); flex: 0 0 auto; }
@@ -2026,7 +2031,7 @@
   body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
   /* v945 CONSOLE PARITY C1 — dashboard cards adopt the theatre's card language: warm hairline
      border, a faint top-surface highlight, roomier padding. One product, one surface. */
-  .hd-col { border: 1px solid rgba(240,192,96,.13); border-radius: 12px;
+  .hd-col { border: 1px solid rgba(240,192,96,.13); border-radius: var(--hd-radius);
     background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32)); padding: var(--hd-pad-y) var(--hd-pad-x); min-height: 0; }
   .hd-wide { grid-column: 1 / -1; }
   /* C2 — section headers match the theatre drawer h4: gold accent bar + hairline underline */
@@ -2037,7 +2042,7 @@
     border-bottom: 1px solid rgba(200,180,120,.12); }
   .hd-sub { font-weight: var(--fw-normal); opacity: .55; letter-spacing: var(--ls-normal); margin-left: 8px; font-size: var(--fs-xs); }
   .hd-chips { display: flex; flex-wrap: wrap; gap: var(--hd-gap-in); }
-  .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: 9px; padding: 9px 13px; font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
+  .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: var(--hd-radius-in); padding: 9px 13px; font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
   /* v945.4 — ENGINE-CHIP STATE LANGUAGE (Konyo needs to read liveness at a glance):
      mint = LIVE/driving · gold = booting/transitional · amber = achievement progress ·
      gray(dim) = idle/off · red(warn) = dead/alert · purple(intk) = the intake lane's identity. */
@@ -2182,7 +2187,7 @@
   /* v949 — 🩺 ENGINE HEALTH SPINE: the whole loop's pulse, capture → readers → router → funnels → ledger */
   .eh-spine { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
   .eh-organ { position: relative; flex: 1 1 130px; min-width: 128px; border: 1px solid rgba(240,192,96,.14);
-    border-radius: 10px; padding: 10px 11px 9px; background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32));
+    border-radius: var(--hd-radius); padding: 10px 11px 9px; background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32));
     display: flex; flex-direction: column; gap: 3px; }
   .eh-dot { position: absolute; top: 10px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #6b6455; }
   .eh-head { display: flex; align-items: center; gap: 6px; }
@@ -2212,7 +2217,7 @@
   body[data-endurance="1"] .eh-dot { animation: none !important; }
   @media (max-width: 720px){ .eh-flow { display: none; } .eh-organ { flex: 1 1 44%; } }
   /* the big organ cards — the engine-health organs, cockpit-sized */
-  .eh-organ.eh-big { flex: 1 1 200px; min-width: 190px; padding: 16px 16px 14px; border-radius: 12px; cursor: default; }
+  .eh-organ.eh-big { flex: 1 1 200px; min-width: 190px; padding: 16px 16px 14px; border-radius: var(--hd-radius); cursor: default; }
   .eh-organ.eh-big .eh-title { font-size: var(--fs-sm); letter-spacing: var(--ls-label); }
   .eh-organ.eh-big .eh-ic { font-size: var(--fs-xl); }
   .eh-organ.eh-big .eh-stat { font-size: var(--fs-md); margin-top: 6px; }
@@ -2256,7 +2261,7 @@
   .hd-tf-rows { display: flex; flex-direction: column; gap: var(--hd-gap-row); }
   /* v945 CONSOLE PARITY C5 — task-force + digest rows read as app list-cards: warm surface, hover */
   .tf-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border: 1px solid rgba(240,192,96,.13);
-    border-radius: 9px; background: rgba(255,255,255,.022); font: var(--fw-normal) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0;
+    border-radius: var(--hd-radius-in); background: rgba(255,255,255,.022); font: var(--fw-normal) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0;
     transition: border-color .15s, background .15s; }
   .tf-row:not(.tf-stat):hover { border-color: rgba(240,192,96,.32); background: rgba(255,255,255,.04); }
   .tf-row.tf-ready { border-color: rgba(143,230,160,.5); box-shadow: inset 3px 0 0 var(--mint); }
@@ -2279,7 +2284,7 @@
     border-radius: 6px; padding: 3px 10px; font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); cursor: pointer; }
   .hd-pg:disabled { opacity: .3; cursor: default; }
   .hd-pgn { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); opacity: .6; }
-  .hd-card { padding: 0; overflow: hidden; border: 1px solid var(--edge); border-radius: 10px; background: rgba(0,0,0,.35); }
+  .hd-card { padding: 0; overflow: hidden; border: 1px solid var(--edge); border-radius: var(--hd-radius); background: rgba(0,0,0,.35); }
   .hd-card .sh-art { height: 88px; width: 100%; object-fit: cover; border: 0; border-radius: 0; margin: 0; }
   .sh-art-fb { object-fit: contain; padding: 18px; opacity: .35; background: rgba(0,0,0,.5); }
   .hdc-body { padding: 8px 10px 10px; }
