@@ -5614,6 +5614,7 @@ def _engine_driver():
                     continue
                 seen_ts = max(seen_ts, ts)
                 globals()["_DRV_SEEN"] = globals().get("_DRV_SEEN", 0) + 1
+                globals()["_DRV_BEAT"] = int(time.time() * 1000)   # 🔌 router heartbeat — last time the brain actually routed a read (for engines{} liveness)
                 scene = str(rd.get("scene") or "")
                 tab = str(rd.get("stashTab") or "").lower()
                 # ── v948.2 LIVE Item Checker — BEFORE stash-only gate ──
@@ -5954,6 +5955,110 @@ def _eyes_pulse():
     globals()["_EYES_CACHE"] = (key, out)
     return out
 
+
+def _engine_thread_alive(name):
+    """True iff a daemon thread with this exact name is alive right now (engine wired + running)."""
+    try:
+        return any(t.name == name and t.is_alive() for t in threading.enumerate())
+    except Exception:
+        return False
+
+
+# 🔌 ENGINE-EXPOSURE — per-engine wired/running/last-beat: the "nothing hidden · a disconnected
+# wire must be VISIBLE, never silent" safeguard Konyo demanded. PURE liveness projection off the
+# v1349 truths (eyes/driver/watchdog) + thread enumeration — no new bookkeeping beyond the router
+# heartbeat. Honest semantics:
+#   wired = the machinery is plugged in (thread alive / proven by a real beat / armed in the seal
+#           path). wired:false → the UI paints a ⚫ disconnected wire.
+#   state = 'live' (a real beat within this engine's cadence) · 'idle' (wired, quiet now) · 'down'
+#           (SHOULD run but isn't — wedged eye / dead-hard engine) · 'armed' (watchdog: event-
+#           driven, always ready, fires at seal).
+#   lastBeatMs = the engine's last real act (null = never — honest-absent, no fake glow).
+_ENG_FRESH_FAST = 30000     # reader / verify / router: beat every ~2s when active
+_ENG_FRESH_SLOW = 300000    # kai / watchdog: act in post-seal bursts → "recent" = 5 min
+
+
+def _engines_status():
+    now = int(time.time() * 1000)
+    eyes = _eyes_pulse()
+    alive = _agent_alive()
+    onair = (_agent_mode != "off")
+
+    def _fresh(ts, win):
+        return bool(ts) and (now - int(ts)) <= win
+
+    # 🔴 LIVE EYE — the reader (agent subprocess). Core, always wired; live while it reads.
+    live_ts = int(eyes.get("liveTs") or 0)
+    if _fresh(live_ts, _ENG_FRESH_FAST):
+        le_state, le_note = "live", "reading"
+    elif onair and alive and live_ts and not _fresh(live_ts, _ENG_FRESH_SLOW):
+        le_state, le_note = "down", "on-air but no read in 5min — eye may be wedged"
+    elif onair and alive:
+        le_state, le_note = "idle", "on-air, between reads"
+    else:
+        le_state, le_note = "idle", "off-air"
+    liveEye = {"label": "🔴 Live Eye", "wired": True, "state": le_state,
+               "lastBeatMs": live_ts or None, "note": le_note}
+
+    # 🔵 SECOND EYE — the verify lane (agent subprocess). Control can't read the agent's flag, so
+    # wired is EVIDENCE-BASED (honest, mirrors the badge doctrine): proven only by a real verify
+    # beat. Never seen → ⚫ (deliberately off, or not connected).
+    ver_ts = int(eyes.get("verifyTs") or 0)
+    se_wired = ver_ts > 0
+    if not se_wired:
+        se_state, se_note = "idle", "no verify beat ever seen (TV_VERIFY off?)"
+    elif _fresh(ver_ts, _ENG_FRESH_FAST):
+        se_state, se_note = "live", "verifying"
+    else:
+        se_state, se_note = "idle", "wired, quiet"
+    secondEye = {"label": "🔵 Second Eye", "wired": se_wired, "state": se_state,
+                 "lastBeatMs": ver_ts or None, "note": se_note}
+
+    # 🧠 KAI — the closer thread (control) + the live judge. wired = the closer thread alive; it
+    # exits early when TV_KAI=0 or bin/ocr_mac is missing → the thread ends → ⚫ "not plugged",
+    # the exact disconnected wire Konyo wants surfaced.
+    kai_ts = int(eyes.get("kaiTs") or 0)
+    kai_on = os.environ.get("TV_KAI", "1") != "0"
+    kai_wired = _engine_thread_alive("tvd-kai-closer")
+    if not kai_wired:
+        kai_state = "down" if kai_on else "idle"
+        kai_note = "no OCR bin (ocr_mac) — closer not plugged" if kai_on else "TV_KAI off"
+    elif _fresh(kai_ts, _ENG_FRESH_SLOW):
+        kai_state, kai_note = "live", "closing / judging"
+    else:
+        kai_state, kai_note = "idle", "armed between sessions"
+    kai = {"label": "🧠 KAI", "wired": kai_wired, "state": kai_state,
+           "lastBeatMs": kai_ts or None, "note": kai_note}
+
+    # 🚦 ROUTER / DRIVER — the scanning brain (control daemon). wired = driver thread alive;
+    # down = engine declared dead-hard after failed revives. beat = last real route (_DRV_BEAT).
+    drv_beat = int(globals().get("_DRV_BEAT") or 0)
+    drv_alive = _engine_thread_alive("tvd-engine-driver")
+    dead_hard = bool(globals().get("_ENGINE_DEAD_HARD"))
+    drv_err = globals().get("_DRV_ERR")
+    if dead_hard or not drv_alive:
+        rt_state = "down"
+        rt_note = "engine dead — restart the app" if dead_hard else "driver thread not running"
+    elif _fresh(drv_beat, _ENG_FRESH_FAST):
+        rt_state, rt_note = "live", "routing reads"
+    else:
+        rt_state = "idle"
+        rt_note = ("last error: " + str(drv_err)[:60]) if drv_err else "wired, no reads to route"
+    router = {"label": "🚦 Router", "wired": drv_alive, "state": rt_state,
+              "lastBeatMs": drv_beat or None, "note": rt_note}
+
+    # 🛡 WATCHDOG — event-driven, armed in the seal path (not a loop). Always wired/armed; beat =
+    # the last seal it checked, verdict rides the note.
+    wl = globals().get("_WATCHDOG_LAST")
+    wd_ts = int((wl or {}).get("ts") or 0)
+    watchdog = {"label": "🛡 Watchdog", "wired": True, "state": "armed",
+                "lastBeatMs": wd_ts or None,
+                "note": ((wl or {}).get("verdict") or "no seal checked yet")}
+
+    return {"liveEye": liveEye, "secondEye": secondEye, "kai": kai,
+            "router": router, "watchdog": watchdog}
+
+
 # ── v948.26 🥷🧠 PHASE D — SURFACE THE LIVE RING (ARCH_PINGPONG §6-Q4 SETTLED) ────────
 # The _ENGINE_FRAMES_LIVE deque (filled provisionally by _engine_driver's 2s loop via
 # _kai_reconcile — the CHEAP live guess, no OCR sweep/gate) is the console's NOW-CURSOR.
@@ -6055,7 +6160,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1349",
+        "ver": "v1350",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6067,6 +6172,8 @@ def status_payload():
         "watchdog": globals().get("_WATCHDOG_LAST"),
         "liveRing": _project_live_ring(),   # v948.26 🥷🧠 Phase D — Master-Brain NOW-CURSOR (provisional; sealed reel engineFrames win in retro)
         "eyes": _eyes,
+        "engines": _engines_status(),   # 🔌 per-engine wired/running/last-beat — nothing hidden; a dead wire renders ⚫
+
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
         "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),
