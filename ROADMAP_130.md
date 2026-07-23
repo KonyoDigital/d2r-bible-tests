@@ -72,7 +72,8 @@ Konyo (2026-07-23): "GROK is one of the addons to a set of places for accuracy..
 - [ ] v1331 · Vault manager full pass (stats + mule + capacity + ladder)
 - [x] v1332 · Vault cohesion + verify **(landed v1312)** — FULL-SYSTEM COHESION CERT: 89 assertions green (75 node + 14 py), 0 regressions across v1291→v1310, data contracts aligned, G4 removal still clean. BUGS.md cert note. [next g3: bible-side visual-lock typography]
 
-## PHASE F · CONSOLE POLISH (F-group) — v1333–1340
+## PHASE F · CONSOLE POLISH (F-group) — v1333–1340  ✅ **COMPLETE (v1338→v1342)**
+**The whole live console is now flagship:** F2 vitals ribbon · F3 Agent Mind glow-up · F5 intake hero · F6 interest gauge · cockpit cohesion (v1342, zero errors both states). Console + Sessions both flagship. [sessions-visual → Phase G structure-lock]
 - [x] v1333 · F2 reads sparkline / session-vitals ribbon **(landed v1338)** — live reads-sparkline + ⚡reads/hr·👁reads·⏱elapsed on the Agent Mind ticker, on-air only, "—" until 5s, zero layout cost.
 - [x] v1334 · F3 Agent Mind glow-up **(landed v1339)** — per-thought icons (8 real kinds, no double-emoji) + honest rarity accents from the thought's own words (🏆 gold glow · fail amber · read mint …) + reduced-motion landing pop. [in flight: F5 intake hero]
 - [x] v1335 · F5 intake hero card **(landed v1340)** — premium violet "📸 RUNES +14" flash on a real tally (camera-flash, auto-dismiss), backlog-seeded so a reconnect never replays, errored/zero never fire, reduced-motion aware. [in flight: F6 interest gauge]

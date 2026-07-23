@@ -10,6 +10,10 @@ Checks (both surfaces — bible.html + tv/control_ui.html):
   1. ZERO raw font-weight literals (`font-weight: NNN`, spaced or not) — every weight MUST be
      a `var(--fw-*)` token. Fails loudly naming file:line of any offender.
   2. The `--fw-*` token set is defined in :root (the source of truth for weights).
+  3. STRUCTURE-LOCK (v1343, console only): the `--hd-*` spacing/structure token set is defined
+     in :root — the region-gutter / card-pad / header-gap / console-card-radius rhythm the console
+     structure is single-sourced onto. Their presence is locked (they can't be silently deleted);
+     the values live in :root as the one place to tune the layout rhythm.
 
 Run:  python3 visual_lock_invariant.py        (exit 0 = locked · exit 1 = drift, with details)
 CI:   add to any gate — no deps, pure stdlib, ~instant.
@@ -27,7 +31,10 @@ SURFACES = {
     "bible.html":        {"path": os.path.join(ROOT, "bible.html"),
                           "fw": ["regular", "normal", "medium", "semibold", "bold", "black"]},
     "tv/control_ui.html": {"path": os.path.join(ROOT, "tv", "control_ui.html"),
-                           "fw": ["normal", "medium", "semibold", "bold"]},
+                           "fw": ["normal", "medium", "semibold", "bold"],
+                           # STRUCTURE-LOCK (v1343): the console's shared spacing/structure rhythm.
+                           "hd": ["gap", "gap-in", "gap-row", "pad-y", "pad-x", "head-mb",
+                                  "head-ls", "radius"]},
 }
 
 RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-agnostic
@@ -59,6 +66,11 @@ def check():
         for tok in cfg["fw"]:
             if not re.search(r"--fw-" + tok + r": *[0-9]+", text):
                 failures.append(f"{name}  MISSING :root token --fw-{tok} (the weight source of truth)")
+        # 3) STRUCTURE-LOCK — the --hd-* spacing/structure token set is defined (value-agnostic:
+        #    px / clamp() / var() are all valid; we lock that the token EXISTS as the single source).
+        for tok in cfg.get("hd", []):
+            if not re.search(r"--hd-" + re.escape(tok) + r": *\S", text):
+                failures.append(f"{name}  MISSING :root token --hd-{tok} (the structure rhythm source of truth)")
     return failures
 
 
@@ -74,7 +86,8 @@ def main():
               "e.g. font-weight:var(--fw-semibold). See LOCKED_TYPE_SYSTEM.md.")
         return 1
     print("✅ VISUAL-LOCK OK — 0 raw font-weight literals in both surfaces; "
-          "--fw-* token sets intact. The weight type system is locked.")
+          "--fw-* token sets intact; console --hd-* structure rhythm defined. "
+          "The weight type system AND the structure rhythm are locked.")
     return 0
 
 

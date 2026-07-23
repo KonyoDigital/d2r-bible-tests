@@ -66,6 +66,12 @@
     --hd-pad-x: 14px;      /* card horizontal padding */
     --hd-head-mb: 9px;     /* section-header → body gap */
     --hd-head-ls: var(--ls-label);   /* section-header letter-spacing — aliases the shared --ls-label (.14em) */
+    /* v1343 (Phase G · STRUCTURE-LOCK) — THE CONSOLE-CARD RADIUS. The rounding shared by the live
+       cockpit cards (.m meter · .signal readout · .ticker) — already identical clamp(10px,1vw,14px)
+       across all three, now single-sourced so the console's card corners can't drift apart. (The flat
+       off-air dashboard radii 9/10/11/12 are a separate, still-drifted family — flagged for a design
+       call, not folded here since unifying them would change their look.) */
+    --hd-radius: clamp(10px, 1vw, 14px);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -467,7 +473,7 @@
   .m {
     background: linear-gradient(180deg, rgba(16,13,8,.82), rgba(6,5,3,.86));
     border: 1px solid var(--edge);
-    border-radius: clamp(10px,1vw,14px);
+    border-radius: var(--hd-radius);
     padding: clamp(9px,1vw,16px) clamp(10px,1vw,18px);
     backdrop-filter: blur(3px);
     box-shadow: inset 0 1px 0 rgba(240,192,96,.08), 0 6px 18px rgba(0,0,0,.4);
@@ -610,7 +616,7 @@
   /* signal readout mini-panel */
   /* v945 CONSOLE PARITY C4 — the health/signal panel adopts the same card surface as the dash */
   .signal {
-    border: 1px solid rgba(240,192,96,.13); border-radius: clamp(10px,1vw,14px);
+    border: 1px solid rgba(240,192,96,.13); border-radius: var(--hd-radius);
     background: linear-gradient(180deg, rgba(255,255,255,.02), var(--panel));
     padding: clamp(9px,1vw,14px) clamp(11px,1.1vw,16px);
     display: flex; flex-direction: column; gap: clamp(6px,.7vw,10px);
@@ -636,7 +642,7 @@
     grid-area: tick;
     display: flex; align-items: stretch;
     border: 1px solid rgba(102,255,136,.14);
-    border-radius: clamp(10px,1vw,14px);
+    border-radius: var(--hd-radius);
     background: linear-gradient(180deg, #070906, #040604);
     overflow: hidden;
     height: clamp(84px, 12vh, 124px);
@@ -1504,7 +1510,7 @@
   .cmp-delta.down { color: #ff9a8a; background: rgba(255,120,80,.1); }
   .cmp-delta.neutral { color: #b9a06a; background: rgba(240,192,96,.1); }
   .cmp-scenes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .cmp-scene-col { border: 1px solid var(--edge); border-radius: 10px; padding: 12px 14px; background: rgba(10,9,6,.5); }
+  .cmp-scene-col { border: 1px solid var(--edge); border-radius: 10px; padding: var(--hd-pad-y) var(--hd-pad-x); background: rgba(10,9,6,.5); }
   .cmp-scene-col.a { box-shadow: inset 3px 0 0 var(--gold-antique); } .cmp-scene-col.b { box-shadow: inset 3px 0 0 var(--mint); }
   .cmp-scene-h { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
   .cmp-scene-col.b .cmp-scene-h { color: var(--mint); }
@@ -1620,7 +1626,7 @@
   .dfp-farm { color: #9df0bd; } .dfp-town { color: #a8ccef; } .dfp-portal { color: #ffb08a; } .dfp-area { color: #e4d2a4; }
   .dfp-note { color: #6f6a58; font-weight: var(--fw-normal); margin-left: 3px; font-size: .92em; }
   /* ══ D28 · GRAIL PROGRESS — this run's contribution to the Holy Grail hunt + the ledger total ══ */
-  .dgp { border: 1px solid rgba(240,192,96,.28); border-radius: 10px; padding: 12px 14px; background: linear-gradient(180deg, rgba(240,192,96,.07), rgba(0,0,0,.3)); }
+  .dgp { border: 1px solid rgba(240,192,96,.28); border-radius: 10px; padding: var(--hd-pad-y) var(--hd-pad-x); background: linear-gradient(180deg, rgba(240,192,96,.07), rgba(0,0,0,.3)); }
   .dgp-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .dgp-plus { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: var(--gold-hi); letter-spacing: var(--ls-tight); flex: none; }
   .dgp-names { font: var(--fw-semibold) var(--fs-sm)/var(--lh-snug) var(--mono); letter-spacing: var(--ls-tight); color: #e4d2a4; min-width: 0; }
@@ -1818,7 +1824,7 @@
   .shi-val { font: var(--fw-bold) var(--fs-sm)/var(--lh-tight) var(--mono); color: #e8dcc0; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .shi-sub { font: var(--fw-medium) var(--fs-2xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-tight); color: #8a7e68; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* ══ D24 · LIVE "RECORDING NOW" CARD — top of the shelf, shown only on-air (mint reel accent + ● REC pulse) ══ */
-  .sh-live { border: 1px solid rgba(143,230,160,.42); border-radius: 12px; padding: 12px 14px; margin: 0 0 14px;
+  .sh-live { border: 1px solid rgba(143,230,160,.42); border-radius: 12px; padding: var(--hd-pad-y) var(--hd-pad-x); margin: 0 0 14px;
     background: linear-gradient(180deg, rgba(30,60,42,.28), rgba(0,0,0,.35)); box-shadow: 0 0 20px rgba(143,230,160,.1); }
   .sh-live[hidden] { display: none !important; }
   .shl-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
@@ -1844,7 +1850,7 @@
   .shg-lab { font: var(--fw-bold) var(--fs-md)/1 var(--serif); letter-spacing: var(--ls-wide); color: #e8cf96; }
   .shg-n { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); text-transform: uppercase; color: #8a7e68; }
   /* v1286 (D12) — history activity sparkline: runs-per-day bars, gold on grail days, today highlighted */
-  .sh-timeline { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--edge); border-radius: 11px; background: rgba(10,9,6,.4); }
+  .sh-timeline { margin: 0 0 16px; padding: var(--hd-pad-y) var(--hd-pad-x); border: 1px solid var(--edge); border-radius: 11px; background: rgba(10,9,6,.4); }
   .shtl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
   .shtl-lab { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--gold-dim); }
   .shtl-sum { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: #8a7e68; font-variant-numeric: tabular-nums; }
