@@ -1902,6 +1902,15 @@
   .kpi.kpi-gold .kpi-v { color: var(--gold); }
   .kpi.kpi-mint .kpi-v { color: var(--mint); }
   .kpi.kpi-dim .kpi-v { color: #8a7e68; }   /* honest "—" (no data) reads as muted, not a bright zero */
+  /* v1366 (R4 · honest idle) — no-runs resting line: one intentional "waiting" row, not a wall of empty gauges */
+  .kpi.kpi-rest { grid-column: 1 / -1; text-align: left; display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px; border-style: dashed; color: var(--muted);
+    font: var(--fw-medium) var(--fs-sm)/var(--lh-snug) var(--mono); letter-spacing: var(--ls-normal); }
+  .kpi.kpi-rest .kpi-rest-ic { color: var(--gold-dim); font-size: var(--fs-md); }
+  .kpi.kpi-rest b { color: var(--gold); font-weight: var(--fw-semibold); }
+  /* off-air the live stage readout rests, not breaks — the values dim so MODE/READS/AREA/SCENE read "at rest" */
+  body[data-state="off"] .meters .m { opacity: .6; }
+  body[data-state="off"] .meters .m .v { color: var(--muted); font-weight: var(--fw-semibold); }
   @media (max-width: 1000px){ .kpi-row { grid-template-columns: repeat(3, 1fr); } }
   .hd-history .hd-h { display: flex; align-items: center; }
   .hd-hist-head { cursor: pointer; user-select: none; }
@@ -2705,7 +2714,7 @@
          compact strip under the live stage when ON. -->
     <section class="home-dash" id="home-dash">
       <!-- v1362 (SESSIONS R2) — the 3 HUNT zones (ordered by CSS: hunt leads · missions · record) -->
-      <div class="zone-banner zone-hunt"><span class="zb-ico">🏆</span>YOUR HUNT<span class="zb-sub">grail progress · what to hunt today</span></div>
+      <div class="zone-banner zone-hunt"><span class="zb-ico">🏆</span>YOUR HUNT<span class="zb-sub">what to hunt today</span></div>
       <div class="zone-banner zone-mission"><span class="zb-ico">📋</span>DAILY MISSIONS<span class="zb-sub">quests · daily goals</span></div>
       <div class="zone-banner zone-record"><span class="zb-ico">🗂</span>YOUR RECORD<span class="zb-sub">stats · past runs</span></div>
       <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs: a Maxroll-grade instrument cluster at the
@@ -7938,7 +7947,8 @@
   function _hdKpiRender(){
     var el = document.getElementById('kpi-row'); if (!el) return;
     var runs = (HD_ALL || []).filter(function(s){ return !s.stub; }), n = runs.length;
-    if (!n){ el.innerHTML = ['sessions today','reads / hr','grails found','tallies banked','frames / run','named / run'].map(function(l){ return _kpiTile('—', l); }).join(''); return; }
+    // v1366 (SESSIONS R4 · honest idle — Grok U3): no runs yet → ONE resting teaching line, not a wall of "—" gauges.
+    if (!n){ el.innerHTML = '<div class="kpi kpi-rest"><span class="kpi-rest-ic">◌</span> no runs recorded yet — press <b>▶ ON</b> to start your first hunt · your stats land here</div>'; return; }
     var now = new Date(), startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     var sToday = 0, reads = 0, frames = 0, named = 0, tallies = 0, grails = 0, ms = 0;
     runs.forEach(function(s){
