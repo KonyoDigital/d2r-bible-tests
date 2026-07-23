@@ -83,6 +83,11 @@
        the 6-across KPI tile keep their own denser padding by intent — flagged, not folded, so the feed
        stays dense and the KPI numbers don't cramp.) */
     --hd-pad-row-y: 9px; --hd-pad-row-x: 13px;
+    /* v1346 (Phase G · design-lock R3, Konyo-approved) — THE CANONICAL CARD-TITLE SIZE. The gold-accent-bar
+       header family (dashboard .hd-h + the rail KAI-READER/SESSION-HEALTH pseudo-headers) now shares one
+       chrome: this size + uppercase + --hd-head-mb margin + 0 0 6px 10px pad + the 2px accent-bar. Only the
+       accent COLOR varies by identity (gold sections · mint = the live engine). */
+    --hd-head-size: var(--fs-xs);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -492,7 +497,7 @@
     position: relative; overflow: hidden;
     transition: border-color .4s;
   }
-  .m .l { font-size: var(--fs-xs); letter-spacing: var(--ls-wider); text-transform: uppercase; color: var(--gold-dim); margin-bottom: .5em; }   /* v945 — stat-tile labels never dip below the app scale */
+  .m .l { font-size: var(--fs-xs); letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--gold-dim); margin-bottom: .5em; }   /* v945 — stat-tile labels never dip below the app scale; v1346 tracking = canonical --ls-wide */
   .m .v {
     font-family: var(--serif);
     font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: var(--text);
@@ -738,7 +743,7 @@
     filter: drop-shadow(0 0 3px rgba(143,230,160,.4)); }
   .tkv-stat { text-align: center; flex: none; }
   .tkv-v { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: #bfead0; font-variant-numeric: tabular-nums; }
-  .tkv-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #6f8a72; margin-top: 4px; }
+  .tkv-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-wide); text-transform: uppercase; color: #6f8a72; margin-top: 4px; }   /* v1346 tracking = canonical --ls-wide */
   /* ══ F6 · LIVE INTEREST GAUGE — the money-moment needle (leftmost in the on-air vitals ribbon) ══ */
   .tkv-gauge { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .tkvg-svg { width: clamp(42px,5vw,56px); height: auto; overflow: visible; }
@@ -1885,15 +1890,15 @@
   /* v1177 R4 — STRUCTURE: the rail's grouped blocks earn the same section-label discipline the dash
      has (a gold accent-bar header) — via CSS ::before, so no markup/ID/tested-structure changes. */
   .signal .eyes::before, .sess-health::before {
-    display: block; font: var(--fw-bold) var(--fs-2xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase;
-    color: var(--gold-dim); padding: 0 0 5px 8px; margin-bottom: 5px;
+    display: block; font: var(--fw-semibold) var(--hd-head-size)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase;
+    color: var(--gold-dim); padding: 0 0 6px 10px; margin-bottom: var(--hd-head-mb);
     border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.12); }
   /* v1249 (CONSOLE UPGRADE r3 · #3 PROMINENCE) — the reader cluster (eyes + pool + live feed) reads as one clear,
      findable section: a mint "THE KAI READER" header (mint = the live engine), so Konyo can't miss where the AI
      watches. Slightly larger + mint accent-bar, distinct from the gold SESSION HEALTH label below it. */
   .signal .eyes::before { content: "🧠 THE KAI READER · live engine"; color: var(--mint);
-    border-left-color: var(--mint); font-size: var(--fs-xs); letter-spacing: var(--ls-label); }
-  .sess-health::before { content: "SESSION HEALTH"; flex: 0 0 100%; margin-bottom: 3px; padding-bottom: 3px; }   /* v1253 — header on its own line, values inline below */
+    border-left-color: var(--mint); }   /* canonical card-title chrome; only the mint identity overrides */
+  .sess-health::before { content: "SESSION HEALTH"; flex: 0 0 100%; }   /* header on its own line, values inline below; spacing now the canonical card-title chrome */
   .sess-health .sh-verdict { margin: 0 0 0 auto; font: var(--fw-bold) var(--fs-2xs)/var(--lh-tightest) var(--mono); letter-spacing: var(--ls-wide);
     text-transform: uppercase; text-align: center; padding: 3px 9px; border-radius: 999px;
     border: 1px solid rgba(143,208,160,.3); color: #9df0bd; background: rgba(30,60,40,.35); }
@@ -2043,7 +2048,7 @@
   /* C2 — section headers match the theatre drawer h4: gold accent bar + hairline underline */
   /* v1252 (CONSOLE r4 · #4 typography + #2 no-scroll) — tighter, consistent card headers (less margin/pad) so the
      home reclaims vertical space and the heading hierarchy reads uniformly across every card. */
-  .hd-h { font: var(--fw-semibold) var(--fs-sm)/var(--lh-tightest) var(--mono); letter-spacing: var(--hd-head-ls); color: var(--gold);
+  .hd-h { font: var(--fw-semibold) var(--hd-head-size)/var(--lh-tight) var(--mono); letter-spacing: var(--hd-head-ls); text-transform: uppercase; color: var(--gold);
     margin-bottom: var(--hd-head-mb); padding: 0 0 6px 10px; border-left: 2px solid var(--gold-antique);
     border-bottom: 1px solid rgba(200,180,120,.12); }
   .hd-sub { font-weight: var(--fw-normal); opacity: .55; letter-spacing: var(--ls-normal); margin-left: 8px; font-size: var(--fs-xs); }

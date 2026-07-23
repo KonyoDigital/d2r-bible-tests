@@ -38,7 +38,7 @@ SURFACES = {
                            "fw": ["normal", "medium", "semibold", "bold"],
                            # STRUCTURE-LOCK (v1343): the console's shared spacing/structure rhythm.
                            "hd": ["gap", "gap-in", "gap-row", "pad-y", "pad-x", "head-mb",
-                                  "head-ls", "radius", "radius-in", "pad-row-y", "pad-row-x"]},
+                                  "head-ls", "head-size", "radius", "radius-in", "pad-row-y", "pad-row-x"]},
 }
 
 RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-agnostic
