@@ -4110,29 +4110,92 @@ _TOWN_AREAS = (
 )   # the 5 act-town safe zones (vanilla + RotW share these); substring-matched, case-insensitive
 
 
+# B10 — canonical AREA → ACT map (fixed D2R/RotW game truth; RotW uses vanilla area names,
+# confirmed by the reels). Keys are NORMALIZED: lowercased, leading "the " dropped, and any
+# "Level N" / trailing-number suffix stripped (so "Catacombs Level 2" and "The Cave Level 1"
+# resolve to their base area). Deterministic, never guessed — same discipline as _TOWN_AREAS.
+# Unmapped areas resolve to None → the label degrades gracefully to the plain area (honest, no
+# fabricated act). Covers the farmable zone space across all 5 acts.
+_AREA_ACT = {
+    # ── Act 1 ──
+    "rogue encampment": 1, "blood moor": 1, "cold plains": 1, "cave": 1, "stony field": 1,
+    "underground passage": 1, "dark wood": 1, "black marsh": 1, "tamoe highland": 1,
+    "den of evil": 1, "burial grounds": 1, "crypt": 1, "mausoleum": 1, "forgotten tower": 1,
+    "tower cellar": 1, "monastery gate": 1, "outer cloister": 1, "barracks": 1, "jail": 1,
+    "inner cloister": 1, "cathedral": 1, "catacombs": 1, "tristram": 1, "moo moo farm": 1,
+    "secret cow level": 1, "cow level": 1,
+    # ── Act 2 ──
+    "lut gholein": 2, "rocky waste": 2, "sewers": 2, "dry hills": 2, "halls of the dead": 2,
+    "far oasis": 2, "lost city": 2, "valley of snakes": 2, "claw viper temple": 2,
+    "ancient tunnels": 2, "arcane sanctuary": 2, "palace cellar": 2, "harem": 2,
+    "canyon of the magi": 2, "tal rasha's tomb": 2, "tal rasha's tombs": 2,
+    "tal rasha's chamber": 2, "maggot lair": 2, "stony tomb": 2,
+    # ── Act 3 ──
+    "kurast docks": 3, "spider forest": 3, "spider cavern": 3, "great marsh": 3,
+    "flayer jungle": 3, "flayer dungeon": 3, "swampy pit": 3, "lower kurast": 3,
+    "kurast bazaar": 3, "upper kurast": 3, "kurast causeway": 3, "travincal": 3,
+    "disused fane": 3, "forgotten reliquary": 3, "forgotten temple": 3, "ruined temple": 3,
+    "disused reliquary": 3, "ruined fane": 3, "arachnid lair": 3, "durance of hate": 3,
+    "sewers act 3": 3,
+    # ── Act 4 ──
+    "pandemonium fortress": 4, "outer steppes": 4, "plains of despair": 4,
+    "city of the damned": 4, "river of flame": 4, "chaos sanctuary": 4,
+    # ── Act 5 ──
+    "harrogath": 5, "bloody foothills": 5, "frigid highlands": 5, "abaddon": 5,
+    "arreat plateau": 5, "pit of acheron": 5, "crystalline passage": 5, "frozen river": 5,
+    "glacial trail": 5, "drifter cavern": 5, "frozen tundra": 5, "ancients' way": 5,
+    "icy cellar": 5, "arreat summit": 5, "nihlathak's temple": 5, "halls of anguish": 5,
+    "halls of pain": 5, "halls of vaught": 5, "worldstone keep": 5, "throne of destruction": 5,
+    "worldstone chamber": 5,
+}
+
+
+def _area_act(area):
+    """Normalized area → act (1-5), or None when unmapped (honest — never a fabricated act)."""
+    a = str(area or "").strip().lower()
+    if not a:
+        return None
+    a = re.sub(r"\s+level[s]?\s+[0-9ivx]+$", "", a)   # "catacombs level 2" → "catacombs"
+    a = re.sub(r"\s+[0-9]+$", "", a)                    # trailing bare number
+    a = re.sub(r"^the\s+", "", a).strip()               # leading "the"
+    return _AREA_ACT.get(a)
+
+
+def _area_with_act(ar):
+    """'Frigid Highlands' → 'Act 5 · Frigid Highlands' when mapped; unchanged when not."""
+    act = _area_act(ar)
+    return ("Act %d · %s" % (act, ar)) if act else ar
+
+
 def _diablo_scene_label(scene, area):
-    """(scene, area) → {kind, label, area}. kind ∈ entering|town|farming|menu|unclear.
-    TOWN vs FARMING is decided deterministically by _TOWN_AREAS (safe vs drops), never guessed."""
+    """(scene, area) → {kind, label, area, act}. kind ∈ entering|town|farming|menu|unclear.
+    TOWN vs FARMING is decided deterministically by _TOWN_AREAS (safe vs drops), never guessed.
+    B10 — the label carries the ACT in Diablo terms ("FARMING · Act 1 · Dark Wood") when the area
+    is in the canonical _AREA_ACT map; an unmapped area degrades to the plain label (no fabricated
+    act), and `unclear` stays unclear. `act` (int|None) rides the dict for structured consumers."""
     sc = str(scene or "").strip().lower()
     ar = str(area or "").strip()
+    act = _area_act(ar)
+    ara = _area_with_act(ar)   # "Act N · <area>" when mapped, else the plain area
     is_town = bool(ar) and any(t in ar.lower() for t in _TOWN_AREAS)
     if sc in ("transition", "loading"):
-        return {"kind": "entering", "area": ar or None,
-                "label": ("ENTERING " + ar) if ar else "ENTERING (loading)"}
+        return {"kind": "entering", "area": ar or None, "act": act,
+                "label": ("ENTERING " + ara) if ar else "ENTERING (loading)"}
     if sc.startswith("stash") or sc in ("inventory", "loot"):
         # an open panel is what's ON SCREEN — it wins over the underlying town/area context.
         # `stash`, `stash-gems`, `stash-runes`, `stash-materials` (tab-classified) all → STASH.
         nm = "INVENTORY" if sc == "inventory" else ("LOOT" if sc == "loot" else "STASH")
-        return {"kind": "menu", "area": ar or None, "label": nm + (" · " + ar if ar else "")}
+        return {"kind": "menu", "area": ar or None, "act": act,
+                "label": nm + (" · " + ara if ar else "")}
     if is_town or sc == "town":
-        return {"kind": "town", "area": ar or None,
-                "label": ("TOWN · " + ar) if ar else "TOWN (safe)"}
+        return {"kind": "town", "area": ar or None, "act": act,
+                "label": ("TOWN · " + ara) if ar else "TOWN (safe)"}
     if sc == "gameplay":
-        return {"kind": "farming", "area": ar or None,
-                "label": ("FARMING · " + ar) if ar else "FARMING"}
+        return {"kind": "farming", "area": ar or None, "act": act,
+                "label": ("FARMING · " + ara) if ar else "FARMING"}
     if ar:   # no scene word, but the read named an area — classify by the town list
-        return {"kind": "farming", "area": ar, "label": "FARMING · " + ar}
-    return {"kind": "unclear", "area": None, "label": "unclear"}
+        return {"kind": "farming", "area": ar, "act": act, "label": "FARMING · " + ara}
+    return {"kind": "unclear", "area": None, "act": None, "label": "unclear"}
 
 
 def _session_scene_fingerprint(sess_rows):
@@ -6665,7 +6728,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1362",
+        "ver": "v1363",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

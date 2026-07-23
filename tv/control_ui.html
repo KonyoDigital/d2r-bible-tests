@@ -2170,6 +2170,24 @@
     align-content: start; align-items: start; grid-auto-rows: max-content;   /* v906.1 — cards GROW, never overlap */
     min-height: 0; overflow-y: auto; }
   .home-dash .hd-col { height: fit-content; min-height: 0; }
+  /* ══ v1362 (SESSIONS R2 · the HUNT hub — zone tier, Konyo-approved) — the Sessions tab is the FORGE/HUNT/
+     MISSIONS counterpart to TV-D=engines. THREE zones with the TV-D-grade banner tier, the HUNT leading;
+     the engine cards (health/engines/intake) move OFF here (they live on TV-D). Bold, wide-tracked, accent-
+     coloured label + 4px bar — bigger/heavier/coloured than a card title so the zones announce themselves. ══ */
+  .zone-banner { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px;
+    margin: 4px 0 0; padding: 1px 0 3px 11px; border-left: 4px solid currentColor;
+    font: var(--fw-bold) var(--fs-sm)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-widest); text-transform: uppercase; }
+  .zone-banner:first-child, .home-dash > .zone-banner:first-of-type { margin-top: 0; }
+  .zone-banner .zb-ico { font-size: 1.08em; line-height: 1; }
+  .zone-banner .zb-sub { margin-left: auto; align-self: center; font: var(--fw-medium) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-normal); text-transform: none; color: var(--muted); }
+  .zone-hunt { color: var(--gold); } .zone-mission { color: var(--mint); } .zone-record { color: var(--info); }
+  /* HUNT leads · MISSIONS · RECORD — arranged by flex/grid order (no DOM churn) */
+  .zone-hunt { order: 1; } #hd-taskforce { order: 2; }
+  .zone-mission { order: 3; } #hd-forge { order: 4; }
+  .zone-record { order: 5; } #hd-kpi { order: 6; } #hd-lastsession { order: 7; } #hd-history { order: 8; }
+  /* the ENGINE cards belong on TV-D, not the Sessions hunt hub — re-homed off here */
+  #hd-enghealth, #hd-engines, #hd-intake { display: none !important; }
   /* v1289 (SESSIONS FLAGSHIP D6 · structure/symmetry) — the half-width regions pair up on a shared grid
      row (Task Force ▸ Last Session, Forge ▸ Live Intake). Stretch them to the row's height so their
      bottoms line up as a matched pair instead of reading ragged/lopsided. Full-width regions (.hd-wide)
@@ -2678,6 +2696,10 @@
          forge quests + live 📸 intake feed + the shelf inline. Primary when OFF AIR;
          compact strip under the live stage when ON. -->
     <section class="home-dash" id="home-dash">
+      <!-- v1362 (SESSIONS R2) — the 3 HUNT zones (ordered by CSS: hunt leads · missions · record) -->
+      <div class="zone-banner zone-hunt"><span class="zb-ico">🏆</span>YOUR HUNT<span class="zb-sub">grail progress · what to hunt today</span></div>
+      <div class="zone-banner zone-mission"><span class="zb-ico">📋</span>DAILY MISSIONS<span class="zb-sub">quests · daily goals</span></div>
+      <div class="zone-banner zone-record"><span class="zb-ico">🗂</span>YOUR RECORD<span class="zb-sub">stats · past runs</span></div>
       <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs: a Maxroll-grade instrument cluster at the
            top of the off-air dash. Cross-session aggregates derived client-side from HD_ALL (the /api/sessions
            poll) — no new fetch. Big tabular numerals, honest "—" when there's no data. -->

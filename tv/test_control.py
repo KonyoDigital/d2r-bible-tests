@@ -2148,6 +2148,50 @@ class TestCrossFrameQuorum(unittest.TestCase):
         self.assertEqual(rows[1]["gateReason"], "name-not-in-db")
 
 
+class TestAreaActDiabloLanguage(unittest.TestCase):
+    """B10 — Diablo-language area/ACT truth. `_diablo_scene_label` carries the ACT ("FARMING ·
+    Act 1 · Dark Wood") when the area is in the canonical `_AREA_ACT` map; an unmapped area
+    degrades to the plain label (no fabricated act), and `unclear` stays. Deterministic game
+    truth (never guessed) — one lever lighting every Diablo-language surface (live banner,
+    classFrames, forensics synthesis, B8 fingerprint)."""
+
+    def test_each_act_prefixes_correctly(self):
+        for area, act in (("Dark Wood", 1), ("Ancient Tunnels", 2), ("Travincal", 3),
+                          ("Chaos Sanctuary", 4), ("Frigid Highlands", 5)):
+            r = ca._diablo_scene_label("gameplay", area)
+            self.assertEqual(r["act"], act)
+            self.assertEqual(r["label"], "FARMING · Act %d · %s" % (act, area))
+
+    def test_level_suffix_is_stripped(self):
+        r = ca._diablo_scene_label("gameplay", "Catacombs Level 2")
+        self.assertEqual(r["act"], 1)
+        self.assertEqual(r["label"], "FARMING · Act 1 · Catacombs Level 2")
+
+    def test_the_prefix_normalized(self):
+        self.assertEqual(ca._area_act("The Worldstone Chamber"), 5)
+        self.assertEqual(ca._area_act("Pandemonium Fortress"), 4)
+
+    def test_unmapped_area_never_fabricates_an_act(self):
+        r = ca._diablo_scene_label("gameplay", "Some Unmapped Zone")
+        self.assertIsNone(r["act"])
+        self.assertEqual(r["label"], "FARMING · Some Unmapped Zone")   # unchanged from pre-B10
+
+    def test_edge_states_hold(self):
+        self.assertEqual(ca._diablo_scene_label("gameplay", "")["label"], "FARMING")
+        self.assertEqual(ca._diablo_scene_label("", "")["label"], "unclear")
+        self.assertEqual(ca._diablo_scene_label("", "")["act"], None)
+        self.assertEqual(ca._diablo_scene_label("transition", "Frigid Highlands")["label"],
+                         "ENTERING Act 5 · Frigid Highlands")
+        self.assertEqual(ca._diablo_scene_label("town", "Harrogath")["label"], "TOWN · Act 5 · Harrogath")
+        self.assertEqual(ca._diablo_scene_label("stash", "Rogue Encampment")["label"],
+                         "STASH · Act 1 · Rogue Encampment")
+
+    def test_the_five_real_reel_areas_resolve(self):
+        for area, act in (("Dark Wood", 1), ("Rogue Encampment", 1), ("Throne of Destruction", 5),
+                          ("The Worldstone Chamber", 5), ("Catacombs Level 2", 1)):
+            self.assertEqual(ca._area_act(area), act, area)
+
+
 class TestKaiVerReseal(unittest.TestCase):
     """E3 — kaiVer re-seal lag. Seal-time logic (E1 two-witness grounding, ② cross-frame) changed
     without bumping kaiVer, so already-sealed reels stranded with pre-E1 registers (recoveries lived
