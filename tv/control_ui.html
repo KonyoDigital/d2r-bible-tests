@@ -473,7 +473,11 @@
     text-shadow: 0 0 40px rgba(240,192,96,.45), 0 4px 6px rgba(0,0,0,.7);
     transition: color .5s, text-shadow .5s;
   }
-  body[data-state="on"]  .phase { color: #a9f2c0; text-shadow: 0 0 48px rgba(143,230,160,.6), 0 4px 6px rgba(0,0,0,.7); }
+  body[data-state="on"]  .phase { color: #b6f5cb; text-shadow: 0 0 48px rgba(143,230,160,.6), 0 4px 6px rgba(0,0,0,.7); }
+  /* v1350 (TV-D R3 · STAGE PRESENCE) — the live word BREATHES: a slow glow-pulse so ON AIR reads alive, not
+     a static placard. Broadcast presence, reduced-motion aware. */
+  @media (prefers-reduced-motion: no-preference){ body[data-state="on"] .phase { animation: livePhase 2.6s ease-in-out infinite; } }
+  @keyframes livePhase { 0%,100% { text-shadow: 0 0 42px rgba(143,230,160,.5), 0 4px 6px rgba(0,0,0,.7); } 50% { text-shadow: 0 0 70px rgba(143,230,160,.9), 0 4px 6px rgba(0,0,0,.7); } }
   body[data-state="sim"] .phase { color: #e2d0ff; text-shadow: 0 0 44px rgba(201,168,255,.5), 0 4px 6px rgba(0,0,0,.7); }
   .caption {
     margin-top: clamp(10px,1.4vh,20px);
@@ -1316,8 +1320,24 @@
   .eye-live   { border-left-color: #e05545; }
   .eye-second { border-left-color: #5c9ded; }
   .eye-kai    { border-left-color: var(--gold); }
+  .eye-router   { border-left-color: #b58cff; }
+  .eye-watchdog { border-left-color: #ff9d5c; }
   .eye.off { opacity: .42; }
   .eye.off .es { color: var(--muted); }
+  /* ══ v1348 (TV-D ENGINE-BAY R2 · ANTI-HIDDEN DOCTRINE, Konyo) — every engine wears an honest
+     wired/running LAMP: 🟢 lit = alive + producing, ⚫ dark = idle / not-connected. Driven only from
+     REAL state (eyes/driver/watchdog) — a built-but-unwired engine shows DARK + "not connected",
+     never silently hidden. This is the "I don't want things hidden" safeguard, in one dot per engine. */
+  .eng-lamp { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-right: 1px;
+    background: #34423a; box-shadow: inset 0 0 0 1px rgba(0,0,0,.5); transition: background .3s, box-shadow .3s; }
+  .eng-lamp.lit { background: var(--mint); box-shadow: 0 0 8px rgba(143,230,160,.85); }
+  @media (prefers-reduced-motion: no-preference){ .eng-lamp.lit { animation: lampPulse 1.7s ease-in-out infinite; } }
+  .eng-lamp.lit.steady { animation: none; box-shadow: 0 0 6px rgba(143,230,160,.6); }   /* armed (ready), not actively producing */
+  /* a flagged watchdog (real violations from the seal) turns its lamp + border alert-red — honest, only when it actually tripped */
+  .eye.eng-alert { border-left-color: var(--danger); }
+  .eye.eng-alert .eng-lamp.lit { background: var(--danger); box-shadow: 0 0 8px rgba(255,122,122,.9); }
+  .eye.eng-alert .es { color: #ffb0a0; }
+  @keyframes lampPulse { 0%,100%{ box-shadow: 0 0 6px rgba(143,230,160,.6); } 50%{ box-shadow: 0 0 10px rgba(143,230,160,1); } }
   /* ══ v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — surface sessionHealth.gate.{proven,held} proudly:
      the brain PROTECTING Konyo's accuracy. Sits under the 3 eyes, in the KAI READER cluster. proven =
      reads that cleared the two-witness gate · held = uncertain reads the gate refused to certify (misreads
@@ -1901,7 +1921,7 @@
   /* v1249 (CONSOLE UPGRADE r3 · #3 PROMINENCE) — the reader cluster (eyes + pool + live feed) reads as one clear,
      findable section: a mint "THE KAI READER" header (mint = the live engine), so Konyo can't miss where the AI
      watches. Slightly larger + mint accent-bar, distinct from the gold SESSION HEALTH label below it. */
-  .signal .eyes::before { content: "🧠 THE KAI READER · live engine"; color: var(--mint);
+  .signal .eyes::before { content: "⚙ AI ENGINES · the scanner"; color: var(--mint);
     border-left-color: var(--mint); }   /* canonical card-title chrome; only the mint identity overrides */
   .sess-health::before { content: "SESSION HEALTH"; flex: 0 0 100%; }   /* header on its own line, values inline below; spacing now the canonical card-title chrome */
   .sess-health .sh-verdict { margin: 0 0 0 auto; font: var(--fw-bold) var(--fs-2xs)/var(--lh-tightest) var(--mono); letter-spacing: var(--ls-wide);
@@ -2346,7 +2366,11 @@
   /* v913 (Konyo: 'when the reader is on it should show all visually perfectly') — ON AIR keeps
      a LIVE strip: engines + intake feed breathe under the film; the heavy panels rest */
   body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession, body[data-state="on"] #hd-history, body[data-state="on"] #hd-kpi { display: none; }   /* v1275 (D3)/v1274 (D4) — HISTORY + KPIs are off-air exploration/telemetry; the live view stays compact */
-  body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; max-height: 180px; overflow-y: auto; }
+  /* v1350 (TV-D R3 · KILL THE BLEED) — on-air, the off-air dashboard (task-force/KPIs/engine-health cards)
+     was overflowing the fixed-height shell behind the stage and GHOSTING through the meters (the muddy
+     "dull" bleed). On air the cockpit IS the stage + the AI-ENGINES rail + the vitals ticker — the dash is
+     off-air/Sessions content, so it's hidden while live: bleed gone, and the stage/film gets the room. */
+  body[data-state="on"] .home-dash { display: none; }
   body[data-state="on"] .stage { min-height: 420px; }   /* v913-R6 (Grok) — the film NEVER starves for the live strip */
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
   .hd-chip.nm { color: #e6cf90; border-color: rgba(240,192,96,.4); }   /* v945.4 — GRAIL/SETS are ACHIEVEMENT progress (gold), not a live lane; mint now means live-only */
@@ -2617,9 +2641,13 @@
              opens with WHO is watching, in his words: the live eye, the second eye that
              double-checks in the gaps, and KAI who drives + closes sessions. -->
         <div class="eyes">
-          <div class="eye eye-live" id="eye-live"><span class="ex">🔴</span><span class="en">Live Eye</span><span class="es" id="eye-live-s">—</span></div>
-          <div class="eye eye-second" id="eye-second"><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
-          <div class="eye eye-kai" id="eye-kai"><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
+          <div class="eye eye-live" id="eye-live"><span class="eng-lamp" id="lamp-live"></span><span class="ex">🔴</span><span class="en">Live Eye</span><span class="es" id="eye-live-s">—</span></div>
+          <div class="eye eye-second" id="eye-second"><span class="eng-lamp" id="lamp-second"></span><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
+          <div class="eye eye-kai" id="eye-kai"><span class="eng-lamp" id="lamp-kai"></span><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
+          <!-- v1348 R2 — surface the previously-HIDDEN engines (anti-hidden doctrine): the router that dispatches
+               frames, and the watchdog that guards accuracy. Honest lamp + state; DARK "not connected" when unwired. -->
+          <div class="eye eye-router" id="eye-router"><span class="eng-lamp" id="lamp-router"></span><span class="ex">🚦</span><span class="en">Router</span><span class="es" id="eye-router-s">—</span></div>
+          <div class="eye eye-watchdog" id="eye-watchdog"><span class="eng-lamp" id="lamp-watchdog"></span><span class="ex">🛡</span><span class="en">Watchdog</span><span class="es" id="eye-watchdog-s">—</span></div>
         </div>
         <!-- v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — the accuracy gate's work, surfaced proudly under the eyes
              (was buried in the FUNNELS organ sub-line). proven = reads that cleared the two-witness gate;
@@ -3099,6 +3127,28 @@
     // v1247 (CONSOLE UPGRADE r1) — the reader net MOVES: the live eye pulses while it's actually thinking on a
     // frame (real H.visionBusyMs), so Konyo SEES it working. Truthful — only when genuinely mid-read.
     if (eLiveB) eLiveB.classList.toggle('reading', on && (H.visionBusyMs || 0) > 1200);
+
+    // v1350 (TV-D ENGINE BAY) — the LAMPS + engine states now read g3's authoritative engines{}
+    // connected-status contract. ONE honest source: 🟢 lit only when state=='live' (watchdog 'armed' =
+    // steady ready lamp); ⚫ dark on wired:false or idle/down. `note` = the honest human reason (why
+    // disconnected / what it's doing) → shown as the engine's status line + drill-down. A DISCONNECTED
+    // engine paints VISIBLE + dark, never hidden — the "nothing hidden" doctrine, straight from the wire.
+    var _engs = st.engines || {};
+    [['liveEye', 'eye-live'], ['secondEye', 'eye-second'], ['kai', 'eye-kai'],
+     ['router', 'eye-router'], ['watchdog', 'eye-watchdog']].forEach(function(m){
+      var e = _engs[m[0]]; if (!e) return;   // engines{} absent (pre-v1350) → leave the fallback text
+      var row = $(m[1]), lampEl = $('lamp-' + m[1].slice(4)), sEl = $(m[1] + '-s');
+      var live = e.state === 'live', armed = e.state === 'armed';
+      if (lampEl){ lampEl.classList.toggle('lit', live || armed); lampEl.classList.toggle('steady', armed && !live); }
+      if (sEl && e.note != null) sEl.textContent = e.note;
+      if (row){
+        row.classList.toggle('off', e.wired === false || e.state === 'down' || e.state === 'idle');
+        // honest alert-red ONLY on a watchdog that actually tripped (real violations verdict)
+        var _flag = (m[0] === 'watchdog') && (((st.watchdog || {}).verdict === 'violations') || /flag|violat|🚨/i.test(e.note || ''));
+        row.classList.toggle('eng-alert', !!_flag);
+        row.title = e.note || '';
+      }
+    });
 
     // v946 — SESSION HEALTH strip
     try {
