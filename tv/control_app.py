@@ -4360,7 +4360,10 @@ def _ev_hours(drop_chance, kills_per_hr, confidence=0.5):
         return None
     if not (0.0 < p < 1.0) or kph <= 0 or not (0.0 < c < 1.0):
         return None
-    return (math.log(1.0 - c) / math.log(1.0 - p)) / kph
+    # CEIL the runs (whole runs) to match the bible's Calculator `runsFor` EXACTLY, so the flagship
+    # hero and F·Uniques show ONE number for the same grail (Konyo sees both surfaces).
+    runs = math.ceil(math.log(1.0 - c) / math.log(1.0 - p))
+    return runs / kph
 
 
 def _ev_rank(items, confidence=0.5):

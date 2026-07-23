@@ -3343,7 +3343,7 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -15094,6 +15094,36 @@ const fmtHours = h => {
   if (h < 24) return `${h.toFixed(1)}h`;
   return `${(h/24).toFixed(1)}d`;
 };
+// GRAIL-FARM BRIDGE — export each MISSING grail's best-source (min expected-hours, at current
+// MF/players) to d2r_grailFarm, so the console Sessions flagship POSTs it to /api/evrank for the
+// NEXT GRAIL hero. Reuses the F-Uniques Calculator (effChance/hoursFor) — zero drift. dropChance =
+// 1/chance (per-run prob) matches the engine _ev_hours. Missing-only; no-source grails omitted
+// (honest). Fork-aware (d2r_grailFarm is in _LP_FORKED); writes only on change (like forgeSummary).
+function _writeGrailFarm(){
+  try {
+    if (typeof ITEMS === 'undefined' || !Array.isArray(ITEMS)) return;
+    var out = [];
+    ITEMS.forEach(function(item){
+      if (!item || (item.tier !== 'grail' && item.tier !== 'uber')) return;
+      if (typeof _gFound === 'function' && _gFound(item.n)) return;   // MISSING grails only
+      var best = null;
+      (item.sources || []).forEach(function(s){
+        if (!s.chance || s.chance < 100) return;
+        var adj = effChance(s.chance, s.bossId, s.diffKey);
+        var hrs = hoursFor(adj, 0.5, s.kph || 100);
+        if (hrs === null) return;
+        if (!best || hrs < best.hours) best = { boss: s.boss, chance: adj, kph: s.kph || 100, hours: hrs };
+      });
+      if (best && best.chance > 0)
+        out.push({ name: item.n, source: best.boss, dropChance: 1 / best.chance, killsPerHr: best.kph });
+    });
+    var _new = JSON.stringify(out), _old = null;
+    try { _old = LS.getItem('d2r_grailFarm'); } catch(e){}
+    if (_new !== _old) LS.setItem('d2r_grailFarm', _new);
+  } catch(e){}
+}
+try { window._writeGrailFarm = _writeGrailFarm; } catch(e){}
+try { setTimeout(function(){ try { _writeGrailFarm(); } catch(e){} }, 1500); } catch(e){}
 let _persistT = null;
 try { window.addEventListener('pagehide', () => { if (_persistT){ clearTimeout(_persistT); _persistT = null; persist(); } }); } catch(e){}
 // v887 (Routine I caught v878's debounce breaking gem/craft persistence reads) — persist() is
@@ -15125,6 +15155,7 @@ const persist = () => {
   LS.setItem('d2r_craftStash', JSON.stringify(craftStash));
   LS.setItem('d2r_craftBaseStash', JSON.stringify(craftBaseStash));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
+  try { _writeGrailFarm(); } catch(e){}   // MF/players (odds) may have changed → re-rank the /api/evrank bridge
 };
 
 // v42 Finding N (CC): one-shot boot-time sanitization. Wishlist + owned Sets
@@ -17547,6 +17578,7 @@ function toggleOwned(name) {
   // (tab entry already re-renders for every other path).
   try { var _tf=document.getElementById('tab-funi'); if(_tf&&_tf.classList.contains('active')&&typeof window.renderForgeUni==='function') window.renderForgeUni(); } catch(e){}
   try { var _ts=document.getElementById('tab-fsets'); if(_ts&&_ts.classList.contains('active')&&typeof window.renderForgeSets==='function') window.renderForgeSets(); } catch(e){}
+  try { if (window._writeGrailFarm) window._writeGrailFarm(); } catch(e){}   // found/unfound changes the missing-grail set → refresh the /api/evrank bridge
 }
 /* ── Backup & Share Progress ──────────────────────────────────────────────────
    All grail/wishlist/statue/settings state lives in localStorage (see the footer

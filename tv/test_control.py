@@ -2249,9 +2249,10 @@ class TestEvRank(unittest.TestCase):
         cls.srv.shutdown()
 
     def test_ev_hours_matches_calculator_formula(self):
+        # matches the bible Calculator EXACTLY: runs = ceil(log(1-conf)/log(1-1/chance)); hours=runs/kph
         import math
         p, kph, c = 1 / 2293.0, 85, 0.5
-        expected = (math.log(1 - c) / math.log(1 - p)) / kph
+        expected = math.ceil(math.log(1 - c) / math.log(1 - p)) / kph
         self.assertAlmostEqual(ca._ev_hours(p, kph, c), expected, places=9)
 
     def test_invalid_odds_are_honest_absent(self):
