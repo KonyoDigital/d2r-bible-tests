@@ -2618,6 +2618,42 @@ def _kai_item_phrase(name, cls):
     return ("the " + cls + " " + name) if cls else name
 
 
+_UNRESOLVED_NONITEM_MARKERS = ("entering", "loading", "waypoint", "create game", "you have",
+                               "has joined", "has left", "press", "gold")
+_UNRESOLVED_UI_FUZZY = ("socketed", "transmute", "potion", "maximum", "greater", "identify")
+
+
+def _kai_unresolved_kind(texts):
+    """② forensics honesty — classify an UNRESOLVED read (item=None, garble we couldn't resolve):
+      'non-item'        — CONFIDENTLY screen text, never loot: a transition banner (ENTERING/
+                          loading), a short UI indicator (LIVE/IDLE — no substantial word), pure
+                          noise (every long word is _kai_line_is_noise), or a fuzzy hit on a
+                          recurring UI/cube/consumable prompt (socketed-items / potion / …).
+      'unreadable-item' — garbled text too mangled to classify; honestly left as "couldn't read"
+                          (NOT claimed as a grail miss — grailMisses stays a PROVEN 0).
+    Deterministic + conservative (ambiguous → unreadable-item, never over-claims non-item). Pure."""
+    tx = texts or []
+    blob = " ".join(str(t) for t in tx).strip().lower()
+    if not blob:
+        return "non-item"
+    dl = _kai_deleet(blob)
+    if any((m in blob) or (_kai_deleet(m) in dl) for m in _UNRESOLVED_NONITEM_MARKERS):
+        return "non-item"
+    # fuzzy hit on a recurring UI/cube/consumable prompt (the raw is heavily leet-garbled)
+    for t in tx:
+        for w in re.split(r"[^a-z0-9']+", str(t).lower()):
+            d = _kai_deleet(w)
+            if len(d) >= 5 and any(abs(len(d) - len(tg)) <= 2 and _kai_lev(d, tg, 2) <= 2
+                                   for tg in _UNRESOLVED_UI_FUZZY):
+                return "non-item"
+    long_words = [w for t in tx for w in re.split(r"[^a-z]+", str(t).lower()) if len(w) >= 5]
+    if not long_words:
+        return "non-item"                                   # short UI indicators / pure noise
+    if all(_kai_line_is_noise(w) for w in long_words):
+        return "non-item"
+    return "unreadable-item"
+
+
 _FORENSIC_RIGHT = ("grounded", "resolved-corrected", "recovered-2witness", "recovered-crossframe")
 
 
@@ -2740,9 +2776,13 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
                                              "' — same " + _kai_item_phrase(name, _cls) + " read cleanly nearby, corrected"),
                               witnesses={"content": True}, resolvedFrom={"frameId": fid, "witness": "clean-match-nearby"}))
         else:
+            _uk = _kai_unresolved_kind(texts)
+            _uwhy = ("screen text (UI / transition / noise), never loot"
+                     if _uk == "non-item" else "an item read too garbled to resolve")
             reads.append(dict(base, item=None, status="unresolved", corrected=False, itemClass=None,
+                              unresolvedKind=_uk,   # ② backward-compatible: status stays 'unresolved'
                               reason="garbled text, no confident resolution",
-                              synthesis=_syn(where, "unreadable garble — left honestly unresolved"),
+                              synthesis=_syn(where, "unreadable garble — " + _uwhy),
                               witnesses={}, resolvedFrom=None))
 
     # deterministic id per read (sid:frameId:status) — stable across polls, for UI keying
@@ -2763,7 +2803,11 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
         g["lastTs"] = ts if g["lastTs"] is None else max(g["lastTs"], ts)
     items = sorted(groups.values(), key=lambda x: (x["lastTs"] or 0), reverse=True)[:cap]
 
-    summary = {"clean": 0, "corrected": 0, "recovered": 0, "blocked": 0, "unresolved": 0}
+    # ② additive honesty counts: split the unresolved bucket + a PROVEN grailMisses headline.
+    # grailMisses = 0 by construction: every grail the AI IDENTIFIED (grounder/clean-match) is
+    # captured above — an unresolved read has no resolved item, so no identified grail was dropped.
+    summary = {"clean": 0, "corrected": 0, "recovered": 0, "blocked": 0, "unresolved": 0,
+               "grailMisses": 0, "screenText": 0, "unreadable": 0}
     for r in reads:
         s = r["status"]
         if s == "grounded":
@@ -2776,6 +2820,10 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
             summary["blocked"] += 1
         else:
             summary["unresolved"] += 1
+            if r.get("unresolvedKind") == "non-item":
+                summary["screenText"] += 1
+            else:
+                summary["unreadable"] += 1
     return {"sid": sid, "items": items, "summary": summary, "total": len(reads)}
 
 
@@ -6777,7 +6825,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1365",
+        "ver": "v1366",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

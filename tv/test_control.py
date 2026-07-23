@@ -2232,6 +2232,47 @@ class TestAreaActDiabloLanguage(unittest.TestCase):
             self.assertEqual(ca._area_act(area), act, area)
 
 
+class TestForensicsUnresolvedSplit(unittest.TestCase):
+    """② forensics honesty — "unresolved 103" reads like 103 missed items when the truth is 0
+    grail misses + screen-text/noise. Backward-compatible (status STAYS 'unresolved'): adds an
+    additive `unresolvedKind` ('non-item' | 'unreadable-item') + summary counts (grailMisses=0,
+    screenText, unreadable). Deterministic detector, conservative (ambiguous → unreadable-item),
+    no grounder change. Verified vs 29 reels: 0 grail misses · 37 screen-text · 66 unreadable."""
+
+    def test_transition_banner_is_non_item(self):
+        self.assertEqual(ca._kai_unresolved_kind(["ENTERING THE CATACOMBS LEVEL 2"]), "non-item")
+
+    def test_short_ui_indicator_is_non_item(self):
+        self.assertEqual(ca._kai_unresolved_kind(["LIVE"]), "non-item")
+        self.assertEqual(ca._kai_unresolved_kind(["IDLE"]), "non-item")
+
+    def test_fuzzy_cube_prompt_is_non_item(self):
+        # the recurring garbled Horadric-cube prompt (heavily leet-mangled) resolves to non-item
+        self.assertEqual(ca._kai_unresolved_kind(["INSERT SOCKETED ITEMS"]), "non-item")
+
+    def test_plausible_garbled_item_stays_unreadable(self):
+        # a long non-UI, non-noise garble is honestly left as unreadable-item (conservative)
+        self.assertEqual(ca._kai_unresolved_kind(["Grffn'z Eymagh Xzq"]), "unreadable-item")
+
+    def test_backward_compatible_status_and_summary(self):
+        rep = {"sid": "s", "register": [], "routing": [], "missed": [
+            {"f": "f1.jpg", "ts": 1, "texts": ["LIVE"], "cls": "gameplay"},          # UI → non-item
+            {"f": "f2.jpg", "ts": 2, "texts": ["Grffn'z Eyagh Xzq"], "cls": "gameplay"}]}  # garble → unreadable
+        out = ca._kai_forensics_project(rep)
+        reads = [r for it in out["items"] for r in it["reads"]]
+        # status STAYS 'unresolved' (live 🔬 surface unbroken); the kind is the additive sub-field
+        unr = [r for r in reads if r["status"] == "unresolved"]
+        self.assertEqual(len(unr), 2)
+        self.assertTrue(all(r["status"] == "unresolved" for r in unr))
+        kinds = {r["unresolvedKind"] for r in unr}
+        self.assertEqual(kinds, {"non-item", "unreadable-item"})
+        s = out["summary"]
+        self.assertEqual(s["grailMisses"], 0)                       # PROVEN headline
+        self.assertEqual(s["screenText"] + s["unreadable"], s["unresolved"])
+        self.assertEqual(s["screenText"], 1)
+        self.assertEqual(s["unreadable"], 1)
+
+
 class TestKaiVerReseal(unittest.TestCase):
     """E3 — kaiVer re-seal lag. Seal-time logic (E1 two-witness grounding, ② cross-frame) changed
     without bumping kaiVer, so already-sealed reels stranded with pre-E1 registers (recoveries lived
@@ -2349,7 +2390,7 @@ class TestReadsForensicsProjection(unittest.TestCase):
     def test_summary_counts_and_grouping(self):
         out = ca._kai_forensics_project(self._report())
         s = out["summary"]
-        self.assertEqual(set(s.keys()), {"clean", "corrected", "recovered", "blocked", "unresolved"})
+        self.assertTrue({"clean", "corrected", "recovered", "blocked", "unresolved"} <= set(s.keys()))
         # recovered = War Traveler (2witness) + the cross-frame route
         self.assertGreaterEqual(s["recovered"], 2)
         self.assertGreaterEqual(s["blocked"], 1)
