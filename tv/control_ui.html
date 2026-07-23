@@ -681,6 +681,18 @@
      on air. */
   body[data-state="off"] .ticker { height: clamp(38px, 4.6vh, 50px); }
   body[data-state="off"] .ticker .brain { padding-top: 0; padding-bottom: 0; }
+  /* ══ F2 · SESSION-VITALS RIBBON — live reads-activity sparkline + rate vitals, in the ticker, on-air only ══ */
+  .tk-vitals { flex: none; display: none; align-items: center; gap: clamp(10px,1.1vw,20px);
+    padding: 0 clamp(12px,1.2vw,20px); border-left: 1px solid rgba(102,255,136,.16);
+    background: linear-gradient(180deg, rgba(12,20,12,.55), rgba(6,10,6,.7)); }
+  body[data-state="on"] .tk-vitals { display: flex; }
+  .tkv-spark { width: clamp(74px, 9vw, 132px); height: 30px; flex: none; overflow: visible; }
+  .tkv-area { fill: url(#tkvGrad); }
+  .tkv-line { fill: none; stroke: var(--mint); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round;
+    filter: drop-shadow(0 0 3px rgba(143,230,160,.4)); }
+  .tkv-stat { text-align: center; flex: none; }
+  .tkv-v { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: #bfead0; font-variant-numeric: tabular-nums; }
+  .tkv-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #6f8a72; margin-top: 4px; }
 
   /* ══ FOOTER ══ */
   footer {
@@ -2563,6 +2575,18 @@
     <section class="ticker">
       <div class="tag" id="mind-tag" role="button" title="click — cycle thoughts · story · raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">Agent Mind <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:var(--fs-2xs)">· thoughts</span></div>
       <div class="brain" id="brain"><div class="empty">— agent thoughts appear here when live —</div></div>
+      <!-- F2 · SESSION-VITALS RIBBON — a live reads-activity sparkline + rate vitals, shown only during a scan
+           (on-air). Off /api/status via paint(); hidden off-air so the resting console stays slim/no-scroll. -->
+      <div class="tk-vitals" id="tk-vitals">
+        <svg class="tkv-spark" id="tkv-spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="tkvGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(143,230,160,.34)"></stop><stop offset="1" stop-color="rgba(143,230,160,0)"></stop></linearGradient></defs>
+          <polygon class="tkv-area" points=""></polygon>
+          <polyline class="tkv-line" points=""></polyline>
+        </svg>
+        <div class="tkv-stat"><div class="tkv-v" id="tkv-rph">—</div><div class="tkv-l">reads/hr</div></div>
+        <div class="tkv-stat"><div class="tkv-v" id="tkv-reads">0</div><div class="tkv-l">reads</div></div>
+        <div class="tkv-stat"><div class="tkv-v" id="tkv-elapsed">0:00</div><div class="tkv-l">elapsed</div></div>
+      </div>
     </section>
 
     <footer>
@@ -2732,6 +2756,27 @@
     $('clock-d').textContent = d.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'});
   }
 
+  // ══ F2 · vitals-ribbon updater — reads/hr · reads · elapsed + a reads-per-poll activity sparkline. Called each
+  // poll from paint(); CSS shows the ribbon only on-air, so this just fills it (no-op visuals when off). ══
+  function _tkVitals(on, rc){
+    var box = document.getElementById('tk-vitals'); if (!box || !on) return;
+    var set = function(id, v){ var e = document.getElementById(id); if (e && e.textContent !== v) e.textContent = v; };
+    set('tkv-reads', _kpiFmt(rc || 0));
+    if (window.__onairSince){
+      var s = Math.max(0, Math.floor((Date.now() - window.__onairSince) / 1000));
+      set('tkv-elapsed', Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2));
+      var hrs = s / 3600; set('tkv-rph', hrs > 0.0015 ? _kpiFmt(Math.round((rc || 0) / hrs)) : '—');
+    }
+    var buf = window.__vBuf || [], spark = document.getElementById('tkv-spark');
+    if (spark && buf.length >= 2){
+      var deltas = [], i; for (i = 1; i < buf.length; i++) deltas.push(Math.max(0, buf[i] - buf[i - 1]));
+      var max = 1; deltas.forEach(function(d){ if (d > max) max = d; });
+      var n = deltas.length, W = 100, Hh = 28;
+      var pts = deltas.map(function(d, i2){ var x = (n < 2 ? 0 : (i2 / (n - 1)) * W); var y = Hh - (d / max) * Hh; return x.toFixed(1) + ',' + y.toFixed(1); }).join(' ');
+      var line = spark.querySelector('.tkv-line'); if (line) line.setAttribute('points', pts);
+      var area = spark.querySelector('.tkv-area'); if (area) area.setAttribute('points', '0,' + Hh + ' ' + pts + ' ' + W + ',' + Hh);
+    }
+  }
   function paint(st){
     var mode = st.mode || 'off';
     // v899 — SIGNING OFF only while a stop is truly in flight AND bridge still up.
@@ -2997,6 +3042,9 @@
     if (state === 'on'){ if (!window.__onairSince) window.__onairSince = Date.now(); } else { window.__onairSince = 0; }
     st.__on = (state === 'on'); st.__rc = rc; window.__lastStatus = st;
     try { if (typeof _shLiveRender === 'function') _shLiveRender(st); } catch(e){}
+    // F2 — accumulate a reads sample each poll (on-air) for the vitals sparkline; reset off-air. Then update the ribbon.
+    if (state === 'on'){ window.__vBuf = window.__vBuf || []; window.__vBuf.push(rc); if (window.__vBuf.length > 40) window.__vBuf.shift(); } else { window.__vBuf = []; }
+    try { if (typeof _tkVitals === 'function') _tkVitals(state === 'on', rc); } catch(e){}
 
     $('sig-bridge').textContent = on ? 'connected' : (state === 'off' ? 'resting · off air' : 'no signal');   // v938.4 — 'no signal' only when it's actually wrong
     $('sig-model').textContent = st.model || '—';
