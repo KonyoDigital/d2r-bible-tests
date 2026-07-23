@@ -736,6 +736,27 @@
     .brain .line.hi.in .k { animation: none !important; }
   }
   .brain .empty { color: #45563f; font-style: italic; }
+  /* ══ v1356 (TV-D FINALE) · 🧾 AI-READS RECEIPT FEED — the ledger inside the ticker; each read routable + hover-art ══ */
+  .brain.brain-receipts { justify-content: flex-start; overflow-y: auto; gap: 1px; scrollbar-width: thin; }
+  .rcpt { display: flex; align-items: baseline; gap: 7px; padding: 2px 7px; border-left: 2px solid transparent;
+    border-radius: 5px; white-space: nowrap; overflow: hidden; opacity: .9; }
+  .rcpt-ic { flex: none; font-size: .9em; line-height: 1; }
+  .rcpt-t { overflow: hidden; text-overflow: ellipsis; color: #b7c9bd; }
+  .rcpt-arrow { margin-left: auto; padding-left: 8px; color: var(--mint); opacity: 0; flex: none; transition: opacity .12s; }
+  .rc-go { cursor: pointer; }
+  .rc-go:hover { background: rgba(143,230,160,.09); opacity: 1; }
+  .rc-go:hover .rcpt-arrow { opacity: .85; }
+  .rc-live     { border-left-color: #e05545; }
+  .rc-second   { border-left-color: #5c9ded; }
+  .rc-kai      { border-left-color: var(--gold); }
+  .rc-router   { border-left-color: #b58cff; }
+  .rc-watchdog { border-left-color: #ff9d5c; }
+  /* the cursor-following captured-frame float on hover */
+  #rcpt-art { position: fixed; width: clamp(220px, 24vw, 320px); z-index: 9998; pointer-events: none;
+    border: 1px solid var(--edge-hi); border-radius: 9px; box-shadow: 0 14px 44px rgba(0,0,0,.72);
+    opacity: 0; transform: translateY(4px) scale(.98); transition: opacity .12s, transform .12s; }
+  #rcpt-art.on { opacity: 1; transform: translateY(0) scale(1); }
+  @media (prefers-reduced-motion: reduce){ #rcpt-art { transition: opacity .12s; transform: none; } }
   /* v1252 (CONSOLE r4 · #1 fix AGENT MIND blocking · #2 no-scroll) — at rest the ticker is a slim bar (it only
      streams thoughts when LIVE), so it stops eating the home's vertical budget + covering the dash. Full height
      on air. */
@@ -2726,7 +2747,7 @@
     </aside>
 
     <section class="ticker">
-      <div class="tag" id="mind-tag" role="button" title="click — cycle thoughts · story · raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">Agent Mind <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:var(--fs-2xs)">· thoughts</span></div>
+      <div class="tag" id="mind-tag" role="button" title="click — cycle reads · thoughts · story · raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">🧾 AI READS <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:var(--fs-2xs)">· live</span></div>
       <div class="brain" id="brain"><div class="empty">— agent thoughts appear here when live —</div></div>
       <!-- F2 · SESSION-VITALS RIBBON — a live reads-activity sparkline + rate vitals, shown only during a scan
            (on-air). Off /api/status via paint(); hidden off-air so the resting console stays slim/no-scroll. -->
@@ -2802,7 +2823,7 @@
   var API = '';
   var busy = false;
   var showLog = false;
-  window.__mindMode = 'thoughts';   // v946: thoughts | story | log
+  window.__mindMode = 'receipts';   // v1356: receipts (AI-reads ledger, default) | thoughts | story | log
   window.__mindStory = [];
   var readMax = 1;
   var brainSig = '';
@@ -2993,6 +3014,66 @@
     else if (k === 'ocr') cls = 'mind-ocr';
     return { icon: icon, txt: txt || t, cls: cls };
   }
+
+  // ══ v1356 (TV-D FINALE) · 🧾 AI-READS RECEIPT FEED — per-engine reads, Diablo language, clickable + hover-art ══
+  var _RCPT_ENG = {
+    liveEye:   { ic: '🔴', cls: 'rc-live' },   secondEye: { ic: '🔵', cls: 'rc-second' },
+    kai:       { ic: '🧠', cls: 'rc-kai' },    router:    { ic: '🚦', cls: 'rc-router' },
+    watchdog:  { ic: '🛡', cls: 'rc-watchdog' }
+  };
+  var _RCPT_KIND = { read: 'read', verify: 'verified', judge: 'judged', route: 'routed', flag: 'flagged' };
+  function _receiptRow(r){
+    var eng = _RCPT_ENG[r.engine] || { ic: '•', cls: '' }, refs = r.refs || {};
+    var name = refs.itemName || '', dl = (r.diablo && r.diablo.label) || '';
+    var txt = (_RCPT_KIND[r.kind] || (r.kind || '')) + (name ? ' ' + name : '') + (dl ? ' · ' + dl : '');
+    var go = !!(r.route && r.route.target);
+    return '<div class="rcpt ' + eng.cls + (go ? ' rc-go' : '') + (refs.frameId ? ' rc-art' : '') + '"'
+      + ' data-id="' + esc(r.id || '') + '"' + (refs.frameId ? (' data-frame="' + esc(refs.frameId) + '"') : '')
+      + (go ? (' data-rtype="' + esc(r.route.type) + '" data-rtarget="' + esc(r.route.target) + '"') : '') + '>'
+      + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t">' + esc(txt) + '</span>'
+      + (go ? '<span class="rcpt-arrow">→</span>' : '') + '</div>';
+  }
+  // event delegation, bound once: click → route into the board · hover → floating captured frame
+  function _rcptBind(brain){
+    if (brain._rcptBound) return; brain._rcptBound = true;
+    brain.addEventListener('click', function(e){
+      var row = e.target.closest && e.target.closest('.rc-go'); if (!row) return;
+      _routeReceipt(row.getAttribute('data-rtype'), row.getAttribute('data-rtarget'));
+    });
+    brain.addEventListener('mousemove', function(e){
+      var row = e.target.closest && e.target.closest('.rc-art');
+      if (row){ _rcptArt.show(row.getAttribute('data-frame')); _rcptArt.move(e.clientX, e.clientY); } else _rcptArt.hide();
+    });
+    brain.addEventListener('mouseleave', function(){ _rcptArt.hide(); });
+  }
+  // cursor-following frame float — the real on-disk /hist/<frameId>.jpg (CSP-safe, no external images)
+  var _rcptArt = (function(){
+    var el = null, cur = '';
+    function ensure(){ if (el) return el; el = document.createElement('img'); el.id = 'rcpt-art';
+      el.alt = ''; el.onerror = function(){ hide(); }; document.body.appendChild(el); return el; }
+    return {
+      show: function(fid){ if (!fid) return this.hide(); ensure();
+        if (cur !== fid){ cur = fid; el.src = '/hist/' + encodeURIComponent(fid) + '.jpg?w=360'; } el.classList.add('on'); },
+      move: function(x, y){ if (!el) return; var w = 300, pad = 18;
+        el.style.left = Math.min(x + pad, window.innerWidth - w - 8) + 'px';
+        el.style.top = Math.max(8, y - 208) + 'px'; },
+      hide: function(){ if (el){ el.classList.remove('on'); cur = ''; } }
+    };
+  })();
+  // route into the bible board — grounding is CLIENT-SIDE via the board iframe's helpers; never a fake dossier
+  function _routeReceipt(rtype, rtarget){
+    if (!rtype || !rtarget) return; _rcptArt.hide();
+    var fr = document.getElementById('tvd-eng'), w = fr && fr.contentWindow;
+    try {
+      if (rtype === 'item'){
+        var grounded = w && typeof w._aicIsGrailName === 'function' && w._aicIsGrailName(rtarget);
+        if (grounded && typeof w.setActiveItem === 'function'){ shellOpen('funi'); try { w.setActiveItem(rtarget); } catch(e){} }
+        else { shellOpen('tools'); if (w && typeof w._aicSeedFromName === 'function'){ try { w._aicSeedFromName(rtarget); } catch(e){} } }
+      } else if (rtype === 'session'){ shellOpen('session'); try { if (typeof _sessionDossier === 'function') _sessionDossier(rtarget); } catch(e){} }
+      else if (rtype === 'flag'){ shellOpen('tools'); }
+    } catch(e){}
+  }
+
   function paint(st){
     var mode = st.mode || 'off';
     // v899 — SIGNING OFF only while a stop is truly in flight AND bridge still up.
@@ -3378,6 +3459,22 @@
 
     if (window.__mindMode === 'log') return;
     var brain = $('brain');
+    // v1356 (TV-D FINALE) — 🧾 AI-READS RECEIPT FEED: the ledger of every read the engines produce, in Diablo
+    // language, newest-first. Each row is CLICKABLE→route (grail→dossier · else→Checker · session/flag→their view)
+    // and shows its captured FRAME on hover. Honest: empty off-air (resting), streams live. Keyed on receipt.id.
+    if (window.__mindMode === 'receipts') {
+      _rcptBind(brain);
+      var rc = (st.receipts || []).slice(0, 14);   // newest-first, bounded; the brain scrolls the rest
+      var rsig = 'rcpt|' + rc.map(function(r){ return r.id; }).join('¦');
+      if (rsig === brainSig) return;
+      brain.classList.add('brain-receipts');
+      brainSig = rsig;
+      brain.innerHTML = rc.length
+        ? rc.map(_receiptRow).join('')
+        : '<div class="empty">— the AI\'s reads stream here when live · click one to jump to it · hover for its frame —</div>';
+      return;
+    }
+    brain.classList.remove('brain-receipts');
     // v946 — story mode: session narrative, not the event firehose
     if (window.__mindMode === 'story') {
       var story = window.__mindStory || st.mindStory || [];
@@ -6934,14 +7031,14 @@
   var thBtn = $('btn-theatre');
   if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
   var _mt = $('mind-tag');
-  // v946 — cycle thoughts → story → raw log → thoughts
+  // v1356 — cycle reads(receipts) → thoughts → story → raw log
   if (_mt) _mt.onclick = function(){
-    var order = ['thoughts', 'story', 'log'];
-    var i = order.indexOf(window.__mindMode || 'thoughts');
+    var order = ['receipts', 'thoughts', 'story', 'log'];
+    var i = order.indexOf(window.__mindMode || 'receipts');
     window.__mindMode = order[(i + 1) % order.length];
     showLog = window.__mindMode === 'log';
     var mm = $('mind-mode');
-    if (mm) mm.textContent = '· ' + window.__mindMode;
+    if (mm) mm.textContent = '· ' + (window.__mindMode === 'receipts' ? 'live' : window.__mindMode);
     brainSig = '';
     if (showLog) loadLog(); else refresh();
   };
