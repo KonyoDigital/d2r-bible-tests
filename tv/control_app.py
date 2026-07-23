@@ -6016,7 +6016,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1328",
+        "ver": "v1329",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6047,6 +6047,11 @@ def status_payload():
         ),
         "area": beat.get("area") or (st or {}).get("area") or "",
         "scene": beat.get("scene") or "",
+        # v1328 B4-LIVE — the LIVE frame's game-true label (ENTERING/TOWN/FARMING + area) for the
+        # D24 "recording now" banner. Honest-absent: None when no live scene/area (off / dark frame).
+        "native": (_diablo_scene_label(beat.get("scene") or "",
+                                       beat.get("area") or (st or {}).get("area") or "")
+                   if (beat.get("scene") or beat.get("area") or (st or {}).get("area")) else None),
         "phase": beat.get("phase") or ("live" if bridge else "off"),
         "motion": beat.get("motion"),
         "interest": beat.get("interest") or (st or {}).get("interest"),
