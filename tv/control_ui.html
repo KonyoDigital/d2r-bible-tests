@@ -2562,6 +2562,24 @@
   #th-hd:not([hidden]) { animation: shellFade .18s ease-out; }
   #theatre:not([hidden]) { animation: shellFade .22s ease-out; }
   .hd-taskforce:not([hidden]), .hd-lastsession:not([hidden]) { animation: shellReveal .24s ease-out; }
+  /* ══ GROK EYES (G5) — optional advanced strip (removable) ══ */
+  .g5-eyes-card { margin-top: 8px; padding: 8px 9px; border: 1px solid rgba(185,162,224,.28);
+    border-radius: 8px; background: rgba(40,32,56,.4); }
+  .g5-eyes-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .g5-eyes-lab { font-size: var(--fs-2xs); letter-spacing: .05em; color: #c4b5e8; font-weight: 600; }
+  .g5-seg { display: inline-flex; border: 1px solid rgba(185,162,224,.35); border-radius: 7px; overflow: hidden; }
+  .g5-seg-btn { appearance: none; border: 0; background: transparent; color: #9a8fb8;
+    font: inherit; font-size: 10px; letter-spacing: .04em; padding: 5px 8px; cursor: pointer; }
+  .g5-seg-btn + .g5-seg-btn { border-left: 1px solid rgba(185,162,224,.25); }
+  .g5-seg-btn:hover { background: rgba(185,162,224,.12); color: #e6dcf8; }
+  .g5-seg-btn.is-on { background: rgba(185,162,224,.28); color: #f2ebff; font-weight: 700; }
+  .g5-eyes-card[data-mode="shadow"] { border-color: rgba(185,162,224,.55); }
+  .g5-eyes-card[data-mode="shadow"] .g5-seg-btn[data-g5="shadow"].is-on { background: rgba(150,120,220,.45); }
+  .g5-eyes-card[data-mode="primary"] { border-color: rgba(240,192,96,.5); }
+  .g5-eyes-card[data-mode="primary"] .g5-seg-btn[data-g5="primary"].is-on {
+    background: rgba(240,192,96,.35); color: #fff4d8; }
+  .g5-eyes-hint { margin-top: 5px; font-size: 10px; opacity: .6; line-height: 1.35; }
+  /* ══ END GROK EYES (G5) ══ */
   /* native <details> disclosures (the ⚙ advanced + raw-answer toggles): the content reveals smoothly */
   details.sig-adv[open] > *:not(summary),
   details.th-raw[open]  > *:not(summary) { animation: shellReveal .2s ease-out; }
@@ -3040,6 +3058,19 @@
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
           </div>
           <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
+          <!-- ══ GROK EYES (G5) — REMOVABLE optional console toggle; OFF default; cousin never needs this ══ -->
+          <div id="g5-eyes-card" class="g5-eyes-card" hidden title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
+            <div class="g5-eyes-row">
+              <span class="g5-eyes-lab">🟣 Grok Eyes</span>
+              <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
+                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude only (default)">OFF</button>
+                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude drives · Grok logs parallel">SHADOW</button>
+                <button type="button" class="g5-seg-btn" data-g5="primary" id="btn-g5-primary" title="Grok drives vision via grok -p SuperGrok login (NO API keys)">PRIMARY</button>
+              </span>
+            </div>
+            <div class="g5-eyes-hint" id="g5-eyes-hint">optional · default OFF · cousin never needs this</div>
+          </div>
+          <!-- ══ END GROK EYES (G5) ══ -->
         </details>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
         <button class="act b-sim" id="btn-sim" type="button"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
@@ -7344,6 +7375,65 @@
     }
     this.disabled = false;
   };
+  // ══ GROK EYES (G5) — optional 3-way console switch; default OFF; cousin never needs this ══
+  (function g5EyesUi(){
+    var card = $('g5-eyes-card'), hint = $('g5-eyes-hint');
+    if (!card) return;
+    var btns = card.querySelectorAll('.g5-seg-btn');
+    function paintG5(st){
+      if (!st || st.present === false){ card.hidden = true; return; }
+      card.hidden = false;
+      // Show *intent* on the switch (what you chose); effective mode needs key
+      var intent = (st.switch || st.mode || 'off');
+      var mode = st.mode || 'off';
+      card.setAttribute('data-mode', mode);
+      for (var i = 0; i < btns.length; i++){
+        var b = btns[i];
+        var on = (b.getAttribute('data-g5') === intent);
+        b.classList.toggle('is-on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+      var bits = [];
+      var sub = (st.hasSubscription != null) ? st.hasSubscription : st.hasKey;
+      if (!sub) bits.push('run: grok login (SuperGrok) — NO API keys · stays inert until logged in');
+      else if (mode === 'off') bits.push('Claude path only · optional Grok lane off · subscription CLI ready');
+      else if (mode === 'shadow') bits.push('Claude drives · Grok -p logs parallel (subscription, no API tokens)');
+      else if (mode === 'primary') bits.push('Grok -p drives vision (SuperGrok login) · Claude fallback if fail');
+      if (sub && intent !== mode && intent !== 'off')
+        bits.push('effective still ' + mode);
+      bits.push('default OFF · cousin never needs this');
+      if (hint) hint.textContent = bits.join(' · ');
+    }
+    async function refreshG5(){
+      try {
+        var r = await fetch(API + '/api/g5_status');
+        paintG5(await r.json());
+      } catch (e){ card.hidden = true; }
+    }
+    async function setG5(mode){
+      for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+      try {
+        var r = await fetch(API + '/api/g5_toggle', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({mode: mode})
+        });
+        var st = await r.json();
+        paintG5(st);
+        try { toast('Grok Eyes → ' + (st.switch || mode)); } catch (e2) {}
+      } catch (e){
+        try { toast('Grok Eyes toggle failed'); } catch (e3) {}
+      }
+      for (var j = 0; j < btns.length; j++) btns[j].disabled = false;
+    }
+    for (var k = 0; k < btns.length; k++){
+      (function(btn){
+        btn.onclick = function(){ setG5(btn.getAttribute('data-g5') || 'off'); };
+      })(btns[k]);
+    }
+    refreshG5();
+    setInterval(refreshG5, 20000);
+  })();
+  // ══ END GROK EYES (G5) ══
   // SIM = agent canned feed toggle (NOT theatre)
   var _simStarting = false;   // v776.1 — a fast second click must mean OFF, not re-start
   // v778 (Konyo: 'simulation mode should be the recent last session') — SIM = THE THEATRE

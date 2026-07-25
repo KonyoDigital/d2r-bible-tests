@@ -6960,7 +6960,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1379.3",
+        "ver": "v1380.0",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7127,14 +7127,27 @@ def farmgate_payload():
     # 2) claude CLI present
     env = _env_clean()
     exe = shutil.which("claude", path=env.get("PATH")) or shutil.which("claude")
-    checks.append(_chk("claude_cli", bool(exe), "block",
-                       exe or "claude CLI not found on PATH",
-                       "npm i -g @anthropic-ai/claude-code, then sign in once in a Terminal"))
+    # ══ GROK EYES (G5) — doctor soft when primary ══
+    _g5_pri = False
+    try:
+        _g5_pri = bool(_G5 is not None and _G5.is_primary())
+    except Exception:
+        _g5_pri = False
+    # ══ END GROK EYES (G5) ══
+    _cli_sev = "warn" if _g5_pri else "block"
+    checks.append(_chk("claude_cli", bool(exe) or _g5_pri, _cli_sev,
+                       (exe or "claude CLI not found on PATH") if not _g5_pri
+                       else (exe or "claude CLI missing — G5 primary covers vision"),
+                       "npm i -g @anthropic-ai/claude-code, then sign in once in a Terminal"
+                       if not _g5_pri else "G5 primary ON — Claude optional; set mode off to require Claude again"))
 
     # 3) claude AUTH — the one live ping (subscription lane, tiny, hard-capped).
     # v924-R4 (Grok): during ON AIR the live readers already prove the lane — never stack a
     # second `claude -p` on top of a warm pool; the gate belongs BEFORE air.
-    if exe and _sock_open(AGENT_PORT):
+    if _g5_pri:
+        checks.append(_chk("claude_auth", True, "warn",
+                           "skipped — G5 Grok Eyes primary is ON (Claude auth optional)"))
+    elif exe and _sock_open(AGENT_PORT):
         checks.append(_chk("claude_auth", True, "warn",
                            "skipped during ON AIR — the live readers already prove the lane (press the gate before air next time)"))
     elif exe:
@@ -7453,6 +7466,26 @@ def _g4_collect_flags(rows, reel_reports):
     out.sort(key=lambda x: (x.get("ts") or ""), reverse=True)
     return out
 # ══ END GROK ADD-ON (G4) ════════════════════════════════════════════════════════
+
+# ══ GROK EYES (G5) — REMOVABLE ════════════════════════════════════════════════
+# Optional parallel/primary vision lane. OFF by default. See tv/G5_GROK_EYES_REMOVAL.md
+# TO REMOVE: delete this block + routes /api/g5_* + g5 fences in tv_diablo.py + g5_grok_eyes.py
+try:
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import g5_grok_eyes as _G5
+except Exception:
+    _G5 = None
+
+
+def _g5_status():
+    try:
+        return _G5.status() if _G5 is not None else {
+            "present": False, "on": False, "mode": "off", "hasKey": False,
+        }
+    except Exception:
+        return {"present": False, "on": False, "mode": "off", "hasKey": False}
+# ══ END GROK EYES (G5) ════════════════════════════════════════════════════════
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -8248,6 +8281,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(500, {"ok": False, "msg": str(e)})
             return
         # ══ END GROK ADD-ON (G4) ══
+        # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
+        if path == "/api/g5_status":
+            self._json(200, _g5_status())
+            return
+        # ══ END GROK EYES (G5) ══
         if path == "/api/autoroute-sweep":
             # G3 — read-only de-duped sweep of what KAI witnessed → per-tracker tally.
             # Writes nothing; the bible.html panel diffs merge-max + applies on click.
@@ -8633,6 +8671,22 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, _g4_status())
             return
         # ══ END GROK ADD-ON (G4) ══
+        # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
+        if path == "/api/g5_toggle":
+            # {"mode":"off"|"shadow"|"primary"} or {"on":true} → primary
+            if _G5 is None:
+                self._json(200, {"present": False, "on": False, "mode": "off", "hasKey": False})
+                return
+            try:
+                if "mode" in body:
+                    _G5.set_mode(body.get("mode"))
+                elif "on" in body:
+                    _G5.set_on(bool(body.get("on")))
+            except Exception:
+                pass
+            self._json(200, _g5_status())
+            return
+        # ══ END GROK EYES (G5) ══
         if path == "/kai_verdict":
             # v940 🔬 — KAI's judge receipts: the engine iframe POSTs aicJudge results here.
             # Ghost-proof journaling: ts == captureTs == the FRAME's moment (passed as fts).

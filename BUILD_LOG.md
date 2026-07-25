@@ -1,3 +1,10 @@
+
+## v1380.0 — 2026-07-25 — G5 Grok Eyes (SuperGrok subscription CLI)
+- Additive optional vision lane: `grok -p` + SuperGrok login (NO XAI_API_KEY / api.x.ai)
+- Modes OFF (default) / SHADOW / PRIMARY — console ⚙ advanced 3-way switch
+- Cousin-safe; removable fences GROK EYES (G5); sidecar prove + unit tests
+- Claude path unchanged when OFF
+
 # D2R Bible — Build Log (cross-agent shared memory)
 
 > **Purpose:** a single Obsidian-friendly log so understanding is **never lost in

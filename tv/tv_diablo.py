@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempf
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1379.3"   # Desktop double-click reclaim fix + budget skips fake_claude. Prior v1379: leak guards, drawer z-index, near-black local transition, dispatch mini-flow. R4 (control_ui.html, Konyo live typography feedback): (1) DEDUP - MY HUNT crest is the single identity, the section below is now the movement label I THE HUNT (pulled the I/II/III roman-numeral movement headers forward, flagship-only; the cockpit keeps its emoji headers, no numerals leak to TV-D). (2) The NEXT GRAIL hero SHRUNK + made symmetric - a balanced two-column composition (grail name + hunt-at on the left, the approx-hours anchor on the right filling the old dead space), tighter vertical padding, still the one bold moment. (3) Title/section emphasis KEPT (Cinzel/gold/wide tracking on the crest + movement headers, only the hero name shrank). CRAFT BRIDGE (g3 765399d, bible.html): _writeCraftReady exports craftable-now + one-away to forked d2r_craftReady {now, onestep, ts} (kinds caster/blood/safety/hitpower), honest cube-up/get tell, for the flagship CREATE pillar. Demo J8 added (session nav -> data-view=sessions, hunt shown, no shell-open; tvd -> cockpit); demos 8/8. Verified: invariant GREEN, JS 0, brace delta 0, control 226/226, routes 181/181, agent 199/199, x3 parity. R5 next = the ranked hunt ledger under the hero. control_ui.html + demo_console.mjs.
+VERSION = "v1380.0"   # G5 Grok Eyes: SuperGrok subscription CLI lane (grok -p, NO API keys), OFF default · shadow/primary toggle · removable bolt-on · cousin-safe. Prior v1379.3: HOLD card black ON AIR stage.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4178,6 +4178,34 @@ def claude_read(path, worker=None, out_jpg=None):
     if not os.path.isfile(ap):
         print(f"  ⚠ image missing: {ap}")
         return EMPTY
+
+    # ══ GROK EYES (G5) — REMOVABLE ════════════════════════════════════════════
+    # Phase 2: shadow only (Claude result always returned). Phase 3: primary branch.
+    # OFF/missing module → zero behavior change. See tv/G5_GROK_EYES_REMOVAL.md
+    try:
+        import g5_grok_eyes as _G5
+    except Exception:
+        _G5 = None
+    if _G5 is not None:
+        try:
+            if _G5.is_primary():
+                # Phase 3 path — only active when mode=primary + key
+                _g5r = _G5.g5_vision_read(ap, prompt=READ_PROMPT.format(path=ap))
+                if _g5r is not None:
+                    if "intent" not in _g5r or not _g5r.get("intent"):
+                        _g5r["intent"] = _intent_for(_g5r.get("scene"))
+                    _g5r["stashTab"] = _norm_stash_tab(
+                        _g5r.get("stashTab") or _g5r.get("stash_tab"), _g5r.get("scene"))
+                    globals()["_LAST_RAW"] = str(_g5r.get("_raw_txt") or "")[:2048]
+                    return _g5r
+                ev("cap", "G5 primary vision returned None — falling through to Claude")
+        except Exception as _g5e:
+            try:
+                ev("cap", f"G5 primary failed (Claude fallback): {_g5e}")
+            except Exception:
+                pass
+    # ══ END GROK EYES (G5) ════════════════════════════════════════════════════
+
     t0 = time.time()
     w = worker or _WORKER
     out_w = w.ask(READ_PROMPT.format(path=ap), timeout=LIVE_READ_TIMEOUT_S)
@@ -4188,7 +4216,21 @@ def claude_read(path, worker=None, out_jpg=None):
         if parsed is not None:
             parsed["_raw_txt"] = _raw_local   # v864 — raw travels WITH the result, no global race
         if parsed is not None:
-            return _maybe_genius(ap, parsed, t0, "warm") or EMPTY
+            out = _maybe_genius(ap, parsed, t0, "warm") or EMPTY
+            # ══ GROK EYES (G5) — shadow (never replaces Claude) ══
+            try:
+                if _G5 is not None and _G5.is_shadow():
+                    def _g5_shadow_job(_p=ap, _c=out):
+                        try:
+                            _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
+                            _G5.g5_shadow_log(_c, _gr, _p)
+                        except Exception:
+                            pass
+                    threading.Thread(target=_g5_shadow_job, daemon=True).start()
+            except Exception:
+                pass
+            # ══ END GROK EYES (G5) ══
+            return out
         ev("cap", "worker returned non-JSON — falling back to one-shot")
     else:
         ev("skip", "vision worker died (timeout/stream end) — one-shot for this read, re-warming behind it")
@@ -4200,7 +4242,21 @@ def claude_read(path, worker=None, out_jpg=None):
         parsed = _oneshot(ap, FAST_MODEL, timeout=LIVE_READ_TIMEOUT_S)
         if parsed is None:
             return EMPTY
-        return _maybe_genius(ap, parsed, t0, "oneshot") or EMPTY
+        out = _maybe_genius(ap, parsed, t0, "oneshot") or EMPTY
+        # ══ GROK EYES (G5) — shadow oneshot path ══
+        try:
+            if _G5 is not None and _G5.is_shadow():
+                def _g5_shadow_job2(_p=ap, _c=out):
+                    try:
+                        _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
+                        _G5.g5_shadow_log(_c, _gr, _p)
+                    except Exception:
+                        pass
+                threading.Thread(target=_g5_shadow_job2, daemon=True).start()
+        except Exception:
+            pass
+        # ══ END GROK EYES (G5) ══
+        return out
     except subprocess.TimeoutExpired:
         ev("cap", f"vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
         print(f"  ⚠ vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s)")
