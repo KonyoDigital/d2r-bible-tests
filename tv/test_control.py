@@ -823,25 +823,67 @@ class TestV919IntakeLane(unittest.TestCase):
             stdout = json.dumps({"status": 200, "body": '{"found":["Shako"]}',
                                  "lane": "subscription"}).encode()
             stderr = b""
+        class _G5Off:
+            def mode(self):
+                return "off"
         old = ca.subprocess.run
+        old_g5 = ca._G5
         ca.subprocess.run = lambda *a, **k: _PR()
+        ca._G5 = _G5Off()  # v1380.1 — pin dual receiver to Claude-only for this header pin
         ca._INTAKE_LAST_TS = 0
         ca._INTAKE_INFLIGHT = 0
         try:
             status, body, hdrs = self._post_intake()
         finally:
             ca.subprocess.run = old
+            ca._G5 = old_g5
         self.assertEqual(status, 200)
         self.assertEqual(hdrs.get("X-Intake-Lane"), "subscription")
         self.assertIn(b"Shako", body)
+
+    def test_dual_primary_prefers_grok_subscription_lane(self):
+        """v1380.1 — G5 primary: dual receiver tries grok-subscription first."""
+        class _PR:
+            returncode = 0
+            stdout = json.dumps({"status": 200, "body": '{"found":["Shako"]}',
+                                 "lane": "grok-subscription"}).encode()
+            stderr = b""
+        class _G5Pri:
+            def mode(self):
+                return "primary"
+        old = ca.subprocess.run
+        old_g5 = ca._G5
+        seen = []
+        def _run(cmd, *a, **k):
+            seen.append(cmd)
+            return _PR()
+        ca.subprocess.run = _run
+        ca._G5 = _G5Pri()
+        ca._INTAKE_LAST_TS = 0
+        ca._INTAKE_INFLIGHT = 0
+        try:
+            status, body, hdrs = self._post_intake()
+        finally:
+            ca.subprocess.run = old
+            ca._G5 = old_g5
+        self.assertEqual(status, 200)
+        self.assertEqual(hdrs.get("X-Intake-Lane"), "grok-subscription")
+        self.assertIn(b"Shako", body)
+        self.assertTrue(seen, "node runner should have been spawned")
+        self.assertIn("intake_grok_sub.mjs", " ".join(str(x) for x in seen[0]))
 
     def test_strict_mode_502s_instead_of_website_fallback(self):
         class _PR:
             returncode = 1
             stdout = b""
             stderr = b"claude: not logged in"
+        class _G5Off:
+            def mode(self):
+                return "off"
         old_run = ca.subprocess.run
+        old_g5 = ca._G5
         ca.subprocess.run = lambda *a, **k: _PR()
+        ca._G5 = _G5Off()
         os.environ["TV_INTAKE_LOCAL_STRICT"] = "1"
         # v1379 — clear the subscription rate-limit so a prior test's successful
         # intake (within TV_INTAKE_MIN_GAP_S) cannot 429 this strict-mode probe.
@@ -851,6 +893,7 @@ class TestV919IntakeLane(unittest.TestCase):
             status, body, _ = self._post_intake()
         finally:
             ca.subprocess.run = old_run
+            ca._G5 = old_g5
             os.environ.pop("TV_INTAKE_LOCAL_STRICT", None)
         self.assertEqual(status, 502)
         out = json.loads(body)

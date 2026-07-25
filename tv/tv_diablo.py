@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempf
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1380.0"   # G5 Grok Eyes: SuperGrok subscription CLI lane (grok -p, NO API keys), OFF default · shadow/primary toggle · removable bolt-on · cousin-safe. Prior v1379.3: HOLD card black ON AIR stage.
+VERSION = "v1380.1"   # Dual intake receiver: Claude + SuperGrok subscription CLIs ordered by G5 mode (off=Claude · shadow=Claude→Grok · primary=Grok→Claude). Prior v1380.0: G5 Grok Eyes SuperGrok subscription CLI.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

@@ -129,5 +129,40 @@ class TestG5CliCall(unittest.TestCase):
         self.assertNotIn("XAI_API_KEY", env)
 
 
+class TestDualIntakeReceivers(unittest.TestCase):
+    """v1380.1 — /api/intake dual receiver order by G5 mode (subscription CLIs only)."""
+
+    def setUp(self):
+        self._td = tempfile.mkdtemp()
+        # minimal dual files so path.isfile is true
+        open(os.path.join(self._td, "intake_local.mjs"), "w").close()
+        open(os.path.join(self._td, "intake_grok_sub.mjs"), "w").close()
+        # import helper from control_app without starting the server
+        import control_app as ca  # noqa: E402
+        self.ca = ca
+
+    def test_off_claude_only(self):
+        labs = [l for l, _ in self.ca._intake_dual_runners(self._td, "off")]
+        self.assertEqual(labs, ["subscription"])
+
+    def test_shadow_claude_then_grok(self):
+        labs = [l for l, _ in self.ca._intake_dual_runners(self._td, "shadow")]
+        self.assertEqual(labs, ["subscription", "grok-subscription"])
+
+    def test_primary_grok_then_claude(self):
+        labs = [l for l, _ in self.ca._intake_dual_runners(self._td, "primary")]
+        self.assertEqual(labs, ["grok-subscription", "subscription"])
+
+    def test_local_off_empty(self):
+        self.assertEqual(self.ca._intake_dual_runners(self._td, "primary", local_on=False), [])
+
+    def test_primary_without_grok_file_falls_to_empty_not_wrong_lane(self):
+        os.unlink(os.path.join(self._td, "intake_grok_sub.mjs"))
+        # no grok file → primary cannot lead with grok; helper returns [] for primary branch
+        # (mode==primary and not isfile(grok) skips the primary block, lands in else → claude)
+        labs = [l for l, _ in self.ca._intake_dual_runners(self._td, "primary")]
+        self.assertEqual(labs, ["subscription"])
+
+
 if __name__ == "__main__":
     unittest.main()

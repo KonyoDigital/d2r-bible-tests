@@ -6960,7 +6960,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1380.0",
+        "ver": "v1380.1",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7485,6 +7485,40 @@ def _g5_status():
         }
     except Exception:
         return {"present": False, "on": False, "mode": "off", "hasKey": False}
+
+
+def _intake_dual_runners(here, g5_mode, *, local_on=True):
+    """Ordered dual subscription intake receivers (Claude + Grok).
+
+    Both lanes are subscription-CLI only (claude -p / grok -p) — never API keys.
+    Website proxy is NOT in this list (handler falls through separately).
+
+      off      → Claude only (cousin-safe default; pre-G5 behavior)
+      shadow   → Claude first, Grok second (failover; Claude leads)
+      primary  → Grok first, Claude second (failover; Grok leads)
+
+    Returns list of (lane_label, mjs_path). Empty when local intake disabled.
+    """
+    if not local_on:
+        return []
+    claude = os.path.join(here, "intake_local.mjs")
+    grok = os.path.join(here, "intake_grok_sub.mjs")
+    mode = (g5_mode or "off").strip().lower()
+    out = []
+    if mode == "primary" and os.path.isfile(grok):
+        out.append(("grok-subscription", grok))
+        if os.path.isfile(claude):
+            out.append(("subscription", claude))
+    elif mode == "shadow":
+        if os.path.isfile(claude):
+            out.append(("subscription", claude))
+        if os.path.isfile(grok):
+            out.append(("grok-subscription", grok))
+    else:
+        # off / unknown: Claude only
+        if os.path.isfile(claude):
+            out.append(("subscription", claude))
+    return out
 # ══ END GROK EYES (G5) ════════════════════════════════════════════════════════
 
 
@@ -8927,6 +8961,9 @@ class Handler(BaseHTTPRequestHandler):
             # v874 — SUBSCRIPTION LANE FIRST (Konyo: 'use the subscription, not API tokens'):
             # tv/intake_local.mjs runs the REAL intake.js/ask.js with a fetch shim that rides
             # the locally-authorized `claude` CLI. Website proxy = fallback only.
+            # v1380.1 — DUAL RECEIVER (G5): optional SuperGrok `grok -p` lane (intake_grok_sub.mjs)
+            # same contract, NO API keys. Order by G5 mode: off=claude only; shadow=claude then
+            # grok; primary=grok then claude. Both are subscription-CLI only.
             # v1379 — server-side gate so a stuck engine driver cannot stampede intake:
             # max 1 in-flight + min gap between starts (also enforced inside intake_local.mjs).
             _now_i = time.time()
@@ -8941,36 +8978,65 @@ class Handler(BaseHTTPRequestHandler):
                                  "msg": "intake rate-limited (subscription leak guard)",
                                  "retry_s": max(1, int(_gap_i - (_now_i - _last_i)))})
                 return
-            _runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intake_local.mjs")
+            _here_i = os.path.dirname(os.path.abspath(__file__))
+            # ══ GROK EYES (G5) — dual intake receiver (subscription CLI only) ══
+            _g5_mode = "off"
+            try:
+                if _G5 is not None:
+                    _g5_mode = str(_G5.mode() or "off")
+            except Exception:
+                _g5_mode = "off"
+            _runners = _intake_dual_runners(
+                _here_i, _g5_mode,
+                local_on=(os.environ.get("TV_INTAKE_LOCAL", "1") != "0"),
+            )
+            # ══ END GROK EYES (G5) ══
             # v919 (Grok REAL EYES R1) — STRICT mode: a silent local-lane failure falling
             # through to the website proxy can fake-green a "real subscription" run on the
             # website's key. TV_INTAKE_LOCAL_STRICT=1 → answer 502 honestly, never fall back.
             _strict = os.environ.get("TV_INTAKE_LOCAL_STRICT") == "1"
-            if os.environ.get("TV_INTAKE_LOCAL", "1") != "0" and os.path.isfile(_runner):
+            if _runners:
                 try:
                     globals()["_INTAKE_INFLIGHT"] = _inflight_i + 1
                     globals()["_INTAKE_LAST_TS"] = _now_i
                     _nice_kw = ({"creationflags": 0x4000 | _WIN_CREATE} if IS_WIN
                                 else {"preexec_fn": (lambda: os.nice(10))})   # v879 — intake yields to the game
-                    _pr = subprocess.run(
-                        ["node", _runner],
-                        input=json.dumps({"path": path, "body": body}).encode("utf-8"),
-                        capture_output=True, timeout=150, **_nice_kw)
-                    if _pr.returncode == 0 and _pr.stdout:
-                        _out = json.loads(_pr.stdout.decode("utf-8", "replace"))
-                        _pl = (_out.get("body") or "").encode("utf-8")
-                        self.send_response(int(_out.get("status") or 200))
-                        self.send_header("Content-Type", "application/json")
-                        self.send_header("X-Intake-Lane", "subscription")
-                        self.send_header("Content-Length", str(len(_pl)))
-                        self.end_headers()
-                        self.wfile.write(_pl)
-                        return
+                    _last_err = ""
+                    for _lane_lab, _runner in _runners:
+                        try:
+                            _pr = subprocess.run(
+                                ["node", _runner],
+                                input=json.dumps({"path": path, "body": body}).encode("utf-8"),
+                                capture_output=True, timeout=150, **_nice_kw)
+                            if _pr.returncode == 0 and _pr.stdout:
+                                _out = json.loads(_pr.stdout.decode("utf-8", "replace"))
+                                _pl = (_out.get("body") or "").encode("utf-8")
+                                # Prefer a body that is not an obvious hard error if multiple lanes
+                                _ok_body = True
+                                try:
+                                    _bj = json.loads(_out.get("body") or "{}")
+                                    if isinstance(_bj, dict) and _bj.get("error"):
+                                        _ok_body = False
+                                        _last_err = str(_bj.get("error"))[:200]
+                                except Exception:
+                                    pass
+                                if _ok_body or _lane_lab == _runners[-1][0]:
+                                    self.send_response(int(_out.get("status") or 200))
+                                    self.send_header("Content-Type", "application/json")
+                                    self.send_header("X-Intake-Lane", _lane_lab)
+                                    self.send_header("Content-Length", str(len(_pl)))
+                                    self.end_headers()
+                                    self.wfile.write(_pl)
+                                    return
+                            else:
+                                _last_err = (_pr.stderr or b"").decode("utf-8", "replace")[-300:]
+                        except Exception as _lane_ex:
+                            _last_err = str(_lane_ex)[:200]
+                            continue
                     if _strict:
-                        _err = (_pr.stderr or b"").decode("utf-8", "replace")[-300:]
                         self._json(502, {"ok": False, "lane": "subscription-failed",
-                                         "msg": "local intake runner failed (strict: no website fallback)",
-                                         "detail": _err})
+                                         "msg": "all local intake runners failed (strict: no website fallback)",
+                                         "detail": _last_err})
                         return
                 except Exception as _ex:
                     if _strict:

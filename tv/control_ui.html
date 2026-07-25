@@ -3063,9 +3063,9 @@
             <div class="g5-eyes-row">
               <span class="g5-eyes-lab">🟣 Grok Eyes</span>
               <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
-                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude only (default)">OFF</button>
-                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude drives · Grok logs parallel">SHADOW</button>
-                <button type="button" class="g5-seg-btn" data-g5="primary" id="btn-g5-primary" title="Grok drives vision via grok -p SuperGrok login (NO API keys)">PRIMARY</button>
+                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude subscription intake only (default)">OFF</button>
+                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Dual intake: Claude first, Grok if Claude fails (subscription CLIs)">SHADOW</button>
+                <button type="button" class="g5-seg-btn" data-g5="primary" id="btn-g5-primary" title="Dual intake: Grok first, Claude if Grok fails (SuperGrok login · NO API keys)">PRIMARY</button>
               </span>
             </div>
             <div class="g5-eyes-hint" id="g5-eyes-hint">optional · default OFF · cousin never needs this</div>
@@ -7396,9 +7396,9 @@
       var bits = [];
       var sub = (st.hasSubscription != null) ? st.hasSubscription : st.hasKey;
       if (!sub) bits.push('run: grok login (SuperGrok) — NO API keys · stays inert until logged in');
-      else if (mode === 'off') bits.push('Claude path only · optional Grok lane off · subscription CLI ready');
-      else if (mode === 'shadow') bits.push('Claude drives · Grok -p logs parallel (subscription, no API tokens)');
-      else if (mode === 'primary') bits.push('Grok -p drives vision (SuperGrok login) · Claude fallback if fail');
+      else if (mode === 'off') bits.push('intake: Claude only · dual Grok receiver off · subscription CLI ready');
+      else if (mode === 'shadow') bits.push('dual intake: Claude → Grok failover (both subscription, no API tokens)');
+      else if (mode === 'primary') bits.push('dual intake: Grok → Claude failover (SuperGrok login · no API keys)');
       if (sub && intent !== mode && intent !== 'off')
         bits.push('effective still ' + mode);
       bits.push('default OFF · cousin never needs this');
