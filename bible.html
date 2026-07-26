@@ -32116,12 +32116,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {   // v903 (Konyo: 'the motherboard') — publish a compact quest summary the CONSOLE
         // homepage reads over the shared origin (profile-forked key via LSR)
         var _fsArt = function(rw){ try { return (typeof artUrl === 'function' && artUrl(rw)) || ''; } catch(e){ return ''; } };
+        // v1411 — ready crafts ride `now` too (Sessions FORGE QUESTS · MAKE NOW chips), not only a
+        // side `crafts` key the console used to under-show. Runewords first, then craft names.
+        var _fsNowRw = (out.now || []).filter(function(t){ return !t.deferred; }).slice(0, 6).map(function(t){ return t.rw; });
+        var _fsNowCraft = (out.crafts || []).slice(0, 6).map(function(t){ return '⚗️ '+String(t.craft)+' '+t.slot; });
         var _fsPayload = {
             ts: Date.now(),
-            now: (out.now || []).slice(0, 6).map(function(t){ return t.rw; }),
+            now: _fsNowRw.concat(_fsNowCraft).slice(0, 10),
             onestep: (out.onestep || []).slice(0, 6).map(function(t){ return { rw: t.rw, sub: t.sub || '' }; }),
             pipeline: (out.pipeline || []).slice(0, 4).map(function(t){ return t.rw; }),
-            // v1409 — craft quests for the console FORGE QUESTS + CREATE pillar
+            // v1409/v1411 — craft quests for the console FORGE QUESTS + CREATE pillar
             crafts: (out.crafts || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, craft:t.craft, slot:t.slot, gem:t.gem, rune:t.rune }; }),
             craftOnestep: (out.craftOnestep || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, missing:t.missing||'', missKind:t.missKind||'' }; }),
             craftTypes: (out.craftTypes || []).map(function(t){ return t.craft; }),
@@ -32433,9 +32437,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + Object.keys(_pipeGroups).filter(function(gk){ if (skip.has('chain|'+gk)) return false; return _pipeGroups[gk].some(function(t){ return !skip.has('rw|'+t.rw); }); }).length;
     // v691 (🏓 R1) — a SEALED chronicle lands on COMPLETED, not an empty ALL: the gold-selected chip
     // claiming 0 items over the celebration read as a broken view. User clicks still override.
+    // v1411 — BUT if crafts (or any make-now work) are ready, land on ⚒ Make now instead.
+    // Regression: sealed → auto-Completed stuck the filter there; tallying gems/runes later left
+    // ready crafts invisible because Completed never renders the Make-now craft feed.
+    var _sT691=0, _sM691=0, _sealed691=false;
+    try { _sT691=Object.keys(RUNEWORD_TIP).length; _sM691=_madeRw().length; _sealed691=(_sT691>0 && _sM691>=_sT691); } catch(e){}
     if (_forgeFilter==='all' && !total && !(s.farm||[]).length && nowCount===0){
-      var _sT691=0, _sM691=0; try { _sT691=Object.keys(RUNEWORD_TIP).length; _sM691=_madeRw().length; } catch(e){}
-      if (_sT691>0 && _sM691>=_sT691) _forgeFilter='completed';
+      if (_sealed691) _forgeFilter='completed';
+    }
+    // Ready crafts are Make-now work. When the runeword chronicle is sealed (or there are no
+    // runeword make-now/pipeline tasks), open ⚒ Make now so crafts aren't trapped under Completed.
+    if ((s.crafts||[]).length > 0){
+      var _noRwNow = liveNow.length===0 && !(s.pipeline||[]).length;
+      if (_forgeFilter==='all' && _noRwNow) _forgeFilter='now';
+      if (_forgeFilter==='completed' && (_sealed691 || _noRwNow)) _forgeFilter='now';
     }
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
     H.push('<div class="forge-head tvf-head"><span class="tvf-emblem">🔨</span><div class="forge-headtxt"><div class="forge-title">Forge</div>'
@@ -32606,18 +32621,43 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +(words.length>1?'<div class="f-atomsubrow">'+(words.length-1)+' more word'+(words.length>2?'s':'')+' fits this base — ✕ to see the next</div>':''));
         atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord, artName:topWord});
       });
-      // crafts → grouped into ~4 gem-titled tiles (Caster/Blood/Safety/Hit Power), Workshop .cw-tile style.
+      // v1411 — READY CRAFTS are first-class Make-now tasks (same card shape as runewords), not only a
+      // buried accordion. Each ready craft+slot = one atomic "Craft X" card with ✓ crafted.
+      // Prefer ★ top/best slots first; cap the feed so it stays scannable (rest live in ⚗️ Crafts).
       var craftGroups={}; s.crafts.forEach(function(c){ (craftGroups[c.craft]=craftGroups[c.craft]||[]).push(c); });
       var craftKeys=Object.keys(craftGroups).filter(function(ck){ return !skip.has('craft|'+ck); });
-      if (atomic.length || craftKeys.length){
-        H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+(atomic.length+craftKeys.length)+'</span><span class="forge-sec-sub">one task at a time — do it, tick it, the next appears · ✕ to skip</span></div>');
-        atomic.forEach(function(a){
+      var craftAtomic=[];
+      try {
+        var _cSorted=(s.crafts||[]).slice().sort(function(a,b){
+          return (b.top?1:0)-(a.top?1:0) || (b.star?1:0)-(a.star?1:0) || String(a.craft).localeCompare(b.craft) || String(a.slot).localeCompare(b.slot);
+        });
+        _cSorted.forEach(function(c){
+          if (skip.has('craft|'+c.craft) || skip.has('craftslot|'+c.craft+'|'+c.slot)) return;
+          if (craftAtomic.length >= 8) return;
+          var gemShort=String(c.gem||'').replace('Perfect ','P.');
+          craftAtomic.push({
+            icon:'⚗️', cls:'craft', skipKey:'craftslot|'+c.craft+'|'+c.slot,
+            craft:c.craft, slot:c.slot, color:c.color||'#c79ce6',
+            atoms:['<div class="f-atomact">Craft <b class="f-rwbig" style="color:'+_fEsc(c.color||'#c79ce6')+'">'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.top?' <span class="f-ideal">★</span>':'')+(c.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</div>'
+              +'<div class="f-atomrecipe"><span class="f-reclbl">cube</span>'
+              +'<span class="f-getchip" data-arttip="'+_fEsc(c.gem)+'">'+_fEsc(gemShort)+'</span>'
+              +'<span class="f-cplus">+</span><span class="f-getchip" data-arttip="'+_fEsc(c.rune)+'">'+_fEsc(c.rune)+'</span>'
+              +'<span class="f-cplus">+</span>magic '+_fEsc(c.slot)
+              +'<span class="f-cplus">+</span>jewel</div>'
+              +'<div class="f-atomsubrow">you hold the gem + rune · buy a magic '+_fEsc(c.slot)+' from a vendor if needed</div>'],
+            btn:'<button class="f-btn f-btn-go" onclick="window.forgeCrafted(\''+_fJs(c.craft)+'\',\''+_fJs(c.slot)+'\')">✓ crafted</button>'
+          });
+        });
+      } catch(e){}
+      if (atomic.length || craftKeys.length || craftAtomic.length){
+        H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+(atomic.length+craftAtomic.length)+'</span><span class="forge-sec-sub">one task at a time — do it, tick it, the next appears · ✕ to skip</span></div>');
+        // crafts first when chronicle is sealed (they're the remaining work); else after runeword atoms
+        var _emitAtom=function(a){
           var total=a.atoms.length, step=a.chainKey?Math.min(_stepGet(a.chainKey),total-1):0, isLast=step>=total-1;
           var prog = total>1 ? '<span class="f-atomprog">step '+(step+1)+' / '+total+'</span>' : '';
           var btn;
           if (a.chainKey){
             if (isLast && a.forgeWordKey){
-              // last step = "Forge <word>" → ticking it CREATES the runeword (marks it made, it leaves the list)
               var _fw = a.forgeWordKey.replace(/^rw\|/,'');
               btn = '<button class="f-btn f-btn-go" onclick="window.forgeForgedAnim(this,\''+a.chainKey+'\',\''+_fJs(_fw)+'\')">✓ forged — done</button>';
             } else {
@@ -32626,18 +32666,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           } else { btn = a.btn; }
           var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
           var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkipAnim(this,\''+_fJs(sk)+'\')">✕</button>' : '';
-          // v597 — a mis-advanced chain was UNFIXABLE in the UI (a stale "did it" left Konyo stuck at step
-          // 2/2 with no way back). Any chain past step 1 gets a small ↺ to walk back one step.
           var backBtn = (a.chainKey && step>0) ? ' <button class="f-btn f-btn-mini" title="go back a step — I didn’t actually do the previous one" onclick="window.forgeStepBack(\''+a.chainKey+'\')">↺ back</button>' : '';
           var _atomArt = a.artName ? _rwArt(a.artName) : ('<span class="f-atomic-ic">'+a.icon+'</span>');
-          H.push('<div class="f-card f-'+a.cls+' f-atom" data-arttip="'+_fEsc(a.artName||'')+'">'+skipBtn+'<div class="f-cardart f-cardart-hd">'+_atomArt+'<span class="f-cardart-badge">'+a.icon+'</span></div><div class="f-cardbody">'
+          H.push('<div class="f-card f-'+a.cls+' f-atom" data-arttip="'+_fEsc(a.artName||(a.craft?a.craft+' '+a.slot:''))+'">'+skipBtn+'<div class="f-cardart f-cardart-hd">'+_atomArt+'<span class="f-cardart-badge">'+a.icon+'</span></div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+a.atoms[step]+'</div>'+prog
             +'<div class="f-cta">'+btn+backBtn+'</div></div></div>');
-        });
+        };
+        var _sealedCraftLead=false;
+        try { var _sT2=Object.keys(RUNEWORD_TIP||{}).length,_sM2=_madeRw().length; _sealedCraftLead=(_sT2>0&&_sM2>=_sT2&&craftAtomic.length>0); } catch(e){}
+        if (_sealedCraftLead) craftAtomic.forEach(_emitAtom);
+        atomic.forEach(_emitAtom);
+        if (!_sealedCraftLead) craftAtomic.forEach(_emitAtom);
         if (craftKeys.length){
           var ct='';
           craftKeys.forEach(function(ck){ var c0=craftGroups[ck][0]; ct+=_craftAccHtml(ck, c0&&c0.color); });
-          H.push('<div class="forge-craftnow-lbl">⚗️ Crafts ready — tap one to see every slot + recipe (✓ = make now)</div><div class="forge-craftacc">'+ct+'</div>');
+          H.push('<div class="forge-craftnow-lbl">⚗️ More craft recipes — tap a type for every slot (✓ = make now)</div><div class="forge-craftacc">'+ct+'</div>');
         }
         /* v533 — restore moved to the always-visible bar under the tabs (was swallowed when this section emptied) */
         H.push('</div>');
@@ -32866,6 +32909,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
 
   window.forgeScan=forgeScan;
+  var _renderForgeInner=renderForge;
+  // v1411 — every Forge paint also refreshes d2r_craftReady (Sessions MAKE NOW / console chips)
+  renderForge=function(){
+    _renderForgeInner();
+    try { if (typeof _writeCraftReady==='function') _writeCraftReady(); } catch(e){}
+  };
   window.renderForge=renderForge;
   // CRAFT-READINESS BRIDGE — export what Konyo can craft NOW (+ one ingredient away) to
   // d2r_craftReady, so the console flagship CREATE pillar shows crafts alongside forge runewords.
@@ -35286,7 +35335,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1410', name:'v1410 · Console ✕ quit (no hang)', date:'2026-07-26', note:'Window X dismisses instantly; stop ON AIR off-thread; no evaluate_js on dead WKWebView; process exits cleanly.' };
+  window.D2R_BUILD = { id:'v1411', name:'v1411 · Crafts in Make now', date:'2026-07-26', note:'Ready crafts are first-class Make-now tasks; sealed chronicle no longer traps on Completed; Sessions forgeSummary.now includes crafts.' }; stop ON AIR off-thread; no evaluate_js on dead WKWebView; process exits cleanly.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

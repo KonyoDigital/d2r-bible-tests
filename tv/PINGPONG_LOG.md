@@ -1,3 +1,9 @@
+## Round v1411 — Crafts in Make now (2026-07-26)
+- **Bug:** ready crafts (gem+rune in hand) not tasked on ⚒ Make now; sealed chronicle auto-Completed trapped the filter so crafts never appeared.
+- **Fix:** first-class craft Make-now cards (✓ crafted) · auto-route sealed/all → Make now when crafts ready · forgeSummary.now includes ⚗️ crafts for Sessions · craftReady refresh on every Forge paint.
+- **Tests:** v1411_craft_make_now + v470 CRAFTS (3 OK).
+
+
 ## Round v1410 — Console ✕ quit UX (2026-07-26)
 - **Bug:** hitting X froze the console → Apple Python_*.hang (unresponsive 35s). Close handlers ran stop_agent on the Cocoa UI thread; engine driver kept evaluate_js on a dead WKWebView after headless linger.
 - **Fix:** mark window gone first · schedule exit-stop off-thread · _ejs refuses dead window · engine driver exits · ✕ quits process (supervisor relaunches headless).

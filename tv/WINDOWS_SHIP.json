@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1410",
+  "ver": "v1411",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1410 console X quit UX (non-blocking close, no hang reports); Win single-instance Desktop.",
+  "note": "v1411 ready crafts are Make-now tasks + Sessions chips; console X quit UX.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
