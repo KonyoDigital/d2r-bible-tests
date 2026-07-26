@@ -2259,3 +2259,8 @@ Was drafted as v1381.2; renumbered to authentic whole **v1400**.
 - install-tvd.ps1 / .sh install Grok CLI (optional, Claude-style)
 - Console ⚙ advanced → ⚡ Authorize → grok login --oauth (no-spam when linked)
 - POST /api/g5_login · status: cliInstalled / authorized / needsLogin
+
+## ROUND v1401 — Windows cousin handoff for second Grok (2026-07-26)
+Konyo: other Grok on Windows bugged mid-install; tip via GitHub.
+- Added `tv/WINDOWS_COUSIN_HANDOFF.md` — hard rules, Git/Python winget unstick, doctor, no API keys.
+- Windows: `git -C $HOME\d2r_bible_tests pull` then paste that file into the other Grok.
