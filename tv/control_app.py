@@ -1169,6 +1169,10 @@ def _start_capture(env, log_fp):
     if old and _pid_alive(old):
         return old
     try:
+        # v1412 — cwd=HERE (tv/) so relative logs are next to the script; pass absolute -File
+        # for Hebrew/spaces USERPROFILE. CREATE_NO_WINDOW so Desktop launch stays quiet.
+        env2 = dict(env or os.environ)
+        env2.setdefault("TV_CAPTURE", os.environ.get("TV_CAPTURE") or "auto")
         _capture_proc = subprocess.Popen(
             [
                 "powershell.exe",
@@ -1181,15 +1185,15 @@ def _start_capture(env, log_fp):
                 "-File",
                 CAPTURE_PS1,
             ],
-            cwd=REPO,
-            env=env,
+            cwd=HERE,
+            env=env2,
             stdout=log_fp,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
             creationflags=_WIN_CREATE,
         )
         _write_pid(CAP_PID_PATH, _capture_proc.pid)
-        log_fp.write(f"capture_win.ps1 pid {_capture_proc.pid}\n")
+        log_fp.write(f"capture_win.ps1 pid {_capture_proc.pid} file={CAPTURE_PS1}\n")
         log_fp.flush()
         return _capture_proc.pid
     except Exception as e:
@@ -1198,15 +1202,24 @@ def _start_capture(env, log_fp):
         return None
 
 
-_CAP_RESTARTED = False
+_CAP_RESTART_N = 0
+_CAP_RESTART_TS = 0.0
+_CAP_RESTART_MAX = 5          # v1412 — cousin Windows: capture_win can die; restart more than once
+_CAP_RESTART_COOLDOWN_S = 8.0
+
+
 def _capture_health():
     """v793 (Grok R4 #5a) — Windows capture lamp: LINKED / DEAD / n/a. A dead capture_win.ps1
-    used to leave a frozen eye with the lamp still mint. Auto-restart ONCE, loudly."""
-    global _CAP_RESTARTED
+    used to leave a frozen eye with the lamp still mint. Auto-restart, loudly.
+
+    v1412 — up to 5 restarts with cooldown (was once forever-DEAD). Cousin ON AIR often
+    saw 'NO CAPTURE — Windows capture process died' after a single PS crash/exit."""
+    global _CAP_RESTART_N, _CAP_RESTART_TS
     if not IS_WIN:
         return ""
     if _agent_mode not in ("live", "sim"):
-        _CAP_RESTARTED = False
+        _CAP_RESTART_N = 0
+        _CAP_RESTART_TS = 0.0
         return ""
     pid = None
     try:
@@ -1218,15 +1231,33 @@ def _capture_health():
         pass
     if pid and _pid_alive(pid):
         return "LINKED"
-    if not _CAP_RESTARTED and _log_fp:
-        _CAP_RESTARTED = True
+    now = time.time()
+    if (_CAP_RESTART_N < _CAP_RESTART_MAX
+            and (now - _CAP_RESTART_TS) >= _CAP_RESTART_COOLDOWN_S
+            and _log_fp):
+        _CAP_RESTART_N += 1
+        _CAP_RESTART_TS = now
         try:
-            _log_fp.write("!! capture_win.ps1 DIED mid-session — auto-restarting once\n")
+            _log_fp.write(
+                f"!! capture_win.ps1 DIED mid-session — auto-restart "
+                f"{_CAP_RESTART_N}/{_CAP_RESTART_MAX}\n")
             _log_fp.flush()
+            # clear stale pid so _start_capture does not think a corpse is alive
+            try:
+                if os.path.isfile(CAP_PID_PATH):
+                    os.remove(CAP_PID_PATH)
+            except Exception:
+                pass
+            with _lock:
+                globals()["_capture_proc"] = None
             _start_capture(_env_clean(sim=(_agent_mode == "sim")), _log_fp)
             return "RESTARTED"
-        except Exception:
-            pass
+        except Exception as e:
+            try:
+                _log_fp.write(f"!! capture restart failed: {e}\n")
+                _log_fp.flush()
+            except Exception:
+                pass
     return "DEAD"
 
 

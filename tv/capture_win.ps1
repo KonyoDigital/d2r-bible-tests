@@ -1,4 +1,4 @@
-﻿# TV DIABLO - Windows capture loop (v1402 twin parity, ASCII-safe for Hebrew Windows)
+﻿# TV DIABLO - Windows capture loop (v1412 pin + recovery)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
 #   TV_CAPTURE=auto|full|window   (default AUTO - pin D2R.exe when present, else full)
@@ -14,6 +14,7 @@
 # Product: native D2R.exe on Windows. Browsers / TV chrome never pin.
 # NOTE: Pure ASCII only. Windows PowerShell 5.1 under non-UTF8 code pages
 # (e.g. Hebrew cp1255) mis-parses UTF-8 emoji/emdash files without BOM.
+# v1412: PrintWindow fallback (exclusive fullscreen), sticky last pin, wider process match.
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -31,6 +32,11 @@ public class TvdWin {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
+  [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+  [DllImport("gdi32.dll")] public static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, int dwRop);
 }
 "@
 
@@ -49,19 +55,31 @@ if ($env:TV_WINDOW_MATCH) {
   $extra = $env:TV_WINDOW_MATCH.Split(',') | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ }
 }
 
-# Native Windows D2R process names + title needles
-$procNames = @('D2R', 'Diablo II Resurrected', 'DiabloII', 'Diablo II')
+# Native Windows D2R process names (ProcessName without .exe)
+# Battle.net installs usually: D2R. Store / other wrappers may vary.
+$procNames = @(
+  'D2R',
+  'Diablo II Resurrected',
+  'DiabloII',
+  'Diablo II',
+  'DiabloIIResurrected',
+  'Diablo II Resurrected Launcher'
+)
 $titleHints = @(
   'diablo ii', 'diablo 2', 'diablo ii: resurrected', 'diablo ii resurrected',
-  'd2r', 'resurrected'
+  'd2r', 'resurrected', 'diabloii'
 ) + $extra
 # never pin browsers / editors (bible tab titles contain "D2R")
 $ownerBlock = @(
-  'chrome', 'msedge', 'firefox', 'brave', 'opera', 'vivaldi',
+  'chrome', 'msedge', 'firefox', 'brave', 'opera', 'vivaldi', 'iexplore',
   'Code', 'Cursor', 'devenv', 'notepad', 'WindowsTerminal', 'powershell', 'pwsh',
-  'Slack', 'Discord', 'OUTLOOK', 'WINWORD', 'EXCEL'
+  'Slack', 'Discord', 'OUTLOOK', 'WINWORD', 'EXCEL', 'ApplicationFrameHost',
+  'SearchHost', 'ShellExperienceHost', 'TextInputHost'
 )
-$titleBlock = @('farming bible', 'd2r bible', 'tv diablo', 'localhost', '127.0.0.1')
+$titleBlock = @(
+  'farming bible', 'd2r bible', 'tv diablo', 'localhost', '127.0.0.1',
+  'bull-4-u', 'github', 'visual studio', 'notepad'
+)
 
 function Get-WindowTitle([IntPtr]$hwnd) {
   $len = [TvdWin]::GetWindowTextLength($hwnd)
@@ -93,7 +111,7 @@ function Find-D2RWindow {
     $blob = ("$procName $title").ToLower()
     $hit = $false
     foreach ($p in $script:procNames) {
-      if ($procName -and ($procName -ieq $p -or $procName -like 'D2R*')) { $hit = $true; break }
+      if ($procName -and ($procName -ieq $p -or $procName -like 'D2R*' -or $procName -like 'Diablo*')) { $hit = $true; break }
     }
     if (-not $hit) {
       foreach ($t in $script:titleHints) {
@@ -105,14 +123,16 @@ function Find-D2RWindow {
     if (-not [TvdWin]::GetWindowRect($hwnd, [ref]$rect)) { return $true }
     $w = $rect.Right - $rect.Left
     $h = $rect.Bottom - $rect.Top
-    if ($w -lt 640 -or $h -lt 400) { return $true }
+    # Fullscreen can report virtual size; allow slightly smaller borderless
+    if ($w -lt 480 -or $h -lt 360) { return $true }
     $score = 0
     if ($procName -ieq 'D2R' -or $ol -eq 'd2r') { $score += 5000 }
     if ($ol -like '*d2r*' -or $ol -like '*diablo*') { $score += 2000 }
     if ($tl -like '*diablo*' -or $tl -like '*d2r*' -or $tl -like '*resurrected*') { $score += 1000 }
     if ($procName -ieq 'D2R') { $score += 100 }
     if ($title -match 'Diablo') { $score += 40 }
-    $score += [Math]::Min([int](($w * $h) / 100000), 20)
+    # Prefer game-sized windows over tiny launchers
+    $score += [Math]::Min([int](($w * $h) / 100000), 40)
     $label = if ($title) { "$procName - $title" } else { $procName }
     if (-not $script:best -or $score -gt $script:best.Score) {
       $script:best = @{
@@ -129,6 +149,49 @@ function Find-D2RWindow {
   $script:best = $null
   [void][TvdWin]::EnumWindows($script:enumCb, [IntPtr]::Zero)
   return $script:best
+}
+
+function Capture-WindowBitmap($target) {
+  # Prefer CopyFromScreen (fast). Exclusive fullscreen / protected often returns black or fails -
+  # then PrintWindow (PW_RENDERFULLCONTENT=0x2) is the real fix for D2R pin.
+  $bmp = $null
+  $g = $null
+  try {
+    $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($target.Left, $target.Top, 0, 0, $bmp.Size)
+    # Heuristic: all-black frame means exclusive fullscreen failed
+    $sample = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
+    $blackish = ($sample.R -lt 8 -and $sample.G -lt 8 -and $sample.B -lt 8)
+    if (-not $blackish) {
+      return @{ Bmp = $bmp; G = $g; How = 'CopyFromScreen' }
+    }
+  } catch {
+    if ($g) { try { $g.Dispose() } catch {} }
+    if ($bmp) { try { $bmp.Dispose() } catch {} }
+    $bmp = $null; $g = $null
+  }
+  # PrintWindow path
+  try {
+    if ($bmp) { try { $g.Dispose() } catch {}; try { $bmp.Dispose() } catch {} }
+    $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $hdc = $g.GetHdc()
+    try {
+      # 2 = PW_RENDERFULLCONTENT (Win 8.1+) - needed for DWM / fullscreen games
+      $ok = [TvdWin]::PrintWindow([IntPtr]$target.Hwnd, $hdc, 2)
+      if (-not $ok) {
+        [void][TvdWin]::PrintWindow([IntPtr]$target.Hwnd, $hdc, 0)
+      }
+    } finally {
+      $g.ReleaseHdc($hdc)
+    }
+    return @{ Bmp = $bmp; G = $g; How = 'PrintWindow' }
+  } catch {
+    if ($g) { try { $g.Dispose() } catch {} }
+    if ($bmp) { try { $bmp.Dispose() } catch {} }
+    return $null
+  }
 }
 
 function Save-EyeJpeg([System.Drawing.Bitmap]$src, [string]$path) {
@@ -162,8 +225,10 @@ function Write-CapTarget([string]$mode, [string]$label) {
   ($obj | ConvertTo-Json -Compress) | Set-Content -Path $p -Encoding UTF8
 }
 
-Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms"
+Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1412"
 $lastLabel = ''
+$lastGood = $null
+$missStreak = 0
 while ($true) {
   try {
     $target = $null
@@ -171,6 +236,19 @@ while ($true) {
     $capLabel = 'full screen'
     if ($mode -eq 'window' -or $mode -eq 'auto' -or $mode -eq 'win' -or $mode -eq 'game') {
       $target = Find-D2RWindow
+      # sticky last pin: EnumWindows can glitch for a tick while D2R is exclusive fullscreen
+      if (-not $target -and $lastGood -and $lastGood.Hwnd -and [TvdWin]::IsWindow([IntPtr]$lastGood.Hwnd) -and -not [TvdWin]::IsIconic([IntPtr]$lastGood.Hwnd)) {
+        $rect = New-Object TvdWin+RECT
+        if ([TvdWin]::GetWindowRect([IntPtr]$lastGood.Hwnd, [ref]$rect)) {
+          $tw = $rect.Right - $rect.Left; $th = $rect.Bottom - $rect.Top
+          if ($tw -ge 480 -and $th -ge 360) {
+            $target = @{
+              Hwnd = $lastGood.Hwnd; Score = $lastGood.Score; W = $tw; H = $th
+              Left = $rect.Left; Top = $rect.Top; Label = $lastGood.Label
+            }
+          }
+        }
+      }
     }
     $bmp = $null
     $g = $null
@@ -180,20 +258,30 @@ while ($true) {
         Write-Host ("  eye pinned: {0} ({1})" -f $target.Label, $dims)
         $lastLabel = $target.Label
       }
-      $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
-      $g = [System.Drawing.Graphics]::FromImage($bmp)
-      $g.CopyFromScreen($target.Left, $target.Top, 0, 0, $bmp.Size)
-      $capMode = 'window'
-      $capLabel = $target.Label
-    } elseif ($mode -eq 'window' -or $mode -eq 'win' -or $mode -eq 'game') {
-      if ($lastLabel -ne '__waiting__') {
-        Write-Host '  waiting for Diablo II (D2R.exe) window...'
-        $lastLabel = '__waiting__'
+      $cap = Capture-WindowBitmap $target
+      if ($cap) {
+        $bmp = $cap.Bmp; $g = $cap.G
+        $capMode = 'window'
+        $capLabel = $target.Label + ' via ' + $cap.How
+        $lastGood = $target
+        $missStreak = 0
+      } else {
+        Write-Host ("  pin grab failed: {0}" -f $target.Label)
+        $missStreak++
       }
-      Write-CapTarget 'waiting' 'Diablo II (D2R.exe) not found'
-      Start-Sleep -Milliseconds 500
-      continue
-    } else {
+    }
+
+    if (-not $bmp) {
+      if ($mode -eq 'window' -or $mode -eq 'win' -or $mode -eq 'game') {
+        if ($lastLabel -ne '__waiting__') {
+          Write-Host '  waiting for Diablo II (D2R.exe) window...'
+          $lastLabel = '__waiting__'
+        }
+        Write-CapTarget 'waiting' 'Diablo II (D2R.exe) not found - open the game (not only Battle.net)'
+        Start-Sleep -Milliseconds 500
+        continue
+      }
+      # auto: full virtual screen when no game (still films something so console is not DEAD)
       if ($lastLabel -ne '__full__') {
         Write-Host '  full virtual screen (no D2R window / mode=full)'
         $lastLabel = '__full__'
@@ -203,9 +291,11 @@ while ($true) {
       $g = [System.Drawing.Graphics]::FromImage($bmp)
       $g.CopyFromScreen($b.Left, $b.Top, 0, 0, $bmp.Size)
       if ($mode -eq 'auto' -and -not $target) {
-        $capLabel = 'full screen (no game window)'
+        $capLabel = 'full screen (no game window - open D2R in-game)'
+        $capMode = 'waiting'
       }
     }
+
     # never trust a partial write: temp then promote
     $tmp = Join-Path $frames 'live.tmp.bmp'
     $out = Join-Path $frames 'live.bmp'
@@ -219,6 +309,8 @@ while ($true) {
     $g.Dispose(); $bmp.Dispose()
   } catch {
     Write-Host "  capture error: $_"
+    try { if ($g) { $g.Dispose() } } catch {}
+    try { if ($bmp) { $bmp.Dispose() } } catch {}
   }
   Start-Sleep -Milliseconds $pollMs
 }

@@ -3757,12 +3757,17 @@
     // first seconds of ON AIR (and forever if D2R never pins). Treat missing eye as HOLD too.
     var noEye = on && (st.eyeAgeMs == null || st.eyeAgeMs < 0);
     var holdOn = !!(noGame || eyeWaiting || eyeStaleHard || noEye);
+    // v1412 — platform-aware hold copy (cousin Windows was still told about Mac wallpaper)
+    var isWin = /win/i.test(String(st.platform || st.os || st.plat || ''));
     if (stopping) cap = 'Signing off — saving the session (≤ ~15s). Then STANDBY.';
     else if (on && state === 'sim') cap = 'Theatre · canned feed · <b>zero vision cost</b>. Watch the cinema or flip D2R.';
     else if (typeof TH !== 'undefined' && TH.open) cap = 'Theatre open · eyes on a real session · scrub frames, dossier, receipts.';
     else if (noGame) cap = '<b>D2R window missing</b> — open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). AI reads are paused until the game window is found.';
-    else if (eyeWaiting || noEye) cap = '<b>Eye held</b> — ' + (ct0.label || 'waiting for a clean D2R window pin') + '. Not recording your desktop.';
-    else if (eyeStaleHard) cap = '<b>Capture stalled</b> — last eye frame is old. Check Screen Recording for Python / focus D2R.';
+    else if (st.captureProc === 'DEAD') cap = '<b>NO CAPTURE</b> — Windows capture process died. Press <b>RESTART</b> (or OFF then ON). Open D2R in-game first.';
+    else if (eyeWaiting || noEye) cap = '<b>Eye held</b> — ' + (ct0.label || 'waiting for a clean D2R window pin') + (isWin ? '. Not filming the desktop.' : '. Not recording your desktop.');
+    else if (eyeStaleHard) cap = isWin
+      ? '<b>Capture stalled</b> — last eye frame is old. Focus the D2R game window or press <b>RESTART</b>.'
+      : '<b>Capture stalled</b> — last eye frame is old. Check Screen Recording for Python / focus D2R.';
     else if (on) cap = 'Auto Intake live · pause on <b>Runes / Gems / Materials / stash</b> — same AI as Tools 📸. Board: <b>SESSIONS</b>.';
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
     $('caption').innerHTML = cap;
@@ -3777,10 +3782,15 @@
             : ((eyeWaiting || noEye) ? 'Eye held — no game pin' : 'Capture stalled');
           if (shb) {
             if (noGame) shb.innerHTML = 'Open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). The AI stays off your desktop until the game window is found.';
-            else if (eyeWaiting || noEye) shb.innerHTML = '<b>' + (ct0.label || 'waiting for D2R window') + '</b><br>Not a black recorder bug — the eye refuses to film the Mac wallpaper.';
-            else shb.innerHTML = 'Last frame is stale. Grant <b>Screen Recording</b> to Python / TV DIABLO, focus D2R, or press <b>RESTART</b>.';
+            else if (eyeWaiting || noEye) shb.innerHTML = isWin
+              ? ('<b>' + (ct0.label || 'waiting for D2R.exe window') + '</b><br>Windows pin looks for <b>D2R.exe</b> (the game, not Battle.net or this console). Open D2R in-game, then wait a few seconds or hit <b>RESTART</b>.')
+              : ('<b>' + (ct0.label || 'waiting for D2R window') + '</b><br>Not a black recorder bug — the eye refuses to film the Mac wallpaper.');
+            else shb.innerHTML = isWin
+              ? 'Last frame is stale. Focus the <b>D2R game window</b> (or leave fullscreen windowed), then press <b>RESTART</b>.'
+              : 'Last frame is stale. Grant <b>Screen Recording</b> to Python / TV DIABLO, focus D2R, or press <b>RESTART</b>.';
           }
-          if (shh) shh.textContent = (ct0.mode ? ('capture: ' + ct0.mode + (ct0.label ? ' · ' + ct0.label : '')) : 'CrossOver bottle · D2R.exe · Screen Recording → Python');
+          if (shh) shh.textContent = (ct0.mode ? ('capture: ' + ct0.mode + (ct0.label ? ' · ' + ct0.label : ''))
+            : (isWin ? 'D2R.exe window pin · capture_win.ps1 · not Battle.net' : 'CrossOver bottle · D2R.exe · Screen Recording → Python'));
         }
       }
       if (noGame || eyeWaiting || noEye) {
@@ -3816,8 +3826,11 @@
       if (H.gameOk === false || H.aiPaused || st.gameOk === false || st.aiPaused) {
         fault = (H.gameMsg || st.gameMsg || 'D2R window missing — open Diablo II: Resurrected for live reads');
       }
-      else if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture process died';   // v793
-      else if (st.eyeAgeMs == null || st.eyeAgeMs < 0) fault = 'NO EYE — waiting for D2R pin (not filming desktop)';
+      else if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture_win died · press RESTART · open D2R.exe in-game (not only Battle.net)';   // v793/v1412
+      else if (st.captureProc === 'RESTARTED') fault = 'CAPTURE RESTARTED — eye re-arming…';
+      else if (st.eyeAgeMs == null || st.eyeAgeMs < 0) fault = isWin
+        ? 'NO EYE — waiting for D2R.exe window pin (not filming desktop)'
+        : 'NO EYE — waiting for D2R pin (not filming desktop)';
       else if (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 6000) fault = 'NO EYE — capture stalled';
       else if ((H.visionBusyMs || 0) > 45000) fault = 'VISION SLOW — read in flight ' + Math.round(H.visionBusyMs / 1000) + 's';
       else if (H.freeGB != null && H.minFreeGB != null && H.freeGB < H.minFreeGB) fault = 'DISK FULL — ' + H.freeGB + 'GB free (<' + H.minFreeGB + 'GB): footage is being SHED as it records — free disk space';   // v872.1 — THE 4GB night

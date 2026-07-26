@@ -1,3 +1,9 @@
+## Round v1412 — Windows D2R pin + capture recovery (2026-07-26)
+- **Cousin symptom:** ON AIR + EYE HELD + `NO CAPTURE — Windows capture process died` (and Mac wallpaper copy on Windows).
+- **Fix:** capture_win PrintWindow fallback + sticky pin + wider process match; multi-restart capture (5x); platform-aware hold UI; clearer RESTART fault.
+- **Cousin action:** git pull · re-open TV DIABLO · open D2R **in-game** · RESTART / OFF→ON.
+
+
 ## Round v1411 — Crafts in Make now (2026-07-26)
 - **Bug:** ready crafts (gem+rune in hand) not tasked on ⚒ Make now; sealed chronicle auto-Completed trapped the filter so crafts never appeared.
 - **Fix:** first-class craft Make-now cards (✓ crafted) · auto-route sealed/all → Make now when crafts ready · forgeSummary.now includes ⚗️ crafts for Sessions · craftReady refresh on every Forge paint.
