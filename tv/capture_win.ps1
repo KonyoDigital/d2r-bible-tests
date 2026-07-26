@@ -1,46 +1,219 @@
-﻿# TV DIABLO - Windows capture loop (v1416 true D2R pixels)
+﻿# TV DIABLO - Windows capture loop (v1418)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
 #   TV_CAPTURE=auto|full|window   (default AUTO - pin D2R.exe when present, else full)
-#   TV_WINDOW_MATCH=extra,tokens
 #   TV_CAPTURE_MS=200
 #
 # Writes:
 #   frames/live.bmp, live.png, eye.jpg, cap_target.json
-#   frames/win_pin_debug.json  - last pin candidates (cousin debug)
+#   frames/win_pin_debug.json, capture_heartbeat.txt, capture_stage.txt
 #
-# v1416: PrintWindow first. NEVER trust GetDC+BitBlt for D2R (returns desktop
-#         z-order = chat/IDE while label says D2R). CopyFromScreen / primary
-#         monitor ONLY when D2R is foreground. Else wait for focus.
-# v1413: PROCESS-FIRST pin. Pure ASCII + BOM for Hebrew PS 5.1.
+# v1418: Pure C# Find+PrintWindow (no PowerShell EnumWindows callbacks - those hang under D2R).
+#         Always write eye.jpg when we have pixels. Never BitBlt (desktop z-order lie).
+# Pure ASCII + BOM for Hebrew PowerShell 5.1.
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type @"
+Add-Type -ReferencedAssemblies System.Drawing,System.Windows.Forms -TypeDefinition @"
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-public class TvdWin {
+
+public static class TvdCap {
   public struct RECT { public int Left, Top, Right, Bottom; }
   public struct POINT { public int X, Y; }
   public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
-  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc lpEnumFunc, IntPtr lParam);
-  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
-  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-  [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd);
-  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
-  [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
-  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
-  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
-  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr hWnd);
-  [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
-  [DllImport("gdi32.dll")] public static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, int dwRop);
-  [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
-  public const int SRCCOPY = 0x00CC0020;
+
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc lpEnumFunc, IntPtr lParam);
+  [DllImport("user32.dll")] static extern bool IsIconic(IntPtr hWnd);
+  [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+  [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+  [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+  [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+  [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
+  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+
+  public class Hit {
+    public IntPtr Hwnd;
+    public int Left, Top, W, H;
+    public string Title;
+    public string Proc;
+    public int Score;
+    public bool IsFg;
+  }
+
+  static readonly string[] ProcNames = new string[] { "D2R", "DiabloIIResurrected", "DiabloII" };
+
+  public static List<Hit> FindD2R() {
+    var want = new HashSet<int>();
+    var names = new Dictionary<int, string>();
+    foreach (var n in ProcNames) {
+      try {
+        foreach (var p in Process.GetProcessesByName(n)) {
+          want.Add(p.Id);
+          names[p.Id] = p.ProcessName;
+          try { p.Dispose(); } catch {}
+        }
+      } catch {}
+    }
+    var hits = new List<Hit>();
+    if (want.Count == 0) return hits;
+    IntPtr fg = GetForegroundWindow();
+    EnumWindows((h, lp) => {
+      try {
+        if (!IsWindow(h) || IsIconic(h)) return true;
+        uint pidU = 0;
+        GetWindowThreadProcessId(h, out pidU);
+        int pid = (int)pidU;
+        if (!want.Contains(pid)) return true;
+        RECT wr;
+        if (!GetWindowRect(h, out wr)) return true;
+        int left = wr.Left, top = wr.Top;
+        int w = wr.Right - wr.Left, hh = wr.Bottom - wr.Top;
+        RECT cr;
+        if (GetClientRect(h, out cr)) {
+          int cw = cr.Right - cr.Left, ch = cr.Bottom - cr.Top;
+          if (cw >= 320 && ch >= 240) {
+            POINT pt; pt.X = 0; pt.Y = 0;
+            if (ClientToScreen(h, ref pt)) { left = pt.X; top = pt.Y; w = cw; hh = ch; }
+          }
+        }
+        if (w < 480 || hh < 360) return true;
+        var sb = new StringBuilder(512);
+        GetWindowText(h, sb, 512);
+        string title = sb.ToString() ?? "";
+        string tl = title.ToLowerInvariant();
+        if (tl.Contains("battle.net") || tl.Contains("tv diablo") || tl.Contains("farming bible")) return true;
+        string proc = names.ContainsKey(pid) ? names[pid] : "D2R";
+        bool isFg = (h == fg);
+        int score = 8000 + (isFg ? 500 : 0);
+        if (tl.Contains("resurrected") || tl.Contains("diablo ii")) score += 1500;
+        score += Math.Min((w * hh) / 50000, 80);
+        hits.Add(new Hit {
+          Hwnd = h, Left = left, Top = top, W = w, H = hh,
+          Title = title, Proc = proc, Score = score, IsFg = isFg
+        });
+      } catch {}
+      return true;
+    }, IntPtr.Zero);
+    hits.Sort((a, b) => b.Score.CompareTo(a.Score));
+    return hits;
+  }
+
+  public static bool D2RProcessAlive() {
+    foreach (var n in ProcNames) {
+      try {
+        var ps = Process.GetProcessesByName(n);
+        if (ps != null && ps.Length > 0) {
+          foreach (var p in ps) try { p.Dispose(); } catch {}
+          return true;
+        }
+      } catch {}
+    }
+    return false;
+  }
+
+  public static string Grab(Hit hit, string framesDir) {
+    if (hit == null || hit.Hwnd == IntPtr.Zero || hit.W < 32 || hit.H < 32) return null;
+    Bitmap bmp = null;
+    Graphics g = null;
+    string how = null;
+    try {
+      bmp = new Bitmap(hit.W, hit.H);
+      g = Graphics.FromImage(bmp);
+      IntPtr hdc = g.GetHdc();
+      try {
+        bool ok = PrintWindow(hit.Hwnd, hdc, 2);
+        if (!ok) PrintWindow(hit.Hwnd, hdc, 0);
+      } finally {
+        g.ReleaseHdc(hdc);
+      }
+      if (!MostlyBlack(bmp)) {
+        how = "PrintWindow";
+      } else {
+        if (GetForegroundWindow() == hit.Hwnd) {
+          g.CopyFromScreen(hit.Left, hit.Top, 0, 0, bmp.Size);
+          if (!MostlyBlack(bmp)) how = "CopyFromScreen-fg";
+        }
+      }
+      if (how == null) return null;
+      SaveAll(bmp, framesDir);
+      return how;
+    } catch {
+      return null;
+    } finally {
+      try { if (g != null) g.Dispose(); } catch {}
+      try { if (bmp != null) bmp.Dispose(); } catch {}
+    }
+  }
+
+  public static void GrabPrimary(string framesDir) {
+    var b = System.Windows.Forms.Screen.PrimaryScreen.Bounds;
+    using (var bmp = new Bitmap(b.Width, b.Height))
+    using (var g = Graphics.FromImage(bmp)) {
+      g.CopyFromScreen(b.X, b.Y, 0, 0, bmp.Size);
+      SaveAll(bmp, framesDir);
+    }
+  }
+
+  public static void GrabVirtual(string framesDir) {
+    var b = System.Windows.Forms.SystemInformation.VirtualScreen;
+    using (var bmp = new Bitmap(b.Width, b.Height))
+    using (var g = Graphics.FromImage(bmp)) {
+      g.CopyFromScreen(b.Left, b.Top, 0, 0, bmp.Size);
+      SaveAll(bmp, framesDir);
+    }
+  }
+
+  static bool MostlyBlack(Bitmap bmp) {
+    try {
+      int[] xs = new int[] { bmp.Width/2, bmp.Width/4, 3*bmp.Width/4, bmp.Width/4, 3*bmp.Width/4 };
+      int[] ys = new int[] { bmp.Height/2, bmp.Height/4, bmp.Height/4, 3*bmp.Height/4, 3*bmp.Height/4 };
+      int dark = 0;
+      for (int i = 0; i < 5; i++) {
+        Color c = bmp.GetPixel(xs[i], ys[i]);
+        if (c.R < 12 && c.G < 12 && c.B < 12) dark++;
+      }
+      return dark >= 4;
+    } catch { return true; }
+  }
+
+  static void SaveAll(Bitmap bmp, string framesDir) {
+    string liveBmp = Path.Combine(framesDir, "live.bmp");
+    string livePng = Path.Combine(framesDir, "live.png");
+    string eyeJpg = Path.Combine(framesDir, "eye.jpg");
+    string tmpBmp = liveBmp + ".tmp";
+    string tmpPng = livePng + ".tmp";
+    string tmpEye = eyeJpg + ".tmp";
+    bmp.Save(tmpBmp, ImageFormat.Bmp);
+    if (File.Exists(liveBmp)) try { File.Delete(liveBmp); } catch {}
+    File.Move(tmpBmp, liveBmp);
+    bmp.Save(tmpPng, ImageFormat.Png);
+    if (File.Exists(livePng)) try { File.Delete(livePng); } catch {}
+    File.Move(tmpPng, livePng);
+    int maxPx = 900;
+    int nw = bmp.Width, nh = bmp.Height;
+    if (nw > maxPx || nh > maxPx) {
+      double scale = Math.Min(maxPx / (double)nw, maxPx / (double)nh);
+      nw = Math.Max(1, (int)(bmp.Width * scale));
+      nh = Math.Max(1, (int)(bmp.Height * scale));
+    }
+    using (var eye = new Bitmap(nw, nh))
+    using (var eg = Graphics.FromImage(eye)) {
+      eg.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+      eg.DrawImage(bmp, 0, 0, nw, nh);
+      eye.Save(tmpEye, ImageFormat.Jpeg);
+    }
+    if (File.Exists(eyeJpg)) try { File.Delete(eyeJpg); } catch {}
+    File.Move(tmpEye, eyeJpg);
+  }
 }
 "@
 
@@ -53,532 +226,124 @@ $pollMs = 200
 if ($env:TV_CAPTURE_MS) {
   try { $pollMs = [Math]::Max(80, [int]$env:TV_CAPTURE_MS) } catch { $pollMs = 200 }
 }
-$extra = @()
-if ($env:TV_WINDOW_MATCH) {
-  $extra = $env:TV_WINDOW_MATCH.Split(',') | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ }
-}
 
-# ProcessName without .exe (Get-Process -Name)
-$procExact = @('D2R', 'DiabloIIResurrected', 'DiabloII')
-# Blocklist: never pin these even if title says Diablo
-$ownerBlock = @(
-  'chrome', 'msedge', 'firefox', 'brave', 'opera', 'vivaldi', 'iexplore',
-  'code', 'cursor', 'devenv', 'notepad', 'windowsterminal', 'powershell', 'pwsh',
-  'slack', 'discord', 'outlook', 'winword', 'excel', 'applicationframehost',
-  'searchhost', 'shellexperiencehost', 'textinputhost',
-  'battle.net', 'agent', 'blizzard browser', 'blizzardupdateagent', 'blizzarderror'
-)
-$titleBlock = @(
-  'farming bible', 'd2r bible', 'tv diablo', 'localhost', '127.0.0.1',
-  'bull-4-u', 'github', 'visual studio', 'notepad', 'battle.net'
-)
-$titleHints = @(
-  'diablo ii', 'diablo 2', 'diablo ii: resurrected', 'diablo ii resurrected',
-  'd2r', 'resurrected', 'diabloii'
-) + $extra
-
-function Get-WindowTitle([IntPtr]$hwnd) {
-  try {
-    $len = [TvdWin]::GetWindowTextLength($hwnd)
-    if ($len -le 0) { return '' }
-    $sb = New-Object System.Text.StringBuilder ($len + 1)
-    [void][TvdWin]::GetWindowText($hwnd, $sb, $sb.Capacity)
-    return $sb.ToString()
-  } catch { return '' }
-}
-
-function Test-OwnerBlocked([string]$procName) {
-  $ol = ($procName | ForEach-Object { $_.ToLower() })
-  foreach ($b in $ownerBlock) {
-    if ($ol -and $ol -like "*$b*") { return $true }
-  }
-  return $false
-}
-
-function Test-TitleBlocked([string]$title) {
-  $tl = ($title | ForEach-Object { $_.ToLower() })
-  foreach ($b in $titleBlock) {
-    if ($tl -and $tl -like "*$b*") { return $true }
-  }
-  return $false
-}
-
-function Test-IsCloaked([IntPtr]$hwnd) {
-  # DWMWA_CLOAKED = 14
-  try {
-    $cloak = 0
-    $hr = [TvdWin]::DwmGetWindowAttribute($hwnd, 14, [ref]$cloak, 4)
-    if ($hr -eq 0 -and $cloak -ne 0) { return $true }
-  } catch {}
-  return $false
-}
-
-function Get-WindowGeom([IntPtr]$hwnd) {
-  $wr = New-Object TvdWin+RECT
-  if (-not [TvdWin]::GetWindowRect($hwnd, [ref]$wr)) { return $null }
-  $w = $wr.Right - $wr.Left
-  $h = $wr.Bottom - $wr.Top
-  # Prefer client rect for games (no border chrome); fall back to window rect
-  $cr = New-Object TvdWin+RECT
-  $left = $wr.Left; $top = $wr.Top
-  if ([TvdWin]::GetClientRect($hwnd, [ref]$cr)) {
-    $cw = $cr.Right - $cr.Left
-    $ch = $cr.Bottom - $cr.Top
-    if ($cw -ge 320 -and $ch -ge 240) {
-      $pt = New-Object TvdWin+POINT
-      $pt.X = 0; $pt.Y = 0
-      if ([TvdWin]::ClientToScreen($hwnd, [ref]$pt)) {
-        $left = $pt.X; $top = $pt.Y
-        $w = $cw; $h = $ch
-      }
-    }
-  }
-  if ($w -lt 320 -or $h -lt 240) { return $null }
-  return @{ Left = $left; Top = $top; W = $w; H = $h }
-}
-
-function New-Candidate([IntPtr]$hwnd, [string]$procName, [string]$title, [int]$score, [hashtable]$geom) {
-  $label = if ($title) { "$procName - $title" } else { "$procName (no title)" }
-  return @{
-    Hwnd = $hwnd; Score = $score; W = $geom.W; H = $geom.H
-    Left = $geom.Left; Top = $geom.Top; Label = $label
-    Proc = $procName; Title = $title
-  }
-}
-
-function Score-Candidate([string]$procName, [string]$title, [int]$w, [int]$h, [bool]$isFg) {
-  $ol = $procName.ToLower()
-  $tl = $title.ToLower()
-  $score = 0
-  if ($ol -eq 'd2r') { $score += 8000 }
-  elseif ($ol -like 'd2r*') { $score += 6000 }
-  elseif ($ol -like '*diablo*') { $score += 3000 }
-  if ($tl -like '*diablo ii*' -or $tl -like '*diablo 2*' -or $tl -like '*resurrected*') { $score += 1500 }
-  elseif ($tl -like '*d2r*' -or $tl -like '*diablo*') { $score += 800 }
-  if ($isFg) { $score += 500 }
-  # Prefer large game-sized windows
-  $score += [Math]::Min([int](($w * $h) / 50000), 80)
-  return $score
-}
-
-function Find-D2RByProcess {
-  # PROCESS-FIRST. v1416: NEVER Get-Process / MainWindowHandle (both hang under D2R here).
-  # Get PID via GetProcessesByName, then EnumWindows for that PID only.
-  $cands = @()
-  $wantPids = @{}
-  $pidToName = @{}
-  foreach ($n in $procExact) {
-    try {
-      foreach ($p in [System.Diagnostics.Process]::GetProcessesByName($n)) {
-        if (-not $p) { continue }
-        $wantPids[[int]$p.Id] = $true
-        $pidToName[[int]$p.Id] = $p.ProcessName
-      }
-    } catch {}
-  }
-  if ($wantPids.Count -eq 0) { return @() }
-
-  $script:pidCands = @()
-  $script:wantPids = $wantPids
-  $script:pidToName = $pidToName
-  $script:fgHwnd = [TvdWin]::GetForegroundWindow()
-  $script:enumPidOnly = {
-    param([IntPtr]$h, [IntPtr]$lp)
-    try {
-      if ([TvdWin]::IsIconic($h)) { return $true }
-      # NEVER name a var $pid — PowerShell automatic $PID is read-only (crashes EnumWindows)
-      $winPid = 0
-      [void][TvdWin]::GetWindowThreadProcessId($h, [ref]$winPid)
-      if (-not $script:wantPids.ContainsKey([int]$winPid)) { return $true }
-      $geom = Get-WindowGeom $h
-      if (-not $geom -or $geom.W -lt 480 -or $geom.H -lt 360) { return $true }
-      $title = Get-WindowTitle $h
-      if (Test-TitleBlocked $title) { return $true }
-      $procName = [string]$script:pidToName[[int]$winPid]
-      if (-not $procName) { $procName = 'D2R' }
-      $isFg = ($h -eq $script:fgHwnd)
-      $score = Score-Candidate $procName $title $geom.W $geom.H $isFg
-      $score += 2000
-      $script:pidCands += ,(New-Candidate $h $procName $title $score $geom)
-    } catch {}
-    return $true
-  }
-  try { [void][TvdWin]::EnumWindows($script:enumPidOnly, [IntPtr]::Zero) } catch {}
-  return $script:pidCands
-}
-
-function Find-D2RByEnum {
-  $script:cands = @()
-  $fg = [TvdWin]::GetForegroundWindow()
-  $script:enumCb = {
-    param([IntPtr]$hwnd, [IntPtr]$lp)
-    if ([TvdWin]::IsIconic($hwnd)) { return $true }
-    if (Test-IsCloaked $hwnd) { return $true }
-    $title = Get-WindowTitle $hwnd
-    $procId = 0
-    [void][TvdWin]::GetWindowThreadProcessId($hwnd, [ref]$procId)
-    $procName = ''
-    # v1416: no Get-Process -Id (can hang under D2R)
-    try {
-      $pp = [System.Diagnostics.Process]::GetProcessById([int]$procId)
-      if ($pp) { $procName = $pp.ProcessName }
-    } catch {}
-    if (Test-OwnerBlocked $procName) { return $true }
-    if (Test-TitleBlocked $title) { return $true }
-    $ol = $procName.ToLower()
-    $tl = $title.ToLower()
-    $blob = "$ol $tl"
-    $hit = $false
-    if ($ol -eq 'd2r' -or $ol -like 'd2r*' -or $ol -like '*diablo*ii*' -or $ol -like '*diabloii*') { $hit = $true }
-    if (-not $hit) {
-      foreach ($t in $script:titleHints) {
-        if ($blob -like "*$t*") { $hit = $true; break }
-      }
-    }
-    if (-not $hit) { return $true }
-    # Title-only hits (no D2R process) still require visible window
-    $isProc = ($ol -eq 'd2r' -or $ol -like 'd2r*')
-    if (-not $isProc -and -not [TvdWin]::IsWindowVisible($hwnd)) { return $true }
-    $geom = Get-WindowGeom $hwnd
-    if (-not $geom) { return $true }
-    if ($geom.W -lt 480 -or $geom.H -lt 360) { return $true }
-    $isFg = ($hwnd -eq $script:fg)
-    $score = Score-Candidate $procName $title $geom.W $geom.H $isFg
-    $script:cands += ,(New-Candidate $hwnd $procName $title $score $geom)
-    return $true
-  }
-  $script:titleHints = $titleHints
-  $script:fg = $fg
-  $script:cands = @()
-  try { [void][TvdWin]::EnumWindows($script:enumCb, [IntPtr]::Zero) } catch {}
-  return $script:cands
-}
-
-function Find-D2RWindow {
-  $all = @()
-  try { $all += Find-D2RByProcess } catch { Write-Host "  proc-scan: $_" }
-  # Only fall back to full title enum when process pin found nothing (enum calls GetProcessById per window — slow/risky)
-  if (-not $all -or $all.Count -eq 0) {
-    try { $all += Find-D2RByEnum } catch { Write-Host "  enum-scan: $_" }
-  }
-  # de-dupe by hwnd
-  $best = $null
-  $seenH = @{}
-  $debug = @()
-  foreach ($c in $all) {
-    if (-not $c) { continue }
-    $key = [int64]$c.Hwnd
-    if ($seenH.ContainsKey($key)) { continue }
-    $seenH[$key] = $true
-    $debug += @{
-      proc = $c.Proc; title = $c.Title; score = $c.Score
-      w = $c.W; h = $c.H; left = $c.Left; top = $c.Top
-    }
-    if (-not $best -or $c.Score -gt $best.Score) { $best = $c }
-  }
-  # debug dump for cousin troubleshooting
-  try {
-    $dbgPath = Join-Path $frames 'win_pin_debug.json'
-    # v1416: no Get-Process here (hangs under D2R on some PCs)
-    $d2rAlive = $false
-    try {
-      $pp = [System.Diagnostics.Process]::GetProcessesByName('D2R')
-      if ($pp -and $pp.Length -gt 0) { $d2rAlive = $true }
-    } catch {}
-    $obj = @{
-      ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-      d2rProcessAlive = $d2rAlive
-      candidateCount = $debug.Count
-      best = if ($best) { $best.Label } else { $null }
-      candidates = $debug
-    }
-    ($obj | ConvertTo-Json -Depth 4 -Compress) | Set-Content -Path $dbgPath -Encoding UTF8
-  } catch {}
-  return $best
-}
-
-function Test-D2RProcessAlive {
-  # v1415: do NOT call Get-Process (hangs under D2R). Prefer last pin label / tool-less check.
-  try {
-    $p = Join-Path $frames 'cap_target.json'
-    if (Test-Path -LiteralPath $p) {
-      $j = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json
-      if ($j.d2rProcess -eq $true) { return $true }
-      $lab = [string]$j.label
-      if ($lab -match 'D2R|Diablo') { return $true }
-    }
-  } catch {}
-  # light process check via .NET (faster than tasklist; still may lag — keep last)
-  try {
-    $procs = [System.Diagnostics.Process]::GetProcessesByName('D2R')
-    if ($procs -and $procs.Length -gt 0) { return $true }
-  } catch {}
-  return $false
-}
-
-function Test-BitmapMostlyBlack([System.Drawing.Bitmap]$bmp) {
-  # Multi-point sample: single center pixel fooled us when BitBlt returned desktop chrome.
-  if (-not $bmp -or $bmp.Width -lt 4 -or $bmp.Height -lt 4) { return $true }
-  $pts = @(
-    @([int]($bmp.Width / 2), [int]($bmp.Height / 2)),
-    @([int]($bmp.Width / 4), [int]($bmp.Height / 4)),
-    @([int](3 * $bmp.Width / 4), [int]($bmp.Height / 4)),
-    @([int]($bmp.Width / 4), [int](3 * $bmp.Height / 4)),
-    @([int](3 * $bmp.Width / 4), [int](3 * $bmp.Height / 4))
-  )
-  $dark = 0
-  foreach ($p in $pts) {
-    $c = $bmp.GetPixel($p[0], $p[1])
-    if ($c.R -lt 12 -and $c.G -lt 12 -and $c.B -lt 12) { $dark++ }
-  }
-  return ($dark -ge 4)
-}
-
-function Capture-WindowBitmap($target) {
-  # v1416 CRITICAL: D2R is DirectX. GetDC+BitBlt often returns DESKTOP z-order
-  # (chat/IDE sitting on the D2R rect) while still non-black — label said D2R,
-  # film was Grok. Never treat BitBlt as trusted game pixels.
-  # Trust order:
-  #   1) PrintWindow (true hwnd buffer when the game allows it)
-  #   2) CopyFromScreen ONLY if D2R is foreground
-  #   3) else return black/null so caller waits for focus (no chat overlay)
-  $bmp = $null
-  $g = $null
-  $hwnd = [IntPtr]$target.Hwnd
-  if ($hwnd -eq [IntPtr]::Zero -or -not [TvdWin]::IsWindow($hwnd)) {
-    return $null
-  }
-  $fg = [TvdWin]::GetForegroundWindow()
-  $isFg = ($fg -eq $hwnd)
-
-  # 1) PrintWindow (PW_RENDERFULLCONTENT = 2) — real window content when supported
-  try {
-    $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
-    $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $hdc = $g.GetHdc()
-    try {
-      $ok = [TvdWin]::PrintWindow($hwnd, $hdc, 2)
-      if (-not $ok) { [void][TvdWin]::PrintWindow($hwnd, $hdc, 0) }
-    } finally {
-      $g.ReleaseHdc($hdc)
-    }
-    if (-not (Test-BitmapMostlyBlack $bmp)) {
-      return @{ Bmp = $bmp; G = $g; How = 'PrintWindow' }
-    }
-  } catch {
-    if ($g) { try { $g.Dispose() } catch {} }
-    if ($bmp) { try { $bmp.Dispose() } catch {} }
-    $bmp = $null; $g = $null
-  }
-
-  # 2) CopyFromScreen ONLY if D2R is foreground (only safe screen grab)
-  if ($isFg) {
-    try {
-      if ($bmp) { try { $g.Dispose() } catch {}; try { $bmp.Dispose() } catch {} }
-      $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
-      $g = [System.Drawing.Graphics]::FromImage($bmp)
-      $g.CopyFromScreen($target.Left, $target.Top, 0, 0, $bmp.Size)
-      if (-not (Test-BitmapMostlyBlack $bmp)) {
-        return @{ Bmp = $bmp; G = $g; How = 'CopyFromScreen-fg' }
-      }
-    } catch {
-      if ($g) { try { $g.Dispose() } catch {} }
-      if ($bmp) { try { $bmp.Dispose() } catch {} }
-      $bmp = $null; $g = $null
-    }
-  } else {
-    Write-Host '  D2R not foreground - refusing screen grab (BitBlt/CopyFromScreen would film chat/IDE)'
-  }
-
-  # v1416: BitBlt deliberately NOT used — for DX games it returns desktop composite.
-  if ($bmp) {
-    return @{ Bmp = $bmp; G = $g; How = 'PrintWindow-black' }
-  }
-  return $null
-}
-
-function Capture-PrimaryMonitor {
-  $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-  $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
-  $g = [System.Drawing.Graphics]::FromImage($bmp)
-  $g.CopyFromScreen($b.X, $b.Y, 0, 0, $bmp.Size)
-  return @{ Bmp = $bmp; G = $g; How = 'PrimaryMonitor'; W = $b.Width; H = $b.Height }
-}
-
-function Save-EyeJpeg([System.Drawing.Bitmap]$src, [string]$path) {
-  $maxPx = 900
-  $nw = $src.Width; $nh = $src.Height
-  if ($nw -gt $maxPx -or $nh -gt $maxPx) {
-    $scale = [Math]::Min($maxPx / [double]$nw, $maxPx / [double]$nh)
-    $nw = [Math]::Max(1, [int]($src.Width * $scale))
-    $nh = [Math]::Max(1, [int]($src.Height * $scale))
-  }
-  $eye = New-Object System.Drawing.Bitmap $nw, $nh
-  $eg = [System.Drawing.Graphics]::FromImage($eye)
-  $eg.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-  $eg.DrawImage($src, 0, 0, $nw, $nh)
-  $tmp = $path + '.part'
-  $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
-  $ep = New-Object System.Drawing.Imaging.EncoderParameters 1
-  $ep.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]55)
-  if ($codec) {
-    $eye.Save($tmp, $codec, $ep)
-  } else {
-    $eye.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Jpeg)
-  }
-  if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
-  Move-Item -Force -LiteralPath $tmp -Destination $path -ErrorAction SilentlyContinue
-  $eg.Dispose(); $eye.Dispose()
+function Write-Stage([string]$s) {
+  try { Set-Content -LiteralPath (Join-Path $frames 'capture_stage.txt') -Value $s -Encoding UTF8 } catch {}
 }
 
 function Write-CapTarget([string]$mode, [string]$label) {
   $p = Join-Path $frames 'cap_target.json'
+  $alive = $false
+  try { $alive = [TvdCap]::D2RProcessAlive() } catch {}
   $obj = @{
     mode = $mode
     label = $label
     ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-    d2rProcess = (Test-D2RProcessAlive)
+    d2rProcess = $alive
   }
-  ($obj | ConvertTo-Json -Compress) | Set-Content -Path $p -Encoding UTF8
-  # also plain text for quick eyes
+  ($obj | ConvertTo-Json -Compress) | Set-Content -LiteralPath $p -Encoding UTF8
+  try { Set-Content -LiteralPath (Join-Path $frames 'cap_target.txt') -Value "$mode|$label" -Encoding UTF8 } catch {}
+}
+
+function Write-PinDebug($hits) {
   try {
-    Set-Content -Path (Join-Path $frames 'cap_target.txt') -Value "$mode|$label" -Encoding UTF8
+    $debug = @()
+    foreach ($h in $hits) {
+      $debug += @{ proc = $h.Proc; title = $h.Title; score = $h.Score; w = $h.W; h = $h.H; left = $h.Left; top = $h.Top }
+    }
+    $best = $null
+    if ($hits -and $hits.Count -gt 0) { $best = ($hits[0].Proc + ' - ' + $hits[0].Title) }
+    $obj = @{
+      ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+      d2rProcessAlive = [TvdCap]::D2RProcessAlive()
+      candidateCount = @($hits).Count
+      best = $best
+      candidates = $debug
+    }
+    ($obj | ConvertTo-Json -Depth 5 -Compress) | Set-Content -LiteralPath (Join-Path $frames 'win_pin_debug.json') -Encoding UTF8
   } catch {}
 }
 
-Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1416 PrintWindow-or-focus (never BitBlt desktop lie)"
+Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1418 C# PrintWindow pin + forced eye.jpg"
 $lastLabel = ''
-$lastGood = $null
 $loopN = 0
 while ($true) {
-  $bmp = $null
-  $g = $null
   $loopN++
   try {
-    # heartbeat so we can see if pin/capture is stuck (no Get-Process)
-    try {
-      Set-Content -Path (Join-Path $frames 'capture_heartbeat.txt') -Value ("n={0} t={1}" -f $loopN, [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) -Encoding UTF8
-    } catch {}
-    $target = $null
-    $capMode = 'full'
-    $capLabel = 'full screen'
-    $d2rAlive = Test-D2RProcessAlive
-
-    if ($mode -eq 'window' -or $mode -eq 'auto' -or $mode -eq 'win' -or $mode -eq 'game') {
-      $target = Find-D2RWindow
-      # sticky last pin
-      if (-not $target -and $lastGood -and $lastGood.Hwnd -and [TvdWin]::IsWindow([IntPtr]$lastGood.Hwnd) -and -not [TvdWin]::IsIconic([IntPtr]$lastGood.Hwnd)) {
-        $geom = Get-WindowGeom ([IntPtr]$lastGood.Hwnd)
-        if ($geom -and $geom.W -ge 480 -and $geom.H -ge 360) {
-          $target = @{
-            Hwnd = $lastGood.Hwnd; Score = $lastGood.Score
-            W = $geom.W; H = $geom.H; Left = $geom.Left; Top = $geom.Top
-            Label = $lastGood.Label; Proc = $lastGood.Proc; Title = $lastGood.Title
-          }
-        }
-      }
+    Set-Content -LiteralPath (Join-Path $frames 'capture_heartbeat.txt') -Value ("n={0} t={1}" -f $loopN, [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) -Encoding UTF8
+  } catch {}
+  try {
+    Write-Stage 'find'
+    $d2rAlive = $false
+    try { $d2rAlive = [TvdCap]::D2RProcessAlive() } catch {}
+    $hits = @()
+    $best = $null
+    if ($mode -ne 'full') {
+      try { $hits = [TvdCap]::FindD2R() } catch { Write-Host "  find err: $_" }
+      Write-PinDebug $hits
+      if ($hits -and $hits.Count -gt 0) { $best = $hits[0] }
     }
 
-    $got = $null
-    if ($target -and $mode -ne 'full') {
-      if ($target.Label -ne $lastLabel) {
-        Write-Host ("  eye pinned: {0} ({1}x{2})" -f $target.Label, $target.W, $target.H)
-        $lastLabel = $target.Label
+    if ($best -and $mode -ne 'full') {
+      Write-Stage 'grab'
+      if ($best.Title -ne $lastLabel) {
+        Write-Host ("  eye pinned: {0} - {1} ({2}x{3})" -f $best.Proc, $best.Title, $best.W, $best.H)
+        $lastLabel = $best.Title
       }
-      $got = Capture-WindowBitmap $target
-      if ($got -and $got.How -ne 'PrintWindow-black') {
-        $bmp = $got.Bmp; $g = $got.G
-        $capMode = 'window'
-        $capLabel = $target.Label + ' via ' + $got.How
-        $lastGood = $target
-      } elseif ($got) {
-        # black pin — free and fall through
-        try { $got.G.Dispose() } catch {}
-        try { $got.Bmp.Dispose() } catch {}
-        Write-Host ("  pin black ({0}) — trying primary monitor (D2R exclusive fullscreen?)" -f $target.Label)
-      } else {
-        Write-Host ("  pin grab failed: {0}" -f $target.Label)
+      $how = $null
+      try { $how = [TvdCap]::Grab($best, $frames) } catch { Write-Host "  grab err: $_" }
+      if ($how) {
+        Write-Stage ("ok:" + $how)
+        Write-CapTarget 'window' ("{0} - {1} via {2}" -f $best.Proc, $best.Title, $how)
+        Start-Sleep -Milliseconds $pollMs
+        continue
       }
-    }
-
-    # Primary-monitor fallback ONLY when D2R is the FOREGROUND window (exclusive FS).
-    # If chat/IDE is on top, primary CopyFromScreen films the wrong app (v1415 bug).
-    if (-not $bmp -and $d2rAlive -and $mode -ne 'full') {
-      $fg = [TvdWin]::GetForegroundWindow()
-      $d2rIsFg = $false
-      if ($target -and $target.Hwnd) {
-        $d2rIsFg = ([IntPtr]$target.Hwnd -eq $fg)
-      }
-      if ($d2rIsFg) {
+      if ($best.IsFg) {
+        Write-Stage 'primary-fg'
         try {
-          $pm = Capture-PrimaryMonitor
-          $bmp = $pm.Bmp; $g = $pm.G
-          $capMode = 'window'
-          $capLabel = 'D2R foreground - primary monitor (' + $pm.How + ')'
-          if ($lastLabel -ne $capLabel) {
-            Write-Host ("  {0}" -f $capLabel)
-            $lastLabel = $capLabel
-          }
-        } catch {
-          Write-Host "  primary monitor fail: $_"
-        }
+          [TvdCap]::GrabPrimary($frames)
+          Write-CapTarget 'window' 'D2R foreground - primary monitor'
+          Start-Sleep -Milliseconds $pollMs
+          continue
+        } catch { Write-Host "  primary fail: $_" }
       } else {
+        Write-Stage 'need-focus'
         if ($lastLabel -ne '__need_focus__') {
-          Write-Host '  D2R running but NOT focused - click the GAME window (not this chat). Pin refuses desktop composite.'
+          Write-Host '  D2R pin found but grab black and not focused - click GAME window'
           $lastLabel = '__need_focus__'
         }
-        Write-CapTarget 'waiting' 'D2R running - click Diablo window to focus (will not film chat/IDE on top)'
+        Write-CapTarget 'waiting' 'D2R running - click Diablo window (PrintWindow black; not filming chat)'
         Start-Sleep -Milliseconds 400
         continue
       }
     }
 
-    if (-not $bmp) {
-      if ($mode -eq 'window' -or $mode -eq 'win' -or $mode -eq 'game') {
-        if ($lastLabel -ne '__waiting__') {
-          Write-Host '  waiting for D2R.exe (open the GAME, not only Battle.net)...'
-          $lastLabel = '__waiting__'
-        }
-        $msg = if ($d2rAlive) {
-          'D2R.exe running but no capturable window - try borderless windowed'
-        } else {
-          'D2R.exe not found - open Diablo II Resurrected in-game (not only Battle.net)'
-        }
-        Write-CapTarget 'waiting' $msg
-        Start-Sleep -Milliseconds 500
-        continue
-      }
-      # auto + no game: full virtual screen so capture process stays healthy
-      if ($lastLabel -ne '__full__') {
-        Write-Host '  full virtual screen (no D2R.exe - open the game in-game)'
-        $lastLabel = '__full__'
-      }
-      $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
-      $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
-      $g = [System.Drawing.Graphics]::FromImage($bmp)
-      $g.CopyFromScreen($b.Left, $b.Top, 0, 0, $bmp.Size)
-      $capMode = if ($d2rAlive) { 'window' } else { 'waiting' }
-      $capLabel = if ($d2rAlive) {
-        'D2R alive - full virtual screen fallback'
+    if ($mode -eq 'window' -or $mode -eq 'win' -or $mode -eq 'game') {
+      Write-Stage 'waiting-d2r'
+      $msg = if ($d2rAlive) {
+        'D2R.exe running but no capturable window - try borderless windowed'
       } else {
-        'full screen (no D2R.exe - open game in-game)'
+        'D2R.exe not found - open Diablo II Resurrected in-game (not only Battle.net)'
       }
+      Write-CapTarget 'waiting' $msg
+      Start-Sleep -Milliseconds 500
+      continue
     }
 
-    $tmp = Join-Path $frames 'live.tmp.bmp'
-    $out = Join-Path $frames 'live.bmp'
-    $bmp.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Bmp)
-    Move-Item -Force $tmp $out
-    $png = Join-Path $frames 'live.png'
-    $bmp.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
-    $eye = Join-Path $frames 'eye.jpg'
-    try { Save-EyeJpeg $bmp $eye } catch { Write-Host "  eye.jpg: $_" }
-    Write-CapTarget $capMode $capLabel
-    $g.Dispose(); $bmp.Dispose()
+    Write-Stage 'virtual'
+    if ($lastLabel -ne '__full__') {
+      Write-Host '  full virtual screen (no D2R pin)'
+      $lastLabel = '__full__'
+    }
+    try {
+      [TvdCap]::GrabVirtual($frames)
+      Write-CapTarget $(if ($d2rAlive) { 'window' } else { 'waiting' }) $(if ($d2rAlive) { 'D2R alive - full virtual fallback' } else { 'full screen (no D2R)' })
+    } catch {
+      Write-Host "  virtual fail: $_"
+    }
   } catch {
-    Write-Host "  capture error: $_"
-    try { if ($g) { $g.Dispose() } } catch {}
-    try { if ($bmp) { $bmp.Dispose() } } catch {}
+    Write-Host "  loop err: $_"
+    Write-Stage ("err:" + $_)
   }
   Start-Sleep -Milliseconds $pollMs
 }
