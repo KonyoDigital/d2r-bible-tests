@@ -241,8 +241,13 @@ function Write-CapTarget([string]$mode, [string]$label) {
     ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     d2rProcess = $alive
   }
-  ($obj | ConvertTo-Json -Compress) | Set-Content -LiteralPath $p -Encoding UTF8
-  try { Set-Content -LiteralPath (Join-Path $frames 'cap_target.txt') -Value "$mode|$label" -Encoding UTF8 } catch {}
+  # v1419: UTF-8 WITHOUT BOM — agent json.load('utf-8') used to miss pin when BOM present
+  $json = ($obj | ConvertTo-Json -Compress)
+  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+  [System.IO.File]::WriteAllText($p, $json, $utf8NoBom)
+  try {
+    [System.IO.File]::WriteAllText((Join-Path $frames 'cap_target.txt'), "$mode|$label", $utf8NoBom)
+  } catch {}
 }
 
 function Write-PinDebug($hits) {
