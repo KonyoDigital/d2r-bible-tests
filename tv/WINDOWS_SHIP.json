@@ -3,7 +3,7 @@
   "ver": "v1418",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1418 fleet unity: Mac auto-pull matches Windows; behind-origin banner on every device.",
+  "note": "v1418 eye.jpg hardened so ON AIR no longer shows NO GAME PIN when live is D2R",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
