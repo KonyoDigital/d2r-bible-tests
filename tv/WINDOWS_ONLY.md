@@ -1,6 +1,7 @@
 # TV DIABLO — Windows only
 
-This PC uses the **Windows** product path. Do **not** mix Mac installers, Mac launchers, or Mac capture.
+This PC uses the **Windows** product path (your Windows QA box or cousin).  
+Same GitHub product as Mac — do **not** run Mac installers/launchers/capture **on this PC**.
 
 ## Install (Windows)
 

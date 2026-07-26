@@ -153,7 +153,19 @@ if (-not $credHit) {
   Start-Process -Wait powershell -ArgumentList '-NoLogo', '-Command', 'claude' -ErrorAction SilentlyContinue
 }
 
-try { git -C $repo pull --ff-only 2>$null | Out-Null } catch {}
+# v1404 multi-machine: auto-pull only when clean (dirty = local work protected).
+# TV_NO_AUTO_PULL=1 skips entirely. Cousin clean install still always tracks origin.
+if (-not $env:TV_NO_AUTO_PULL) {
+  $dirty = $null
+  try { $dirty = git -C $repo status --porcelain 2>$null } catch {}
+  if (-not $dirty) {
+    try { git -C $repo pull --ff-only 2>$null | Out-Null } catch {}
+  } else {
+    Write-TvdLaunchLog 'skip auto-pull: dirty working tree (local work protected)'
+  }
+} else {
+  Write-TvdLaunchLog 'skip auto-pull: TV_NO_AUTO_PULL set'
+}
 
 $control = Join-Path $here 'control_app.py'
 $ui = Join-Path $here 'control_ui.html'

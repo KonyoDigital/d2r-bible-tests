@@ -26,6 +26,25 @@ Local stamp after install: `tv/.windows_install.json`.
 5. **Never** `winget … | Out-Null` while debugging — you need to see errors.
 6. If installer looks stuck: **Ctrl+C**, install the stuck piece **visibly**, re-run IRM.
 
+## Git push policy (multi-machine — READ)
+
+Mac and Windows both track **one** `main`. Auto-pull on clean launch updates both.
+
+**You MAY push** only when fixing a **proven Windows-only bug** that cannot stay local:
+- Path spaces / Hebrew USERPROFILE / PS 5.1 encoding / capture_win / start_tvd_win.ps1
+- Deadlocks that also hit Mac are OK if the fix is correct (e.g. RLock) — still keep change minimal
+
+**Push rules:**
+1. Whole version only: **v1404**, v1405… (no decimals).
+2. Triple stamp in the **same commit**: `tv_diablo.VERSION` == control `"ver"` == `bible.html` D2R_BUILD.id.
+3. Touch **only** what you need. Prefer `tv/start_tvd_win.ps1`, `tv/capture_win.ps1`, Windows-only branches in `control_app.py` / `tv_diablo.py`.
+4. **Do not** rewrite Mac launchers, Theatre UI, or funnel logic unless the bug is proven cross-platform.
+5. **Do not** force-push, rewrite history, or change remotes.
+6. One logical fix per version. Log a short note in `tv/PINGPONG_LOG.md`.
+7. After push, Mac owner may re-review; bad commits get reverted.
+
+**Default when unsure:** fix locally on Windows, **do not push** — paste the patch into chat for Mac Grok.
+
 ---
 
 ## Stuck on “installing Git…”

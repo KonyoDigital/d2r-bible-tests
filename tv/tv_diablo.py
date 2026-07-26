@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1404"   # Windows-only ship identity (WINDOWS_SHIP.json) + prior Win ON AIR fixes.
+VERSION = "v1405"   # Unify: Win ship identity + safe auto-pull (skip dirty) + dual-PC QA (Mac+Win).
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

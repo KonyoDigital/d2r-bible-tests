@@ -56,9 +56,17 @@ fi
 python3 -c "import webview" 2>/dev/null || \
   python3 -m pip install --user --quiet 'pywebview>=5.0' 2>/dev/null || true
 
-# pull-first (quiet)
-if [[ -d "$REPO/.git" ]]; then
-  git -C "$REPO" pull --ff-only >/dev/null 2>&1 || true
+# pull-first (quiet) — v1404 multi-machine:
+#   • clean tree → ff-only from origin (cousin + Mac stay on product channel)
+#   • dirty tree → SKIP (protects Mac/local work; Windows Grok cannot wipe your edits via pull)
+#   • TV_NO_AUTO_PULL=1 → never pull (dev pin)
+if [[ -d "$REPO/.git" && -z "${TV_NO_AUTO_PULL:-}" ]]; then
+  if [[ -z "$(git -C "$REPO" status --porcelain 2>/dev/null)" ]]; then
+    git -C "$REPO" pull --ff-only >/dev/null 2>&1 || true
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') skip auto-pull: dirty working tree (local work protected)" \
+      >>"$HERE/control_app.log" 2>/dev/null || true
+  fi
 fi
 
 # Foreground: this process IS the app window (must not nohup/disown).

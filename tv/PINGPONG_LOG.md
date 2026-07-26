@@ -2287,40 +2287,22 @@ Konyo: other Grok on Windows bugged mid-install; tip via GitHub.
 
 ---
 
-## ROUND v1402-v1404 — Windows cousin ON AIR + Windows-only ship (2026-07-26)
+## ROUND v1402-v1405 — dual-PC QA (Mac + your Windows) (2026-07-26)
 
-**Lane:** Windows Grok (this PC) · **Product truth still Mac/Konyo repo** · shipped to main.
-
-### Honest workflow audit (KONYO_WORKFLOW.md)
-- Working before this note: **partial firefight** (install/ON AIR rescue), NOT full seven-round seal.
-- Now realigned: syntax gates on Win PS1 (ASCII+BOM), triple stamp, doctor live, ledger + REG, commit/push.
-- **NOT sealed** under Step 13 yet (need Fable suite/Playwright RINSE + SuperGrok back-pass rounds 2-7).
-- Live sanctity: no force mid-farm restarts when user ON AIR farming.
+**Lane:** Konyo Windows QA PC (not random cousin) + Mac merge. Same product `main`.
 
 ### Ships
 | Ver | Fix |
 |-----|-----|
-| v1402 | Hebrew Windows: capture_win.ps1 ASCII+BOM; agent UTF-8 stdio; PYTHONUTF8 env |
-| v1403 | ON AIR deadlock: threading.Lock -> RLock (start_agent holds lock, _pid_alive re-enters) |
-| v1404 | Windows-only identity: WINDOWS_SHIP.json platform=windows; install/launcher guards; doctor ship checks; no Mac mesh |
+| v1402 | Hebrew Windows: capture_win ASCII+BOM; agent UTF-8 stdio |
+| v1403 | ON AIR deadlock: Lock -> RLock |
+| v1404 | WINDOWS_SHIP.json platform pin; install/launcher Win guards |
+| v1405 | Unify: safe auto-pull (skip dirty) + TV_NO_AUTO_PULL + dual-PC stamp |
 
-### Gates run on THIS Windows PC (partial)
-- [x] py ast.parse control_app / tv_diablo
-- [x] PS Parser: start_tvd_win.ps1 / install-tvd.ps1 / capture_win.ps1 OK after ASCII+BOM
-- [x] Triple stamp v1404 + WINDOWS_SHIP.platform=windows
-- [x] Live doctor ok + shipVer v1404
-- [x] POST /api/on ~0.65s mode=live bridge=true capture=LINKED (after RLock)
-- [ ] test_control.py / agent py full suite (Mac CI preferred)
-- [ ] Playwright RINSE / visual screenshots looked-at
-- [ ] SuperGrok pingpong R2-R7
-- [ ] Cloudflare deploy (Mac/dev)
-
-### Commits
-- bfce854 path-space Desktop launcher
-- 454b25d RLock v1403
-- 09dbf17 Windows-only ship v1404
-- (follow-up) ASCII-clean install/start PS1 so PS 5.1 Hebrew locale parses
+### Architecture
+- One GitHub product. Mac develops; Windows proves install/ON AIR before cousin.
+- Auto-pull on launch only when working tree is **clean**; dirty = local work protected.
+- WINDOWS_SHIP is **this PC's launcher path**, not a separate product fork.
 
 ### REG
-See BUGS.md REG-041 / REG-042 / REG-043.
-
+See BUGS.md REG-044 / REG-045 / REG-046 (Windows ledger) + earlier REG-041+.
