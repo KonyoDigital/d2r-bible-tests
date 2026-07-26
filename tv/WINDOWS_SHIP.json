@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1407",
+  "ver": "v1408",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "Windows single-instance Desktop launch; one native window; second click quiet exit (no error dialog).",
+  "note": "v1408 judge-proof coverage meter (100% when missedFrames=0); Win single-instance Desktop.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

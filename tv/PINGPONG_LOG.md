@@ -1,3 +1,10 @@
+## Round v1408 — 100% coverage (judge-proof) (2026-07-26)
+- **Bug:** Theatre showed 13% coverage (2/16) on fully-swept reels — 14 `kai-judge` Super stamps counted as unread item-text.
+- **Truth:** `missedFrames=0` · 2 named deep reads · 0 real unread → **100%**.
+- **Fix:** `_session_completeness` only counts non-empty `kai.texts` (not judges); seal passes `missed[]`; API uses `_coverage_from_report` (prefers `missedFrames`).
+- **Tests:** TestCompletenessCoverageHonesty + TestFilmCompleteness (15 OK).
+
+
 
 ## Round v901 — Auto Intake · SESSIONS · Robot frozen (2026-07-19)
 

@@ -2445,6 +2445,44 @@ class TestCompletenessCoverageHonesty(unittest.TestCase):
             [self._deep(1), self._deep(2), self._kai(3), self._kai(4)], self._F)["coveragePct"]
         self.assertEqual(cov, 50.0)
 
+    def test_kai_judge_rows_do_not_inflate_unread(self):
+        # v1408 — Super/kai-judge stamps carry frameId + empty texts; they must NOT tank
+        # coverage (the 13% bug: 2 real reads + 14 judges → 12.5% on a fully-swept reel).
+        judges = [{"lane": "kai", "mode": "kai-judge", "frameId": "reel/f%d" % i,
+                   "ts": i, "kai": {"judge": {"ok": True}}} for i in range(14)]
+        cov = ca._session_completeness([self._deep(1), self._deep(2)] + judges, self._F)
+        self.assertEqual(cov["unread"], 0)
+        self.assertEqual(cov["reads"], 2)
+        self.assertEqual(cov["coveragePct"], 100.0)
+
+    def test_empty_text_kai_rows_are_not_unread(self):
+        # grounded/summary-adjacent rows with frameId but no texts are not misses
+        rows = [self._deep(1),
+                {"lane": "kai", "mode": "kai", "frameId": "reel/f9", "ts": 9,
+                 "kai": {"grounded": ["Shako"]}}]
+        cov = ca._session_completeness(rows, self._F)
+        self.assertEqual(cov["unread"], 0)
+        self.assertEqual(cov["coveragePct"], 100.0)
+
+    def test_missed_list_is_authoritative(self):
+        # closer's missed[] wins over a noisy journal (and empty-text junk is filtered)
+        rows = [self._deep(1), self._deep(2)] + [
+            {"lane": "kai", "mode": "kai-judge", "frameId": "x", "ts": 1, "kai": {"judge": {}}}]
+        missed = [{"f": "f1.jpg", "ts": 100, "texts": ["Harlequin Crest"]},
+                  {"f": "f2.jpg", "ts": 200, "texts": []}]  # empty texts ignored
+        cov = ca._session_completeness(rows, self._F, missed=missed)
+        self.assertEqual(cov["unread"], 1)
+        self.assertEqual(cov["reads"], 2)
+        self.assertEqual(cov["coveragePct"], round(100.0 * 2 / 3, 1))
+
+    def test_coverage_from_report_prefers_missed_frames(self):
+        # pre-v1408 seal with inflated completeness.unread still serves 100% via missedFrames
+        rep = {"missedFrames": 0, "missed": [],
+               "completeness": {"reads": 2, "unread": 14, "hovers_estimated": 16,
+                                "coveragePct": 12.5, "dropped": 0, "reel_frames": 153}}
+        out = ca._coverage_from_report(rep)
+        self.assertEqual(out, {"read": 2, "total": 2, "gaps": 0, "pct": 100.0})
+
 
 class TestSceneFingerprintPortals(unittest.TestCase):
     """Scene-fingerprint honesty — `portals` now counts distinct portal/loading EVENTS (maximal

@@ -5080,21 +5080,26 @@ def _kai_live_routing_row(rd):
 _COMPLETENESS_TOL_MS = 1500   # ~1.5x FOOTAGE_INTERVAL_S default (1fps archive) — jitter slack
 
 
-def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
+def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS, missed=None):
     """Pure. Two independent gap classes, both real signal, only one a bug:
 
       'unread'       — KAI's retro reel sweep saw item text with no deep read anywhere near
-                        it (rides sess_rows as lane=='kai' per-item rows, frameId set, from
-                        _kai_closer_loop's `missed[]`). The moment WAS filmed — a reel frame
-                        backs every one of these by construction (KAI only scans real reel
-                        frames) — it just went unread. Honest, already-caught. NOT a drop.
+                        it (from kai_report.missed[] when provided, else journal lane=='kai'
+                        per-item rows with NON-EMPTY texts — NOT kai-judge rows). The moment
+                        WAS filmed — a reel frame backs every one by construction — it just
+                        went unread. Honest, already-caught. NOT a drop.
       'read-no-film' — a deep read landed (an item WAS read, hover→read worked) but no reel
                         frame exists within tol_ms of its captureTs. This IS a capture drop:
                         the film thread didn't archive a still near that moment.
 
+    v1408 — kai-judge rows (Super/forensics stamps with frameId + empty texts) used to inflate
+    'unread' (e.g. 2 real reads + 14 judges → 12.5% on a fully-swept reel with missedFrames=0).
+    Only REAL missed-item text counts. A legitimate 100% is reads>0 and unread=0.
+
     sess_rows: this session's journal rows (already filtered to one sessionId).
     reel_frames: the sealed reel's index.json 'frames' list [{"f":.., "ts":..}, ...] —
     the film's ground truth of what was actually archived to hist_dir.
+    missed: optional list from kai_report.missed[] (authoritative when present).
 
     Returns {hovers_estimated, reads, reel_frames, gaps: [...], unread, dropped, coveragePct}.
     hovers_estimated = reads + unread — the best estimate available of "moments item text
@@ -5102,9 +5107,19 @@ def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
     the closest ground-truth proxy, per Konyo's instruction to use kai_report.missed[]).
     coveragePct = reads / hovers_estimated * 100 — the read-side registration rate."""
     reads = [r for r in (sess_rows or []) if r.get("lane") == "deep" and (r.get("names") or [])]
-    kai_item_rows = [r for r in (sess_rows or [])
-                      if r.get("lane") == "kai" and r.get("frameId")
-                      and isinstance(r.get("kai"), dict)]
+    # Authoritative unread: report.missed[] when the closer just built it; else journal rows
+    # that are REAL missed-text ledgers (mode kai/empty, non-empty texts) — never kai-judge.
+    if isinstance(missed, list):
+        kai_item_rows = None
+        missed_items = [m for m in missed if (m.get("texts") or [])]
+    else:
+        missed_items = None
+        kai_item_rows = [r for r in (sess_rows or [])
+                          if r.get("lane") == "kai"
+                          and r.get("mode") != "kai-judge"
+                          and r.get("frameId")
+                          and isinstance(r.get("kai"), dict)
+                          and (r.get("kai") or {}).get("texts")]
     frame_ts = sorted(int(f.get("ts") or 0) for f in (reel_frames or []) if f.get("ts") is not None)
 
     def _nearest_gap_ms(ts):
@@ -5120,10 +5135,19 @@ def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
         return best
 
     gaps = []
-    for r in kai_item_rows:
-        texts = (r.get("kai") or {}).get("texts") or []
-        gaps.append({"ts": int(r.get("ts") or 0), "kind": "unread", "frameId": r.get("frameId"),
-                     "note": "text seen, never read: " + ", ".join(str(t) for t in texts[:3])})
+    if missed_items is not None:
+        for m in missed_items:
+            texts = m.get("texts") or []
+            gaps.append({"ts": int(m.get("ts") or 0), "kind": "unread",
+                         "frameId": m.get("f") or m.get("frameId"),
+                         "note": "text seen, never read: " + ", ".join(str(t) for t in texts[:3])})
+        n_unread = len(missed_items)
+    else:
+        for r in kai_item_rows:
+            texts = (r.get("kai") or {}).get("texts") or []
+            gaps.append({"ts": int(r.get("ts") or 0), "kind": "unread", "frameId": r.get("frameId"),
+                         "note": "text seen, never read: " + ", ".join(str(t) for t in texts[:3])})
+        n_unread = len(kai_item_rows)
     dropped = 0
     for r in reads:
         ts = int(r.get("captureTs") or r.get("ts") or 0)
@@ -5135,7 +5159,6 @@ def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
                                  (tol_ms, "none" if gap is None else str(gap) + "ms")})
     gaps.sort(key=lambda g: g["ts"])
     n_reads = len(reads)
-    n_unread = len(kai_item_rows)
     hovers_estimated = n_reads + n_unread
     # honest-absent: NO item-moments (0 reads AND 0 unread) → None, never a fabricated 100%
     # ("100% coverage" on a session with nothing to cover is a real over-claim — 4/27 reels). A
@@ -5150,6 +5173,29 @@ def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
         "dropped": dropped,
         "coveragePct": coverage_pct,
     }
+
+
+def _coverage_from_report(report):
+    """v1408 — Theatre coverage meter from a sealed kai_report, judge-inflation-proof.
+
+    Prefer report.missedFrames (real OCR misses the closer counted) over completeness.unread
+    which on pre-v1408 seals included every kai-judge frameId row. When KAI sealed with
+    missedFrames=0 and any named deep reads → 100%. Honest-absent when nothing to cover."""
+    if not isinstance(report, dict):
+        return None
+    cmp = report.get("completeness") if isinstance(report.get("completeness"), dict) else {}
+    reads = int(cmp.get("reads") or 0)
+    if report.get("missedFrames") is not None:
+        unread = int(report.get("missedFrames") or 0)
+    elif isinstance(report.get("missed"), list):
+        unread = sum(1 for m in report["missed"] if (m.get("texts") or []))
+    else:
+        unread = int(cmp.get("unread") or 0)
+    total = reads + unread
+    if total <= 0:
+        return None
+    return {"read": reads, "total": total, "gaps": unread,
+            "pct": round(100.0 * reads / total, 1)}
 
 
 _COMPLETENESS_CACHE = {"reel": None, "mtime": 0.0, "val": None}
@@ -5421,8 +5467,20 @@ def _newest_completeness():
         mt = os.path.getmtime(rp)
         if _COMPLETENESS_CACHE["reel"] == reels[0] and _COMPLETENESS_CACHE["mtime"] == mt:
             return _COMPLETENESS_CACHE["val"]
-        c = (json.load(open(rp, encoding="utf-8")) or {}).get("completeness")
-        val = c if isinstance(c, dict) and c.get("reads") is not None else None
+        # v1408 — rebuild from full report so judge-inflated pre-v1408 completeness.unread
+        # doesn't poison the engine-health "readers" organ (was 2/16=13% on fully-swept reels).
+        _rep = json.load(open(rp, encoding="utf-8")) or {}
+        c = _rep.get("completeness") if isinstance(_rep.get("completeness"), dict) else None
+        if isinstance(c, dict) and c.get("reads") is not None:
+            _cf = _coverage_from_report(_rep)
+            if _cf:
+                c = dict(c)
+                c["unread"] = _cf["gaps"]
+                c["hovers_estimated"] = _cf["total"]
+                c["coveragePct"] = _cf["pct"]
+            val = c
+        else:
+            val = None
         _COMPLETENESS_CACHE.update(reel=reels[0], mtime=mt, val=val)
         return val
     except Exception:
@@ -6307,8 +6365,9 @@ def _kai_closer_loop():
                     # v948.13 🎞🔗 — FILM ↔ REGISTRATION COMPLETENESS (target #2). _reg_rows is
                     # the freshest re-read of this session's journal, so it already carries the
                     # KAI per-item 'unread' rows appended earlier this same seal pass.
+                    # v1408 — pass closer's missed[] so completeness never counts kai-judge stamps.
                     try:
-                        _completeness = _session_completeness(_reg_rows, frames)
+                        _completeness = _session_completeness(_reg_rows, frames, missed=missed)
                         report["completeness"] = _completeness
                         _cp = _completeness.get("coveragePct")
                         _cp_disp = (f"{_cp}%" if _cp is not None else "n/a (no item reads)")
@@ -7266,7 +7325,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1407",
+        "ver": "v1408",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -8142,12 +8201,11 @@ class Handler(BaseHTTPRequestHandler):
                         _kc = _rreport.get("classes")
                     if _km is None and _rreport.get("missedFrames") is not None:
                         _km = _rreport.get("missedFrames")
-                    _cmp = _rreport.get("completeness")
-                    if isinstance(_cmp, dict) and _cmp.get("hovers_estimated"):
-                        _cg = _cmp.get("gaps")
-                        _coverage = {"read": int(_cmp.get("reads") or 0),
-                                     "total": int(_cmp.get("hovers_estimated") or 0),
-                                     "gaps": (len(_cg) if isinstance(_cg, list) else int(_cg or 0))}
+                    # v1408 — judge-proof coverage (missedFrames, not kai-judge-inflated unread)
+                    _cov_fix = _coverage_from_report(_rreport)
+                    if _cov_fix:
+                        _coverage = {"read": _cov_fix["read"], "total": _cov_fix["total"],
+                                     "gaps": _cov_fix["gaps"]}
                     _cfd = _rreport.get("classFrames")
                     if isinstance(_cfd, dict) and _cfd:
                         _sidr = str(sess[0].get("sessionId") or "")

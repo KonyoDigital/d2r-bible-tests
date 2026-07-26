@@ -1789,6 +1789,19 @@ class TestFilmCompleteness(unittest.TestCase):
         self.assertEqual(c["hovers_estimated"], 1)
         self.assertEqual(c["coveragePct"], 0.0)
 
+    def test_kai_judge_not_unread_full_coverage(self):
+        # v1408 — 14 Super judges must not turn 2 real reads into 13% coverage
+        sess_rows = [
+            {"lane": "deep", "names": ["A"], "captureTs": 1000, "ts": 1000, "frameId": "x"},
+            {"lane": "deep", "names": ["B"], "captureTs": 2000, "ts": 2000, "frameId": "y"},
+        ] + [{"lane": "kai", "mode": "kai-judge", "frameId": "reel_S/f_%d" % i,
+              "ts": 3000 + i, "kai": {"judge": {}}} for i in range(14)]
+        reel_frames = [{"f": "f_1000.jpg", "ts": 1000}, {"f": "f_2000.jpg", "ts": 2000}]
+        c = ca._session_completeness(sess_rows, reel_frames)
+        self.assertEqual(c["unread"], 0)
+        self.assertEqual(c["coveragePct"], 100.0)
+        self.assertEqual(c["hovers_estimated"], 2)
+
     def test_empty_session_coverage_is_honest_absent(self):
         # honesty fix: an empty session (0 item-moments) is coveragePct=None, NOT a fabricated
         # 100% ("100% coverage" when nothing was there to cover is an over-claim — 4/27 real reels).
