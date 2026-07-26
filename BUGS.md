@@ -751,6 +751,24 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   4. Button glow: Theatre owns lit when open; ON AIR lit only when live *and* Theatre closed.
 - **Prevention:** never co-paint live + history on the same CRT; background recording is a lamp/ribbon note, not a second film layer.
 
+## REG-046 — Windows install/launcher UTF-8 PS1 parse fail under Hebrew locale (2026-07-26)
+- **Symptom:** install-tvd.ps1 / start_tvd_win.ps1 ParserError; Desktop flash-close or IRM breaks.
+- **Root:** UTF-8 emoji/emdash; Windows PowerShell 5.1 + cp1255 mis-parses.
+- **Fix:** v1404+ ASCII-only PS1 + UTF-8 BOM (`_ascii_clean_ps1.py` helper). Gate: Parser::ParseFile OK.
+- **Prevention:** Windows .ps1 ship files stay ASCII; never paste Mac/emoji into installers.
+
+## REG-045 — Windows ON AIR infinite spin / /api/on never returns (2026-07-26)
+- **Symptom:** Cousin clicks ON AIR; button spins forever; doctor ok; agent never live.
+- **Root:** start_agent held threading.Lock then _start_capture -> _pid_alive re-entered same Lock -> deadlock.
+- **Fix:** v1403 `_lock = threading.RLock()`. Verified POST /api/on ~0.65s mode=live.
+- **Prevention:** RLock or never call _pid_alive while holding _lock.
+
+## REG-044 — Windows agent UnicodeEncodeError + capture_win parser death (2026-07-26)
+- **Symptom:** ON AIR timeout; control_agent.log charmap/cp1255 crash on emoji boot; capture_win ParserError.
+- **Root:** tv_diablo print(emoji) on Hebrew code page; capture_win UTF-8 specials without BOM.
+- **Fix:** v1402 PYTHONUTF8 + stdio reconfigure; ASCII capture_win + BOM.
+- **Prevention:** no required emoji on Windows boot path.
+
 ## REG-040 — Windows cousin ON AIR fails / spins (2026-07-26)
 - **Symptom:** Cousin clicks ON AIR on Windows TV DIABLO — nothing / spinner / silent fail.
 - **Root cause class (compound):**
