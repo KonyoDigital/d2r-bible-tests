@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1411",
+  "ver": "v1412",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1411 ready crafts are Make-now tasks + Sessions chips; console X quit UX.",
+  "note": "v1412 Windows capture pin (PrintWindow) + multi-restart; platform-aware hold copy.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
