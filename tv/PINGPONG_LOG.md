@@ -1,3 +1,9 @@
+## Round v1409 — Forge crafts always on (2026-07-26)
+- **Bug:** sealed runeword chronicle (or empty ready-crafts) early-returned before ⚗️ Crafts → "where are my crafts?"
+- **Fix:** never swallow crafts · all 4 types × 9 slots · ✓ crafted · craft one-step tasks · forgeSummary/craftReady + console FORGE chips
+- **Tests:** v1409_forge_crafts_always + v470/v518 forge suites green
+
+
 ## Round v1408 — 100% coverage (judge-proof) (2026-07-26)
 - **Bug:** Theatre showed 13% coverage (2/16) on fully-swept reels — 14 `kai-judge` Super stamps counted as unread item-text.
 - **Truth:** `missedFrames=0` · 2 named deep reads · 0 real unread → **100%**.

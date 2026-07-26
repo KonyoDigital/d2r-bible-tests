@@ -7073,6 +7073,11 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-funi,#tab-fsets) .fu-basehunt b{color:var(--rune,#ff7d3c)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty.on{opacity:.72}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:#c79ce6}
+/* v1409 — ✓ crafted action on every craft recipe row */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid rgba(255,255,255,.05)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow .f-craft-made{margin-left:auto;font-size:11px;padding:4px 10px;flex:0 0 auto}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked .f-craft-made{opacity:.85}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-step{border-left:3px solid rgba(199,156,230,.55)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
 /* v511 — Forge legend: floating hammer FAB + key popup (above the toolbox FABs) */
 .forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune,#e0b96a);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
@@ -32013,15 +32018,34 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if(!chosen && t.base && t.base.name && _rsv[t.base.name] && _rsv[t.base.name].indexOf(t.rw)<0) t.rsvFor=_rsv[t.base.name][0];   // v630 — say WHO the copy is earmarked for
       }
     });
-    // 4) crafts you can cube now (have the perfect gem — OWNED or cube-up-able — + the slot rune)
+    // 4) crafts — READY (gem + rune) + ONE-STEP (missing exactly one ingredient) + full type list.
+    // v1409 — crafts used to vanish from the Forge when nothing was ready / chronicle sealed
+    // (early empty return skipped the ⚗️ section). Always expose the plan so every craft is
+    // taskable: make-now, grab the missing gem/rune, or open the recipe and create.
+    out.craftOnestep = [];
+    out.craftTypes = [];
     try { if (typeof CRAFTS!=='undefined' && CRAFTS) CRAFTS.forEach(function(c){
-      // v1184 — AI-smart: own a Perfect gem OR hold enough lower grades to cube one up (3-to-1).
-      if (!((typeof _craftGemReady==='function')?_craftGemReady(c.gem).ready:((typeof _gemCount==='function'?_gemCount(c.gem):0)>=1))) return;
-      var slots=(c.best&&c.best.length)?c.best:Object.keys(c.slots||{});
+      out.craftTypes.push({ craft:c.key, gem:c.gem, color:c.color, star:!!c.star, tell:c.tell });
+      var gemReady = ((typeof _craftGemReady==='function')?_craftGemReady(c.gem).ready:((typeof _gemCount==='function'?_gemCount(c.gem):0)>=1));
+      // all 9 slots for create-them-all; best slots sort first in the UI
+      var slots = Object.keys(c.slots||{});
+      if (c.best && c.best.length){
+        var _seenS = {};
+        slots = c.best.filter(function(sl){ if (_seenS[sl] || !c.slots[sl]) return false; _seenS[sl]=1; return true; })
+          .concat(slots.filter(function(sl){ return !_seenS[sl]; }));
+      }
       slots.forEach(function(slot){
         var rec=c.slots&&c.slots[slot]; if(!rec) return;
-        if ((typeof _runeCount==='function'?_runeCount(rec.rune):0)<1) return;
-        out.crafts.push({ craft:c.key, slot:slot, rune:rec.rune, gem:c.gem, base:rec.base, color:c.color, star:!!c.star, tell:c.tell, bis:c.bis });
+        var hasRune = (typeof _runeCount==='function'?_runeCount(rec.rune):0)>=1;
+        var row = { craft:c.key, slot:slot, rune:rec.rune, gem:c.gem, base:rec.base, color:c.color, star:!!c.star, tell:c.tell, bis:c.bis, top:!!(c.best&&c.best.indexOf(slot)>=0) };
+        if (gemReady && hasRune){
+          out.crafts.push(row);
+        } else if (gemReady || hasRune){
+          // one ingredient away → automated One-step task
+          row.missing = gemReady ? rec.rune : c.gem;
+          row.missKind = gemReady ? 'rune' : 'gem';
+          out.craftOnestep.push(row);
+        }
       });
     }); } catch(e){}
     // NOTE (v542): there is NO "base upgrade" concept anywhere in the Forge. A white / normal / superior / magic
@@ -32088,7 +32112,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       _rsvFirst(out.pipeline).forEach(_capClaim);
       _rsvFirst(out.onestep.filter(function(t){ return t.sub!=='base'; })).forEach(_capClaim);
     } catch(e){}
-    out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
+    out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length, craftOnestep:(out.craftOnestep||[]).length, craftTypes:(out.craftTypes||[]).length };
     try {   // v903 (Konyo: 'the motherboard') — publish a compact quest summary the CONSOLE
         // homepage reads over the shared origin (profile-forked key via LSR)
         var _fsArt = function(rw){ try { return (typeof artUrl === 'function' && artUrl(rw)) || ''; } catch(e){ return ''; } };
@@ -32097,6 +32121,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             now: (out.now || []).slice(0, 6).map(function(t){ return t.rw; }),
             onestep: (out.onestep || []).slice(0, 6).map(function(t){ return { rw: t.rw, sub: t.sub || '' }; }),
             pipeline: (out.pipeline || []).slice(0, 4).map(function(t){ return t.rw; }),
+            // v1409 — craft quests for the console FORGE QUESTS + CREATE pillar
+            crafts: (out.crafts || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, craft:t.craft, slot:t.slot, gem:t.gem, rune:t.rune }; }),
+            craftOnestep: (out.craftOnestep || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, missing:t.missing||'', missKind:t.missKind||'' }; }),
+            craftTypes: (out.craftTypes || []).map(function(t){ return t.craft; }),
             counts: out.counts || {},
             art: (function(){ var a = {}; try { (out.now || []).concat(out.onestep || []).slice(0, 12).forEach(function(t){
                 var u = '';
@@ -32265,20 +32293,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (typeof CRAFTS==='undefined' || !CRAFTS) return null;
     var c=null; CRAFTS.forEach(function(x){ if(x.key===ck) c=x; });
     if (!c || !c.slots) return null;
-    // Konyo: curate to the recommended/jackpot slots (c.best) — the crafts actually worth making —
-    // not every possible slot. Falls back to all slots only if a craft has no curated list.
-    var slotKeys=(c.best && c.best.length) ? c.best.filter(function(sl){ return c.slots[sl]; }) : Object.keys(c.slots);
+    // v1409 — ALL 9 slots so you can create every recipe; best/jackpot slots sort first with a ★.
+    // (Was curated-to-best only, so Blood/Safety/Hit Power looked "missing" half their crafts.)
+    var slotKeys=Object.keys(c.slots);
+    if (c.best && c.best.length){
+      var _seen={};
+      slotKeys = c.best.filter(function(sl){ if(_seen[sl]||!c.slots[sl]) return false; _seen[sl]=1; return true; })
+        .concat(slotKeys.filter(function(sl){ return !_seen[sl]; }));
+    }
     // v1183 — a craft needs its PERFECT GEM too, not just the slot rune. "make now" = gem AND rune in hand.
     // v1184 — AI-smart: the gem is in-hand if you OWN a Perfect OR can cube lower grades up to one.
     var _gr=(typeof _craftGemReady==='function')?_craftGemReady(c.gem):{ready:((typeof _gemCount==='function'?_gemCount(c.gem):0)>=1),own:true,cube:false};
     var hasGem=_gr.ready, gemCube=_gr.cube;
     var rows=slotKeys.map(function(slot){
       var rec=c.slots[slot]||{}, hasRune=(typeof _runeCount==='function'?_runeCount(rec.rune):0)>=1;
-      return { slot:slot, rune:rec.rune, base:rec.base, ready:(hasGem && hasRune), hasGem:hasGem, hasRune:hasRune, gemCube:gemCube };
+      var top=!!(c.best && c.best.indexOf(slot)>=0);
+      return { slot:slot, rune:rec.rune, base:rec.base, ready:(hasGem && hasRune), hasGem:hasGem, hasRune:hasRune, gemCube:gemCube, top:top };
     });
-    rows.sort(function(a,b){ return (b.ready?1:0)-(a.ready?1:0) || a.slot.localeCompare(b.slot); });
+    rows.sort(function(a,b){ return (b.ready?1:0)-(a.ready?1:0) || (b.top?1:0)-(a.top?1:0) || a.slot.localeCompare(b.slot); });
     return { c:c, rows:rows, readyN:rows.filter(function(r){return r.ready;}).length, total:rows.length, hasGem:hasGem, gemCube:gemCube };
   }
+  // v1409 — log a finished craft from the Forge (same ledger as the Workshop stepper).
+  window.forgeCrafted=function(ck, slot){
+    try {
+      if (typeof adjustCraftStash==='function') adjustCraftStash(ck, slot, 1);
+      else if (typeof window.adjustCraftStash==='function') window.adjustCraftStash(ck, slot, 1);
+    } catch(e){}
+    try { if (typeof renderForge==='function') renderForge(); } catch(e){}
+    try { if (typeof _writeCraftReady==='function') _writeCraftReady(); } catch(e){}
+  };
   // v510 — HD item art per craft slot (Konyo: "HD art like in-game for Amulet/Belt/Gloves/Ring + all").
   // Representative HD sprite per slot type + a tooltip name that resolves to that art. Map the jewelry
   // slot names into D2IO_ART (additive) so their floating data-arttip tooltips resolve too.
@@ -32330,11 +32373,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (open){
       h+='<div class="f-craftacc-body">';
       d.rows.forEach(function(r){
+        var ownN = (typeof _craftCount==='function') ? _craftCount(ck, r.slot) : 0;
         h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
           +_slotArtImg(r.slot, cc)
-          +'<span class="f-craftrow-slot" style="color:var(--q-orange,#ffa800)">'+_fEsc(r.slot)+'</span>'
+          +'<span class="f-craftrow-slot" style="color:var(--q-orange,#ffa800)">'+_fEsc(r.slot)+(r.top?' <span class="f-ideal" title="recommended / jackpot slot">★</span>':'')+'</span>'
           +'<span class="f-craftrow-rec">'+_cingRune(r.rune)+'<span class="f-cplus">+</span>magic '+_cingBase(r.base, r.slot)+'<span class="f-cplus">+</span>'+_cingJewel()+'</span>'
-          +'<span class="f-craftrow-st">'+(r.ready?('✓ make now'+(r.gemCube?' <span style="opacity:.72;font-weight:var(--fw-normal)">· cube 3→1 '+_fEsc(c.gem)+'</span>':'')):(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))+'</span>'
+          +'<span class="f-craftrow-st">'+(r.ready?('✓ make now'+(r.gemCube?' <span style="opacity:.72;font-weight:var(--fw-normal)">· cube 3→1 '+_fEsc(c.gem)+'</span>':'')):(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))
+          +(ownN?' · <b>'+ownN+'</b> owned':'')+'</span>'
+          +'<button class="f-btn f-btn-go f-craft-made" type="button" title="I cubed this — log one owned '+_fEsc(ck)+' '+_fEsc(r.slot)+'" onclick="event.stopPropagation();window.forgeCrafted(\''+_fJs(ck)+'\',\''+_fJs(r.slot)+'\')">✓ crafted</button>'
           +'</div>';
       });
       h+='</div>';
@@ -32407,12 +32453,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+label+'</span><span class="ft-ct">'+n+'</span></button>';
     };
     var _doneHidden=_doneSet(), _doneN=_madeRw().filter(function(n){ return !_doneHidden.has(n); }).length;   // v532
+    // v1409 — Crafts pill always shows all 4 craft TYPES (never 0 just because no Perfect gem is tallied).
+    var _craftTabN = (typeof CRAFTS!=='undefined' && CRAFTS && CRAFTS.length) ? CRAFTS.length : (s.craftTypes||[]).length || s.crafts.length;
+    var _craftStepN = (s.craftOnestep||[]).length;
     H.push('<div class="forge-tabs">'
-      + tab('all','▦','All','ft-all',total+(s.farm||[]).length)   // v678 (swarm) — the v604 farm catch-all renders on ▦ All; the pill said 0 over 91 cards
-      + tab('onestep','🟡','One step','ft-step',s.onestep.length+(s.farm||[]).length)   // v678 — farm rows ride the one-step view   // v531 — storyline order: one step →
+      + tab('all','▦','All','ft-all',total+(s.farm||[]).length+_craftTabN)   // v678 (swarm) — the v604 farm catch-all renders on ▦ All; the pill said 0 over 91 cards · v1409 + crafts
+      + tab('onestep','🟡','One step','ft-step',s.onestep.length+(s.farm||[]).length+_craftStepN)   // v678 — farm rows ride the one-step view · v1409 craft one-steps
       + tab('now','⚒','Make now','ft-now',nowCount)                 //   make now → pipeline (Konyo)
       + tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length)
-      + tab('crafts','⚗️','Crafts','ft-craft',s.crafts.length)
+      + tab('crafts','⚗️','Crafts','ft-craft',_craftTabN)
       + tab('completed','✅','Completed','ft-done',_doneN)          // v532 — end of the storyline
       +'</div>');
 
@@ -32487,20 +32536,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!total && !(s.farm||[]).length){
       // v685 — a SEALED chronicle deserves a seal, not "Nothing queued" over a void where the only
       // visible control was the red erase button. Celebration + where the hunt lives now.
+      // v1409 — NEVER early-return here: ⚗️ Crafts (all 4 types) still render below. A sealed
+      // runeword chronicle must not swallow the craft plan ("where are my crafts?").
       var _sealedAll = false, _sealN = 0;
       try { var _sT = (typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:0; _sealN = _madeRw().length; _sealedAll = (_sT > 0 && _sealN >= _sT); } catch(e){}
       if (_sealedAll){
         H.push('<div class="forge-sealed"><div class="fs-crest">⚒👑⚒</div>'
           +'<div class="fs-title">Chronicle Sealed</div>'
-          +'<div class="fs-sub">Every one of the <b>'+_sealN+'</b> runewords stands forged. The Forge rests —<br>the hunt is pure grail now: bases for trade, uniques &amp; sets for the wall.</div>'
+          +'<div class="fs-sub">Every one of the <b>'+_sealN+'</b> runewords stands forged. The runeword Forge rests —<br>⚗️ <b>Crafts still live below</b> (and 🏆 grail / 🧩 sets). Bases for trade stay on the wall.</div>'
           +'<div class="fs-btns">'
+          +'<button class="fs-btn" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\')">⚗️ Crafts — create them all</button>'
           +'<button class="fs-btn" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
           +'<button class="fs-btn" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button>'
           +'</div></div>');
-      } else {
-        H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
+      } else if (F !== 'crafts') {
+        H.push('<div class="forge-empty">✅ <b>No runeword tasks queued.</b> Everything your runes &amp; bases can build is already ✓ created — or still needs a tally.<br>⚗️ <b>Crafts are always available below</b> · tally Perfect gems + slot runes to light ✓ make now.</div>');
       }
-      box.innerHTML=H.join(''); return;
     }
     // v604 — the empty state above is only TRUE when farm is empty too. With no actionable task but open
     // words remaining (fresh tallies / no bases), saying "everything is ✓ created" was the same lie class
@@ -32623,8 +32674,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div>');
     }
     // ONE STEP AWAY — the directive "go get this → it becomes a Make-now" feed. Items are hover-tooltip chips.
-    if (show('onestep') && s.onestep.length){
-      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🟡 One step away <span class="forge-sec-ct">'+s.onestep.length+'</span><span class="forge-sec-sub">do one → it jumps straight to ⚒ Make now</span></div>');
+    // v1409 — also craft one-steps (have gem need rune, or have rune need gem).
+    if (show('onestep') && (s.onestep.length || (s.craftOnestep||[]).length)){
+      var _osN = s.onestep.length + (s.craftOnestep||[]).length;
+      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🟡 One step away <span class="forge-sec-ct">'+_osN+'</span><span class="forge-sec-sub">do one → it jumps straight to ⚒ Make now</span></div>');
       var _missChips=function(arr){ return (arr||[]).map(function(m){ var nm=String(m).replace(/^\d+×\s*/,'').trim(); return '<span class="f-getchip" data-arttip="'+_fEsc(nm)+'" title="'+_fEsc(nm)+' rune">'+_fEsc(m)+'</span>'; }).join(''); };
       s.onestep.forEach(function(t){
         // FULL JOURNEY: the whole remaining arc, first step highlighted (do this now) → downstream dimmed.
@@ -32661,6 +32714,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button>'
           +((t.sub==='base'&&_osBase)?'<button class="f-btn f-btn-go" title="I found/farmed this base — one click registers '+_fEsc(_osBase)+' ('+need+'os) to the vault and the word ascends to ⚒ Make now" onclick="window.forgeGotBase(this,\''+_fJs(t.rw)+'\',\''+_fJs(_osBase)+'\','+need+')">✓ got the base</button>':'')   // v660 — got-the-base ascension
           +'</div>'
+          +'</div></div>');
+      });
+      // v1409 — automated craft one-steps: "get Perfect Ruby" / "get Amn" → becomes make-now
+      (s.craftOnestep||[]).forEach(function(t){
+        var miss = t.missing || (t.missKind==='gem' ? t.gem : t.rune);
+        var journey = '<span class="f-jseg f-jseg-now">'+(t.missKind==='gem'?'💎 Get ':'🔨 Get ')+'<span class="f-getchip" data-arttip="'+_fEsc(miss)+'">'+_fEsc(miss)+'</span></span>'
+          +'<span class="f-jarrow">→</span><span class="f-jseg">⚗️ Craft <b style="color:'+_fEsc(t.color||'#c79ce6')+'">'+_fEsc(t.craft)+' '+_fEsc(t.slot)+'</b></span>';
+        H.push('<div class="f-card f-step f-craft-step"><div class="f-cardbody">'
+          +'<div class="f-cardtitle">⚗️ <span style="color:'+_fEsc(t.color||'#c79ce6')+'">'+_fEsc(t.craft)+'</span> · '+_fEsc(t.slot)+(t.top?' <span class="f-ideal">★</span>':'')+'</div>'
+          +'<div class="f-journey">'+journey+'</div>'
+          +'<div class="f-getsub">need <b data-arttip="'+_fEsc(miss)+'">'+_fEsc(miss)+'</b> · then cube magic '+_fEsc(t.slot)+' + jewel + '+_fEsc(t.rune||'')+' + '+_fEsc(t.gem||'')+'</div>'
+          +'<div class="f-cta"><button class="f-btn" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\');try{window.forgeCraftToggle&&window.forgeCraftToggle(\''+_fJs(t.craft)+'\')}catch(e){}">open recipe</button>'
+          +'<button class="f-btn f-btn-go" onclick="window.forgeCrafted(\''+_fJs(t.craft)+'\',\''+_fJs(t.slot)+'\')" title="I already cubed this — log it owned">✓ crafted</button></div>'
           +'</div></div>');
       });
       H.push('</div>');
@@ -32709,7 +32775,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        surfaces as a "🛒 get the right base" one-step (find the elite base as a white drop) instead. */
     // CRAFTS (own section) — v495: a collapsing accordion per craft TYPE. Click a card → drops down its
     // slots + recipes, each marked ✓ make-now (gem + rune in hand) or "need <rune>". Stays in-tab.
-    if (show('crafts') && typeof CRAFTS!=='undefined' && CRAFTS && CRAFTS.length){
+    // v1409 — always on All + Crafts filters (and Make now already surfaces ready crafts above).
+    if ((show('crafts') || show('all')) && typeof CRAFTS!=='undefined' && CRAFTS && CRAFTS.length){
       // v1183 — ALWAYS show ALL FOUR craft types as the reference (Konyo: "where is the Blood craft?").
       // A craft used to vanish entirely when you owned 0 of its Perfect gem (Blood needs a Perfect Ruby);
       // now every craft always shows, its slots marked ✓ make-now or "need <gem/rune>". Makeable types
@@ -32718,8 +32785,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       s.crafts.forEach(function(c){ if(!seen[c.craft]){ seen[c.craft]=1; order.push(c.craft); } });
       CRAFTS.forEach(function(c){ if(!seen[c.key]){ seen[c.key]=1; order.push(c.key); } });
       order=order.filter(function(ck){ return !skip.has('craft|'+ck); });
+      // v1409 — first visit to Crafts filter: expand every type so you can create them all.
+      // Collapse still works after that (don't re-force open every re-render).
+      if (F==='crafts'){
+        if (!window.__forgeCraftsAutoOpen){
+          order.forEach(function(ck){ if (_craftOpen[ck]===undefined) _craftOpen[ck]=true; });
+          window.__forgeCraftsAutoOpen=true;
+        }
+      } else { window.__forgeCraftsAutoOpen=false; }
       if (order.length){
-        H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+order.length+'</span><span class="forge-sec-sub">tap a craft → every slot + recipe, ✓ marks what you can make now</span></div>');
+        var _readyCraftN = s.crafts.length;
+        H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+order.length+'</span><span class="forge-sec-sub">all 4 types · all 9 slots · ✓ crafted logs owned · '+_readyCraftN+' recipe'+( _readyCraftN===1?'':'s')+' cubeable now</span></div>');
         H.push('<div class="forge-craftacc">');
         order.forEach(function(ck){
           var c0=null; CRAFTS.forEach(function(x){ if(x.key===ck && !c0) c0=x; });
@@ -32729,7 +32805,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     }
     // per-filter empty hint (a bucket the user filtered to that has nothing in it)
-    var bc = F==='now'?(liveNow.length+deferred.length):F==='pipeline'?s.pipeline.length:F==='onestep'?(s.onestep.length+(s.farm||[]).length):F==='crafts'?(typeof CRAFTS!=='undefined'&&CRAFTS?CRAFTS.length:s.crafts.length):(total+(s.farm||[]).length);   // v678 — farm rows count where they render · v1183 crafts bucket = all 4 types (always shown)
+    var bc = F==='now'?(liveNow.length+deferred.length+Object.keys(_craftTypes).length):F==='pipeline'?s.pipeline.length:F==='onestep'?(s.onestep.length+(s.farm||[]).length+(s.craftOnestep||[]).length):F==='crafts'?(typeof CRAFTS!=='undefined'&&CRAFTS?CRAFTS.length:s.crafts.length):(total+(s.farm||[]).length+_craftTabN);   // v678 — farm rows count where they render · v1183/v1409 crafts always shown
     if (F!=='all' && !bc){
       H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — tap <b>▦ All</b>, or tally more runes / gems / bases.</div>');
     }
@@ -32808,8 +32884,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return { name: String(t.craft)+' '+t.slot, kind: kindOf(t.craft), slot: t.slot,
                  recipe: 'Magic '+t.slot+' + '+gemShort(t.gem)+' + '+t.rune };
       });
-      var onestep = [];
-      try {
+      // v1409 — prefer forgeScan.craftOnestep (gem OR rune missing); fall back to gem-only scan
+      var onestep = (sc.craftOnestep||[]).map(function(t){
+        return { name: String(t.craft)+' '+t.slot, kind: kindOf(t.craft), slot: t.slot,
+                 missing: (t.missKind==='gem'?'get ':'get ') + (t.missing||'') };
+      });
+      if (!onestep.length) try {
         if (typeof CRAFTS!=='undefined' && CRAFTS) CRAFTS.forEach(function(c){
           var gemReady = (typeof _craftGemReady==='function') ? _craftGemReady(c.gem).ready : false;
           if (!gemReady) return;
@@ -32823,8 +32903,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           });
         });
       } catch(e){}
-      var payload = { now: now.slice(0,12), onestep: onestep.slice(0,12), ts: Date.now() };
-      var _cmp = function(p){ try { var o=JSON.parse(p||'{}'); return JSON.stringify({now:o.now,onestep:o.onestep}); } catch(e){ return String(p); } };
+      var payload = {
+        now: now.slice(0,12), onestep: onestep.slice(0,12),
+        types: (sc.craftTypes||[]).map(function(t){ return t.craft; }),
+        ts: Date.now()
+      };
+      var _cmp = function(p){ try { var o=JSON.parse(p||'{}'); return JSON.stringify({now:o.now,onestep:o.onestep,types:o.types}); } catch(e){ return String(p); } };
       var _old = null; try { _old = LS.getItem('d2r_craftReady'); } catch(e){}
       if (_cmp(JSON.stringify(payload)) !== _cmp(_old)) LS.setItem('d2r_craftReady', JSON.stringify(payload));
     } catch(e){}
@@ -35202,7 +35286,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1408', name:'v1408 · 100% coverage (judge-proof)', date:'2026-07-26', note:'Coverage meter ignores kai-judge inflation; sealed reels with 0 real misses show 100%.' };
+  window.D2R_BUILD = { id:'v1409', name:'v1409 · Forge crafts always on', date:'2026-07-26', note:'Crafts never swallowed by sealed chronicle · all 4 types × 9 slots · ✓ crafted · craft one-step tasks · forgeSummary crafts.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

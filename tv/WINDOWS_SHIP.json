@@ -1,6 +1,6 @@
 {
   "platform": "windows",
-  "ver": "v1408",
+  "ver": "v1409",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
   "note": "v1408 judge-proof coverage meter (100% when missedFrames=0); Win single-instance Desktop.",

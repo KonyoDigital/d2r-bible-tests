@@ -8510,17 +8510,39 @@
   function hdForge(){
     try {
       var raw = lsFork('d2r_forgeSummary');
-      if (!raw) return;
-      var f = JSON.parse(raw);
+      var craftRaw = lsFork('d2r_craftReady');
+      if (!raw && !craftRaw) return;
+      var f = raw ? JSON.parse(raw) : {};
+      var cr = null; try { cr = craftRaw ? JSON.parse(craftRaw) : null; } catch(e2){ cr = null; }
       var _art = f.art || {};
       var _chipArt = function(rw){ var u = _art[rw]; return u ? '<img class="hd-chip-art" src="' + u + '" alt="" loading="lazy" onerror="this.remove()">' : ''; };
+      // v1409 — craft quests from forgeSummary.crafts / d2r_craftReady (never leave FORGE empty when only crafts are open)
+      var craftNow = (f.crafts && f.crafts.length) ? f.crafts : ((cr && cr.now) || []);
+      var craftStep = (f.craftOnestep && f.craftOnestep.length) ? f.craftOnestep : ((cr && cr.onestep) || []);
       var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">' + _chipArt(rw) + '⚒ ' + rw + ' · MAKE NOW</span>'; })
         .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
-        .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
+        .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }))
+        .concat((craftNow || []).slice(0, 6).map(function(t){
+          var nm = (t && (t.name || (t.craft ? (t.craft + ' ' + (t.slot || '')) : t))) || 'craft';
+          return '<span class="hd-chip now">⚗️ ' + nm + ' · CRAFT NOW</span>';
+        }))
+        .concat((craftStep || []).slice(0, 4).map(function(t){
+          var nm = (t && (t.name || t)) || 'craft';
+          var miss = (t && t.missing) ? (' · need ' + t.missing) : ' · one step';
+          return '<span class="hd-chip step">⚗️ ' + nm + miss + '</span>';
+        }));
+      // always-visible craft types when nothing else queued
+      if (!chips.length && f.craftTypes && f.craftTypes.length){
+        chips = f.craftTypes.map(function(ck){ return '<span class="hd-chip">⚗️ ' + ck + ' · open Forge</span>'; });
+      } else if (!chips.length && cr && cr.types && cr.types.length){
+        chips = cr.types.map(function(ck){ return '<span class="hd-chip">⚗️ ' + ck + ' · open Forge</span>'; });
+      }
       if (chips.length){
         $('hd-forge-chips').innerHTML = chips.join('');
-        var d = f.ts ? new Date(f.ts) : null;
+        var d = f.ts ? new Date(f.ts) : (cr && cr.ts ? new Date(cr.ts) : null);
         $('hd-forge-when').textContent = d ? ('· scanned ' + d.toLocaleTimeString()) : '';
+      } else {
+        $('hd-forge-chips').innerHTML = '<span class="hd-empty">open the board\'s Forge once — runeword + craft quests land here</span>';
       }
     } catch(e){}
   }
