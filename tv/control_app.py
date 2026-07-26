@@ -10030,6 +10030,48 @@ def _win_primary_mutex():
         return None, True
 
 
+def _win_focus_existing_console():
+    """v1417 — bring the existing 'TV DIABLO' pywebview window forward (no second window)."""
+    if not IS_WIN:
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        EnumWindows = user32.EnumWindows
+        GetWindowTextW = user32.GetWindowTextW
+        IsWindowVisible = user32.IsWindowVisible
+        SetForegroundWindow = user32.SetForegroundWindow
+        ShowWindow = user32.ShowWindow
+        IsIconic = user32.IsIconic
+        found = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def _cb(hwnd, _lp):
+            if not IsWindowVisible(hwnd):
+                return True
+            buf = ctypes.create_unicode_buffer(256)
+            GetWindowTextW(hwnd, buf, 256)
+            title = buf.value or ""
+            if title == "TV DIABLO" or title.startswith("TV DIABLO "):
+                found.append(hwnd)
+                return False
+            return True
+
+        EnumWindows(_cb, 0)
+        if not found:
+            return False
+        hwnd = found[0]
+        if IsIconic(hwnd):
+            ShowWindow(hwnd, 9)  # SW_RESTORE
+        SetForegroundWindow(hwnd)
+        print("📺 focused existing TV DIABLO window (refused second instance)", flush=True)
+        return True
+    except Exception as e:
+        print(f"⚠ focus existing: {e}", flush=True)
+        return False
+
+
 def main():
     if "--board-window" in sys.argv:
         board_window()
@@ -10051,6 +10093,8 @@ def main():
         # Port may already be serving; never open a second primary window.
         print(f"TV DIABLO already running (primary mutex) — not opening a second instance.",
               flush=True)
+        if open_ui:
+            _win_focus_existing_console()
         sys.exit(0)
 
     try:
@@ -10073,6 +10117,7 @@ def main():
                     f"   ({e})",
                     flush=True,
                 )
+                _win_focus_existing_console()
                 sys.exit(0)
         if open_ui and not _window_present():
             print(f"TV DIABLO already serving on :{CONTROL_PORT} (headless) — "

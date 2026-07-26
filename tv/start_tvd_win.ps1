@@ -18,6 +18,90 @@ function Write-TvdLaunchLog([string]$msg) {
   try { Add-Content -LiteralPath $launchLog -Value $line -Encoding UTF8 } catch {}
 }
 
+function Test-TvdDoctorOk {
+  try {
+    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/doctor' -UseBasicParsing -TimeoutSec 1
+    $body = [string]$resp.Content
+    if ($body -match '"ok"\s*:\s*true') { return $true }
+  } catch {}
+  return $false
+}
+
+function Focus-TvdWindow {
+  # Bring existing native TV DIABLO window to front (no second instance).
+  try {
+    Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public class TvdFocus {
+  public delegate bool EnumProc(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
+  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+}
+"@ -ErrorAction SilentlyContinue
+  } catch {}
+  $script:tvdHwnd = [IntPtr]::Zero
+  try {
+    $cb = {
+      param([IntPtr]$h, [IntPtr]$lp)
+      if (-not [TvdFocus]::IsWindowVisible($h)) { return $true }
+      $sb = New-Object System.Text.StringBuilder 256
+      [void][TvdFocus]::GetWindowText($h, $sb, 256)
+      $t = $sb.ToString()
+      # exact title from pywebview create_window(title="TV DIABLO")
+      if ($t -eq 'TV DIABLO' -or $t -like 'TV DIABLO *') {
+        $script:tvdHwnd = $h
+        return $false
+      }
+      return $true
+    }
+    [void][TvdFocus]::EnumWindows($cb, [IntPtr]::Zero)
+    if ($script:tvdHwnd -ne [IntPtr]::Zero) {
+      if ([TvdFocus]::IsIconic($script:tvdHwnd)) { [void][TvdFocus]::ShowWindow($script:tvdHwnd, 9) }
+      [void][TvdFocus]::SetForegroundWindow($script:tvdHwnd)
+      Write-TvdLaunchLog 'focused existing TV DIABLO window'
+      return $true
+    }
+  } catch {
+    Write-TvdLaunchLog ("focus note: {0}" -f $_)
+  }
+  return $false
+}
+
+# ---------------------------------------------------------------------------
+# v1417 SINGLE INSTANCE FIRST (before auto-pull / python probes).
+# Dual Desktop double-click used to race two full launchers (two auto-pulls in log)
+# and occasionally two windows. Mutex + focus-existing = ONE console only.
+# ---------------------------------------------------------------------------
+$mutex = $null
+try {
+  $created = $false
+  $mutex = New-Object System.Threading.Mutex($true, 'Local\TV_DIABLO_WIN_LAUNCHER_v1', [ref]$created)
+  if (-not $created) {
+    Write-TvdLaunchLog 'launcher mutex busy - another start_tvd_win in flight; focus existing / exit quiet'
+    [void](Focus-TvdWindow)
+    try { $mutex.Dispose() } catch {}
+    $mutex = $null
+    return
+  }
+} catch {
+  Write-TvdLaunchLog ("mutex note: {0}" -f $_)
+  $mutex = $null
+}
+
+# Already healthy control => do NOT spawn a second --open (bring window forward)
+if (Test-TvdDoctorOk) {
+  Write-TvdLaunchLog 'doctor already ok - focusing existing TV DIABLO; not starting a second window'
+  [void](Focus-TvdWindow)
+  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+  return
+}
+
 function Real-Python {
   # Prefer pythonw for GUI-only (no console flash)
   foreach ($c in @('pythonw', 'python', 'py')) {
@@ -232,43 +316,6 @@ if (Test-Path -LiteralPath $shipPath) {
 }
 
 # ---------------------------------------------------------------------------
-# v1406 SINGLE INSTANCE (screenshot 2026-07-26: one console open + second
-# launch error dialog "Python exited immediately (exit 1)").
-# Desktop double-click / dual shortcut / race used to start TWO --open processes.
-# Mutex + "already up => exit quiet" = one window only, no false error toast.
-# ---------------------------------------------------------------------------
-$mutex = $null
-try {
-  $created = $false
-  $mutex = New-Object System.Threading.Mutex($true, 'Local\TV_DIABLO_WIN_LAUNCHER_v1', [ref]$created)
-  if (-not $created) {
-    Write-TvdLaunchLog 'launcher mutex busy - another start_tvd_win in flight; exit quiet'
-    try { $mutex.Dispose() } catch {}
-    $mutex = $null
-    return
-  }
-} catch {
-  Write-TvdLaunchLog ("mutex note: {0}" -f $_)
-  $mutex = $null
-}
-
-function Test-TvdDoctorOk {
-  try {
-    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/doctor' -UseBasicParsing -TimeoutSec 1
-    $body = [string]$resp.Content
-    if ($body -match '"ok"\s*:\s*true') { return $true }
-  } catch {}
-  return $false
-}
-
-# Already running with a healthy control server => do NOT spawn a second --open
-if (Test-TvdDoctorOk) {
-  Write-TvdLaunchLog 'doctor already ok - TV DIABLO is open; not starting a second window'
-  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
-  return
-}
-
-# ---------------------------------------------------------------------------
 # v1401 CRITICAL: USERPROFILE with spaces (e.g. Hebrew names)
 #   BAD:  Start-Process -ArgumentList @($control, '--open')
 #   GOOD: one ArgumentList string with quoted script path.
@@ -322,13 +369,27 @@ if (-not $doctorOk) {
   # Last chance: peer may still be binding
   if (Test-TvdDoctorOk) {
     Write-TvdLaunchLog 'doctor OK on final check'
+    [void](Focus-TvdWindow)
     return
   }
-  $hint = if ($proc.HasExited) {
-    "Python exited (exit $($proc.ExitCode)) and doctor is down. Path/space, missing pywebview, or crash."
-  } else {
-    "Control process is running but /api/doctor did not return ok:true yet."
+  # v1417: if python is STILL running, do NOT pop an error dialog — that is the
+  # dual-window feel (error box + console that appears a second later under D2R lag).
+  if (-not $proc.HasExited) {
+    Write-TvdLaunchLog 'doctor slow but process alive - waiting extra; no error dialog'
+    for ($j = 0; $j -lt 20; $j++) {
+      Start-Sleep -Milliseconds 500
+      if (Test-TvdDoctorOk) {
+        Write-TvdLaunchLog 'doctor OK after extended wait'
+        [void](Focus-TvdWindow)
+        return
+      }
+    }
+    if (-not $proc.HasExited) {
+      Write-TvdLaunchLog 'process still alive after extended wait - assume window coming; exit quiet'
+      return
+    }
   }
+  $hint = "Python exited (exit $($proc.ExitCode)) and doctor is down. Path/space, missing pywebview, or crash."
   Write-TvdLaunchLog ("doctor FAIL: $hint body=$doctorBody")
   Show-TvdError (
     "TV DIABLO did not come up cleanly.`n`n$hint`n`n" +

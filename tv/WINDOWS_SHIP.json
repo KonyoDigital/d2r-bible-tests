@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1416",
+  "ver": "v1417",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1416 never BitBlt (desktop z-order lie); PrintWindow or focus-only CopyFromScreen",
+  "note": "v1417 one console only: launcher mutex first + focus existing TV DIABLO window; no doctor error dialog while process alive",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
