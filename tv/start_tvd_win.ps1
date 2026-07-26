@@ -1,7 +1,14 @@
-# TV DIABLO - Windows launcher (Desktop - native pywebview / WebView2, NOT Chrome)
-# Agent + capture stay hidden. Same product as Mac: ON/OFF/STOP/RESTART/SIM.
+# TV DIABLO - Windows launcher ONLY (Desktop - native pywebview / WebView2, NOT Chrome)
+# NOT for Mac. Mac uses start_tvd_mac.sh / install-tvd.sh on a different machine.
+# Agent + capture stay hidden. Controls: ON/OFF/STOP/RESTART/SIM.
 # Encoding: ASCII-only strings so Windows PowerShell 5.1 never mis-parses UTF-8.
 $ErrorActionPreference = 'Continue'
+if ($env:OS -ne 'Windows_NT') {
+  Write-Host 'TV DIABLO start_tvd_win.ps1 is Windows only.' -ForegroundColor Red
+  return
+}
+$env:TV_PLATFORM = 'windows'
+$env:TV_OS = 'windows'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repo = Split-Path -Parent $here
 $launchLog = Join-Path $here 'start_tvd_win.log'
@@ -150,10 +157,46 @@ try { git -C $repo pull --ff-only 2>$null | Out-Null } catch {}
 
 $control = Join-Path $here 'control_app.py'
 $ui = Join-Path $here 'control_ui.html'
+$capture = Join-Path $here 'capture_win.ps1'
+$shipPath = Join-Path $here 'WINDOWS_SHIP.json'
 if (-not (Test-Path -LiteralPath $control) -or -not (Test-Path -LiteralPath $ui)) {
   Write-TvdLaunchLog 'control_app.py or control_ui.html missing'
-  Show-TvdError "Control app files missing. Re-run installer (need v761+).`n`nLog: $launchLog"
+  Show-TvdError "Control app files missing. Re-run WINDOWS installer.`n  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex`n`nLog: $launchLog"
   return
+}
+if (-not (Test-Path -LiteralPath $capture)) {
+  Write-TvdLaunchLog 'capture_win.ps1 missing'
+  Show-TvdError "Windows capture missing (capture_win.ps1). Re-run WINDOWS installer (not Mac).`n`nLog: $launchLog"
+  return
+}
+# v1404 — pin Windows ship identity; refuse Mac-confused trees
+$shipVer = '?'
+if (Test-Path -LiteralPath $shipPath) {
+  try {
+    $ship = Get-Content -LiteralPath $shipPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($ship.platform -ne 'windows') {
+      Show-TvdError "WINDOWS_SHIP.platform=$($ship.platform) — this launcher is Windows only.`nRe-install with the Windows IRM line."
+      return
+    }
+    $shipVer = [string]$ship.ver
+    Write-TvdLaunchLog ("Windows ship ver={0} name={1}" -f $shipVer, $ship.name)
+    $stampPath = Join-Path $here '.windows_install.json'
+    if (-not (Test-Path -LiteralPath $stampPath)) {
+      $stampObj = [ordered]@{
+        platform    = 'windows'
+        shipVer     = $shipVer
+        launchedAt  = (Get-Date).ToString('o')
+        computer    = $env:COMPUTERNAME
+        repo        = $repo
+        launcher    = 'start_tvd_win.ps1'
+      }
+      ($stampObj | ConvertTo-Json) | Set-Content -LiteralPath $stampPath -Encoding UTF8
+    }
+  } catch {
+    Write-TvdLaunchLog ("WINDOWS_SHIP.json read failed: {0}" -f $_)
+  }
+} else {
+  Write-TvdLaunchLog 'WINDOWS_SHIP.json missing — pull latest Windows repo'
 }
 
 # ---------------------------------------------------------------------------

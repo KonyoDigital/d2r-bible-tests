@@ -853,6 +853,9 @@ def _env_clean(sim=False):
     if IS_WIN:
         env.setdefault("PYTHONIOENCODING", "utf-8")
         env.setdefault("PYTHONUTF8", "1")
+        # v1404 — pin Windows identity so agent/capture never inherit Mac-oriented env
+        env["TV_PLATFORM"] = "windows"
+        env["TV_OS"] = "windows"
     return env
 
 
@@ -7263,7 +7266,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1403",
+        "ver": "v1404",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7283,6 +7286,9 @@ def status_payload():
         "mindStory": (_sess_h.get("story") or [])[-6:],
         "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
+        "shipPlatform": (_windows_ship() or {}).get("platform") if IS_WIN else ("mac" if sys.platform == "darwin" else None),
+        "shipVer": (_windows_ship() or {}).get("ver") if IS_WIN else None,
+        "shipName": (_windows_ship() or {}).get("name") if IS_WIN else None,
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
         "agent": mode != "off" and bridge,
@@ -7332,6 +7338,31 @@ def _agent_disk_ver():
         return m.group(1) if m else ""
     except Exception:
         return ""
+
+
+_WINDOWS_SHIP_CACHE = {"t": 0.0, "d": None}
+
+
+def _windows_ship():
+    """v1404 — Windows-only ship identity from tv/WINDOWS_SHIP.json.
+    Mac never reads this file. Used so install/launcher/doctor cannot mesh platforms."""
+    if not IS_WIN:
+        return None
+    now = time.time()
+    if _WINDOWS_SHIP_CACHE["d"] is not None and (now - _WINDOWS_SHIP_CACHE["t"]) < 30:
+        return _WINDOWS_SHIP_CACHE["d"]
+    path = os.path.join(HERE, "WINDOWS_SHIP.json")
+    data = None
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            data = None
+    except Exception:
+        data = None
+    _WINDOWS_SHIP_CACHE["t"] = now
+    _WINDOWS_SHIP_CACHE["d"] = data
+    return data
 
 
 # ── DOCTOR (v801, Grok R7) ─────────────────────────────────────────────────────
@@ -7672,6 +7703,51 @@ def doctor_payload():
     except Exception:
         pass
 
+    # v1404 — Windows ship identity check (install must pin platform=windows + matching ver)
+    if IS_WIN:
+        ship = _windows_ship() or {}
+        ship_plat = str(ship.get("platform") or "")
+        ship_ver = str(ship.get("ver") or "")
+        app_ver = _app_ver()
+        agent_ver = _agent_disk_ver()
+        bible_ver = _bible_ver()
+        win_ok = (
+            ship_plat == "windows"
+            and bool(ship_ver)
+            and ship_ver == app_ver
+            and (not agent_ver or agent_ver == ship_ver)
+            and (not bible_ver or bible_ver == ship_ver)
+        )
+        detail = (
+            "ship=%s platform=%s control=%s agent=%s bible=%s"
+            % (ship_ver or "?", ship_plat or "?", app_ver, agent_ver or "?", bible_ver or "?")
+        )
+        checks.append(_chk(
+            "windows_ship",
+            win_ok,
+            "block" if ship_plat and ship_plat != "windows" else "warn",
+            detail if ship else "WINDOWS_SHIP.json missing — re-run Windows installer",
+            fix=(
+                "Windows only: git -C $HOME\\d2r_bible_tests pull; "
+                "irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex"
+                if not win_ok else None
+            ),
+        ))
+        # Required Windows binaries present (no Mac launcher confusion)
+        for rel, label in (
+            ("start_tvd_win.ps1", "Windows launcher"),
+            ("capture_win.ps1", "Windows capture"),
+            ("install-tvd.ps1", "Windows installer"),
+        ):
+            pth = os.path.join(HERE, rel)
+            checks.append(_chk(
+                "win_file_" + rel.replace(".", "_"),
+                os.path.isfile(pth),
+                "block",
+                ("%s present" % label) if os.path.isfile(pth) else ("%s MISSING" % label),
+                fix="Re-run Windows installer (not the Mac .sh)" if not os.path.isfile(pth) else None,
+            ))
+
     ok = not any((not c["ok"]) and c["severity"] == "block" for c in checks)
 
     try:
@@ -7680,9 +7756,13 @@ def doctor_payload():
     except Exception:
         log_tail = "(no log yet)"
 
+    ship = _windows_ship() if IS_WIN else None
     return {
         "ok": ok,
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
+        "shipPlatform": (ship or {}).get("platform") if ship else None,
+        "shipVer": (ship or {}).get("ver") if ship else None,
+        "shipName": (ship or {}).get("name") if ship else None,
         "checks": checks,
         "logTail": log_tail,
         "logPath": LOG_PATH,

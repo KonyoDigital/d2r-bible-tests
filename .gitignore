@@ -46,3 +46,8 @@ tv/.subscription_budget.json
 backups/RESTORE_*/
 backups/RESTORE_*.tar.gz
 backups/*.tar.gz
+
+# Windows install stamp (written by install-tvd.ps1 / start_tvd_win.ps1 on this PC only)
+tv/.windows_install.json
+tv/_*.txt
+tv/__pycache__/

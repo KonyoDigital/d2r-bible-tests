@@ -1,0 +1,28 @@
+{
+  "platform": "windows",
+  "ver": "v1404",
+  "product": "TV DIABLO",
+  "name": "TV DIABLO Windows",
+  "note": "Windows-only ship. Not Mac. Installer + Desktop launcher + capture_win + WebView2.",
+  "launcher": "start_tvd_win.ps1",
+  "installer": "install-tvd.ps1",
+  "capture": "capture_win.ps1",
+  "control": "control_app.py",
+  "agent": "tv_diablo.py",
+  "ui": "control_ui.html",
+  "ports": { "control": 17772, "agent": 17771 },
+  "requires": [
+    "tv/start_tvd_win.ps1",
+    "tv/control_app.py",
+    "tv/control_ui.html",
+    "tv/capture_win.ps1",
+    "tv/tv_diablo.py",
+    "bible.html"
+  ],
+  "not_used_on_windows": [
+    "tv/install-tvd.sh",
+    "tv/start_tvd_mac.sh",
+    "screencapture",
+    "Quartz Screen Recording TCC"
+  ]
+}

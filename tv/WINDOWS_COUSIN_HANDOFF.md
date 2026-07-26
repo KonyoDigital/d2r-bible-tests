@@ -1,16 +1,19 @@
-# Windows cousin / second Grok — handoff + install tips (v1400+)
+# Windows cousin / second Grok — handoff + install tips (v1404+)
 
-**You are helping THIS Windows PC only.** You do not have the Mac dev session memory.
-Pull latest: `git -C $HOME\d2r_bible_tests pull` then re-read this file.
+**You are helping THIS Windows PC only.** Windows product path only.  
+No Mac installers, no Mac launchers, no Mac capture. No shared “twin” mesh.  
+Pull latest: `git -C $HOME\d2r_bible_tests pull` then re-read this file **and** `tv/WINDOWS_ONLY.md`.
 
-## Install (one line)
+## Install (one line — Windows only)
 
 ```powershell
 irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 ```
 
-Whole versions only (**v1400**, v1401… — no decimals).  
-Repo: `%USERPROFILE%\d2r_bible_tests` · Desktop shortcut: **TV DIABLO**.
+Whole versions only (**v1404**, v1405… — no decimals).  
+Repo: `%USERPROFILE%\d2r_bible_tests` · Desktop shortcut: **TV DIABLO**.  
+Ship file: `tv/WINDOWS_SHIP.json` must say `"platform":"windows"`.  
+Local stamp after install: `tv/.windows_install.json`.
 
 ---
 

@@ -1,14 +1,23 @@
-# 📺 TV DIABLO — one-shot Windows installer (the cousin move · v784 twin)
+# 📺 TV DIABLO — one-shot Windows installer (Windows only · v1404)
 #
 #     irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 #
 # One paste: Git + Python + pywebview + Claude Code + Grok CLI (optional SuperGrok
 # vision lane), clones the bible repo, drops Desktop "TV DIABLO" → real native app
-# window (pywebview / Edge WebView2, NOT Chrome). Same control UI as Mac:
+# window (pywebview / Edge WebView2, NOT Chrome). Windows control UI (pywebview / WebView2):
 # ON/OFF/STOP/RESTART/SIM · hidden agent. Grok stays OFF until you authorize once.
 #
 # Served as text/plain so `irm | iex` always gets a string.
 $ErrorActionPreference = 'Stop'
+
+# v1404 WINDOWS ONLY — never run Mac scripts on this PC; never claim Mac parity here.
+if ($env:OS -ne 'Windows_NT') {
+  Write-Host 'TV DIABLO installer: Windows only. Use the Mac installer on macOS.' -ForegroundColor Red
+  return
+}
+$env:TV_PLATFORM = 'windows'
+$env:TV_OS = 'windows'
+
 $repoUrl  = 'https://github.com/KonyoDigital/d2r-bible-tests.git'
 $repoDir  = Join-Path $HOME 'd2r_bible_tests'
 
@@ -83,7 +92,7 @@ function Winget-Install($id, $label) {
   Refresh-Path
 }
 
-Say "installer (Windows twin) — one shot, then Desktop TV DIABLO = the control app"
+Say "installer (Windows only · v1404) — one shot, then Desktop TV DIABLO = the control app"
 
 if (-not (Have 'winget')) {
   Warn "winget not found — install 'App Installer' from the Microsoft Store, then re-run this line."
@@ -157,6 +166,38 @@ foreach ($rel in $need) {
   }
 }
 Ok "repo at $repoDir (control app present)"
+
+# v1404 — pin Windows ship identity (no Mac mesh)
+$shipPath = Join-Path $repoDir 'tv\WINDOWS_SHIP.json'
+if (-not (Test-Path -LiteralPath $shipPath)) {
+  Warn "WINDOWS_SHIP.json missing after clone — repo may be incomplete. Re-run after git pull."
+} else {
+  try {
+    $ship = Get-Content -LiteralPath $shipPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($ship.platform -ne 'windows') {
+      Warn "WINDOWS_SHIP.platform is '$($ship.platform)' — expected windows. Do not use Mac installers on this PC."
+    } else {
+      Ok "Windows ship $($ship.ver) · platform=windows · $($ship.name)"
+    }
+    $stampObj = [ordered]@{
+      platform   = 'windows'
+      shipVer    = [string]$ship.ver
+      installedAt = (Get-Date).ToString('o')
+      computer   = $env:COMPUTERNAME
+      user       = $env:USERNAME
+      repo       = $repoDir
+      launcher   = 'tv\start_tvd_win.ps1'
+      capture    = 'tv\capture_win.ps1'
+      installer  = 'tv\install-tvd.ps1'
+    }
+    $stampPath = Join-Path $repoDir 'tv\.windows_install.json'
+    ($stampObj | ConvertTo-Json) | Set-Content -LiteralPath $stampPath -Encoding UTF8
+    Ok "install stamp: $stampPath"
+  } catch {
+    Warn "could not read WINDOWS_SHIP.json: $($_.Exception.Message)"
+  }
+}
+
 
 # ── Claude Code (needed for vision ON AIR) ───────────────────────────────────
 # v784.1 — Windows PowerShell 5.1 often returns .Content as Byte[] for install.ps1;
@@ -310,7 +351,7 @@ if (Test-Path -LiteralPath $ico) {
 } else {
   $lnk.IconLocation = 'powershell.exe,0'
 }
-$lnk.Description      = 'TV DIABLO — native control app (pywebview · hidden scanner · your Claude)'
+$lnk.Description      = 'TV DIABLO Windows — native WebView2 control (NOT Mac · hidden scanner · Claude)'
 $lnk.Save()
 Ok "Desktop shortcut: $lnkPath"
 
@@ -347,5 +388,5 @@ if ($grokOk) {
   }
 }
 echo ""
-echo "   Windows:  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex"
-echo "   Mac:      curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash"
+echo "   Windows only:  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex"
+echo "   Ship:         tv\WINDOWS_SHIP.json  (platform=windows)"
