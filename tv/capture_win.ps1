@@ -35,7 +35,11 @@ public class TvdWin {
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+  [DllImport("gdi32.dll")] public static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, int dwRop);
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
+  public const int SRCCOPY = 0x00CC0020;
 }
 "@
 
@@ -299,57 +303,107 @@ function Find-D2RWindow {
 }
 
 function Test-D2RProcessAlive {
+  # v1415: do NOT call Get-Process (hangs under D2R). Prefer last pin label / tool-less check.
   try {
-    if (Get-Process -Name 'D2R' -ErrorAction SilentlyContinue) { return $true }
-    $p = Get-Process -ErrorAction SilentlyContinue | Where-Object {
-      $_.ProcessName -like 'D2R*' -or $_.ProcessName -like '*DiabloII*'
+    $p = Join-Path $frames 'cap_target.json'
+    if (Test-Path -LiteralPath $p) {
+      $j = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($j.d2rProcess -eq $true) { return $true }
+      $lab = [string]$j.label
+      if ($lab -match 'D2R|Diablo') { return $true }
     }
-    return [bool]$p
-  } catch { return $false }
+  } catch {}
+  # light process check via .NET (faster than tasklist; still may lag — keep last)
+  try {
+    $procs = [System.Diagnostics.Process]::GetProcessesByName('D2R')
+    if ($procs -and $procs.Length -gt 0) { return $true }
+  } catch {}
+  return $false
 }
 
 function Capture-WindowBitmap($target) {
+  # v1415 CRITICAL: CopyFromScreen captures WHATEVER is on top of the rect
+  # (chat, browser, console) while label still says "D2R". Always PrintWindow
+  # first so pixels are the actual D2R hwnd content, not the desktop z-order.
   $bmp = $null
   $g = $null
-  # 1) CopyFromScreen
+  $hwnd = [IntPtr]$target.Hwnd
+  if ($hwnd -eq [IntPtr]::Zero -or -not [TvdWin]::IsWindow($hwnd)) {
+    return $null
+  }
+
+  # 1) PrintWindow (PW_RENDERFULLCONTENT = 2) — true window content
   try {
     $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
     $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.CopyFromScreen($target.Left, $target.Top, 0, 0, $bmp.Size)
+    $hdc = $g.GetHdc()
+    try {
+      $ok = [TvdWin]::PrintWindow($hwnd, $hdc, 2)
+      if (-not $ok) { [void][TvdWin]::PrintWindow($hwnd, $hdc, 0) }
+    } finally {
+      $g.ReleaseHdc($hdc)
+    }
     $sample = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
     $blackish = ($sample.R -lt 8 -and $sample.G -lt 8 -and $sample.B -lt 8)
     if (-not $blackish) {
-      return @{ Bmp = $bmp; G = $g; How = 'CopyFromScreen' }
+      return @{ Bmp = $bmp; G = $g; How = 'PrintWindow' }
     }
   } catch {
     if ($g) { try { $g.Dispose() } catch {} }
     if ($bmp) { try { $bmp.Dispose() } catch {} }
     $bmp = $null; $g = $null
   }
-  # 2) PrintWindow (PW_RENDERFULLCONTENT = 2)
+
+  # 2) BitBlt from window DC (another path into the real hwnd buffer)
   try {
     if ($bmp) { try { $g.Dispose() } catch {}; try { $bmp.Dispose() } catch {} }
     $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
     $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $hdc = $g.GetHdc()
+    $hdcDest = $g.GetHdc()
+    $hdcSrc = [TvdWin]::GetDC($hwnd)
     try {
-      $ok = [TvdWin]::PrintWindow([IntPtr]$target.Hwnd, $hdc, 2)
-      if (-not $ok) { [void][TvdWin]::PrintWindow([IntPtr]$target.Hwnd, $hdc, 0) }
+      [void][TvdWin]::BitBlt($hdcDest, 0, 0, $target.W, $target.H, $hdcSrc, 0, 0, 13369376)
     } finally {
-      $g.ReleaseHdc($hdc)
+      if ($hdcSrc -ne [IntPtr]::Zero) { [void][TvdWin]::ReleaseDC($hwnd, $hdcSrc) }
+      $g.ReleaseHdc($hdcDest)
     }
-    $sample2 = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
-    $black2 = ($sample2.R -lt 8 -and $sample2.G -lt 8 -and $sample2.B -lt 8)
-    if (-not $black2) {
-      return @{ Bmp = $bmp; G = $g; How = 'PrintWindow' }
+    $sampleB = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
+    $blackB = ($sampleB.R -lt 8 -and $sampleB.G -lt 8 -and $sampleB.B -lt 8)
+    if (-not $blackB) {
+      return @{ Bmp = $bmp; G = $g; How = 'BitBlt' }
     }
   } catch {
     if ($g) { try { $g.Dispose() } catch {} }
     if ($bmp) { try { $bmp.Dispose() } catch {} }
-    return $null
+    $bmp = $null; $g = $null
   }
-  # still black — return anyway (better than nothing); caller may try primary monitor
-  return @{ Bmp = $bmp; G = $g; How = 'PrintWindow-black' }
+
+  # 3) CopyFromScreen ONLY if D2R is foreground (else we film chat/IDE sitting on the rect)
+  try {
+    $fg = [TvdWin]::GetForegroundWindow()
+    if ($fg -eq $hwnd) {
+      if ($bmp) { try { $g.Dispose() } catch {}; try { $bmp.Dispose() } catch {} }
+      $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
+      $g = [System.Drawing.Graphics]::FromImage($bmp)
+      $g.CopyFromScreen($target.Left, $target.Top, 0, 0, $bmp.Size)
+      $sample2 = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
+      $black2 = ($sample2.R -lt 8 -and $sample2.G -lt 8 -and $sample2.B -lt 8)
+      if (-not $black2) {
+        return @{ Bmp = $bmp; G = $g; How = 'CopyFromScreen-fg' }
+      }
+    } else {
+      Write-Host '  D2R not foreground - refusing CopyFromScreen (would film chat/IDE)'
+    }
+  } catch {
+    if ($g) { try { $g.Dispose() } catch {} }
+    if ($bmp) { try { $bmp.Dispose() } catch {} }
+    $bmp = $null; $g = $null
+  }
+
+  if ($bmp) {
+    return @{ Bmp = $bmp; G = $g; How = 'PrintWindow-black' }
+  }
+  return $null
 }
 
 function Capture-PrimaryMonitor {
@@ -381,7 +435,8 @@ function Save-EyeJpeg([System.Drawing.Bitmap]$src, [string]$path) {
   } else {
     $eye.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Jpeg)
   }
-  Move-Item -Force $tmp $path
+  if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
+  Move-Item -Force -LiteralPath $tmp -Destination $path -ErrorAction SilentlyContinue
   $eg.Dispose(); $eye.Dispose()
 }
 
@@ -396,7 +451,7 @@ function Write-CapTarget([string]$mode, [string]$label) {
   ($obj | ConvertTo-Json -Compress) | Set-Content -Path $p -Encoding UTF8
 }
 
-Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1413 process-first"
+Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1415 PrintWindow-first (not desktop z-order)"
 $lastLabel = ''
 $lastGood = $null
 while ($true) {
@@ -445,20 +500,35 @@ while ($true) {
       }
     }
 
-    # D2R process alive but pin failed / black: capture PRIMARY monitor as game feed
-    # (exclusive fullscreen D2R usually owns the primary display)
+    # Primary-monitor fallback ONLY when D2R is the FOREGROUND window (exclusive FS).
+    # If chat/IDE is on top, primary CopyFromScreen films the wrong app (v1415 bug).
     if (-not $bmp -and $d2rAlive -and $mode -ne 'full') {
-      try {
-        $pm = Capture-PrimaryMonitor
-        $bmp = $pm.Bmp; $g = $pm.G
-        $capMode = 'window'
-        $capLabel = 'D2R process alive - primary monitor (' + $pm.How + ')'
-        if ($lastLabel -ne $capLabel) {
-          Write-Host ("  {0}" -f $capLabel)
-          $lastLabel = $capLabel
+      $fg = [TvdWin]::GetForegroundWindow()
+      $d2rIsFg = $false
+      if ($target -and $target.Hwnd) {
+        $d2rIsFg = ([IntPtr]$target.Hwnd -eq $fg)
+      }
+      if ($d2rIsFg) {
+        try {
+          $pm = Capture-PrimaryMonitor
+          $bmp = $pm.Bmp; $g = $pm.G
+          $capMode = 'window'
+          $capLabel = 'D2R foreground - primary monitor (' + $pm.How + ')'
+          if ($lastLabel -ne $capLabel) {
+            Write-Host ("  {0}" -f $capLabel)
+            $lastLabel = $capLabel
+          }
+        } catch {
+          Write-Host "  primary monitor fail: $_"
         }
-      } catch {
-        Write-Host "  primary monitor fail: $_"
+      } else {
+        if ($lastLabel -ne '__need_focus__') {
+          Write-Host '  D2R running but NOT focused - click the GAME window (not this chat). Pin refuses desktop composite.'
+          $lastLabel = '__need_focus__'
+        }
+        Write-CapTarget 'waiting' 'D2R running - click Diablo window to focus (will not film chat/IDE on top)'
+        Start-Sleep -Milliseconds 400
+        continue
       }
     }
 

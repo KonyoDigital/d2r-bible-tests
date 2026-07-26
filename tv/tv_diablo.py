@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1414"   # No tasklist hang under D2R (status/UI freeze); keep v1413 pin.
+VERSION = "v1415"   # PrintWindow-first: film is D2R pixels not chat overlay.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
