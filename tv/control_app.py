@@ -7266,7 +7266,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1406",
+        "ver": "v1407",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -8112,6 +8112,36 @@ class Handler(BaseHTTPRequestHandler):
                 _rreport = _reel_report_cached(
                     os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or "")))
                 if _rreport:
+                    # v1408 — finds/register: prefer sealed kai_report when journal lacked the
+                    # register ledger (split-session / re-pull / incomplete journal append).
+                    # Cross-ref real reel so "What I found" + chapters aren't empty when KAI sealed.
+                    if _finds is None:
+                        _reg2 = _rreport.get("register")
+                        _ritems2 = None
+                        if isinstance(_reg2, list) and _reg2:
+                            _ritems2 = _reg2
+                        elif isinstance(_reg2, dict):
+                            _ritems2 = _reg2.get("items")
+                            if _registered is None and _reg2.get("count") is not None:
+                                _registered = _reg2.get("count")
+                        if isinstance(_ritems2, list) and _ritems2:
+                            _srt2 = sorted(
+                                _ritems2,
+                                key=lambda it: (-_KAI_TIER_RANK.get((it.get("tier") or ""), 0),
+                                                -(it.get("firstSeenTs") or 0)))
+                            _finds = [{"name": it.get("name"), "tier": it.get("tier"),
+                                       "loc": it.get("loc"), "frameId": it.get("frameId"),
+                                       "ts": it.get("firstSeenTs")}
+                                      for it in _srt2[:16]]
+                            if _registered is None:
+                                _registered = len(_ritems2)
+                            if _topFind is None and _srt2:
+                                _tf2 = _srt2[0]
+                                _topFind = {"name": _tf2.get("name"), "tier": _tf2.get("tier")}
+                    if _kc is None and isinstance(_rreport.get("classes"), dict):
+                        _kc = _rreport.get("classes")
+                    if _km is None and _rreport.get("missedFrames") is not None:
+                        _km = _rreport.get("missedFrames")
                     _cmp = _rreport.get("completeness")
                     if isinstance(_cmp, dict) and _cmp.get("hovers_estimated"):
                         _cg = _cmp.get("gaps")
@@ -8211,6 +8241,38 @@ class Handler(BaseHTTPRequestHandler):
                             _dlt = int(_ca) - int(_rend)
                             if 0 < _dlt <= 30 * 60 * 1000:
                                 _seal_ms = _dlt
+                # v1408 — deep journal names not yet in finds (retro/register gap): surface as finds
+                # so dossier "What I found" + chapters stay honest to live deep + sealed register.
+                _have_nms = set()
+                if isinstance(_finds, list):
+                    for _fi in _finds:
+                        _n = str((_fi or {}).get("name") or "").strip().lower()
+                        if _n:
+                            _have_nms.add(_n)
+                _extra = []
+                for r2 in sess:
+                    if r2.get("lane") != "deep":
+                        continue
+                    for _nm in (r2.get("names") or []):
+                        _ns = str(_nm or "").strip()
+                        if not _ns or _ns.lower() in _have_nms:
+                            continue
+                        try:
+                            if _register_is_junk(_ns.lower()) or _register_is_anchor(_ns.lower()):
+                                continue
+                        except Exception:
+                            pass
+                        _have_nms.add(_ns.lower())
+                        _extra.append({"name": _ns, "tier": None,
+                                       "loc": r2.get("stashTab") or r2.get("scene"),
+                                       "frameId": r2.get("frameId"),
+                                       "ts": r2.get("captureTs") or r2.get("ts")})
+                if _extra:
+                    _finds = (list(_finds or []) + _extra)[:16]
+                    if _registered is None:
+                        _registered = len(_finds)
+                    elif isinstance(_registered, int):
+                        _registered = max(int(_registered), len(_have_nms))
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
                             "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
                             "sceneFingerprint": _session_scene_fingerprint(sess),   # v1326 B8 — farming%/townTrips/portals/topArea (Diablo-native, honest)

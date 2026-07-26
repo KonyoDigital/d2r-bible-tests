@@ -1,6 +1,6 @@
 {
   "platform": "windows",
-  "ver": "v1406",
+  "ver": "v1407",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
   "note": "Windows single-instance Desktop launch; one native window; second click quiet exit (no error dialog).",

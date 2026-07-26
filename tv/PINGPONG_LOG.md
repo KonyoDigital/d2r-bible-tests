@@ -2342,3 +2342,10 @@ Follow-on product Theatre/Fable work is out of Windows seal scope.
 ## ROUND v1406 — single-instance Desktop (2026-07-26)
 Screenshot: one TV DIABLO open + error dialog from second launch (exit 1).
 Fix: start_tvd_win mutex + if doctor already ok exit quiet; control_app Windows primary mutex + quiet exit when port/window present. Triple v1406.
+
+
+## ROUND v1406 — Theatre CLOSE + Verdict scroll + reel finds (2026-07-26)
+Konyo: Theatre should read CLOSE when open; Verdict & story swallowed; chapters/register cross-ref.
+1. **CLOSE Theatre** — btn-sim morphs label when TH.open; th-close says ✕ CLOSE.
+2. **Verdict & story** — dossier z-index 970 (above header), bottom padding, section earlier + .dsr-verdict highlight; overlays moved outside #theatre overflow.
+3. **Finds/chapters** — /api/sessions falls back to sealed kai_report.register + deep names when journal register missing (real reel cross-ref).

@@ -630,6 +630,9 @@
   .primary button.act.b-sim { min-height: 0; padding-top: 9px; padding-bottom: 9px; }
   button.act.b-sim .lab b { font-size: var(--fs-sm); }
   button.act.b-sim .lab span { font-size: var(--fs-2xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* v1406 — when Theatre is open, the primary Theatre button reads CLOSE (not another open) */
+  button.act.b-sim.lit { border-color: rgba(240,120,90,.5); color: #ffc8b0; }
+  button.act.b-sim.lit .lab b { color: #ffd8c8; }
   #btn-shelf { min-height: 0; padding: 9px 12px; }
   /* active-state cue: the button matching current state gets a lit ring */
   /* v768 (item 8) — the old per-state CSS rings are RETIRED. ONE lit/dim mechanism now: paint()/thLit()
@@ -1721,12 +1724,24 @@
      ▶ Open in Theatre). Sits above the shelf (z-index 15); Esc backs out to the shelf. All from real data. ══ */
   /* full-viewport page (not confined to the short off-air stage) so the dossier is a real place to explore;
      Esc / ‹ back returns to the shelf underneath (thEscUnwind handles it as the topmost layer). */
-  #th-dossier-ov { position: fixed; inset: 0; z-index: 120;
-    overflow-y: auto; background: rgba(4,6,5,.985); padding: clamp(18px, 3vh, 46px) clamp(16px, 2.4vw, 34px); }
+  /* v1406 — dossier must sit ABOVE fixed header (z~960) + shell foot, not under them.
+     Theatre parent has overflow:hidden; keep position:fixed + high z so Verdict/story can scroll fully. */
+  #th-dossier-ov { position: fixed; inset: 0; z-index: 970;
+    overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    background: rgba(4,6,5,.985);
+    padding: clamp(18px, 3vh, 46px) clamp(16px, 2.4vw, 34px) max(72px, env(safe-area-inset-bottom, 0px)) clamp(16px, 2.4vw, 34px); }
   #th-dossier-ov[hidden] { display: none !important; }
+  #th-dossier-ov .dsr-wrap { padding-bottom: 40px; }
+  #th-dossier-ov .dsr-sec.dsr-verdict {
+    scroll-margin-bottom: 48px;
+    border: 1px solid rgba(240,192,96,.22);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(240,192,96,.04);
+  }
   /* ══ D14 · SESSION COMPARISON — diff two runs side by side (pure UI off the /api/sessions card data) ══ */
-  #th-compare-ov { position: fixed; inset: 0; z-index: 122;   /* above the dossier(120) + shelf */
-    overflow-y: auto; background: rgba(4,6,5,.985); padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px); }
+  #th-compare-ov { position: fixed; inset: 0; z-index: 972;   /* above dossier(970) */
+    overflow-y: auto; background: rgba(4,6,5,.985); padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px) max(72px, env(safe-area-inset-bottom, 0px)); }
   #th-compare-ov[hidden] { display: none !important; }
   .cmp-wrap { max-width: 860px; margin: 0 auto; }
   .cmp-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
@@ -1767,8 +1782,8 @@
   .cmp-empty { text-align: center; color: #8a7e68; font: var(--fw-medium) var(--fs-sm)/var(--lh-normal) var(--mono); padding: 40px 20px; }
   @media (max-width: 620px){ .cmp-pickers, .cmp-scenes { grid-template-columns: 1fr; } .cmp-vs { display: none; } }
   /* ══ D16 · AREA HEATMAP — where you farm most, ranked heat-bars off session areas[] (pure UI) ══ */
-  #th-heatmap-ov { position: fixed; inset: 0; z-index: 122; overflow-y: auto; background: rgba(4,6,5,.985);
-    padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px); }
+  #th-heatmap-ov { position: fixed; inset: 0; z-index: 972; overflow-y: auto; background: rgba(4,6,5,.985);
+    padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px) max(72px, env(safe-area-inset-bottom, 0px)); }
   #th-heatmap-ov[hidden] { display: none !important; }
   .hm-wrap { max-width: 860px; margin: 0 auto; }
   .hm-top { display: flex; margin-bottom: 18px; }
@@ -2904,7 +2919,7 @@
           <button type="button" id="th-open-reel" title="open this session's film folder on disk (all screenshots, labeled or not)" style="margin-left:8px;padding:4px 10px;border-radius:8px;font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);letter-spacing:var(--ls-snug);color:#d9c9a0;border:1px solid rgba(240,192,96,.35);background:rgba(0,0,0,.45);cursor:pointer">📁 film</button>
           <button type="button" id="th-reclose" title="re-run KAI retro on this reel (filters + gap-funnels + multi-retry tallies). OFF AIR only." style="margin-left:6px;padding:4px 10px;border-radius:8px;font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);letter-spacing:var(--ls-snug);color:#c8b8ff;border:1px solid rgba(185,165,255,.4);background:rgba(0,0,0,.45);cursor:pointer">🧠 reclose</button>
           <button class="th-x" id="th-legend-btn" type="button" title="the key — what every symbol means (?)" onclick="window._legendOpen()" style="margin-left:8px;width:auto;padding:0 12px;font-weight:var(--fw-semibold)">? key</button>
-          <button class="th-x" id="th-close" type="button" title="close the theatre">✕</button>
+          <button class="th-x" id="th-close" type="button" title="close the theatre" style="width:auto;padding:0 12px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-snug)">✕ CLOSE</button>
         </div>
         <div class="th-caption" id="th-caption">loading the reel…</div>
         <div class="th-drawer" id="th-drawer" hidden></div>
@@ -2926,13 +2941,6 @@
         <div id="th-credits" hidden></div>
         <div id="th-slate" hidden></div>
         <div id="th-shelfov" hidden></div>
-        <!-- v1268 (SESSIONS FLAGSHIP D2) — THE SESSION DETAIL DOSSIER: a real destination between the shelf and
-             the Theatre. Built by _sessionDossier(n); sits above the shelf (z-index 15). -->
-        <div id="th-dossier-ov" hidden></div>
-        <!-- D14 · SESSION COMPARISON — diff two runs side by side; opens over the shelf (z 122). Built by _cmpOpen(). -->
-        <div id="th-compare-ov" hidden></div>
-        <!-- D16 · AREA HEATMAP — where you farm most, ranked by run frequency. Built by _hmOpen(). -->
-        <div id="th-heatmap-ov" hidden></div>
         <!-- v940.5 — coach hint: shown once per page-load, dismissed on any interaction -->
         <div class="th-coach" id="th-coach" hidden>space = play/pause · ← → = step · esc = close</div>
         <!-- v940.5 (Konyo: 'incomprehensible button mess') — BUTTON DIET. Primary strip keeps
@@ -3208,6 +3216,11 @@
 
   </div>
   <div class="toast" id="toast"></div>
+  <!-- v1406 — dossier / compare / heatmap OUTSIDE .shell and #theatre so overflow:hidden +
+       fixed-header z-index cannot swallow Verdict & story. CSS z-index 970+. -->
+  <div id="th-dossier-ov" hidden></div>
+  <div id="th-compare-ov" hidden></div>
+  <div id="th-heatmap-ov" hidden></div>
   <!-- v1361 (🔬 READS FORENSICS · Konyo) — the scanner's X-ray, opened from the 🧾 AI-READS feed. A flat,
        newest-first read stream in THREE status sections (✓ got it right · ⛔ correctly refused · ⚠ needs your
        eye), each read showing its verbatim garble, the fix/refusal transform, the 🧠 synthesis, witnesses, and
@@ -4774,7 +4787,9 @@
     var fp = _diabloFingerprint(sm);   // B8 — the run in Diablo terms (farming%/town trips/portals/top area), honest fallback
     var fpSec = '<div class="dsr-sec"><div class="dsr-h">🗺 The run · in Diablo terms</div>'
       + (fp ? '<div class="dsr-fp">' + fp + '</div>' : '<div class="dsr-empty">— no scene reads on this reel —</div>') + '</div>';
-    var storySec = '<div class="dsr-sec"><div class="dsr-h">📼 Verdict &amp; story</div>' + _dossierStory(sm) + '</div>';
+    // v1406 — Verdict & story HIGHER in the page (was last before actions → swallowed under foot/chrome).
+    // Highlighted .dsr-verdict block + extra bottom padding on the overlay so it stays scrollable.
+    var storySec = '<div class="dsr-sec dsr-verdict" id="dsr-verdict"><div class="dsr-h">📼 Verdict &amp; story</div>' + _dossierStory(sm) + '</div>';
     // v1275 (D5) — THE DECISION: the routing funnel (derived now) + coverage meter (engine, honest-absent)
     var cov = _dossierCoverage(sm);
     var recov = _dossierRecovery(sm);   // v1277 (D6) — super-recovery badge
@@ -4812,7 +4827,7 @@
       + '<div class="dsr-sealrow">' + seal + sealLat + '</div>'
       + (function(){ var _b = _dossierBeats(sm); return _b ? '<div class="dsr-sec"><div class="dsr-h">⚡ The beats</div>' + _b + '</div>' : ''; })()   // D19 — the run's story as an iconographic beat ribbon
       + _dossierGrailProgress(sm)   // D28 — this run's contribution to the Holy Grail hunt (honest-absent when no grails)
-      + regretSec + decisionSec + montSec + missSec + findsSec + fpSec + storySec
+      + decisionSec + storySec + montSec + missSec + findsSec + fpSec + regretSec
       + '<div class="dsr-actions">'
         + '<button type="button" class="dsr-pin' + (_sesPinned(sm.sessionId) ? ' on' : '') + '" onclick="window._dossierTogglePin()">' + (_sesPinned(sm.sessionId) ? '★ Pinned' : '☆ Pin this run') + '</button>'
         + '<button type="button" class="dsr-pin" id="dsr-copy" onclick="window._dossierCopyRecap()">📋 Copy recap</button>'
@@ -6375,7 +6390,18 @@
     var bt = $('btn-theatre');
     if (bt) bt.classList.toggle('on', TH.open);
     var sim = $('btn-sim');
-    if (sim) sim.classList.toggle('lit', TH.open);   // v785 — '.on' was styleless on .act buttons; '.lit' is the one glow mechanism
+    if (sim) {
+      sim.classList.toggle('lit', TH.open);   // v785 — '.lit' is the one glow mechanism
+      // v1406 — morph label: open → "Close Theatre" so leaving is obvious (not another open)
+      try {
+        var b = sim.querySelector('.lab b');
+        var s = sim.querySelector('.lab span');
+        if (b) b.textContent = TH.open ? 'Close Theatre' : 'Theatre';
+        if (s) s.textContent = TH.open
+          ? 'leave the reel · back to the console'
+          : 'replay last session · scrub ts + frames · click again = off';
+      } catch (_e) {}
+    }
   }
   // ═══ v800 (Grok R6 V2) — READ CARD: the full truth drawer. Film stage stays broadcast;
   // the drawer is where monospace data lives. Toggle: ℹ button or `I`.
