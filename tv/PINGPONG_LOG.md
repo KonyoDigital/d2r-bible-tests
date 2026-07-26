@@ -2264,3 +2264,11 @@ Was drafted as v1381.2; renumbered to authentic whole **v1400**.
 Konyo: other Grok on Windows bugged mid-install; tip via GitHub.
 - Added `tv/WINDOWS_COUSIN_HANDOFF.md` — hard rules, Git/Python winget unstick, doctor, no API keys.
 - Windows: `git -C $HOME\d2r_bible_tests pull` then paste that file into the other Grok.
+
+---
+
+## 2026-07-26 — Windows Desktop flash-close (USERPROFILE spaces)
+
+**Symptom:** Desktop TV DIABLO closes immediately; doctor URL dead.  
+**Cause:** `Start-Process -ArgumentList @($control,'--open')` splits on spaces in `C:\Users\עדי חוסיד\...` → python `can't open file 'C:\\Users\\עדי'`.  
+**Fix:** `tv/start_tvd_win.ps1` quote path as single ArgumentList string + doctor probe + `start_tvd_win.log`. Full writeup: `tv/WINDOWS_LAUNCH_REPORT.md`.
