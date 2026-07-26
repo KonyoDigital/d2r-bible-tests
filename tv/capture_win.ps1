@@ -1,17 +1,20 @@
-# 📺 TV DIABLO — Windows capture loop (v784 twin parity)
+﻿# TV DIABLO - Windows capture loop (v1402 twin parity, ASCII-safe for Hebrew Windows)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
-#   TV_CAPTURE=auto|full|window   (default AUTO — pin D2R.exe when present, else full)
+#   TV_CAPTURE=auto|full|window   (default AUTO - pin D2R.exe when present, else full)
 #   TV_WINDOW_MATCH=extra,tokens
-#   TV_CAPTURE_MS=200             poll interval (default 200ms — snappier film)
+#   TV_CAPTURE_MS=200             poll interval (default 200ms)
 #
 # Writes:
-#   frames/live.bmp   — intelligence settle path (agent --watch)
-#   frames/live.png   — vision transport fallback
-#   frames/eye.jpg    — console film (/frame) — same role as Mac film thread
-#   frames/cap_target.json — mode/label for control status row
+#   frames/live.bmp   - intelligence settle path (agent --watch)
+#   frames/live.png   - vision transport fallback
+#   frames/eye.jpg    - console film (/frame)
+#   frames/cap_target.json - mode/label for control status row
 #
-# Product: native D2R.exe on Windows (cousin play). Browsers / TV chrome never pin.
+# Product: native D2R.exe on Windows. Browsers / TV chrome never pin.
+# NOTE: Pure ASCII only. Windows PowerShell 5.1 under non-UTF8 code pages
+# (e.g. Hebrew cp1255) mis-parses UTF-8 emoji/emdash files without BOM.
+
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type @"
@@ -35,7 +38,7 @@ $here   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $frames = Join-Path $here 'frames'
 New-Item -ItemType Directory -Force -Path $frames | Out-Null
 
-# v784 — AUTO matches Mac agent default (pin game when live)
+# v784 AUTO matches Mac agent default (pin game when live)
 $mode = if ($env:TV_CAPTURE) { $env:TV_CAPTURE.ToLower().Trim() } else { 'auto' }
 $pollMs = 200
 if ($env:TV_CAPTURE_MS) {
@@ -52,7 +55,7 @@ $titleHints = @(
   'diablo ii', 'diablo 2', 'diablo ii: resurrected', 'diablo ii resurrected',
   'd2r', 'resurrected'
 ) + $extra
-# v784 — never pin browsers / editors (bible tab titles contain "D2R")
+# never pin browsers / editors (bible tab titles contain "D2R")
 $ownerBlock = @(
   'chrome', 'msedge', 'firefox', 'brave', 'opera', 'vivaldi',
   'Code', 'Cursor', 'devenv', 'notepad', 'WindowsTerminal', 'powershell', 'pwsh',
@@ -69,16 +72,16 @@ function Get-WindowTitle([IntPtr]$hwnd) {
 }
 
 function Find-D2RWindow {
-  $script:best = $null  # @{ Hwnd; Score; W; H; Label; Left; Top }
+  $script:best = $null
   $script:enumCb = {
     param([IntPtr]$hwnd, [IntPtr]$lp)
     if (-not [TvdWin]::IsWindowVisible($hwnd)) { return $true }
     if ([TvdWin]::IsIconic($hwnd)) { return $true }
     $title = Get-WindowTitle $hwnd
-    $pid = 0
-    [void][TvdWin]::GetWindowThreadProcessId($hwnd, [ref]$pid)
+    $procId = 0
+    [void][TvdWin]::GetWindowThreadProcessId($hwnd, [ref]$procId)
     $procName = ''
-    try { $procName = (Get-Process -Id $pid -ErrorAction SilentlyContinue).ProcessName } catch {}
+    try { $procName = (Get-Process -Id $procId -ErrorAction SilentlyContinue).ProcessName } catch {}
     $tl = ($title | ForEach-Object { $_.ToLower() })
     $ol = ($procName | ForEach-Object { $_.ToLower() })
     foreach ($b in $script:ownerBlock) {
@@ -103,7 +106,6 @@ function Find-D2RWindow {
     $w = $rect.Right - $rect.Left
     $h = $rect.Bottom - $rect.Top
     if ($w -lt 640 -or $h -lt 400) { return $true }
-    # v784 — game identity absolute (mirrors Mac scoring)
     $score = 0
     if ($procName -ieq 'D2R' -or $ol -eq 'd2r') { $score += 5000 }
     if ($ol -like '*d2r*' -or $ol -like '*diablo*') { $score += 2000 }
@@ -111,7 +113,7 @@ function Find-D2RWindow {
     if ($procName -ieq 'D2R') { $score += 100 }
     if ($title -match 'Diablo') { $score += 40 }
     $score += [Math]::Min([int](($w * $h) / 100000), 20)
-    $label = if ($title) { "$procName · $title" } else { $procName }
+    $label = if ($title) { "$procName - $title" } else { $procName }
     if (-not $script:best -or $score -gt $script:best.Score) {
       $script:best = @{
         Hwnd = $hwnd; Score = $score; W = $w; H = $h
@@ -120,7 +122,6 @@ function Find-D2RWindow {
     }
     return $true
   }
-  # bind blocklists into script scope for enum callback
   $script:ownerBlock = $ownerBlock
   $script:titleBlock = $titleBlock
   $script:procNames = $procNames
@@ -131,7 +132,6 @@ function Find-D2RWindow {
 }
 
 function Save-EyeJpeg([System.Drawing.Bitmap]$src, [string]$path) {
-  # Console film: max ~900px JPEG (snappy WebView paint)
   $maxPx = 900
   $nw = $src.Width; $nh = $src.Height
   if ($nw -gt $maxPx -or $nh -gt $maxPx) {
@@ -162,7 +162,7 @@ function Write-CapTarget([string]$mode, [string]$label) {
   ($obj | ConvertTo-Json -Compress) | Set-Content -Path $p -Encoding UTF8
 }
 
-Write-Host "TV DIABLO capture (Windows v784) — mode=$mode poll=${pollMs}ms"
+Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms"
 $lastLabel = ''
 while ($true) {
   try {
@@ -176,7 +176,8 @@ while ($true) {
     $g = $null
     if ($target -and $mode -ne 'full') {
       if ($target.Label -ne $lastLabel) {
-        Write-Host "  eye pinned: $($target.Label) ($($target.W)x$($target.H))"
+        $dims = '{0}x{1}' -f $target.W, $target.H
+        Write-Host ("  eye pinned: {0} ({1})" -f $target.Label, $dims)
         $lastLabel = $target.Label
       }
       $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
@@ -186,7 +187,7 @@ while ($true) {
       $capLabel = $target.Label
     } elseif ($mode -eq 'window' -or $mode -eq 'win' -or $mode -eq 'game') {
       if ($lastLabel -ne '__waiting__') {
-        Write-Host "  waiting for Diablo II (D2R.exe) window…"
+        Write-Host '  waiting for Diablo II (D2R.exe) window...'
         $lastLabel = '__waiting__'
       }
       Write-CapTarget 'waiting' 'Diablo II (D2R.exe) not found'
@@ -194,7 +195,7 @@ while ($true) {
       continue
     } else {
       if ($lastLabel -ne '__full__') {
-        Write-Host "  full virtual screen (no D2R window / mode=full)"
+        Write-Host '  full virtual screen (no D2R window / mode=full)'
         $lastLabel = '__full__'
       }
       $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
@@ -205,14 +206,13 @@ while ($true) {
         $capLabel = 'full screen (no game window)'
       }
     }
-    # v779 twin — never trust a partial write: temp then promote
+    # never trust a partial write: temp then promote
     $tmp = Join-Path $frames 'live.tmp.bmp'
     $out = Join-Path $frames 'live.bmp'
     $bmp.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Bmp)
     Move-Item -Force $tmp $out
     $png = Join-Path $frames 'live.png'
     $bmp.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
-    # console film
     $eye = Join-Path $frames 'eye.jpg'
     try { Save-EyeJpeg $bmp $eye } catch { Write-Host "  eye.jpg: $_" }
     Write-CapTarget $capMode $capLabel

@@ -34,7 +34,21 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempf
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1401"   # Windows cousin handoff file + install tips for second Grok.
+# v1402 — Windows Hebrew/cp1255 consoles crash on emoji boot prints
+# (UnicodeEncodeError) and die before the agent bridge opens. Force UTF-8
+# stdio with replace so ON AIR never dies on a logo line.
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream_name in ("stdout", "stderr"):
+        _stream = getattr(sys, _stream_name, None)
+        try:
+            if _stream is not None and hasattr(_stream, "reconfigure"):
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+VERSION = "v1403"   # Win ON AIR: RLock fix (start_agent/_pid_alive deadlock hung ON forever).
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

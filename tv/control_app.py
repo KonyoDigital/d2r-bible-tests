@@ -731,7 +731,10 @@ _ART_MIME = {
     ".svg": "image/svg+xml",
 }
 
-_lock = threading.Lock()
+# v1402 — MUST be RLock. start_agent holds _lock then calls _start_capture → _pid_alive
+# which also takes _lock. A plain Lock deadlocks forever → ON AIR spins, /api/on never
+# answers, cousin console looks "stuck". Live evidence 2026-07-26 Hebrew Windows PC.
+_lock = threading.RLock()
 _agent_proc = None  # type: ignore
 _stop_inflight = False   # v768 (Grok R2) — a threaded stop/farewell is running; ON/RESTART must wait
 _capture_proc = None  # type: ignore
@@ -845,6 +848,11 @@ def _env_clean(sim=False):
     # v784 — Windows capture default AUTO (pin D2R.exe); Mac agent reads TV_CAPTURE itself
     if IS_WIN and not (env.get("TV_CAPTURE") or "").strip():
         env["TV_CAPTURE"] = "auto"
+    # v1402 — Hebrew/Windows non-UTF8 consoles (cp1255 etc.): emoji boot prints in
+    # tv_diablo.py used to UnicodeEncodeError and kill the agent before :17771 opened.
+    if IS_WIN:
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        env.setdefault("PYTHONUTF8", "1")
     return env
 
 
@@ -7255,7 +7263,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1401",
+        "ver": "v1403",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
