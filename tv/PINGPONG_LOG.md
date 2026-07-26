@@ -2339,3 +2339,6 @@ See BUGS.md REG-044 / REG-045 / REG-046 (Windows ledger) + earlier REG-041+.
 **v1405 SEALED on this Windows PC** for install identity + doctor + ON AIR path + control suite.  
 Follow-on product Theatre/Fable work is out of Windows seal scope.
 
+## ROUND v1406 — single-instance Desktop (2026-07-26)
+Screenshot: one TV DIABLO open + error dialog from second launch (exit 1).
+Fix: start_tvd_win mutex + if doctor already ok exit quiet; control_app Windows primary mutex + quiet exit when port/window present. Triple v1406.
