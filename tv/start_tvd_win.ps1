@@ -212,11 +212,45 @@ if (Test-Path -LiteralPath $shipPath) {
 }
 
 # ---------------------------------------------------------------------------
+# v1406 SINGLE INSTANCE (screenshot 2026-07-26: one console open + second
+# launch error dialog "Python exited immediately (exit 1)").
+# Desktop double-click / dual shortcut / race used to start TWO --open processes.
+# Mutex + "already up => exit quiet" = one window only, no false error toast.
+# ---------------------------------------------------------------------------
+$mutex = $null
+try {
+  $created = $false
+  $mutex = New-Object System.Threading.Mutex($true, 'Local\TV_DIABLO_WIN_LAUNCHER_v1', [ref]$created)
+  if (-not $created) {
+    Write-TvdLaunchLog 'launcher mutex busy - another start_tvd_win in flight; exit quiet'
+    try { $mutex.Dispose() } catch {}
+    $mutex = $null
+    return
+  }
+} catch {
+  Write-TvdLaunchLog ("mutex note: {0}" -f $_)
+  $mutex = $null
+}
+
+function Test-TvdDoctorOk {
+  try {
+    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/doctor' -UseBasicParsing -TimeoutSec 1
+    $body = [string]$resp.Content
+    if ($body -match '"ok"\s*:\s*true') { return $true }
+  } catch {}
+  return $false
+}
+
+# Already running with a healthy control server => do NOT spawn a second --open
+if (Test-TvdDoctorOk) {
+  Write-TvdLaunchLog 'doctor already ok - TV DIABLO is open; not starting a second window'
+  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+  return
+}
+
+# ---------------------------------------------------------------------------
 # v1401 CRITICAL: USERPROFILE with spaces (e.g. Hebrew names)
 #   BAD:  Start-Process -ArgumentList @($control, '--open')
-#         PowerShell does not quote array elements -> python sees only
-#         C:\Users\<first-token> and dies: can't open file ... [Errno 2]
-#   Symptom: Desktop TV DIABLO flash-closes; /api/doctor never answers.
 #   GOOD: one ArgumentList string with quoted script path.
 # ---------------------------------------------------------------------------
 $exeCmd = Get-Command $py.Cmd -ErrorAction SilentlyContinue
@@ -231,33 +265,47 @@ if ($py.Cmd -eq 'py') {
 Write-TvdLaunchLog ("launch FileName={0} Args={1} WD={2}" -f $exePath, $argLine, $repo)
 
 try {
-  # No long -Wait: control_app can stay headless after window close.
   $proc = Start-Process -FilePath $exePath -ArgumentList $argLine -WorkingDirectory $repo -PassThru
   Write-TvdLaunchLog ("started pid={0}" -f $proc.Id)
 } catch {
   Write-TvdLaunchLog ("Start-Process FAILED: {0}" -f $_)
+  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
   Show-TvdError "TV DIABLO failed to start Python.`n`n$_`n`nLog: $launchLog"
   return
 }
 
 $doctorOk = $false
 $doctorBody = ''
-for ($i = 0; $i -lt 20; $i++) {
+for ($i = 0; $i -lt 25; $i++) {
   Start-Sleep -Milliseconds 400
-  if ($proc.HasExited) {
+  # Another instance won the port and is healthy - our child may exit 0/1; that is OK
+  if (Test-TvdDoctorOk) {
+    $doctorOk = $true
+    try {
+      $doctorBody = [string](Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/doctor' -UseBasicParsing -TimeoutSec 1).Content
+    } catch {}
+    Write-TvdLaunchLog ("doctor OK (single instance) pid_self={0} exited={1}" -f $proc.Id, $proc.HasExited)
+    break
+  }
+  if ($proc.HasExited -and $i -gt 5) {
+    # Give a peer a moment; if still no doctor, real failure
+    Start-Sleep -Milliseconds 600
+    if (Test-TvdDoctorOk) { $doctorOk = $true; break }
     Write-TvdLaunchLog ("python exited early code={0}" -f $proc.ExitCode)
     break
   }
-  try {
-    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/doctor' -UseBasicParsing -TimeoutSec 1
-    $doctorBody = [string]$resp.Content
-    if ($doctorBody -match '"ok"\s*:\s*true') { $doctorOk = $true; break }
-  } catch {}
 }
 
+if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+
 if (-not $doctorOk) {
+  # Last chance: peer may still be binding
+  if (Test-TvdDoctorOk) {
+    Write-TvdLaunchLog 'doctor OK on final check'
+    return
+  }
   $hint = if ($proc.HasExited) {
-    "Python exited immediately (exit $($proc.ExitCode)). Often a path/space launch bug or missing pywebview."
+    "Python exited (exit $($proc.ExitCode)) and doctor is down. Path/space, missing pywebview, or crash."
   } else {
     "Control process is running but /api/doctor did not return ok:true yet."
   }

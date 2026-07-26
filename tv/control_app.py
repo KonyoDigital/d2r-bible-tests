@@ -7266,7 +7266,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1405",
+        "ver": "v1406",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9772,6 +9772,26 @@ def board_window():
         _open_browser_app_fallback(url)
 
 
+def _win_primary_mutex():
+    """v1406 — Windows single primary instance (Desktop double-click used to spawn 2x --open).
+    Returns (handle, is_owner). Non-owner must not bind :17772 or open a second window."""
+    if not IS_WIN:
+        return None, True
+    try:
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+        kernel32.CreateMutexW.restype = wintypes.HANDLE
+        kernel32.GetLastError.restype = wintypes.DWORD
+        handle = kernel32.CreateMutexW(None, False, "Local\\TV_DIABLO_CONTROL_PRIMARY_v1")
+        ERROR_ALREADY_EXISTS = 183
+        owned = kernel32.GetLastError() != ERROR_ALREADY_EXISTS
+        return handle, bool(owned)
+    except Exception:
+        return None, True
+
+
 def main():
     if "--board-window" in sys.argv:
         board_window()
@@ -9787,6 +9807,14 @@ def main():
         open_control_window()
         return
 
+    # v1406 — single primary on Windows before bind race (second process exits quiet, no dialog)
+    _mtx, _mtx_owner = _win_primary_mutex()
+    if IS_WIN and not _mtx_owner:
+        # Port may already be serving; never open a second primary window.
+        print(f"TV DIABLO already running (primary mutex) — not opening a second instance.",
+              flush=True)
+        sys.exit(0)
+
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
     except OSError as e:
@@ -9797,8 +9825,19 @@ def main():
         # window-pin fails → full-screen fallback shows the DESKTOP. When --open wants a
         # window and none is live, RECLAIM the port (pause supervisor + kill --no-open)
         # and become PRIMARY so the agent inherits this process's TCC chain.
+        # v1406 Windows: if a window is already up OR doctor is answering, never reclaim /
+        # never open a second WebView — quiet exit (Desktop double-click race).
+        if IS_WIN and open_ui:
+            already = _window_present() or _sock_open(CONTROL_PORT)
+            if already:
+                print(
+                    f"TV DIABLO already open on :{CONTROL_PORT} — not opening a second window.\n"
+                    f"   ({e})",
+                    flush=True,
+                )
+                sys.exit(0)
         if open_ui and not _window_present():
-            print(f"📺 TV DIABLO already serving on :{CONTROL_PORT} (headless) — "
+            print(f"TV DIABLO already serving on :{CONTROL_PORT} (headless) — "
                   f"reclaiming for live scan (TCC-correct primary, not window-only)…",
                   flush=True)
             try:
@@ -9810,7 +9849,7 @@ def main():
             except OSError as e2:
                 # last resort: attach a window so the user still sees something (capture
                 # may stay desktop-only until they run tvd-scan.sh / grant TCC).
-                print(f"📺 reclaim bind still failed ({e2}) — attaching window-only "
+                print(f"TV DIABLO reclaim bind still failed ({e2}) — attaching window-only "
                       f"(Screen Recording may be missing on the headless primary)…",
                       flush=True)
                 globals()["_WINDOW_ONLY"] = True
@@ -9820,7 +9859,7 @@ def main():
         else:
             # v781 — a REAL window already exists → refuse a second one, point at the existing.
             print(
-                f"📺 TV DIABLO window is already open on :{CONTROL_PORT} — not opening a second one.\n"
+                f"TV DIABLO window is already open on :{CONTROL_PORT} — not opening a second one.\n"
                 f"   Use the existing window (or STOP/quit it first).\n   ({e})"
             )
             try:

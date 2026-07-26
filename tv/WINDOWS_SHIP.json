@@ -1,16 +1,19 @@
 {
   "platform": "windows",
-  "ver": "v1405",
+  "ver": "v1406",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "Windows install path for this PC (QA / cousin). Same product as Mac; different launcher/capture. Not a separate mesh.",
+  "note": "Windows single-instance Desktop launch; one native window; second click quiet exit (no error dialog).",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
   "control": "control_app.py",
   "agent": "tv_diablo.py",
   "ui": "control_ui.html",
-  "ports": { "control": 17772, "agent": 17771 },
+  "ports": {
+    "control": 17772,
+    "agent": 17771
+  },
   "requires": [
     "tv/start_tvd_win.ps1",
     "tv/control_app.py",
