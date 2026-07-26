@@ -725,6 +725,23 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   complaint), add a targeted veto for the specific known-bad case instead. Always eyeball the actual
   frame a funnel fired on, not just the routing label, before trusting a "materials found" verdict.
 
+## REG-038 — Theatre/library sessions looked empty or black (2026-07-26)
+- **Symptom:** Theatre and the session library/shelf "weren't showing sessions properly" — prev/next
+  sess landed on black film; HISTORY looked empty; shelf cover art/stats wrong.
+- **Caught by:** Konyo live report; Grok debug of `/api/sessions` + Playwright against control :17772.
+- **Root cause (compound):**
+  1. Session pager (⏮ sess / sess ⏭) stepped by ±1 through **ghost stubs** (ON/OFF with 0 frames) →
+     `/api/session?n=2` returned `beats:[]` → black stage.
+  2. HISTORY strip used `display:none` when collapsed — library looked empty even with 2 real runs.
+  3. Shelf card reused `_cov` for both coverage **%** and cover **URL** → cover stat showed a path string.
+  4. `_bestFindFrame` used `encodeURIComponent` on reel paths → `%2F` broke `/hist/reel_…/f_….jpg`.
+  5. Shelf painted "No runs" before async `/api/sessions` returned when `TH.sessions` was empty.
+- **Fix:** v1380.2 — `thSessionPlayable` / `thNearestPlayable` skip stubs; empty-reel load redirects;
+  HISTORY collapsed keeps a mini-strip; `_covPct` vs `_coverArt`; `encodeURI` for hist paths; shelf
+  waits/refetches before empty state.
+- **Prevention:** session navigation must filter playable reels, not raw journal sessionIds; never
+  reuse one variable for both a ratio and a URL; path-encode hist keys with `encodeURI` (slash-safe).
+
 ## PIN — engine-driver never-zero re-fire: no LIVE runes 0→recovery observed this session (2026-07-21)
 - **Status:** not a bug, a coverage gap. `_drv_empty_refire_plan` is tab-agnostic (no runes/gems/
   materials/vault branching for the tally path — see `tv/control_app.py` ~L298); unit test

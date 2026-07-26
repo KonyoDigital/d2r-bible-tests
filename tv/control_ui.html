@@ -1955,9 +1955,14 @@
   .hd-hist-head:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 2px; }
   .hh-chev { display: inline-block; color: var(--gold-dim); transition: transform .15s; font-size: .8em; margin-right: 2px; }
   .hd-history:not(.hist-collapsed) .hh-chev { transform: rotate(90deg); }
-  .hd-history.hist-collapsed .hd-hist-strip { display: none; }   /* collapsed = slim one-line header only → home stays no-scroll */
-  .hd-history.hist-collapsed { padding-top: 9px; padding-bottom: 9px; }
-  .hd-history.hist-collapsed .hd-h { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  /* v1380.2 — collapsed still shows a mini run strip (library was "empty" when fully hidden) */
+  .hd-history.hist-collapsed .hd-hist-strip {
+    display: flex; max-height: 96px; overflow: hidden; opacity: .96;
+    mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+  }
+  .hd-history.hist-collapsed { padding-top: 9px; padding-bottom: 6px; }
+  .hd-history.hist-collapsed .hd-h { margin-bottom: 6px; padding-bottom: 0; border-bottom: none; }
   .hd-hist-all { margin-left: auto; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); color: var(--gold-dim);
     background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 7px; padding: 5px 10px; cursor: pointer; text-transform: none; }
   .hd-hist-all:hover { color: var(--gold); border-color: var(--gold-antique); }
@@ -4618,11 +4623,41 @@
   // else top find) was captured — the money moment — via the /hist/<frameId>.jpg convention. Falls back to the
   // reel thumb, then the placeholder. Honest: only when the find carries a frameId. ══
   function _bestFindFrame(sm){
+    // v1380.2 — encodeURI (not encodeURIComponent): reel paths carry a slash
+    // (reel_<sid>/f_<ts>). %2F broke every best-find cover → black/placeholder art.
     var finds = sm.finds || [], bf = finds.filter(function(f){ return f.tier === 'grail'; })[0] || finds[0];
-    return (bf && bf.frameId) ? ('/hist/' + encodeURIComponent(String(bf.frameId)) + '.jpg') : '';
+    if (!bf || !bf.frameId) return '';
+    var fid = String(bf.frameId).replace(/\.jpg$/i, '');
+    return '/hist/' + encodeURI(fid) + '.jpg';
   }
   function _coverSrc(sm){   // the best-find frame, else the reel thumb, else '' (→ placeholder)
     return _bestFindFrame(sm) || (sm.thumb ? ('/hist/' + encodeURI(sm.thumb)) : '');
+  }
+  /** v1380.2 — a session is playable when it has real film or AI frames (not a ghost ON/OFF). */
+  function thSessionPlayable(s){
+    if (!s || s.stub) return false;
+    return ((s.footageN || 0) > 0) || ((s.frames || 0) > 0) || ((s.reads || 0) >= 3);
+  }
+  /** v1380.2 — nearest playable session n (1-based), walking dir +1 older / -1 newer. */
+  function thNearestPlayable(fromN, dir){
+    var list = TH.sessions || [];
+    if (!list.length) return 0;
+    var byN = function(n){
+      for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n) return list[i]; }
+      return list[n - 1] || null;
+    };
+    var maxN = 0;
+    for (var i = 0; i < list.length; i++){ var nn = list[i].n || (i + 1); if (nn > maxN) maxN = nn; }
+    var start = Math.max(1, Math.min(maxN, fromN || 1));
+    var step = dir < 0 ? -1 : 1;
+    for (var n = start; n >= 1 && n <= maxN; n += step){
+      var s = byN(n);
+      if (thSessionPlayable(s)) return s.n || n;
+    }
+    for (var m = 0; m < list.length; m++){
+      if (thSessionPlayable(list[m])) return list[m].n || (m + 1);
+    }
+    return start;
   }
   function _dossierHtml(sm){
     var n = sm.n || 1;
@@ -6091,10 +6126,30 @@
   }
   async function thLoadSession(n, isEntry){
     var gen = (TH.loadGen = (TH.loadGen || 0) + 1);   // v859 — stale responses never paint
+    // v1380.2 — refuse ghost/empty n when we already know the shelf metadata
+    var meta0 = (TH.sessions || []).filter(function(s){ return (s.n || 0) === n; })[0]
+             || (TH.sessions || [])[n - 1];
+    if (meta0 && !thSessionPlayable(meta0) && (TH.sessions || []).some(thSessionPlayable)){
+      var alt = thNearestPlayable(n, 1);
+      if (alt && alt !== n){ return thLoadSession(alt, isEntry); }
+    }
     var r = await fetch('/api/session?n=' + n); var j = await r.json();
     if (gen !== TH.loadGen) return;
     if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
     var raw = j.beats || [];
+    // v1380.2 — empty reel (ghost ON/OFF): jump to nearest playable session instead of a black stage
+    var framed = raw.filter(function(b){ return b && b.frame; }).length;
+    if (!framed && (TH.sessions || []).some(thSessionPlayable)){
+      var alt2 = thNearestPlayable(n + 1, 1);
+      if (alt2 && alt2 !== n){
+        try { toast('🎞 session ' + n + ' has no film — opened session ' + alt2); } catch(e){}
+        return thLoadSession(alt2, isEntry);
+      }
+      $('th-caption').textContent = '🎞 this session has no screenshots — pick another run from 📚 the shelf';
+      TH.sn = n; TH.beats = []; TH.allBeats = []; TH.sessionId = j.sessionId || '';
+      try { thTimeline(); } catch(e){}
+      return;
+    }
     // v769 — coalesce same-frame OCR+deep: richer row wins (frame photo is identical)
     var byFrame = {}, beats = [];
     raw.forEach(function(b){
@@ -6650,14 +6705,8 @@
     // v930.1 (Konyo: "how come only 7 frames?") — the card list froze MID-SEAL: opening the
     // shelf during the reel fold showed a partial footage count until the theatre reopened.
     // Every shelf open refetches; cards can never show a stale fold again.
-    fetch('/api/sessions').then(function(r){ return r.json(); }).then(function(j){
-      var fresh = (j && j.sessions) || [];
-      var sig = fresh.map(function(s){ return (s.sessionId||'') + ':' + (s.footageN||0) + ':' + (s.reads||0); }).join('|');
-      if (fresh.length && sig !== window.__thShelfSig){
-        window.__thShelfSig = sig; TH.sessions = fresh;
-        if (!ov.hidden) thShelf(true);   // changed-data guard above breaks re-render loops
-      }
-    }).catch(function(){});
+    // v1380.2 — if TH.sessions is empty, WAIT for the fetch before painting "No runs" (was a false empty flash)
+    var _paintShelf = function(){
     var cards = (TH.sessions || []).map(function(sm, i){
       var n = sm.n || (i + 1);
       var d0 = sm.t0 ? new Date(sm.t0) : null;
@@ -6704,7 +6753,8 @@
       var _foundN = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || 0);   // v1284 (D11) — sort keys
       // ══ D18 — the cinematic card: cover-art hero (reel thumb) + title/seal lower-third + headline grail,
       // then a clean stat grid. Preserves every filter/sort/search data-attr + tap-to-dossier (data-n). ══
-      var _cov = (sm.coverage && sm.coverage.total) ? Math.round((sm.coverage.read || 0) / sm.coverage.total * 100) : null;
+      // v1380.2 — keep coverage % and cover ART as separate vars (was reusing _cov → cover stat showed a URL%)
+      var _covPct = (sm.coverage && sm.coverage.total) ? Math.round((sm.coverage.read || 0) / sm.coverage.total * 100) : null;
       var _grailN = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
       var _tf = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0] || (sm.finds || [])[0];
       var headFind = _tf ? '<div class="shc-headfind' + (_tf.tier === 'grail' ? ' grail' : '') + '">' + (_tf.tier === 'grail' ? '🏆 ' : '') + esc(_tf.name || 'a keep') + '</div>' : '';
@@ -6712,15 +6762,15 @@
                : (sm.kaiMissed != null ? '<span class="shc-seal clean">🛡 clean</span>' : '<span class="shc-seal open">◌ open</span>');
       var _pin = _sesPinned(sm.sessionId);   // D26 — favorite/pin state
       var pinBtn = '<button type="button" class="shc-pin' + (_pin ? ' on' : '') + '" data-pin-sid="' + esc(sm.sessionId || '') + '" title="' + (_pin ? 'unpin this run' : 'pin to the top') + '" aria-label="pin run">' + (_pin ? '★' : '☆') + '</button>';
-      var _cov = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder gradient
-      var heroOpen = _cov
-        ? '<div class="shc-hero" style="background-image:url(' + _cov + '?w=440)">'
+      var _coverArt = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder gradient
+      var heroOpen = _coverArt
+        ? '<div class="shc-hero" style="background-image:url(' + _coverArt + '?w=440)">'
         : '<div class="shc-hero noimg">';
       var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
       var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
       function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
       var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
-        + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_cov != null ? (_cov + '%') : '—', 'cover') + '</div>';
+        + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_covPct != null ? (_covPct + '%') : '—', 'cover') + '</div>';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' grail' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-n="' + n
         + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
@@ -6810,6 +6860,24 @@
       if (!c){ ov.hidden = true; return; }   // click-outside a card = dismiss
       _sessionDossier(Number(c.dataset.n) || 1);   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
     };
+    };   // end _paintShelf
+    // always refresh metadata; paint immediately when we already have sessions
+    var _had = (TH.sessions || []).length > 0;
+    if (_had) _paintShelf();
+    else {
+      ov.hidden = false;
+      ov.innerHTML = '<div class="sh-head">🎞 THE SHELF</div><div class="sh-empty-hero"><div class="she-lead">Loading runs…</div></div>';
+    }
+    fetch('/api/sessions').then(function(r){ return r.json(); }).then(function(j){
+      var fresh = (j && j.sessions) || [];
+      var sig = fresh.map(function(s){ return (s.sessionId||'') + ':' + (s.footageN||0) + ':' + (s.reads||0); }).join('|');
+      if (fresh.length && sig !== window.__thShelfSig){
+        window.__thShelfSig = sig; TH.sessions = fresh;
+      } else if (fresh.length && !(TH.sessions || []).length){
+        TH.sessions = fresh;
+      }
+      if (!ov.hidden) _paintShelf();
+    }).catch(function(){ if (!_had && !ov.hidden) _paintShelf(); });
   }
   var SHELF_Q = '';   // v1282 (D8) — the live shelf-search query, preserved across shelf re-renders
   var SHELF_F = { grail: false, verdict: null, day: null, pin: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
@@ -7169,8 +7237,17 @@
     else
       toast('⏩ FAST — same ' + framedCount + ' photos as REAL, playback time compressed');
   };
-  $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };
-  $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
+  // v1380.2 — skip ghost/empty sessions (was landing on 0-beat stubs → black theatre)
+  $('th-prev-s').onclick = function(){
+    var n = thNearestPlayable((TH.sn || 1) + 1, 1);
+    if (n && n !== TH.sn) thLoadSession(n);
+    else try { toast('🎞 no older playable session'); } catch(e){}
+  };
+  $('th-next-s').onclick = function(){
+    var n = thNearestPlayable((TH.sn || 1) - 1, -1);
+    if (n && n !== TH.sn) thLoadSession(n);
+    else try { toast('🎞 no newer playable session'); } catch(e){}
+  };
   // v946.9 — transport ‹ › steps PHOTOS (framed film + deep), not blank skip ticks
   $('th-prev-b').onclick = function(){
     TH.playing = false; $('th-play').textContent = '▶';
