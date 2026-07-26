@@ -1000,7 +1000,17 @@
   body.theatre-open .stage .marquee,
   body.theatre-open .stage .rune,
   body.theatre-open .stage .scan,
-  body.theatre-open .stage .sweep { visibility: hidden !important; pointer-events: none !important; }
+  body.theatre-open .stage .sweep,
+  body.theatre-open .stage-film,
+  body.theatre-open .status-chip,
+  body.theatre-open .stage-hold { visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; }
+  /* v1380.5 — LIVE feed must never paint under the Theatre (ON AIR + Theatre were stacking) */
+  body.theatre-open { --th-live-muted: 1; }
+  body.theatre-open.film-on .stage-film,
+  body.theatre-open.film-held .stage-film { display: none !important; }
+  body.theatre-open.film-on,
+  body.theatre-open.film-held { /* film-on is for LIVE stage only */ }
+  body.theatre-open #fault-banner { z-index: 20; }   /* faults stay readable above theatre chrome */
   /* v825.1 (Konyo: 'fullscreen is completely BLACK') — the shell-hide rule guessed a wrapper
      that doesn't exist and swallowed the theatre too (visibility inherits). Hide everything,
      then RE-ENABLE the theatre subtree — visibility, unlike display, can resurface descendants. */
@@ -3752,12 +3762,11 @@
       }
     } catch (eHold) {}
 
-    // v768 (item 8) — ONE lit/dim truth for every console button: the button whose mode is truly
-    // active glows (.lit); every other button reads clearly dim. OFF gets a subtle resting cue.
-    // ONE lit truth: ON, SIM, or OFF — dim the rest. Theatre is a ghost util (history only).
-    $('btn-on').classList.toggle('lit', state === 'on');
-    $('btn-off').classList.toggle('lit', state === 'off' && !stopping);
-    $('btn-sim').classList.toggle('lit', state === 'sim' || (typeof TH !== 'undefined' && TH.open));   // v785 — SIM = theatre now; glow follows the real click path
+    // v768 (item 8) — ONE lit/dim truth · v1380.5 — Theatre and ON AIR never both "own" the stage glow
+    var thOpenNow = (typeof TH !== 'undefined' && TH.open);
+    $('btn-on').classList.toggle('lit', state === 'on' && !thOpenNow);
+    $('btn-off').classList.toggle('lit', state === 'off' && !stopping && !thOpenNow);
+    $('btn-sim').classList.toggle('lit', !!thOpenNow);   // Theatre owns the purple lit when open
     $('btn-stop').classList.remove('lit');
     $('btn-restart').classList.remove('lit');
     // stop in flight: ON/RESTART/SIM start are inert until truly off
@@ -3905,7 +3914,12 @@
 
     var film = $('stage-film');
     if (film) {
-      if (typeof TH !== 'undefined' && TH.open){ document.body.classList.remove('film-on'); }   // v859 — theatre covers the stage; no film thrash under it
+      // v1380.5 — Theatre and LIVE are exclusive on the stage: never film-on under theatre
+      if (typeof TH !== 'undefined' && TH.open){
+        document.body.classList.remove('film-on');
+        document.body.classList.remove('film-held');
+        try { film.removeAttribute('src'); film.__url = ''; film.style.opacity = 0; } catch(_f){}
+      }
       else {
       var eyeStale = (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 4000);
       if (on && state !== 'sim' && eyeStale) {
@@ -3963,10 +3977,12 @@
     try {   // v865 — ONE button, morphing label
       var onB = $('btn-on').querySelector('.lab b'), onS = $('btn-on').querySelector('.lab span');
       if (onB && !$('btn-on').classList.contains('working')){
+        // v1380.5 — ON AIR button never morphs into "Close Theatre" (that was stacking the two modes).
+        // Theatre close = Theatre button only. ON AIR = live scanner only.
         if (state === 'on'){ onB.textContent = 'End Session'; onS.textContent = rc > 0 ? ('seal ' + rc + ' read' + (rc===1?'':'s') + ' · instant') : 'nothing recorded · instant off'; }
-        else if (state === 'sim' || (typeof TH !== 'undefined' && TH.open)){ onB.textContent = 'Close Theatre'; onS.textContent = 'leave the replay'; }
+        else if (state === 'sim'){ onB.textContent = 'On Air'; onS.textContent = 'leave sim · go live'; }
         else if (state === 'stopping'){ onB.textContent = 'Sealing…'; onS.textContent = 'saving the session'; }
-        else { onB.textContent = 'On Air'; onS.textContent = 'auto intake · pause on stash'; }
+        else { onB.textContent = 'On Air'; onS.textContent = (typeof TH !== 'undefined' && TH.open) ? 'closes Theatre · goes live' : 'auto intake · pause on stash'; }
       }
     } catch (e2) {}
     tweenReads(rc);
@@ -4235,16 +4251,17 @@
   function thRibbon(){
     var el = $('th-ribbon'); if (!el) return;
     var onAir = document.body.getAttribute('data-state') === 'on';
+    // v1380.5 — clear label: this CRT is PAST only; live recording (if any) is separate
     if (onAir){
       el.classList.add('on-air');
-      el.textContent = '📼 REPLAY (recording continues in the background — this screen is the PAST)';
+      el.textContent = '📼 THEATRE · PAST reel only · scanner still ON AIR in the background (live feed is hidden)';
     } else {
       el.classList.remove('on-air');
       var meta = (TH.sessions && TH.sessions[TH.sn-1]) || {};
       var span = '';
       if (meta.t0 && meta.t1) span = thFmtFull(meta.t0) + ' → ' + thFmtT(meta.t1);
       else if (meta.t0) span = thFmtFull(meta.t0);
-      el.textContent = '📼 REPLAY — session ' + (TH.sn || '—') + (span ? ' · ' + span : '') + ' · the PAST, not live';
+      el.textContent = '📼 THEATRE · session ' + (TH.sn || '—') + (span ? ' · ' + span : '') + ' · PAST replay · not live';
     }
   }
   // v940.5 — coach hint: once per page-load, dismissed on the first key or tap inside the theatre
@@ -7482,6 +7499,12 @@
       await cutFeed(this, e, false);
       return;
     }
+    // v1380.5 — SEPARATION: Theatre (past) and ON AIR (live) never share the stage.
+    // Close Theatre first so LIVE film / HOLD card / meters own the CRT alone.
+    if (typeof TH !== 'undefined' && TH.open) {
+      try { thClose(); } catch (_tc) {}
+      toast('Theatre closed · going ON AIR');
+    }
     post('/api/on', this, e);
   };
   $('btn-off').onclick = async function(e){ await cutFeed(this, e, false); };
@@ -7575,7 +7598,18 @@
   // playing your NEWEST real session. The canned agent-feed stays available via `tvd sim` (dev).
   // v781 — ONE WINDOW: SIM/theatre stay in this pywebview; board nav is same-document
   // (never POST /api/board — that spawned a second native window).
-  $('btn-sim').onclick = function(){ if (TH.open) thClose(); else thOpen(); };
+  // v1380.5 — SEPARATION: opening Theatre clears LIVE stage paint (agent may keep recording
+  // in the background, but the CRT is PAST-only — no stacked live frame under the reel).
+  $('btn-sim').onclick = function(){
+    if (TH.open) { thClose(); return; }
+    document.body.classList.remove('film-on');
+    document.body.classList.remove('film-held');
+    try {
+      var f = $('stage-film');
+      if (f) { f.removeAttribute('src'); f.__url = ''; f.style.opacity = 0; }
+    } catch (_e) {}
+    thOpen();
+  };
   var _bshelf = $('btn-shelf');
   if (_bshelf) _bshelf.onclick = async function(){
     if (!TH.open) { await thOpen(); }

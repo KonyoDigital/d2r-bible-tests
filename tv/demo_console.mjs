@@ -117,6 +117,23 @@ async function j2_alignment(page) {
 async function j3_tally(page) {
   const name = 'J3 TALLY ENGINE';
   await goHome(page);
+  // v1380.5 — TALLIES lives in the off-air RECORD zone; if a prior journey left ON AIR,
+  // home-dash is hidden and the chip never appears. End the session first.
+  const st = await page.evaluate(() => document.body.getAttribute('data-state'));
+  if (st === 'on' || st === 'sim' || st === 'stopping') {
+    try {
+      await page.click('#btn-on');
+      await page.waitForFunction(
+        () => document.body.getAttribute('data-state') === 'off',
+        null,
+        { timeout: 20000 }
+      );
+    } catch (_) { /* best-effort; selector wait below is the real gate */ }
+  }
+  // also leave Theatre if open (stage exclusivity)
+  await page.evaluate(() => {
+    try { if (window.TH && TH.open && typeof thClose === 'function') thClose(); } catch (e) {}
+  });
   await page.waitForSelector('.hd-chip.tly-btn', { timeout: 12000 });
   await page.click('.hd-chip.tly-btn');
   await page.waitForFunction(() => {

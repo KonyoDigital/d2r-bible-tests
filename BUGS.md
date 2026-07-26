@@ -725,6 +725,19 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   complaint), add a targeted veto for the specific known-bad case instead. Always eyeball the actual
   frame a funnel fired on, not just the routing label, before trusting a "materials found" verdict.
 
+## REG-041 — Theatre + ON AIR stage overlap (2026-07-26)
+- **Symptom:** Opening Theatre while ON AIR (or the reverse) stacked live feed, HOLD card,
+  status chip, and the past reel — “overlapping / bugged / closed wrong.”
+- **Root cause:** Theatre lived inside `.stage` while ON AIR still painted `stage-film` /
+  `film-on` / HOLD into the same CRT; both buttons could read “lit”; going live under an open
+  Theatre left two products fighting one surface.
+- **Fix:** v1380.5 — mutual exclusion on the stage:
+  1. Pressing **ON AIR** closes Theatre first.
+  2. Opening Theatre clears live film paint (scanner may keep recording; CRT is PAST-only).
+  3. CSS hides `stage-film` / status-chip / HOLD under `body.theatre-open`.
+  4. Button glow: Theatre owns lit when open; ON AIR lit only when live *and* Theatre closed.
+- **Prevention:** never co-paint live + history on the same CRT; background recording is a lamp/ribbon note, not a second film layer.
+
 ## REG-040 — Windows cousin ON AIR fails / spins (2026-07-26)
 - **Symptom:** Cousin clicks ON AIR on Windows TV DIABLO — nothing / spinner / silent fail.
 - **Root cause class (compound):**
