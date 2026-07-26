@@ -1,4 +1,4 @@
-﻿# TV DIABLO - Windows capture loop (v1413 process-first D2R pin)
+﻿# TV DIABLO - Windows capture loop (v1416 true D2R pixels)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
 #   TV_CAPTURE=auto|full|window   (default AUTO - pin D2R.exe when present, else full)
@@ -9,9 +9,10 @@
 #   frames/live.bmp, live.png, eye.jpg, cap_target.json
 #   frames/win_pin_debug.json  - last pin candidates (cousin debug)
 #
-# v1413: PROCESS-FIRST pin (Get-Process D2R -> MainWindowHandle), then EnumWindows.
-#         Block Battle.net. Exclusive-fullscreen: pin without IsWindowVisible, PrintWindow,
-#         primary-monitor fallback when D2R.exe is alive. Pure ASCII + BOM for Hebrew PS 5.1.
+# v1416: PrintWindow first. NEVER trust GetDC+BitBlt for D2R (returns desktop
+#         z-order = chat/IDE while label says D2R). CopyFromScreen / primary
+#         monitor ONLY when D2R is foreground. Else wait for focus.
+# v1413: PROCESS-FIRST pin. Pure ASCII + BOM for Hebrew PS 5.1.
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -161,64 +162,49 @@ function Score-Candidate([string]$procName, [string]$title, [int]$w, [int]$h, [b
 }
 
 function Find-D2RByProcess {
-  # PROCESS-FIRST: the reliable Windows path. EnumWindows alone often misses exclusive fullscreen.
+  # PROCESS-FIRST. v1416: NEVER Get-Process / MainWindowHandle (both hang under D2R here).
+  # Get PID via GetProcessesByName, then EnumWindows for that PID only.
   $cands = @()
-  $seen = @{}
-  $procs = @()
+  $wantPids = @{}
+  $pidToName = @{}
   foreach ($n in $procExact) {
-    try { $procs += Get-Process -Name $n -ErrorAction SilentlyContinue } catch {}
-  }
-  try {
-    $procs += Get-Process -ErrorAction SilentlyContinue | Where-Object {
-      $pn = $_.ProcessName
-      ($pn -like 'D2R*') -or ($pn -like '*Diablo*II*') -or ($pn -like '*DiabloII*')
-    }
-  } catch {}
-  $fg = [TvdWin]::GetForegroundWindow()
-  foreach ($p in $procs) {
-    if (-not $p) { continue }
-    if ($seen.ContainsKey($p.Id)) { continue }
-    $seen[$p.Id] = $true
-    if (Test-OwnerBlocked $p.ProcessName) { continue }
-    $hwnd = [IntPtr]::Zero
-    try { $hwnd = $p.MainWindowHandle } catch { $hwnd = [IntPtr]::Zero }
-    if ($hwnd -eq [IntPtr]::Zero -or -not [TvdWin]::IsWindow($hwnd)) {
-      # MainWindowHandle empty: scan all top-level windows for this PID
-      $pidWant = [int]$p.Id
-      $script:foundHwnd = [IntPtr]::Zero
-      $script:enumPid = {
-        param([IntPtr]$h, [IntPtr]$lp)
-        $pid = 0
-        [void][TvdWin]::GetWindowThreadProcessId($h, [ref]$pid)
-        if ($pid -eq $script:wantPid) {
-          if (-not [TvdWin]::IsIconic($h)) {
-            $g = Get-WindowGeom $h
-            if ($g -and $g.W -ge 480 -and $g.H -ge 360) {
-              $script:foundHwnd = $h
-              return $false  # stop enum
-            }
-          }
-        }
-        return $true
+    try {
+      foreach ($p in [System.Diagnostics.Process]::GetProcessesByName($n)) {
+        if (-not $p) { continue }
+        $wantPids[[int]$p.Id] = $true
+        $pidToName[[int]$p.Id] = $p.ProcessName
       }
-      $script:wantPid = $pidWant
-      try { [void][TvdWin]::EnumWindows($script:enumPid, [IntPtr]::Zero) } catch {}
-      $hwnd = $script:foundHwnd
-    }
-    if ($hwnd -eq [IntPtr]::Zero -or -not [TvdWin]::IsWindow($hwnd)) { continue }
-    if ([TvdWin]::IsIconic($hwnd)) { continue }
-    if (Test-IsCloaked $hwnd) { continue }
-    $title = Get-WindowTitle $hwnd
-    if (Test-TitleBlocked $title) { continue }
-    $geom = Get-WindowGeom $hwnd
-    if (-not $geom) { continue }
-    # D2R process: allow even if IsWindowVisible is false (exclusive fullscreen quirk)
-    $isFg = ($hwnd -eq $fg)
-    $score = Score-Candidate $p.ProcessName $title $geom.W $geom.H $isFg
-    $score += 2000  # process-first bonus
-    $cands += ,(New-Candidate $hwnd $p.ProcessName $title $score $geom)
+    } catch {}
   }
-  return $cands
+  if ($wantPids.Count -eq 0) { return @() }
+
+  $script:pidCands = @()
+  $script:wantPids = $wantPids
+  $script:pidToName = $pidToName
+  $script:fgHwnd = [TvdWin]::GetForegroundWindow()
+  $script:enumPidOnly = {
+    param([IntPtr]$h, [IntPtr]$lp)
+    try {
+      if ([TvdWin]::IsIconic($h)) { return $true }
+      # NEVER name a var $pid — PowerShell automatic $PID is read-only (crashes EnumWindows)
+      $winPid = 0
+      [void][TvdWin]::GetWindowThreadProcessId($h, [ref]$winPid)
+      if (-not $script:wantPids.ContainsKey([int]$winPid)) { return $true }
+      $geom = Get-WindowGeom $h
+      if (-not $geom -or $geom.W -lt 480 -or $geom.H -lt 360) { return $true }
+      $title = Get-WindowTitle $h
+      if (Test-TitleBlocked $title) { return $true }
+      $procName = [string]$script:pidToName[[int]$winPid]
+      if (-not $procName) { $procName = 'D2R' }
+      $isFg = ($h -eq $script:fgHwnd)
+      $score = Score-Candidate $procName $title $geom.W $geom.H $isFg
+      $score += 2000
+      $script:pidCands += ,(New-Candidate $h $procName $title $score $geom)
+    } catch {}
+    return $true
+  }
+  try { [void][TvdWin]::EnumWindows($script:enumPidOnly, [IntPtr]::Zero) } catch {}
+  return $script:pidCands
 }
 
 function Find-D2RByEnum {
@@ -232,7 +218,11 @@ function Find-D2RByEnum {
     $procId = 0
     [void][TvdWin]::GetWindowThreadProcessId($hwnd, [ref]$procId)
     $procName = ''
-    try { $procName = (Get-Process -Id $procId -ErrorAction SilentlyContinue).ProcessName } catch {}
+    # v1416: no Get-Process -Id (can hang under D2R)
+    try {
+      $pp = [System.Diagnostics.Process]::GetProcessById([int]$procId)
+      if ($pp) { $procName = $pp.ProcessName }
+    } catch {}
     if (Test-OwnerBlocked $procName) { return $true }
     if (Test-TitleBlocked $title) { return $true }
     $ol = $procName.ToLower()
@@ -267,7 +257,10 @@ function Find-D2RByEnum {
 function Find-D2RWindow {
   $all = @()
   try { $all += Find-D2RByProcess } catch { Write-Host "  proc-scan: $_" }
-  try { $all += Find-D2RByEnum } catch { Write-Host "  enum-scan: $_" }
+  # Only fall back to full title enum when process pin found nothing (enum calls GetProcessById per window — slow/risky)
+  if (-not $all -or $all.Count -eq 0) {
+    try { $all += Find-D2RByEnum } catch { Write-Host "  enum-scan: $_" }
+  }
   # de-dupe by hwnd
   $best = $null
   $seenH = @{}
@@ -286,9 +279,11 @@ function Find-D2RWindow {
   # debug dump for cousin troubleshooting
   try {
     $dbgPath = Join-Path $frames 'win_pin_debug.json'
+    # v1416: no Get-Process here (hangs under D2R on some PCs)
     $d2rAlive = $false
     try {
-      if (Get-Process -Name 'D2R' -ErrorAction SilentlyContinue) { $d2rAlive = $true }
+      $pp = [System.Diagnostics.Process]::GetProcessesByName('D2R')
+      if ($pp -and $pp.Length -gt 0) { $d2rAlive = $true }
     } catch {}
     $obj = @{
       ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
@@ -321,18 +316,42 @@ function Test-D2RProcessAlive {
   return $false
 }
 
+function Test-BitmapMostlyBlack([System.Drawing.Bitmap]$bmp) {
+  # Multi-point sample: single center pixel fooled us when BitBlt returned desktop chrome.
+  if (-not $bmp -or $bmp.Width -lt 4 -or $bmp.Height -lt 4) { return $true }
+  $pts = @(
+    @([int]($bmp.Width / 2), [int]($bmp.Height / 2)),
+    @([int]($bmp.Width / 4), [int]($bmp.Height / 4)),
+    @([int](3 * $bmp.Width / 4), [int]($bmp.Height / 4)),
+    @([int]($bmp.Width / 4), [int](3 * $bmp.Height / 4)),
+    @([int](3 * $bmp.Width / 4), [int](3 * $bmp.Height / 4))
+  )
+  $dark = 0
+  foreach ($p in $pts) {
+    $c = $bmp.GetPixel($p[0], $p[1])
+    if ($c.R -lt 12 -and $c.G -lt 12 -and $c.B -lt 12) { $dark++ }
+  }
+  return ($dark -ge 4)
+}
+
 function Capture-WindowBitmap($target) {
-  # v1415 CRITICAL: CopyFromScreen captures WHATEVER is on top of the rect
-  # (chat, browser, console) while label still says "D2R". Always PrintWindow
-  # first so pixels are the actual D2R hwnd content, not the desktop z-order.
+  # v1416 CRITICAL: D2R is DirectX. GetDC+BitBlt often returns DESKTOP z-order
+  # (chat/IDE sitting on the D2R rect) while still non-black — label said D2R,
+  # film was Grok. Never treat BitBlt as trusted game pixels.
+  # Trust order:
+  #   1) PrintWindow (true hwnd buffer when the game allows it)
+  #   2) CopyFromScreen ONLY if D2R is foreground
+  #   3) else return black/null so caller waits for focus (no chat overlay)
   $bmp = $null
   $g = $null
   $hwnd = [IntPtr]$target.Hwnd
   if ($hwnd -eq [IntPtr]::Zero -or -not [TvdWin]::IsWindow($hwnd)) {
     return $null
   }
+  $fg = [TvdWin]::GetForegroundWindow()
+  $isFg = ($fg -eq $hwnd)
 
-  # 1) PrintWindow (PW_RENDERFULLCONTENT = 2) — true window content
+  # 1) PrintWindow (PW_RENDERFULLCONTENT = 2) — real window content when supported
   try {
     $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
     $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -343,9 +362,7 @@ function Capture-WindowBitmap($target) {
     } finally {
       $g.ReleaseHdc($hdc)
     }
-    $sample = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
-    $blackish = ($sample.R -lt 8 -and $sample.G -lt 8 -and $sample.B -lt 8)
-    if (-not $blackish) {
+    if (-not (Test-BitmapMostlyBlack $bmp)) {
       return @{ Bmp = $bmp; G = $g; How = 'PrintWindow' }
     }
   } catch {
@@ -354,52 +371,26 @@ function Capture-WindowBitmap($target) {
     $bmp = $null; $g = $null
   }
 
-  # 2) BitBlt from window DC (another path into the real hwnd buffer)
-  try {
-    if ($bmp) { try { $g.Dispose() } catch {}; try { $bmp.Dispose() } catch {} }
-    $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
-    $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $hdcDest = $g.GetHdc()
-    $hdcSrc = [TvdWin]::GetDC($hwnd)
+  # 2) CopyFromScreen ONLY if D2R is foreground (only safe screen grab)
+  if ($isFg) {
     try {
-      [void][TvdWin]::BitBlt($hdcDest, 0, 0, $target.W, $target.H, $hdcSrc, 0, 0, 13369376)
-    } finally {
-      if ($hdcSrc -ne [IntPtr]::Zero) { [void][TvdWin]::ReleaseDC($hwnd, $hdcSrc) }
-      $g.ReleaseHdc($hdcDest)
-    }
-    $sampleB = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
-    $blackB = ($sampleB.R -lt 8 -and $sampleB.G -lt 8 -and $sampleB.B -lt 8)
-    if (-not $blackB) {
-      return @{ Bmp = $bmp; G = $g; How = 'BitBlt' }
-    }
-  } catch {
-    if ($g) { try { $g.Dispose() } catch {} }
-    if ($bmp) { try { $bmp.Dispose() } catch {} }
-    $bmp = $null; $g = $null
-  }
-
-  # 3) CopyFromScreen ONLY if D2R is foreground (else we film chat/IDE sitting on the rect)
-  try {
-    $fg = [TvdWin]::GetForegroundWindow()
-    if ($fg -eq $hwnd) {
       if ($bmp) { try { $g.Dispose() } catch {}; try { $bmp.Dispose() } catch {} }
       $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
       $g = [System.Drawing.Graphics]::FromImage($bmp)
       $g.CopyFromScreen($target.Left, $target.Top, 0, 0, $bmp.Size)
-      $sample2 = $bmp.GetPixel([int]($target.W / 2), [int]($target.H / 2))
-      $black2 = ($sample2.R -lt 8 -and $sample2.G -lt 8 -and $sample2.B -lt 8)
-      if (-not $black2) {
+      if (-not (Test-BitmapMostlyBlack $bmp)) {
         return @{ Bmp = $bmp; G = $g; How = 'CopyFromScreen-fg' }
       }
-    } else {
-      Write-Host '  D2R not foreground - refusing CopyFromScreen (would film chat/IDE)'
+    } catch {
+      if ($g) { try { $g.Dispose() } catch {} }
+      if ($bmp) { try { $bmp.Dispose() } catch {} }
+      $bmp = $null; $g = $null
     }
-  } catch {
-    if ($g) { try { $g.Dispose() } catch {} }
-    if ($bmp) { try { $bmp.Dispose() } catch {} }
-    $bmp = $null; $g = $null
+  } else {
+    Write-Host '  D2R not foreground - refusing screen grab (BitBlt/CopyFromScreen would film chat/IDE)'
   }
 
+  # v1416: BitBlt deliberately NOT used — for DX games it returns desktop composite.
   if ($bmp) {
     return @{ Bmp = $bmp; G = $g; How = 'PrintWindow-black' }
   }
@@ -449,15 +440,25 @@ function Write-CapTarget([string]$mode, [string]$label) {
     d2rProcess = (Test-D2RProcessAlive)
   }
   ($obj | ConvertTo-Json -Compress) | Set-Content -Path $p -Encoding UTF8
+  # also plain text for quick eyes
+  try {
+    Set-Content -Path (Join-Path $frames 'cap_target.txt') -Value "$mode|$label" -Encoding UTF8
+  } catch {}
 }
 
-Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1415 PrintWindow-first (not desktop z-order)"
+Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1416 PrintWindow-or-focus (never BitBlt desktop lie)"
 $lastLabel = ''
 $lastGood = $null
+$loopN = 0
 while ($true) {
   $bmp = $null
   $g = $null
+  $loopN++
   try {
+    # heartbeat so we can see if pin/capture is stuck (no Get-Process)
+    try {
+      Set-Content -Path (Join-Path $frames 'capture_heartbeat.txt') -Value ("n={0} t={1}" -f $loopN, [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) -Encoding UTF8
+    } catch {}
     $target = $null
     $capMode = 'full'
     $capLabel = 'full screen'
