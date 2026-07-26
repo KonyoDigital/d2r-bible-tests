@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1418"   # Harden eye.jpg so ON AIR UI sees D2R pin.
+VERSION = "v1419"   # Windows pin: utf-8-sig cap_target + refresh every /state.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -524,6 +524,12 @@ def bridge():
                 _since = 0
                 try: _since = int((_q.get("since") or ["0"])[0])
                 except Exception: _since = 0
+                # v1419 — every state poll re-reads Windows pin so UI never sticks on eye arming
+                if WATCH_MODE:
+                    try:
+                        _refresh_cap_target_from_disk()
+                    except Exception:
+                        pass
                 with _state_lock:
                     st = _load(); st["online"] = True; st["now"] = int(time.time()*1000)
                     st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS); st["ap"] = dict(_AP)
@@ -1667,19 +1673,25 @@ def newest_watched_frame():
 
 
 def _refresh_cap_target_from_disk():
-    """v784 — Windows capture_win.ps1 writes frames/cap_target.json; surface it on /state."""
+    """v784/v1419 — Windows capture_win.ps1 writes frames/cap_target.json; surface it on /state.
+    utf-8-sig: PowerShell Set-Content -Encoding UTF8 writes a BOM that plain utf-8 json.load can miss,
+    leaving UI stuck on default 'eye arming…' while live.png is pure D2R."""
     global _CAP_TARGET
     try:
         p = os.path.join(FRAMES, "cap_target.json")
         if not os.path.isfile(p):
             return
-        with open(p, encoding="utf-8") as f:
-            j = json.load(f)
+        with open(p, encoding="utf-8-sig") as f:
+            raw = f.read()
+        if not raw or not raw.strip():
+            return
+        j = json.loads(raw)
         mode = (j.get("mode") or "full").strip()
-        label = (j.get("label") or mode)[:80]
+        label = (j.get("label") or mode)[:120]
+        # Prefer window pin when capture half is healthy
         nxt = {"mode": mode, "label": label, "wid": j.get("wid")}
         if nxt != _CAP_TARGET:
-            if mode == "window" and label and _CAP_TARGET.get("label") != label:
+            if mode == "window" and label and (_CAP_TARGET or {}).get("label") != label:
                 try:
                     ev("cap", "🎯 eye pinned to %s" % label)
                 except Exception:
