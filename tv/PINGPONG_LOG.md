@@ -2306,3 +2306,36 @@ Konyo: other Grok on Windows bugged mid-install; tip via GitHub.
 
 ### REG
 See BUGS.md REG-044 / REG-045 / REG-046 (Windows ledger) + earlier REG-041+.
+
+---
+
+## SEAL v1405 — Windows seven-round acceptance (this PC · 2026-07-26)
+
+**Commit:** cb5a2a4 · **stamp:** v1405 · **platform:** windows  
+**Laws ingested from GitHub (other Grok / Mac):** push policy, safe auto-pull (dirty skip + TV_NO_AUTO_PULL), dual-PC one main, WINDOWS_SHIP path not fork.
+
+### Seven rounds (Windows Grok · KONYO_WORKFLOW Step 13 local seal)
+
+| R | What | Result |
+|---|------|--------|
+| R1 | Pull origin + read laws (WINDOWS_COUSIN_HANDOFF push policy, WINDOWS_SHIP v1405, PINGPONG dual-PC) | PASS |
+| R2 | Recalibrate .windows_install.json to v1405 / cb5a2a4; single control process | PASS |
+| R3 | Doctor live: ok + platform=windows + shipVer=v1405 + triple windows_ship | PASS |
+| R4 | Headless POST /api/on ~0.63s mode=live bridge capture LINKED; /api/off ok | PASS |
+| R5 | python -m unittest discover -p test_control.py — **245 tests OK** (skipped=2) | PASS |
+| R6 | pythonw --open + ON ~0.69s mode=live agent=True bridge=True LINKED; OFF ok | PASS |
+| R7 | This seal entry + board update; leave console on v1405 for user | PASS |
+
+### Syntax gates (R3/R5)
+- AST: control_app.py, tv_diablo.py OK
+- PS Parser: start_tvd_win / install-tvd / capture_win OK (ASCII + BOM)
+- Triple: agent=ctrl=bible=ship=v1405 platform=windows
+
+### Residual (not blockers)
+- Full Playwright RINSE / Cloudflare deploy remain Mac/Fable lane.
+- D2R not required for ON smoke (capture falls back full-screen).
+
+### SEAL verdict
+**v1405 SEALED on this Windows PC** for install identity + doctor + ON AIR path + control suite.  
+Follow-on product Theatre/Fable work is out of Windows seal scope.
+
