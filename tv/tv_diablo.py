@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempf
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1380.2"   # Theatre/library session bugs: skip empty stubs · cover path encode · shelf load race · history mini-strip. Prior v1380.1: Dual intake receiver G5.
+VERSION = "v1380.3"   # Theatre cinema restore: film fills shell (not 26vh stage box). Prior v1380.2: session stubs/library.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

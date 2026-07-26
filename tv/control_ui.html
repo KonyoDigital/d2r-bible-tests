@@ -953,6 +953,54 @@
   .th-film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
     background: #000; transition: right 200ms ease; }
   #theatre.card-open .th-film { right: min(380px, 44%); width: auto; }   /* v824 — the drawer shares, never covers */
+
+  /* ══ v1380.3 — THEATRE CINEMA RESTORE (Konyo: film was "swallowed", small, stuck at top)
+     Off-air Sessions layout gave the DASH the flex row and capped .stage at ~26vh/330px.
+     Theatre is position:absolute inside .stage → film only filled that tiny box.
+     When theatre-open: STAGE owns the flex (1fr), dash collapses, film fills the CRT. ══ */
+  body.theatre-open .shell {
+    grid-template-rows: auto minmax(0, 1fr) 0 auto auto !important;   /* head · STAGE(flex) · dash(0) · tick · foot */
+  }
+  body.theatre-open .stage,
+  body.theatre-open[data-view="sessions"] .stage {
+    display: flex !important;            /* beats body[data-view=sessions] .stage { display:none } */
+    min-height: 0 !important;            /* beat off-air clamp(256px,26vh,330px) */
+    height: auto !important;
+    max-height: none !important;
+    flex: 1 1 auto;
+    align-self: stretch;
+    visibility: visible !important;
+  }
+  body.theatre-open .home-dash {
+    display: none !important;            /* same as on-air / sim — no scrollable hunt under the film */
+    min-height: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+  body.theatre-open #theatre:not([hidden]) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    z-index: 8;
+  }
+  body.theatre-open .th-film {
+    /* film fills the stage between topline chrome and transport strip (absolute inset:0 already) */
+    object-fit: contain;
+    object-position: center center;
+  }
+  body.theatre-open .stage .center,
+  body.theatre-open .stage .meters,
+  body.theatre-open .stage .hero,
+  body.theatre-open .stage .aura,
+  body.theatre-open .stage .marquee,
+  body.theatre-open .stage .rune,
+  body.theatre-open .stage .scan,
+  body.theatre-open .stage .sweep { visibility: hidden !important; pointer-events: none !important; }
   /* v825.1 (Konyo: 'fullscreen is completely BLACK') — the shell-hide rule guessed a wrapper
      that doesn't exist and swallowed the theatre too (visibility inherits). Hide everything,
      then RE-ENABLE the theatre subtree — visibility, unlike display, can resurface descendants. */
@@ -2257,7 +2305,8 @@
   body:not([data-view="sessions"]) #hd-forge { display: none !important; }
   /* the Sessions flagship view: the cockpit stage steps aside so the hunt leads; the RECORD chronicles below.
      The "full grail bible →" link appears here to reach bible.html's deep session data. */
-  body[data-view="sessions"] .stage { display: none !important; }   /* beats body[data-state] .stage rules — the flagship leads, no broadcast stage */
+  /* v1380.3 — hide standby stage on Sessions, BUT never while theatre is open (cinema needs the CRT) */
+  body[data-view="sessions"]:not(.theatre-open) .stage { display: none !important; }
   .hub-bible { display: none; }
   body[data-view="sessions"] .hub-bible { display: inline-flex; align-items: center; gap: 7px; grid-column: 1 / -1;
     justify-self: end; margin: -2px 0 2px; padding: 6px 12px; border: 1px solid var(--edge); border-radius: 8px;

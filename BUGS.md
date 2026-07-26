@@ -725,6 +725,21 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   complaint), add a targeted veto for the specific known-bad case instead. Always eyeball the actual
   frame a funnel fired on, not just the routing label, before trusting a "materials found" verdict.
 
+## REG-039 — Theatre film "swallowed" / small at top of shell (2026-07-26)
+- **Symptom:** Opening Theatre showed a small, top-stuck video instead of the big structured
+  cinema stage users remembered.
+- **Caught by:** Konyo (visual); Playwright geometry: stage **305×1044** inside 960px viewport
+  while theatre-open.
+- **Root cause:** Sessions/off-air layout (v903/v1252) set
+  `grid-template-rows: auto auto minmax(0,1fr)…` so the **DASH** owns the flex row and
+  `.stage` is capped at `min-height: clamp(256px, 26vh, 330px)`. Theatre is
+  `position:absolute; inset:0` **inside** `.stage` → film only fills that compact box.
+  Plus `body[data-view=sessions] .stage { display:none }` could zero the stage on Sessions tab.
+- **Fix:** v1380.3 — `body.theatre-open` gives STAGE the `1fr` row, collapses dash to 0,
+  forces `.stage { display:flex !important }`, hides home-dash, film centers in full CRT.
+- **Prevention:** any home-density change that shrinks `.stage` must pair a `theatre-open`
+  override so history replay never inherits the compact standby stage.
+
 ## REG-038 — Theatre/library sessions looked empty or black (2026-07-26)
 - **Symptom:** Theatre and the session library/shelf "weren't showing sessions properly" — prev/next
   sess landed on black film; HISTORY looked empty; shelf cover art/stats wrong.
