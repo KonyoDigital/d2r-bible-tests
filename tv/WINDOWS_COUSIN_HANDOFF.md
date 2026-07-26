@@ -4,6 +4,14 @@
 No Mac installers, no Mac launchers, no Mac capture. No shared “twin” mesh.  
 Pull latest: `git -C $HOME\d2r_bible_tests pull` then re-read this file **and** `tv/WINDOWS_ONLY.md`.
 
+## Fleet unity (v1418)
+
+Mac + Windows share **one** `origin/main`. On every Desktop launch:
+- clean (no tracked edits) → auto-pull / reset to origin
+- untracked junk (?? debug files) does **not** block pull
+- if **BEHIND FLEET** banner shows: relaunch TV DIABLO (or `git pull`)
+- click footer version chip to force-check GitHub
+
 ## Install (one line — Windows only)
 
 ```powershell

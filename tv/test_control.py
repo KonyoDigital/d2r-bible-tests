@@ -3096,3 +3096,20 @@ class TestV1381IncompleteSealReclose(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
+
+
+class TestFleetUnity(unittest.TestCase):
+    """v1418 — multi-machine fleet: origin behind-count + tracked-dirty ignores untracked."""
+
+    def test_fleet_origin_status_shape(self):
+        fl = ca.fleet_origin_status(force_fetch=False)
+        self.assertIn("behind", fl)
+        self.assertIn("howTo", fl)
+        self.assertIn("dirty", fl)
+        self.assertIsInstance(fl["behind"], int)
+        self.assertGreaterEqual(fl["behind"], 0)
+
+    def test_status_payload_carries_fleet(self):
+        st = ca.status_payload()
+        self.assertIn("fleet", st)
+        self.assertIn("behind", st["fleet"])

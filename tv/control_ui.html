@@ -3824,7 +3824,14 @@
     var H = st.health || {};
     window._lastEyeAge = (st.eyeAgeMs != null) ? st.eyeAgeMs : -1;   // v791 — adaptive poll heuristic
     var fault = '';
-    if (on) {
+    // v1418 — FLEET UNITY banner (always-on, even OFF AIR): never silently drift from GitHub main
+    var fl = st.fleet || {};
+    var fleetBehind = (fl.behind != null) ? (+fl.behind || 0) : 0;
+    if (fleetBehind > 0) {
+      fault = 'BEHIND FLEET · ' + fleetBehind + ' commit' + (fleetBehind === 1 ? '' : 's') + ' on GitHub'
+        + (fl.latest ? (' · latest: "' + String(fl.latest).slice(0, 48) + '"') : '')
+        + ' · relaunch TV DIABLO to auto-pull (or git pull)';
+    } else if (on) {
       // v899 — loudest: no D2R window (AI paused on purpose)
       if (H.gameOk === false || H.aiPaused || st.gameOk === false || st.aiPaused) {
         fault = (H.gameMsg || st.gameMsg || 'D2R window missing — open Diablo II: Resurrected for live reads');
@@ -3847,6 +3854,18 @@
       fb.style.display = fault ? 'block' : 'none';
     }
     document.body.classList.toggle('fault', !!fault);
+    try {
+      var fv = $('foot-ver');
+      if (fv) {
+        if (fleetBehind > 0) {
+          fv.title = 'BEHIND · click to re-check · ' + (fl.howTo || 'relaunch to auto-pull');
+          fv.style.color = '#ffcf8a';
+        } else if (!(fv.title || '').startsWith('capture:')) {
+          fv.title = 'click — check fleet updates · unified with origin';
+          fv.style.color = '';
+        }
+      }
+    } catch (eFv) {}
     var sv = $('sig-vision');
     if (sv) sv.textContent = on ? ((H.visionBusyMs || 0) > 1500 ? ('thinking ' + Math.round(H.visionBusyMs / 1000) + 's') : 'ready') : '—';
     var sl = $('sig-lastread');
@@ -7175,17 +7194,17 @@
   });
   $('th-card').onclick = thCardToggle;
   $('th-replay').onclick = thInstantReplay;
-  // v817 — ⟳ UPDATE truth: cousins freeze on old trees with zero lamp. One click answers it.
+  // v817 / v1418 — ⟳ FLEET UPDATE: one click force-fetches GitHub; banner also paints when behind.
   (function(){
     var fv = $('foot-ver'); if (!fv) return;
-    fv.style.cursor = 'pointer'; fv.title = 'click — check for updates';
+    fv.style.cursor = 'pointer'; fv.title = 'click — check fleet updates (Mac + Windows share one GitHub main)';
     fv.onclick = async function(){
-      toast('⟳ checking origin…');
+      toast('⟳ checking fleet (origin/main)…');
       try {
         var r = await fetch(API + '/api/update'); var j = await r.json();
         if (!j.ok) toast('⚠ ' + (j.msg || 'update check failed'));
-        else if (!j.behind) toast('✓ up to date with origin');
-        else toast('⟳ ' + j.behind + ' version' + (j.behind > 1 ? 's' : '') + ' behind — latest: "' + (j.latest || '') + '" · ' + (j.howTo || ''));
+        else if (!j.behind) toast('✓ FLEET UNIFIED · ' + (j.ver || j.head || 'origin/main') + (j.dirty ? ' · local tracked edits present' : ''));
+        else toast('⚠ BEHIND · ' + j.behind + ' commit' + (j.behind > 1 ? 's' : '') + ' — latest: "' + (j.latest || '') + '" · ' + (j.howTo || 'relaunch to auto-pull'));
       } catch (e) { toast('⚠ update check failed · ' + e); }
     };
   })();

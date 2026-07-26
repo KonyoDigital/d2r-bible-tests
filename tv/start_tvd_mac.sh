@@ -56,16 +56,39 @@ fi
 python3 -c "import webview" 2>/dev/null || \
   python3 -m pip install --user --quiet 'pywebview>=5.0' 2>/dev/null || true
 
-# pull-first (quiet) — v1404 multi-machine:
-#   • clean tree → ff-only from origin (cousin + Mac stay on product channel)
-#   • dirty tree → SKIP (protects Mac/local work; Windows Grok cannot wipe your edits via pull)
+# pull-first (quiet) — v1418 multi-machine FLEET UNITY (parity with start_tvd_win.ps1):
 #   • TV_NO_AUTO_PULL=1 → never pull (dev pin)
+#   • Untracked junk (?? debug files) must NOT block pull
+#   • Modified TRACKED files still block (protect real local work)
+#   • fetch + ff-only; if diverged with no tracked edits, reset --hard origin/main
 if [[ -d "$REPO/.git" && -z "${TV_NO_AUTO_PULL:-}" ]]; then
-  if [[ -z "$(git -C "$REPO" status --porcelain 2>/dev/null)" ]]; then
-    git -C "$REPO" pull --ff-only >/dev/null 2>&1 || true
-  else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') skip auto-pull: dirty working tree (local work protected)" \
+  _tracked_dirty=0
+  while IFS= read -r _line; do
+    [[ -z "$_line" ]] && continue
+    case "$_line" in
+      \?\?*) ;;  # untracked — ignore
+      *) _tracked_dirty=1; break ;;
+    esac
+  done < <(git -C "$REPO" status --porcelain 2>/dev/null || true)
+  if [[ "$_tracked_dirty" -eq 1 ]]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') skip auto-pull: tracked files modified (local work protected)" \
       >>"$HERE/control_app.log" 2>/dev/null || true
+  else
+    if git -C "$REPO" fetch origin >/dev/null 2>&1; then
+      if git -C "$REPO" merge --ff-only origin/main >/dev/null 2>&1; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') auto-pull: fast-forward ok" \
+          >>"$HERE/control_app.log" 2>/dev/null || true
+      else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') auto-pull: ff failed, reset --hard origin/main (no tracked edits)" \
+          >>"$HERE/control_app.log" 2>/dev/null || true
+        git -C "$REPO" reset --hard origin/main >/dev/null 2>&1 || true
+        echo "$(date '+%Y-%m-%d %H:%M:%S') auto-pull: now on origin/main" \
+          >>"$HERE/control_app.log" 2>/dev/null || true
+      fi
+    else
+      echo "$(date '+%Y-%m-%d %H:%M:%S') auto-pull: fetch failed (offline?)" \
+        >>"$HERE/control_app.log" 2>/dev/null || true
+    fi
   fi
 fi
 

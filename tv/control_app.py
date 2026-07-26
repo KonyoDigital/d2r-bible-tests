@@ -722,6 +722,114 @@ IS_WIN = sys.platform.startswith("win")
 # Windows: CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
 _WIN_CREATE = 0x00000200 | 0x08000000 if IS_WIN else 0
 
+# v1418 — FLEET UNITY: how far is this install behind GitHub origin/main?
+# Cached so /api/status never blocks on a slow fetch every 12s poll.
+_FLEET_CACHE = {"t": 0.0, "val": None}
+_FLEET_TTL_S = 120.0  # re-fetch at most every 2 min
+_FLEET_FETCH_TTL_S = 300.0  # network fetch at most every 5 min
+_FLEET_LAST_FETCH = 0.0
+
+
+def _git_tracked_dirty():
+    """True only when TRACKED files are modified (?? untracked does not count)."""
+    try:
+        r = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=REPO, capture_output=True, text=True, timeout=8,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        for line in (r.stdout or "").splitlines():
+            if not line.strip():
+                continue
+            if line.startswith("??"):
+                continue
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def fleet_origin_status(force_fetch=False):
+    """v1418 — {behind, latest, head, origin, dirty, ok, howTo, ver}.
+    behind = commits on origin/main not in HEAD (0 = unified with fleet channel)."""
+    global _FLEET_LAST_FETCH
+    now = time.time()
+    if (not force_fetch and _FLEET_CACHE["val"] is not None
+            and (now - _FLEET_CACHE["t"]) < _FLEET_TTL_S):
+        return dict(_FLEET_CACHE["val"])
+    out = {
+        "ok": True, "behind": 0, "latest": "", "head": "", "origin": "",
+        "dirty": False, "howTo": "", "ver": _app_ver() if "_app_ver" in globals() else "",
+    }
+    try:
+        out["dirty"] = _git_tracked_dirty()
+        # lightweight rev-parse always
+        for key, args in (
+            ("head", ["git", "rev-parse", "--short", "HEAD"]),
+            ("origin", ["git", "rev-parse", "--short", "origin/main"]),
+        ):
+            try:
+                r = subprocess.run(
+                    args, cwd=REPO, capture_output=True, text=True, timeout=5,
+                    creationflags=_WIN_CREATE if IS_WIN else 0,
+                )
+                if r.returncode == 0:
+                    out[key] = (r.stdout or "").strip()
+            except Exception:
+                pass
+        # network fetch (throttled)
+        if force_fetch or (now - _FLEET_LAST_FETCH) >= _FLEET_FETCH_TTL_S:
+            try:
+                subprocess.run(
+                    ["git", "fetch", "origin", "main", "--quiet"],
+                    cwd=REPO, capture_output=True, timeout=25,
+                    creationflags=_WIN_CREATE if IS_WIN else 0,
+                )
+                _FLEET_LAST_FETCH = now
+                r = subprocess.run(
+                    ["git", "rev-parse", "--short", "origin/main"],
+                    cwd=REPO, capture_output=True, text=True, timeout=5,
+                    creationflags=_WIN_CREATE if IS_WIN else 0,
+                )
+                if r.returncode == 0:
+                    out["origin"] = (r.stdout or "").strip()
+            except Exception:
+                pass
+        r = subprocess.run(
+            ["git", "rev-list", "HEAD..origin/main", "--count"],
+            cwd=REPO, capture_output=True, text=True, timeout=10,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        if r.returncode == 0:
+            out["behind"] = int((r.stdout or "0").strip() or 0)
+        if out["behind"] > 0:
+            r2 = subprocess.run(
+                ["git", "log", "origin/main", "-1", "--format=%s"],
+                cwd=REPO, capture_output=True, text=True, timeout=8,
+                creationflags=_WIN_CREATE if IS_WIN else 0,
+            )
+            out["latest"] = (r2.stdout or "").strip()[:120]
+            if out["dirty"]:
+                out["howTo"] = (
+                    "You are %d commit(s) behind GitHub. Local TRACKED edits block auto-pull — "
+                    "commit/stash them, then relaunch TV DIABLO (or: git pull)."
+                    % out["behind"]
+                )
+            else:
+                out["howTo"] = (
+                    "You are %d commit(s) behind GitHub. Relaunch TV DIABLO to auto-pull, "
+                    "or run: git pull && relaunch."
+                    % out["behind"]
+                )
+        else:
+            out["howTo"] = "unified with origin/main — all devices should match after relaunch"
+    except Exception as e:
+        out["ok"] = False
+        out["howTo"] = "fleet check failed: %s" % str(e)[:80]
+    _FLEET_CACHE["t"] = now
+    _FLEET_CACHE["val"] = dict(out)
+    return dict(out)
+
 _ART_MIME = {
     ".png": "image/png",
     ".gif": "image/gif",
@@ -7435,9 +7543,14 @@ def status_payload():
     # computed per-poll so it isn't frozen in _eyes_pulse's mtime cache). null when no read yet.
     _eyes = _eyes_pulse()
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
+    # v1418 — fleet channel truth (cached; never blocks status on a cold git fetch)
+    try:
+        _fleet = fleet_origin_status(force_fetch=False)
+    except Exception:
+        _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1416",
+        "ver": "v1418",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7452,6 +7565,7 @@ def status_payload():
         "engines": _engines_status(),   # 🔌 per-engine wired/running/last-beat — nothing hidden; a dead wire renders ⚫
         "receipts": _receipts_stream(),   # 🧾 bounded newest-first read-receipt stream (routable ids); empty off-air
         "forensicsSummary": _newest_forensics_summary(),   # 🔬 lean {clean,corrected,recovered,blocked,unresolved} badge; full detail at /api/forensics
+        "fleet": _fleet,   # v1418 — {behind, latest, dirty, howTo} so Mac/Win never silently drift
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
@@ -7629,6 +7743,22 @@ def farmgate_payload():
         ("one truth: %s" % vr) if same else "SKEW running=%s disk=%s agent=%s board=%s" % (vr, vc, va, vb),
         fix1))
 
+    # 1b) v1418 fleet_origin — this PC vs GitHub main (Mac + Windows product channel)
+    try:
+        fl = fleet_origin_status(force_fetch=False)
+        behind_n = int(fl.get("behind") or 0)
+        checks.append(_chk(
+            "fleet_origin", behind_n == 0, "warn",
+            ("unified with origin/main (%s)" % (fl.get("head") or fl.get("ver") or "?"))
+            if behind_n == 0 else
+            ("%d commit(s) BEHIND origin — latest: %s" % (behind_n, (fl.get("latest") or "?")[:60])),
+            fl.get("howTo") or "relaunch TV DIABLO to auto-pull (or git pull)"))
+        vers["fleetBehind"] = behind_n
+        vers["fleetHead"] = fl.get("head")
+        vers["fleetOrigin"] = fl.get("origin")
+    except Exception as _fe:
+        checks.append(_chk("fleet_origin", True, "warn", "fleet check skipped: %s" % str(_fe)[:60]))
+
     # 2) claude CLI present (v1380.4 deep hunt — same as start_agent)
     env = _env_clean()
     exe = env.get("TV_CLAUDE_BIN") or _find_claude_bin(env.get("PATH"))
@@ -7789,6 +7919,18 @@ def doctor_payload():
             "capture_proc", h in ("", "LINKED", "RESTARTED"), "warn",
             h or "idle (agent off)",
             "Press RESTART; if it recurs, check capture_win.ps1 and the D2R window"))
+
+    # 7b) v1418 fleet — same GitHub main for Mac + Windows (never silently drift)
+    try:
+        fl = fleet_origin_status(force_fetch=False)
+        bn = int(fl.get("behind") or 0)
+        checks.append(_chk(
+            "fleet_origin", bn == 0, "warn",
+            ("on origin/main · %s" % (fl.get("head") or "?")) if bn == 0
+            else ("%d commit(s) behind origin · %s" % (bn, (fl.get("latest") or "")[:50])),
+            fl.get("howTo") or "relaunch TV DIABLO to auto-pull"))
+    except Exception as _fe:
+        checks.append(_chk("fleet_origin", True, "warn", "fleet check skipped"))
 
     # 8) live frames — freshness only MATTERS (blocks) when we claim to be LIVE
     live = (_agent_mode == "live")
@@ -9179,21 +9321,19 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "log": text})
             return
         if path == "/api/update":
-            # v817 (Grok R8 #2) — ops truth: how far behind origin is this install?
-            # Cousins are git clones (installer does git clone/pull) — fetch is cheap + safe.
+            # v817 / v1418 — fleet unity: force-fetch then report behind-count + howTo.
             try:
-                subprocess.run(["git", "fetch", "origin", "main", "--quiet"],
-                               cwd=REPO, capture_output=True, timeout=20)
-                r = subprocess.run(["git", "rev-list", "HEAD..origin/main", "--count"],
-                                   cwd=REPO, capture_output=True, timeout=10, text=True)
-                behind = int((r.stdout or "0").strip() or 0)
-                subj = ""
-                if behind:
-                    r2 = subprocess.run(["git", "log", "origin/main", "-1", "--format=%s"],
-                                        cwd=REPO, capture_output=True, timeout=10, text=True)
-                    subj = (r2.stdout or "").strip()[:120]
-                self._json(200, {"ok": True, "behind": behind, "latest": subj,
-                                 "howTo": ("git pull, then relaunch TV DIABLO" if behind else "")})
+                fl = fleet_origin_status(force_fetch=True)
+                self._json(200, {
+                    "ok": bool(fl.get("ok", True)),
+                    "behind": int(fl.get("behind") or 0),
+                    "latest": fl.get("latest") or "",
+                    "head": fl.get("head") or "",
+                    "origin": fl.get("origin") or "",
+                    "dirty": bool(fl.get("dirty")),
+                    "ver": fl.get("ver") or status_payload().get("ver"),
+                    "howTo": fl.get("howTo") or "",
+                })
             except Exception as e:
                 self._json(200, {"ok": False, "msg": "update check failed: %s" % e})
             return

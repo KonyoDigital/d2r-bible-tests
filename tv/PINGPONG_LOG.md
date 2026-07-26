@@ -1,3 +1,10 @@
+## Round v1418 — Fleet unity (2026-07-27)
+- **Ask:** Mac v1413 vs Windows v1417/18 — why not unified auto-update all devices?
+- **Ship:** Mac auto-pull matches Windows (ignore untracked, fetch+ff, hard reset if diverged & clean).
+- **Loud:** status.fleet + BEHIND FLEET banner + doctor/farmgate fleet_origin + footer click /api/update.
+- **Truth:** one GitHub main · relaunch pulls · never silent drift.
+
+
 ## Round v1413 — Windows process-first D2R pin (2026-07-27)
 - **Cousin:** still no capture / not pinning game window (Battle.net vs D2R.exe).
 - **Fix:** Get-Process D2R first (not EnumWindows-only); block Battle.net; client-rect pin; primary-monitor fallback when D2R process alive; win_pin_debug.json; game gate honors process alive.
