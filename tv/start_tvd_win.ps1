@@ -153,15 +153,35 @@ if (-not $credHit) {
   Start-Process -Wait powershell -ArgumentList '-NoLogo', '-Command', 'claude' -ErrorAction SilentlyContinue
 }
 
-# v1404 multi-machine: auto-pull only when clean (dirty = local work protected).
-# TV_NO_AUTO_PULL=1 skips entirely. Cousin clean install still always tracks origin.
+# v1414 auto-update (why cousin stuck on old ver):
+# - TV_NO_AUTO_PULL=1 skips entirely
+# - Untracked junk (?? debug files) must NOT block pull
+# - Modified TRACKED files still block (protect real local work)
+# - fetch + ff-only; if diverged with no tracked edits, reset --hard origin/main
 if (-not $env:TV_NO_AUTO_PULL) {
-  $dirty = $null
-  try { $dirty = git -C $repo status --porcelain 2>$null } catch {}
-  if (-not $dirty) {
-    try { git -C $repo pull --ff-only 2>$null | Out-Null } catch {}
+  $trackedDirty = $false
+  try {
+    $porc = @(git -C $repo status --porcelain 2>$null)
+    foreach ($line in $porc) {
+      if ($line -and ($line -notmatch '^\?\?')) { $trackedDirty = $true; break }
+    }
+  } catch {}
+  if ($trackedDirty) {
+    Write-TvdLaunchLog 'skip auto-pull: tracked files modified (local work protected)'
   } else {
-    Write-TvdLaunchLog 'skip auto-pull: dirty working tree (local work protected)'
+    try {
+      git -C $repo fetch origin 2>$null | Out-Null
+      git -C $repo merge --ff-only origin/main 2>$null | Out-Null
+      if ($LASTEXITCODE -eq 0) {
+        Write-TvdLaunchLog 'auto-pull: fast-forward ok'
+      } else {
+        Write-TvdLaunchLog 'auto-pull: ff failed, reset --hard origin/main (no tracked edits)'
+        git -C $repo reset --hard origin/main 2>$null | Out-Null
+        Write-TvdLaunchLog 'auto-pull: now on origin/main'
+      }
+    } catch {
+      Write-TvdLaunchLog ("auto-pull error: {0}" -f $_)
+    }
   }
 } else {
   Write-TvdLaunchLog 'skip auto-pull: TV_NO_AUTO_PULL set'
