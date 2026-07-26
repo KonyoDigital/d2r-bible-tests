@@ -32445,12 +32445,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_forgeFilter==='all' && !total && !(s.farm||[]).length && nowCount===0){
       if (_sealed691) _forgeFilter='completed';
     }
-    // Ready crafts are Make-now work. When the runeword chronicle is sealed (or there are no
-    // runeword make-now/pipeline tasks), open ⚒ Make now so crafts aren't trapped under Completed.
-    if ((s.crafts||[]).length > 0){
-      var _noRwNow = liveNow.length===0 && !(s.pipeline||[]).length;
-      if (_forgeFilter==='all' && _noRwNow) _forgeFilter='now';
-      if (_forgeFilter==='completed' && (_sealed691 || _noRwNow)) _forgeFilter='now';
+    // v1411 — Ready crafts are Make-now work, but ONLY auto-land on ⚒ Make now when the
+    // runeword chronicle is SEALED. Forcing 'now' on an open chronicle hid 🌾 farm / one-step
+    // words from the DOM (v604 coverage invariant: every unmade word must remain visible).
+    // On All (unsealed), crafts still render inside the Make-now section via show('now').
+    if ((s.crafts||[]).length > 0 && _sealed691 && (_forgeFilter==='all' || _forgeFilter==='completed')){
+      _forgeFilter='now';
     }
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
     H.push('<div class="forge-head tvf-head"><span class="tvf-emblem">🔨</span><div class="forge-headtxt"><div class="forge-title">Forge</div>'
@@ -35335,7 +35335,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1411', name:'v1411 · Crafts in Make now', date:'2026-07-26', note:'Ready crafts are first-class Make-now tasks; sealed chronicle no longer traps on Completed; Sessions forgeSummary.now includes crafts.' }; stop ON AIR off-thread; no evaluate_js on dead WKWebView; process exits cleanly.' };
+  window.D2R_BUILD = { id:'v1411', name:'v1411 · Crafts in Make now', date:'2026-07-26', note:'Ready crafts are first-class Make-now tasks; sealed chronicle no longer traps on Completed; Sessions forgeSummary.now includes crafts.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
