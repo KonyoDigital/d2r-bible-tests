@@ -1,4 +1,4 @@
-# TV DIABLO - Windows launcher ONLY (Desktop - native pywebview / WebView2, NOT Chrome)
+﻿# TV DIABLO - Windows launcher ONLY (Desktop - native pywebview / WebView2, NOT Chrome)
 # NOT for Mac. Mac uses start_tvd_mac.sh / install-tvd.sh on a different machine.
 # Agent + capture stay hidden. Controls: ON/OFF/STOP/RESTART/SIM.
 # Encoding: ASCII-only strings so Windows PowerShell 5.1 never mis-parses UTF-8.
@@ -169,13 +169,13 @@ if (-not (Test-Path -LiteralPath $capture)) {
   Show-TvdError "Windows capture missing (capture_win.ps1). Re-run WINDOWS installer (not Mac).`n`nLog: $launchLog"
   return
 }
-# v1404 — pin Windows ship identity; refuse Mac-confused trees
+# v1404 - pin Windows ship identity; refuse Mac-confused trees
 $shipVer = '?'
 if (Test-Path -LiteralPath $shipPath) {
   try {
     $ship = Get-Content -LiteralPath $shipPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($ship.platform -ne 'windows') {
-      Show-TvdError "WINDOWS_SHIP.platform=$($ship.platform) — this launcher is Windows only.`nRe-install with the Windows IRM line."
+      Show-TvdError "WINDOWS_SHIP.platform=$($ship.platform) - this launcher is Windows only.`nRe-install with the Windows IRM line."
       return
     }
     $shipVer = [string]$ship.ver
@@ -196,7 +196,7 @@ if (Test-Path -LiteralPath $shipPath) {
     Write-TvdLaunchLog ("WINDOWS_SHIP.json read failed: {0}" -f $_)
   }
 } else {
-  Write-TvdLaunchLog 'WINDOWS_SHIP.json missing — pull latest Windows repo'
+  Write-TvdLaunchLog 'WINDOWS_SHIP.json missing - pull latest Windows repo'
 }
 
 # ---------------------------------------------------------------------------

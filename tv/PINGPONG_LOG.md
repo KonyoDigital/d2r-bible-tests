@@ -2272,3 +2272,55 @@ Konyo: other Grok on Windows bugged mid-install; tip via GitHub.
 **Symptom:** Desktop TV DIABLO closes immediately; doctor URL dead.  
 **Cause:** `Start-Process -ArgumentList @($control,'--open')` splits on spaces in `C:\Users\עדי חוסיד\...` → python `can't open file 'C:\\Users\\עדי'`.  
 **Fix:** `tv/start_tvd_win.ps1` quote path as single ArgumentList string + doctor probe + `start_tvd_win.log`. Full writeup: `tv/WINDOWS_LAUNCH_REPORT.md`.
+
+## 2026-07-26 - ON AIR broken on Hebrew Windows (v1402)
+
+**Symptom:** ON AIR spins/timeout; doctor ok but agent never on :17771.
+
+**Root causes (two):**
+1. `tv_diablo.py` boot `print(emoji)` -> `UnicodeEncodeError` under cp1255 -> agent dies before bridge.
+2. `capture_win.ps1` UTF-8 emoji/emdash **without BOM** -> PowerShell 5.1 mis-parses under Hebrew code page -> parser crash.
+
+**Fix:** ASCII-safe `capture_win.ps1` (UTF-8 BOM) + `PYTHONUTF8`/stdio reconfigure in agent + env in control_app. Triple stamp **v1402**.
+
+**Verified:** POST /api/on -> ok, mode=live, bridge=true, capture=LINKED, frames writing (full-screen when D2R not running).
+
+---
+
+## ROUND v1402-v1404 — Windows cousin ON AIR + Windows-only ship (2026-07-26)
+
+**Lane:** Windows Grok (this PC) · **Product truth still Mac/Konyo repo** · shipped to main.
+
+### Honest workflow audit (KONYO_WORKFLOW.md)
+- Working before this note: **partial firefight** (install/ON AIR rescue), NOT full seven-round seal.
+- Now realigned: syntax gates on Win PS1 (ASCII+BOM), triple stamp, doctor live, ledger + REG, commit/push.
+- **NOT sealed** under Step 13 yet (need Fable suite/Playwright RINSE + SuperGrok back-pass rounds 2-7).
+- Live sanctity: no force mid-farm restarts when user ON AIR farming.
+
+### Ships
+| Ver | Fix |
+|-----|-----|
+| v1402 | Hebrew Windows: capture_win.ps1 ASCII+BOM; agent UTF-8 stdio; PYTHONUTF8 env |
+| v1403 | ON AIR deadlock: threading.Lock -> RLock (start_agent holds lock, _pid_alive re-enters) |
+| v1404 | Windows-only identity: WINDOWS_SHIP.json platform=windows; install/launcher guards; doctor ship checks; no Mac mesh |
+
+### Gates run on THIS Windows PC (partial)
+- [x] py ast.parse control_app / tv_diablo
+- [x] PS Parser: start_tvd_win.ps1 / install-tvd.ps1 / capture_win.ps1 OK after ASCII+BOM
+- [x] Triple stamp v1404 + WINDOWS_SHIP.platform=windows
+- [x] Live doctor ok + shipVer v1404
+- [x] POST /api/on ~0.65s mode=live bridge=true capture=LINKED (after RLock)
+- [ ] test_control.py / agent py full suite (Mac CI preferred)
+- [ ] Playwright RINSE / visual screenshots looked-at
+- [ ] SuperGrok pingpong R2-R7
+- [ ] Cloudflare deploy (Mac/dev)
+
+### Commits
+- bfce854 path-space Desktop launcher
+- 454b25d RLock v1403
+- 09dbf17 Windows-only ship v1404
+- (follow-up) ASCII-clean install/start PS1 so PS 5.1 Hebrew locale parses
+
+### REG
+See BUGS.md REG-041 / REG-042 / REG-043.
+

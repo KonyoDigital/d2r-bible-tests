@@ -1,16 +1,16 @@
-# 📺 TV DIABLO — one-shot Windows installer (Windows only · v1404)
+﻿#  TV DIABLO - one-shot Windows installer (Windows only  -  v1404)
 #
 #     irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 #
 # One paste: Git + Python + pywebview + Claude Code + Grok CLI (optional SuperGrok
-# vision lane), clones the bible repo, drops Desktop "TV DIABLO" → real native app
+# vision lane), clones the bible repo, drops Desktop "TV DIABLO" -> real native app
 # window (pywebview / Edge WebView2, NOT Chrome). Windows control UI (pywebview / WebView2):
-# ON/OFF/STOP/RESTART/SIM · hidden agent. Grok stays OFF until you authorize once.
+# ON/OFF/STOP/RESTART/SIM  -  hidden agent. Grok stays OFF until you authorize once.
 #
 # Served as text/plain so `irm | iex` always gets a string.
 $ErrorActionPreference = 'Stop'
 
-# v1404 WINDOWS ONLY — never run Mac scripts on this PC; never claim Mac parity here.
+# v1404 WINDOWS ONLY - never run Mac scripts on this PC; never claim Mac parity here.
 if ($env:OS -ne 'Windows_NT') {
   Write-Host 'TV DIABLO installer: Windows only. Use the Mac installer on macOS.' -ForegroundColor Red
   return
@@ -82,7 +82,7 @@ function Real-Python {
 }
 
 function Winget-Install($id, $label) {
-  Say "installing $label…"
+  Say "installing $label..."
   $wingetArgs = @('install', '-e', '--id', $id, '--silent',
                   '--accept-package-agreements', '--accept-source-agreements',
                   '--disable-interactivity')
@@ -92,10 +92,10 @@ function Winget-Install($id, $label) {
   Refresh-Path
 }
 
-Say "installer (Windows only · v1404) — one shot, then Desktop TV DIABLO = the control app"
+Say "installer (Windows only  -  v1404) - one shot, then Desktop TV DIABLO = the control app"
 
 if (-not (Have 'winget')) {
-  Warn "winget not found — install 'App Installer' from the Microsoft Store, then re-run this line."
+  Warn "winget not found - install 'App Installer' from the Microsoft Store, then re-run this line."
   return
 }
 
@@ -104,7 +104,7 @@ if (-not (Have 'git')) {
   Winget-Install 'Git.Git' 'Git'
 }
 if (Have 'git') { Ok "git $((git --version) -replace 'git version ','')" } else {
-  Warn "git still missing — close this window, open a NEW PowerShell, re-run the install line."
+  Warn "git still missing - close this window, open a NEW PowerShell, re-run the install line."
   return
 }
 
@@ -115,37 +115,37 @@ if (-not $py) {
 }
 if ($py) { Ok "python ($py)" } else {
   Warn "python still missing (or only the Windows Store stub is installed)."
-  Warn "turn OFF 'App execution aliases' for python.exe in Settings → Apps → Advanced, then re-run."
+  Warn "turn OFF 'App execution aliases' for python.exe in Settings -> Apps -> Advanced, then re-run."
   return
 }
 
-# ── pywebview (real native window via Edge WebView2 — not Chrome) ────────────
-Say "installing pywebview (native app window)…"
+# -- pywebview (real native window via Edge WebView2 - not Chrome) ------------
+Say "installing pywebview (native app window)..."
 try {
   & $py -m pip install --user --quiet 'pywebview>=5.0' | Out-Null
-  # v770 — pywebview on Windows NEEDS the Edge WebView2 Runtime; locked-down PCs lack it and
+  # v770 - pywebview on Windows NEEDS the Edge WebView2 Runtime; locked-down PCs lack it and
   # the app silently falls to a browser. Bootstrap it loudly if missing.
   $wv2 = Test-Path "$env:ProgramFiles (x86)\Microsoft\EdgeWebView\Application" -PathType Container
   if (-not $wv2) { $wv2 = Test-Path "${env:ProgramFiles(x86)}\Microsoft\EdgeWebView\Application" }
   if (-not $wv2) {
-    Say "installing Edge WebView2 Runtime (the native window engine)…"
+    Say "installing Edge WebView2 Runtime (the native window engine)..."
     winget install -e --id Microsoft.EdgeWebView2Runtime --silent --accept-package-agreements --accept-source-agreements | Out-Null
   }
-  Ok "pywebview (native window · WebView2)"
+  Ok "pywebview (native window  -  WebView2)"
 } catch {
-  Warn "pywebview pip install failed — app will retry on first launch / browser fallback"
+  Warn "pywebview pip install failed - app will retry on first launch / browser fallback"
 }
 
-# ── bible repo FIRST (so Desktop shortcut always lands even if Claude install flakes) ──
+# -- bible repo FIRST (so Desktop shortcut always lands even if Claude install flakes) --
 if (Test-Path (Join-Path $repoDir '.git')) {
-  Say "updating the bible repo…"
+  Say "updating the bible repo..."
   try {
     git -C $repoDir pull --ff-only 2>&1 | Out-Null
   } catch {
-    Warn "git pull failed — using whatever is already at $repoDir"
+    Warn "git pull failed - using whatever is already at $repoDir"
   }
 } else {
-  Say "cloning the bible repo…"
+  Say "cloning the bible repo..."
   git clone --depth 1 $repoUrl $repoDir | Out-Null
 }
 
@@ -160,24 +160,24 @@ $need = @(
 )
 foreach ($rel in $need) {
   if (-not (Test-Path (Join-Path $repoDir $rel))) {
-    Warn "clone incomplete — missing $rel at $repoDir"
+    Warn "clone incomplete - missing $rel at $repoDir"
     Warn "git pull main (need v761+). Re-run this install line after the repo updates."
     return
   }
 }
 Ok "repo at $repoDir (control app present)"
 
-# v1404 — pin Windows ship identity (no Mac mesh)
+# v1404 - pin Windows ship identity (no Mac mesh)
 $shipPath = Join-Path $repoDir 'tv\WINDOWS_SHIP.json'
 if (-not (Test-Path -LiteralPath $shipPath)) {
-  Warn "WINDOWS_SHIP.json missing after clone — repo may be incomplete. Re-run after git pull."
+  Warn "WINDOWS_SHIP.json missing after clone - repo may be incomplete. Re-run after git pull."
 } else {
   try {
     $ship = Get-Content -LiteralPath $shipPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($ship.platform -ne 'windows') {
-      Warn "WINDOWS_SHIP.platform is '$($ship.platform)' — expected windows. Do not use Mac installers on this PC."
+      Warn "WINDOWS_SHIP.platform is '$($ship.platform)' - expected windows. Do not use Mac installers on this PC."
     } else {
-      Ok "Windows ship $($ship.ver) · platform=windows · $($ship.name)"
+      Ok "Windows ship $($ship.ver)  -  platform=windows  -  $($ship.name)"
     }
     $stampObj = [ordered]@{
       platform   = 'windows'
@@ -199,15 +199,15 @@ if (-not (Test-Path -LiteralPath $shipPath)) {
 }
 
 
-# ── Claude Code (needed for vision ON AIR) ───────────────────────────────────
-# v784.1 — Windows PowerShell 5.1 often returns .Content as Byte[] for install.ps1;
+# -- Claude Code (needed for vision ON AIR) -----------------------------------
+# v784.1 - Windows PowerShell 5.1 often returns .Content as Byte[] for install.ps1;
 #          Invoke-Expression then dies with "Cannot convert System.Byte[] to String".
 #          Decode to UTF-8 string; fall backs: irm|iex, winget. NEVER abort before Desktop.
 function Install-ClaudeCode {
   if (Have 'claude') { return $true }
-  Say "installing Claude Code (Anthropic's official installer)…"
+  Say "installing Claude Code (Anthropic's official installer)..."
 
-  # Path A — robust download + decode (fixes Byte[] crash on PS 5.1)
+  # Path A - robust download + decode (fixes Byte[] crash on PS 5.1)
   try {
     $resp = Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -UseBasicParsing
     $scriptText = $null
@@ -224,15 +224,15 @@ function Install-ClaudeCode {
     Invoke-Expression $scriptText
   } catch {
     Warn "official install.ps1 path failed ($($_.Exception.Message))"
-    # Path B — irm | iex (PowerShell may coerce bytes differently)
+    # Path B - irm | iex (PowerShell may coerce bytes differently)
     try {
       Invoke-Expression (Invoke-RestMethod -Uri 'https://claude.ai/install.ps1')
     } catch {
       Warn "irm/iex path failed ($($_.Exception.Message))"
-      # Path C — winget (when published)
+      # Path C - winget (when published)
       try {
         if (Have 'winget') {
-          Say "trying winget Anthropic.ClaudeCode…"
+          Say "trying winget Anthropic.ClaudeCode..."
           winget install -e --id Anthropic.ClaudeCode --silent --accept-package-agreements --accept-source-agreements 2>$null | Out-Null
         }
       } catch {}
@@ -261,18 +261,18 @@ $claudeOk = Install-ClaudeCode
 if ($claudeOk) {
   Ok "claude code"
 } else {
-  Warn "claude still missing — vision ON AIR needs it."
+  Warn "claude still missing - vision ON AIR needs it."
   Warn "install manually: https://docs.anthropic.com/en/docs/claude-code"
   Warn "or in a NEW PowerShell:  irm https://claude.ai/install.ps1 | iex"
-  Warn "Desktop app will still be created — log into Claude before ON."
+  Warn "Desktop app will still be created - log into Claude before ON."
 }
 
-# ── Grok Build CLI (optional SuperGrok vision lane · G5 · never required) ────
+# -- Grok Build CLI (optional SuperGrok vision lane  -  G5  -  never required) ----
 # Official xAI installer (same spirit as Claude Code). Cousin can leave Grok OFF.
-# Authorize once later: console ⚡ Authorize Grok, or:  grok login
+# Authorize once later: console  Authorize Grok, or:  grok login
 function Install-GrokCli {
   if (Have 'grok') { return $true }
-  Say "installing Grok CLI (xAI SuperGrok · optional vision lane)…"
+  Say "installing Grok CLI (xAI SuperGrok  -  optional vision lane)..."
   try {
     $resp = Invoke-WebRequest -Uri 'https://x.ai/cli/install.ps1' -UseBasicParsing
     $scriptText = $null
@@ -314,13 +314,13 @@ function Install-GrokCli {
 Refresh-Path
 $grokOk = Install-GrokCli
 if ($grokOk) {
-  Ok "grok cli (optional — authorize later in console or: grok login)"
+  Ok "grok cli (optional - authorize later in console or: grok login)"
 } else {
-  Warn "grok CLI not installed — optional. Grok Eyes stays OFF until you install SuperGrok CLI."
+  Warn "grok CLI not installed - optional. Grok Eyes stays OFF until you install SuperGrok CLI."
   Warn "manual:  irm https://x.ai/cli/install.ps1 | iex   then:  grok login"
 }
 
-# Desktop shortcut → start_tvd_win.ps1 → pythonw + pywebview native window
+# Desktop shortcut -> start_tvd_win.ps1 -> pythonw + pywebview native window
 $ws  = New-Object -ComObject WScript.Shell
 $desktop = [Environment]::GetFolderPath('Desktop')
 # OneDrive Desktop redirect (common on Windows 11)
@@ -342,7 +342,7 @@ if (-not $lnkPath) {
 }
 $lnk = $ws.CreateShortcut($lnkPath)
 $lnk.TargetPath       = 'powershell.exe'
-# Hidden host shell only — the app window is pywebview (pythonw), not this console
+# Hidden host shell only - the app window is pywebview (pythonw), not this console
 $lnk.Arguments        = "-NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$repoDir\tv\start_tvd_win.ps1`""
 $lnk.WorkingDirectory = $repoDir
 $ico = Join-Path $repoDir 'tv\appicon.ico'
@@ -351,7 +351,7 @@ if (Test-Path -LiteralPath $ico) {
 } else {
   $lnk.IconLocation = 'powershell.exe,0'
 }
-$lnk.Description      = 'TV DIABLO Windows — native WebView2 control (NOT Mac · hidden scanner · Claude)'
+$lnk.Description      = 'TV DIABLO Windows - native WebView2 control (NOT Mac  -  hidden scanner  -  Claude)'
 $lnk.Save()
 Ok "Desktop shortcut: $lnkPath"
 
@@ -371,7 +371,7 @@ try {
 } catch {}
 
 Say "DONE. Double-click TV DIABLO on your Desktop (or Start Menu)."
-Say "Native app window (not Chrome) · ON / OFF / STOP / RESTART / SIM · one window."
+Say "Native app window (not Chrome)  -  ON / OFF / STOP / RESTART / SIM  -  one window."
 if (-not $claudeOk) {
   Warn "finish Claude Code install, then re-open TV DIABLO and press ON AIR."
 }
@@ -382,7 +382,7 @@ if (-not (Test-Path $credFile)) {
 if ($grokOk) {
   $gAuth = Join-Path $HOME '.grok\auth.json'
   if (-not (Test-Path $gAuth)) {
-    Warn "Grok CLI ready — open TV DIABLO → ⚙ advanced → ⚡ Authorize Grok (browser once), or: grok login"
+    Warn "Grok CLI ready - open TV DIABLO ->  advanced ->  Authorize Grok (browser once), or: grok login"
   } else {
     Ok "Grok already authorized on this PC (no re-login needed)"
   }
