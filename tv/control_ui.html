@@ -3783,14 +3783,17 @@
           if (shb) {
             if (noGame) shb.innerHTML = 'Open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). The AI stays off your desktop until the game window is found.';
             else if (eyeWaiting || noEye) shb.innerHTML = isWin
-              ? ('<b>' + (ct0.label || 'waiting for D2R.exe window') + '</b><br>Windows pin looks for <b>D2R.exe</b> (the game, not Battle.net or this console). Open D2R in-game, then wait a few seconds or hit <b>RESTART</b>.')
+              ? ('<b>' + (ct0.label || 'waiting for D2R.exe') + '</b><br>'
+                + 'Windows looks for process <b>D2R.exe</b> (in-game), never Battle.net. '
+                + 'If the game is exclusive fullscreen and pin fails, try <b>borderless windowed</b>, then <b>RESTART</b>. '
+                + 'Debug: <code>tv/frames/win_pin_debug.json</code> after ON AIR.')
               : ('<b>' + (ct0.label || 'waiting for D2R window') + '</b><br>Not a black recorder bug — the eye refuses to film the Mac wallpaper.');
             else shb.innerHTML = isWin
-              ? 'Last frame is stale. Focus the <b>D2R game window</b> (or leave fullscreen windowed), then press <b>RESTART</b>.'
+              ? 'Last frame is stale. Focus the <b>D2R game window</b> (borderless preferred), then press <b>RESTART</b>.'
               : 'Last frame is stale. Grant <b>Screen Recording</b> to Python / TV DIABLO, focus D2R, or press <b>RESTART</b>.';
           }
           if (shh) shh.textContent = (ct0.mode ? ('capture: ' + ct0.mode + (ct0.label ? ' · ' + ct0.label : ''))
-            : (isWin ? 'D2R.exe window pin · capture_win.ps1 · not Battle.net' : 'CrossOver bottle · D2R.exe · Screen Recording → Python'));
+            : (isWin ? 'D2R.exe process-first pin · capture_win.ps1 · not Battle.net' : 'CrossOver bottle · D2R.exe · Screen Recording → Python'));
         }
       }
       if (noGame || eyeWaiting || noEye) {

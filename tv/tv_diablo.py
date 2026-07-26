@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1412"   # Windows D2R pin + capture restart (cousin).
+VERSION = "v1413"   # Windows process-first D2R pin (cousin exclusive FS).
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2625,13 +2625,41 @@ def _pool_shutdown(timeout=None, keep_worker0=True):
     except Exception: pass
 
 
+def _win_d2r_process_alive():
+    """v1413 — Windows: is D2R.exe (or DiabloII*) running? Used when window pin is flaky
+    (exclusive fullscreen) so we don't HOLD forever while the cousin is clearly in-game."""
+    if not sys.platform.startswith("win"):
+        return False
+    try:
+        out = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq D2R.exe", "/NH"],
+            capture_output=True, text=True, timeout=3,
+            creationflags=(0x08000000 if sys.platform.startswith("win") else 0),
+        )
+        blob = (out.stdout or "") + (out.stderr or "")
+        if "D2R.exe" in blob and "No tasks" not in blob and "INFO:" not in blob.upper():
+            return True
+    except Exception:
+        pass
+    try:
+        import psutil  # optional
+        for p in psutil.process_iter(["name"]):
+            n = (p.info.get("name") or "").lower()
+            if n in ("d2r.exe",) or n.startswith("d2r") or "diabloii" in n.replace(" ", ""):
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def _game_window_present():
     """v899 — True when the real D2R game window is pin-able (Mac Quartz / Win watch target).
-    Stub/SIM always True so harnesses never trip the no-game pause."""
+    Stub/SIM always True so harnesses never trip the no-game pause.
+    v1413 — Windows: process-alive OR window pin (exclusive fullscreen often has no EnumWindows hit)."""
     if os.environ.get("TV_STUB") or os.environ.get("TV_NO_GAME_GUARD") == "0":
         return True
     if WATCH_MODE:
-        # Windows: capture half owns pin; treat any fresh eye as "game-ish" if target.json says so
+        # Windows: capture half owns pin; also honor D2R.exe process (v1413)
         try:
             tp = os.path.join(FRAMES, "cap_target.json")
             if os.path.isfile(tp):
@@ -2640,10 +2668,17 @@ def _game_window_present():
                 mode = str(j.get("mode") or "").lower()
                 if mode in ("window", "game", "d2r"):
                     return True
+                if j.get("d2rProcess") is True:
+                    return True
                 if mode in ("waiting", "none", "missing"):
+                    # still open if process is alive (pin lag / exclusive FS)
+                    if _win_d2r_process_alive():
+                        return True
                     return False
         except Exception:
             pass
+        if _win_d2r_process_alive():
+            return True
         # eye fresh + large enough → assume capture half is alive (don't block Win falsely)
         try:
             eye = os.path.join(FRAMES, "eye.jpg")

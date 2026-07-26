@@ -1,3 +1,9 @@
+## Round v1413 — Windows process-first D2R pin (2026-07-27)
+- **Cousin:** still no capture / not pinning game window (Battle.net vs D2R.exe).
+- **Fix:** Get-Process D2R first (not EnumWindows-only); block Battle.net; client-rect pin; primary-monitor fallback when D2R process alive; win_pin_debug.json; game gate honors process alive.
+- **Cousin:** pull · borderless · open in-game · RESTART · paste win_pin_debug if still broken.
+
+
 ## Round v1412 — Windows D2R pin + capture recovery (2026-07-26)
 - **Cousin symptom:** ON AIR + EYE HELD + `NO CAPTURE — Windows capture process died` (and Mac wallpaper copy on Windows).
 - **Fix:** capture_win PrintWindow fallback + sticky pin + wider process match; multi-restart capture (5x); platform-aware hold UI; clearer RESTART fault.

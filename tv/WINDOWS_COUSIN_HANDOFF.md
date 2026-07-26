@@ -168,7 +168,22 @@ Status: `http://127.0.0.1:17772/api/status` → `ver` should be whole number (v1
 | pywebview / blank window | WebView2 Runtime: `winget install -e --id Microsoft.EdgeWebView2Runtime` |
 | Port in use / second window | Kill old TV DIABLO / python on 17772; one console only |
 | Doctor claude_cli block | Install + login Claude |
-| ON AIR fails | Doctor first; D2R running; capture pin |
+| ON AIR fails | Doctor first; **D2R.exe in-game** (not only Battle.net); capture pin |
+| `NO CAPTURE` / no pin | `git pull` → v1413+ · borderless windowed · `tv\frames\win_pin_debug.json` · RESTART |
+
+### Window pin still wrong (v1413)
+
+```powershell
+cd $HOME\d2r_bible_tests
+git pull
+# fully quit TV DIABLO, reopen Desktop shortcut
+# open D2R in-game (character select / world), prefer borderless windowed
+# ON AIR → wait 5s → if still HOLD:
+Get-Content $HOME\d2r_bible_tests\tv\frames\win_pin_debug.json
+Get-Process D2R -ErrorAction SilentlyContinue | Format-Table Id,ProcessName,MainWindowTitle
+```
+
+Paste those two outputs back if pin still fails.
 | IRM Byte[] / Invoke-Expression errors | Use Windows PowerShell 5.1+ or PowerShell 7; re-run official install line |
 
 ---
