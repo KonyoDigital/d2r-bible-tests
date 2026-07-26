@@ -807,11 +807,33 @@ class TestLiveReadTimeoutCap(unittest.TestCase):
         tv.CLAUDE_BIN = self.fake
         self._orig_timeout = tv.LIVE_READ_TIMEOUT_S
         os.environ["TV_FAKE_MODE"] = "slow"   # fake claude never answers the warm/stream path
+        # v1380.4 — pin G5 OFF for this pin. Machine G5 primary would route vision through
+        # SuperGrok first and blow the LIVE_READ_TIMEOUT_S budget the test is measuring.
+        self._g5_env = os.environ.get("TV_G5_MODE")
+        os.environ["TV_G5_MODE"] = "off"
+        try:
+            import g5_grok_eyes as _g5
+            self._g5_mod = _g5
+            self._g5_is_pri = getattr(_g5, "is_primary", None)
+            self._g5_is_sh = getattr(_g5, "is_shadow", None)
+            _g5.is_primary = lambda: False
+            _g5.is_shadow = lambda: False
+        except Exception:
+            self._g5_mod = None
 
     def tearDown(self):
         tv.CLAUDE_BIN = self._orig_bin
         tv.LIVE_READ_TIMEOUT_S = self._orig_timeout
         os.environ.pop("TV_FAKE_MODE", None)
+        if self._g5_env is None:
+            os.environ.pop("TV_G5_MODE", None)
+        else:
+            os.environ["TV_G5_MODE"] = self._g5_env
+        if getattr(self, "_g5_mod", None) is not None:
+            if self._g5_is_pri is not None:
+                self._g5_mod.is_primary = self._g5_is_pri
+            if self._g5_is_sh is not None:
+                self._g5_mod.is_shadow = self._g5_is_sh
 
     def test_stalled_warm_read_bounded_by_live_read_timeout(self):
         tv.LIVE_READ_TIMEOUT_S = 1.0   # tight cap — a stalled read must give up fast

@@ -935,18 +935,30 @@ class TestV924FarmGate(unittest.TestCase):
             returncode = 1
             stdout = b""
             stderr = b"please run /login"
+        class _G5Off:
+            @staticmethod
+            def is_primary():
+                return False
         old = ca.subprocess.run
         old_which = ca.shutil.which
         old_sock = ca._sock_open
+        old_g5 = ca._G5
+        old_find = getattr(ca, "_find_claude_bin", None)
         ca.subprocess.run = lambda *a, **k: _PR()
         ca.shutil.which = lambda *a, **k: "/usr/bin/claude"
         ca._sock_open = lambda *a, **k: False   # pin "agent OFF" so the auth ping actually runs (v924-R4 skips it during ON AIR)
+        ca._G5 = _G5Off   # v1380.4 — machine G5 primary must not soft-skip this gate
+        if old_find:
+            ca._find_claude_bin = lambda *a, **k: "/usr/bin/claude"
         try:
             j = ca.farmgate_payload()
         finally:
             ca.subprocess.run = old
             ca.shutil.which = old_which
             ca._sock_open = old_sock
+            ca._G5 = old_g5
+            if old_find:
+                ca._find_claude_bin = old_find
         au = next(c for c in j["checks"] if c["id"] == "claude_auth")
         self.assertFalse(au["ok"])
         self.assertEqual(j["verdict"], "NO-GO")
