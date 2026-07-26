@@ -1943,7 +1943,13 @@ class TestCloserLoopClockSkewImmunity(unittest.TestCase):
         src = inspect.getsource(ca._kai_closer_loop)
         # completedTs is a persisted wall-clock timestamp — the cutoff compared against it
         # must NOT switch to monotonic, only the pacing deadline above it does.
-        self.assertIn('int(r3.get("completedTs") or 0) >= int(_t0f * 1000)', src)
+        # v1381.0 multi-retry uses inverted form (`< …: continue`) but still wall-clock `_t0f`.
+        self.assertTrue(
+            'int(r3.get("completedTs") or 0) >= int(_t0f * 1000)' in src
+            or 'int(r3.get("completedTs") or 0) < int(_t0f * 1000)' in src,
+            "journal cutoff must compare completedTs against wall-clock _t0f*1000")
+        self.assertIn("int(_t0f * 1000)", src)
+        self.assertNotIn("int(_t0f_mono * 1000)", src)
 
     def test_super_analyze_wait_deadline_uses_monotonic(self):
         import inspect
@@ -2868,6 +2874,160 @@ class TestSanctionedGridSoloTallyRoute(unittest.TestCase):
         row2 = ca._kai_gate_check("stash-gems", ["journal"], 1, "tally:gems", grid_solo_ok=True)
         self.assertFalse(row2["pass"])
         self.assertEqual(row2["reason"], "no-hard-signal")
+
+
+class TestV1381GapFunnelGateAwareRank(unittest.TestCase):
+    """v1381.0 — gap-funnel must NOT prefer conf=3 wrong-cell (Personal+tooltip mis-sticky)
+    over a real gems grid frame. Forensic s_178498…95276 fed gemIntake the wrong still."""
+
+    def _wrong_cell_gems(self):
+        return {
+            "f": "f_wrong.jpg", "ts": 1000, "label": "stash-gems",
+            "sources": ["journal", "ocr", "tabstrip"], "confidence": 3,
+            "gatePass": False, "gateReason": "wrong-cell",
+            "gridLabel": "stash-gems", "tabstripLabel": "stash-gems", "ocrLabel": "stash-gems",
+        }
+
+    def _real_grid_gems(self):
+        return {
+            "f": "f_real.jpg", "ts": 2000, "label": "stash-gems",
+            "sources": [], "confidence": 0,
+            "gatePass": False, "gateReason": "no-hard-signal",
+            "gridLabel": "stash-gems", "grid": True,
+        }
+
+    def _gate_pass_gems(self):
+        return {
+            "f": "f_pass.jpg", "ts": 1500, "label": "stash-gems",
+            "sources": ["grid", "tabstrip"], "confidence": 2,
+            "gatePass": True, "gateReason": None,
+            "gridLabel": "stash-gems", "tabstripLabel": "stash-gems",
+        }
+
+    def test_wrong_cell_scores_below_real_grid(self):
+        w = self._wrong_cell_gems()
+        r = self._real_grid_gems()
+        self.assertLess(ca._kai_gap_funnel_score(w, "gems"), ca._kai_gap_funnel_score(r, "gems"))
+
+    def test_gate_pass_wins_over_wrong_cell_even_if_lower_conf(self):
+        w = self._wrong_cell_gems()
+        p = self._gate_pass_gems()
+        self.assertGreater(ca._kai_gap_funnel_score(p, "gems"), ca._kai_gap_funnel_score(w, "gems"))
+
+    def test_gap_funnel_picks_real_grid_not_wrong_cell(self):
+        routing = [self._wrong_cell_gems(), self._real_grid_gems()]
+        gaps = ca._kai_stage3_gap_funnels(routing, [])
+        self.assertEqual(len(gaps), 1)
+        self.assertEqual(gaps[0]["tab"], "gems")
+        self.assertEqual(gaps[0]["f"], "f_real.jpg")
+        # multi-retry alts include the wrong-cell only as last resort if viable empty —
+        # here viable exists so wrong-cell may still appear in alts pool of remaining ranked
+        self.assertIn("alts", gaps[0])
+
+    def test_gap_funnel_alts_carry_next_best(self):
+        routing = [self._gate_pass_gems(), self._real_grid_gems(), self._wrong_cell_gems()]
+        gaps = ca._kai_stage3_gap_funnels(routing, [])
+        self.assertEqual(gaps[0]["f"], "f_pass.jpg")
+        self.assertIn("f_real.jpg", gaps[0].get("alts") or [])
+
+    def test_real_receipt_skips_tab(self):
+        routing = [self._real_grid_gems()]
+        sess = [{"intake": {"tab": "gems", "kind": "tally", "ok": True, "total": 40}}]
+        gaps = ca._kai_stage3_gap_funnels(routing, sess)
+        self.assertEqual(gaps, [])
+
+    def test_failed_receipt_does_not_skip_tab(self):
+        routing = [self._real_grid_gems()]
+        sess = [{"intake": {"tab": "gems", "kind": "kai-funnel", "ok": False, "total": 0, "errors": 1}}]
+        gaps = ca._kai_stage3_gap_funnels(routing, sess)
+        self.assertEqual(len(gaps), 1)
+
+    def test_grid_solo_gems_still_queued(self):
+        # regression: sanctioned grid-solo gems must still produce a gap-funnel job
+        row = {
+            "f": "g1.jpg", "ts": 1000, "label": "stash-gems",
+            "sources": ["grid"], "confidence": 1,
+            "gatePass": True, "gateReason": None,
+            "gridLabel": "stash-gems", "grid": True, "gridSolo": True,
+        }
+        gaps = ca._kai_stage3_gap_funnels([row], [])
+        self.assertEqual(gaps[0]["tab"], "gems")
+        self.assertEqual(gaps[0]["f"], "g1.jpg")
+
+
+class TestV1381SuperExcludesTallyPanels(unittest.TestCase):
+    """v1381.1 — super-analyze must not item-judge stash-gems/runes/materials grids."""
+
+    def test_tally_panel_not_selected_even_if_gate_pass(self):
+        routing = [{
+            "f": "gems.jpg", "ts": 1000, "label": "stash-gems",
+            "gatePass": True, "confidence": 3, "sources": ["grid", "tabstrip"],
+        }, {
+            "f": "tip.jpg", "ts": 2000, "label": "tooltip",
+            "gatePass": True, "confidence": 2, "sources": ["ocr", "read"],
+        }]
+        cands = ca._kai_super_select(routing, [], fullnames=set(), cap=10)
+        labs = [c.get("label") for c in cands]
+        self.assertNotIn("stash-gems", labs)
+        self.assertIn("tooltip", labs)
+
+    def test_plain_stash_still_eligible(self):
+        routing = [{
+            "f": "stash.jpg", "ts": 1000, "label": "stash",
+            "gatePass": True, "confidence": 2, "sources": ["ocr", "journal"],
+        }]
+        cands = ca._kai_super_select(routing, [], fullnames=set(), cap=10)
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["label"], "stash")
+
+
+class TestV1381OcrPhraseFix(unittest.TestCase):
+    """v1381.1 — GRAMD CHAR → Grand Charm forensic correction."""
+
+    def test_gramd_char_fixes(self):
+        hit = ca._kai_ocr_phrase_fix(["GRAMD CHAR"])
+        self.assertIsNotNone(hit)
+        self.assertEqual(hit[0], "Grand Charm")
+
+    def test_forensic_correction_uses_phrase(self):
+        corr = ca._kai_forensic_correction(["GRAMD CHAR"])
+        self.assertIsNotNone(corr)
+        self.assertEqual(corr[0], "Grand Charm")
+        self.assertEqual(corr[3], "ocr-phrase")
+
+
+class TestV1381IntakeIsRealWatchdogLaw(unittest.TestCase):
+    """v1381.0 — only ok+total>0 is a real tally; failed funnel must not 'resolve' watchdog."""
+
+    def test_failed_funnel_not_real(self):
+        self.assertFalse(ca._intake_is_real(
+            {"kind": "kai-funnel", "tab": "gems", "ok": False, "total": 0, "errors": 1}))
+
+    def test_zero_total_ok_not_real(self):
+        self.assertFalse(ca._intake_is_real({"ok": True, "total": 0}))
+
+    def test_positive_total_is_real(self):
+        self.assertTrue(ca._intake_is_real({"ok": True, "total": 12}))
+
+
+class TestV1381IncompleteSealReclose(unittest.TestCase):
+    """v1381.0 — half-sealed reels (scanned, no routing) must re-enter the closer."""
+
+    def test_stale_kaiver_needs_reclose(self):
+        self.assertTrue(ca._kai_report_needs_reclose({"kaiVer": 5, "scanned": 10, "routing": []}, 6))
+
+    def test_incomplete_at_target_needs_reclose(self):
+        # window-kill mid-closer: classes present, routing never written
+        self.assertTrue(ca._kai_report_needs_reclose(
+            {"kaiVer": 6, "scanned": 114, "classes": {"stash": 1}}, 6))
+
+    def test_complete_at_target_skips(self):
+        self.assertFalse(ca._kai_report_needs_reclose(
+            {"kaiVer": 6, "scanned": 10, "routing": [{"f": "a.jpg", "label": "gameplay"}]}, 6))
+
+    def test_empty_scan_no_routing_ok(self):
+        # no frames scanned — not the incomplete class
+        self.assertFalse(ca._kai_report_needs_reclose({"kaiVer": 6, "scanned": 0}, 6))
 
 
 if __name__ == "__main__":

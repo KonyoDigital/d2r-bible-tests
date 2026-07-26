@@ -2889,6 +2889,7 @@
           <span class="th-clock" id="th-clock" style="font: var(--fw-medium) var(--fs-xs)/1 var(--mono);color:#bfae7f;letter-spacing:var(--ls-normal);margin-left:10px"></span>
           <span class="th-sess" id="th-sess">—</span>
           <button type="button" id="th-open-reel" title="open this session's film folder on disk (all screenshots, labeled or not)" style="margin-left:8px;padding:4px 10px;border-radius:8px;font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);letter-spacing:var(--ls-snug);color:#d9c9a0;border:1px solid rgba(240,192,96,.35);background:rgba(0,0,0,.45);cursor:pointer">📁 film</button>
+          <button type="button" id="th-reclose" title="re-run KAI retro on this reel (filters + gap-funnels + multi-retry tallies). OFF AIR only." style="margin-left:6px;padding:4px 10px;border-radius:8px;font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);letter-spacing:var(--ls-snug);color:#c8b8ff;border:1px solid rgba(185,165,255,.4);background:rgba(0,0,0,.45);cursor:pointer">🧠 reclose</button>
           <button class="th-x" id="th-legend-btn" type="button" title="the key — what every symbol means (?)" onclick="window._legendOpen()" style="margin-left:8px;width:auto;padding:0 12px;font-weight:var(--fw-semibold)">? key</button>
           <button class="th-x" id="th-close" type="button" title="close the theatre">✕</button>
         </div>
@@ -7224,6 +7225,22 @@
       } else toast((j && j.msg) || 'no reel folder for this session');
     } catch (err) { toast('reel path failed'); }
   };
+  // v1381.1 — Theatre 🧠 reclose: priority re-run of KAI retro (filters + gap multi-retry).
+  // OFF AIR only (server enforces). Clears kai_report and queues .kai_priority.
+  var _thRecloseBtn = $('th-reclose');
+  if (_thRecloseBtn) _thRecloseBtn.onclick = async function(e){
+    e.preventDefault(); e.stopPropagation();
+    try {
+      var body = TH.sessionId ? { sessionId: TH.sessionId } : { n: (TH.sn || 1) };
+      var r = await fetch(API + '/api/kai_reclose', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var j = await r.json();
+      if (j && j.ok) toast('🧠 reclose queued · ' + (j.sessionId || '') + ' · closer ~30s (priority)');
+      else toast((j && j.msg) || 'reclose refused (ON AIR?)');
+    } catch (err) { toast('reclose failed'); }
+  };
   (function(){ var f = $('th-film'); if (f) f.onclick = function(){
     // v944.7 — if this click just dismissed the open info panel (click-outside), don't also open HD
     if (Date.now() - (TH.__filmClickSuppress || 0) < 400) return;
@@ -9011,9 +9028,11 @@
         ? keys.slice(0, 8).map(function(k){ return '<span class="tly-k">'+thArtImg(k,'hd-ic')+esc(k)+' <b>×'+esc(String(s.counts[k]))+'</b></span>'; }).join('')
           + (keys.length > 8 ? '<span class="tly-k" style="opacity:.6">+'+(keys.length-8)+' more · click</span>' : '')
         : '<span class="tly-k" style="opacity:.55">no new counts in this shot</span>';
+      // v1381.1 — encodeURI (NOT encodeURIComponent): reel frameIds contain '/' and
+      // %2F broke /hist/reel_…/f_… thumbs (same class as v940.2 theatre film 404).
       var thumb = s.frameId
-        ? '<img class="tsh" src="/hist/'+encodeURIComponent(s.frameId)+'.jpg?w=160" loading="lazy" '
-          + 'onclick="event.stopPropagation();window.open(\'/hist/'+encodeURIComponent(s.frameId)+'.jpg\',\'_blank\')" '
+        ? '<img class="tsh" src="/hist/'+encodeURI(s.frameId)+'.jpg?w=160" loading="lazy" '
+          + 'onclick="event.stopPropagation();window.open(\'/hist/'+encodeURI(s.frameId)+'.jpg\',\'_blank\')" '
           + 'onerror="this.style.opacity=.25;this.style.cursor=\'default\';this.onclick=null;this.title=\'frame not archived\'">'
         : '<div class="tsh" style="display:flex;align-items:center;justify-content:center;color:#6b5a3e;font: var(--fw-medium) var(--fs-2xs) var(--mono)">no frame</div>';
       var open = (TLY.expanded === gi);
@@ -9025,8 +9044,8 @@
               .map(function(k){ return '<span class="tly-k">'+thArtImg(k,'hd-ic')+esc(k)+' <b>×'+esc(String(s.counts[k]))+'</b></span>'; }).join('')
           : '<span class="tly-k" style="opacity:.55">no counts in this shot</span>';
         var bigImg = s.frameId
-          ? '<img class="tly-detail-img" src="/hist/'+encodeURIComponent(s.frameId)+'.jpg?w=760" loading="lazy" '
-            + 'onclick="event.stopPropagation();window.open(\'/hist/'+encodeURIComponent(s.frameId)+'.jpg\',\'_blank\')" '
+          ? '<img class="tly-detail-img" src="/hist/'+encodeURI(s.frameId)+'.jpg?w=760" loading="lazy" '
+            + 'onclick="event.stopPropagation();window.open(\'/hist/'+encodeURI(s.frameId)+'.jpg\',\'_blank\')" '
             + 'onerror="this.style.display=\'none\'">'
           : '';
         detail = '<div class="tly-detail">'

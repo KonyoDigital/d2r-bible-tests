@@ -2220,3 +2220,24 @@ stayed mode=live (ghost ON AIR). Fixes:
 Killed his stuck agent for relief first. 154 agent + 36 control green. Requires app restart (v927 in
 the banner confirms it). Honest note: some overhead is inherent (screen-reader + CrossOver game on one
 Mac) — these cuts make the reader nearly free when you're moving and only work when you stop to look.
+
+## ROUND v1381.0–v1381.1 — Theatre filters/funnels/retro fix arc (2026-07-26)
+**Order:** Konyo — cross-ref Theatre play all stills through proper filters/funnels; retro analyze/fix/automate; inbox + sessions. Then: ship every recommended fix Konyo-workflow, couple perfected versions.
+
+### v1381.0 — P0 funnel truth
+1. **Gate-aware gap-funnel rank** (`_kai_gap_funnel_score` / `_kai_stage3_gap_funnel_candidates`): hard-penalize `wrong-cell`, prefer `gatePass` + grid/tabstrip eye over raw conf. Sim on s_178498…95276 → gems primary **f_1784984272837.jpg** (real grid), NOT f_…201778 (Personal+tooltip).
+2. **Multi-retry** up to 4 stills per tab (`alts`); never seal a tab on first empty/error.
+3. **Watchdog** only resolves on `_intake_is_real` (ok && total>0). Failed kai-funnel no longer false-green.
+4. **Incomplete seal reclose** (`_kai_report_needs_reclose`): scanned>0 && no routing → re-queue even at target kaiVer. **kaiVer 6** lockstep with `_KAIVER_TARGET`.
+5. Suites: `TestV1381*` + full `test_control` **241 OK** (2 skipped).
+
+### v1381.1 — P1/P2 polish
+1. Super-analyze **excludes** stash-runes|gems|materials (tally lane, not aicJudge).
+2. Vault Stage-3 default **ON** (`TV_KAI_VAULT=1`).
+3. Theatre **🧠 reclose** button → POST `/api/kai_reclose` priority.
+4. Tally Engine thumbs: `encodeURI` (reel `/` no longer %2F-404).
+5. OCR phrase fix: GRAMD CHAR → Grand Charm (forensics).
+6. REG-042 + REG-043 in BUGS.md.
+
+**Gates:** py_compile control_app · test_control 241 OK · version triple stamp v1381.x · mode=off at ship.
+**Prove:** unit + live routing replay of Jul25 report.

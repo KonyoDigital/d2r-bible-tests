@@ -725,6 +725,19 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   complaint), add a targeted veto for the specific known-bad case instead. Always eyeball the actual
   frame a funnel fired on, not just the routing label, before trusting a "materials found" verdict.
 
+## REG-043 — Incomplete KAI seal left Theatre film unlabeled (2026-07-26)
+- **Symptom:** Session `s_1785078127173_28278` — 114 stills playable in Theatre, `classes` had stash-materials/gems, but `routing`/`engineFrames`/`completeness` missing. Scrub = unlabeled noise; gap-funnel started then window-kill aborted mid-pass. Zero intakes journaled.
+- **Root:** Closer wrote scan-only `kai_report` then process died before Stage-3 routing write; kaiVer stamped/or absent so re-close did not force re-seal.
+- **Fix (v1381.0):** Force re-close when `scanned>0` and `routing` missing (even at target kaiVer). Bump `_KAIVER_TARGET` + seal stamp to **6** (lockstep). Theatre **🧠 reclose** button → `POST /api/kai_reclose` priority queue.
+- **Status:** SHIPPED v1381.0 / v1381.1
+
+## REG-042 — Gap-funnel preferred wrong-cell gems; watchdog false-resolved (2026-07-26)
+- **Symptom:** Tally Engine showed GEMS/MATERIALS 0 counted / 1 error; RUNES no frame. Theatre play: 31 stash-gems + 2 materials labeled, but gemIntake got Personal+Wraithstep stills; real gems grid `f_…272837` never tallied. Watchdog said "resolved by KAI funnel" on ok:false receipts. Super-analyze item-judged gem grids → 429.
+- **Root:** (1) `_kai_stage3_gap_funnels` ranked max conf — conf=3 wrong-cell beat conf=0 real grid. (2) Funnel one-shot then any receipt cleared watchdog. (3) Super path included stash-gems|materials as aicJudge not intake. (4) Vault Stage-3 default OFF left fireable vault candidates unfired.
+- **Fix (v1381.0/1):** Gate-aware `_kai_gap_funnel_score` (hard-penalize wrong-cell, prefer gatePass+grid eye); multi-retry up to 4 stills/`alts`; watchdog only on `_intake_is_real`; super excludes tally panels; vault default ON; tally thumbs `encodeURI`; GRAMD CHAR OCR phrase fix.
+- **Prove:** unit suite `TestV1381*` + live routing sim: gems primary = `f_1784984272837.jpg` (not `f_…201778`).
+- **Status:** SHIPPED v1381.0 / v1381.1
+
 ## REG-041 — Theatre + ON AIR stage overlap (2026-07-26)
 - **Symptom:** Opening Theatre while ON AIR (or the reverse) stacked live feed, HOLD card,
   status chip, and the past reel — “overlapping / bugged / closed wrong.”

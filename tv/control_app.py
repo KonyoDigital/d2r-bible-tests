@@ -2683,9 +2683,35 @@ def _kai_ground_lines(lines):
 # (report.missed[].texts + register + routing) — no live writes, no drift, works retroactively on
 # every existing reel. Honest-absent where a reel stored no raw.
 
+# v1381.1 — common OCR phrase fixes (screen text, not grail uniques). Applied before
+# grounder so "GRAMD CHAR" → Grand Charm lands as corrected forensics, not unresolved noise.
+_KAI_OCR_PHRASE_FIXES = (
+    (re.compile(r"\bgramd\s*char(?:m)?\b", re.I), "Grand Charm"),
+    (re.compile(r"\bgr[ao0]nd\s*charr?m?\b", re.I), "Grand Charm"),
+    (re.compile(r"\bsm[ao0]ll\s*char(?:m)?\b", re.I), "Small Charm"),
+    (re.compile(r"\blarge\s*char(?:m)?\b", re.I), "Large Charm"),
+)
+
+
+def _kai_ocr_phrase_fix(texts):
+    """v1381.1 — pure. First matching OCR phrase fix → (canonical, raw_line) or None."""
+    for t in (texts or []):
+        s = str(t or "")
+        if not s.strip():
+            continue
+        for rx, canon in _KAI_OCR_PHRASE_FIXES:
+            if rx.search(s):
+                return (canon, s.strip())
+    return None
+
+
 def _kai_forensic_correction(texts):
     """A garbled line that grounds to a REAL grail name → (name, raw_token, edit, via). via =
-    'name+base' (E1 ground-label two-witness) or 'de-leet' (tooltip). None if nothing grounds."""
+    'name+base' (E1 ground-label two-witness) or 'de-leet' (tooltip). None if nothing grounds.
+    v1381.1 — also returns OCR phrase fixes (Grand Charm etc.) via='ocr-phrase'."""
+    phrase = _kai_ocr_phrase_fix(texts)
+    if phrase:
+        return (phrase[0], phrase[1], 0, "ocr-phrase")
     g = _kai_ground_lines(texts)
     if not g:
         return None
@@ -3564,10 +3590,48 @@ def _kai_retro_promote_tally(routing_scan):
     return routing_scan
 
 
-def _kai_stage3_gap_funnels(routing, sess_rows):
-    """v948.7 — funnel jobs for tally tabs eyes labeled on the reel but Stage-3
-    quorum never selected (or conf was 1). Photo on film = must recheck + SET intake.
-    One best frame per unreceipted tab."""
+def _kai_gap_funnel_score(row, tab):
+    """v1381.0 — rank a routing row for tally gap-funnel pick. Pure. Higher = better.
+
+    Forensic (s_178498…95276): conf=3 journal+ocr+tabstrip frames were PERSONAL+tooltip
+    (gateReason=wrong-cell) while the REAL gems grid sat at conf 0/1. Old ranker preferred
+    max conf → fed gemIntake the wrong cell. Accuracy gate already knew; honor it:
+      • hard-penalize wrong-cell
+      • prefer gatePass
+      • prefer grid/tabstrip/ocr eye that names this exact tally tab
+      • conf is a tie-break, not the primary key
+    """
+    tab = str(tab or "").lower().strip()
+    if not tab or not isinstance(row, dict):
+        return -10 ** 9
+    if str(row.get("gateReason") or "") == "wrong-cell":
+        return -10 ** 6
+    score = 0
+    if row.get("gatePass") is True:
+        score += 1000
+    want = "stash-" + tab
+    if str(row.get("gridLabel") or "") == want:
+        score += 500
+    if str(row.get("tabstripLabel") or "") == want:
+        score += 400
+    if str(row.get("ocrLabel") or "") == want:
+        score += 300
+    lab = str(row.get("label") or "")
+    if lab == want:
+        score += 100
+    conf = int(row.get("confidence") or 0)
+    if conf < 1 and lab == want:
+        conf = 1
+    score += conf * 10
+    return score
+
+
+def _kai_stage3_gap_funnel_candidates(routing, sess_rows):
+    """v1381.0 — all ranked candidates per unreceipted tally tab (best first). Pure.
+
+    Returns {tab: [job, …]} where job = {tab,f,ts,route,conf,gap,score,gatePass,gateReason}.
+    Wrong-cell rows are kept only as last-resort fallback when no viable frame exists.
+    """
     receipted = set()
     for r in sess_rows or []:
         ik = r.get("intake")
@@ -3575,11 +3639,10 @@ def _kai_stage3_gap_funnels(routing, sess_rows):
             t = str(ik.get("tab") or "").lower()
             if t in ("runes", "gems", "materials"):
                 receipted.add(t)
-    best = {}  # tab -> {tab,f,ts,conf}
+    by_tab = {}  # tab -> list of (score, ts, row, conf)
     for r in routing or []:
         lab = str(r.get("label") or "")
         if not lab.startswith("stash-"):
-            # also accept grid/tabstrip evidence even when final label stayed vault-stash
             for key in ("gridLabel", "tabstripLabel", "ocrLabel"):
                 v = str(r.get(key) or "")
                 if v.startswith("stash-") and v.split("-", 1)[-1] in ("runes", "gems", "materials"):
@@ -3591,23 +3654,50 @@ def _kai_stage3_gap_funnels(routing, sess_rows):
         if tab not in ("runes", "gems", "materials") or tab in receipted:
             continue
         conf = int(r.get("confidence") or 0)
-        # accept conf>=1, or any frame with grid/tabstrip tally evidence
         has_eye = False
         for key in ("gridLabel", "tabstripLabel", "ocrLabel"):
-            v = str(r.get(key) or "")
-            if v == "stash-" + tab:
+            if str(r.get(key) or "") == "stash-" + tab:
                 has_eye = True
         if conf < 1 and not has_eye and lab != "stash-" + tab:
             continue
         if conf < 1 and lab == "stash-" + tab:
-            conf = 1  # eye-labeled on scan
-        prev = best.get(tab)
+            conf = 1
+        sc = _kai_gap_funnel_score(r, tab)
         ts = int(r.get("ts") or 0)
-        if prev is None or conf > int(prev.get("conf") or 0) or (
-                conf == int(prev.get("conf") or 0) and ts >= int(prev.get("ts") or 0)):
-            best[tab] = {"tab": tab, "f": r.get("f"), "ts": ts, "route": "tally:" + tab,
-                         "conf": conf, "gap": True}
-    return list(best.values())
+        by_tab.setdefault(tab, []).append((sc, ts, r, conf))
+    out = {}
+    for tab, rows in by_tab.items():
+        viable = [x for x in rows if x[0] > -10 ** 5]
+        pool = viable if viable else rows  # last-resort: only wrong-cell left
+        pool.sort(key=lambda x: (-x[0], -x[1]))
+        jobs = []
+        seen_f = set()
+        for sc, ts, r, conf in pool:
+            f = r.get("f")
+            if not f or f in seen_f:
+                continue
+            seen_f.add(f)
+            jobs.append({
+                "tab": tab, "f": f, "ts": ts, "route": "tally:" + tab,
+                "conf": conf, "gap": True, "score": sc,
+                "gatePass": r.get("gatePass"), "gateReason": r.get("gateReason"),
+            })
+        if jobs:
+            out[tab] = jobs
+    return out
+
+
+def _kai_stage3_gap_funnels(routing, sess_rows):
+    """v948.7/v1381.0 — funnel jobs for tally tabs eyes labeled on the reel but Stage-3
+    quorum never selected (or conf was 1). Photo on film = must recheck + SET intake.
+    One best frame per unreceipted tab, plus `alts` (next-best stills) for multi-retry."""
+    cands = _kai_stage3_gap_funnel_candidates(routing, sess_rows)
+    out = []
+    for tab, jobs in cands.items():
+        head = dict(jobs[0])
+        head["alts"] = [j["f"] for j in jobs[1:5] if j.get("f") and j.get("f") != head.get("f")]
+        out.append(head)
+    return out
 
 
 def _kai_stage3_select(routing):
@@ -4311,13 +4401,17 @@ def _kai_super_select(routing, sess_rows, fullnames=None, cap=None):
     independent deep re-read this pass.
 
     Eligible: gatePass is True (the accuracy gate already weeded the garbage — LAW: never
-    re-reads a frame the gate didn't prove), label is 'tooltip' or a 'stash-*' tally panel
-    (an item/text frame — never gameplay/boot), and _kai_super_already_named says NO real
-    DB item is already registered near this frame (no wasted calls on already-solved reads).
+    re-reads a frame the gate didn't prove), label is 'tooltip' or plain 'stash' (item/text
+    frame — never gameplay/boot), and _kai_super_already_named says NO real DB item is already
+    registered near this frame (no wasted calls on already-solved reads).
 
-    Highest-value first: 'tooltip' frames (direct item-name text) before 'stash-*' panels,
-    then by router confidence descending (more independent brains already agreeing on SOMETHING
-    on this frame is a stronger signal there's real recoverable text), then chronological.
+    v1381.1 — stash-runes|gems|materials are EXCLUDED from the item-judge super path. Those
+    panels are tally recovery (gap-funnel + gemIntake/runeIntake/materialIntake), not
+    aicJudge. Forensic: perfect gem grids were super-judged as tooltips → 429 / "no rare",
+    while counts never ran. Tally recovery rides `_kai_stage3_gap_funnels` multi-retry instead.
+
+    Highest-value first: 'tooltip' frames (direct item-name text) before plain 'stash',
+    then by router confidence descending, then chronological.
 
     CAP: env TV_KAI_SUPER_MAX (default 10, the 8-12 budget) — a hard ceiling per reel so this
     organ can never run away. Returns the capped, ordered candidate routing rows."""
@@ -4327,6 +4421,7 @@ def _kai_super_select(routing, sess_rows, fullnames=None, cap=None):
             cap = max(0, int(os.environ.get("TV_KAI_SUPER_MAX", "10")))
         except Exception:
             cap = 10
+    _TALLY_PANELS = ("stash-runes", "stash-gems", "stash-materials")
     cands = []
     for r in routing or []:
         if r.get("gatePass") is not True:
@@ -4335,7 +4430,9 @@ def _kai_super_select(routing, sess_rows, fullnames=None, cap=None):
         if not f:
             continue
         label = str(r.get("label") or "")
-        if label != "tooltip" and not label.startswith("stash-"):
+        if label in _TALLY_PANELS:
+            continue  # v1381.1 — tally intake lane, not item judge
+        if label != "tooltip" and not label.startswith("stash"):
             continue
         ts = int(r.get("ts") or 0)
         if _kai_super_already_named(sess_rows, ts, fn):
@@ -5348,6 +5445,28 @@ def _kai_write_report_atomic(path, report):
         return False
 
 
+def _kai_report_needs_reclose(report, target):
+    """v1381.0 — pure. True when a sealed kai_report should re-enter the closer queue.
+    Stale kaiVer, OR incomplete seal (scanned frames but no routing ledger — window-kill
+    mid-closer left Theatre film unlabeled)."""
+    if not isinstance(report, dict):
+        return True
+    try:
+        kv = int(report.get("kaiVer") or 1)
+    except Exception:
+        kv = 1
+    if kv < int(target or 0):
+        return True
+    try:
+        sc = int(report.get("scanned") or 0)
+    except Exception:
+        sc = 0
+    rt = report.get("routing")
+    if sc > 0 and not rt:
+        return True
+    return False
+
+
 def _kai_closer_loop():
     """v934 — 🧠 KAI THE CLOSER (layer 3, v1). After a session seals, walk its ENTIRE reel
     with the local OCR worker (no time pressure, nice'd), diff every frame's item-ish text
@@ -5379,7 +5498,10 @@ def _kai_closer_loop():
             # witness grounding (War Traveler etc. → real registers, not just the forensics X-ray)
             # + the ② cross-frame quorum. Additive/merge-max; wallpaper re-seals gameplay
             # (deterministic panel-open guard, verified 0 not_d2r leaks across 29 reels).
-            _KAIVER_TARGET = 5
+            # v1381.0 — bump to 6: gate-aware gap-funnel ranking + multi-retry + real-receipt
+            # watchdog + incomplete-seal reclose (scanned>0 but routing missing — window-kill
+            # mid-closer left film playable with no per-frame filter chrome).
+            _KAIVER_TARGET = 6
             reels = []
             for d in sorted(os.listdir(hist)):
                 if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
@@ -5392,8 +5514,8 @@ def _kai_closer_loop():
                     continue
                 try:
                     with open(kr, encoding="utf-8") as _kf:
-                        _kv = int((json.load(_kf) or {}).get("kaiVer") or 1)
-                    if _kv < _KAIVER_TARGET:
+                        _rep = json.load(_kf) or {}
+                    if _kai_report_needs_reclose(_rep, _KAIVER_TARGET):
                         reels.append(d)
                 except Exception:
                     reels.append(d)
@@ -5640,10 +5762,12 @@ def _kai_closer_loop():
                       # gate / routing) MUST bump this kaiVer AND _KAIVER_TARGET above in lockstep,
                       # so already-sealed reels auto-resweep and pick it up. Skip the bump and old
                       # reels silently strand with stale registers (E3 found E1/②/E4 had done exactly
-                      # that — 29 reels frozen pre-E1). kaiVer 5 = E1 two-witness + ② cross-frame.
-                      "closedAt": int(time.time() * 1000), "kaiVer": 5,
+                      # that — 29 reels frozen pre-E1). kaiVer 6 = v1381 gate-aware gap-funnel +
+                      # multi-retry + real-receipt watchdog + incomplete-seal reclose.
+                      "closedAt": int(time.time() * 1000), "kaiVer": 6,
                       "eyeNote": "E1 ground-label two-witness + ② cross-frame quorum + v1259 honest "
-                                 "gate (grid-solo sanctioned) + v1258 panel-open guard + retro gap funnel"}
+                                 "gate (grid-solo sanctioned) + v1258 panel-open guard + retro gap "
+                                 "funnel + v1381 gate-aware multi-retry funnel"}
             _kai_write_report_atomic(os.path.join(rd, "kai_report.json"), report)
             # journal the ledger onto the session's timeline (🧠 gold in SIM).
             # v934.1 — GHOST-PROOF: split_sessions sorts by ts and cuts on sid change, so
@@ -5715,23 +5839,41 @@ def _kai_closer_loop():
                         _gap_rows = sess_rows
                     try:
                         _gaps = _kai_stage3_gap_funnels(_plan + routing_scan, _gap_rows)
+                        _cands_by = _kai_stage3_gap_funnel_candidates(_plan + routing_scan, _gap_rows)
                         _have = {str(j.get("tab") or "") for j in _funnel_jobs}
                         for _g in _gaps:
                             if str(_g.get("tab") or "") not in _have:
                                 _funnel_jobs.append(_g)
                                 _have.add(str(_g.get("tab") or ""))
                                 print(f"📸 KAI gap-funnel: queue {_g.get('tab')} from {_g.get('f')} "
-                                      f"(reel recheck, conf={_g.get('conf')})", flush=True)
+                                      f"(reel recheck, conf={_g.get('conf')}, score={_g.get('score')})", flush=True)
+                        # v1381.0 — re-rank every funnel job's primary frame + attach alts from
+                        # gate-aware candidates (stage-3 "newest conf≥2" alone can pick wrong-cell).
+                        for _fj in _funnel_jobs:
+                            _tb = str(_fj.get("tab") or "")
+                            _ranked = list(_cands_by.get(_tb) or [])
+                            if not _ranked:
+                                continue
+                            _best = _ranked[0]
+                            if _best.get("f") and _best.get("f") != _fj.get("f"):
+                                print(f"📸 KAI funnel re-rank: {_tb} {_fj.get('f')} → {_best.get('f')} "
+                                      f"(score={_best.get('score')})", flush=True)
+                                _fj["f"] = _best.get("f")
+                                _fj["ts"] = _best.get("ts")
+                                _fj["conf"] = _best.get("conf")
+                                _fj["score"] = _best.get("score")
+                            _fj["alts"] = [j["f"] for j in _ranked[1:5]
+                                           if j.get("f") and j.get("f") != _fj.get("f")]
                     except Exception as _gfe:
                         print(f"⚠ KAI gap-funnel select: {_gfe}", flush=True)
                     w2 = globals().get("_MAIN_WIN")
-                    # 📸 FUNNEL — one shot per ledger-selected tally tab (newest frame), SET-wrapper
+                    # 📸 FUNNEL — up to 4 stills per tally tab (best → alts), SET-wrapper.
+                    # v1381.0 multi-retry: wrong-cell / empty reader on shot 1 must not seal the tab.
                     for _fj in _funnel_jobs:
                         if w2 is None or os.environ.get("TV_KAI_FUNNEL", "1") == "0":
                             break
                         t3 = str(_fj.get("tab") or "")
-                        _ff = str(_fj.get("f") or "")
-                        if not t3 or not _ff:
+                        if not t3:
                             continue
                         # v948.17 (Grok P0-1) — NEVER-ZERO WRITE GUARD. Re-check the FRESH
                         # journal right before firing (this loop can span minutes — each prior
@@ -5748,86 +5890,109 @@ def _kai_closer_loop():
                             print(f"⛔ KAI funnel guard: skip {t3} — real tally already total="
                                   f"{_prev_best_t3} (never-zero write law, Grok P0-1)", flush=True)
                             continue
-                        _histp = "/hist/reel_" + sid + "/" + _ff
-                        _fid3 = "reel_" + sid + "/" + _ff.replace(".jpg", "")
-                        # v948.17 — PREV (the best real total known at fire time) rides into the
-                        # JS itself as a second, defense-in-depth guard: even if a receipt lands
-                        # in the brief window between the Python check above and this fetch
-                        # resolving, the SET-style ADJ-subtract (which otherwise clobbers matched
-                        # keys down to the new read's count — the literal 404→4 mechanism) only
-                        # applies when the new total is not a regression vs PREV. A blocked
-                        # write still journals an honest (non-SET) receipt, never a silent drop.
-                        _js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
-                               "if(W._stashShutter)return 2;var FN={runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}[%s];if(typeof W[FN]!=='function')return 0;"
-                               "var LSK={runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}[%s];"
-                               "var ADJ={runes:'adjustRuneStash',gems:'adjustGemStash',materials:'adjustMaterialStash'}[%s];"
-                               "var PREV=%s;"
-                               "var prev={};try{var st0=JSON.parse(W.LSR.getItem(LSK)||'{}');Object.keys(st0).forEach(function(k){prev[k]=parseInt(st0[k],10)||0})}catch(e){}"
-                               "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
-                               "return W[FN]([new W.File([b],'kai-funnel.jpg',{type:'image/jpeg'})])}).then(function(res){"
-                               "var newTotal=(res&&res.total)||0;var applied=false;"
-                               "try{if(res&&res.ok&&(PREV<=0||newTotal>=PREV)){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)});applied=true}}catch(e){}"
-                               "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:!!(res&&res.ok)&&applied,counts:(applied?((res&&res.added)||{}):{}),total:(applied?newTotal:PREV),errors:(res&&res.errors)||0,frameId:%s,guardHeld:!applied})}).catch(function(){})}catch(e){}"
-                               # v948.17 (Grok P0-2, 2026-07-21 fast-run soak) — the gems funnel
-                               # fired (this control-log print ran) but NO /intake_result receipt
-                               # ever journaled: the promise chain (fetch the frame → gemIntake →
-                               # …) rejected somewhere and the OLD catch here was silent (`function(){}`
-                               # — no receipt, no note, nothing). An honest-miss receipt now lands
-                               # even on a hard failure, so the theatre shows a real ERROR instead
-                               # of a gap that looks like nothing ran.
-                               "}).catch(function(_e3){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e3&&_e3.message||_e3||'funnel fetch/intake rejected')})}).catch(function(){})}catch(e4){}});"
-                               "return 1}catch(e){return 0}})()") % (
-                                  json.dumps(t3), json.dumps(t3), json.dumps(t3), json.dumps(_prev_best_t3),
-                                  json.dumps(_histp), json.dumps(t3), json.dumps(_fid3),
-                                  json.dumps(t3), json.dumps(_fid3))
-                        try:
-                            _ejs(w2, _js, timeout=5.0)
-                            print(f"📸 KAI funnel (ledger): fired {t3} from {_ff} (prevBest={_prev_best_t3})", flush=True)
-                        except Exception as _fe:
-                            print(f"⚠ KAI funnel fire failed ({t3}): {_fe}", flush=True)
+                        _frames_q = []
+                        for _fx in [str(_fj.get("f") or "")] + list(_fj.get("alts") or []):
+                            _fx = str(_fx or "")
+                            if _fx and _fx not in _frames_q:
+                                _frames_q.append(_fx)
+                        if not _frames_q:
                             continue
-                        # v1201 — CLOCK-SKEW class (same sweep as engine-capture v1199 /
-                        # engine-read v1200): this 120s bounded wait used ONE wall-clock
-                        # anchor (`_t0f`) for BOTH the pacing deadline (`time.time() - _t0f`)
-                        # AND the journal cutoff (`completedTs >= _t0f*1000`, line below). The
-                        # journal cutoff MUST stay wall-clock (completedTs is a persisted
-                        # wall-clock timestamp — comparing it against anything else would be
-                        # wrong). But a pacing deadline built on the SAME wall clock means a
-                        # backward NTP/sleep-wake jump mid-wait makes `time.time() - _t0f` go
-                        # negative, so the loop keeps polling until REAL wall time claws back
-                        # past the original 120s window PLUS the jump size — a multi-minute
-                        # stall of the closer's ENTIRE post-seal pass (this loop is serial;
-                        # everything after it — other tabs' gap-funnels, judge ping-pong,
-                        # kai_report — waits behind it). Split the two: `_t0f` stays wall-clock
-                        # for the journal comparison; `_t0f_mono` (monotonic, immune to clock
-                        # jumps) drives the deadline.
-                        _t0f = time.time()
-                        _t0f_mono = time.monotonic()
-                        while time.monotonic() - _t0f_mono < 120.0:
-                            time.sleep(6.0)
+                        _tab_real = False
+                        for _ff in _frames_q[:4]:
+                            if _tab_real:
+                                break
+                            # re-check never-zero between retries (a prior alt may have landed)
                             try:
-                                if any(r3.get("lane") == "intake" and (r3.get("intake") or {}).get("kind") == "kai-funnel"
-                                       and (r3.get("intake") or {}).get("tab") == t3
-                                       and int(r3.get("completedTs") or 0) >= int(_t0f * 1000)
-                                       for r3 in _kai_journal_rows()[-40:]):
-                                    print(f"📸 KAI funnel: {t3} receipt journaled ✓", flush=True)
-                                    try:
-                                        _res = {"ts": _sess_last + 40, "captureTs": _sess_last + 40,
-                                                "completedTs": int(time.time() * 1000), "lane": "watchdog",
-                                                "mode": "watchdog", "scene": "watchdog", "names": [],
-                                                "sessionId": sid, "frameId": "",
-                                                "watchdog": {"rule": "resolved-by-kai-funnel", "tab": t3},
-                                                "note": f"✅ WATCHDOG resolved — KAI funnel receipted {t3} from the reel"}
-                                        with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf:
-                                            _rf.write(json.dumps(_res, ensure_ascii=False) + "\n")
-                                        _wl = globals().get("_WATCHDOG_LAST")
-                                        if isinstance(_wl, dict) and _wl.get("sid") == sid and _wl.get("violations"):
-                                            _wl["violations"] = max(0, int(_wl["violations"]) - 1)
-                                    except Exception:
-                                        pass
-                                    break
+                                _fresh_t3 = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
                             except Exception:
                                 pass
+                            if _tab_best_total(_fresh_t3, t3) > 0:
+                                _tab_real = True
+                                break
+                            _histp = "/hist/reel_" + sid + "/" + _ff
+                            _fid3 = "reel_" + sid + "/" + _ff.replace(".jpg", "")
+                            _js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+                                   "if(W._stashShutter)return 2;var FN={runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}[%s];if(typeof W[FN]!=='function')return 0;"
+                                   "var LSK={runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}[%s];"
+                                   "var ADJ={runes:'adjustRuneStash',gems:'adjustGemStash',materials:'adjustMaterialStash'}[%s];"
+                                   "var PREV=%s;"
+                                   "var prev={};try{var st0=JSON.parse(W.LSR.getItem(LSK)||'{}');Object.keys(st0).forEach(function(k){prev[k]=parseInt(st0[k],10)||0})}catch(e){}"
+                                   "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
+                                   "return W[FN]([new W.File([b],'kai-funnel.jpg',{type:'image/jpeg'})])}).then(function(res){"
+                                   "var newTotal=(res&&res.total)||0;var applied=false;"
+                                   "try{if(res&&res.ok&&(PREV<=0||newTotal>=PREV)){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)});applied=true}}catch(e){}"
+                                   "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:!!(res&&res.ok)&&applied,counts:(applied?((res&&res.added)||{}):{}),total:(applied?newTotal:PREV),errors:(res&&res.errors)||0,frameId:%s,guardHeld:!applied})}).catch(function(){})}catch(e){}"
+                                   "}).catch(function(_e3){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e3&&_e3.message||_e3||'funnel fetch/intake rejected')})}).catch(function(){})}catch(e4){}});"
+                                   "return 1}catch(e){return 0}})()") % (
+                                      json.dumps(t3), json.dumps(t3), json.dumps(t3), json.dumps(_prev_best_t3),
+                                      json.dumps(_histp), json.dumps(t3), json.dumps(_fid3),
+                                      json.dumps(t3), json.dumps(_fid3))
+                            try:
+                                _ejs(w2, _js, timeout=5.0)
+                                print(f"📸 KAI funnel (ledger): fired {t3} from {_ff} "
+                                      f"(prevBest={_prev_best_t3}, try {_frames_q.index(_ff)+1}/{min(4,len(_frames_q))})",
+                                      flush=True)
+                            except Exception as _fe:
+                                print(f"⚠ KAI funnel fire failed ({t3} {_ff}): {_fe}", flush=True)
+                                continue
+                            # v1201 — monotonic deadline; wall-clock journal cutoff (unchanged).
+                            # v1381.0 — wait for a REAL receipt (ok+total>0) OR an honest fail
+                            # on THIS frameId, then retry next alt on fail.
+                            _t0f = time.time()
+                            _t0f_mono = time.monotonic()
+                            _got_receipt = False
+                            while time.monotonic() - _t0f_mono < 120.0:
+                                time.sleep(6.0)
+                                try:
+                                    for r3 in _kai_journal_rows()[-40:]:
+                                        if r3.get("lane") != "intake":
+                                            continue
+                                        ik3 = r3.get("intake") or {}
+                                        if str(ik3.get("kind") or "") != "kai-funnel":
+                                            continue
+                                        if str(ik3.get("tab") or "") != t3:
+                                            continue
+                                        if int(r3.get("completedTs") or 0) < int(_t0f * 1000):
+                                            continue
+                                        # prefer matching this attempt's frameId when present
+                                        _rfid = str(r3.get("frameId") or "")
+                                        if _rfid and _fid3 not in _rfid and _ff.replace(".jpg", "") not in _rfid:
+                                            continue
+                                        _got_receipt = True
+                                        if _intake_is_real(ik3):
+                                            _tab_real = True
+                                            print(f"📸 KAI funnel: {t3} REAL receipt total="
+                                                  f"{ik3.get('total')} from {_ff} ✓", flush=True)
+                                            try:
+                                                _res = {"ts": _sess_last + 40, "captureTs": _sess_last + 40,
+                                                        "completedTs": int(time.time() * 1000), "lane": "watchdog",
+                                                        "mode": "watchdog", "scene": "watchdog", "names": [],
+                                                        "sessionId": sid, "frameId": "",
+                                                        "watchdog": {"rule": "resolved-by-kai-funnel", "tab": t3},
+                                                        "note": (f"✅ WATCHDOG resolved — KAI funnel REAL "
+                                                                 f"receipted {t3} ×{ik3.get('total')} from the reel")}
+                                                with open(os.path.join(HERE, "sessions.jsonl"), "a",
+                                                          encoding="utf-8") as _rf:
+                                                    _rf.write(json.dumps(_res, ensure_ascii=False) + "\n")
+                                                _wl = globals().get("_WATCHDOG_LAST")
+                                                if isinstance(_wl, dict) and _wl.get("sid") == sid and _wl.get("violations"):
+                                                    _wl["violations"] = max(0, int(_wl["violations"]) - 1)
+                                            except Exception:
+                                                pass
+                                        else:
+                                            print(f"📸 KAI funnel: {t3} empty/error on {_ff} "
+                                                  f"(ok={ik3.get('ok')} total={ik3.get('total')}) "
+                                                  f"— try next still", flush=True)
+                                        break
+                                    if _got_receipt:
+                                        break
+                                except Exception:
+                                    pass
+                            if not _got_receipt:
+                                print(f"⚠ KAI funnel: {t3} no receipt within budget on {_ff}", flush=True)
+                        if not _tab_real:
+                            print(f"🚨 KAI funnel: {t3} still no REAL tally after "
+                                  f"{min(4, len(_frames_q))} still(s) — watchdog stays open", flush=True)
                     # v948.13 🏓 THE ACCURACY GATE PING-PONG (§3.5) wired live — a judge-route
                     # row the gate HELD gets a bounded re-read (a fresh, independent aicJudge
                     # call) before conceding an honest miss. Persisted tries + a pin on disk
@@ -5901,10 +6066,12 @@ def _kai_closer_loop():
                             time.sleep(20.0)   # gentle pacing — the judge is a full vision read
                         except Exception as _je:
                             print(f"⚠ KAI judge fire failed: {_je}", flush=True)
-                    # 🏦 VAULT — off by default (v946.7): same icon-grid problem as live driver.
-                    # Opt-in TV_KAI_VAULT=1 only when feeding tooltip frames, not raw grids.
+                    # 🏦 VAULT — v1381.1 default ON for Stage-3 ledger-selected vault jobs
+                    # (conf≥2, not-selected, gate already filtered). Opt-out: TV_KAI_VAULT=0.
+                    # Prior default off left 22+ fireable vault candidates never fired (Theatre
+                    # playthrough audit s_178498…95276).
                     for _vj in _vault_jobs[:1]:
-                        if w2 is None or os.environ.get("TV_KAI_VAULT", "0") == "0":
+                        if w2 is None or os.environ.get("TV_KAI_VAULT", "1") == "0":
                             break
                         _ffv = str(_vj.get("f") or "")
                         if not _ffv:
@@ -7088,7 +7255,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1380.5",
+        "ver": "v1381.1",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9321,7 +9488,7 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 self._json(200, {"ok": True, "msg": "kai_report cleared — closer will re-scan within ~30s (priority)",
-                                 "sessionId": sid, "reel": "reel_" + sid, "kaiVerTarget": 4})
+                                 "sessionId": sid, "reel": "reel_" + sid, "kaiVerTarget": 6})
             except Exception as e:
                 self._json(500, {"ok": False, "msg": str(e)[:160]})
             return
