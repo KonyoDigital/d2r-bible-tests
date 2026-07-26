@@ -1136,14 +1136,23 @@ def _pid_alive(pid):
     except Exception:
         pass
     if IS_WIN:
+        # v1414 — never shell tasklist (hangs under D2R load → freezes /api/status + UI).
         try:
-            out = subprocess.check_output(
-                ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
-                stderr=subprocess.DEVNULL,
-                text=True,
-                creationflags=_WIN_CREATE,
-            )
-            return str(pid) in out
+            import ctypes
+            from ctypes import wintypes
+            kernel32 = ctypes.windll.kernel32
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            STILL_ACTIVE = 259
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+            if not handle:
+                return False
+            try:
+                code = wintypes.DWORD()
+                if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                    return False
+                return int(code.value) == STILL_ACTIVE
+            finally:
+                kernel32.CloseHandle(handle)
         except Exception:
             return False
     try:
@@ -7428,7 +7437,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1413",
+        "ver": "v1414",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

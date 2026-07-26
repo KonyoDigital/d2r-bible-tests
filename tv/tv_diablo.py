@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1413"   # Windows process-first D2R pin (cousin exclusive FS).
+VERSION = "v1414"   # No tasklist hang under D2R (status/UI freeze); keep v1413 pin.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2626,27 +2626,60 @@ def _pool_shutdown(timeout=None, keep_worker0=True):
 
 
 def _win_d2r_process_alive():
-    """v1413 — Windows: is D2R.exe (or DiabloII*) running? Used when window pin is flaky
-    (exclusive fullscreen) so we don't HOLD forever while the cousin is clearly in-game."""
+    """v1413/v1414 — Windows: is D2R.exe running?
+    v1414: NEVER use tasklist (hangs under D2R load and freezes the agent/UI).
+    Prefer cap_target.json from capture_win, then Win32 process snapshot."""
     if not sys.platform.startswith("win"):
         return False
+    # 1) capture half already wrote the truth (no process scan)
     try:
-        out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq D2R.exe", "/NH"],
-            capture_output=True, text=True, timeout=3,
-            creationflags=(0x08000000 if sys.platform.startswith("win") else 0),
-        )
-        blob = (out.stdout or "") + (out.stderr or "")
-        if "D2R.exe" in blob and "No tasks" not in blob and "INFO:" not in blob.upper():
-            return True
+        tp = os.path.join(FRAMES, "cap_target.json")
+        if os.path.isfile(tp):
+            with open(tp, encoding="utf-8") as f:
+                j = json.load(f) or {}
+            if j.get("d2rProcess") is True:
+                return True
+            lab = str(j.get("label") or "").lower()
+            mode = str(j.get("mode") or "").lower()
+            if mode == "window" and ("d2r" in lab or "diablo" in lab):
+                return True
     except Exception:
         pass
+    # 2) Toolhelp32 snapshot (no tasklist.exe)
     try:
-        import psutil  # optional
-        for p in psutil.process_iter(["name"]):
-            n = (p.info.get("name") or "").lower()
-            if n in ("d2r.exe",) or n.startswith("d2r") or "diabloii" in n.replace(" ", ""):
-                return True
+        import ctypes
+        from ctypes import wintypes
+        TH32CS_SNAPPROCESS = 0x00000002
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD),
+                ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
+                ("th32ModuleID", wintypes.DWORD),
+                ("cntThreads", wintypes.DWORD),
+                ("th32ParentProcessID", wintypes.DWORD),
+                ("pcPriClassBase", ctypes.c_long),
+                ("dwFlags", wintypes.DWORD),
+                ("szExeFile", wintypes.WCHAR * 260),
+            ]
+        k32 = ctypes.windll.kernel32
+        snap = k32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+        if snap == ctypes.c_void_p(-1).value or snap == -1:
+            return False
+        try:
+            pe = PROCESSENTRY32W()
+            pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            if not k32.Process32FirstW(snap, ctypes.byref(pe)):
+                return False
+            while True:
+                n = (pe.szExeFile or "").lower()
+                if n in ("d2r.exe",) or n.startswith("d2r") or "diabloii" in n.replace(" ", ""):
+                    return True
+                if not k32.Process32NextW(snap, ctypes.byref(pe)):
+                    break
+        finally:
+            k32.CloseHandle(snap)
     except Exception:
         pass
     return False

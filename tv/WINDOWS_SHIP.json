@@ -1,9 +1,9 @@
-{
+﻿{
   "platform": "windows",
-  "ver": "v1413",
+  "ver": "v1414",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1413 process-first D2R pin + primary-monitor FS fallback; win_pin_debug.json",
+  "note": "v1414 no tasklist hang + v1413 process-first D2R pin + primary-monitor FS fallback; win_pin_debug.json",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
@@ -29,3 +29,4 @@
     "Quartz Screen Recording TCC"
   ]
 }
+
