@@ -742,20 +742,83 @@ _EXIT_STOP_LOCK = threading.Lock()
 _WINDOW_ONLY = False   # v935.8 — secondary --window-only attach must NOT kill ON AIR
 
 
+def _find_claude_bin(path_env=None):
+    """v1380.4 — locate Claude Code CLI (cousin Windows PATH is often incomplete under pythonw)."""
+    import shutil as _sh
+    pe = path_env if path_env is not None else os.environ.get("PATH", "")
+    hit = _sh.which("claude", path=pe) or _sh.which("claude")
+    if hit and os.path.isfile(hit):
+        return hit
+    # Windows installers scatter the binary; Desktop shortcut PATH is often stripped.
+    candidates = []
+    if IS_WIN:
+        la = os.environ.get("LOCALAPPDATA", "")
+        ra = os.environ.get("APPDATA", "")
+        home = os.path.expanduser("~")
+        for p in (
+            os.path.join(home, ".local", "bin", "claude.exe"),
+            os.path.join(home, ".local", "bin", "claude.cmd"),
+            os.path.join(home, ".local", "bin", "claude"),
+            os.path.join(la, "Programs", "claude", "claude.exe"),
+            os.path.join(la, "claude", "claude.exe"),
+            os.path.join(ra, "npm", "claude.cmd"),
+            os.path.join(ra, "npm", "claude"),
+            os.path.join(la, "Microsoft", "WinGet", "Links", "claude.exe"),
+        ):
+            if p and os.path.isfile(p):
+                candidates.append(p)
+    else:
+        for p in (
+            os.path.expanduser("~/.local/bin/claude"),
+            "/opt/homebrew/bin/claude",
+            "/usr/local/bin/claude",
+        ):
+            if os.path.isfile(p):
+                candidates.append(p)
+    return candidates[0] if candidates else None
+
+
+def _agent_python():
+    """v1380.4 — never spawn the agent with Windows Store stub / prefer python.exe over pythonw."""
+    exe = sys.executable or ""
+    if IS_WIN:
+        low = exe.replace("/", "\\").lower()
+        if "windowsapps" in low:
+            # Store alias — try real interpreters on PATH
+            import shutil as _sh
+            for name in ("python", "py"):
+                hit = _sh.which(name)
+                if hit and "windowsapps" not in hit.lower():
+                    return hit
+        # pythonw is fine for GUI but agent logs cleaner under python.exe
+        if low.endswith("pythonw.exe"):
+            cand = exe[:-len("pythonw.exe")] + "python.exe"
+            if os.path.isfile(cand):
+                return cand
+    return exe
+
+
 def _env_clean(sim=False):
     env = os.environ.copy()
     env.pop("ANTHROPIC_API_KEY", None)
     env.pop("ANTHROPIC_AUTH_TOKEN", None)
     extras = []
     if IS_WIN:
+        la = os.environ.get("LOCALAPPDATA", "")
+        ra = os.environ.get("APPDATA", "")
         extras = [
             os.path.expandvars(r"%LocalAppData%\Programs\Python\Python312"),
             os.path.expandvars(r"%LocalAppData%\Programs\Python\Python312\Scripts"),
             os.path.expandvars(r"%LocalAppData%\Programs\Python\Python313"),
             os.path.expandvars(r"%LocalAppData%\Programs\Python\Python313\Scripts"),
+            os.path.expandvars(r"%LocalAppData%\Programs\Python\Python311"),
+            os.path.expandvars(r"%LocalAppData%\Programs\Python\Python311\Scripts"),
             os.path.expandvars(r"%LocalAppData%\Microsoft\WinGet\Links"),
             os.path.expandvars(r"%ProgramFiles%\Git\cmd"),
             os.path.expanduser(r"~\.local\bin"),
+            os.path.join(ra, "npm") if ra else "",
+            os.path.join(la, "Programs", "claude") if la else "",
+            os.path.join(la, "claude") if la else "",
         ]
     else:
         extras = [
@@ -766,6 +829,14 @@ def _env_clean(sim=False):
     head = os.pathsep.join([p for p in extras if p and os.path.isdir(p)])
     if head:
         env["PATH"] = head + os.pathsep + env.get("PATH", "")
+    # Pin Claude binary so the agent does not re-search a thin PATH
+    claude = _find_claude_bin(env.get("PATH", ""))
+    if claude:
+        env["TV_CLAUDE_BIN"] = claude
+        # ensure its folder is on PATH for any child that shells `claude`
+        cdir = os.path.dirname(claude)
+        if cdir and cdir not in env.get("PATH", ""):
+            env["PATH"] = cdir + os.pathsep + env.get("PATH", "")
     if sim:
         env["TV_STUB"] = "1"
     else:
@@ -1215,20 +1286,30 @@ def start_agent(sim=False, test=False):
             env["TV_NO_JOURNAL"] = "1"
         # v786 (cousin: 'ON AIR just spins') - LOUD preflight: the #1 silent killer is a
         # missing claude CLI; the agent dies at boot and the UI spun forever with no reason.
-        if not sim and not env.get("TV_STUB") and not env.get("TV_CLAUDE_BIN"):
-            import shutil as _sh
-            if not _sh.which("claude", path=env.get("PATH", "")):
+        # v1380.4 — deep hunt for Claude (Desktop shortcut PATH is often incomplete on Windows)
+        if not sim and not env.get("TV_STUB"):
+            claude_bin = env.get("TV_CLAUDE_BIN") or _find_claude_bin(env.get("PATH", ""))
+            if not claude_bin:
                 _agent_mode = "off"
-                _log_fp.write("!! claude CLI not found on PATH - agent cannot see\n")
+                _log_fp.write("!! claude CLI not found (PATH hunt failed) - agent cannot see\n")
                 _log_fp.flush()
                 return {"ok": False,
-                        "error": "Claude Code CLI not found - install it, then press ON AIR again",
-                        "fix": ("irm https://claude.ai/install.ps1 | iex" if IS_WIN
-                                else "curl -fsSL https://claude.ai/install.sh | bash"),
+                        "error": "Claude Code CLI not found — ON AIR needs Claude to read the game",
+                        "fix": ("In PowerShell run:\n  irm https://claude.ai/install.ps1 | iex\n"
+                                "Then open a NEW PowerShell, run:  claude\n"
+                                "(finish login once), close it, double-click TV DIABLO again."
+                                if IS_WIN
+                                else "curl -fsSL https://claude.ai/install.sh | bash && claude"),
                         "mode": "off"}
+            env["TV_CLAUDE_BIN"] = claude_bin
+            _log_fp.write("claude CLI: %s\n" % claude_bin)
+            _log_fp.flush()
         # Windows needs the capture half; Mac agent uses screencapture itself
         if IS_WIN:
-            _start_capture(env, _log_fp)
+            cap_pid = _start_capture(env, _log_fp)
+            if not cap_pid:
+                _log_fp.write("!! Windows capture did not start — frames may be empty\n")
+                _log_fp.flush()
 
         # v1251 — refuse LIVE start when THIS process lacks Screen Recording TCC.
         # Headless supervisor spawn → agent inherits deny → window pin fails → desktop
@@ -1246,9 +1327,22 @@ def start_agent(sim=False, test=False):
             return {"ok": False, "error": msg, "mode": "off",
                     "fix": "bash tv/tvd-scan.sh"}
 
-        cmd = [sys.executable, os.path.join(HERE, "tv_diablo.py")]
+        py_exe = _agent_python()
+        if IS_WIN and "windowsapps" in (py_exe or "").lower():
+            _agent_mode = "off"
+            msg = ("Windows Store Python stub detected — it cannot spawn the scanner. "
+                   "Install real Python from python.org (or winget install Python.Python.3.12), "
+                   "turn OFF App execution aliases for python.exe, re-run the TV DIABLO installer.")
+            _log_fp.write("!! " + msg + "\n")
+            _log_fp.flush()
+            return {"ok": False, "error": msg, "mode": "off",
+                    "fix": "winget install Python.Python.3.12  then re-run install-tvd.ps1"}
+
+        cmd = [py_exe, os.path.join(HERE, "tv_diablo.py")]
         if IS_WIN:
             cmd.append("--watch")
+        _log_fp.write("spawn: %s\n" % " ".join(cmd))
+        _log_fp.flush()
 
         popen_kw = dict(
             args=cmd,
@@ -1266,7 +1360,13 @@ def start_agent(sim=False, test=False):
             # writes nothing and the eye freezes on a stale desktop frame.
             popen_kw["start_new_session"] = False
 
-        _agent_proc = subprocess.Popen(**popen_kw)
+        try:
+            _agent_proc = subprocess.Popen(**popen_kw)
+        except Exception as e:
+            _agent_mode = "off"
+            _log_fp.write("!! Popen failed: %s\n" % e)
+            _log_fp.flush()
+            return {"ok": False, "error": "failed to start scanner: %s" % e, "mode": "off"}
         _write_pid(PID_PATH, _agent_proc.pid)
         _agent_mode = "sim" if sim else "live"
 
@@ -1275,21 +1375,49 @@ def start_agent(sim=False, test=False):
             break
         time.sleep(0.15)
     # v786 - a dead-at-boot agent must SAY SO, not leave the lamp spinning (cousin's Windows hang)
-    if _bridge_ping() is None and (_agent_proc is None or _agent_proc.poll() is not None):
+    # v1380.4 — ALSO fail if the process is ALIVE but never opened the bridge (hung boot)
+    if _bridge_ping() is None:
         with _lock:
+            alive = _agent_proc is not None and _agent_proc.poll() is None
+            if alive:
+                try:
+                    _agent_proc.kill()
+                except Exception:
+                    pass
+                try:
+                    _agent_proc.wait(timeout=2)
+                except Exception:
+                    pass
             _agent_mode = "off"
+            _agent_proc = None
         tail = ""
         try:
             with open(LOG_PATH, "rb") as _lf:
-                tail = _lf.read()[-1500:].decode("utf-8", "replace")
+                tail = _lf.read()[-2000:].decode("utf-8", "replace")
         except Exception:
             pass
-        return {"ok": False, "error": "agent died at boot - see log", "logTail": tail, "mode": "off"}
+        hint = "agent died at boot"
+        low = tail.lower()
+        if "claude" in low and ("not found" in low or "no such file" in low):
+            hint = "Claude CLI missing or not on PATH"
+        elif "permission" in low or "access is denied" in low:
+            hint = "permission denied starting the scanner"
+        elif "address already in use" in low or "10048" in low:
+            hint = "port 17771 already in use — close other TV DIABLO / reboot"
+        return {"ok": False,
+                "error": hint + " — see log / Doctor",
+                "logTail": tail,
+                "mode": "off",
+                "fix": ("Run Doctor in the console, or re-install: irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex"
+                        if IS_WIN else "bash tv/install-tvd.sh")}
+    with _lock:
+        _pid = _agent_proc.pid if _agent_proc else None
+        _mode = _agent_mode
     return {
         "ok": True,
         "msg": "started",
-        "mode": _agent_mode,
-        "pid": _agent_proc.pid if _agent_proc else None,
+        "mode": _mode,
+        "pid": _pid,
         "platform": "windows" if IS_WIN else "mac",
         "watch": IS_WIN,
     }
@@ -6960,7 +7088,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1380.3",
+        "ver": "v1380.4",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7124,9 +7252,9 @@ def farmgate_payload():
         ("one truth: %s" % vr) if same else "SKEW running=%s disk=%s agent=%s board=%s" % (vr, vc, va, vb),
         fix1))
 
-    # 2) claude CLI present
+    # 2) claude CLI present (v1380.4 deep hunt — same as start_agent)
     env = _env_clean()
-    exe = shutil.which("claude", path=env.get("PATH")) or shutil.which("claude")
+    exe = env.get("TV_CLAUDE_BIN") or _find_claude_bin(env.get("PATH"))
     # ══ GROK EYES (G5) — doctor soft when primary ══
     _g5_pri = False
     try:
@@ -7138,7 +7266,9 @@ def farmgate_payload():
     checks.append(_chk("claude_cli", bool(exe) or _g5_pri, _cli_sev,
                        (exe or "claude CLI not found on PATH") if not _g5_pri
                        else (exe or "claude CLI missing — G5 primary covers vision"),
-                       "npm i -g @anthropic-ai/claude-code, then sign in once in a Terminal"
+                       ("irm https://claude.ai/install.ps1 | iex   then: claude  (login once)"
+                        if IS_WIN else
+                        "npm i -g @anthropic-ai/claude-code, then sign in once in a Terminal")
                        if not _g5_pri else "G5 primary ON — Claude optional; set mode off to require Claude again"))
 
     # 3) claude AUTH — the one live ping (subscription lane, tiny, hard-capped).
@@ -7220,13 +7350,15 @@ def doctor_payload():
     logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
     checks = []
 
-    # 1) claude CLI on the SAME cleaned PATH the agent boots with
+    # 1) claude CLI on the SAME cleaned PATH the agent boots with (v1380.4 deep hunt)
     env = _env_clean()
-    exe = shutil.which("claude", path=env.get("PATH")) or shutil.which("claude")
+    exe = env.get("TV_CLAUDE_BIN") or _find_claude_bin(env.get("PATH"))
     checks.append(_chk(
         "claude_cli", bool(exe), "block",
         exe or "claude CLI not found on PATH",
-        "Install Claude Code CLI and put it on PATH (npm i -g @anthropic-ai/claude-code)"))
+        ("irm https://claude.ai/install.ps1 | iex   then: claude  (login once)"
+         if IS_WIN else
+         "Install Claude Code CLI and put it on PATH")))
 
     # 2) claude probe — deliberately NOT run: the doctor must never spawn the CLI
     checks.append(_chk("claude_probe", True, "warn",

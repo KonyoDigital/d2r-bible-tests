@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempf
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1380.3"   # Theatre cinema restore: film fills shell (not 26vh stage box). Prior v1380.2: session stubs/library.
+VERSION = "v1380.4"   # Windows ON AIR harden: Claude PATH hunt, hung-boot kill, pythonw→python. Prior v1380.3: theatre cinema.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

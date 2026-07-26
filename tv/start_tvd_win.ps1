@@ -55,12 +55,42 @@ foreach ($p in @(
 Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
 Remove-Item Env:ANTHROPIC_AUTH_TOKEN -ErrorAction SilentlyContinue
 
+# v1380.4 — PATH seed for Claude (Desktop shortcut shells often miss ~/.local/bin + npm)
+foreach ($p in @(
+  (Join-Path $env:USERPROFILE '.local\bin'),
+  (Join-Path $env:LocalAppData 'Programs\claude'),
+  (Join-Path $env:LocalAppData 'claude'),
+  (Join-Path $env:APPDATA 'npm'),
+  (Join-Path $env:LocalAppData 'Microsoft\WinGet\Links')
+)) {
+  if ((Test-Path -LiteralPath $p) -and ($env:Path -notlike "*$p*")) {
+    $env:Path = "$p;$env:Path"
+  }
+}
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
-  Add-Type -AssemblyName PresentationFramework
-  [System.Windows.MessageBox]::Show(
-    "Claude Code not found.`nRe-run:`nirm https://bull-4-u.com/d2r/install-tvd.ps1 | iex",
-    "TV DIABLO", 'OK', 'Error') | Out-Null
-  return
+  # one more pass: direct file probe (shutil-equivalent)
+  $claudeHit = $null
+  foreach ($c in @(
+    (Join-Path $env:USERPROFILE '.local\bin\claude.exe'),
+    (Join-Path $env:USERPROFILE '.local\bin\claude.cmd'),
+    (Join-Path $env:APPDATA 'npm\claude.cmd'),
+    (Join-Path $env:LocalAppData 'Programs\claude\claude.exe')
+  )) {
+    if (Test-Path -LiteralPath $c) { $claudeHit = $c; break }
+  }
+  if ($claudeHit) {
+    $env:TV_CLAUDE_BIN = $claudeHit
+    $env:Path = "$(Split-Path -Parent $claudeHit);$env:Path"
+  } else {
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show(
+      "Claude Code not found — ON AIR cannot read the game without it.`n`n" +
+      "In PowerShell run:`n  irm https://claude.ai/install.ps1 | iex`n`n" +
+      "Then open a NEW PowerShell, type:  claude`n(finish login once), close it, and open TV DIABLO again.`n`n" +
+      "Or re-run the full installer:`n  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex",
+      "TV DIABLO", 'OK', 'Error') | Out-Null
+    return
+  }
 }
 
 $py = Real-Python

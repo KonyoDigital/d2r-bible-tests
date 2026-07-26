@@ -725,6 +725,17 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   complaint), add a targeted veto for the specific known-bad case instead. Always eyeball the actual
   frame a funnel fired on, not just the routing label, before trusting a "materials found" verdict.
 
+## REG-040 — Windows cousin ON AIR fails / spins (2026-07-26)
+- **Symptom:** Cousin clicks ON AIR on Windows TV DIABLO — nothing / spinner / silent fail.
+- **Root cause class (compound):**
+  1. Desktop shortcut launches with a thin PATH → `claude` not found → agent dies or never boots.
+  2. Hung agent (process alive, bridge never opens) used to return `ok: true` → UI lit ON with a dead eye.
+  3. Windows Store Python stub / `pythonw` spawn quirks.
+  4. UI only toasted `j.error`, not `msg`/`logTail` — cousin saw no fix line.
+- **Fix:** v1380.4 — `_find_claude_bin` deep hunt + `TV_CLAUDE_BIN`; kill hung boots; prefer
+  real `python.exe`; louder ON failures + doctor; `start_tvd_win.ps1` PATH seed + clearer MessageBox.
+- **Cousin action:** re-run installer or `git pull`, ensure `claude` login once, relaunch TV DIABLO.
+
 ## REG-039 — Theatre film "swallowed" / small at top of shell (2026-07-26)
 - **Symptom:** Opening Theatre showed a small, top-stuck video instead of the big structured
   cinema stage users remembered.
