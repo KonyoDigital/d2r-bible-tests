@@ -2249,3 +2249,13 @@ Mac) — these cuts make the reader nearly free when you're moving and only work
 2. **⚡ Authorize** on G5 card — `POST /api/g5_login` → `grok login --oauth`; no-spam if already authorized / in-flight; polls until linked then PRIMARY.
 3. Status fields: `cliInstalled`, `authorized`, `needsLogin`, `needsInstall`, `loginInflight`.
 4. Tests: `TestV1381GrokAuthorize` + full `test_g5_grok_eyes` 17 OK. Triple stamp v1381.2.
+
+## VERSION SCHEME — integers only (2026-07-26, Konyo)
+Decimals retired (no more v1380.5 / v1381.2). Ship **one whole number at a time**: v1400, v1401, v1402…
+History may still show decimals; new stamps are always `vNNNN` only.
+
+## ROUND v1400 — Grok CLI in IRM + ⚡ Authorize (2026-07-26)
+Was drafted as v1381.2; renumbered to authentic whole **v1400**.
+- install-tvd.ps1 / .sh install Grok CLI (optional, Claude-style)
+- Console ⚙ advanced → ⚡ Authorize → grok login --oauth (no-spam when linked)
+- POST /api/g5_login · status: cliInstalled / authorized / needsLogin
