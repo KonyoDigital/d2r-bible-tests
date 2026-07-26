@@ -1,3 +1,9 @@
+## Round v1410 — Console ✕ quit UX (2026-07-26)
+- **Bug:** hitting X froze the console → Apple Python_*.hang (unresponsive 35s). Close handlers ran stop_agent on the Cocoa UI thread; engine driver kept evaluate_js on a dead WKWebView after headless linger.
+- **Fix:** mark window gone first · schedule exit-stop off-thread · _ejs refuses dead window · engine driver exits · ✕ quits process (supervisor relaunches headless).
+- **Tests:** TestExitSafeguard v1410 (6 OK).
+
+
 ## Round v1409 — Forge crafts always on (2026-07-26)
 - **Bug:** sealed runeword chronicle (or empty ready-crafts) early-returned before ⚗️ Crafts → "where are my crafts?"
 - **Fix:** never swallow crafts · all 4 types × 9 slots · ✓ crafted · craft one-step tasks · forgeSummary/craftReady + console FORGE chips

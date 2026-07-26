@@ -1020,6 +1020,32 @@ class TestExitSafeguard(unittest.TestCase):
         self.assertTrue(r.get("skipped"))
         self.assertFalse(ca._EXIT_STOP_DONE)          # window-only must not consume the one-shot
 
+    def test_v1410_mark_window_gone_kills_handles(self):
+        # Apple hang class: evaluate_js on a dying WKWebView after ✕. Mark gone first.
+        ca._WINDOW_LIVE = True
+        ca._MAIN_WIN = object()
+        ca._mark_window_gone("unit")
+        self.assertFalse(ca._WINDOW_LIVE)
+        self.assertIsNone(ca._MAIN_WIN)
+
+    def test_v1410_ejs_refuses_dead_window(self):
+        ca._WINDOW_LIVE = False
+        # would hang forever if it actually called evaluate_js on a dead webview
+        self.assertIsNone(ca._ejs(object(), "1+1", timeout=0.2))
+
+    def test_v1410_schedule_exit_stop_is_nonblocking(self):
+        # close handlers must return in <<1 frame so Cocoa can dismiss the window
+        import time
+        ca._EXIT_STOP_DONE = False
+        ca._WINDOW_ONLY = False
+        ca._agent_mode = "live"
+        t0 = time.time()
+        ca._schedule_exit_stop("unit-x")
+        elapsed = time.time() - t0
+        self.assertLess(elapsed, 0.15)   # fire-and-forget, never waits for stop_agent
+        time.sleep(0.35)                 # daemon finishes stop
+        self.assertIn(("stop", False), self._calls)
+
 
 class TestHistFrameResolve(unittest.TestCase):
     """v940.4 — THEATRE debugger: verify #v frameIds and journal shield base protection.

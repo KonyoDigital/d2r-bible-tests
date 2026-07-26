@@ -743,6 +743,11 @@ _log_fp = None
 _EXIT_STOP_DONE = False
 _EXIT_STOP_LOCK = threading.Lock()
 _WINDOW_ONLY = False   # v935.8 — secondary --window-only attach must NOT kill ON AIR
+# v1410 — window liveness for close UX. When the user hits ✕, Cocoa fires close handlers on
+# the UI thread; any blocking stop/evaluate_js there freezes the window → Apple hang report
+# (Python_*.hang · "unresponsive 35s"). Mark the window gone IMMEDIATELY so the engine driver
+# never evaluate_js a dying WKWebView, and run exit-stop off-thread.
+_WINDOW_LIVE = False
 
 
 def _find_claude_bin(path_env=None):
@@ -1501,6 +1506,35 @@ def _force_kill_all_agents(reason=""):
             "farewell": False, "sessionSaved": True, "bridgeDown": dead, "forced": True}
 
 
+def _mark_window_gone(reason=""):
+    """v1410 — drop every live-window handle FIRST so no thread can evaluate_js a dying
+    WKWebView (the hang-report class). Safe to call many times; never blocks."""
+    globals()["_WINDOW_LIVE"] = False
+    globals()["_MAIN_WIN"] = None
+    globals()["_ENGINE_ALIVE"] = False
+    globals()["_ENGINE_READY"] = False
+    if reason:
+        print(f"📺 window gone ({reason}) — engine probes disabled", flush=True)
+
+
+def _schedule_exit_stop(reason="quit"):
+    """v1410 — NEVER run stop_agent on the Cocoa UI/close thread. Fire-and-forget daemon
+    so ✕ dismisses the window instantly; ON AIR still gets sealed in the background."""
+    def _run():
+        try:
+            _console_exit_stop_onair(reason)
+        except Exception as e:
+            print(f"⚠ async exit stop failed ({e})", flush=True)
+    try:
+        threading.Thread(target=_run, daemon=True, name="tvd-exit-stop").start()
+    except Exception:
+        # last resort — still try not to raise into Cocoa
+        try:
+            _console_exit_stop_onair(reason)
+        except Exception:
+            pass
+
+
 def _console_exit_stop_onair(reason="quit"):
     """v935.8 — EXIT SAFEGUARD (Konyo: 'exiting the console must stop ON AIR — it's always on').
 
@@ -1512,6 +1546,9 @@ def _console_exit_stop_onair(reason="quit"):
     v1379.2 — also CLEAR the supervisor pause flag after a primary --open session ends, so
     tvd_supervisor can bring headless :17772 back up. Reclaim writes the pause so Desktop
     can steal the port; without clearing it, the always-up console stays dead forever.
+
+    v1410 — HARD CAP ~3s (force-kill path). Must never run on the UI/close thread (use
+    _schedule_exit_stop). Long waits here = beachball + Apple Python_*.hang reports.
     """
     global _EXIT_STOP_DONE
     # Secondary --window-only attach: the primary control process owns the agent.
@@ -1521,8 +1558,11 @@ def _console_exit_stop_onair(reason="quit"):
         if _EXIT_STOP_DONE:
             return {"ok": True, "msg": "exit stop already ran", "skipped": True}
         _EXIT_STOP_DONE = True
+    # Always kill window probes first — even if stop is already done elsewhere
+    _mark_window_gone(reason)
     print(f"📺 exit safeguard — stopping ON AIR ({reason})…", flush=True)
     result = {"ok": True, "msg": "already off", "farewell": False}
+    t0 = time.time()
     try:
         # If nothing is on air, stop_agent is cheap and returns already-off.
         if not _agent_alive() and _port_listener_pid() is None and _agent_mode == "off":
@@ -1545,6 +1585,13 @@ def _console_exit_stop_onair(reason="quit"):
                 except Exception as e2:
                     print(f"   force kill failed: {e2}", flush=True)
                     result = {"ok": False, "msg": str(e2)}
+        # Hard cap: never sit in exit longer than ~3s total (hang-report class)
+        if time.time() - t0 > 3.0:
+            try:
+                _force_kill_all_agents(f"exit-safeguard hardcap ({reason})")
+            except Exception:
+                pass
+            result = dict(result or {}, hardcap=True)
     except Exception:
         pass
     # Resume always-up headless console after a real window session ends
@@ -1555,6 +1602,7 @@ def _console_exit_stop_onair(reason="quit"):
             print("   supervisor pause cleared — headless console may resume", flush=True)
     except Exception as _pe:
         print(f"   pause clear skipped: {_pe}", flush=True)
+    print(f"   exit stop done in {time.time()-t0:.2f}s", flush=True)
     return result
 
 
@@ -2089,19 +2137,27 @@ def open_control_window():
             background_color="#070605",
         )
 
-    # v935.8 — window closed → stop ON AIR (events fire before webview.start returns on most backends)
+    # v935.8 / v1410 — window ✕ UX: mark gone FIRST (stops engine evaluate_js), stop ON AIR
+    # OFF the Cocoa UI thread. Sync stop on the close handler was the Apple hang-report class
+    # (Python_*.hang "unresponsive 35s" · main thread stuck in stop/select while AppKit freezes).
     try:
         win = globals().get("_MAIN_WIN")
         if win is not None and hasattr(win, "events"):
+            def _on_win_closing():
+                _mark_window_gone("window-closing")
+                _schedule_exit_stop("window-closing")
+                return True  # allow close (pywebview may honor this on some backends)
             def _on_win_closed():
-                _console_exit_stop_onair("window-closed")
+                _mark_window_gone("window-closed")
+                _schedule_exit_stop("window-closed")
+            try:
+                win.events.closing += _on_win_closing
+            except Exception:
+                pass
             try:
                 win.events.closed += _on_win_closed
             except Exception:
-                try:
-                    win.events.closing += lambda: _console_exit_stop_onair("window-closing")
-                except Exception:
-                    pass
+                pass
     except Exception:
         pass
 
@@ -2126,6 +2182,7 @@ def open_control_window():
     # v1248 — hold the window-presence lock for this window's lifetime (takeover guard);
     # cleared on close/crash so a second launch knows whether a real window is already open.
     _window_lock_write()
+    globals()["_WINDOW_LIVE"] = True
     try:
         import atexit as _atexit
         _atexit.register(_window_lock_clear)
@@ -2146,19 +2203,30 @@ def open_control_window():
             print(f"⚠ pywebview failed ({e}) — browser fallback")
             _open_browser_app_fallback(url)
     finally:
+        _mark_window_gone("webview-finally")
         _window_lock_clear()
-    # webview.start() returns when the user closes the window — always stop ON AIR
-    _console_exit_stop_onair("webview-returned")
+    # webview.start() returned — window is gone. Schedule stop (idempotent if close already did).
+    # Do NOT block here: caller may want to exit the process (✕ = quit for --open).
+    _schedule_exit_stop("webview-returned")
 
 
 def _ejs(w, code, timeout=4.0):
     """v930 — evaluate_js with a hard timeout: pywebview's call BLOCKS FOREVER on a
     suspended/occluded WKWebView (live evidence: driver thread hung on its first probe).
-    Runs the call in a scratch thread; timeout → None (treat as engine-not-responding)."""
+    Runs the call in a scratch thread; timeout → None (treat as engine-not-responding).
+
+    v1410 — refuse when the window is gone/closing. evaluate_js on a dying WKWebView
+    deadlocks Cocoa and surfaces as Apple Python_*.hang on ✕."""
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return None
     import queue as _q
     box = _q.Queue(maxsize=1)
     def _run():
         try:
+            # re-check inside the worker — close can race mid-call
+            if not globals().get("_WINDOW_LIVE"):
+                box.put(None)
+                return
             box.put(w.evaluate_js(code))
         except Exception as e:
             box.put(e)
@@ -6609,6 +6677,10 @@ def _engine_driver():
     while True:
         try:
             time.sleep(2.0)
+            # v1410 — window ✕: exit cleanly. Never evaluate_js a dead WKWebView (hang class).
+            if not globals().get("_WINDOW_LIVE"):
+                print("🔌 engine driver stop — window gone (✕)", flush=True)
+                return
             w = globals().get("_MAIN_WIN")
             if w is None:
                 continue
@@ -7325,7 +7397,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1409",
+        "ver": "v1410",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9820,8 +9892,14 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
         if path == "/api/quit":
+            # v1410 — same as ✕: mark window gone, stop ON AIR async, then die
+            try:
+                _mark_window_gone("api-quit")
+                _schedule_exit_stop("api-quit")
+            except Exception:
+                pass
             threading.Thread(
-                target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True
+                target=lambda: (time.sleep(0.45), os._exit(0)), daemon=True
             ).start()
             self._json(200, {"ok": True, "msg": "control quitting"})
             return
@@ -10042,22 +10120,28 @@ def main():
     time.sleep(0.2)
 
     if open_ui and not no_open:
-        # Blocks until the native window is closed; open_control_window stops ON AIR on return.
+        # Blocks until the native window is closed; close handlers already scheduled async stop.
         open_control_window()
-        _console_exit_stop_onair("main-after-window")
-        # v1176 — a closed window (deliberate close OR a flaky WKWebView self-close) used
-        # to take the WHOLE control server down with it: srv.shutdown()+return here killed
-        # the daemon serve_forever thread, and with nothing non-daemon left alive the
-        # process exited right behind it — :17772 then sat HTTP-000-dead until someone
-        # noticed and relaunched by hand (recurring crash, evidence: control_app.log shows
-        # repeated "window-closed" exits with no relaunch). Serving the console is not
-        # actually coupled to a window being open, so just drop into headless mode below —
-        # :17772 stays answerable; reopen a window anytime with --window-only.
-        print(f"📺 native window closed — control server stays up headless on "
-              f"http://127.0.0.1:{CONTROL_PORT}/ (·/api/quit to exit · --window-only to "
-              f"reopen a window)", flush=True)
+        # v1410 UX — ✕ means QUIT the console app (user expectation). Staying headless left a
+        # zombie Python with a dead WKWebView that the engine driver kept probing → Apple hang
+        # reports (Python_*.hang). Give async exit-stop a short beat, then leave :17772; the
+        # supervisor (or next Desktop double-click) brings a clean console back.
+        _mark_window_gone("main-after-window")
+        _schedule_exit_stop("main-after-window")
+        print("📺 native window closed — quitting cleanly (✕ = exit). "
+              f"Supervisor/Desktop can relaunch headless on :{CONTROL_PORT}.", flush=True)
+        # Brief settle so session seal / agent SIGTERM can land before we die
+        try:
+            time.sleep(0.6)
+        except Exception:
+            pass
+        try:
+            srv.shutdown()
+        except Exception:
+            pass
+        os._exit(0)
 
-    # headless server mode (tests / --no-open / window closed above)
+    # headless server mode (tests / --no-open)
     try:
         while True:
             time.sleep(1)
