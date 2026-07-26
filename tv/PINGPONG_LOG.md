@@ -2393,3 +2393,9 @@ Konyo: Theatre should read CLOSE when open; Verdict & story swallowed; chapters/
 1. **CLOSE Theatre** — btn-sim morphs label when TH.open; th-close says ✕ CLOSE.
 2. **Verdict & story** — dossier z-index 970 (above header), bottom padding, section earlier + .dsr-verdict highlight; overlays moved outside #theatre overflow.
 3. **Finds/chapters** — /api/sessions falls back to sealed kai_report.register + deep names when journal register missing (real reel cross-ref).
+
+## 2026-07-27 — Windows Grok Konyo 10-round (v1419)
+- R1-R4: C# PrintWindow pin; visual Rogue Encampment (Gulzar/cart/torch)
+- R5-R7: ON AIR live+LINKED; town read session s_1785109054425_37292
+- R8-R10: hist deep frame + eye film cross-ref; pin status BOM fix
+- Push: agent pin surface + no-BOM cap_target + board ledger
