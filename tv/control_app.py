@@ -7255,7 +7255,7 @@ def status_payload():
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     return {
         "ok": True,
-        "ver": "v1381.1",
+        "ver": "v1381.2",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9018,6 +9018,31 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             self._json(200, _g5_status())
+            return
+        if path == "/api/g5_login":
+            # v1381.2 — ⚡ Authorize Grok: spawn `grok login --oauth` (browser once).
+            # No-spam: already-authorized / in-flight short-circuit. Optional setPrimary.
+            if _G5 is None:
+                self._json(200, {"ok": False, "present": False, "msg": "G5 module missing"})
+                return
+            try:
+                out = _G5.start_login(prefer_oauth=bool(body.get("oauth", True)))
+            except Exception as e:
+                self._json(200, {"ok": False, "msg": str(e)[:160]})
+                return
+            # After auth lands, optional auto-PRIMARY (default true when caller asks)
+            if out.get("ok") and (out.get("reason") == "already-authorized"
+                                  or body.get("setPrimary") or body.get("primary")):
+                try:
+                    if out.get("hasSubscription") or out.get("reason") == "already-authorized":
+                        _G5.set_mode("primary")
+                except Exception:
+                    pass
+            st = _g5_status()
+            if isinstance(out, dict):
+                out = dict(out)
+                out["status"] = st
+            self._json(200, out if isinstance(out, dict) else {"ok": False, "status": st})
             return
         # ══ END GROK EYES (G5) ══
         if path == "/kai_verdict":

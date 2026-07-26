@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempf
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1381.1"   # Super excludes tally panels · vault funnel ON · Theatre reclose · encodeURI thumbs · GRAMD fix.
+VERSION = "v1381.2"   # Grok CLI in IRM installers + ⚡ Authorize button (no-spam SuperGrok OIDC).
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

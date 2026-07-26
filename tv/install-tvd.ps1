@@ -2,9 +2,10 @@
 #
 #     irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 #
-# One paste: Git + Python + pywebview + Claude Code, clones the bible repo,
-# drops Desktop "TV DIABLO" → real native app window (pywebview / Edge WebView2,
-# NOT Chrome). Same control UI as Mac: ON/OFF/STOP/RESTART/SIM · hidden agent.
+# One paste: Git + Python + pywebview + Claude Code + Grok CLI (optional SuperGrok
+# vision lane), clones the bible repo, drops Desktop "TV DIABLO" → real native app
+# window (pywebview / Edge WebView2, NOT Chrome). Same control UI as Mac:
+# ON/OFF/STOP/RESTART/SIM · hidden agent. Grok stays OFF until you authorize once.
 #
 # Served as text/plain so `irm | iex` always gets a string.
 $ErrorActionPreference = 'Stop'
@@ -225,6 +226,59 @@ if ($claudeOk) {
   Warn "Desktop app will still be created — log into Claude before ON."
 }
 
+# ── Grok Build CLI (optional SuperGrok vision lane · G5 · never required) ────
+# Official xAI installer (same spirit as Claude Code). Cousin can leave Grok OFF.
+# Authorize once later: console ⚡ Authorize Grok, or:  grok login
+function Install-GrokCli {
+  if (Have 'grok') { return $true }
+  Say "installing Grok CLI (xAI SuperGrok · optional vision lane)…"
+  try {
+    $resp = Invoke-WebRequest -Uri 'https://x.ai/cli/install.ps1' -UseBasicParsing
+    $scriptText = $null
+    if ($null -eq $resp.Content) {
+      throw "empty install.ps1 body"
+    } elseif ($resp.Content -is [byte[]]) {
+      $scriptText = [System.Text.Encoding]::UTF8.GetString($resp.Content)
+    } else {
+      $scriptText = [string]$resp.Content
+    }
+    if (-not $scriptText -or $scriptText.Length -lt 20) {
+      throw "install.ps1 body too short"
+    }
+    Invoke-Expression $scriptText
+  } catch {
+    Warn "official Grok install.ps1 path failed ($($_.Exception.Message))"
+    try {
+      Invoke-Expression (Invoke-RestMethod -Uri 'https://x.ai/cli/install.ps1')
+    } catch {
+      Warn "Grok irm/iex path failed ($($_.Exception.Message))"
+    }
+  }
+  Refresh-Path
+  Start-Sleep -Seconds 2
+  Refresh-Path
+  foreach ($p in @(
+    (Join-Path $env:USERPROFILE '.grok\bin'),
+    (Join-Path $env:USERPROFILE '.local\bin'),
+    (Join-Path $env:LocalAppData 'Programs\grok'),
+    (Join-Path $env:LocalAppData 'grok')
+  )) {
+    if ((Test-Path -LiteralPath $p) -and ($env:Path -notlike "*$p*")) {
+      $env:Path = "$p;$env:Path"
+    }
+  }
+  return (Have 'grok')
+}
+
+Refresh-Path
+$grokOk = Install-GrokCli
+if ($grokOk) {
+  Ok "grok cli (optional — authorize later in console or: grok login)"
+} else {
+  Warn "grok CLI not installed — optional. Grok Eyes stays OFF until you install SuperGrok CLI."
+  Warn "manual:  irm https://x.ai/cli/install.ps1 | iex   then:  grok login"
+}
+
 # Desktop shortcut → start_tvd_win.ps1 → pythonw + pywebview native window
 $ws  = New-Object -ComObject WScript.Shell
 $desktop = [Environment]::GetFolderPath('Desktop')
@@ -283,6 +337,14 @@ if (-not $claudeOk) {
 $credFile = Join-Path $HOME '.claude\.credentials.json'
 if (-not (Test-Path $credFile)) {
   Warn "first run may walk you through logging into your own Claude account (once)."
+}
+if ($grokOk) {
+  $gAuth = Join-Path $HOME '.grok\auth.json'
+  if (-not (Test-Path $gAuth)) {
+    Warn "Grok CLI ready — open TV DIABLO → ⚙ advanced → ⚡ Authorize Grok (browser once), or: grok login"
+  } else {
+    Ok "Grok already authorized on this PC (no re-login needed)"
+  }
 }
 echo ""
 echo "   Windows:  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex"

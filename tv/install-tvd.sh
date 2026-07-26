@@ -67,6 +67,28 @@ else
   exit 1
 fi
 
+# ── Grok Build CLI (optional SuperGrok vision · G5 · never required) ─────────
+export PATH="${HOME}/.grok/bin:${HOME}/.local/bin:${PATH}"
+if ! command -v grok >/dev/null 2>&1; then
+  Say "installing Grok CLI (xAI SuperGrok · optional vision lane)…"
+  if curl -fsSL https://x.ai/cli/install.sh | bash; then
+    export PATH="${HOME}/.grok/bin:${HOME}/.local/bin:${PATH}"
+  else
+    Warn "Grok CLI install failed — optional. Leave Grok Eyes OFF or install later:"
+    Warn "  curl -fsSL https://x.ai/cli/install.sh | bash   then:  grok login"
+  fi
+fi
+if command -v grok >/dev/null 2>&1; then
+  Ok "grok cli (optional — authorize later in console ⚡ or: grok login)"
+  if [[ ! -f "${HOME}/.grok/auth.json" ]]; then
+    Warn "Grok not authorized yet — TV DIABLO → ⚙ advanced → ⚡ Authorize Grok (browser once)"
+  else
+    Ok "Grok already authorized on this Mac"
+  fi
+else
+  Warn "grok still missing — optional; console works without it"
+fi
+
 # ── bible repo ───────────────────────────────────────────────────────────────
 if [[ -d "$REPO_DIR/.git" ]]; then
   Say "updating the bible repo…"

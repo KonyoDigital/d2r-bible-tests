@@ -226,8 +226,105 @@ def set_on(on):
     return set_mode("primary" if on else "off")
 
 
+# v1381.2 — no-spam login: one in-flight process; UI only prompts when needsLogin
+_LOGIN_LOCK = threading.Lock()
+_LOGIN_PROC = None  # type: ignore
+_LOGIN_STARTED_AT = 0.0
+
+
+def start_login(*, prefer_oauth=True):
+    """v1381.2 — launch `grok login` so the user can authorize SuperGrok in the browser.
+
+    Pure side-effect helper for the console ⚡ Authorize button. Does NOT spam:
+    if already logged in, returns ok without spawning; if a login is already in
+    flight, returns the existing status. Never uses API keys.
+    """
+    global _LOGIN_PROC, _LOGIN_STARTED_AT
+    bin_path = _grok_bin()
+    if not bin_path:
+        return {
+            "ok": False, "started": False, "reason": "no-cli",
+            "msg": "grok CLI not installed — re-run the TV installer or: "
+                   "irm https://x.ai/cli/install.ps1 | iex   (Windows) / "
+                   "curl -fsSL https://x.ai/cli/install.sh | bash   (Mac)",
+            "hasSubscription": False, "cliInstalled": False,
+        }
+    if _subscription_logged_in():
+        return {
+            "ok": True, "started": False, "reason": "already-authorized",
+            "msg": "Grok already authorized on this PC — no re-login needed",
+            "hasSubscription": True, "cliInstalled": True,
+        }
+    with _LOGIN_LOCK:
+        # still running?
+        if _LOGIN_PROC is not None:
+            try:
+                if _LOGIN_PROC.poll() is None:
+                    return {
+                        "ok": True, "started": False, "reason": "in-flight",
+                        "msg": "login already open — finish the browser authorize, then return here",
+                        "hasSubscription": False, "cliInstalled": True,
+                        "pid": getattr(_LOGIN_PROC, "pid", None),
+                    }
+            except Exception:
+                pass
+            _LOGIN_PROC = None
+        env, _stripped = _grok_env()
+        args = [bin_path, "login"]
+        if prefer_oauth:
+            args.append("--oauth")
+        try:
+            # Detached-ish: open a visible console on Windows so the user sees the URL;
+            # on Mac/Linux inherit is fine (browser still pops).
+            creation = 0
+            if os.name == "nt":
+                creation = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+            _LOGIN_PROC = subprocess.Popen(
+                args, env=env,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                creationflags=creation if creation else 0,
+                start_new_session=(os.name != "nt"),
+            )
+            _LOGIN_STARTED_AT = time.time()
+            _STATS["last"] = "login-started"
+            _STATS["last_error"] = None
+            return {
+                "ok": True, "started": True, "reason": "spawned",
+                "msg": "browser authorize opened — complete SuperGrok login, then PRIMARY stays green",
+                "hasSubscription": False, "cliInstalled": True,
+                "pid": getattr(_LOGIN_PROC, "pid", None),
+            }
+        except Exception as e:
+            _LOGIN_PROC = None
+            _STATS["last_error"] = f"login spawn failed: {e}"
+            return {
+                "ok": False, "started": False, "reason": "spawn-failed",
+                "msg": str(e)[:200],
+                "hasSubscription": False, "cliInstalled": True,
+            }
+
+
+def login_inflight():
+    """True if a grok login process is still running."""
+    global _LOGIN_PROC
+    if _LOGIN_PROC is None:
+        return False
+    try:
+        if _LOGIN_PROC.poll() is None:
+            return True
+    except Exception:
+        pass
+    _LOGIN_PROC = None
+    return False
+
+
 def status():
     hourly, daily = _budget_counts()
+    cli = bool(_grok_bin())
+    authorized = _subscription_logged_in()
+    can_run = bool(cli and authorized)
+    inflight = login_inflight()
     return {
         "present": True,
         "feature": "g5_grok_eyes",
@@ -236,8 +333,13 @@ def status():
         "switch": mode_intent(),
         "mode": mode(),
         "on": is_on(),
-        "hasKey": has_subscription(),       # UI compat: means "can run", not API key
-        "hasSubscription": has_subscription(),
+        "hasKey": can_run,       # UI compat: means "can run", not API key
+        "hasSubscription": can_run,
+        "cliInstalled": cli,
+        "authorized": authorized,
+        "needsInstall": not cli,
+        "needsLogin": bool(cli and not authorized),
+        "loginInflight": inflight,
         "grokBin": _grok_bin() or None,
         "model": "subscription-cli",
         "budget": {

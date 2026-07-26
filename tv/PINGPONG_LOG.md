@@ -2241,3 +2241,11 @@ Mac) — these cuts make the reader nearly free when you're moving and only work
 
 **Gates:** py_compile control_app · test_control 241 OK · version triple stamp v1381.x · mode=off at ship.
 **Prove:** unit + live routing replay of Jul25 report.
+
+## ROUND v1381.2 — Grok CLI in IRM + ⚡ Authorize (2026-07-26)
+**Order:** Konyo — ship Grok authorize button; Grok must install like Claude via IRM (cousin + Windows).
+
+1. **install-tvd.ps1 / install-tvd.sh** — `Install-GrokCli` via official xAI installers (`x.ai/cli/install.ps1` / `install.sh`). Optional; never blocks Desktop/Claude.
+2. **⚡ Authorize** on G5 card — `POST /api/g5_login` → `grok login --oauth`; no-spam if already authorized / in-flight; polls until linked then PRIMARY.
+3. Status fields: `cliInstalled`, `authorized`, `needsLogin`, `needsInstall`, `loginInflight`.
+4. Tests: `TestV1381GrokAuthorize` + full `test_g5_grok_eyes` 17 OK. Triple stamp v1381.2.

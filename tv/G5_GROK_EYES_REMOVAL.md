@@ -31,13 +31,28 @@
 | **shadow** | Claude drives; `grok -p` logs parallel |
 | **primary** | `grok -p` drives vision; Claude if Grok fails |
 
+## Install + authorize (v1381.2)
+```bash
+# IRM installers install the Grok CLI (like Claude Code) — optional, never blocks cousin
+# Windows:  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex   # includes Git/Python/Claude/Grok
+# Mac:      curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash
+# Manual Grok only:
+#   Windows:  irm https://x.ai/cli/install.ps1 | iex
+#   Mac:      curl -fsSL https://x.ai/cli/install.sh | bash
+
+# once per PC (browser SuperGrok OIDC — NO API keys):
+# console: ⚙ advanced → ⚡ Authorize   (or: grok login)
+# no-spam: if ~/.grok/auth.json already valid, button shows ⚡ Linked and does not re-open browser
+```
+
 ## Toggle
 ```bash
-# once:  grok login
+# once:  grok login   OR console ⚡ Authorize
 # console: ⚙ advanced → Grok Eyes  OFF | SHADOW | PRIMARY
 # or HTTP:
 # GET  /api/g5_status
 # POST /api/g5_toggle  {"mode":"off"|"shadow"|"primary"}
+# POST /api/g5_login   {"oauth":true,"setPrimary":true}   # v1381.2 authorize
 ```
 
 ## Remove

@@ -88,6 +88,40 @@ class TestG5OffByDefault(unittest.TestCase):
         self.assertEqual(d.get("lane"), "subscription-cli")
 
 
+class TestV1381GrokAuthorize(unittest.TestCase):
+    """v1381.2 — ⚡ Authorize: no-spam login spawn; installer/CLI gates."""
+
+    def test_status_exposes_auth_fields(self):
+        st = g5.status()
+        for k in ("cliInstalled", "authorized", "needsLogin", "needsInstall", "loginInflight"):
+            self.assertIn(k, st)
+
+    def test_start_login_no_cli_short_circuits(self):
+        with mock.patch.object(g5, "_grok_bin", return_value=""):
+            out = g5.start_login()
+        self.assertFalse(out.get("ok"))
+        self.assertEqual(out.get("reason"), "no-cli")
+        self.assertFalse(out.get("started"))
+
+    def test_start_login_already_authorized_no_spawn(self):
+        with mock.patch.object(g5, "_grok_bin", return_value="/fake/grok"):
+            with mock.patch.object(g5, "_subscription_logged_in", return_value=True):
+                with mock.patch.object(g5.subprocess, "Popen") as pop:
+                    out = g5.start_login()
+        self.assertTrue(out.get("ok"))
+        self.assertEqual(out.get("reason"), "already-authorized")
+        self.assertFalse(out.get("started"))
+        pop.assert_not_called()
+
+    def test_needs_login_when_cli_without_auth(self):
+        with mock.patch.object(g5, "_grok_bin", return_value="/fake/grok"):
+            with mock.patch.object(g5, "_subscription_logged_in", return_value=False):
+                st = g5.status()
+        self.assertTrue(st.get("cliInstalled"))
+        self.assertTrue(st.get("needsLogin"))
+        self.assertFalse(st.get("authorized"))
+
+
 class TestG5CliCall(unittest.TestCase):
     def setUp(self):
         self._env = os.environ.copy()
