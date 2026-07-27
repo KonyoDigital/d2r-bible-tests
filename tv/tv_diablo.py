@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1434"   # Capture smooth: eye always 800px q72; BMP every 2nd; PNG every 8th; 400ms.
+VERSION = "v1435"   # Bridge single-hop /state (skip ping when state ok).
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

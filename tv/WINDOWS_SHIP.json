@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1434",
+  "ver": "v1435",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1434: capture I/O smooth under 1920x1080",
+  "note": "v1435: one-hop bridge prober",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
