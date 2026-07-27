@@ -2399,3 +2399,15 @@ Konyo: Theatre should read CLOSE when open; Verdict & story swallowed; chapters/
 - R5-R7: ON AIR live+LINKED; town read session s_1785109054425_37292
 - R8-R10: hist deep frame + eye film cross-ref; pin status BOM fix
 - Push: agent pin surface + no-BOM cap_target + board ledger
+
+
+## 2026-07-27 — Mac v1420 force-exit (✕ / Esc, no Force Quit)
+Konyo: Mac console ESC/"X" never exits properly — always Force Quit.
+Root: pywebview Cocoa often leaves `webview.start()` blocked in select() after red ✕;
+v1410 async stop helped UI thread but process never reached `os._exit` → beachball.
+Fix:
+1. `_arm_force_exit` — hard `os._exit(0)` deadline (~1.25s) once per exit surface
+2. `_request_console_exit` — mark gone + async stop ON AIR + arm deadline + try destroy
+3. Window closing/closed + /api/quit + webview-finally + main-after-window all use it
+4. Esc empty overlay stack → POST /api/quit (toast "Leaving console…")
+Tests: TestExitSafeguard +3 (arm idempotent, request path, UI contract) · triple stamp v1420

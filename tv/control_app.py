@@ -856,6 +856,12 @@ _WINDOW_ONLY = False   # v935.8 — secondary --window-only attach must NOT kill
 # (Python_*.hang · "unresponsive 35s"). Mark the window gone IMMEDIATELY so the engine driver
 # never evaluate_js a dying WKWebView, and run exit-stop off-thread.
 _WINDOW_LIVE = False
+# v1420 — Force-Quit killer. pywebview Cocoa often leaves webview.start() blocked in select()
+# after the red ✕, so main never reaches os._exit and the Dock app beachballs until Force Quit.
+# Arm a hard process death once on every real exit surface (✕ / Esc→/api/quit / webview return).
+_FORCE_EXIT_ARMED = False
+_FORCE_EXIT_LOCK = threading.Lock()
+_FORCE_EXIT_DELAY_S = 1.25
 
 
 def _find_claude_bin(path_env=None):
@@ -1665,6 +1671,77 @@ def _mark_window_gone(reason=""):
         print(f"📺 window gone ({reason}) — engine probes disabled", flush=True)
 
 
+def _arm_force_exit(reason="quit", delay=None):
+    """v1420 — hard process death after ✕/Esc, even when Cocoa never returns from
+    webview.start(). Idempotent. Never blocks the caller (UI/close thread safe).
+
+    delay defaults to _FORCE_EXIT_DELAY_S (~1.25s): long enough for async stop_agent to
+    seal ON AIR; short enough that Force Quit is never the user's only option."""
+    global _FORCE_EXIT_ARMED
+    if delay is None:
+        delay = float(globals().get("_FORCE_EXIT_DELAY_S") or 1.25)
+    with _FORCE_EXIT_LOCK:
+        if _FORCE_EXIT_ARMED:
+            return False
+        _FORCE_EXIT_ARMED = True
+    def _die():
+        try:
+            time.sleep(max(0.05, float(delay)))
+        except Exception:
+            pass
+        try:
+            print(f"📺 force-exit deadline ({reason}) — os._exit(0)", flush=True)
+        except Exception:
+            pass
+        try:
+            os._exit(0)
+        except Exception:
+            pass
+    try:
+        threading.Thread(target=_die, daemon=True, name="tvd-force-exit").start()
+    except Exception:
+        try:
+            os._exit(0)
+        except Exception:
+            pass
+    return True
+
+
+def _request_console_exit(reason="quit", hard_delay=None):
+    """v1420 — single exit surface for ✕, Esc→/api/quit, and webview-return.
+
+    Order matters:
+      1) capture window handle BEFORE mark clears it
+      2) mark gone (kill evaluate_js probes)
+      3) async stop ON AIR (never on Cocoa UI thread)
+      4) arm hard os._exit deadline (Force-Quit killer)
+      5) best-effort destroy the native window
+
+    Safe on every thread; never blocks more than a few ms."""
+    win = globals().get("_MAIN_WIN")
+    try:
+        _mark_window_gone(reason)
+    except Exception:
+        pass
+    try:
+        _schedule_exit_stop(reason)
+    except Exception:
+        pass
+    try:
+        _arm_force_exit(reason, delay=hard_delay)
+    except Exception:
+        pass
+    if win is not None:
+        for meth in ("destroy", "hide"):
+            try:
+                fn = getattr(win, meth, None)
+                if callable(fn):
+                    fn()
+                    break
+            except Exception:
+                continue
+
+
 def _schedule_exit_stop(reason="quit"):
     """v1410 — NEVER run stop_agent on the Cocoa UI/close thread. Fire-and-forget daemon
     so ✕ dismisses the window instantly; ON AIR still gets sealed in the background."""
@@ -2285,19 +2362,18 @@ def open_control_window():
             background_color="#070605",
         )
 
-    # v935.8 / v1410 — window ✕ UX: mark gone FIRST (stops engine evaluate_js), stop ON AIR
-    # OFF the Cocoa UI thread. Sync stop on the close handler was the Apple hang-report class
-    # (Python_*.hang "unresponsive 35s" · main thread stuck in stop/select while AppKit freezes).
+    # v935.8 / v1410 / v1420 — window ✕ UX:
+    #   v1410: mark gone FIRST + async stop (no UI-thread stop_agent → hang reports)
+    #   v1420: ALSO arm hard os._exit deadline — Cocoa often never returns webview.start()
+    #          after red ✕, so main never reaches the post-start os._exit and users Force Quit.
     try:
         win = globals().get("_MAIN_WIN")
         if win is not None and hasattr(win, "events"):
             def _on_win_closing():
-                _mark_window_gone("window-closing")
-                _schedule_exit_stop("window-closing")
+                _request_console_exit("window-closing")
                 return True  # allow close (pywebview may honor this on some backends)
             def _on_win_closed():
-                _mark_window_gone("window-closed")
-                _schedule_exit_stop("window-closed")
+                _request_console_exit("window-closed")
             try:
                 win.events.closing += _on_win_closing
             except Exception:
@@ -2351,11 +2427,17 @@ def open_control_window():
             print(f"⚠ pywebview failed ({e}) — browser fallback")
             _open_browser_app_fallback(url)
     finally:
-        _mark_window_gone("webview-finally")
         _window_lock_clear()
-    # webview.start() returned — window is gone. Schedule stop (idempotent if close already did).
-    # Do NOT block here: caller may want to exit the process (✕ = quit for --open).
-    _schedule_exit_stop("webview-returned")
+        # v1420 — if Cocoa returned cleanly, still unify on the force-exit path (idempotent).
+        # If Cocoa hung, the close-handler already armed the deadline and we never get here.
+        try:
+            _request_console_exit("webview-finally")
+        except Exception:
+            try:
+                _mark_window_gone("webview-finally")
+                _schedule_exit_stop("webview-returned")
+            except Exception:
+                pass
 
 
 def _ejs(w, code, timeout=4.0):
@@ -7550,7 +7632,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1419",
+        "ver": "v1420",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10072,15 +10154,16 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
         if path == "/api/quit":
-            # v1410 — same as ✕: mark window gone, stop ON AIR async, then die
+            # v1410/v1420 — Esc empty-stack + programmatic quit: same force-exit path as ✕
             try:
-                _mark_window_gone("api-quit")
-                _schedule_exit_stop("api-quit")
+                _request_console_exit("api-quit", hard_delay=0.55)
             except Exception:
-                pass
-            threading.Thread(
-                target=lambda: (time.sleep(0.45), os._exit(0)), daemon=True
-            ).start()
+                try:
+                    _mark_window_gone("api-quit")
+                    _schedule_exit_stop("api-quit")
+                    _arm_force_exit("api-quit-fallback", delay=0.55)
+                except Exception:
+                    pass
             self._json(200, {"ok": True, "msg": "control quitting"})
             return
         self._json(404, {"ok": False, "msg": "not found"})
@@ -10345,19 +10428,21 @@ def main():
     time.sleep(0.2)
 
     if open_ui and not no_open:
-        # Blocks until the native window is closed; close handlers already scheduled async stop.
+        # Blocks until the native window is closed; close handlers already armed force-exit.
         open_control_window()
-        # v1410 UX — ✕ means QUIT the console app (user expectation). Staying headless left a
-        # zombie Python with a dead WKWebView that the engine driver kept probing → Apple hang
-        # reports (Python_*.hang). Give async exit-stop a short beat, then leave :17772; the
-        # supervisor (or next Desktop double-click) brings a clean console back.
-        _mark_window_gone("main-after-window")
-        _schedule_exit_stop("main-after-window")
+        # v1410/v1420 UX — ✕ means QUIT. If Cocoa returned from webview.start(), finish cleanly
+        # here. If Cocoa hung, the force-exit deadline from the close handler already killed us.
+        try:
+            _request_console_exit("main-after-window", hard_delay=0.4)
+        except Exception:
+            _mark_window_gone("main-after-window")
+            _schedule_exit_stop("main-after-window")
+            _arm_force_exit("main-after-window", delay=0.4)
         print("📺 native window closed — quitting cleanly (✕ = exit). "
               f"Supervisor/Desktop can relaunch headless on :{CONTROL_PORT}.", flush=True)
         # Brief settle so session seal / agent SIGTERM can land before we die
         try:
-            time.sleep(0.6)
+            time.sleep(0.35)
         except Exception:
             pass
         try:

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1419",
+  "ver": "v1420",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1419 UX: cap_target no-BOM + agent refreshes pin every /state (no stuck eye arming)",
+  "note": "v1420 fleet: Mac ✕/Esc force-exit + Win pin utf-8-sig; one main both machines",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

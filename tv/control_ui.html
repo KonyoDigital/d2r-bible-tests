@@ -8528,6 +8528,38 @@
     }
   });
 
+  // v1420 — Esc on the EMPTY console homepage = quit the native app.
+  // Capture-phase overlay handlers (theatre / shell / chronicle / forensics / …) run first
+  // and stopPropagation. If nothing claimed Esc, user means "leave the console" — same as ✕.
+  // Hits /api/quit which arms the Mac force-exit deadline (no more Force Quit).
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    if (e.defaultPrevented) return;
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    try {
+      if (typeof TH !== 'undefined' && TH.open) return;
+      if (typeof CH !== 'undefined' && CH.open) return;
+      if (typeof TLY !== 'undefined' && TLY.open) return;
+      if (typeof RLOG !== 'undefined' && RLOG.open) return;
+      if (typeof LEG !== 'undefined' && LEG.open) return;
+      if (document.body.classList.contains('shell-open')) return;
+      var _ovIds = ['forensics-ov', 'th-dossier-ov', 'tvd-frame-lb'];
+      for (var _oi = 0; _oi < _ovIds.length; _oi++){
+        var _ov = document.getElementById(_ovIds[_oi]);
+        if (_ov && !_ov.hidden) return;
+      }
+    } catch (_e) {}
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      if (typeof toast === 'function') toast('Leaving console…');
+    } catch (_t) {}
+    try {
+      fetch('/api/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        .catch(function(){});
+    } catch (_f) {}
+  }, false);
+
   // v903 — THE MOTHERBOARD renderers
   function lsFork(bare){
     // v911.1 (Grok) — mirror the board's fork rules: the ACTIVE profile's key wins.

@@ -1046,6 +1046,64 @@ class TestExitSafeguard(unittest.TestCase):
         time.sleep(0.35)                 # daemon finishes stop
         self.assertIn(("stop", False), self._calls)
 
+    def test_v1420_arm_force_exit_is_nonblocking_idempotent(self):
+        # Force-Quit killer: arm once, never block Cocoa, never double-arm.
+        import time
+        old_exit = ca.os._exit
+        exits = []
+        ca.os._exit = lambda code=0: exits.append(code)
+        old_armed = ca._FORCE_EXIT_ARMED
+        try:
+            ca._FORCE_EXIT_ARMED = False
+            t0 = time.time()
+            self.assertTrue(ca._arm_force_exit("unit-force", delay=0.05))
+            self.assertLess(time.time() - t0, 0.1)
+            self.assertTrue(ca._FORCE_EXIT_ARMED)
+            self.assertFalse(ca._arm_force_exit("unit-force-2", delay=0.05))  # idempotent
+            deadline = time.time() + 1.0
+            while not exits and time.time() < deadline:
+                time.sleep(0.02)
+            self.assertEqual(exits, [0])
+        finally:
+            ca._FORCE_EXIT_ARMED = old_armed
+            ca.os._exit = old_exit
+
+    def test_v1420_request_console_exit_marks_gone_and_arms(self):
+        # Unified ✕ / Esc path: mark gone + async stop + force-exit arm, no hang.
+        import time
+        old_exit = ca.os._exit
+        ca.os._exit = lambda code=0: None
+        old_armed = ca._FORCE_EXIT_ARMED
+        old_done = ca._EXIT_STOP_DONE
+        try:
+            ca._FORCE_EXIT_ARMED = False
+            ca._EXIT_STOP_DONE = False
+            ca._WINDOW_LIVE = True
+            ca._MAIN_WIN = object()
+            ca._WINDOW_ONLY = False
+            ca._agent_mode = "live"
+            t0 = time.time()
+            ca._request_console_exit("unit-x", hard_delay=30.0)  # long delay so test never dies
+            self.assertLess(time.time() - t0, 0.15)
+            self.assertFalse(ca._WINDOW_LIVE)
+            self.assertIsNone(ca._MAIN_WIN)
+            self.assertTrue(ca._FORCE_EXIT_ARMED)
+            time.sleep(0.35)
+            self.assertIn(("stop", False), self._calls)
+        finally:
+            ca._FORCE_EXIT_ARMED = old_armed
+            ca._EXIT_STOP_DONE = old_done
+            ca.os._exit = old_exit
+
+    def test_v1420_esc_empty_stack_hits_api_quit(self):
+        # UI contract: empty-stack Escape posts /api/quit (Mac Force-Quit class).
+        ui = open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"),
+                  encoding="utf-8").read()
+        self.assertIn("/api/quit", ui)
+        self.assertIn("v1420", ui)
+        self.assertIn("Leaving console", ui)
+        self.assertRegex(ui, r"key\s*!==\s*['\"]Escape['\"]")
+
 
 class TestHistFrameResolve(unittest.TestCase):
     """v940.4 — THEATRE debugger: verify #v frameIds and journal shield base protection.
