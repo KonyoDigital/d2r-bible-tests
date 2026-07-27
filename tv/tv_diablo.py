@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1446"   # C# Focus-TvdWindow no PS EnumWindows.
+VERSION = "v1447"   # Webview cache + no claude login shell on open.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
