@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1436",
+  "ver": "v1437",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1436: light status under ON AIR",
+  "note": "v1437: calmer stage film poll",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
