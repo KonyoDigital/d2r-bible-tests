@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1420"   # Mac console ✕/Esc force-exit: no more Force Quit.
+VERSION = "v1421"   # Windows: archive/vision never leave BMP bytes under a .jpg name.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1809,24 +1809,122 @@ def known_dead_match(sig):
         if sig_diff(sig, k) <= 0.04: return k
     return None
 
+def _is_real_jpeg(path, min_bytes=32):
+    """True only when the file on disk is JPEG SOI magic — not a BMP/PNG renamed .jpg."""
+    try:
+        if not path or not os.path.isfile(path) or os.path.getsize(path) < min_bytes:
+            return False
+        with open(path, "rb") as f:
+            return f.read(3) == b"\xff\xd8\xff"
+    except Exception:
+        return False
+
+
+def _win_image_to_jpeg(src, dest, max_px=1568, quality=80):
+    """v1421 — Windows portable JPEG convert via System.Drawing (same stack as capture_win.ps1).
+    Zero pip deps. Returns True only when dest is a real JPEG."""
+    if sys.platform != "win32" or not src or not os.path.isfile(src):
+        return False
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
+        # PowerShell 5.1 + System.Drawing — always present with .NET Framework on Windows desktop.
+        # FromFile locks src until Dispose; scale like sips --resampleHeightWidthMax.
+        ps = (
+            "$ErrorActionPreference='Stop'; "
+            "Add-Type -AssemblyName System.Drawing; "
+            "$src = $env:TV_JPEG_SRC; $dest = $env:TV_JPEG_DEST; "
+            "$max = [int]$env:TV_JPEG_MAX; $q = [int]$env:TV_JPEG_Q; "
+            "$img = [System.Drawing.Image]::FromFile($src); "
+            "try { "
+            "  $w = $img.Width; $h = $img.Height; "
+            "  if ($w -gt $max -or $h -gt $max) { "
+            "    $scale = [Math]::Min($max / [double]$w, $max / [double]$h); "
+            "    $nw = [Math]::Max(1, [int]($w * $scale)); $nh = [Math]::Max(1, [int]($h * $scale)); "
+            "    $bmp = New-Object System.Drawing.Bitmap $nw, $nh; "
+            "    $g = [System.Drawing.Graphics]::FromImage($bmp); "
+            "    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic; "
+            "    $g.DrawImage($img, 0, 0, $nw, $nh); $g.Dispose(); $img.Dispose(); $img = $bmp; "
+            "  } "
+            "  $tmp = $dest + '.part.jpg'; "
+            "  $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | "
+            "    Where-Object { $_.MimeType -eq 'image/jpeg' } | Select-Object -First 1; "
+            "  $ep = New-Object System.Drawing.Imaging.EncoderParameters 1; "
+            "  $ep.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter "
+            "    ([System.Drawing.Imaging.Encoder]::Quality, [long]$q); "
+            "  $img.Save($tmp, $codec, $ep); "
+            "  if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Force -EA SilentlyContinue }; "
+            "  Move-Item -LiteralPath $tmp -Destination $dest -Force; "
+            "} finally { try { $img.Dispose() } catch {} }"
+        )
+        env = os.environ.copy()
+        env["TV_JPEG_SRC"] = os.path.abspath(src)
+        env["TV_JPEG_DEST"] = os.path.abspath(dest)
+        env["TV_JPEG_MAX"] = str(int(max_px))
+        env["TV_JPEG_Q"] = str(int(max(40, min(95, quality))))
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps],
+            capture_output=True, timeout=25, env=env,
+            **{k: v for k, v in (NICE_KW.items() if isinstance(globals().get("NICE_KW"), dict) else {})
+               if k in ("creationflags", "start_new_session")})
+        return r.returncode == 0 and _is_real_jpeg(dest)
+    except Exception:
+        return False
+
+
+def _to_jpeg(src, dest, max_px=1568, quality=80):
+    """Mac sips first; Windows System.Drawing; never claim success on non-JPEG bytes."""
+    if not src or not os.path.isfile(src):
+        return False
+    # Already a real JPEG and dest==src path intent — copy if needed.
+    if _is_real_jpeg(src) and os.path.abspath(src) == os.path.abspath(dest):
+        return True
+    if _is_real_jpeg(src) and max(os.path.getsize(src), 1) < 2_500_000:
+        try:
+            import shutil
+            os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
+            shutil.copy2(src, dest)
+            return _is_real_jpeg(dest)
+        except Exception:
+            pass
+    try:
+        r = subprocess.run(
+            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(int(quality)),
+             "--resampleHeightWidthMax", str(int(max_px)), src, "--out", dest],
+            capture_output=True, timeout=25, **NICE_KW)
+        if r.returncode == 0 and _is_real_jpeg(dest):
+            return True
+    except Exception:
+        pass
+    if _win_image_to_jpeg(src, dest, max_px=max_px, quality=quality):
+        return True
+    return False
+
+
 def _readable_frame(ap, out_jpg=None):
     """v710.6 LIVE-SESSION FIX (Konyo's first real run): claude's Read tool chokes on a 16MB
     raw BMP — both live reads timed out at 180s. Convert to a 1568px JPEG (the locked intake
-    spec) before the vision call. Mac: sips (built-in). Windows: capture_win.ps1 saves live.png
-    alongside. Falls back to the original path if conversion isn't available."""
+    spec) before the vision call. Mac: sips. Windows v1421: System.Drawing (not live.png alone —
+    PNG can still be multi-MB and some readers expect JPEG). Falls back to live.png then original."""
     try:
         if not ap.lower().endswith(".bmp"):
             return ap
         jp = out_jpg or os.path.join(FRAMES, "read.jpg")
-        r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80",
-                            "--resampleHeightWidthMax", "1568", ap, "--out", jp],
-                           capture_output=True, timeout=20, **NICE_KW)
-        if r.returncode == 0 and os.path.isfile(jp):
+        if _to_jpeg(ap, jp, max_px=1568, quality=80):
             global _JPEG_LOGGED
             if not globals().get("_JPEG_LOGGED"):
                 _JPEG_LOGGED = True
-                ev("boot", f"vision transport OK — frame \u2192 read.jpg {os.path.getsize(jp)//1024}KB (was {os.path.getsize(ap)//1024//1024}MB)")
+                try:
+                    was = os.path.getsize(ap)
+                    now = os.path.getsize(jp)
+                    ev("boot", "vision transport OK — frame \u2192 read.jpg %dKB (was %dMB)"
+                       % (now // 1024, max(1, was // 1024 // 1024)))
+                except Exception:
+                    pass
             return jp
+        # Prefer capture_win eye.jpg (already JPEG) over multi-MB live.png when convert fails.
+        eye = os.path.join(FRAMES, "eye.jpg")
+        if _is_real_jpeg(eye):
+            return eye
         png = os.path.join(os.path.dirname(ap), "live.png")   # Windows: saved by capture_win.ps1
         if os.path.isfile(png):
             return png
@@ -1898,7 +1996,12 @@ def _journal_frame_ids():
 def archive_read_frame(src_path, n, ts_ms=None):
     """v735 — snapshot the settled screen into frames/hist/{n}_{ts}.jpg (~1920 JPEG).
     Returns frame id string for /frame?id=… so each history row can reopen what the AI saw.
-    Keeps last HIST_KEEP files. Never raises into the scan loop."""
+    Keeps last HIST_KEEP files. Never raises into the scan loop.
+
+    v1421 Windows truth: the old portable fallback copied live.bmp bytes into a .jpg name
+    (magic 42 4D). Claude Read + Theatre then choked on multi-MB BMP-as-jpg (70–180s reads).
+    Archive MUST land real JPEG SOI (FF D8 FF) — convert via sips/System.Drawing, else copy
+    eye.jpg / read.jpg, never a raw BMP body under a .jpg name when a real JPEG path exists."""
     ts_ms = ts_ms if ts_ms is not None else int(time.time() * 1000)
     fid = "%d_%d" % (int(n), int(ts_ms))
     try:
@@ -1907,33 +2010,45 @@ def archive_read_frame(src_path, n, ts_ms=None):
         src = os.path.abspath(src_path) if src_path else ""
         ok = False
         if src and os.path.isfile(src):
-            # Prefer full capture → 1920 for human eyes (AI path stays 1568 via _readable_frame)
+            # Prefer full capture → HIST_MAX_PX JPEG for human eyes (AI path stays 1568 via _readable_frame)
             if src.lower().endswith((".bmp", ".png", ".jpg", ".jpeg")):
-                try:
-                    r = subprocess.run(
-                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82",
-                         "--resampleHeightWidthMax", str(HIST_MAX_PX), src, "--out", dest],
-                        capture_output=True, timeout=25, **NICE_KW)
-                    ok = r.returncode == 0 and os.path.isfile(dest)
-                except Exception:
-                    ok = False   # sips is macOS-only — Windows/Linux land in the copy fallbacks
+                ok = _to_jpeg(src, dest, max_px=HIST_MAX_PX, quality=82)
             if not ok:
                 # portable fallback #1: the vision JPEG (already converted+downscaled)
                 jp = os.path.join(FRAMES, "read.jpg")
-                if os.path.isfile(jp):
+                if _is_real_jpeg(jp):
                     import shutil
                     shutil.copy2(jp, dest)
-                    ok = os.path.isfile(dest)
+                    ok = _is_real_jpeg(dest)
             if not ok:
-                # portable fallback #2 (v755.3 — Windows/CI truth): raw copy of the frame.
-                # Browsers sniff content, so a PNG/BMP body behind the .jpg name still renders;
-                # an archived photo ALWAYS beats an empty history cell.
-                try:
+                # portable fallback #2: capture film eye (always real JPEG from capture_win)
+                eye = os.path.join(FRAMES, "eye.jpg")
+                if _is_real_jpeg(eye):
                     import shutil
-                    shutil.copy2(src, dest)
-                    ok = os.path.isfile(dest)
-                except Exception:
-                    ok = False
+                    shutil.copy2(eye, dest)
+                    ok = _is_real_jpeg(dest)
+            if not ok:
+                # portable fallback #3: live.png → JPEG convert (Windows capture twin)
+                png = os.path.join(FRAMES, "live.png")
+                if os.path.isfile(png):
+                    ok = _to_jpeg(png, dest, max_px=HIST_MAX_PX, quality=82)
+            if not ok:
+                # last resort: raw copy ONLY if source is already JPEG; never plant BMP as .jpg
+                if _is_real_jpeg(src):
+                    try:
+                        import shutil
+                        shutil.copy2(src, dest)
+                        ok = _is_real_jpeg(dest)
+                    except Exception:
+                        ok = False
+                elif src.lower().endswith(".png") and os.path.isfile(src):
+                    # PNG body behind .jpg name still renders in browsers (legacy v755.3)
+                    try:
+                        import shutil
+                        shutil.copy2(src, dest)
+                        ok = os.path.isfile(dest) and os.path.getsize(dest) > 32
+                    except Exception:
+                        ok = False
         if not ok:
             return ""
         # v877 (army #6) — the eviction below only ever ACTS when free < MIN_FREE_GB; skip the

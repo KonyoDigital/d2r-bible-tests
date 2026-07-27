@@ -1,3 +1,12 @@
+## Round v1421 — Windows deep frames real JPEG + film promote (2026-07-27)
+- **Bug A (this PC live proof):** hist `N_ts.jpg` was raw BMP (`42 4D…`, 3.6MB). Footage `f_*.jpg` was real JPEG. Vision/Theatre choked (70–180s reads).
+- **Root A:** `archive_read_frame` Mac-only `sips` → Windows fell through to `shutil.copy2(live.bmp → .jpg)`.
+- **Fix A:** `_to_jpeg` / `_win_image_to_jpeg` (System.Drawing) · magic-checked archives · prefer eye.jpg/read.jpg · never plant BMP body under `.jpg`.
+- **Bug B:** capture log `Cannot create a file when that file already exists` on primary/virtual — Delete+Move race while agent holds live.bmp/eye.jpg → film stall (eyeAge 7s+).
+- **Fix B:** `capture_win.ps1` `SaveAll` promotes via `File.Copy(overwrite)`.
+- **Live proof:** ON AIR LINKED · PrintWindow · new deep `1_*.jpg` magic `FF D8 FF` ~110–147KB (was 3.6MB BMP).
+- **UX note:** D2R must be past Battle.net “Connecting…” into world for meaningful loot reads.
+
 ## Round v1418 — Fleet unity (2026-07-27)
 - **Ask:** Mac v1413 vs Windows v1417/18 — why not unified auto-update all devices?
 - **Ship:** Mac auto-pull matches Windows (ignore untracked, fetch+ff, hard reset if diverged & clean).

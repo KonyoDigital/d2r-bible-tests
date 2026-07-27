@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1420",
+  "ver": "v1421",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1420 fleet: Mac ✕/Esc force-exit + Win pin utf-8-sig; one main both machines",
+  "note": "v1421: deep hist frames are real JPEG on Windows (no BMP-as-jpg)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1,4 +1,4 @@
-﻿# TV DIABLO - Windows capture loop (v1418)
+﻿# TV DIABLO - Windows capture loop (v1421)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
 #   TV_CAPTURE=auto|full|window   (default AUTO - pin D2R.exe when present, else full)
@@ -10,6 +10,7 @@
 #
 # v1418: Pure C# Find+PrintWindow (no PowerShell EnumWindows callbacks - those hang under D2R).
 #         Always write eye.jpg when we have pixels. Never BitBlt (desktop z-order lie).
+# v1421: Promote frames with File.Copy(overwrite) so agent locks no longer kill film.
 # Pure ASCII + BOM for Hebrew PowerShell 5.1.
 
 Add-Type -AssemblyName System.Drawing
@@ -185,6 +186,22 @@ public static class TvdCap {
     } catch { return true; }
   }
 
+  // v1421 — promote via Copy(overwrite) not Delete+Move. Under ON AIR the agent holds
+  // live.bmp / eye.jpg for freezes; Delete fails, Move throws "file already exists",
+  // and film stalls (eyeAge 7s+) with primary/virtual fail spam in the log.
+  static void Promote(string tmp, string finalPath) {
+    try {
+      File.Copy(tmp, finalPath, true);
+    } catch {
+      try {
+        if (File.Exists(finalPath)) File.Delete(finalPath);
+        File.Move(tmp, finalPath);
+        return;
+      } catch { return; }
+    }
+    try { File.Delete(tmp); } catch {}
+  }
+
   static void SaveAll(Bitmap bmp, string framesDir) {
     string liveBmp = Path.Combine(framesDir, "live.bmp");
     string livePng = Path.Combine(framesDir, "live.png");
@@ -193,11 +210,9 @@ public static class TvdCap {
     string tmpPng = livePng + ".tmp";
     string tmpEye = eyeJpg + ".tmp";
     bmp.Save(tmpBmp, ImageFormat.Bmp);
-    if (File.Exists(liveBmp)) try { File.Delete(liveBmp); } catch {}
-    File.Move(tmpBmp, liveBmp);
+    Promote(tmpBmp, liveBmp);
     bmp.Save(tmpPng, ImageFormat.Png);
-    if (File.Exists(livePng)) try { File.Delete(livePng); } catch {}
-    File.Move(tmpPng, livePng);
+    Promote(tmpPng, livePng);
     int maxPx = 900;
     int nw = bmp.Width, nh = bmp.Height;
     if (nw > maxPx || nh > maxPx) {
@@ -211,8 +226,7 @@ public static class TvdCap {
       eg.DrawImage(bmp, 0, 0, nw, nh);
       eye.Save(tmpEye, ImageFormat.Jpeg);
     }
-    if (File.Exists(eyeJpg)) try { File.Delete(eyeJpg); } catch {}
-    File.Move(tmpEye, eyeJpg);
+    Promote(tmpEye, eyeJpg);
   }
 }
 "@
@@ -269,7 +283,7 @@ function Write-PinDebug($hits) {
   } catch {}
 }
 
-Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1418 C# PrintWindow pin + forced eye.jpg"
+Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1421 C# PrintWindow pin + Copy-promote eye.jpg"
 $lastLabel = ''
 $loopN = 0
 while ($true) {

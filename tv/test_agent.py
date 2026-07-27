@@ -305,6 +305,28 @@ class TestFrameArchive(unittest.TestCase):
         self.assertEqual(fid, "3_1700000000000")
         self.assertTrue(os.path.isfile(tv.frame_path_for_id(fid)))
 
+    def test_archive_bmp_is_real_jpeg_not_bmp_bytes(self):
+        """v1421 — Windows used to copy live.bmp into hist/{n}_{ts}.jpg (magic 42 4D).
+        Archive path must land real JPEG SOI so Theatre + vision never see BMP-as-jpg."""
+        import struct
+        bmp = os.path.join(self.d, "live.bmp")
+        w = h = 48
+        row = bytes([90, 40, 200]) * w
+        pad = (4 - (w * 3) % 4) % 4
+        data = (row + b"\x00" * pad) * h
+        off = 54
+        hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
+        info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
+        open(bmp, "wb").write(hdr + info + data)
+        fid = tv.archive_read_frame(bmp, 8, 1_700_000_000_001)
+        self.assertTrue(fid, "archive must succeed for BMP source")
+        path = tv.frame_path_for_id(fid)
+        self.assertTrue(path and os.path.isfile(path))
+        with open(path, "rb") as f:
+            magic = f.read(3)
+        self.assertEqual(magic, b"\xff\xd8\xff", "hist frame must be real JPEG, not BMP 42 4D")
+        self.assertLess(os.path.getsize(path), os.path.getsize(bmp))
+
     def test_frame_path_rejects_traversal(self):
         self.assertEqual(tv.frame_path_for_id("../etc/passwd"), "")
         self.assertEqual(tv.frame_path_for_id("abc"), "")
