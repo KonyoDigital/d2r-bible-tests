@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1444",
+  "ver": "v1445",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1444: fast ready probe \u2014 no doctor.ok gate",
+  "note": "v1445: warm relaunch no pull lag",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

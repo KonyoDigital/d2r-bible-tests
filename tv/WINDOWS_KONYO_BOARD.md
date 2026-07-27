@@ -3,7 +3,7 @@
 ## Current ship
 | Item | Value |
 |------|--------|
-| Version | **v1448** |
+| Version | **v1445** |
 | Launch | fast status probe · no multi-window flash |
 | Pull | skipped if already up · 12s cap |
 
