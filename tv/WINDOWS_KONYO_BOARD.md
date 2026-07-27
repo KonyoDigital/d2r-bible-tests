@@ -7,7 +7,7 @@
 
 | Item | Value |
 |------|--------|
-| Version | **v1431** |
+| Version | **v1432** |
 | Arc | v1424–v1433 live honesty 10-round |
 | Capture | DPI 1920×1080 + light loop |
 | Status | sticky bridge + disk eye/pin |
