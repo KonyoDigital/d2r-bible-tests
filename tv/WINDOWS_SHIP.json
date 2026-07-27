@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1440",
+  "ver": "v1441",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1440: lite state + film headers",
+  "note": "v1441: capture nice \u2014 game stays smooth",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
