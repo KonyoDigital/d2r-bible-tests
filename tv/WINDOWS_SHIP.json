@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1424",
+  "ver": "v1425",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1424: sticky bridge state \u2014 no wipe on /state timeout",
+  "note": "v1425: diskEyeAgeMs honesty when bridge mid-miss",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
