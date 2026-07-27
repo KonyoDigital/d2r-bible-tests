@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1432",
+  "ver": "v1433",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1432: status grace window full stack",
+  "note": "v1433: 10-round seal \u2014 live status/film/pin honesty",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
