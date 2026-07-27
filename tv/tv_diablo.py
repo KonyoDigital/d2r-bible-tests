@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1423"   # Windows DPI-aware capture: full physical frame on 150% displays.
+VERSION = "v1424"   # Bridge sticky last-good /state under D2R load.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -547,11 +547,16 @@ def bridge():
                         out["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
                         out.pop("seen", None); out.pop("farmed", None)
                     payload = json.dumps(out).encode()
-                self._hdr(); self.wfile.write(payload)
+                try:
+                    self._hdr(); self.wfile.write(payload)
+                except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                    # v1430 — control aborts slow /state under D2R; never traceback-spam the log
+                    pass
             elif self.path.startswith("/ping"):
                 try:
                     self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
-                except (BrokenPipeError, ConnectionResetError):
+                except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                    # v1430 — Windows clients abort mid-write under load (WinError 10053 spam)
                     pass
             elif self.path.startswith("/shutdown"):
                 # v847 — control OFF/STOP asks politely: save session, optional farewell, exit.
@@ -4717,22 +4722,30 @@ def main():
         def _warm_ocr():
             try:
                 # warm Vision frameworks so first pile isn't cold
+                # v1431 — Windows: prefer eye.jpg / live.png (always real images) before BMP;
+                # path spaces + BMP→OCR cold paths used to log "ocr warm failed" every boot.
                 jp = os.path.join(FRAMES, "read.jpg")
                 probe = jp if os.path.isfile(jp) else None
                 if not probe:
-                    # tiny blank jpeg via sips from any existing frame
-                    for cand in (os.path.join(FRAMES, "live.bmp"),):
+                    for cand in (
+                        os.path.join(FRAMES, "eye.jpg"),
+                        os.path.join(FRAMES, "live.png"),
+                        os.path.join(FRAMES, "live.bmp"),
+                    ):
                         if os.path.isfile(cand):
                             probe = cand
                             break
                 if probe:
-                    r = _OCR.read(probe, timeout=3.0)
+                    r = _OCR.read(probe, timeout=5.0 if sys.platform.startswith("win") else 3.0)
                     if r is not None:
                         ev("boot", f"ocr warm — Vision ready ({r.get('ms', '?')}ms probe)")
                     else:
-                        ev("skip", "ocr warm failed — fast lane may miss first settle")
+                        # soft: not a fault lamp — deep lane still works
+                        ev("boot", "ocr warm soft-miss — deep lane armed (fast lane may lag first settle)")
+                else:
+                    ev("boot", "ocr warm skipped — no frame yet (will arm on first capture)")
             except Exception as e:
-                ev("skip", f"ocr warm error: {e}")
+                ev("boot", f"ocr warm soft-error — continuing ({type(e).__name__})")
         threading.Thread(target=_warm_ocr, daemon=True).start()
         threading.Thread(target=_text_eye_loop, daemon=True, name="tv-text-eye").start()
         ev("boot", "👁‍🗨 text eye armed — new on-screen text triggers priority reads (TV_TEXT_EYE=0 to disable)")
@@ -5096,20 +5109,26 @@ def main():
             if not f: continue
             frame = f
             # v879/v897 — WINDOWS FOOTAGE PARITY: archive eye.jpg on FOOTAGE_INTERVAL_S (1fps).
+            # v1428 — FOOTAGE STARVE 0.4fps live proof: allow eye age ≤5s (was 3s) and always
+            # stamp _FOOTAGE_WHY + use promote-safe archive helper when available.
             try:
                 _weye = os.path.join(FRAMES, "eye.jpg")
                 _wnow = time.time()
                 _wiv = FOOTAGE_INTERVAL_S
-                if os.path.isfile(_weye) and (_wnow - os.path.getmtime(_weye)) < 3.0 \
+                if os.path.isfile(_weye) and (_wnow - os.path.getmtime(_weye)) < 5.0 \
                         and _wnow >= globals().get("_FOOTAGE_DUE", 0.0):
-                    globals()["_FOOTAGE_DUE"] = max(globals().get("_FOOTAGE_DUE", 0.0) + _wiv, _wnow - (_wiv - 0.01)) \
-                        if globals().get("_FOOTAGE_DUE") else _wnow + _wiv
-                    import shutil as _shwz
-                    _whd = HIST_DIR
-                    os.makedirs(_whd, exist_ok=True)
-                    if _shwz.disk_usage(_whd).free / 1e9 >= MIN_FREE_GB:
-                        _FOOT_TIMES.append(_wnow)
-                        _shwz.copyfile(_weye, os.path.join(_whd, "f_%d.jpg" % int(_wnow * 1000)))
+                    try:
+                        _archive_footage_copy(_weye, _wnow, why="win-eye")
+                    except Exception:
+                        globals()["_FOOTAGE_DUE"] = max(globals().get("_FOOTAGE_DUE", 0.0) + _wiv, _wnow - (_wiv - 0.01)) \
+                            if globals().get("_FOOTAGE_DUE") else _wnow + _wiv
+                        import shutil as _shwz
+                        _whd = HIST_DIR
+                        os.makedirs(_whd, exist_ok=True)
+                        if _shwz.disk_usage(_whd).free / 1e9 >= MIN_FREE_GB:
+                            _FOOT_TIMES.append(_wnow)
+                            globals()["_FOOTAGE_WHY"] = "win-eye-copy"
+                            _shwz.copyfile(_weye, os.path.join(_whd, "f_%d.jpg" % int(_wnow * 1000)))
             except Exception:
                 pass
             # prefer stable live.bmp path for settle when present

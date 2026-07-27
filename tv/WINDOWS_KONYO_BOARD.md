@@ -1,4 +1,4 @@
-﻿# Windows lane — KONYO WORKFLOW board (live)
+# Windows lane — KONYO WORKFLOW board (live)
 
 **Process:** repo `KONYO_WORKFLOW.md`  
 **Laws:** Windows push policy · one `main` dual-PC · safe auto-pull
@@ -7,27 +7,29 @@
 
 | Item | Value |
 |------|--------|
-| Version | **v1422** |
-| Capture | Light: eye first · BMP · PNG every 5th · 350ms |
-| Deep hist | Real JPEG (v1421) |
-| Pin | PrintWindow D2R |
+| Version | **v1433** |
+| Arc | v1424–v1433 live honesty 10-round |
+| Capture | DPI 1920×1080 + light loop |
+| Status | sticky bridge + disk eye/pin |
 
-## UX soak (this PC · 2026-07-27)
+## 10-round seal (2026-07-28)
 
-| Gate | Result |
-|------|--------|
-| Doctor | ok v1422 |
-| ON AIR | live · LINKED · bridge |
-| Pin 80s | 40/40 PrintWindow |
-| Eye film | fresh ≤3s · stallTicks 0 |
-| Heartbeat | n climbed continuously (no DIED) |
-| Deep JPEG | FF D8 FF ~105KB |
-| Visual | D2R main menu (logo + Options/Cinematics) |
+| R | Ver | Gate |
+|---|-----|------|
+| 1 | v1424 | sticky /state |
+| 2 | v1425 | disk eyeAgeMs |
+| 3 | v1426 | disk cap_target |
+| 4 | v1427 | bridge timeouts |
+| 5 | v1428 | footage archive |
+| 6 | v1429 | UI film honesty |
+| 7 | v1430 | log spam silence |
+| 8 | v1431 | OCR warm soft |
+| 9 | v1432 | grace window |
+| 10 | v1433 | seal |
 
 ## User path
 
-1. Desktop **TV DIABLO**
-2. D2R open (in-game preferred for loot)
-3. **ON AIR** → pin `… via PrintWindow`
-4. **END SESSION** / OFF
-
+1. Fully quit TV DIABLO (not just OFF)
+2. Desktop relaunch → footer **v1433**
+3. D2R open → **ON AIR**
+4. Expect: full-frame film · pin Locked · READS tick · no black stage mid-poll

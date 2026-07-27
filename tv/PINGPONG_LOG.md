@@ -2432,3 +2432,28 @@ Tests: TestExitSafeguard +3 (arm idempotent, request path, UI contract) · tripl
 - **Bug (Konyo screenshot):** film only showed part of D2R / "not calibrated". Display is 1920x1080 @ 150% DPI (AppliedDPI=144); capture was DPI-unaware so GetWindowRect/PrintWindow used logical 1280x720 = top-left crop of the real 1920x1080 game.
 - **Proof:** DPI-aware measure → D2R window 1920x1080@0,0 client=1920x1080 dpi=144. After fix live.bmp=1920x1080 (8.3MB) pin w/h=1920x1080.
 - **Fix (Windows only):** SetProcessDpiAwarenessContext(PER_MONITOR_V2) before any measure; re-measure every Grab; pin_debug records dpi + physical size.
+
+## ROUND v1424–v1433 — Windows live honesty 10-round (2026-07-28)
+
+**Order:** Konyo — ON AIR live, debug properly, ship ≥10 versions Konyo-workflow.
+
+**Live proof bugs (screenshot + doctor):**
+- UI dark film + READS 0 while agent online, eye fresh, pin PrintWindow 1920x1080
+- status.eyeAgeMs=-1 · captureTarget={} · FOOTAGE STARVE 0.4fps · ocr warm failed
+- Root: bridge prober wiped last-good /state on timeout; UI trusted only bridge eyeAge
+
+| Ver | Round | Fix |
+|-----|-------|-----|
+| v1424 | R1 sticky state | last-good /state kept on fetch fail |
+| v1425 | R2 disk eye | eyeAgeMs from frames/eye.jpg + diskEyeAgeMs |
+| v1426 | R3 disk pin | captureTarget from cap_target.json |
+| v1427 | R4 timeouts | Win ping 1.2s / state 2.0s / poll 0.9s |
+| v1428 | R5 footage | win-eye archive age≤5s + promote helper |
+| v1429 | R6 UI film | control_ui uses diskEyeAgeMs fallback |
+| v1430 | R7 log spam | swallow WinError 10053 on /ping /state |
+| v1431 | R8 OCR warm | soft-miss · eye.jpg/live.png probe first |
+| v1432 | R9 grace | 15s sticky st window · full status honesty |
+| v1433 | R10 seal | board + soak gate · this ledger |
+
+**User path after pull:** fully quit TV DIABLO → relaunch → ON AIR. Expect LIVE film (not black), pin Locked·Diablo II, READS counting, no false NO EYE.
+

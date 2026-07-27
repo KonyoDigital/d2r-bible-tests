@@ -978,7 +978,7 @@ def _env_clean(sim=False):
     return env
 
 
-_BR_CACHE = {"ping": False, "st": None, "ts": 0.0}
+_BR_CACHE = {"ping": False, "st": None, "ts": 0.0, "st_ts": 0.0}
 _PID_CACHE = {"pid": None, "ts": 0.0}
 
 
@@ -1039,23 +1039,39 @@ def _console_beacon_loop():
 def _bridge_prober():
     """v872 (Konyo: 'STANDBY keeps jumping at me mid session') — ONE background thread probes
     the agent bridge every 1.2s; every /api/status poll reads the cache. Under full game load
-    the console poll went 300ms × (ping 0.6s + state 0.8s + lsof) and choked itself."""
+    the console poll went 300ms × (ping 0.6s + state 0.8s + lsof) and choked itself.
+
+    v1424 — STICKY STATE: a failed /state fetch under D2R load must NOT wipe the last good
+    snapshot. Live proof: ping ok + state timeout → eyeAgeMs=-1, READS 0, dark film while
+    the agent was healthy (reads≥1, eye fresh, pin PrintWindow)."""
     while True:
         try:
             ping = _bridge_ping() is not None
-            st = _bridge_state() if ping else None
-            _BR_CACHE["ping"], _BR_CACHE["st"], _BR_CACHE["ts"] = ping, st, time.time()
+            st_new = _bridge_state() if ping else None
+            now = time.time()
+            _BR_CACHE["ping"] = ping
+            _BR_CACHE["ts"] = now
+            if st_new is not None:
+                _BR_CACHE["st"] = st_new
+                _BR_CACHE["st_ts"] = now
+            elif not ping:
+                # Clear only when the bridge is truly gone for a grace window.
+                if now - float(_BR_CACHE.get("st_ts") or 0) > 12.0:
+                    _BR_CACHE["st"] = None
             if ping:
-                globals()["_BRIDGE_LAST_OK"] = time.time()
+                globals()["_BRIDGE_LAST_OK"] = now
         except Exception:
             pass
-        time.sleep(1.2)
+        # v1427 — poll a bit faster on Windows so status stays honest under game load
+        time.sleep(0.9 if IS_WIN else 1.2)
 
 
 def _bridge_ping():
+    # v1427 — Windows under D2R: 0.6s was too tight (false STANDBY / empty status)
+    _to = 1.2 if IS_WIN else 0.6
     try:
         with urllib.request.urlopen(
-            f"http://127.0.0.1:{AGENT_PORT}/ping", timeout=0.6
+            f"http://127.0.0.1:{AGENT_PORT}/ping", timeout=_to
         ) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
     except Exception:
@@ -1063,13 +1079,39 @@ def _bridge_ping():
 
 
 def _bridge_state():
+    # v1427 — /state can be large; give Windows room under D2R CPU contention
+    _to = 2.0 if IS_WIN else 0.8
     try:
         with urllib.request.urlopen(
-            f"http://127.0.0.1:{AGENT_PORT}/state", timeout=0.8
+            f"http://127.0.0.1:{AGENT_PORT}/state", timeout=_to
         ) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
     except Exception:
         return None
+
+
+def _disk_eye_age_ms():
+    """v1425 — honest film age from frames/eye.jpg when bridge state is mid-fetch."""
+    try:
+        eye = os.path.join(HERE, "frames", "eye.jpg")
+        if not os.path.isfile(eye):
+            return -1
+        return max(0, int((time.time() - os.path.getmtime(eye)) * 1000))
+    except Exception:
+        return -1
+
+
+def _disk_cap_target():
+    """v1426 — Windows pin truth from capture_win even when /state is slow."""
+    try:
+        p = os.path.join(HERE, "frames", "cap_target.json")
+        if not os.path.isfile(p):
+            return {}
+        with open(p, encoding="utf-8-sig") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
 
 
 _TZ_CACHE = {"ts": 0.0, "code": 0, "body": None}
@@ -7572,11 +7614,19 @@ def status_payload():
     # process with a bridge seen in the last 10s stays ON; only a truly dead bridge drops it.
     # v946.2 — NEVER sticky-bridge when the agent process is dead. Stale _BR_CACHE (≤6s) after
     # End Session kept bridge=True → UI stuck on "End Session"/ON AIR until the cache aged out.
+    # v1424–v1426 live Windows proof: under D2R, /state can miss a poll while ping still works.
+    # Keep last-good st for a grace window; disk-fallback eyeAgeMs + cap_target so the UI never
+    # paints dark film / READS 0 / empty pin while capture is LINKED and eye.jpg is fresh.
     _alive = _agent_alive()
-    bridge_now = bool(_BR_CACHE["ping"]) and (time.time() - _BR_CACHE["ts"]) < 6.0 and _alive
+    _now = time.time()
+    bridge_now = bool(_BR_CACHE["ping"]) and (_now - _BR_CACHE["ts"]) < 8.0 and _alive
     bridge = bool(_alive and (
-        bridge_now or (time.time() - globals().get("_BRIDGE_LAST_OK", 0.0)) < 10.0))
-    st = _BR_CACHE["st"] if bridge_now else None
+        bridge_now or (_now - globals().get("_BRIDGE_LAST_OK", 0.0)) < 12.0))
+    st = None
+    if _alive and _BR_CACHE.get("st") is not None:
+        # Use last good state if this poll is fresh OR sticky within 15s of a good fetch
+        if bridge_now or (_now - float(_BR_CACHE.get("st_ts") or 0)) < 15.0:
+            st = _BR_CACHE["st"]
     mode = _agent_mode
     if bridge and mode == "off":
         mode = "live"
@@ -7599,6 +7649,17 @@ def status_payload():
                 "ts": e.get("ts"),
             }
         )
+    # v1425/v1426 — disk honesty (Windows film + pin never depend solely on a slow /state)
+    _disk_eye = _disk_eye_age_ms()
+    _eye = (st or {}).get("eyeAgeMs")
+    if _eye is None or (isinstance(_eye, (int, float)) and _eye < 0):
+        _eye = _disk_eye
+    _cap = (st or {}).get("captureTarget") or {}
+    if not _cap and IS_WIN:
+        _cap = _disk_cap_target()
+    _reads = (st or {}).get("readCount")
+    if _reads is None:
+        _reads = len((st or {}).get("reads") or [])
     # v946 — session health + mind story (journal tail + leases + driver pulse)
     try:
         _jtail = _kai_journal_rows()[-200:]
@@ -7632,7 +7693,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1423",
+        "ver": "v1424",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7664,11 +7725,7 @@ def status_payload():
         "pid": _pid_cached(),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
         "intakeRing": ((st or {}).get("intakes") or [])[-12:],
-        "readCount": (
-            (st or {}).get("readCount")
-            if (st or {}).get("readCount") is not None
-            else len((st or {}).get("reads") or [])
-        ),
+        "readCount": int(_reads or 0),
         "area": beat.get("area") or (st or {}).get("area") or "",
         "scene": beat.get("scene") or "",
         # v1328 B4-LIVE — the LIVE frame's game-true label (ENTERING/TOWN/FARMING + area) for the
@@ -7684,8 +7741,9 @@ def status_payload():
         "logPath": LOG_PATH,
         "agentPort": AGENT_PORT,
         "controlPort": CONTROL_PORT,
-        "captureTarget": (st or {}).get("captureTarget") or {},
-        "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),
+        "captureTarget": _cap if isinstance(_cap, dict) else {},
+        "eyeAgeMs": _eye if _eye is not None else -1,
+        "diskEyeAgeMs": _disk_eye,  # v1425 — UI can trust film even if bridge mid-miss
         "health": (st or {}).get("health") or {},
         "gameOk": (st or {}).get("gameOk", True) if st else True,
         "aiPaused": bool((st or {}).get("aiPaused") or ((st or {}).get("health") or {}).get("aiPaused")),

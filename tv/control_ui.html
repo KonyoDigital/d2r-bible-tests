@@ -3752,10 +3752,14 @@
     var ct0 = st.captureTarget || {};
     var noGame = on && (H0.gameOk === false || H0.aiPaused || st.gameOk === false || st.aiPaused);
     var eyeWaiting = on && (ct0.mode === 'waiting' || /held|not found|not listed|missing/i.test(ct0.label || ''));
-    var eyeStaleHard = on && st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 8000 && !noGame;
+    // v1429 — prefer bridge eyeAgeMs; fall back to diskEyeAgeMs (control v1425) so a mid-poll
+    // bridge miss never paints a black stage while frames/eye.jpg is fresh on disk.
+    var _eyeMs = (st.eyeAgeMs != null && st.eyeAgeMs >= 0) ? st.eyeAgeMs
+               : ((st.diskEyeAgeMs != null && st.diskEyeAgeMs >= 0) ? st.diskEyeAgeMs : -1);
+    var eyeStaleHard = on && _eyeMs >= 0 && _eyeMs > 8000 && !noGame;
     // v1379.3 — no eye file at all (eyeAgeMs < 0) used to leave a silent black stage for the
     // first seconds of ON AIR (and forever if D2R never pins). Treat missing eye as HOLD too.
-    var noEye = on && (st.eyeAgeMs == null || st.eyeAgeMs < 0);
+    var noEye = on && _eyeMs < 0;
     var holdOn = !!(noGame || eyeWaiting || eyeStaleHard || noEye);
     // v1412 — platform-aware hold copy (cousin Windows was still told about Mac wallpaper)
     var isWin = /win/i.test(String(st.platform || st.os || st.plat || ''));
@@ -3822,7 +3826,7 @@
     // v789 (Grok R4 #1) — FAULT LAMP: quiet death is forbidden. Any tripped threshold
     // paints a sticky banner + kills the mint LIVE bug until the fault clears.
     var H = st.health || {};
-    window._lastEyeAge = (st.eyeAgeMs != null) ? st.eyeAgeMs : -1;   // v791 — adaptive poll heuristic
+    window._lastEyeAge = _eyeMs;   // v791/v1429 — adaptive poll heuristic (disk fallback)
     var fault = '';
     // v1418 — FLEET UNITY banner (always-on, even OFF AIR): never silently drift from GitHub main
     var fl = st.fleet || {};
@@ -3838,10 +3842,10 @@
       }
       else if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture_win died · press RESTART · open D2R.exe in-game (not only Battle.net)';   // v793/v1412
       else if (st.captureProc === 'RESTARTED') fault = 'CAPTURE RESTARTED — eye re-arming…';
-      else if (st.eyeAgeMs == null || st.eyeAgeMs < 0) fault = isWin
+      else if (_eyeMs < 0) fault = isWin
         ? 'NO EYE — waiting for D2R.exe window pin (not filming desktop)'
         : 'NO EYE — waiting for D2R pin (not filming desktop)';
-      else if (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 6000) fault = 'NO EYE — capture stalled';
+      else if (_eyeMs >= 0 && _eyeMs > 6000) fault = 'NO EYE — capture stalled';
       else if ((H.visionBusyMs || 0) > 45000) fault = 'VISION SLOW — read in flight ' + Math.round(H.visionBusyMs / 1000) + 's';
       else if (H.freeGB != null && H.minFreeGB != null && H.freeGB < H.minFreeGB) fault = 'DISK FULL — ' + H.freeGB + 'GB free (<' + H.minFreeGB + 'GB): footage is being SHED as it records — free disk space';   // v872.1 — THE 4GB night
       else if (H.throttled) fault = '🐢 THROTTLED — readers dying fast (subscription pace) · degraded softly, reads breathe for 2min';   // v891
@@ -3985,7 +3989,7 @@
         try { film.removeAttribute('src'); film.__url = ''; film.style.opacity = 0; } catch(_f){}
       }
       else {
-      var eyeStale = (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 4000);
+      var eyeStale = (_eyeMs >= 0 && _eyeMs > 4000);
       if (on && state !== 'sim' && eyeStale) {
         // v928.3 (Konyo: "not a cutting-my-feed intrusive way — a small eye watching") — a
         // stale eye no longer tears the stage down to the giant word mid-session. The LAST
@@ -3997,14 +4001,14 @@
           // v929.1 (Grok #5) — the held still is LABELED with its age: never a fresh-looking
           // lie. The chip carries the truth right on the frame.
           var _scp = $('sc-phase');
-          if (_scp && st.eyeAgeMs >= 0) _scp.textContent = 'HELD · last frame ' + Math.round(st.eyeAgeMs / 1000) + 's old';
+          if (_scp && _eyeMs >= 0) _scp.textContent = 'HELD · last frame ' + Math.round(_eyeMs / 1000) + 's old';
         }
         else { document.body.classList.remove('film-on'); }
       } else if (on && state !== 'sim') {
         document.body.classList.remove('film-held');
         var fsrc = st.frame || ('http://127.0.0.1:' + (st.agentPort || 17771) + '/frame');
         // v783 — ~3fps stage film (agent film thread ~5fps JPEG)
-        var eyeMoving = !(st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 2500);
+        var eyeMoving = !(_eyeMs >= 0 && _eyeMs > 2500);
         if (film.__src !== fsrc || (eyeMoving && Date.now() - (film.__at || 0) >= 320)) {   // v791 — no cache-bust thrash on a still eye
           film.__at = Date.now(); film.__src = fsrc;
           // v877 (army B#2) — decode OFF the visible element: blob-fetch + decode() first,
@@ -4085,8 +4089,8 @@
       } else if (ct.mode === 'waiting' || /held|not found|not listed|missing/i.test(ct.label || '')){
         capCls = 'cap-wait';
         capTxt = '⏸ waiting · D2R';
-      } else if (on && (st.eyeAgeMs == null || st.eyeAgeMs < 0)){
-        // v1379.3 — no frame yet must never claim "whole screen"
+      } else if (on && _eyeMs < 0){
+        // v1379.3/v1429 — no frame yet must never claim "whole screen"
         capCls = 'cap-wait';
         capTxt = '⏸ waiting · D2R';
       } else if (ct.mode === 'full' && on){

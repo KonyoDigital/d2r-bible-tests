@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1423",
+  "ver": "v1424",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1423: DPI-aware capture \u2014 full physical D2R frame on 150%/125% displays (no top-left crop)",
+  "note": "v1424: sticky bridge state \u2014 no wipe on /state timeout",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
