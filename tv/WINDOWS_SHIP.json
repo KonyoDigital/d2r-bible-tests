@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1439",
+  "ver": "v1440",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1439: capture cadence smooth",
+  "note": "v1440: lite state + film headers",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
