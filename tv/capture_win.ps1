@@ -14,6 +14,7 @@
 # v1422: Light capture under D2R - eye first, PNG rare, 350ms poll, unique tmp names.
 # v1423: Per-monitor DPI awareness - 150% displays were 1920x1080 physical but capture
 #         used 1280x720 logical coords = TOP-LEFT CROP only (Konyo screenshot proof).
+# v1434: Smooth — eye always (800px q72); live.bmp every 2nd; PNG every 8th; 400ms poll.
 # Pure ASCII + BOM for Hebrew PowerShell 5.1.
 
 # v1423 - declare DPI awareness BEFORE any window measure / System.Drawing call.
@@ -288,8 +289,9 @@ public static class TvdCap {
     string livePng = Path.Combine(framesDir, "live.png");
     string eyeJpg = Path.Combine(framesDir, "eye.jpg");
 
-    // 1) EYE FIRST — console film / UX lamp. JPEG scale is cheap vs PNG.
-    int maxPx = 900;
+    // 1) EYE FIRST — console film. v1434: cap 800px + Encoder quality 72 (was full JPEG default).
+    // At 1920x1080 source this is the main UX surface; keep it cheap and always fresh.
+    int maxPx = 800;
     int nw = bmp.Width, nh = bmp.Height;
     if (nw > maxPx || nh > maxPx) {
       double scale = Math.Min(maxPx / (double)nw, maxPx / (double)nh);
@@ -301,19 +303,34 @@ public static class TvdCap {
     using (var eg = Graphics.FromImage(eye)) {
       eg.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
       eg.DrawImage(bmp, 0, 0, nw, nh);
-      eye.Save(tmpEye, ImageFormat.Jpeg);
+      try {
+        var codec = System.Array.Find(
+          ImageCodecInfo.GetImageEncoders(),
+          c => c.MimeType == "image/jpeg");
+        if (codec != null) {
+          var ep = new EncoderParameters(1);
+          ep.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 72L);
+          eye.Save(tmpEye, codec, ep);
+        } else {
+          eye.Save(tmpEye, ImageFormat.Jpeg);
+        }
+      } catch {
+        eye.Save(tmpEye, ImageFormat.Jpeg);
+      }
     }
     Promote(tmpEye, eyeJpg);
 
-    // 2) live.bmp — agent motion/settle. Raw write is fast; unique tmp avoids sticky locks.
-    string tmpBmp = TmpPath(framesDir, "bmp", ".bmp");
-    bmp.Save(tmpBmp, ImageFormat.Bmp);
-    Promote(tmpBmp, liveBmp);
+    // 2) live.bmp — agent settle/intelligence. v1434: ONLY every 2nd frame.
+    // Full 1920x1080 BMP is ~8MB; writing every tick was the #1 lag after PNG death.
+    // Agent POLL is ~1.8s so every-other @350ms still refreshes ~1.4fps for settle.
+    if ((_saveN % 2) == 0) {
+      string tmpBmp = TmpPath(framesDir, "bmp", ".bmp");
+      bmp.Save(tmpBmp, ImageFormat.Bmp);
+      Promote(tmpBmp, liveBmp);
+    }
 
-    // 3) live.png — ONLY every 5th frame. Full PNG encode of 1280x720 under D2R was the
-    // #1 capture death (stage stuck on 'grab', eye age 100s+, control status dead).
-    // Agent vision uses BMP->JPEG convert (v1421); PNG is a soft fallback only.
-    if ((_saveN % 5) == 0) {
+    // 3) live.png — every 8th only (was 5th). Soft fallback for vision convert path.
+    if ((_saveN % 8) == 0) {
       string tmpPng = TmpPath(framesDir, "png", ".png");
       try {
         bmp.Save(tmpPng, ImageFormat.Png);
@@ -334,10 +351,10 @@ Get-ChildItem -LiteralPath $frames -Filter '._tvd_*' -Force -ErrorAction Silentl
 Get-ChildItem -LiteralPath $frames -Filter '*.tmp' -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 $mode = if ($env:TV_CAPTURE) { $env:TV_CAPTURE.ToLower().Trim() } else { 'auto' }
-# v1422 — default 350ms (was 200). 5fps full BMP+PNG under D2R froze capture + control status.
-$pollMs = 350
+# v1434 — default 400ms. Eye always fresh; BMP half-rate. Smoother under 1920x1080 + D2R.
+$pollMs = 400
 if ($env:TV_CAPTURE_MS) {
-  try { $pollMs = [Math]::Max(120, [int]$env:TV_CAPTURE_MS) } catch { $pollMs = 350 }
+  try { $pollMs = [Math]::Max(150, [int]$env:TV_CAPTURE_MS) } catch { $pollMs = 400 }
 }
 
 function Write-Stage([string]$s) {
@@ -389,8 +406,13 @@ function Write-PinDebug($hits) {
   } catch {}
 }
 
-Write-Host ("TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1423 DPI-aware full frame + light eye")
+Write-Host ("TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1434 smooth eye-always BMP/2 PNG/8")
 try { Write-Host ("  dpi: " + [TvdCap]::DpiInfo()) } catch {}
+# v1441 — BelowNormal so game + control UI stay responsive while we PrintWindow.
+try {
+  $p = Get-Process -Id $PID -ErrorAction SilentlyContinue
+  if ($p) { $p.PriorityClass = 'BelowNormal' }
+} catch {}
 $lastLabel = ''
 $loopN = 0
 while ($true) {

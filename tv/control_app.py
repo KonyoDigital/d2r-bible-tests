@@ -1043,27 +1043,33 @@ def _bridge_prober():
 
     v1424 — STICKY STATE: a failed /state fetch under D2R load must NOT wipe the last good
     snapshot. Live proof: ping ok + state timeout → eyeAgeMs=-1, READS 0, dark film while
-    the agent was healthy (reads≥1, eye fresh, pin PrintWindow)."""
+    the agent was healthy (reads≥1, eye fresh, pin PrintWindow).
+
+    v1435 — ONE hop: fetch /state first (carries online+eye+reads). Skip separate /ping when
+    state succeeds. Half the HTTP traffic under D2R load."""
     while True:
         try:
-            ping = _bridge_ping() is not None
-            st_new = _bridge_state() if ping else None
             now = time.time()
-            _BR_CACHE["ping"] = ping
-            _BR_CACHE["ts"] = now
+            # v1435 — prefer single /state; fall back to ping-only keepalive
+            st_new = _bridge_state()
             if st_new is not None:
+                _BR_CACHE["ping"] = True
                 _BR_CACHE["st"] = st_new
                 _BR_CACHE["st_ts"] = now
-            elif not ping:
-                # Clear only when the bridge is truly gone for a grace window.
-                if now - float(_BR_CACHE.get("st_ts") or 0) > 12.0:
-                    _BR_CACHE["st"] = None
-            if ping:
+                _BR_CACHE["ts"] = now
                 globals()["_BRIDGE_LAST_OK"] = now
+            else:
+                ping = _bridge_ping() is not None
+                _BR_CACHE["ping"] = ping
+                _BR_CACHE["ts"] = now
+                if ping:
+                    globals()["_BRIDGE_LAST_OK"] = now
+                elif now - float(_BR_CACHE.get("st_ts") or 0) > 12.0:
+                    _BR_CACHE["st"] = None
         except Exception:
             pass
-        # v1427 — poll a bit faster on Windows so status stays honest under game load
-        time.sleep(0.9 if IS_WIN else 1.2)
+        # v1435 — 1.0s on Windows (was 0.9); less thrash, still honest
+        time.sleep(1.0 if IS_WIN else 1.2)
 
 
 def _bridge_ping():
@@ -1080,10 +1086,11 @@ def _bridge_ping():
 
 def _bridge_state():
     # v1427 — /state can be large; give Windows room under D2R CPU contention
-    _to = 2.0 if IS_WIN else 0.8
+    # v1440 — ?lite=1 trims fat rings so prober stays smooth under 1920 film + vision
+    _to = 1.5 if IS_WIN else 0.8
     try:
         with urllib.request.urlopen(
-            f"http://127.0.0.1:{AGENT_PORT}/state", timeout=_to
+            f"http://127.0.0.1:{AGENT_PORT}/state?lite=1", timeout=_to
         ) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
     except Exception:
@@ -1357,6 +1364,20 @@ def _start_capture(env, log_fp):
             stdin=subprocess.DEVNULL,
             creationflags=_WIN_CREATE,
         )
+        # v1441 — BelowNormal so D2R + console UI keep the cores
+        try:
+            import psutil  # optional
+            psutil.Process(_capture_proc.pid).nice(psutil.BELOW_NORMAL_PRIORITY_CLASS if IS_WIN else 10)
+        except Exception:
+            try:
+                import ctypes
+                handle = ctypes.windll.kernel32.OpenProcess(0x0200 | 0x0400, False, int(_capture_proc.pid))
+                if handle:
+                    # BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
+                    ctypes.windll.kernel32.SetPriorityClass(handle, 0x00004000)
+                    ctypes.windll.kernel32.CloseHandle(handle)
+            except Exception:
+                pass
         _write_pid(CAP_PID_PATH, _capture_proc.pid)
         log_fp.write(f"capture_win.ps1 pid {_capture_proc.pid} file={CAPTURE_PS1}\n")
         log_fp.flush()
@@ -7661,24 +7682,34 @@ def status_payload():
     if _reads is None:
         _reads = len((st or {}).get("reads") or [])
     # v946 — session health + mind story (journal tail + leases + driver pulse)
+    # v1436 — LIVE smoothness: under ON AIR, skip heavy journal re-parse every status poll
+    # (was 200-row walk × UI polls → UI hitch under D2R). Recompute at most every 3s live.
     try:
-        _jtail = _kai_journal_rows()[-200:]
-        _sid_now = ""
-        for _r in reversed(_jtail):
-            if _r.get("sessionId"):
-                _sid_now = str(_r.get("sessionId"))
-                break
-        _sess_tail = [r for r in _jtail if not _sid_now or r.get("sessionId") == _sid_now][-80:]
-        _drv = {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
-                "fired": globals().get("_DRV_FIRED", 0), "refire": globals().get("_DRV_REFIRE", 0),
-                "err": globals().get("_DRV_ERR")}
-        _sess_h = _session_health_from_rows(_sess_tail, leases=_intake_lease_status(), driver=_drv)
-        _gc = _newest_gate_count()   # v948.12 — accuracy-gate proven/held for the FUNNELS organ
-        if _gc:
-            _sess_h["gate"] = _gc
-        _cn = _newest_completeness()   # v948.13 — film↔registration coverage% (target #2)
-        if _cn:
-            _sess_h["completeness"] = _cn
+        _live_mode = mode in ("live", "stopping") and bridge
+        _now_j = time.time()
+        _jh = globals().get("_STATUS_JOURNAL_CACHE") or {"t": 0.0, "h": None, "d": None}
+        if _live_mode and _jh.get("h") is not None and (_now_j - float(_jh.get("t") or 0)) < 3.0:
+            _sess_h = _jh["h"]
+            _drv = _jh.get("d") or {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
+        else:
+            _jtail = _kai_journal_rows()[-200:]
+            _sid_now = ""
+            for _r in reversed(_jtail):
+                if _r.get("sessionId"):
+                    _sid_now = str(_r.get("sessionId"))
+                    break
+            _sess_tail = [r for r in _jtail if not _sid_now or r.get("sessionId") == _sid_now][-80:]
+            _drv = {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
+                    "fired": globals().get("_DRV_FIRED", 0), "refire": globals().get("_DRV_REFIRE", 0),
+                    "err": globals().get("_DRV_ERR")}
+            _sess_h = _session_health_from_rows(_sess_tail, leases=_intake_lease_status(), driver=_drv)
+            _gc = _newest_gate_count()   # v948.12 — accuracy-gate proven/held for the FUNNELS organ
+            if _gc:
+                _sess_h["gate"] = _gc
+            _cn = _newest_completeness()   # v948.13 — film↔registration coverage% (target #2)
+            if _cn:
+                _sess_h["completeness"] = _cn
+            globals()["_STATUS_JOURNAL_CACHE"] = {"t": _now_j, "h": _sess_h, "d": _drv}
     except Exception:
         _sess_h = {"tabs": {}, "leases": {}, "verdict": "idle", "story": [], "tabSummary": {}}
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
@@ -7693,7 +7724,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1433",
+        "ver": "v1434",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

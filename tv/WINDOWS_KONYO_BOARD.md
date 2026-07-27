@@ -7,29 +7,29 @@
 
 | Item | Value |
 |------|--------|
-| Version | **v1433** |
-| Arc | v1424–v1433 live honesty 10-round |
-| Capture | DPI 1920×1080 + light loop |
-| Status | sticky bridge + disk eye/pin |
+| Version | **v1443** |
+| Arc | v1434–v1443 SMOOTH 10-round |
+| Capture | eye always · BMP/2 · PNG/8 · 400ms · BelowNormal |
+| Bridge | single-hop /state?lite=1 |
+| Status | journal cache 3s live · disk eye/pin |
 
-## 10-round seal (2026-07-28)
+## 10-round smooth seal
 
 | R | Ver | Gate |
 |---|-----|------|
-| 1 | v1424 | sticky /state |
-| 2 | v1425 | disk eyeAgeMs |
-| 3 | v1426 | disk cap_target |
-| 4 | v1427 | bridge timeouts |
-| 5 | v1428 | footage archive |
-| 6 | v1429 | UI film honesty |
-| 7 | v1430 | log spam silence |
-| 8 | v1431 | OCR warm soft |
-| 9 | v1432 | grace window |
-| 10 | v1433 | seal |
+| 1 | v1434 | capture I/O |
+| 2 | v1435 | bridge hop |
+| 3 | v1436 | status light |
+| 4 | v1437 | film 480ms |
+| 5 | v1438 | vision yield |
+| 6 | v1439 | 400ms poll |
+| 7 | v1440 | lite state |
+| 8 | v1441 | nice capture |
+| 9 | v1442 | sticky READS |
+| 10 | v1443 | seal |
 
 ## User path
 
-1. Fully quit TV DIABLO (not just OFF)
-2. Desktop relaunch → footer **v1433**
-3. D2R open → **ON AIR**
-4. Expect: full-frame film · pin Locked · READS tick · no black stage mid-poll
+1. Fully quit TV DIABLO
+2. Relaunch → footer **v1443**
+3. ON AIR with D2R — film should feel smooth, no black mid-poll

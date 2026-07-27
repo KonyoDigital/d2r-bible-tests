@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1433"   # 10-round Windows live honesty seal.
+VERSION = "v1434"   # Capture smooth: eye always 800px q72; BMP every 2nd; PNG every 8th; 400ms.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -520,10 +520,12 @@ def bridge():
             if self.path.startswith("/state"):
                 # v770 (Grok R4 perf) — ?since=<ts> returns a THIN delta: full reads ring only
                 # when asked from cold; 4 polls/sec no longer parse 200 rich reads every tick.
+                # v1435/v1440 — ?lite=1 for control prober: readCount + eye + pin + beat, no fat rings.
                 _q = parse_qs(urlparse(self.path).query or "")
                 _since = 0
                 try: _since = int((_q.get("since") or ["0"])[0])
                 except Exception: _since = 0
+                _lite = (_q.get("lite") or ["0"])[0] in ("1", "true", "yes")
                 # v1419 — every state poll re-reads Windows pin so UI never sticks on eye arming
                 if WATCH_MODE:
                     try:
@@ -542,10 +544,42 @@ def bridge():
                     # thin-delta must filter a COPY (the old code truncated the live ring and
                     # popped seen/farmed from the real state), and serialization happens under
                     # the lock so a concurrent apply can't resize dicts mid-dump.
-                    out = dict(st)
-                    if _since:
-                        out["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
-                        out.pop("seen", None); out.pop("farmed", None)
+                    if _lite:
+                        # v1440 — tiny payload for control_app prober (~smooth under D2R)
+                        _rc = st.get("readCount")
+                        if _rc is None:
+                            _rc = len(st.get("reads") or [])
+                        out = {
+                            "online": True,
+                            "now": st["now"],
+                            "ver": VERSION,
+                            "readCount": int(_rc or 0),
+                            "eyeAgeMs": st["eyeAgeMs"],
+                            "captureTarget": st["captureTarget"],
+                            "beat": st["beat"],
+                            "sessionId": st.get("sessionId") or "",
+                            "gameOk": st.get("gameOk", True),
+                            "aiPaused": st.get("aiPaused", False),
+                            "gameMsg": st.get("gameMsg") or "",
+                            "health": {
+                                "eyeAgeMs": (st.get("health") or {}).get("eyeAgeMs", st["eyeAgeMs"]),
+                                "footageFps": (st.get("health") or {}).get("footageFps"),
+                                "visionBusyMs": (st.get("health") or {}).get("visionBusyMs"),
+                                "sessionMs": (st.get("health") or {}).get("sessionMs"),
+                                "lastReadAgeMs": (st.get("health") or {}).get("lastReadAgeMs"),
+                                "aiPaused": (st.get("health") or {}).get("aiPaused"),
+                                "gameOk": (st.get("health") or {}).get("gameOk", True),
+                                "gameMsg": (st.get("health") or {}).get("gameMsg") or "",
+                            },
+                            "events": list(_EVENTS)[-4:],
+                            "stopping": st["stopping"],
+                            "lite": True,
+                        }
+                    else:
+                        out = dict(st)
+                        if _since:
+                            out["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
+                            out.pop("seen", None); out.pop("farmed", None)
                     payload = json.dumps(out).encode()
                 try:
                     self._hdr(); self.wfile.write(payload)
@@ -612,7 +646,8 @@ def bridge():
                         self.send_response(200)
                         self.send_header("content-type", "image/jpeg")
                         self.send_header("access-control-allow-origin", "*")
-                        self.send_header("cache-control", "no-store")
+                        # v1440 — no-store keeps film live; max-age=0 is belt for WebView2
+                        self.send_header("cache-control", "no-store, max-age=0")
                         self.send_header("content-length", str(len(data)))
                         self.end_headers()
                         self.wfile.write(data)
@@ -4985,7 +5020,12 @@ def main():
     while True:
         # v926.2 — adaptive sleep: long during active play (back off, don't stutter the game),
         # responsive when settled. _ADAPT_GAP is set from motion at the end of each iteration.
-        time.sleep(globals().get("_ADAPT_GAP", POLL_S))
+        # v1438 — Windows smooth: when a deep read is in flight, back off the sensor a bit so
+        # capture + control UI get CPU (baby-bottom: no hitch mid-reading).
+        _gap = float(globals().get("_ADAPT_GAP", POLL_S) or POLL_S)
+        if sys.platform.startswith("win") and globals().get("_VISION_BUSY"):
+            _gap = max(_gap, min(2.8, _gap * 1.4))
+        time.sleep(_gap)
         # ── straggler flush + queue drain: freezes held while readers were busy ──
         try: _order_drain()
         except Exception: pass

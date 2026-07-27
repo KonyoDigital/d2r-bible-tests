@@ -3756,6 +3756,16 @@
     // bridge miss never paints a black stage while frames/eye.jpg is fresh on disk.
     var _eyeMs = (st.eyeAgeMs != null && st.eyeAgeMs >= 0) ? st.eyeAgeMs
                : ((st.diskEyeAgeMs != null && st.diskEyeAgeMs >= 0) ? st.diskEyeAgeMs : -1);
+    // v1442 — sticky READS: never flash 0 mid-poll if we already saw a higher count this session
+    try {
+      var _rc = parseInt(st.readCount, 10) || 0;
+      if (on) {
+        window._stickyReads = Math.max(window._stickyReads || 0, _rc);
+        if (_rc < window._stickyReads && window._stickyReads > 0) st.readCount = window._stickyReads;
+      } else {
+        window._stickyReads = 0;
+      }
+    } catch (_sr) {}
     var eyeStaleHard = on && _eyeMs >= 0 && _eyeMs > 8000 && !noGame;
     // v1379.3 — no eye file at all (eyeAgeMs < 0) used to leave a silent black stage for the
     // first seconds of ON AIR (and forever if D2R never pins). Treat missing eye as HOLD too.
@@ -4009,7 +4019,9 @@
         var fsrc = st.frame || ('http://127.0.0.1:' + (st.agentPort || 17771) + '/frame');
         // v783 — ~3fps stage film (agent film thread ~5fps JPEG)
         var eyeMoving = !(_eyeMs >= 0 && _eyeMs > 2500);
-        if (film.__src !== fsrc || (eyeMoving && Date.now() - (film.__at || 0) >= 320)) {   // v791 — no cache-bust thrash on a still eye
+        // v1437 — Windows: 480ms film refresh (was 320). Smoother GPU under D2R + WebView2.
+        var _filmGap = (navigator.platform && /Win/i.test(navigator.platform)) ? 480 : 320;
+        if (film.__src !== fsrc || (eyeMoving && Date.now() - (film.__at || 0) >= _filmGap)) {   // v791/v1437
           film.__at = Date.now(); film.__src = fsrc;
           // v877 (army B#2) — decode OFF the visible element: blob-fetch + decode() first,
           // swap only a ready image. The old direct src= re-decoded a stage-size JPEG on the

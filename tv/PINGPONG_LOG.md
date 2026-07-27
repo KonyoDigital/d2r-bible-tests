@@ -2457,3 +2457,26 @@ Tests: TestExitSafeguard +3 (arm idempotent, request path, UI contract) · tripl
 
 **User path after pull:** fully quit TV DIABLO → relaunch → ON AIR. Expect LIVE film (not black), pin Locked·Diablo II, READS counting, no false NO EYE.
 
+
+## ROUND v1434–v1443 — Windows SMOOTH 10-round (2026-07-28)
+
+**Order:** Konyo — optimize + core fixes, ship another 10, smooth as a baby's bottom.
+
+**Core load (after v1423 DPI full-frame):** 1920x1080 PrintWindow writing 8MB BMP every tick
++ dual bridge HTTP + fat /state + 320ms film fetch = hitchy UI / FOOTAGE STARVE under D2R.
+
+| Ver | Round | Fix |
+|-----|-------|-----|
+| v1434 | R1 capture I/O | eye always (800px q72) · BMP every 2nd · PNG every 8th · 400ms |
+| v1435 | R2 bridge | single /state hop (no ping when state ok) |
+| v1436 | R3 status | journal health cached 3s while LIVE |
+| v1437 | R4 film UI | Windows stage refresh 480ms |
+| v1438 | R5 sensor | back off poll while vision busy |
+| v1439 | R6 cadence | 400ms capture default |
+| v1440 | R7 lite | /state?lite=1 for prober · frame no-store |
+| v1441 | R8 nice | capture BelowNormal priority |
+| v1442 | R9 reads | sticky READS (no flash 0) |
+| v1443 | R10 seal | this ledger + board |
+
+**User:** fully quit TV DIABLO → relaunch footer **v1443** → ON AIR. Expect butter film + honest READS + low CPU hitch.
+

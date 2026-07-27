@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1433",
+  "ver": "v1434",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1433: 10-round seal \u2014 live status/film/pin honesty",
+  "note": "v1434: capture I/O smooth under 1920x1080",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
