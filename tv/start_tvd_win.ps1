@@ -2,6 +2,13 @@
 # NOT for Mac. Mac uses start_tvd_mac.sh / install-tvd.sh on a different machine.
 # Agent + capture stay hidden. Controls: ON/OFF/STOP/RESTART/SIM.
 # Encoding: ASCII-only strings so Windows PowerShell 5.1 never mis-parses UTF-8.
+#
+# v1444-v1448 UX launch smooth:
+#   - ready probe = /api/status (NOT full doctor ok:true which is false under ON AIR + SLOW)
+#   - if already up: focus + exit BEFORE git/pip (no lag, no second window)
+#   - auto-pull time-boxed; never blocks a warm relaunch
+#   - C# focus (no PS EnumWindows hang under D2R)
+#   - short ready wait; no error dialog while python still starting
 $ErrorActionPreference = 'Continue'
 if ($env:OS -ne 'Windows_NT') {
   Write-Host 'TV DIABLO start_tvd_win.ps1 is Windows only.' -ForegroundColor Red
@@ -18,23 +25,26 @@ function Write-TvdLaunchLog([string]$msg) {
   try { Add-Content -LiteralPath $launchLog -Value $line -Encoding UTF8 } catch {}
 }
 
-function Test-TvdDoctorOk {
+function Test-TvdControlUp {
+  # v1444 — control is UP when /api/status answers with a ver field.
+  # NEVER require doctor.ok=true: that is false while LIVE with frame faults and takes seconds.
   try {
-    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/doctor' -UseBasicParsing -TimeoutSec 1
+    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/status' -UseBasicParsing -TimeoutSec 0.35
     $body = [string]$resp.Content
-    if ($body -match '"ok"\s*:\s*true') { return $true }
+    if ($body -match '"ver"\s*:\s*"v') { return $true }
   } catch {}
   return $false
 }
 
 function Focus-TvdWindow {
-  # Bring existing native TV DIABLO window to front (no second instance).
+  # v1446 — pure C# EnumWindows (PS scriptblock EnumWindows hangs under D2R load).
   try {
-    Add-Type @"
+    if (-not ('TvdFocusFast' -as [type])) {
+      Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-public class TvdFocus {
+public static class TvdFocusFast {
   public delegate bool EnumProc(IntPtr h, IntPtr l);
   [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
   [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
@@ -42,28 +52,27 @@ public class TvdFocus {
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  static IntPtr found = IntPtr.Zero;
+  static bool Cb(IntPtr h, IntPtr l) {
+    if (!IsWindowVisible(h)) return true;
+    var sb = new StringBuilder(256);
+    GetWindowText(h, sb, 256);
+    string t = sb.ToString() ?? "";
+    if (t == "TV DIABLO" || t.StartsWith("TV DIABLO ")) { found = h; return false; }
+    return true;
+  }
+  public static bool Focus() {
+    found = IntPtr.Zero;
+    EnumWindows(Cb, IntPtr.Zero);
+    if (found == IntPtr.Zero) return false;
+    if (IsIconic(found)) ShowWindow(found, 9);
+    SetForegroundWindow(found);
+    return true;
+  }
 }
-"@ -ErrorAction SilentlyContinue
-  } catch {}
-  $script:tvdHwnd = [IntPtr]::Zero
-  try {
-    $cb = {
-      param([IntPtr]$h, [IntPtr]$lp)
-      if (-not [TvdFocus]::IsWindowVisible($h)) { return $true }
-      $sb = New-Object System.Text.StringBuilder 256
-      [void][TvdFocus]::GetWindowText($h, $sb, 256)
-      $t = $sb.ToString()
-      # exact title from pywebview create_window(title="TV DIABLO")
-      if ($t -eq 'TV DIABLO' -or $t -like 'TV DIABLO *') {
-        $script:tvdHwnd = $h
-        return $false
-      }
-      return $true
+"@
     }
-    [void][TvdFocus]::EnumWindows($cb, [IntPtr]::Zero)
-    if ($script:tvdHwnd -ne [IntPtr]::Zero) {
-      if ([TvdFocus]::IsIconic($script:tvdHwnd)) { [void][TvdFocus]::ShowWindow($script:tvdHwnd, 9) }
-      [void][TvdFocus]::SetForegroundWindow($script:tvdHwnd)
+    if ([TvdFocusFast]::Focus()) {
       Write-TvdLaunchLog 'focused existing TV DIABLO window'
       return $true
     }
@@ -73,17 +82,24 @@ public class TvdFocus {
   return $false
 }
 
+function Show-TvdError([string]$text) {
+  try {
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show($text, 'TV DIABLO', 'OK', 'Error') | Out-Null
+  } catch {
+    Write-Host $text
+  }
+}
+
 # ---------------------------------------------------------------------------
-# v1417 SINGLE INSTANCE FIRST (before auto-pull / python probes).
-# Dual Desktop double-click used to race two full launchers (two auto-pulls in log)
-# and occasionally two windows. Mutex + focus-existing = ONE console only.
+# v1417/v1448 SINGLE INSTANCE FIRST — before git/pip/python probes.
 # ---------------------------------------------------------------------------
 $mutex = $null
 try {
   $created = $false
-  $mutex = New-Object System.Threading.Mutex($true, 'Local\TV_DIABLO_WIN_LAUNCHER_v1', [ref]$created)
+  $mutex = New-Object System.Threading.Mutex($true, 'Local\TV_DIABLO_WIN_LAUNCHER_v2', [ref]$created)
   if (-not $created) {
-    Write-TvdLaunchLog 'launcher mutex busy - another start_tvd_win in flight; focus existing / exit quiet'
+    Write-TvdLaunchLog 'launcher mutex busy - focus existing / exit quiet'
     [void](Focus-TvdWindow)
     try { $mutex.Dispose() } catch {}
     $mutex = $null
@@ -94,16 +110,32 @@ try {
   $mutex = $null
 }
 
-# Already healthy control => do NOT spawn a second --open (bring window forward)
-if (Test-TvdDoctorOk) {
-  Write-TvdLaunchLog 'doctor already ok - focusing existing TV DIABLO; not starting a second window'
+# v1444/v1445 — ALREADY UP: focus and leave. Do not git-pull, pip, or spawn python.
+if (Test-TvdControlUp) {
+  Write-TvdLaunchLog 'control already up - focusing; skip pull/spawn'
   [void](Focus-TvdWindow)
   if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
   return
 }
 
+# PATH seed
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+            [Environment]::GetEnvironmentVariable('Path', 'User')
+foreach ($p in @(
+  "$env:LocalAppData\Programs\Python\Python312",
+  "$env:LocalAppData\Programs\Python\Python312\Scripts",
+  "$env:LocalAppData\Programs\Python\Python313",
+  "$env:LocalAppData\Programs\Python\Python313\Scripts",
+  "$env:LocalAppData\Microsoft\WinGet\Links",
+  "$env:ProgramFiles\Git\cmd",
+  "$env:USERPROFILE\.local\bin"
+)) {
+  if ((Test-Path -LiteralPath $p) -and ($env:Path -notlike "*$p*")) {
+    $env:Path = "$p;$env:Path"
+  }
+}
+
 function Real-Python {
-  # Prefer pythonw for GUI-only (no console flash)
   foreach ($c in @('pythonw', 'python', 'py')) {
     $cmd = Get-Command $c -ErrorAction SilentlyContinue
     if (-not $cmd) { continue }
@@ -132,116 +164,42 @@ function Real-Python {
   return $null
 }
 
-function Show-TvdError([string]$text) {
-  try {
-    Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show($text, 'TV DIABLO', 'OK', 'Error') | Out-Null
-  } catch {
-    Write-Host $text
-  }
-}
-
-# PATH seed
-$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
-            [Environment]::GetEnvironmentVariable('Path', 'User')
-foreach ($p in @(
-  "$env:LocalAppData\Programs\Python\Python312",
-  "$env:LocalAppData\Programs\Python\Python312\Scripts",
-  "$env:LocalAppData\Programs\Python\Python313",
-  "$env:LocalAppData\Programs\Python\Python313\Scripts",
-  "$env:LocalAppData\Microsoft\WinGet\Links",
-  "$env:ProgramFiles\Git\cmd",
-  "$env:USERPROFILE\.local\bin"
-)) {
-  if ((Test-Path -LiteralPath $p) -and ($env:Path -notlike "*$p*")) {
-    $env:Path = "$p;$env:Path"
-  }
-}
-
-Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
-Remove-Item Env:ANTHROPIC_AUTH_TOKEN -ErrorAction SilentlyContinue
-
-# PATH seed for Claude (Desktop shortcut shells often miss ~/.local/bin + npm)
-foreach ($p in @(
-  (Join-Path $env:USERPROFILE '.local\bin'),
-  (Join-Path $env:LocalAppData 'Programs\claude'),
-  (Join-Path $env:LocalAppData 'claude'),
-  (Join-Path $env:APPDATA 'npm'),
-  (Join-Path $env:LocalAppData 'Microsoft\WinGet\Links')
-)) {
-  if ((Test-Path -LiteralPath $p) -and ($env:Path -notlike "*$p*")) {
-    $env:Path = "$p;$env:Path"
-  }
-}
-
-if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
-  $claudeHit = $null
-  foreach ($c in @(
-    (Join-Path $env:USERPROFILE '.local\bin\claude.exe'),
-    (Join-Path $env:USERPROFILE '.local\bin\claude.cmd'),
-    (Join-Path $env:APPDATA 'npm\claude.cmd'),
-    (Join-Path $env:LocalAppData 'Programs\claude\claude.exe')
-  )) {
-    if (Test-Path -LiteralPath $c) { $claudeHit = $c; break }
-  }
-  if ($claudeHit) {
-    $env:TV_CLAUDE_BIN = $claudeHit
-    $env:Path = "$(Split-Path -Parent $claudeHit);$env:Path"
-  } else {
-    Write-TvdLaunchLog 'Claude Code not found'
-    Show-TvdError (
-      "Claude Code not found - ON AIR cannot read the game without it.`n`n" +
-      "In PowerShell run:`n  irm https://claude.ai/install.ps1 | iex`n`n" +
-      "Then open a NEW PowerShell, type:  claude`n(finish login once), close it, and open TV DIABLO again.`n`n" +
-      "Or re-run the full installer:`n  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex`n`n" +
-      "Log: $launchLog"
-    )
-    return
-  }
-}
-
 $py = Real-Python
 if (-not $py) {
   Write-TvdLaunchLog 'No real Python found'
+  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
   Show-TvdError "No real Python found. Re-run the installer.`n`nLog: $launchLog"
   return
 }
 
-# Ensure pywebview (Edge WebView2 backend on Windows)
-$probe = if ($py.Cmd -eq 'py') { @('py', '-3', '-c', 'import webview') }
-         elseif ($py.Cmd -eq 'pythonw') { @('python', '-c', 'import webview') }
-         else { @($py.Cmd, '-c', 'import webview') }
-$ok = $false
-try {
-  & $probe[0] $probe[1..($probe.Length - 1)] 2>$null | Out-Null
-  if ($LASTEXITCODE -eq 0) { $ok = $true }
-} catch {}
-if (-not $ok) {
-  $pip = if ($py.Cmd -eq 'py') { @('py', '-3', '-m', 'pip', 'install', '--user', '--quiet', 'pywebview>=5.0') }
-         elseif ($py.Cmd -eq 'pythonw') { @('python', '-m', 'pip', 'install', '--user', '--quiet', 'pywebview>=5.0') }
-         else { @($py.Cmd, '-m', 'pip', 'install', '--user', '--quiet', 'pywebview>=5.0') }
-  try { & $pip[0] $pip[1..($pip.Length - 1)] 2>$null | Out-Null } catch {}
+# v1447 — webview probe once; cache result so warm launches skip pip
+$wvCache = Join-Path $here '.webview_ok'
+$needWv = -not (Test-Path -LiteralPath $wvCache)
+if ($needWv) {
+  $probe = if ($py.Cmd -eq 'py') { @('py', '-3', '-c', 'import webview') }
+           elseif ($py.Cmd -eq 'pythonw') { @('python', '-c', 'import webview') }
+           else { @($py.Cmd, '-c', 'import webview') }
+  $ok = $false
+  try {
+    & $probe[0] $probe[1..($probe.Length - 1)] 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { $ok = $true }
+  } catch {}
+  if (-not $ok) {
+    Write-TvdLaunchLog 'installing pywebview (first run)'
+    $pip = if ($py.Cmd -eq 'py') { @('py', '-3', '-m', 'pip', 'install', '--user', '--quiet', 'pywebview>=5.0') }
+           elseif ($py.Cmd -eq 'pythonw') { @('python', '-m', 'pip', 'install', '--user', '--quiet', 'pywebview>=5.0') }
+           else { @($py.Cmd, '-m', 'pip', 'install', '--user', '--quiet', 'pywebview>=5.0') }
+    try { & $pip[0] $pip[1..($pip.Length - 1)] 2>$null | Out-Null } catch {}
+  } else {
+    try { Set-Content -LiteralPath $wvCache -Value '1' -Encoding ASCII } catch {}
+  }
 }
 
-# Soft first-run Claude login (skip if any known cred file exists)
-$credHit = $false
-foreach ($c in @(
-  (Join-Path $HOME '.claude\.credentials.json'),
-  (Join-Path $HOME '.config\claude\.credentials.json'),
-  (Join-Path $HOME '.claude.json')
-)) {
-  if (Test-Path -LiteralPath $c) { $credHit = $true; break }
-}
-if (-not $credHit) {
-  Write-TvdLaunchLog 'No Claude creds yet - opening claude login shell (wait)'
-  Start-Process -Wait powershell -ArgumentList '-NoLogo', '-Command', 'claude' -ErrorAction SilentlyContinue
-}
+# v1447 — NEVER open a blocking claude login shell on Desktop double-click (extra window lag).
+# Doctor/ON AIR will surface Claude missing if needed.
 
-# v1414 auto-update (why cousin stuck on old ver):
-# - TV_NO_AUTO_PULL=1 skips entirely
-# - Untracked junk (?? debug files) must NOT block pull
-# - Modified TRACKED files still block (protect real local work)
-# - fetch + ff-only; if diverged with no tracked edits, reset --hard origin/main
+# v1445 — time-boxed auto-pull AFTER we know we must spawn (not on warm re-open).
+# Cap wall time so a hung git never freezes the Desktop icon for 30s+.
 if (-not $env:TV_NO_AUTO_PULL) {
   $trackedDirty = $false
   try {
@@ -251,18 +209,27 @@ if (-not $env:TV_NO_AUTO_PULL) {
     }
   } catch {}
   if ($trackedDirty) {
-    Write-TvdLaunchLog 'skip auto-pull: tracked files modified (local work protected)'
+    Write-TvdLaunchLog 'skip auto-pull: tracked files modified'
   } else {
     try {
-      git -C $repo fetch origin 2>$null | Out-Null
-      git -C $repo merge --ff-only origin/main 2>$null | Out-Null
-      if ($LASTEXITCODE -eq 0) {
-        Write-TvdLaunchLog 'auto-pull: fast-forward ok'
+      $env:GIT_TERMINAL_PROMPT = '0'
+      # shallow-ish: fetch with 10s kill via job
+      $fetchJob = Start-Job -ScriptBlock {
+        param($r)
+        git -C $r fetch origin --quiet 2>$null
+        git -C $r merge --ff-only origin/main 2>$null
+        if ($LASTEXITCODE -ne 0) {
+          git -C $r reset --hard origin/main 2>$null
+        }
+      } -ArgumentList $repo
+      $null = Wait-Job $fetchJob -Timeout 12
+      if ($fetchJob.State -eq 'Running') {
+        Stop-Job $fetchJob -Force -ErrorAction SilentlyContinue
+        Write-TvdLaunchLog 'auto-pull: timed out (12s) — launching with local tree'
       } else {
-        Write-TvdLaunchLog 'auto-pull: ff failed, reset --hard origin/main (no tracked edits)'
-        git -C $repo reset --hard origin/main 2>$null | Out-Null
-        Write-TvdLaunchLog 'auto-pull: now on origin/main'
+        Write-TvdLaunchLog 'auto-pull: done'
       }
+      Remove-Job $fetchJob -Force -ErrorAction SilentlyContinue
     } catch {
       Write-TvdLaunchLog ("auto-pull error: {0}" -f $_)
     }
@@ -271,58 +238,49 @@ if (-not $env:TV_NO_AUTO_PULL) {
   Write-TvdLaunchLog 'skip auto-pull: TV_NO_AUTO_PULL set'
 }
 
+# Re-check after pull: another click may have won
+if (Test-TvdControlUp) {
+  Write-TvdLaunchLog 'control came up during pull - focus only'
+  [void](Focus-TvdWindow)
+  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+  return
+}
+
 $control = Join-Path $here 'control_app.py'
 $ui = Join-Path $here 'control_ui.html'
 $capture = Join-Path $here 'capture_win.ps1'
 $shipPath = Join-Path $here 'WINDOWS_SHIP.json'
 if (-not (Test-Path -LiteralPath $control) -or -not (Test-Path -LiteralPath $ui)) {
   Write-TvdLaunchLog 'control_app.py or control_ui.html missing'
-  Show-TvdError "Control app files missing. Re-run WINDOWS installer.`n  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex`n`nLog: $launchLog"
+  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+  Show-TvdError "Control app files missing. Re-run WINDOWS installer.`nLog: $launchLog"
   return
 }
 if (-not (Test-Path -LiteralPath $capture)) {
   Write-TvdLaunchLog 'capture_win.ps1 missing'
-  Show-TvdError "Windows capture missing (capture_win.ps1). Re-run WINDOWS installer (not Mac).`n`nLog: $launchLog"
+  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+  Show-TvdError "Windows capture missing (capture_win.ps1).`nLog: $launchLog"
   return
 }
-# v1404 - pin Windows ship identity; refuse Mac-confused trees
+
 $shipVer = '?'
 if (Test-Path -LiteralPath $shipPath) {
   try {
     $ship = Get-Content -LiteralPath $shipPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($ship.platform -ne 'windows') {
-      Show-TvdError "WINDOWS_SHIP.platform=$($ship.platform) - this launcher is Windows only.`nRe-install with the Windows IRM line."
+      if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+      Show-TvdError "WINDOWS_SHIP.platform=$($ship.platform) - this launcher is Windows only."
       return
     }
     $shipVer = [string]$ship.ver
-    Write-TvdLaunchLog ("Windows ship ver={0} name={1}" -f $shipVer, $ship.name)
-    $stampPath = Join-Path $here '.windows_install.json'
-    if (-not (Test-Path -LiteralPath $stampPath)) {
-      $stampObj = [ordered]@{
-        platform    = 'windows'
-        shipVer     = $shipVer
-        launchedAt  = (Get-Date).ToString('o')
-        computer    = $env:COMPUTERNAME
-        repo        = $repo
-        launcher    = 'start_tvd_win.ps1'
-      }
-      ($stampObj | ConvertTo-Json) | Set-Content -LiteralPath $stampPath -Encoding UTF8
-    }
+    Write-TvdLaunchLog ("Windows ship ver={0}" -f $shipVer)
   } catch {
     Write-TvdLaunchLog ("WINDOWS_SHIP.json read failed: {0}" -f $_)
   }
-} else {
-  Write-TvdLaunchLog 'WINDOWS_SHIP.json missing - pull latest Windows repo'
 }
 
-# ---------------------------------------------------------------------------
-# v1401 CRITICAL: USERPROFILE with spaces (e.g. Hebrew names)
-#   BAD:  Start-Process -ArgumentList @($control, '--open')
-#   GOOD: one ArgumentList string with quoted script path.
-# ---------------------------------------------------------------------------
 $exeCmd = Get-Command $py.Cmd -ErrorAction SilentlyContinue
 $exePath = if ($exeCmd) { [string]$exeCmd.Source } else { $py.Cmd }
-
 if ($py.Cmd -eq 'py') {
   $argLine = '-3 "' + $control + '" --open'
 } else {
@@ -332,7 +290,8 @@ if ($py.Cmd -eq 'py') {
 Write-TvdLaunchLog ("launch FileName={0} Args={1} WD={2}" -f $exePath, $argLine, $repo)
 
 try {
-  $proc = Start-Process -FilePath $exePath -ArgumentList $argLine -WorkingDirectory $repo -PassThru
+  # pythonw = no console flash
+  $proc = Start-Process -FilePath $exePath -ArgumentList $argLine -WorkingDirectory $repo -PassThru -WindowStyle Hidden
   Write-TvdLaunchLog ("started pid={0}" -f $proc.Id)
 } catch {
   Write-TvdLaunchLog ("Start-Process FAILED: {0}" -f $_)
@@ -341,62 +300,41 @@ try {
   return
 }
 
-$doctorOk = $false
-$doctorBody = ''
-for ($i = 0; $i -lt 25; $i++) {
+# v1448 — ready wait uses FAST status probe (max ~8s), not 45s doctor ok:true
+$ready = $false
+for ($i = 0; $i -lt 20; $i++) {
   Start-Sleep -Milliseconds 400
-  # Another instance won the port and is healthy - our child may exit 0/1; that is OK
-  if (Test-TvdDoctorOk) {
-    $doctorOk = $true
-    try {
-      $doctorBody = [string](Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/doctor' -UseBasicParsing -TimeoutSec 1).Content
-    } catch {}
-    Write-TvdLaunchLog ("doctor OK (single instance) pid_self={0} exited={1}" -f $proc.Id, $proc.HasExited)
+  if (Test-TvdControlUp) {
+    $ready = $true
+    Write-TvdLaunchLog ("ready status OK i={0} pid={1}" -f $i, $proc.Id)
     break
   }
-  if ($proc.HasExited -and $i -gt 5) {
-    # Give a peer a moment; if still no doctor, real failure
-    Start-Sleep -Milliseconds 600
-    if (Test-TvdDoctorOk) { $doctorOk = $true; break }
+  if ($proc.HasExited -and $i -gt 3) {
+    Start-Sleep -Milliseconds 400
+    if (Test-TvdControlUp) { $ready = $true; break }
     Write-TvdLaunchLog ("python exited early code={0}" -f $proc.ExitCode)
     break
   }
 }
 
-if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+# Release launcher mutex ASAP so a second click only FOCUSES (does not queue another full launch)
+if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose(); $mutex = $null }
 
-if (-not $doctorOk) {
-  # Last chance: peer may still be binding
-  if (Test-TvdDoctorOk) {
-    Write-TvdLaunchLog 'doctor OK on final check'
-    [void](Focus-TvdWindow)
-    return
-  }
-  # v1417: if python is STILL running, do NOT pop an error dialog — that is the
-  # dual-window feel (error box + console that appears a second later under D2R lag).
-  if (-not $proc.HasExited) {
-    Write-TvdLaunchLog 'doctor slow but process alive - waiting extra; no error dialog'
-    for ($j = 0; $j -lt 20; $j++) {
-      Start-Sleep -Milliseconds 500
-      if (Test-TvdDoctorOk) {
-        Write-TvdLaunchLog 'doctor OK after extended wait'
-        [void](Focus-TvdWindow)
-        return
-      }
-    }
-    if (-not $proc.HasExited) {
-      Write-TvdLaunchLog 'process still alive after extended wait - assume window coming; exit quiet'
-      return
-    }
-  }
-  $hint = "Python exited (exit $($proc.ExitCode)) and doctor is down. Path/space, missing pywebview, or crash."
-  Write-TvdLaunchLog ("doctor FAIL: $hint body=$doctorBody")
-  Show-TvdError (
-    "TV DIABLO did not come up cleanly.`n`n$hint`n`n" +
-    "Doctor: http://127.0.0.1:17772/api/doctor`nLog: $launchLog`n`n" +
-    "Try in a NEW PowerShell:`n  powershell -File `"$PSCommandPath`""
-  )
+if ($ready) {
+  [void](Focus-TvdWindow)
+  Write-TvdLaunchLog 'launch complete'
   return
 }
 
-Write-TvdLaunchLog ("doctor OK: $doctorBody")
+# Soft: process still alive — window may paint under WebView2 cold start; no scary dialog
+if (-not $proc.HasExited) {
+  Write-TvdLaunchLog 'status slow but process alive - exit quiet (window coming)'
+  [void](Focus-TvdWindow)
+  return
+}
+
+Write-TvdLaunchLog 'launch FAIL: process dead and status down'
+Show-TvdError (
+  "TV DIABLO did not come up.`n`nPython exited and control is down.`n" +
+  "Log: $launchLog`n`nTry: powershell -File `"$PSCommandPath`""
+)

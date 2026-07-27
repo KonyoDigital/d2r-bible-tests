@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1443",
+  "ver": "v1444",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1443: smooth seal 10-round",
+  "note": "v1444: fast ready probe \u2014 no doctor.ok gate",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

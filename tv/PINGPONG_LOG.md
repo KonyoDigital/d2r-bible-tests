@@ -2480,3 +2480,22 @@ Tests: TestExitSafeguard +3 (arm idempotent, request path, UI contract) · tripl
 
 **User:** fully quit TV DIABLO → relaunch footer **v1443** → ON AIR. Expect butter film + honest READS + low CPU hitch.
 
+
+## ROUND v1444–v1448 — Windows console OPEN UX (2026-07-28)
+
+**Order:** Konyo — opening console laggy + multiple windows flash; optimize UX; ship 5 versions.
+
+**Root (launch log proof):**
+- Ready gate used full /api/doctor ok:true (false while LIVE / slow under load → 30–40s wait)
+- git fetch + pip webview probe ran even when control already up
+- PS EnumWindows focus hung; double-click raced mutex + second spawn feel
+- Blocking claude login shell could open extra PowerShell windows
+
+| Ver | Fix |
+|-----|-----|
+| v1444 | Ready = /api/status has ver (not doctor.ok) |
+| v1445 | Already-up: focus+exit BEFORE pull; pull time-boxed 12s job |
+| v1446 | Pure C# focus (no PS EnumWindows hang) |
+| v1447 | Cache webview ok; never block on claude login shell |
+| v1448 | 8s ready wait; release mutex ASAP; quiet while process alive |
+
