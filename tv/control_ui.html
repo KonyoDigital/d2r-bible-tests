@@ -2312,7 +2312,9 @@
   .zone-banner .zb-sub { margin-left: auto; align-self: center; font: var(--fw-medium) var(--fs-2xs)/1 var(--mono);
     letter-spacing: var(--ls-normal); text-transform: none; color: var(--muted); }
   .zone-hunt { color: var(--gold); } .zone-mission { color: var(--mint); } .zone-record { color: var(--info); }
-  /* HUNT leads · MISSIONS · RECORD — arranged by flex/grid order (no DOM churn) */
+  /* v1424 — DOM is already Ⅰ HUNT → taskforce → Ⅱ MISSIONS → forge → Ⅲ RECORD → kpi…
+     CSS order kept as belt-and-suspenders (matches document order; crest/hero still lead). */
+  .hub-bible { order: -1; }
   .zone-hunt { order: 1; } #hd-taskforce { order: 2; }
   .zone-mission { order: 3; } #hd-forge { order: 4; }
   .zone-record { order: 5; } #hd-kpi { order: 6; } #hd-tallybar { order: 7; } #hd-lastsession { order: 8; } #hd-history { order: 9; }
@@ -2991,53 +2993,48 @@
         <div class="hub-meter" id="hub-meter"></div>
       </div>
       <div class="hub-hero idle" id="hub-hero"></div>
-      <!-- v1362 (SESSIONS R2) — the 3 zones · v1378.1 (Konyo live) — restyled as the flagship's three MOVEMENTS
-           (Ⅰ/Ⅱ/Ⅲ, shown only in the Sessions view) — the section "THE HUNT" dedups the old "YOUR HUNT" that
-           doubled the crest "MY HUNT". The roman numeral leads under Sessions; the emoji leads on the cockpit. -->
+      <!-- v1424 — DOM is the source of truth for Sessions storyline order (no CSS-order only).
+           Was: banners stacked (ⅠⅡⅢ) then content mixed later → zones read out of order when order
+           failed / half-width pairing shifted. Now each movement owns its banner + body in sequence. -->
+      <!-- Ⅰ THE HUNT — what to hunt today (task force) -->
       <div class="zone-banner zone-hunt"><span class="zb-no">Ⅰ</span><span class="zb-ico">🏆</span>THE HUNT<span class="zb-sub">what to hunt today</span></div>
-      <div class="zone-banner zone-mission"><span class="zb-no">Ⅱ</span><span class="zb-ico">📋</span>THE MISSIONS<span class="zb-sub">forge &amp; craft — what to make</span></div>
-      <div class="zone-banner zone-record"><span class="zb-no">Ⅲ</span><span class="zb-ico">🗂</span>THE RECORD<span class="zb-sub">the chronicle of your runs</span></div>
-      <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs: a Maxroll-grade instrument cluster at the
-           top of the off-air dash. Cross-session aggregates derived client-side from HD_ALL (the /api/sessions
-           poll) — no new fetch. Big tabular numerals, honest "—" when there's no data. -->
-      <div class="hd-col hd-wide hd-kpi" id="hd-kpi">
-        <div class="kpi-row" id="kpi-row"></div>
-      </div>
-      <!-- v1374 — TALLY ENGINE launcher, RE-HOMED to the visible RECORD zone. It used to live inside the
-           ENGINES card, which the flagship split hid (display:none) — so the launcher (a real feature +
-           the J3 demo target) went unreachable off-air. It belongs with the session RECORD/vitals. -->
-      <div class="hd-col hd-wide hd-tallybar" id="hd-tallybar">
-        <div class="hd-chips" id="hd-tallybar-chips"></div>
-      </div>
-      <!-- v1252 (CONSOLE r4 · #3 logical grouping) — TASK FORCE + LAST SESSION are both "today's session
-           activity" → paired side by side (no longer full-width), so related reads with related + saves a row. -->
       <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
         <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
         <div class="hd-tf-rows" id="hd-tf-rows"></div>
       </div>
-      <!-- v936 (STORY ARC R2b) — LAST SESSION digest: the newest sealed reel, at a glance -->
+      <!-- Ⅱ THE MISSIONS — forge & craft -->
+      <div class="zone-banner zone-mission"><span class="zb-no">Ⅱ</span><span class="zb-ico">📋</span>THE MISSIONS<span class="zb-sub">forge &amp; craft — what to make</span></div>
+      <div class="hd-col" id="hd-forge">
+        <div class="hd-h">🔥 FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
+        <div class="hd-chips" id="hd-forge-chips"><span class="hd-empty">open the board's Forge once — quests land here</span></div>
+      </div>
+      <!-- Ⅲ THE RECORD — chronicle of runs -->
+      <div class="zone-banner zone-record"><span class="zb-no">Ⅲ</span><span class="zb-ico">🗂</span>THE RECORD<span class="zb-sub">the chronicle of your runs</span></div>
+      <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs -->
+      <div class="hd-col hd-wide hd-kpi" id="hd-kpi">
+        <div class="kpi-row" id="kpi-row"></div>
+      </div>
+      <!-- v1374 — TALLY ENGINE launcher in the RECORD zone -->
+      <div class="hd-col hd-wide hd-tallybar" id="hd-tallybar">
+        <div class="hd-chips" id="hd-tallybar-chips"></div>
+      </div>
+      <!-- v936 (STORY ARC R2b) — LAST SESSION digest -->
       <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
         <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
         <div class="hd-tf-rows" id="hd-ls-row"></div>
       </div>
-      <!-- v1275 (SESSIONS FLAGSHIP D3) — HISTORY promoted to a first-class board region: every recorded run,
-           surfaced on the off-air home (not only via the 📚 button inside the Theatre). Tap a card → the D2
-           dossier. "see all" opens the full shelf. First-run/empty → a teaching hero. -->
-      <!-- v1275 (D3) — COLLAPSIBLE so the off-air home stays no-scroll (Konyo: "i dont want to need to scroll
-           down"): collapsed shows a slim one-line summary; tap the header to expand the run strip. First-run
-           (no runs) auto-expands to teach. State persists in localStorage. -->
+      <!-- v1275 (SESSIONS FLAGSHIP D3) — HISTORY as first-class board region (collapsible) -->
       <div class="hd-col hd-wide hd-history hist-collapsed" id="hd-history">
         <div class="hd-h hd-hist-head" id="hd-hist-head" role="button" tabindex="0" aria-expanded="false" title="tap to expand your run history">
           <span class="hh-chev" id="hh-chev" aria-hidden="true">▸</span> 🗂 HISTORY <span class="hd-sub" id="hd-hist-sub">every recorded run</span>
           <button type="button" class="hd-hist-all" id="hd-hist-all" title="open the full shelf — every recorded run">see all →</button></div>
         <div class="hd-hist-strip" id="hd-hist-strip"></div>
       </div>
-      <!-- v949 (ENGINE_ARCH target #5) — ONE ENGINE-HEALTH SURFACE: the whole loop's pulse, spine order -->
+      <!-- Engine cards: hidden on Sessions (live on TV·D rail); kept in DOM for painters -->
       <div class="hd-col hd-wide hd-enghealth" id="hd-enghealth">
         <div class="hd-h">🩺 ENGINE HEALTH <span class="hd-sub">the whole loop, one pulse · capture → readers → router → funnels → ledger</span>
           <button type="button" class="eh-legend-btn" onclick="window._legendOpen('health')" title="the key — what every organ + pulse means">? key</button></div>
         <div class="eh-spine" id="hd-spine"><span class="hd-empty">…</span></div>
-        <!-- v1379 #12 — DRIVER DISPATCH mini-flow: seen → queued → fired (live from st.driver) -->
         <div class="eh-dispatch" id="eh-dispatch" hidden title="control-side engine driver: stash/judge dispatch">
           <span class="eh-d-lab">DISPATCH</span>
           <span class="eh-d-step" data-k="seen"><b id="eh-d-seen">0</b><i>seen</i></span>
@@ -3052,16 +3049,10 @@
         <div class="hd-h">🖥 ENGINES <span class="hd-sub">every lane, one glance</span></div>
         <div class="hd-chips" id="hd-engine-chips"><span class="hd-empty">…</span></div>
       </div>
-      <div class="hd-col" id="hd-forge">
-        <div class="hd-h">🔥 FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
-        <div class="hd-chips" id="hd-forge-chips"><span class="hd-empty">open the board's Forge once — quests land here</span></div>
-      </div>
       <div class="hd-col" id="hd-intake">
         <div class="hd-h">📸 LIVE INTAKE <span class="hd-sub">the locked pipeline, hands-free</span></div>
         <div class="hd-chips" id="hd-intake-chips"><span class="hd-empty">ON AIR + pause on Runes/Gems/Materials/stash — shots land here</span></div>
       </div>
-      <!-- v910 (Konyo: 'one unit, one engine dashboard — no scrolling') — the library moved
-           to the THEATRE shelf (📚 rail button); the homepage fits ONE viewport. -->
     </section>
 
     <aside class="rail">
@@ -8590,6 +8581,7 @@
       return localStorage.getItem(bare) || localStorage.getItem('L\u00b7' + bare);
     } catch(e){ return null; }
   }
+  var _hdForgeSig = '';
   function hdForge(){
     try {
       var raw = lsFork('d2r_forgeSummary');
@@ -8600,32 +8592,40 @@
       var _art = f.art || {};
       var _chipArt = function(rw){ var u = _art[rw]; return u ? '<img class="hd-chip-art" src="' + u + '" alt="" loading="lazy" onerror="this.remove()">' : ''; };
       // v1409 — craft quests from forgeSummary.crafts / d2r_craftReady (never leave FORGE empty when only crafts are open)
+      // v1424 — READY first (runewords MAKE NOW + crafts CRAFT NOW), then one-step, then pipeline.
+      // Was: crafts dumped after pipeline → ready crafts looked "out of order" under MISSIONS.
       var craftNow = (f.crafts && f.crafts.length) ? f.crafts : ((cr && cr.now) || []);
       var craftStep = (f.craftOnestep && f.craftOnestep.length) ? f.craftOnestep : ((cr && cr.onestep) || []);
       var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">' + _chipArt(rw) + '⚒ ' + rw + ' · MAKE NOW</span>'; })
-        .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
-        .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }))
         .concat((craftNow || []).slice(0, 6).map(function(t){
           var nm = (t && (t.name || (t.craft ? (t.craft + ' ' + (t.slot || '')) : t))) || 'craft';
           return '<span class="hd-chip now">⚗️ ' + nm + ' · CRAFT NOW</span>';
         }))
+        .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
         .concat((craftStep || []).slice(0, 4).map(function(t){
           var nm = (t && (t.name || t)) || 'craft';
           var miss = (t && t.missing) ? (' · need ' + t.missing) : ' · one step';
           return '<span class="hd-chip step">⚗️ ' + nm + miss + '</span>';
-        }));
+        }))
+        .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
       // always-visible craft types when nothing else queued
       if (!chips.length && f.craftTypes && f.craftTypes.length){
         chips = f.craftTypes.map(function(ck){ return '<span class="hd-chip">⚗️ ' + ck + ' · open Forge</span>'; });
       } else if (!chips.length && cr && cr.types && cr.types.length){
         chips = cr.types.map(function(ck){ return '<span class="hd-chip">⚗️ ' + ck + ' · open Forge</span>'; });
       }
+      var html = chips.length
+        ? chips.join('')
+        : '<span class="hd-empty">open the board\'s Forge once — runeword + craft quests land here</span>';
+      // v1425 — skip identical repaint (poll every ~1.5s was rewriting chips → visible jump)
+      if (html === _hdForgeSig) return;
+      _hdForgeSig = html;
+      $('hd-forge-chips').innerHTML = html;
       if (chips.length){
-        $('hd-forge-chips').innerHTML = chips.join('');
         var d = f.ts ? new Date(f.ts) : (cr && cr.ts ? new Date(cr.ts) : null);
         $('hd-forge-when').textContent = d ? ('· scanned ' + d.toLocaleTimeString()) : '';
       } else {
-        $('hd-forge-chips').innerHTML = '<span class="hd-empty">open the board\'s Forge once — runeword + craft quests land here</span>';
+        $('hd-forge-when').textContent = '';
       }
     } catch(e){}
   }
@@ -8866,6 +8866,7 @@
         + (window.__tlyN != null ? (window.__tlyN + ' shot' + (window.__tlyN === 1 ? '' : 's')) : (led.length + ' synced')) + ' ▾</span>';
     } catch(e){}
   }
+  var _hdTfSig = '';
   function hdTaskForce(st){
     try {
       var fs = null, ai = '', led = [];
@@ -8921,7 +8922,12 @@
       var runsToday = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); }).length;
       rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + led.length + ' tallies synced</span><span class="tf-tag dim">TODAY</span></div>');
       var box = $('hd-taskforce');
-      if (rows.length){ box.hidden = false; $('hd-tf-rows').innerHTML = rows.join(''); $('hd-tf-date').textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); }
+      // v1425 — skip identical repaint: status poll (~1.5s) was rewriting the whole roster →
+      // rows flashed/jumped even when nothing changed (Konyo: "still routines jumping").
+      var html = rows.join('');
+      if (html === _hdTfSig) return;
+      _hdTfSig = html;
+      if (rows.length){ box.hidden = false; $('hd-tf-rows').innerHTML = html; $('hd-tf-date').textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); }
     } catch(e){}
   }
   // ══ v949 (ENGINE_ARCH target #5) — ONE ENGINE-HEALTH SURFACE: the whole loop's pulse, in spine

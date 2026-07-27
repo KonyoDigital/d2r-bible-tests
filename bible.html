@@ -16049,10 +16049,14 @@ const KBD_SHORTCUTS = [
   {keys:['Shift+6'], desc:'MF 1000%', action:() => setMFPreset(1000)},
   {keys:['d','D'], desc:'Toggle the MF / Players dock (bottom)', action:() => window.toggleDock()},
   {keys:['r','R','Shift+R','Shift+r'], desc:'Toggle routine status widget (bottom-right)', action:() => {
-    // v42 UX fix: lookup by both IDs because the on-load advertising pulse temporarily renames it
-    const bar = document.getElementById('routine-status-bar') 
+    const bar = document.getElementById('routine-status-bar')
              || document.getElementById('routine-toggle-pulse');
-    if (bar) bar.style.display = (bar.style.display === 'none' || !bar.style.display) ? 'block' : 'none';
+    if (!bar) return;
+    // v1425 — toggle [hidden] + .rs-open (never style.display=block → width thrash)
+    const open = bar.hasAttribute('hidden') || !bar.classList.contains('rs-open');
+    if (open){ bar.removeAttribute('hidden'); bar.classList.add('rs-open'); bar.style.display = ''; }
+    else { bar.setAttribute('hidden',''); bar.classList.remove('rs-open'); bar.style.display = 'none'; }
+    try { localStorage.setItem('routineBarVisible', open ? '1' : '0'); } catch(e){}
   }},
 ];
 
@@ -23689,11 +23693,12 @@ document.addEventListener('click', e => {
 setTimeout(() => {
   const bar = document.getElementById('routine-status-bar');
   if (bar && !localStorage.getItem('routineBarSeen')) {
-    bar.style.display = 'block';
-    bar.classList.add('routine-intro-pulse');   // v642 — a CLASS, never an id rename: the old id swap
-    // made every #routine-status-bar rule (incl. the v641 dock-aware position) stop matching for 5s —
-    // the widget visibly JUMPED between two positions/styles (Konyo's report).
-    setTimeout(() => { bar.classList.remove('routine-intro-pulse'); bar.style.display = 'none'; }, 5000);
+    bar.removeAttribute('hidden'); bar.classList.add('rs-open', 'routine-intro-pulse');
+    bar.style.display = '';
+    setTimeout(() => {
+      bar.classList.remove('routine-intro-pulse', 'rs-open');
+      bar.setAttribute('hidden',''); bar.style.display = 'none';
+    }, 5000);
     localStorage.setItem('routineBarSeen', '1');
   }
 }, 1500);
@@ -24061,17 +24066,12 @@ _v39_whenReady(() => {
   const bar = document.getElementById('routine-status-bar');
   if (!bar) return;
   const vis = localStorage.getItem('routineBarVisible');
-  if (vis === '1') bar.style.display = 'block';
-  // Patch toggle to persist
-  const origToggle = (key) => {
-    document.addEventListener('keydown', e => {
-      if ((e.key === 'R' || e.key === 'r') && !e.target.matches('input, textarea, [contenteditable]') && !e.ctrlKey && !e.metaKey) {   // v642 — lowercase r toggles never persisted → the widget re-appeared on the next load ('jumping' across sessions)
-        const isVisible = bar.style.display !== 'none';
-        try { localStorage.setItem('routineBarVisible', isVisible ? '1' : '0'); } catch(e) {}
-      }
-    });
+  if (vis === '1'){ bar.removeAttribute('hidden'); bar.classList.add('rs-open'); bar.style.display = ''; }
+  const x = document.getElementById('routine-close-btn');
+  if (x) x.onclick = function(){
+    bar.setAttribute('hidden',''); bar.classList.remove('rs-open'); bar.style.display = 'none';
+    try { localStorage.setItem('routineBarVisible', '0'); } catch(e){}
   };
-  origToggle();
 })();
 
 
@@ -24377,16 +24377,15 @@ function _v41_loadStatusScript(idx, cb) {
 
 function _v41_applyStatus(st) {
   if (!st) return;
-  // Update each .routine-letter with data-status + tooltip
+  // v1425 — only write attributes when they change (transition thrash = "jumping")
   document.querySelectorAll('.routine-letter').forEach(el => {
     const rid = el.getAttribute('data-r');
     if (!rid || !st.routines || !st.routines[rid]) {
-      el.setAttribute('data-status', 'inactive');
+      if (el.getAttribute('data-status') !== 'inactive') el.setAttribute('data-status', 'inactive');
       return;
     }
     const r = st.routines[rid];
-    el.setAttribute('data-status', r.status);
-    // Build tooltip
+    if (el.getAttribute('data-status') !== r.status) el.setAttribute('data-status', r.status);
     const tip = [
       `Routine ${rid} · ${r.status.toUpperCase()}`,
       `Schedule: ${r.schedule}`,
@@ -24394,9 +24393,8 @@ function _v41_applyStatus(st) {
       `Today: ${r.fires_today}/${r.expected_per_day} fires`,
       `Summary: ${r.summary || '—'}`
     ].join('\n');
-    el.setAttribute('data-tooltip', tip);
+    if (el.getAttribute('data-tooltip') !== tip) el.setAttribute('data-tooltip', tip);
   });
-  // Update fires counter
   const counter = document.getElementById('routine-fires-counter');
   if (counter) {
     const rs = Object.values(st.routines || {});
@@ -24404,12 +24402,16 @@ function _v41_applyStatus(st) {
                 : rs.reduce((n, r) => n + (Number(r.fires_today) || 0), 0);
     const expected = Number.isFinite(st.total_expected_today) ? st.total_expected_today
                    : rs.reduce((n, r) => n + (Number(r.expected_per_day) || 0), 0);
-    counter.textContent = (rs.length && (fired || expected))
-      ? `${fired}/${expected} fires today`
-      : 'status offline';   // v642 — a permanent '— / —' read as broken; say what it is
+    // fixed-width slot — always same format length class
+    const txt = (rs.length && (fired || expected))
+      ? (fired + '/' + expected + ' fires')
+      : 'offline';
+    if (counter.textContent !== txt) counter.textContent = txt;
     const anyRed = Object.values(st.routines || {}).some(r => r.status === 'red');
-    counter.className = anyRed ? 'has-red' : (st.all_green ? 'all-green' : '');
-    counter.title = st.generated_at ? `Status snapshot: ${st.generated_at}` : 'Routine status snapshot';
+    const cls = 'rs-fires' + (anyRed ? ' has-red' : (st.all_green ? ' all-green' : ''));
+    if (counter.className !== cls) counter.className = cls;
+    const title = st.generated_at ? `Status snapshot: ${st.generated_at}` : 'Routine status snapshot';
+    if (counter.title !== title) counter.title = title;
   }
 }
 
@@ -24431,33 +24433,14 @@ function _v41_findRoutineBar() {
 }
 
 function _v41_enhanceWidget() {
+  // v1425 — counter + refresh live in the static HTML (injecting them mid-session caused the jump).
   const bar = _v41_findRoutineBar();
   if (!bar) return;
-  if (bar.querySelector('#routine-fires-counter')) return; // already enhanced
-  // Find the header line (containing the title or letters)
-  // The widget structure varies — try to find a sensible insertion point
-  // v642 — NEVER create a second header (the old fallback injected a duplicate '⚙ Routines' row
-  // above the widget's own '🤖 ROUTINES' one — Konyo saw both). The widget's first flex row IS the
-  // header: mount the counter + refresh there, before the × close button.
-  let header = bar.querySelector('.routine-bar-header') || bar.firstElementChild;
-  if (!header) return;
-  const counter = document.createElement('span');
-  counter.id = 'routine-fires-counter';
-  counter.textContent = 'status…';
-  counter.style.marginLeft = 'auto';
-  const refreshBtn = document.createElement('button');
-  refreshBtn.id = 'routine-refresh-btn';
-  refreshBtn.textContent = '↻';
-  refreshBtn.title = 'Refresh routine status now';
-  refreshBtn.onclick = () => {
-    refreshBtn.classList.add('spinning');
-    setTimeout(() => refreshBtn.classList.remove('spinning'), 800);
-    _v41_refreshStatus();
-  };
-  const closeBtn = header.querySelector('button');
-  if (closeBtn){ header.insertBefore(counter, closeBtn); header.insertBefore(refreshBtn, closeBtn); }
-  else { header.appendChild(counter); header.appendChild(refreshBtn); }
-  counter.style.marginLeft = 'auto'; counter.style.fontSize = '9px';
+  const refreshBtn = bar.querySelector('#routine-refresh-btn');
+  if (refreshBtn && !refreshBtn._v41bound) {
+    refreshBtn._v41bound = true;
+    refreshBtn.onclick = () => { _v41_refreshStatus(); };
+  }
 }
 
 // Helper: run when ready
@@ -24513,13 +24496,13 @@ _v41_whenReady(() => {
     <p>The number after <code>1:</code> is the EXPECTED runs for ONE drop on average. <code>1:836</code> = 836 runs avg. At 50% confidence you'll typically need ~580 runs; at 95% you'll typically need ~2,500.</p>
   </div>
 </div>
-<div id="routine-status-bar" style="background:linear-gradient(180deg,rgba(20,12,4,.95),rgba(10,6,2,.9));border:1px solid var(--gold-bright);border-radius:999px;padding:6px 14px;font-family:var(--mono);font-size:var(--fs-micro);color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,.6);display:none;align-items:center;gap:10px;white-space:nowrap">
-  <div style="display:flex;align-items:center;gap:8px" title="click a letter to open its routine in Obsidian · R toggles this bar">
-    <span style="color:var(--gold-bright);font-weight:var(--fw-semibold);letter-spacing:.8px;white-space:nowrap">🤖 ROUTINES</span>
-    <span id="routine-status-summary" style="color:var(--gold-dim);font-size:9px;white-space:nowrap"></span>
-    <button onclick="document.getElementById('routine-status-bar').style.display='none'" style="margin-left:auto;background:none;border:none;color:var(--gold-dim);cursor:pointer;font-size:14px;padding:0">×</button>
-  </div>
-  <div style="display:flex;gap:4px;flex-wrap:nowrap" id="routine-letters">
+<!-- v1425 — ONE frozen flex row: title · G–T · counter · refresh · ×.
+     No nested header (that shoved letters when the counter injected/grew).
+     Widths fixed so right-anchor cannot lurch the strip (Konyo: "routines jumping"). -->
+<div id="routine-status-bar" class="rs-bar" title="click a letter for help · R toggles this bar" hidden>
+  <span class="rs-title">🤖 ROUTINES</span>
+  <span id="routine-status-summary" class="rs-summary" hidden></span>
+  <div id="routine-letters" class="rs-letters">
     <span class="routine-letter" data-r="G" title="G · End-to-end audit (6h)">G</span>
     <span class="routine-letter" data-r="H" title="H · Item click sweep (12h)">H</span>
     <span class="routine-letter" data-r="I" title="I · Playwright suite (daily 9am)">I</span>
@@ -24535,7 +24518,9 @@ _v41_whenReady(() => {
     <span class="routine-letter" data-r="S" title="S · GitHub tracker poller (10min)">S</span>
     <span class="routine-letter" data-r="T" title="T · Claude.ai A-F proxy via API (15x/day)">T</span>
   </div>
-  <div style="font-size:9px;color:var(--gold-dim);margin-top:6px;font-style:italic">Press R key to show/hide · click a letter for routine help</div>
+  <span id="routine-fires-counter" class="rs-fires">—</span>
+  <button type="button" id="routine-refresh-btn" class="rs-refresh" title="Refresh routine status now">↻</button>
+  <button type="button" class="rs-x" id="routine-close-btn" title="hide (R to show)" aria-label="hide routines">×</button>
 </div>
 
 <!-- =============================================================
@@ -25871,10 +25856,10 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid rgba(240,192,96,.2);
   box-shadow: var(--shadow-mid);
 }
-.routine-letter { transition: all .22s var(--ease-out); }
+.routine-letter { transition: color .12s ease, border-color .12s ease, background-color .12s ease; }
 .routine-letter:hover {
-  transform: translateY(-1px) scale(1.06);
-  box-shadow: var(--shadow-low);
+  /* v1425 — no transform/scale (felt like routines jumping) */
+  box-shadow: none;
 }
 
 /* Help modal + glossary — premium backdrop */
@@ -26584,26 +26569,13 @@ input[type=range]::-moz-range-thumb {
    ROUTINE STATUS BAR — newsroom footer
    ════════════════════════════════════════════════════════════════════════ */
 
-#routine-status-bar, #routine-toggle-pulse {
-  background: var(--bg) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-top: 1px solid var(--rule-color) !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
-  border-left: none !important;
-  border-right: none !important;
-  font-family: var(--mono) !important;
-  font-size: 10px !important;
-  letter-spacing: 0.4px !important;
-}
+/* v1425 — do NOT retheme the routines pill as a full-bleed footer (that fought fixed dock geometry).
+   Letter mono/weight only; layout owned by the freeze block above. */
 .routine-letter {
   font-family: var(--mono) !important;
   font-weight:var(--fw-medium) !important;
   border-radius: 2px !important;
-  transition: transform .15s var(--ease) !important;
 }
-.routine-letter:hover { transform: translateY(-1px); box-shadow: none !important; }
 
 /* ════════════════════════════════════════════════════════════════════════
    COMMAND PALETTE — refined modal
@@ -33692,41 +33664,113 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
   .tabs-workshop{flex:0 1 auto;flex-wrap:wrap;justify-content:center;margin:4px auto 0}
   .tabs-cluster{flex:1 1 auto;flex-wrap:wrap}
 }
-/* v641 — routines widget ALIGNED: it collided with the bottom control dock and pulsed forever
-   ("routines are jumping"). Park it above the dock, kill the infinite pulse.
-   v754 (item 7) — positioning moved OFF the element's inline style into this ONE clean rule, so the
-   cascade controls the dock (no more !important war between the two old right-overrides). Docked
-   bottom-right above --dock-h, left of the tray column; flex-wrap + max-width keep it inside the
-   viewport on narrow screens instead of spilling off the left edge. */
-#routine-status-bar{position:fixed;z-index:9999;bottom:calc(var(--dock-h,64px) + 16px);right:calc(12px + 56px);max-width:calc(100vw - 24px);flex-wrap:wrap;row-gap:6px}
-/* v908 (Konyo: 'the sessions website looks terrible, cut out') — dev routine chrome NEVER
-   paints over the flagship cockpit; it lives on other tabs only */
+/* v1425 — ROUTINES STRIP HARD FREEZE (Konyo: "still routines jumping").
+   Right-anchored pill: ANY width change slides the whole G–T row. Fix = fixed geometry,
+   single flex row (no nested header), no wrap, no layout-affecting transitions/animations. */
+#routine-status-bar.rs-bar,
+#routine-status-bar{
+  position:fixed !important; z-index:9999 !important;
+  bottom:calc(var(--dock-h,64px) + 16px) !important;
+  right:calc(12px + 56px) !important;
+  left:auto !important; top:auto !important;
+  display:none; /* shown via [hidden] removal + .rs-open */
+  flex-direction:row !important; flex-wrap:nowrap !important;
+  align-items:center !important; gap:8px !important;
+  box-sizing:border-box !important;
+  width:auto !important; min-width:0 !important;
+  max-width:calc(100vw - 24px) !important;
+  padding:6px 12px !important; margin:0 !important;
+  border-radius:999px !important;
+  background:linear-gradient(180deg,rgba(20,12,4,.95),rgba(10,6,2,.9)) !important;
+  border:1px solid var(--gold-bright, #d4a849) !important;
+  box-shadow:0 4px 20px rgba(0,0,0,.6) !important;
+  font-family:var(--mono) !important; font-size:var(--fs-micro,10px) !important;
+  color:var(--text,#ece0c8) !important;
+  white-space:nowrap !important;
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+  letter-spacing:normal !important;
+}
+#routine-status-bar.rs-open,
+#routine-status-bar:not([hidden]){ display:flex !important; }
+/* legacy show path wrote style.display=block — keep it a flex row */
+#routine-status-bar[style*="display: block"],
+#routine-status-bar[style*="display:block"]{ display:flex !important; }
+#routine-status-bar .rs-title{
+  flex:none; color:var(--gold-bright,#f0c060); font-weight:var(--fw-semibold,600);
+  letter-spacing:.8px; white-space:nowrap;
+}
+#routine-status-bar .rs-letters,
+#routine-status-bar #routine-letters{
+  display:flex !important; flex:none !important; flex-wrap:nowrap !important;
+  gap:4px !important; align-items:center !important;
+  /* 14 letters × 22px + 13 gaps × 4px = 360 — locked so letters never reflow */
+  width:360px !important; min-width:360px !important; max-width:360px !important;
+}
+#routine-status-bar .routine-letter{
+  display:inline-flex !important; align-items:center; justify-content:center;
+  width:22px !important; height:22px !important; min-width:22px !important;
+  box-sizing:border-box !important;
+  flex:none !important;
+  white-space:nowrap !important;
+  animation:none !important;
+  transform:none !important; /* no hover lift — lifts felt like jumps */
+  transition: color .12s ease, border-color .12s ease, background-color .12s ease !important;
+  /* never animate box-shadow (old pulse/glow changed perceived size) */
+}
+#routine-status-bar .routine-letter:hover{
+  transform:none !important; box-shadow:none !important;
+  border-color:var(--gold-bright,#f0c060) !important;
+}
+#routine-status-bar .routine-letter[data-status="red"]{
+  animation:none !important; /* was pulseRed — continuous visual jump */
+}
+#routine-fires-counter, #routine-status-bar .rs-fires{
+  display:inline-block !important; flex:none !important;
+  width:148px !important; min-width:148px !important; max-width:148px !important;
+  text-align:right !important; white-space:nowrap !important;
+  overflow:hidden !important; text-overflow:ellipsis !important;
+  font-variant-numeric:tabular-nums !important;
+  font-family:var(--mono) !important; font-size:9px !important;
+  font-weight:var(--fw-semibold,600) !important;
+  color:var(--gold-bright,#f0c060) !important;
+  letter-spacing:.4px !important;
+  padding:2px 6px !important;
+  background:rgba(240,192,96,.08) !important;
+  border:1px solid rgba(240,192,96,.3) !important;
+  border-radius:3px !important;
+  box-sizing:border-box !important;
+}
+#routine-refresh-btn, #routine-status-bar .rs-refresh{
+  flex:none !important; width:22px !important; height:22px !important;
+  min-width:22px !important; padding:0 !important; margin:0 !important;
+  border-radius:3px !important; cursor:pointer;
+  background:transparent !important; border:1px solid rgba(240,192,96,.25) !important;
+  color:var(--gold-dim,#a07830) !important; font-size:12px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  transition: color .12s ease, border-color .12s ease !important;
+  transform:none !important;
+}
+#routine-refresh-btn:hover{ color:var(--gold-bright,#f0c060) !important; border-color:var(--gold-bright,#f0c060) !important; transform:none !important; }
+#routine-refresh-btn.spinning{ animation: none !important; } /* spinning caused micro-jumps */
+#routine-close-btn, #routine-status-bar .rs-x{
+  flex:none !important; width:22px !important; height:22px !important;
+  background:none !important; border:none !important; color:var(--gold-dim,#a07830) !important;
+  cursor:pointer; font-size:14px !important; padding:0 !important; line-height:1 !important;
+  transform:none !important;
+}
+/* v908 — never over Sessions flagship */
 body:has(#tab-session.active) #routine-status-bar,
 body:has(#tab-session.active) #routine-status-summary{display:none !important}
-/* the cockpit clears the dock + floating buttons */
+body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:none !important}
 #tab-session{padding-bottom:calc(var(--dock-h,84px) + 48px)}
 #tab-session .sc-card{margin-right:6px}
 #tab-session .sc-ops-row,#tab-session .sc-card .sc-go{scroll-margin-right:70px}
-#routine-status-bar[style*="display: block"],#routine-status-bar[style*="display:block"]{display:flex!important}   /* v737.2 — the show-code sets block; the pill is a one-line flex row */
-#routine-status-bar > div{margin-bottom:0!important}
-#routine-status-bar .routine-letter{white-space:nowrap}
-#routine-status-bar > div:last-child{display:none!important}   /* the 'Press R key' hint line — the pill's title carries it now */
-#routine-status-bar .routine-letter{animation:none!important}
-/* v754 (item 7) — STOP THE JUMP at its SOURCE. The strip lurched left on every 60s status refresh:
-   #routine-fires-counter's text cycles 'status…' → 'status offline' → 'N/M fires today', and because
-   the pill is right-anchored position:fixed, a wider counter grew the header and shoved the whole
-   G–T strip leftward (Konyo: "all the routines are jumping"). The title + 14 letters are static, so
-   the counter is the ONLY variable width — give it a FIXED width (tabular figures, right-aligned,
-   ellipsis for extreme counts) and the strip's width becomes constant: async status arrival can no
-   longer reflow it. No !important needed (these properties have no inline competitor on the JS-created
-   span). */
-#routine-fires-counter{display:inline-block;width:150px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-/* narrow screens: keep the tray-clearing right offset (so it never tucks under the ? help orb) and
-   instead SHRINK the strip — smaller letters + counter + gap — so it stays fully on-screen. */
 @media (max-width:760px){
-  #routine-status-bar{gap:6px}
-  #routine-fires-counter{width:124px}
-  #routine-status-bar .routine-letter{width:18px;height:18px;font-size:9px}
+  #routine-status-bar .rs-letters, #routine-status-bar #routine-letters{
+    width:294px !important; min-width:294px !important; max-width:294px !important; gap:3px !important;
+  }
+  #routine-status-bar .routine-letter{width:18px !important; height:18px !important; min-width:18px !important; font-size:9px !important}
+  #routine-fires-counter, #routine-status-bar .rs-fires{width:120px !important; min-width:120px !important; max-width:120px !important}
 }
 /* the first content section breathes right under the compact band */
 .tab-content{padding-top:10px!important}
@@ -35335,7 +35379,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1448', name:'v1423 · Win DPI full frame', date:'2026-07-27', note:'Mac console ✕/Esc arms hard process death so Cocoa hang never needs Force Quit; Esc empty-stack quits.' };
+  window.D2R_BUILD = { id:'v1449', name:'v1449 · Routines freeze', date:'2026-07-28', note:'G–T routines strip frozen geometry (no more jump on 60s refresh); console taskforce/forge skip identical repaints. Sessions zones document-order.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

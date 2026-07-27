@@ -413,6 +413,47 @@ class TestTripleParity(unittest.TestCase):
         self.assertEqual(v, tvmod.VERSION, "bible D2R_BUILD drifted from agent VERSION")
 
 
+class TestSessionsHomeDashOrder(unittest.TestCase):
+    """v1424 — Sessions storyline is document-order, not CSS-order-only.
+    Konyo: 'routines … are out of order' — Ⅰ HUNT → Ⅱ MISSIONS → Ⅲ RECORD must
+    each own banner + body in sequence (banners stacked then content later = broken)."""
+
+    def test_zone_content_interleaved(self):
+        import re
+        ui = os.path.join(HERE, "control_ui.html")
+        with open(ui, encoding="utf-8") as f:
+            html = f.read()
+        m = re.search(r'<section class="home-dash"[^>]*>([\s\S]*?)</section>', html)
+        self.assertIsNotNone(m, "home-dash section missing")
+        sec = m.group(1)
+        # track zone banners + main board ids in document order
+        tokens = re.findall(
+            r'class="zone-banner (zone-[a-z]+)"|id="(hd-(?:taskforce|forge|kpi|tallybar|lastsession|history))"',
+            sec,
+        )
+        seq = [a or b for a, b in tokens]
+        expected = [
+            "zone-hunt", "hd-taskforce",
+            "zone-mission", "hd-forge",
+            "zone-record", "hd-kpi", "hd-tallybar", "hd-lastsession", "hd-history",
+        ]
+        self.assertEqual(seq, expected, f"Sessions home-dash out of order:\n  got {seq}\n  exp {expected}")
+
+    def test_forge_ready_chips_before_pipeline(self):
+        """Ready crafts ride with MAKE NOW, not after the pipeline waiting list."""
+        ui = os.path.join(HERE, "control_ui.html")
+        with open(ui, encoding="utf-8") as f:
+            html = f.read()
+        # scope to hdForge
+        i = html.find("function hdForge(")
+        self.assertGreater(i, 0)
+        chunk = html[i:i + 2500]
+        self.assertLess(
+            chunk.find("concat((craftNow || []).slice(0, 6)"),
+            chunk.find(".concat((f.pipeline || []).map"),
+            "craftNow chips must render before pipeline chips",
+        )
+
 
 class TestSessionDelete(unittest.TestCase):
     """v834 (Konyo) — deleting a session removes ONLY that session's rows; others survive."""
