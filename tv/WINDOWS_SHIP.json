@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1428",
+  "ver": "v1429",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1428: FOOTAGE STARVE fix \u2014 win-eye archive",
+  "note": "v1429: UI noEye honesty via disk eye",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
