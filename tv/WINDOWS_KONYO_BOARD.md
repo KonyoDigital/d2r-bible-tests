@@ -7,7 +7,7 @@
 
 | Item | Value |
 |------|--------|
-| Version | **v1437** |
+| Version | **v1438** |
 | Arc | v1434–v1443 SMOOTH 10-round |
 | Capture | eye always · BMP/2 · PNG/8 · 400ms · BelowNormal |
 | Bridge | single-hop /state?lite=1 |
