@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1426",
+  "ver": "v1427",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1426: pin label from cap_target.json always",
+  "note": "v1427: longer bridge timeouts under D2R",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
