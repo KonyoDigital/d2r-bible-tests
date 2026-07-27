@@ -1,16 +1,17 @@
-﻿# TV DIABLO - Windows capture loop (v1421)
+﻿# TV DIABLO - Windows capture loop (v1422)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
 #   TV_CAPTURE=auto|full|window   (default AUTO - pin D2R.exe when present, else full)
-#   TV_CAPTURE_MS=200
+#   TV_CAPTURE_MS=350
 #
 # Writes:
-#   frames/live.bmp, live.png, eye.jpg, cap_target.json
+#   frames/live.bmp, live.png (every 5th), eye.jpg, cap_target.json
 #   frames/win_pin_debug.json, capture_heartbeat.txt, capture_stage.txt
 #
 # v1418: Pure C# Find+PrintWindow (no PowerShell EnumWindows callbacks - those hang under D2R).
 #         Always write eye.jpg when we have pixels. Never BitBlt (desktop z-order lie).
 # v1421: Promote frames with File.Copy(overwrite) so agent locks no longer kill film.
+# v1422: Light capture under D2R - eye first, PNG rare, 350ms poll, unique tmp names.
 # Pure ASCII + BOM for Hebrew PowerShell 5.1.
 
 Add-Type -AssemblyName System.Drawing
@@ -189,6 +190,10 @@ public static class TvdCap {
   // v1421 — promote via Copy(overwrite) not Delete+Move. Under ON AIR the agent holds
   // live.bmp / eye.jpg for freezes; Delete fails, Move throws "file already exists",
   // and film stalls (eyeAge 7s+) with primary/virtual fail spam in the log.
+  // v1422 — unique tmp names (GUID) so a killed mid-write never leaves a sticky .tmp that
+  // blocks the next Save. Eye first (film), then BMP (agent), PNG rare (CPU killer under D2R).
+  static int _saveN = 0;
+
   static void Promote(string tmp, string finalPath) {
     try {
       File.Copy(tmp, finalPath, true);
@@ -202,17 +207,17 @@ public static class TvdCap {
     try { File.Delete(tmp); } catch {}
   }
 
+  static string TmpPath(string framesDir, string tag, string ext) {
+    return Path.Combine(framesDir, "._tvd_" + tag + "_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ext);
+  }
+
   static void SaveAll(Bitmap bmp, string framesDir) {
+    _saveN++;
     string liveBmp = Path.Combine(framesDir, "live.bmp");
     string livePng = Path.Combine(framesDir, "live.png");
     string eyeJpg = Path.Combine(framesDir, "eye.jpg");
-    string tmpBmp = liveBmp + ".tmp";
-    string tmpPng = livePng + ".tmp";
-    string tmpEye = eyeJpg + ".tmp";
-    bmp.Save(tmpBmp, ImageFormat.Bmp);
-    Promote(tmpBmp, liveBmp);
-    bmp.Save(tmpPng, ImageFormat.Png);
-    Promote(tmpPng, livePng);
+
+    // 1) EYE FIRST — console film / UX lamp. JPEG scale is cheap vs PNG.
     int maxPx = 900;
     int nw = bmp.Width, nh = bmp.Height;
     if (nw > maxPx || nh > maxPx) {
@@ -220,13 +225,32 @@ public static class TvdCap {
       nw = Math.Max(1, (int)(bmp.Width * scale));
       nh = Math.Max(1, (int)(bmp.Height * scale));
     }
+    string tmpEye = TmpPath(framesDir, "eye", ".jpg");
     using (var eye = new Bitmap(nw, nh))
     using (var eg = Graphics.FromImage(eye)) {
-      eg.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+      eg.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
       eg.DrawImage(bmp, 0, 0, nw, nh);
       eye.Save(tmpEye, ImageFormat.Jpeg);
     }
     Promote(tmpEye, eyeJpg);
+
+    // 2) live.bmp — agent motion/settle. Raw write is fast; unique tmp avoids sticky locks.
+    string tmpBmp = TmpPath(framesDir, "bmp", ".bmp");
+    bmp.Save(tmpBmp, ImageFormat.Bmp);
+    Promote(tmpBmp, liveBmp);
+
+    // 3) live.png — ONLY every 5th frame. Full PNG encode of 1280x720 under D2R was the
+    // #1 capture death (stage stuck on 'grab', eye age 100s+, control status dead).
+    // Agent vision uses BMP->JPEG convert (v1421); PNG is a soft fallback only.
+    if ((_saveN % 5) == 0) {
+      string tmpPng = TmpPath(framesDir, "png", ".png");
+      try {
+        bmp.Save(tmpPng, ImageFormat.Png);
+        Promote(tmpPng, livePng);
+      } catch {
+        try { if (File.Exists(tmpPng)) File.Delete(tmpPng); } catch {}
+      }
+    }
   }
 }
 "@
@@ -234,11 +258,15 @@ public static class TvdCap {
 $here   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $frames = Join-Path $here 'frames'
 New-Item -ItemType Directory -Force -Path $frames | Out-Null
+# scrub sticky temps from prior crash
+Get-ChildItem -LiteralPath $frames -Filter '._tvd_*' -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+Get-ChildItem -LiteralPath $frames -Filter '*.tmp' -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 $mode = if ($env:TV_CAPTURE) { $env:TV_CAPTURE.ToLower().Trim() } else { 'auto' }
-$pollMs = 200
+# v1422 — default 350ms (was 200). 5fps full BMP+PNG under D2R froze capture + control status.
+$pollMs = 350
 if ($env:TV_CAPTURE_MS) {
-  try { $pollMs = [Math]::Max(80, [int]$env:TV_CAPTURE_MS) } catch { $pollMs = 200 }
+  try { $pollMs = [Math]::Max(120, [int]$env:TV_CAPTURE_MS) } catch { $pollMs = 350 }
 }
 
 function Write-Stage([string]$s) {
@@ -283,7 +311,7 @@ function Write-PinDebug($hits) {
   } catch {}
 }
 
-Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1421 C# PrintWindow pin + Copy-promote eye.jpg"
+Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1422 light eye-first + rare PNG"
 $lastLabel = ''
 $loopN = 0
 while ($true) {
@@ -311,6 +339,10 @@ while ($true) {
       }
       $how = $null
       try { $how = [TvdCap]::Grab($best, $frames) } catch { Write-Host "  grab err: $_" }
+      # heartbeat after grab so a hung Save is visible in capture_stage + stale hb
+      try {
+        Set-Content -LiteralPath (Join-Path $frames 'capture_heartbeat.txt') -Value ("n={0} t={1} postgrab" -f $loopN, [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) -Encoding UTF8
+      } catch {}
       if ($how) {
         Write-Stage ("ok:" + $how)
         Write-CapTarget 'window' ("{0} - {1} via {2}" -f $best.Proc, $best.Title, $how)

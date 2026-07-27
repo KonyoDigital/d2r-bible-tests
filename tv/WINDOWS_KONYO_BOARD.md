@@ -3,37 +3,31 @@
 **Process:** repo `KONYO_WORKFLOW.md`  
 **Laws:** Windows push policy · one `main` dual-PC · safe auto-pull
 
-## Role split
-
-| Role | Owns |
-|------|------|
-| Windows Grok | Install, launch, doctor, ON AIR, Win capture pin, seven-round+ seal |
-| Mac / Fable | Playwright RINSE, CF deploy, product architecture |
-
 ## Current ship
 
 | Item | Value |
 |------|--------|
-| Version | **v1421** |
-| Capture | C# PrintWindow + Copy-promote frames (no Delete+Move race) |
-| Deep hist | Real JPEG SOI (FF D8 FF) via System.Drawing convert |
-| Pin UX | cap_target no-BOM · agent refreshes pin every /state |
+| Version | **v1422** |
+| Capture | Light: eye first · BMP · PNG every 5th · 350ms |
+| Deep hist | Real JPEG (v1421) |
+| Pin | PrintWindow D2R |
 
-## Tonight (2026-07-27 evening) — residual fixed
+## UX soak (this PC · 2026-07-27)
 
-| Bug | Fix |
-|-----|-----|
-| hist `N_ts.jpg` = raw BMP 3.6MB | `_to_jpeg` / archive magic check |
-| film stall "file already exists" | capture_win Promote via File.Copy |
+| Gate | Result |
+|------|--------|
+| Doctor | ok v1422 |
+| ON AIR | live · LINKED · bridge |
+| Pin 80s | 40/40 PrintWindow |
+| Eye film | fresh ≤3s · stallTicks 0 |
+| Heartbeat | n climbed continuously (no DIED) |
+| Deep JPEG | FF D8 FF ~105KB |
+| Visual | D2R main menu (logo + Options/Cinematics) |
 
 ## User path
 
-1. Double-click Desktop **TV DIABLO**
-2. Get D2R **in-game** (not stuck on Connecting to Battle.net)
-3. **ON AIR** — pin `D2R … via PrintWindow`, eye = game
-4. **END SESSION** / OFF to seal reel
+1. Desktop **TV DIABLO**
+2. D2R open (in-game preferred for loot)
+3. **ON AIR** → pin `… via PrintWindow`
+4. **END SESSION** / OFF
 
-## Do not
-
-- Do not force-kill control mid-ON
-- Do not expect loot reads on Battle.net connect screen

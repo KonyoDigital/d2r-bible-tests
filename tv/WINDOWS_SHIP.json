@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1421",
+  "ver": "v1422",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1421: deep hist frames are real JPEG on Windows (no BMP-as-jpg)",
+  "note": "v1422: light capture under D2R \u2014 eye first, PNG every 5th, 350ms poll, unique tmp",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

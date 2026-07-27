@@ -2420,3 +2420,10 @@ Fix:
 3. Window closing/closed + /api/quit + webview-finally + main-after-window all use it
 4. Esc empty overlay stack → POST /api/quit (toast "Leaving console…")
 Tests: TestExitSafeguard +3 (arm idempotent, request path, UI contract) · triple stamp v1420
+
+## Round v1422 — Windows light capture under D2R (2026-07-27 UX soak)
+- **Bug:** capture_win DIED mid-session (stage stuck `grab`, eye age 100s+, control status dead). Full PNG encode of 1280x720 every 200ms under D2R was the killer.
+- **Fix:** eye.jpg first · live.bmp next · live.png every 5th only · poll 350ms · unique GUID tmp names · post-grab heartbeat.
+- **UX soak (80s ON AIR):** statusOk 38/40 · pinOk 40/40 · eyeFresh 35 · stallTicks **0** · hb n climbed 2→76 · deep hist real JPEG FF D8 FF ~105KB · eye = D2R main menu (PrintWindow).
+- **Note:** in-game world still needed for loot reads; main-menu pin proves window film works.
+
