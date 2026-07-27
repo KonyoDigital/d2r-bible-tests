@@ -2427,3 +2427,8 @@ Tests: TestExitSafeguard +3 (arm idempotent, request path, UI contract) · tripl
 - **UX soak (80s ON AIR):** statusOk 38/40 · pinOk 40/40 · eyeFresh 35 · stallTicks **0** · hb n climbed 2→76 · deep hist real JPEG FF D8 FF ~105KB · eye = D2R main menu (PrintWindow).
 - **Note:** in-game world still needed for loot reads; main-menu pin proves window film works.
 
+
+## Round v1423 — Windows DPI full-frame calibration (2026-07-28)
+- **Bug (Konyo screenshot):** film only showed part of D2R / "not calibrated". Display is 1920x1080 @ 150% DPI (AppliedDPI=144); capture was DPI-unaware so GetWindowRect/PrintWindow used logical 1280x720 = top-left crop of the real 1920x1080 game.
+- **Proof:** DPI-aware measure → D2R window 1920x1080@0,0 client=1920x1080 dpi=144. After fix live.bmp=1920x1080 (8.3MB) pin w/h=1920x1080.
+- **Fix (Windows only):** SetProcessDpiAwarenessContext(PER_MONITOR_V2) before any measure; re-measure every Grab; pin_debug records dpi + physical size.

@@ -1,4 +1,4 @@
-﻿# TV DIABLO - Windows capture loop (v1422)
+﻿# TV DIABLO - Windows capture loop (v1423)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
 #   TV_CAPTURE=auto|full|window   (default AUTO - pin D2R.exe when present, else full)
@@ -12,7 +12,33 @@
 #         Always write eye.jpg when we have pixels. Never BitBlt (desktop z-order lie).
 # v1421: Promote frames with File.Copy(overwrite) so agent locks no longer kill film.
 # v1422: Light capture under D2R - eye first, PNG rare, 350ms poll, unique tmp names.
+# v1423: Per-monitor DPI awareness - 150% displays were 1920x1080 physical but capture
+#         used 1280x720 logical coords = TOP-LEFT CROP only (Konyo screenshot proof).
 # Pure ASCII + BOM for Hebrew PowerShell 5.1.
+
+# v1423 - declare DPI awareness BEFORE any window measure / System.Drawing call.
+# Without this, GetWindowRect returns logical 1280x720 on a 1920x1080@150% screen and
+# PrintWindow only paints the top-left third of the real D2R framebuffer into the film.
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class TvdDpi {
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("shcore.dll")] public static extern int SetProcessDpiAwareness(int value);
+  [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+  // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
+  public static void Arm() {
+    try {
+      if (SetProcessDpiAwarenessContext((IntPtr)(-4))) return;
+    } catch {}
+    try {
+      if (SetProcessDpiAwareness(2) == 0) return; // PROCESS_PER_MONITOR_DPI_AWARE
+    } catch {}
+    try { SetProcessDPIAware(); } catch {}
+  }
+}
+"@
+[TvdDpi]::Arm()
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -41,6 +67,10 @@ public static class TvdCap {
   [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
   [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
   [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr hWnd);
+  [DllImport("gdi32.dll")] static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+  [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr hWnd);
+  [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
   public class Hit {
     public IntPtr Hwnd;
@@ -49,9 +79,20 @@ public static class TvdCap {
     public string Proc;
     public int Score;
     public bool IsFg;
+    public int Dpi;
   }
 
   static readonly string[] ProcNames = new string[] { "D2R", "DiabloIIResurrected", "DiabloII" };
+
+  public static string DpiInfo() {
+    try {
+      IntPtr hdc = GetDC(IntPtr.Zero);
+      int logical = GetDeviceCaps(hdc, 8);   // HORZRES
+      int physical = GetDeviceCaps(hdc, 118); // DESKTOPHORZRES
+      ReleaseDC(IntPtr.Zero, hdc);
+      return "logical=" + logical + " physical=" + physical;
+    } catch { return "dpi=?"; }
+  }
 
   public static List<Hit> FindD2R() {
     var want = new HashSet<int>();
@@ -87,7 +128,8 @@ public static class TvdCap {
             if (ClientToScreen(h, ref pt)) { left = pt.X; top = pt.Y; w = cw; hh = ch; }
           }
         }
-        if (w < 480 || hh < 360) return true;
+        // v1423 - after DPI-aware arm, W/H are PHYSICAL pixels. Reject tiny tools only.
+        if (w < 640 || hh < 400) return true;
         var sb = new StringBuilder(512);
         GetWindowText(h, sb, 512);
         string title = sb.ToString() ?? "";
@@ -97,10 +139,13 @@ public static class TvdCap {
         bool isFg = (h == fg);
         int score = 8000 + (isFg ? 500 : 0);
         if (tl.Contains("resurrected") || tl.Contains("diablo ii")) score += 1500;
-        score += Math.Min((w * hh) / 50000, 80);
+        // Prefer the largest window (true fullscreen game over tiny helper hwnds).
+        score += Math.Min((w * hh) / 80000, 200);
+        int dpi = 96;
+        try { dpi = (int)GetDpiForWindow(h); if (dpi < 72) dpi = 96; } catch {}
         hits.Add(new Hit {
           Hwnd = h, Left = left, Top = top, W = w, H = hh,
-          Title = title, Proc = proc, Score = score, IsFg = isFg
+          Title = title, Proc = proc, Score = score, IsFg = isFg, Dpi = dpi
         });
       } catch {}
       return true;
@@ -124,14 +169,39 @@ public static class TvdCap {
 
   public static string Grab(Hit hit, string framesDir) {
     if (hit == null || hit.Hwnd == IntPtr.Zero || hit.W < 32 || hit.H < 32) return null;
+    // v1423 - re-measure EVERY grab in physical pixels (window may move / DPI path may
+    // have been wrong at find-time). Prefer FULL window rect for PrintWindow so chrome
+    // + client land 1:1; fall back to stored client size.
+    int left = hit.Left, top = hit.Top, bw = hit.W, bh = hit.H;
+    try {
+      RECT wr;
+      if (GetWindowRect(hit.Hwnd, out wr)) {
+        int ww = wr.Right - wr.Left, wh = wr.Bottom - wr.Top;
+        if (ww >= 640 && wh >= 400) { left = wr.Left; top = wr.Top; bw = ww; bh = wh; }
+      }
+      RECT cr;
+      if (GetClientRect(hit.Hwnd, out cr)) {
+        int cw = cr.Right - cr.Left, ch = cr.Bottom - cr.Top;
+        // Borderless: client ~= window. Windowed: prefer client (no title bar in film).
+        if (cw >= 640 && ch >= 400 && cw * ch >= (int)(bw * bh * 0.85)) {
+          POINT pt; pt.X = 0; pt.Y = 0;
+          if (ClientToScreen(hit.Hwnd, ref pt)) {
+            left = pt.X; top = pt.Y; bw = cw; bh = ch;
+          }
+        }
+      }
+    } catch {}
+    hit.Left = left; hit.Top = top; hit.W = bw; hit.H = bh;
+
     Bitmap bmp = null;
     Graphics g = null;
     string how = null;
     try {
-      bmp = new Bitmap(hit.W, hit.H);
+      bmp = new Bitmap(bw, bh);
       g = Graphics.FromImage(bmp);
       IntPtr hdc = g.GetHdc();
       try {
+        // 2 = PW_RENDERFULLCONTENT (DWM composition / DirectX games)
         bool ok = PrintWindow(hit.Hwnd, hdc, 2);
         if (!ok) PrintWindow(hit.Hwnd, hdc, 0);
       } finally {
@@ -140,8 +210,9 @@ public static class TvdCap {
       if (!MostlyBlack(bmp)) {
         how = "PrintWindow";
       } else {
+        // Foreground CopyFromScreen uses PHYSICAL coords after DPI arm.
         if (GetForegroundWindow() == hit.Hwnd) {
-          g.CopyFromScreen(hit.Left, hit.Top, 0, 0, bmp.Size);
+          g.CopyFromScreen(left, top, 0, 0, new Size(bw, bh));
           if (!MostlyBlack(bmp)) how = "CopyFromScreen-fg";
         }
       }
@@ -296,22 +367,30 @@ function Write-PinDebug($hits) {
   try {
     $debug = @()
     foreach ($h in $hits) {
-      $debug += @{ proc = $h.Proc; title = $h.Title; score = $h.Score; w = $h.W; h = $h.H; left = $h.Left; top = $h.Top }
+      $debug += @{
+        proc = $h.Proc; title = $h.Title; score = $h.Score
+        w = $h.W; h = $h.H; left = $h.Left; top = $h.Top
+        dpi = $h.Dpi
+      }
     }
     $best = $null
     if ($hits -and $hits.Count -gt 0) { $best = ($hits[0].Proc + ' - ' + $hits[0].Title) }
+    $dpiInfo = ''
+    try { $dpiInfo = [TvdCap]::DpiInfo() } catch {}
     $obj = @{
       ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
       d2rProcessAlive = [TvdCap]::D2RProcessAlive()
       candidateCount = @($hits).Count
       best = $best
+      dpi = $dpiInfo
       candidates = $debug
     }
     ($obj | ConvertTo-Json -Depth 5 -Compress) | Set-Content -LiteralPath (Join-Path $frames 'win_pin_debug.json') -Encoding UTF8
   } catch {}
 }
 
-Write-Host "TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1422 light eye-first + rare PNG"
+Write-Host ("TV DIABLO capture (Windows) mode=$mode poll=${pollMs}ms v1423 DPI-aware full frame + light eye")
+try { Write-Host ("  dpi: " + [TvdCap]::DpiInfo()) } catch {}
 $lastLabel = ''
 $loopN = 0
 while ($true) {
