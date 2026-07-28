@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1450"   # sips no-upscale (hist JPEG); prune orphan path green; routines freeze retained.
+VERSION = "v1451"   # Routines strip bolted: static bottom (no live --dock-h), no glow/pulse.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

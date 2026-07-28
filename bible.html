@@ -2526,10 +2526,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   }
   #routine-status-bar .routine-letter:hover{
     border-color:var(--gold-bright);background:rgba(240,192,96,.15);
-    transform:translateY(-1px);box-shadow:0 2px 6px rgba(240,192,96,.3);
+    transform:none; box-shadow:none; /* v1451 — no hover lift */
   }
   #routine-status-bar.routine-intro-pulse{
-    animation:routine-pulse 2s ease-in-out 2;   /* v642 — two gentle pulses, not infinite */
+    animation:none; /* v1451 — intro pulse felt like jump on load */
   }
   @keyframes routine-pulse {
     0%, 100% { opacity: 1; }
@@ -2877,20 +2877,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     background: linear-gradient(180deg, rgba(102,255,136,.22), rgba(102,255,136,.08));
     border-color: var(--best);
     color: var(--best);
-    box-shadow: 0 0 0 1px rgba(102,255,136,.3), 0 0 8px rgba(102,255,136,.18);
+    box-shadow: none; /* v1451 — glow made status refresh feel like a jump */
   }
   .routine-letter[data-status="warn"] {
     background: linear-gradient(180deg, rgba(255,204,68,.22), rgba(255,204,68,.08));
     border-color: var(--nm);
     color: var(--nm);
-    box-shadow: 0 0 0 1px rgba(255,204,68,.3), 0 0 8px rgba(255,204,68,.18);
+    box-shadow: none;
   }
   .routine-letter[data-status="red"] {
     background: linear-gradient(180deg, rgba(255,64,64,.22), rgba(255,64,64,.08));
     border-color: var(--hell);
     color: var(--hell);
-    box-shadow: 0 0 0 1px rgba(255,64,64,.3), 0 0 10px rgba(255,64,64,.25);
-    animation: pulseRed 1.8s ease-in-out infinite;
+    box-shadow: none; /* v1451 — was pulse glow; continuous "jump" */
+    animation: none !important;
   }
   .routine-letter[data-status="inactive"] {
     opacity: .35;
@@ -33664,21 +33664,23 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
   .tabs-workshop{flex:0 1 auto;flex-wrap:wrap;justify-content:center;margin:4px auto 0}
   .tabs-cluster{flex:1 1 auto;flex-wrap:wrap}
 }
-/* v1425 — ROUTINES STRIP HARD FREEZE (Konyo: "still routines jumping").
-   Right-anchored pill: ANY width change slides the whole G–T row. Fix = fixed geometry,
-   single flex row (no nested header), no wrap, no layout-affecting transitions/animations. */
+/* v1425/v1451 — ROUTINES STRIP BOLTED TO THE VIEWPORT (Konyo: "still jumping the routines").
+   v1425 fixed internal width thrash. v1451: STOP tracking live --dock-h — ResizeObserver on the
+   control dock reflows every TZ tick / wrap and was LIFTING the whole pill (vertical jump).
+   Bottom + width are STATIC constants now. Single flex row, no wrap, no motion. */
 #routine-status-bar.rs-bar,
 #routine-status-bar{
   position:fixed !important; z-index:9999 !important;
-  bottom:calc(var(--dock-h,64px) + 16px) !important;
-  right:calc(12px + 56px) !important;
+  /* STATIC — never calc(var(--dock-h)+…) — that var is live-measured and was the remaining jump */
+  bottom:110px !important;
+  right:68px !important;
   left:auto !important; top:auto !important;
   display:none; /* shown via [hidden] removal + .rs-open */
   flex-direction:row !important; flex-wrap:nowrap !important;
   align-items:center !important; gap:8px !important;
   box-sizing:border-box !important;
-  width:auto !important; min-width:0 !important;
-  max-width:calc(100vw - 24px) !important;
+  /* locked outer shell so right-anchor cannot slide even if a child glitches */
+  width:680px !important; min-width:680px !important; max-width:680px !important;
   padding:6px 12px !important; margin:0 !important;
   border-radius:999px !important;
   background:linear-gradient(180deg,rgba(20,12,4,.95),rgba(10,6,2,.9)) !important;
@@ -33689,6 +33691,8 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
   white-space:nowrap !important;
   backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
   letter-spacing:normal !important;
+  transition:none !important; animation:none !important;
+  will-change:auto !important;
 }
 #routine-status-bar.rs-open,
 #routine-status-bar:not([hidden]){ display:flex !important; }
@@ -33709,21 +33713,30 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 #routine-status-bar .routine-letter{
   display:inline-flex !important; align-items:center; justify-content:center;
   width:22px !important; height:22px !important; min-width:22px !important;
+  max-width:22px !important; max-height:22px !important;
   box-sizing:border-box !important;
   flex:none !important;
   white-space:nowrap !important;
   animation:none !important;
-  transform:none !important; /* no hover lift — lifts felt like jumps */
-  transition: color .12s ease, border-color .12s ease, background-color .12s ease !important;
-  /* never animate box-shadow (old pulse/glow changed perceived size) */
+  transform:none !important;
+  transition:none !important; /* v1451 — zero motion on status paint */
+  box-shadow:none !important; /* status glows looked like letters bouncing */
 }
 #routine-status-bar .routine-letter:hover{
   transform:none !important; box-shadow:none !important;
   border-color:var(--gold-bright,#f0c060) !important;
 }
-#routine-status-bar .routine-letter[data-status="red"]{
-  animation:none !important; /* was pulseRed — continuous visual jump */
+#routine-status-bar .routine-letter[data-status="green"],
+#routine-status-bar .routine-letter[data-status="warn"],
+#routine-status-bar .routine-letter[data-status="red"],
+#routine-status-bar .routine-letter[data-status="inactive"]{
+  animation:none !important;
+  transform:none !important;
+  box-shadow:none !important;
+  transition:none !important;
 }
+/* kill the global pulseRed for any routine letter (even if a selector loses the bar prefix) */
+.routine-letter[data-status="red"]{ animation:none !important; }
 #routine-fires-counter, #routine-status-bar .rs-fires{
   display:inline-block !important; flex:none !important;
   width:148px !important; min-width:148px !important; max-width:148px !important;
@@ -33766,10 +33779,16 @@ body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:n
 #tab-session .sc-card{margin-right:6px}
 #tab-session .sc-ops-row,#tab-session .sc-card .sc-go{scroll-margin-right:70px}
 @media (max-width:760px){
+  /* still STATIC geometry — just a smaller fixed shell, never dock-h */
+  #routine-status-bar.rs-bar, #routine-status-bar{
+    width:min(680px, calc(100vw - 16px)) !important;
+    min-width:0 !important; max-width:calc(100vw - 16px) !important;
+    bottom:96px !important; right:8px !important;
+  }
   #routine-status-bar .rs-letters, #routine-status-bar #routine-letters{
     width:294px !important; min-width:294px !important; max-width:294px !important; gap:3px !important;
   }
-  #routine-status-bar .routine-letter{width:18px !important; height:18px !important; min-width:18px !important; font-size:9px !important}
+  #routine-status-bar .routine-letter{width:18px !important; height:18px !important; min-width:18px !important; max-width:18px !important; font-size:9px !important}
   #routine-fires-counter, #routine-status-bar .rs-fires{width:120px !important; min-width:120px !important; max-width:120px !important}
 }
 /* the first content section breathes right under the compact band */
@@ -35230,10 +35249,15 @@ try { window._renderDockPin(); window._renderStashFresh(); } catch(e){}
 // the band has no free corner.
 try {
   var _dockEl = document.querySelector('#control-dock .dock-inner');
+  var _dockHLast = 0;
   var _dockSync = function(){
     try {
       var h = _dockEl ? Math.ceil(_dockEl.getBoundingClientRect().height) + 14 : 84;   // +14 = the dock's bottom padding
       if (h < 60) h = 84;                                                              // collapsed/hidden dock → keep the floor sane
+      // v1451 — ignore sub-4px thrash (TZ text / font reflow) so the whole bottom chrome
+      // doesn't bounce; routines strip no longer reads --dock-h at all, but TZ pill etc. still do.
+      if (_dockHLast && Math.abs(h - _dockHLast) < 4) return;
+      _dockHLast = h;
       document.documentElement.style.setProperty('--dock-h', h + 'px');
       document.documentElement.classList.toggle('dock-tall', h > 104);
     } catch(e){}
@@ -35379,7 +35403,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1450', name:'v1450 · sips no-upscale', date:'2026-07-28', note:'sips never upscales small frames into hist; prune orphan sweep green; routines strip freeze.' };
+  window.D2R_BUILD = { id:'v1451', name:'v1451 · routines bolted', date:'2026-07-28', note:'G–T strip static bottom+width (no live dock-h jump); no status glow/pulse; dock-h thrash throttled.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
