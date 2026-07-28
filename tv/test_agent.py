@@ -307,7 +307,8 @@ class TestFrameArchive(unittest.TestCase):
 
     def test_archive_bmp_is_real_jpeg_not_bmp_bytes(self):
         """v1421 — Windows used to copy live.bmp into hist/{n}_{ts}.jpg (magic 42 4D).
-        Archive path must land real JPEG SOI so Theatre + vision never see BMP-as-jpg."""
+        Archive path must land real JPEG SOI so Theatre + vision never see BMP-as-jpg.
+        v1450 — sips must NOT upscale 48px → HIST_MAX_PX (was 100KB+ 'JPEG' larger than the BMP)."""
         import struct
         bmp = os.path.join(self.d, "live.bmp")
         w = h = 48
@@ -317,7 +318,8 @@ class TestFrameArchive(unittest.TestCase):
         off = 54
         hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
         info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
-        open(bmp, "wb").write(hdr + info + data)
+        with open(bmp, "wb") as f:
+            f.write(hdr + info + data)
         fid = tv.archive_read_frame(bmp, 8, 1_700_000_000_001)
         self.assertTrue(fid, "archive must succeed for BMP source")
         path = tv.frame_path_for_id(fid)
@@ -325,7 +327,32 @@ class TestFrameArchive(unittest.TestCase):
         with open(path, "rb") as f:
             magic = f.read(3)
         self.assertEqual(magic, b"\xff\xd8\xff", "hist frame must be real JPEG, not BMP 42 4D")
-        self.assertLess(os.path.getsize(path), os.path.getsize(bmp))
+        self.assertLess(os.path.getsize(path), os.path.getsize(bmp),
+                        "JPEG must not bloat past the tiny BMP (sips upsample regression)")
+
+    def test_to_jpeg_does_not_upscale_small_bmp(self):
+        """v1450 — sips --resampleHeightWidthMax upscales on macOS; we must not pass it for small src."""
+        import struct, subprocess
+        bmp = os.path.join(self.d, "tiny.bmp")
+        dest = os.path.join(self.d, "tiny_out.jpg")
+        w = h = 32
+        row = bytes([10, 20, 30]) * w
+        pad = (4 - (w * 3) % 4) % 4
+        data = (row + b"\x00" * pad) * h
+        off = 54
+        hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
+        info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
+        with open(bmp, "wb") as f:
+            f.write(hdr + info + data)
+        self.assertTrue(tv._to_jpeg(bmp, dest, max_px=2560, quality=82))
+        self.assertTrue(tv._is_real_jpeg(dest))
+        self.assertLess(os.path.getsize(dest), os.path.getsize(bmp))
+        r = subprocess.run(
+            ["sips", "-g", "pixelWidth", "-g", "pixelHeight", dest],
+            capture_output=True, text=True, timeout=5)
+        out = r.stdout or ""
+        self.assertIn("pixelWidth: 32", out.replace("  ", " "))
+        self.assertIn("pixelHeight: 32", out.replace("  ", " "))
 
     def test_frame_path_rejects_traversal(self):
         self.assertEqual(tv.frame_path_for_id("../etc/passwd"), "")
@@ -1981,10 +2008,22 @@ class TestOneBudget(unittest.TestCase):
             # orphan derivative with no source
             with open(os.path.join(d, "cache1280", "999_999.jpg"), "wb") as f:
                 f.write(b"o" * 100)
+            # v1450 — seed must be a REAL small BMP (BM+DDD… is not convertible; archive
+            # returned "" before prune, so the orphan never died). Valid 32×32 BMP lands JPEG
+            # and runs the orphan sweep.
+            import struct
             src = os.path.join(d, "seed.bmp")
+            w = h = 32
+            row = bytes([40, 80, 160]) * w
+            pad = (4 - (w * 3) % 4) % 4
+            data = (row + b"\x00" * pad) * h
+            off = 54
+            hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
+            info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
             with open(src, "wb") as f:
-                f.write(b"BM" + b"D" * 60000)
+                f.write(hdr + info + data)
             fid = tv.archive_read_frame(src, 99, 999999)
+            self.assertTrue(fid, "archive must land so the orphan sweep runs")
             live = {f for f in os.listdir(d) if f.endswith(".jpg")}
             cached = set(os.listdir(os.path.join(d, "cache1280")))
             # v861.1 recal — COUNT CAPS ABOLISHED (Konyo): with free disk, EVERY frame lives.

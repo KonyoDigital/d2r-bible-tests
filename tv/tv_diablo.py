@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1449"   # Routines freeze: G–T strip fixed geometry; console skip identical taskforce/forge paints.
+VERSION = "v1450"   # sips no-upscale (hist JPEG); prune orphan path green; routines freeze retained.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1115,15 +1115,40 @@ _FILM_THREAD = None
 _PICK_CACHE = None   # (hit, monotonic_t) — avoid Quartz every frame
 _PICK_TTL_S = 0.55   # v846 — re-pin faster when windows flip
 
+def _sips_pixel_size(src):
+    """Return (w, h) from sips, or (0, 0) on failure. Used to avoid upsample."""
+    try:
+        r = subprocess.run(
+            ["sips", "-g", "pixelWidth", "-g", "pixelHeight", src],
+            capture_output=True, text=True, timeout=5, **NICE_KW)
+        w = h = 0
+        for line in (r.stdout or "").splitlines():
+            if "pixelWidth:" in line:
+                try: w = int(line.split(":")[-1].strip())
+                except Exception: pass
+            elif "pixelHeight:" in line:
+                try: h = int(line.split(":")[-1].strip())
+                except Exception: pass
+        return w, h
+    except Exception:
+        return 0, 0
+
+
 def _sips_hd_jpeg(src, dest, max_px=None, quality=None, timeout=6):
-    """HD+ JPEG for film stage. Default 2560px / q82 (4K-class polish, still WebView-friendly)."""
+    """HD+ JPEG for film stage. Default 2560px / q82 (4K-class polish, still WebView-friendly).
+
+    v1450 — only pass --resampleHeightWidthMax when the source is LARGER than max_px.
+    On current macOS, sips *upsamples* small images to that max (48×48 → 2560×2560),
+    which bloated hist frames and broke the 'JPEG smaller than BMP' archive invariant."""
     max_px = FILM_MAX_PX if max_px is None else max_px
     quality = FILM_JPEG_Q if quality is None else quality
     try:
-        r = subprocess.run(
-            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality),
-             "--resampleHeightWidthMax", str(max_px), src, "--out", dest],
-            capture_output=True, timeout=timeout, **NICE_KW)
+        cmd = ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality)]
+        w, h = _sips_pixel_size(src)
+        if max_px and w and h and max(w, h) > int(max_px):
+            cmd += ["--resampleHeightWidthMax", str(int(max_px))]
+        cmd += [src, "--out", dest]
+        r = subprocess.run(cmd, capture_output=True, timeout=timeout, **NICE_KW)
         return r.returncode == 0 and os.path.isfile(dest) and os.path.getsize(dest) > 4000
     except Exception:
         return False
@@ -1912,7 +1937,10 @@ def _win_image_to_jpeg(src, dest, max_px=1568, quality=80):
 
 
 def _to_jpeg(src, dest, max_px=1568, quality=80):
-    """Mac sips first; Windows System.Drawing; never claim success on non-JPEG bytes."""
+    """Mac sips first; Windows System.Drawing; never claim success on non-JPEG bytes.
+
+    v1450 — sips --resampleHeightWidthMax UPSAMPLES small sources on current macOS
+    (48px → max_px). Only pass the flag when the source actually exceeds max_px (downscale)."""
     if not src or not os.path.isfile(src):
         return False
     # Already a real JPEG and dest==src path intent — copy if needed.
@@ -1922,15 +1950,30 @@ def _to_jpeg(src, dest, max_px=1568, quality=80):
         try:
             import shutil
             os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
-            shutil.copy2(src, dest)
-            return _is_real_jpeg(dest)
+            # still downscale oversized JPEGs (big eye frames) when max_px set
+            w, h = _sips_pixel_size(src)
+            if max_px and w and h and max(w, h) > int(max_px):
+                pass  # fall through to sips convert+downsample
+            else:
+                shutil.copy2(src, dest)
+                return _is_real_jpeg(dest)
         except Exception:
             pass
     try:
-        r = subprocess.run(
-            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(int(quality)),
-             "--resampleHeightWidthMax", str(int(max_px)), src, "--out", dest],
-            capture_output=True, timeout=25, **NICE_KW)
+        os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
+        cmd = ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(int(quality))]
+        w, h = _sips_pixel_size(src)
+        if max_px and w and h and max(w, h) > int(max_px):
+            cmd += ["--resampleHeightWidthMax", str(int(max_px))]
+        elif max_px and not (w and h):
+            # unknown dims — only resample when source file is large enough to need it
+            try:
+                if os.path.getsize(src) > 400_000:
+                    cmd += ["--resampleHeightWidthMax", str(int(max_px))]
+            except Exception:
+                pass
+        cmd += [src, "--out", dest]
+        r = subprocess.run(cmd, capture_output=True, timeout=25, **NICE_KW)
         if r.returncode == 0 and _is_real_jpeg(dest):
             return True
     except Exception:
