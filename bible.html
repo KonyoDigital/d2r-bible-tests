@@ -2885,22 +2885,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     color: var(--nm);
     box-shadow: none;
   }
+  /* v1452 — red is STATIC (I is often red while Playwright fails). No pulse, no glow, no opacity thrash. */
   .routine-letter[data-status="red"] {
-    background: linear-gradient(180deg, rgba(255,64,64,.22), rgba(255,64,64,.08));
-    border-color: var(--hell);
-    color: var(--hell);
-    box-shadow: none; /* v1451 — was pulse glow; continuous "jump" */
+    background: rgba(255,64,64,.18) !important;
+    border-color: #ff5050 !important;
+    color: #ff7070 !important;
+    box-shadow: none !important;
     animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transition: none !important;
   }
   .routine-letter[data-status="inactive"] {
     opacity: .35;
     border-color: var(--border);
     background: rgba(20,12,4,.5);
   }
-  @keyframes pulseRed {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(255,64,64,.3), 0 0 6px rgba(255,64,64,.18); }
-    50% { box-shadow: 0 0 0 2px rgba(255,64,64,.5), 0 0 14px rgba(255,64,64,.35); }
-  }
+  /* pulseRed keyframes REMOVED v1452 — were the continuous "I is jumping" animation */
   /* Daily fires counter — prominent in widget header */
   #routine-fires-counter {
     font-family: var(--mono);
@@ -24348,11 +24350,18 @@ _v40_whenReady(() => {
 
 /* === v41 LIVE ROUTINE STATUS WIDGET === */
 
+// v1452 — REAL status first. The old order put sibling routine_status.js first; under
+// file://d2r_bible_tests that file is an EMPTY Playwright stub ({}), which on every 60s
+// refresh painted every letter inactive — red I (and any warn) flashed dim then back = "I keeps jumping".
 const _v41_STATUS_PATHS = [
-  'routine_status.js',  // sibling to bible (Downloads)
-  '/Users/konyo/Downloads/routine_status.js',  // absolute fallback
-  '/Users/konyo/d2r_bible_routines/obsidian_data/routine_status.js',  // routines path
+  '/Users/konyo/d2r_bible_routines/obsidian_data/routine_status.js',  // live baker output
+  '/Users/konyo/Downloads/routine_status.js',  // symlink to baker on this machine
+  'routine_status.js',  // last: Playwright stub (may be empty — rejected below)
 ];
+
+function _v41_statusIsLive(st) {
+  return !!(st && st.routines && typeof st.routines === 'object' && Object.keys(st.routines).length > 0);
+}
 
 function _v41_loadStatusScript(idx, cb) {
   // routine_status.js only exists alongside the LOCAL file:// copies (Konyo's machine).
@@ -24363,28 +24372,40 @@ function _v41_loadStatusScript(idx, cb) {
   if (location.protocol !== 'file:') { cb(null); return; }
   if (idx >= _v41_STATUS_PATHS.length) { cb(null); return; }
   const url = _v41_STATUS_PATHS[idx];
-  // Use a fresh script tag so we can retry alternates if one fails
   const s = document.createElement('script');
   s.src = url + '?_=' + Date.now(); // cache-bust
   // v42 polish: remove the script tag after load/error to prevent <head> accumulation.
-  // _v41_refreshStatus fires every 60s; without cleanup, ~3000 dead script tags
-  // pile up per 24h of runtime.
   const cleanup = () => { try { s.remove(); } catch(e) {} };
-  s.onload = () => { cb(window.ROUTINE_STATUS || null); cleanup(); };
+  s.onload = () => {
+    const st = window.ROUTINE_STATUS || null;
+    cleanup();
+    // v1452 — empty stub is a successful HTTP/script load but NOT live data → try next path
+    if (_v41_statusIsLive(st)) cb(st);
+    else _v41_loadStatusScript(idx + 1, cb);
+  };
   s.onerror = () => { cleanup(); _v41_loadStatusScript(idx + 1, cb); };
   document.head.appendChild(s);
 }
 
+var _v41_lastSig = '';
 function _v41_applyStatus(st) {
-  if (!st) return;
-  // v1425 — only write attributes when they change (transition thrash = "jumping")
+  // v1452 — refuse empty/stub payloads (would wipe red I → inactive flash)
+  if (!_v41_statusIsLive(st)) return;
+  // only touch the DOM when status/summary actually changed (60s poll was rewriting tooltips)
+  var sig = Object.keys(st.routines).sort().map(function(k){
+    var r = st.routines[k] || {};
+    return k + ':' + (r.status||'') + ':' + (r.summary||'') + ':' + (r.fires_today||0);
+  }).join('|') + '#' + (st.total_fires_today||0) + '/' + (st.total_expected_today||0);
+  if (sig === _v41_lastSig) return;
+  _v41_lastSig = sig;
   document.querySelectorAll('.routine-letter').forEach(el => {
     const rid = el.getAttribute('data-r');
-    if (!rid || !st.routines || !st.routines[rid]) {
-      if (el.getAttribute('data-status') !== 'inactive') el.setAttribute('data-status', 'inactive');
+    if (!rid) return;
+    const r = st.routines[rid];
+    if (!r) {
+      // missing key: leave previous paint (don't flash inactive)
       return;
     }
-    const r = st.routines[rid];
     if (el.getAttribute('data-status') !== r.status) el.setAttribute('data-status', r.status);
     const tip = [
       `Routine ${rid} · ${r.status.toUpperCase()}`,
@@ -24402,7 +24423,6 @@ function _v41_applyStatus(st) {
                 : rs.reduce((n, r) => n + (Number(r.fires_today) || 0), 0);
     const expected = Number.isFinite(st.total_expected_today) ? st.total_expected_today
                    : rs.reduce((n, r) => n + (Number(r.expected_per_day) || 0), 0);
-    // fixed-width slot — always same format length class
     const txt = (rs.length && (fired || expected))
       ? (fired + '/' + expected + ' fires')
       : 'offline';
@@ -24416,8 +24436,7 @@ function _v41_applyStatus(st) {
 }
 
 function _v41_refreshStatus() {
-  // Clear cached window.ROUTINE_STATUS to force fresh load
-  try { delete window.ROUTINE_STATUS; } catch(e) {}
+  // v1452 — do NOT delete window.ROUTINE_STATUS first (brief empty window invited inactive flash)
   _v41_loadStatusScript(0, st => {
     if (st) _v41_applyStatus(st);
   });
@@ -33729,14 +33748,24 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 #routine-status-bar .routine-letter[data-status="green"],
 #routine-status-bar .routine-letter[data-status="warn"],
 #routine-status-bar .routine-letter[data-status="red"],
-#routine-status-bar .routine-letter[data-status="inactive"]{
+#routine-status-bar .routine-letter[data-status="inactive"],
+#routine-status-bar .routine-letter[data-r="I"]{
   animation:none !important;
   transform:none !important;
   box-shadow:none !important;
   transition:none !important;
+  filter:none !important;
 }
-/* kill the global pulseRed for any routine letter (even if a selector loses the bar prefix) */
-.routine-letter[data-status="red"]{ animation:none !important; }
+/* v1452 — red letter (I when Playwright is red) is a solid chip, never a pulse target */
+.routine-letter[data-status="red"],
+#routine-status-bar .routine-letter[data-status="red"],
+#routine-status-bar .routine-letter[data-r="I"][data-status="red"]{
+  animation:none !important;
+  transform:none !important;
+  box-shadow:none !important;
+  transition:none !important;
+  opacity:1 !important;
+}
 #routine-fires-counter, #routine-status-bar .rs-fires{
   display:inline-block !important; flex:none !important;
   width:148px !important; min-width:148px !important; max-width:148px !important;
@@ -35403,7 +35432,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1451', name:'v1451 · routines bolted', date:'2026-07-28', note:'G–T strip static bottom+width (no live dock-h jump); no status glow/pulse; dock-h thrash throttled.' };
+  window.D2R_BUILD = { id:'v1452', name:'v1452 · routine I static', date:'2026-07-28', note:'Reject empty Playwright status stub (was flashing red I inactive); real status path first; red letter zero motion.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
