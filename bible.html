@@ -24388,25 +24388,57 @@ function _v41_loadStatusScript(idx, cb) {
 }
 
 var _v41_lastSig = '';
-function _v41_applyStatus(st) {
+var _v41_lettersPinned = false; // v1453 — after first paint, colors never auto-change (I was "jumping")
+function _v41_paintCounter(st) {
+  const counter = document.getElementById('routine-fires-counter');
+  if (!counter || !_v41_statusIsLive(st)) return;
+  const rs = Object.values(st.routines || {});
+  const fired = Number.isFinite(st.total_fires_today) ? st.total_fires_today
+              : rs.reduce((n, r) => n + (Number(r.fires_today) || 0), 0);
+  const expected = Number.isFinite(st.total_expected_today) ? st.total_expected_today
+                 : rs.reduce((n, r) => n + (Number(r.expected_per_day) || 0), 0);
+  const txt = (rs.length && (fired || expected))
+    ? (fired + '/' + expected + ' fires')
+    : 'offline';
+  if (counter.textContent !== txt) counter.textContent = txt;
+  // v1453 — do NOT toggle has-red/all-green on the counter after pin (class flip reflows chrome)
+  if (!_v41_lettersPinned) {
+    const anyRed = Object.values(st.routines || {}).some(r => r.status === 'red');
+    const cls = 'rs-fires' + (anyRed ? ' has-red' : (st.all_green ? ' all-green' : ''));
+    if (counter.className !== cls) counter.className = cls;
+  }
+  const title = st.generated_at ? `Status snapshot: ${st.generated_at}` : 'Routine status snapshot';
+  if (counter.title !== title) counter.title = title;
+}
+function _v41_applyStatus(st, opts) {
   // v1452 — refuse empty/stub payloads (would wipe red I → inactive flash)
   if (!_v41_statusIsLive(st)) return;
-  // only touch the DOM when status/summary actually changed (60s poll was rewriting tooltips)
+  opts = opts || {};
+  // v1453 — PINNED: auto polls only refresh the fires counter. Letter colors (esp. red I)
+  // stay exactly as first painted until the user hits ↻. Routine I's daily green/warn/red
+  // flapping was retinting the chip and reading as "I keeps jumping".
+  if (_v41_lettersPinned && !opts.force) {
+    _v41_paintCounter(st);
+    return;
+  }
   var sig = Object.keys(st.routines).sort().map(function(k){
     var r = st.routines[k] || {};
     return k + ':' + (r.status||'') + ':' + (r.summary||'') + ':' + (r.fires_today||0);
   }).join('|') + '#' + (st.total_fires_today||0) + '/' + (st.total_expected_today||0);
-  if (sig === _v41_lastSig) return;
+  if (sig === _v41_lastSig && !opts.force) { _v41_paintCounter(st); return; }
   _v41_lastSig = sig;
-  document.querySelectorAll('.routine-letter').forEach(el => {
+  document.querySelectorAll('#routine-status-bar .routine-letter').forEach(el => {
     const rid = el.getAttribute('data-r');
     if (!rid) return;
     const r = st.routines[rid];
-    if (!r) {
-      // missing key: leave previous paint (don't flash inactive)
-      return;
-    }
+    if (!r) return; // keep previous paint
+    // write status once; pin inline styles so no stylesheet can animate it later
     if (el.getAttribute('data-status') !== r.status) el.setAttribute('data-status', r.status);
+    el.style.setProperty('animation', 'none', 'important');
+    el.style.setProperty('transition', 'none', 'important');
+    el.style.setProperty('transform', 'none', 'important');
+    el.style.setProperty('filter', 'none', 'important');
+    el.style.setProperty('box-shadow', 'none', 'important');
     const tip = [
       `Routine ${rid} · ${r.status.toUpperCase()}`,
       `Schedule: ${r.schedule}`,
@@ -24416,29 +24448,16 @@ function _v41_applyStatus(st) {
     ].join('\n');
     if (el.getAttribute('data-tooltip') !== tip) el.setAttribute('data-tooltip', tip);
   });
-  const counter = document.getElementById('routine-fires-counter');
-  if (counter) {
-    const rs = Object.values(st.routines || {});
-    const fired = Number.isFinite(st.total_fires_today) ? st.total_fires_today
-                : rs.reduce((n, r) => n + (Number(r.fires_today) || 0), 0);
-    const expected = Number.isFinite(st.total_expected_today) ? st.total_expected_today
-                   : rs.reduce((n, r) => n + (Number(r.expected_per_day) || 0), 0);
-    const txt = (rs.length && (fired || expected))
-      ? (fired + '/' + expected + ' fires')
-      : 'offline';
-    if (counter.textContent !== txt) counter.textContent = txt;
-    const anyRed = Object.values(st.routines || {}).some(r => r.status === 'red');
-    const cls = 'rs-fires' + (anyRed ? ' has-red' : (st.all_green ? ' all-green' : ''));
-    if (counter.className !== cls) counter.className = cls;
-    const title = st.generated_at ? `Status snapshot: ${st.generated_at}` : 'Routine status snapshot';
-    if (counter.title !== title) counter.title = title;
-  }
+  _v41_paintCounter(st);
+  _v41_lettersPinned = true;
 }
 
 function _v41_refreshStatus() {
-  // v1452 — do NOT delete window.ROUTINE_STATUS first (brief empty window invited inactive flash)
+  // manual ↻ — allow letter colors to update once, then re-pin
+  _v41_lettersPinned = false;
+  _v41_lastSig = '';
   _v41_loadStatusScript(0, st => {
-    if (st) _v41_applyStatus(st);
+    if (st) _v41_applyStatus(st, { force: true });
   });
 }
 
@@ -24473,11 +24492,14 @@ function _v41_whenReady(fn) {
 
 _v41_whenReady(() => {
   _v41_enhanceWidget();
-  // Initial load
-  _v41_refreshStatus();
-  // Refresh every 60s so widget reflects new routine fires
-  setInterval(_v41_refreshStatus, 60000);
-  // Also re-enhance widget if it gets re-rendered (defensive)
+  // Initial load — paints letters once, then pins (v1453)
+  _v41_lettersPinned = false;
+  _v41_loadStatusScript(0, st => { if (st) _v41_applyStatus(st, { force: true }); });
+  // v1453 — background poll only refreshes the fires COUNTER, never retints letters
+  // (retinting red I when Routine I's result flapped green/warn/red = "I keeps jumping")
+  setInterval(function(){
+    _v41_loadStatusScript(0, function(st){ if (st) _v41_applyStatus(st); });
+  }, 60000);
   setTimeout(_v41_enhanceWidget, 500);
 });
 
@@ -25875,10 +25897,11 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid rgba(240,192,96,.2);
   box-shadow: var(--shadow-mid);
 }
-.routine-letter { transition: color .12s ease, border-color .12s ease, background-color .12s ease; }
+.routine-letter { transition: none !important; }
 .routine-letter:hover {
-  /* v1425 — no transform/scale (felt like routines jumping) */
-  box-shadow: none;
+  /* v1425/v1453 — no transform/scale/color transition */
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* Help modal + glossary — premium backdrop */
@@ -35432,7 +35455,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1452', name:'v1452 · routine I static', date:'2026-07-28', note:'Reject empty Playwright status stub (was flashing red I inactive); real status path first; red letter zero motion.' };
+  window.D2R_BUILD = { id:'v1453', name:'v1453 · pin routine letters', date:'2026-07-28', note:'Letter colors (esp. red I) paint once then pin; 60s poll only updates fires counter; ↻ force-refreshes.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
