@@ -9,6 +9,11 @@ const fs = require('fs');
   const errors = [];
   page.on('pageerror', e => errors.push('PAGE: ' + e.message.substring(0, 180)));
   page.on('console', m => { if (m.type() === 'error') errors.push('CON: ' + m.text().substring(0, 180)); });
+  // v1455: a bare "Failed to load resource: net::ERR_FILE_NOT_FOUND" console line names no URL, which cost
+  // three blind rounds of guessing on a CI-only red. Record the URL of every failed request so the log says
+  // WHICH file is missing (Linux CI checkout lacks gitignored dirs + is case-sensitive; the Mac hides both).
+  const failedReqs = [];
+  page.on('requestfailed', r => failedReqs.push(`${r.failure()?.errorText || 'failed'} ${r.resourceType()} ${r.url()}`));
   
   console.log('═══════════════════════════════════════════════════════════════');
   console.log(' END-TO-END AUDIT — Konyo D2R Bible v36');
@@ -222,6 +227,9 @@ const fs = require('fs');
   console.log('═══════════════════════════════════════════════════════════════');
   console.log(`Total time: ${((Date.now()-t0)/1000).toFixed(1)}s`);
   console.log(`Page errors: ${errors.length}${errors.length ? '\n  ' + errors.slice(0,3).join('\n  ') : ''}`);
+  const uniqFailed = [...new Set(failedReqs)];
+  console.log(`Failed requests: ${uniqFailed.length}${uniqFailed.length ? '\n  ' + uniqFailed.slice(0,20).map(u => 'REQ: ' + u).join('\n  ') : ''}`);
+  audit.failed_requests = uniqFailed;
   
   const tabsOk = Object.values(audit.tabs).filter(t => t.active && t.children > 10).length;
   const slidersOk = audit.sliders.mf_500 && audit.sliders.mf_1000 && audit.sliders.mf_preset_699 && audit.sliders.mf_preset_553;

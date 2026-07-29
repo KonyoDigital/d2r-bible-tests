@@ -24353,9 +24353,18 @@ _v40_whenReady(() => {
 // v1452 — REAL status first. The old order put sibling routine_status.js first; under
 // file://d2r_bible_tests that file is an EMPTY Playwright stub ({}), which on every 60s
 // refresh painted every letter inactive — red I (and any warn) flashed dim then back = "I keeps jumping".
+// v1455 — THE CI RED, ROOT CAUSE. The two absolute baker paths exist ONLY on Konyo's Mac. On any
+// other file:// host (the Linux CI runner, the Windows cousin) each injection is a guaranteed
+// net::ERR_FILE_NOT_FOUND, so EVERY page load logged exactly 2 console errors — which is what kept
+// Routine G at 7/8 and tripped the 76 "no console errors" specs. Invisible on the Mac because there
+// both files resolve. Only offer them when the page itself lives under /Users/<name>/.
+const _v41_ON_MAC_DISK = /^\/Users\/[^/]+\//.test(location.pathname);
 const _v41_STATUS_PATHS = [
-  '/Users/konyo/d2r_bible_routines/obsidian_data/routine_status.js',  // live baker output
-  '/Users/konyo/Downloads/routine_status.js',  // symlink to baker on this machine
+  // live baker output + the symlink to it — Mac-only, skipped everywhere else
+  ...(_v41_ON_MAC_DISK ? [
+    '/Users/konyo/d2r_bible_routines/obsidian_data/routine_status.js',
+    '/Users/konyo/Downloads/routine_status.js',
+  ] : []),
   'routine_status.js',  // last: Playwright stub (may be empty — rejected below)
 ];
 
@@ -35455,7 +35464,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1454', name:'v1454 · kill file:// 404s', date:'2026-07-30', note:'Eliminated the 2 net::ERR_FILE_NOT_FOUND on load — removed the empty-src d2art retry (fetched the page base on file://) and guarded the tv/frames/hist fallbacks to non-file:// only. Clears Routine G + the ~76 no-console-errors specs.' };
+  window.D2R_BUILD = { id:'v1455', name:'v1455 · CI red root cause', date:'2026-07-30', note:'REAL root of the 2 net::ERR_FILE_NOT_FOUND: the routine-status loader injected two /Users/konyo absolute baker paths on every file:// load — resolvable only on Konyo Mac, guaranteed 404s on the Linux CI runner and the Windows cousin. Now gated to /Users/<name>/ hosts. Also: the end-to-end audit now prints the URL of every failed request.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

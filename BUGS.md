@@ -751,6 +751,23 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   4. Button glow: Theatre owns lit when open; ON AIR lit only when live *and* Theatre closed.
 - **Prevention:** never co-paint live + history on the same CRT; background recording is a lamp/ribbon note, not a second film layer.
 
+## REG-047 — 2 file:// ERR_FILE_NOT_FOUND on every load = the long-running CI red (2026-07-30)
+- **Symptom:** Routine G stuck at 7/8 categories and ~76 "no console errors" specs red on EVERY push
+  (since ~v651), while the Mac was clean: `Page errors: 2 · CON: Failed to load resource: net::ERR_FILE_NOT_FOUND`.
+- **Root cause:** the v41 routine-status loader injected two ABSOLUTE Mac paths on every file:// load —
+  `/Users/konyo/d2r_bible_routines/obsidian_data/routine_status.js` and `/Users/konyo/Downloads/routine_status.js`.
+  On Konyo's Mac both resolve (first one returns live data, chain stops → 0 errors). On the Linux CI
+  runner both are guaranteed 404s before the repo stub answers → exactly 2 errors, every load.
+  v1454 mis-blamed the d2art empty-src retry + `tv/frames/hist` fallbacks (harmless; those guards stay).
+- **Fix (v1455):** `_v41_ON_MAC_DISK = /^\/Users\/[^/]+\//.test(location.pathname)` gates the two absolute
+  paths; off-Mac hosts (CI, Windows cousin) go straight to the sibling stub. `end_to_end_audit.js` now
+  prints the URL of every failed request — the bare console line named no file, which cost 3 blind rounds.
+- **Prove:** `tests/v1455_no_mac_absolute_paths.spec.ts` — copies bible.html to a NON-`/Users/` temp dir
+  (a CI-shaped host) and asserts 0 `file:///Users/…` requests + exactly 1 sibling `routine_status.js`.
+  Machine-independent by construction, so the Mac can no longer hide this class.
+- **Prevention:** a page must never fetch a machine-absolute path unless the page itself lives there;
+  any Mac-only resource gets a host gate + a non-`/Users/` spec.
+
 ## REG-046 — Windows install/launcher UTF-8 PS1 parse fail under Hebrew locale (2026-07-26)
 - **Symptom:** install-tvd.ps1 / start_tvd_win.ps1 ParserError; Desktop flash-close or IRM breaks.
 - **Root:** UTF-8 emoji/emdash; Windows PowerShell 5.1 + cp1255 mis-parses.
