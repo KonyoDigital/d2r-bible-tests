@@ -751,6 +751,22 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   4. Button glow: Theatre owns lit when open; ON AIR lit only when live *and* Theatre closed.
 - **Prevention:** never co-paint live + history on the same CRT; background recording is a lamp/ribbon note, not a second film layer.
 
+## REG-048 — 3 agent tests red on the Linux CI runner only (2026-07-30)
+- **Symptom:** `📺 TV DIABLO — agent tests` failed every push on ubuntu-latest (201 tests, 3 failures:
+  `test_to_jpeg_does_not_upscale_small_bmp`, `test_archive_bmp_is_real_jpeg_not_bmp_bytes`,
+  `test_prune_kills_derivative_twins_and_orphans`) while all 201 passed on the Mac.
+- **Root cause:** `_to_jpeg` has exactly two encoders — Mac `sips` and Windows System.Drawing. The Linux
+  runner has neither, so it returns False. Two of the tests assert ENCODER behaviour; the third only
+  needed a frame to archive (a BMP seed) before exercising prune + the orphan sweep.
+- **Fix (v1456):** `has_jpeg_encoder()` probes the platform ONCE by really converting a 4×4 BMP (no OS
+  sniffing) and `@needs_jpeg_encoder` skips the two encoder tests with a stated reason; the prune test now
+  seeds a real JPEG (`make_jpeg`) so prune/orphan logic runs on EVERY platform. `sips -g` dimension read
+  is separately gated (Windows encodes but ships no sips). Shared `make_real_bmp` helper.
+- **Prove:** Mac `python3 tv/test_agent.py` = 201 OK. Encoder-less simulation (`_to_jpeg` forced False) =
+  201 run, 0 failures, 2 honest skips — i.e. exactly what the runner now does.
+- **Prevention:** a test that needs a platform binary states that in a skip reason; logic tests get
+  platform-neutral fixtures instead of borrowing an encoder.
+
 ## REG-047 — 2 file:// ERR_FILE_NOT_FOUND on every load = the long-running CI red (2026-07-30)
 - **Symptom:** Routine G stuck at 7/8 categories and ~76 "no console errors" specs red on EVERY push
   (since ~v651), while the Mac was clean: `Page errors: 2 · CON: Failed to load resource: net::ERR_FILE_NOT_FOUND`.

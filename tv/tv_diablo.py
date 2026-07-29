@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1455"   # CI red root cause: routine-status loader no longer injects Mac-absolute baker paths off-Mac.
+VERSION = "v1456"   # CI green sweep: Linux-runner agent reds were a JPEG-encoder gap, not logic.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

@@ -17,6 +17,73 @@ def make_bmp(path, payload):
         f.write(payload)
 
 
+def make_real_bmp(path, w=32, h=32, rgb=(40, 80, 160)):
+    """v1455 — a STRUCTURALLY VALID 24-bit BMP (real dib header + padded rows), the only kind
+    sips/System.Drawing will convert. make_bmp above is header-shaped garbage: fine for frame_sig,
+    useless as encoder input."""
+    row = bytes(rgb) * w
+    pad = (4 - (w * 3) % 4) % 4
+    data = (row + b"\x00" * pad) * h
+    off = 54
+    hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
+    info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
+    with open(path, "wb") as f:
+        f.write(hdr + info + data)
+    return path
+
+
+# v1455 — a real 32×32 JPEG (SOI ff d8 ff), for tests that need a JPEG *source* rather than a
+# JPEG *encoder*. Lets platform-neutral logic (archive bookkeeping, prune, orphan sweep) run
+# everywhere, including the Linux CI runner.
+_TINY_JPEG_B64 = (
+    "/9j/4AAQSkZJRgABAQAASABIAAD/wAARCAAgACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAA"
+    "AAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0Kx"
+    "wRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4"
+    "eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl"
+    "5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQD"
+    "BAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygp"
+    "KjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOk"
+    "paanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9sAQwAEBAQE"
+    "BAQGBAQGCQYGBgkMCQkJCQwPDAwMDAwPEg8PDw8PDxISEhISEhISFRUVFRUVGRkZGRkcHBwcHBwcHBwc"
+    "/9sAQwEEBQUHBwcMBwcMHRQQFB0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0d"
+    "HR0dHR0dHR0d/90ABAAC/9oADAMBAAIRAxEAPwDhaKKK/PT9WCiiigD/0OFooor89P1YKKKKAP/Z"
+)
+
+
+def make_jpeg(path):
+    """Write the tiny real JPEG. Needs no platform encoder."""
+    import base64
+    with open(path, "wb") as f:
+        f.write(base64.b64decode(_TINY_JPEG_B64))
+    return path
+
+
+_JPEG_ENCODER = None
+
+
+def has_jpeg_encoder():
+    """v1455 — does THIS platform have a real BMP→JPEG encoder behind tv._to_jpeg?
+
+    Mac = sips, Windows = System.Drawing; the Linux CI runner has NEITHER, and the agent never
+    runs on Linux (D2R is Mac + Windows only). Three encoder-behaviour tests were therefore red
+    on every CI push for an environment reason. Probed ONCE by actually converting a real BMP —
+    no platform sniffing, so a runner that gains an encoder starts running the tests for free."""
+    global _JPEG_ENCODER
+    if _JPEG_ENCODER is None:
+        d = tempfile.mkdtemp()
+        src = make_real_bmp(os.path.join(d, "probe.bmp"), 4, 4)
+        dest = os.path.join(d, "probe.jpg")
+        try:
+            _JPEG_ENCODER = bool(tv._to_jpeg(src, dest, max_px=2560, quality=70)) and tv._is_real_jpeg(dest)
+        except Exception:
+            _JPEG_ENCODER = False
+    return _JPEG_ENCODER
+
+
+needs_jpeg_encoder = unittest.skipUnless(
+    has_jpeg_encoder(), "no BMP→JPEG encoder on this platform (Mac sips / Windows System.Drawing only)")
+
+
 class TestFrameSig(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp()
@@ -305,21 +372,13 @@ class TestFrameArchive(unittest.TestCase):
         self.assertEqual(fid, "3_1700000000000")
         self.assertTrue(os.path.isfile(tv.frame_path_for_id(fid)))
 
+    @needs_jpeg_encoder
     def test_archive_bmp_is_real_jpeg_not_bmp_bytes(self):
         """v1421 — Windows used to copy live.bmp into hist/{n}_{ts}.jpg (magic 42 4D).
         Archive path must land real JPEG SOI so Theatre + vision never see BMP-as-jpg.
-        v1450 — sips must NOT upscale 48px → HIST_MAX_PX (was 100KB+ 'JPEG' larger than the BMP)."""
-        import struct
-        bmp = os.path.join(self.d, "live.bmp")
-        w = h = 48
-        row = bytes([90, 40, 200]) * w
-        pad = (4 - (w * 3) % 4) % 4
-        data = (row + b"\x00" * pad) * h
-        off = 54
-        hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
-        info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
-        with open(bmp, "wb") as f:
-            f.write(hdr + info + data)
+        v1450 — sips must NOT upscale 48px → HIST_MAX_PX (was 100KB+ 'JPEG' larger than the BMP).
+        v1455 — BMP→JPEG needs a platform encoder; skipped where there is none (Linux CI)."""
+        bmp = make_real_bmp(os.path.join(self.d, "live.bmp"), 48, 48, (90, 40, 200))
         fid = tv.archive_read_frame(bmp, 8, 1_700_000_000_001)
         self.assertTrue(fid, "archive must succeed for BMP source")
         path = tv.frame_path_for_id(fid)
@@ -330,29 +389,24 @@ class TestFrameArchive(unittest.TestCase):
         self.assertLess(os.path.getsize(path), os.path.getsize(bmp),
                         "JPEG must not bloat past the tiny BMP (sips upsample regression)")
 
+    @needs_jpeg_encoder
     def test_to_jpeg_does_not_upscale_small_bmp(self):
-        """v1450 — sips --resampleHeightWidthMax upscales on macOS; we must not pass it for small src."""
-        import struct, subprocess
-        bmp = os.path.join(self.d, "tiny.bmp")
+        """v1450 — sips --resampleHeightWidthMax upscales on macOS; we must not pass it for small src.
+        v1455 — encoder-gated (Linux CI has none); the pixel-dimension read is sips-gated on top,
+        since Windows encodes via System.Drawing and ships no sips."""
+        import shutil as sh, subprocess
+        bmp = make_real_bmp(os.path.join(self.d, "tiny.bmp"), 32, 32, (10, 20, 30))
         dest = os.path.join(self.d, "tiny_out.jpg")
-        w = h = 32
-        row = bytes([10, 20, 30]) * w
-        pad = (4 - (w * 3) % 4) % 4
-        data = (row + b"\x00" * pad) * h
-        off = 54
-        hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
-        info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
-        with open(bmp, "wb") as f:
-            f.write(hdr + info + data)
         self.assertTrue(tv._to_jpeg(bmp, dest, max_px=2560, quality=82))
         self.assertTrue(tv._is_real_jpeg(dest))
         self.assertLess(os.path.getsize(dest), os.path.getsize(bmp))
-        r = subprocess.run(
-            ["sips", "-g", "pixelWidth", "-g", "pixelHeight", dest],
-            capture_output=True, text=True, timeout=5)
-        out = r.stdout or ""
-        self.assertIn("pixelWidth: 32", out.replace("  ", " "))
-        self.assertIn("pixelHeight: 32", out.replace("  ", " "))
+        if sh.which("sips"):
+            r = subprocess.run(
+                ["sips", "-g", "pixelWidth", "-g", "pixelHeight", dest],
+                capture_output=True, text=True, timeout=5)
+            out = r.stdout or ""
+            self.assertIn("pixelWidth: 32", out.replace("  ", " "))
+            self.assertIn("pixelHeight: 32", out.replace("  ", " "))
 
     def test_frame_path_rejects_traversal(self):
         self.assertEqual(tv.frame_path_for_id("../etc/passwd"), "")
@@ -2008,20 +2062,12 @@ class TestOneBudget(unittest.TestCase):
             # orphan derivative with no source
             with open(os.path.join(d, "cache1280", "999_999.jpg"), "wb") as f:
                 f.write(b"o" * 100)
-            # v1450 — seed must be a REAL small BMP (BM+DDD… is not convertible; archive
-            # returned "" before prune, so the orphan never died). Valid 32×32 BMP lands JPEG
-            # and runs the orphan sweep.
-            import struct
-            src = os.path.join(d, "seed.bmp")
-            w = h = 32
-            row = bytes([40, 80, 160]) * w
-            pad = (4 - (w * 3) % 4) % 4
-            data = (row + b"\x00" * pad) * h
-            off = 54
-            hdr = struct.pack("<2sIHHI", b"BM", off + len(data), 0, 0, off)
-            info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
-            with open(src, "wb") as f:
-                f.write(hdr + info + data)
+            # v1450 — the seed must actually ARCHIVE (a header-shaped BM+DDD… is not convertible;
+            # archive returned "" before prune ran, so the orphan never died).
+            # v1455 — seed a real JPEG, not a BMP: this test is about prune + the orphan sweep, and
+            # a BMP seed needs a platform encoder, which made it red on the Linux CI runner for an
+            # environment reason. BMP→JPEG conversion is covered by TestFrameArchive.
+            src = make_jpeg(os.path.join(d, "seed.jpg"))
             fid = tv.archive_read_frame(src, 99, 999999)
             self.assertTrue(fid, "archive must land so the orphan sweep runs")
             live = {f for f in os.listdir(d) if f.endswith(".jpg")}
