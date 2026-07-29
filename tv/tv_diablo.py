@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1453"   # Routine I: pin letter colors after first paint (no auto retint).
+VERSION = "v1454"   # kill 2 file:// ERR_FILE_NOT_FOUND on bible load (empty-src retry + hist fallback guard).
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

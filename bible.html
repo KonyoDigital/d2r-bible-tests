@@ -14123,7 +14123,7 @@ function artOr(name, fallbackHtml, size){
   // alt="" → the art is decorative (the item name is always rendered adjacent); this stops
   // the name from being duplicated into copied text / shown as broken-image alt on platforms
   // where the diablo2.io hotlink is blocked. Accessible name lives on the wrapper aria-label.
-  return `<span class="d2art-wrap ${size||'lg'}${_rcls}" role="img" aria-label="${_d2artEsc(name)}"><img class="d2art-img" src="${u}" alt="" loading="lazy" decoding="async" onload="this.parentNode.classList.remove('d2art-failed')" onerror="if(this.dataset.r){this.parentNode.classList.add('d2art-failed')}else{this.dataset.r=1;var s=this.src;this.src='';this.src=s}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
+  return `<span class="d2art-wrap ${size||'lg'}${_rcls}" role="img" aria-label="${_d2artEsc(name)}"><img class="d2art-img" src="${u}" alt="" loading="lazy" decoding="async" onload="this.parentNode.classList.remove('d2art-failed')" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
 }
 window.artOr = artOr;
 // Unified drop-row logo: render the registered in-game art thumbnail (lazy, graceful)
@@ -35455,7 +35455,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1453', name:'v1453 · pin routine letters', date:'2026-07-28', note:'Letter colors (esp. red I) paint once then pin; 60s poll only updates fires counter; ↻ force-refreshes.' };
+  window.D2R_BUILD = { id:'v1454', name:'v1454 · kill file:// 404s', date:'2026-07-30', note:'Eliminated the 2 net::ERR_FILE_NOT_FOUND on load — removed the empty-src d2art retry (fetched the page base on file://) and guarded the tv/frames/hist fallbacks to non-file:// only. Clears Routine G + the ~76 no-console-errors specs.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -37046,7 +37046,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       img.__fb = 0;
       img.onload = function(){ lb.hidden = false; };
       img.onerror = function(){
-        if (!img.__fb){ img.__fb = 1; img.src = 'tv/frames/hist/' + String(id) + '.jpg'; return; }
+        if (!img.__fb && location.protocol !== 'file:'){ img.__fb = 1; img.src = 'tv/frames/hist/' + String(id) + '.jpg'; return; }
         lb.hidden = false;
         if (tit) tit.textContent = '👁 frame missing (agent off + no archive) · ' + (id || 'latest');
       };
@@ -37087,7 +37087,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     // server (or file://) can reach, placeholder only when both fail.
     return '<img class="tvd-frame-thumb" src="'+escAttr(src)+'" alt="AI frame" loading="lazy" decoding="async" width="112" height="70" title="'+escAttr(title)+'"'
       +' data-frame="'+id+'" data-n="'+n+'" data-scene="'+escAttr(sc)+'"'
-      +' onerror="if(!this.__fb){this.__fb=1;this.src=\'tv/frames/hist/'+id+'.jpg\';}else{this.outerHTML=\'<div class=tvd-frame-ph>frame offline</div>\';}">';
+      +' onerror="if(!this.__fb&&location.protocol!==\'file:\'){this.__fb=1;this.src=\'tv/frames/hist/'+id+'.jpg\';}else{this.outerHTML=\'<div class=tvd-frame-ph>frame offline</div>\';}">';
   }
   // delegate clicks (safer than inline JS with scene strings)
   try {
@@ -37572,7 +37572,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     if(film){
       if(b.frame){
         film.__fb = 0; film.style.opacity = 1; film.src = frameSrc(b.frame);
-        film.onerror = function(){ if(!film.__fb){ film.__fb = 1; film.src = 'tv/frames/hist/'+String(b.frame)+'.jpg'; } else { film.style.opacity = .12; } };
+        film.onerror = function(){ if(!film.__fb && location.protocol !== 'file:'){ film.__fb = 1; film.src = 'tv/frames/hist/'+String(b.frame)+'.jpg'; } else { film.style.opacity = .12; } };
       } else { film.removeAttribute('src'); film.style.opacity = .12; }   // honest: caption-only beat
     }
     var capEl = document.getElementById('tvz-th-caption'); if(capEl) capEl.innerHTML = thzCaption(b);
