@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1486",
+  "ver": "v1487",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1486: Konyo asked for a unique generated login symbol so his cousin knows whose console he is in, and a way to compare them. v1465 built it and left a comment saying window.TVD_SIGIL is exposed so tests can assert determinism - and no test was ever written, so the three properties the feature rests on were unchecked. It must be STABLE (same install, same sigil forever, or it cannot mean this is mine), DISTINCT (two installs differ, or it cannot mean this is not yours) and HONEST (the colour and the name agree). The last one is not hypothetical: the first cut hashed the adjective and the hue separately and rendered AMBER ANVIL in blue, defeating the point, since the whole job of the chip is that a colour seen across a room and a name said out loud describe the same console. The test runs the SHIPPED generator in a real JS engine over 204 installs and pins all three, plus that an install with no id yields no sigil at all. Mutation-verified by un-locking the hue, which reproduces the historical bug and is reported by name.",
+  "note": "v1487: The bug that started this run was the desktop icon giving two black terminal flashes and nothing else. The launcher is the single point where a mistake presents as the product not existing - no dialog, no log the user thinks to open, just an icon that does nothing. Both surfaces got a syntax gate at v1476; the launcher never did. Two invariants now hold it. ENCODING: ASCII with a UTF-8 BOM, because PowerShell 5.1 decides a BOM-less file by the system codepage, which here is Hebrew cp1255, so one smart quote decodes to mojibake and fails far from its cause; the file was ASCII-cleaned by hand once and nothing has held it since. SYNTAX: checked with PowerShell own parser, for the same reason the JS gate uses a real browser - only the actual engine decides what parses. Mutation-verified both ways: an unterminated string is reported with its line number, and a single smart-quote byte with its offset.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

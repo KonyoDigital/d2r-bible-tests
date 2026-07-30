@@ -1,4 +1,28 @@
 
+## v1487 — 2026-07-31 — the launcher stays launchable
+
+The bug that started this whole run was Konyo double-clicking the TV DIABLO icon and getting two
+black terminal flashes and nothing else. The launcher is the one file whose failure presents as
+*the product not existing*: no error dialog, no log the user would think to open, just an icon that
+does nothing. Both surfaces got a syntax gate at v1476. The launcher never did.
+
+Two invariants now hold it, and both have already cost a session:
+
+* **ENCODING** — ASCII with a UTF-8 BOM. PowerShell 5.1 decides a BOM-less file's encoding by the
+  system codepage, which on this machine is Hebrew cp1255, so a single smart quote or box character
+  decodes to mojibake and fails somewhere far from the character that caused it. The file was
+  ASCII-cleaned by hand once; nothing had held it since.
+* **SYNTAX** — checked with PowerShell's own parser, for exactly the reason the JS gate uses a real
+  browser: only the actual engine gets to decide what parses.
+
+Mutation-verified in both directions — an unterminated string is reported with its line number
+(`PARSE_ERROR: 480: The string is missing the terminator`), and one smart-quote byte with its
+offset (`3 non-ASCII byte(s), first at offset 21437`).
+
+Gates: test_control **286 OK**.
+
+---
+
 ## v1486 — 2026-07-31 — the sigil keeps its three promises
 
 Konyo: *"how can there like really be a unique generated login symbol logo for a profile so my

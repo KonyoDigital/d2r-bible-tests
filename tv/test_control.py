@@ -4113,6 +4113,66 @@ class TestProfileSigil(unittest.TestCase):
             "distinguishing consoles well before that." % (dupes, len(allsig)))
 
 
+class TestLauncherStaysLaunchable(unittest.TestCase):
+    """v1487 — the launcher is the one file whose failure looks like "the app is gone".
+
+    The bug that started this whole run was Konyo double-clicking the TV DIABLO icon and getting
+    two black terminal flashes and nothing else. The launcher is the single point where a mistake
+    presents as the product not existing — there is no error dialog, no log the user thinks to
+    open, just an icon that does nothing. Both surfaces get a syntax gate (v1476); the launcher
+    never got one.
+
+    Two invariants, both of which have already cost a session:
+
+    ENCODING — the file is ASCII with a UTF-8 BOM. PowerShell 5.1 decides a BOM-less file's
+    encoding by the system codepage, and on this machine that is Hebrew cp1255. A single smart
+    quote or box-drawing character then decodes to mojibake, and the failure surfaces far from the
+    character that caused it. The file was ASCII-cleaned by hand once; nothing has held it since.
+
+    SYNTAX — a parse error means the icon does nothing at all. Checked with PowerShell's own
+    parser, for the same reason the JS gate uses a real browser: only the actual engine gets to
+    decide what parses.
+    """
+
+    PS1 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "start_tvd_win.ps1")
+
+    def test_launcher_is_ascii_with_a_bom(self):
+        with open(self.PS1, "rb") as fh:
+            raw = fh.read()
+        self.assertTrue(
+            raw.startswith(b"\xef\xbb\xbf"),
+            "start_tvd_win.ps1 lost its UTF-8 BOM. Without it PowerShell 5.1 falls back to the "
+            "system codepage (Hebrew cp1255 here), so any non-ASCII byte decodes to mojibake and "
+            "fails somewhere far from its cause.")
+        bad = [(i, raw[i]) for i in range(3, len(raw)) if raw[i] > 127]
+        self.assertEqual(
+            bad, [],
+            "%d non-ASCII byte(s) in the launcher, first at offset %s. Keep it plain ASCII: this "
+            "file runs before anything can report an error, so a decoding problem here shows up as "
+            "an icon that does nothing." % (len(bad), bad[0][0] if bad else "-"))
+
+    def test_launcher_parses_in_powershell(self):
+        if not sys.platform.startswith("win"):
+            self.skipTest("PowerShell parser is Windows-only")
+        exe = shutil.which("powershell") or shutil.which("pwsh")
+        if not exe:
+            self.skipTest("no PowerShell on PATH — cannot verify launcher syntax")
+        script = (
+            "$errs = $null; $toks = $null; "
+            "[void][System.Management.Automation.Language.Parser]::ParseFile("
+            "'%s', [ref]$toks, [ref]$errs); "
+            "if ($errs -and $errs.Count) { $errs | ForEach-Object { "
+            "'PARSE_ERROR: ' + $_.Extent.StartLineNumber + ': ' + $_.Message } } "
+            "else { 'PARSE_OK' }" % self.PS1.replace("'", "''")
+        )
+        r = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", script],
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=120)
+        out = (r.stdout or "") + (r.stderr or "")
+        self.assertIn("PARSE_OK", out,
+                      "the launcher does not parse — the desktop icon would do NOTHING:\n" + out)
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
