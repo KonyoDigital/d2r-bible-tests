@@ -2412,16 +2412,30 @@
   /* v1424 — DOM is already Ⅰ HUNT → taskforce → Ⅱ MISSIONS → forge → Ⅲ RECORD → kpi…
      CSS order kept as belt-and-suspenders (matches document order; crest/hero still lead). */
   .hub-bible { order: -1; }
-  .zone-hunt { order: 1; } #hd-taskforce { order: 2; }
-  .zone-mission { order: 3; } #hd-forge { order: 4; }
-  .zone-record { order: 5; } #hd-kpi { order: 6; } #hd-tallybar { order: 7; } #hd-lastsession { order: 8; } #hd-history { order: 9; }
-  /* ══ v1467 (SESSIONS R6 · no banner over nothing) — a zone numeral must never announce an empty
-     movement. #hd-taskforce and #hd-lastsession both ship `hidden` and are only revealed inside
-     `if (rows.length)`, behind an early-return signature check and a try/catch that swallows
-     failures — so before the first poll, or after any throw, "Ⅰ THE HUNT" rendered as a heading
-     over blank space. A banner whose body is hidden now hides itself. Pure CSS, no JS coupling,
-     so it can never disagree with whatever the render path decides. ══ */
-  .home-dash > .zone-banner:has(+ .hd-col[hidden]) { display: none; }
+  /* ══ v1468 (SESSIONS R7) — the nine `order:` values that used to re-sequence a FLAT dash are
+     gone. They existed because banner and body were siblings in one grid; each zone is now a
+     <section> that owns its own banner and cards, so DOM order alone is the storyline and there
+     is nothing left to re-sequence. (v1424 already made the DOM the source of truth — the order
+     values had been redundant since, and a second ordering system is exactly how "zones read out
+     of order" happens.) The hub-* blocks keep their negative order: they are still siblings of
+     the sections and deliberately sit above zone Ⅰ. ══ */
+  .zone {
+    grid-column: 1 / -1;                 /* a movement always spans the dash */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: var(--hd-gap);
+    align-content: start;
+    grid-auto-rows: max-content;
+    min-width: 0;
+  }
+  .zone > .zone-banner { grid-column: 1 / -1; }   /* the banner heads its own zone, not the dash */
+  /* A zone with no visible body hides itself — banner included. Replaces the v1467 sibling-
+     adjacency rule, which could only ever see the ONE card directly after the banner; a section
+     can ask about all of its bodies at once, which is what "this movement has nothing to show"
+     actually means. */
+  .zone:not(:has(> .hd-col:not([hidden]))) { display: none; }
+  /* v1467's sibling-adjacency version of this rule was superseded by the section-level rule
+     above in v1468 — a section can ask about ALL its bodies, an adjacent sibling only the next. */
   /* v1374 — the re-homed TALLY ENGINE launcher: a slim, always-visible bar in the RECORD zone (blue group) */
   #hd-tallybar { padding: var(--hd-pad-compact-y) var(--hd-pad-x); border-color: rgba(126,200,255,.2); }
   /* the ENGINE cards belong on TV-D, not the Sessions hunt hub — re-homed off here */
@@ -3125,43 +3139,57 @@
       <!-- v1424 — DOM is the source of truth for Sessions storyline order (no CSS-order only).
            Was: banners stacked (ⅠⅡⅢ) then content mixed later → zones read out of order when order
            failed / half-width pairing shifted. Now each movement owns its banner + body in sequence. -->
+      <!-- ══ v1468 (SESSIONS R7 · ZONES OWN THEIR BODIES) — each movement is now a <section> that
+           contains its own banner AND its own cards, with its own inner grid. Before this, banner
+           and body were SIBLINGS in one flat dash grid that neither controlled, and every Sessions
+           complaint was downstream of that: a banner could render over an empty body (REG-062),
+           full-width banners forced row breaks so half-width cards sat alone beside dead column,
+           and nine `order:` values existed purely to re-sequence a flat list. A zone now hides
+           itself when it has nothing to show, and its cards pair inside it. ══ -->
       <!-- Ⅰ THE HUNT — what to hunt today (task force) -->
-      <div class="zone-banner zone-hunt"><span class="zb-no">Ⅰ</span><span class="zb-ico">🏆</span>THE HUNT<span class="zb-sub">what to hunt today</span></div>
-      <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
-        <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
-        <div class="hd-tf-rows" id="hd-tf-rows"></div>
-      </div>
+      <section class="zone">
+        <div class="zone-banner zone-hunt"><span class="zb-no">Ⅰ</span><span class="zb-ico">🏆</span>THE HUNT<span class="zb-sub">what to hunt today</span></div>
+        <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
+          <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
+          <div class="hd-tf-rows" id="hd-tf-rows"></div>
+        </div>
+      </section>
       <!-- Ⅱ THE MISSIONS — forge & craft -->
-      <div class="zone-banner zone-mission"><span class="zb-no">Ⅱ</span><span class="zb-ico">📋</span>THE MISSIONS<span class="zb-sub">forge &amp; craft — what to make</span></div>
-      <div class="hd-col" id="hd-forge">
-        <div class="hd-h">🔥 FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
-        <div class="hd-chips" id="hd-forge-chips"><span class="hd-empty">open the board's Forge once — quests land here</span></div>
-      </div>
+      <section class="zone">
+        <div class="zone-banner zone-mission"><span class="zb-no">Ⅱ</span><span class="zb-ico">📋</span>THE MISSIONS<span class="zb-sub">forge &amp; craft — what to make</span></div>
+        <div class="hd-col" id="hd-forge">
+          <div class="hd-h">🔥 FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
+          <div class="hd-chips" id="hd-forge-chips"><span class="hd-empty">open the board's Forge once — quests land here</span></div>
+        </div>
+      </section>
       <!-- Ⅲ THE RECORD — chronicle of runs -->
-      <div class="zone-banner zone-record"><span class="zb-no">Ⅲ</span><span class="zb-ico">🗂</span>THE RECORD<span class="zb-sub">the chronicle of your runs</span></div>
-      <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs -->
-      <!-- v1467 — label rhythm: #hd-lastsession and #hd-history below both open with the canonical
-           .hd-h gold-bar header, so these two floated unnamed exactly where the NUMBERS are. -->
-      <div class="hd-col hd-wide hd-kpi" id="hd-kpi">
-        <div class="hd-h">📊 PRODUCTIVITY</div>
-        <div class="kpi-row" id="kpi-row"></div>
-      </div>
-      <!-- v1374 — TALLY ENGINE launcher in the RECORD zone -->
-      <div class="hd-col hd-wide hd-tallybar" id="hd-tallybar">
-        <div class="hd-chips" id="hd-tallybar-chips"></div>
-      </div>
-      <!-- v936 (STORY ARC R2b) — LAST SESSION digest -->
-      <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
-        <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
-        <div class="hd-tf-rows" id="hd-ls-row"></div>
-      </div>
-      <!-- v1275 (SESSIONS FLAGSHIP D3) — HISTORY as first-class board region (collapsible) -->
-      <div class="hd-col hd-wide hd-history hist-collapsed" id="hd-history">
-        <div class="hd-h hd-hist-head" id="hd-hist-head" role="button" tabindex="0" aria-expanded="false" title="tap to expand your run history">
-          <span class="hh-chev" id="hh-chev" aria-hidden="true">▸</span> 🗂 HISTORY <span class="hd-sub" id="hd-hist-sub">every recorded run</span>
-          <button type="button" class="hd-hist-all" id="hd-hist-all" title="open the full shelf — every recorded run">see all →</button></div>
-        <div class="hd-hist-strip" id="hd-hist-strip"></div>
-      </div>
+      <section class="zone">
+        <div class="zone-banner zone-record"><span class="zb-no">Ⅲ</span><span class="zb-ico">🗂</span>THE RECORD<span class="zb-sub">the chronicle of your runs</span></div>
+        <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs -->
+        <!-- v1467 — label rhythm: #hd-lastsession and #hd-history below both open with the canonical
+             .hd-h gold-bar header, so these two floated unnamed exactly where the NUMBERS are. -->
+        <div class="hd-col hd-wide hd-kpi" id="hd-kpi">
+          <div class="hd-h">📊 PRODUCTIVITY</div>
+          <div class="kpi-row" id="kpi-row"></div>
+        </div>
+        <!-- v1374 — TALLY ENGINE launcher in the RECORD zone -->
+        <div class="hd-col hd-wide hd-tallybar" id="hd-tallybar">
+          <div class="hd-chips" id="hd-tallybar-chips"></div>
+        </div>
+        <!-- v936 (STORY ARC R2b) — LAST SESSION digest -->
+        <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
+          <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
+          <div class="hd-tf-rows" id="hd-ls-row"></div>
+        </div>
+        <!-- v1275 (SESSIONS FLAGSHIP D3) — HISTORY as first-class board region (collapsible).
+             v1468 — it closes the RECORD zone from INSIDE the section, where it belongs. -->
+        <div class="hd-col hd-wide hd-history hist-collapsed" id="hd-history">
+          <div class="hd-h hd-hist-head" id="hd-hist-head" role="button" tabindex="0" aria-expanded="false" title="tap to expand your run history">
+            <span class="hh-chev" id="hh-chev" aria-hidden="true">▸</span> 🗂 HISTORY <span class="hd-sub" id="hd-hist-sub">every recorded run</span>
+            <button type="button" class="hd-hist-all" id="hd-hist-all" title="open the full shelf — every recorded run">see all →</button></div>
+          <div class="hd-hist-strip" id="hd-hist-strip"></div>
+        </div>
+      </section>
       <!-- Engine cards: hidden on Sessions (live on TV·D rail); kept in DOM for painters -->
       <div class="hd-col hd-wide hd-enghealth" id="hd-enghealth">
         <div class="hd-h">🩺 ENGINE HEALTH <span class="hd-sub">the whole loop, one pulse · capture → readers → router → funnels → ledger</span>

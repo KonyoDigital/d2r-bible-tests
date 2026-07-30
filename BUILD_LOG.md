@@ -1,4 +1,49 @@
 
+## v1468 — 2026-07-30 — Sessions zones are real sections that own their bodies
+
+The audit's "single highest-leverage change", and the root every other Sessions complaint hung
+off: **banner and body were SIBLINGS in one flat dash grid that neither of them controlled.**
+
+Each movement is now a `<section class="zone">` containing its own banner AND its own cards, with
+its own inner grid (`auto-fit / minmax(360px, 1fr)`). Consequences, all structural rather than
+cosmetic:
+
+- **A zone hides itself when it has nothing to show** — banner included —
+  via `.zone:not(:has(> .hd-col:not([hidden])))`. This supersedes v1467's sibling-adjacency rule,
+  which could only ever inspect the ONE card directly after the banner. A section can ask about
+  **all** its bodies at once, which is what "this movement has nothing to show" actually means.
+- **The nine `order:` values are gone.** They existed solely to re-sequence a flat list. v1424 had
+  already made the DOM the source of truth, so they had been redundant scaffolding since — and a
+  second, parallel ordering system is precisely how "zones read out of order" happens in the first
+  place. DOM order is now the only storyline. `hub-*` keeps its negative order: those blocks are
+  still siblings of the sections and deliberately sit above zone Ⅰ.
+- **Cards pair inside their own zone** rather than against a dash-wide grid that a full-width
+  banner kept interrupting.
+
+### The guard caught me, and then I proved the guard
+`test_control.py::test_zone_content_interleaved` went red immediately. Its extractor used a
+NON-GREEDY `<section class="home-dash">([\s\S]*?)</section>`, which now stops at the first ZONE's
+close, so it only ever saw zone Ⅰ. The test's INTENT — banners and bodies interleaved in the right
+storyline order — is still exactly right and its `expected` list is unchanged; only the extraction
+had to learn about nesting. It now scans forward balancing section tags.
+
+Second trap inside that fix: the scan counted the words `<section>` **inside my own v1468 HTML
+comments** as real tags, so it never reached depth 0 and failed with "home-dash section never
+closes". Comments are stripped before scanning now.
+
+Because "I edited a failing test until it passed" is the easiest way to destroy a guard, it was
+**mutation-tested**: swapping THE MISSIONS ahead of THE HUNT in the DOM makes it fail, restoring
+makes it pass. The guard is alive, not asleep.
+
+- **Verify:** rendered-DOM check (not source-regex) confirms **3 `section.zone`** elements with
+  all six bodies nested inside them · `control_ui.html` parses in Chromium with no `SyntaxError` ·
+  mutation test proves the order guard still bites · visual-lock invariant GREEN · `test_agent`
+  **201 OK** · `test_control` **267 OK**, plain shell · live screenshot read back: THE RECORD
+  renders as one coherent zone, Ⅰ/Ⅱ correctly absent, layout intact · stamps parity v1468.
+- **Still unspent:** four near-identical card surfaces (`.kpi` / `.hh-card` / `.hd-card` /
+  `.eh-organ`) that should collapse onto `.hd-col`, and `.hh-name` at 43px still out-ranking
+  `.kpi-v` at 22px — decoration larger than data.
+
 ## v1467 — 2026-07-30 — Sessions structure: the surface stops looking accumulated
 
 Spending the Sessions audit that had been sitting unused. Konyo's ask was that the console read

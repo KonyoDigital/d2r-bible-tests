@@ -435,9 +435,24 @@ class TestSessionsHomeDashOrder(unittest.TestCase):
         ui = os.path.join(HERE, "control_ui.html")
         with open(ui, encoding="utf-8") as f:
             html = f.read()
-        m = re.search(r'<section class="home-dash"[^>]*>([\s\S]*?)</section>', html)
-        self.assertIsNotNone(m, "home-dash section missing")
-        sec = m.group(1)
+        # v1468 — the dash now CONTAINS <section class="zone"> wrappers (one per movement), so a
+        # non-greedy ...</section> stopped at the first ZONE's close and only ever saw zone Ⅰ.
+        # Scan forward balancing section tags to get the real home-dash body. The assertion below
+        # is unchanged: the storyline order this guards is exactly the same, it is only the
+        # container nesting that moved.
+        # Strip HTML comments first: the v1468 notes discuss "<section>" in prose, and a naive
+        # tag scan counts those words as real tags (this exact trap cost a debug cycle).
+        html = re.sub(r"<!--[\s\S]*?-->", "", html)
+        start = html.index('<section class="home-dash"')
+        i, depth, end = html.index(">", start) + 1, 1, None
+        for mm in re.finditer(r"<section\b|</section>", html[i:]):
+            depth += 1 if mm.group(0).startswith("<section") else -1
+            if depth == 0:
+                end = i + mm.start()
+                break
+        self.assertIsNotNone(end, "home-dash section never closes")
+        sec = html[i:end]
+        self.assertIn('class="zone"', sec, "v1468 — each movement must be its own <section class='zone'>")
         # track zone banners + main board ids in document order
         tokens = re.findall(
             r'class="zone-banner (zone-[a-z]+)"|id="(hd-(?:taskforce|forge|kpi|tallybar|lastsession|history))"',

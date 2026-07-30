@@ -1214,3 +1214,23 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** an "empty state" that only triggers at exactly zero will always have a near-
   empty neighbour that looks broken. Style by VALUE (is this number meaningful yet?), not only by
   COUNT (does any row exist?).
+
+## REG-064 — a structural refactor broke the guard that watched it (2026-07-30)
+- **Symptom:** wrapping each Sessions movement in `<section class="zone">` turned
+  `test_control.py::test_zone_content_interleaved` red instantly.
+- **Root cause:** the test extracted the dash with a NON-GREEDY
+  `<section class="home-dash">([\s\S]*?)</section>`, which stopped at the first ZONE's closing
+  tag once zones became sections — so it only ever inspected zone Ⅰ. The test's intent and its
+  `expected` list were still correct; only the extraction was structure-dependent.
+- **Second trap inside the fix:** the balanced tag scan counted the words `<section>` appearing in
+  the new HTML COMMENTS as real tags, so depth never returned to 0 and it failed with
+  "home-dash section never closes". Comments are stripped before scanning now.
+- **The real risk here is not the red test, it is the temptation.** Editing a failing test until
+  it passes silently destroys the guard, and this one protects a storyline order that has already
+  regressed twice (v1424, v1449). So it was MUTATION-TESTED after the fix: swapping THE MISSIONS
+  ahead of THE HUNT makes it fail; restoring makes it pass. Verified alive, not assumed.
+- **Prevention:** (1) a test that parses structure with a regex is coupled to that structure —
+  when a refactor reddens it, fix the EXTRACTION and leave the ASSERTION untouched, then prove it
+  still fails on a real violation; (2) never balance-scan markup without stripping comments first;
+  (3) any "fix" to a guard must be followed by a mutation check, or you have shipped a test that
+  can only pass.
