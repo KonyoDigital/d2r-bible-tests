@@ -1,4 +1,30 @@
 
+## v1479 — 2026-07-31 — forked keys must be ROUTED (the family, not the instance)
+
+Three defects have now shipped from one root — REG-069 (`d2r_rwMade` read raw), REG-075 (a
+differently-named gate), REG-076 (the console's private `lsFork`) — and each was fixed on its own
+while the family kept producing new members. All three passed a careful reading; the third took a
+user report. The class is invisible to review because wrong code looks exactly like right code:
+the only difference is which accessor it went through.
+
+So the invariant is now mechanical. `TestForkedKeysAreRouted` fails any raw
+`localStorage.getItem/setItem/removeItem` on a key in `_LP_FORKED`/`_WP_FORKED`, in either surface,
+that did not go through `LSR.*` (board) or `lsFork()` (console). The fork sets are parsed out of
+`bible.html` at test time, so adding a key to a set extends the gate automatically — no second list.
+
+The eight legitimate raw sites are the one-time `L·`→bare migrations, which must name a namespace
+explicitly regardless of which world is active. They stay legal behind an inline
+`/* raw-ok: … */` marker, making each exemption deliberate and reviewable. A second test bounds the
+hatch: at most 12 exemptions (so it cannot become a habit) and at least one (so a rewrite that
+dropped the markers cannot leave the gate passing untested against real raw code).
+
+Mutation-verified: an injected raw read of `d2r_forgeSummary` is caught with file, line, the
+offending call, and the two routed alternatives.
+
+Gates: JS syntax OK · visual-lock OK · test_control **273 OK** · py_compile OK.
+
+---
+
 ## v1478 — 2026-07-30 — the console reads the ACTIVE world · one rule, one source
 
 Konyo: *"the sessions feels still like its attached to my macbook profile. but i want this fresh

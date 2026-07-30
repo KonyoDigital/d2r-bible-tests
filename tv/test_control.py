@@ -3596,6 +3596,81 @@ class TestConsoleReadsTheActiveWorld(unittest.TestCase):
             "the false claim that the machine fork never applies is back — that comment WAS the bug")
 
 
+class TestForkedKeysAreRouted(unittest.TestCase):
+    """v1479 — close the bug FAMILY, not just the third instance.
+
+    Three separate defects have now shipped from the same root: a key that belongs to a per-machine
+    or per-account world was reached WITHOUT going through the router.
+
+      REG-069  d2r_rwMade read raw          -> the cousin saw the owner's forged runewords
+      REG-075  a differently-named gate     -> the Forge counts contradicted its own note
+      REG-076  the console's private lsFork -> a fresh PC showed the owner's 243/403 chronicle
+
+    Every one of them passed a careful code reading, and the third took a user report to find. So
+    the invariant is enforced mechanically: if a key is in `_LP_FORKED` or `_WP_FORKED`, the only
+    ways to touch it are `LSR.*` (the board) or `lsFork()` (the console).
+
+    Raw access is still legal where it is the POINT — the one-time migrations that must address
+    `L·`/`W·` namespaces explicitly, regardless of which world is active. Those sites carry an
+    inline `/* raw-ok: … */` marker, which makes the exemption a deliberate, reviewable act rather
+    than an accident. A new unmarked raw access fails here.
+    """
+
+    RAW = re.compile(r"(window\.localStorage|localStorage|RAW)\.(getItem|setItem|removeItem)"
+                     r"\(\s*'(d2r_\w+)'")
+
+    def _fork_sets(self, board):
+        lp = set(re.findall(r'"(d2r_\w+)"', re.search(
+            r"window\._LP_FORKED = new Set\(\[(.*?)\]\)", board, re.S).group(1)))
+        extra = set(re.findall(r"'(d2r_\w+)'", re.search(
+            r"window\._WP_FORKED = new Set\(Array\.from\(window\._LP_FORKED\)\.concat\(\[(.*?)\]\)",
+            board, re.S).group(1)))
+        return lp, lp | extra
+
+    def test_no_unrouted_access_to_a_forked_key(self):
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(repo, "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        lp, wp = self._fork_sets(board)
+        # sanity: the sets must be real, or this gate silently passes on everything
+        self.assertGreater(len(lp), 30, "the ladder fork set looks wrong — gate would be toothless")
+        self.assertGreater(len(wp), len(lp), "the windows fork set must extend the ladder set")
+
+        offenders = []
+        for rel in ("bible.html", os.path.join("tv", "control_ui.html")):
+            with open(os.path.join(repo, rel), encoding="utf-8") as fh:
+                src = fh.read()
+            for n, line in enumerate(src.split("\n"), 1):
+                if "raw-ok:" in line:
+                    continue
+                for m in self.RAW.finditer(line):
+                    if m.group(3) in wp:
+                        offenders.append("%s:%d  %s.%s('%s')"
+                                         % (rel, n, m.group(1), m.group(2), m.group(3)))
+        self.assertEqual(
+            offenders, [],
+            "these touch a per-world key WITHOUT the router — this is the REG-069/075/076 family, "
+            "and it leaks one person's progress onto another person's machine:\n  "
+            + "\n  ".join(offenders)
+            + "\nUse LSR.* (board) or lsFork() (console). If the raw access is deliberate — a "
+              "migration that must name L·/W· explicitly — mark the line /* raw-ok: why */.")
+
+    def test_the_marker_cannot_silence_the_whole_file(self):
+        """A guard with an escape hatch needs its hatch bounded: `raw-ok` exempts ONE line, and the
+        exemptions must stay few enough that nobody can wave the gate away wholesale."""
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        total = 0
+        for rel in ("bible.html", os.path.join("tv", "control_ui.html")):
+            with open(os.path.join(repo, rel), encoding="utf-8") as fh:
+                total += sum(1 for ln in fh if "raw-ok:" in ln)
+        self.assertLessEqual(
+            total, 12,
+            "%d raw-ok exemptions — the hatch is being used as a habit. Each one is a place the "
+            "router does not protect; route them instead." % total)
+        self.assertGreater(total, 0, "the deliberate migration markers vanished — did a rewrite "
+                                     "drop them? The gate would now be untested against real raw code.")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

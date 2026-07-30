@@ -3530,9 +3530,9 @@ try {
 try {
   var _oL = window.localStorage.getItem('L·d2r_rwMade');
   if (_oL){
-    var _lm = JSON.parse(_oL)||{}, _bm = JSON.parse(window.localStorage.getItem('d2r_rwMade')||'{}')||{};
+    var _lm = JSON.parse(_oL)||{}, _bm = JSON.parse(window.localStorage.getItem('d2r_rwMade')||'{}')||{};   /* raw-ok: one-time namespace migration */
     Object.keys(_lm).forEach(function(k){ if(!_bm[k]) _bm[k]=_lm[k]; });
-    window.localStorage.setItem('d2r_rwMade', JSON.stringify(_bm));
+    window.localStorage.setItem('d2r_rwMade', JSON.stringify(_bm));   /* raw-ok: one-time namespace migration */
     window.localStorage.removeItem('L·d2r_rwMade');
     window.localStorage.removeItem('L·d2r_rwUnmade');
     window.localStorage.removeItem('L·d2r_rwProfile');
@@ -3557,33 +3557,33 @@ try {
     // (No date-math: the grail stamp uses a custom "Mon D, YYYY · HH:MM" format that Date.parse can't
     // read, so a numeric "earliest wins" compare would be unreliable across the mixed legacy formats.)
     try {
-      var _bF = JSON.parse(window.localStorage.getItem('d2r_foundLog')||'{}')||{};
+      var _bF = JSON.parse(window.localStorage.getItem('d2r_foundLog')||'{}')||{};   /* raw-ok: one-time namespace migration */
       var _lF = JSON.parse(window.localStorage.getItem('L·d2r_foundLog')||'{}')||{};
       var _fDirty = false;
       Object.keys(_lF).forEach(function(k){
         if (!(k in _bF)){ _bF[k] = _lF[k]; _fDirty = true; }   // ladder-only find joins the shared chronicle
       });
-      if (_fDirty) window.localStorage.setItem('d2r_foundLog', JSON.stringify(_bF));
+      if (_fDirty) window.localStorage.setItem('d2r_foundLog', JSON.stringify(_bF));   /* raw-ok: one-time namespace migration */
     } catch(e){}
     window.localStorage.removeItem('L·d2r_foundLog');
     // d2r_setPieces = array of "Name (slot)" piece strings. Union.
     try {
-      var _bS = JSON.parse(window.localStorage.getItem('d2r_setPieces')||'[]');
+      var _bS = JSON.parse(window.localStorage.getItem('d2r_setPieces')||'[]');   /* raw-ok: one-time namespace migration */
       var _lS = JSON.parse(window.localStorage.getItem('L·d2r_setPieces')||'[]');
       if (Array.isArray(_bS) && Array.isArray(_lS)){
         var _seen = {}, _sDirty = false;
         _bS.forEach(function(p){ _seen[p] = 1; });
         _lS.forEach(function(p){ if (!_seen[p]){ _seen[p] = 1; _bS.push(p); _sDirty = true; } });
-        if (_sDirty) window.localStorage.setItem('d2r_setPieces', JSON.stringify(_bS));
+        if (_sDirty) window.localStorage.setItem('d2r_setPieces', JSON.stringify(_bS));   /* raw-ok: one-time namespace migration */
       }
     } catch(e){}
     window.localStorage.removeItem('L·d2r_setPieces');
     // d2r_grailImportReport = a transient one-shot import summary (read-then-cleared). Not unionable —
     // adopt the ladder copy only if the shared key is empty, then drop the orphan.
     try {
-      if (!window.localStorage.getItem('d2r_grailImportReport')){
+      if (!window.localStorage.getItem('d2r_grailImportReport')){   /* raw-ok: one-time namespace migration */
         var _lr = window.localStorage.getItem('L·d2r_grailImportReport');
-        if (_lr) window.localStorage.setItem('d2r_grailImportReport', _lr);
+        if (_lr) window.localStorage.setItem('d2r_grailImportReport', _lr);   /* raw-ok: one-time namespace migration */
       }
     } catch(e){}
     window.localStorage.removeItem('L·d2r_grailImportReport');
@@ -35489,7 +35489,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1478', name:'v1478 - the console reads the active world', date:'2026-07-30', note:'The console was reading the OWNER world. tv/control_ui.html shares an origin with the board and reads the chronicle through its own lsFork() - a hand-copied second implementation of the fork rule whose comment still claimed the machine fork never applies. The board wrote W-dot, the console read bare, and a fresh Windows PC greeted its owner with another person chronicle (HOLY GRAIL 243/403). The defect was two sources of truth for one rule, so the board now PUBLISHES what it resolved (d2r_lsrRoute: machine, profile, both fork sets) and the console routes from that payload. No bare fallback on THIS PC: an absent key is a true empty and zero is the right answer for a machine that has farmed nothing. The guard is behavioural - the shipped lsFork is executed in a real JS engine across six world/seed combinations, and mutation-verified. Also: two gates PASSED their checks then died printing a check mark on a cp1255 console, so a clean tree exited 1; both now reconfigure stdout before reporting.' };
+  window.D2R_BUILD = { id:'v1479', name:'v1479 - forked keys must be routed', date:'2026-07-31', note:'Closes the bug FAMILY behind REG-069, REG-075 and REG-076 rather than the third instance. All three shipped from one root: a per-world key reached without the router. TestForkedKeysAreRouted now fails any unrouted localStorage access to a key in _LP_FORKED or _WP_FORKED, across both surfaces. The one-time L-dot migrations that must name a namespace explicitly stay legal via an inline raw-ok marker, which makes each exemption deliberate and reviewable; a second test caps the number of exemptions so the hatch cannot be used to wave the gate away. Mutation-verified: an injected raw read of d2r_forgeSummary is caught with file, line and the offending call.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

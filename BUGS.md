@@ -1505,3 +1505,30 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   Any script whose verdict is its exit code must make its own output encoding-safe rather than
   inherit it. Never run a gate with an env var that its normal invocation would not have; if it
   only passes with help, it does not pass.
+
+## ARCH-002 — three defects, one root: a per-world key reached without the router (2026-07-31)
+
+- **The family:** REG-069 (`d2r_rwMade` read raw — the cousin saw the owner's forged runewords),
+  REG-075 (a differently-named gate — the Forge counts contradicted their own note), REG-076 (the
+  console's private `lsFork` — a fresh PC showed the owner's `243/403` chronicle). Different files,
+  different authors, different symptoms, one root: a key that belongs to a per-machine or
+  per-account world was touched without going through the router.
+- **Why individual fixes were not enough:** each was fixed on its own and the family kept
+  producing new members. All three passed a careful code reading; the third needed a user report.
+  The class is invisible to review because the wrong code looks exactly like the right code — the
+  only difference is which accessor it went through.
+- **Fix (v1479):** `TestForkedKeysAreRouted` fails any `localStorage.getItem/setItem/removeItem`
+  on a key in `_LP_FORKED`/`_WP_FORKED`, in either surface, that is not `LSR.*` (board) or
+  `lsFork()` (console). The fork sets are parsed out of `bible.html` at test time, so adding a key
+  to a set automatically extends the gate — there is no second list to maintain.
+- **The escape hatch, bounded:** the one-time migrations legitimately name `L·`/`W·` explicitly and
+  must run regardless of the active world. They stay legal via an inline `/* raw-ok: why */`
+  marker, which turns the exemption into a deliberate, reviewable act. A second test caps the
+  exemption count (currently 8, max 12) so the marker cannot become a habit that silences the gate,
+  and also asserts the count is non-zero — otherwise a rewrite that dropped the markers would leave
+  the gate passing without ever having been tested against real raw code.
+- **Mutation-verified:** an injected `localStorage.getItem('d2r_forgeSummary')` is reported with
+  file, line and the offending call, plus the two routed alternatives.
+- **Prevention:** when the same defect arrives a third time, stop fixing instances and make the
+  invariant mechanical. The question to ask is not "is this line correct" but "what would have to
+  be true for this line to be impossible".

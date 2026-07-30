@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1478",
+  "ver": "v1479",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1478: the console reads the ACTIVE world. Its lsFork() kept a stale private copy of the fork rule and read the owner's bare keys on a fresh PC; the board now publishes the route (d2r_lsrRoute) and the console follows it, with no bare fallback on THIS PC.",
+  "note": "v1479: Closes the bug FAMILY behind REG-069, REG-075 and REG-076 rather than the third instance. All three shipped from one root: a per-world key reached without the router. TestForkedKeysAreRouted now fails any unrouted localStorage access to a key in _LP_FORKED or _WP_FORKED, across both surfaces. The one-time L-dot migrations that must name a namespace explicitly stay legal via an inline raw-ok marker, which makes each exemption deliberate and reviewable; a second test caps the number of exemptions so the hatch cannot be used to wave the gate away. Mutation-verified: an injected raw read of d2r_forgeSummary is caught with file, line and the offending call.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
