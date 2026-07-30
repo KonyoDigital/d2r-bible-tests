@@ -3356,21 +3356,49 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 // else — a single d2r_* key of any kind — is treated as established and keeps the historic
 // MAC default, byte-identical to pre-v1464 behaviour. An explicit choice always wins over
 // both. Console and site are separate origins, so each gets its own honest first run.
+// v1469 — KONYO'S RULE, stated plainly: "everyone should start fresh except my MacBook — the
+// chronicles and forges should be 0/0, so a new PC starts with its own profile and builds on it."
+//
+// That REVERSES the constraint v1464 was built around. v1464 refused to derive identity from the
+// platform because Konyo ran this console on Windows under the MAC identity, so deriving would
+// have hidden his data. He has now said that is precisely what he does NOT want: the MacBook is
+// the one machine that keeps everything, and every other box — his second Windows PC, the
+// cousin's — starts empty in its own world. On the WINDOWS identity every owner seed floor
+// (_RWC_SEED · _GRAIL_SEED · rwVerify) is already suppressed, which is exactly "0/0".
+//
+// The wrinkle: v1464 AUTO-PERSISTED 'mac' on every established install, so a stored value can no
+// longer be read as "the human chose this". We now record WHO decided. A value written by a real
+// click is honoured forever; a value we wrote ourselves is re-derived. Machines that predate this
+// have no source marker and are treated as auto — which is what flips the Windows boxes to their
+// own world while a MacBook re-derives to 'mac' and is untouched.
+//
+// Nothing is ever deleted by this. A machine that changes worlds only changes which NAMESPACE it
+// reads; the previous world's keys stay on disk and flipping the pill back restores the view.
 window.D2R_MACHINE = (function(){
   try {
     var LS = window.localStorage;
-    var chosen = LS.getItem('d2r_activeMachine');
-    if (chosen === 'windows' || chosen === 'mac') return chosen;   // explicit choice wins, always
-    var virgin = true;
-    for (var i = 0; i < LS.length; i++) {
-      var k = LS.key(i);
-      if (k && k.indexOf('d2r_') === 0) { virgin = false; break; }
-    }
-    if (!virgin) { try { LS.setItem('d2r_activeMachine', 'mac'); } catch(e){}  return 'mac'; }
-    // Genuinely untouched machine → give it its OWN isolated world (W·), where every owner
-    // seed floor is suppressed and it starts from zero. Persist so the answer is stable.
-    try { LS.setItem('d2r_activeMachine', 'windows'); } catch(e){}
-    return 'windows';
+    var stored = LS.getItem('d2r_activeMachine');
+    var source = LS.getItem('d2r_machineSource');
+    if (source === 'user' && (stored === 'windows' || stored === 'mac')) return stored;
+    // Consult EVERY platform signal, not just the first one that answers. userAgentData.platform
+    // alone is not enough: it reports the host OS independently of the UA string, so a single
+    // source can disagree with the others and one wrong read here decides whose chronicle a
+    // machine sees. Joining them means a Mac is recognised if ANY signal says Mac.
+    var plat = '';
+    try {
+      var probes = [];
+      if (navigator.userAgentData && navigator.userAgentData.platform) probes.push(navigator.userAgentData.platform);
+      if (navigator.platform)  probes.push(navigator.platform);
+      if (navigator.userAgent) probes.push(navigator.userAgent);
+      plat = probes.join(' ');
+    } catch(e) { plat = ''; }
+    // Only a Mac keeps the owner's world. Everything else (Windows, Linux, anything unknown)
+    // gets the isolated W· world and starts from zero — the safe side of this decision, because
+    // a machine wrongly placed in its OWN world sees an empty console, while a machine wrongly
+    // placed in the OWNER's world sees someone else's chronicle.
+    var m = /mac|iphone|ipad|ipod/i.test(plat) ? 'mac' : 'windows';
+    try { LS.setItem('d2r_activeMachine', m); LS.setItem('d2r_machineSource', 'auto'); } catch(e){}
+    return m;
   } catch(e) { return 'mac'; }
 })();
 window._isCousinShell = (window.D2R_MACHINE==='windows');
@@ -3431,7 +3459,13 @@ window.profileSwitch = function(p){
 window.machineSwitch = function(m){
   m = (m==='windows') ? 'windows' : 'mac';
   if (m === window.D2R_MACHINE) return;
-  try { window.localStorage.setItem('d2r_activeMachine', m); } catch(e){}
+  // v1469 — a real click is a DECISION and outranks platform derivation forever after. Without
+  // this marker the next load would re-derive and silently undo the choice on the very next
+  // reload, which would read as the switch being broken.
+  try {
+    window.localStorage.setItem('d2r_activeMachine', m);
+    window.localStorage.setItem('d2r_machineSource', 'user');
+  } catch(e){}
   location.reload();
 };
 // v636 — PROFILE-SCOPED WIPE (the closure swarm's #1 critical: the footer reset ran raw
@@ -35346,7 +35380,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1468', name:'v1468 · zones own their bodies', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
+  window.D2R_BUILD = { id:'v1469', name:'v1469 · fresh per PC', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

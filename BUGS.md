@@ -1234,3 +1234,35 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   still fails on a real violation; (2) never balance-scan markup without stripping comments first;
   (3) any "fix" to a guard must be followed by a mutation check, or you have shipped a test that
   can only pass.
+
+## REG-065 — an auto-written default is indistinguishable from a real choice (2026-07-30)
+- **Symptom:** v1464 persisted `d2r_activeMachine='mac'` on every established install so the
+  answer would be stable. When the product rule later changed to "only the MacBook keeps the owner
+  world, every other PC starts fresh", that stored value blocked the new derivation — the Windows
+  boxes looked like they had CHOSEN mac when nothing had ever chosen anything.
+- **Root cause:** writing a derived default into the same slot the user writes their decision
+  into. Once both live in one key, provenance is gone and the next rule change cannot tell whose
+  intent it is about to override.
+- **Fix (v1469):** record the author — `d2r_machineSource` is `'user'` (a click on the pill) or
+  `'auto'` (derived). Auto values are re-derived on every load, user values are honoured forever,
+  and an ABSENT marker (every pre-v1469 install) is treated as auto, which is what let the rule
+  change take effect without touching anyone who had actually decided. `machineSwitch()` marks
+  `'user'` — without that, the next reload silently undoes a real choice and the switch reads as
+  broken.
+- **Prevention:** never store a derived default in the same key as a user decision. If a value can
+  be written by both the system and the human, it needs a provenance field, or the first rule
+  change will either ignore real choices or trample defaults — and both look like data loss.
+
+## REG-066 — one platform signal is not enough to decide whose data you see (2026-07-30)
+- **Symptom:** the v1469 first cut derived identity from `navigator.userAgentData.platform` alone
+  and resolved a MacBook to the WINDOWS world in test — i.e. the one machine that must keep its
+  chronicle would have been sent to an empty one.
+- **Root cause:** `userAgentData.platform` reports the host OS independently of the UA string, so
+  a single source can disagree with the others. Any one signal being wrong decides whose data a
+  machine sees.
+- **Fix:** join `userAgentData.platform` + `navigator.platform` + `userAgent` and treat the
+  machine as a Mac if ANY signal says Mac; everything else gets the isolated world. That is the
+  safe asymmetry — a machine wrongly given its OWN world shows an empty console (recoverable, one
+  click), while a machine wrongly given the OWNER's world shows someone else's chronicle.
+- **Prevention:** when a detection decides data visibility, enumerate every available signal and
+  choose the failure direction deliberately. Ask which way of being wrong is cheap.

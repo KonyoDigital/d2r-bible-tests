@@ -1,4 +1,55 @@
 
+## v1469 — 2026-07-30 — everyone starts fresh except the MacBook
+
+Konyo, stating the product rule directly: *"everyone should start fresh except my MacBook — the
+chronicles and forges should be 0/0, that way a new PC starts with its own profile and builds on
+it."*
+
+**This deliberately reverses the constraint v1464 was built around, on the owner's instruction.**
+v1464 refused to derive identity from the platform precisely because Konyo ran this console on
+Windows under the MAC identity, so deriving would have hidden his data behind `W·`. He has now
+said that is exactly what he wants: the MacBook is the single machine that keeps everything, and
+every other box — his second Windows PC, the cousin's — starts empty in its own world and grows
+its own. On the WINDOWS identity every owner seed floor (`_RWC_SEED` · `_GRAIL_SEED` · rwVerify)
+is already suppressed, which is precisely "chronicle and forge at 0/0".
+
+### The wrinkle that made this non-trivial
+v1464 **auto-persisted** `d2r_activeMachine='mac'` on every established install. So a stored value
+could no longer be read as "the human chose this" — the flag we wrote ourselves is
+indistinguishable from a real decision. v1469 records **who decided**:
+
+- `d2r_machineSource='user'` — written only by a click on the pill. Honoured forever after.
+- `d2r_machineSource='auto'` — written by derivation. Re-derived on every load.
+- **absent** (every pre-v1469 install) — treated as auto, which is what flips the Windows boxes
+  into their own world while a MacBook re-derives to `mac` and is untouched.
+
+`machineSwitch()` now marks `'user'`; without that the next reload would silently undo a real
+choice and the switch would read as broken.
+
+### Platform detection reads EVERY signal
+First cut trusted `navigator.userAgentData.platform` alone and **got the MacBook case wrong** in
+test — Chromium reports the host OS there independently of the UA string, so one source can
+disagree with the others. It now joins `userAgentData.platform` + `navigator.platform` +
+`userAgent` and calls it a Mac if ANY of them says so. Non-Mac (Windows, Linux, unknown) gets the
+isolated world, which is the safe side of this decision: a machine wrongly placed in its OWN world
+shows an empty console, while a machine wrongly placed in the OWNER's world shows someone else's
+chronicle.
+
+**Nothing is deleted.** Changing worlds changes which NAMESPACE is read; the previous world's keys
+stay on disk and flipping the pill back restores the view.
+
+- **Verify — all four real cases, end-to-end against the real `bible.html` in headless Chromium:**
+
+  | machine | resolves to |
+  |---|---|
+  | fresh Windows PC (the cousin's) | **`windows`** — own world, 0/0 |
+  | this PC, carrying v1464's auto-written `mac` | **`windows`** — starts fresh |
+  | Windows where the pill was actually clicked to MAC | **`mac`** — a real choice wins |
+  | MacBook (darwin UA) | **`mac`** — untouched |
+
+  Plus: `bible.html` parses in Chromium with no `SyntaxError` · visual-lock invariant GREEN ·
+  `test_agent` **201 OK** · `test_control` **267 OK**, plain shell · stamps parity v1469.
+
 ## v1468 — 2026-07-30 — Sessions zones are real sections that own their bodies
 
 The audit's "single highest-leverage change", and the root every other Sessions complaint hung

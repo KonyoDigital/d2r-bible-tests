@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1468",
+  "ver": "v1469",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1468: each Sessions movement is a real <section> owning its banner + cards \u2014 the nine order: values are gone",
+  "note": "v1469: only the MacBook keeps the owner world \u2014 every other PC starts fresh at 0/0 in its own profile and builds on it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
