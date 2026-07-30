@@ -1,4 +1,34 @@
 
+## v1466 — 2026-07-30 — the sigil reaches the BOARD: one machine, one crest
+
+Closes the gap v1465 shipped with and named: the sigil was console-only, so anyone looking at
+`bible.html` still could not tell whose world they were in.
+
+- **Where it sits:** beside the existing `machine-pill` / `profile-pill` on the masthead rail —
+  deliberately, because they are read together. The two pills answer **which world**
+  (`mac|windows` · `main|ladder`); the sigil answers **which install**.
+- **Same id, same generator.** The board prefers the console's real per-install identity from
+  `/api/status` (same origin whenever the board is served BY the console) and falls back to a
+  locally minted `d2r_installId` so the standalone site still gets a stable crest of its own. The
+  tooltip says which source it used, so a mismatch is diagnosable rather than mysterious.
+- **The parity risk is the whole point.** If the two copies of the generator drift, one PC shows
+  two different crests — worse than showing none, because the feature exists to be compared.
+  Gated: all four tables (24 glyphs, 16 adjectives, 16 hues, 16 nouns) are asserted **identical**
+  between `bible.html` and `tv/control_ui.html`.
+
+**Process note — a self-inflicted bug worth recording.** The first insertion went in through a
+shell heredoc and the `\n` escapes in the tooltip were eaten before Python ever saw them, so the
+string literals contained REAL newlines and `bible.html` threw
+`Uncaught SyntaxError` at line 37727 — i.e. I briefly broke the entire board. Caught immediately
+because loading the file in headless Chromium and grepping the console for `SyntaxError` is now a
+standing gate. Rewritten without any escaped newline in source: the tooltip is assembled from an
+array and joined with `String.fromCharCode(10)` at runtime. **Do not write JS string escapes
+through a shell heredoc.**
+
+- **Verify:** `bible.html` parses in Chromium with zero `SyntaxError`/`Uncaught` · generator
+  tables identical across both surfaces (asserted, not eyeballed) · visual-lock invariant GREEN ·
+  `test_agent` **201 OK** · `test_control` **267 OK**, plain shell · stamps parity v1466.
+
 ## v1465 — 2026-07-30 — the PROFILE SIGIL: whose console is this, at a glance
 
 Konyo: *"a unique generated login symbol for a profile so my cousin knows it's his console and

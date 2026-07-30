@@ -1155,3 +1155,35 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   work; (2) never derive a unique id from hostname/username, which collide on defaults; (3) if a
   visual identity has several channels, drive them from ONE index — independent hashes make the
   channels contradict each other and destroy the compare-at-a-glance property.
+
+## REG-060 — a shell heredoc ate my JS escapes and broke the whole board (2026-07-30)
+- **Symptom:** immediately after inserting the v1466 board sigil, `bible.html` threw
+  `Uncaught SyntaxError: Invalid or unexpected token` at line 37727 — the entire board dead.
+- **Root cause:** the block was inserted through a `bash << 'PY'` heredoc into a Python writer.
+  The `\n` escapes inside the JS tooltip string did not survive as the two characters
+  backslash+n; the file ended up with REAL newlines inside single-quoted JS string literals,
+  which is a hard parse error. Unterminated-string, not a subtle bug — everything after it died.
+- **Caught by:** the standing gate of loading the file in headless Chromium and grepping the
+  console for `SyntaxError`/`Uncaught`. Without it this ships and the board is blank.
+- **Fix:** re-inserted via the editor (no shell layer), and the tooltip no longer contains any
+  escaped newline at all — it is built from an array and joined with `String.fromCharCode(10)`
+  at runtime, so there is nothing left for a shell to eat.
+- **Prevention:** (1) never author JS/CSS string escapes through a shell heredoc — use the file
+  editor, or keep the payload escape-free by construction; (2) any edit to a 37k-line single-file
+  app must be followed by an actual PARSE check, because a syntax error there is total, not
+  local; (3) prefer runtime construction (`String.fromCharCode`, arrays + join) over escape
+  sequences when the text has to survive several tools.
+
+## REG-061 — a generated identity drawn twice can disagree with itself (2026-07-30)
+- **Symptom (prevented, not observed):** the profile sigil is generated independently in the
+  console (`tv/control_ui.html`) and on the board (`bible.html`). Both hash the same install id,
+  but they are separate documents with separate copies of the glyph/adjective/hue/noun tables.
+- **Why it matters:** if those tables drift by even one entry, the SAME machine renders two
+  different crests — strictly worse than having no sigil, because the entire purpose is letting
+  two people compare and conclude "same install" or "different install". A feature whose failure
+  mode is a confident wrong answer needs a gate, not care.
+- **Fix (v1466):** the ship gate asserts all four tables are byte-identical between the two files
+  (24 glyphs, 16 adjectives, 16 hues, 16 nouns), and the adjective↔hue index-lock from v1465 is
+  preserved in both copies.
+- **Prevention:** duplicated derivation logic across surfaces must be equality-asserted in the
+  gate, not maintained by discipline. If it cannot be shared, it must be checked.

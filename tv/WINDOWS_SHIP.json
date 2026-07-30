@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1465",
+  "ver": "v1466",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1465: every install wears a generated PROFILE SIGIL \u2014 colour + rune + name + code \u2014 so you can see whose console this is",
+  "note": "v1466: the profile sigil now shows on the BOARD too, same id and same generator \u2014 one machine, one crest, both surfaces",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

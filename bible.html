@@ -3620,6 +3620,12 @@ try {
         <div id="profile-pill" class="profile-pill" title="two separate accounts — switching reloads the page; nothing ever mixes">
           <button class="pp-btn pp-main" onclick="window.profileSwitch('main')">⚔ MAIN</button><button class="pp-btn pp-ladder" onclick="window.profileSwitch('ladder')">🪜 LADDER</button>
         </div>
+        <!-- v1466 — THE PROFILE SIGIL, beside the world switches on purpose: those two pills say
+             WHICH WORLD (mac/windows · main/ladder), this says WHICH INSTALL. Same generator and
+             same id as the console header, so one machine wears one crest in both surfaces. -->
+        <button id="bd-sigil" class="bd-sigil" type="button" hidden>
+          <span class="bs-glyph" id="bs-glyph">·</span><span class="bs-name" id="bs-name">—</span><span class="bs-code" id="bs-code"></span>
+        </button>
         <div class="masthead-rule"></div>
         <div class="masthead-tagline">A complete grail-hunting reference — annotated with kill rate, drop chance, terror-zone schedule, and personal wishlist tracking.</div>
       </div>
@@ -33517,6 +33523,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 .profile-pill .pp-btn:hover{color:#ffe08a}
 body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgba(233,208,122,.18);color:#ffe08a}
 .machine-pill{top:14px;right:200px}   /* v663 — master pill sits left of the account pill */
+/* v1466 — THE PROFILE SIGIL. Sits left of the machine pill, same absolute rail as the two world
+   switches, because it is read together with them: pills = which world, sigil = which install.
+   Colour comes from the generator via --bs-hue, so the crest is self-colouring. */
+.bd-sigil{position:absolute;top:14px;right:340px;z-index:60;display:inline-flex;align-items:center;gap:7px;
+  padding:5px 11px 5px 6px;border-radius:999px;cursor:pointer;min-height:30px;
+  border:1px solid var(--bs-edge,rgba(233,208,122,.4));background:rgba(0,0,0,.35);backdrop-filter:blur(3px)}
+.bd-sigil:hover{background:rgba(255,255,255,.06);border-color:var(--bs-hue,#e9d07a)}
+.bd-sigil .bs-glyph{width:20px;height:20px;display:grid;place-items:center;border-radius:5px;
+  background:var(--bs-hue,#e9d07a);color:#0b0906;font:var(--fw-bold) 12px/1 inherit}
+.bd-sigil .bs-name{font:var(--fw-semibold) 11px/1 inherit;letter-spacing:var(--ls-normal);
+  text-transform:uppercase;color:var(--bs-hue,#e9d07a);white-space:nowrap}
+.bd-sigil .bs-code{font:var(--fw-medium) 10px/1 inherit;color:var(--text-dim,#9a8c72);white-space:nowrap}
+@media (max-width:900px){ .bd-sigil{display:none} }
 body:not(.cousin-shell) .pp-mac,body.cousin-shell .pp-win{background:rgba(140,200,255,.18);color:#bfe0ff}
 body.cousin-shell .pp-win{background:rgba(140,200,255,.3)}
 body.cousin-shell .h-title{filter:drop-shadow(0 0 14px rgba(120,190,255,.4))}
@@ -35327,7 +35346,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1465', name:'v1465 · profile sigil', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
+  window.D2R_BUILD = { id:'v1466', name:'v1466 · sigil on the board', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -37653,5 +37672,88 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 })();
 </script>
 
+<script>
+/* ══ v1466 — PROFILE SIGIL on the BOARD. Same generator and the SAME id as the console header
+   (tv/control_ui.html v1465), so one machine wears one crest on both surfaces. The two word
+   lists, the hue list and the hash MUST stay identical to the console's — if they drift, one PC
+   shows two different crests, which is worse than showing none, because the entire purpose is
+   comparing two machines.
+
+   Id source, in order: (1) the console's per-install identity from /api/status when the board is
+   served BY the console (same origin), (2) a locally minted d2r_installId otherwise, so the
+   standalone site still gets a stable crest of its own. Fails silent: no id, no chip.
+   Tooltip is single-line-joined at runtime — no escaped newlines in source. ══ */
+(function () {
+  var NL = String.fromCharCode(10);
+  var GLYPHS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ','ᛇ','ᛈ','ᛉ','ᛊ','ᛏ','ᛒ','ᛖ','ᛗ','ᛚ','ᛜ','ᛞ','ᛟ'];
+  var A =    ['Ember',  'Ashen',  'Crimson','Gilded', 'Hollow', 'Frost',  'Storm',  'Umbral',
+              'Molten', 'Pale',   'Iron',   'Void',   'Amber',  'Dusk',   'Rime',   'Cinder'];
+  var HUES = ['#ff8f4a','#b9b2a4','#ff6b6b','#f0c060','#9fb6c9','#7ec8ff','#b0a6ff','#c9a8ff',
+              '#ff7a3c','#e8e0cf','#9aa6b2','#6f8cf2','#ffb347','#ff8fb8','#7ae0d0','#e0794a'];
+  var B = ['Wraith','Sigil','Crest','Warden','Vessel','Talon','Cairn','Herald','Fang','Lantern',
+           'Oath','Beacon','Reliquary','Bastion','Ledger','Anvil'];
+  function h32(str, salt) {
+    var h = 2166136261 >>> 0, s = (salt || '') + String(str);
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+  }
+  function sigilFor(id) {
+    if (!id) return null;
+    var a = h32(id, 'g'), c = h32(id, 'n'), adj = c % A.length;
+    return { glyph: GLYPHS[a % GLYPHS.length], hue: HUES[adj],
+             name: A[adj] + ' ' + B[(c >>> 9) % B.length],
+             code: ('0000' + (a >>> 16).toString(16)).slice(-4).toUpperCase() };
+  }
+  window.D2R_SIGIL = { of: sigilFor };
+
+  function localId() {
+    try {
+      var k = 'd2r_installId', v = localStorage.getItem(k);
+      if (v) return v;
+      v = (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '')
+        : String(Date.now()) + Math.random().toString(16).slice(2);
+      localStorage.setItem(k, v);
+      return v;
+    } catch (e) { return ''; }
+  }
+
+  function paint(id, where) {
+    var s = sigilFor(id), el = document.getElementById('bd-sigil');
+    if (!s || !el) return;
+    el.style.setProperty('--bs-hue', s.hue);
+    el.style.setProperty('--bs-edge', s.hue + '66');
+    document.getElementById('bs-glyph').textContent = s.glyph;
+    document.getElementById('bs-name').textContent  = s.name;
+    document.getElementById('bs-code').textContent  = s.code;
+    var m = (window.D2R_MACHINE || '?'), p = (window.D2R_PROFILE || '?');
+    el.title = [
+      'PROFILE SIGIL — ' + s.name + '  [' + s.code + ']',
+      'world   : ' + m + ' / ' + p,
+      'install : ' + String(id).slice(0, 12) + '  (' + where + ')',
+      '',
+      'Same crest = same install. A different crest is a different profile,',
+      'with its own vault, chronicle and forge progress.'
+    ].join(NL);
+    el.onclick = function () {
+      try { navigator.clipboard.writeText(s.name + ' [' + s.code + '] ' + m + '/' + p); } catch (e) {}
+      var n = document.getElementById('bs-name'), was = n.textContent;
+      n.textContent = 'COPIED';
+      setTimeout(function () { n.textContent = was; }, 900);
+    };
+    el.hidden = false;
+  }
+
+  var done = false;
+  try {
+    fetch('/api/status', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (st) {
+        if (!done && st && st.identity && st.identity.id) { done = true; paint(st.identity.id, 'console'); }
+      })
+      .catch(function () {});
+  } catch (e) {}
+  setTimeout(function () { if (!done) { done = true; paint(localId(), 'local'); } }, 1200);
+})();
+</script>
 </body>
 </html>
