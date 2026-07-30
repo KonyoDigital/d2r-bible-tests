@@ -7062,6 +7062,9 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 @keyframes fpTip{0%,100%{opacity:.25}50%{opacity:.85}}
 @media (prefers-reduced-motion:reduce){:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::before{animation:none}}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl b{color:#8fe6a0;font-size:14px}
+/* v1474 — the reconciliation note: says WHY the bar (99) and the ONE STEP pill (91) differ, right
+   where both are read. Dim on purpose — it is a footnote to the number, not a second number. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-note{font-size:var(--fs-meta,11.5px);font-weight:var(--fw-regular);color:var(--text-dim,#8d8068);letter-spacing:var(--ls-normal);cursor:help}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:11.5px;font-weight:var(--fw-semibold);color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a);border:1px solid rgba(210,255,222,.7);padding:1px 9px;border-radius:9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(20,70,35,.45),0 1px 3px rgba(0,0,0,.55)}   /* v620 — forged-coin percent */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:var(--lh-normal)}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
@@ -32390,8 +32393,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       var _rwTotal=(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100;
       var _rwMadeN=_madeRw().length, _rwPct=_rwTotal?Math.round(_rwMadeN/_rwTotal*100):0;
-      H.push('<div class="forge-progress" title="'+_rwMadeN+' of '+_rwTotal+' runewords forged"><div class="fp-track"><div class="fp-fill" style="width:'+_rwPct+'%"></div></div>'
-        +'<div class="fp-lbl">📜 <b>'+_rwMadeN+'</b> / '+_rwTotal+' forged<span class="fp-pct">'+_rwPct+'%</span></div></div>');
+      // v1474 (Konyo: "how come ONE STEP is 91 if there are 99 forges? doesn't that counter it?")
+      // The counts were CORRECT but not legible: three numbers sit inches apart on one screen
+      // measuring different universes, and the reader is left to derive the relationship.
+      //   99 runewords in the game        <- this bar
+      //   - 8 ladder-only (separate economy, forged on the ladder character)
+      //   = 91 workable on this account   <- the ONE STEP pill
+      //   + 4 craft TYPES (not runewords) <- the CRAFTS pill
+      //   = 95                            <- the ALL pill
+      // The 8-word caveat existed only in a sentence further down the page. Now the bar states
+      // its own scope and carries the full reconciliation in its tooltip, so the numbers can be
+      // checked against each other instead of appearing to contradict.
+      var _ladN = 0;
+      try {
+        var _lo = (typeof _RW_LADDER_ONLY !== 'undefined') ? _RW_LADDER_ONLY : (window._RW_LADDER_ONLY || {});
+        Object.keys(_lo).forEach(function(w){ if (RUNEWORD_TIP[w]) _ladN++; });
+      } catch(e){}
+      var _workable = _rwTotal - _ladN;
+      var _recon = _rwTotal + ' runewords in the game'
+        + (_ladN ? '\n− ' + _ladN + ' ladder-only (separate economy — forged on your ladder character)' : '')
+        + '\n= ' + _workable + ' workable on this account  → the ONE STEP pill'
+        + '\n+ craft types → the ALL pill'
+        + '\n\nThis bar counts runewords only, so it reads ' + _rwTotal + '.';
+      H.push('<div class="forge-progress" title="'+_recon.replace(/"/g,'&quot;')+'"><div class="fp-track"><div class="fp-fill" style="width:'+_rwPct+'%"></div></div>'
+        +'<div class="fp-lbl">📜 <b>'+_rwMadeN+'</b> / '+_rwTotal+' runewords forged'
+        + (_ladN ? '<span class="fp-note" title="'+_recon.replace(/"/g,'&quot;')+'"> · '+_workable+' workable here, '+_ladN+' ladder-only</span>' : '')
+        +'<span class="fp-pct">'+_rwPct+'%</span></div></div>');
     } catch(e){}
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
     var tab=function(key,emoji,label,cls,n){
@@ -35388,7 +35415,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1473', name:'v1473 · numerals self-count', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
+  window.D2R_BUILD = { id:'v1474', name:'v1474 · forge counts reconcile', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

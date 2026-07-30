@@ -1348,3 +1348,22 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   suite under `-W error::ResourceWarning` when you want to know; (2) `open().read()` is never
   correct in long-lived code, and is actively harmful on Windows for any file you also intend to
   delete; (3) when the same leak appears twice, fix it in one helper rather than two `with` blocks.
+
+## REG-071 — three correct numbers that read as a contradiction (2026-07-30)
+- **Symptom (Konyo, live):** *"how come for forges ONE STEP is 91 if there are 99 forges to create?
+  doesn't that counter it? I need this synced and accurate."*
+- **Investigated, and the counts are NOT wrong.** Reconciled exactly:
+  `99` runewords in `RUNEWORD_TIP` − `8` in `_RW_LADDER_ONLY` (Bulwark, Cure, Ground, Hearth,
+  Hysteria, Mania, Metamorphosis, Temper) = **91 workable**, which is the ONE STEP pill; plus the
+  `4` entries of the `CRAFTS` array = **95**, which is the ALL pill.
+- **The real defect is legibility, not arithmetic.** Three numbers measuring three different
+  universes sit inches apart on one screen: the bar counts RUNEWORDS (99), ONE STEP counts
+  WORKABLE-ON-THIS-ACCOUNT (91), and ALL mixes runewords WITH craft types (95). The 8-word
+  explanation existed only in a sentence further down the page, so the reader is left to derive
+  the relationship — and the natural conclusion is "the app is miscounting".
+- **Fix (v1474):** the progress bar states its own scope ("N / 99 runewords forged") and carries an
+  inline note plus a full reconciliation tooltip, computed from the live data rather than
+  hardcoded, so it cannot drift from the sets it describes.
+- **Prevention:** when two counters on one screen have different denominators, the screen must say
+  so. A number that is correct but unexplainable next to its neighbour will be reported as a bug —
+  and the reporter is right, because trust is the feature.
