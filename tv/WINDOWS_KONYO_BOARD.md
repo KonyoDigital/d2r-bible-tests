@@ -3,9 +3,10 @@
 ## Current ship
 | Item | Value |
 |------|--------|
-| Version | **v1461** |
+| Version | **v1462** |
 | Suites | test_agent **201 OK** · test_control **267 OK** — Windows finally green |
 | Launch | spawn no longer hides the app window · window presence verified, not assumed |
+| Icon | `appicon.ico` via pywebview 6 `start(icon=)` — **.ico only** (a .png silently kills the window) |
 | Pull | skipped if already up · 12s cap · timed-out job really stops before spawn |
 
 ## Fixed in v1460 — the dead Desktop icon (REG-051)

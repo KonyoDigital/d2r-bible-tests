@@ -1,4 +1,53 @@
 
+## v1462 — 2026-07-30 — the icon, the launcher's last non-ASCII, and test port isolation
+Three follow-ups Konyo asked for after the v1460/v1461 ships. The first one nearly re-shipped
+the v1460 bug, and only a controlled A/B caught it.
+
+**1. pywebview 6 `icon=` drift (REG-053) — and the trap inside the fix.**
+`create_window()` dropped `icon=` in pywebview 6 (6.2.1 is what's installed here); it moved to
+`start(icon=)`. The old code passed `icon=` to `create_window` and caught the resulting
+`TypeError` into a hardcoded reduced call, so on v6 every window silently lost its icon **and**
+`text_select` / `confirm_close` / `easy_drag` — options v6 supports perfectly well. Replaced the
+guesswork with `inspect.signature`: keep every option the installed version accepts, and route
+the icon to whichever call owns it.
+**The trap:** routing the icon to `start()` on Windows with the existing `.png` candidate made
+the WebView2 host window **never show** — silently, no exception, no log line. Measured A/B,
+same command, only the icon file differing:
+
+| icon file | window |
+|-----------|--------|
+| `tv_diablo_icon.png` | `IsWindowVisible = False` |
+| none | `IsWindowVisible = True` |
+| `appicon.ico` | `IsWindowVisible = True` |
+
+That is the v1460 dead-icon failure exactly, and a naive "fix the icon" would have re-shipped it
+to every machine that has an icon file. Windows now takes **`appicon.ico` only** (it already
+ships, the Desktop `.lnk` uses it); a non-`.ico` is refused outright, because a missing icon is
+infinitely cheaper than a missing window. The `.png` candidates stay Mac/Linux-only.
+
+**2. `tv/start_tvd_win.ps1` is ASCII again (REG-046 hygiene).** 8 em-dashes had crept back into
+v1444–v1448 comments. The BOM meant the parse gate still passed, so this was latent rather than
+broken — but the standing rule is Windows ship `.ps1` files stay ASCII. Comments only; no code
+touched; BOM preserved; parse + embedded-C# compile re-gated.
+
+**3. `test_control.py` port isolation.** It never set `TV_CONTROL_PORT`/`TV_PORT`, so importing
+`control_app` bound the module globals to the REAL 17772/17771. Nothing binds them today (the
+suite boots its own Handler on an ephemeral port), but a future test calling
+`_sock_open(CONTROL_PORT)` or `_reclaim_headless_for_scan()` would reach into Konyo's running
+app. `test_agent.py` has guarded its agent port this way since v711; same courtesy now.
+**Correction to the v1461 ship note:** I had claimed test_control kills a live TV DIABLO. It does
+not — proven by running both suites with the app up (pid 21112 survived, window visible, API
+serving). The earlier death was my own cleanup, misattributed. This change is hardening, not a
+bug fix.
+
+- **Verify:** PS parse 0 errors · embedded C# compiles · BOM present · 0 non-ASCII ·
+  py_compile ×4 · `test_agent` **201 OK** · `test_control` **267 OK** (3 consecutive clean runs) ·
+  cold launch through the real `.lnk` chain with the `.ico` active →
+  `launch complete (window up)`, 1 window `VISIBLE=True`.
+- **Known flake (pre-existing, not from this arc):** `test_doctor_endpoint_live` errored once in
+  5 runs — `_get()` uses a 3s urlopen timeout against `/api/doctor`, which the launcher itself
+  documents as slow; it tripped while the box was loaded with icon experiments. Green 3/3 after.
+
 ## v1461 — 2026-07-30 — Windows: test_agent finally green, 201/201 (REG-052)
 - **Symptom:** `tv/test_agent.py` = **7 failures + 2 errors** on Windows, green on the Mac.
   Every one in a fake-worker fixture; the giveaway in the noise was

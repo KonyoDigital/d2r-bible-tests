@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1461",
+  "ver": "v1462",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1461: Windows agent suite green \u2014 fake workers spawn via the argv seam",
+  "note": "v1462: window icon restored on pywebview 6 \u2014 .ico only, never at the cost of the window",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

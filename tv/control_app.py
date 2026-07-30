@@ -2399,11 +2399,16 @@ def open_control_window():
 
     import webview
 
-    icon = None
-    for cand in (
+    # v1462 — Windows takes .ico ONLY. Measured on Konyo's box: handing pywebview 6 a .png
+    # via start(icon=) makes the WebView2 host window never show — silently, no exception,
+    # no log line. That is the v1460 dead-icon failure all over again, and a missing icon is
+    # infinitely cheaper than a missing window, so the .png candidates are Mac/Linux-only here.
+    _icon_cands = [os.path.join(HERE, "appicon.ico")] if IS_WIN else [
         os.path.join(HERE, "tv_diablo_icon.png"),
         os.path.join(REPO, "art", "diablo_icon.png"),
-    ):
+    ]
+    icon = None
+    for cand in _icon_cands:
         if os.path.isfile(cand):
             icon = cand
             break
@@ -2419,13 +2424,40 @@ def open_control_window():
         confirm_close=False,
         easy_drag=False,
     )
-    # icon= supported on some backends; ignore if it errors
+
+    # v1462 — pywebview 6 MOVED icon= off create_window() and onto start(icon=).
+    # The old code passed icon= to create_window and caught TypeError into a hardcoded
+    # reduced call — so on pywebview >= 6 (6.2.1 is what ships on Konyo's box) every window
+    # silently lost its icon AND text_select/confirm_close/easy_drag, which v6 still supports
+    # perfectly well. Ask the installed signature instead of guessing: keep every option the
+    # local version accepts, and route icon to whichever call owns it.
+    _cw_ok, _start_ok = set(), set()
     try:
-        if icon:
-            globals()["_MAIN_WIN"] = webview.create_window(**kwargs, icon=icon)
+        import inspect
+        _cw_ok = set(inspect.signature(webview.create_window).parameters)
+        _start_ok = set(inspect.signature(webview.start).parameters)
+    except Exception:
+        pass
+    icon_for_start = None
+    if icon:
+        if not _cw_ok or "icon" in _cw_ok:
+            kwargs["icon"] = icon            # pywebview <= 5 (or introspection unavailable)
         else:
-            globals()["_MAIN_WIN"] = webview.create_window(**kwargs)
-    except TypeError:
+            icon_for_start = icon            # pywebview >= 6
+    if icon_for_start and IS_WIN and not icon_for_start.lower().endswith(".ico"):
+        icon_for_start = None            # see the .ico-only note above — never risk the window
+    globals()["_ICON_FOR_START"] = icon_for_start if (not _start_ok or "icon" in _start_ok) else None
+    if _cw_ok:
+        dropped = [k for k in kwargs if k not in _cw_ok]
+        if dropped:
+            print(f"⚠ pywebview build ignores {', '.join(sorted(dropped))} — continuing without",
+                  flush=True)
+            kwargs = {k: v for k, v in kwargs.items() if k in _cw_ok}
+    try:
+        globals()["_MAIN_WIN"] = webview.create_window(**kwargs)
+    except TypeError as e:
+        # Last resort: the irreducible core every version has taken since v1.
+        print(f"⚠ create_window rejected options ({e}) — falling back to the core set", flush=True)
         globals()["_MAIN_WIN"] = webview.create_window(
             title="TV DIABLO",
             url=url,
@@ -2485,9 +2517,13 @@ def open_control_window():
         _atexit.register(_window_lock_clear)
     except Exception:
         pass
+    # v1462 — on pywebview >= 6 the window icon is a start() argument (see create_window above).
+    _start_kw = dict(debug=False, private_mode=False)
+    if globals().get("_ICON_FOR_START"):
+        _start_kw["icon"] = globals()["_ICON_FOR_START"]
     try:
         try:
-            webview.start(debug=False, private_mode=False)
+            webview.start(**_start_kw)
         except TypeError:
             # older pywebview without private_mode — ephemeral storage beats no window
             print("⚠ pywebview too old for private_mode=False — board storage is EPHEMERAL this run (tallies/grail reset on quit); pip install -U pywebview")
@@ -7738,7 +7774,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1461",
+        "ver": "v1462",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

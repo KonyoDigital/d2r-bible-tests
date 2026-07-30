@@ -26,7 +26,7 @@ function Write-TvdLaunchLog([string]$msg) {
 }
 
 function Test-TvdControlUp {
-  # v1444 — control is UP when /api/status answers with a ver field.
+  # v1444 - control is UP when /api/status answers with a ver field.
   # NEVER require doctor.ok=true: that is false while LIVE with frame faults and takes seconds.
   try {
     $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:17772/api/status' -UseBasicParsing -TimeoutSec 0.35
@@ -128,7 +128,7 @@ function Show-TvdError([string]$text) {
 }
 
 # ---------------------------------------------------------------------------
-# v1417/v1448 SINGLE INSTANCE FIRST — before git/pip/python probes.
+# v1417/v1448 SINGLE INSTANCE FIRST - before git/pip/python probes.
 # ---------------------------------------------------------------------------
 $mutex = $null
 try {
@@ -146,7 +146,7 @@ try {
   $mutex = $null
 }
 
-# v1444/v1445 — ALREADY UP: focus and leave. Do not git-pull, pip, or spawn python.
+# v1444/v1445 - ALREADY UP: focus and leave. Do not git-pull, pip, or spawn python.
 if (Test-TvdControlUp) {
   Write-TvdLaunchLog 'control already up - focusing; skip pull/spawn'
   [void](Focus-TvdWindow)
@@ -208,7 +208,7 @@ if (-not $py) {
   return
 }
 
-# v1447 — webview probe once; cache result so warm launches skip pip
+# v1447 - webview probe once; cache result so warm launches skip pip
 $wvCache = Join-Path $here '.webview_ok'
 $needWv = -not (Test-Path -LiteralPath $wvCache)
 if ($needWv) {
@@ -231,10 +231,10 @@ if ($needWv) {
   }
 }
 
-# v1447 — NEVER open a blocking claude login shell on Desktop double-click (extra window lag).
+# v1447 - NEVER open a blocking claude login shell on Desktop double-click (extra window lag).
 # Doctor/ON AIR will surface Claude missing if needed.
 
-# v1445 — time-boxed auto-pull AFTER we know we must spawn (not on warm re-open).
+# v1445 - time-boxed auto-pull AFTER we know we must spawn (not on warm re-open).
 # Cap wall time so a hung git never freezes the Desktop icon for 30s+.
 if (-not $env:TV_NO_AUTO_PULL) {
   $trackedDirty = $false
@@ -377,7 +377,7 @@ try {
   return
 }
 
-# v1448 — ready wait uses FAST status probe (max ~8s), not 45s doctor ok:true
+# v1448 - ready wait uses FAST status probe (max ~8s), not 45s doctor ok:true
 $ready = $false
 for ($i = 0; $i -lt 20; $i++) {
   Start-Sleep -Milliseconds 400
@@ -426,7 +426,7 @@ if ($ready) {
   return
 }
 
-# Soft: process still alive — window may paint under WebView2 cold start; no scary dialog
+# Soft: process still alive - window may paint under WebView2 cold start; no scary dialog
 if (-not $proc.HasExited) {
   Write-TvdLaunchLog 'status slow but process alive - exit quiet (window coming)'
   [void](Focus-TvdWindow)

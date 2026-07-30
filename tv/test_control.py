@@ -13,6 +13,14 @@ from http.server import ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+# v1462 — never point the module globals at a LIVE console. The suite boots its own Handler
+# on an ephemeral port, so nothing here binds 17772 today; but control_app reads these at
+# import time and helpers like _sock_open(CONTROL_PORT) / _reclaim_headless_for_scan() would
+# reach straight into Konyo's running app if a future test ever called one. test_agent.py has
+# guarded its agent port this way since v711 ("never collide with a live agent") — same
+# courtesy here. Must precede the import: both are captured at module load.
+os.environ["TV_CONTROL_PORT"] = "17972"
+os.environ["TV_PORT"] = "17971"
 import control_app as ca  # noqa: E402
 import replay as rp  # noqa: E402
 

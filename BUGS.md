@@ -1008,3 +1008,30 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   a spawn problem by inserting a wrapper process when the tests assert process teardown;
   (3) an assertion that something is absent/None can pass because the setup failed — pair it
   with a positive assertion that the thing existed first.
+
+## REG-053 — pywebview 6 moved icon=, and the obvious fix silently killed the window (2026-07-30)
+- **Symptom (latent):** on pywebview >= 6 the console window had no icon, and had quietly lost
+  `text_select` / `confirm_close` / `easy_drag` too. Invisible here because neither `.png` icon
+  candidate exists on this box.
+- **Root cause:** v6 dropped `icon=` from `create_window()` (it moved to `start(icon=)`).
+  `open_control_window()` passed `icon=` to `create_window` and caught the `TypeError` into a
+  hardcoded reduced call — so ONE unsupported kwarg silently discarded three supported ones.
+  Guessing the API instead of asking it.
+- **THE TRAP — read before touching this again:** routing the icon to `start()` with the existing
+  `.png` candidate makes the WebView2 host window **never show** on Windows. Silently: no
+  exception, no log line, `IsWindowVisible` just stays False. That is REG-051 (the dead Desktop
+  icon) all over again, and the naive fix would have re-shipped it to every machine that HAS an
+  icon file. Controlled A/B, same command, only the icon differing:
+  `tv_diablo_icon.png` -> visible False - none -> True - `appicon.ico` -> True.
+- **Fix (v1462):** ask `inspect.signature` instead of guessing — keep every option the installed
+  version accepts, route the icon to whichever call owns it, and log anything genuinely dropped.
+  Windows accepts **`.ico` only** (`appicon.ico`, which already ships and is what the Desktop
+  `.lnk` uses); a non-`.ico` is refused outright. `.png` candidates stay Mac/Linux.
+- **Verify:** cold launch via the real `.lnk` chain with the `.ico` active -> `launch complete
+  (window up)`, 1 window VISIBLE=True; test_agent 201 OK; test_control 267 OK.
+- **Prevention:** (1) probe an optional dependency's signature, never infer it from an exception —
+  a `TypeError` catch-all cannot tell WHICH kwarg was rejected, so it throws away the good ones
+  with the bad; (2) any change touching window creation must be A/B'd against
+  `IsWindowVisible`, because this codebase has now shipped the same "window exists but is never
+  shown" failure twice from two unrelated causes (REG-051, this); (3) cosmetics must never be
+  able to cost the window — refuse the decoration, keep the app.
