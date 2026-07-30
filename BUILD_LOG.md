@@ -1,4 +1,37 @@
 
+## v1486 — 2026-07-31 — the sigil keeps its three promises
+
+Konyo: *"how can there like really be a unique generated login symbol logo for a profile so my
+cuzin knows its his console and hes logged into his profile.. and same for me.. how can we compare
+the differences?"*
+
+v1465 built the chip and left a comment saying `window.TVD_SIGIL` is "exposed so tests/console can
+assert determinism". No test was ever written, so the three properties the whole feature rests on
+were never checked:
+
+* **STABLE** — the same install shows the same sigil forever, or it cannot mean *this is mine*
+* **DISTINCT** — two installs look different, or it cannot mean *this is NOT yours*
+* **HONEST** — the colour and the name agree
+
+The third is not hypothetical. The first cut hashed the adjective and the hue separately and
+rendered **"AMBER ANVIL" in blue**, which defeats the entire point: the job of the chip is that a
+colour seen across a room and a name said out loud describe the same console. The fix was to
+index-lock them, and nothing had been holding that.
+
+The test lifts the SHIPPED generator into a real JS engine — a Python re-implementation would agree
+with itself while disagreeing with the product — and runs it over 204 installs. It pins stability,
+the index-lock, a well-formed 4-hex tiebreak code, zero collisions among Konyo's four real
+machines, a collision ceiling across the synthetic 200, and that an install with **no** id yields
+no sigil at all (a chip that renders for an unknown identity is claiming to identify something it
+cannot).
+
+Mutation-verified: un-locking the hue reproduces the historical bug exactly, and the failure names
+it — *"renders 'Amber Sigil' in hue index 13 but its adjective is index 12"*.
+
+Gates: 6/6.
+
+---
+
 ## v1485 — 2026-07-31 — the Forge arithmetic is PINNED
 
 Konyo, with a screenshot: *"how come for forges ONESTEP is 91 … if there is 99 forges to create?

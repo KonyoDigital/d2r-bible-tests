@@ -3990,6 +3990,129 @@ class TestForgeCountsAddUp(unittest.TestCase):
                          % (rw, len(crafts), rw + len(crafts)))
 
 
+class TestProfileSigil(unittest.TestCase):
+    """v1486 — the chip that answers "whose console am I in".
+
+    Konyo: *"how can there like really be a unique generated login symbol logo for a profile so my
+    cuzin knows its his console and hes logged into his profile.. and same for me.. how can we
+    compare the differences?"*
+
+    v1465 built it and left a comment saying `window.TVD_SIGIL` is "exposed so tests/console can
+    assert determinism" — and then no test was ever written. So the three properties the feature
+    rests on have never been checked:
+
+      * STABLE   — the same install shows the same sigil forever, or it cannot mean "this is mine"
+      * DISTINCT — two installs should look different, or it cannot mean "this is NOT yours"
+      * HONEST   — the colour and the name must agree
+
+    That last one is not hypothetical. The first cut hashed the adjective and the hue separately
+    and produced "AMBER ANVIL" rendered in blue, which defeats the entire point: the whole job of
+    the chip is that a colour seen across a room and a name said out loud describe the same
+    console. The fix was to index-lock them, and nothing has been pinning that since.
+
+    Runs the SHIPPED generator in a real JS engine rather than a Python re-implementation — a
+    re-implementation would agree with itself while disagreeing with the product.
+    """
+
+    IDS = ["konyo-macbook", "cousin-pc", "adi-windows", "windows-pc-2"]
+
+    def _extract(self, src, needle):
+        start = src.index(needle)
+        i, depth = src.index("{", start), 0
+        for j in range(i, len(src)):
+            if src[j] == "{":
+                depth += 1
+            elif src[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    return src[start:j + 1]
+        self.fail("could not close %s" % needle)
+
+    def test_sigils_are_stable_distinct_and_index_locked(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import js_syntax_gate
+        browser = js_syntax_gate.find_browser()
+        if not browser:
+            self.skipTest("no Chromium/Edge found — cannot execute the sigil generator")
+        repo = js_syntax_gate.REPO
+        with open(os.path.join(repo, "tv", "control_ui.html"), encoding="utf-8") as fh:
+            src = fh.read()
+
+        # the three tables + the two functions, lifted verbatim from the shipped file
+        parts = [src[src.index("  var GLYPHS = ["):src.index("  function h32(")],
+                 self._extract(src, "  function h32("),
+                 self._extract(src, "  function sigilFor(")]
+        # 200 synthetic installs to measure collisions, plus the named ones
+        ids = self.IDS + ["install-%d" % i for i in range(200)]
+        harness = (
+            "<!doctype html><meta charset=utf-8><pre id=o></pre><script>\n"
+            + "\n".join(parts) + "\n"
+            "var A_LEN = A.length, IDS = " + json.dumps(ids) + ";\n"
+            "var res = {};\n"
+            "IDS.forEach(function(id){\n"
+            "  var s1 = sigilFor(id), s2 = sigilFor(id);\n"
+            "  res[id] = { s: s1, stable: JSON.stringify(s1) === JSON.stringify(s2),\n"
+            "              hueIdx: HUES.indexOf(s1.hue), adjIdx: A.indexOf(s1.name.split(' ')[0]) };\n"
+            "});\n"
+            "res._empty = sigilFor('');\n"
+            "document.getElementById('o').textContent = 'RESULT:' + JSON.stringify(res);\n"
+            "</script>")
+        tmp = os.path.join(repo, "_sigil_probe.html")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(harness)
+        srv, port = js_syntax_gate._serve(repo)
+        try:
+            with tempfile.TemporaryDirectory() as prof:
+                r = subprocess.run(
+                    [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
+                     "--user-data-dir=%s" % prof, "--virtual-time-budget=6000", "--dump-dom",
+                     "http://127.0.0.1:%d/_sigil_probe.html" % port],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+            blob = (r.stdout or "") + (r.stderr or "")
+        finally:
+            srv.shutdown()
+            srv.server_close()
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+        m = re.search(r"RESULT:(\{.*?\})</pre>", blob, re.S)
+        self.assertIsNotNone(m, "the sigil probe never reported:\n" + blob[-800:])
+        got = json.loads(m.group(1))
+
+        self.assertIsNone(got.pop("_empty"),
+                          "an install with no id must yield NO sigil — a chip that renders for an "
+                          "unknown identity is claiming to identify something it cannot")
+
+        for ident, row in got.items():
+            self.assertTrue(row["stable"], "%s produced two different sigils in one run" % ident)
+            # HONEST: colour and word are one decision, not two
+            self.assertEqual(
+                row["hueIdx"], row["adjIdx"],
+                "%s renders %r in hue index %d but its adjective is index %d — this is the "
+                "'AMBER ANVIL in blue' bug the index-lock exists to prevent. A colour seen across "
+                "a room and a name said out loud must describe the same console."
+                % (ident, row["s"]["name"], row["hueIdx"], row["adjIdx"]))
+            self.assertRegex(row["s"]["code"], r"^[0-9A-F]{4}$",
+                             "%s has a malformed tiebreak code %r" % (ident, row["s"]["code"]))
+
+        # DISTINCT: the four real machines must not collide with each other at all
+        named = [json.dumps(got[i]["s"], sort_keys=True) for i in self.IDS]
+        self.assertEqual(len(set(named)), len(named),
+                         "two of Konyo's own machines share a sigil, so the chip cannot tell him "
+                         "whose console he is looking at: %s"
+                         % [got[i]["s"]["name"] for i in self.IDS])
+
+        # and across 200 installs, full-identity collisions must stay rare
+        allsig = [json.dumps(r["s"], sort_keys=True) for r in got.values()]
+        dupes = len(allsig) - len(set(allsig))
+        self.assertLessEqual(
+            dupes, len(allsig) // 20,
+            "%d/%d installs collide on the FULL sigil (glyph+name+code). The chip stops "
+            "distinguishing consoles well before that." % (dupes, len(allsig)))
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
