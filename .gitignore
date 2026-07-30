@@ -52,3 +52,9 @@ tv/__pycache__/
 
 # v1465 — per-install identity: unique per PC, must NEVER travel between machines
 tv/.tvd_identity.json
+
+# scratch probes used while debugging — never ship
+_forgecheck.html
+_measure.html
+_probe.html
+_seed*.html
