@@ -1266,3 +1266,32 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   click), while a machine wrongly given the OWNER's world shows someone else's chronicle.
 - **Prevention:** when a detection decides data visibility, enumerate every available signal and
   choose the failure direction deliberately. Ask which way of being wrong is cheap.
+
+## REG-067 — I wrote the window fix and never wired it up (2026-07-30)
+- **Symptom:** the console kept spilling under the taskbar long after v1464 claimed to fix it.
+- **Root cause:** v1464 defined `_win_nudge_onscreen()` and **never attached it to the `shown`
+  event**. The sequence that produced it: I added the function, then removed its riskier sibling
+  `_win_fit_to_workarea` (which had collapsed the window to 158x26), and the surviving function
+  lost its wiring in the same edit. Dead code that reads like a shipped feature — the ledger even
+  described the behaviour as delivered.
+- **Caught by:** a SCREENSHOT taken for an unrelated UI round, which happened to include the
+  taskbar sitting on top of the console. No test covered it, and the geometry check I had run
+  earlier measured a window I had repositioned by hand, so it agreed with me.
+- **Fix (v1470):** wired to `shown`; verified window bottom `y=1008` against work-area bottom
+  `y=1008` — exact fit, measured DPI-aware from a fresh launcher-spawned window.
+- **Prevention:** (1) defining a handler and registering it are two changes, and removing a
+  sibling handler is exactly when the second one gets lost — grep for the registration, not the
+  definition; (2) a fix whose only proof is a measurement taken after I moved the thing myself is
+  not proof; re-launch clean and measure what the product does on its own.
+
+## REG-068 — four spellings of one card surface (2026-07-30)
+- **Symptom:** the console read as "accumulated" rather than designed, without any single element
+  looking wrong.
+- **Root cause:** `.hd-col`, `.kpi`, `.hh-card`, `.eh-organ` (plus `.hub-hero.idle`) each declared
+  their own gradient and border for the SAME concept, differing only in the third decimal —
+  `rgba(255,255,255,.022)` vs `.025`, `rgba(0,0,0,.32)` vs `.34` — and three different border
+  colours. Individually invisible; collectively the reason nothing quite lined up.
+- **Fix (v1470):** one `--card-bd` / `--card-bg` pair in `:root`, referenced by all of them.
+- **Prevention:** a visual concept that appears in more than two rules needs a token the moment
+  the second copy is written. Near-duplicate alpha values are the signature of a system being
+  re-derived from memory instead of referenced.

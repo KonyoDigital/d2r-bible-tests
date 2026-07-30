@@ -3,14 +3,14 @@
 ## Current ship
 | Item | Value |
 |------|--------|
-| Version | **v1469** |
+| Version | **v1470** |
 | Suites | test_agent **201 OK** · test_control **267 OK** — in a PLAIN `python tv/test_*.py`, no env vars |
 | Launch | spawn no longer hides the app window · window presence verified, not assumed |
 | Icon | `appicon.ico` via pywebview 6 `start(icon=)` — **.ico only** (a .png silently kills the window) |
 | Pull | skipped if already up · 12s cap · timed-out job really stops before spawn |
 | Identity | **platform decides**: only a Mac keeps the owner world · every Windows/other box starts fresh in its own `W·` (chronicle + forge 0/0) · a real click on the pill outranks it forever |
 | Sigil | every install mints `tv/.tvd_identity.json` (gitignored) → colour+rune+name+code chip. Shown in the CONSOLE header and on the BOARD beside the world pills, same id + same generator. This PC = **AMBER ANVIL · B210** |
-| Geometry | ships 1120x660 logical — an 800-tall window did not fit a 672-logical work area |
+| Geometry | ships 1120x660 logical + a MOVE-only on-screen nudge on `shown` — verified bottom edge meets the work area exactly |
 | Sessions | each movement is a `<section class="zone">` owning its banner + cards · a zone with no visible body hides itself · KPI card labelled · a real `0` reads dim |
 
 ## Fixed in v1460 — the dead Desktop icon (REG-051)

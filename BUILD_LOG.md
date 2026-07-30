@@ -1,4 +1,44 @@
 
+## v1470 — 2026-07-30 — one card recipe · the numbers outrank the ornament · the window fits
+
+The last two shelf items, plus a dead-code bug the shelf work exposed.
+
+### 1. ONE card recipe
+The console had FOUR spellings of the same surface — `.hd-col`, `.kpi`, `.hh-card`, `.eh-organ`
+(and `.hub-hero.idle` as a fifth near-miss) — each declaring its own gradient and its own border,
+differing only in the third decimal (`.022` vs `.025`, `.32` vs `.34`) and in three different
+border colours for one concept. Nobody can perceive a `.003` alpha difference; the eye absolutely
+reads *"these cards don't quite match"*, which is what made the surface feel accumulated. Now
+declared once as `--card-bd` / `--card-bg` and referenced everywhere, so a future card inherits
+the system instead of inventing a sixth spelling. Remaining raw gradients: the token itself, and
+one genuinely different concept that composes with `--panel`.
+
+### 2. The numbers outrank the ornament — MEASURED, not eyeballed
+Per REG-058 this was done with headless Chromium reading **computed styles** off the real console
+at its real 1657px CSS viewport, never from a screenshot. That measurement confirmed the key fact:
+at this width **every `--fs-*` token is pinned at its maximum** (`.hc-t` measured exactly 40px and
+`.m .v` exactly 44px, matching their clamp maxima). So the audit's arithmetic held — the hero name
+resolved to **44px** while `.kpi-v` — sessions, reads/hr, grails, tallies, the only hard metrics
+on the surface — was the **smallest numeral at 27px**.
+
+Fixed from both ends: `.kpi-v` steps up one token (`--fs-lg` → `--fs-xl`, 27 → 34px) and
+`.hh-name` eases down (`clamp(26,3.9vw,44)` → `clamp(24,3.2vw,36)`). A **63% gap becomes 6%** —
+the headline still leads by a hair, the data is its peer instead of its footnote. No new value
+enters the scale.
+
+### 3. `_win_nudge_onscreen` was never wired (dead code)
+v1464 defined the move-only on-screen nudge and **never attached it to `shown`** — I wrote the
+function, removed its risky sibling, and lost the wiring in between. So the window was still
+spilling under the taskbar this whole time; the v1470 screenshot caught the taskbar sitting on top
+of the console, which is the only reason it was found. Now wired, and verified: window bottom
+`y=1008` against a work-area bottom of `y=1008` — **fits exactly, margin 0**.
+
+- **Verify:** computed-style measurement at 1657px (layout engine, not bitmap) · card recipe count
+  reduced to one token + one unrelated concept · `control_ui.html` parses in Chromium with no
+  `SyntaxError` · visual-lock invariant GREEN · `test_agent` **201 OK** · `test_control` **267
+  OK**, plain shell · live screenshot read back: KPI numerals visibly larger, card borders uniform
+  · window geometry re-measured DPI-aware · stamps parity v1470.
+
 ## v1469 — 2026-07-30 — everyone starts fresh except the MacBook
 
 Konyo, stating the product rule directly: *"everyone should start fresh except my MacBook — the

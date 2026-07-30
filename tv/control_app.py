@@ -2664,6 +2664,7 @@ def open_control_window():
                 # 158x26. The pre-create clamp in open_control_window() already guarantees the
                 # geometry fits the work area, verified at 1680x948 fully on screen. Cosmetics
                 # do not get to touch window geometry after it is up — REG-051, REG-053.
+                win.events.shown += _win_nudge_onscreen   # v1470 — MOVE only, never resize
                 win.events.shown += _win_tint_caption
             except Exception:
                 pass
@@ -8016,7 +8017,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1469",
+        "ver": "v1470",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -109,6 +109,16 @@
        painted a light-grey thumb and track straight onto #070605 — plus light <select> popups,
        a light native context menu and a white navigation flash. One declaration fixes the lot. ══ */
     color-scheme: dark;
+
+    /* ══ v1470 — ONE CARD RECIPE. The console had FOUR spellings of the same surface:
+       .hd-col, .kpi, .hh-card and .eh-organ each declared their own gradient and their own
+       border, differing only in the third decimal (.022 vs .025 vs .32 vs .34) and in three
+       different border colours for one concept. Nobody can see a .003 alpha difference — but
+       the eye absolutely reads "these cards don't quite match", which is what made the surface
+       feel accumulated rather than designed. Declared once here so a future card inherits the
+       system instead of inventing a fifth spelling. ══ */
+    --card-bd: rgba(240,192,96,.13);
+    --card-bg: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32));
   }
   html { scrollbar-color: rgba(240,192,96,.28) transparent; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2091,9 +2101,15 @@
      intrinsic: it picks the column count from the space actually available, so it is correct at
      880, 1105, 1280 and fullscreen alike without any of us guessing another breakpoint. */
   .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: var(--hd-gap-in); }
-  .kpi { background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.34)); border: 1px solid var(--edge);
+  .kpi { background: var(--card-bg); border: 1px solid var(--card-bd);   /* v1470 — one recipe */
     border-radius: var(--hd-radius); padding: 11px 8px 10px; text-align: center; min-width: 0; }
-  .kpi-v { font: var(--fw-bold) var(--fs-lg)/1 var(--mono); color: #f0e4c6; font-variant-numeric: tabular-nums;
+  /* v1470 — THE NUMBERS OUTRANK THE ORNAMENT. Measured in headless Chromium at the console's real
+     1657px CSS viewport (every --fs-* token is pinned at its MAX there): the hero name resolved to
+     44px and the crest title to 40px, while .kpi-v — sessions, reads/hr, grails, tallies, the only
+     hard metrics on the surface — was the SMALLEST numeral at 27px. Raising it one step to
+     --fs-xl (34px) and easing the hero down to 36px turns a 63% gap into 6%: the headline still
+     leads by a hair, the data is its peer instead of its footnote. Token step, no new value. */
+  .kpi-v { font: var(--fw-bold) var(--fs-xl)/1 var(--mono); color: #f0e4c6; font-variant-numeric: tabular-nums;
     letter-spacing: var(--ls-tight); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kpi-l { font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-wide); text-transform: uppercase; color: #8a7e68; margin-top: 6px; }
   .kpi.kpi-gold .kpi-v { color: var(--gold); }
@@ -2128,7 +2144,7 @@
   .hd-hist-all:hover { color: var(--gold); border-color: var(--gold-antique); }
   .hd-hist-strip { display: flex; gap: var(--hd-gap-in); overflow-x: auto; overflow-y: hidden; padding: 2px 2px 8px; scrollbar-width: thin; }
   .hh-card { position: relative; flex: 0 0 auto; width: 150px; text-align: left; display: flex; flex-direction: column;
-    background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(0,0,0,.34)); border: 1px solid var(--edge); border-radius: var(--hd-radius);
+    background: var(--card-bg); border: 1px solid var(--card-bd); border-radius: var(--hd-radius);   /* v1470 — one recipe */
     overflow: hidden; cursor: pointer; padding: 0; color: inherit; }
   .hh-card:hover { border-color: var(--gold-antique); box-shadow: 0 5px 16px rgba(0,0,0,.45); }
   .hh-card:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 1px; }
@@ -2494,7 +2510,7 @@
     box-shadow: 0 0 0 1px rgba(0,0,0,.5) inset, 0 18px 44px -30px rgba(240,192,96,.26); }
   body[data-view="sessions"] .hub-hero { display: flex; }
   body[data-view="sessions"] .hub-hero.idle { display: block; }
-  .hub-hero.idle { border-color: var(--edge); background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.28)); box-shadow: none; }
+  .hub-hero.idle { border-color: var(--card-bd); background: var(--card-bg); box-shadow: none; }   /* v1470 — one recipe */
   .hub-hero::before { content: "✦"; position: absolute; right: clamp(18px,2vw,30px); top: 50%; transform: translateY(-50%);
     font: var(--fs-display)/1 var(--serif); color: rgba(240,192,96,.05); pointer-events: none; }
   /* v1467 — the IDLE hero is decoration with nothing to say: at low data it renders two italic
@@ -2509,7 +2525,9 @@
   .hh-main { min-width: 0; }
   .hh-eye { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .28em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 9px; }
   .hh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); flex: none; }
-  .hh-name { font: var(--fw-bold) clamp(26px,3.9vw,44px)/1.04 var(--serif); letter-spacing: .03em; text-transform: uppercase; margin: 9px 0 8px;
+  /* v1470 — eased from clamp(26px,3.9vw,44px): at the real 1657px viewport that pinned to 44px
+     and dwarfed .kpi-v's 27px, so the ornament outweighed every hard metric on the surface. */
+  .hh-name { font: var(--fw-bold) clamp(24px,3.2vw,36px)/1.04 var(--serif); letter-spacing: .03em; text-transform: uppercase; margin: 9px 0 8px;
     color: #ffdf9b; text-shadow: 0 0 26px rgba(240,192,96,.34), 0 2px 0 rgba(0,0,0,.4); animation: hhBreathe 5.5s ease-in-out infinite; }
   @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px rgba(240,192,96,.28), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px rgba(240,192,96,.5), 0 2px 0 rgba(0,0,0,.4);} }
   .hh-src { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); color: var(--parch-dim); letter-spacing: .02em; }
@@ -2546,8 +2564,8 @@
   }
   /* v945 CONSOLE PARITY C1 — dashboard cards adopt the theatre's card language: warm hairline
      border, a faint top-surface highlight, roomier padding. One product, one surface. */
-  .hd-col { border: 1px solid rgba(240,192,96,.13); border-radius: var(--hd-radius);
-    background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32)); padding: var(--hd-pad-y) var(--hd-pad-x); min-height: 0; }
+  .hd-col { border: 1px solid var(--card-bd); border-radius: var(--hd-radius);   /* v1470 — one recipe */
+    background: var(--card-bg); padding: var(--hd-pad-y) var(--hd-pad-x); min-height: 0; }
   .hd-wide { grid-column: 1 / -1; }
   /* C2 — section headers match the theatre drawer h4: gold accent bar + hairline underline */
   /* v1252 (CONSOLE r4 · #4 typography + #2 no-scroll) — tighter, consistent card headers (less margin/pad) so the
@@ -2701,8 +2719,8 @@
   .hd-chip.warn { border-color: rgba(255,120,80,.6); color: #ffb49a; }
   /* v949 — 🩺 ENGINE HEALTH SPINE: the whole loop's pulse, capture → readers → router → funnels → ledger */
   .eh-spine { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
-  .eh-organ { position: relative; flex: 1 1 130px; min-width: 128px; border: 1px solid rgba(240,192,96,.14);
-    border-radius: var(--hd-radius); padding: var(--hd-pad-y) var(--hd-pad-x); background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32));
+  .eh-organ { position: relative; flex: 1 1 130px; min-width: 128px; border: 1px solid var(--card-bd);   /* v1470 — one recipe */
+    border-radius: var(--hd-radius); padding: var(--hd-pad-y) var(--hd-pad-x); background: var(--card-bg);
     display: flex; flex-direction: column; gap: 3px; }
   .eh-dot { position: absolute; top: 10px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #6b6455; }
   .eh-head { display: flex; align-items: center; gap: 6px; }
