@@ -1428,3 +1428,24 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** when a comment warns about a foot-gun, that is evidence the foot-gun is
   reachable — convert it to an assertion. Silent zero coverage that still prints OK is the worst
   failure mode a test suite has.
+
+## REG-075 — v1475 changed the wrong gate; the UI then contradicted itself (2026-07-30)
+- **Symptom:** after v1475 the Forge note read *"all 99 planned here (8 ladder-only included)"*
+  while the pills still read **ALL 95 / ONE STEP 91**. The screen argued with itself — strictly
+  worse than the original state, because now one of the two was provably lying.
+- **Root cause:** v1475 swapped four `_rwLadderBlocked()` call sites to a Forge-scoped predicate.
+  But the task BUCKETS are gated by a **different function** — `_rwBlocked()` (line ~31620) — which
+  returns `'ladder'` and diverts the word into the read-only `out.ladder` strip, out of
+  `now`/`pipeline`/`onestep` entirely (v632). The four swapped sites governed rune demand and base
+  farming; none of them governed the counts.
+- **How it was caught:** by launching the app, clicking to the Forge and READING THE PILLS. The
+  code change was self-consistent and reviewed; only the running product showed the contradiction.
+  A grep for the predicate name could never have found a differently-named gate.
+- **Fix (v1477):** `_rwBlocked()` consults `_forgeIncludeLadder()` before returning `'ladder'`.
+  Verified live: **ALL 103 · ONE STEP 99 · CRAFTS 4**, matching the note (99 runewords + 4 craft
+  types = 103).
+- **Prevention:** (1) when a behaviour is spread across several predicates, changing one and
+  shipping is a guess — enumerate every gate that can exclude the thing BEFORE editing, and note
+  that they may not share a naming convention; (2) any change that alters a COUNT must be verified
+  against the rendered count, not against the diff; (3) the failure mode to fear is not "no
+  effect", it is "half an effect" — a UI that half-changed now states two different truths.

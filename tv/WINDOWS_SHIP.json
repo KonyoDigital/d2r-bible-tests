@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1476",
+  "ver": "v1477",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1476: a real-JS-engine syntax gate runs in the suite, and a class stranded after unittest.main() now fails loudly",
+  "note": "v1477: the Forge pills finally COUNT the ladder words - ALL 103 / ONE STEP 99, matching the note that already said so",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
