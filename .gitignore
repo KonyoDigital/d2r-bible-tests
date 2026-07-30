@@ -60,3 +60,9 @@ _probe.html
 _seed*.html
 _ls*.html
 _lsfork_probe.html
+
+# v1481 — runtime state the launcher writes, not source. start_tvd_win.ps1 caches the
+# "webview imports cleanly" probe result here so every launch does not re-pay it; the value is
+# true for THIS machine's python only, so committing it would hand another machine a stale answer
+# about an interpreter it does not have.
+tv/.webview_ok

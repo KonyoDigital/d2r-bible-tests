@@ -1,4 +1,24 @@
 
+## v1481 — 2026-07-31 — the repo carries SOURCE, not runtime state
+
+Caught by reading what v1480 actually committed rather than assuming `git add -A` did the right
+thing. Two files had been swept in:
+
+* `tv/.webview_ok` — runtime state. The launcher caches its "does `import webview` succeed" probe
+  here so every launch does not re-pay it. That answer is true for **this machine's interpreter
+  only**, so a committed copy hands another machine a confident, stale verdict about a python it
+  does not have — on the cousin's PC that is a launcher that skips a check it needed. Now
+  gitignored and untracked; the file on disk is left alone so the local cache still works.
+* `tv/_session_ux.py` — a scratch probe with a hardcoded `Path.home()` path and zero references
+  anywhere in the tree. Removed.
+
+Neither is a dramatic bug, and that is the point: `-A` is a decision about every file in the tree,
+so it deserves a read of the resulting diff before it is trusted.
+
+Gates: test_control **275 OK**.
+
+---
+
 ## v1480 — 2026-07-31 — tools can report their verdict (and one told the truth immediately)
 
 Fourth instance of a single bug — REG-044, REG-054, REG-077 and now this. A tool prints a check
