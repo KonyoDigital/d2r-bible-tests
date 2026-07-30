@@ -1,4 +1,28 @@
 
+## v1482 — 2026-07-31 — test_routes tells the truth again (red since v1381.1)
+
+`tv/test_routes.py` had been exiting 1 for about a hundred versions, and nothing said so, because
+it is not in the gate set.
+
+Two tests in `TestSuperAnalyzeKai` encoded the **pre**-v1381.1 rule: `stash-runes` selected, plain
+`stash` rejected. v1381.1 reversed exactly that, deliberately, with the reason recorded in
+`_kai_super_select`'s docstring — perfect gem grids were being super-judged as tooltips, returning
+`429` / "no rare" while the tally counts never ran at all. So `stash-runes|gems|materials` are TALLY
+RECOVERY (gap-funnel + rune/gem/material intake) and plain `stash` stays item-judge input. The code
+was updated; the two tests were not.
+
+Both realigned to the shipped doctrine, plus a third that pins the exclusion against a **high**
+router confidence: the incident frame was precisely the one that scores well and belongs to another
+organ, so "excluded" must not be something a strong score can outvote.
+
+The instructive part is not the two assertions. The suite still passed 181 of 183, and a
+mostly-green orphan looks maintained — which is why v1483 makes an unwatched suite a failure in its
+own right.
+
+Gates: test_routes **183 OK (exit 0)** · test_control **275 OK**.
+
+---
+
 ## v1481 — 2026-07-31 — the repo carries SOURCE, not runtime state
 
 Caught by reading what v1480 actually committed rather than assuming `git add -A` did the right

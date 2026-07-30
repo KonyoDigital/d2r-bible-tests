@@ -1555,3 +1555,23 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   tool that cannot speak is hiding whatever it was going to say, and the hidden thing is usually
   real. (3) Two bugs that mask each other are not twice the work of one; they are much harder to
   see, because each makes the other look like expected behaviour.
+
+## REG-079 — a suite outside the gate set rotted for ~100 versions (2026-07-31)
+
+- **Symptom:** `tv/test_routes.py` exited 1 with two failures in `TestSuperAnalyzeKai`. It had been
+  failing continuously since v1381.1.
+- **Root cause:** v1381.1 deliberately reversed which stash panels feed the item judge. Its
+  forensic note is explicit — perfect gem grids were being super-judged as tooltips, which returned
+  `429` / "no rare" while the tally counts never ran at all — so `stash-runes|gems|materials` became
+  TALLY RECOVERY (gap-funnel + rune/gem/material intake) and plain `stash` stayed item-judge input.
+  The code was changed; these two tests, which encoded the opposite rule, were not.
+- **Why it survived:** `test_routes.py` is not in the gate set that gets run before a ship. A suite
+  nobody runs cannot fail loudly, so its verdict decays into decoration. The suite still *passed*
+  181 of 183 assertions, which is the trap — a mostly-green orphan looks maintained.
+- **Fix (v1482):** both tests realigned to the shipped doctrine, plus a third that pins the
+  exclusion against a HIGH router confidence — the incident frame was exactly the one that scores
+  well and belongs to another organ, so "excluded" must not be something a strong score can
+  outvote. 183 OK, exit 0.
+- **Prevention:** a test suite that is not in the gate set is not a test suite. See v1483, which
+  makes an unreferenced `tv/test_*.py` a failure in its own right — the fix for this defect is not
+  the two assertions, it is that nothing was watching them.

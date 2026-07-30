@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1481",
+  "ver": "v1482",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1481: Housekeeping caught by reading what v1480 actually committed. tv/.webview_ok is runtime state - the launcher caches its webview-import probe there, and the answer is only true for THIS machine python, so a committed copy hands another machine a stale verdict about an interpreter it does not have. It is now gitignored and untracked, and the file on disk is untouched so the launcher keeps its cache. tv/_session_ux.py was a scratch probe with a hardcoded home path and zero references anywhere in the tree; removed.",
+  "note": "v1482: test_routes.py has been exiting 1 since v1381.1 and nothing said so, because it is not in the gate set. Two tests in TestSuperAnalyzeKai encoded the PRE-v1381.1 rule (stash-runes selected, plain stash rejected). v1381.1 reversed exactly that for a recorded forensic reason: perfect gem grids were super-judged as tooltips, returning 429 and no-rare while the tally counts never ran, so stash-runes, stash-gems and stash-materials are tally recovery and ride the gap funnel instead of the item judge. The code was updated and the tests were not. Tests realigned to the shipped doctrine and a third added that pins the exclusion against a high router confidence, since the incident frame was precisely the one that looked like a great candidate. 183 OK, exit 0.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

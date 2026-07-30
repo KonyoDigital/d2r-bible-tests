@@ -1398,16 +1398,27 @@ class TestSuperAnalyzeKai(unittest.TestCase):
         cands = ca._kai_super_select(routing, [], fullnames=self.FN)
         self.assertEqual([r["f"] for r in cands], ["a.jpg"])
 
-    def test_select_only_tooltip_or_stash_dash_labels_never_gameplay_or_plain_stash(self):
+    def test_select_takes_tooltip_and_plain_stash_never_gameplay_inventory_or_tally_panels(self):
+        # v1482 — this test (and the ordering one below) encoded the PRE-v1381.1 rule: stash-runes
+        # in, plain stash out. v1381.1 reversed exactly that, deliberately and for a forensic
+        # reason recorded in _kai_super_select's docstring — perfect gem grids were being
+        # super-judged as tooltips, which returned 429 / "no rare" while the tally counts never
+        # ran at all. stash-runes|gems|materials are TALLY RECOVERY (gap-funnel + rune/gem/material
+        # intake), not item-judge input; they ride _kai_stage3_gap_funnels instead.
+        #
+        # The code was updated and these two were not, so test_routes.py has been exiting 1 since
+        # v1381.1. It is not in the gate set, so nothing ever said so out loud.
         routing = [
             {"f": "gp.jpg", "ts": 1, "label": "gameplay", "gatePass": True, "confidence": 2},
             {"f": "st.jpg", "ts": 2, "label": "stash", "gatePass": True, "confidence": 2},
             {"f": "inv.jpg", "ts": 3, "label": "inventory", "gatePass": True, "confidence": 2},
             {"f": "tip.jpg", "ts": 4, "label": "tooltip", "gatePass": True, "confidence": 2},
             {"f": "sr.jpg", "ts": 5, "label": "stash-runes", "gatePass": True, "confidence": 2},
+            {"f": "sg.jpg", "ts": 6, "label": "stash-gems", "gatePass": True, "confidence": 2},
+            {"f": "sm.jpg", "ts": 7, "label": "stash-materials", "gatePass": True, "confidence": 2},
         ]
         cands = ca._kai_super_select(routing, [], fullnames=self.FN)
-        self.assertEqual(sorted(r["f"] for r in cands), ["sr.jpg", "tip.jpg"])
+        self.assertEqual(sorted(r["f"] for r in cands), ["st.jpg", "tip.jpg"])
 
     def test_select_excludes_frames_already_named_a_real_item(self):
         routing = [{"f": "tip.jpg", "ts": 1000, "label": "tooltip", "gatePass": True, "confidence": 2}]
@@ -1422,15 +1433,26 @@ class TestSuperAnalyzeKai(unittest.TestCase):
         cands = ca._kai_super_select(routing, sess, fullnames=self.FN)
         self.assertEqual([r["f"] for r in cands], ["tip.jpg"])
 
-    def test_select_orders_tooltip_before_stash_then_confidence_then_ts(self):
+    def test_select_orders_tooltip_before_plain_stash_then_confidence_then_ts(self):
+        # v1482 — the stash row is now a PLAIN 'stash' frame. It used to be 'stash-runes', which
+        # v1381.1 moved to the tally lane; leaving it here asserted that an excluded frame is
+        # ordered last, which cannot both be true. See the note on the eligibility test above.
         routing = [
-            {"f": "sr1.jpg", "ts": 100, "label": "stash-runes", "gatePass": True, "confidence": 3},
+            {"f": "st1.jpg", "ts": 100, "label": "stash", "gatePass": True, "confidence": 3},
             {"f": "tip2.jpg", "ts": 300, "label": "tooltip", "gatePass": True, "confidence": 2},
             {"f": "tip1.jpg", "ts": 200, "label": "tooltip", "gatePass": True, "confidence": 3},
         ]
         cands = ca._kai_super_select(routing, [], fullnames=self.FN)
-        # tooltip frames first (higher confidence first among them), stash-* last
-        self.assertEqual([r["f"] for r in cands], ["tip1.jpg", "tip2.jpg", "sr1.jpg"])
+        # tooltip frames first (higher confidence first among them), plain stash last
+        self.assertEqual([r["f"] for r in cands], ["tip1.jpg", "tip2.jpg", "st1.jpg"])
+
+    def test_select_excludes_every_tally_panel_even_at_high_confidence(self):
+        """v1482 — the v1381.1 exclusion is about WHICH LANE a panel belongs to, so it must not be
+        outvoted by a strong router score. A perfect, high-confidence gem grid is exactly the frame
+        that caused the incident: it looks like a great candidate and is the wrong organ's work."""
+        routing = [{"f": "%s.jpg" % lbl, "ts": 10, "label": lbl, "gatePass": True, "confidence": 9}
+                   for lbl in ("stash-runes", "stash-gems", "stash-materials")]
+        self.assertEqual(ca._kai_super_select(routing, [], fullnames=self.FN), [])
 
     def test_select_respects_explicit_cap(self):
         routing = [{"f": "t%d.jpg" % i, "ts": i, "label": "tooltip", "gatePass": True, "confidence": 2}
