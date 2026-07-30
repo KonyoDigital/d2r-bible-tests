@@ -1178,8 +1178,11 @@ class TestExitSafeguard(unittest.TestCase):
 
     def test_v1420_esc_empty_stack_hits_api_quit(self):
         # UI contract: empty-stack Escape posts /api/quit (Mac Force-Quit class).
-        ui = open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"),
-                  encoding="utf-8").read()
+        # v1472 — context manager; the bare open().read() here was the last unclosed-file
+        # ResourceWarning the suite emitted (the sibling at ~3399 already did it correctly).
+        with open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"),
+                  encoding="utf-8") as _uf:
+            ui = _uf.read()
         self.assertIn("/api/quit", ui)
         self.assertIn("v1420", ui)
         self.assertIn("Leaving console", ui)

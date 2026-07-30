@@ -1,4 +1,37 @@
 
+## v1472 — 2026-07-30 — file-handle leaks closed (the other kind of leak)
+
+v1471 closed a *data* leak. The suites had been reporting a second, unrelated leak class all
+session and nobody had read it: `ResourceWarning: unclosed file`. Ran the suite under
+`-W error::ResourceWarning` to make them impossible to ignore, then fixed every site.
+
+Five bare `open(...).read()` calls that relied on refcount GC to close the handle:
+
+| site | why it mattered |
+|---|---|
+| `control_app.py` `_window_present()` | runs on **every launch and every takeover check** — the leak recurred constantly |
+| `control_app.py` board-pid reclaim | same pattern on the popout's pid file |
+| `tv_diablo.py` `_sub_budget` read ×2 | the vision lane hits this on **every read** — thousands of handles in a farm session |
+| `tv_diablo.py` `_sub_budget` write | unclosed writer, so the flush timing was GC-dependent |
+| `test_control.py` `control_ui.html` read | the last warning the suite emitted |
+
+Two of these are the pid files the launcher manages, and that is the sharp end: **on Windows an
+open handle blocks deleting or replacing the file underneath it.** `.tvd_window.pid` is exactly
+the file the cleanup path tries to remove, and "cannot delete, in use" is the same failure shape
+that made a scratch worktree undeletable earlier in this session. So this was not only tidiness.
+
+The two budget reads collapsed into one `_sub_budget_load()` helper rather than two more `with`
+blocks — same fix, one place, and it now returns `{}` on any failure instead of each caller
+re-implementing that.
+
+- **Verify:** `python -W error::ResourceWarning tv/test_control.py` → **0 unclosed-file warnings**
+  (was 2 at session start, including the pid file) · `test_control` **267 OK** · `test_agent`
+  **201 OK**, plain shell · `py_compile` · stamps parity v1472.
+- **Left alone deliberately:** `_log_fp = open(LOG_PATH, "a", buffering=1)` is a long-lived
+  intentional handle, not a leak. The remaining socket `ResourceWarning`s come from the test
+  harness's own `ThreadingHTTPServer` connections, not from product code — worth a look, but
+  fixing test-harness sockets is not worth touching the server lifecycle for.
+
 ## v1471 — 2026-07-30 — the switch says WHOSE WORLD · one real leak closed · no key migration
 
 Konyo asked, for the third time, whether the Windows/Mac toggle is really needed — *"it just needs

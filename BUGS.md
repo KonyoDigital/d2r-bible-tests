@@ -1327,3 +1327,24 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **If it is ever revisited,** the blockers to solve first are: a reversible two-way mapping (users
   switch worlds and must not strand data), the one-time legacy `L·`→bare merge that assumes literal
   prefixes, and a rollback path that works when the app is offline. Do not start it without those.
+
+## REG-070 — file handles leaked on the hottest paths in the app (2026-07-30)
+- **Symptom:** the suites had been printing `ResourceWarning: unclosed file` all session, including
+  one for `tvd_window_test.pid`. Nobody read them, because warnings scroll past a green OK.
+- **Root cause:** five bare `open(...).read()` / `open(...,"w").write()` calls relying on refcount
+  GC to close. The two that matter most are on hot paths: `_window_present()` (every launch and
+  every takeover check) and the subscription-budget read (**every vision read** — thousands of
+  handles across a farm session).
+- **Why it is not merely untidy:** two of them are the PID FILES the launcher manages, and on
+  Windows an open handle **blocks deleting or replacing the file underneath it**.
+  `.tvd_window.pid` is precisely the file the cleanup path tries to remove, and "cannot delete,
+  file in use" is the same failure shape that made a scratch worktree undeletable earlier in this
+  same session.
+- **Fix (v1472):** context managers everywhere; the two budget reads collapsed into one
+  `_sub_budget_load()` that also returns `{}` on failure instead of each caller re-implementing it.
+- **Verify:** `python -W error::ResourceWarning tv/test_control.py` → 0 unclosed-file warnings
+  (was 2). Suites still 267 OK / 201 OK.
+- **Prevention:** (1) a warning that only appears alongside a passing suite is invisible — run the
+  suite under `-W error::ResourceWarning` when you want to know; (2) `open().read()` is never
+  correct in long-lived code, and is actively harmful on Windows for any file you also intend to
+  delete; (3) when the same leak appears twice, fix it in one helper rather than two `with` blocks.

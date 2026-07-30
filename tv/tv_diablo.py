@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1471"   # the switch says whose world, and one cross-world leak is closed.
+VERSION = "v1472"   # file-handle leaks closed — zero unclosed-file warnings.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2394,6 +2394,22 @@ except Exception:
     _SUB_DAILY_MAX = 250
 _sub_budget_lock = threading.Lock()
 
+
+def _sub_budget_load():
+    """v1472 — read the subscription-budget file WITHOUT leaking a handle.
+
+    The two call sites used a bare `open(...).read()`, which relies on refcount GC to close.
+    This runs on every vision read, so during a long farm session it churns thousands of
+    handles — and on Windows an open handle also blocks replacing the file underneath it.
+    """
+    try:
+        if not os.path.isfile(_SUB_BUDGET_PATH):
+            return {}
+        with open(_SUB_BUDGET_PATH, encoding="utf-8") as fh:
+            return json.loads(fh.read()) or {}
+    except Exception:
+        return {}
+
 def _vision_budget_armed():
     """True only when a real subscription-costing Claude binary is in play.
 
@@ -2427,7 +2443,8 @@ def _sub_budget_check(kind="vision"):
     now = time.time()
     with _sub_budget_lock:
         try:
-            st = json.loads(open(_SUB_BUDGET_PATH).read()) if os.path.isfile(_SUB_BUDGET_PATH) else {}
+            st = _sub_budget_load()   # v1472 — was a bare open().read(); the vision lane hits this
+                                      # on EVERY read, so the leaked handle recurred per frame
         except Exception:
             st = {}
         calls = [float(t) for t in (st.get("calls") or []) if now - float(t) < 86400]
@@ -2444,13 +2461,15 @@ def _sub_budget_record():
     now = time.time()
     with _sub_budget_lock:
         try:
-            st = json.loads(open(_SUB_BUDGET_PATH).read()) if os.path.isfile(_SUB_BUDGET_PATH) else {}
+            st = _sub_budget_load()   # v1472 — was a bare open().read(); the vision lane hits this
+                                      # on EVERY read, so the leaked handle recurred per frame
         except Exception:
             st = {}
         calls = [float(t) for t in (st.get("calls") or []) if now - float(t) < 86400]
         calls.append(now)
         try:
-            open(_SUB_BUDGET_PATH, "w").write(json.dumps({"calls": calls, "last": now}))
+            with open(_SUB_BUDGET_PATH, "w", encoding="utf-8") as _bf:
+                _bf.write(json.dumps({"calls": calls, "last": now}))
         except Exception:
             pass
 

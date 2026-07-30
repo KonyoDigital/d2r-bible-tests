@@ -2092,7 +2092,10 @@ def _open_board_native(tab="session"):
     try:
         if os.path.isfile(BOARD_PID_PATH):
             try:
-                old = int(open(BOARD_PID_PATH).read().strip() or 0)
+                # v1472 — context manager: a bare open().read() leaks the handle until GC, and on
+                # Windows an open handle blocks deleting/replacing the very pid file we manage.
+                with open(BOARD_PID_PATH) as _bf:
+                    old = int(_bf.read().strip() or 0)
                 if old:
                     os.kill(old, signal.SIGKILL)
             except Exception:
@@ -2292,7 +2295,11 @@ def _window_present():
     try:
         if not os.path.isfile(WINDOW_PID_PATH):
             return False
-        pid = int((open(WINDOW_PID_PATH).read().strip() or 0))
+        # v1472 — was a bare open().read(). _window_present() runs on EVERY launch and every
+        # takeover check, so the leaked handle recurred constantly; on Windows that is also what
+        # keeps .tvd_window.pid locked against the cleanup that is supposed to remove it.
+        with open(WINDOW_PID_PATH) as _wf:
+            pid = int(_wf.read().strip() or 0)
         if pid <= 0:
             return False
         try:
@@ -8017,7 +8024,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1471",
+        "ver": "v1472",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
