@@ -3,6 +3,7 @@
 # Boots the REAL Handler on an ephemeral port with a fixture journal + frame archive.
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -3419,6 +3420,54 @@ class TestV1457HonestySurfacesInUi(unittest.TestCase):
     def test_g5_card_shows_its_last_error(self):
         ui = self._ui()
         self.assertIn("last Grok error", ui, "a swallowed primary-lane failure is not honest")
+
+
+class TestRunnerIsLast(unittest.TestCase):
+    """v1476 — enforce the v1456 lesson instead of only documenting it.
+
+    `unittest.main()` exits the interpreter, so ANY class defined after it is never defined and
+    never runs — silent zero coverage that still prints OK. v1456 fixed one instance and left a
+    comment; this session I appended a new test class after the runner anyway and the suite
+    happily reported 267 OK with my test uncollected. A comment is not a guard.
+    """
+
+    def test_no_test_class_is_defined_after_the_runner(self):
+        with open(os.path.abspath(__file__), encoding="utf-8") as fh:
+            src = fh.read()
+        # Anchor at column 0: this test mentions the marker itself in a string literal, and an
+        # unanchored search finds THAT first — the guard then reports the class below it and
+        # fails on a correct file. Only a top-level `if __name__` is the real runner.
+        m = None
+        for m in re.finditer(r'^if __name__ == "__main__":', src, re.M):
+            pass
+        self.assertIsNotNone(m, "the runner block moved or was renamed")
+        tail = src[m.start():]
+        stranded = re.findall(r"^class\s+(\w+)\(", tail, re.M)
+        self.assertEqual(
+            stranded, [],
+            "these classes are defined AFTER unittest.main() and can never run: %s. "
+            "Move them above the runner block." % ", ".join(stranded))
+
+
+class TestJsSyntaxGate(unittest.TestCase):
+    """v1476 — the two surfaces must PARSE. Twice in one session an edit produced a hard
+    `Uncaught SyntaxError` that blanked a 37k-line page (REG-060: a heredoc ate \n escapes and
+    left a raw newline inside a quoted literal; REG-072: a // comment appended mid-line swallowed
+    the rest of a statement). Both were caught only because a human ran headless Chromium by hand.
+
+    A hand-rolled tokenizer was tried first and rejected — it reported 14-16 problems on files
+    that parse perfectly, because these pages use `${…}` templates with nested backticks, embedded
+    HTML, and regex literals a heuristic cannot separate from division. A gate with false alarms
+    gets ignored, so this asks a real JS engine instead.
+    """
+
+    def test_surfaces_parse_in_a_real_js_engine(self):
+        import js_syntax_gate
+        problems, skipped = js_syntax_gate.check()
+        if skipped:
+            self.skipTest("JS syntax gate unavailable: %s" % skipped)
+        self.assertEqual(problems, [], "JS SYNTAX ERROR — the page would be blank:\n  " +
+                         "\n  ".join(problems))
 
 
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added

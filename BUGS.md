@@ -1393,3 +1393,38 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** when a rule should change for ONE surface, scope it by call site with a second
   predicate. A global mode flag is the tempting shortcut and it always takes surfaces with it that
   nobody asked to change.
+
+## REG-073 — the syntax gate existed only in my hands (2026-07-30)
+- **Symptom:** twice in one session an edit produced `Uncaught SyntaxError` that blanked a
+  37k-line page (REG-060, REG-072). Both were caught ONLY because a human happened to run headless
+  Chromium by hand. Nothing in the suite would have stopped either from shipping.
+- **Fix (v1476):** `tv/js_syntax_gate.py` loads each surface in a real browser and fails on any
+  console `SyntaxError`; `TestJsSyntaxGate` runs it as part of `test_control.py`. When no browser
+  is present it SKIPS loudly rather than passing — a gate that cannot run must say so.
+- **A hand-rolled tokenizer was tried FIRST and rejected.** It reported 14–16 problems on files
+  that parse perfectly, because these pages use `${…}` templates with nested backticks, embedded
+  HTML with quotes, and regex literals no heuristic separates from division. Two iterations of
+  fixing it still left false alarms. **A gate that cries wolf is worse than no gate** — it trains
+  people to ignore it, and then it misses the real one. Recorded so nobody re-attempts the
+  tokenizer thinking it is nearly working.
+- **Verified by mutation, not assumed:** injecting a raw newline into a quoted literal makes it
+  fail on `bible.html` (reported `:37800`) and on `control_ui.html` (`:9881`); restoring passes.
+
+## REG-074 — I walked into the documented trap and the suite still said OK (2026-07-30)
+- **Symptom:** I appended `TestJsSyntaxGate` to the end of `test_control.py`. The suite reported
+  `Ran 267 tests ... OK` — with my new test **never defined and never run**.
+- **Root cause:** `unittest.main()` exits the interpreter, so any class below it is dead code.
+  This is not a new discovery — **v1456 fixed exactly this and left a comment saying "Keep this
+  block last"**. I appended after it anyway.
+- **The lesson is about the fix, not the mistake:** a comment is not a guard. v1456 documented the
+  trap and the trap still caught the next person (me), because documentation only works on people
+  who read that part of the file before editing it.
+- **Fix (v1476):** `TestRunnerIsLast` fails if any `class …(` appears after the top-level
+  `if __name__ == "__main__":`, naming the stranded classes. Mutation-tested: stranding a class
+  makes it fire, restoring makes it pass.
+- **Second-order bug inside that guard:** the first version searched for the marker string
+  unanchored, found the copy inside its OWN source, and failed on a correct file. Anchored to
+  column 0. Guards need the same scepticism as the code they guard.
+- **Prevention:** when a comment warns about a foot-gun, that is evidence the foot-gun is
+  reachable — convert it to an assertion. Silent zero coverage that still prints OK is the worst
+  failure mode a test suite has.

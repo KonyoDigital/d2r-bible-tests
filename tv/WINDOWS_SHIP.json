@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1475",
+  "ver": "v1476",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1475: the Forge now plans the 8 ladder-only runewords (Forge lane ONLY - table, stamps and chronicle unchanged)",
+  "note": "v1476: a real-JS-engine syntax gate runs in the suite, and a class stranded after unittest.main() now fails loudly",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

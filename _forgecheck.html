@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><body><iframe id="f" src="/bible.html" style="width:1400px;height:900px;border:0"></iframe><pre id="o"></pre><script>
+document.getElementById("f").addEventListener("load",function(){
+ var d=document.getElementById("f").contentWindow;
+ setTimeout(function(){
+  try{ d.switchTab&&d.switchTab("forge"); }catch(e){}
+  setTimeout(function(){
+   var doc=d.document, out=[];
+   try{
+     out.push("PROGRESS: "+((doc.querySelector(".fp-lbl")||{}).textContent||"(none)").replace(/\s+/g," ").trim());
+     doc.querySelectorAll(".forge-tabs .forge-tab").forEach(function(b){
+       var l=(b.querySelector(".ft-lbl")||{}).textContent||"?";
+       var c=(b.querySelector(".ft-ct")||{}).textContent||"?";
+       out.push("  "+l.padEnd(11)+" = "+c);
+     });
+     var ban=doc.querySelector(".forge-restore-top");
+     out.push("BANNER: "+(ban?ban.textContent.replace(/\s+/g," ").trim().slice(0,110):"(none)"));
+   }catch(e){ out.push("ERR "+e); }
+   document.getElementById("o").textContent=out.join("\n");
+  },3000);
+ },2500);
+});
+</script></body>
