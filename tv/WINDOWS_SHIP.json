@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1477",
+  "ver": "v1478",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1477: the Forge pills finally COUNT the ladder words - ALL 103 / ONE STEP 99, matching the note that already said so",
+  "note": "v1478: the console reads the ACTIVE world. Its lsFork() kept a stale private copy of the fork rule and read the owner's bare keys on a fresh PC; the board now publishes the route (d2r_lsrRoute) and the console follows it, with no bare fallback on THIS PC.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
