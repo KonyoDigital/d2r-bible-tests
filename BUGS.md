@@ -1449,3 +1449,59 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   that they may not share a naming convention; (2) any change that alters a COUNT must be verified
   against the rendered count, not against the diff; (3) the failure mode to fear is not "no
   effect", it is "half an effect" — a UI that half-changed now states two different truths.
+
+## REG-076 — the console kept its own copy of the fork rule, and the copy was stale (2026-07-30)
+
+- **Symptom:** Sessions showed `HOLY GRAIL 243 / 403 · 60% claimed` on a Windows machine that
+  v1469 had already placed in its own fresh `W·` world. Konyo: *"the sessions feels still like its
+  attached to my macbook profile. but i want this fresh and new.. same for my cuzin."*
+- **Not the board.** A virgin Chrome profile proved the board seeds nothing on a new machine:
+  `D2R_MACHINE=windows`, `machineSource=auto`, `bare d2r_foundLog len = 0`, `W· d2r_foundLog
+  len = 0`. The grail-seed suppression added in v1469 works. So the number was not being written —
+  it was being READ from somewhere it should not have been.
+- **Root cause:** `tv/control_ui.html` shares an origin with the board and reads the chronicle
+  directly out of `localStorage` via its own `lsFork()`. That was a hand-copied SECOND
+  implementation of the board's fork rule (`bible.html` `LSR.key`), and it still asserted:
+  `// machine fork (W·/WL·) never applies on this Mac console.` True when written, false the
+  moment a Windows PC got its own world. The board wrote `W·`; the console read **bare**. It also
+  ended in `getItem(bare) || getItem('L·'+bare)` — so even a corrected prefix would have fallen
+  back to the owner's data whenever this PC's key was absent, which is precisely the state of a
+  fresh machine. The fallback WAS the leak.
+- **Blast radius:** every console read — `d2r_forgeSummary` (the grail crest), `d2r_craftReady`,
+  `d2r_grailFarm` (the next-grail hero), `d2r_createNowAi`, `d2r_tvdTallyLog`. All five are in the
+  fork sets, so all five showed the owner's world on every non-owner machine.
+- **How it was caught:** by trusting the user's report over the code. The board had been proven
+  clean twice, so the remaining possibility was an un-forked READER — the same hunt that found
+  REG-069. Enumerating every `localStorage.getItem('d2r_…')` in the console found three raw reads;
+  two were pointers (correctly bare) and the third was inside `lsFork` itself.
+- **Fix (v1478):** the rule is published as DATA, not copied. `bible.html` writes `d2r_lsrRoute`
+  (`{v, m, p, lp[], wp[]}`) right after it builds `LSR`; the console routes from that payload. On
+  THIS PC there is **no bare fallback** — an absent key is a true empty and zero is the correct
+  answer. With no route at all the console forks EVERY key rather than none: the worst case is an
+  honestly-empty crest, where the opposite guess shows one person another person's progress.
+- **Prevention:** (1) this is the THIRD of its family — REG-069 read a key raw, REG-075 gated on a
+  differently-named function, REG-076 kept a private copy of the rule. The pattern is *a second
+  place that decides the same thing*; the durable fix is to delete the second place, not to
+  re-sync it. (2) All three survived a careful code reading, so the guard is behavioural:
+  `TestConsoleReadsTheActiveWorld` extracts the SHIPPED `lsFork` and executes it in a real JS
+  engine across six world/seed combinations, including "this PC empty, owner populated".
+  Mutation-verified: restoring the bare fallback turns it red with `read 'owner'`. (3) A comment
+  stating a scope limit ("never applies on this…") is a claim with an expiry date — when the scope
+  changes, that comment is the bug.
+
+## REG-077 — two gates passed their check and then failed reporting it (2026-07-30)
+
+- **Symptom:** `visual_lock_invariant.py` and `tv/js_syntax_gate.py` both exited **1 on a clean
+  tree**. Both had actually PASSED: they reached the success branch and died inside
+  `print("✅ …")` with `UnicodeEncodeError: 'charmap' codec can't encode character '✅'`.
+- **Root cause:** this machine's console codepage is Hebrew (cp1255) and cannot encode the check
+  mark. The gates had only ever appeared green because `PYTHONIOENCODING=utf-8` was being set by
+  hand off-screen — so their verdict depended on the operator's shell rather than on the code.
+  Identical in kind to REG-054, which was the same discovery about the test suites.
+- **Fix (v1478):** both gates reconfigure `stdout`/`stderr` to UTF-8 with `errors="replace"` before
+  printing anything. Verified by plain runs with no environment variables: both exit 0.
+- **Prevention:** a gate that cannot REPORT is a broken gate, and its failure mode is the dangerous
+  direction — a false RED trains people to ignore it, and the next real failure is ignored too.
+  Any script whose verdict is its exit code must make its own output encoding-safe rather than
+  inherit it. Never run a gate with an env var that its normal invocation would not have; if it
+  only passes with help, it does not pass.

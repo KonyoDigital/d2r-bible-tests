@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -3468,6 +3469,131 @@ class TestJsSyntaxGate(unittest.TestCase):
             self.skipTest("JS syntax gate unavailable: %s" % skipped)
         self.assertEqual(problems, [], "JS SYNTAX ERROR — the page would be blank:\n  " +
                          "\n  ".join(problems))
+
+
+class TestConsoleReadsTheActiveWorld(unittest.TestCase):
+    """v1478 — REG-076. The console must read the SAME world the board writes.
+
+    The console shares an origin with the board and reads the chronicle straight out of
+    localStorage through its own `lsFork()`. That function carried a hand-copied second
+    implementation of the board's fork rule, and the copy still asserted "machine fork (W·/WL·)
+    never applies on this Mac console" — untrue from the moment a Windows PC got its own world.
+    The board wrote W·, the console read BARE, and a machine that is supposed to start empty
+    greeted its owner with someone else's chronicle: "HOLY GRAIL 243 / 403 · 60% claimed".
+
+    This is the THIRD of its family (REG-069 read a key raw; REG-075 gated on a differently-named
+    function), so a grep-level assertion is not enough — all three passed a reading. This test
+    EXECUTES the shipped lsFork in a real JS engine against seeded storage and checks which key it
+    lands on, including the case that actually bit: THIS PC's key absent, the owner's key present.
+    Absence must stay absence; zero is the correct answer for a machine that has farmed nothing.
+    """
+
+    CASES = [
+        # (label, machine, profile, seeded keys, expected return)
+        ("this-pc main reads W",       "windows", "main",   {"W·K": "mine"},            "mine"),
+        ("this-pc ladder reads WL",    "windows", "ladder", {"WL·K": "mine-l"},         "mine-l"),
+        ("owner main reads bare",      "mac",     "main",   {"K": "owner"},             "owner"),
+        ("owner ladder reads L",       "mac",     "ladder", {"L·K": "owner-l"},         "owner-l"),
+        # THE LEAK: this PC has farmed nothing, the owner has. Must NOT fall back to bare.
+        ("this-pc empty stays empty",  "windows", "main",   {"K": "owner"},             None),
+        ("this-pc ladder no fallback", "windows", "ladder", {"K": "owner", "L·K": "x"}, None),
+    ]
+
+    def _extract_lsfork(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        start = src.find("function lsFork(bare){")
+        self.assertNotEqual(start, -1, "lsFork() vanished from control_ui.html")
+        i, depth = src.index("{", start), 0
+        for j in range(i, len(src)):
+            if src[j] == "{":
+                depth += 1
+            elif src[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    return src[start:j + 1]
+        self.fail("could not find the end of lsFork()")
+
+    def test_lsfork_lands_on_the_active_worlds_key(self):
+        import js_syntax_gate
+        browser = js_syntax_gate.find_browser()
+        if not browser:
+            self.skipTest("no Chromium/Edge found — cannot execute lsFork")
+        fn = self._extract_lsfork()
+
+        # The board publishes the route; mirror a realistic payload where 'K' IS a forked key.
+        cases_js = json.dumps([
+            {"label": c[0], "m": c[1], "p": c[2], "seed": c[3], "want": c[4]}
+            for c in self.CASES
+        ])
+        html = (
+            "<!doctype html><meta charset=utf-8><pre id=out></pre><script>\n"
+            + fn + "\n"
+            "var CASES = " + cases_js + ";\n"
+            "var res = [];\n"
+            "CASES.forEach(function(c){\n"
+            "  localStorage.clear();\n"
+            "  localStorage.setItem('d2r_lsrRoute', JSON.stringify(\n"
+            "    {v:1, m:c.m, p:c.p, lp:['K'], wp:['K']}));\n"
+            "  for (var k in c.seed) localStorage.setItem(k, c.seed[k]);\n"
+            "  var got = lsFork('K');\n"
+            "  res.push({label:c.label, want:c.want, got:got});\n"
+            "});\n"
+            "document.getElementById('out').textContent = 'RESULT:' + JSON.stringify(res);\n"
+            "</script>"
+        )
+        repo = js_syntax_gate.REPO
+        tmp = os.path.join(repo, "_lsfork_probe.html")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(html)
+        srv, port = js_syntax_gate._serve(repo)
+        try:
+            with tempfile.TemporaryDirectory() as prof:
+                r = subprocess.run(
+                    [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
+                     "--user-data-dir=%s" % prof, "--virtual-time-budget=6000", "--dump-dom",
+                     "http://127.0.0.1:%d/_lsfork_probe.html" % port],
+                    capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", timeout=90)
+            blob = (r.stdout or "") + (r.stderr or "")
+        finally:
+            srv.shutdown()
+            srv.server_close()
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+        m = re.search(r"RESULT:(\[.*?\])</pre>", blob, re.S)
+        self.assertIsNotNone(
+            m, "the probe never reported — lsFork threw or the page failed to run:\n"
+               + blob[-800:])
+        bad = []
+        for row in json.loads(m.group(1)):
+            if row["got"] != row["want"]:
+                bad.append("%s: read %r, expected %r" % (row["label"], row["got"], row["want"]))
+        self.assertEqual(
+            bad, [],
+            "the console is reading the WRONG world — this is how the owner's chronicle leaks "
+            "onto a fresh machine:\n  " + "\n  ".join(bad))
+
+    def test_board_publishes_the_route_the_console_consumes(self):
+        """One rule, one source. The console routes from the board's payload, so the board must
+        actually publish it — otherwise the console silently falls back and the two drift again."""
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(repo, "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        self.assertIn("'d2r_lsrRoute'", board,
+                      "the board no longer publishes d2r_lsrRoute; the console cannot route")
+        for field in ("_LP_FORKED", "_WP_FORKED", "D2R_MACHINE", "D2R_PROFILE"):
+            self.assertIn(field, board, "the published route lost %s" % field)
+        with open(os.path.join(repo, "tv", "control_ui.html"), encoding="utf-8") as fh:
+            console = fh.read()
+        self.assertIn("'d2r_lsrRoute'", console, "the console stopped reading the board's route")
+        self.assertNotIn(
+            "never applies on this Mac console", console,
+            "the false claim that the machine fork never applies is back — that comment WAS the bug")
 
 
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added

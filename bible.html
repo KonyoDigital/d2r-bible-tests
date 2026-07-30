@@ -3438,6 +3438,27 @@ window.LSR = (function(){
     raw: RAW, key: key
   };
 })();
+// v1478 — THE ROUTE, PUBLISHED. The console (tv/control_ui.html) shares this origin and reads the
+// chronicle straight out of localStorage, so it needs the same 2×2 routing the board just computed.
+// It used to carry its OWN second copy of the rule — and that copy still said "machine fork (W·/WL·)
+// never applies on this Mac console". Once a Windows PC got its own world the two disagreed: the
+// board wrote W·, the console read BARE, and a machine that is supposed to start at zero greeted its
+// owner with someone else's chronicle — "HOLY GRAIL 243 / 403 · 60% claimed".
+// Konyo: "the sessions feels still like its attached to my macbook profile."
+//
+// The defect was never the arithmetic, it was having TWO sources of truth for one rule. So the board
+// publishes what it resolved — machine, profile, and both fork sets — and the console routes from
+// THIS payload instead of a hand-copied constant. Add a key to a fork set and the console follows on
+// the next load; there is no second list left to forget.
+try {
+  window.localStorage.setItem('d2r_lsrRoute', JSON.stringify({
+    v: 1,
+    m: window.D2R_MACHINE,
+    p: window.D2R_PROFILE,
+    lp: Array.from(window._LP_FORKED),
+    wp: Array.from(window._WP_FORKED)
+  }));
+} catch(e){}
 // v680 — TOOLS is home (Konyo: 'hard refresh should put me by default at tools'): a BARE tab hash
 // (the last-visited tab riding the URL) is normalized at PARSE time, before the v39 routers
 // register. True deep-links keep working: a hash WITH a subpath (#bosses/baal, #item/…) is intent,

@@ -1,4 +1,79 @@
 
+## v1478 — 2026-07-30 — the console reads the ACTIVE world · one rule, one source
+
+Konyo: *"the sessions feels still like its attached to my macbook profile. but i want this fresh
+and new.. same for my cuzin."*
+
+He was right, and the number was real: Sessions showed **HOLY GRAIL 243 / 403 · 60% claimed** on a
+Windows machine that v1469 had already placed in its own `W·` world. A virgin Chrome profile
+proved the board itself was clean (`bare d2r_foundLog len = 0`, `W· d2r_foundLog len = 0`), so the
+board was not seeding anything — something was *reading* the owner's keys.
+
+**Root cause.** The console (`tv/control_ui.html`) shares an origin with the board and reads the
+chronicle straight out of `localStorage` through its own `lsFork()`. That function was a
+hand-copied SECOND implementation of the board's fork rule, and the copy still declared:
+
+> `// machine fork (W·/WL·) never applies on this Mac console.`
+
+True when it was written; false from the moment a Windows PC got its own world. The board wrote
+`W·`, the console read **bare**, and the two disagreed. The crest was not fabricating anything — it
+was faithfully reporting the wrong person's chronicle. Worse, the old code ended in
+`getItem(bare) || getItem('L·'+bare)`, so even a correct prefix would have fallen back to the
+owner's data whenever this PC's key was absent — which is exactly the state a fresh machine is in.
+
+**The fix is architectural, not arithmetic.** The defect was never the prefix; it was having two
+sources of truth for one rule. The board now PUBLISHES what it resolved — machine, profile, and
+both fork sets — as `d2r_lsrRoute`, immediately after it builds `LSR`. The console routes from that
+payload instead of a hand-copied constant. Add a key to a fork set and the console follows on the
+next load; there is no second list left to forget.
+
+Two deliberate choices, both on the safe side of the leak:
+* **No bare fallback on THIS PC.** An absent `W·` key is a TRUE empty, and zero is the correct
+  answer for a machine that has farmed nothing. The fallback *was* the leak, so absence must stay
+  absence.
+* **If the route is missing**, assume EVERY key is forked rather than none. Worst case reads an
+  empty world and the crest honestly says so; the opposite guess shows one person another
+  person's progress.
+
+**Third of its family.** REG-069 read a key raw; REG-075 gated on a differently-named function;
+this one kept a private copy of the rule. All three passed a code reading, so the guard is
+behavioural, not textual: `TestConsoleReadsTheActiveWorld` extracts the SHIPPED `lsFork` and
+executes it in a real JS engine across all six world/seed combinations. Mutation-verified — putting
+the bare fallback back turns the suite red with `this-pc empty stays empty: read 'owner'`.
+
+### Also — two gates were lying (REG-077)
+`visual_lock_invariant.py` and `tv/js_syntax_gate.py` both PASSED their checks, reached the success
+branch, and then died inside `print("✅ …")` with `UnicodeEncodeError` on this machine's Hebrew
+(cp1255) console → **exit 1 on a clean tree**. They had only ever looked green because
+`PYTHONIOENCODING` was being set by hand off-screen — the REG-054 failure mode wearing a new hat.
+Both now reconfigure stdout/stderr to UTF-8 with `errors="replace"` before reporting. A gate that
+cannot report is a broken gate.
+
+Gates (all plain runs, no environment variables): visual-lock OK · JS syntax gate OK · test_control
+**271 OK** (269 + 2 new) · test_agent **201 OK**.
+
+---
+
+## v1473–v1477 — 2026-07-30 — backfill (the ship trail broke)
+
+These five shipped and were pushed, but never reached this file — caught while writing v1478.
+Recorded now rather than left silent, per Law 9.
+
+* **v1473** — Sessions numerals via CSS counters · `.hd-card` structure · socket rendering.
+* **v1474** — forge count legibility (the pills state what they count).
+* **v1475** — the 8 ladder-only runewords included in the Forge. **Half a fix**: it swapped four
+  `_rwLadderBlocked` call sites, but the COUNTS gate on a differently-named `_rwBlocked()`, so the
+  UI then contradicted itself (REG-075).
+* **v1476** — `tv/js_syntax_gate.py`: every surface must PARSE in a real browser. Written after two
+  edits in one session blanked a 37k-line page (REG-060 heredoc ate `\n`; REG-072 mid-line `//`
+  swallowed a statement). A hand-rolled tokenizer was tried first and rejected — 14–16 false
+  positives on files that parse perfectly. Also `TestRunnerIsLast`, enforcing the v1456 lesson that
+  a class defined after `unittest.main()` never runs.
+* **v1477** — completes v1475: `_rwBlocked()` consults `_forgeIncludeLadder()`. Verified live at
+  **ALL 103 · ONE STEP 99 · CRAFTS 4** (99 runewords + 4 craft types).
+
+---
+
 ## v1472 — 2026-07-30 — file-handle leaks closed (the other kind of leak)
 
 v1471 closed a *data* leak. The suites had been reporting a second, unrelated leak class all

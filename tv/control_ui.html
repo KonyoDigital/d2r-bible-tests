@@ -8783,16 +8783,46 @@
 
   // v903 — THE MOTHERBOARD renderers
   function lsFork(bare){
-    // v911.1 (Grok) — mirror the board's fork rules: the ACTIVE profile's key wins.
-    // The board stamps its profile into localStorage (d2r_profile: 'main'|'ladder'); machine
-    // fork (W·/WL·) never applies on this Mac console.
+    // THE CONSOLE READS THE ACTIVE WORLD, off the board's PUBLISHED route.
+    //
+    // What this used to be, and why it was wrong: a hand-copied second implementation of the
+    // board's fork rule, whose comment read "machine fork (W./WL.) never applies on this Mac
+    // console". That stopped being true the moment a Windows PC got its own world. The board wrote
+    // W., this function read BARE, and the disagreement surfaced as a fresh machine showing the
+    // OWNER's chronicle — "HOLY GRAIL 243 / 403 · 60% claimed" on a console that should read 0/403.
+    // Konyo: "the sessions feels still like its attached to my macbook profile."
+    // The defect was never arithmetic; it was TWO sources of truth for one rule.
+    // v1478 \u2014 the rule now arrives as DATA (d2r_lsrRoute, published by bible.html right after it
+    // builds LSR), so there is no hand-copied second copy left to drift. Full 2x2, identical to the
+    // board by construction:
+    //   OWNER main = bare | OWNER ladder = L. | THIS PC main = W. | THIS PC ladder = WL.
+    //
+    // Two deliberate choices, both on the safe side of the leak:
+    //   * NO BARE FALLBACK on THIS PC. An absent W. key is a TRUE empty, and zero is the correct
+    //     answer for a machine that has farmed nothing. Falling back to the bare key is precisely
+    //     how the owner's chronicle bled in, so absence must stay absence.
+    //   * If the route is missing (the board has not loaded in this origin yet), assume EVERY key
+    //     is forked rather than none. Worst case that reads an empty world and the crest honestly
+    //     says so; the opposite guess shows one person another person's progress.
     try {
-      var prof = localStorage.getItem('d2r_profile') || 'main';
-      if (prof === 'ladder'){
-        var lv = localStorage.getItem('L\u00b7' + bare);
-        if (lv != null) return lv;
+      var r = null;
+      try { r = JSON.parse(localStorage.getItem('d2r_lsrRoute') || 'null'); } catch(eR){ r = null; }
+      var machine, prof, lp = null, wp = null;
+      if (r && r.m) {
+        machine = r.m; prof = r.p; lp = r.lp || null; wp = r.wp || null;
+      } else {
+        // no route yet \u2014 read the same two pointers the board writes, and fork everything
+        machine = localStorage.getItem('d2r_activeMachine') === 'windows' ? 'windows' : 'mac';
+        prof = localStorage.getItem(machine === 'windows' ? 'd2r_activeProfileWin' : 'd2r_activeProfile') === 'ladder' ? 'ladder' : 'main';
       }
-      return localStorage.getItem(bare) || localStorage.getItem('L\u00b7' + bare);
+      var k = bare;
+      if (machine === 'windows') {
+        if (prof === 'ladder' && (!lp || lp.indexOf(bare) >= 0)) k = 'WL\u00b7' + bare;
+        else if (!wp || wp.indexOf(bare) >= 0) k = 'W\u00b7' + bare;
+      } else if (prof === 'ladder' && (!lp || lp.indexOf(bare) >= 0)) {
+        k = 'L\u00b7' + bare;
+      }
+      return localStorage.getItem(k);
     } catch(e){ return null; }
   }
   var _hdForgeSig = '';

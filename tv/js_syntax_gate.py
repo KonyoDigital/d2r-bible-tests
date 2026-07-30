@@ -128,7 +128,26 @@ def check(targets=None, timeout=90):
     return sorted(set(problems)), None
 
 
+def _safe_console():
+    """v1478 — a gate that cannot REPORT is a broken gate.
+
+    This machine's console is Hebrew (cp1255). The check itself passed, reached the success branch,
+    and then died inside `print("✅ ...")` with UnicodeEncodeError -> exit 1. A plain run of a
+    clean tree reported RED. That is the REG-054 failure mode wearing a different hat: the suite was
+    only ever green because PYTHONIOENCODING was being set by hand off-screen.
+
+    Reconfigure rather than strip the glyphs: the verdict stays readable everywhere, and errors are
+    replaced instead of raised, so no future character can turn a passing gate into a false alarm.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main(argv):
+    _safe_console()
     problems, skipped = check(argv[1:] or None)
     if skipped:
         print(f"⚠ JS SYNTAX GATE SKIPPED — {skipped}")

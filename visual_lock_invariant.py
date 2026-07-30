@@ -91,7 +91,23 @@ def check():
     return failures
 
 
+def _safe_console():
+    """v1478 — a gate that cannot REPORT is a broken gate.
+
+    This machine's console is Hebrew (cp1255). The check passed, reached the success branch, then
+    died inside `print("✅ ...")` with UnicodeEncodeError -> exit 1. A plain run of a CLEAN tree
+    reported RED, and had done so every time it was not run with PYTHONIOENCODING set by hand.
+    Same failure mode as REG-054: the gate's verdict depended on the operator's shell, not the code.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main():
+    _safe_console()
     failures = check()
     if failures:
         print("❌ VISUAL-LOCK DRIFT — the type system moved (%d issue%s):"
