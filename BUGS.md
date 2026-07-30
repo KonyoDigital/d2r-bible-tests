@@ -1295,3 +1295,35 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** a visual concept that appears in more than two rules needs a token the moment
   the second copy is written. Near-duplicate alpha values are the signature of a system being
   re-derived from memory instead of referenced.
+
+## REG-069 — a forked key read RAW leaked the owner's data into another world (2026-07-30)
+- **Symptom (latent, found by audit):** `d2r_rwMade` is ACCOUNT state — it forks per world via
+  `_LP_FORKED`/`_WP_FORKED` — but one site read it with a raw `localStorage.getItem`. On a
+  non-owner machine the "runewords sealed" mission status was therefore computed from the OWNER's
+  runeword data, not that machine's.
+- **How it was found:** not by reading the abstraction and trusting it, but by enumerating EVERY
+  raw `localStorage.*Item` call in `bible.html` and intersecting the key names with the forked
+  sets. 11 keys are touched raw; 10 are pointers/prefs that are correctly un-namespaced, and
+  exactly one was account state.
+- **Fix (v1471):** routed through `window.LSR`. Post-fix audit re-run: zero forked keys are read
+  raw anywhere. The `L·`→bare merge near line 3509 still uses raw keys BY DESIGN — a one-time
+  legacy migration has to address both namespaces literally, and that is correct.
+- **Prevention:** a namespacing abstraction is only as good as its worst bypass. When one exists,
+  the check is mechanical and cheap: intersect every raw access with the set of keys that are
+  supposed to be namespaced, and require the result to be empty. That intersection is now a
+  documented one-liner in the ledger.
+
+## ARCH-001 — the storage re-key migration was scouted and deliberately NOT done (2026-07-30)
+- **Proposal:** re-key account storage from the OS-label prefixes (`bare` / `L·` / `W·` / `WL·`)
+  onto the v1465 per-install identity, so namespaces derive from the machine's identity rather
+  than from an OS name.
+- **Measured surface:** 49 forked account keys · 141 calls routed through `LSR` · 11 keys touched
+  raw (10 legitimately, 1 a bug now fixed).
+- **Decision: NOT SHIPPED, on the evidence.** `localStorage` is already per-machine, so `W·` is
+  ALREADY unique to each PC — re-keying to `<installId>·` adds no isolation any real user would
+  experience, while touching 49 keys holding chronicle, vault and forge state. The defect people
+  actually felt was the NAMING ("Windows/Mac" describing whose-world), and that was fixable
+  without moving a byte.
+- **If it is ever revisited,** the blockers to solve first are: a reversible two-way mapping (users
+  switch worlds and must not strand data), the one-time legacy `L·`→bare merge that assumes literal
+  prefixes, and a rollback path that works when the app is offline. Do not start it without those.

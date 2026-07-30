@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1470",
+  "ver": "v1471",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1470: ONE card recipe across the console, the numbers outrank the ornament, and the window finally sits fully on screen",
+  "note": "v1471: the world switch now says WHOSE WORLD (OWNER / THIS PC) instead of an OS name, and a cross-world runeword leak is closed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

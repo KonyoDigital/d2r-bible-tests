@@ -1,4 +1,51 @@
 
+## v1471 — 2026-07-30 — the switch says WHOSE WORLD · one real leak closed · no key migration
+
+Konyo asked, for the third time, whether the Windows/Mac toggle is really needed — *"it just needs
+to be properly architectured"*. He was right to keep pushing; the earlier answer ("yes, it IS the
+profile system") was true about what it does and wrong about whether it should look like that.
+
+### Scouted the key migration, and deliberately did NOT ship it
+The proposal was to re-key storage from an OS label (`bare` / `L·` / `W·` / `WL·`) onto the v1465
+per-install identity. Measured first:
+
+| measure | value |
+|---|---|
+| account keys that fork | **49** |
+| calls routed through `LSR` (the choke point) | **141** |
+| distinct keys touched raw, bypassing `LSR` | **11** |
+| …of those, actual ACCOUNT state | **1** (`d2r_rwMade`) |
+
+**Verdict: the migration buys almost nothing and risks the most valuable data in the app.**
+`localStorage` is already per-machine, so `W·` is *already* unique to each PC — re-keying to
+`<installId>·` adds no isolation on any real machine, while touching 49 keys of chronicle, vault
+and forge state. The naming was the actual defect, and naming can be fixed without moving a single
+byte. Recorded so the next person doesn't re-propose it without the numbers.
+
+### The one thing the scout DID find (REG-069)
+`d2r_rwMade` is account state — it forks per world — but one site read it **raw**, so a non-owner
+machine computed its "runewords sealed" mission status from the **owner's** runeword data. A
+genuine cross-world bleed, found only by classifying every raw `localStorage` call rather than
+trusting the abstraction. Now routed through `LSR`. Re-checked after the fix: **zero** forked keys
+are still read raw. (The `L·`→bare merge at ~3509 uses raw keys BY DESIGN — it is a one-time
+legacy migration and must address both namespaces literally.)
+
+### Renamed, not rewired
+The pill said **🖥 MAC / 🪟 WINDOWS** but has never meant "which OS" — it means *whose world*, and
+that mismatch is exactly why it kept reading as vestigial and removable. Since v1469 the platform
+picks it automatically, so the pill is now an **override**. It reads **👑 OWNER / 🧭 THIS PC**, and
+the tooltip explains that OWNER is the original chronicle while THIS PC starts at 0/0 and builds
+its own. Stored values are unchanged (`'mac'` | `'windows'`), so there is no migration and nothing
+to lose.
+
+**Answering the question directly: the switch is needed — but as a rarely-touched override, not as
+the profile system.** The profile system is the namespace plus the per-install identity; the pill
+is just the manual escape hatch when the automatic choice is wrong.
+
+- **Verify:** raw-access audit re-run post-fix (0 forked keys read raw) · `bible.html` parses in
+  Chromium with no `SyntaxError` · visual-lock invariant GREEN · `test_agent` **201 OK** ·
+  `test_control` **267 OK**, plain shell · stamps parity v1471.
+
 ## v1470 — 2026-07-30 — one card recipe · the numbers outrank the ornament · the window fits
 
 The last two shelf items, plus a dead-code bug the shelf work exposed.

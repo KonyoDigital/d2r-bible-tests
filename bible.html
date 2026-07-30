@@ -3648,8 +3648,13 @@ try {
         <!-- v635 — ACCOUNT PILL: two parallel accounts (main = his non-ladder truth, ladder = the fresh
              ladder-economy account). Switching is a full reload through window.profileSwitch — no bleed. -->
         <!-- v663 — MASTER MACHINE PILL: 🖥 MAC = Konyo's world (with its Main/Ladder below), 🪟 WINDOWS = the cousin's own isolated world -->
-        <div id="machine-pill" class="profile-pill machine-pill" title="MASTER switch — Mac = Konyo's world, Windows = the cousin's own isolated world. Switching reloads the page; nothing ever mixes.">
-          <button class="pp-btn pp-mac" onclick="window.machineSwitch('mac')">🖥 MAC</button><button class="pp-btn pp-win" onclick="window.machineSwitch('windows')">🪟 WINDOWS</button>
+        <!-- v1471 — RENAMED, not rewired. The switch was labelled MAC / WINDOWS but has never
+             meant "which OS" — it means WHOSE WORLD, and that mismatch is why it kept reading as
+             vestigial. Since v1469 the platform decides it automatically, so this pill is now an
+             OVERRIDE, and the labels say what it actually does. The stored values are unchanged
+             ('mac' | 'windows'), so no storage migration and nothing to lose. -->
+        <div id="machine-pill" class="profile-pill machine-pill" title="WHOSE WORLD is this console showing? — OWNER = the original chronicle (the MacBook). THIS PC = this machine's own world, starting at 0/0 and building its own vault, chronicle and forge. Chosen automatically from the machine; click to override. Switching reloads and nothing ever mixes — the other world's data stays untouched.">
+          <button class="pp-btn pp-mac" onclick="window.machineSwitch('mac')">👑 OWNER</button><button class="pp-btn pp-win" onclick="window.machineSwitch('windows')">🧭 THIS PC</button>
         </div>
         <div id="profile-pill" class="profile-pill" title="two separate accounts — switching reloads the page; nothing ever mixes">
           <button class="pp-btn pp-main" onclick="window.profileSwitch('main')">⚔ MAIN</button><button class="pp-btn pp-ladder" onclick="window.profileSwitch('ladder')">🪜 LADDER</button>
@@ -34947,7 +34952,10 @@ window.renderSessionCockpit = function(){
           + '<div class="sc-mission-status"><span class="sc-tag">idle</span></div>'
           + '<div class="sc-mission-detail">'+detail+'</div>'
           + '<div class="sc-mission-actions">'
-          + ((function(){ try { var fresh = ['runes','gems','materials','vault'].every(function(k){ var h = window._stashAgeH(k); return isFinite(h) && h < 36; }); var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade')||'{}')).length >= Object.keys(RUNEWORD_TIP).length; return (sealed && fresh) ? '' : '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'; } catch(e){ return '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'; } })())
+          + ((function(){ try { var fresh = ['runes','gems','materials','vault'].every(function(k){ var h = window._stashAgeH(k); return isFinite(h) && h < 36; }); /* v1471 — was raw localStorage: d2r_rwMade is ACCOUNT state (it forks per world), so reading it
+   un-namespaced made a non-owner machine compute "sealed" from the OWNER's runewords. Route it
+   through LSR like every other account key. */
+var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}')).length >= Object.keys(RUNEWORD_TIP).length; return (sealed && fresh) ? '' : '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'; } catch(e){ return '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'; } })())
           + '<button type="button" class="sc-cta ghost" onclick="switchTab(\'forge\')">Open Forge</button>'
           + '</div>';
       } else {
@@ -35380,7 +35388,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1470', name:'v1470 · one card recipe', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
+  window.D2R_BUILD = { id:'v1471', name:'v1471 · whose world', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
