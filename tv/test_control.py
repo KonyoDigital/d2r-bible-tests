@@ -3905,6 +3905,91 @@ class TestAFreshMachineStartsEmpty(unittest.TestCase):
             "must not touch the bare world at all")
 
 
+class TestForgeCountsAddUp(unittest.TestCase):
+    """v1485 — pin the arithmetic Konyo actually asked about.
+
+    He sent a screenshot: *"how come for forges ONESTEP is 91 … if there is 99 forges to create?
+    doesnt that counter it? i need this synced and accurate."* The answer was the eight ladder-only
+    runewords being filtered out of a non-ladder world — a real, correct rule that nobody had told
+    the count about. v1475 half-fixed it (four call sites, but the counts gate on a differently
+    named predicate — REG-075) and v1477 finished it, verified live at ALL 103 · ONE STEP 99 ·
+    CRAFTS 4.
+
+    "Verified live" means someone looked at a screen once. These numbers are load-bearing for the
+    user's trust in the whole Forge, and every input to them is a plain data structure, so the
+    relationship is worth pinning: 99 runewords + 4 craft types = the 103 the UI promises, with
+    exactly 8 of those runewords ladder-only.
+
+    This does not re-implement the forge logic — it pins the INPUTS, so a silent edit to the
+    dictionaries (a dropped runeword, a new craft, a ladder word added or removed) has to come here
+    and state its intent instead of quietly moving a number the user reads as truth.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(repo, "bible.html"), encoding="utf-8") as fh:
+            cls.src = fh.read()
+
+    def _brace_body(self, start_pat):
+        m = re.search(start_pat, self.src)
+        self.assertIsNotNone(m, "could not find %s — the Forge inputs moved" % start_pat)
+        i = self.src.index("{", m.start())
+        depth = 0
+        for j in range(i, len(self.src)):
+            if self.src[j] == "{":
+                depth += 1
+            elif self.src[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    return self.src[i:j + 1]
+        self.fail("unbalanced braces after %s" % start_pat)
+
+    def test_there_are_99_runewords(self):
+        body = self._brace_body(r"RUNEWORD_TIP\s*=\s*\{")
+        names = re.findall(r'"([^"]+)"\s*:', body)
+        self.assertEqual(len(names), 99,
+                         "RUNEWORD_TIP holds %d runewords, not 99. The Forge tells the user "
+                         "'ONE STEP 99'; if this changed on purpose, change the promise too."
+                         % len(names))
+        self.assertEqual(len(set(names)), len(names),
+                         "a runeword name appears twice — the count would double-report it")
+
+    def test_exactly_eight_runewords_are_ladder_only(self):
+        m = re.search(r"const _RW_LADDER_ONLY = (\{.*?\});", self.src)
+        self.assertIsNotNone(m, "_RW_LADDER_ONLY moved")
+        ladder = re.findall(r'"([^"]+)"\s*:', m.group(1))
+        self.assertEqual(
+            sorted(ladder),
+            ["Bulwark", "Cure", "Ground", "Hearth", "Hysteria", "Mania", "Metamorphosis", "Temper"],
+            "the ladder-only set changed. These eight are exactly why ONE STEP read 91 instead of "
+            "99 in a non-ladder world; the Forge now includes them deliberately, so any change "
+            "here moves a number the user checks.")
+
+    def test_every_ladder_only_word_is_a_real_runeword(self):
+        """A typo here would silently stop filtering that word and quietly shift the count."""
+        body = self._brace_body(r"RUNEWORD_TIP\s*=\s*\{")
+        names = set(re.findall(r'"([^"]+)"\s*:', body))
+        m = re.search(r"const _RW_LADDER_ONLY = (\{.*?\});", self.src)
+        ladder = re.findall(r'"([^"]+)"\s*:', m.group(1))
+        unknown = [w for w in ladder if w not in names]
+        self.assertEqual(unknown, [], "ladder-only names that are not runewords: %s" % unknown)
+
+    def test_ninety_nine_runewords_plus_four_crafts_is_the_103_the_ui_promises(self):
+        body = self._brace_body(r"(?:const|var|let)\s+CRAFTS\s*=\s*\[?\s*\{")
+        # CRAFTS is a list of objects each carrying a `key`; count the top-level entries by key.
+        m = re.search(r"(?:const|var|let)\s+CRAFTS\s*=\s*(\[.*?\n\s*\];)", self.src, re.S)
+        self.assertIsNotNone(m, "CRAFTS moved — the craft type count cannot be checked")
+        crafts = re.findall(r"\bkey\s*:\s*['\"]([^'\"]+)['\"]", m.group(1))
+        self.assertEqual(len(crafts), 4,
+                         "CRAFTS holds %d types (%s), not the 4 the Forge reports as CRAFTS 4"
+                         % (len(crafts), crafts))
+        rw = len(re.findall(r'"([^"]+)"\s*:', self._brace_body(r"RUNEWORD_TIP\s*=\s*\{")))
+        self.assertEqual(rw + len(crafts), 103,
+                         "%d runewords + %d craft types = %d, but the Forge shows ALL 103"
+                         % (rw, len(crafts), rw + len(crafts)))
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

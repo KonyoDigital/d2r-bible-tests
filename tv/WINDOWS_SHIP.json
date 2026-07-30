@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1484",
+  "ver": "v1485",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1484: Konyo asked that everyone start fresh except the MacBook, with chronicles and forges at 0/0. That promise has been enforced by hand until now: v1469 wrote the rule, v1478 fixed the console ignoring it, and both were verified by launching the app and reading numbers off a screen. TestAFreshMachineStartsEmpty boots the REAL bible.html in a virgin browser profile, lets it run its own first-boot path, then reopens the same profile on a probe page to read what was actually written to disk. It asserts the machine derived itself as windows with source auto, that the published route matches the world it is in, that the W-dot chronicle keys are all empty, and that the owner bare namespace was never touched. Mutation-verified: removing the cousin-shell guard from the grail seed makes a never-used machine boot with 351 pre-seeded grail finds, and the test names the number. This is the test that would have caught REG-076 without a user report.",
+  "note": "v1485: Konyo sent a screenshot asking how ONE STEP could read 91 when there are 99 forges to create, and said he needed it synced and accurate. The answer was the eight ladder-only runewords being filtered from a non-ladder world - a correct rule nobody had told the count about. v1475 half-fixed it and v1477 finished it, verified live at ALL 103, ONE STEP 99, CRAFTS 4. Verified live means somebody looked at a screen once, so the relationship is now pinned: 99 runewords plus 4 craft types equals the 103 the UI promises, with exactly 8 of those runewords ladder-only, every ladder name checked to be a real runeword, and no duplicate names. This does not re-implement the forge logic, it pins the INPUTS, so a silent edit to the dictionaries has to come here and state its intent instead of quietly moving a number the user reads as truth. Mutation-verified with a one-letter typo in a ladder name.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

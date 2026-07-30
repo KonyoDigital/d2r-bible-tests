@@ -1,4 +1,34 @@
 
+## v1485 — 2026-07-31 — the Forge arithmetic is PINNED
+
+Konyo, with a screenshot: *"how come for forges ONESTEP is 91 … if there is 99 forges to create?
+doesnt that counter it? i need this synced and accurate."*
+
+The answer was the eight ladder-only runewords being filtered out of a non-ladder world — a real,
+correct rule that nobody had told the count about. v1475 half-fixed it (four call sites, while the
+counts gate on a differently-named predicate — REG-075), v1477 finished it, and it was verified
+live at **ALL 103 · ONE STEP 99 · CRAFTS 4**.
+
+"Verified live" means somebody looked at a screen once. These numbers are load-bearing for trust in
+the entire Forge, so the relationship is now pinned:
+
+* `RUNEWORD_TIP` holds exactly **99** runewords, with no duplicate names
+* `_RW_LADDER_ONLY` is exactly those **8** — Bulwark, Cure, Ground, Hearth, Hysteria, Mania,
+  Metamorphosis, Temper
+* every ladder-only name is a REAL runeword (a typo would silently stop filtering that word and
+  quietly shift the count)
+* `CRAFTS` holds **4** types (Caster, Blood, Safety, Hit Power), and 99 + 4 = the **103** the UI
+  promises
+
+This deliberately does not re-implement the forge logic — it pins the INPUTS, so a silent edit to
+the dictionaries has to come here and state its intent rather than quietly moving a number the user
+reads as truth. Mutation-verified with a one-letter typo in a ladder name: two tests fire, one for
+the changed set and one for the name no longer being a runeword.
+
+Gates: 6/6 (the live-API gate re-runs on the next app restart).
+
+---
+
 ## v1484 — 2026-07-31 — the fresh-PC promise is finally TESTED
 
 Konyo: *"everyone should start fresh.. except my macbook one. like the chronicles and forges should
