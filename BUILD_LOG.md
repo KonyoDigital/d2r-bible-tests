@@ -1,4 +1,90 @@
 
+## v1464 — 2026-07-30 — a new PC gets its OWN world · Windows-native console polish
+
+### 1. Per-PC identity (REG-057) — the headline
+Konyo: *"my cousin logs in on a different PC and it mimics my defaults for forges"*.
+
+**The per-machine profile system already existed** — it is the WINDOWS/MAC switch (`bible.html`
+v663/v665.1). MAC = the owner's world (bare keys, `L·` ladder fork); WINDOWS = an isolated world
+where every `d2r_*` account key routes to `W·`, the chronicle forks too, and **every owner seed
+floor is suppressed so it starts from zero**. It is a full 2×2 (`bare` / `L·` / `W·` / `WL·`) and
+UI *preferences* deliberately stay unforked so both consoles look structurally identical.
+So the answer to "is the Windows/Mac toggle even needed?" is **yes — it IS the profile system**.
+Removing it would merge the cousin's world into the owner's.
+
+**The gap:** `d2r_activeMachine` defaulted to `'mac'` whenever it was unset, so a brand-new PC
+booted into the owner's namespace — his seeds, his forge defaults — until somebody manually
+flipped the switch.
+
+**Why the obvious fix is wrong:** deriving identity from the PLATFORM. Konyo runs this console on
+Windows *under the MAC identity* — the switch encodes WHOSE WORLD, not which OS (that mis-naming
+is exactly why the toggle looked vestigial). Platform-derivation would have flipped his own
+machine into the cousin shell and hidden every tally, vault entry and chronicle row behind `W·`.
+Not deleted — invisible, which is worse, because it looks like data loss.
+
+**Shipped instead — decide on evidence, in the ONE unambiguous case:** a `localStorage` holding no
+`d2r_*` key whatsoever has never run this app, so it cannot be an established install → give it
+its own `W·` world. Anything else — a single `d2r_*` key of any kind — keeps the historic `mac`
+default, byte-identical to pre-v1464. An explicit choice always wins over both. Console and site
+are separate origins, so each gets an honest first run.
+
+**Verified end-to-end against the real `bible.html`** in headless Chromium over HTTP (a `file://`
+origin cannot use localStorage), two-step so the assertion reads what the page actually persisted:
+
+| profile state | resolved |
+|---|---|
+| virgin (no `d2r_*` keys) | **`windows`** — own isolated world |
+| established (`d2r_owned` seeded, no machine key) | **`mac`** — owner's world preserved |
+
+Also confirmed: runtime progress never synced through git in the first place — `tv/state.json`,
+`tv/sessions.jsonl`, `tv/known_frames.json` and the budget files are all gitignored, so each PC
+already kept its own. The leak was identity, not storage.
+
+### 2. Window geometry — the console did not fit the screen
+Shipped default was 1120x800 **logical**. Konyo's box is 1920x1080 at 150% DPI = a 1280x720
+logical desktop with ~672 logical px of work area, so an 800-tall window, centred, had its Top
+clamped to 0 and ~130 logical px sat under the taskbar — **unreachable, because it was the WINDOW
+off-screen, not the content**. Now ships 1120x660 with a move-only on-screen nudge (`SWP_NOSIZE`).
+Two earlier attempts are recorded in the code as dead ends: a runtime `SPI_GETWORKAREA` clamp
+(returns logical px while DPI-unaware and physical once aware — same code computed a correct 632
+under `python.exe` and a silent no-op under the launcher's `pythonw.exe`), and a post-`shown`
+`SetWindowPos` fit that never actually resized yet left the window collapsed to 158x26.
+
+### 3. Windows-native console polish
+- **Dark title bar.** The caption rendered in the system accent (measured `AccentColor 0xFFA91AD9`
+  = magenta) over a `#070605` console. pywebview *does* call `DWMWA_USE_IMMERSIVE_DARK_MODE`, but
+  keys it off `AppsUseLightTheme` (=1 here) so it asks for a LIGHT caption — and with
+  `ColorPrevalence=1` the accent beats immersive dark anyway. Only `DWMWA_CAPTION_COLOR` (35)
+  overrides it. Wired to `shown`, guarded, build-gated ≥22000; on older builds DWM returns
+  `E_INVALIDARG` as a *return value*, never an exception.
+- **`color-scheme: dark`** was absent app-wide, so every scroll container that only set
+  `scrollbar-width: thin` painted a light-grey Chromium thumb on near-black, along with light
+  `<select>` popups and a white navigation flash.
+- Catch-all `:focus-visible`, `scrollbar-gutter: stable`, and a targeted `user-select: text`
+  opt-in — nothing in the console could be selected or copied, not a session id, not an error.
+- **The one real clipping bug**: below 900px `.shell` never declared a `dash` grid area while
+  `.home-dash` is `grid-area: dash`, so it was auto-placed into an implicit column — measured at
+  858px: 10.8px wide, `clientWidth 0`, **31 elements stranded right-of-viewport**. Fixed, with the
+  companion off-state row-count that would otherwise re-create it.
+
+### CORRECTION — a "clipped console" I reported twice did not exist
+I claimed, with screenshots, that the console clipped its right edge at the default window size.
+**That was my own measurement bug.** The capture harness read `GetClientRect` from DPI-unaware
+PowerShell against a DPI-aware window, got `1105x700` — the virtualized size of a client that is
+really ~1657x1050 CSS px — then cropped that many *physical* pixels. The crop landed at CSS x≈1085,
+exactly where the SCENE meter, `.zb-sub` and the 6th KPI appeared cut. Rendering the real file in
+headless Chromium and reading `getBoundingClientRect` on every node found **zero** elements past
+the viewport at 1657/1281/1105/1002. A typography rescale built on that premise was **reverted
+before shipping** (it would have made the console physically smaller on a display where WebView2
+already maps 1 CSS px to 1 device px); the R1 scale is restored byte-for-byte with a comment
+telling the next reader not to "fix" it from a screenshot. The `auto-fit/minmax` grid rewrites are
+kept on their own merits — they are correct-by-construction — but they are **not** credited with
+fixing anything visible.
+
+- **Verify:** visual-lock invariant GREEN · `test_agent` **201 OK** · `test_control` **267 OK**,
+  both in a plain shell with no env vars · `py_compile` · `bible.html` parses in Chromium with no
+  SyntaxError · identity table above reproduced twice · launcher ASCII + BOM.
+
 ## v1463 — 2026-07-30 — third-eye round: what the back-pass found in v1460–v1462
 
 Konyo asked for a real Law-5 pass. Five independent reviewers, each given a different lens and

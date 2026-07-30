@@ -39,6 +39,15 @@
     --fs-sm:     clamp(15px,   1.2vw,  18px);    /* secondary body, buttons, table cells */
     --fs-base:   clamp(16.5px, 1.35vw, 20px);    /* primary readable body / default text */
     --fs-md:     clamp(18px,   1.6vw,  23px);    /* subheads, stat mini-values, big icons */
+    /* v1464 — a "Typography R2" rescale was drafted here and REVERTED before shipping. It was
+       built on a measured-looking premise that turned out to be a measurement BUG: screenshots
+       taken through a DPI-unaware capture harness appeared to show text overflowing a 1105px
+       viewport, so the four upper tokens were shrunk. Rendering the real file in headless
+       Chromium and reading getBoundingClientRect on every node found ZERO elements past the
+       viewport at 1105/1281/1657 — the console's real CSS viewport here is ~1657px, where all
+       nine tokens already sit at their MAXIMA. Shrinking them would have made the console
+       physically smaller on a display where WebView2 already maps 1 CSS px to 1 device px.
+       The scale below is R1, unchanged. Do not "fix" it from a screenshot. */
     --fs-lg:     clamp(20.5px, 2vw,    27px);    /* section numbers, card headlines */
     --fs-xl:     clamp(24px,   2.6vw,  34px);    /* feature icons, callout numbers */
     --fs-2xl:    clamp(28px,   3.4vw,  44px);    /* brand h1, credits headline */
@@ -93,7 +102,15 @@
        readout row keeps its own roomier 8/10 via its !important override — a genuine one-off, not this
        tier; the 6-across KPI tile likewise stays its own asymmetric 11/8/10.) */
     --hd-pad-compact-y: 5px; --hd-pad-compact-x: 9px;
+
+    /* ══ v1464 (Windows-native R1) — tell the engine this surface is DARK. Without this,
+       WebView2 resolves the used colour-scheme to LIGHT, so every scroll container that only
+       sets `scrollbar-width: thin` (and only six selectors here ever themed ::-webkit-scrollbar)
+       painted a light-grey thumb and track straight onto #070605 — plus light <select> popups,
+       a light native context menu and a white navigation flash. One declaration fixes the lot. ══ */
+    color-scheme: dark;
   }
+  html { scrollbar-color: rgba(240,192,96,.28) transparent; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     height: 100%;
@@ -104,6 +121,21 @@
     user-select: none;
     -webkit-font-smoothing: antialiased;
   }
+  /* v1464 — the console is deliberately non-selectable (drag-selecting the cinematic surface
+     feels broken), but that made EVERYTHING uncopyable: a session id, a file path, an error
+     string or a KAI read could not be selected with the mouse, and only two copy affordances
+     exist in the entire UI. Opt the text-bearing atoms back in — these out-specify both the
+     rule above and pywebview's own injected `body{user-select:none}` from text_select=False. */
+  input, textarea, code, pre, .mono-id, .dsr-body, [data-copyable] {
+    user-select: text; -webkit-user-select: text; cursor: text;
+  }
+  /* v1464 — one catch-all focus ring. ~25 hand-written :focus-visible rules existed, so
+     anything they missed fell through to Chromium's UA ring (a light halo on a black console).
+     Declared BEFORE the specific rules so any of them still win. */
+  :focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 2px; }
+  /* v1464 — reserve the scrollbar gutter so a pane does not jump sideways the moment its
+     content grows past the fold. .rail overflows live as cards appear. */
+  .rail, .home-dash, .ch-grid, .sh-grid { scrollbar-gutter: stable; }
   body {
     background:
       radial-gradient(130% 90% at 8% -12%, rgba(240,192,96,.10), transparent 46%),
@@ -510,7 +542,10 @@
     position: absolute; left: clamp(10px,1.5vw,22px); right: clamp(10px,1.5vw,22px);
     bottom: clamp(10px,1.5vw,22px);
     z-index: 4;
-    display: grid; grid-template-columns: repeat(4, 1fr);
+    /* v1464 — was a hard repeat(4,1fr): at 1105px each meter got a 159.88px content box and the
+       4th (SCENE) was clipped at the window edge. auto-fit lets the row drop to 2-up when the
+       stage is narrow instead of overflowing, and still shows all four when there is room. */
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
     gap: clamp(8px, 1vw, 16px);
   }
   .m {
@@ -945,8 +980,15 @@
   @media (max-width: 900px) {
     .shell {
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(220px, 1fr) auto auto auto;
-      grid-template-areas: "head" "stage" "rail" "tick" "foot";
+      /* v1464 — THE REAL CLIPPING BUG. `.home-dash` is `grid-area: dash`, but this ≤900px
+         template never declared a `dash` area, so Chromium auto-placed the dash into an
+         IMPLICIT COLUMN outside the named grid. Measured in headless Chromium at 858 CSS px:
+         .home-dash collapsed to 10.8px wide (clientWidth 0) and #kpi-row sat at x=844..1171 —
+         313px past the viewport — with 31 elements stranded right-of-viewport, invisible and
+         unreachable. Declaring the row takes right-of-viewport from 31 → 0 and the dash from
+         10.8px → 822px. Media-scoped, so it cannot affect ≥900px. */
+      grid-template-rows: auto minmax(220px, 1fr) auto auto auto auto;
+      grid-template-areas: "head" "stage" "dash" "rail" "tick" "foot";
     }
     .primary { flex-direction: row; flex-wrap: wrap; }
     button.act { flex: 1 1 30%; min-height: 64px; }
@@ -2010,7 +2052,12 @@
      (label sentence-case · value big tabular-mono, auto-compact) in the console palette. Ink numerals with
      a restrained accent on the two headline metrics (grails = gold, reads/hr = mint). Off-air only. ══ */
   .hd-kpi { border: none; background: none; padding: 0; }
-  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--hd-gap-in); }
+  /* v1464 — was repeat(6,1fr) with a collapse to 3 only under 1000px. Konyo's console runs at
+     ~1105px, i.e. INSIDE the 1000-1280 gap where no rule applied, so the row stayed 6-across at
+     ~123px per tile and the 6th cell was clipped off the right edge. auto-fit/minmax is
+     intrinsic: it picks the column count from the space actually available, so it is correct at
+     880, 1105, 1280 and fullscreen alike without any of us guessing another breakpoint. */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: var(--hd-gap-in); }
   .kpi { background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.34)); border: 1px solid var(--edge);
     border-radius: var(--hd-radius); padding: 11px 8px 10px; text-align: center; min-width: 0; }
   .kpi-v { font: var(--fw-bold) var(--fs-lg)/1 var(--mono); color: #f0e4c6; font-variant-numeric: tabular-nums;
@@ -2028,7 +2075,8 @@
   /* off-air the live stage readout rests, not breaks — the values dim so MODE/READS/AREA/SCENE read "at rest" */
   body[data-state="off"] .meters .m { opacity: .6; }
   body[data-state="off"] .meters .m .v { color: var(--muted); font-weight: var(--fw-semibold); }
-  @media (max-width: 1000px){ .kpi-row { grid-template-columns: repeat(3, 1fr); } }
+  /* v1464 — the old @media(max-width:1000px) 3-across override is GONE: auto-fit/minmax above
+     already resolves every width, and leaving a hard 3-col rule would fight it. */
   .hd-history .hd-h { display: flex; align-items: center; }
   .hd-hist-head { cursor: pointer; user-select: none; }
   .hd-hist-head:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 2px; }
@@ -2297,7 +2345,17 @@
   /* 🌙 v774 — THE BIBLE RAIL */
   .head-tabs { display: flex; gap: 6px; align-items: center; margin-left: 12px; flex: 1 1 auto; }
   /* v903 — THE MOTHERBOARD: sessions-home dashboard (left column, row 2 — the rail spans) */
-  .home-dash { display: grid; grid-template-columns: 1fr 1fr; gap: var(--hd-gap); grid-area: dash;
+  /* ══ v1464 (SESSIONS R5 · the dash actually columns) — was `1fr 1fr`, but EVERY .zone-banner
+     and every .hd-wide card is `grid-column: 1 / -1`, so a spanning element sat between each
+     pair and forced a new row. The only three cards that are NOT wide (#hd-taskforce, #hd-forge,
+     #hd-lastsession) therefore each landed ALONE in column 1, leaving ~395px of dead column
+     beside them, three times over — that ragged right edge is exactly why the surface read as
+     unaligned. The v1289 comment below still promised "Task Force ▸ Last Session, Forge ▸ Live
+     Intake" pairs; that stopped being true when v1424 inserted the banners and #hd-intake was
+     hidden. auto-fit/minmax pairs cards again WHEN there is room for two real columns
+     (>= ~2x360px) and gives one honest column when there is not — at 1105px the dash is 802px,
+     so it now reads as one deliberate column instead of a half-empty two. ══ */
+  .home-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: var(--hd-gap); grid-area: dash;
     align-content: start; align-items: start; grid-auto-rows: max-content;   /* v906.1 — cards GROW, never overlap */
     min-height: 0; overflow-y: auto; }
   .home-dash .hd-col { height: fit-content; min-height: 0; }
@@ -2414,7 +2472,15 @@
      are alone on their row and keep fit-content. */
   .home-dash .hd-col:not(.hd-wide) { align-self: stretch; height: auto; }
   /* v903 — OFF AIR: the stage row shrinks to its compact self; the DASH owns the flex */
-  body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+  /* v1464 — companion to the ≤900px `dash` row above: this override sets the row LIST
+     unconditionally, so at ≤900px it would hand 6 named areas only 5 tracks and re-create the
+     implicit track the fix just removed. Scope it to the wide layout it was written for. */
+  @media (min-width: 901px) {
+    body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+  }
+  @media (max-width: 900px) {
+    body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto auto; }
+  }
   /* v945 CONSOLE PARITY C1 — dashboard cards adopt the theatre's card language: warm hairline
      border, a faint top-surface highlight, roomier padding. One product, one surface. */
   .hd-col { border: 1px solid rgba(240,192,96,.13); border-radius: var(--hd-radius);

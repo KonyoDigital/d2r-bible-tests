@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1463",
+  "ver": "v1464",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1463: third-eye round \u2014 suites green in a PLAIN shell (no PYTHONUTF8 needed), window match is exact+pid",
+  "note": "v1464: a brand-new PC gets its OWN world (W\u00b7) instead of booting into the owner's; window fits the screen; dark caption",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

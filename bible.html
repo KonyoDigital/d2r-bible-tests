@@ -3339,7 +3339,40 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 // included (unlike ladder's shared grail, the cousin shares NOTHING), and every owner seed floor
 // (_RWC_SEED · _GRAIL_SEED · rwVerify fails) is suppressed so he genuinely starts from zero.
 // Same doctrine as v635: the machine is read ONCE per load; switching is ALWAYS a full reload.
-window.D2R_MACHINE = (function(){ try { return window.localStorage.getItem('d2r_activeMachine')==='windows' ? 'windows' : 'mac'; } catch(e){ return 'mac'; } })();
+// ══════════════════════════════════════════════════════════════════════════════
+// v1464 (R2 · FIRST-RUN IDENTITY) — a machine that has NEVER chosen must not land in
+// Konyo's world. Until now an unset 'd2r_activeMachine' silently meant MAC, so a brand-new
+// PC (the cousin's) booted into the owner's namespace: his bare keys, his seed floors, his
+// forge defaults — the exact "it mimics my defaults" complaint.
+//
+// The fix must NOT derive identity from the PLATFORM, even though the switch is named
+// WINDOWS/MAC. Konyo himself runs this console on Windows under the MAC identity, so
+// platform-derivation would flip his own machine into the cousin shell and hide every tally,
+// vault entry and chronicle row he owns behind the W· prefix. The switch encodes WHOSE WORLD,
+// not which OS.
+//
+// So decide on EVIDENCE, and only in the one unambiguous case: a localStorage with no d2r_*
+// key whatsoever has never run this app, so it cannot be an established install. Anything
+// else — a single d2r_* key of any kind — is treated as established and keeps the historic
+// MAC default, byte-identical to pre-v1464 behaviour. An explicit choice always wins over
+// both. Console and site are separate origins, so each gets its own honest first run.
+window.D2R_MACHINE = (function(){
+  try {
+    var LS = window.localStorage;
+    var chosen = LS.getItem('d2r_activeMachine');
+    if (chosen === 'windows' || chosen === 'mac') return chosen;   // explicit choice wins, always
+    var virgin = true;
+    for (var i = 0; i < LS.length; i++) {
+      var k = LS.key(i);
+      if (k && k.indexOf('d2r_') === 0) { virgin = false; break; }
+    }
+    if (!virgin) { try { LS.setItem('d2r_activeMachine', 'mac'); } catch(e){}  return 'mac'; }
+    // Genuinely untouched machine → give it its OWN isolated world (W·), where every owner
+    // seed floor is suppressed and it starts from zero. Persist so the answer is stable.
+    try { LS.setItem('d2r_activeMachine', 'windows'); } catch(e){}
+    return 'windows';
+  } catch(e) { return 'mac'; }
+})();
 window._isCousinShell = (window.D2R_MACHINE==='windows');
 // v665.1 — WINDOWS has its own Main/Ladder pair (Konyo: "the windows need to also have the toggle").
 // Each machine remembers its own active account via its own pointer key.
@@ -35294,7 +35327,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1463', name:'v1463 · third-eye round', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
+  window.D2R_BUILD = { id:'v1464', name:'v1464 · per-PC identity', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

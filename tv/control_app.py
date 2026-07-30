@@ -2398,6 +2398,134 @@ def _reclaim_headless_for_scan():
     return True
 
 
+def _win_find_console_hwnd():
+    """v1464 — HWND of OUR console window by exact title, or 0.
+
+    Exact title only (never a prefix): the popout board is "TV DIABLO — Board" and lives in a
+    separate process, and a prefix match let it masquerade as the console once already (REG-055).
+    """
+    if not IS_WIN:
+        return 0
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        found = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def _cb(hwnd, _lp):
+            buf = ctypes.create_unicode_buffer(256)
+            user32.GetWindowTextW(hwnd, buf, 256)
+            if (buf.value or "") == "TV DIABLO":
+                found.append(hwnd)
+                return False
+            return True
+
+        user32.EnumWindows(_cb, 0)
+        return int(found[0]) if found else 0
+    except Exception:
+        return 0
+
+
+def _win_nudge_onscreen():
+    """v1464 — slide the window fully into the work area. MOVE ONLY, never resize.
+
+    With the shipped height corrected to 660 logical the window is now the right SIZE, but
+    pywebview's CenterScreen still placed it at top y=190 physical, so 190+990 = 1180 spilled
+    past the 1008 work area and ~172px sat under the taskbar.
+
+    SWP_NOSIZE is the whole safety argument: this call is structurally incapable of changing
+    the window's dimensions, so it cannot repeat the earlier collapse-to-158x26. Both rects
+    come from the same (now DPI-aware) process at `shown`, so they are directly comparable
+    with no scaling maths. If anything is off, we return without touching the window.
+    """
+    if not IS_WIN:
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+
+        class _R(ctypes.Structure):
+            _fields_ = [("left", wintypes.LONG), ("top", wintypes.LONG),
+                        ("right", wintypes.LONG), ("bottom", wintypes.LONG)]
+
+        hwnd = 0
+        win = globals().get("_MAIN_WIN")
+        try:
+            hwnd = int(win.native.Handle.ToInt32())
+        except Exception:
+            hwnd = _win_find_console_hwnd()
+        if not hwnd:
+            return
+        wa, wr = _R(), _R()
+        if not user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(wa), 0):
+            return
+        if not user32.GetWindowRect(wintypes.HWND(hwnd), ctypes.byref(wr)):
+            return
+        w, h = wr.right - wr.left, wr.bottom - wr.top
+        if w <= 0 or h <= 0:
+            return
+        x = min(wr.left, wa.right - w)
+        y = min(wr.top, wa.bottom - h)
+        x, y = max(x, wa.left), max(y, wa.top)
+        if (x, y) == (wr.left, wr.top):
+            return                                    # already on screen — touch nothing
+        SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE = 0x0001, 0x0004, 0x0010
+        user32.SetWindowPos(wintypes.HWND(hwnd), None, int(x), int(y), 0, 0,
+                            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+        print(f"📐 window nudged on-screen: ({wr.left},{wr.top}) → ({x},{y}) "
+              f"[size {w}x{h} untouched]", flush=True)
+    except Exception:
+        pass
+
+
+def _win_tint_caption():
+    """v1464 — make the native title bar belong to the console instead of fighting it.
+
+    Konyo's caption renders in the Windows ACCENT colour (measured: AccentColor 0xFFA91AD9 =
+    rgb(217,26,169), bright magenta) directly above a #070605 console. pywebview already calls
+    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE), but it keys that off the SYSTEM
+    theme — AppsUseLightTheme=1 here, so it asks for a LIGHT caption. And with ColorPrevalence=1
+    the accent colour beats immersive dark mode anyway; only DWMWA_CAPTION_COLOR overrides it.
+
+    Runs on the `shown` event: the Form (and therefore the HWND) does not exist until the GUI
+    thread builds it inside webview.start(), and this must never sit on the window-creation
+    path. On builds < 22000 DWM returns E_INVALIDARG as a RETURN VALUE, not an exception, and
+    leaves the window untouched. Wrapped anyway: cosmetics must never cost the window — this
+    app has already lost its window to a cosmetic change twice (REG-051, REG-053).
+    """
+    if not IS_WIN:
+        return
+    try:
+        if sys.getwindowsversion().build < 22000:
+            return                                  # Win10: immersive dark mode only, no tint
+        hwnd = 0
+        win = globals().get("_MAIN_WIN")
+        try:
+            hwnd = int(win.native.Handle.ToInt32())
+        except Exception:
+            hwnd = _win_find_console_hwnd()         # fall back to the proven exact-title scan
+        if not hwnd:
+            return
+        import ctypes
+        from ctypes import wintypes
+        dwm = ctypes.windll.dwmapi
+
+        def _set(attr, value):
+            v = ctypes.c_int(value)
+            dwm.DwmSetWindowAttribute(wintypes.HWND(hwnd), wintypes.DWORD(attr),
+                                      ctypes.byref(v), ctypes.sizeof(v))
+
+        # COLORREF is 0x00BBGGRR (NOT html RGB order).
+        _set(20, 1)             # DWMWA_USE_IMMERSIVE_DARK_MODE
+        _set(35, 0x00050607)    # DWMWA_CAPTION_COLOR  <- #070605, the console's own black
+        _set(36, 0x0060C0F0)    # DWMWA_TEXT_COLOR     <- #f0c060, the console gold
+        _set(34, 0x000E1418)    # DWMWA_BORDER_COLOR
+    except Exception:
+        pass
+
+
 def open_control_window():
     """Open the real native app window (pywebview). Blocks until the user closes it."""
     # v1251 — cache-bust the WKWebView URL with the ship stamp so a relaunch never
@@ -2438,11 +2566,28 @@ def open_control_window():
             icon = cand
             break
 
+    # ══ v1464 — SHIPPED GEOMETRY MUST FIT A LAPTOP. The old default was 1120x800 LOGICAL px.
+    # Konyo's machine is 1920x1080 at 150% DPI, i.e. a 1280x720 logical desktop with ~672
+    # logical px of work area — so an 800px-tall window, centred, had its Top clamped to 0 and
+    # ~130 logical px of the console sat under the taskbar, unreachable. It was the WINDOW that
+    # was off-screen, not the content, so nothing could scroll to it (measured: window bottom
+    # y=777 vs work-area bottom y=672).
+    #
+    # A runtime clamp was tried and REMOVED. SPI_GETWORKAREA reports LOGICAL px while the
+    # process is DPI-unaware and PHYSICAL px once it is aware, and which one we are depends on
+    # import order — the identical clamp computed a correct 632 under a python.exe foreground
+    # run and silently became a no-op under the launcher's pythonw.exe spawn (window came up
+    # 737 logical, 174px off-screen). Probing awareness to normalise it was no more reliable.
+    # A post-shown SetWindowPos fit was tried too and left the window collapsed to 158x26.
+    # So: a deterministic default that fits every common laptop (1366x768 and 1920x1080@150%
+    # both give ~672 logical), and the window stays freely resizable for bigger screens. No
+    # API guessing on the window-creation path — REG-051 and REG-053 were both cosmetics that
+    # cost the window, and this is the same blast radius.
     kwargs = dict(
         title="TV DIABLO",
         url=url,
         width=1120,
-        height=800,
+        height=660,   # v1464 — fits a 672-logical work area; see the note above
         min_size=(880, 600),
         background_color="#070605",
         text_select=False,
@@ -2510,6 +2655,16 @@ def open_control_window():
                 pass
             try:
                 win.events.closed += _on_win_closed
+            except Exception:
+                pass
+            try:
+                # v1464 — caption tint ONLY. A post-shown SetWindowPos "fit" was tried here and
+                # REMOVED: measured, it never actually resized (1680x948 -> 1680x948, it only
+                # nudged the position), yet a run with it wired left the window collapsed to
+                # 158x26. The pre-create clamp in open_control_window() already guarantees the
+                # geometry fits the work area, verified at 1680x948 fully on screen. Cosmetics
+                # do not get to touch window geometry after it is up — REG-051, REG-053.
+                win.events.shown += _win_tint_caption
             except Exception:
                 pass
     except Exception:
@@ -7812,7 +7967,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1463",
+        "ver": "v1464",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

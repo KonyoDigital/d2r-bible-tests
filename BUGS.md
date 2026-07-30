@@ -1087,3 +1087,46 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** when an experiment needs a file the repo does not ship, say so in the finding.
   Evidence produced by mutating the tree must be labelled as such or the next reader will
   reasonably believe it reproduces from a checkout.
+
+## REG-057 — a new PC booted into the OWNER's world instead of its own (2026-07-30)
+- **Symptom:** Konyo's cousin opens the console on a different PC and sees Konyo's forge defaults
+  and seed floors — "it mimics my defaults".
+- **Root cause:** the per-machine profile system already existed (the WINDOWS/MAC switch: MAC =
+  owner, bare keys; WINDOWS = an isolated `W·` world with every owner seed floor suppressed), but
+  `d2r_activeMachine` defaulted to `'mac'` whenever unset. A brand-new machine therefore landed in
+  the owner's namespace until somebody manually flipped the switch.
+- **Rejected fix — do NOT retry:** deriving the identity from the PLATFORM. The switch is NAMED
+  WINDOWS/MAC but encodes WHOSE WORLD, not which OS — Konyo runs this console on Windows under the
+  MAC identity, so platform-derivation flips the owner's own machine into the cousin shell and
+  hides every tally/vault/chronicle row behind `W·`. Invisible data reads as lost data.
+- **Fix (v1464):** decide on EVIDENCE, and only where it is unambiguous — a localStorage with no
+  `d2r_*` key at all has never run this app, so it gets its own `W·` world; ANY `d2r_*` key means
+  established, which keeps the historic `mac` default byte-for-byte. An explicit choice beats both.
+- **Verify:** headless Chromium over HTTP (file:// cannot use localStorage), two-step so the
+  assertion reads what the page really persisted: virgin profile → `d2r_activeMachine=windows`;
+  profile seeded with `d2r_owned` and no machine key → `mac`.
+- **Prevention:** (1) when a stored default is ambiguous between "never chosen" and "chose the
+  default", do not guess from the environment — look for evidence that the app has run before;
+  (2) a switch whose NAME (windows/mac) disagrees with its MEANING (whose world) will eventually
+  be "cleaned up" by someone; the name is now documented in-code as identity, not platform;
+  (3) namespace changes are data-loss-shaped even when nothing is deleted — the safe default is
+  always the one that keeps an existing user seeing their own data.
+
+## REG-058 — I reported a clipped console that was never clipped (2026-07-30)
+- **Symptom (claimed):** the console clips its right edge at the default window size — the SCENE
+  meter, the zone subtitle and the 6th KPI cut off. Reported twice, with screenshots.
+- **It was false.** The capture harness called `GetClientRect`/`ClientToScreen` from DPI-UNAWARE
+  PowerShell 5.1 against a DPI-AWARE window. It received `1105x700` — the virtualized size of a
+  client that is really ~1657x1050 CSS px — and then cropped that many PHYSICAL pixels. The crop
+  landed at CSS x≈1085, precisely where those three elements sit. The desktop strip visible on the
+  left of the PNGs was the same offset error.
+- **Ground truth:** rendering the real file in headless Chromium and reading
+  `getBoundingClientRect` on every node under `.shell` gives ZERO elements past the viewport at
+  1657, 1281, 1105, 1002 and 940 CSS px.
+- **Consequence:** a typography rescale (4 tokens) built on the false premise was reverted before
+  shipping. It would have SHRUNK a console that WebView2 already renders at 1 CSS px = 1 device px
+  on a 150% display, i.e. made a physically-small UI smaller.
+- **Prevention:** (1) a screenshot is not a measurement — if a claim is about geometry, read the
+  geometry from the layout engine, not from a bitmap; (2) any Win32 measurement of another
+  process's window must match DPI awareness with that process or it is silently virtualized;
+  (3) when a UI bug is only visible through one tool, suspect the tool first.
