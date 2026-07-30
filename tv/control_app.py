@@ -6638,36 +6638,6 @@ def _kai_closer_loop():
                         report["register"] = _register
                     except Exception as _rce:
                         print(f"⚠ KAI register compile failed: {_rce}", flush=True)
-                    # ══ GROK ADD-ON (G4) — touchpoint 1: uncertain chronicle auto-route (REMOVABLE) ══
-                    # Cheap second-opinion on ONLY the borderline register entries (tier=='border'
-                    # = the low-confidence tier — the uncertain auto-routes, never the confident
-                    # grail/keep reads). OFF/un-keyed → _g4_verify returns None → zero calls and the
-                    # register is byte-identical to today. A Grok DISAGREEMENT attaches a review FLAG
-                    # (entry['g4']); it NEVER overrides the deterministic tier — the flag surfaces at
-                    # the v1303 "🟣 Grok caught this" review queue. Delete this block to remove it.
-                    try:
-                        _g4n = 0
-                        for _ge in (_register or []):
-                            if _g4n >= 10:
-                                break                      # never bulk — cap per seal (border is already rare)
-                            if (_ge.get("tier") or "") != "border":
-                                continue
-                            _g4v = _g4_verify({"kind": "chronicle-route", "item": _ge.get("name"),
-                                               "proposed": "border", "confidence": _ge.get("tier"),
-                                               "detail": {"loc": _ge.get("loc"), "frameId": _ge.get("frameId")}})
-                            if _g4v is None:
-                                continue                   # OFF / no key / over budget → nothing changes
-                            _g4n += 1
-                            if _g4v.get("ok") and _g4v.get("agree") is False:
-                                _ge["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
-                                             "note": _g4v.get("note"), "ts": _g4v.get("ts"),
-                                             "source": "grok", "kind": "chronicle"}
-                        if _g4n:
-                            print(f"🟣 G4 chronicle re-check: {_g4n} border entr" +
-                                  ("y" if _g4n == 1 else "ies") + " verified", flush=True)
-                    except Exception as _g4e:
-                        print(f"⚠ G4 chronicle touchpoint failed (ignored): {_g4e}", flush=True)
-                    # ══ END GROK ADD-ON (G4) ══
                     # v946 — CHRONICLE INBOX propose (review gate; never silent grail write)
                     # G3-LIVE-FORWARD (TV_G3_LIVE, default OFF = byte-identical): when ON, (delta 1)
                     # feed G4's chronicle-disagreement flag into the triage gate so a Grok-doubted grail
@@ -7765,7 +7735,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1457",
+        "ver": "v1458",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -8310,80 +8280,6 @@ def _read_ui():
     return b"<h1>TV DIABLO control_ui.html missing</h1>"
 
 
-# ══ GROK ADD-ON (G4) — REMOVABLE ════════════════════════════════════════════════
-# Self-contained Grok accuracy bolt-on (Konyo: "fingers in a couple of places",
-# "implement it to be taken out eventually"). ON/OFF, OFF by default, cousin-safe,
-# needs his own xAI key. When OFF/un-keyed, _g4_verify() is an instant no-op → the
-# app is byte-identical to today. This block = the module shim + status/toggle +
-# the read-only flags reader for the "🟣 Grok caught this" review surface. The 3
-# uncertain-only touchpoints call _g4_verify() from their own fenced blocks; each
-# only flags a Grok disagreement (never overrides the deterministic verdict).
-#
-# TO REMOVE THE WHOLE FEATURE, ZERO SCARS — grep -rn "GROK ADD-ON" . finds every trace:
-#   1) delete tv/g4_grok.py
-#   2) delete this block (to "# ══ END GROK ADD-ON (G4) ══")
-#   3) delete the fenced route stanzas: /api/g4_status, /api/g4_flags (do_GET),
-#      /api/g4_toggle (do_POST)
-#   4) delete the 3 fenced touchpoint blocks (touchpoint 1/2/3) in the seal path +
-#      /kai_verdict handler, and the #g4-toggle-card markup + script in bible.html.
-try:
-    if HERE not in sys.path:
-        sys.path.insert(0, HERE)
-    import g4_grok as _G4          # optional; absent file = feature simply not present
-except Exception:
-    _G4 = None
-
-
-def _g4_verify(context):
-    """The engine seam. Cheap Grok second-opinion on ONE uncertain/important decision.
-    Returns None instantly unless the G4 add-on is present AND toggled on AND keyed —
-    so any future touchpoint can call `v = _g4_verify(ctx)` with zero risk when OFF.
-    NOT wired to anything yet (scaffold round)."""
-    try:
-        return _G4.g4_verify(context) if _G4 is not None else None
-    except Exception:
-        return None
-
-
-def _g4_status():
-    try:
-        return _G4.status() if _G4 is not None else {"present": False, "on": False, "hasKey": False}
-    except Exception:
-        return {"present": False, "on": False, "hasKey": False}
-
-
-def _g4_collect_flags(rows, reel_reports):
-    """READ-ONLY: every Grok DISAGREEMENT (g4.agree === False) the touchpoints recorded,
-    across the sealed reel reports (seam 1 → register[].g4) and the journal (seams 2/3 →
-    kai.judge.g4). Powers GET /api/g4_flags → the "🟣 Grok caught this" review surface.
-    EMPTY until Konyo enables G4 and Grok actually disagrees — an empty list is the honest,
-    correct result tonight (no key ran). Writes nothing."""
-    out = []
-    for rep in (reel_reports or []):
-        sid = rep.get("sid") or ""
-        for e in (rep.get("register") or []):
-            g = e.get("g4")
-            if isinstance(g, dict) and g.get("agree") is False:
-                out.append({"item": e.get("name"), "session": sid,
-                            "kind": g.get("kind") or "chronicle",
-                            "engineVerdict": e.get("tier"), "grokVerdict": g.get("verdict"),
-                            "note": g.get("note"), "ts": g.get("ts")})
-    for r in (rows or []):
-        if r.get("lane") != "kai":
-            continue
-        k = r.get("kai")
-        j = k.get("judge") if isinstance(k, dict) else None
-        if not isinstance(j, dict):
-            continue
-        g = j.get("g4")
-        if isinstance(g, dict) and g.get("agree") is False:
-            out.append({"item": j.get("name"), "session": r.get("sessionId") or "",
-                        "kind": g.get("kind") or "keep-toss",
-                        "engineVerdict": j.get("tier"), "grokVerdict": g.get("verdict"),
-                        "note": g.get("note"), "ts": g.get("ts")})
-    out.sort(key=lambda x: (x.get("ts") or ""), reverse=True)
-    return out
-# ══ END GROK ADD-ON (G4) ════════════════════════════════════════════════════════
 
 # ══ GROK EYES (G5) — REMOVABLE ════════════════════════════════════════════════
 # Optional parallel/primary vision lane. OFF by default. See tv/G5_GROK_EYES_REMOVAL.md
@@ -9271,29 +9167,6 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
             return
-        # ══ GROK ADD-ON (G4) — REMOVABLE (delete this stanza) ══
-        if path == "/api/g4_status":
-            self._json(200, _g4_status())
-            return
-        if path == "/api/g4_flags":
-            # read-only: the "🟣 Grok caught this" disagreements. Empty until G4 runs.
-            try:
-                rows = self._load_journal_cached()
-                reels = []
-                try:
-                    for d in sorted(os.listdir(HIST_DIR)):
-                        if not d.startswith("reel_"):
-                            continue
-                        rep = _reel_report_cached(os.path.join(HIST_DIR, d))
-                        if isinstance(rep, dict):
-                            reels.append(rep)
-                except Exception:
-                    pass
-                self._json(200, {"ok": True, "flags": _g4_collect_flags(rows, reels)})
-            except Exception as e:
-                self._json(500, {"ok": False, "msg": str(e)})
-            return
-        # ══ END GROK ADD-ON (G4) ══
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
         if path == "/api/g5_status":
             self._json(200, _g5_status())
@@ -9668,20 +9541,6 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, _ev_rank(body.get("items"), _conf))
             return
 
-        # ══ GROK ADD-ON (G4) — REMOVABLE (delete this stanza) ══
-        if path == "/api/g4_toggle":
-            # flip the persisted ON/OFF switch (a future UI button posts {on:true|false}).
-            # Never turns on without a key — g4_status().on reflects key+switch AND.
-            if _G4 is None:
-                self._json(200, {"present": False, "on": False, "hasKey": False})
-                return
-            try:
-                _G4.set_on(bool(body.get("on")))
-            except Exception:
-                pass
-            self._json(200, _g4_status())
-            return
-        # ══ END GROK ADD-ON (G4) ══
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
         if path == "/api/g5_toggle":
             # {"mode":"off"|"shadow"|"primary"} or {"on":true} → primary
@@ -9788,56 +9647,6 @@ class Handler(BaseHTTPRequestHandler):
                                           "tag": _tag,
                                           "actions": [str(a)[:24] for a in (_app_acts or [])[:8]]}},
                        "note": _note[:100]}
-                # ══ GROK ADD-ON (G4) — touchpoint 2: borderline Item-Checker keep/toss (REMOVABLE) ══
-                # Cheap second-opinion ONLY on a keep/toss that landed in the narrow band around
-                # the score cutoff (keep barely cleared 14, or toss barely under 7 — the calls a
-                # single point would flip). Confident keeps/tosses, border, and grail skip Grok.
-                # OFF/un-keyed → _g4_verify returns None → zero calls, `rec` byte-identical. A Grok
-                # DISAGREEMENT attaches a review FLAG (judge['g4']); it NEVER changes the tier — it
-                # surfaces at the v1303 "🟣 Grok caught this" queue. Delete this block to remove it.
-                try:
-                    _g4s = int((body.get("verdict") or {}).get("score") or 0)
-                    _g4_border = (_tier == "keep" and 14 <= _g4s <= 16) or (_tier == "toss" and 5 <= _g4s <= 6)
-                    if _g4_border:
-                        _g4v = _g4_verify({"kind": "checker-keep-toss", "item": _vname,
-                                           "proposed": _tier, "confidence": _g4s,
-                                           "detail": {"base": str(body.get("base") or "")[:40],
-                                                      "q": str(body.get("q") or "")[:12],
-                                                      "score": _g4s,
-                                                      "why": str(body.get("why") or "")[:120]}})
-                        if _g4v is not None and _g4v.get("ok") and _g4v.get("agree") is False:
-                            rec["kai"]["judge"]["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
-                                                         "note": _g4v.get("note"), "ts": _g4v.get("ts"),
-                                                         "source": "grok", "kind": "keep-toss"}
-                            print(f"🟣 G4 keep/toss re-check flagged: {_vname} ({_tier} score {_g4s})", flush=True)
-                except Exception as _g4e:
-                    print(f"⚠ G4 keep/toss touchpoint failed (ignored): {_g4e}", flush=True)
-                # ══ END GROK ADD-ON (G4) ══
-                # ══ GROK ADD-ON (G4) — touchpoint 3: grail-promotion re-check (REMOVABLE) ══
-                # The highest-value, rarest seam: fire ONLY when the grail gate just PROMOTED a
-                # weak read (the incoming verdict was toss/border) up to 'grail' — the split-brain
-                # class (a low-quality read of a unique/set name auto-becoming a grail tick). A
-                # wrong promotion corrupts the Chronicle, so it's worth one Grok confirm. Confident
-                # grails (already grail on arrival) and non-promotions skip Grok. OFF/un-keyed →
-                # _g4_verify None → zero calls, `rec` byte-identical. DISAGREEMENT (Grok says "not
-                # grail") attaches a review FLAG (judge['g4']); it NEVER un-promotes — Konyo reviews
-                # it at the v1303 queue. Delete this block to remove the touchpoint.
-                try:
-                    _g4orig = str((body.get("verdict") or {}).get("tier") or "").lower()
-                    if _tier == "grail" and _g4orig in ("toss", "border"):
-                        _g4v = _g4_verify({"kind": "grail-recheck", "item": _vname,
-                                           "proposed": "grail", "confidence": _g4orig,
-                                           "detail": {"promotedFrom": _g4orig,
-                                                      "base": str(body.get("base") or "")[:40],
-                                                      "score": int((body.get("verdict") or {}).get("score") or 0)}})
-                        if _g4v is not None and _g4v.get("ok") and _g4v.get("agree") is False:
-                            rec["kai"]["judge"]["g4"] = {"agree": False, "verdict": _g4v.get("verdict"),
-                                                         "note": _g4v.get("note"), "ts": _g4v.get("ts"),
-                                                         "source": "grok", "kind": "grail-recheck"}
-                            print(f"🟣 G4 grail re-check flagged: {_vname} (promoted {_g4orig}→grail)", flush=True)
-                except Exception as _g4e:
-                    print(f"⚠ G4 grail touchpoint failed (ignored): {_g4e}", flush=True)
-                # ══ END GROK ADD-ON (G4) ══
                 with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 self._json(200, {"ok": True})

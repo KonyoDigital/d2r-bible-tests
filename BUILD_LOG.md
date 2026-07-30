@@ -5,6 +5,21 @@
 - Cousin-safe; removable fences GROK EYES (G5); sidecar prove + unit tests
 - Claude path unchanged when OFF
 
+## v1458 — 2026-07-30 — G4 Grok add-on REMOVED · G5 failure surfaced
+- **G4 (api.x.ai API-KEY accuracy add-on) DELETED** — dormant, never activated, and its lane
+  violates Konyo's rule that Grok runs on the SuperGrok SUBSCRIPTION only. Removed exactly as
+  `tv/G4_GROK_REMOVAL.md` prescribed: `tv/g4_grok.py` gone, all fenced blocks stripped
+  (191 lines control_app.py + 170 bible.html), `.gitignore` state line dropped.
+  **0 traces** of `g4_grok` / `_g4` / `GROK ADD-ON` remain; control_app compiles; every real
+  inline bible script still compiles (the 4 `type="application/json"` blocks are data, and
+  fail-to-compile identically before and after — not JS). Reversible in one revert.
+- **G5 Grok Eyes KEPT** (Konyo's mandated primary vision lane, `grok -p` + SuperGrok, no keys)
+  and made honest: a primary-lane failure used to fall through to Claude while
+  `_STATS["last_error"]` held the reason and nobody ever saw it. The agent event now carries
+  the WHY (`⚠ G5 primary vision returned None — Claude fallback · why: grok CLI not on PATH`),
+  and the console's G5 card shows its own intake-lane `last_error` + error/call counts.
+- Suites: test_control 264 OK · test_agent 201 OK · visual-lock OK.
+
 # D2R Bible — Build Log (cross-agent shared memory)
 
 > **Purpose:** a single Obsidian-friendly log so understanding is **never lost in

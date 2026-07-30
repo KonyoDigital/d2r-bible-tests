@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1457"   # honesty defaults: stale/unknown state marked, watchdog lamp honest, receipts carry the gate.
+VERSION = "v1458"   # G4 add-on removed (API-key lane); G5 primary-lane failures now say WHY.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4490,10 +4490,21 @@ def claude_read(path, worker=None, out_jpg=None):
                         _g5r.get("stashTab") or _g5r.get("stash_tab"), _g5r.get("scene"))
                     globals()["_LAST_RAW"] = str(_g5r.get("_raw_txt") or "")[:2048]
                     return _g5r
-                ev("cap", "G5 primary vision returned None — falling through to Claude")
+                # v1457 HONESTY (audit): G5 Grok Eyes is Konyo's MANDATED primary vision lane on
+                # this Mac. When it fails, the read silently continued on Claude and the reason —
+                # which g5_grok_eyes already recorded in _STATS["last_error"] ("grok CLI not on
+                # PATH", "grok -p timeout", "no-json from grok -p", …) — never reached the console.
+                # A swallowed failure in the PRIMARY lane reads as "Grok is working". Say WHY.
+                _why = ""
+                try:
+                    _why = str((_G5.status().get("stats") or {}).get("last_error") or "")[:120]
+                except Exception:
+                    _why = ""
+                ev("cap", "⚠ G5 primary vision returned None — Claude fallback"
+                          + (f" · why: {_why}" if _why else " · no reason recorded"))
         except Exception as _g5e:
             try:
-                ev("cap", f"G5 primary failed (Claude fallback): {_g5e}")
+                ev("cap", f"⚠ G5 primary failed (Claude fallback): {_g5e}")
             except Exception:
                 pass
     # ══ END GROK EYES (G5) ════════════════════════════════════════════════════

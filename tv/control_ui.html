@@ -7682,6 +7682,13 @@
       else if (mode === 'primary') bits.push('dual intake: Grok → Claude failover (SuperGrok · no API keys)');
       if (sub && intent !== mode && intent !== 'off')
         bits.push('effective still ' + mode);
+      // v1457 HONESTY (audit): G5 is the MANDATED primary lane here. Its failures were recorded in
+      // stats.last_error and then never shown — the card still read "linked · primary" while the
+      // work quietly continued on Claude. This is the CONTROL process's own Grok lane (intake); the
+      // agent's vision-read failures arrive in the reads/thoughts feed as "⚠ G5 primary … why: …".
+      var g5s = st.stats || {};
+      if (g5s.last_error) bits.push('⚠ last Grok error (intake lane): ' + String(g5s.last_error).slice(0, 90));
+      if (g5s.errors) bits.push(g5s.errors + ' error(s) / ' + (g5s.calls || 0) + ' call(s)');
       bits.push('default OFF · cousin never needs this');
       if (hint) hint.textContent = bits.join(' · ');
       // v1381.2 — auth button: green when linked, pulse only when login needed, never spam

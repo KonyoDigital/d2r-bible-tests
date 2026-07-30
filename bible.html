@@ -4529,64 +4529,6 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
   </div>
 
-  <!-- ══ GROK ADD-ON (G4) — the 🟣 Grok Accuracy toggle (REMOVABLE) ══
-       Power-user ON/OFF for the Grok second-opinion layer. Reads /api/g4_status,
-       posts /api/g4_toggle. OFF by default; nothing fires without Konyo's own xAI key.
-       To remove the UI: delete this card + the "GROK ADD-ON (G4)" script block below
-       (the engine stays inert on its own). -->
-  <style>
-    #g4-toggle-card .g4-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
-    #g4-toggle-card .g4-switch{width:46px;height:26px;border-radius:14px;border:1px solid var(--border);background:var(--surface-3);position:relative;cursor:pointer;padding:0;flex:0 0 auto;transition:background .15s,border-color .15s}
-    #g4-toggle-card .g4-switch[aria-checked="true"]{background:linear-gradient(135deg,#7c4dff,#b07cff);border-color:rgba(176,124,255,.6)}
-    #g4-toggle-card .g4-switch[aria-checked="true"][data-inert="1"]{background:linear-gradient(135deg,#8a7a3a,#c8a84a);border-color:rgba(255,200,80,.5)}
-    #g4-toggle-card .g4-knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
-    #g4-toggle-card .g4-switch[aria-checked="true"] .g4-knob{left:22px}
-    #g4-toggle-card .g4-state{font-size:13px;font-weight:var(--fw-semibold)}
-    #g4-toggle-card .g4-state.off{color:var(--text-muted)}
-    #g4-toggle-card .g4-state.active{color:#c9a9ff}
-    #g4-toggle-card .g4-state.inert{color:#ffd479}
-    #g4-toggle-card .g4-detail{font-size:12px;color:var(--text-muted);margin:2px 0 8px;line-height:var(--lh-normal)}
-    #g4-toggle-card .g4-detail:empty{display:none}
-    #g4-toggle-card .g4-note{font-size:11.5px;color:var(--text-dim);line-height:var(--lh-relaxed);border-top:1px solid var(--border);padding-top:8px}
-    #g4-toggle-card .g4-beta{font-size:9px;font-weight:var(--fw-bold);letter-spacing:.6px;background:rgba(176,124,255,.18);color:#b07cff;border:1px solid rgba(176,124,255,.42);border-radius:5px;padding:1px 5px;vertical-align:middle;margin-left:6px}
-    #g4-toggle-card .g4-flags{margin-top:10px}
-    #g4-toggle-card .g4-flags:empty{display:none}
-    #g4-toggle-card .g4-flags-h{font-size:12px;font-weight:var(--fw-semibold);color:#c9a9ff;border-top:1px solid var(--border);padding-top:8px;display:flex;align-items:center;gap:6px}
-    #g4-toggle-card .g4-flags-n{background:rgba(176,124,255,.2);color:#c9a9ff;border-radius:5px;padding:0 6px;font-size:11px}
-    #g4-toggle-card .g4-flags-empty{font-size:12px;color:var(--text-dim);margin-top:5px;line-height:var(--lh-normal)}
-    #g4-toggle-card .g4-flags-sub{font-size:11.5px;color:var(--text-muted);margin:3px 0 7px}
-    #g4-toggle-card .g4-flag{background:rgba(176,124,255,.06);border:1px solid rgba(176,124,255,.25);border-radius:7px;padding:7px 10px;margin-top:6px}
-    #g4-toggle-card .g4-flag-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
-    #g4-toggle-card .g4-flag-item{font-weight:var(--fw-semibold);font-size:13px;color:#dbeeff}
-    #g4-toggle-card .g4-flag-kind{font-size:10px;color:var(--text-dim);white-space:nowrap}
-    #g4-toggle-card .g4-flag-verdicts{font-size:12px;color:var(--text-muted);margin-top:3px}
-    #g4-toggle-card .g4-flag-verdicts .g4-eng{color:#8fd0ff}
-    #g4-toggle-card .g4-flag-verdicts .g4-grk{color:#c9a9ff}
-    #g4-toggle-card .g4-flag-note{font-size:11.5px;color:var(--text-dim);font-style:italic;margin-top:3px}
-  </style>
-  <div class="boss-card collapsible collapsed tool-premium" id="g4-toggle-card" style="--tc:#b07cff">
-    <div class="boss-header" onclick="window.toggleCardCollapse('g4-toggle-card');window._g4RenderToggle&&window._g4RenderToggle()" role="button" tabindex="0" aria-expanded="false">
-      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:28px">🟣</span>
-      <div class="boss-title-block">
-        <p class="boss-name">Grok Accuracy <span class="g4-beta">POWER-USER ADD-ON</span></p>
-        <p class="boss-subtitle">Optional — Grok gives a cheap second opinion on only the uncertain calls</p>
-        <p class="boss-loc">OFF by default · needs your own xAI key · your key &amp; your credits · lifts out cleanly</p>
-      </div>
-      <span class="rs-chevron" aria-hidden="true">▾</span>
-    </div>
-    <div class="boss-body">
-      <div class="g4-wrap">
-        <div class="g4-row">
-          <button class="g4-switch" id="g4-switch" role="switch" aria-checked="false" title="toggle the Grok accuracy add-on" onclick="window._g4Toggle()"><span class="g4-knob"></span></button>
-          <div class="g4-state off" id="g4-state">Loading…</div>
-        </div>
-        <div class="g4-detail" id="g4-detail"></div>
-        <div class="g4-note">A <strong>power-user add-on</strong>. When ON <em>and</em> your xAI key is set, Grok gives a cheap second opinion on only the <strong>uncertain / important</strong> reads — borderline chronicle routes, close keep/toss calls, rare→grail promotions — <strong>never every item</strong>. It only <strong>flags disagreements</strong> for your review; it never overrides the app. Set <code>XAI_API_KEY</code> in your environment to activate. The whole add-on lifts out with zero effect on everything else.</div>
-        <div class="g4-flags" id="g4-flags"></div>
-      </div>
-    </div>
-  </div>
-  <!-- ══ END GROK ADD-ON (G4) — Grok Accuracy toggle ══ -->
 
   <!-- v705 — TOOLS INDEX (Grok wave P3): 17 equal gold cards read as a warehouse. One chip row
        maps the room — grouped by JOB, each chip jumps to (and pulses) its card. No card moved,
@@ -19383,118 +19325,6 @@ function _arLoadNextChecker(){
 }
 window._arLoadNextChecker = _arLoadNextChecker;
 
-// ══ GROK ADD-ON (G4) — the 🟣 Grok Accuracy toggle (REMOVABLE) ══════════════════
-// Reads /api/g4_status, posts /api/g4_toggle {on}. OFF by default; the honest state
-// readout distinguishes OFF · "ON — needs your xAI key" (switch on, no key = inert) ·
-// "ON — active". Reuses _arApiBase() (null on file://). Delete this block + the
-// #g4-toggle-card markup to remove the UI; the engine add-on stays inert on its own.
-var _g4Status = null;
-async function _g4RenderToggle(){
-  var stateEl = document.getElementById('g4-state');
-  var detailEl = document.getElementById('g4-detail');
-  var sw = document.getElementById('g4-switch');
-  if (!stateEl || !sw) return;
-  var base = (typeof _arApiBase === 'function') ? _arApiBase() : '';
-  if (base === null){
-    stateEl.className = 'g4-state off'; stateEl.textContent = 'needs the control server';
-    if (detailEl) detailEl.innerHTML = 'Open the app through the TV control server (the localhost board) to use the toggle.';
-    return;
-  }
-  try {
-    var res = await fetch(base + '/api/g4_status', { cache: 'no-store' });
-    _g4Status = await res.json();
-  } catch(e){
-    stateEl.className = 'g4-state off'; stateEl.textContent = 'unavailable';
-    if (detailEl) detailEl.innerHTML = 'Grok status unavailable — is the control server running?';
-    return;
-  }
-  _g4PaintToggle();
-  _g4RenderFlags(base);
-}
-window._g4RenderToggle = _g4RenderToggle;
-
-// "🟣 Grok caught this" — the read-only review surface. Reads /api/g4_flags (every
-// g4.agree===false disagreement across sessions). Empty tonight (no key ran) → a quiet
-// honest message. Konyo reviews; nothing here changes any verdict.
-async function _g4RenderFlags(base){
-  var el = document.getElementById('g4-flags'); if (!el) return;
-  var esc = (typeof escHtml === 'function') ? escHtml : function(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
-  var flags = [];
-  try {
-    var res = await fetch(base + '/api/g4_flags', { cache: 'no-store' });
-    var d = await res.json();
-    flags = (d && d.ok && Array.isArray(d.flags)) ? d.flags : [];
-  } catch(e){ el.innerHTML = ''; return; }
-  if (!flags.length){
-    el.innerHTML = '<div class="g4-flags-h">🟣 Grok caught this</div><div class="g4-flags-empty">No disagreements — the engine and Grok agree, or Grok is off. (Flags appear here only when Grok is on and disputes an uncertain call.)</div>';
-    return;
-  }
-  var kindLabel = { 'chronicle': '📜 chronicle route', 'keep-toss': '🔬 keep/toss', 'grail-recheck': '🏆 grail promo' };
-  var rows = flags.map(function(f){
-    var k = kindLabel[f.kind] || f.kind || 'verify';
-    return '<div class="g4-flag">'
-      + '<div class="g4-flag-top"><span class="g4-flag-item">🟣 ' + esc(f.item || '?') + '</span><span class="g4-flag-kind">' + esc(k) + '</span></div>'
-      + '<div class="g4-flag-verdicts">engine said <b class="g4-eng">' + esc(f.engineVerdict || '?') + '</b> · Grok says <b class="g4-grk">' + esc(f.grokVerdict || '?') + '</b></div>'
-      + (f.note ? '<div class="g4-flag-note">“' + esc(f.note) + '”</div>' : '')
-      + '</div>';
-  }).join('');
-  el.innerHTML = '<div class="g4-flags-h">🟣 Grok caught this <span class="g4-flags-n">' + flags.length + '</span></div>'
-    + '<div class="g4-flags-sub">Grok disagreed with the engine on these uncertain calls — <strong>review only</strong>, nothing was changed.</div>'
-    + rows;
-}
-window._g4RenderFlags = _g4RenderFlags;
-
-function _g4PaintToggle(){
-  var s = _g4Status || {};
-  var stateEl = document.getElementById('g4-state');
-  var detailEl = document.getElementById('g4-detail');
-  var sw = document.getElementById('g4-switch');
-  if (!stateEl || !sw) return;
-  if (s.present === false){
-    sw.setAttribute('aria-checked', 'false'); sw.removeAttribute('data-inert');
-    stateEl.className = 'g4-state off'; stateEl.textContent = 'not installed';
-    if (detailEl) detailEl.innerHTML = 'The Grok add-on module isn’t present on this machine.';
-    return;
-  }
-  var on = !!s.switch;                        // the button reflects the SWITCH intent
-  sw.setAttribute('aria-checked', on ? 'true' : 'false');
-  if (on && !s.hasKey) sw.setAttribute('data-inert', '1'); else sw.removeAttribute('data-inert');
-  if (!on){
-    stateEl.className = 'g4-state off'; stateEl.textContent = 'OFF';
-    if (detailEl) detailEl.innerHTML = 'Off — the app runs 100% deterministic (the default). Flip on to add Grok’s second opinion.';
-  } else if (!s.hasKey){
-    stateEl.className = 'g4-state inert'; stateEl.textContent = 'ON — needs your xAI key';
-    if (detailEl) detailEl.innerHTML = 'Switched on, but no <code>XAI_API_KEY</code> found in your environment — so it’s still <strong>inert</strong> (zero Grok calls). Add your key and it activates.';
-  } else {
-    var st = s.stats || {};
-    var b = s.budget || {};
-    var seamsArr = s.seams || [];
-    var seamTxt = (seamsArr.length === 3 || !seamsArr.length) ? 'all 3 seams' : seamsArr.join(', ');
-    stateEl.className = 'g4-state active'; stateEl.textContent = 'ON — active';
-    if (detailEl) detailEl.innerHTML = 'Grok double-checks only the uncertain calls (' + seamTxt + '). Model <code>' + (s.model || '?') + '</code> · this hour ' + (b.hourlyUsed || 0) + '/' + (b.hourlyMax || s.hourlyMax || 0) + ' · today ' + (b.dailyUsed || 0) + '/' + (b.dailyMax || 0) + (st.disagree ? ' · 🟣 ' + st.disagree + ' flagged' : '') + '.';
-  }
-}
-
-async function _g4Toggle(){
-  var base = (typeof _arApiBase === 'function') ? _arApiBase() : '';
-  if (base === null) return;
-  var want = !(_g4Status && _g4Status.switch);   // flip the switch intent
-  var sw = document.getElementById('g4-switch');
-  if (sw) sw.setAttribute('aria-checked', want ? 'true' : 'false');   // optimistic
-  try {
-    var res = await fetch(base + '/api/g4_toggle', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ on: want }), cache: 'no-store'
-    });
-    _g4Status = await res.json();
-  } catch(e){ _g4RenderToggle(); return; }
-  _g4PaintToggle();
-  if (want && _g4Status && !_g4Status.hasKey && typeof status === 'function'){
-    try { status('🟣 Grok add-on switched ON — set XAI_API_KEY in your env to activate it.'); } catch(e){}
-  }
-}
-window._g4Toggle = _g4Toggle;
-// ══ END GROK ADD-ON (G4) ════════════════════════════════════════════════════════
 
 // v369.2 — runeword base-string → a verified-present base sprite (same files as the EXTRA_ITEMS art map),
 // so every Chronicle row shows a slot-appropriate icon (shield/armor/helm/weapon) instead of a bare glyph.
@@ -35464,7 +35294,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1457', name:'v1457 · honesty defaults', date:'2026-07-30', note:'HONESTY DEFAULTS (KAI-accuracy audit): empty bridge body no longer cached as good state; the 15s last-good grace is now MARKED (stateAgeMs/stateFresh) instead of passing for live; gameOkKnown separates \'game is fine\' from \'nothing known\'; the watchdog lamp can finally report down/idle instead of a hardcoded armed; every read receipt carries the accuracy-gate verdict and a refused read wears a HELD chip. Plus: test_control runner was mid-file, so 7 tests never ran.' };
+  window.D2R_BUILD = { id:'v1458', name:'v1458 · G4 out, G5 honest', date:'2026-07-30', note:'G4 Grok add-on (api.x.ai API-KEY lane — dormant, violates the subscription-only rule) REMOVED per tv/G4_GROK_REMOVAL.md: module deleted, all fenced blocks stripped, 0 traces left. G5 Grok Eyes KEPT (mandated primary vision lane, subscription CLI, no keys) and made honest — a primary-lane failure now reports WHY instead of silently continuing on Claude.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
