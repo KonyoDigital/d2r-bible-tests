@@ -1,4 +1,31 @@
 
+## v1480 — 2026-07-31 — tools can report their verdict (and one told the truth immediately)
+
+Fourth instance of a single bug — REG-044, REG-054, REG-077 and now this. A tool prints a check
+mark, this machine's console is Hebrew (cp1255) and cannot encode it, and the tool dies *reporting*.
+The failure always lands in the dangerous direction: a CORRECT tree exits non-zero, which teaches
+people to ignore the tool, and then the next real failure is ignored too.
+
+`tv/console_safe.py` is now the single place that fixes it, wired into `replay.py`,
+`robot_smoke.py`, `prove_real_intake.py`, `test_button_matrix.py` and `test_roundtrip_sim.py`.
+`TestToolsCanReportTheirVerdict` fails any CLI entry point that prints non-ASCII without it, and a
+second test proves the helper never raises — a helper whose job is stopping crashes must not become
+a new source of them.
+
+**What the fix immediately uncovered (REG-078).** `test_button_matrix.py` had been asserting the
+version stamp matched `^v8\d\d` — written at v849, wrong for every build since v900, roughly 600
+versions of reporting FAILED on correct trees. Nobody saw it because the script crashed before its
+verdict could be read. The two defects had been protecting each other: the crash hid the stale
+check, and the stale check made fixing the crash look pointless. It now compares the live app
+against `tv/WINDOWS_SHIP.json` — what the check was always for — which stays true at any version and
+catches a genuinely useful condition: *the running app is an older build than the tree you are
+testing.*
+
+Gates: JS syntax OK · visual-lock OK · test_control **275 OK**. Mutation-verified: stripping the
+shim from `robot_smoke.py` fails the gate by name.
+
+---
+
 ## v1479 — 2026-07-31 — forked keys must be ROUTED (the family, not the instance)
 
 Three defects have now shipped from one root — REG-069 (`d2r_rwMade` read raw), REG-075 (a

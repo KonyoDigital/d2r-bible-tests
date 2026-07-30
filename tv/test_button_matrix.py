@@ -14,6 +14,17 @@ import time
 import urllib.error
 import urllib.request
 
+# v1480 — make our own output survive the operator's console before we print anything.
+# A tool whose verdict is its exit code must not die reporting it (REG-044/054/077): on a Hebrew
+# cp1255 console every check mark we print is an unencodable character, and the crash lands in the
+# dangerous direction — a correct tree reporting FAILURE.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from console_safe import enable as _console_safe
+    _console_safe()
+except Exception:
+    pass
+
 CTRL = "http://127.0.0.1:17772"
 AGENT = "http://127.0.0.1:17771"
 FAILS = []
@@ -78,8 +89,24 @@ def main():
     print("══ BUTTON MATRIX · control API (mirrors every app button) ══")
     st = get(CTRL + "/api/status")
     check("control up", st.get("ok") is True, st)
-    import re as _re
-    check("version stamp", bool(_re.match(r"^v8\d\d", st.get("ver") or "")), st.get("ver"))   # v849 — matches the march
+    # v1480 — this used to assert `^v8\d\d`, written at v849 and stale from v900 onward: for ~600
+    # versions it reported FAILED on every correct build, and nobody saw it because the script died
+    # on a UnicodeEncodeError before the verdict could be read. A check that cannot be right is
+    # worse than no check.
+    #
+    # What it was FOR is stamp drift, so compare against the ship manifest — the file that declares
+    # what this platform is supposed to be running. That stays true at any version number, and it
+    # catches the thing worth catching: a running app older than the tree under test.
+    live = st.get("ver") or ""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "WINDOWS_SHIP.json"),
+                  encoding="utf-8") as _fh:
+            want = json.load(_fh).get("ver") or ""
+    except Exception as _e:
+        want = ""
+    check("version stamp", bool(want) and live == want,
+          "live app says %r, tv/WINDOWS_SHIP.json says %r — the running app is a different build "
+          "than the tree you are testing; restart it before trusting this matrix" % (live, want))
 
     # ensure clean off
     print("\n· OFF (ensure dark)")

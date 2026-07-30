@@ -1532,3 +1532,26 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** when the same defect arrives a third time, stop fixing instances and make the
   invariant mechanical. The question to ask is not "is this line correct" but "what would have to
   be true for this line to be impossible".
+
+## REG-078 — a version assertion that had been wrong for ~600 versions, hidden by a crash (2026-07-31)
+
+- **Symptom:** `tv/test_button_matrix.py` reported `FAILED 1: version stamp: v1478` against a
+  correct build. The assertion was `re.match(r"^v8\d\d", ver)` — written at v849, correct for
+  fifty versions, and wrong for every build from v900 onward.
+- **Why it survived ~600 versions:** the script crashed with `UnicodeEncodeError` on this Hebrew
+  console before its verdict could be read (REG-077's family). A tool nobody can read is a tool
+  nobody runs, and a stale assertion inside it is invisible. The two defects protected each other:
+  the crash hid the bad check, and the bad check meant fixing the crash looked like it would only
+  reveal a failure.
+- **How it was caught:** fixing the encoding first. Within one run the matrix printed a real,
+  specific failure it had been sitting on.
+- **Fix (v1480):** the check now compares the live app's `/api/status` version against
+  `tv/WINDOWS_SHIP.json`. That is what the check was FOR — stamp drift — and it stays true at any
+  version number instead of encoding one moment in the version march. It also now catches something
+  genuinely useful: a running app that is an older build than the tree under test, reported as
+  "restart it before trusting this matrix".
+- **Prevention:** (1) never assert a version by a numeric-range pattern; compare against the file
+  that declares the version, so the check ages with the product. (2) Fix reporting bugs FIRST — a
+  tool that cannot speak is hiding whatever it was going to say, and the hidden thing is usually
+  real. (3) Two bugs that mask each other are not twice the work of one; they are much harder to
+  see, because each makes the other look like expected behaviour.

@@ -3671,6 +3671,68 @@ class TestForkedKeysAreRouted(unittest.TestCase):
                                      "drop them? The gate would now be untested against real raw code.")
 
 
+class TestToolsCanReportTheirVerdict(unittest.TestCase):
+    """v1480 — a tool whose verdict is its exit code must not die reporting it.
+
+    Fourth instance of one bug: REG-044 (tv_diablo could not print its status lines), REG-054 (both
+    suites were only green because PYTHONIOENCODING was set by hand off-screen — a plain run went
+    red AND corrupted a tracked fixture), REG-077 (visual_lock_invariant and js_syntax_gate each
+    PASSED, reached the success branch, then died inside `print("✅ …")`).
+
+    This machine's console is Hebrew (cp1255) and cannot encode the check marks, arrows and box
+    characters the tooling prints everywhere. The failure always lands in the dangerous direction:
+    a CORRECT tree reports FAILURE, which teaches people to ignore the tool, and then the next real
+    failure is ignored too. `tv/test_button_matrix.py` proves the cost — it died on encoding, and
+    hidden underneath was a `^v8\\d\\d` version assertion that had been wrong since v900.
+
+    So: any CLI script that prints non-ASCII must make its own output encoding-safe, rather than
+    inherit safety from the operator's shell.
+    """
+
+    TV = os.path.dirname(os.path.abspath(__file__))
+    REPO = os.path.dirname(TV)
+    # These get their safety from a module they import, which installs it at import time.
+    VIA_IMPORT = re.compile(r"^\s*(?:import|from)\s+(control_app|tv_diablo|console_safe)\b", re.M)
+
+    def _scripts(self):
+        import glob
+        out = list(glob.glob(os.path.join(self.TV, "*.py")))
+        out.append(os.path.join(self.REPO, "visual_lock_invariant.py"))
+        return sorted(out)
+
+    def test_every_cli_that_prints_non_ascii_is_encoding_safe(self):
+        unsafe = []
+        for path in self._scripts():
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                src = fh.read()
+            if "__main__" not in src:
+                continue                                    # importable module, not an entry point
+            if not re.search(r"[^\x00-\x7F]", src):
+                continue                                    # pure ASCII output cannot hit this
+            if "reconfigure" in src or self.VIA_IMPORT.search(src):
+                continue
+            unsafe.append(os.path.relpath(path, self.REPO))
+        self.assertEqual(
+            unsafe, [],
+            "these print non-ASCII but never make stdout encoding-safe, so on a non-UTF-8 console "
+            "they crash while REPORTING and a clean tree exits non-zero:\n  " + "\n  ".join(unsafe)
+            + "\nAdd `from console_safe import enable; enable()` (see tv/console_safe.py).")
+
+    def test_console_safe_never_raises(self):
+        """The helper's whole job is to stop crashes, so it must not become a new source of them —
+        including on stream objects that cannot be reconfigured at all."""
+        sys.path.insert(0, self.TV)
+        import console_safe
+        import io as _io
+        self.assertTrue(console_safe.enable(_io.TextIOWrapper(_io.BytesIO())))
+        # a stream with no reconfigure(): reports False, raises nothing
+        class Dumb:
+            pass
+        self.assertFalse(console_safe.enable(Dumb()))
+        self.assertFalse(console_safe.enable(_io.StringIO()))
+        console_safe.enable(None)          # tolerated, no exception
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

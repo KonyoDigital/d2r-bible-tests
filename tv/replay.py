@@ -12,6 +12,17 @@
 # recorded read (area/scene/names/tz/stashTab/note) is replayed verbatim — nothing invented.
 import json, os, shutil, signal, subprocess, sys, tempfile, time
 
+# v1480 — make our own output survive the operator's console before we print anything.
+# A tool whose verdict is its exit code must not die reporting it (REG-044/054/077): on a Hebrew
+# cp1255 console every check mark we print is an unencodable character, and the crash lands in the
+# dangerous direction — a correct tree reporting FAILURE.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from console_safe import enable as _console_safe
+    _console_safe()
+except Exception:
+    pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 JOURNAL = os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")   # v877 — CI harness override
 HIST = os.path.join(HERE, "frames", "hist")
