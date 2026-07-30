@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1474",
+  "ver": "v1475",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1474: the Forge counts explain themselves \u2014 99 runewords, 8 ladder-only, 91 workable, +4 craft types = 95",
+  "note": "v1475: the Forge now plans the 8 ladder-only runewords (Forge lane ONLY - table, stamps and chronicle unchanged)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

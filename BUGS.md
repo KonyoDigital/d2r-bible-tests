@@ -1367,3 +1367,29 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** when two counters on one screen have different denominators, the screen must say
   so. A number that is correct but unexplainable next to its neighbour will be reported as a bug —
   and the reporter is right, because trust is the feature.
+
+## REG-072 — the Forge excluded 8 runewords the owner wanted planned (2026-07-30)
+- **Ask (Konyo):** *"we need it for forge. i dont play ladder but we need it only for the forge
+  specifically those 8-9 runewords."*
+- **Before:** `_rwLadderBlocked()` removed the 8 `_RW_LADDER_ONLY` words (Bulwark, Cure, Ground,
+  Hearth, Hysteria, Mania, Metamorphosis, Temper) from the Forge everywhere — task list, rune
+  demand, base farming — because Konyo plays non-ladder (v553/v577).
+- **Fix (v1475) — scoped by CALL SITE, not by a mode flip.** A second predicate,
+  `_rwLadderBlockedForge()`, is asked by the four FORGE-lane sites (task universe, rune gating,
+  base farming, host lookup). The other five sites keep the original: the runeword TABLE still
+  hides them (the v577 display rule "Konyo plays NON-ladder, it should not be giving me these"),
+  and the chronicle, stamps and elite-base filter are untouched. Flipping `d2r_ladderMode` would
+  have changed all of them at once, which is not what was asked.
+- **Honesty follow-through:** two pieces of on-screen text asserted the OLD rule and would have
+  become lies — the progress note ("8 ladder-only" excluded) and the Forge banner ("8 ladder-only
+  words remain"). Both now read the live setting instead of restating an assumption, and the
+  banner says the words need a ladder character to actually form, so including them in the plan
+  never reads as a promise that they will cube on this character.
+- **Self-inflicted trap on the way (worth its own note):** the swap inserted a `//` comment
+  MID-LINE into a single-line `forEach`, which commented out the rest of the statement and threw
+  `Uncaught SyntaxError` at load — the whole board dead. Caught by the standing Chromium parse
+  gate within a minute. Same class as REG-060: **never append a `//` comment to a line that
+  continues after the insertion point** — use a `/* */` block above it.
+- **Prevention:** when a rule should change for ONE surface, scope it by call site with a second
+  predicate. A global mode flag is the tempting shortcut and it always takes surfaces with it that
+  nobody asked to change.

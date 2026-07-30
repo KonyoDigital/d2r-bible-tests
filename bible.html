@@ -4988,7 +4988,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       var codeSet = {}, nameSet = {}, supOkSet = {}, larzukExact = {};   // v666 — bases where a live word's count == the trusted Larzuk max
       Object.keys(tips).forEach(function(rw){
         if (made[rw]) return;                                  // already forged -> skip
-        if (typeof window._rwLadderBlocked==='function' && window._rwLadderBlocked(rw)) return;  // v553 — don't farm bases for ladder-only words you can't make off-ladder
+        if (typeof window._rwLadderBlockedForge==='function' && window._rwLadderBlockedForge(rw)) return;  // v553/v1475 — FORGE lane: ladder words ride along unless explicitly excluded
         if (ownedBaseWord[rw]) return;                         // you own a socket-correct base for it -> not a base to farm
         var names = (typeof meta==='function') ? ((meta(rw)||{}).names||[]) : [];
         var _need = ((tips[rw]||{}).rec||[]).length;
@@ -5049,7 +5049,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
             for (var hi = 0; hi < hosts.length; hi++){
               var hw = hosts[hi] && (hosts[hi].n || hosts[hi]); if (!hw) continue;
               if (made[hw]) continue;
-              if (typeof window._rwLadderBlocked === 'function' && window._rwLadderBlocked(hw)) continue;
+              if (typeof window._rwLadderBlockedForge === 'function' && window._rwLadderBlockedForge(hw)) continue;   // v1475 — FORGE lane
               liveNeeds.push(((tips[hw] || {}).rec || []).length);
             }
             if (!liveNeeds.length) return;                                    // no unmade word can live here → socketed copy is honestly useless
@@ -5287,7 +5287,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
       var ownedBaseWord={};
       try{var sc=(typeof window.forgeScan==='function')?window.forgeScan():null; if(sc){[].concat(sc.now||[],sc.pipeline||[]).forEach(function(t){if(t&&t.base&&!t.baseOver)ownedBaseWord[t.rw]=1;});(sc.onestep||[]).forEach(function(t){if(t&&t.base&&t.sub!=='base'&&!t.baseOver)ownedBaseWord[t.rw]=1;});}}catch(e){}
-      out=Object.keys(tips).filter(function(rw){return !made[rw] && !ownedBaseWord[rw] && !(window._rwLadderBlocked&&window._rwLadderBlocked(rw));});  // v553 — skip ladder-only words off-ladder
+      out=Object.keys(tips).filter(function(rw){return !made[rw] && !ownedBaseWord[rw] && !(window._rwLadderBlockedForge&&window._rwLadderBlockedForge(rw));});  // v553/v1475 — FORGE lane keeps ladder words
     }catch(e){}
     return out;
   };
@@ -5302,7 +5302,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     var stash={}; try{stash=JSON.parse(window.LSR.getItem('d2r_runeStash')||'{}');}catch(e){}
     var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
     var demand={}, byRune={};
-    Object.keys(tips).forEach(function(rw){ if(made[rw])return; if(window._rwLadderBlocked&&window._rwLadderBlocked(rw))return; var rec=(tips[rw]||{}).rec||[]; rec.forEach(function(r){ demand[r]=(demand[r]||0)+1; byRune[r]=byRune[r]||{}; byRune[r][rw]=1; }); });  // v553 — don't report short on runes only ladder words need
+    /* v553/v1475 — FORGE lane: rune demand includes ladder words unless the Forge excludes them. */
+    Object.keys(tips).forEach(function(rw){ if(made[rw])return; if(window._rwLadderBlockedForge&&window._rwLadderBlockedForge(rw))return; var rec=(tips[rw]||{}).rec||[]; rec.forEach(function(r){ demand[r]=(demand[r]||0)+1; byRune[r]=byRune[r]||{}; byRune[r][rw]=1; }); });
     return Object.keys(demand).map(function(r){var owned=stash[r]||0; return {rune:r, demand:demand[r], owned:owned, short:demand[r]-owned, words:Object.keys(byRune[r])};}).filter(function(x){return x.short>0;}).sort(function(a,b){return b.short-a.short || b.demand-a.demand;});
   };
   window._smartProgress = function(){
@@ -15044,6 +15045,31 @@ try { window._rwIsLadderOnly = _rwIsLadderOnly; window._rwLadderTag = _rwLadderT
 // runes for the 9 ladder words the Chronicle + Forge already correctly hide off-ladder.
 try { window._rwLadderBlocked = function(rw){ try { if (window.D2R_PROFILE==='ladder') return false;   // v636 — the ladder ACCOUNT is implicitly ladder; this raw read was main's mode bleeding into ladder's SI/filter/stamps (swarm-caught split-brain)
   return !!(window._rwIsLadderOnly && window._rwIsLadderOnly(rw)) && (window.LSR.getItem('d2r_ladderMode')||'nonladder')!=='ladder'; } catch(e){ return false; } }; } catch(e){}  /* v684 — route through LSR: the cousin shell forks d2r_ladderMode to W·, a raw read re-opened the v636 split-brain */
+// ══════════════════════════════════════════════════════════════════════════════
+// v1475 — LADDER WORDS IN THE FORGE ONLY (Konyo: "we need it for forge. i dont play ladder but
+// we need it only for the forge specifically those 8-9 runewords").
+//
+// _rwLadderBlocked stays exactly as it was — the runeword TABLE keeps hiding them (the v577
+// display rule: "Konyo plays NON-ladder, it should not be giving me these"), and the chronicle
+// keeps ignoring them. Only the FORGE lane asks this variant instead, so the plan can include
+// Bulwark · Cure · Ground · Hearth · Hysteria · Mania · Metamorphosis · Temper while every other
+// surface behaves as before. Scoped by call site, not by a global mode flip, which is why this is
+// a second predicate rather than a change to the first.
+//
+// Stored through LSR so it forks per world: the cousin's console can answer this differently from
+// the owner's without either one being able to change the other.
+window._forgeIncludeLadder = function(){
+  try { var v = window.LSR.getItem('d2r_forgeIncludeLadder'); return v === null || v === undefined ? true : v !== '0'; }
+  catch(e){ return true; }
+};
+window._forgeSetIncludeLadder = function(on){
+  try { window.LSR.setItem('d2r_forgeIncludeLadder', on ? '1' : '0'); } catch(e){}
+  try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
+};
+window._rwLadderBlockedForge = function(rw){
+  try { if (window._forgeIncludeLadder()) return false; } catch(e){}
+  try { return !!(window._rwLadderBlocked && window._rwLadderBlocked(rw)); } catch(e){ return false; }
+};
 // per-runeword user verification from their OWN game: 'ok' = formed, 'fail' = did not form. Seeded with the
 // three Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character.
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
@@ -32409,15 +32435,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _lo = (typeof _RW_LADDER_ONLY !== 'undefined') ? _RW_LADDER_ONLY : (window._RW_LADDER_ONLY || {});
         Object.keys(_lo).forEach(function(w){ if (RUNEWORD_TIP[w]) _ladN++; });
       } catch(e){}
-      var _workable = _rwTotal - _ladN;
+      // v1475 — the note must follow the RULE, not a hardcoded assumption. When the Forge includes
+      // ladder words (Konyo's choice), every runeword is workable here and saying "8 excluded"
+      // would be a fresh lie in the same spot the old one was just removed from.
+      var _incLad = true;
+      try { _incLad = (typeof window._forgeIncludeLadder === 'function') ? window._forgeIncludeLadder() : true; } catch(e){}
+      var _workable = _incLad ? _rwTotal : (_rwTotal - _ladN);
       var _recon = _rwTotal + ' runewords in the game'
-        + (_ladN ? '\n− ' + _ladN + ' ladder-only (separate economy — forged on your ladder character)' : '')
-        + '\n= ' + _workable + ' workable on this account  → the ONE STEP pill'
+        + (_ladN
+            ? (_incLad
+                ? '\n· ' + _ladN + ' are LADDER-ONLY and are INCLUDED here on purpose (Forge only —\n  the runeword table and chronicle still treat them as ladder)'
+                : '\n− ' + _ladN + ' ladder-only (separate economy — forged on your ladder character)')
+            : '')
+        + '\n= ' + _workable + ' workable in the Forge  → the ONE STEP pill'
         + '\n+ craft types → the ALL pill'
         + '\n\nThis bar counts runewords only, so it reads ' + _rwTotal + '.';
       H.push('<div class="forge-progress" title="'+_recon.replace(/"/g,'&quot;')+'"><div class="fp-track"><div class="fp-fill" style="width:'+_rwPct+'%"></div></div>'
         +'<div class="fp-lbl">📜 <b>'+_rwMadeN+'</b> / '+_rwTotal+' runewords forged'
-        + (_ladN ? '<span class="fp-note" title="'+_recon.replace(/"/g,'&quot;')+'"> · '+_workable+' workable here, '+_ladN+' ladder-only</span>' : '')
+        + (_ladN ? '<span class="fp-note" title="'+_recon.replace(/"/g,'&quot;')+'"> · '
+             + (_incLad ? 'all ' + _workable + ' planned here (' + _ladN + ' ladder-only included)'
+                        : _workable + ' workable here, ' + _ladN + ' ladder-only')
+             + '</span>' : '')
         +'<span class="fp-pct">'+_rwPct+'%</span></div></div>');
     } catch(e){}
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
@@ -32453,7 +32491,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // the WHOLE plan section renders right here (top of forge); OFF locks it back to the bottom chips.
     if (F!=='completed' && (s.ladder||[]).length){
       var _lpTop=false; try { _lpTop = localStorage.getItem('d2r_ladderPreview')==='1'; } catch(e){}
-      H.push('<div class="forge-restore-top" style="margin-top:6px"><span>🪜 <b>'+s.ladder.length+'</b> ladder-only word'+(s.ladder.length>1?'s':'')+' remain (separate economy — made on your ladder char)</span>'
+      // v1475 — this banner used to say the ladder words "remain" (i.e. are held back). When the
+      // Forge includes them (Konyo's rule), that sentence contradicts the plan directly above it,
+      // so it now states which of the two is true instead of asserting the old one.
+      H.push('<div class="forge-restore-top" style="margin-top:6px"><span>🪜 <b>'+s.ladder.length+'</b> ladder-only word'+(s.ladder.length>1?'s':'')
+        + ((typeof window._forgeIncludeLadder==='function' && window._forgeIncludeLadder())
+            ? ' are INCLUDED in this plan (Forge only — they need a ladder character to actually form)'
+            : ' remain (separate economy — made on your ladder char)') + '</span>'
         +'<button class="f-btn f-btn-mini" onclick="try{localStorage.setItem(\'d2r_ladderPreview\',localStorage.getItem(\'d2r_ladderPreview\')===\'1\'?\'\':\'1\')}catch(e){};try{window.renderForge()}catch(e){}" title="view-only plan preview — nothing is promoted, consumed or re-tasked; toggle back any time">'+(_lpTop?'🪜 hide ladder plans (lock them back)':'🪜 show ladder plans')+'</button>'
         +'<button class="f-btn f-btn-mini" onclick="window.profileSwitch&&window.profileSwitch(\'ladder\')" title="ascend to your 🪜 LADDER account — its own vault, tallies and Chronicle; this main account stays untouched (full reload, zero bleed)">⤴ open the LADDER account</button></div>');
       if (_lpTop){
@@ -35415,7 +35459,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1474', name:'v1474 · forge counts reconcile', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
+  window.D2R_BUILD = { id:'v1475', name:'v1475 · ladder words in the forge', date:'2026-07-30', note:'Adversarial back-pass over v1460-v1462 by five independent reviewers. It found that the "suites are green" claim in all three ships only held when the caller exported PYTHONUTF8 - in a plain shell the agent suite CORRUPTED a tracked fixture (stub_manifest.json, em-dash rewritten as cp1255 0x97) and both suites went red. Fixed: encoding-safe test IO, control_app gets the win32 stdio reconfigure tv_diablo has carried since REG-044, the one-shot prompt is spliced after the -p flag by index (v1461s argv seam had broken it on every platform), the window match is exact-title plus owning-pid so the popout board can no longer masquerade as the console, the subscription circuit-breaker reads the argv actually spawned, and an armed force-exit is cancellable so the test suite can no longer kill its own runner with exit 0. Bible itself unchanged - stamp parity only.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

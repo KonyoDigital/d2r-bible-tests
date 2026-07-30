@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1474"   # the forge counts explain themselves (99 vs 91 vs 95).
+VERSION = "v1475"   # the Forge plans the 8 ladder words; every other surface unchanged.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
