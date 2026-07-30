@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1488",
+  "ver": "v1489",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1488: Everything Konyo asked for about profiles reduces to one four-line routing table: owner main is bare, owner ladder is L-dot, this PC main is W-dot, this PC ladder is WL-dot, with a deliberate asymmetry where only ACCOUNT state forks while UI preferences stay bare everywhere so the machines LOOK identical while holding different data, and where on Windows the chronicle family forks to W-dot on BOTH profiles because the cousin main and ladder share the cousin grail. Those four lines have produced three separate leaks, every one invisible to a code reading. The test now executes the SHIPPED LSR.key across all four worlds and checks the properties rather than the source text: four distinct account keys, one shared bare key for UI preferences in every world, one shared chronicle across the owner two accounts, one isolated chronicle across the cousin two, and the cousin chronicle never resolving to the owner key. Mutation-verified by routing only the ladder set on Windows, which drops the chronicle through to bare - REG-076 exactly.",
+  "note": "v1489: The version lives in four files - the board D2R_BUILD, the control app api status, the agent VERSION and tv/WINDOWS_SHIP.json - and nothing has ever checked they agree. A half-bumped tree is not cosmetic: test_button_matrix compares the LIVE app to the ship manifest, so a missed stamp reads as the running app being a different build than the tree and sends the next person hunting a phantom. tv/bump_version.py now writes all four and verifies each landed, since a silent no-op replace is exactly the failure it exists to prevent. It also refuses an apostrophe outright: the board note is a single-quoted JS literal, and writing one by hand during v1478 put an apostrophe in someone-elses-chronicle, terminating the string and throwing a SyntaxError that blanks the whole 37k-line page. The gate caught it, but the right place to stop that class is before it is written. TestVersionStampsAgree pins all of it, including that the shipped note carries no apostrophe.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

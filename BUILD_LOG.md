@@ -1,4 +1,33 @@
 
+## v1489 — 2026-07-31 — one place bumps the version, and a gate proves the four agree
+
+The version lives in four files: the board's `D2R_BUILD`, `control_app.py`'s `/api/status`,
+`tv_diablo.py`'s `VERSION`, and `tv/WINDOWS_SHIP.json`. Nothing had ever checked they say the same
+thing, and a half-bumped tree is not cosmetic — `test_button_matrix` compares the LIVE app to the
+ship manifest, so a missed stamp surfaces as *"the running app is a different build than the tree
+you are testing"* and sends the next person hunting a phantom.
+
+`tv/bump_version.py` (used for every version in this run, now shipped rather than left in scratch)
+writes all four and **verifies each one landed**. `re.sub` returns its input unchanged when nothing
+matches, which would silently leave the tree half-bumped — exactly the failure the tool exists to
+prevent — so it counts substitutions and refuses to continue on a miss.
+
+It also refuses an apostrophe outright. `D2R_BUILD.note` is a single-quoted JS literal, and writing
+one by hand during v1478 put an apostrophe in "someone else's chronicle", terminating the string
+and throwing a SyntaxError that blanks the entire 37k-line board. The syntax gate caught it, but
+the right place to stop that class is before it is written.
+
+`TestVersionStampsAgree` pins all three properties: the four stamps match, the shipped note and
+name carry no apostrophe, and the tool actually raises on one.
+
+**The gate set caught its author.** `TestToolsCanReportTheirVerdict` (v1480) failed the new tool on
+its first run — em-dashes in the docstring with no encoding guard — and named the file and the fix.
+That is the whole point of making an invariant mechanical: it does not care who wrote the code.
+
+Gates: test_control **290 OK** · JS syntax OK.
+
+---
+
 ## v1488 — 2026-07-31 — the four worlds never bleed
 
 Everything Konyo asked for about profiles reduces to one table:

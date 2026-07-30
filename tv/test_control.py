@@ -4273,6 +4273,69 @@ class TestTheFourWorldsNeverBleed(unittest.TestCase):
                             "the cousin's chronicle resolved to the owner's key — REG-076 exactly")
 
 
+class TestVersionStampsAgree(unittest.TestCase):
+    """v1489 — four files carry the version, and nothing has ever checked they say the same thing.
+
+    The version lives in the board's `D2R_BUILD`, `control_app.py`'s `/api/status`, `tv_diablo.py`'s
+    `VERSION`, and `tv/WINDOWS_SHIP.json`. Bumping by hand is four chances to miss one, and the
+    result is not cosmetic: `test_button_matrix` compares the LIVE app to the ship manifest, so a
+    half-bumped tree reads as "the running app is a different build than the tree you are testing"
+    and sends the next person hunting a phantom.
+
+    This checks the tree agrees with ITSELF. The live-vs-manifest comparison stays where it is —
+    that one is about a stale running process, which is a different question.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tv = os.path.dirname(os.path.abspath(__file__))
+        cls.repo = os.path.dirname(cls.tv)
+
+    def _read(self, rel):
+        with open(os.path.join(self.repo, rel), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_all_four_stamps_are_the_same_version(self):
+        board = re.search(r"window\.D2R_BUILD = \{ id:'(v\d+)'", self._read("bible.html"))
+        control = re.search(r'"ver": "(v\d+)"', self._read(os.path.join("tv", "control_app.py")))
+        agent = re.search(r'VERSION = "(v\d+)"', self._read(os.path.join("tv", "tv_diablo.py")))
+        with open(os.path.join(self.tv, "WINDOWS_SHIP.json"), encoding="utf-8") as fh:
+            ship = json.load(fh).get("ver")
+
+        for label, m in (("bible.html D2R_BUILD", board), ("control_app /api/status", control),
+                         ("tv_diablo VERSION", agent)):
+            self.assertIsNotNone(m, "%s no longer carries a parseable version stamp" % label)
+
+        stamps = {"bible.html D2R_BUILD": board.group(1),
+                  "control_app /api/status": control.group(1),
+                  "tv_diablo VERSION": agent.group(1),
+                  "tv/WINDOWS_SHIP.json": ship}
+        self.assertEqual(
+            len(set(stamps.values())), 1,
+            "the four version stamps disagree, so the tree is half-bumped: %s. Use "
+            "tv/bump_version.py, which writes all four and verifies each one landed."
+            % json.dumps(stamps, indent=2))
+
+    def test_the_board_note_has_no_apostrophe(self):
+        """`D2R_BUILD.note` is a single-quoted JS literal. An apostrophe terminates it early and
+        throws a SyntaxError that blanks the whole 37k-line board — which happened in v1478."""
+        m = re.search(r"window\.D2R_BUILD = \{ id:'v\d+', name:'([^']*)', date:'[^']*', "
+                      r"note:'(.*)' \};", self._read("bible.html"))
+        self.assertIsNotNone(m, "D2R_BUILD is not in the expected single-quoted shape — if it was "
+                                "reformatted, this guard needs to follow it")
+        for label, text in (("name", m.group(1)), ("note", m.group(2))):
+            self.assertNotIn("'", text,
+                             "an apostrophe in D2R_BUILD.%s would terminate the literal and blank "
+                             "the board" % label)
+
+    def test_the_bump_tool_refuses_an_apostrophe(self):
+        sys.path.insert(0, self.tv)
+        import bump_version
+        with self.assertRaises(SystemExit,
+                               msg="the tool must refuse a note that would blank the board"):
+            bump_version.bump("v9999", "test", "someone else's chronicle")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
