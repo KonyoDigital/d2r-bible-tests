@@ -36,8 +36,14 @@ function Test-TvdControlUp {
   return $false
 }
 
-function Focus-TvdWindow {
-  # v1446 — pure C# EnumWindows (PS scriptblock EnumWindows hangs under D2R load).
+function Focus-TvdWindow([bool]$unhide = $true) {
+  # v1446 - pure C# EnumWindows (PS scriptblock EnumWindows hangs under D2R load).
+  # v1460 - HIDDEN windows count too. The old callback bailed on !IsWindowVisible and only
+  # ever handled IsIconic, so an SW_HIDE-ed 'TV DIABLO' window was unreachable: control kept
+  # answering /api/status, the launcher took its 'already up - focus and leave' branch, focus
+  # silently found nothing, and every Desktop double-click did nothing at all. Now we collect
+  # visible AND hidden matches, prefer visible, and SW_SHOW a hidden one before raising it.
+  # Also report whether the raise actually took (Law 9) instead of always logging success.
   try {
     if (-not ('TvdFocusFast' -as [type])) {
       Add-Type -TypeDefinition @"
@@ -52,29 +58,59 @@ public static class TvdFocusFast {
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
-  static IntPtr found = IntPtr.Zero;
+  const int SW_SHOW = 5;
+  const int SW_RESTORE = 9;
+  static IntPtr vis = IntPtr.Zero;
+  static IntPtr hid = IntPtr.Zero;
+  public static bool WasHidden = false;
+  public static bool Raised = false;
+  public static bool NowVisible = false;
   static bool Cb(IntPtr h, IntPtr l) {
-    if (!IsWindowVisible(h)) return true;
     var sb = new StringBuilder(256);
     GetWindowText(h, sb, 256);
     string t = sb.ToString() ?? "";
-    if (t == "TV DIABLO" || t.StartsWith("TV DIABLO ")) { found = h; return false; }
+    if (t == "TV DIABLO" || t.StartsWith("TV DIABLO ")) {
+      if (IsWindowVisible(h)) { vis = h; return false; }   // visible is the best case - stop
+      if (hid == IntPtr.Zero) hid = h;                     // remember first hidden, keep looking
+    }
     return true;
   }
-  public static bool Focus() {
-    found = IntPtr.Zero;
+  // Returns TRUE only when the window is ACTUALLY visible afterwards. A cross-process
+  // ShowWindow does not reliably un-hide a WinForms window that was born SW_HIDE (measured
+  // on this machine), so we must verify rather than assume - otherwise the launcher logs
+  // 'focused' for a window the human still cannot see. That lie is what hid this bug.
+  //
+  // unhide=false during a fresh boot: WinForms creates the form hidden and shows it itself a
+  // moment later, so forcing SW_SHOW in that gap would paint a black frame before WebView2's
+  // first paint - the very "black screen window" the user reported. Only force it as a
+  // deliberate recovery (warm re-click, or after the boot grace period has expired).
+  public static bool Focus(bool unhide) {
+    vis = IntPtr.Zero; hid = IntPtr.Zero; WasHidden = false; Raised = false; NowVisible = false;
     EnumWindows(Cb, IntPtr.Zero);
+    IntPtr found = (vis != IntPtr.Zero) ? vis : hid;
     if (found == IntPtr.Zero) return false;
-    if (IsIconic(found)) ShowWindow(found, 9);
-    SetForegroundWindow(found);
-    return true;
+    WasHidden = (vis == IntPtr.Zero);
+    if (WasHidden) {
+      if (!unhide) return false;   // let the app show its own window; not a success yet
+      ShowWindow(found, SW_SHOW);
+    }
+    if (IsIconic(found)) ShowWindow(found, SW_RESTORE);
+    Raised = SetForegroundWindow(found);
+    NowVisible = IsWindowVisible(found);
+    return NowVisible;
   }
 }
 "@
     }
-    if ([TvdFocusFast]::Focus()) {
-      Write-TvdLaunchLog 'focused existing TV DIABLO window'
+    if ([TvdFocusFast]::Focus($unhide)) {
+      $how = 'visible'
+      if ([TvdFocusFast]::WasHidden) { $how = 'un-hid' }
+      Write-TvdLaunchLog ("focused existing TV DIABLO window [{0} raised={1}]" -f $how, [TvdFocusFast]::Raised)
       return $true
+    }
+    if ([TvdFocusFast]::WasHidden -and $unhide) {
+      # Found it, but SW_SHOW did not stick - the window is unrecoverable from out here.
+      Write-TvdLaunchLog 'found a HIDDEN TV DIABLO window but SW_SHOW did not stick - stale process; STOP+reopen'
     }
   } catch {
     Write-TvdLaunchLog ("focus note: {0}" -f $_)
@@ -224,8 +260,16 @@ if (-not $env:TV_NO_AUTO_PULL) {
       } -ArgumentList $repo
       $null = Wait-Job $fetchJob -Timeout 12
       if ($fetchJob.State -eq 'Running') {
-        Stop-Job $fetchJob -Force -ErrorAction SilentlyContinue
-        Write-TvdLaunchLog 'auto-pull: timed out (12s) — launching with local tree'
+        # v1460 - Stop-Job has NO -Force parameter on Windows PowerShell 5.1. The old call
+        # threw a ParameterBindingException straight past -ErrorAction into the outer catch,
+        # so the job was NEVER stopped: it kept running and its merge --ff-only / reset --hard
+        # rewrote control_app.py + control_ui.html ~0.6s AFTER python had already started.
+        # The app then served swapped UI files from stale code and the window never came up.
+        # Stop it for real, and WAIT for it to die before any spawn so the working tree is
+        # never rewritten under a booting app. (ASCII only here - see REG-046.)
+        Stop-Job -Job $fetchJob -ErrorAction SilentlyContinue
+        $null = Wait-Job $fetchJob -Timeout 5
+        Write-TvdLaunchLog ("auto-pull: timed out (12s) - stopped job state={0}; launching with local tree" -f $fetchJob.State)
       } else {
         Write-TvdLaunchLog 'auto-pull: done'
       }
@@ -236,6 +280,25 @@ if (-not $env:TV_NO_AUTO_PULL) {
   }
 } else {
   Write-TvdLaunchLog 'skip auto-pull: TV_NO_AUTO_PULL set'
+}
+
+# v1460 - the working tree must be QUIET before we spawn python. Stop-Job kills the job's
+# runspace but a git.exe it already launched can outlive it and finish its merge/reset a
+# moment later - which is exactly how control_app.py + control_ui.html got rewritten 0.6s
+# after python started. Bounded wait; never blocks the icon for long.
+function Wait-TvdGitQuiet([int]$maxMs = 6000) {
+  $waited = 0
+  while ($waited -lt $maxMs) {
+    $g = @(Get-Process git -ErrorAction SilentlyContinue)
+    if ($g.Count -eq 0) {
+      if ($waited -gt 0) { Write-TvdLaunchLog ("git quiet after {0}ms" -f $waited) }
+      return $true
+    }
+    Start-Sleep -Milliseconds 250
+    $waited += 250
+  }
+  Write-TvdLaunchLog ("git still running after {0}ms - spawning anyway (tree may shift)" -f $maxMs)
+  return $false
 }
 
 # Re-check after pull: another click may have won
@@ -287,11 +350,25 @@ if ($py.Cmd -eq 'py') {
   $argLine = '"' + $control + '" --open'
 }
 
+# v1460 - never spawn while git may still be rewriting the tree (see Wait-TvdGitQuiet).
+[void](Wait-TvdGitQuiet)
+$controlStamp = $null
+try { $controlStamp = (Get-Item -LiteralPath $control).LastWriteTime } catch {}
+
 Write-TvdLaunchLog ("launch FileName={0} Args={1} WD={2}" -f $exePath, $argLine, $repo)
 
 try {
-  # pythonw = no console flash
-  $proc = Start-Process -FilePath $exePath -ArgumentList $argLine -WorkingDirectory $repo -PassThru -WindowStyle Hidden
+  # pythonw = no console flash (pythonw.exe is a GUI-subsystem binary - it has NO console).
+  #
+  # v1460 ROOT CAUSE of the dead Desktop icon: v1444 added -WindowStyle Hidden here. That
+  # sets STARTUPINFO.wShowWindow = SW_HIDE on the child, and .NET WinForms applies the
+  # startup show-command to the process's FIRST top-level window - which is pywebview's
+  # WebView2 host window. So the app window was created correctly (right title, 1120x737,
+  # on-screen) and then never shown: control answered :17772, /api/status said ready, the
+  # launcher logged 'launch complete', and the user saw nothing but two PowerShell consoles
+  # blink. Proven A/B on this machine: same script spawned Hidden -> IsWindowVisible False,
+  # spawned default -> True. The flag was never needed (pythonw has no console to hide).
+  $proc = Start-Process -FilePath $exePath -ArgumentList $argLine -WorkingDirectory $repo -PassThru
   Write-TvdLaunchLog ("started pid={0}" -f $proc.Id)
 } catch {
   Write-TvdLaunchLog ("Start-Process FAILED: {0}" -f $_)
@@ -321,8 +398,31 @@ for ($i = 0; $i -lt 20; $i++) {
 if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose(); $mutex = $null }
 
 if ($ready) {
-  [void](Focus-TvdWindow)
-  Write-TvdLaunchLog 'launch complete'
+  # v1460 Law 9 - a /api/status answer is NOT proof of a window. v1448 traded the slow
+  # doctor probe for this fast one and started logging 'launch complete' for a process that
+  # served :17772 with no window at all, which is how the dead-icon state stayed invisible
+  # in the log for days. Give WebView2 a bounded chance to paint, then log what is TRUE.
+  $win = $false
+  for ($w = 0; $w -lt 12; $w++) {
+    # First ~2.4s = boot grace: WinForms creates the form hidden and shows it itself, so do
+    # NOT force SW_SHOW yet (that would flash a black frame before WebView2's first paint).
+    # Still hidden after the grace period = a real fault, so force it then.
+    if (Focus-TvdWindow ($w -ge 6)) { $win = $true; break }
+    Start-Sleep -Milliseconds 400
+  }
+  if ($controlStamp) {
+    try {
+      $now = (Get-Item -LiteralPath $control).LastWriteTime
+      if ($now -ne $controlStamp) {
+        Write-TvdLaunchLog ("WARN control_app.py was rewritten during boot ({0} -> {1}) - app is running stale code; relaunch" -f $controlStamp, $now)
+      }
+    } catch {}
+  }
+  if ($win) {
+    Write-TvdLaunchLog 'launch complete (window up)'
+  } else {
+    Write-TvdLaunchLog 'WARN control up but NO TV DIABLO window after ~4.8s - headless/hidden; STOP+reopen if the icon stays dead'
+  }
   return
 }
 

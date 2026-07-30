@@ -1,4 +1,54 @@
 
+## v1460 — 2026-07-30 — Windows: the Desktop icon actually opens (REG-051)
+- **Symptom (Konyo, live):** double-click Desktop **TV DIABLO** → two black consoles blink and
+  close, no app. Repeatable, every time, for days.
+- **ROOT CAUSE:** `tv/start_tvd_win.ps1` spawned the app with
+  `Start-Process pythonw ... -WindowStyle Hidden` (added in **v1444**, `c43bb1e`). That sets
+  `STARTUPINFO.wShowWindow = SW_HIDE`, and .NET WinForms applies the startup show-command to the
+  process's **first top-level window** — which is pywebview's WebView2 host window. So the window
+  was created perfectly (title `TV DIABLO`, 1120x737, on-screen) and then **never shown**. The flag
+  was never needed: `pythonw.exe` is a GUI-subsystem binary with no console to hide.
+  Proven A/B on the Hebrew-locale box: same script spawned `-WindowStyle Hidden` →
+  `IsWindowVisible False`; spawned default → `True`.
+- **Why it stayed invisible for days:** the *same* v1444 commit swapped the ready probe from
+  `doctor.ok` to `/api/status`. Control answered on :17772, so the launcher logged
+  `ready status OK` + `launch complete` for a process with no window, and `mode=off` means
+  nothing is ever written to `control_agent.log` — zero diagnostics at boot.
+- **Fixes (all Windows lane):**
+  1. `-WindowStyle Hidden` removed from the spawn — the actual cure.
+  2. `Focus-TvdWindow` (PS) + `_win_focus_existing_console` (py) no longer skip non-visible
+     windows and no longer handle only `IsIconic`; they `SW_SHOW` a hidden window, and return
+     **true only when it is really visible** (a cross-process `ShowWindow` does not reliably
+     un-hide a WinForms window born `SW_HIDE` — measured, so it must be verified not assumed).
+  3. `Stop-Job -Force` → `Stop-Job` + `Wait-Job`. `Stop-Job` has **no** `-Force` on Windows
+     PowerShell 5.1, so the 12s-timeout branch threw a ParameterBindingException past
+     `-ErrorAction` into the outer catch and the job was never stopped: it kept running and its
+     `merge --ff-only`/`reset --hard` rewrote `control_app.py` + `control_ui.html` **0.59s after
+     python had already started** (measured: python 01:16:24.615, tree rewritten 01:16:25.207),
+     leaving the app serving swapped UI files from stale code. New `Wait-TvdGitQuiet` also blocks
+     the spawn until no `git.exe` is running, since `Stop-Job` does not kill the job's git child.
+  4. `_request_console_exit` no longer falls back to `hide()` when `destroy()` raises — that
+     combination produced the worst state: process alive holding :17772 with an invisible window
+     and no recovery path. Destroy only; the `_arm_force_exit` deadline is the guarantee.
+  5. Launcher log tells the truth (Law 9): `launch complete (window up)` vs
+     `WARN control up but NO TV DIABLO window`, plus a warning if `control_app.py` is rewritten
+     mid-boot.
+- **Parity (Law 11):** `tv/WINDOWS_SHIP.json` and `tv/WINDOWS_KONYO_BOARD.md` were frozen at
+  **v1448** while the triple stamp had reached v1459 — 11 versions of drift. Both re-stamped;
+  triple stamp `tv_diablo.VERSION` == control `"ver"` == `bible.html` D2R_BUILD.id == **v1460**.
+- **Verify:** PS `Parser::ParseFile` 0 errors · embedded C# compiles · `py_compile` OK · BOM intact ·
+  cold launch through the real `.lnk` chain →
+  `focused existing TV DIABLO window [visible raised=True]` + `launch complete (window up)`,
+  `EnumWindows` → exactly **1** window `VISIBLE=True`, `MainWindowTitle='TV DIABLO'` (was empty
+  through the whole zombie era) · second double-click → `control already up - focusing`, still
+  1 window / 1 `pythonw`.
+- **Follow-up (not shipped here, logged in BUGS.md):** pywebview **6.2.1** dropped `icon=` from
+  `create_window()` (it moved to `start(icon=...)`), so `open_control_window()`'s
+  `except TypeError` fallback silently discards `confirm_close`/`text_select`/`easy_drag` and the
+  icon on any box where an icon file exists. Latent here (neither candidate file is present).
+  Left untouched deliberately — that path is cross-platform and the handoff forbids touching the
+  Mac lane without proof.
+
 ## v1380.0 — 2026-07-25 — G5 Grok Eyes (SuperGrok subscription CLI)
 - Additive optional vision lane: `grok -p` + SuperGrok login (NO XAI_API_KEY / api.x.ai)
 - Modes OFF (default) / SHADOW / PRIMARY — console ⚙ advanced 3-way switch

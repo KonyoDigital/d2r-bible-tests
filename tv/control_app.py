@@ -1802,14 +1802,17 @@ def _request_console_exit(reason="quit", hard_delay=None):
     except Exception:
         pass
     if win is not None:
-        for meth in ("destroy", "hide"):
-            try:
-                fn = getattr(win, meth, None)
-                if callable(fn):
-                    fn()
-                    break
-            except Exception:
-                continue
+        # v1460 — DESTROY ONLY. The old chain fell back to hide() when destroy() raised,
+        # which produced the worst possible state: process alive, still holding :17772, with
+        # an SW_HIDE-ed window that no focus path could ever find again (the Desktop icon
+        # then did nothing forever). Never hide on the way out — if destroy() fails, the
+        # _arm_force_exit deadline above takes the whole process down and the window with it.
+        try:
+            fn = getattr(win, "destroy", None)
+            if callable(fn):
+                fn()
+        except Exception as e:
+            print(f"⚠ window destroy failed ({e}) — force-exit deadline will close it", flush=True)
 
 
 def _schedule_exit_stop(reason="quit"):
@@ -7735,7 +7738,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1459",
+        "ver": "v1460",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10199,7 +10202,15 @@ def _win_primary_mutex():
 
 
 def _win_focus_existing_console():
-    """v1417 — bring the existing 'TV DIABLO' pywebview window forward (no second window)."""
+    """v1417 — bring the existing 'TV DIABLO' pywebview window forward (no second window).
+
+    v1460 — HIDDEN windows count too. The old callback skipped every window that failed
+    IsWindowVisible, and only ever restored IsIconic. A window that had been SW_HIDE-ed
+    (the ✕ path's old hide() fallback could leave one behind) was therefore invisible to
+    every focus attempt: control still answered :17772, so the launcher took its
+    "already up - focus and leave" branch, focus found nothing, and the Desktop icon did
+    nothing forever. Collect visible AND hidden matches, prefer visible, SW_SHOW a hidden
+    one before restoring/raising it."""
     if not IS_WIN:
         return False
     try:
@@ -10212,29 +10223,41 @@ def _win_focus_existing_console():
         SetForegroundWindow = user32.SetForegroundWindow
         ShowWindow = user32.ShowWindow
         IsIconic = user32.IsIconic
-        found = []
+        SW_SHOW, SW_RESTORE = 5, 9
+        vis, hidden = [], []
 
         @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         def _cb(hwnd, _lp):
-            if not IsWindowVisible(hwnd):
-                return True
             buf = ctypes.create_unicode_buffer(256)
             GetWindowTextW(hwnd, buf, 256)
             title = buf.value or ""
             if title == "TV DIABLO" or title.startswith("TV DIABLO "):
-                found.append(hwnd)
-                return False
+                (vis if IsWindowVisible(hwnd) else hidden).append(hwnd)
+                if IsWindowVisible(hwnd):
+                    return False          # a visible window is the best case — stop early
             return True
 
         EnumWindows(_cb, 0)
-        if not found:
+        if not vis and not hidden:
             return False
-        hwnd = found[0]
+        was_hidden = not vis
+        hwnd = (vis or hidden)[0]
+        if was_hidden:
+            ShowWindow(hwnd, SW_SHOW)
         if IsIconic(hwnd):
-            ShowWindow(hwnd, 9)  # SW_RESTORE
-        SetForegroundWindow(hwnd)
-        print("📺 focused existing TV DIABLO window (refused second instance)", flush=True)
-        return True
+            ShowWindow(hwnd, SW_RESTORE)
+        raised = bool(SetForegroundWindow(hwnd))
+        now_visible = bool(IsWindowVisible(hwnd))
+        # v1460 Law 9 — report what is TRUE, and only claim success when the window is
+        # actually visible. A cross-process ShowWindow does not reliably un-hide a WinForms
+        # window that was born SW_HIDE, so "found it" is not "the human can see it".
+        print(
+            "📺 focused existing TV DIABLO window (refused second instance) "
+            f"[{'un-hid' if was_hidden else 'visible'} hwnd={hwnd} raised={raised} "
+            f"visible={now_visible}]",
+            flush=True,
+        )
+        return now_visible
     except Exception as e:
         print(f"⚠ focus existing: {e}", flush=True)
         return False

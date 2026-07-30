@@ -939,3 +939,41 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   in real /api/sessions + /api/status.
 - **Docs:** `HANDOFF_MORNING_2026-07-23.md` (night state + waiting-for-Konyo + cert) · SESSION_FIELD_CONTRACT.md ·
   LOCKED_TYPE_SYSTEM.md · G4_GROK_REMOVAL.md. Zero regressions across the arc.
+
+## REG-051 — Windows Desktop icon opened a window that was never shown (v1444→v1460, 2026-07-30)
+- **Symptom:** Konyo double-clicks Desktop **TV DIABLO**; two black consoles blink and close; no
+  app window, every time, for days. Doctor/status looked healthy the whole time.
+- **Caught by:** Konyo, live ("opens a black screen window terminal like two of them and then just
+  closes, i dont see the app"). Found by window enumeration, not by any test or log.
+- **Root cause:** `tv/start_tvd_win.ps1` spawned the app with `-WindowStyle Hidden` (added v1444,
+  `c43bb1e`). That sets `STARTUPINFO.wShowWindow = SW_HIDE`; .NET WinForms applies the startup
+  show-command to the process's FIRST top-level window, which is pywebview's WebView2 host window.
+  The window was created correctly (`TV DIABLO`, 1120x737, at 101,101) and never shown. `pythonw.exe`
+  is GUI-subsystem and has no console, so the flag bought nothing.
+  Proven A/B: identical script, `-WindowStyle Hidden` → `IsWindowVisible False`; default → `True`.
+- **Why it hid for days (the real lesson):** the same v1444 commit swapped the launcher's ready
+  probe from `doctor.ok` to `/api/status`. A window-less process still answers :17772, so the
+  launcher logged `ready status OK` and `launch complete`, and `Focus-TvdWindow` — which skipped
+  every non-visible window — silently found nothing and returned. With `mode=off` the app writes
+  nothing to `control_agent.log`, so boot had zero diagnostics. **A liveness probe that cannot
+  fail the way the user fails is not a probe.**
+- **Contributing:** `Stop-Job -Force` (no `-Force` param on PS 5.1) threw past `-ErrorAction` into
+  the outer catch, so the timed-out pull job was never stopped and rewrote `control_app.py` +
+  `control_ui.html` 0.59s after python started — a second, independent stale-code bug that made
+  `/api/status` report v1448 off a v1453 tree.
+- **Fix (v1460):** flag removed; both focus helpers accept hidden windows, `SW_SHOW` them, and
+  return true ONLY when `IsWindowVisible` confirms it; `Stop-Job` + `Wait-Job` + new
+  `Wait-TvdGitQuiet` gate before spawn; `_request_console_exit` destroys only (never `hide()`);
+  launcher log distinguishes `launch complete (window up)` from `WARN ... NO TV DIABLO window`.
+- **Verify:** cold launch via the real `.lnk` chain → 1 window, `VISIBLE=True`,
+  `MainWindowTitle='TV DIABLO'`; second click focuses without a twin; PS parse + C# compile +
+  py_compile green; `WINDOWS_SHIP.json`/`WINDOWS_KONYO_BOARD.md` re-stamped from v1448 to v1460.
+- **Prevention:** (1) never pass `-WindowStyle Hidden` to a GUI child — hide the console by using
+  `pythonw`, never by hiding the process's windows; (2) a launch is only "complete" when a
+  **visible** top-level window exists — port liveness is not window liveness; (3) any focus/raise
+  helper must verify `IsWindowVisible` after `ShowWindow` instead of trusting the call;
+  (4) never `hide()` on an exit path — destroy or die.
+- **Sibling:** REG-027 (2026-07-18) was the same SYMPTOM — "already opened, no window" — from a
+  different cause (headless relaunch without `--open`). Its prevention rule covered only the
+  scripted-cycle path, so this class recurred through a new door. The invariant to police is
+  "control up ⇒ visible window", not any one way of breaking it.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1448",
+  "ver": "v1460",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1448: launch UX seal \u2014 one window smooth",
+  "note": "v1460: Desktop icon actually opens \u2014 spawn no longer hides the app window",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
