@@ -2445,6 +2445,20 @@
     min-width: 0;
   }
   .zone > .zone-banner { grid-column: 1 / -1; }   /* the banner heads its own zone, not the dash */
+  /* ══ v1473 — THE NUMERALS COUNT THEMSELVES. They were hardcoded Ⅰ / Ⅱ / Ⅲ in the markup, so
+     when a zone hid itself for having no body (v1468) the survivors kept their original numbers
+     and the surface could read "Ⅲ THE RECORD" as the only movement on screen — numbering that
+     announces two missing chapters. A CSS counter fixes this exactly: elements with display:none
+     generate no boxes and DO NOT increment counters, so the visible zones always read Ⅰ, Ⅱ, Ⅲ…
+     with no JS and nothing to keep in sync. The markup keeps its literal numerals as a fallback
+     for any engine without counter support; ::before simply overrides them when it works. ══ */
+  .home-dash { counter-reset: tvdzone; }
+  .zone { counter-increment: tvdzone; }
+  .zone > .zone-banner .zb-no { font-size: 0; }                 /* hide the literal, keep the slot */
+  .zone > .zone-banner .zb-no::before {
+    content: counter(tvdzone, upper-roman);
+    font-size: var(--fs-sm);                                     /* restore the banner's own size */
+  }
   /* A zone with no visible body hides itself — banner included. Replaces the v1467 sibling-
      adjacency rule, which could only ever see the ONE card directly after the banner; a section
      can ask about all of its bodies at once, which is what "this movement has nothing to show"
@@ -2882,7 +2896,13 @@
     border-radius: 6px; padding: 3px 10px; font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); cursor: pointer; }
   .hd-pg:disabled { opacity: .3; cursor: default; }
   .hd-pgn { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); opacity: .6; }
-  .hd-card { padding: 0; overflow: hidden; border: 1px solid var(--edge); border-radius: var(--hd-radius); background: rgba(0,0,0,.35); }
+  /* v1473 — .hd-card joins the one card recipe for its BORDER (the visible edge, which is what
+     made cards look mismatched). Its background stays a flat black rather than --card-bg on
+     purpose: this card is a photo frame, art covers the full width, and a gradient behind an
+     opaque image is invisible while a flat backdrop keeps the image edge from ghosting. Opting
+     out of one property for a stated reason is a decision; opting out of the whole recipe by
+     accident was the bug. */
+  .hd-card { padding: 0; overflow: hidden; border: 1px solid var(--card-bd); border-radius: var(--hd-radius); background: rgba(0,0,0,.35); }
   .hd-card .sh-art { height: 88px; width: 100%; object-fit: cover; border: 0; border-radius: 0; margin: 0; }
   .sh-art-fb { object-fit: contain; padding: 18px; opacity: .35; background: rgba(0,0,0,.5); }
   .hdc-body { padding: 8px 10px 10px; }

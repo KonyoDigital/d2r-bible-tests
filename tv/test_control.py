@@ -74,6 +74,7 @@ class TestTheatre(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
+        cls.srv.server_close()   # v1473 — shutdown() stops serving; only server_close() frees the listening socket
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def test_sessions_listing(self):
@@ -241,7 +242,7 @@ class TestBoardHost(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
-
+        cls.srv.server_close()   # v1473 — shutdown() stops serving; only server_close() frees the listening socket
     def test_board_serves_bible(self):
         st, body, hdr = _get(self.port, "/board")
         self.assertEqual(st, 200)
@@ -405,8 +406,7 @@ class TestDoctor(unittest.TestCase):
             self.assertRegex(str(j["ver"]), r"^v")
         finally:
             srv.shutdown()
-
-
+            srv.server_close()   # v1473 — shutdown() stops serving; only server_close() frees the listening socket
 class TestTripleParity(unittest.TestCase):
     """v816 (Grok R8 #9) — agent VERSION == control ver == bible D2R_BUILD id. Drift = red."""
 
@@ -872,7 +872,7 @@ class TestV919IntakeLane(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
-
+        cls.srv.server_close()   # v1473 — shutdown() stops serving; only server_close() frees the listening socket
     def _post_intake(self):
         req = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/intake",
@@ -1868,7 +1868,7 @@ class TestIntakeResultReceiptSessionBoundary(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
-
+        cls.srv.server_close()   # v1473 — shutdown() stops serving; only server_close() frees the listening socket
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self._old_here = ca.HERE
@@ -2482,7 +2482,7 @@ class TestEvRank(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
-
+        cls.srv.server_close()   # v1473 — shutdown() stops serving; only server_close() frees the listening socket
     def test_ev_hours_matches_calculator_formula(self):
         # matches the bible Calculator EXACTLY: runs = ceil(log(1-conf)/log(1-1/chance)); hours=runs/kph
         import math

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1472",
+  "ver": "v1473",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1472: file-handle leaks closed across control/agent/tests \u2014 zero unclosed-file warnings under -W error",
+  "note": "v1473: zone numerals renumber themselves, .hd-card joins the card recipe, and the suite emits ZERO ResourceWarnings",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
