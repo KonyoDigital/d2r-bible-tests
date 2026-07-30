@@ -9,6 +9,72 @@ import tv_diablo as tv
 tv.JOURNAL = os.path.join(tempfile.gettempdir(), "tvd_test_journal.jsonl")   # v753 — tests NEVER write the real session journal
 
 
+def argv_for(script_py, *extra):
+    """v1461 — the argv list that runs `script_py` under THIS interpreter.
+
+    Fed to the TV_CLAUDE_ARGV / TV_OCR_ARGV seams. Those exist because CLAUDE_BIN and
+    TV_OCR_BIN hold a single executable PATH: on the Mac these fakes' shebangs make them
+    directly executable, but on Windows a bare .py is not a valid CreateProcess image
+    ([WinError 193]) — which is why all 9 fake-worker tests failed there and passed on Mac.
+
+    A .cmd shim is NOT an acceptable workaround: it adds a process between the worker and
+    the fake, so p.kill() reaps the shim and orphans the real child still holding the stdout
+    pipe. That both leaks (the exact v1204/v1206 leak these tests police) and hangs the
+    TV_FAKE_MODE=slow timeout test forever. Spawning the interpreter directly keeps the
+    process tree one deep, so kill semantics are the same on every platform.
+    """
+    return [sys.executable, "-u", script_py] + list(extra)
+
+
+def use_fake_claude(tc):
+    """v1461 — point the vision lane at fake_claude.py and return its path.
+
+    Two seams, deliberately: CLAUDE_BIN still holds the .py because _vision_budget_armed()
+    disarms the subscription circuit by looking for 'fake_claude' in its basename, while
+    TV_CLAUDE_ARGV supplies the argv that is actually spawned. Restores both via addCleanup
+    (which runs after tearDown), so no fixture can leak the env var into a later test.
+    """
+    fake = os.path.join(tv.HERE, "fake_claude.py")
+    prev_bin = tv.CLAUDE_BIN
+    prev_argv = os.environ.get("TV_CLAUDE_ARGV")
+    tv.CLAUDE_BIN = fake
+    os.environ["TV_CLAUDE_ARGV"] = json.dumps(argv_for(fake))
+
+    def _restore():
+        tv.CLAUDE_BIN = prev_bin
+        if prev_argv is None:
+            os.environ.pop("TV_CLAUDE_ARGV", None)
+        else:
+            os.environ["TV_CLAUDE_ARGV"] = prev_argv
+    tc.addCleanup(_restore)
+    return fake
+
+
+def write_fake_ocr(dirpath, json_line):
+    """v1461 — a fake `ocr_mac --worker` speaking the real stdin-path -> stdout-JSON protocol.
+
+    Was a bash heredoc duplicated in two fixtures; bash is not a given on Windows, so the
+    body is now Python — ONE implementation for both platforms, no risk of the two copies
+    drifting apart.
+    """
+    impl = os.path.join(dirpath, "fake_ocr_impl.py")
+    with open(impl, "w", encoding="utf-8", newline="\n") as f:
+        f.write(
+            "#!/usr/bin/env python3\n"
+            "import sys\n"
+            "if '--worker' not in sys.argv[1:2]:\n"
+            "    sys.exit(0)\n"
+            "for line in sys.stdin:\n"
+            "    if line.strip() == 'quit':\n"
+            "        break\n"
+            "    sys.stdout.write(%r + '\\n')\n"
+            "    sys.stdout.flush()\n" % (json_line,)
+        )
+    if os.name != "nt":
+        os.chmod(impl, 0o755)
+    return impl
+
+
 def make_bmp(path, payload):
     """A minimal valid-enough BMP: 54-byte header + raw payload (frame_sig samples body bytes)."""
     with open(path, "wb") as f:
@@ -673,20 +739,17 @@ class TestOcrFastLane(unittest.TestCase):
     def test_fake_ocr_worker_roundtrip(self):
         """TV_OCR_BIN seam: a fake worker prints JSON lines — agent parses names."""
         d = tempfile.mkdtemp()
-        fake = os.path.join(d, "fake_ocr")
-        with open(fake, "w") as f:
-            f.write("#!/usr/bin/env bash\n"
-                    "if [[ \"${1:-}\" == --worker ]]; then\n"
-                    "  while IFS= read -r line; do\n"
-                    "    [[ \"$line\" == quit ]] && break\n"
-                    "    echo '{\"ms\":12,\"lines\":[\"Blade Bow\",\"http://x\",\"Ist Rune\"],\"confs\":[0.9,0.4,0.8],\"mode\":\"roi-fast\"}'\n"
-                    "  done\n"
-                    "fi\n")
-        os.chmod(fake, 0o755)
+        fake = write_fake_ocr(d, '{"ms":12,"lines":["Blade Bow","http://x","Ist Rune"],'
+                                 '"confs":[0.9,0.4,0.8],"mode":"roi-fast"}')
         old_bin, old_en = tv.OCR_BIN, tv.OCR_ENABLED
         old_ocr = tv._OCR
+        old_env = os.environ.get("TV_OCR_ARGV")
         try:
             tv.OCR_BIN = fake
+            # v1461 — patching the module global is NOT enough: on Windows _ocr_worker_cmd()
+            # returns the real ocr_win.ps1 before it ever reaches the OCR_BIN branch, so the
+            # fake was ignored and the genuine Windows OCR script got spawned instead.
+            os.environ["TV_OCR_ARGV"] = json.dumps(argv_for(fake, "--worker"))
             tv.OCR_ENABLED = True
             tv._OCR = tv.OcrWorker()
             # need a real path that exists (worker ignores content)
@@ -706,6 +769,10 @@ class TestOcrFastLane(unittest.TestCase):
             except Exception: pass
             tv.OCR_BIN, tv.OCR_ENABLED = old_bin, old_en
             tv._OCR = old_ocr
+            if old_env is None:
+                os.environ.pop("TV_OCR_ARGV", None)
+            else:
+                os.environ["TV_OCR_ARGV"] = old_env
 
 
 class TestIntentAndEscalate(unittest.TestCase):
@@ -792,14 +859,15 @@ class TestClaudeEnv(unittest.TestCase):
 class TestVisionWorker(unittest.TestCase):
     """v713 — the persistent worker against the fake claude bin (TV_CLAUDE_BIN seam)."""
     def setUp(self):
-        self.fake = os.path.join(tv.HERE, "fake_claude.py")
-        tv.CLAUDE_BIN = sys.executable and sys.executable or "python3"
-        # the worker invokes CLAUDE_BIN with claude-style args — wrap via env-configured argv0
-        tv.CLAUDE_BIN = self.fake
+        # v1461 — spawn the fake via TV_CLAUDE_ARGV (see use_fake_claude): a bare .py at
+        # argv[0] is not executable on Windows (WinError 193).
+        self._orig_bin = tv.CLAUDE_BIN
+        self.fake = use_fake_claude(self)
         os.environ.pop("TV_FAKE_MODE", None)
 
     def tearDown(self):
         tv._WORKER.stop()
+        tv.CLAUDE_BIN = self._orig_bin
         os.environ.pop("TV_FAKE_MODE", None)
 
     def test_multi_turn_reuse_same_process(self):
@@ -864,9 +932,8 @@ class TestRewarmSkipsSingleReaderPool(unittest.TestCase):
     `_REWARM_AT` is only ever set when `_rewarm` actually proceeds past the guard."""
 
     def setUp(self):
-        self.fake = os.path.join(tv.HERE, "fake_claude.py")
         self._orig_bin = tv.CLAUDE_BIN
-        tv.CLAUDE_BIN = self.fake
+        self.fake = use_fake_claude(self)
         self._orig_pool_n = tv.POOL_N
         tv._REWARM_AT.clear()
         os.environ.pop("TV_FAKE_MODE", None)
@@ -905,9 +972,8 @@ class TestLiveReadTimeoutCap(unittest.TestCase):
     live read is a signal to route to retro, not a failure that blocks everything else.'"""
 
     def setUp(self):
-        self.fake = os.path.join(tv.HERE, "fake_claude.py")
         self._orig_bin = tv.CLAUDE_BIN
-        tv.CLAUDE_BIN = self.fake
+        self.fake = use_fake_claude(self)
         self._orig_timeout = tv.LIVE_READ_TIMEOUT_S
         os.environ["TV_FAKE_MODE"] = "slow"   # fake claude never answers the warm/stream path
         # v1380.4 — pin G5 OFF for this pin. Machine G5 primary would route vision through
@@ -1089,9 +1155,8 @@ class TestPoolShutdownStopsStallWorker(unittest.TestCase):
     orphan process leak, one per session that ever needed the safety net."""
 
     def setUp(self):
-        self.fake = os.path.join(tv.HERE, "fake_claude.py")
         self._orig_bin = tv.CLAUDE_BIN
-        tv.CLAUDE_BIN = self.fake
+        self.fake = use_fake_claude(self)
         self._orig_stall_worker = tv._STALL_WORKER
         self._orig_pool_stopping = tv._POOL_STOPPING
         self._orig_verify_q = list(tv._VERIFY_Q)
@@ -1137,9 +1202,8 @@ class TestPoolShutdownSweepsWorker0AndOcr(unittest.TestCase):
     farewell_read() explicitly skips OCR, so there was never even a rationale to keep it warm."""
 
     def setUp(self):
-        self.fake_claude = os.path.join(tv.HERE, "fake_claude.py")
         self._orig_bin = tv.CLAUDE_BIN
-        tv.CLAUDE_BIN = self.fake_claude
+        self.fake_claude = use_fake_claude(self)
         self._orig_worker = tv._WORKER
         self._orig_pool_stopping = tv._POOL_STOPPING
         self._orig_verify_q = list(tv._VERIFY_Q)
@@ -1147,18 +1211,10 @@ class TestPoolShutdownSweepsWorker0AndOcr(unittest.TestCase):
         os.environ.pop("TV_FAKE_MODE", None)
         # a fake OCR worker speaking the same stdin-path -> stdout-JSON protocol as ocr_mac
         d = tempfile.mkdtemp()
-        self.fake_ocr = os.path.join(d, "fake_ocr")
-        with open(self.fake_ocr, "w") as f:
-            f.write("#!/usr/bin/env bash\n"
-                    "if [[ \"${1:-}\" == --worker ]]; then\n"
-                    "  while IFS= read -r line; do\n"
-                    "    [[ \"$line\" == quit ]] && break\n"
-                    "    echo '{\"ms\":5,\"lines\":[],\"confs\":[],\"mode\":\"roi-fast\"}'\n"
-                    "  done\n"
-                    "fi\n")
-        os.chmod(self.fake_ocr, 0o755)
+        self.fake_ocr = write_fake_ocr(d, '{"ms":5,"lines":[],"confs":[],"mode":"roi-fast"}')
         self._orig_ocr_bin, self._orig_ocr_en = tv.OCR_BIN, tv.OCR_ENABLED
         self._orig_ocr = tv._OCR
+        self._orig_ocr_env = os.environ.get("TV_OCR_ARGV")
 
     def tearDown(self):
         tv.CLAUDE_BIN = self._orig_bin
@@ -1174,6 +1230,10 @@ class TestPoolShutdownSweepsWorker0AndOcr(unittest.TestCase):
             except Exception: pass
         tv._OCR = self._orig_ocr
         tv.OCR_BIN, tv.OCR_ENABLED = self._orig_ocr_bin, self._orig_ocr_en
+        if self._orig_ocr_env is None:
+            os.environ.pop("TV_OCR_ARGV", None)
+        else:
+            os.environ["TV_OCR_ARGV"] = self._orig_ocr_env
 
     def test_keep_worker0_true_preserves_the_warm_worker_for_a_real_farewell(self):
         tv._WORKER = tv.VisionWorker()
@@ -1191,6 +1251,7 @@ class TestPoolShutdownSweepsWorker0AndOcr(unittest.TestCase):
 
     def test_shutdown_always_stops_ocr_regardless_of_keep_worker0(self):
         tv.OCR_BIN = self.fake_ocr
+        os.environ["TV_OCR_ARGV"] = json.dumps(argv_for(self.fake_ocr, "--worker"))
         tv.OCR_ENABLED = True
         tv._OCR = tv.OcrWorker()
         p = os.path.join(tempfile.mkdtemp(), "frame.jpg")

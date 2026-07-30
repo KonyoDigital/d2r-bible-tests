@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1460"   # Windows dead Desktop icon: -WindowStyle Hidden hid the app's own window.
+VERSION = "v1461"   # Windows test_agent: fake workers could not be spawned (WinError 193).
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2334,9 +2334,35 @@ def _vision_model(model=None):
         return "sonnet"
     return m
 
+def _argv_seam(env_name, default):
+    """v1461 — optional JSON-list override for a spawn's argv PREFIX. Unset => `default`.
+
+    TV_CLAUDE_BIN / TV_OCR_BIN hold a single executable PATH, which cannot express "run this
+    script under THIS interpreter". The suites' fakes are .py files: on the Mac a shebang
+    makes them directly executable, but on Windows a bare .py is not a valid CreateProcess
+    image ([WinError 193] %1 is not a valid Win32 application), so every fake-worker test
+    failed there. Wrapping the fake in a .cmd is NOT a fix: it inserts an extra process that
+    survives p.kill(), leaving the real child orphaned on the pipe — which is precisely the
+    leak the v1204/v1206 shutdown tests exist to catch, and it hangs them.
+
+    So allow the prefix itself to be a list, exactly as _ocr_worker_cmd already does for the
+    Windows OCR lane (powershell + .ps1). Production never sets these, so behaviour is
+    byte-identical; only the suites do.
+    """
+    raw = os.environ.get(env_name)
+    if raw:
+        try:
+            v = json.loads(raw)
+            if isinstance(v, list) and v:
+                return [str(x) for x in v]
+        except Exception:
+            pass
+    return list(default)
+
+
 def _claude_lean_args(model, *, stream=False, add_dirs=None):
     """CLI argv for vision/intake calls that must not load the monorepo project."""
-    args = [CLAUDE_BIN, "-p"]
+    args = _argv_seam("TV_CLAUDE_ARGV", [CLAUDE_BIN]) + ["-p"]
     if stream:
         args += ["--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]
     else:
@@ -3165,6 +3191,8 @@ def _ocr_worker_cmd():
     """v818 (Grok R8 #3) — the fast lane exists on BOTH platforms. Mac: ocr_mac --worker.
     Windows: powershell ocr_win.ps1 speaking the SAME stdin-path → stdout-JSON protocol.
     Returns None when no worker is available (fast lane off, vision-only)."""
+    if os.environ.get("TV_OCR_ARGV"):
+        return _argv_seam("TV_OCR_ARGV", [OCR_BIN, "--worker"])   # v1461 — see _argv_seam
     if os.environ.get("TV_OCR_BIN"):
         return [os.environ["TV_OCR_BIN"], "--worker"]
     if sys.platform.startswith("win"):

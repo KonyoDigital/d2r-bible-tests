@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1460",
+  "ver": "v1461",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1460: Desktop icon actually opens \u2014 spawn no longer hides the app window",
+  "note": "v1461: Windows agent suite green \u2014 fake workers spawn via the argv seam",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

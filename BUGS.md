@@ -977,3 +977,34 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   different cause (headless relaunch without `--open`). Its prevention rule covered only the
   scripted-cycle path, so this class recurred through a new door. The invariant to police is
   "control up ⇒ visible window", not any one way of breaking it.
+
+## REG-052 — Windows test_agent: fake workers were never spawnable (2026-07-30)
+- **Symptom:** `tv/test_agent.py` 7 failures + 2 errors on Windows, green on the Mac. All in
+  fake-worker fixtures; assertions read `None` for `w.p`, `rd`, and worker replies.
+- **Caught by:** the v1460 ship gate — I ran the suite before claiming green, then diffed it
+  against a pristine v1459 worktree to prove the failures were pre-existing, not mine.
+- **Root cause:** the fakes are scripts, but `CLAUDE_BIN` (argv[0] of `_claude_lean_args`) and
+  `TV_OCR_BIN` (argv[0] of `_ocr_worker_cmd`) hold a single executable PATH. `fake_claude.py`
+  and the two `#!/usr/bin/env bash` OCR fakes are directly executable on the Mac via shebang;
+  on Windows neither is a valid CreateProcess image → `[WinError 193] %1 is not a valid Win32
+  application` → the worker never started.
+- **Second cause:** `_ocr_worker_cmd()` returns the real `ocr_win.ps1` on Windows *before*
+  reaching the `OCR_BIN` branch, so fixtures patching only `tv.OCR_BIN` drove the genuine
+  Windows OCR script instead of their fake.
+- **Rejected fix — do NOT retry:** a `.cmd` shim around the fake. It spawns, but adds a
+  process between worker and fake, so `p.kill()` reaps the shim and orphans the real child on
+  the stdout pipe — the exact leak REG/v1204+v1206 police — and hangs `TV_FAKE_MODE=slow`
+  forever. Observed live: `python.exe` pid 25100 outliving its dead cmd.exe parent.
+- **Fix (v1461):** `_argv_seam()` — optional JSON-list argv-prefix override (`TV_CLAUDE_ARGV`,
+  `TV_OCR_ARGV`). Suites pass `[sys.executable, "-u", fake]`, spawning the interpreter
+  directly: tree one deep, identical kill semantics everywhere. Unset in production →
+  byte-identical (asserted). Same shape `_ocr_worker_cmd` already used for powershell+.ps1.
+- **Also fixed a FALSE PASS:** `test_timeout_kills_worker_returns_none` was green on Windows
+  for the wrong reason — it asserts `r is None` and `w.p is None`, both of which a failed
+  spawn satisfies. It never exercised the timeout path. Now genuinely exercised.
+- **Verify:** test_agent 201 OK · test_control 267 OK · no orphan processes after the run.
+- **Prevention:** (1) a test seam that carries an executable must be able to express an
+  INTERPRETER PREFIX, not just a path — scripts are not executables on Windows; (2) never fix
+  a spawn problem by inserting a wrapper process when the tests assert process teardown;
+  (3) an assertion that something is absent/None can pass because the setup failed — pair it
+  with a positive assertion that the thing existed first.

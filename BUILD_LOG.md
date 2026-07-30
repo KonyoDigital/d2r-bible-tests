@@ -1,4 +1,39 @@
 
+## v1461 — 2026-07-30 — Windows: test_agent finally green, 201/201 (REG-052)
+- **Symptom:** `tv/test_agent.py` = **7 failures + 2 errors** on Windows, green on the Mac.
+  Every one in a fake-worker fixture; the giveaway in the noise was
+  `⚠ read failed: [WinError 193] %1 is not a valid Win32 application`.
+- **Root cause:** the fakes are **scripts**, and the seams that carry them
+  (`CLAUDE_BIN` → argv[0] of `_claude_lean_args`; `TV_OCR_BIN` → argv[0] of
+  `_ocr_worker_cmd`) hold a single executable **PATH**. On the Mac `fake_claude.py`'s shebang
+  and the `#!/usr/bin/env bash` OCR fakes are directly executable; on Windows neither is a
+  valid CreateProcess image, so **the worker never started** and every assertion read `None`.
+- **Second, hidden cause:** `_ocr_worker_cmd()` returns the real `ocr_win.ps1` on Windows
+  **before** it ever consults `OCR_BIN` — so the OCR fixtures, which patched only the module
+  global `tv.OCR_BIN`, were silently driving the genuine Windows OCR script.
+- **Rejected fix (recorded so nobody retries it):** wrapping the fake in a `.cmd` shim. It
+  works, but inserts a process between the worker and the fake — `p.kill()` reaps the shim
+  and **orphans** the real child still holding the stdout pipe. That is exactly the leak the
+  v1204/v1206 shutdown tests police, and it hung `TV_FAKE_MODE=slow` forever (observed live:
+  `python.exe` pid 25100 surviving its dead cmd.exe parent).
+- **Fix:** new `_argv_seam(env, default)` in `tv_diablo.py` — an **optional JSON-list**
+  override for a spawn's argv prefix (`TV_CLAUDE_ARGV`, `TV_OCR_ARGV`). The suites pass
+  `[sys.executable, "-u", fake]`, so the interpreter is spawned **directly**: process tree
+  one deep, kill semantics identical on every platform. Unset in production → byte-identical
+  behaviour (asserted: unset keeps `claude -p`; malformed JSON falls back to `CLAUDE_BIN`).
+  This mirrors what `_ocr_worker_cmd` already did for the Windows OCR lane (powershell+.ps1).
+  The two bash OCR fakes are now one Python implementation (`write_fake_ocr`), so the
+  duplicated copies can no longer drift.
+- **`CLAUDE_BIN` still points at `fake_claude.py`** on purpose: `_vision_budget_armed()`
+  disarms the subscription circuit by finding `fake_claude` in its basename. The argv seam
+  carries the spawn; the path carries the identity.
+- **A false pass, now real:** `test_timeout_kills_worker_returns_none` was PASSING on Windows
+  for the wrong reason — it asserts `r is None` and `w.p is None`, which a *failed spawn*
+  also satisfies. It never exercised the timeout path at all. Proven real now: the worker
+  spawns (pid), answers `Worker Keep`, reuses one process across turns, and reaps to `None`.
+- **Verify:** `test_agent` **201 OK** (was 7F/2E) · `test_control` **267 OK** (2 skipped) ·
+  py_compile both · no orphaned `python.exe`/`cmd.exe` after the run · suite back to ~11s.
+
 ## v1460 — 2026-07-30 — Windows: the Desktop icon actually opens (REG-051)
 - **Symptom (Konyo, live):** double-click Desktop **TV DIABLO** → two black consoles blink and
   close, no app. Repeatable, every time, for days.

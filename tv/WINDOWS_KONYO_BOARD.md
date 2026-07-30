@@ -3,7 +3,8 @@
 ## Current ship
 | Item | Value |
 |------|--------|
-| Version | **v1460** |
+| Version | **v1461** |
+| Suites | test_agent **201 OK** · test_control **267 OK** — Windows finally green |
 | Launch | spawn no longer hides the app window · window presence verified, not assumed |
 | Pull | skipped if already up · 12s cap · timed-out job really stops before spawn |
 
