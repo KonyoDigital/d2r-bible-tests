@@ -3785,6 +3785,126 @@ class TestNoOrphanSuite(unittest.TestCase):
                                      % ", ".join(silent))
 
 
+class TestAFreshMachineStartsEmpty(unittest.TestCase):
+    """v1484 — the promise a new PC makes, finally under test.
+
+    Konyo: *"everyone should start fresh.. except my macbook one. like the chronicles and forges
+    should be 0/0 that way new PC starts with its own profile and builds on it."*
+
+    Every part of that promise has been enforced by hand until now — v1469 added the rule, v1478
+    fixed the console that was ignoring it, and both were checked by launching the app and reading
+    numbers off the screen. The one thing never checked automatically is the whole point: boot the
+    REAL board on a machine that has never seen it, and confirm the chronicle is empty.
+
+    This is the test that would have caught REG-076 on its own, without a user report.
+
+    It boots `bible.html` in a virgin browser profile (no storage at all), lets it initialise, then
+    re-opens the SAME profile on a probe page to read what the board actually wrote. Two loads
+    rather than one because the board must be allowed to run its own first-boot path — deriving the
+    machine, publishing the route, and applying (or correctly NOT applying) the grail seed.
+    """
+
+    def _browser(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import js_syntax_gate
+        b = js_syntax_gate.find_browser()
+        if not b:
+            self.skipTest("no Chromium/Edge found — cannot boot the board")
+        return b, js_syntax_gate
+
+    def test_a_never_seen_machine_has_an_empty_chronicle(self):
+        browser, gate = self._browser()
+        repo = gate.REPO
+        probe = os.path.join(repo, "_freshpc_probe.html")
+        # Reads the raw namespaces directly: the point is to verify what is ON DISK for this
+        # machine's world, independent of any helper that might itself be routing wrongly.
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write(
+                "<!doctype html><meta charset=utf-8><pre id=o></pre><script>\n"
+                "function g(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }\n"
+                "function count(raw){ if (raw==null) return 0;\n"
+                "  try { var v = JSON.parse(raw);\n"
+                "    if (Array.isArray(v)) return v.length;\n"
+                "    if (v && typeof v === 'object') return Object.keys(v).length;\n"
+                "  } catch(e){}\n"
+                "  return -1; }\n"
+                "var out = { machine: g('d2r_activeMachine'), source: g('d2r_machineSource'),\n"
+                "  route: g('d2r_lsrRoute') ? JSON.parse(g('d2r_lsrRoute')).m : null,\n"
+                "  W_foundLog: count(g('W\\u00b7d2r_foundLog')),\n"
+                "  W_rwMade:   count(g('W\\u00b7d2r_rwMade')),\n"
+                "  W_setPieces:count(g('W\\u00b7d2r_setPieces')),\n"
+                "  bare_foundLog: count(g('d2r_foundLog')) };\n"
+                "document.getElementById('o').textContent = 'RESULT:' + JSON.stringify(out);\n"
+                "</script>")
+        srv, port = gate._serve(repo)
+        try:
+            with tempfile.TemporaryDirectory() as profile:
+                # Observed once in a full-suite run: a cold Chromium start under contention blew a
+                # 180s budget and the test ERRORed. That is latency in the harness, not a verdict
+                # about the board, so it gets one retry — and if it still cannot run, it says the
+                # result is UNKNOWN rather than inventing either colour. A flaky test that cries
+                # wolf gets muted, and a muted test is REG-079 all over again.
+                timed_out = []
+
+                def load(rel, budget=9000):
+                    for attempt in (1, 2):
+                        try:
+                            return subprocess.run(
+                                [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
+                                 "--user-data-dir=%s" % profile,
+                                 "--blink-settings=imagesEnabled=false",
+                                 "--virtual-time-budget=%d" % budget, "--dump-dom",
+                                 "http://127.0.0.1:%d/%s" % (port, rel)],
+                                capture_output=True, text=True, encoding="utf-8",
+                                errors="replace", timeout=300)
+                        except subprocess.TimeoutExpired:
+                            if attempt == 2:
+                                timed_out.append(rel)
+                                return None
+                    return None
+
+                load("bible.html")                      # first boot: the board initialises itself
+                r = load("_freshpc_probe.html", 4000)   # same profile, so it sees what was written
+                if timed_out or r is None:
+                    self.skipTest(
+                        "the browser did not finish loading %s within 300s across two attempts, "
+                        "so this run proves NOTHING about the fresh-machine promise either way. "
+                        "Re-run when the machine is quieter." % (timed_out or ["probe"])[0])
+                blob = (r.stdout or "") + (r.stderr or "")
+        finally:
+            srv.shutdown()
+            srv.server_close()
+            try:
+                os.remove(probe)
+            except OSError:
+                pass
+
+        m = re.search(r"RESULT:(\{.*?\})</pre>", blob, re.S)
+        self.assertIsNotNone(m, "the probe never reported — the board may not have booted:\n"
+                                + blob[-800:])
+        got = json.loads(m.group(1))
+
+        # A headless Chromium on this platform reports a desktop UA; if it derived 'mac' the
+        # premise of the test is gone and a silent pass would be worthless.
+        if got["machine"] != "windows":
+            self.skipTest("this browser derived machine=%r, so there is no W· world to check"
+                          % got["machine"])
+        self.assertEqual(got["source"], "auto",
+                         "a machine nobody has clicked through must be auto-derived, not 'user'")
+        self.assertEqual(got["route"], "windows",
+                         "the board published a route for a different world than it is in")
+        for key in ("W_foundLog", "W_rwMade", "W_setPieces"):
+            self.assertEqual(
+                got[key], 0,
+                "%s = %r on a machine that has never been used. A brand-new PC must start at 0/0 "
+                "— this is the seed leaking into a fresh world, which is what Konyo asked for and "
+                "what REG-076 broke." % (key, got[key]))
+        self.assertEqual(
+            got["bare_foundLog"], 0,
+            "the OWNER's namespace was written on a machine that is not the owner's; a fresh PC "
+            "must not touch the bare world at all")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

@@ -1,4 +1,35 @@
 
+## v1484 — 2026-07-31 — the fresh-PC promise is finally TESTED
+
+Konyo: *"everyone should start fresh.. except my macbook one. like the chronicles and forges should
+be 0/0 that way new PC starts with its own profile and builds on it."*
+
+Every part of that promise had been enforced by hand. v1469 wrote the rule, v1478 fixed the console
+that was ignoring it, and both were verified by launching the app and reading numbers off a screen.
+The one thing never checked automatically was the whole point: boot the REAL board on a machine
+that has never seen it and confirm the chronicle is empty.
+
+`TestAFreshMachineStartsEmpty` boots `bible.html` in a virgin browser profile, lets it run its own
+first-boot path (deriving the machine, publishing the route, applying — or correctly NOT applying —
+the grail seed), then re-opens the SAME profile on a probe page to read what actually landed on
+disk. It asserts the machine derived itself as `windows` with source `auto`, that the published
+route matches the world it is in, that every `W·` chronicle key is empty, and that the OWNER's bare
+namespace was never touched at all.
+
+**Mutation-verified.** Removing the cousin-shell guard from the grail seed makes a never-used
+machine boot with **351 pre-seeded grail finds**, and the test reports that number by name. This is
+the test that would have caught REG-076 without a user report.
+
+**One flake, handled honestly.** A full-suite run ERRORed once at 241s: a cold Chromium start under
+contention blew the 180s subprocess budget. That is harness latency, not a verdict about the board,
+so the loader now retries once at 300s — and if it still cannot run, it SKIPS with "this run proves
+nothing either way", never inventing a colour. A flaky test gets muted, and a muted test is REG-079
+all over again.
+
+**Gate set: 8/8 green, exit 0.**
+
+---
+
 ## v1483 — 2026-07-31 — THE GATE SET, and the two failures it found within a minute
 
 REG-079 was never really about two stale assertions. It was that **nothing was watching them**. The

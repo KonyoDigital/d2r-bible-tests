@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1483",
+  "ver": "v1484",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1483: REG-079 was not really about two stale assertions; it was that nothing was watching them. The gate set used to be a list people carried in their heads, so it differed per person and per session and a suite could fall out of it in silence. tv/run_gates.py is now that list in a file with one verdict, and TestNoOrphanSuite fails if a tv/test_star.py exists that the runner does not name, plus the reverse (a gate pointing at a deleted file) and a rule that every gate must say what it protects. Running it immediately found two more failures. test_roundtrip_sim had been unrunnable whenever the app was open, because the Windows single-primary mutex used one machine-wide name rather than scoping by control port - a broader claim than the problem it solved, since a process on another port is a different instance and that is exactly what a harness is. The mutex is now per-port, so the desktop icon still cannot spawn two primaries on 17772 while an isolated harness runs alongside. The same suite also leaked its control_app child (kill without wait), which kept a port held and made the next run fail to bind; it now terminates, escalates and always reaps.",
+  "note": "v1484: Konyo asked that everyone start fresh except the MacBook, with chronicles and forges at 0/0. That promise has been enforced by hand until now: v1469 wrote the rule, v1478 fixed the console ignoring it, and both were verified by launching the app and reading numbers off a screen. TestAFreshMachineStartsEmpty boots the REAL bible.html in a virgin browser profile, lets it run its own first-boot path, then reopens the same profile on a probe page to read what was actually written to disk. It asserts the machine derived itself as windows with source auto, that the published route matches the world it is in, that the W-dot chronicle keys are all empty, and that the owner bare namespace was never touched. Mutation-verified: removing the cousin-shell guard from the grail seed makes a never-used machine boot with 351 pre-seeded grail finds, and the test names the number. This is the test that would have caught REG-076 without a user report.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
