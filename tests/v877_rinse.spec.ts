@@ -5,7 +5,7 @@
 // TV_SESSIONS) and never touches a live console on :17772.
 import { test, expect } from '@playwright/test';
 import { spawn, ChildProcess } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -13,25 +13,49 @@ const PORT = 17962;
 const CTRL = `http://127.0.0.1:${PORT}/`;
 let server: ChildProcess | null = null;
 
-function fixtureJournal(): string {
+// v1459 — a real 32×32 JPEG (SOI ff d8 ff). The fixture must put ACTUAL film on disk: /api/session
+// only returns a beat with `frame` when hist/<frameId>.jpg exists, and the theatre refuses to paint a
+// filmless session ("this session has no screenshots"). Without these bytes TH.beats stayed 0, so
+// Space had nothing to play and the caption never said "read #N" — the two rinse specs were asserting
+// film behaviour against a session with no film.
+const TINY_JPEG_B64 =
+  '/9j/4AAQSkZJRgABAQAASABIAAD/wAARCAAgACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAA' +
+  'AAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0Kx' +
+  'wRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4' +
+  'eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl' +
+  '5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQD' +
+  'BAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygp' +
+  'KjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOk' +
+  'paanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9sAQwAEBAQE' +
+  'BAQGBAQGCQYGBgkMCQkJCQwPDAwMDAwPEg8PDw8PDxISEhISEhISFRUVFRUVGRkZGRkcHBwcHBwcHBwc' +
+  '/9sAQwEEBQUHBwcMBwcMHRQQFB0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0d' +
+  'HR0dHR0dHR0d/90ABAAC/9oADAMBAAIRAxEAPwDhaKKK/PT9WCiiigD/0OFooor89P1YKKKKAP/Z';
+
+// journal + the matching hist frames, in one temp dir the server owns via TV_SESSIONS + TV_HIST
+function fixtureRun(): { journal: string; hist: string } {
   const dir = mkdtempSync(join(tmpdir(), 'tvd-rinse-'));
   const p = join(dir, 'sessions.jsonl');
+  const hist = join(dir, 'hist');
+  mkdirSync(hist, { recursive: true });
+  const jpg = Buffer.from(TINY_JPEG_B64, 'base64');
   const t0 = 1784400000000;
   const sid = 's_rinse_1';
   const rows = [] as string[];
   for (let i = 1; i <= 6; i++) {
+    const fid = `${i}_${t0 + i * 9000}`;
+    writeFileSync(join(hist, `${fid}.jpg`), jpg);   // the film this read was made from
     rows.push(JSON.stringify({
       ts: t0 + i * 9000, captureTs: t0 + i * 9000, completedTs: t0 + i * 9000 + 6000,
       names: i % 2 ? ['Perfect Ruby', `${100 + i} Gold`] : [],
       n: i, area: 'Rinse Plains', scene: 'gameplay', tz: [], ms: 6000,
       mode: 'warm', lane: 'deep', model: 'sonnet', conf: 0.9, intent: 'context',
-      stashTab: '', frameId: `${i}_${t0 + i * 9000}`, sessionId: sid,
+      stashTab: '', frameId: fid, sessionId: sid,
       escalated: false, interest: 0.7, priority: false, provisional: false,
     }));
   }
   rows.push(JSON.stringify({ ts: t0 + 70000, sessionId: sid, sessionEnd: true, n: 7 }));
   writeFileSync(p, rows.join('\n') + '\n');
-  return p;
+  return { journal: p, hist };
 }
 
 test.describe('v877 RINSE (self-hosted console)', () => {
@@ -39,12 +63,14 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     // v1379 — MUST pass --no-open. Without it control_app opens a pywebview window
     // (blocks / steals focus / flakes in CI) and the rinse suite was timing out on
     // every keyboard/arrow assertion waiting for a stable #btn-sim.
+    const fx = fixtureRun();
     server = spawn('python3', ['tv/control_app.py', '--no-open'], {
       env: {
         ...process.env,
         TV_CONTROL_PORT: String(PORT),
         TV_PORT: '17961',
-        TV_SESSIONS: fixtureJournal(),
+        TV_SESSIONS: fx.journal,
+        TV_HIST: fx.hist,   // v1459 — isolate hist to the fixture's own film (never Konyo's real reels)
       },
       stdio: 'ignore',
     });
@@ -89,6 +115,10 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     await page.waitForTimeout(1200);
     await page.click('#btn-sim');
     await page.waitForTimeout(1000);
+    // v1459 — assert the PREMISE first with a number. When the fixture shipped no film, TH.beats was
+    // 0 and this spec failed on the play-button label, which reads like a keyboard bug and is not one.
+    const beats = await page.evaluate(() => ((window as any).TH?.beats || []).length);
+    expect(beats, 'fixture must load real film before Space can play it').toBeGreaterThan(0);
     const before = await state(page);
     await page.keyboard.press('Space');
     await page.waitForTimeout(350);
@@ -110,7 +140,8 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     await page.keyboard.press('ArrowRight');
     await page.waitForTimeout(300);
     const r1 = await readNo();
-    expect(r0).not.toBe(null);
+    // v1459 — r0 null used to mean "no film in the fixture", not "arrows are broken". Say which.
+    expect(r0, 'caption must name a read (film loaded?) before arrows can step it').not.toBe(null);
     expect(r1).not.toBe(r0);   // stepped exactly one beat forward
     await page.keyboard.press('End');
     await page.waitForTimeout(300);

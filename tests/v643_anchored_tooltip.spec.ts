@@ -57,12 +57,22 @@ test('the card opens glued to the hovered item and never detaches across the scr
       // runners (Archon Plate adjacency false at CI speed, green locally). Poll until the rect is
       // stable across two frames (≤900ms), then measure.
       const tip = document.getElementById('arttip')!;
-      let tr = { left: -1, top: -1, right: -1, bottom: -1 } as any, settled = 0;
+      // v1459 — SIZE-AWARE settle. The positioner centres the card on the anchor
+      // (y = r.top + r.height/2 - h/2, and for a left-side card x = r.left - w - 12), so the card
+      // legitimately re-centres whenever its OWN box grows. On the Linux runner the popup <img>
+      // finished decoding between the two samples: h grew ~26px and w ~9px → dyCard -13 / dxCard -9
+      // with the anchor dead still, and the stability check read a correct recentre as a detach.
+      // Settling on position alone could not see that; settle on the full box + the image.
+      const tipImg = tip.querySelector('img') as HTMLImageElement | null;
+      const imgReady = () => !tipImg || tipImg.style.display === 'none' || tipImg.complete;
+      let tr = { left: -1, top: -1, width: -1, height: -1, right: -1, bottom: -1 } as any, settled = 0;
       for (let w2 = 0; w2 < 30 && settled < 2; w2++) {
         await new Promise((res) => setTimeout(res, 60));
         if (!tip.classList.contains('on')) continue;
         const now = tip.getBoundingClientRect();
-        if (Math.abs(now.left - tr.left) <= 1 && Math.abs(now.top - tr.top) <= 1) settled++; else settled = 0;
+        const stable = Math.abs(now.left - tr.left) <= 1 && Math.abs(now.top - tr.top) <= 1
+                    && Math.abs(now.width - tr.width) <= 1 && Math.abs(now.height - tr.height) <= 1;
+        if (stable && imgReady()) settled++; else settled = 0;
         tr = now;
       }
       if (!tip.classList.contains('on')) continue;
@@ -90,7 +100,18 @@ test('the card opens glued to the hovered item and never detaches across the scr
       a.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
         clientX: ar.left + (ar.right - ar.left) * 0.75, clientY: ar.top + (ar.bottom - ar.top) * 0.5 }));
       await new Promise((res) => setTimeout(res, 80));
-      const tr2 = tip.getBoundingClientRect();
+      // v1459 — settle again before the second sample, for the same reason as the baseline: a card
+      // still growing is not a card that jumped. Bounded (≤600ms) so a genuinely wandering card
+      // never gets waited into looking still.
+      let tr2 = tip.getBoundingClientRect(), s2 = 0;
+      for (let w3 = 0; w3 < 10 && s2 < 2; w3++) {
+        await new Promise((res) => setTimeout(res, 60));
+        const now2 = tip.getBoundingClientRect();
+        const same = Math.abs(now2.left - tr2.left) <= 1 && Math.abs(now2.top - tr2.top) <= 1
+                  && Math.abs(now2.width - tr2.width) <= 1 && Math.abs(now2.height - tr2.height) <= 1;
+        if (same && imgReady()) s2++; else s2 = 0;
+        tr2 = now2;
+      }
       const ar2 = (a as any).getBoundingClientRect();
       // v918.2 — stability is RELATIVE TO THE ANCHOR: on slow runners content-visibility
       // materialization shifts the page mid-hover, the ANCHOR moves, and the glued card
@@ -100,7 +121,10 @@ test('the card opens glued to the hovered item and never detaches across the scr
       const dxAnch = ar2.left - ar1.left, dyAnch = ar2.top - ar1.top;
       const still = Math.abs(dxCard - dxAnch) <= 8 && Math.abs(dyCard - dyAnch) <= 8;
       results.push({ name: (a as any).getAttribute('data-arttip'), adjacent, onScreen, still,
-        dxCard: Math.round(dxCard), dyCard: Math.round(dyCard), dxAnch: Math.round(dxAnch), dyAnch: Math.round(dyAnch) });
+        dxCard: Math.round(dxCard), dyCard: Math.round(dyCard), dxAnch: Math.round(dxAnch), dyAnch: Math.round(dyAnch),
+        // v1459 — card box deltas ride the failure text too: a nonzero dW/dH names late art
+        // growth as the cause instead of leaving the next reader to guess (this cost 3 CI rounds).
+        dW: Math.round(tr2.width - tr.width), dH: Math.round(tr2.height - tr.height) });
       a.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
       await new Promise((res) => setTimeout(res, 60));
     }

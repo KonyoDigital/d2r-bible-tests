@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1458"   # G4 add-on removed (API-key lane); G5 primary-lane failures now say WHY.
+VERSION = "v1459"   # last 3 Routine-I reds: rinse fixture had no film; tooltip settle was size-blind.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

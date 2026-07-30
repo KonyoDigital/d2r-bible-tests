@@ -751,6 +751,27 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   4. Button glow: Theatre owns lit when open; ON AIR lit only when live *and* Theatre closed.
 - **Prevention:** never co-paint live + history on the same CRT; background recording is a lamp/ribbon note, not a second film layer.
 
+## REG-050 — the last 3 Routine-I reds: a filmless fixture + a size-blind settle (2026-07-30)
+- **Symptom:** after REG-047 dropped Routine I from ~76 reds to 3, what remained was
+  `v877_rinse` ×2 (Space never toggled the play button; the caption never said "read #N") and
+  `v643_anchored_tooltip` ×1 (`Archon Plate stability {dxCard:-9,dyCard:-13,dxAnch:0,dyAnch:0}`,
+  CI-only). The rinse pair also failed on the Mac — pre-existing, not caused by the fix arc.
+- **Root cause (rinse):** the fixture wrote a journal with `frameId`s but never the frames. `/api/session`
+  only returns a beat with `frame` when `hist/<frameId>.jpg` exists, so the theatre painted
+  "this session has no screenshots", `TH.beats` stayed 0, and both specs asserted film behaviour
+  against a session with no film.
+- **Root cause (tooltip):** the settle loop waited for POSITION only. The card is centred on its anchor
+  (`y = r.top + r.height/2 - h/2`; a left-side card is `x = r.left - w - 12`), so it re-centres whenever
+  its own box grows. On the Linux runner the popup `<img>` decoded between the two samples — h grew ~26px,
+  w ~9px — and a correct recentre read as the detach bug-class.
+- **Fix (v1459):** the fixture writes a real 32×32 JPEG per frameId and isolates them with `TV_HIST`
+  (never Konyo's real reels); both rinse specs now assert their PREMISE first with a number
+  (`beats > 0`, caption names a read). The tooltip settle is size-aware AND image-aware on both samples,
+  bounded (≤600ms on the second), with `dW`/`dH` in the failure text.
+- **Prove:** Mac — `v877_rinse` 6/6 (was 4/2), `v643_anchored_tooltip` 2/2.
+- **Prevention:** a UX spec must build the whole world it asserts on (journal AND film); assert the
+  premise with a number before the behaviour; settle on the full box, never just position.
+
 ## REG-049 — honesty gaps in the top-level status defaults + 7 tests that never ran (2026-07-30)
 - **Symptom:** (audit, not a user report) the console could paint confident state it did not have:
   a `{}` bridge body cached as a GOOD snapshot; the 15s last-good grace showing stale scene/area/health

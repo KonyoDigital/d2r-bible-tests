@@ -3357,6 +3357,34 @@ class TestV1456HonestyDefaults(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+class TestV1457HonestySurfacesInUi(unittest.TestCase):
+    """v1457 — the honesty fields are useless if the console silently stops rendering them.
+    Cheap source-contract check (no server, no browser): the console must still SAY the three
+    unknown/stale/refused truths the backend now ships."""
+
+    def _ui(self):
+        with open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"),
+                  encoding="utf-8") as f:
+            return f.read()
+
+    def test_capture_lamp_speaks_unknown_and_stale(self):
+        ui = self._ui()
+        self.assertIn("gameOkKnown", ui, "the lamp must read the known/unknown flag")
+        self.assertIn("game state unknown", ui)
+        self.assertIn("stateFresh", ui)
+        self.assertIn("last known ", ui, "a graced snapshot must say how old it is")
+
+    def test_receipt_row_marks_a_gate_refused_read(self):
+        ui = self._ui()
+        self.assertIn("rcpt-held", ui)
+        self.assertIn("HELD", ui)
+        self.assertIn("gate.pass === false", ui, "held state comes from the gate verdict itself")
+
+    def test_g5_card_shows_its_last_error(self):
+        ui = self._ui()
+        self.assertIn("last Grok error", ui, "a swallowed primary-lane failure is not honest")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
