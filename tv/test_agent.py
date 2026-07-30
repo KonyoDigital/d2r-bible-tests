@@ -618,16 +618,27 @@ class TestFarewellRead(unittest.TestCase):
         with open(tv.STATE, "w") as f:
             json.dump({"online": True, "reads": [], "readCount": 2, "seen": [], "farmed": []}, f)
         # stub vision
+        # v1463 — restore FIRST, via addCleanup, and only then mutate. unittest skips
+        # tearDown entirely when setUp raises, so the old order leaked TV_STUB=1 into every
+        # later test in the process (alphabetically: TestFarewellRead poisoned
+        # TestLiveReadTimeoutCap and everything after it). addCleanup runs regardless.
         self._prev_stub = os.environ.get("TV_STUB")
-        os.environ["TV_STUB"] = "1"
-        man = os.path.join(self.d, "stub_manifest.json")
-        # claude_read looks in HERE for stub_manifest — patch via writing to tv/ and basename
         self._man_path = os.path.join(os.path.dirname(tv.__file__), "stub_manifest.json")
         self._man_bak = None
         if os.path.isfile(self._man_path):
             with open(self._man_path, encoding="utf-8") as f:
                 self._man_bak = f.read()
-        with open(self._man_path, "w") as f:
+        self.addCleanup(self._restore_stub_env)
+        self.addCleanup(self._restore_manifest)
+        os.environ["TV_STUB"] = "1"
+        man = os.path.join(self.d, "stub_manifest.json")
+        # claude_read looks in HERE for stub_manifest — patch via writing to tv/ and basename
+        # v1463 — encoding="utf-8" is MANDATORY here: stub_manifest.json is a TRACKED repo
+        # file containing an em-dash, and a bare open(...,"w") uses the console codepage.
+        # On Konyo's Hebrew box (cp1255) that rewrote U+2014 as the single byte 0x97, so the
+        # file stopped being valid UTF-8, `git status` showed it dirty, and EVERY later run
+        # died in the utf-8 read above. Same class as REG-044/REG-046.
+        with open(self._man_path, "w", encoding="utf-8") as f:
             json.dump({
                 "*": {"scene": "stash", "stashTab": "shared", "area": "Harrogath",
                       "names": ["Horadric Cube", "Nagelring"], "conf": 0.9}
@@ -635,21 +646,26 @@ class TestFarewellRead(unittest.TestCase):
         # seed lifecycle so Nagelring can chain-vault if previously seen
         tv._LIFECYCLE.process("loot", ["Nagelring"], "Frigid Highlands", 0.9, now_ms=1000)
 
+    def _restore_stub_env(self):
+        if self._prev_stub is None:
+            os.environ.pop("TV_STUB", None)
+        else:
+            os.environ["TV_STUB"] = self._prev_stub
+
+    def _restore_manifest(self):
+        # v1463 — encoding="utf-8" or this silently corrupts a TRACKED file (see setUp).
+        if self._man_bak is not None:
+            with open(self._man_path, "w", encoding="utf-8") as f:
+                f.write(self._man_bak)
+        else:
+            try: os.remove(self._man_path)
+            except Exception: pass
+
     def tearDown(self):
         tv.FRAMES = self._old_frames
         tv.HIST_DIR = self._old_hist
         tv.STATE = self._old_state
         tv._LIFECYCLE = self._old_life
-        if self._prev_stub is None:
-            os.environ.pop("TV_STUB", None)
-        else:
-            os.environ["TV_STUB"] = self._prev_stub
-        if self._man_bak is not None:
-            with open(self._man_path, "w") as f:
-                f.write(self._man_bak)
-        else:
-            try: os.remove(self._man_path)
-            except Exception: pass
 
     def test_farewell_publishes_flagged_record(self):
         # use a tiny real file as force_frame so claude_read stub path works by basename
@@ -948,6 +964,10 @@ class TestRewarmSkipsSingleReaderPool(unittest.TestCase):
         tv.POOL_N = 1   # Konyo's real default outside ROBOT_MODE
         w = tv.VisionWorker()
         try:
+            # v1463 — assertNotIn passes trivially if nothing ever ran. Prove the worker is
+            # real first, so this measures the POOL_N==1 skip rather than a broken spawn.
+            self.assertIsNotNone(w.ask("warmup", timeout=15), "fake claude never answered — spawn is broken")
+            tv._REWARM_AT.pop(id(w), None)
             tv._rewarm(w)
             self.assertNotIn(id(w), tv._REWARM_AT)   # never scheduled — no lock contention risk
         finally:
@@ -957,6 +977,10 @@ class TestRewarmSkipsSingleReaderPool(unittest.TestCase):
         tv.POOL_N = 2   # ROBOT_MODE pool — other slots ARE free to serve traffic meanwhile
         w = tv.VisionWorker()
         try:
+            # v1463 — same positive gate as its sibling: prove the spawn works before
+            # asserting on _REWARM_AT, which _rewarm writes before ever calling w.ask().
+            self.assertIsNotNone(w.ask("warmup", timeout=15), "fake claude never answered — spawn is broken")
+            tv._REWARM_AT.pop(id(w), None)
             tv._rewarm(w)
             self.assertIn(id(w), tv._REWARM_AT)   # unchanged behavior for the pool it was written for
         finally:
@@ -1010,6 +1034,23 @@ class TestLiveReadTimeoutCap(unittest.TestCase):
         f = os.path.join(d, "stalled.jpg")
         open(f, "w").close()
         w = tv.VisionWorker()
+        # v1463 — POSITIVE sanity gate first. Without it this test passed identically when the
+        # fake could not be spawned at all (WinError 193): a dead subprocess satisfies BOTH
+        # "elapsed < 15s" and mode=="empty" more easily than a working one. Proven by a
+        # mutation probe that pointed argv_for() at a nonexistent interpreter — this test
+        # still reported ok. The gate must run with TV_FAKE_MODE cleared, because THIS class
+        # pins it to "slow" on purpose (a slow fake answering nothing is the point of the
+        # test, so "it answered" can only be proved outside that mode).
+        _slow = os.environ.pop("TV_FAKE_MODE", None)
+        _probe = tv.VisionWorker()
+        try:
+            self.assertIsNotNone(_probe.ask("warmup", timeout=15),
+                                 "fake claude never answered — spawn is broken, the timing below proves nothing")
+            self.assertIsNotNone(_probe.p, "worker process not alive — this test would pass on a dead spawn")
+        finally:
+            _probe.stop()
+            if _slow is not None:
+                os.environ["TV_FAKE_MODE"] = _slow
         t0 = time.time()
         rd = tv.claude_read(f, worker=w)
         elapsed = time.time() - t0
@@ -1521,7 +1562,10 @@ class TestReplay(unittest.TestCase):
             hit = tv.newest_watched_frame()
             self.assertTrue(hit and hit.endswith("live.bmp"), hit)
             # cap_target status file
-            with open(os.path.join(d, "cap_target.json"), "w") as f:
+            # v1463 — encoding="utf-8": the label carries U+00B7, and a cp1255-encoded write
+            # made _refresh_cap_target_from_disk()'s utf-8 read fail, silently leaving the
+            # capture target at "full" (desktop capture) instead of the D2R window.
+            with open(os.path.join(d, "cap_target.json"), "w", encoding="utf-8") as f:
                 f.write('{"mode":"window","label":"D2R · Diablo II: Resurrected"}')
             tv._CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
             tv._refresh_cap_target_from_disk()
@@ -1599,7 +1643,7 @@ class TestReplay(unittest.TestCase):
     def test_close_session_helper_exists(self):
         """v847 — OFF/STOP seal via close_session + /shutdown (not just kill)."""
         self.assertTrue(callable(tv.close_session))
-        src = open(tv.__file__).read()
+        src = open(tv.__file__, encoding="utf-8").read()   # v1463 — cp1255 default cannot read the emoji
         self.assertIn('"/shutdown"', src)
         self.assertIn("session_end", src)
 

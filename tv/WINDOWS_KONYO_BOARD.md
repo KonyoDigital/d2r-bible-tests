@@ -3,8 +3,8 @@
 ## Current ship
 | Item | Value |
 |------|--------|
-| Version | **v1462** |
-| Suites | test_agent **201 OK** · test_control **267 OK** — Windows finally green |
+| Version | **v1463** |
+| Suites | test_agent **201 OK** · test_control **267 OK** — in a PLAIN `python tv/test_*.py`, no env vars |
 | Launch | spawn no longer hides the app window · window presence verified, not assumed |
 | Icon | `appicon.ico` via pywebview 6 `start(icon=)` — **.ico only** (a .png silently kills the window) |
 | Pull | skipped if already up · 12s cap · timed-out job really stops before spawn |

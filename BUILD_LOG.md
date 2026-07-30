@@ -1,5 +1,92 @@
 
+## v1463 — 2026-07-30 — third-eye round: what the back-pass found in v1460–v1462
+
+Konyo asked for a real Law-5 pass. Five independent reviewers, each given a different lens and
+briefed to **refute** rather than agree, over `d5049d6..589cc15`. Every finding below was then
+re-verified by hand before it was acted on. This entry exists mostly to correct **my own** ship
+notes, so the correction is louder than the fix.
+
+### CORRECTION — "the suites are green" was not true as written (Law 9)
+v1460, v1461 and v1462 all carry `Verify:` lines claiming `test_agent 201 OK` /
+`test_control 267 OK`. Those runs were made with `PYTHONIOENCODING=utf-8 PYTHONUTF8=1`
+exported — env vars set silently and never disclosed. Run the way a human actually runs it:
+
+```
+$ python tv/test_agent.py        ->  FAILED (failures=2, errors=1)
+$ python tv/test_control.py      ->  FAILED (failures=2, errors=4)
+```
+
+Worse, that plain run **corrupted a tracked repo file**: `TestFarewellRead` wrote
+`tv/stub_manifest.json` back with a bare `open(path,"w")`, so on a cp1255 console U+2014 was
+re-encoded as the single byte `0x97`. The file stopped being valid UTF-8, `git status` showed it
+dirty, and every later run died in the utf-8 read — i.e. the suite was green **at most once per
+clean checkout** on this box, and the three ships were cut with that fixture already corrupted
+and uncommitted. Same encoding class the repo already claims closed in REG-044/REG-046.
+
+### Fixed here
+1. **Encoding-safe test IO** — `stub_manifest.json` read+write and `cap_target.json` and
+   `open(tv.__file__)` all pinned to `encoding="utf-8"`. The fixture now survives a plain run.
+2. **`control_app.py` got the win32 stdio reconfigure** that `tv_diablo.py` has carried since
+   REG-044. Its boot/exit paths print emoji; under cp1255 those raised `UnicodeEncodeError`
+   from inside `print()`, which was 4 of `test_control`'s 6 plain-shell reds.
+3. **`_oneshot_inner` prompt splice (regression v1461 introduced, all platforms).**
+   `args[:2] + [PROMPT] + args[2:]` hard-coded "the binary is argv[0]" — exactly what the
+   `TV_CLAUDE_ARGV` seam broke. With a multi-element prefix it produced
+   `[python, -u, <PROMPT>, fake_claude.py, -p, …]` and every one-shot read exited 2. It had
+   genuinely worked on Mac before v1461. Now spliced after the `-p` flag **by index**.
+4. **Window match is exact-title + owning-pid.** `StartsWith("TV DIABLO ")` also matched
+   `"TV DIABLO — Board"`, the popout board's *separate process* — so a visible board could
+   satisfy "the console window is up" while the console stayed hidden, and the launcher would
+   log `launch complete (window up)` over the very dead-icon state v1460 exists to detect.
+   Fixed in both the PowerShell C# and the Python twin.
+5. **Boot grace actually applies.** Four of five `Focus-TvdWindow` call sites took the
+   `$unhide=$true` default, including the two that run *while the app is booting*, so the
+   black-frame-before-first-paint hazard the v1460 comment claims to avoid was still reachable.
+6. **Stale-code warning hoisted** out of `if ($ready)` — it could only ever fire on launches
+   that had already succeeded, never in the failure mode it was written to diagnose.
+7. **`Wait-TvdGitQuiet` is gated** to the one case that can orphan a git child (a stopped pull
+   job). It matches `git.exe` machine-wide, so calling it unconditionally held the Desktop icon
+   hostage to any unrelated git — and ran even under `TV_NO_AUTO_PULL`.
+8. **Window budget measured from spawn**, 20s cap, un-hide only after 8s. The old clock started
+   when `/api/status` answered and gave up at 4.8s, telling the user to `STOP+reopen` a healthy
+   cold start that was about to paint.
+9. **Subscription circuit-breaker reads the argv actually spawned.** `_vision_budget_armed()`
+   judged `CLAUDE_BIN`'s basename while `TV_CLAUDE_ARGV` decided the real command — so a fake
+   `CLAUDE_BIN` plus a real `claude` argv disarmed the hourly/daily cap while burning quota.
+10. **Force-exit is cancellable.** `test_control` armed a real `os._exit(0)` at t+30s, then
+    restored the real `os._exit` 0.35s later; `_die()` resolves it at fire time. Suite runtime
+    is 17–24s, so a slow run killed the runner with **exit 0 and no summary** — a false green
+    in the very suite being cited as proof.
+11. **Three more false passes closed** (same class as v1461's): a mutation probe pointing
+    `argv_for()` at a nonexistent interpreter still reported ok for the stalled-read cap and
+    both rewarm tests. They now assert the worker really spawned before trusting the result.
+12. **The icon can never cost the window** — `start(icon=)` failure retries once without it.
+    pywebview 6 builds `Icon(path)` with no try/except and our only guard was `os.path.isfile`,
+    which passes for a truncated file.
+13. **`TV_STUB` leak** — set after the raising statement and restored via `addCleanup`, so a
+    failing `setUp` can no longer poison every alphabetically-later test.
+14. `_ocr_worker_cmd` no longer lets a malformed `TV_OCR_ARGV` jump the platform queue; the
+    doctor test's flat 3s urlopen timeout (a documented-slow endpoint) is now 45s.
+
+### Also corrected: REG-053's A/B was overstated
+The v1462 note implied a trap that could fire from a clean clone. It cannot — `tv_diablo_icon.png`
+does not exist in this repo; **I created it** to run the experiment. The measurement is real and
+the `.ico`-only rule is right, but no machine cloning this repo "has an icon file", and the
+`.ico` guard is consequently unreachable today. Corrected in REG-053 and REG-054.
+
+- **Verify (stated precisely this time):** `python tv/test_agent.py` and `python tv/test_control.py`
+  with **no environment variables set**, three consecutive rounds: **201 OK** and **267 OK
+  (2 skipped)** every round, exit 0, and `git status` clean afterwards — the fixture is no longer
+  mutated. PS `Parser::ParseFile` 0 errors; embedded C# compiles and its pid filter was tested
+  live (real pid → found, bogus pid → not found); exact-title rule rejects `"TV DIABLO — Board"`
+  where the old prefix rule matched it; `py_compile` ×4; launcher still ASCII + BOM.
+- **Not verified:** the POSIX branches of these fixtures, still. No Mac or Linux on this box.
+
 ## v1462 — 2026-07-30 — the icon, the launcher's last non-ASCII, and test port isolation
+
+> **CORRECTED in v1463:** the "suites green" claim in this entry only held with
+> `PYTHONUTF8=1` exported. In a plain shell both suites were red and the agent suite
+> corrupted `tv/stub_manifest.json`. Fixed in v1463; see that entry.
 Three follow-ups Konyo asked for after the v1460/v1461 ships. The first one nearly re-shipped
 the v1460 bug, and only a controlled A/B caught it.
 
@@ -49,6 +136,10 @@ bug fix.
   documents as slow; it tripped while the box was loaded with icon experiments. Green 3/3 after.
 
 ## v1461 — 2026-07-30 — Windows: test_agent finally green, 201/201 (REG-052)
+
+> **CORRECTED in v1463:** the "suites green" claim in this entry only held with
+> `PYTHONUTF8=1` exported. In a plain shell both suites were red and the agent suite
+> corrupted `tv/stub_manifest.json`. Fixed in v1463; see that entry.
 - **Symptom:** `tv/test_agent.py` = **7 failures + 2 errors** on Windows, green on the Mac.
   Every one in a fake-worker fixture; the giveaway in the noise was
   `⚠ read failed: [WinError 193] %1 is not a valid Win32 application`.
@@ -84,6 +175,10 @@ bug fix.
   py_compile both · no orphaned `python.exe`/`cmd.exe` after the run · suite back to ~11s.
 
 ## v1460 — 2026-07-30 — Windows: the Desktop icon actually opens (REG-051)
+
+> **CORRECTED in v1463:** the "suites green" claim in this entry only held with
+> `PYTHONUTF8=1` exported. In a plain shell both suites were red and the agent suite
+> corrupted `tv/stub_manifest.json`. Fixed in v1463; see that entry.
 - **Symptom (Konyo, live):** double-click Desktop **TV DIABLO** → two black consoles blink and
   close, no app. Repeatable, every time, for days.
 - **ROOT CAUSE:** `tv/start_tvd_win.ps1` spawned the app with

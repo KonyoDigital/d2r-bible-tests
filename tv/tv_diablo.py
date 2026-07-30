@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1462"   # pywebview 6 icon= drift, ASCII launcher, test port isolation.
+VERSION = "v1463"   # third-eye round: encoding-safe suites, argv splice, exact window match.
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2395,14 +2395,26 @@ except Exception:
 _sub_budget_lock = threading.Lock()
 
 def _vision_budget_armed():
-    """True only when a real subscription-costing Claude binary is in play."""
+    """True only when a real subscription-costing Claude binary is in play.
+
+    v1463 — judge the argv that is ACTUALLY SPAWNED, not just CLAUDE_BIN. v1461 added the
+    TV_CLAUDE_ARGV seam, which decides the real command, while this guard still read only
+    CLAUDE_BIN's basename — so the two could disagree: TV_CLAUDE_BIN=.../fake_claude.py with
+    TV_CLAUDE_ARGV=["claude"] disarmed the hourly/daily subscription cap while every spawn was
+    the real CLI burning real quota. Fail SAFE: the circuit stays armed unless the thing being
+    executed is genuinely a fake.
+    """
     if os.environ.get("TV_STUB") or os.environ.get("TV_NO_BUDGET") == "1":
         return False
     try:
-        base = os.path.basename(str(CLAUDE_BIN or "")).lower()
+        argv = _argv_seam("TV_CLAUDE_ARGV", [CLAUDE_BIN])
     except Exception:
-        base = ""
-    if "fake_claude" in base:
+        argv = [CLAUDE_BIN]
+    try:
+        blob = " ".join(os.path.basename(str(a or "")).lower() for a in argv)
+    except Exception:
+        blob = ""
+    if "fake_claude" in blob:
         return False
     return True
 
@@ -3191,8 +3203,14 @@ def _ocr_worker_cmd():
     """v818 (Grok R8 #3) — the fast lane exists on BOTH platforms. Mac: ocr_mac --worker.
     Windows: powershell ocr_win.ps1 speaking the SAME stdin-path → stdout-JSON protocol.
     Returns None when no worker is available (fast lane off, vision-only)."""
-    if os.environ.get("TV_OCR_ARGV"):
-        return _argv_seam("TV_OCR_ARGV", [OCR_BIN, "--worker"])   # v1461 — see _argv_seam
+    # v1463 — only take this branch when the seam yields a USABLE argv. v1461 returned
+    # _argv_seam(...) unconditionally, so a malformed value (TV_OCR_ARGV=1, [], {}, "claude")
+    # fell back to [OCR_BIN, "--worker"] and jumped the queue: on Windows that skipped the
+    # ocr_win.ps1 branch below and tried to exec the checked-in Mach-O `bin/ocr_mac`, and on
+    # Mac it skipped the isfile/X_OK guard. A bad env var must never beat the platform lane.
+    _ocr_argv = _argv_seam("TV_OCR_ARGV", []) if os.environ.get("TV_OCR_ARGV") else []
+    if _ocr_argv:
+        return _ocr_argv
     if os.environ.get("TV_OCR_BIN"):
         return [os.environ["TV_OCR_BIN"], "--worker"]
     if sys.platform.startswith("win"):
@@ -4395,9 +4413,18 @@ def _oneshot_inner(ap, model, timeout=90):
     if ap_dir and os.path.isdir(ap_dir):
         add.append(ap_dir)
     args = _claude_lean_args(model, stream=False, add_dirs=add)
-    # prompt is the first argument after -p
-    # _claude_lean_args starts [bin, -p, ...]; insert prompt after -p
-    args = args[:2] + [READ_PROMPT.format(path=ap)] + args[2:]
+    # v1463 — insert the prompt after the "-p" FLAG, located by index. The old
+    # `args[:2] + [PROMPT] + args[2:]` hard-coded "the binary is exactly argv[0]", which
+    # v1461's TV_CLAUDE_ARGV seam broke: a multi-element prefix like
+    # [python, -u, fake_claude.py] put the prompt at index 2 and produced
+    # [python, -u, <PROMPT>, fake_claude.py, -p, ...] — the interpreter then treated the
+    # prompt as the script name and every one-shot read exited 2. Production (seam unset)
+    # was unaffected because the prefix is 1 long, which is exactly why no test caught it.
+    try:
+        _p_at = args.index("-p")
+    except ValueError:
+        _p_at = 0
+    args = args[:_p_at + 1] + [READ_PROMPT.format(path=ap)] + args[_p_at + 1:]
     r = subprocess.run(
         args,
         capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, env=env,

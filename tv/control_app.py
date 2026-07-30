@@ -30,6 +30,23 @@ import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# v1463 — Windows stdio must speak UTF-8 before ANY print(). This module logs with emoji
+# (📺 ⚠ 👋) on its boot and exit paths; under a Hebrew console (cp1255) those raise
+# UnicodeEncodeError from inside print(), which surfaced as 4 errors + 2 failures in
+# test_control on a plain `python tv/test_control.py`. tv_diablo.py has carried this exact
+# block since REG-044; control_app never got it, so "the suite is green" was only ever true
+# when the caller happened to export PYTHONIOENCODING/PYTHONUTF8 first.
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream_name in ("stdout", "stderr"):
+        _stream = getattr(sys, _stream_name, None)
+        try:
+            if _stream is not None and hasattr(_stream, "reconfigure"):
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 CONTROL_PORT = int(os.environ.get("TV_CONTROL_PORT", "17772"))
@@ -862,6 +879,7 @@ _WINDOW_LIVE = False
 _FORCE_EXIT_ARMED = False
 _FORCE_EXIT_LOCK = threading.Lock()
 _FORCE_EXIT_DELAY_S = 1.25
+_FORCE_EXIT_CANCEL = False   # v1463 — set True to call off an armed force-exit (see _arm_force_exit)
 
 
 def _find_claude_bin(path_env=None):
@@ -1759,6 +1777,13 @@ def _arm_force_exit(reason="quit", delay=None):
             time.sleep(max(0.05, float(delay)))
         except Exception:
             pass
+        # v1463 — a disarm switch. Without it this thread is un-cancellable: it resolves
+        # os._exit at FIRE time, so anything that temporarily monkeypatches os._exit (the
+        # test suite does, to assert arming) gets the REAL one back before the deadline and
+        # the runner is killed mid-suite with exit code 0 and no summary line — a false
+        # green. A quit that was called off should never still take the process down.
+        if globals().get("_FORCE_EXIT_CANCEL"):
+            return
         try:
             print(f"📺 force-exit deadline ({reason}) — os._exit(0)", flush=True)
         except Exception:
@@ -2523,7 +2548,20 @@ def open_control_window():
         _start_kw["icon"] = globals()["_ICON_FOR_START"]
     try:
         try:
-            webview.start(**_start_kw)
+            try:
+                webview.start(**_start_kw)
+            except Exception:
+                # v1463 — the icon must NEVER cost the window. pywebview 6 builds it as
+                # `self.Icon = Icon(path)` inside the WinForms Form ctor with no try/except,
+                # guarded on our side only by os.path.isfile() — which happily passes for a
+                # truncated or half-pulled appicon.ico. A corrupt icon would then throw on the
+                # GUI thread and reproduce the v1460 dead-window symptom with a new trigger.
+                # Retry once without it; a missing icon is a cosmetic loss, no window is not.
+                if "icon" not in _start_kw:
+                    raise
+                print("⚠ window icon rejected — reopening without it (window > cosmetics)", flush=True)
+                _start_kw.pop("icon", None)
+                webview.start(**_start_kw)
         except TypeError:
             # older pywebview without private_mode — ephemeral storage beats no window
             print("⚠ pywebview too old for private_mode=False — board storage is EPHEMERAL this run (tallies/grail reset on quit); pip install -U pywebview")
@@ -7774,7 +7812,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1462",
+        "ver": "v1463",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10267,7 +10305,12 @@ def _win_focus_existing_console():
             buf = ctypes.create_unicode_buffer(256)
             GetWindowTextW(hwnd, buf, 256)
             title = buf.value or ""
-            if title == "TV DIABLO" or title.startswith("TV DIABLO "):
+            # v1463 — EXACT title only. The old prefix rule also matched the popout board
+            # window "TV DIABLO — Board" (a separate --board-window process), so a visible
+            # board could be reported as "the console window is up" while the real console
+            # stayed hidden — defeating the v1460 fix's own proof. The console window is
+            # created with the literal title "TV DIABLO" and never renamed at runtime.
+            if title == "TV DIABLO":
                 (vis if IsWindowVisible(hwnd) else hidden).append(hwnd)
                 if IsWindowVisible(hwnd):
                     return False          # a visible window is the best case — stop early

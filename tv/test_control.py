@@ -25,8 +25,12 @@ import control_app as ca  # noqa: E402
 import replay as rp  # noqa: E402
 
 
-def _get(port, path):
-    with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=3) as r:
+def _get(port, path, timeout=3):
+    # v1463 — timeout is a parameter now. /api/doctor genuinely takes seconds (it shells out
+    # to probe the Claude CLI, WebView2, ports, pid files and frame ages — start_tvd_win.ps1
+    # says so in its own comments), so a flat 3s made TestDoctor a load-dependent flake:
+    # 1 error in 5 runs, always urlopen timing out, never a real assertion failure.
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=timeout) as r:
         return r.status, r.read(), dict(r.headers)
 
 
@@ -394,7 +398,7 @@ class TestDoctor(unittest.TestCase):
         port = srv.server_address[1]
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
-            st, body, _ = _get(port, "/api/doctor")
+            st, body, _ = _get(port, "/api/doctor", timeout=45)   # v1463 — doctor is slow by design
             self.assertEqual(st, 200)
             j = json.loads(body)
             self.assertIn("checks", j)
@@ -1139,7 +1143,12 @@ class TestExitSafeguard(unittest.TestCase):
             ca._WINDOW_ONLY = False
             ca._agent_mode = "live"
             t0 = time.time()
-            ca._request_console_exit("unit-x", hard_delay=30.0)  # long delay so test never dies
+            # v1463 — the old 30.0s "so the test never dies" was backwards: the finally block
+            # restores the REAL os._exit ~0.35s later, and _die() resolves os._exit at FIRE
+            # time, so at t+30s the runner was killed with exit 0 and no summary — a false
+            # green whenever the suite ran slower than the deadline (observed 17-24s).
+            # Short delay + an explicit disarm in finally.
+            ca._request_console_exit("unit-x", hard_delay=5.0)
             self.assertLess(time.time() - t0, 0.15)
             self.assertFalse(ca._WINDOW_LIVE)
             self.assertIsNone(ca._MAIN_WIN)
@@ -1147,6 +1156,7 @@ class TestExitSafeguard(unittest.TestCase):
             time.sleep(0.35)
             self.assertIn(("stop", False), self._calls)
         finally:
+            ca._FORCE_EXIT_CANCEL = True     # v1463 — call off the armed deadline for real
             ca._FORCE_EXIT_ARMED = old_armed
             ca._EXIT_STOP_DONE = old_done
             ca.os._exit = old_exit

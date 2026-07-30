@@ -36,7 +36,7 @@ function Test-TvdControlUp {
   return $false
 }
 
-function Focus-TvdWindow([bool]$unhide = $true) {
+function Focus-TvdWindow([bool]$unhide = $true, [uint32]$wantPid = 0) {
   # v1446 - pure C# EnumWindows (PS scriptblock EnumWindows hangs under D2R load).
   # v1460 - HIDDEN windows count too. The old callback bailed on !IsWindowVisible and only
   # ever handled IsIconic, so an SW_HIDE-ed 'TV DIABLO' window was unreachable: control kept
@@ -58,8 +58,10 @@ public static class TvdFocusFast {
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
   const int SW_SHOW = 5;
   const int SW_RESTORE = 9;
+  static uint wantPid = 0;
   static IntPtr vis = IntPtr.Zero;
   static IntPtr hid = IntPtr.Zero;
   public static bool WasHidden = false;
@@ -69,7 +71,16 @@ public static class TvdFocusFast {
     var sb = new StringBuilder(256);
     GetWindowText(h, sb, 256);
     string t = sb.ToString() ?? "";
-    if (t == "TV DIABLO" || t.StartsWith("TV DIABLO ")) {
+    // v1463 - EXACT title, and it must belong to the process we care about when a pid is
+    // given. The old prefix rule also matched "TV DIABLO - Board" (the popout board runs in
+    // its OWN process), so a visible board window satisfied "the console is up" while the
+    // real console stayed hidden - the launcher then logged 'launch complete (window up)'
+    // over exactly the dead-icon state this whole fix exists to detect.
+    if (t == "TV DIABLO") {
+      if (wantPid != 0) {
+        uint wp; GetWindowThreadProcessId(h, out wp);
+        if (wp != wantPid) return true;
+      }
       if (IsWindowVisible(h)) { vis = h; return false; }   // visible is the best case - stop
       if (hid == IntPtr.Zero) hid = h;                     // remember first hidden, keep looking
     }
@@ -84,7 +95,9 @@ public static class TvdFocusFast {
   // moment later, so forcing SW_SHOW in that gap would paint a black frame before WebView2's
   // first paint - the very "black screen window" the user reported. Only force it as a
   // deliberate recovery (warm re-click, or after the boot grace period has expired).
-  public static bool Focus(bool unhide) {
+  public static bool Focus(bool unhide) { return Focus(unhide, 0); }
+  public static bool Focus(bool unhide, uint pid) {
+    wantPid = pid;
     vis = IntPtr.Zero; hid = IntPtr.Zero; WasHidden = false; Raised = false; NowVisible = false;
     EnumWindows(Cb, IntPtr.Zero);
     IntPtr found = (vis != IntPtr.Zero) ? vis : hid;
@@ -102,7 +115,7 @@ public static class TvdFocusFast {
 }
 "@
     }
-    if ([TvdFocusFast]::Focus($unhide)) {
+    if ([TvdFocusFast]::Focus($unhide, $wantPid)) {
       $how = 'visible'
       if ([TvdFocusFast]::WasHidden) { $how = 'un-hid' }
       Write-TvdLaunchLog ("focused existing TV DIABLO window [{0} raised={1}]" -f $how, [TvdFocusFast]::Raised)
@@ -136,7 +149,9 @@ try {
   $mutex = New-Object System.Threading.Mutex($true, 'Local\TV_DIABLO_WIN_LAUNCHER_v2', [ref]$created)
   if (-not $created) {
     Write-TvdLaunchLog 'launcher mutex busy - focus existing / exit quiet'
-    [void](Focus-TvdWindow)
+    # v1463 - another launcher is mid-spawn, so the window may still be pre-first-paint.
+    # Do NOT force SW_SHOW here: that paints a black frame (the reported symptom).
+    [void](Focus-TvdWindow $false)
     try { $mutex.Dispose() } catch {}
     $mutex = $null
     return
@@ -269,6 +284,9 @@ if (-not $env:TV_NO_AUTO_PULL) {
         # never rewritten under a booting app. (ASCII only here - see REG-046.)
         Stop-Job -Job $fetchJob -ErrorAction SilentlyContinue
         $null = Wait-Job $fetchJob -Timeout 5
+        # v1463 - only THIS case can leave an orphaned git.exe still rewriting the tree, so
+        # it is the only case that pays for Wait-TvdGitQuiet before the spawn.
+        $script:TvdPullJobStopped = $true
         Write-TvdLaunchLog ("auto-pull: timed out (12s) - stopped job state={0}; launching with local tree" -f $fetchJob.State)
       } else {
         Write-TvdLaunchLog 'auto-pull: done'
@@ -350,10 +368,27 @@ if ($py.Cmd -eq 'py') {
   $argLine = '"' + $control + '" --open'
 }
 
-# v1460 - never spawn while git may still be rewriting the tree (see Wait-TvdGitQuiet).
-[void](Wait-TvdGitQuiet)
+# v1460/v1463 - never spawn while OUR timed-out pull job may still be rewriting the tree.
+# v1463: only wait when that actually happened. Wait-TvdGitQuiet matches git.exe machine-wide
+# (it cannot tell whose git it is), so calling it unconditionally made every cold launch hostage
+# to any unrelated git in another terminal or an editor - re-adding the very icon latency v1445
+# removed - and it ran even under TV_NO_AUTO_PULL where this launcher never touched git at all.
+if ($script:TvdPullJobStopped) { [void](Wait-TvdGitQuiet) }
 $controlStamp = $null
 try { $controlStamp = (Get-Item -LiteralPath $control).LastWriteTime } catch {}
+
+function Write-TvdStaleCodeWarning {
+  # v1463 - hoisted out of the `if ($ready)` block. It used to live INSIDE the success path,
+  # so it could never fire in the failure mode it was written to diagnose (python dying or
+  # never serving because the tree moved under it). Now every terminal path calls it.
+  if (-not $controlStamp) { return }
+  try {
+    $now = (Get-Item -LiteralPath $control).LastWriteTime
+    if ($now -ne $controlStamp) {
+      Write-TvdLaunchLog ("WARN control_app.py was rewritten during boot ({0} -> {1}) - app is running stale code; relaunch" -f $controlStamp, $now)
+    }
+  } catch {}
+}
 
 Write-TvdLaunchLog ("launch FileName={0} Args={1} WD={2}" -f $exePath, $argLine, $repo)
 
@@ -369,6 +404,7 @@ try {
   # blink. Proven A/B on this machine: same script spawned Hidden -> IsWindowVisible False,
   # spawned default -> True. The flag was never needed (pythonw has no console to hide).
   $proc = Start-Process -FilePath $exePath -ArgumentList $argLine -WorkingDirectory $repo -PassThru
+  $sinceSpawn = [System.Diagnostics.Stopwatch]::StartNew()   # v1463 - window budget starts HERE
   Write-TvdLaunchLog ("started pid={0}" -f $proc.Id)
 } catch {
   Write-TvdLaunchLog ("Start-Process FAILED: {0}" -f $_)
@@ -402,26 +438,25 @@ if ($ready) {
   # doctor probe for this fast one and started logging 'launch complete' for a process that
   # served :17772 with no window at all, which is how the dead-icon state stayed invisible
   # in the log for days. Give WebView2 a bounded chance to paint, then log what is TRUE.
+  #
+  # v1463 - measure from SPAWN, not from the status answer. Control can answer ~1s in while
+  # WebView2's first paint takes far longer on a cold start, so the old 12x400ms clock (which
+  # only began once status replied) both forced SW_SHOW inside the real paint window and then
+  # told the user to STOP+reopen a launch that was about to succeed. Budget is now generous,
+  # the un-hide only fires well past any normal paint, and the window must belong to OUR pid.
   $win = $false
-  for ($w = 0; $w -lt 12; $w++) {
-    # First ~2.4s = boot grace: WinForms creates the form hidden and shows it itself, so do
-    # NOT force SW_SHOW yet (that would flash a black frame before WebView2's first paint).
-    # Still hidden after the grace period = a real fault, so force it then.
-    if (Focus-TvdWindow ($w -ge 6)) { $win = $true; break }
+  $unhideAfterMs = 8000
+  $giveUpMs = 20000
+  while ($sinceSpawn.ElapsedMilliseconds -lt $giveUpMs) {
+    if (Focus-TvdWindow ($sinceSpawn.ElapsedMilliseconds -ge $unhideAfterMs) $proc.Id) { $win = $true; break }
+    if ($proc.HasExited) { break }
     Start-Sleep -Milliseconds 400
   }
-  if ($controlStamp) {
-    try {
-      $now = (Get-Item -LiteralPath $control).LastWriteTime
-      if ($now -ne $controlStamp) {
-        Write-TvdLaunchLog ("WARN control_app.py was rewritten during boot ({0} -> {1}) - app is running stale code; relaunch" -f $controlStamp, $now)
-      }
-    } catch {}
-  }
+  Write-TvdStaleCodeWarning
   if ($win) {
-    Write-TvdLaunchLog 'launch complete (window up)'
+    Write-TvdLaunchLog ("launch complete (window up after {0}ms)" -f $sinceSpawn.ElapsedMilliseconds)
   } else {
-    Write-TvdLaunchLog 'WARN control up but NO TV DIABLO window after ~4.8s - headless/hidden; STOP+reopen if the icon stays dead'
+    Write-TvdLaunchLog ("WARN control up but NO TV DIABLO window from pid {0} after {1}ms - headless/hidden; STOP+reopen if the icon stays dead" -f $proc.Id, $sinceSpawn.ElapsedMilliseconds)
   }
   return
 }
@@ -429,9 +464,12 @@ if ($ready) {
 # Soft: process still alive - window may paint under WebView2 cold start; no scary dialog
 if (-not $proc.HasExited) {
   Write-TvdLaunchLog 'status slow but process alive - exit quiet (window coming)'
-  [void](Focus-TvdWindow)
+  # v1463 - still booting; never force SW_SHOW over an unpainted WebView2 surface.
+  [void](Focus-TvdWindow $false $proc.Id)
+  Write-TvdStaleCodeWarning
   return
 }
+Write-TvdStaleCodeWarning
 
 Write-TvdLaunchLog 'launch FAIL: process dead and status down'
 Show-TvdError (

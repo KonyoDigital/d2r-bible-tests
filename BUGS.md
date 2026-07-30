@@ -1035,3 +1035,55 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   `IsWindowVisible`, because this codebase has now shipped the same "window exists but is never
   shown" failure twice from two unrelated causes (REG-051, this); (3) cosmetics must never be
   able to cost the window — refuse the decoration, keep the app.
+
+## REG-054 — the suites were only green with an undisclosed env var, and one CORRUPTED a tracked file (2026-07-30)
+- **Symptom:** v1460/v1461/v1462 each shipped `Verify:` lines saying `test_agent 201 OK` /
+  `test_control 267 OK`. Run plainly (`python tv/test_agent.py`, no env vars) both were RED,
+  and the agent suite left `tv/stub_manifest.json` modified and un-decodable.
+- **Caught by:** the v1463 third-eye pass — two of five independent reviewers found it, and it
+  reproduced immediately by hand. It was invisible to me because every run I made exported
+  `PYTHONIOENCODING=utf-8 PYTHONUTF8=1` first, which masks the entire class.
+- **Root cause (the corruption):** `TestFarewellRead.setUp` reads `tv/stub_manifest.json` with
+  `encoding="utf-8"` but wrote it back with a bare `open(path,"w")`. On a Hebrew console
+  (cp1255) U+2014 is re-encoded as the single byte `0x97`, so the TRACKED fixture stops being
+  valid UTF-8. Sticky: every later run then dies in the utf-8 read, and `claude_read`'s
+  `except Exception: man = {}` silently degrades the stub lane instead of shouting.
+- **Root cause (the reds):** `control_app.py` never got the win32 stdio reconfigure that
+  `tv_diablo.py` has carried since REG-044, so its emoji `print()` calls raise
+  `UnicodeEncodeError` under cp1255. Plus unencoded `open(tv.__file__)` and `cap_target.json`
+  writes in the tests.
+- **Fix (v1463):** every test read/write of a repo file pins `encoding="utf-8"`; control_app
+  gets the same stdio reconfigure block; doctor's flat 3s urlopen timeout raised to 45s.
+- **Verify:** `python tv/test_agent.py` + `python tv/test_control.py`, NO env vars, three
+  consecutive rounds: 201 OK / 267 OK every round, exit 0, `git status` clean after.
+- **Prevention:** (1) a "green" claim must name the exact command AND the environment it was
+  run in — if it needed an env var, the env var is part of the claim; (2) tests must never
+  write a TRACKED file, and if they must, `encoding=` is mandatory and the run must leave
+  `git status` clean — that is now the check; (3) any Windows entry point that prints emoji
+  needs the REG-044 stdio block, not just the one that happened to hit it first.
+
+## REG-055 — a "proof the window is up" that another process could satisfy (2026-07-30)
+- **Symptom (latent):** none observed live — found by review before it bit.
+- **Root cause:** the v1460 window-presence check matched `title == "TV DIABLO" ||
+  title.startswith("TV DIABLO ")`. The popout board window is titled `"TV DIABLO — Board"` and
+  runs in its OWN process (`--board-window`), so it matches the prefix. With a board open and
+  the console hidden, `Focus()` would find the board, return true, and the launcher would log
+  `launch complete (window up)` — reporting success for exactly the dead-icon state the check
+  was added to catch. The Python twin `_win_focus_existing_console` had the same rule.
+- **Fix (v1463):** exact title only, plus an owning-PID filter (the launcher knows the pid it
+  just spawned). Verified live: real pid → found, bogus pid → not found.
+- **Prevention:** a liveness check must identify the thing by IDENTITY (exact title + owning
+  process), never by a prefix that a sibling window can satisfy. A check that can be satisfied
+  by something other than the thing it is checking is not a check.
+
+## REG-056 — corrections to REG-053's evidence (2026-07-30)
+- REG-053 said routing the icon to `start()` "with the existing `.png` candidate" would kill the
+  window on any machine that has an icon file. The measurement is real, but **`tv_diablo_icon.png`
+  does not exist in this repo** — I created it to run the A/B. No clean clone has an icon file,
+  so the trap could not have fired from repo state, and the `.ico`-only guard added in v1462 is
+  therefore unreachable today. The rule is still correct and worth keeping; the claim of imminent
+  danger was overstated. Windows also now has no `.png` fallback at all — deliberate, but it was
+  undisclosed.
+- **Prevention:** when an experiment needs a file the repo does not ship, say so in the finding.
+  Evidence produced by mutating the tree must be labelled as such or the next reader will
+  reasonably believe it reproduces from a checkout.
