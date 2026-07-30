@@ -2415,6 +2415,13 @@
   .zone-hunt { order: 1; } #hd-taskforce { order: 2; }
   .zone-mission { order: 3; } #hd-forge { order: 4; }
   .zone-record { order: 5; } #hd-kpi { order: 6; } #hd-tallybar { order: 7; } #hd-lastsession { order: 8; } #hd-history { order: 9; }
+  /* ══ v1467 (SESSIONS R6 · no banner over nothing) — a zone numeral must never announce an empty
+     movement. #hd-taskforce and #hd-lastsession both ship `hidden` and are only revealed inside
+     `if (rows.length)`, behind an early-return signature check and a try/catch that swallows
+     failures — so before the first poll, or after any throw, "Ⅰ THE HUNT" rendered as a heading
+     over blank space. A banner whose body is hidden now hides itself. Pure CSS, no JS coupling,
+     so it can never disagree with whatever the render path decides. ══ */
+  .home-dash > .zone-banner:has(+ .hd-col[hidden]) { display: none; }
   /* v1374 — the re-homed TALLY ENGINE launcher: a slim, always-visible bar in the RECORD zone (blue group) */
   #hd-tallybar { padding: var(--hd-pad-compact-y) var(--hd-pad-x); border-color: rgba(126,200,255,.2); }
   /* the ENGINE cards belong on TV-D, not the Sessions hunt hub — re-homed off here */
@@ -2475,7 +2482,16 @@
   body[data-view="sessions"] .hub-hero.idle { display: block; }
   .hub-hero.idle { border-color: var(--edge); background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.28)); box-shadow: none; }
   .hub-hero::before { content: "✦"; position: absolute; right: clamp(18px,2vw,30px); top: 50%; transform: translateY(-50%);
-    font: 96px/1 var(--serif); color: rgba(240,192,96,.05); pointer-events: none; }
+    font: var(--fs-display)/1 var(--serif); color: rgba(240,192,96,.05); pointer-events: none; }
+  /* v1467 — the IDLE hero is decoration with nothing to say: at low data it renders two italic
+     placeholders and a large ornament, and it sits ABOVE zone Ⅰ, so it pushes every real number
+     (sessions · reads/hr · grails · tallies · run history) toward or past the fold on a 700px-tall
+     console. Measured stack put "Ⅲ THE RECORD" at ~519px against a ~513px fold. When it has no
+     hero to show, it stops taking first-screen budget: no ornament, tighter padding. The moment
+     a real NEXT GRAIL exists the .idle class comes off and it returns to full size. */
+  .hub-hero.idle::before { content: none; }
+  .hub-hero.idle { padding: var(--hd-pad-y) var(--hd-pad-x); }
+  .hub-hero.idle:empty { display: none !important; }
   .hh-main { min-width: 0; }
   .hh-eye { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .28em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 9px; }
   .hh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); flex: none; }
@@ -3124,7 +3140,10 @@
       <!-- Ⅲ THE RECORD — chronicle of runs -->
       <div class="zone-banner zone-record"><span class="zb-no">Ⅲ</span><span class="zb-ico">🗂</span>THE RECORD<span class="zb-sub">the chronicle of your runs</span></div>
       <!-- v1274 (SESSIONS FLAGSHIP D4) — FARMING-PRODUCTIVITY KPIs -->
+      <!-- v1467 — label rhythm: #hd-lastsession and #hd-history below both open with the canonical
+           .hd-h gold-bar header, so these two floated unnamed exactly where the NUMBERS are. -->
       <div class="hd-col hd-wide hd-kpi" id="hd-kpi">
+        <div class="hd-h">📊 PRODUCTIVITY</div>
         <div class="kpi-row" id="kpi-row"></div>
       </div>
       <!-- v1374 — TALLY ENGINE launcher in the RECORD zone -->
@@ -8862,7 +8881,13 @@
   // data; reads/hr guards divide-by-zero and counts only real session time (Σ(t1−t0)). LIGHT: rides the 12s poll. ══
   function _kpiFmt(n){ n = +n || 0; if (n >= 100000) return Math.round(n / 1000) + 'K'; if (n >= 10000) return (n / 1000).toFixed(1) + 'K'; return n.toLocaleString(); }
   function _kpiTile(val, label, accent){
-    var dim = (val === '—') ? ' kpi-dim' : (accent ? ' kpi-' + accent : '');
+    // v1467 — a real ZERO is dim too, not just an absent "—". The resting line only fires at
+    // n===0, so at ONE session the row rendered six bright tiles reading 1 / — / 0 / 0 / n / n:
+    // a wall of zeros in exactly the state the honest-idle rule was written to avoid. A zero is
+    // truthful data and stays on screen, but it should read as "nothing yet", not compete with
+    // the numbers that actually moved. Accent colours still win where a value is non-zero.
+    var isBlank = (val === '—') || (val === 0) || (val === '0');
+    var dim = isBlank ? ' kpi-dim' : (accent ? ' kpi-' + accent : '');
     return '<div class="kpi' + dim + '"><div class="kpi-v">' + val + '</div><div class="kpi-l">' + esc(label) + '</div></div>';
   }
   function _hdKpiRender(){

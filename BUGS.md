@@ -1187,3 +1187,30 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   preserved in both copies.
 - **Prevention:** duplicated derivation logic across surfaces must be equality-asserted in the
   gate, not maintained by discipline. If it cannot be shared, it must be checked.
+
+## REG-062 — a zone numeral announced a movement that had no body (2026-07-30)
+- **Symptom:** the Sessions surface showed "Ⅰ THE HUNT" and "Ⅱ THE MISSIONS" as headings over
+  blank space, which is most of why the surface read as accumulated rather than designed.
+- **Root cause:** `.zone-banner` and its body are SIBLINGS in the dash grid — neither owns the
+  other. `#hd-taskforce` / `#hd-lastsession` ship `hidden` and are revealed only inside
+  `if (rows.length)`, behind an early-return signature guard and a `try/catch` that swallows
+  failures, so any throw or a pre-first-poll paint left the banner with nothing under it.
+- **Fix (v1467):** `.home-dash > .zone-banner:has(+ .hd-col[hidden]) { display: none }` — CSS, so
+  it cannot drift out of sync with the render path, and it degrades to the old behaviour on an
+  engine without `:has()` (verified supported here, Chromium 150).
+- **Prevention:** when a heading and its content are siblings rather than parent/child, the
+  heading needs a content binding or it will eventually render over emptiness. The structural
+  answer is a `<section>` that owns both — logged as the next round, not done here.
+
+## REG-063 — the honest-idle rule missed the state right next to zero (2026-07-30)
+- **Symptom:** at ONE recorded session the productivity row rendered six bright tiles reading
+  `1 / — / 0 / 0 / n / n` — a wall of zeros, which is exactly what the "honest idle" work was
+  written to prevent.
+- **Root cause:** the resting teaching line is gated on `if (!n)`, i.e. it only fires at zero
+  sessions. At n>=1 every tile renders at full brightness regardless of its value, and `.kpi-dim`
+  was applied only to an ABSENT value (`'—'`), never to a real `0`.
+- **Fix (v1467):** a real `0` is dimmed like an absent value. The data stays on screen — it is
+  truthful and hiding it would be worse — it simply stops competing with the numbers that moved.
+- **Prevention:** an "empty state" that only triggers at exactly zero will always have a near-
+  empty neighbour that looks broken. Style by VALUE (is this number meaningful yet?), not only by
+  COUNT (does any row exist?).

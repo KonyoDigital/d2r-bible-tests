@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1466",
+  "ver": "v1467",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1466: the profile sigil now shows on the BOARD too, same id and same generator \u2014 one machine, one crest, both surfaces",
+  "note": "v1467: Sessions structure \u2014 no zone banner over an empty body, the numbers sit above the fold, zeros read as resting",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

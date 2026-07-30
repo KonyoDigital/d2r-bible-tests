@@ -1,4 +1,48 @@
 
+## v1467 — 2026-07-30 — Sessions structure: the surface stops looking accumulated
+
+Spending the Sessions audit that had been sitting unused. Konyo's ask was that the console read
+"aligned and structured"; these are the four findings that actually made it read otherwise, each
+re-verified against the file before it was touched.
+
+1. **No zone banner over an empty body.** `#hd-taskforce` and `#hd-lastsession` both ship
+   `hidden` and are revealed only inside `if (rows.length)`, behind an early-return signature
+   check and a `try/catch` that swallows failures — so before the first poll, or after any throw,
+   **Ⅰ THE HUNT** and **Ⅱ THE MISSIONS** rendered as headings over blank space. A banner whose
+   body is hidden now hides itself, via `:has(+ .hd-col[hidden])`. Pure CSS, so it cannot
+   disagree with whatever the render path decides, and on an engine without `:has()` it silently
+   degrades to today's behaviour. Confirmed supported (Chromium 150).
+2. **The numbers are above the fold.** The idle hero is decoration with nothing to say — at low
+   data it renders two italic placeholders plus a 96px ornament, and it sits ABOVE zone Ⅰ, so it
+   pushed every real number toward the fold on a short console (measured: "Ⅲ THE RECORD" at
+   ~519px against a ~513px fold). When idle it now drops the ornament and the extra padding, and
+   an empty one removes itself. The moment a real NEXT GRAIL exists, `.idle` comes off and it is
+   full-size again. The ornament also stopped being a hardcoded `96px` and now rides
+   `--fs-display`, so it can never again be the one element ignoring the type scale.
+3. **Label rhythm.** `#hd-lastsession` and `#hd-history` both open with the canonical `.hd-h`
+   gold-bar header while `#hd-kpi` floated unnamed — exactly where the numbers are. It now reads
+   **📊 PRODUCTIVITY**. `#hd-tallybar` was deliberately left alone: it is a compact launcher
+   strip, not a card, and giving it a card header would fight its slimmer padding tier. The audit
+   said pick one, not both.
+4. **A real zero reads as resting.** The honest-idle line only fires at `n === 0`, so at ONE
+   session the row rendered six bright tiles reading `1 / — / 0 / 0 / n / n` — a wall of zeros in
+   precisely the state the resting rule exists to avoid. A zero is truthful data and stays on
+   screen, but it is now `.kpi-dim` like an absent `—`, so it stops competing with the numbers
+   that actually moved.
+
+- **Verify:** captured the live Sessions surface after the change and read it back — the Ⅰ/Ⅱ
+  banners are absent (their bodies are hidden), `PRODUCTIVITY` labels the KPI card, the tiles sit
+  on the first screen, labels fit on one line, and `GRAILS FOUND 0` / `TALLIES BANKED 0` render
+  muted against a bright `1` and a green `69`. `control_ui.html` parses in Chromium with no
+  `SyntaxError` · visual-lock invariant GREEN · `test_agent` **201 OK** · `test_control` **267
+  OK**, plain shell · stamps parity v1467.
+- **Left on the shelf, deliberately:** the audit's "single highest-leverage change" — wrapping
+  each movement in a `<section>` that owns its banner plus its own inner grid — is a real
+  restructure of a 9.7k-line file and wants its own round with a third-eye pass. Also unspent:
+  four near-identical card surfaces (`.kpi` / `.hh-card` / `.hd-card` / `.eh-organ` differing in
+  the third decimal of a gradient) that should collapse onto `.hd-col`, and `.hh-name` at 43px
+  out-ranking `.kpi-v` at 22px so decoration still outweighs data.
+
 ## v1466 — 2026-07-30 — the sigil reaches the BOARD: one machine, one crest
 
 Closes the gap v1465 shipped with and named: the sigil was console-only, so anyone looking at
