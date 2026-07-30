@@ -1,4 +1,36 @@
 
+## v1483 — 2026-07-31 — THE GATE SET, and the two failures it found within a minute
+
+REG-079 was never really about two stale assertions. It was that **nothing was watching them**. The
+gate set was a list people carried in their heads, so it differed by person and by session, and a
+suite could fall out of it in silence — `test_routes.py` did, for about a hundred versions, while
+still passing 181 of 183 and therefore looking maintained.
+
+`tv/run_gates.py` is that list in a file, with one verdict and one exit code. `TestNoOrphanSuite`
+makes falling out of it impossible: a `tv/test_*.py` the runner does not name is a failure, a gate
+pointing at a deleted file is a failure (it would "skip" forever and quietly shrink coverage), and
+a gate with no `why` is a failure (an untriageable gate is the one people learn to ignore). Skips
+are always printed, never counted as passes — silence about a check that did not happen is the same
+lie as a false green.
+
+Running it found two more failures immediately:
+
+* **`test_roundtrip_sim` had been unrunnable whenever the app was open** (REG-080). The Windows
+  single-primary mutex used one machine-wide name, which is a broader claim than the problem v1406
+  solved — two primaries fighting over the same port and window. A process on another port is a
+  different instance, and that is exactly what a harness is. The mutex is now scoped by
+  `CONTROL_PORT`: `:17772` stays strictly single-primary, an isolated harness runs alongside a live
+  console, and the refusal message names the port and explains itself.
+* **The same suite leaked its child** — `kill()` with no `wait()`, leaving a `control_app` that
+  still held its port and its own agent, so the next run failed to bind. It now terminates,
+  escalates, and always reaps. Runtime fell from 27s to 11s once the orphans stopped competing.
+
+**Gate set: 8/8 green, exit 0** — js-syntax · visual-lock · test_control 275 · test_agent 201 ·
+test_routes 183 · test_g5_grok_eyes 17 · test_roundtrip_sim · test_button_matrix (live API).
+First time the whole set has been green in one run.
+
+---
+
 ## v1482 — 2026-07-31 — test_routes tells the truth again (red since v1381.1)
 
 `tv/test_routes.py` had been exiting 1 for about a hundred versions, and nothing said so, because

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # 🎛 TV DIABLO control app — TDD (v765 REPLAY THEATRE + button/window discipline).
 # Boots the REAL Handler on an ephemeral port with a fixture journal + frame archive.
+import glob
 import json
 import os
 import re
@@ -3731,6 +3732,57 @@ class TestToolsCanReportTheirVerdict(unittest.TestCase):
         self.assertFalse(console_safe.enable(Dumb()))
         self.assertFalse(console_safe.enable(_io.StringIO()))
         console_safe.enable(None)          # tolerated, no exception
+
+
+class TestNoOrphanSuite(unittest.TestCase):
+    """v1483 — a test suite that nobody runs is not a test suite.
+
+    `tv/test_routes.py` exited 1 for about a hundred versions and nothing said so (REG-079). It was
+    not broken subtly — v1381.1 changed a rule and two tests kept asserting the old one — it was
+    simply outside everyone's habit. It still passed 181 of its 183 assertions, which is the trap:
+    a mostly-green orphan looks maintained.
+
+    "The gate set" used to be something people carried in their heads and typed by hand, so it was
+    different for every person and every session and a suite could fall out of it in silence. It is
+    now a list in `tv/run_gates.py`, and this test makes falling out of it impossible.
+    """
+
+    def test_every_suite_is_in_the_gate_set(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "run_gates.py"), encoding="utf-8") as fh:
+            runner = fh.read()
+        suites = sorted(os.path.basename(p) for p in glob.glob(os.path.join(here, "test_*.py")))
+        self.assertGreater(len(suites), 3, "suite discovery found almost nothing — check the glob")
+        missing = [s for s in suites if s not in runner]
+        self.assertEqual(
+            missing, [],
+            "these suites exist but no gate runs them, so they can rot for a hundred versions "
+            "while still looking maintained (REG-079):\n  " + "\n  ".join(missing)
+            + "\nAdd each to GATES in tv/run_gates.py, with a `why` saying what it protects.")
+
+    def test_gate_set_names_only_things_that_exist(self):
+        """The other direction: a gate pointing at a deleted file would 'skip' forever and quietly
+        shrink the real coverage."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        repo = os.path.dirname(here)
+        sys.path.insert(0, here)
+        import run_gates
+        missing = []
+        for g in run_gates.GATES:
+            target = g.argv[-1]
+            if not os.path.isfile(target):
+                missing.append("%s -> %s" % (g.name, os.path.relpath(target, repo)))
+        self.assertEqual(missing, [], "gates point at files that do not exist:\n  "
+                                      + "\n  ".join(missing))
+
+    def test_every_gate_says_what_it_protects(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, here)
+        import run_gates
+        silent = [g.name for g in run_gates.GATES if not (g.why or "").strip()]
+        self.assertEqual(silent, [], "a gate with no `why` cannot be triaged when it goes red, and "
+                                     "an untriageable gate is the one people start ignoring: %s"
+                                     % ", ".join(silent))
 
 
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added

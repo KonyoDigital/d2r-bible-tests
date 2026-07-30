@@ -73,10 +73,27 @@ class TestRoundtrip(unittest.TestCase):
             api("/api/off", post=True, timeout=30)
         except Exception:
             pass
+        # v1484 — REAP the child, do not merely signal it. `kill()` only sends the signal; without
+        # a wait() the process object stays unreaped and Python warns
+        # "ResourceWarning: subprocess NNNNN is still running" — which is not cosmetic here,
+        # because a surviving control_app keeps holding its port and its own agent child, and the
+        # NEXT run of this suite then fails to bind. Terminate first (so the server can close its
+        # sockets), escalate to kill, and always wait.
         try:
-            cls.proc.kill()
+            cls.proc.terminate()
         except Exception:
             pass
+        try:
+            cls.proc.wait(timeout=10)
+        except Exception:
+            try:
+                cls.proc.kill()
+            except Exception:
+                pass
+            try:
+                cls.proc.wait(timeout=10)
+            except Exception:
+                pass
         shutil.rmtree(cls.dir, ignore_errors=True)
 
     def test_roundtrip_on_record_seal_sim(self):

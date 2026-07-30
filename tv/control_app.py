@@ -8024,7 +8024,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1482",
+        "ver": "v1483",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10469,7 +10469,24 @@ def board_window():
 
 def _win_primary_mutex():
     """v1406 — Windows single primary instance (Desktop double-click used to spawn 2x --open).
-    Returns (handle, is_owner). Non-owner must not bind :17772 or open a second window."""
+    Returns (handle, is_owner). Non-owner must not bind this port or open a second window.
+
+    v1484 — THE MUTEX IS SCOPED BY PORT. It used to be one machine-wide name, which is a broader
+    claim than the problem it was solving: what v1406 actually prevents is two primaries fighting
+    over the SAME port and window. A process on a different control port is a different instance by
+    definition — and that is exactly what a test harness is.
+
+    The cost of the wider claim was `tv/test_roundtrip_sim.py`, which boots its own control_app on
+    :17956. Whenever the real app was open, the harness child exited immediately with
+    "already running (primary mutex)", the suite's setUpClass timed out after ~100s, and it
+    reported `Ran 0 tests / FAILED (errors=1)`. Since a developer's app is usually open while they
+    work, the suite was effectively unrunnable on the machine that needed it most — and its output
+    said nothing about mutexes, so it read as a mysterious server-startup failure.
+
+    Scoping by port keeps v1406's protection intact where it matters (:17772 is still strictly
+    single-primary, so the desktop icon still cannot spawn two) while letting an isolated harness
+    run alongside a live console.
+    """
     if not IS_WIN:
         return None, True
     try:
@@ -10479,7 +10496,8 @@ def _win_primary_mutex():
         kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
         kernel32.CreateMutexW.restype = wintypes.HANDLE
         kernel32.GetLastError.restype = wintypes.DWORD
-        handle = kernel32.CreateMutexW(None, False, "Local\\TV_DIABLO_CONTROL_PRIMARY_v1")
+        name = "Local\\TV_DIABLO_CONTROL_PRIMARY_v1_p%d" % CONTROL_PORT
+        handle = kernel32.CreateMutexW(None, False, name)
         ERROR_ALREADY_EXISTS = 183
         owned = kernel32.GetLastError() != ERROR_ALREADY_EXISTS
         return handle, bool(owned)
@@ -10573,8 +10591,9 @@ def main():
     _mtx, _mtx_owner = _win_primary_mutex()
     if IS_WIN and not _mtx_owner:
         # Port may already be serving; never open a second primary window.
-        print(f"TV DIABLO already running (primary mutex) — not opening a second instance.",
-              flush=True)
+        print("TV DIABLO already running on :%d (primary mutex) — not opening a second instance. "
+              "A harness wanting its own server should set TV_CONTROL_PORT to a free port; the "
+              "mutex is scoped per port." % CONTROL_PORT, flush=True)
         if open_ui:
             _win_focus_existing_console()
         sys.exit(0)

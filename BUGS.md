@@ -1575,3 +1575,31 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** a test suite that is not in the gate set is not a test suite. See v1483, which
   makes an unreferenced `tv/test_*.py` a failure in its own right — the fix for this defect is not
   the two assertions, it is that nothing was watching them.
+
+## REG-080 — the single-primary mutex made a whole suite unrunnable (2026-07-31)
+
+- **Symptom:** `tv/test_roundtrip_sim.py` reported `Ran 0 tests · FAILED (errors=1)` with
+  `RuntimeError: roundtrip control server never came up`, after burning ~100s in `setUpClass`.
+- **Root cause:** the harness boots its own `control_app.py` on `:17956`, but the v1406 Windows
+  single-primary mutex used ONE machine-wide name, `TV_DIABLO_CONTROL_PRIMARY_v1`. Whenever the
+  real app was running, the harness child hit `ERROR_ALREADY_EXISTS`, printed "already running
+  (primary mutex)" and exited 0 — so the parent waited 40 × 0.5s for a server that had quietly
+  declined to exist. Since a developer's app is usually open while they work, the suite was
+  effectively unrunnable on the machine that needed it most.
+- **Why the diagnosis was slow:** the harness sends the child's stdout/stderr to `DEVNULL`, so the
+  one line that explained everything was thrown away, and the visible symptom pointed at the
+  server's startup rather than at a mutex.
+- **Fix (v1484 / shipped in v1483):** the mutex name is scoped by `CONTROL_PORT`. This is not a
+  weakening — what v1406 prevents is two primaries fighting over the same port and window, and a
+  process on a different port is a different instance by definition. `:17772` remains strictly
+  single-primary (the desktop icon still cannot spawn two) while an isolated harness runs alongside
+  a live console. The refusal message now also names the port and says the mutex is per-port, so
+  the next person who hits it is told what to do instead of being left with a mystery.
+- **Also fixed:** the same suite leaked its child — `proc.kill()` with no `wait()`, which left a
+  `ResourceWarning` and, worse, a surviving `control_app` still holding its port and its own agent
+  child, so the NEXT run failed to bind. It now terminates, escalates to kill, and always reaps.
+  Runtime dropped from 27s to 11s once the orphans stopped competing.
+- **Prevention:** (1) a lock should be scoped to the resource it protects — a machine-wide name is
+  a much broader claim than "one app per port", and the extra breadth is invisible until something
+  legitimate needs a second instance. (2) Never send a spawned child's output to DEVNULL in a
+  harness whose failure mode is "the child did not start"; capture it and print it on timeout.
