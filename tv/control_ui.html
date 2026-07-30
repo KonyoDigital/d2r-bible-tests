@@ -192,6 +192,39 @@
     padding: 0 clamp(2px, .6vw, 10px);
   }
   .brand { display: flex; align-items: center; gap: clamp(10px, 1vw, 16px); min-width: 0; }
+  /* ══ v1465 — THE PROFILE SIGIL. Generated from this install's own id, so it is impossible for
+     two machines to wear the same crest by accident and impossible to mistake whose console you
+     are looking at. Colour + glyph + name + code are four independent reads of the same hash:
+     the colour carries across a room, the glyph survives a screenshot, the name is what you say
+     out loud, and the 4-char code is the tiebreak when two sigils look similar. Uses the app's
+     own type tokens — nothing here introduces a raw weight or a one-off size. ══ */
+  .sigil {
+    display: inline-flex; align-items: center; gap: 8px; flex: none;
+    padding: 5px 10px 5px 7px; border-radius: 999px; cursor: pointer;
+    min-height: 32px;                                  /* Windows hit-target floor */
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.34));
+    border: 1px solid var(--sg-edge, var(--edge));
+    color: var(--text); font-family: var(--mono);
+    transition: border-color .2s, background .2s;
+  }
+  .sigil:hover { border-color: var(--sg-hue, var(--gold)); background: rgba(255,255,255,.05); }
+  .sigil .sg-glyph {
+    width: 22px; height: 22px; display: grid; place-items: center; flex: none;
+    border-radius: 6px; font-size: var(--fs-sm); line-height: 1;
+    color: #0b0906; background: var(--sg-hue, var(--gold));
+    font-weight: var(--fw-bold);
+  }
+  .sigil .sg-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+  .sigil .sg-name {
+    font-size: var(--fs-2xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-wide);
+    text-transform: uppercase; color: var(--sg-hue, var(--gold)); line-height: 1;
+    white-space: nowrap;
+  }
+  .sigil .sg-sub {
+    font-size: var(--fs-2xs); font-style: normal; color: var(--muted); line-height: 1;
+    letter-spacing: var(--ls-tight); white-space: nowrap;
+  }
+  @media (max-width: 1080px){ .sigil .sg-txt { display: none; } .sigil { padding: 5px 7px; } }
   .emblem {
     width: clamp(44px, 4vw, 64px);
     aspect-ratio: 1;
@@ -2915,6 +2948,14 @@
     <header class="topbar">
       <div class="brand">
         <div class="emblem"><img id="emblem-img" src="/art/harlequincrest_graphic.png" alt="" onerror="this.src='/art/hd_ohm_rune.png'" title="TV DIABLO — the grail engine"></div>
+        <!-- v1465 — WHOSE CONSOLE IS THIS. A sigil generated from this install's own id, so a
+             glance answers "am I in my profile?" and two people can compare at a distance.
+             Hidden until the identity arrives, so it never flashes a placeholder crest. -->
+        <button class="sigil" id="sigil" type="button" hidden
+                title="This console's identity — click to compare">
+          <span class="sg-glyph" id="sg-glyph">·</span>
+          <span class="sg-txt"><b class="sg-name" id="sg-name">—</b><i class="sg-sub" id="sg-sub">—</i></span>
+        </button>
         <!-- v881 (Konyo #47: 'tabs structured properly, easily navigatable — the title is
              pointless, this is an engine console') — the 5 board tabs ARE the header -->
         <nav class="head-tabs" id="head-tabs">
@@ -9706,5 +9747,95 @@ body:not(.shell-open) #tvd-eng {
 .th-drawer { line-height: var(--lh-relaxed) !important; }
 .th-drawer h4 { letter-spacing: var(--ls-label) !important; }
 </style>
+<script>
+/* ══ v1465 — PROFILE SIGIL. Deliberately self-contained: its own tiny poll, no hook into the
+   main paint path, so a console-identity feature can never destabilise the live readout. It
+   fails silent — if /api/status has no identity the chip simply stays hidden. ══ */
+(function () {
+  // 24 runes: visually distinct at 22px, and they survive a screenshot or a phone photo.
+  var GLYPHS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ','ᛇ','ᛈ','ᛉ','ᛊ','ᛏ','ᛒ','ᛖ','ᛗ','ᛚ','ᛜ','ᛞ','ᛟ'];
+  // The adjective and the colour are INDEX-LOCKED, not independently hashed. First cut hashed
+  // them apart and produced "AMBER ANVIL" rendered in blue — which defeats the point, because
+  // the whole job of this chip is that a colour seen across a room and a name said out loud
+  // agree. Every hue is legible on #070605 and distinguishable from its neighbours.
+  var A =    ['Ember',  'Ashen',  'Crimson','Gilded', 'Hollow', 'Frost',  'Storm',  'Umbral',
+              'Molten', 'Pale',   'Iron',   'Void',   'Amber',  'Dusk',   'Rime',   'Cinder'];
+  var HUES = ['#ff8f4a','#b9b2a4','#ff6b6b','#f0c060','#9fb6c9','#7ec8ff','#b0a6ff','#c9a8ff',
+              '#ff7a3c','#e8e0cf','#9aa6b2','#6f8cf2','#ffb347','#ff8fb8','#7ae0d0','#e0794a'];
+  var B = ['Wraith','Sigil','Crest','Warden','Vessel','Talon','Cairn','Herald','Fang','Lantern',
+           'Oath','Beacon','Reliquary','Bastion','Ledger','Anvil'];
+  function h32(s, salt) {                    // FNV-1a — stable across engines and reloads
+    var h = 2166136261 >>> 0; s = (salt || '') + String(s);
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+  }
+  function sigilFor(id) {
+    if (!id) return null;
+    var a = h32(id, 'g'), c = h32(id, 'n');
+    var adj = c % A.length;                  // one index drives BOTH the word and the colour
+    return {
+      glyph: GLYPHS[a % GLYPHS.length],
+      hue:   HUES[adj],
+      name:  A[adj] + ' ' + B[(c >>> 9) % B.length],
+      code:  ('0000' + (a >>> 16).toString(16)).slice(-4).toUpperCase()
+    };
+  }
+  window.TVD_SIGIL = { of: sigilFor };      // exposed so tests/console can assert determinism
+
+  var el = document.getElementById('sigil');
+  if (!el) return;
+  var gl = document.getElementById('sg-glyph'),
+      nm = document.getElementById('sg-name'),
+      sb = document.getElementById('sg-sub');
+  var lastId = null;
+
+  function worldOf() {                       // whose-world, read from the board's own pointer
+    try {
+      var m = localStorage.getItem('d2r_activeMachine') === 'windows' ? 'windows' : 'mac';
+      var p = localStorage.getItem(m === 'windows' ? 'd2r_activeProfileWin' : 'd2r_activeProfile');
+      return { machine: m, profile: p === 'ladder' ? 'ladder' : 'main' };
+    } catch (e) { return { machine: '?', profile: '?' }; }
+  }
+
+  function paint(st) {
+    var idt = st && st.identity;
+    if (!idt || !idt.id) return;
+    if (idt.id === lastId) return;           // nothing changes unless the install changes
+    lastId = idt.id;
+    var s = sigilFor(idt.id);
+    if (!s) return;
+    el.style.setProperty('--sg-hue', s.hue);
+    el.style.setProperty('--sg-edge', s.hue + '66');
+    gl.textContent = s.glyph;
+    nm.textContent = s.name;
+    var w = worldOf();
+    sb.textContent = s.code + ' · ' + (idt.computer || '?');
+    el.title =
+      'PROFILE SIGIL — ' + s.name + '  [' + s.code + ']\n' +
+      'machine : ' + (idt.computer || '?') + '  (' + (idt.user || '?') + ')\n' +
+      'world   : ' + w.machine + ' / ' + w.profile + '\n' +
+      'install : ' + String(idt.id).slice(0, 12) + '\n\n' +
+      'Same sigil = same console + same install. Different sigil = a different profile,\n' +
+      'with its own vault, chronicle and forge progress. Click to copy for comparing.';
+    el.hidden = false;
+  }
+
+  el.addEventListener('click', function () {
+    var t = el.title || '';
+    try { navigator.clipboard.writeText(t.split('\n\n')[0]); } catch (e) {}
+    var was = nm.textContent; nm.textContent = 'COPIED';
+    setTimeout(function () { nm.textContent = was; }, 900);
+  });
+
+  async function tick() {
+    try {
+      var r = await fetch('/api/status', { cache: 'no-store' });
+      paint(await r.json());
+    } catch (e) { /* console not up yet — try again on the next tick */ }
+  }
+  tick();
+  setInterval(tick, 15000);
+})();
+</script>
 </body>
 </html>

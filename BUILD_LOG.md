@@ -1,4 +1,53 @@
 
+## v1465 — 2026-07-30 — the PROFILE SIGIL: whose console is this, at a glance
+
+Konyo: *"a unique generated login symbol for a profile so my cousin knows it's his console and
+he's logged into his profile — and same for me. How can we compare the differences?"*
+
+### The design correction that made this necessary
+Konyo owns **four** machines that matter: this Windows PC, a second Windows PC, a MacBook, and
+the cousin's PC. The v663 identity model is a **2x2** — `mac|windows` x `main|ladder` — so it
+physically cannot tell two Windows PCs apart: both resolve to the same `W·` namespace and would
+**silently share one save**. "Whose world" (the switch) and "which box" (this) are different
+questions, and only the first had an answer.
+
+### Per-install identity — `tv/.tvd_identity.json` (gitignored)
+Minted once per install: an opaque `uuid4`, plus hostname / OS user / platform / createdAt as
+**human-readable labels only**. The labels are deliberately NOT the identity — two people can
+both be `Administrator` on `DESKTOP-PC`, and a sigil that collided there would be worse than no
+sigil at all. Gitignored, so it can never travel between machines through `origin/main`.
+Served on `/api/status` as `identity`.
+
+### The sigil — four independent reads of one hash
+`colour + rune + name + 4-char code`, all derived from that id via FNV-1a, rendered as a chip in
+the console header beside the emblem. Four channels on purpose, because each survives a different
+situation: **colour** carries across a room, the **rune** survives a screenshot or a phone photo,
+the **name** is what you say out loud on a call, and the **code** is the tiebreak when two sigils
+look similar. Hover gives the full dossier — machine, OS user, world (`mac|windows` /
+`main|ladder`), install prefix — and clicking copies the headline for comparing.
+
+**Design fix caught by looking at it:** the first cut hashed the adjective and the colour
+independently and produced *"AMBER ANVIL" rendered in blue*, which defeats the entire point. The
+16 adjectives and 16 hues are now **index-locked**, so the word and the colour always agree.
+This machine reads **AMBER ANVIL · B210 · AdiJusid**.
+
+Deliberately self-contained: its own small poll, no hook into the main paint path, hidden until
+an identity actually arrives. A console-identity chip must never be able to destabilise the live
+readout, and it fails silent if `/api/status` has no `identity`.
+
+### How to compare two consoles
+Same sigil = same console **and** same install. Different sigil = a different profile, with its
+own vault, chronicle and forge progress. The `W·`/`bare` world shown in the tooltip is the
+storage namespace, so two machines can share a *world* while having different *sigils* — which is
+exactly the case this model previously could not express.
+
+- **Verify:** visual-lock invariant GREEN · `test_agent` **201 OK** · `test_control` **267 OK**,
+  plain shell · `py_compile` · identity stable across calls · `tv/.tvd_identity.json` confirmed
+  gitignored via `git check-ignore` · sigil rendered and read back from a live screenshot twice
+  (before and after the colour-lock fix).
+- **Not done yet:** the sigil is console-only. `bible.html` (the board) has no sigil, so a person
+  looking at the board alone still cannot tell whose world it is. That is the natural R4.
+
 ## v1464 — 2026-07-30 — a new PC gets its OWN world · Windows-native console polish
 
 ### 1. Per-PC identity (REG-057) — the headline

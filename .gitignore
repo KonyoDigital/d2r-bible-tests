@@ -49,3 +49,6 @@ backups/*.tar.gz
 tv/.windows_install.json
 tv/_*.txt
 tv/__pycache__/
+
+# v1465 — per-install identity: unique per PC, must NEVER travel between machines
+tv/.tvd_identity.json

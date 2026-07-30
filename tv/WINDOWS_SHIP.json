@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1464",
+  "ver": "v1465",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1464: a brand-new PC gets its OWN world (W\u00b7) instead of booting into the owner's; window fits the screen; dark caption",
+  "note": "v1465: every install wears a generated PROFILE SIGIL \u2014 colour + rune + name + code \u2014 so you can see whose console this is",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

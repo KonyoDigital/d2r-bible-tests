@@ -7864,6 +7864,50 @@ def _project_live_ring():
     return out
 
 
+IDENTITY_PATH = os.path.join(HERE, ".tvd_identity.json")
+
+
+def install_identity():
+    """v1465 — a STABLE, PER-INSTALL identity. Gitignored, so it never travels between PCs.
+
+    Konyo owns four machines that matter (this Windows PC, a second Windows PC, a MacBook, and
+    the cousin's PC). The v663 machine switch is a 2x2 — mac|windows x main|ladder — so it
+    cannot tell two Windows PCs apart: both land in the same W· world and silently share one
+    save. Whose-world (the switch) and which-box (this) are different questions; this answers
+    the second, and it is what the console's sigil is derived from.
+
+    The id is random and opaque, minted once per install. Hostname and OS user ride along only
+    as human-readable labels — they are NOT the identity, because two people can both be
+    "Administrator" on "DESKTOP-PC" and a sigil that collided there would be worse than none.
+    """
+    try:
+        with open(IDENTITY_PATH, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, dict) and data.get("id"):
+            return data
+    except Exception:
+        pass
+    try:
+        import getpass
+        import socket
+        import uuid as _uuid
+        data = {
+            "id": _uuid.uuid4().hex,
+            "computer": socket.gethostname() or "?",
+            "user": getpass.getuser() or "?",
+            "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
+            "createdAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        tmp = IDENTITY_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, IDENTITY_PATH)
+        print(f"🪪 minted install identity {data['id'][:8]} on {data['computer']}", flush=True)
+        return data
+    except Exception:
+        return {"id": "", "computer": "?", "user": "?", "platform": "?", "createdAt": ""}
+
+
 def status_payload():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
@@ -7965,9 +8009,14 @@ def status_payload():
         _fleet = fleet_origin_status(force_fetch=False)
     except Exception:
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
+    try:
+        _ident = install_identity()
+    except Exception:
+        _ident = {"id": "", "computer": "?", "user": "?"}
     return {
         "ok": True,
-        "ver": "v1464",
+        "identity": _ident,          # v1465 — per-install; the console renders its sigil
+        "ver": "v1465",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

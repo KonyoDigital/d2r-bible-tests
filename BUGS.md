@@ -1130,3 +1130,28 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   geometry from the layout engine, not from a bitmap; (2) any Win32 measurement of another
   process's window must match DPI awareness with that process or it is silently virtualized;
   (3) when a UI bug is only visible through one tool, suspect the tool first.
+
+## REG-059 — the identity model could not tell two Windows PCs apart (2026-07-30)
+- **Symptom:** Konyo asked for a per-profile login symbol so his cousin could tell whose console
+  he was in. Scoping it surfaced a deeper hole: Konyo runs FOUR machines (this Windows PC, a
+  second Windows PC, a MacBook, the cousin's PC), but the v663 identity model is a 2x2 —
+  `mac|windows` x `main|ladder`.
+- **Root cause:** the model answers "whose world" (which storage namespace) and nothing answers
+  "which box". Two Windows PCs both resolve to `W·` and would silently share one save with no
+  indication anywhere in the UI that they were the same profile.
+- **Fix (v1465):** a per-install identity in `tv/.tvd_identity.json` — an opaque uuid4 minted once
+  and gitignored so it cannot travel between machines. Hostname/user ride along as LABELS only:
+  two people can both be `Administrator` on `DESKTOP-PC`, so deriving the id from them would
+  collide exactly where a collision is most damaging. Served on `/api/status`, rendered as a
+  generated sigil (colour + rune + name + 4-char code) in the console header.
+- **Design fix inside the fix:** the adjective and the colour were first hashed independently,
+  which produced "AMBER ANVIL" rendered in blue. They are now index-locked so the spoken name and
+  the seen colour always agree — the chip exists to be compared at a distance, and two channels
+  disagreeing is worse than one channel.
+- **Verify:** identity stable across calls; `git check-ignore` confirms the file is ignored;
+  sigil read back from a live screenshot before and after the colour lock.
+- **Prevention:** (1) an identity scheme must be sized to the real number of installs, not the
+  number of platforms — "mac vs windows" was never an identity, it was an OS label doing identity
+  work; (2) never derive a unique id from hostname/username, which collide on defaults; (3) if a
+  visual identity has several channels, drive them from ONE index — independent hashes make the
+  channels contradict each other and destroy the compare-at-a-glance property.

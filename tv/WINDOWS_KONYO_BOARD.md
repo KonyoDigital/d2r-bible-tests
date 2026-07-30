@@ -3,12 +3,13 @@
 ## Current ship
 | Item | Value |
 |------|--------|
-| Version | **v1464** |
+| Version | **v1465** |
 | Suites | test_agent **201 OK** · test_control **267 OK** — in a PLAIN `python tv/test_*.py`, no env vars |
 | Launch | spawn no longer hides the app window · window presence verified, not assumed |
 | Icon | `appicon.ico` via pywebview 6 `start(icon=)` — **.ico only** (a .png silently kills the window) |
 | Pull | skipped if already up · 12s cap · timed-out job really stops before spawn |
 | Identity | a machine with NO `d2r_*` key at all starts in its own `W·` world · any existing install stays `mac` |
+| Sigil | every install mints `tv/.tvd_identity.json` (gitignored) → colour+rune+name+code chip in the header. This PC = **AMBER ANVIL · B210** |
 | Geometry | ships 1120x660 logical — an 800-tall window did not fit a 672-logical work area |
 
 ## Fixed in v1460 — the dead Desktop icon (REG-051)
