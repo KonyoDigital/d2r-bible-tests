@@ -767,6 +767,12 @@
   .rc-go { cursor: pointer; }
   .rc-go:hover { background: rgba(143,230,160,.09); opacity: 1; }
   .rc-go:hover .rcpt-arrow { opacity: .85; }
+  /* v1456 HONESTY — a read the accuracy gate refused keeps its row but never reads as proven */
+  .rcpt.rc-held { opacity: .72; }
+  .rcpt.rc-held .rcpt-t { color: #9aa39b; text-decoration: underline dotted rgba(255,157,92,.5); }
+  .rcpt-held { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: .78em;
+    font-weight: var(--fw-semibold); letter-spacing: var(--ls-label); color: #ffb27a;
+    border: 1px solid rgba(255,157,92,.42); background: rgba(255,157,92,.1); }
   .rc-live     { border-left-color: #e05545; }
   .rc-second   { border-left-color: #5c9ded; }
   .rc-kai      { border-left-color: var(--gold); }
@@ -3482,10 +3488,19 @@
     var name = refs.itemName || '', dl = (r.diablo && r.diablo.label) || '';
     var txt = (_RCPT_KIND[r.kind] || (r.kind || '')) + (name ? ' ' + name : '') + (dl ? ' · ' + dl : '');
     var go = !!(r.route && r.route.target);
-    return '<div class="rcpt ' + eng.cls + (go ? ' rc-go' : '') + (refs.frameId ? ' rc-art' : '') + '"'
+    // v1456 HONESTY (audit): a read the accuracy gate REFUSED used to look exactly as authoritative
+    // as a proven one. Doctrine is surface, never hide — a held read keeps its row (and its route)
+    // but wears a ⚠ HELD chip with the gate's own reason, so the feed never asserts what the gate denied.
+    var held = r.held === true || (r.gate && r.gate.pass === false);
+    var chip = held
+      ? '<span class="rcpt-held" title="the accuracy gate REFUSED this read' +
+        ((r.gate && r.gate.reason) ? ' — ' + esc(r.gate.reason) : '') + '">⚠ HELD</span>'
+      : '';
+    return '<div class="rcpt ' + eng.cls + (go ? ' rc-go' : '') + (refs.frameId ? ' rc-art' : '')
+      + (held ? ' rc-held' : '') + '"'
       + ' data-id="' + esc(r.id || '') + '"' + (refs.frameId ? (' data-frame="' + esc(refs.frameId) + '"') : '')
       + (go ? (' data-rtype="' + esc(r.route.type) + '" data-rtarget="' + esc(r.route.target) + '"') : '') + '>'
-      + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t">' + esc(txt) + '</span>'
+      + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t">' + esc(txt) + '</span>' + chip
       + (go ? '<span class="rcpt-arrow">→</span>' : '') + '</div>';
   }
   // event delegation, bound once: click → route into the board · hover → floating captured frame
@@ -8955,8 +8970,16 @@
     var cpReads = cp.reads, cpUnread = cp.unread, cpDropped = cp.dropped;
     var hasCp = (cpReads != null || cpFilm != null);
     // 1) CAPTURE — the senses (+ film completeness: frames captured, real drops)
-    var capPulse = dead ? 'bad' : (cpDropped > 0 ? 'warn' : (!on ? 'idle' : (st.gameOk === false ? 'warn' : (ageS != null && ageS < 5 ? 'ok' : 'warn'))));
-    var capStat = dead ? 'engine down' : (!on ? 'resting' : (st.gameOk === false ? 'no game' : 'live'));
+    // v1456 HONESTY (audit): the server keeps a 15s last-good state snapshot under D2R load (right
+    // call) and now SAYS SO via stateFresh/stateAgeMs. A stale snapshot must not paint as plain
+    // "live", and "no bridge data at all" (gameOkKnown false) must not read as "game is fine".
+    var stStale = (st.stateFresh === false && st.stateAgeMs != null && st.stateAgeMs >= 0);
+    var gameUnknown = (st.gameOkKnown === false);
+    var capPulse = dead ? 'bad' : (cpDropped > 0 ? 'warn' : (!on ? 'idle' : (st.gameOk === false ? 'warn' : ((stStale || gameUnknown) ? 'warn' : (ageS != null && ageS < 5 ? 'ok' : 'warn')))));
+    var capStat = dead ? 'engine down' : (!on ? 'resting'
+      : (st.gameOk === false ? 'no game'
+      : (gameUnknown ? 'game state unknown'
+      : (stStale ? ('last known ' + Math.round(st.stateAgeMs / 1000) + 's ago') : 'live'))));
     var capSub;
     if (on && ageS != null) capSub = 'last frame ' + ageS + 's';
     else if (hasCp) capSub = (cpDropped > 0)

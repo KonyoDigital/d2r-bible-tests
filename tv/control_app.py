@@ -1092,9 +1092,16 @@ def _bridge_state():
         with urllib.request.urlopen(
             f"http://127.0.0.1:{AGENT_PORT}/state?lite=1", timeout=_to
         ) as r:
-            return json.loads(r.read().decode("utf-8", "replace"))
+            got = json.loads(r.read().decode("utf-8", "replace"))
     except Exception:
         return None
+    # v1456 HONESTY (audit, v1452 bug class): a degenerate payload — {} or a non-dict — used to be
+    # cached as a GOOD snapshot and stamped _BRIDGE_LAST_OK, so the console painted "live" off a
+    # body that carried no state at all. Real /state always ships "online" + "now"; anything
+    # without them is treated as a miss, so the prober keeps its last good snapshot instead.
+    if not isinstance(got, dict) or not ("online" in got or "now" in got):
+        return None
+    return got
 
 
 def _disk_eye_age_ms():
@@ -7479,13 +7486,30 @@ def _engines_status():
     router = {"label": "🚦 Router", "wired": drv_alive, "state": rt_state,
               "lastBeatMs": drv_beat or None, "note": rt_note}
 
-    # 🛡 WATCHDOG — event-driven, armed in the seal path (not a loop). Always wired/armed; beat =
-    # the last seal it checked, verdict rides the note.
+    # 🛡 WATCHDOG — event-driven, armed in the seal path (not a loop). beat = the last seal it
+    # checked, verdict rides the note.
+    # v1456 HONESTY (audit): this lamp was hardcoded wired:True/state:"armed" — a lamp that can
+    # NEVER report down is decoration, not instrumentation. It now speaks the same vocabulary as
+    # every other lamp: down when the engine is dead-hard (nothing will arm it), live when it just
+    # checked a seal, idle when it is armed but has checked nothing yet. "armed" as a permanent
+    # state is gone — the note says so instead.
     wl = globals().get("_WATCHDOG_LAST")
     wd_ts = int((wl or {}).get("ts") or 0)
-    watchdog = {"label": "🛡 Watchdog", "wired": True, "state": "armed",
-                "lastBeatMs": wd_ts or None,
-                "note": ((wl or {}).get("verdict") or "no seal checked yet")}
+    wd_verdict = (wl or {}).get("verdict") or ""
+    if dead_hard:
+        wd_state = "down"
+        wd_note = "engine dead — no seal will arm the watchdog"
+    elif _fresh(wd_ts, _ENG_FRESH_SLOW):
+        wd_state = "live"
+        wd_note = wd_verdict or "checked a seal"
+    else:
+        wd_state = "idle"
+        wd_note = (("armed · last seal: " + wd_verdict) if wd_verdict
+                   else "armed, no seal checked yet")
+    watchdog = {"label": "🛡 Watchdog", "wired": not dead_hard, "state": wd_state,
+                "lastBeatMs": wd_ts or None, "note": wd_note,
+                "verdict": wd_verdict or None,
+                "rules": list((wl or {}).get("rules") or [])}
 
     return {"liveEye": liveEye, "secondEye": secondEye, "kai": kai,
             "router": router, "watchdog": watchdog}
@@ -7542,13 +7566,22 @@ def _receipts_stream():
                 base.update(extra)
                 return {k: v for k, v in base.items() if v is not None}
 
+            # v1456 HONESTY (audit): the feed listed every read name as if the accuracy gate had
+            # blessed it — a gate-REFUSED name (gatePass False, e.g. gateReason=wrong-cell) looked
+            # exactly as authoritative as a proven one. Doctrine is SURFACE, never hide: each
+            # receipt now carries the gate verdict so the UI can chip a held read as held.
+            _gp = r.get("gatePass")
+            gate = {"pass": _gp if isinstance(_gp, bool) else None,
+                    "reason": (str(r.get("gateReason") or "") or None)}
+            held = _gp is False
+
             # 🛡 watchdog → one flag receipt, routes to the flag panel
             if lane == "watchdog":
                 wd = r.get("watchdog") if isinstance(r.get("watchdog"), dict) else {}
                 rule = str(wd.get("rule") or "")
                 note = str(r.get("note") or "")
                 out.append({"id": "%s:%s:0" % (engine, frame_key), "engine": engine, "kind": kind,
-                            "ts": ts, "refs": _refs(),
+                            "ts": ts, "refs": _refs(), "gate": gate, "held": held,
                             "diablo": {"label": ("WATCHDOG: " + (note or rule))[:70]} if (rule or note) else None,
                             "route": {"type": "flag", "target": rule} if rule else ({"type": "session", "target": sid} if sid else None)})
                 continue
@@ -7564,7 +7597,7 @@ def _receipts_stream():
                     except Exception:
                         tot = 0
                 out.append({"id": "%s:%s:0" % (engine, frame_key), "engine": engine, "kind": kind,
-                            "ts": ts, "refs": _refs(),
+                            "ts": ts, "refs": _refs(), "gate": gate, "held": held,
                             "diablo": {"label": ("ROUTED " + tab + (" ×%d" % tot if tot else "")).strip()} if tab else None,
                             "route": {"type": "session", "target": sid} if sid else None})
                 continue
@@ -7578,7 +7611,7 @@ def _receipts_stream():
             names = [str(n).strip() for n in names if isinstance(n, str) and str(n).strip()]
             for i, nm in enumerate(names):
                 out.append({"id": "%s:%s:%d" % (engine, frame_key, i), "engine": engine, "kind": kind,
-                            "ts": ts, "refs": _refs(itemName=nm),
+                            "ts": ts, "refs": _refs(itemName=nm), "gate": gate, "held": held,
                             "diablo": diablo,
                             "route": {"type": "item", "target": nm}})   # client grounds name→dossier|checker
     except Exception:
@@ -7659,6 +7692,14 @@ def status_payload():
         st = None
     if mode != "off" and not bridge and not _alive:
         mode = "off"
+    # v1456 HONESTY (audit): the 15s last-good grace above is the right call under D2R load, but the
+    # payload said nothing about it — a stale scene / area / health snapshot rode out looking exactly
+    # as live as a fresh fetch. stateAgeMs + stateFresh let the UI say "last known 6s ago" instead of
+    # implying now. Computed AFTER the self-heal resets so a dead agent reports no state at all.
+    state_age_ms = -1
+    if st is not None:
+        state_age_ms = int(max(0.0, _now - float(_BR_CACHE.get("st_ts") or _now)) * 1000)
+    state_fresh = bool(st is not None and bridge_now)
     beat = (st or {}).get("beat") or {}
     events = (st or {}).get("events") or []
     tail = []
@@ -7724,7 +7765,7 @@ def status_payload():
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     return {
         "ok": True,
-        "ver": "v1456",
+        "ver": "v1457",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -7776,7 +7817,13 @@ def status_payload():
         "eyeAgeMs": _eye if _eye is not None else -1,
         "diskEyeAgeMs": _disk_eye,  # v1425 — UI can trust film even if bridge mid-miss
         "health": (st or {}).get("health") or {},
+        # v1456 HONESTY (audit): gameOk still defaults True (the UI only ever acts on an explicit
+        # false), but "no bridge data" is NOT the same claim as "the game is fine" — gameOkKnown
+        # says which one this is, and stateAgeMs/stateFresh say how old the answer is.
         "gameOk": (st or {}).get("gameOk", True) if st else True,
+        "gameOkKnown": bool(st) and ("gameOk" in st or "gameOk" in ((st or {}).get("health") or {})),
+        "stateAgeMs": state_age_ms,
+        "stateFresh": state_fresh,
         "aiPaused": bool((st or {}).get("aiPaused") or ((st or {}).get("health") or {}).get("aiPaused")),
         "gameMsg": (st or {}).get("gameMsg") or ((st or {}).get("health") or {}).get("gameMsg") or "",
         "captureProc": _capture_health(),

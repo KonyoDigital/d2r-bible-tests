@@ -751,6 +751,25 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   4. Button glow: Theatre owns lit when open; ON AIR lit only when live *and* Theatre closed.
 - **Prevention:** never co-paint live + history on the same CRT; background recording is a lamp/ribbon note, not a second film layer.
 
+## REG-049 — honesty gaps in the top-level status defaults + 7 tests that never ran (2026-07-30)
+- **Symptom:** (audit, not a user report) the console could paint confident state it did not have:
+  a `{}` bridge body cached as a GOOD snapshot; the 15s last-good grace showing stale scene/area/health
+  as live with no marker; `gameOk` defaulting True when there was no bridge data at all; the 🛡 watchdog
+  lamp hardcoded `wired:True/state:"armed"` (a lamp that can never say down); the receipt feed listing
+  gate-REFUSED reads as authoritative. Separately: `unittest.main()` sat MID-FILE in tv/test_control.py,
+  so every class below it (TestFleetUnity, v1418) was never even defined — 7 tests silently unrun.
+- **Root cause:** top-of-payload optimism. The gate / engine-bay / reference-ID machinery was already
+  honest; these were defaults chosen for a quiet UI rather than for truth.
+- **Fix (v1457):** `_bridge_state()` rejects any body without `online`/`now` (a miss keeps last-good
+  instead of stamping _BRIDGE_LAST_OK); `stateAgeMs`/`stateFresh` ride the payload and the capture lamp
+  reads "last known 6s ago"; `gameOkKnown` separates "fine" from "unknown" ("game state unknown");
+  the watchdog lamp uses the shared down/live/idle vocabulary (down when engine dead-hard) and exposes
+  verdict + rules; every receipt carries `gate:{pass,reason}` + `held`, and a held read keeps its row and
+  its route but wears a ⚠ HELD chip (doctrine: SURFACE, never hide). Runner moved to EOF.
+- **Prove:** `TestV1456HonestyDefaults` (5 tests) in tv/test_control.py; suite 257 → 264 tests, all green.
+- **Prevention:** an unknown is a third state, never folded into the good one; a lamp that cannot report
+  down is decoration; `unittest.main()` stays at EOF (a suite that grows upward silently loses coverage).
+
 ## REG-048 — 3 agent tests red on the Linux CI runner only (2026-07-30)
 - **Symptom:** `📺 TV DIABLO — agent tests` failed every push on ubuntu-latest (201 tests, 3 failures:
   `test_to_jpeg_does_not_upscale_small_bmp`, `test_archive_bmp_is_real_jpeg_not_bmp_bytes`,

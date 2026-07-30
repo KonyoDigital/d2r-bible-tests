@@ -952,13 +952,20 @@ class TestV924FarmGate(unittest.TestCase):
             stderr = b""
         old = ca.subprocess.run
         old_which = ca.shutil.which
+        old_find = ca._find_claude_bin
         ca.subprocess.run = lambda *a, **k: _PR()
         ca.shutil.which = lambda *a, **k: "/usr/bin/claude"   # v924.1 — CI has no CLI; the gate must still be testable
+        # v1456 — patching which() alone was NOT enough: _find_claude_bin verifies os.path.isfile()
+        # on the hit, so on a host with no real CLI (the Linux runner) exe came back empty and
+        # claude_auth flipped to "skipped — no CLI". This test PASSED on the Mac only because a real
+        # ~/.local/bin/claude exists there — same Mac-hides-CI class as REG-047. Patch the seam.
+        ca._find_claude_bin = lambda *a, **k: "/usr/bin/claude"
         try:
             j = ca.farmgate_payload()
         finally:
             ca.subprocess.run = old
             ca.shutil.which = old_which
+            ca._find_claude_bin = old_find
         self.assertTrue(j["ok"])
         self.assertIn(j["verdict"], ("GO", "WARN", "NO-GO"))
         ids = [c["id"] for c in j["checks"]]
@@ -3193,9 +3200,6 @@ class TestV1381IncompleteSealReclose(unittest.TestCase):
         self.assertFalse(ca._kai_report_needs_reclose({"kaiVer": 6, "scanned": 0}, 6))
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=1)
-
 
 class TestFleetUnity(unittest.TestCase):
     """v1418 — multi-machine fleet: origin behind-count + tracked-dirty ignores untracked."""
@@ -3212,3 +3216,149 @@ class TestFleetUnity(unittest.TestCase):
         st = ca.status_payload()
         self.assertIn("fleet", st)
         self.assertIn("behind", st["fleet"])
+
+
+class TestV1456HonestyDefaults(unittest.TestCase):
+    """v1456 — the KAI-accuracy audit's honesty gaps in the top-level status defaults.
+
+    The gate / engine-bay / reference-ID machinery was already honest; what dented it was
+    top-of-payload optimism: an empty bridge body cached as good, a 15s last-good snapshot that
+    looked as live as a fresh fetch, gameOk claiming "fine" when nothing was known, a watchdog
+    lamp that could never report down, and a receipt feed that showed gate-REFUSED reads as
+    authoritative. Every fix here SURFACES the truth — nothing is hidden or dropped."""
+
+    def test_empty_bridge_body_is_not_a_good_state(self):
+        """A degenerate /state body ({} or a list) must read as a MISS, not a good snapshot."""
+        import io
+        import urllib.request as ur
+
+        class _Resp(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        saved = ur.urlopen
+        try:
+            for body, why in ((b"{}", "empty object"),
+                              (b"[]", "not even a dict"),
+                              (b'{"junk": 1}', "no online/now — carries no state")):
+                ur.urlopen = lambda *a, **k: _Resp(body)
+                self.assertIsNone(ca._bridge_state(), "%s must not count as bridge state" % why)
+            ur.urlopen = lambda *a, **k: _Resp(b'{"online": true, "now": 5, "readCount": 2}')
+            got = ca._bridge_state()
+            self.assertIsInstance(got, dict, "a real payload still comes through")
+            self.assertEqual(got.get("readCount"), 2)
+        finally:
+            ur.urlopen = saved
+
+    def test_status_marks_stale_state_and_unknown_game(self):
+        """stateAgeMs/stateFresh/gameOkKnown exist and tell the truth in both directions."""
+        st = ca.status_payload()
+        for k in ("stateAgeMs", "stateFresh", "gameOkKnown"):
+            self.assertIn(k, st, "%s must ride the payload" % k)
+        self.assertIsInstance(st["stateFresh"], bool)
+        self.assertIsInstance(st["gameOkKnown"], bool)
+        self.assertIsInstance(st["stateAgeMs"], int)
+        # no agent running under the suite → no bridge state → nothing may be claimed known
+        if not st.get("bridge"):
+            self.assertEqual(st["stateAgeMs"], -1, "no state → no age, not 0 (which reads as 'now')")
+            self.assertFalse(st["stateFresh"])
+            self.assertFalse(st["gameOkKnown"], "missing bridge data is not a claim that the game is fine")
+
+    def test_status_stale_grace_is_marked_not_silent(self):
+        """With a last-good snapshot 6s old and no fresh poll, the payload says stale + its age."""
+        saved = dict(ca._BR_CACHE)
+        saved_alive = ca._agent_alive
+        try:
+            now = ca.time.time()
+            ca._agent_alive = lambda: True
+            ca._BR_CACHE["ping"] = True
+            ca._BR_CACHE["ts"] = now - 20.0            # ping itself is old → not a fresh poll
+            ca._BR_CACHE["st"] = {"online": True, "now": 1, "gameOk": True}
+            ca._BR_CACHE["st_ts"] = now - 6.0          # inside the 15s last-good grace
+            ca._BRIDGE_LAST_OK = now - 6.0
+            st = ca.status_payload()
+            self.assertFalse(st["stateFresh"], "a graced snapshot is not a fresh one")
+            self.assertGreaterEqual(st["stateAgeMs"], 5000)
+            self.assertLess(st["stateAgeMs"], 15000)
+            self.assertTrue(st["gameOkKnown"], "this snapshot DID carry gameOk")
+        finally:
+            ca._BR_CACHE.clear()
+            ca._BR_CACHE.update(saved)
+            ca._agent_alive = saved_alive
+
+    def test_watchdog_lamp_can_report_down_and_idle(self):
+        """The lamp speaks the shared vocabulary: down when dead-hard, idle before any seal."""
+        saved_wl = ca.__dict__.get("_WATCHDOG_LAST", _MISSING)
+        saved_dh = ca.__dict__.get("_ENGINE_DEAD_HARD", _MISSING)
+        try:
+            ca.__dict__.pop("_WATCHDOG_LAST", None)
+            ca._ENGINE_DEAD_HARD = False
+            wd = ca._engines_status()["watchdog"]
+            self.assertEqual(wd["state"], "idle", "never-fired watchdog is idle, not permanently 'armed'")
+            self.assertIn("no seal checked yet", wd["note"])
+            ca._ENGINE_DEAD_HARD = True
+            wd = ca._engines_status()["watchdog"]
+            self.assertEqual(wd["state"], "down", "a dead-hard engine cannot arm the watchdog")
+            self.assertFalse(wd["wired"])
+            ca._ENGINE_DEAD_HARD = False
+            ca._WATCHDOG_LAST = {"sid": "s_1", "violations": 0, "rules": [],
+                                 "ts": int(ca.time.time() * 1000), "verdict": "clean"}
+            wd = ca._engines_status()["watchdog"]
+            self.assertEqual(wd["state"], "live", "a just-checked seal is a live beat")
+            self.assertEqual(wd["verdict"], "clean")
+        finally:
+            if saved_wl is _MISSING:
+                ca.__dict__.pop("_WATCHDOG_LAST", None)
+            else:
+                ca._WATCHDOG_LAST = saved_wl
+            if saved_dh is _MISSING:
+                ca.__dict__.pop("_ENGINE_DEAD_HARD", None)
+            else:
+                ca._ENGINE_DEAD_HARD = saved_dh
+
+    def test_receipts_carry_the_gate_verdict(self):
+        """A gate-REFUSED read still appears (nothing hidden) but is marked held with its reason."""
+        tmp = tempfile.mkdtemp()
+        old_here = ca.HERE
+        saved_cache = ca.__dict__.get("_RECEIPTS_CACHE", _MISSING)
+        try:
+            ca.HERE = tmp
+            ca.__dict__.pop("_RECEIPTS_CACHE", None)
+            rows = [
+                {"ts": 1, "completedTs": 1000, "lane": "deep", "scene": "stash", "area": "Harrogath",
+                 "names": ["Harlequin Crest"], "sessionId": "s_1", "frameId": "f_1",
+                 "gatePass": True, "gateReason": "quorum>=2"},
+                {"ts": 2, "completedTs": 2000, "lane": "deep", "scene": "stash", "area": "Harrogath",
+                 "names": ["Shako"], "sessionId": "s_1", "frameId": "f_2",
+                 "gatePass": False, "gateReason": "wrong-cell"},
+            ]
+            with open(os.path.join(tmp, "sessions.jsonl"), "w", encoding="utf-8") as f:
+                for r in rows:
+                    f.write(json.dumps(r) + "\n")
+            got = ca._receipts_stream()
+            by_name = {(r.get("refs") or {}).get("itemName"): r for r in got}
+            self.assertIn("Harlequin Crest", by_name)
+            self.assertIn("Shako", by_name, "a refused read is SURFACED, never dropped")
+            proven, held = by_name["Harlequin Crest"], by_name["Shako"]
+            self.assertIs(proven["held"], False)
+            self.assertIs(proven["gate"]["pass"], True)
+            self.assertIs(held["held"], True)
+            self.assertIs(held["gate"]["pass"], False)
+            self.assertEqual(held["gate"]["reason"], "wrong-cell")
+        finally:
+            ca.HERE = old_here
+            if saved_cache is _MISSING:
+                ca.__dict__.pop("_RECEIPTS_CACHE", None)
+            else:
+                ca._RECEIPTS_CACHE = saved_cache
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+# v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
+# v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
+# DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
+if __name__ == "__main__":
+    unittest.main(verbosity=1)
