@@ -1,4 +1,34 @@
 
+## v1488 — 2026-07-31 — the four worlds never bleed
+
+Everything Konyo asked for about profiles reduces to one table:
+
+    OWNER   main = bare      OWNER   ladder = L·
+    THIS PC main = W·        THIS PC ladder = WL·
+
+…with a deliberate asymmetry. Only ACCOUNT state forks; UI preferences (active tab, dock, sort
+orders) match no fork set and stay bare in every world, which is exactly what makes every machine
+LOOK identical while holding different data — v663 forked them once and the cousin's shell rendered
+structurally different. And on Windows the chronicle family forks to `W·` on BOTH profiles, because
+the cousin's main and ladder share the COUSIN's grail, mirroring the doctrine the owner's two
+accounts already follow.
+
+Four lines of code, three separate leaks (REG-069, REG-075, REG-076), every one invisible to a
+careful reading. So this executes the SHIPPED `LSR.key()` across all four worlds and asserts the
+properties rather than the source text:
+
+* `d2r_owned` resolves to four DIFFERENT keys — no two worlds share account state
+* `d2r_activeTab` resolves to the SAME bare key in all four — preferences never fork
+* `d2r_foundLog` is one shared chronicle across the owner's two accounts, one isolated chronicle
+  across the cousin's two, and the cousin's never equals the owner's
+
+Mutation-verified: routing only the ladder set on Windows drops the chronicle through to the bare
+key — REG-076 exactly — and the test fails on it.
+
+Gates: test_control **287 OK** · JS syntax OK.
+
+---
+
 ## v1487 — 2026-07-31 — the launcher stays launchable
 
 The bug that started this whole run was Konyo double-clicking the TV DIABLO icon and getting two

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1487",
+  "ver": "v1488",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1487: The bug that started this run was the desktop icon giving two black terminal flashes and nothing else. The launcher is the single point where a mistake presents as the product not existing - no dialog, no log the user thinks to open, just an icon that does nothing. Both surfaces got a syntax gate at v1476; the launcher never did. Two invariants now hold it. ENCODING: ASCII with a UTF-8 BOM, because PowerShell 5.1 decides a BOM-less file by the system codepage, which here is Hebrew cp1255, so one smart quote decodes to mojibake and fails far from its cause; the file was ASCII-cleaned by hand once and nothing has held it since. SYNTAX: checked with PowerShell own parser, for the same reason the JS gate uses a real browser - only the actual engine decides what parses. Mutation-verified both ways: an unterminated string is reported with its line number, and a single smart-quote byte with its offset.",
+  "note": "v1488: Everything Konyo asked for about profiles reduces to one four-line routing table: owner main is bare, owner ladder is L-dot, this PC main is W-dot, this PC ladder is WL-dot, with a deliberate asymmetry where only ACCOUNT state forks while UI preferences stay bare everywhere so the machines LOOK identical while holding different data, and where on Windows the chronicle family forks to W-dot on BOTH profiles because the cousin main and ladder share the cousin grail. Those four lines have produced three separate leaks, every one invisible to a code reading. The test now executes the SHIPPED LSR.key across all four worlds and checks the properties rather than the source text: four distinct account keys, one shared bare key for UI preferences in every world, one shared chronicle across the owner two accounts, one isolated chronicle across the cousin two, and the cousin chronicle never resolving to the owner key. Mutation-verified by routing only the ladder set on Windows, which drops the chronicle through to bare - REG-076 exactly.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

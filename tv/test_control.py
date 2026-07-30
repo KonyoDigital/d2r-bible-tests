@@ -4173,6 +4173,106 @@ class TestLauncherStaysLaunchable(unittest.TestCase):
                       "the launcher does not parse — the desktop icon would do NOTHING:\n" + out)
 
 
+class TestTheFourWorldsNeverBleed(unittest.TestCase):
+    """v1488 — the routing table itself, exercised rather than read.
+
+    Everything Konyo asked for about profiles reduces to one table:
+
+        OWNER   main = bare      OWNER   ladder = L·
+        THIS PC main = W·        THIS PC ladder = WL·
+
+    …with a deliberate asymmetry: only ACCOUNT state forks. UI preferences (active tab, dock, sort
+    orders) match no fork set and stay bare everywhere, which is what makes every machine LOOK
+    identical while holding different data. And on Windows the chronicle family forks to `W·` on
+    BOTH profiles, because the cousin's main and ladder share the COUSIN's grail.
+
+    That table is four lines of code and has produced three separate leaks (REG-069, REG-075,
+    REG-076), every one of which was invisible to a code reading. So this executes the SHIPPED
+    `LSR.key()` across all four worlds and checks the properties that actually matter, rather than
+    checking that the source still looks the way someone remembers.
+    """
+
+    def test_key_routing_is_isolated_where_it_must_be_and_shared_where_it_must_be(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import js_syntax_gate
+        browser = js_syntax_gate.find_browser()
+        if not browser:
+            self.skipTest("no Chromium/Edge found — cannot execute LSR.key")
+        repo = js_syntax_gate.REPO
+        with open(os.path.join(repo, "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+
+        lp = re.search(r"window\._LP_FORKED = new Set\(\[.*?\]\);", board, re.S).group(0)
+        wp = re.search(r"window\._WP_FORKED = new Set\(Array\.from\(window\._LP_FORKED\)"
+                       r"\.concat\(\[.*?\]\)\);", board, re.S).group(0)
+        keyfn = re.search(r"  function key\(k\)\{.*?\n  \}", board, re.S).group(0)
+
+        probe = os.path.join(repo, "_worlds_probe.html")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write(
+                "<!doctype html><meta charset=utf-8><pre id=o></pre><script>\n"
+                "window._LP_FORKED = null; window._WP_FORKED = null;\n"
+                + lp + "\n" + wp + "\n" + keyfn + "\n"
+                "var WORLDS = [['mac','main'],['mac','ladder'],['windows','main'],['windows','ladder']];\n"
+                # a forked ACCOUNT key, a windows-only CHRONICLE key, and a bare UI PREFERENCE
+                "var SAMPLES = ['d2r_owned','d2r_foundLog','d2r_activeTab'];\n"
+                "var res = {};\n"
+                "WORLDS.forEach(function(w){\n"
+                "  window.D2R_MACHINE = w[0]; window.D2R_PROFILE = w[1];\n"
+                "  SAMPLES.forEach(function(k){ res[w[0]+'/'+w[1]+'|'+k] = key(k); });\n"
+                "});\n"
+                "document.getElementById('o').textContent = 'RESULT:' + JSON.stringify(res);\n"
+                "</script>")
+        srv, port = js_syntax_gate._serve(repo)
+        try:
+            with tempfile.TemporaryDirectory() as prof:
+                r = subprocess.run(
+                    [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
+                     "--user-data-dir=%s" % prof, "--virtual-time-budget=6000", "--dump-dom",
+                     "http://127.0.0.1:%d/_worlds_probe.html" % port],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+            blob = (r.stdout or "") + (r.stderr or "")
+        finally:
+            srv.shutdown()
+            srv.server_close()
+            try:
+                os.remove(probe)
+            except OSError:
+                pass
+
+        m = re.search(r"RESULT:(\{.*?\})</pre>", blob, re.S)
+        self.assertIsNotNone(m, "the worlds probe never reported:\n" + blob[-800:])
+        got = json.loads(m.group(1))
+        DOT = "·"
+
+        # 1) ACCOUNT STATE: all four worlds must land on four DIFFERENT keys.
+        owned = [got["%s|d2r_owned" % w] for w in
+                 ("mac/main", "mac/ladder", "windows/main", "windows/ladder")]
+        self.assertEqual(owned, ["d2r_owned", "L%sd2r_owned" % DOT,
+                                 "W%sd2r_owned" % DOT, "WL%sd2r_owned" % DOT])
+        self.assertEqual(len(set(owned)), 4,
+                         "two worlds share an account key, so one person's progress is another "
+                         "person's progress: %s" % owned)
+
+        # 2) UI PREFERENCES: bare in every world, or the machines stop looking identical.
+        tabs = [got["%s|d2r_activeTab" % w] for w in
+                ("mac/main", "mac/ladder", "windows/main", "windows/ladder")]
+        self.assertEqual(set(tabs), {"d2r_activeTab"},
+                         "a UI preference got forked (%s). v663 did this and the cousin's shell "
+                         "rendered structurally different; only ACCOUNT state may fork." % tabs)
+
+        # 3) THE CHRONICLE ASYMMETRY: shared across the owner's two accounts, isolated per machine.
+        self.assertEqual(got["mac/main|d2r_foundLog"], "d2r_foundLog")
+        self.assertEqual(got["mac/ladder|d2r_foundLog"], "d2r_foundLog",
+                         "the owner's main and ladder must share ONE grail chronicle (v949)")
+        self.assertEqual(got["windows/main|d2r_foundLog"], "W%sd2r_foundLog" % DOT)
+        self.assertEqual(got["windows/ladder|d2r_foundLog"], "W%sd2r_foundLog" % DOT,
+                         "the cousin's main and ladder must share the COUSIN's grail — and it must "
+                         "never be the owner's")
+        self.assertNotEqual(got["windows/main|d2r_foundLog"], got["mac/main|d2r_foundLog"],
+                            "the cousin's chronicle resolved to the owner's key — REG-076 exactly")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
