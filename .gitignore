@@ -69,3 +69,7 @@ tv/.webview_ok
 _freshpc_probe.html
 _sigil_probe.html
 _worlds_probe.html
+# v1524 — per-machine sweep memory: which sealed reels the Chronicle sweep has already read.
+# Machine-local by nature (his Mac and the Windows cousin have different footage) and worthless
+# to anyone else, so it never travels.
+tv/chronicle_swept.json

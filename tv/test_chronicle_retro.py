@@ -297,6 +297,30 @@ class TestSweepEveryReel(unittest.TestCase):
                       on_reel=lambda st: seen.append(st["reel"]))
         self.assertEqual(len(seen), 3)
 
+    def test_an_ALREADY_SWEPT_reel_is_not_paid_for_twice(self):
+        # ★ v1524 — a sealed reel never changes, so re-reading one buys nothing and costs everything
+        calls = []
+        res = cr.sweep_hist(self.d, lambda p: calls.append(p) or None, lambda p, k: {},
+                            sig_of=self.sigs, skip_reels={"reel_s_100", "reel_s_200"})
+        self.assertEqual(len(calls), 1, "only the unswept reel should cost a classify")
+        self.assertEqual(res["totals"]["skippedReels"], 2)
+
+    def test_a_skipped_reel_is_REPORTED_not_silently_omitted(self):
+        # "12 reels · 9 already swept" is honest; showing 3 makes his footage look thinner than it is
+        res = cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, sig_of=self.sigs,
+                            skip_reels={"reel_s_100"})
+        self.assertEqual(len(res["reels"]), 3)
+        notes = [r.get("note") for r in res["reels"]]
+        self.assertIn("already-swept", notes)
+
+    def test_progress_still_fires_for_a_skipped_reel(self):
+        # otherwise a mostly-cached sweep looks stalled
+        seen = []
+        cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, sig_of=self.sigs,
+                      skip_reels={"reel_s_100", "reel_s_200", "reel_s_300"},
+                      on_reel=lambda st: seen.append(st["reel"]))
+        self.assertEqual(len(seen), 3)
+
     def test_limit_takes_the_NEWEST_n(self):
         res = cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, limit=1, sig_of=self.sigs)
         self.assertEqual([r["reel"] for r in res["reels"]], ["s_300"])

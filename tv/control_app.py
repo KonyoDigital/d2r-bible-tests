@@ -8050,6 +8050,42 @@ _CHRON_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0,
 _CHRON_LOCK = threading.Lock()
 
 
+# v1524 — THE SWEEP'S MEMORY. The engine may never write (that is its first law), so the record of
+# what has already been read lives out here, with the rest of the console's state. A sealed reel never
+# changes: re-reading one buys nothing and costs a subscription read per still-run.
+_CHRON_SWEPT_PATH = os.path.join(HERE, "chronicle_swept.json")
+
+
+def _chron_swept_load():
+    try:
+        with open(_CHRON_SWEPT_PATH, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _chron_swept_save(rec):
+    """Torn-write safe, same as every other persisted file here (v1209): a crash mid-write would
+    leave a truncated JSON that reads as 'nothing was ever swept' and re-pays for the whole hist."""
+    try:
+        tmp = _CHRON_SWEPT_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(rec, fh, indent=1)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, _CHRON_SWEPT_PATH)
+    except Exception:
+        pass
+
+
+def chronicle_forget_swept():
+    """Let him re-read everything — after a prompt change, a new lane, or simple doubt. The memory is
+    an optimisation, and an optimisation he cannot clear is a cage."""
+    _chron_swept_save({})
+    return {"ok": True, "forgot": True}
+
+
 def _chron_lanes():
     """The readers this machine can actually use, named honestly.
 
@@ -8076,7 +8112,7 @@ def chronicle_sweep_state():
         return dict(_CHRON_JOB)
 
 
-def chronicle_sweep_start(hist_dir=None, limit=None):
+def chronicle_sweep_start(hist_dir=None, limit=None, force=False):
     """Kick the background sweep. Refuses to start a second one — two sweeps over the same reels
     would double the spend and produce two proposals that each look like the whole truth."""
     with _CHRON_LOCK:
@@ -8089,12 +8125,12 @@ def chronicle_sweep_start(hist_dir=None, limit=None):
         _CHRON_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            "result": None, "error": None, "lanes": lanes})
-    threading.Thread(target=_chron_sweep_run, args=(hist_dir, limit),
+    threading.Thread(target=_chron_sweep_run, args=(hist_dir, limit, force),
                      daemon=True, name="tvd-chronicle-sweep").start()
     return {"ok": True, "started": True, "lanes": lanes}
 
 
-def _chron_sweep_run(hist_dir, limit):
+def _chron_sweep_run(hist_dir, limit, force=False):
     try:
         import chronicle_retro as _cr
         import tv_diablo as _tv
@@ -8123,8 +8159,19 @@ def _chron_sweep_run(hist_dir, limit):
         read_page = _cr.two_lane_reader(
             lambda p, k: (_tick(pagesRead=1) or _tv.claude_chronicle_read(p, k)), grok_lane)
 
+        swept = _chron_swept_load()
         res = _cr.sweep_hist(hist, _classify, read_page, limit=limit,
+                             skip_reels=set(swept.keys()) if not force else set(),
                              on_reel=lambda st: _tick(reelsDone=1))
+        # remember ONLY the reels this run actually read. A reel that errored or was skipped must
+        # stay unread, or one bad run would permanently hide footage from every future sweep.
+        for st in res["reels"]:
+            if st.get("note") == "already-swept" or not st.get("reel"):
+                continue
+            swept["reel_" + str(st["reel"])] = {"ts": int(time.time() * 1000),
+                                                "classified": st.get("classified") or 0,
+                                                "pages": st.get("pages") or 0}
+        _chron_swept_save(swept)
         prop = res["proposal"]
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
@@ -8327,7 +8374,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1523",
+        "ver": "v1524",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10162,7 +10209,12 @@ class Handler(BaseHTTPRequestHandler):
                 _lim = int(body.get("limit") or 0) or None
             except (TypeError, ValueError):
                 _lim = None
-            self._json(200, chronicle_sweep_start(limit=_lim))
+            # v1524 — force=true re-reads reels the memory says are done (after a prompt change,
+            # a new lane, or plain doubt). Opt-in, because it re-spends the whole sweep.
+            self._json(200, chronicle_sweep_start(limit=_lim, force=bool(body.get("force"))))
+            return
+        if path == "/api/chronicle_forget":
+            self._json(200, chronicle_forget_swept())
             return
         if path == "/api/evrank":
             # ⚔ EV-RANK — the client POSTs its MISSING grails + each one's best-source odds/kph

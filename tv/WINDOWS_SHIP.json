@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1523",
+  "ver": "v1524",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1523: the console asks the BOARD to apply; a failed write never reads as a quiet success",
+  "note": "v1524: a sealed reel is never paid for twice; forget and force are both one call away",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

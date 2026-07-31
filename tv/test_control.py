@@ -4762,8 +4762,14 @@ class TestChronicleSweepJob(unittest.TestCase):
                            "frames": [{"f": "f%d.jpg" % n, "ts": 1000 + n} for n in range(6)]}, fh)
         self.man = os.path.join(self.d, "man.json")
         self._env = {k: os.environ.get(k) for k in ("TV_STUB", "TV_STUB_MANIFEST", "TV_HIST")}
+        # v1524 — every sweep test owns its OWN memory file. Sharing the real one made the second
+        # test in the class skip every reel the first one read: a green suite that had stopped
+        # exercising the sweep at all (the v1497 lesson, in a new place).
+        self._swept = mock.patch.object(ca, "_CHRON_SWEPT_PATH", os.path.join(self.d, "swept.json"))
+        self._swept.start()
 
     def tearDown(self):
+        self._swept.stop()
         for k, v in self._env.items():
             if v is None:
                 os.environ.pop(k, None)
@@ -4844,6 +4850,39 @@ class TestChronicleSweepJob(unittest.TestCase):
         finally:
             with ca._CHRON_LOCK:
                 ca._CHRON_JOB["running"] = False
+
+    def test_a_reel_swept_ONCE_is_not_paid_for_twice(self):
+        # ★ v1524 — a sealed reel never changes. The second sweep should read nothing and say so.
+        first = self._sweep(self.BOTH)
+        self.assertGreater(first["totals"]["classified"], 0)
+        second = self._sweep(self.BOTH)
+        self.assertEqual(second["totals"]["classified"], 0)
+        self.assertEqual(second["totals"]["skippedReels"], 3)
+
+    def test_a_reel_that_was_SKIPPED_never_enters_the_memory_as_read(self):
+        # one bad run must not permanently hide footage from every future sweep
+        self._sweep(self.BOTH)
+        self._sweep(self.BOTH)              # everything skipped this time
+        mem = json.load(open(os.path.join(self.d, "swept.json"), encoding="utf-8"))
+        self.assertEqual(len(mem), 3)       # still the 3 REAL reads, not 6 rows
+        for v in mem.values():
+            self.assertGreater(v["classified"], 0)
+
+    def test_he_can_FORGET_and_re_read_everything(self):
+        # the memory is an optimisation, and an optimisation he cannot clear is a cage
+        self._sweep(self.BOTH)
+        ca.chronicle_forget_swept()
+        again = self._sweep(self.BOTH)
+        self.assertGreater(again["totals"]["classified"], 0)
+
+    def test_FORCE_re_reads_what_the_memory_says_is_done(self):
+        self._sweep(self.BOTH)
+        ca.chronicle_sweep_start(hist_dir=self.d, force=True)
+        deadline = time.time() + 30
+        while time.time() < deadline and ca.chronicle_sweep_state()["running"]:
+            time.sleep(0.05)
+        forced = ca.chronicle_sweep_state()["result"] or {}
+        self.assertGreater(forced["totals"]["classified"], 0)
 
     def test_the_lanes_in_play_are_NAMED(self):
         # "claude only" and "both lanes agreed" are different confidences and the gate scores them

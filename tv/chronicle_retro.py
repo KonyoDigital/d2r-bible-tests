@@ -449,7 +449,14 @@ def reel_dirs(hist_dir, newest_first=True):
     return paths
 
 
-def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=None):
+def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=None,
+               skip_reels=None):
+    """v1524 — `skip_reels` is the sweep's MEMORY: reel basenames already read, which are not paid
+    for twice. A sealed reel never changes, so re-reading one buys nothing and costs everything.
+
+    A skipped reel is REPORTED as skipped, never silently omitted. "12 reels · 9 already swept" is
+    the honest headline; showing 3 would make his footage look thinner than it is and quietly hide
+    that most of the answer came from a previous run."""
     """THE RETRO SWEEP: every sealed reel he has, folded into ONE proposal.
 
     Still writes nothing. Returns {"reels": [...per-reel stats...], "proposal": {...}, "totals": {...}}.
@@ -460,9 +467,22 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
     The totals deliberately carry `framesSeen` and `classified` alongside `pagesRead`. He should be
     able to see that 394 frames cost 11 classifies without taking anyone's word for it.
     """
+    skip = set(skip_reels or ())
     stats, pages = [], []
     frames_seen = 0
+    skipped = 0
     for reel_dir in reel_dirs(hist_dir)[:limit] if limit else reel_dirs(hist_dir):
+        if os.path.basename(reel_dir) in skip:
+            skipped += 1
+            st = {"reel": os.path.basename(reel_dir), "runs": 0, "candidates": 0,
+                  "classified": 0, "pages": 0, "note": "already-swept"}
+            stats.append(st)
+            if on_reel:
+                try:
+                    on_reel(st)
+                except Exception:
+                    pass
+            continue
         r = read_reel(reel_dir, classify, read_page, sig_of=sig_of)
         try:
             with open(os.path.join(reel_dir, "index.json"), encoding="utf-8") as fh:
@@ -484,6 +504,7 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
         "proposal": prop,
         "totals": {
             "reels": len(stats),
+            "skippedReels": skipped,
             "framesSeen": frames_seen,
             "classified": sum(s.get("classified") or 0 for s in stats),
             "pagesRead": prop.get("pagesRead", 0),
