@@ -1593,6 +1593,24 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** an env override that only some call sites honour is worse than none — it buys false
   confidence. One resolver, asserted by a test that counts the construction sites.
 
+## REG-088 — the dead-click sweep called an idempotent click dead (2026-07-31)
+- **Symptom:** the LAST Routine-I red after REG-084/087 — `platform_routing_audit` →
+  `[calc] .item-tile #0 ("Key of Hate") → no state change`, failing on both the original and the retry.
+- **Root cause:** the sweep visits **bosses before calc**, and Key of Hate is The Summoner's signature
+  drop — so that item was ALREADY the live selection by the time the sweep clicked its calc tile.
+  Re-clicking the item you are already looking at cannot change state, and that is correct behaviour:
+  the bug class this sweep guards is a click that goes NOWHERE, not one that goes where you already are.
+  Invisible before REG-084 because the cousin world's grid put a different item at index 0.
+- **Fix (v1494):** exempt a click whose target is the live selection AND whose detail is on screen —
+  narrow on purpose, so a genuinely dead tile cannot hide behind a name collision.
+- **THE PROCESS LESSON (the reason this entry exists):** the failure text said only "no state change",
+  so the first fix was a GUESS — a re-selection dance that cost a 6-minute run and did not work. Adding
+  the state signature to the message answered it on the next run in one line
+  (`before: sel="Key of Hate" act="Key of Hate" detailShown:true`). The signature now ships in every
+  dead-click report. Same law as REG-047 and REG-083: **instrument, then fix — never fix, then hope.**
+- **Prove:** `platform_routing_audit` 8/8 locally, deterministic (it was intermittent before REG-084
+  because the world differed between local and CI).
+
 ## REG-087 — four specs pinned to superseded truths (2026-07-31)
 - **Symptom:** the last four Routine-I reds after REG-084 — `v632_ladder_visibility`,
   `v634_ladder_preview`, `v552_forge_flagship_visual`, and a flaky `platform_routing_audit`. They fail

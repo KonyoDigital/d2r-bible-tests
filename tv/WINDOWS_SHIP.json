@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1493",
+  "ver": "v1494",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1493: The four surviving Routine-I reds were specs pinned to superseded truths, not bugs: v1475 answered Konyo by PLANNING the 8 ladder-only runewords in the Forge lane instead of parking them in a read-only strip, so v632 and v634 asserted a strip that is empty by design - they now read the _forgeIncludeLadder setting and drive it, instead of depending on a default that changed sides. v552 asserted one phrasing of the Chronicle meter caption that v1474 rewrote. And TV_SESSIONS isolated exactly one of eleven journal sites, so a harness that set it read the real journal while five unrouted sites could append to it.",
+  "note": "v1494: The last Routine-I red was the dead-click sweep reporting calc tile 0 - Key of Hate - as clicking into the void. The sweep visits bosses before calc and Key of Hate is The Summoners signature drop, so that item was ALREADY the live selection when the sweep reached the tile; re-clicking the item you are already looking at cannot change state, and that is correct. The exemption is narrow - the target must be the live selection AND its detail on screen - and every dead-click report now carries the state signature from both sides of the click, because the first fix was a guess made without one.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

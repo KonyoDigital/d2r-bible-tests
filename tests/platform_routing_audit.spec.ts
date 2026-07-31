@@ -356,7 +356,21 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
               const el = document.querySelectorAll(s)[idx] as HTMLElement | undefined;
               return (el?.getAttribute('data-name') || el?.getAttribute('data-boss-id') || el?.getAttribute('data-item') || (el?.textContent || '').slice(0, 30)).trim();
             }, { s: sel, idx: i });
-            dead.push(`[${tab}] ${sel} #${i} ("${label}") → no state change`);
+            // v1494 — IDEMPOTENT IS NOT DEAD, and the evidence rides along. This fired on CI for
+            // exactly one tile, and the message said only "no state change" — so the first fix was a
+            // guess, and the guess was wrong. With the signature printed, the answer was immediate:
+            //   before: sel="Key of Hate" act="Key of Hate" detailShown:true
+            // The sweep visits bosses before calc and Key of Hate is The Summoner's signature drop, so
+            // that item was ALREADY open when the sweep reached calc tile #0. Re-clicking the item you
+            // are already looking at cannot change state, and that is correct behaviour — the bug class
+            // this sweep guards is a click that goes NOWHERE, not a click that goes where you already
+            // are. The exemption is deliberately narrow: the target must be the live selection AND its
+            // detail must be on screen, so a genuinely dead tile can't hide behind a name collision.
+            const b4 = JSON.parse(before);
+            const alreadyOpen = b4.detailShown === true && (b4.sel === label || b4.act === label);
+            if (!alreadyOpen) {
+              dead.push(`[${tab}] ${sel} #${i} ("${label}") → no state change\n      before: ${before}\n      after:  ${after}`);
+            }
           }
           // a routing click can leave this tab (source-chip/tz-card → bosses); only
           // re-switch when that actually happened, to keep the sweep fast.
