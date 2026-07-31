@@ -90,8 +90,11 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
     await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     // Set a wishlist item, hit reset (with cancel) — wishlist preserved
+    // v1490 — seed through the ROUTER (LSR), not the bare key: on any non-Mac host the board
+    // routes this family to W·, so a bare seed plants a key the app never reads and the test
+    // silently checks a value nothing owns.
     await page.evaluate(() => {
-      localStorage.setItem('d2r_wishlist', JSON.stringify(['Test Item']));
+      (window as any).LSR.setItem('d2r_wishlist', JSON.stringify(['Test Item']));
     });
     page.on('dialog', d => d.dismiss());
     // v696 — the reset button lives inside the CLOSED ⚠ danger-zone drawer (v694): open it first
@@ -101,7 +104,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
       await btn.click().catch(() => {});
       await page.waitForTimeout(200);
     }
-    const wish = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_wishlist') || '[]'));
+    const wish = await page.evaluate(() => JSON.parse((window as any).LSR.getItem('d2r_wishlist') || '[]'));
     expect(wish).toContain('Test Item');
   });
 

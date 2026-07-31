@@ -35489,7 +35489,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1489', name:'v1489 - one place bumps the version', date:'2026-07-31', note:'The version lives in four files - the board D2R_BUILD, the control app api status, the agent VERSION and tv/WINDOWS_SHIP.json - and nothing has ever checked they agree. A half-bumped tree is not cosmetic: test_button_matrix compares the LIVE app to the ship manifest, so a missed stamp reads as the running app being a different build than the tree and sends the next person hunting a phantom. tv/bump_version.py now writes all four and verifies each landed, since a silent no-op replace is exactly the failure it exists to prevent. It also refuses an apostrophe outright: the board note is a single-quoted JS literal, and writing one by hand during v1478 put an apostrophe in someone-elses-chronicle, terminating the string and throwing a SyntaxError that blanks the whole 37k-line page. The gate caught it, but the right place to stop that class is before it is written. TestVersionStampsAgree pins all of it, including that the shipped note carries no apostrophe.' };
+  window.D2R_BUILD = { id:'v1490', name:'v1490 - the sigil asks nobody on file', date:'2026-07-31', note:'The v1486 profile sigil fetched /api/status unguarded, so on file:// Chromium logged a Fetch API console error that .catch cannot suppress - Routine G 7/8 and the no-console-errors specs red. Every other same-origin call in the board already carried the protocol guard; the sigil skipped it. Off the console it now paints the local identity immediately instead of waiting 1.2s for an answer that was never coming. Also: two specs read localStorage raw where the app routes to the W world, so a CI runner (any non-Mac) failed a toggle that had worked.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -37887,14 +37887,25 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   }
 
   var done = false;
-  try {
-    fetch('/api/status', { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (st) {
-        if (!done && st && st.identity && st.identity.id) { done = true; paint(st.identity.id, 'console'); }
-      })
-      .catch(function () {});
-  } catch (e) {}
+  // v1490 — REG-047's class, again. On file:// this resolves to file:///api/status and Chromium
+  // logs "Fetch API cannot load … URL scheme file is not supported" — a CONSOLE error that .catch()
+  // cannot suppress, so it tripped Routine G (7/8) on every load. Every other same-origin API call
+  // in this file already carries this guard; the sigil was the one that skipped it. Off the console
+  // there is no /api/status to ask, so go straight to the local identity — and paint it NOW rather
+  // than making the crest wait 1.2s for a fetch that was never going to answer.
+  if (location.protocol === 'file:') {
+    done = true;
+    paint(localId(), 'local');
+  } else {
+    try {
+      fetch('/api/status', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (st) {
+          if (!done && st && st.identity && st.identity.id) { done = true; paint(st.identity.id, 'console'); }
+        })
+        .catch(function () {});
+    } catch (e) {}
+  }
   setTimeout(function () { if (!done) { done = true; paint(localId(), 'local'); } }, 1200);
 })();
 </script>

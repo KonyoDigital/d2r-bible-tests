@@ -1576,6 +1576,50 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   makes an unreferenced `tv/test_*.py` a failure in its own right — the fix for this defect is not
   the two assertions, it is that nothing was watching them.
 
+## REG-083 — the pre-push gate: 10 minutes, red, and about the machine not the code (2026-07-31)
+- **Symptom:** on Konyo's Mac `tv/test_control.py` took **608s** and came back **FAILED (1 failure,
+  3 errors)**. Every one of the four was `subprocess._check_timeout` — the whole browser-driven family
+  (lsFork routing, profile sigil, four-worlds key routing, the JS syntax gate) plus v1484's fresh-PC test.
+- **Root cause:** Chrome's `--dump-dom` NEVER returns for an `http://127.0.0.1` page on this machine.
+  Measured, not assumed: a 40-byte hello-world page returns instantly over `file://` and hangs over
+  loopback; it hangs identically for Google Chrome AND Chrome for Testing; `--no-proxy-server` and
+  `--proxy-bypass-list=<-loopback>` change nothing (there is no proxy configured); and Playwright drives
+  the same binaries over the same loopback fine. So it is this launch path on this machine — not the
+  network, not the page, not the code being pushed. v1484's budget made it worse: 300s × 2 attempts ×
+  2 loads = up to **20 minutes**, and a killed run orphaned Chrome processes (two found burning CPU),
+  because `subprocess` timeouts kill the launcher and not the renderers Chrome forks.
+- **Fix (v1490):** `js_syntax_gate.browser_can_load_localhost()` — probe the capability ONCE on a
+  40-byte page (12s), cache it, and have every browser-driven test skip with `NO_LOOPBACK` (a reason
+  that says the result proves nothing) instead of burning its timeout and erroring. `check()`
+  short-circuits the same way. The fresh-PC test now asks for `--headless=new` first with `old` as
+  fallback, bounds each load to 45s, kills the whole process GROUP on timeout, and skips the second
+  load when the first never answered.
+- **Prove:** same suite, same machine: **608s / FAILED(1,3) → 17.9s / OK (skipped=8)**.
+- **Prevention:** a capability the harness cannot assume gets PROBED, cheaply, once — and a test that
+  could not run says so. An environment fact must never render as a verdict about the code.
+
+## REG-082 — two specs read a key the app does not write (2026-07-31)
+- **Symptom:** `bug040_050 BUG-042 star toggle persists localStorage` red on CI, green on the Mac.
+- **Root cause:** the Linux runner is not a Mac, so `D2R_MACHINE` resolves to `windows` (by design —
+  any non-Mac gets its own isolated world) and the star writes `W·d2r_wishlist`. The spec read the bare
+  `d2r_wishlist` and got `[]`. The toggle had worked perfectly; the test was reading the wrong drawer.
+- **Fix (v1490):** both specs read/seed through `LSR` — the app's own published router — so they are
+  correct in every world. Proved in BOTH worlds by forcing `d2r_activeMachine` locally.
+- **Prevention:** never hand-write a routed key in a test; ask the router. The Mac is the one machine
+  where bare == routed, which is exactly why it hides this class.
+
+## REG-081 — the profile sigil asked a question file:// cannot answer (2026-07-31)
+- **Symptom:** Routine G back to 7/8 and the ~76 "no console errors" specs red, from v1486 onward:
+  `CON: Fetch API cannot load file:///api/status. URL scheme "file" is not supported.`
+- **Root cause:** the v1486 sigil called `fetch('/api/status')` with no protocol guard. On `file://`
+  that resolves to `file:///api/status`, and Chromium logs a CONSOLE error that `.catch()` cannot
+  suppress. Every other same-origin call in bible.html already carries the guard — this one skipped it.
+  Identical class to REG-047.
+- **Fix (v1490):** gate the call to non-`file:` origins; off the console the crest paints the local
+  identity IMMEDIATELY rather than waiting 1.2s for an answer that was never coming.
+- **Prove:** `node end_to_end_audit.js bible.html` → Page errors: 0 · 8/8 categories.
+- **Prevention:** the board may only call `/api/*` when it is actually being served by the console.
+
 ## REG-080 — the single-primary mutex made a whole suite unrunnable (2026-07-31)
 
 - **Symptom:** `tv/test_roundtrip_sim.py` reported `Ran 0 tests · FAILED (errors=1)` with

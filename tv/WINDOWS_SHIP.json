@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1489",
+  "ver": "v1490",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1489: The version lives in four files - the board D2R_BUILD, the control app api status, the agent VERSION and tv/WINDOWS_SHIP.json - and nothing has ever checked they agree. A half-bumped tree is not cosmetic: test_button_matrix compares the LIVE app to the ship manifest, so a missed stamp reads as the running app being a different build than the tree and sends the next person hunting a phantom. tv/bump_version.py now writes all four and verifies each landed, since a silent no-op replace is exactly the failure it exists to prevent. It also refuses an apostrophe outright: the board note is a single-quoted JS literal, and writing one by hand during v1478 put an apostrophe in someone-elses-chronicle, terminating the string and throwing a SyntaxError that blanks the whole 37k-line page. The gate caught it, but the right place to stop that class is before it is written. TestVersionStampsAgree pins all of it, including that the shipped note carries no apostrophe.",
+  "note": "v1490: The v1486 profile sigil fetched /api/status unguarded, so on file:// Chromium logged a Fetch API console error that .catch cannot suppress - Routine G 7/8 and the no-console-errors specs red. Every other same-origin call in the board already carried the protocol guard; the sigil skipped it. Off the console it now paints the local identity immediately instead of waiting 1.2s for an answer that was never coming. Also: two specs read localStorage raw where the app routes to the W world, so a CI runner (any non-Mac) failed a toggle that had worked.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

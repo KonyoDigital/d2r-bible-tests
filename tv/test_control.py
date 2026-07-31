@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -3521,6 +3522,10 @@ class TestConsoleReadsTheActiveWorld(unittest.TestCase):
         browser = js_syntax_gate.find_browser()
         if not browser:
             self.skipTest("no Chromium/Edge found — cannot execute lsFork")
+        # v1490 — and skip when the browser cannot answer over loopback on this
+        # machine: it would burn the full timeout and ERROR on an environment fact.
+        if not js_syntax_gate.browser_can_load_localhost(browser):
+            self.skipTest(js_syntax_gate.NO_LOOPBACK + " — " + "cannot execute lsFork")
         fn = self._extract_lsfork()
 
         # The board publishes the route; mirror a realistic payload where 'K' IS a forked key.
@@ -3810,6 +3815,10 @@ class TestAFreshMachineStartsEmpty(unittest.TestCase):
         b = js_syntax_gate.find_browser()
         if not b:
             self.skipTest("no Chromium/Edge found — cannot boot the board")
+        # v1490 — and skip when the browser cannot answer over loopback on this
+        # machine: it would burn the full timeout and ERROR on an environment fact.
+        if not js_syntax_gate.browser_can_load_localhost(b):
+            self.skipTest(js_syntax_gate.NO_LOOPBACK + " — " + "cannot boot the board")
         return b, js_syntax_gate
 
     def test_a_never_seen_machine_has_an_empty_chronicle(self):
@@ -3846,30 +3855,76 @@ class TestAFreshMachineStartsEmpty(unittest.TestCase):
                 # wolf gets muted, and a muted test is REG-079 all over again.
                 timed_out = []
 
+                # v1490 — BOUNDED. The old budget was 300s per attempt × 2 attempts × 2 loads =
+                # up to 20 MINUTES, and this suite is in the pre-push gate: measured on Konyo's
+                # Mac, a stalled `Chrome --headless=old` sat here past 10 minutes and would have
+                # held a push hostage before skipping and proving nothing anyway. The page is
+                # given 9s of VIRTUAL time, so a load that has not answered in 45s of real time
+                # is stuck, not slow — waiting 300 more seconds cannot change the verdict.
+                # Also: subprocess.run's timeout kills the launcher, NOT the renderer helpers
+                # Chrome forks, so a timed-out attempt used to leave orphan Chrome processes
+                # burning CPU (found two on this machine). Own the whole process group and kill it.
+                # v1490 — HEADLESS MODE FIRST, then a bound. Measured on Konyo's Mac (Chrome 150):
+                # `--headless=old` HANGS — not on the board, on a 40-byte hello-world page. So this
+                # test never actually ran here; it burned the budget and skipped, and the skip read
+                # as "the machine is busy" rather than "this flag is dead on this Chrome".
+                # `--headless=new` returns instantly on the same binary, so we ask for it FIRST and
+                # keep old as the fallback for a Chrome too old to know it. Recovering the run
+                # matters more than the timeout: a test that always skips is not coverage.
+                _MODES = ["--headless=new", "--headless=old"]
+                # The page gets 9s of VIRTUAL time, so a load that has not answered in 45s of real
+                # time is stuck, not slow — the old 300s × 2 attempts × 2 loads was up to 20 MINUTES
+                # with this suite sitting in the pre-push gate.
+                LOAD_TIMEOUT_S = 45
+                mode_ok = []   # the mode that answered — the second load reuses it, no re-probing
+
                 def load(rel, budget=9000):
-                    for attempt in (1, 2):
+                    for mode in (mode_ok or _MODES):
+                        proc = subprocess.Popen(
+                            [browser, mode, "--disable-gpu", "--no-sandbox",
+                             "--user-data-dir=%s" % profile,
+                             "--blink-settings=imagesEnabled=false",
+                             "--virtual-time-budget=%d" % budget, "--dump-dom",
+                             "http://127.0.0.1:%d/%s" % (port, rel)],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            start_new_session=True)   # its own group, so the kill reaches the helpers
                         try:
-                            return subprocess.run(
-                                [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
-                                 "--user-data-dir=%s" % profile,
-                                 "--blink-settings=imagesEnabled=false",
-                                 "--virtual-time-budget=%d" % budget, "--dump-dom",
-                                 "http://127.0.0.1:%d/%s" % (port, rel)],
-                                capture_output=True, text=True, encoding="utf-8",
-                                errors="replace", timeout=300)
+                            out, err = proc.communicate(timeout=LOAD_TIMEOUT_S)
                         except subprocess.TimeoutExpired:
-                            if attempt == 2:
-                                timed_out.append(rel)
-                                return None
+                            # subprocess timeouts kill the launcher, NOT the renderer helpers Chrome
+                            # forks — that left orphan Chrome processes burning CPU (two found on
+                            # this machine). Own the group and take the whole tree down.
+                            try:
+                                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                            except Exception:
+                                proc.kill()
+                            try:
+                                proc.communicate(timeout=10)
+                            except Exception:
+                                pass
+                            continue
+                        if not mode_ok:
+                            mode_ok.append(mode)
+                        return subprocess.CompletedProcess(
+                            proc.args, proc.returncode,
+                            (out or b"").decode("utf-8", "replace"),
+                            (err or b"").decode("utf-8", "replace"))
+                    timed_out.append(rel)
                     return None
 
-                load("bible.html")                      # first boot: the board initialises itself
-                r = load("_freshpc_probe.html", 4000)   # same profile, so it sees what was written
+                first = load("bible.html")              # first boot: the board initialises itself
+                # v1490 — if the board never loaded there is nothing for the probe to read, and a
+                # second doomed load only doubles the stall. Measured: Chrome answers a hello-world
+                # page instantly in --headless=new but does NOT return for bible.html + --dump-dom
+                # on this Mac, so the worst case is real and worth short-circuiting.
+                r = load("_freshpc_probe.html", 4000) if first is not None else None
                 if timed_out or r is None:
                     self.skipTest(
-                        "the browser did not finish loading %s within 300s across two attempts, "
-                        "so this run proves NOTHING about the fresh-machine promise either way. "
-                        "Re-run when the machine is quieter." % (timed_out or ["probe"])[0])
+                        "the browser did not finish loading %s within %ds in ANY headless mode "
+                        "(%s), so this run proves NOTHING about the fresh-machine promise either "
+                        "way. The page gets 9s of VIRTUAL time, so this is a stuck browser, not a "
+                        "slow one — check that %s can run headless here."
+                        % ((timed_out or ["probe"])[0], LOAD_TIMEOUT_S, ", ".join(_MODES), browser))
                 blob = (r.stdout or "") + (r.stderr or "")
         finally:
             srv.shutdown()
@@ -4034,6 +4089,10 @@ class TestProfileSigil(unittest.TestCase):
         browser = js_syntax_gate.find_browser()
         if not browser:
             self.skipTest("no Chromium/Edge found — cannot execute the sigil generator")
+        # v1490 — and skip when the browser cannot answer over loopback on this
+        # machine: it would burn the full timeout and ERROR on an environment fact.
+        if not js_syntax_gate.browser_can_load_localhost(browser):
+            self.skipTest(js_syntax_gate.NO_LOOPBACK + " — " + "cannot execute the sigil generator")
         repo = js_syntax_gate.REPO
         with open(os.path.join(repo, "tv", "control_ui.html"), encoding="utf-8") as fh:
             src = fh.read()
@@ -4198,6 +4257,10 @@ class TestTheFourWorldsNeverBleed(unittest.TestCase):
         browser = js_syntax_gate.find_browser()
         if not browser:
             self.skipTest("no Chromium/Edge found — cannot execute LSR.key")
+        # v1490 — and skip when the browser cannot answer over loopback on this
+        # machine: it would burn the full timeout and ERROR on an environment fact.
+        if not js_syntax_gate.browser_can_load_localhost(browser):
+            self.skipTest(js_syntax_gate.NO_LOOPBACK + " — " + "cannot execute LSR.key")
         repo = js_syntax_gate.REPO
         with open(os.path.join(repo, "bible.html"), encoding="utf-8") as fh:
             board = fh.read()

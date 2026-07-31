@@ -47,8 +47,16 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
       star.click();
     });
     await page.waitForTimeout(150);
-    const wishlist = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_wishlist') || '[]'));
-    expect(wishlist.length).toBeGreaterThan(0);
+    // v1490 — READ THROUGH THE ROUTER, not the bare key. The Linux CI runner is not a Mac, so
+    // D2R_MACHINE resolves to 'windows' (by design: any non-Mac gets its own isolated world) and
+    // the star writes W·d2r_wishlist. Reading 'd2r_wishlist' raw then returned [] and failed a
+    // toggle that had worked perfectly — green on the Mac, red on CI, with the APP innocent.
+    const wl = await page.evaluate(() => ({
+      key: (window as any).LSR.key('d2r_wishlist'),
+      list: JSON.parse((window as any).LSR.getItem('d2r_wishlist') || '[]'),
+    }));
+    expect(wl.list.length, `star toggle must persist to ${wl.key} (got ${JSON.stringify(wl.list)})`)
+      .toBeGreaterThan(0);
   });
 
   test('BUG-043 owned toggle persists localStorage', async ({ page }) => {

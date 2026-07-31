@@ -34,6 +34,7 @@ import os
 import re
 import shutil
 import subprocess
+import signal
 import sys
 import tempfile
 import threading
@@ -81,12 +82,78 @@ def _serve(root):
     return srv, srv.server_address[1]
 
 
+_LOOPBACK_OK = []   # cached capability verdict: [] = unprobed, [True] / [False] once known
+
+
+def browser_can_load_localhost(browser=None, timeout=12):
+    """Can this browser answer `--dump-dom` for an http://127.0.0.1 page AT ALL?
+
+    v1490 — measured on Konyo's Mac: `--dump-dom` returns instantly for a file:// page and NEVER
+    returns for the same page over loopback HTTP — with BOTH Google Chrome and Chrome for Testing,
+    with or without proxy flags (there is no proxy configured). Playwright drives the same binaries
+    over the same loopback fine, so it is this launch path on this machine, not the network and not
+    the page.
+
+    The cost of not knowing: every browser-driven test spent its full timeout and then ERRORED, so
+    the pre-push gate took ten minutes and came back red for a reason that says nothing about the
+    code being pushed. A capability that cannot be assumed gets PROBED — once, on a 40-byte page —
+    and the tests that need it skip with a reason instead of failing a verdict they never reached.
+    """
+    if _LOOPBACK_OK:
+        return _LOOPBACK_OK[0]
+    browser = browser or find_browser()
+    if not browser:
+        _LOOPBACK_OK.append(False)
+        return False
+    root = tempfile.mkdtemp()
+    with open(os.path.join(root, "_probe.html"), "w", encoding="utf-8") as fh:
+        fh.write("<!doctype html><html><body>LOOPBACK_OK</body></html>")
+    srv, port = _serve(root)
+    ok = False
+    try:
+        with tempfile.TemporaryDirectory() as prof:
+            proc = subprocess.Popen(
+                [browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+                 f"--user-data-dir={prof}", "--virtual-time-budget=2000", "--dump-dom",
+                 f"http://127.0.0.1:{port}/_probe.html"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+            try:
+                out, _ = proc.communicate(timeout=timeout)
+                ok = b"LOOPBACK_OK" in (out or b"")
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except Exception:
+                    proc.kill()
+                try:
+                    proc.communicate(timeout=5)
+                except Exception:
+                    pass
+    except Exception:
+        ok = False
+    finally:
+        srv.shutdown()
+        shutil.rmtree(root, ignore_errors=True)
+    _LOOPBACK_OK.append(ok)
+    return ok
+
+
+NO_LOOPBACK = ("this browser never answers --dump-dom over http://127.0.0.1 on this machine "
+               "(file:// works, and Playwright drives the same binary fine), so the check could "
+               "not run and this result proves NOTHING about the code")
+
+
 def check(targets=None, timeout=90):
     """Return (problems, skipped_reason). problems == [] and reason is None when clean."""
     targets = targets or TARGETS
     browser = find_browser()
     if not browser:
         return [], "no Chromium/Edge found — cannot verify JS syntax"
+
+    # v1490 — a browser that cannot answer over loopback here can only produce a timeout, and a
+    # timeout is not a syntax verdict. Say "did not run" instead of spending 90s per target first.
+    if not browser_can_load_localhost(browser):
+        return [], NO_LOOPBACK
 
     srv, port = _serve(REPO)
     problems = []
