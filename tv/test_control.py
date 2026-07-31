@@ -4511,6 +4511,36 @@ class TestV1496MachineNickname(unittest.TestCase):
             ca._FLEET_PRESENCE_CACHE.update(savedcache)
 
 
+class TestV1500BundleVersionIsNotAFifthTruth(unittest.TestCase):
+    """v1500 — the .app bundle was a FIFTH version surface that nobody checked.
+
+    v1489 gave the repo one place to bump and a gate proving the four agreed — board, control, agent
+    and ship manifest. The macOS bundle was outside that set: tv/install-tvd.sh hardcoded 787 while
+    the installed apps advertised 1379.3 and the tree was at v1498. Re-running the installer would
+    have REGRESSED the advertised version by 600. A stamp nobody reads is a stamp that lies."""
+
+    def _installer(self):
+        with open(os.path.join(os.path.dirname(ca.__file__), "install-tvd.sh"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_installer_never_hardcodes_a_version(self):
+        src = self._installer()
+        # Check the two VERSION keys specifically. A 200-char window also caught
+        # LSMinimumSystemVersion's <string>12.0</string> — a real literal, and a correct one.
+        for key in ("CFBundleVersion", "CFBundleShortVersionString"):
+            m = re.search(r"<key>%s</key>\s*<string>([^<]*)</string>" % key, src)
+            self.assertIsNotNone(m, "%s must still be written by the installer" % key)
+            self.assertNotRegex(m.group(1).strip(), r"^\d+(\.\d+)*$",
+                                "%s is a hardcoded literal — that is how the installer came to "
+                                "advertise 787 against a v1498 tree" % key)
+        self.assertIn("TVD_VER", src, "it must read the one source of truth instead")
+
+    def test_installer_reads_the_same_source_as_everything_else(self):
+        src = self._installer()
+        self.assertIn("tv_diablo.py", src,
+                      "the bundle version must come from the SAME file the other four stamps come from")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

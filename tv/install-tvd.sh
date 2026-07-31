@@ -148,7 +148,13 @@ exec bash "\$SCRIPT"
 APP
   chmod +x "$macexe"
 
-  cat > "$plist" <<'PLIST'
+  # 2026-07-31 — the bundle version was a FIFTH surface nobody checked. This file hardcoded 787 while
+# the installed bundles said 1379.3, so re-running the installer would have REGRESSED the app's
+# advertised version. v1489 gave the repo one place to bump; the bundle now reads from it too.
+TVD_VER="$(grep -oE 'VERSION = "v[0-9.]+"' "$(dirname "$0")/tv_diablo.py" 2>/dev/null | grep -oE '[0-9.]+' | head -1)"
+[ -n "$TVD_VER" ] || TVD_VER="0"
+
+cat > "$plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -166,9 +172,9 @@ APP
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleVersion</key>
-  <string>787</string>
+  <string>${TVD_VER}</string>
   <key>CFBundleShortVersionString</key>
-  <string>787</string>
+  <string>${TVD_VER}</string>
   <key>LSUIElement</key>
   <false/>
   <key>LSMinimumSystemVersion</key>
