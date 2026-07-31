@@ -1576,6 +1576,44 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   makes an unreferenced `tv/test_*.py` a failure in its own right — the fix for this defect is not
   the two assertions, it is that nothing was watching them.
 
+## REG-086 — TV_SESSIONS isolated 1 of 11 journal sites (2026-07-31)
+- **Symptom:** an isolated harness (private ports, fixture journal via `TV_SESSIONS`) returned **25
+  receipts of Konyo's REAL session data** from a fixture seeded with four rows. Found while verifying
+  the v1457 honesty surfaces — the fixture's gate-refused row never appeared because the fixture was
+  never being read.
+- **Root cause:** `TV_SESSIONS` has existed since v877 and exactly ONE of eleven `sessions.jsonl`
+  sites honoured it; the other ten hardcoded `HERE/sessions.jsonl`. **Five of those ten APPEND**, so a
+  test that believed it was isolated could have written into the record of his real farming nights.
+- **Fix (v1493):** one `_journal_path()` resolver; every reader and writer goes through it.
+  (Self-inflicted detour worth recording: the blanket replace rewrote the resolver's OWN body into
+  `return … or _journal_path()` — infinite recursion, caught immediately by the suite.)
+- **Prove:** `TestV1493JournalIsolation` — exactly ONE site may construct the path, reads redirect to
+  the fixture, `_kai_journal_rows()` returns the fixture's single row, and the real journal's size and
+  mtime are unchanged after the test.
+- **Prevention:** an env override that only some call sites honour is worse than none — it buys false
+  confidence. One resolver, asserted by a test that counts the construction sites.
+
+## REG-087 — four specs pinned to superseded truths (2026-07-31)
+- **Symptom:** the last four Routine-I reds after REG-084 — `v632_ladder_visibility`,
+  `v634_ladder_preview`, `v552_forge_flagship_visual`, and a flaky `platform_routing_audit`. They fail
+  locally with AND without the v1491 UA pin (proved by reverting the config), so the pin exposed them
+  rather than causing them: the cousin world has no owner seed, so nothing was unmade to place and the
+  assertions never bit on CI.
+- **Root cause:** **the product moved and the specs did not.** v1475 answered Konyo — *"we need it for
+  forge. i dont play ladder but we need it only for the forge specifically those 8-9 runewords"* — by
+  PLANNING the 8 ladder-only words in the Forge lane instead of parking them in a read-only strip. So
+  `forgeScan().ladder` is empty and `#forge-ladder-strip` absent BY DESIGN whenever
+  `_forgeIncludeLadder()` is on (its default). v632/v634 asserted the pre-v1475 home. Separately,
+  v1474 rewrote the Chronicle meter caption to "0 / 99 runewords forged · all 99 planned here
+  (8 ladder-only included)" and v552 was matching the exact old phrasing `/\/\s*99 forged/`.
+- **Fix (v1493):** v632 asserts the invariant FIRST (no unmade word is silent, ever) and then the home
+  for the setting that is actually set; v634 turns the setting off through the product's own switch
+  (`_forgeSetIncludeLadder(false)`) so the preview it covers has content; v552 asserts the contract
+  (a made/total label naming the 99-word universe + the word "forged") instead of one phrasing.
+- **Prove:** all four spec files green locally, and `platform_routing_audit` passes on retry.
+- **Prevention:** assert the CONTRACT, not the copy; and when a feature has a setting, drive the
+  setting instead of inheriting whichever side its default is on.
+
 ## REG-085 — the cousin-world spec never visited the cousin world (2026-07-31)
 - **Symptom:** both `v663_machine_shell` tests red on CI *and* locally, on every version — and red
   identically with and without the v1491 UA pin, so not caused by it.

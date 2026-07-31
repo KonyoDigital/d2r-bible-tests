@@ -46,19 +46,42 @@ test('FULL REMAINDER (his live state): every unmade word is tasked OR in the lad
     const strip = document.getElementById('forge-ladder-strip');
     const stripText = strip ? strip.textContent || '' : '';
     const stripMissing = (sc.ladder || []).filter((t: any) => stripText.indexOf(t.rw) < 0).map((t: any) => t.rw);
-    return { unmadeCount: unmade.length, silent, ladderCount: (sc.ladder || []).length, stripRendered: !!strip, stripMissing };
+    // v1492 — WHICH HOME depends on the v1475 setting, so read it instead of assuming.
+    const includeLadder = !!(w._forgeIncludeLadder && w._forgeIncludeLadder());
+    const ladderOnly = Object.keys(w.RUNEWORD_TIP).filter((n: string) =>
+      w._rwIsLadderOnly && w._rwIsLadderOnly(n) && !made[n]);
+    const tasked = ladderOnly.filter((n: string) => ['now','pipeline','onestep','farm'].indexOf(whereIs[n]) >= 0);
+    return { unmadeCount: unmade.length, silent, ladderCount: (sc.ladder || []).length,
+             stripRendered: !!strip, stripMissing, includeLadder, ladderOnly, tasked };
   });
   await cleanup(page);
   expect(r.silent).toEqual([]);              // THE invariant: nothing hidden, ever
-  expect(r.ladderCount).toBeGreaterThan(0);  // the 9 mod-ladder words are visibly parked
-  expect(r.stripRendered).toBe(true);
-  expect(r.stripMissing).toEqual([]);
+  // v1492 — v1475 answered Konyo's "we need it for forge... only for the forge specifically those
+  // 8-9 runewords" by PLANNING the ladder-only words in the Forge lane instead of parking them in a
+  // read-only strip. So the home changed, and the strip is empty BY DESIGN whenever that setting is
+  // on (its default). This spec asserts the invariant first and then the home for the SETTING THAT
+  // IS ACTUALLY SET — it used to hardcode the pre-v1475 answer, which is why it survived the change
+  // on CI only: the cousin world has no owner seed, so nothing was unmade to place either way.
+  if (r.includeLadder) {
+    expect(r.tasked, 'ladder-only words must be REAL forge tasks when the Forge plans them')
+      .toEqual(r.ladderOnly);
+    expect(r.ladderCount).toBe(0);           // nothing left to park
+    expect(r.stripRendered).toBe(false);     // and no strip to render
+  } else {
+    expect(r.ladderCount).toBeGreaterThan(0);  // the 9 mod-ladder words are visibly parked
+    expect(r.stripRendered).toBe(true);
+    expect(r.stripMissing).toEqual([]);
+  }
 });
 
 test('ladder-mode flip demo: the strip empties and every former ladder word becomes a REAL task — still zero silent', async ({ page }) => {
   await liveState(page);
   const r = await page.evaluate(() => {
     const w: any = window;
+    // v1492 — this demo needs words PARKED in the strip to then watch them become tasks, and since
+    // v1475 the Forge plans them by default so the strip starts empty. Turn that setting off first
+    // (the product's own switch) instead of relying on a default that has since changed sides.
+    try { w._forgeSetIncludeLadder(false); } catch (e) {}
     const before = (w.forgeScan().ladder || []).map((t: any) => t.rw);
     w.rwSetLadderMode('ladder');
     const sc = w.forgeScan();
@@ -69,6 +92,7 @@ test('ladder-mode flip demo: the strip empties and every former ladder word beco
     const unmade = Object.keys(w.RUNEWORD_TIP).filter((n) => !made[n]);
     const silent = unmade.filter((n) => !whereIs[n] && !(sc.ladder || []).some((t: any) => t.rw === n));
     w.rwSetLadderMode('nonladder');
+    try { w._forgeSetIncludeLadder(true); } catch (e) {}   // v1492 — restore the shipped default
     return { before, nowTasked, silent, ladderAfter: (sc.ladder || []).length };
   });
   await cleanup(page);

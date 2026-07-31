@@ -24,7 +24,15 @@ test('v655 — at the owner seed (all 9 ladder words made) the strip and pill ar
 test('toggle expands the 8 plan cards (fresh chronicle) (recipe + base + 🪜 ribbon), collapses back — and game state is BYTE-IDENTICAL', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   // v655 — the ladder set is COMPLETE at the owner seed; pin a FRESH chronicle so the strip exists to test
-  await page.evaluate(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', JSON.stringify({})); });
+  await page.evaluate(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    // v1492 — turn OFF the v1475 "plan the ladder words in the Forge" setting. That feature is what
+    // Konyo asked for ("only for the forge specifically those 8-9 runewords") and it empties this
+    // strip BY DESIGN, so the preview covered here only has content with the setting off. Drive the
+    // product's own switch instead of depending on which side its default sits.
+    try { (window as any)._forgeSetIncludeLadder(false); } catch (e) {}
+  });
   await page.reload(); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -70,7 +78,15 @@ test('toggle expands the 8 plan cards (fresh chronicle) (recipe + base + 🪜 ri
 
 test('v634.2 — the TOP-of-forge 🪜 pill exists, names the remaining count, and toggles the same preview', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
-  await page.evaluate(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', JSON.stringify({})); });
+  await page.evaluate(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    // v1492 — turn OFF the v1475 "plan the ladder words in the Forge" setting. That feature is what
+    // Konyo asked for ("only for the forge specifically those 8-9 runewords") and it empties this
+    // strip BY DESIGN, so the preview covered here only has content with the setting off. Drive the
+    // product's own switch instead of depending on which side its default sits.
+    try { (window as any)._forgeSetIncludeLadder(false); } catch (e) {}
+  });
   await page.reload(); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;

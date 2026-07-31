@@ -49,6 +49,17 @@ if sys.platform == "win32":
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+
+
+def _journal_path():
+    """v1493 — THE ONE JOURNAL PATH. `TV_SESSIONS` existed since v877 but exactly ONE of the eleven
+    sessions.jsonl sites honoured it; the other ten hardcoded HERE/sessions.jsonl. So a harness that
+    set TV_SESSIONS believed it was isolated while the receipts stream read Konyo's REAL journal —
+    caught live: a fixture run with four seeded rows returned 25 receipts of his actual session data.
+    Five of those ten sites APPEND, so an isolated-looking test could have written into the record of
+    his real farming nights. Every site resolves here now."""
+    return os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")
+
 CONTROL_PORT = int(os.environ.get("TV_CONTROL_PORT", "17772"))
 AGENT_PORT = int(os.environ.get("TV_PORT", "17771"))
 LOG_PATH = os.path.join(HERE, "control_agent.log")
@@ -6482,7 +6493,7 @@ def _kai_closer_loop():
                          "note": f"🧠 KAI closed the session — {scanned} frames swept · "
                                  f"{len(missed)} frames held text no eye read"})
             try:
-                with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+                with open(_journal_path(), "a", encoding="utf-8") as f:
                     for r in rows:
                         f.write(json.dumps(r, ensure_ascii=False) + "\n")
             except Exception as e:
@@ -6648,7 +6659,7 @@ def _kai_closer_loop():
                                                         "watchdog": {"rule": "resolved-by-kai-funnel", "tab": t3},
                                                         "note": (f"✅ WATCHDOG resolved — KAI funnel REAL "
                                                                  f"receipted {t3} ×{ik3.get('total')} from the reel")}
-                                                with open(os.path.join(HERE, "sessions.jsonl"), "a",
+                                                with open(_journal_path(), "a",
                                                           encoding="utf-8") as _rf:
                                                     _rf.write(json.dumps(_res, ensure_ascii=False) + "\n")
                                                 _wl = globals().get("_WATCHDOG_LAST")
@@ -6994,7 +7005,7 @@ def _kai_closer_loop():
                                            if _completeness and _completeness.get("coveragePct") is not None else "")
                                         + (f" · 🧠🔬 super-analyze recovered {len(_super_recovered_names)}/"
                                            f"{len(_super_attempted)}" if _super_attempted else "")}
-                    with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf3:
+                    with open(_journal_path(), "a", encoding="utf-8") as _rf3:
                         _rf3.write(json.dumps(_reg_row, ensure_ascii=False) + "\n")
                     print(f"📖 KAI register: {len(_register)} witnessed · 🚦 routing: {len(_routing)} frames, "
                           f"{_routed_n} fired in {sid}", flush=True)
@@ -7010,7 +7021,7 @@ def _kai_journal_rows():
     """Fresh journal rows for KAI (module-level read; the handler cache is instance-side)."""
     rows = []
     try:
-        with open(os.path.join(HERE, "sessions.jsonl"), encoding="utf-8") as f:
+        with open(_journal_path(), encoding="utf-8") as f:
             for ln in f:
                 ln = ln.strip()
                 if ln:
@@ -7089,7 +7100,7 @@ def _watchdog_check(sid, sess_rows):
                          "note": v["note"]})
     if out_rows:
         try:
-            with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+            with open(_journal_path(), "a", encoding="utf-8") as f:
                 for r in out_rows:
                     f.write(json.dumps(r, ensure_ascii=False) + "\n")
         except Exception as e:
@@ -7577,7 +7588,7 @@ def _eyes_pulse():
     last act? Derived from the journal (mtime-cached); badges must never claim activity
     they can't prove (Grok shell-verdict #4)."""
     try:
-        key = os.path.getmtime(os.path.join(HERE, "sessions.jsonl"))
+        key = os.path.getmtime(_journal_path())
     except Exception:
         key = None
     c = globals().get("_EYES_CACHE")
@@ -7747,7 +7758,7 @@ _RECEIPT_LANE_ENGINE = {
 
 def _receipts_stream():
     try:
-        key = os.path.getmtime(os.path.join(HERE, "sessions.jsonl"))
+        key = os.path.getmtime(_journal_path())
     except Exception:
         key = None
     c = globals().get("_RECEIPTS_CACHE")
@@ -8024,7 +8035,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1492",
+        "ver": "v1493",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -8043,7 +8054,7 @@ def status_payload():
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
-        "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),
+        "journalMB": (lambda: round(os.path.getsize(_journal_path()) / 1e6, 1) if os.path.isfile(_journal_path()) else 0.0)(),
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shipPlatform": (_windows_ship() or {}).get("platform") if IS_WIN else ("mac" if sys.platform == "darwin" else None),
         "shipVer": (_windows_ship() or {}).get("ver") if IS_WIN else None,
@@ -8451,7 +8462,7 @@ def doctor_payload():
     # v815 (Grok R8 #8) — can this night be REPLAYED? Frame coverage + id sanity on the
     # journal tail (last ~200 rows): % beats whose hist frame exists, sessionId coverage.
     try:
-        _jl = os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")   # v877
+        _jl = _journal_path()   # v877 · v1493 — one resolver for every site
         _hist = os.path.join(HERE, "frames", "hist")
         rows = []
         if os.path.isfile(_jl):
@@ -9936,7 +9947,7 @@ class Handler(BaseHTTPRequestHandler):
                                           "tag": _tag,
                                           "actions": [str(a)[:24] for a in (_app_acts or [])[:8]]}},
                        "note": _note[:100]}
-                with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+                with open(_journal_path(), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 self._json(200, {"ok": True})
             except Exception as e:
@@ -10046,7 +10057,7 @@ class Handler(BaseHTTPRequestHandler):
                     "capSrc": _cap_src,
                     "note": ("📸 intake · " + str(body.get("tab") or body.get("kind") or "shot"))[:80],
                 }
-                with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+                with open(_journal_path(), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 self._json(200, {"ok": True})
             except Exception as e:

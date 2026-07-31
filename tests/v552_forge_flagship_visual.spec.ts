@@ -47,7 +47,11 @@ test('the Chronicle progress meter renders with a fill and a made/total label', 
   expect(r.present).toBe(true);
   expect(r.hasFill).toBe(true);
   expect(r.width).toMatch(/%$/);           // a percentage width
-  expect(r.text).toMatch(/\/\s*99 forged/);   // v663 recalibration — 99 since the v651 Hustle purge
+  // v1492 — assert the CONTRACT (a made/total label naming the 99-word universe), not one phrasing.
+  // v1474/v1477 rewrote this caption to "0 / 99 runewords forged · all 99 planned here (8 ladder-only
+  // included)" and the old /\/\s*99 forged/ stopped matching a meter that was working perfectly.
+  expect(r.text, 'the meter must show made / total').toMatch(/\d+\s*\/\s*99\b/);   // 99 since the v651 Hustle purge
+  expect(r.text, 'and say what the number means').toMatch(/forged/i);
   expect(r.text).toMatch(/%/);
 });
 

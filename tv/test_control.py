@@ -4399,6 +4399,58 @@ class TestVersionStampsAgree(unittest.TestCase):
             bump_version.bump("v9999", "test", "someone else's chronicle")
 
 
+class TestV1493JournalIsolation(unittest.TestCase):
+    """v1493 — TV_SESSIONS must isolate EVERY journal site, reads and writes alike.
+
+    It existed since v877 and exactly one of eleven sites honoured it. A harness that set it believed
+    it was isolated while the receipts stream read the REAL journal: a fixture run with four seeded
+    rows came back with 25 receipts of Konyo's actual session data. Five of the unrouted sites APPEND,
+    so an isolated-looking test could have written into the record of his real farming nights."""
+
+    def test_every_site_resolves_through_one_path(self):
+        src = open(ca.__file__, encoding="utf-8").read()
+        built = src.count('os.path.join(HERE, "sessions.jsonl")')
+        self.assertEqual(built, 1,
+                         "EXACTLY ONE site may construct the journal path (the resolver itself); "
+                         "found %d — every extra one is a hole in TV_SESSIONS isolation" % built)
+        self.assertIn("def _journal_path():", src, "and that one site is the resolver")
+        self.assertGreater(src.count("_journal_path()"), 5, "every reader/writer goes through it")
+
+    def test_tv_sessions_redirects_reads_and_the_real_journal_is_untouched(self):
+        real = os.path.join(os.path.dirname(ca.__file__), "sessions.jsonl")
+        before = (os.path.getsize(real), os.path.getmtime(real)) if os.path.isfile(real) else None
+        tmp = tempfile.mkdtemp()
+        fixture = os.path.join(tmp, "sessions.jsonl")
+        row = {"ts": 1, "completedTs": 1000, "lane": "deep", "scene": "stash", "area": "Harrogath",
+               "names": ["Isolation Canary"], "sessionId": "s_iso", "frameId": "f_iso",
+               "gatePass": True, "gateReason": "quorum>=2"}
+        with open(fixture, "w", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+        old_env = os.environ.get("TV_SESSIONS")
+        saved_cache = ca.__dict__.get("_RECEIPTS_CACHE", _MISSING)
+        try:
+            os.environ["TV_SESSIONS"] = fixture
+            ca.__dict__.pop("_RECEIPTS_CACHE", None)
+            self.assertEqual(ca._journal_path(), fixture)
+            names = [(r.get("refs") or {}).get("itemName") for r in ca._receipts_stream()]
+            self.assertIn("Isolation Canary", names, "reads must come from the fixture")
+            self.assertEqual(len(ca._kai_journal_rows()), 1,
+                             "the fixture has ONE row; more means the real journal leaked in")
+        finally:
+            if old_env is None:
+                os.environ.pop("TV_SESSIONS", None)
+            else:
+                os.environ["TV_SESSIONS"] = old_env
+            if saved_cache is _MISSING:
+                ca.__dict__.pop("_RECEIPTS_CACHE", None)
+            else:
+                ca._RECEIPTS_CACHE = saved_cache
+            shutil.rmtree(tmp, ignore_errors=True)
+        if before is not None:
+            self.assertEqual((os.path.getsize(real), os.path.getmtime(real)), before,
+                             "the REAL journal must not be read-stamped or appended to by a test")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

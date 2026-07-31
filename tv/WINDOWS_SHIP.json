@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1492",
+  "ver": "v1493",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1492: v663 sets d2r_activeMachine to ascend to the WINDOWS world, but the board only honours a stored machine when d2r_machineSource is user - otherwise it auto-derives from the platform and overwrites the key it was just handed. So both tests stayed on mac and failed their W-world assertions. The spec now drives the master switch the way the console does, with both keys. This is the dedicated cousin-world coverage that makes the v1491 user-agent pin safe, so it needed to be real.",
+  "note": "v1493: The four surviving Routine-I reds were specs pinned to superseded truths, not bugs: v1475 answered Konyo by PLANNING the 8 ladder-only runewords in the Forge lane instead of parking them in a read-only strip, so v632 and v634 asserted a strip that is empty by design - they now read the _forgeIncludeLadder setting and drive it, instead of depending on a default that changed sides. v552 asserted one phrasing of the Chronicle meter caption that v1474 rewrote. And TV_SESSIONS isolated exactly one of eleven journal sites, so a harness that set it read the real journal while five unrouted sites could append to it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

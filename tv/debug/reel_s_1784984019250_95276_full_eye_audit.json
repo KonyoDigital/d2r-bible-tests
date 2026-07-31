@@ -1,0 +1,138 @@
+{
+  "sid": "s_1784984019250_95276",
+  "n": 153,
+  "cls": {
+    "gameplay": 51,
+    "stash": 94,
+    "stash-gems": 6,
+    "stash-materials": 2
+  },
+  "tabs": {
+    "?": 51,
+    "shared": 94,
+    "gems": 6,
+    "materials": 2
+  },
+  "tallyHits": {
+    "gems": 6,
+    "materials": 2
+  },
+  "samples": {
+    "gems": [
+      {
+        "f": "f_1784984198727.jpg",
+        "cls": "stash-gems",
+        "tab": "gems",
+        "src": [
+          "ocr"
+        ],
+        "grid": "stash",
+        "ocrTab": "gems",
+        "panel": true,
+        "lines": [
+          "'Ii'",
+          "K r\u2022 fPUIP",
+          "INVttlY\u2022kY"
+        ]
+      },
+      {
+        "f": "f_1784984199744.jpg",
+        "cls": "stash-gems",
+        "tab": "gems",
+        "src": [
+          "ocr"
+        ],
+        "grid": "stash",
+        "ocrTab": "gems",
+        "panel": true,
+        "lines": [
+          "'Ii'",
+          "K r\u2022 fPUIP",
+          "INVttlY\u2022kY"
+        ]
+      },
+      {
+        "f": "f_1784984200775.jpg",
+        "cls": "stash-gems",
+        "tab": "gems",
+        "src": [
+          "ocr"
+        ],
+        "grid": "stash",
+        "ocrTab": "gems",
+        "panel": true,
+        "lines": [
+          "'Ii'",
+          "K r\u2022 fPUIP",
+          "INVttlY\u2022kY"
+        ]
+      },
+      {
+        "f": "f_1784984201778.jpg",
+        "cls": "stash-gems",
+        "tab": "gems",
+        "src": [
+          "ocr"
+        ],
+        "grid": "stash",
+        "ocrTab": "gems",
+        "panel": true,
+        "lines": [
+          "'Ii'",
+          "K r\u2022 fPUIP",
+          "INVttlY\u2022kY"
+        ]
+      },
+      {
+        "f": "f_1784984271825.jpg",
+        "cls": "stash-gems",
+        "tab": "gems",
+        "src": [
+          "grid",
+          "solo"
+        ],
+        "grid": "stash-gems",
+        "ocrTab": "",
+        "panel": true,
+        "lines": [
+          "'Ii'",
+          "Y20127"
+        ]
+      }
+    ],
+    "materials": [
+      {
+        "f": "f_1784984267751.jpg",
+        "cls": "stash-materials",
+        "tab": "materials",
+        "src": [
+          "grid",
+          "solo"
+        ],
+        "grid": "stash-materials",
+        "ocrTab": "",
+        "panel": true,
+        "lines": [
+          "'Ii'",
+          "Y20127"
+        ]
+      },
+      {
+        "f": "f_1784984268764.jpg",
+        "cls": "stash-materials",
+        "tab": "materials",
+        "src": [
+          "grid",
+          "solo"
+        ],
+        "grid": "stash-materials",
+        "ocrTab": "",
+        "panel": true,
+        "lines": [
+          "'Ii'",
+          "Y20127"
+        ]
+      }
+    ]
+  }
+}
