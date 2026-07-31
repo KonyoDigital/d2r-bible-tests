@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1534",
+  "ver": "v1535",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1534: records v1530-v1533 and states plainly that no real Chronicle screenshot has ever been read",
+  "note": "v1535: the worker chronicle intake kinds have 9 tests and zero callers; where they belong and why the fleet needs them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

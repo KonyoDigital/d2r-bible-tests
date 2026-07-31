@@ -129,12 +129,27 @@ python3 tv/chronicle_retro.py --cost    # what a sweep would cost, on your own f
 Until that has run once against footage containing an actual Chronicle panel, treat every claim in
 this document as "the machinery is right", never as "the tally is right".
 
+## ⚠ ALSO UNWIRED: the worker intake kinds
+
+`functions/api/intake.js` gained `chronicle-uniques` / `chronicle-sets` in v1510 and **nothing calls
+them**. The sweep reads through the Claude and Grok lanes directly, so the worker kinds have 9 tests
+and zero callers. They are not wrong — they are the same contract `normalize_page` speaks — but
+today they are a road with no traffic.
+
+Where they SHOULD be wired, and why it matters for the fleet: a photographed or screenshotted
+Chronicle, posted from the board the way the v561 `grail` import already works. That is the path
+that works when the console is **not** watching — on his phone, or on the Windows PC and his
+cousin's box, which may never run TV DIABLO at all. The live and retro lanes both assume the console
+is running; this one does not.
+
 ## Picking it up
 
 Everything is wired and green. The natural next steps, in value order:
 
-1. **Run it against his real footage** — see the section above. This is the only remaining gap, and
-   it is the one that decides whether any of the rest was worth building.
-2. ~~Set-name → pieces~~ — closed in v1530.
-3. ~~Tune the gate on real data~~ — the *tooling* is closed in v1531 (`/api/chronicle_gate`); the
+1. **Run it against his real footage** — see the section above. This is the gap that decides whether
+   any of the rest was worth building.
+2. **Wire the worker kinds to a board photo-intake** — the only Chronicle path that works without
+   the console running, which is the only path the Windows PC and the cousin's box may ever have.
+3. ~~Set-name → pieces~~ — closed in v1530.
+4. ~~Tune the gate on real data~~ — the *tooling* is closed in v1531 (`/api/chronicle_gate`); the
    tuning itself still needs a real sweep to tune against.
