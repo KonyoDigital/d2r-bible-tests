@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1513",
+  "ver": "v1514",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1513: nothing touches the grail without 2 independent agreeing witnesses, and every verdict explains itself",
+  "note": "v1514: Grok as an independent second lane: same contract, its own words, disagreement reported not resolved",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

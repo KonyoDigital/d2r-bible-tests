@@ -76,6 +76,89 @@ _DEFAULT_VISION_PROMPT = (
     "conf = 0.0-1.0. Be precise."
 )
 
+# v1514 — THE SECOND EYE ON THE CHRONICLE. Konyo: "grok for me specifically i can use as a second
+# pair of eyes and a different view for also these exact things! it must be also coded in so it is
+# IDENTICALLY trying to read and retro chronicle these tallied in."
+#
+# "Identically" is the requirement AND the trap. The two lanes must answer the SAME question in the
+# SAME shape — otherwise their answers cannot be compared, and cross-lane agreement (the strongest
+# witness the gate has) would be measuring prompt differences instead of the screen. But they must
+# not share a prompt WORDING either, or they inherit the same blind spots and the "independent"
+# second opinion is theatre. So: same contract, same refusals, its own words.
+CHRONICLE_VISION_PROMPT = (
+    "Diablo II Resurrected (RotW mod) screenshot at path:\n{path}\n\n"
+    "Open that image with the read_file tool FIRST, then reply with STRICT JSON only, no markdown "
+    "fences, no prose:\n"
+    '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],'
+    '"printedFound":null,"printedTotal":null,"stateVisible":true,"wrongTab":false,"conf":0.0}}\n'
+    "This is the in-game CHRONICLE (holy grail) panel: a scrollable list of item names, each row "
+    "showing whether the player has FOUND it — bright/coloured text vs grey/dim, a tick, a filled "
+    "marker.\n"
+    "found = ONLY names whose found-state is VISIBLY positive. notFound = names you can read whose "
+    "state is dim, empty or ambiguous.\n"
+    "If you cannot tell found from unfound anywhere on the panel: set stateVisible=false and return "
+    "found EMPTY. Do not assume everything shown is owned — this read is unattended and a confident "
+    "wrong page permanently mis-tallies his grail.\n"
+    "THE LEDGER YOU WERE GIVEN IS {ledger}. uniques = single unique items (Harlequin Crest, "
+    "Windforce, Stormshield). sets = rows grouped under SET names (Tal Rasha's Wrappings, Immortal "
+    "King). If the panel on screen is the OTHER one, set wrongTab=true and return found empty.\n"
+    "sets = only when ledger=sets: [{{\"set\":\"<set name>\",\"pieces\":[<found piece names>]}}].\n"
+    "printedFound / printedTotal = the panel's own progress numbers if it prints any (\"243/403\", "
+    "\"Found 108 of 135\") EXACTLY as shown, else null. They are checked against your own count — an "
+    "honest mismatch is useful, a fabricated match is not.\n"
+    "Only rows you can actually READ belong in either list. A half-remembered item, a plausible "
+    "guess at a blurred row, a name you expect to be there — none of those. Leave it out.\n"
+    "conf = 0.0-1.0, your own honest confidence in this page."
+)
+
+
+def g5_chronicle_read(image_path, kind, *, force=True):
+    """The Grok lane's chronicle read, in the v1510 worker's response shape.
+
+    Returns None whenever Grok cannot or should not answer (off, not logged in, over budget, error).
+    None is a REFUSAL, never an empty page: two_lane_read distinguishes "grok didn't run" from "grok
+    saw nothing", and collapsing them would let a dead second lane read as silent agreement.
+    """
+    ledger = "sets" if str(kind or "").endswith("sets") else "uniques"
+    import os as _os
+    path = _os.path.abspath(str(image_path or ""))
+    raw = g5_vision_read(path, prompt=CHRONICLE_VISION_PROMPT.format(path=path, ledger=ledger),
+                         force=force)
+    if not isinstance(raw, dict):
+        return None
+    def _names(v):
+        return [str(x).strip() for x in (v or []) if str(x).strip()][:400]
+    def _num(v):
+        try:
+            n = int(v)
+            return n if 0 <= n <= 9999 else None
+        except Exception:
+            return None
+    try:
+        conf = max(0.0, min(1.0, float(raw.get("conf") or 0)))
+    except Exception:
+        conf = 0.0
+    stateVisible = raw.get("stateVisible") is not False
+    wrongTab = raw.get("wrongTab") is True
+    out = {
+        "kind": kind, "ledger": ledger, "lane": "grok",
+        "found": [] if (wrongTab or not stateVisible) else _names(raw.get("found")),
+        "notFound": _names(raw.get("notFound")),
+        "sets": [{"set": str(g.get("set") or "")[:60], "pieces": _names(g.get("pieces"))}
+                 for g in (raw.get("sets") or []) if isinstance(g, dict) and g.get("set")],
+        "stateVisible": stateVisible, "wrongTab": wrongTab, "conf": conf,
+        "printed": {"found": _num(raw.get("printedFound")), "total": _num(raw.get("printedTotal"))},
+        "note": "wrong-ledger" if wrongTab else ("no-found-state" if not stateVisible else None),
+    }
+    # the second lane gets the SAME printed-vs-counted witness test as the primary, or "agree" would
+    # mean two different things depending on which lane said it
+    pf, pt = out["printed"]["found"], out["printed"]["total"]
+    whole = pt is not None and (len(out["found"]) + len(out["notFound"])) == pt
+    out["wholePage"] = whole
+    out["witness"] = "none" if (pf is None or not whole) else ("agree" if pf == len(out["found"]) else "differ")
+    out["read"] = {"found": len(out["found"]), "notFound": len(out["notFound"])}
+    return out
+
 
 # ── subscription auth (NOT API keys) ───────────────────────────────────────────
 _GROK_CANDIDATES = (

@@ -183,6 +183,69 @@ class TestProposal(unittest.TestCase):
         self.assertIn("Tal Rasha's Howling Wind", p["sets"])
 
 
+class TestTwoLanes(unittest.TestCase):
+    """v1514 — Konyo: "grok for me specifically i can use as a second pair of eyes and a different
+    view for also these exact things! it must be also coded in so it is identically trying to read
+    and retro chronicle these tallied in."
+
+    Claude is primary; Grok is independent. The value is in the DISAGREEMENT being visible."""
+
+    def claude(self, *found, **kw):
+        return lambda p, k: dict({"ledger": "uniques", "found": list(found), "conf": 0.9}, **kw)
+
+    def test_both_lanes_agreeing_reaches_the_gate_as_TWO_witnesses(self):
+        # ★ the strongest signal in the system — folding the lanes into one row would discard it
+        r = cr.two_lane_read("f.jpg", "chronicle-uniques",
+                             self.claude("Windforce"), self.claude("Windforce"))
+        self.assertEqual(r["lanes"]["Windforce"], ["claude", "grok"])
+        prop = cr.proposal_from_pages([{"reel": "s1", "frame": "f.jpg", "resp": r}])
+        self.assertIn("cross-lane", cr.gate_verdict("Windforce", prop["uniques"]["Windforce"])["witnesses"])
+
+    def test_a_name_only_ONE_lane_saw_is_kept_but_still_needs_another_witness(self):
+        r = cr.two_lane_read("f.jpg", "chronicle-uniques",
+                             self.claude("Windforce", "Shako"), self.claude("Windforce"))
+        self.assertIn("Shako", r["found"])                       # kept — not thrown away
+        prop = cr.proposal_from_pages([{"reel": "s1", "frame": "f.jpg", "resp": r}])
+        self.assertFalse(cr.gate_verdict("Shako", prop["uniques"]["Shako"])["pass"])   # but not grounded
+
+    def test_the_DISAGREEMENT_is_reported_not_resolved(self):
+        # ★ silently taking the bigger number leaves a system that LOOKS corroborated while being
+        # exactly as wrong as its most confident lane
+        r = cr.two_lane_read("f.jpg", "chronicle-uniques",
+                             self.claude("Windforce", "Shako"), self.claude("Windforce", "Stormshield"))
+        self.assertEqual(r["laneAgreement"]["both"], ["Windforce"])
+        self.assertEqual(r["laneAgreement"]["claudeOnly"], ["Shako"])
+        self.assertEqual(r["laneAgreement"]["grokOnly"], ["Stormshield"])
+        self.assertIn("1 agreed", r["laneSummary"])
+
+    def test_a_SILENT_grok_is_stated_never_implied(self):
+        # "grok didn't run" and "grok agreed" are different facts; the gate must not confuse them
+        r = cr.two_lane_read("f.jpg", "chronicle-uniques", self.claude("Windforce"), None)
+        self.assertEqual(r["lanesRan"], ["claude"])
+        self.assertEqual(r["laneNote"], "grok-silent")
+        self.assertEqual(r["lanes"]["Windforce"], ["claude"])
+
+    def test_a_grok_that_THROWS_never_breaks_the_read(self):
+        def boom(p, k):
+            raise RuntimeError("grok CLI died")
+        r = cr.two_lane_read("f.jpg", "chronicle-uniques", self.claude("Windforce"), boom)
+        self.assertEqual(r["found"], ["Windforce"])
+        self.assertEqual(r["lanesRan"], ["claude"])
+
+    def test_CLAUDE_IS_PRIMARY_a_refusal_ends_the_page(self):
+        # if the primary lane refused the page, there is no page for a second opinion to be about
+        called = []
+        r = cr.two_lane_read("f.jpg", "chronicle-uniques",
+                             self.claude("Windforce", note="no-found-state"),
+                             lambda p, k: called.append(p) or {"found": ["Windforce"]})
+        self.assertEqual(called, [], "grok must not be paid to second-guess a refusal")
+        self.assertEqual(r["note"], "no-found-state")
+
+    def test_the_reader_binds_into_the_sweep_seam(self):
+        rp = cr.two_lane_reader(self.claude("Windforce"), self.claude("Windforce"))
+        self.assertEqual(rp("f.jpg", "chronicle-uniques")["lanes"]["Windforce"], ["claude", "grok"])
+
+
 class TestMergeLaw(unittest.TestCase):
     def test_merge_is_union_and_reports_only_the_gain(self):
         m = cr.merge_max(["Shako", "Windforce"], ["Windforce", "Stormshield"])

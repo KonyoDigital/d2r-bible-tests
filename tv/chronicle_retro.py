@@ -201,6 +201,62 @@ def classifier(claude_read, on_seen=None):
     return _classify
 
 
+def two_lane_read(path, kind, claude_lane, grok_lane=None):
+    """v1514 — TWO LANES ON THE SAME PAGE. Konyo: "we have both claude which is the most important..
+    but grok for me specifically i can use as a second pair of eyes and a different view for also
+    these exact things! it must be also coded in so it is identically trying to read and retro
+    chronicle these tallied in."
+
+    Claude is PRIMARY: if Claude does not answer, there is no page. Grok is a genuinely independent
+    second eye — different model, different prompt path, different failure modes — which is what
+    makes cross-lane the strongest witness the gate can be given.
+
+    THE RULE THAT MATTERS: the two lanes are NOT max()'d together. A name only one lane saw is kept,
+    but it is kept AS a one-lane sighting, so the gate still demands a second kind of witness before
+    it grounds. And where the lanes disagree, the disagreement is REPORTED — surfacing it is the
+    whole value of having a second eye. Silently taking the bigger number would throw that away and
+    leave a system that looks corroborated while being exactly as wrong as its most confident lane.
+    """
+    primary = claude_lane(path, kind) or {}
+    if primary.get("note") or not primary.get("ledger"):
+        return dict(primary, lanes={}, lanesRan=["claude"])   # refused or empty — no second opinion needed
+    lanes = {nm: ["claude"] for nm in (primary.get("found") or [])}
+    ran = ["claude"]
+    second = None
+    if grok_lane is not None:
+        try:
+            second = grok_lane(path, kind)
+        except Exception:
+            second = None
+    if not second or second.get("note"):
+        # An absent second eye is stated, never implied. "grok didn't run" and "grok agreed" are
+        # different facts and the gate must not confuse them.
+        return dict(primary, lanes=lanes, lanesRan=ran,
+                    laneNote=(second or {}).get("note") or "grok-silent")
+    ran.append("grok")
+    for nm in (second.get("found") or []):
+        lanes.setdefault(nm, []).append("grok")
+    both = sorted(n for n, ls in lanes.items() if len(ls) > 1)
+    only_c = sorted(n for n, ls in lanes.items() if ls == ["claude"])
+    only_g = sorted(n for n, ls in lanes.items() if ls == ["grok"])
+    return dict(
+        primary,
+        found=sorted(lanes),                 # union — the gate, not the reader, decides what grounds
+        lanes=lanes,
+        lanesRan=ran,
+        laneAgreement={"both": both, "claudeOnly": only_c, "grokOnly": only_g},
+        # the honest headline: two eyes that agree on 40 of 43 is a much better story than "43 found"
+        laneSummary="%d agreed · %d claude-only · %d grok-only" % (len(both), len(only_c), len(only_g)),
+    )
+
+
+def two_lane_reader(claude_lane, grok_lane=None):
+    """Bind the two lanes into the `read_page` callable read_reel() wants."""
+    def _read(path, kind):
+        return two_lane_read(path, kind, claude_lane, grok_lane)
+    return _read
+
+
 def proposal_from_pages(pages):
     """Fold read pages into ONE proposal per ledger, keeping every name's evidence.
 
@@ -219,13 +275,17 @@ def proposal_from_pages(pages):
                                     "why": resp.get("note")})
             continue
         prop["pagesRead"] += 1
+        # v1514 — ONE SIGHTING PER LANE. Two eyes that agree must reach the gate as TWO witnesses;
+        # folding them into one row would silently discard the strongest signal in the system.
+        lane_map = resp.get("lanes") or {}
         for nm in (resp.get("found") or []):
-            prop[ledger].setdefault(nm, []).append({
-                "reel": p.get("reel"), "frame": p.get("frame"),
-                "witness": resp.get("witness") or "none",
-                "conf": resp.get("conf") or 0,
-                "lane": resp.get("lane") or "claude",
-            })
+            for lane in (lane_map.get(nm) or [resp.get("lane") or "claude"]):
+                prop[ledger].setdefault(nm, []).append({
+                    "reel": p.get("reel"), "frame": p.get("frame"),
+                    "witness": resp.get("witness") or "none",
+                    "conf": resp.get("conf") or 0,
+                    "lane": lane,
+                })
         for nm in (resp.get("notFound") or []):
             prop["notFound"][ledger].add(nm)
         for g in (resp.get("sets") or []):

@@ -198,5 +198,70 @@ class TestDualIntakeReceivers(unittest.TestCase):
         self.assertEqual(labs, ["subscription"])
 
 
+class TestG5ChronicleLane(unittest.TestCase):
+    """v1514 — the second eye on the Chronicle.
+
+    Konyo wants Grok reading the SAME thing "identically". Identically is both the requirement and
+    the trap: the two lanes must answer the same question in the same SHAPE or their answers cannot
+    be compared — but they must not share prompt WORDING, or they inherit the same blind spots and
+    the independent second opinion is theatre."""
+
+    def _read(self, raw, kind="chronicle-uniques"):
+        with mock.patch.object(g5, "g5_vision_read", return_value=raw):
+            return g5.g5_chronicle_read("/tmp/f.jpg", kind)
+
+    def test_it_answers_in_the_SAME_SHAPE_as_the_primary_lane(self):
+        r = self._read({"found": ["Windforce"], "notFound": ["Shako"], "conf": 0.8})
+        for field in ("ledger", "found", "notFound", "sets", "witness", "printed", "read", "conf"):
+            self.assertIn(field, r, field + " is part of the v1510 contract both lanes must speak")
+        self.assertEqual(r["lane"], "grok")
+
+    def test_the_prompt_is_its_OWN_words_not_a_copy_of_claudes(self):
+        # ★ shared wording ⇒ shared blind spots ⇒ a second opinion that is theatre. The two prompts
+        # must state the same CONTRACT while sharing no long stretch of phrasing.
+        worker = os.path.join(os.path.dirname(HERE), "functions", "api", "intake.js")
+        with open(worker, encoding="utf-8") as fh:
+            claude_side = fh.read()
+        mine = g5.CHRONICLE_VISION_PROMPT
+        # the contract IS shared — same fields, same refusals
+        for shared in ("stateVisible", "wrongTab", "printedFound", "notFound"):
+            self.assertIn(shared, mine)
+            self.assertIn(shared, claude_side)
+        # ...the sentences are not. Any 12-word run copied verbatim means one blind spot, not two eyes.
+        words = [w for w in mine.replace("\\n", " ").split() if w]
+        runs = [" ".join(words[i:i + 12]) for i in range(0, max(0, len(words) - 12))]
+        copied = [r for r in runs if r in claude_side]
+        self.assertEqual(copied, [], "verbatim phrasing shared with the primary lane: " + str(copied[:1]))
+
+    def test_a_dead_lane_returns_NONE_not_an_empty_page(self):
+        # ★ "grok didn't run" and "grok saw nothing" must stay different facts, or a dead second
+        # lane reads as silent agreement
+        with mock.patch.object(g5, "g5_vision_read", return_value=None):
+            self.assertIsNone(g5.g5_chronicle_read("/tmp/f.jpg", "chronicle-uniques"))
+
+    def test_it_makes_the_SAME_refusals(self):
+        r = self._read({"found": ["Windforce"], "stateVisible": False})
+        self.assertEqual(r["found"], [])
+        self.assertEqual(r["note"], "no-found-state")
+        r2 = self._read({"found": ["Windforce"], "wrongTab": True})
+        self.assertEqual(r2["found"], [])
+        self.assertEqual(r2["note"], "wrong-ledger")
+
+    def test_the_ledger_it_was_ASKED_for_is_the_ledger_it_reports(self):
+        self.assertEqual(self._read({"found": []}, "chronicle-sets")["ledger"], "sets")
+        self.assertEqual(self._read({"found": []}, "chronicle-uniques")["ledger"], "uniques")
+
+    def test_the_printed_witness_means_the_same_thing_in_both_lanes(self):
+        agree = self._read({"found": ["A", "B"], "notFound": ["C"], "printedFound": 2, "printedTotal": 3})
+        self.assertEqual(agree["witness"], "agree")
+        partial = self._read({"found": ["A", "B"], "notFound": [], "printedFound": 2, "printedTotal": 403})
+        self.assertEqual(partial["witness"], "none", "a partial page can never claim a witness")
+
+    def test_the_prompt_carries_the_unattended_danger_and_the_ledger_slot(self):
+        self.assertIn("unattended", g5.CHRONICLE_VISION_PROMPT)
+        self.assertIn("{ledger}", g5.CHRONICLE_VISION_PROMPT)
+        self.assertIn("wrongTab", g5.CHRONICLE_VISION_PROMPT)
+
+
 if __name__ == "__main__":
     unittest.main()
