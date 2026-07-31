@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1515",
+  "ver": "v1516",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1515: the whole hist directory in one pass, with a free --cost pass that proves the price on his own film",
+  "note": "v1516: console panel + /api/chronicle_scan free pass; found and fixed the escaper-scope bug that had the FLEET panel lying since v1496",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

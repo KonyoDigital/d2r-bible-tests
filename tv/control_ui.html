@@ -2193,6 +2193,30 @@
   body[data-state="off"] .meters .m .v { color: var(--muted); font-weight: var(--fw-semibold); }
   /* v1464 — the old @media(max-width:1000px) 3-across override is GONE: auto-fit/minmax above
      already resolves every width, and leaving a hard 3-col rule would fight it. */
+  /* v1516 — 📜 CHRONICLE SWEEP panel. Reads as a QUOTE, not a result: the big number is a price
+     (calls it would make), and the caption says what it is instead of a tally. */
+  .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  .chron-idle, .chron-none { font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono);
+    letter-spacing: var(--ls-label); color: var(--text-dim); padding: 4px 0; }
+  .chron-fig { flex: 0 0 auto; min-width: 132px; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid rgba(198,166,100,.22); background: rgba(0,0,0,.22); }
+  .chron-fig b { display: block; font: var(--fw-bold) var(--fs-lg)/1.05 var(--mono); color: #e8d9a8; }
+  .chron-fig i { display: block; margin-top: 3px; font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono);
+    letter-spacing: var(--ls-label); font-style: normal; color: var(--text-dim); }
+  .chron-fig.saved b { color: var(--st-good); }
+  .chron-reels { flex: 1 1 260px; min-width: 0; max-height: 132px; overflow-y: auto;
+    font: var(--fw-medium) var(--fs-2xs)/1.55 var(--mono); color: var(--text-dim); }
+  .chron-reels .cr { display: flex; gap: 8px; justify-content: space-between; }
+  .chron-reels .cr b { color: #cbbf9a; font-weight: var(--fw-semibold); }
+  .chron-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .chron-btn { cursor: pointer; padding: 6px 12px; border-radius: 7px;
+    border: 1px solid rgba(198,166,100,.3); background: rgba(198,166,100,.08); color: #e8d9a8;
+    font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); }
+  .chron-btn:hover { background: rgba(198,166,100,.16); }
+  .chron-btn[disabled] { opacity: .5; cursor: default; }
+  .chron-note { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
+    color: var(--st-idle); }
+
   .hd-history .hd-h { display: flex; align-items: center; }
   .hd-hist-head { cursor: pointer; user-select: none; }
   .hd-hist-head:focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 2px; }
@@ -3318,6 +3342,19 @@
         <!-- v1374 — TALLY ENGINE launcher in the RECORD zone -->
         <div class="hd-col hd-wide hd-tallybar" id="hd-tallybar">
           <div class="hd-chips" id="hd-tallybar-chips"></div>
+        </div>
+        <!-- v1516 — 📜 THE CHRONICLE SWEEP. The free pass, in the RECORD zone because that is where
+             the chronicle of his runs already lives. It reports a PRICE, never a tally: nothing here
+             reads a page, spends a call, or touches a ledger. -->
+        <div class="hd-col hd-wide hd-chron" id="hd-chron">
+          <div class="hd-h">📜 CHRONICLE SWEEP <span class="hd-sub">what a retro read of your reels would cost</span></div>
+          <div class="chron-body" id="chron-body">
+            <div class="chron-idle">tap to price it — no model call, nothing written</div>
+          </div>
+          <div class="chron-foot">
+            <button class="chron-btn" type="button" id="chron-scan">price the sweep</button>
+            <span class="chron-note" id="chron-note">reads nothing · costs nothing · changes nothing</span>
+          </div>
         </div>
         <!-- v936 (STORY ARC R2b) — LAST SESSION digest -->
         <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
@@ -10019,6 +10056,16 @@ body:not(.shell-open) #tvd-eng {
 .th-drawer h4 { letter-spacing: var(--ls-label) !important; }
 </style>
 <script>
+/* v1516 — THIS SCRIPT BLOCK'S OWN ESCAPER. The block above defines escC() at its own top level, so
+   nothing here can see it: every call from this block threw a ReferenceError and landed in the
+   nearest catch. That is why the FLEET panel (v1496) reported "fleet unreachable" even when the
+   route answered perfectly — the fetch succeeded and the RENDER died. Same bug would have shipped
+   with the Chronicle panel. One escaper, declared where the code that uses it lives. */
+function escC(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]);
+  });
+}
 /* ══ v1465 — PROFILE SIGIL. Deliberately self-contained: its own tiny poll, no hook into the
    main paint path, so a console-identity feature can never destabilise the live readout. It
    fails silent — if /api/status has no identity the chip simply stays hidden. ══ */
@@ -10101,7 +10148,7 @@ body:not(.shell-open) #tvd-eng {
     // v1498 — the machine leads, the code follows. An UNNAMED machine says so in words, because
     // "konyo-3.local" is a hostname pretending to be an answer — and the invitation to name it
     // belongs where he is already looking.
-    // NOTE: this block is its own IIFE — the page-level esc() is not in scope here, and reaching
+    // NOTE: this block is its own IIFE — the page-level escC() is not in scope here, and reaching
     // for it silently threw and left the crest blank. Local escape, no dependency.
     var _e = function (v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
@@ -10173,18 +10220,18 @@ body:not(.shell-open) #tvd-eng {
       var j = await r.json();
       if (!j || j.ok === false) {
         // honest-absent: say the fleet could not be reached, never imply "nobody is online"
-        box.innerHTML = '<div class="fleet-none">fleet unreachable — ' + esc((j && j.error) || 'no answer') + '</div>';
+        box.innerHTML = '<div class="fleet-none">fleet unreachable — ' + escC((j && j.error) || 'no answer') + '</div>';
         return;
       }
       var rows = (j.online || []).map(function (m) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
-        return '<div class="fleet-row on"><span class="fleet-dot"></span><b>' + esc(nameFor) + '</b>'
-          + '<span class="fleet-meta">' + esc(m.mode === 'live' ? '🔴 ON AIR' : 'idle')
-          + ' · ' + esc(m.ver || '') + ' · ' + esc(_fleetSince(m.t)) + '</span></div>';
+        return '<div class="fleet-row on"><span class="fleet-dot"></span><b>' + escC(nameFor) + '</b>'
+          + '<span class="fleet-meta">' + escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle')
+          + ' · ' + escC(m.ver || '') + ' · ' + escC(_fleetSince(m.t)) + '</span></div>';
       }).concat((j.offline || []).map(function (m) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
-        return '<div class="fleet-row"><span class="fleet-dot off"></span><b>' + esc(nameFor) + '</b>'
-          + '<span class="fleet-meta">offline · last seen ' + esc(_fleetSince(m.t)) + '</span></div>';
+        return '<div class="fleet-row"><span class="fleet-dot off"></span><b>' + escC(nameFor) + '</b>'
+          + '<span class="fleet-meta">offline · last seen ' + escC(_fleetSince(m.t)) + '</span></div>';
       }));
       box.innerHTML = rows.length ? rows.join('')
         : '<div class="fleet-none">no console has ever checked in</div>';
@@ -10192,6 +10239,50 @@ body:not(.shell-open) #tvd-eng {
       box.innerHTML = '<div class="fleet-none">fleet unreachable</div>';
     }
   };
+
+  // v1516 — 📜 THE CHRONICLE SWEEP, priced. This deliberately shows a QUOTE and not a tally: the
+  // free pass groups frames into still-runs and reports what a real read WOULD cost. He was told
+  // "97% cheaper"; this is where he checks it rather than believing it.
+  window._chronScan = async function () {
+    var body = document.getElementById('chron-body');
+    var btn = document.getElementById('chron-scan');
+    var note = document.getElementById('chron-note');
+    if (!body) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'grouping frames…'; }
+    try {
+      var r = await fetch('/api/chronicle_scan', { cache: 'no-store' });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        // honest-absent: say the sweep could not be priced, never imply "there is nothing to sweep"
+        body.innerHTML = '<div class="chron-none">could not price the sweep — ' + escC((j && j.why) || 'no answer') + '</div>';
+        return;
+      }
+      var t = j.totals || {};
+      if (!t.reels) {
+        body.innerHTML = '<div class="chron-none">' + escC(j.note || 'no sealed reels yet — play a session and it seals one') + '</div>';
+        return;
+      }
+      var figs = ''
+        + '<div class="chron-fig saved"><b>' + escC(String(j.savedPct)) + '%</b><i>cheaper than<br>reading every frame</i></div>'
+        + '<div class="chron-fig"><b>' + escC(String(j.wouldRead)) + '</b><i>AI calls it<br>would make</i></div>'
+        + '<div class="chron-fig"><b>' + escC(String(j.insteadOf)) + '</b><i>frames across<br>' + escC(String(t.reels)) + ' sealed reels</i></div>';
+      var reels = (j.reels || []).map(function (x) {
+        return '<div class="cr"><span>' + escC(String(x.reel || '?').slice(0, 28)) + '</span>'
+          + '<span><b>' + escC(String(x.runs || 0)) + '</b> runs → <b>' + escC(String(x.classified || 0)) + '</b> calls</span></div>';
+      }).join('');
+      body.innerHTML = figs + '<div class="chron-reels">' + (reels || '') + '</div>';
+      // ★ the claim the panel must never overstate: this pass read nothing and wrote nothing
+      if (note) note.textContent = 'priced from your own film · 0 calls spent · nothing written';
+    } catch (e) {
+      body.innerHTML = '<div class="chron-none">could not reach the console</div>';
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'price the sweep again'; }
+    }
+  };
+  (function () {
+    var b = document.getElementById('chron-scan');
+    if (b) b.addEventListener('click', function () { window._chronScan(); });
+  })();
 
   async function tick() {
     try {

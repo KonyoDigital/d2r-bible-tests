@@ -7928,6 +7928,37 @@ def set_install_nickname(name):
 _FLEET_PRESENCE_CACHE = {"t": 0.0, "d": None}
 
 
+def chronicle_scan_cost(hist_dir=None, limit=None):
+    """v1516 — what a Chronicle retro sweep would cost, computed on HIS film. No model calls.
+
+    Konyo has been told "97% cheaper" — this is the route that lets him verify it instead of
+    believing it. It returns the per-reel grouping and the totals, and it cannot spend anything:
+    the classify and read lanes are stubbed to None, so no reader is ever reached.
+    """
+    try:
+        import chronicle_retro as _cr
+    except Exception as e:
+        return {"ok": False, "why": "chronicle_retro unavailable: %s" % e}
+    hist = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    if not os.path.isdir(hist):
+        return {"ok": True, "reels": [], "totals": {"reels": 0, "framesSeen": 0, "classified": 0},
+                "note": "no sealed reels yet"}
+    res = _cr.sweep_hist(hist, classify=lambda p: None, read_page=lambda p, k: {}, limit=limit)
+    t = res["totals"]
+    seen, calls = t.get("framesSeen") or 0, t.get("classified") or 0
+    return {
+        "ok": True,
+        "reels": res["reels"],
+        "totals": t,
+        # stated as a fraction of frames, which is the only honest denominator: reading every frame
+        # is the thing this replaces
+        "savedPct": round(100.0 * (1 - (calls / seen)), 1) if seen else 0.0,
+        "wouldRead": calls,
+        "insteadOf": seen,
+        "spent": 0,          # ★ said out loud: this route cannot cost anything
+    }
+
+
 def fleet_presence(force=False):
     """v1496 — WHO IS ONLINE, AND WHEN WAS EACH MACHINE LAST HERE.
 
@@ -8103,7 +8134,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1515",
+        "ver": "v1516",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9520,6 +9551,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/fleet":
             # v1496 — who is online and when each machine was last here (60s cached, read-only)
             self._json(200, fleet_presence(force=("force=1" in (self.path or ""))))
+            return
+        if path == "/api/chronicle_scan":
+            # v1516 — THE FREE PASS. Groups every sealed reel's frames into still-runs and reports
+            # what a real sweep WOULD cost. Zero model calls, zero writes — this is the number he
+            # gets to check before agreeing to spend anything.
+            self._json(200, chronicle_scan_cost())
             return
         if path.startswith("/art/"):
             self._serve_art(path[len("/art/") :])
