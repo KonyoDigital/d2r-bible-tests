@@ -35489,7 +35489,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1496', name:'v1496 - name your machines, and see the fleet', date:'2026-07-31', note:'Konyo asked for the profile sigil to be friendlier and for a tracker of who is logged in and when - and the tracker already existed: /console has shown every console online since v875, twinned with the site /visits. He had lost the key, so a fresh VISITS_KEY was set. On top: an install can now be NAMED from its own console (double-click the sigil), the name rides the presence beacon so the fleet reads Konyo MacBook instead of konyo-3, and a FLEET panel under advanced answers who is online and when each machine was last seen without leaving the console. CI runners no longer check in - the fleet was listing a GitHub VM in Boydton beside his MacBook.' };
+  window.D2R_BUILD = { id:'v1497', name:'v1497 - the beacon test owns its environment', date:'2026-07-31', note:'v1496 made the presence beacon skip CI so GitHub runners stop appearing in Konyo fleet, and the test that asserts the beacon SENDS then errored on the runner - it passed on the Mac only because CI is not set there. The test now clears those variables for the sending half and sets CI for the other half, so it proves both sides of the contract on any host.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1496",
+  "ver": "v1497",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1496: Konyo asked for the profile sigil to be friendlier and for a tracker of who is logged in and when - and the tracker already existed: /console has shown every console online since v875, twinned with the site /visits. He had lost the key, so a fresh VISITS_KEY was set. On top: an install can now be NAMED from its own console (double-click the sigil), the name rides the presence beacon so the fleet reads Konyo MacBook instead of konyo-3, and a FLEET panel under advanced answers who is online and when each machine was last seen without leaving the console. CI runners no longer check in - the fleet was listing a GitHub VM in Boydton beside his MacBook.",
+  "note": "v1497: v1496 made the presence beacon skip CI so GitHub runners stop appearing in Konyo fleet, and the test that asserts the beacon SENDS then errored on the runner - it passed on the Mac only because CI is not set there. The test now clears those variables for the sending half and sets CI for the other half, so it proves both sides of the contract on any host.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -849,6 +849,11 @@ class TestV875Beacon(unittest.TestCase):
             return R()
         old = _ur.urlopen
         _ur.urlopen = fake_urlopen
+        # v1496 — OWN THE ENVIRONMENT YOU ASSERT ON. The beacon now stays silent under CI (a runner
+        # is not one of Konyo's machines and had been showing up in his fleet), so this test has to
+        # say which side of that it is testing. It passed on the Mac and ERRORed on the runner purely
+        # because CI=true is set there — the same local-vs-CI blindness as REG-082, inverted.
+        _saved_env = {k: os.environ.pop(k, None) for k in ("CI", "GITHUB_ACTIONS", "TVD_NO_BEACON")}
         try:
             ca._console_beacon("boot")
             self.assertEqual(sent["url"], "https://bull-4-u.com/api/console")
@@ -856,11 +861,22 @@ class TestV875Beacon(unittest.TestCase):
             self.assertEqual(sent["body"]["event"], "boot")
             self.assertIn("machine", sent["body"])
             self.assertIn("ver", sent["body"])
+            self.assertIn("nickname", sent["body"], "v1496 — the friendly name must ride the beacon")
             # failure is silent — never raises into a caller
             _ur.urlopen = lambda *a, **k: (_ for _ in ()).throw(OSError("net down"))
             ca._console_beacon("hb")   # must not raise
+            # …and the other side of the contract: under CI it must not send AT ALL
+            sent.clear()
+            _ur.urlopen = fake_urlopen
+            os.environ["CI"] = "true"
+            ca._console_beacon("boot")
+            self.assertEqual(sent, {}, "a CI runner must never check in to Konyo's fleet")
         finally:
             _ur.urlopen = old
+            os.environ.pop("CI", None)
+            for k, v in _saved_env.items():
+                if v is not None:
+                    os.environ[k] = v
 
 
 class TestV919IntakeLane(unittest.TestCase):
