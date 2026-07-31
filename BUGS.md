@@ -1650,6 +1650,32 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** when a product setting has a guard key, a test that sets the value without the guard
   is testing the default — silently. Drive the switch the way the UI drives it.
 
+## REG-085 — the pill asked for a name and no gesture could give one (2026-08-01, v1529)
+- **Symptom:** Konyo: *"the sigil. NAME ME it says but i cant really name it.. lol when i click it it
+  just says copied."*
+- **Root cause — THREE faults stacked, each hiding the next:**
+  1. **The invitation and the action were different gestures.** The pill said "name me"; a click
+     copied the install id. Naming was on DOUBLE-click, hinted only inside a tooltip he would have
+     had to hover to find.
+  2. **The naming path probably never worked at all.** It called `window.prompt()`, which
+     pywebview's WebKit backend does not reliably implement — so in the app window, the only place
+     this console runs, a double-click could silently do nothing. Shipped v1496, never verified in
+     the real window.
+  3. **Its failure could not be reported.** All three `toast()` calls in that flow live in the
+     SECOND `<script>` block, and `toast()` is declared in the first — REG-083's exact shape,
+     second instance. Every one threw a ReferenceError inside its own try/catch and vanished.
+- **And a fourth, found while fixing:** `.sigil { display: inline-flex }` outranks the UA rule the
+  `hidden` attribute depends on, so `el.hidden = true` on that pill had never hidden anything —
+  including at boot, where the placeholder crest showed before identity loaded.
+- **Fix:** clicking an unnamed pill opens an INLINE field (real DOM, no dialog); Enter saves, Escape
+  and click-away cancel without committing a half-typed word; double-click still renames a named
+  machine; `toastC()` declared in the block that uses it; `.sigil[hidden] { display: none }`.
+- **Prevention:** 9 specs drive the real console UI, including one that asserts NO dialog is
+  involved in naming and one that asserts a failed save is reported.
+- **Lesson:** when a control asks for something, the obvious thing done to it must be the way to
+  give it. And a `try/catch` around a call is not proof the call exists — it is the most common way
+  to make a missing function look like a working one.
+
 ## REG-084 — the suite spent 30 versions testing a world it was never written for (2026-07-31)
 - **Symptom:** Routine I went from FULL GREEN at v1459 (235 passed, 0 failed) to **100 distinct spec
   files red** by v1489 — every one of them green on the Mac. v1490's sigil fix took that to 60, with

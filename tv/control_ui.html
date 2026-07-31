@@ -225,6 +225,11 @@
      the colour carries across a room, the glyph survives a screenshot, the name is what you say
      out loud, and the 4-char code is the tiebreak when two sigils look similar. Uses the app's
      own type tokens — nothing here introduces a raw weight or a one-off size. ══ */
+  /* v1529 — HIDDEN HAS TO MEAN HIDDEN. `.sigil { display: inline-flex }` outranks the UA rule the
+     `hidden` attribute relies on, so `el.hidden = true` on this pill has never actually hidden it —
+     including at boot, where the placeholder crest showed before identity ever loaded. Any element
+     that sets its own `display` needs this line or its hidden attribute is decorative. */
+  .sigil[hidden] { display: none !important; }
   .sigil {
     display: inline-flex; align-items: center; gap: 8px; flex: none;
     padding: 5px 10px 5px 7px; border-radius: 999px; cursor: pointer;
@@ -2258,6 +2263,14 @@
     border: 1px solid rgba(143,230,160,.28); color: var(--st-good);
     font: var(--fw-semibold) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label); }
 
+  /* v1529 — the naming field, shaped like the pill it replaces so the header does not jump. */
+  .sg-edit { width: 132px; padding: 4px 8px; border-radius: 999px;
+    border: 1px solid rgba(198,166,100,.45); background: rgba(0,0,0,.35); color: #e8d9a8;
+    font: var(--fw-semibold) var(--fs-2xs)/1.4 var(--mono); letter-spacing: var(--ls-label); }
+  .sg-edit:focus { outline: none; border-color: var(--gold-antique);
+    box-shadow: 0 0 0 2px rgba(198,166,100,.16); }
+  .sg-edit::placeholder { color: var(--text-dim); opacity: .8; }
+
   /* v1516 — 📜 CHRONICLE SWEEP panel. Reads as a QUOTE, not a result: the big number is a price
      (calls it would make), and the caption says what it is instead of a tally. */
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
@@ -3222,6 +3235,14 @@
           <span class="sg-glyph" id="sg-glyph">·</span>
           <span class="sg-txt"><b class="sg-name" id="sg-name">—</b><i class="sg-sub" id="sg-sub">—</i></span>
         </button>
+        <!-- v1529 — the naming field is a SIBLING of the pill, not a child. An <input> inside a
+             <button> is invalid markup and the button swallows its focus and clicks, so a field
+             nested there would have looked right and refused to type. It takes the pill's place
+             while naming. window.prompt() is not an option: pywebview's WebKit backend does not
+             reliably implement it, which is why the old double-click-to-name could do nothing at
+             all in the very window this console runs in. -->
+        <input class="sg-edit" id="sg-edit" type="text" maxlength="24" hidden
+               aria-label="name this machine" placeholder="name this machine">
         <!-- v881 (Konyo #47: 'tabs structured properly, easily navigatable — the title is
              pointless, this is an engine console') — the 5 board tabs ARE the header -->
         <nav class="head-tabs" id="head-tabs">
@@ -10160,6 +10181,22 @@ body:not(.shell-open) #tvd-eng {
    nearest catch. That is why the FLEET panel (v1496) reported "fleet unreachable" even when the
    route answered perfectly — the fetch succeeded and the RENDER died. Same bug would have shipped
    with the Chronicle panel. One escaper, declared where the code that uses it lives. */
+// v1529 — and this block's own TOAST, for exactly the same reason as escC. `toast()` is declared at
+// the top level of the FIRST script block, so all three calls in the naming flow threw a
+// ReferenceError inside their try/catch and vanished. That is why naming could fail in total
+// silence — the one path where a silent failure sends you to ask why the button does nothing.
+// (REG-083, second instance. The lesson generalised: nothing in this block may call a helper it
+// cannot see, and a try/catch around a call is not proof that the call exists.)
+function toastC(msg) {
+  try {
+    var t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(function () { t.classList.remove('show'); }, 2400);
+  } catch (e) {}
+}
 function escC(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]);
@@ -10203,7 +10240,8 @@ function escC(s) {
   if (!el) return;
   var gl = document.getElementById('sg-glyph'),
       nm = document.getElementById('sg-name'),
-      sb = document.getElementById('sg-sub');
+      sb = document.getElementById('sg-sub'),
+      ed = document.getElementById('sg-edit');
   var lastId = null;
 
   function worldOf() {                       // whose-world, read from the board's own pointer
@@ -10259,7 +10297,7 @@ function escC(s) {
     sb.textContent = '';
     sb.hidden = true;
     el.title =
-      (idt.nickname ? ('THIS MACHINE — ' + friendly + '\n\n') : 'THIS MACHINE IS UNNAMED — double-click to name it\n\n') +
+      (idt.nickname ? ('THIS MACHINE — ' + friendly + '\n\n') : 'THIS MACHINE IS UNNAMED — click to name it\n\n') +
       'crest        : ' + s.name + '  [' + s.code + ']\n' +
       'this machine : ' + friendly + (idt.nickname ? '  (' + host + ')' : '') + '\n' +
       'signed in as : ' + (idt.user || '?') + '\n' +
@@ -10267,17 +10305,43 @@ function escC(s) {
       'install      : ' + String(idt.id).slice(0, 12) + '\n\n' +
       'Same sigil = same console + same install. Different sigil = a different profile,\n' +
       'with its own vault, chronicle and forge progress.\n' +
-      'Click to copy · DOUBLE-CLICK to name this machine.';
+      // v1529 — the tooltip describes what THIS pill does right now, not what pills do in general
+      (idt.nickname ? 'Click to copy · double-click to rename.' : 'Click to name this machine.');
+    if (!editing) el.hidden = false;   // v1529 — a repaint must never yank the naming field away mid-type
+  }
+
+  // ══ v1529 — NAMING, FIXED TWICE OVER ══════════════════════════════════════════════════════
+  // Konyo: "the sigil. NAME ME it says but i cant really name it.. when i click it it just says
+  // copied." Two separate faults, and the second was the worse one:
+  //
+  //   1. THE INVITATION AND THE ACTION WERE DIFFERENT GESTURES. The pill said "name me" and a click
+  //      copied the id. Naming was on double-click — undiscoverable, and hinted only in a tooltip
+  //      he would have to hover to find. When a control asks for something, doing the obvious thing
+  //      to it has to be the way to give it.
+  //   2. IT PROBABLY NEVER WORKED AT ALL. The old path called window.prompt(), which pywebview's
+  //      WebKit backend does not reliably implement — so in the app window (the only place this
+  //      console runs) a double-click could silently do nothing. Shipped v1496, never verified in
+  //      the real window. The field is now inline: no dialog, no backend dependency.
+  var lastNick = '';
+  var editing = false;
+
+  function startNaming() {
+    if (editing) return;
+    editing = true;
+    ed.value = lastNick || '';
+    ed.hidden = false;
+    el.hidden = true;                      // the field TAKES THE PILL'S PLACE — same slot, no reflow
+    try { ed.focus(); ed.select(); } catch (e) {}
+  }
+
+  function stopNaming() {
+    editing = false;
+    ed.hidden = true;
     el.hidden = false;
   }
 
-  // v1496 — double-click names the machine. One prompt, no settings screen: the name is a label,
-  // and the cost of changing it must be lower than the cost of tolerating a wrong one.
-  var lastNick = '';
-  el.addEventListener('dblclick', async function (ev) {
-    ev.preventDefault(); ev.stopPropagation();
-    var want = window.prompt('Name this machine — it is what you will see here and in the fleet list:', lastNick || '');
-    if (want === null) return;
+  async function saveName(want) {
+    stopNaming();
     try {
       var r = await fetch('/api/identity_name', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -10285,11 +10349,33 @@ function escC(s) {
       });
       var j = await r.json();
       lastId = null;                       // force the next paint to redraw with the new name
-      if (j && j.identity) { try { toast('🪪 this machine is now "' + ((j.identity.nickname || '').trim() || j.identity.computer) + '"'); } catch (e) {} }
-    } catch (e) { try { toast('could not save the name'); } catch (e2) {} }
+      if (j && j.identity) {
+        lastNick = (j.identity.nickname || '').trim();
+        nm.textContent = lastNick || 'name me';
+        try { toastC('🪪 this machine is now "' + (lastNick || j.identity.computer) + '"'); } catch (e) {}
+      } else {
+        // an unnamed machine that stays unnamed must SAY so — a silent no-op is what sent him here
+        try { toastC('the name was not saved — the console did not accept it'); } catch (e) {}
+      }
+    } catch (e) { try { toastC('could not save the name — the console is not reachable'); } catch (e2) {} }
+  }
+
+  ed.addEventListener('keydown', function (ev) {
+    ev.stopPropagation();                  // Esc here must not reach the console's global handlers
+    if (ev.key === 'Enter') { ev.preventDefault(); saveName(ed.value); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); stopNaming(); }
   });
+  ed.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  ed.addEventListener('blur', function () { if (editing) stopNaming(); });   // click-away cancels, never saves half a word
+
+  // DOUBLE-CLICK still renames an already-named machine — the gesture people who learned it keep.
+  el.addEventListener('dblclick', function (ev) { ev.preventDefault(); ev.stopPropagation(); startNaming(); });
 
   el.addEventListener('click', function () {
+    if (editing) return;
+    // ★ THE FIX: when the pill is asking for a name, clicking it GIVES it one. Copy is the action
+    // for a machine that already has a name and nothing left to ask for.
+    if (!lastNick) { startNaming(); return; }
     var t = el.title || '';
     try { navigator.clipboard.writeText(t.split('\n\n')[0]); } catch (e) {}
     var was = nm.textContent; nm.textContent = 'COPIED';

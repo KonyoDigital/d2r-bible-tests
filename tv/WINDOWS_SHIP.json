@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1528",
+  "ver": "v1529",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1528: the recorded visits are clickable; the arc is documented end to end",
+  "note": "v1529: clicking the invitation now names the machine: inline field, no dialog; plus hidden-means-hidden and this block gets its own toast",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
