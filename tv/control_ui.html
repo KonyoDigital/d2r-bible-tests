@@ -2249,6 +2249,10 @@
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); }
   .chron-btn:hover { background: rgba(198,166,100,.16); }
   .chron-btn[disabled] { opacity: .5; cursor: default; }
+  /* v1523 — the ONE button in this panel that writes, and it looks like it */
+  .chron-apply { border-color: rgba(143,230,160,.42); background: rgba(143,230,160,.10);
+    color: var(--st-good); }
+  .chron-apply:hover { background: rgba(143,230,160,.18); }
   .chron-note { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
     color: var(--st-idle); }
 
@@ -3389,6 +3393,7 @@
           <div class="chron-foot">
             <button class="chron-btn" type="button" id="chron-scan">price the sweep</button>
             <button class="chron-btn chron-go" type="button" id="chron-run" hidden>run it for real</button>
+            <button class="chron-btn chron-apply" type="button" id="chron-apply" hidden>register them ✓</button>
             <span class="chron-note" id="chron-note">reads nothing · costs nothing · changes nothing</span>
           </div>
           <!-- v1520 — THE REVIEW. Everything below is what he DECIDES from, so it never shows a count
@@ -10399,8 +10404,16 @@ function escC(s) {
       + '<div class="chron-c held"><div class="chron-c-h">⚖ HELD (' + held.length + ')</div>'
       +   '<div class="chron-list">' + _chronNames(held, true) + '</div></div>'
       + '</div>';
-    // ★ the claim that must stay true until an Apply exists: this changed nothing
+    // ★ the claim that must stay true UNTIL he presses register: this changed nothing
     if (note) note.textContent = 'read-only — nothing has been written to your chronicle';
+    // v1523 — the write is offered only when there is something gated to write
+    var ap = document.getElementById('chron-apply');
+    if (ap) {
+      var n = u.length + sset.length;
+      ap.hidden = !n;
+      ap.disabled = false;
+      ap.textContent = 'register ' + n + ' ✓';
+    }
   }
   window._chronPollOnce = async function () {
     try {
@@ -10432,7 +10445,36 @@ function escC(s) {
       if (btn) { btn.disabled = false; btn.textContent = 'run it for real'; }
     }
   };
+  // v1523 — REGISTER. The console never writes his grail: it asks the BOARD, which owns the ledger
+  // and routes through the same tick his hand uses (dated, merge-max, undoable).
+  window._chronApply = async function () {
+    var btn = document.getElementById('chron-apply');
+    var note = document.getElementById('chron-note');
+    if (btn) { btn.disabled = true; btn.textContent = 'registering…'; }
+    try {
+      var r = await fetch('/api/chronicle_apply', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        // ★ a failed apply must never read as a quiet success — he would run the sweep again
+        if (note) note.textContent = '⚠ not registered — ' + escC((j && j.why) || 'no answer');
+        if (btn) { btn.disabled = false; btn.textContent = 'try registering again'; }
+        return;
+      }
+      var a = j.applied || {};
+      var n = (a.uniques || []).length + (a.sets || []).length;
+      if (note) note.textContent = '✓ ' + n + ' registered in your chronicle'
+        + ((a.skipped || []).length ? ' · ' + a.skipped.length + ' you already had' : '')
+        + ' · undo from the board';
+      if (btn) { btn.hidden = true; }
+    } catch (e) {
+      if (note) note.textContent = '⚠ not registered — could not reach the console';
+      if (btn) { btn.disabled = false; btn.textContent = 'try registering again'; }
+    }
+  };
   (function () {
+    var ab = document.getElementById('chron-apply');
+    if (ab) ab.addEventListener('click', function () { window._chronApply(); });
     var b = document.getElementById('chron-scan');
     if (b) b.addEventListener('click', function () { window._chronScan(); });
     var g = document.getElementById('chron-run');

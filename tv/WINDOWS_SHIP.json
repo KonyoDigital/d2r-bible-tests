@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1522",
+  "ver": "v1523",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1522: the live visit is recorded free and offered; the read is never auto-fired mid-farm",
+  "note": "v1523: the console asks the BOARD to apply; a failed write never reads as a quiet success",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

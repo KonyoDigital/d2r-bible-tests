@@ -7937,6 +7937,46 @@ def set_install_nickname(name):
 _FLEET_PRESENCE_CACHE = {"t": 0.0, "d": None}
 
 
+def chronicle_apply(proposal=None):
+    """v1523 — ask THE BOARD to apply the sweep's gated names. The console never writes the grail.
+
+    The ledger lives in the board (d2r_foundLog / d2r_setPieces) and the board's own
+    window.chronicleApply routes through the same tick his hand uses — dated, merge-max, undoable.
+    Reaching around it to write localStorage from here would create a second write path into his
+    grail, which is a second thing that can drift from the first.
+
+    Returns what the board reports: {applied: {uniques, sets, skipped}}. If the board window is not
+    there, it says so — an apply that silently did nothing is the worst possible answer, because the
+    proposal still looks unapplied and he will run it again.
+    """
+    st = chronicle_sweep_state()
+    prop = proposal or (st.get("result") if isinstance(st.get("result"), dict) else None)
+    if not prop:
+        return {"ok": False, "why": "no sweep result to apply — run a sweep first"}
+    if not (prop.get("wouldAdd") or {}).get("uniques") and not (prop.get("wouldAdd") or {}).get("sets"):
+        return {"ok": False, "why": "the sweep grounded nothing — there is nothing to apply"}
+    w = globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    payload = json.dumps({"wouldAdd": prop.get("wouldAdd") or {}, "lanes": prop.get("lanes") or []})
+    js = ("(function(){try{if(typeof window.chronicleApply!=='function')return JSON.stringify("
+          "{ok:false,why:'this board build has no chronicleApply (needs v1521+)'});"
+          "var r=window.chronicleApply(%s);return JSON.stringify({ok:true,applied:r});}"
+          "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % payload
+    try:
+        raw = _ejs(w, js, timeout=8.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused the apply: %s" % str(e)[:160]}
+    if not raw:
+        # _ejs returns None on timeout — and a timeout is NOT a success. Saying so is the point:
+        # the apply may or may not have landed, and he needs to look rather than be told it worked.
+        return {"ok": False, "why": "the board did not answer in time — check the board before retrying"}
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
+
+
 def chronicle_visits(limit=8):
     """v1522 — the Chronicle panels he has opened IN GAME, newest first.
 
@@ -8287,7 +8327,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1522",
+        "ver": "v1523",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10111,6 +10151,10 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/chronicle_apply":
+            # v1523 — the write. POST only, and it goes through the BOARD, which owns the ledger.
+            self._json(200, chronicle_apply(body.get("proposal")))
+            return
         if path == "/api/chronicle_sweep":
             # v1519 — POST starts it, deliberately. This is the call that spends subscription reads,
             # and a GET that spends is a GET a page refresh can fire twice.

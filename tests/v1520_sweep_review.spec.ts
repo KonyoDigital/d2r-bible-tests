@@ -136,6 +136,45 @@ test.describe('v1520 — the review he decides from', () => {
     expect(await page.isHidden('#chron-run')).toBe(false);
   });
 
+  // ── v1523 REGISTER ──────────────────────────────────────────────────────────────────────────
+  test('the register button appears only when something is GATED to write', async ({ page }) => {
+    await open(page, { ...DONE, result: { ...DONE.result, wouldAdd: { uniques: [], sets: [] } } });
+    expect(await page.isHidden('#chron-apply')).toBe(true);
+    await open(page, DONE);
+    expect(await page.isHidden('#chron-apply')).toBe(false);
+    expect(await page.textContent('#chron-apply')).toContain('3');   // 2 uniques + 1 set piece
+  });
+
+  test('a successful register reports what landed AND what he already had', async ({ page }) => {
+    await open(page, DONE);
+    await page.route((u: URL) => u.pathname === '/api/chronicle_apply', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        ok: true, applied: { uniques: ['Harlequin Crest', 'Windforce'],
+                             sets: ["Tal Rasha's Howling Wind"], skipped: ['Stormshield'] } }) }));
+    await page.click('#chron-apply');
+    await page.waitForTimeout(400);
+    const note = (await page.textContent('#chron-note')) || '';
+    expect(note).toContain('3 registered');
+    expect(note).toContain('1 you already had');
+    expect(note).toMatch(/undo from the board/);
+    expect(await page.isHidden('#chron-apply'), 'a done write should not invite a repeat').toBe(true);
+  });
+
+  test('★ a FAILED register never reads as a quiet success', async ({ page }) => {
+    // the worst possible answer is silence: the proposal still looks unapplied and he runs it again
+    await open(page, DONE);
+    await page.route((u: URL) => u.pathname === '/api/chronicle_apply', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        ok: false, why: 'the board window is not open' }) }));
+    await page.click('#chron-apply');
+    await page.waitForTimeout(400);
+    const note = (await page.textContent('#chron-note')) || '';
+    expect(note).toMatch(/not registered/);
+    expect(note).toContain('board window is not open');
+    expect(await page.isDisabled('#chron-apply')).toBe(false);
+    expect(await page.isHidden('#chron-apply')).toBe(false);
+  });
+
   test('an errored sweep says so, and does not present a stale result as fresh', async ({ page }) => {
     await open(page, { running: false, phase: 'error', error: 'grok CLI vanished',
                        result: null, lanes: ['claude'] });
