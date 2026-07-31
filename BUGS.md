@@ -1673,6 +1673,29 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   the host means the same suite asserts different things on different machines — and the machine the
   author uses is always the one where it looks fine.
 
+## REG-084 — spoofing one browser tell cost the specs their whole world (2026-07-31, v1518)
+- **Symptom:** `v606_finish_ascend_fx` × 2 red on CI shard 5/6. The milestone epic never fired; the
+  overlay that DID appear said "⚒ YOUR FIRST RUNEWORD ⚒" — the app believed forge #1 on a chronicle
+  the spec had just seeded to 59.
+- **Caught by:** Routine I on v1515. bible.html was byte-identical to v1508 except its build stamp,
+  so the red could not be from that arc — which is what made it worth instrumenting instead of
+  recalibrating.
+- **Root cause:** v1499 (identity worlds) makes a browser a GUEST until claimed, and identifies the
+  SUITE by `navigator.webdriver === true && location.protocol === 'file:'`. This spec's first line
+  spoofs `navigator.webdriver` to **false** — legitimately, to unmask the motion effects the app
+  silences under automation — and in doing so unmasked itself as a guest. Instrumented proof:
+  `LSR.key('d2r_rwMade')` → **`I·5ed9ad2c·d2r_rwMade`**, count 1, while the spec's seed of 59 sat in
+  the bare key nobody read.
+- **Fix:** the three spoof sites (v606 ×2, v618 ×1) now also
+  `localStorage.setItem('d2r_ownerClaim','*')` — which is simply true: the suite IS the owner world.
+- **Prevention:** `v1518_webdriver_spoof_guard.spec.ts` makes the pairing structural — spoof the
+  tell, claim the world, or fail with the reason. It also asserts the `'*'` claim still exists in
+  bible.html, so the fix cannot quietly become a no-op, and asserts it found at least one spoofer, so
+  a drifted regex cannot leave the guard protecting nothing.
+- **Lesson:** when a feature derives identity from a browser property, every place that MOCKS that
+  property becomes a caller of the feature. The spoof and the breakage lived in different files
+  written months apart, and the symptom pointed at neither.
+
 ## REG-083 — the pre-push gate: 10 minutes, red, and about the machine not the code (2026-07-31)
 - **Symptom:** on Konyo's Mac `tv/test_control.py` took **608s** and came back **FAILED (1 failure,
   3 errors)**. Every one of the four was `subprocess._check_timeout` — the whole browser-driven family

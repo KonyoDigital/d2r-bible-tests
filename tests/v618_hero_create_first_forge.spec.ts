@@ -37,6 +37,12 @@ test('hero ✓ created ticks the word through the full sync path', async ({ page
 
 test('FIRST forge fires the extra-colorful onboarding epic exactly once', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
+  // v1518 — CLAIM THE WORLD BACK. v1499 made an unclaimed browser a GUEST, and it identifies the
+  // suite by navigator.webdriver + file://. This spec spoofs webdriver to unmask the motion effects,
+  // which also unmasks it as a guest — so every bare key it seeds lands in a world the app does not
+  // read, and the app sees an empty chronicle. The claim says "this browser is the owner", which is
+  // what it actually is: the suite testing Konyo's own world.
+  await page.addInitScript(() => localStorage.setItem('d2r_ownerClaim', '*'));
   await page.goto(URL); await page.waitForTimeout(1800);
   await page.evaluate(() => {
     localStorage.setItem('d2r_rwProfile', 'fresh');

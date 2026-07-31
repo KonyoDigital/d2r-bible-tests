@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1517",
+  "ver": "v1518",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1517: plain D2R words lead every reader surface, system words trail muted; the Chronicle joins the shared dictionary",
+  "note": "v1518: REG-084: specs that spoof navigator.webdriver became guests under v1499 and asserted against a world that did not exist",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -11,6 +11,12 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test('milestone forge → toast + epic overlay + ascend stagger; overlay self-removes', async ({ page }) => {
   // _motionOK() is silent under automation (navigator.webdriver) — unmask it so the fx are observable
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
+  // v1518 — CLAIM THE WORLD BACK. v1499 made an unclaimed browser a GUEST, and it identifies the
+  // suite by navigator.webdriver + file://. This spec spoofs webdriver to unmask the motion effects,
+  // which also unmasks it as a guest — so every bare key it seeds lands in a world the app does not
+  // read, and the app sees an empty chronicle. The claim says "this browser is the owner", which is
+  // what it actually is: the suite testing Konyo's own world.
+  await page.addInitScript(() => localStorage.setItem('d2r_ownerClaim', '*'));
   await page.goto(URL); await page.waitForTimeout(1800);
   // seed the Chronicle to 59 made (next forge = 60 → a %10 milestone) — pick unmade words dynamically
   await page.evaluate(() => {
@@ -59,6 +65,12 @@ test('milestone forge → toast + epic overlay + ascend stagger; overlay self-re
 
 test('non-milestone forge → toast but NO epic; reduced motion → neither', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
+  // v1518 — CLAIM THE WORLD BACK. v1499 made an unclaimed browser a GUEST, and it identifies the
+  // suite by navigator.webdriver + file://. This spec spoofs webdriver to unmask the motion effects,
+  // which also unmasks it as a guest — so every bare key it seeds lands in a world the app does not
+  // read, and the app sees an empty chronicle. The claim says "this browser is the owner", which is
+  // what it actually is: the suite testing Konyo's own world.
+  await page.addInitScript(() => localStorage.setItem('d2r_ownerClaim', '*'));
   // v693.2 recalibration — at the 99/99 seal there is no unmade word to forge; pin fresh. (Also fixed
   // the spec's own const-reassign that only fired when n1+1 hit a %10 milestone — dormant until 99.)
   await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); /* v693.3 — profile pin ONLY: addInitScript re-runs on reload and a rwMade={} here stomped this spec's own mid-test writes (the v578.1 trap); fresh flag alone makes boot init rwMade={} */ });
