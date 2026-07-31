@@ -2224,6 +2224,22 @@
     color: #e8d9a8; }
   .chron-n i { display: block; font-style: normal; font: var(--fw-medium) var(--fs-2xs)/1.45 var(--mono);
     letter-spacing: var(--ls-label); color: var(--text-dim); }
+  /* v1525 — the evidence drawer. Small on purpose: it is a receipt, not a gallery. */
+  .chron-n > summary { cursor: pointer; list-style: none; }
+  .chron-n > summary::-webkit-details-marker { display: none; }
+  .chron-ev { display: inline-block; margin-left: 6px; color: var(--gold-dim);
+    font: var(--fw-semibold) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label); }
+  .chron-seen { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 0 2px; }
+  .chron-fr { position: relative; display: block; width: 84px; height: 52px; border-radius: 5px;
+    overflow: hidden; border: 1px solid rgba(198,166,100,.24); background: rgba(0,0,0,.35); }
+  .chron-fr img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* an archived frame that has since been swept off disk says so, rather than showing a broken box */
+  .chron-fr.gone::after { content: 'frame gone'; position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center; color: var(--text-dim);
+    font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); }
+  .chron-fr-lane { position: absolute; left: 0; bottom: 0; padding: 1px 4px;
+    background: rgba(5,4,3,.78); color: var(--gold-dim);
+    font: var(--fw-semibold) var(--fs-2xs)/1.4 var(--mono); letter-spacing: var(--ls-label); }
   .chron-w { display: inline-block; margin: 3px 4px 0 0; padding: 1px 6px; border-radius: 999px;
     border: 1px solid rgba(143,230,160,.28); color: var(--st-good);
     font: var(--fw-semibold) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label); }
@@ -10361,13 +10377,29 @@ function escC(s) {
           ? ' · <b>' + escC(String(res.refused.length)) + '</b> pages the reader refused' : '')
       + '</div>';
   }
+  // v1525 — THE EVIDENCE, one click away. "Why does it think I have Windforce" has to be answerable
+  // with a FRAME he can look at, not a sentence he has to trust. Every sighting is a real archived
+  // still; the lane that saw it is named beside it, because who saw it is half the answer.
+  function _chronSeen(seen) {
+    if (!seen || !seen.length) return '';
+    return '<div class="chron-seen">' + seen.map(function (v) {
+      var src = '/hist/reel_' + encodeURIComponent(v.reel || '') + '/' + encodeURIComponent(v.frame || '');
+      return '<a class="chron-fr" href="' + escC(src) + '" target="_blank" rel="noopener"'
+        + ' title="' + escC((v.lane || 'claude') + ' saw it on ' + (v.frame || '?') + ' · reel ' + (v.reel || '?')) + '">'
+        + '<img src="' + escC(src) + '" alt="" loading="lazy" onerror="this.closest(\'.chron-fr\').classList.add(\'gone\')">'
+        + '<span class="chron-fr-lane">' + escC(v.lane || 'claude') + '</span></a>';
+    }).join('') + '</div>';
+  }
   function _chronNames(rows, held) {
     if (!rows.length) return '<div class="chron-none">' + (held ? 'nothing held' : 'nothing new to add') + '</div>';
     return rows.map(function (r) {
       var ws = held ? '' : (r.witnesses || []).map(function (w) {
         return '<span class="chron-w">' + escC(w) + '</span>'; }).join('');
       // the reason is never optional: a name with no sentence is not reviewable
-      return '<div class="chron-n"><b>' + escC(r.name) + '</b><i>' + escC(r.why || '—') + '</i>' + ws + '</div>';
+      return '<details class="chron-n"><summary><b>' + escC(r.name) + '</b><i>' + escC(r.why || '—') + '</i>'
+        + ws + ((r.seen && r.seen.length) ? '<span class="chron-ev">' + r.seen.length + ' frame'
+            + (r.seen.length === 1 ? '' : 's') + ' ▾</span>' : '') + '</summary>'
+        + _chronSeen(r.seen) + '</details>';
     }).join('');
   }
   function _chronPaint(st) {

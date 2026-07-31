@@ -8181,14 +8181,27 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                 "result": {
                     "totals": res["totals"], "reels": res["reels"],
                     # what it WOULD add per ledger, each with the gate's own sentence
+                    # v1525 — THE EVIDENCE TRAVELS WITH THE NAME. The engine has always kept each
+                    # sighting's reel and frame; until now the route threw them away and left "why
+                    # does it think I have Windforce" answerable only in principle. Capped at 6 —
+                    # enough to show the corroboration, not enough to bloat the payload.
                     "wouldAdd": {lg: [{"name": n,
                                        "why": (gate.verdicts.get(n) or {}).get("why", ""),
-                                       "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", [])}
+                                       "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
+                                       "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
+                                                 "lane": sg.get("lane") or "claude"}
+                                                for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
                     "held": [{"ledger": h["ledger"], "name": h["name"],
                               "why": (gate.verdicts.get(h["name"]) or {}).get("why", ""),
-                              "sightings": len(h["sightings"])} for h in applied["held"]],
+                              "sightings": len(h["sightings"]),
+                              # a HELD name needs its evidence most of all: this is the row he looks
+                              # at to decide whether to trust it by hand
+                              "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
+                                        "lane": sg.get("lane") or "claude"}
+                                       for sg in (h["sightings"] or [])[:6]]}
+                             for h in applied["held"]],
                     "refused": prop.get("refused") or [],
                     "setGroups": prop.get("setGroups") or {},
                     "lanes": _CHRON_JOB.get("lanes") or [],
@@ -8374,7 +8387,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1524",
+        "ver": "v1525",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

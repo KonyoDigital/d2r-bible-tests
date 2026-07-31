@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1524",
+  "ver": "v1525",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1524: a sealed reel is never paid for twice; forget and force are both one call away",
+  "note": "v1525: every proposed and held name opens the real archived frames behind it, each naming the lane that saw it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

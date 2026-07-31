@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1524"   # the sweep remembers
+VERSION = "v1525"   # the evidence, one click away
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

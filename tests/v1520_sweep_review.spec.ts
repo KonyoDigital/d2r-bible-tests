@@ -21,7 +21,9 @@ const DONE = {
     wouldAdd: {
       uniques: [
         { name: 'Harlequin Crest', why: 'corroborated by cross-frame, cross-lane',
-          witnesses: ['cross-frame', 'cross-lane'] },
+          witnesses: ['cross-frame', 'cross-lane'],
+          seen: [{ reel: 's_100', frame: 'f2.jpg', lane: 'claude' },
+                 { reel: 's_100', frame: 'f2.jpg', lane: 'grok' }] },
         { name: 'Windforce', why: 'corroborated by cross-reel-3+, printed',
           witnesses: ['cross-reel-3+', 'printed'] },
       ],
@@ -29,7 +31,8 @@ const DONE = {
                witnesses: ['cross-lane', 'printed'] }],
     },
     held: [{ ledger: 'uniques', name: 'Stormshield',
-             why: 'only 1 independent witness (printed) — needs 2', sightings: 1 }],
+             why: 'only 1 independent witness (printed) — needs 2', sightings: 1,
+             seen: [{ reel: 's_200', frame: 'f7.jpg', lane: 'claude' }] }],
     refused: [{ reel: 's_100', frame: 'f2.jpg', why: 'no-found-state' }],
     setGroups: {},
   },
@@ -134,6 +137,49 @@ test.describe('v1520 — the review he decides from', () => {
     await page.click('#chron-scan');
     await page.waitForTimeout(300);
     expect(await page.isHidden('#chron-run')).toBe(false);
+  });
+
+  // ── v1525 THE EVIDENCE ──────────────────────────────────────────────────────────────────────
+  test('★ every grounded name can show the FRAMES behind it', async ({ page }) => {
+    // "why does it think I have Windforce" must be answerable with a frame he can look at
+    await open(page, DONE);
+    const row = page.locator('.chron-c.add .chron-n', { hasText: 'Harlequin Crest' });
+    expect(await row.locator('.chron-ev').textContent()).toMatch(/2 frames/);
+    await row.locator('summary').click();
+    const frames = row.locator('.chron-fr');
+    expect(await frames.count()).toBe(2);
+    const src = await frames.first().getAttribute('href');
+    expect(src, 'the link must point at the real archived still').toContain('/hist/reel_s_100/f2.jpg');
+  });
+
+  test('★ each frame names the LANE that saw it — who saw it is half the answer', async ({ page }) => {
+    await open(page, DONE);
+    const row = page.locator('.chron-c.add .chron-n', { hasText: 'Harlequin Crest' });
+    await row.locator('summary').click();
+    const lanes = await row.locator('.chron-fr-lane').allTextContents();
+    expect(lanes).toEqual(['claude', 'grok']);
+  });
+
+  test('a HELD name carries its evidence too — that is the row he judges by hand', async ({ page }) => {
+    await open(page, DONE);
+    const row = page.locator('.chron-c.held .chron-n', { hasText: 'Stormshield' });
+    await row.locator('summary').click();
+    expect(await row.locator('.chron-fr').count()).toBe(1);
+  });
+
+  test('a name with no evidence shows no drawer rather than an empty one', async ({ page }) => {
+    await open(page, DONE);
+    const row = page.locator('.chron-c.add .chron-n', { hasText: 'Windforce' });
+    expect(await row.locator('.chron-ev').count()).toBe(0);
+  });
+
+  test('★ a frame swept off disk says so instead of showing a broken box', async ({ page }) => {
+    // hist is pruned by the retention governor; a proposal can outlive its own stills
+    await open(page, DONE);
+    const row = page.locator('.chron-c.add .chron-n', { hasText: 'Harlequin Crest' });
+    await row.locator('summary').click();
+    await page.waitForTimeout(400);
+    expect(await row.locator('.chron-fr.gone').count()).toBeGreaterThan(0);
   });
 
   // ── v1523 REGISTER ──────────────────────────────────────────────────────────────────────────
