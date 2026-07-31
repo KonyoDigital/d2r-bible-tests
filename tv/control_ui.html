@@ -2506,6 +2506,15 @@
      values had been redundant since, and a second ordering system is exactly how "zones read out
      of order" happens.) The hub-* blocks keep their negative order: they are still siblings of
      the sections and deliberately sit above zone Ⅰ. ══ */
+  /* v1507 — A LONE CARD SPANS ITS ZONE. Konyo: "so much black space in the middle here, make it
+     stretched, use the entire console." Measured with Sessions visible: zones Ⅰ THE HUNT and Ⅱ THE
+     MISSIONS hold ONE card each and it sat at 49% of a two-column grid, so the right half of both
+     movements was empty black while the zone banner spanned the full width above it. The grid is
+     right when a zone has several cards (Ⅲ THE RECORD pairs them properly); it is only wrong when
+     there is nothing to pair WITH. `:nth-child(2):last-child` is exactly that case — the card is
+     the second child (after the banner) and also the last, so it is the only one. */
+  .zone > .hd-col:nth-child(2):last-child,
+  .zone > .hd-card:nth-child(2):last-child { grid-column: 1 / -1; }
   .zone {
     grid-column: 1 / -1;                 /* a movement always spans the dash */
     display: grid;
