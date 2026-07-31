@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1520",
+  "ver": "v1521",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1520: the sweep proposal, with the gate reasoning beside every grounded and every held name",
+  "note": "v1521: gated names reach the real ledger through the same tick his hand uses: dated, merge-max, undoable as a batch",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
