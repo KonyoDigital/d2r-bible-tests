@@ -4697,6 +4697,32 @@ class TestV1506EveryVerdictSaysHowSure(unittest.TestCase):
                          "an unchecked guess must not borrow the GOOD state's colour — that is the "
                          "exact confusion this change exists to remove")
 
+class TestChronicleSpeaksDiablo(unittest.TestCase):
+    """v1509 — the Chronicle names itself in HIS words, in the receipts feed AND in Theatre.
+
+    v1508 wired the theatre caption to this same `_diablo_scene_label`, deliberately one source, so
+    a single label here reaches both surfaces and cannot drift the way REG-076 drifted."""
+
+    def test_the_two_ledgers_are_named_apart(self):
+        u = ca._diablo_scene_label("chronicle-uniques", "")["label"]
+        st = ca._diablo_scene_label("chronicle-sets", "")["label"]
+        self.assertIn("Holy Grail", u)
+        self.assertIn("Set", st)
+        self.assertNotEqual(u, st)        # ★ the whole point: never one word for two ledgers
+
+    def test_an_unknown_tab_still_names_the_screen(self):
+        r = ca._diablo_scene_label("chronicle", "")
+        self.assertIn("CHRONICLE", r["label"])
+        # ...but must NOT claim a ledger it could not read
+        self.assertNotIn("Grail", r["label"])
+        self.assertNotIn("Set", r["label"])
+
+    def test_chronicle_is_a_menu_not_farming(self):
+        # it is a screen he is READING, not a run he is farming — kind drives the theatre icon
+        self.assertEqual(ca._diablo_scene_label("chronicle-sets", "Harrogath")["kind"], "menu")
+
+
+
 
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER

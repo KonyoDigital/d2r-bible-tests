@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1508"   # theatre speaks Diablo
+VERSION = "v1509"   # the chronicle is a scene
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -103,12 +103,30 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p832"   # HUD-tell — dark frame is transition only if the bottom HUD is ABSENT (dark COMBAT keeps its HUD → gameplay); bump whenever READ_PROMPT changes
+PROMPT_VER = "p1509"   # HUD-tell — dark frame is transition only if the bottom HUD is ABSENT (dark COMBAT keeps its HUD → gameplay); bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
-    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"names_loc\":{{}},\"sockets\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
-    "scene = one of: town | stash | inventory | loot | gameplay | transition.\n"
+    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"chronicleTab\":\"\",\"names\":[],\"names_loc\":{{}},\"sockets\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
+    "scene = one of: town | stash | inventory | loot | gameplay | transition | chronicle.\n"
+    # v1509 — THE CHRONICLE SCENE. Konyo: "when chronicle/menu is clicked ingame it should
+    # automatically know we are about to register and read and analyze the CHRONICLE lists."
+    # This is the scene the whole auto-tally arc hangs off: nothing downstream can fire while the
+    # classifier has no word for the screen. The UNIQUES/SETS split is not cosmetic — they are two
+    # different ledgers (d2r_foundLog vs d2r_setPieces, 243/403 and 108/135), and a Sets screen
+    # tallied as Uniques is worse than no tally at all, so the tell is spelled out rather than left
+    # to the model's judgement.
+    "chronicle = the in-game HOLY GRAIL / CHRONICLE panel: a scrollable LIST of item names with "
+    "found/unfound styling, opened from the menu. It is NOT the stash and NOT the inventory — there "
+    "is no grid of item icons to pick up, only rows of names.\n"
+    "chronicleTab = ONLY when scene=chronicle: which ledger is on screen. "
+    "\"uniques\" = the unique-item list (single items: Shako, Windforce, Stormshield). "
+    "\"sets\"    = the set list (rows grouped under set NAMES: Tal Rasha, Immortal King, Tancred). "
+    "If you cannot tell which of the two it is, leave chronicleTab \"\" — an unknown ledger is "
+    "recoverable, a wrong one silently corrupts the other ledger.\n"
+    "When scene=chronicle put EVERY item name you can read in names[], in the order shown, and put "
+    "the found/claimed ones in discovered[]. A partial or scrolled list is expected and fine — "
+    "never invent names to fill a page.\n"
     "transition = fullscreen loading/portal art: the burning fire portal, act loading screen, or a "
     "dark frame with NO bottom HUD. THE DECIDING TELL: if the bottom HUD (belt row / red life + blue "
     "mana orbs / skill bar) is ABSENT the frame is transition; a dark COMBAT frame (night, a cave, a "
@@ -3777,7 +3795,7 @@ def _parse_read(out):
         _audit["dropped"].append({"field": "names", "why": "truncated-at-60", "count": len(_all_names) - 60})
     _scene_raw = str(j.get("scene", "gameplay")).lower()
     scene = _scene_raw
-    if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition"):
+    if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition", "chronicle"):
         _audit["normalized"].append({"field": "scene", "from": _scene_raw, "to": "gameplay", "why": "unknown-scene-clamp"})
         scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)
     _tz_raw = j.get("tz")

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1508",
+  "ver": "v1509",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1508: Konyo: the readers and diablo language obviously in the theatre mode also so i can surgically debug whats needed and not right. Theatre is where he scrubs frames to find what a reader got wrong, and a caption reading read 3 frame locked never said what the AI was actually looking at. Each beat now carries the label from _diablo_scene_label - the SAME function the receipts feed uses, so the two surfaces can never describe one frame two different ways - and the caption leads with it: FARMING Act 1 Dark Wood where it used to say nothing, with the raw scene word trailing in muted mono so a wrong label is still traceable to the enum that produced it.",
+  "note": "v1509: the reader knows the Chronicle screen and tells Uniques from Sets; theatre + receipts name it in Diablo words",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

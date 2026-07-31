@@ -5178,6 +5178,15 @@ def _diablo_scene_label(scene, area):
     if sc in ("transition", "loading"):
         return {"kind": "entering", "area": ar or None, "act": act,
                 "label": ("ENTERING " + ara) if ar else "ENTERING (loading)"}
+    # v1509 — THE CHRONICLE, in his words. This label is what the receipts feed AND the theatre
+    # caption show (v1508 wired theatre to this same function), so the ledger he is looking at is
+    # named the way he would say it out loud — not "chronicle-uniques".
+    if sc == "chronicle" or sc.startswith("chronicle"):
+        tab = sc.split("-", 1)[1] if "-" in sc else ""
+        nm = ("🏆 THE CHRONICLE · Holy Grail" if tab == "uniques"
+              else "🧩 THE CHRONICLE · Set pieces" if tab == "sets"
+              else "📜 THE CHRONICLE")
+        return {"kind": "menu", "area": ar or None, "act": act, "label": nm}
     if sc.startswith("stash") or sc in ("inventory", "loot"):
         # an open panel is what's ON SCREEN — it wins over the underlying town/area context.
         # `stash`, `stash-gems`, `stash-runes`, `stash-materials` (tab-classified) all → STASH.
@@ -8094,7 +8103,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1508",
+        "ver": "v1509",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -3114,5 +3114,46 @@ class TestV926SecondLook(unittest.TestCase):
         self.assertEqual({r["frameId"] for r in vrows}, {self.fid + "#v", fid2 + "#v"})
 
 
+class TestChronicleScene(unittest.TestCase):
+    """v1509 — THE CHRONICLE IS A SCENE THE READER KNOWS.
+
+    Konyo's ask: "when chronicle/menu is clicked ingame it should automatically know we are about
+    to register and read and analyze the CHRONICLE lists ... SETS and UNIQUES completes SEPARATED
+    accordingly." Everything downstream of that (retro sweep, two-lane read, apply) is dead code
+    until the classifier has a word for the screen and can tell the two ledgers apart. These are
+    the invariants the rest of the arc stands on."""
+
+    def test_prompt_offers_chronicle_as_a_scene(self):
+        self.assertIn("chronicle", tv.READ_PROMPT)
+        # it must be in the ENUM line, not merely mentioned somewhere in the prose
+        enum = [ln for ln in tv.READ_PROMPT.split("\n") if ln.startswith("scene = one of")]
+        self.assertEqual(len(enum), 1, "the scene enum should appear exactly once")
+        self.assertIn("chronicle", enum[0])
+
+    def test_prompt_teaches_the_uniques_sets_split(self):
+        # a Sets screen tallied as Uniques corrupts the other ledger — the tell must be explicit
+        self.assertIn("chronicleTab", tv.READ_PROMPT)
+        self.assertIn("uniques", tv.READ_PROMPT)
+        self.assertIn("sets", tv.READ_PROMPT)
+        # and the JSON skeleton must give the model somewhere to PUT it
+        skel = tv.READ_PROMPT.split("\n")[1]
+        self.assertIn("chronicleTab", skel)
+
+    def test_prompt_prefers_unknown_over_a_wrong_ledger(self):
+        # honesty doctrine: an unknown tab is recoverable, a wrong one silently corrupts
+        self.assertRegex(tv.READ_PROMPT, r"cannot tell which of the two.*leave chronicleTab")
+
+    def test_validator_accepts_chronicle(self):
+        # the scene whitelist rejected anything it did not know; chronicle must now survive it
+        src = open(os.path.join(os.path.dirname(tv.__file__), "tv_diablo.py"), encoding="utf-8").read()
+        line = [ln for ln in src.split("\n") if 'scene not in ("town"' in ln]
+        self.assertEqual(len(line), 1)
+        self.assertIn('"chronicle"', line[0])
+
+    def test_prompt_version_moved_with_the_prompt(self):
+        # PROMPT_VER gates cache reuse — a changed prompt on an old version replays stale reads
+        self.assertEqual(tv.PROMPT_VER, "p1509")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
