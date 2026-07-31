@@ -62,6 +62,8 @@ GATES = [
          why="KAI routing, labels and the super-analyze selector"),
     Gate("test_chronicle_retro", [sys.executable, os.path.join(HERE, "test_chronicle_retro.py")], 300,
          why="the retro sweep's three laws: read-only until Apply, merge-max, pay-for-runs"),
+    Gate("test_chronicle_chain", [sys.executable, os.path.join(HERE, "test_chronicle_chain.py")], 300,
+         why="the WHOLE chronicle chain in one pass — every other suite mocks its neighbours"),
     Gate("test_g5_grok_eyes", [sys.executable, os.path.join(HERE, "test_g5_grok_eyes.py")], 300,
          why="the vision-eye contract"),
     Gate("test_roundtrip_sim", [sys.executable, os.path.join(HERE, "test_roundtrip_sim.py")], 900,

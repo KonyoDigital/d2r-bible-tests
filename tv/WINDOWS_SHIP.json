@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1531",
+  "ver": "v1532",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1531: re-run the gate over the last sweep evidence at any thresholds; names what loosening lets in and tightening keeps out",
+  "note": "v1532: every link had its own tests; this walks the seams between them, with only the vision stubbed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
