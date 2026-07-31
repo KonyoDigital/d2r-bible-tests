@@ -38,7 +38,10 @@ const DONE = {
   },
 };
 
-async function open(page: any, sweepState: any) {
+async function open(page: any, sweepState: any, visits: any[] = []) {
+  await page.route((u: URL) => u.pathname === '/api/chronicle_visits', (r: any) =>
+    r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, visits, spent: 0 }) }));
   await page.route(ORIGIN + '/ui', (r: any) =>
     r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: UI_HTML }));
   // url predicates, not globs: a '**/api/**' catch-all wins the match and aborts the call under test
@@ -137,6 +140,31 @@ test.describe('v1520 — the review he decides from', () => {
     await page.click('#chron-scan');
     await page.waitForTimeout(300);
     expect(await page.isHidden('#chron-run')).toBe(false);
+  });
+
+  // ── v1526 WHAT HE OPENED IN GAME ────────────────────────────────────────────────────────────
+  test('the in-game visits show as a receipt of what he actually opened', async ({ page }) => {
+    await open(page, DONE, [
+      { ts: Date.now() - 6 * 60000, ledger: 'uniques', n: 14, label: '🏆 Holy Grail' },
+      { ts: Date.now() - 3 * 3600000, ledger: '', n: 3, label: '📜 ledger unread' },
+    ]);
+    const rows = await page.$$eval('.chron-v', (n: any[]) => n.map((x) => x.textContent));
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('Holy Grail');
+    expect(rows[0]).toContain('14 frames');
+    expect(rows[0], 'epoch ms must not be parsed as an ISO string').toContain('6m ago');
+    expect(rows[1]).toContain('3h ago');
+  });
+
+  test('★ a visit whose ledger was never read is FLAGGED, not hidden', async ({ page }) => {
+    // it is the one a sweep could mis-file, so it is the one he should see
+    await open(page, DONE, [{ ts: Date.now(), ledger: '', n: 3, label: '📜 ledger unread' }]);
+    expect(await page.locator('.chron-v.unread').count()).toBe(1);
+  });
+
+  test('no in-game visits means no strip at all — not an empty box', async ({ page }) => {
+    await open(page, DONE, []);
+    expect(await page.isHidden('#chron-visits')).toBe(true);
   });
 
   // ── v1525 THE EVIDENCE ──────────────────────────────────────────────────────────────────────

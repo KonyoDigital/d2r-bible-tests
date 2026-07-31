@@ -2224,6 +2224,16 @@
     color: #e8d9a8; }
   .chron-n i { display: block; font-style: normal; font: var(--fw-medium) var(--fs-2xs)/1.45 var(--mono);
     letter-spacing: var(--ls-label); color: var(--text-dim); }
+  /* v1526 — the in-game visits strip. Reads as a RECEIPT of what he did, not a control panel. */
+  .chron-visits { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; }
+  .chron-v { display: flex; align-items: baseline; gap: 7px; padding: 5px 10px; border-radius: 7px;
+    border: 1px solid rgba(198,166,100,.2); background: rgba(0,0,0,.2);
+    font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label);
+    color: var(--text-dim); }
+  .chron-v b { color: #e8d9a8; font-weight: var(--fw-semibold); }
+  .chron-v.unread { border-color: rgba(233,185,110,.3); }
+  .chron-v.unread b { color: var(--st-needs); }
+
   /* v1525 — the evidence drawer. Small on purpose: it is a receipt, not a gallery. */
   .chron-n > summary { cursor: pointer; list-style: none; }
   .chron-n > summary::-webkit-details-marker { display: none; }
@@ -3412,6 +3422,11 @@
             <button class="chron-btn chron-apply" type="button" id="chron-apply" hidden>register them ✓</button>
             <span class="chron-note" id="chron-note">reads nothing · costs nothing · changes nothing</span>
           </div>
+          <!-- v1526 — WHAT HE OPENED IN GAME. The live agent records a Chronicle visit for free
+               (v1522); this is where that recording becomes an offer. It is deliberately above the
+               sweep controls: the panels he actually opened are better evidence than a blind sweep
+               of everything, and cheaper. -->
+          <div class="chron-visits" id="chron-visits" hidden></div>
           <!-- v1520 — THE REVIEW. Everything below is what he DECIDES from, so it never shows a count
                without the evidence behind it: every grounded name carries the gate's own sentence,
                and every held name carries the reason it was held. -->
@@ -10447,6 +10462,41 @@ function escC(s) {
       ap.textContent = 'register ' + n + ' ✓';
     }
   }
+  // v1526 — epoch-ms "how long ago". NOT _fleetSince: that one does Date.parse(iso) and a visit
+  // carries an integer timestamp, so every visit would have read "just now" — a plausible-looking
+  // wrong answer, which is the worst kind.
+  function _agoMs(ts) {
+    var ms = Date.now() - Number(ts || 0);
+    if (!isFinite(ms) || !ts) return '';
+    if (ms < 0) return 'just now';
+    var m = Math.round(ms / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    var h = Math.round(m / 60);
+    return h < 24 ? h + 'h ago' : Math.round(h / 24) + 'd ago';
+  }
+  // v1526 — the Chronicle panels he opened IN GAME, shown as a receipt. Free: the agent already
+  // recorded them, and looking costs nothing. It answers the question the sweep cannot — "did the
+  // console even NOTICE me open it?" — which is the whole promise of the live lane.
+  window._chronVisits = async function () {
+    var box = document.getElementById('chron-visits');
+    if (!box) return;
+    try {
+      var r = await fetch('/api/chronicle_visits', { cache: 'no-store' });
+      var j = await r.json();
+      var v = (j && j.visits) || [];
+      if (!v.length) { box.hidden = true; return; }
+      box.hidden = false;
+      box.innerHTML = v.map(function (x) {
+        var when = _agoMs(x.ts);
+        // an unread ledger is flagged, not hidden: it is the one a sweep may mis-file
+        return '<span class="chron-v' + (x.ledger ? '' : ' unread') + '">'
+          + '<b>' + escC(x.label || '📜') + '</b>'
+          + '<span>' + escC(String(x.n || 0)) + ' frames</span>'
+          + '<span>' + escC(when) + '</span></span>';
+      }).join('');
+    } catch (e) { box.hidden = true; }
+  };
   window._chronPollOnce = async function () {
     try {
       var r = await fetch('/api/chronicle_sweep', { cache: 'no-store' });
@@ -10513,6 +10563,7 @@ function escC(s) {
     if (g) g.addEventListener('click', function () { window._chronRun(); });
     // a sweep started before this page loaded (or still running from a reload) must be visible —
     // otherwise a refresh looks like nothing is happening while reads are being spent
+    window._chronVisits();
     window._chronPollOnce().then(function (st) {
       if (st && (st.running || st.result)) {
         var rb = document.getElementById('chron-run'); if (rb) rb.hidden = false;
