@@ -4934,6 +4934,64 @@ class TestChronicleVisitsOffer(unittest.TestCase):
             self.assertEqual(ca.chronicle_visits()["visits"], [])
 
 
+class TestRegateIsFree(unittest.TestCase):
+    """v1531 — CHRONICLE_ARC.md calls the gate thresholds "reasoned, not measured". They cannot be
+    measured without seeing what they do to real evidence, and that was impossible while tuning them
+    meant paying for the whole sweep again."""
+
+    def setUp(self):
+        import chronicle_retro as cr
+        s = lambda **kw: dict({"reel": "s1", "frame": "f1.jpg", "witness": "none",
+                               "conf": 0.9, "lane": "claude"}, **kw)
+        # Windforce: 2 witnesses (cross-frame + cross-lane) — grounds today
+        # Shako:     1 witness (printed only)               — held today
+        self._prev = ca.__dict__.get("_CHRON_LAST_PROPOSAL")
+        ca._CHRON_LAST_PROPOSAL = {
+            "uniques": {
+                "Windforce": [s(frame="a.jpg"), s(frame="b.jpg", lane="grok")],
+                "Shako": [s(witness="agree")],
+            },
+            "sets": {}, "completeSets": {},
+        }
+
+    def tearDown(self):
+        ca._CHRON_LAST_PROPOSAL = self._prev
+
+    def test_it_reads_the_evidence_again_and_SPENDS_NOTHING(self):
+        r = ca.chronicle_regate()
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["spent"], 0)
+
+    def test_LOOSENING_names_exactly_what_it_would_let_in(self):
+        # ★ named, not counted — a count cannot be argued with
+        r = ca.chronicle_regate(min_witnesses=1)
+        self.assertIn("Shako", r["wouldGainNames"])
+        self.assertEqual(r["wouldLoseNames"], [])
+
+    def test_TIGHTENING_names_exactly_what_it_would_keep_out(self):
+        r = ca.chronicle_regate(min_witnesses=3)
+        self.assertIn("Windforce", r["wouldLoseNames"])
+
+    def test_raising_the_confidence_floor_above_the_reads_holds_everything(self):
+        r = ca.chronicle_regate(conf_floor=0.99)
+        self.assertEqual(r["asked"]["grounded"], 0)
+        self.assertIn("Windforce", r["wouldLoseNames"])
+
+    def test_the_CURRENT_thresholds_are_reported_beside_the_asked_ones(self):
+        # the difference is the answer; either number alone is just a claim
+        import chronicle_retro as cr
+        r = ca.chronicle_regate(min_witnesses=1)
+        self.assertEqual(r["current"]["minWitnesses"], cr.MIN_WITNESSES)
+        self.assertEqual(r["asked"]["minWitnesses"], 1)
+
+    def test_nonsense_thresholds_are_refused_not_coerced_into_a_lie(self):
+        self.assertFalse(ca.chronicle_regate(conf_floor="banana")["ok"])
+
+    def test_with_no_sweep_in_memory_it_says_so(self):
+        ca._CHRON_LAST_PROPOSAL = None
+        self.assertIn("run a sweep first", ca.chronicle_regate()["why"])
+
+
 class TestSweepOneVisit(unittest.TestCase):
     """v1527 — sweeping a RECORDED visit: the cheapest path in the arc, and the one with the most
     dangerous shortcut available to it."""

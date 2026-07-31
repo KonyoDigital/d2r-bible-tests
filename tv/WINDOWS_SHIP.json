@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1530",
+  "ver": "v1531",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1530: a set the panel calls COMPLETE expands to all its pieces, gated the same as any name, expanded by the board that owns the catalogue",
+  "note": "v1531: re-run the gate over the last sweep evidence at any thresholds; names what loosening lets in and tightening keeps out",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

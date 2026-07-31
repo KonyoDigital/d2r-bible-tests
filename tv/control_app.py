@@ -7977,6 +7977,54 @@ def chronicle_apply(proposal=None):
         return {"ok": False, "why": "the board answered something unreadable"}
 
 
+_CHRON_LAST_PROPOSAL = None
+
+
+def chronicle_regate(conf_floor=None, min_witnesses=None):
+    """v1531 — re-run the GATE over the last sweep's evidence at different thresholds. Costs nothing.
+
+    tv/CHRONICLE_ARC.md names this as an open gap in its own words: CONF_FLOOR and MIN_WITNESSES are
+    "reasoned, not measured". They cannot be measured without seeing what they actually do to real
+    evidence, and that was impossible while tuning them meant paying for the whole sweep again.
+
+    Returns what WOULD ground and what WOULD be held at the asked-for thresholds, beside the current
+    ones, so the difference is the answer rather than an opinion about it.
+    """
+    import chronicle_retro as _cr
+    prop = globals().get("_CHRON_LAST_PROPOSAL")
+    if not prop:
+        return {"ok": False, "why": "no sweep evidence in memory — run a sweep first"}
+    try:
+        floor = float(conf_floor) if conf_floor is not None else _cr.CONF_FLOOR
+        wits = int(min_witnesses) if min_witnesses is not None else _cr.MIN_WITNESSES
+    except (TypeError, ValueError):
+        return {"ok": False, "why": "thresholds must be numbers"}
+    floor = max(0.0, min(1.0, floor))
+    wits = max(1, min(4, wits))
+
+    def run(f, w):
+        g = _cr.strict_gate(conf_floor=f, min_witnesses=w)
+        out = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=g)
+        return {"uniques": out["uniques"]["added"], "sets": out["sets"]["added"],
+                "held": len(out["held"])}
+    now = run(_cr.CONF_FLOOR, _cr.MIN_WITNESSES)
+    asked = run(floor, wits)
+    cur_names = set(now["uniques"]) | set(now["sets"])
+    ask_names = set(asked["uniques"]) | set(asked["sets"])
+    return {
+        "ok": True,
+        "current": {"confFloor": _cr.CONF_FLOOR, "minWitnesses": _cr.MIN_WITNESSES,
+                    "grounded": len(cur_names), "held": now["held"]},
+        "asked": {"confFloor": floor, "minWitnesses": wits,
+                  "grounded": len(ask_names), "held": asked["held"]},
+        # the two lists that answer the question — what loosening would let in, what tightening
+        # would keep out. Named, not counted: a count cannot be argued with.
+        "wouldGainNames": sorted(ask_names - cur_names),
+        "wouldLoseNames": sorted(cur_names - ask_names),
+        "spent": 0,
+    }
+
+
 def chronicle_visits(limit=8):
     """v1522 — the Chronicle panels he has opened IN GAME, newest first.
 
@@ -8252,6 +8300,10 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                                                 "pages": st.get("pages") or 0}
         _chron_swept_save(swept)
         prop = res["proposal"]
+        # v1531 — KEEP THE RAW EVIDENCE. Re-running the GATE is free; re-running the READS is not.
+        # Without this the only way to ask "what would a stricter floor have held back?" was to pay
+        # for the whole sweep again, which means the thresholds would never actually get tuned.
+        globals()["_CHRON_LAST_PROPOSAL"] = prop
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -8466,7 +8518,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1530",
+        "ver": "v1531",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9889,6 +9941,14 @@ class Handler(BaseHTTPRequestHandler):
             # v1519 — progress + result of the REAL sweep. GET never starts one; starting spends
             # money, and a GET that spends money is a GET a page-refresh can fire twice.
             self._json(200, chronicle_sweep_state())
+            return
+        if path == "/api/chronicle_gate":
+            # v1531 — what different thresholds WOULD do to the last sweep. Re-gates, never re-reads.
+            import urllib.parse as _up
+            q = _up.parse_qs((self.path.split("?", 1) + [""])[1])
+            self._json(200, chronicle_regate(
+                conf_floor=(q.get("floor") or [None])[0],
+                min_witnesses=(q.get("witnesses") or [None])[0]))
             return
         if path == "/api/chronicle_visits":
             # v1522 — the Chronicle panels he opened in game, as an offer. Read-only, costs nothing.
