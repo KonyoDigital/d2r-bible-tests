@@ -372,6 +372,63 @@ def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
     return _gate
 
 
+def reel_dirs(hist_dir, newest_first=True):
+    """Every sealed reel under a hist root, newest first by default."""
+    try:
+        names = [n for n in os.listdir(hist_dir) if n.startswith("reel_")]
+    except Exception:
+        return []
+    paths = [os.path.join(hist_dir, n) for n in names]
+    paths = [p for p in paths if os.path.isfile(os.path.join(p, "index.json"))]
+    paths.sort(key=lambda p: os.path.basename(p), reverse=newest_first)
+    return paths
+
+
+def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=None):
+    """THE RETRO SWEEP: every sealed reel he has, folded into ONE proposal.
+
+    Still writes nothing. Returns {"reels": [...per-reel stats...], "proposal": {...}, "totals": {...}}.
+
+    on_reel(stat) fires as each reel finishes, so a long sweep can report progress instead of going
+    quiet for ten minutes — a silent sweep is one he kills halfway and never trusts again.
+
+    The totals deliberately carry `framesSeen` and `classified` alongside `pagesRead`. He should be
+    able to see that 394 frames cost 11 classifies without taking anyone's word for it.
+    """
+    stats, pages = [], []
+    frames_seen = 0
+    for reel_dir in reel_dirs(hist_dir)[:limit] if limit else reel_dirs(hist_dir):
+        r = read_reel(reel_dir, classify, read_page, sig_of=sig_of)
+        try:
+            with open(os.path.join(reel_dir, "index.json"), encoding="utf-8") as fh:
+                frames_seen += len(json.load(fh).get("frames") or [])
+        except Exception:
+            pass
+        pages.extend(r.get("pages") or [])
+        stat = {k: r.get(k) for k in ("reel", "runs", "candidates", "classified", "note")}
+        stat["pages"] = len(r.get("pages") or [])
+        stats.append(stat)
+        if on_reel:
+            try:
+                on_reel(stat)
+            except Exception:
+                pass
+    prop = proposal_from_pages(pages)
+    return {
+        "reels": stats,
+        "proposal": prop,
+        "totals": {
+            "reels": len(stats),
+            "framesSeen": frames_seen,
+            "classified": sum(s.get("classified") or 0 for s in stats),
+            "pagesRead": prop.get("pagesRead", 0),
+            "refused": len(prop.get("refused") or []),
+            "uniques": len(prop.get("uniques") or {}),
+            "sets": len(prop.get("sets") or {}),
+        },
+    }
+
+
 def merge_max(existing, proposed_names):
     """THE MERGE LAW: union, never difference.
 
@@ -411,3 +468,35 @@ def apply_proposal(proposal, existing, gate=None):
         out[ledger] = merge_max((existing or {}).get(ledger) or [], passed)
     out["held"] = held
     return out
+
+
+# ── CLI ─────────────────────────────────────────────────────────────────────────
+# Print-only, on purpose. This module may never write, and a CLI that dropped a proposal file would
+# break the law the whole arc rests on — so the sweep SHOWS you what it found and you decide.
+if __name__ == "__main__":
+    import console_safe  # noqa: F401  — emoji must survive a non-UTF-8 console
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Chronicle retro sweep over the sealed reels.")
+    ap.add_argument("--hist", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                   "frames", "hist"))
+    ap.add_argument("--limit", type=int, default=None, help="only the N newest reels")
+    ap.add_argument("--cost", action="store_true",
+                    help="FREE: group frames into runs and report what a real sweep WOULD cost")
+    args = ap.parse_args()
+
+    if args.cost:
+        # the honest pitch, computed on his own film rather than asserted
+        res = sweep_hist(args.hist, classify=lambda p: None, read_page=lambda p, k: {},
+                         limit=args.limit,
+                         on_reel=lambda s: print("  %-34s %3d runs → %2d classifies"
+                                                 % (s["reel"][:34], s["runs"] or 0, s["classified"] or 0)))
+        t = res["totals"]
+        saved = 100 * (1 - (t["classified"] / t["framesSeen"])) if t["framesSeen"] else 0
+        print("\n📜 %d reels · %d frames → %d classifies (%.0f%% cheaper than reading every frame)"
+              % (t["reels"], t["framesSeen"], t["classified"], saved))
+        print("   run with the real reader to turn those into a proposal; nothing is written either way.")
+        raise SystemExit(0)
+
+    print("This sweep needs a reader. Use --cost for the free grouping pass, or drive sweep_hist()")
+    print("from the console, which owns the Claude + Grok lanes and the apply step.")

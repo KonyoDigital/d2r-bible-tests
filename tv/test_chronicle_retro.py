@@ -246,6 +246,62 @@ class TestTwoLanes(unittest.TestCase):
         self.assertEqual(rp("f.jpg", "chronicle-uniques")["lanes"]["Windforce"], ["claude", "grok"])
 
 
+class TestSweepEveryReel(unittest.TestCase):
+    """v1515 — the whole hist directory in one pass.
+
+    This is the shape Konyo actually asked for: "i want to save time manually trying to update and
+    screenshot or manually tally each one" — everything at once, not a reel at a time.
+    """
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        for i, sid in enumerate(("s_100", "s_200", "s_300")):
+            rd = os.path.join(self.d, "reel_" + sid)
+            os.makedirs(rd)
+            with open(os.path.join(rd, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump({"sessionId": sid,
+                           "frames": [{"f": "f%d.jpg" % k, "ts": k} for k in range(6)]}, fh)
+        os.makedirs(os.path.join(self.d, "reel_broken"))     # no index.json
+        self.sigs = lambda n: sig(30)
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def test_newest_reels_are_swept_FIRST(self):
+        # a sweep he interrupts should have covered his most recent play, not his oldest
+        got = [os.path.basename(p) for p in cr.reel_dirs(self.d)]
+        self.assertEqual(got, ["reel_s_300", "reel_s_200", "reel_s_100"])
+
+    def test_a_reel_with_no_index_is_skipped_not_crashed_on(self):
+        self.assertNotIn("reel_broken", [os.path.basename(p) for p in cr.reel_dirs(self.d)])
+
+    def test_every_reel_folds_into_ONE_proposal(self):
+        res = cr.sweep_hist(self.d, lambda p: "chronicle-uniques",
+                            lambda p, k: {"ledger": "uniques", "found": ["Windforce"], "conf": 0.9},
+                            sig_of=self.sigs)
+        self.assertEqual(res["totals"]["reels"], 3)
+        self.assertIn("Windforce", res["proposal"]["uniques"])
+        # ★ seen in three separate SESSIONS — that is cross-reel corroboration, and it should pass
+        self.assertTrue(cr.gate_verdict("Windforce", res["proposal"]["uniques"]["Windforce"])["pass"])
+
+    def test_the_totals_let_him_CHECK_the_cost_claim_himself(self):
+        res = cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, sig_of=self.sigs)
+        self.assertEqual(res["totals"]["framesSeen"], 18)   # 3 reels × 6 frames
+        self.assertEqual(res["totals"]["classified"], 3)    # 1 still run each
+        self.assertEqual(res["totals"]["pagesRead"], 0)
+
+    def test_progress_is_reported_per_reel(self):
+        # a silent ten-minute sweep is one he kills halfway and never trusts again
+        seen = []
+        cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, sig_of=self.sigs,
+                      on_reel=lambda st: seen.append(st["reel"]))
+        self.assertEqual(len(seen), 3)
+
+    def test_limit_takes_the_NEWEST_n(self):
+        res = cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, limit=1, sig_of=self.sigs)
+        self.assertEqual([r["reel"] for r in res["reels"]], ["s_300"])
+
+
 class TestMergeLaw(unittest.TestCase):
     def test_merge_is_union_and_reports_only_the_gain(self):
         m = cr.merge_max(["Shako", "Windforce"], ["Windforce", "Stormshield"])

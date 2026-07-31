@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1514",
+  "ver": "v1515",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1514: Grok as an independent second lane: same contract, its own words, disagreement reported not resolved",
+  "note": "v1515: the whole hist directory in one pass, with a free --cost pass that proves the price on his own film",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
