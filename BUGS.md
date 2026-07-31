@@ -1632,6 +1632,34 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** assert the CONTRACT, not the copy; and when a feature has a setting, drive the
   setting instead of inheriting whichever side its default is on.
 
+## REG-086 — the stash crops were calibrated on Konyo's MacBook, and only his MacBook got them (2026-08-01, v1536)
+- **Symptom:** Konyo: *"THE AI READERS arent working properly my cuzin just did a ON AIR and it
+  didnt read his runestash."* Reading worked on the Mac and not on the cousin's Windows box.
+- **The lead was his:** *"there might be something to do with resolution for MACBOOK/WINDOWS? we had
+  that situation for the AI INTAKE and we properly recalibrated it."* He was right.
+- **Root cause:** `tv/stash_eye.py` line 5 states it outright — the crop fractions are
+  *"LOCKED fractions (aspect 1.45–1.62, W≥1200 fullscreen D2R)"*, measured on 2940×1912 (1.538).
+  That band is MacBook: 16:10 = 1.60, 3:2 = 1.50. A normal Windows monitor is **16:9 = 1.778, outside
+  the gate**, so every one of the cousin's frames took the else-branch — the "foreign/windowed"
+  fallback of `im.crop((0, 0, w*0.46, h))`.
+- **Measured:** on 1920×1080 that hands the reader a **954k-pixel slab** where the Mac gets a
+  **177k-pixel band** — the grid arrives **5.4× more diluted**, for both the tab-strip OCR and the
+  grid fingerprint. Not a subtle degradation; a different picture.
+- **Fix:** `crops_for_aspect(layout, aspect)`. D2R scales its UI with HEIGHT and anchors the stash
+  panel to the left of the viewport, so a panel spanning fraction x of the width at aspect a0 spans
+  `x * (a0/a1)` at a1; the vertical fractions do not move. Konyo's Mac returns the LOCKED band
+  byte-identical (first test in the suite). 16:9 now gets a 153k-pixel band — within 14% of the
+  Mac's, which is what it should be, since the panel is the same physical size.
+- **Still honest:** DERIVED, not yet measured on a real 16:9 stash frame. Said so in the source and
+  asserted by a test, because a fix nobody has checked against the real thing is a claim.
+- **Prevention:** `tv/test_stash_eye_aspect.py` (9 tests) — the Mac band frozen, the derivation's own
+  claim checked (panel width per unit height equal across aspects), windowed frames still refused a
+  band, and absurd aspects kept inside the frame. Plus `tv/live_miss_audit.py`, which names WHICH of
+  the five links broke on any machine's journal, so the next report is evidence instead of a guess.
+- **Lesson:** a constant measured on one machine becomes a machine-specific feature the moment a
+  gate is wrapped around it. The gate here was honest about its range and nobody noticed that the
+  range WAS the Mac — the comment said "1.45–1.62" where it meant "Konyo's laptop".
+
 ## REG-085 — the cousin-world spec never visited the cousin world (2026-07-31)
 - **Symptom:** both `v663_machine_shell` tests red on CI *and* locally, on every version — and red
   identically with and without the v1491 UA pin, so not caused by it.

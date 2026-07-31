@@ -66,6 +66,8 @@ GATES = [
          why="the WHOLE chronicle chain in one pass — every other suite mocks its neighbours"),
     Gate("chronicle-doctor", [sys.executable, os.path.join(HERE, "chronicle_doctor.py")], 120,
          why="the arc is wired on THIS machine — lanes, footage, board build"),
+    Gate("test_stash_eye_aspect", [sys.executable, os.path.join(HERE, "test_stash_eye_aspect.py")], 120,
+         why="the stash crops must stay locked on Konyo's Mac AND reach 16:9 for the cousin"),
     Gate("test_g5_grok_eyes", [sys.executable, os.path.join(HERE, "test_g5_grok_eyes.py")], 300,
          why="the vision-eye contract"),
     Gate("test_roundtrip_sim", [sys.executable, os.path.join(HERE, "test_roundtrip_sim.py")], 900,

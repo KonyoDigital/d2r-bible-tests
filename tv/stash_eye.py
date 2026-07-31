@@ -29,6 +29,45 @@ _TALLY_CROPS = {
 # Tab labels ride above the grid; measured on 2940×1912 film of this product
 _TAB_CHROME = (0.08, 0.12, 0.40, 0.205)
 
+# ── v1536 — THE ASPECT THE CROPS WERE LOCKED AT, and how to reach any other one ──────────────
+# Konyo: "there might be something to do with resolution for MACBOOK/WINDOWS? we had that situation
+# for the AI INTAKE and we recalibrated it accordingly."  He was right, and it is worse than a
+# tweak: every band above was measured on HIS MAC (2940×1912, aspect 1.538) and the caller only
+# used them for 1.45 <= aspect <= 1.62. A normal Windows monitor is 16:9 = 1.778, OUTSIDE that gate,
+# so his cousin's frames fell to the "foreign/windowed" fallback — the whole left 46% of the screen.
+# Measured: on 1920×1080 that hands the reader a 954k-pixel slab where the Mac gets a 177k-pixel
+# band. The grid arrives 5.4x more diluted, and both the tab-strip OCR and the grid fingerprint are
+# reading a much emptier picture. That is "it didn't read his runestash".
+#
+# THE DERIVATION (not a guess): D2R scales its UI with HEIGHT and anchors the stash panel to the
+# left of the viewport. So a panel spanning fraction x of the width at aspect a0 spans x * (a0/a1)
+# at aspect a1; the vertical fractions do not move. One rule, every aspect.
+#
+# ⚠ DERIVED, NOT YET MEASURED ON A REAL 16:9 FRAME. The Mac path is byte-identical (asserted), so
+# this cannot regress Konyo; it replaces a KNOWN-bad fallback with a principled band for everyone
+# else. Confirm against one real Windows stash frame and, if it needs nudging, record the measured
+# numbers here the way the Mac ones are recorded above.
+_CROP_CAL_FILM = (2940, 1912)     # the film every band above was measured on
+# the EXACT ratio, not 1.538: a rounded constant put a 0.0001 skew into every derived band,
+# which the derivation's own test caught. The bands are measurements; the conversion between
+# them should not add error of its own.
+_CROP_CAL_ASPECT = _CROP_CAL_FILM[0] / float(_CROP_CAL_FILM[1])
+_CROP_CAL_LO, _CROP_CAL_HI = 1.45, 1.62
+
+
+def crops_for_aspect(layout: str, aspect: float):
+    """The crop band for THIS frame's aspect. Returns None when no honest band can be derived."""
+    frac = _TALLY_CROPS.get(layout) or _TALLY_CROPS["runes"]
+    if not aspect or aspect <= 0:
+        return None
+    if _CROP_CAL_LO <= aspect <= _CROP_CAL_HI:
+        return frac                                   # ★ Konyo's Mac — untouched, exactly as locked
+    if aspect < 1.3:
+        return None                                   # windowed / letterboxed oddity: no honest band
+    k = _CROP_CAL_ASPECT / float(aspect)              # wider frame ⇒ the panel is a smaller fraction of it
+    x0, y0, x1, y1 = frac
+    return (max(0.0, x0 * k), y0, min(1.0, x1 * k), y1)
+
 _TALLY_TABS = frozenset(("runes", "gems", "materials"))
 _VAULT_TABS = frozenset(("personal", "shared"))
 _ALL_TABS = _TALLY_TABS | _VAULT_TABS
@@ -168,10 +207,15 @@ def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
         w, h = im.size
         aspect = (w / float(h)) if h else 0
         frac = _TALLY_CROPS.get(layout) or _TALLY_CROPS["runes"]
-        if 1.45 <= aspect <= 1.62 and w >= 1200:
-            crop = _crop_frac(im, frac)
+        # v1536 — one rule for every aspect. The old shape gave the calibrated band ONLY to
+        # 1.45-1.62 (Konyo's Mac) and dropped everything else — every 16:9 Windows frame — to a
+        # 46%-of-screen slab. A derived band is strictly better than a slab, and the Mac branch is
+        # unchanged.
+        derived = crops_for_aspect(layout, aspect) if w >= 1200 else None
+        if derived:
+            crop = _crop_frac(im, derived)
         elif aspect >= 1.3:
-            # foreign / windowed — whole left 46% (same law as intake foreign tier)
+            # genuinely foreign (windowed, letterboxed, phone photo) — whole left 46%, as before
             crop = im.crop((0, 0, max(8, int(w * 0.46)), h))
         else:
             crop = _crop_frac(im, frac)
