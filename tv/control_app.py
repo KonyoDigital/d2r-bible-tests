@@ -8039,7 +8039,10 @@ def reader_health():
         import live_miss_audit as lma
     except Exception as e:
         return {"ok": False, "why": "the audit module is unavailable: %s" % str(e)[:100]}
-    path = _journal_path() if "_journal_path" in globals() else os.path.join(HERE, "sessions.jsonl")
+    # v1493's invariant, and its guard caught me writing a second one: EXACTLY ONE site may build
+    # the journal path. My "safe" fallback was a hole in TV_SESSIONS isolation — a test pointing the
+    # journal elsewhere would have had this route read the real one behind its back.
+    path = _journal_path()
     rows = lma.load(path)
     if rows is None:
         return {"ok": False, "why": "could not read this machine's journal at %s" % path}
@@ -8049,9 +8052,36 @@ def reader_health():
     broken = [f for f in findings if f["verdict"] != lma.E_OK]
     # ★ "no findings" is NOT "everything works" — it is "nothing to judge". Saying the first when
     # you mean the second is how a health panel earns trust it has not got.
+    # v1538 — HOW THIS MACHINE IS CROPPING. REG-086 was invisible for as long as it was because
+    # nothing ever said which branch a frame took. Konyo asked whether running it on his Windows PC
+    # would be enough of a test — it is, but only if the answer is visible, and this is that answer.
+    crop = None
+    try:
+        import stash_eye as _se
+        d = _se.last_crop_decision()
+        if d.get("aspect"):
+            branch = d["branch"]
+            crop = {
+                "aspect": d["aspect"],
+                "branch": branch,
+                "size": d.get("size"),
+                "says": {
+                    "locked-mac": "the LOCKED band measured on Konyo's own film — the calibrated path",
+                    "derived": "a band DERIVED for this aspect (v1536). This is the path that was "
+                               "broken before REG-086; if the tally below worked, the fix is proven "
+                               "on real footage.",
+                    "slab-46pct": "⚠ the coarse 46%-of-screen fallback — 5x more diluted than the "
+                                  "calibrated band. This is REG-086 still happening.",
+                    "no-band-windowed": "no band: the game is not fullscreen, so the panel is not "
+                                        "where any calibration expects it. Play fullscreen.",
+                }.get(branch, branch),
+            }
+    except Exception:
+        crop = None
     return {
         "ok": True,
         "sessions": res["sessions"],
+        "crop": crop,
         "findings": findings,
         "broken": len(broken),
         "verdict": ("nothing to judge — no stash activity in this journal" if not findings
@@ -8554,7 +8584,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1537",
+        "ver": "v1538",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -55,18 +55,37 @@ _CROP_CAL_ASPECT = _CROP_CAL_FILM[0] / float(_CROP_CAL_FILM[1])
 _CROP_CAL_LO, _CROP_CAL_HI = 1.45, 1.62
 
 
+# v1538 — WHAT THE LAST FRAME ACTUALLY DID. The v1536 band is DERIVED and has never met a real 16:9
+# stash frame; Konyo asked "if i run it on my windows is it good to test?" — it is, but only if the
+# answer is visible. This records which branch each frame took and at what aspect, so ONE ON AIR on
+# a Windows box turns the question into a fact instead of an impression.
+_LAST_CROP = {"aspect": None, "branch": "", "layout": "", "band": None, "size": None}
+
+
+def last_crop_decision():
+    """Read-only: how the most recent frame was cropped, and why."""
+    return dict(_LAST_CROP)
+
+
 def crops_for_aspect(layout: str, aspect: float):
     """The crop band for THIS frame's aspect. Returns None when no honest band can be derived."""
     frac = _TALLY_CROPS.get(layout) or _TALLY_CROPS["runes"]
     if not aspect or aspect <= 0:
         return None
     if _CROP_CAL_LO <= aspect <= _CROP_CAL_HI:
+        _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "locked-mac",
+                           "layout": layout, "band": frac})
         return frac                                   # ★ Konyo's Mac — untouched, exactly as locked
     if aspect < 1.3:
+        _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "no-band-windowed",
+                           "layout": layout, "band": None})
         return None                                   # windowed / letterboxed oddity: no honest band
     k = _CROP_CAL_ASPECT / float(aspect)              # wider frame ⇒ the panel is a smaller fraction of it
     x0, y0, x1, y1 = frac
-    return (max(0.0, x0 * k), y0, min(1.0, x1 * k), y1)
+    band = (max(0.0, x0 * k), y0, min(1.0, x1 * k), y1)
+    _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "derived", "layout": layout,
+                       "band": tuple(round(v, 4) for v in band)})
+    return band
 
 _TALLY_TABS = frozenset(("runes", "gems", "materials"))
 _VAULT_TABS = frozenset(("personal", "shared"))
@@ -180,6 +199,11 @@ def prep_tab_chrome(src_path: str, dest_path: str, scale: int = 3) -> Optional[s
         if crop is None:
             return None
         sw, sh = crop.size
+        # the number the whole REG-086 diagnosis turned on: how much picture the reader was handed
+        _LAST_CROP["size"] = [sw, sh]
+        if not derived and aspect >= 1.3:
+            _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "slab-46pct",
+                               "layout": layout, "band": None})
         if sw < 8 or sh < 4:
             return None
         up = crop.resize((max(8, sw * scale), max(8, sh * scale)), getattr(__import__("PIL.Image", fromlist=["Image"]).Image, "LANCZOS", 1))

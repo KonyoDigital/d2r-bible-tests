@@ -10617,6 +10617,16 @@ function escC(s) {
       }
       box.hidden = false;
       if (sub) sub.textContent = escC(j.verdict) + ' · ' + j.sessions + ' session(s)';
+      // v1538 — HOW THIS MACHINE CROPS. The line that would have made REG-086 obvious on day one.
+      var cropRow = '';
+      if (j.crop) {
+        var warn = j.crop.branch === 'slab-46pct' || j.crop.branch === 'no-band-windowed';
+        cropRow = '<div class="readh-row ' + (warn ? 'bad' : 'good') + '">'
+          + '<b>' + (warn ? '🔴' : '🟢') + ' crop ' + escC(j.crop.branch) + '</b>'
+          + '<span>aspect ' + escC(String(j.crop.aspect))
+          + (j.crop.size ? ' · reader got ' + escC(String(j.crop.size[0])) + '×' + escC(String(j.crop.size[1])) + 'px' : '')
+          + ' — ' + escC(j.crop.says) + '</span></div>';
+      }
       var rows = j.findings.map(function (f) {
         var bad = f.verdict.indexOf('E ·') !== 0;
         return '<div class="readh-row ' + (bad ? 'bad' : 'good') + '">'
@@ -10630,7 +10640,7 @@ function escC(s) {
         seenFix[f.verdict] = 1;
         fixes += '<div class="readh-fix"><b>' + escC(f.verdict) + '</b> → ' + escC(f.fix) + '</div>';
       });
-      body.innerHTML = rows + fixes;
+      body.innerHTML = cropRow + rows + fixes;
     } catch (e) { /* console not up — the panel simply stays hidden */ }
   };
   window._chronVisits = async function () {

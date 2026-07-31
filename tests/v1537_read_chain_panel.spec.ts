@@ -43,6 +43,39 @@ async function open(page: any, payload: any) {
 }
 
 test.describe('v1537 — which link broke, without a terminal', () => {
+  // ── v1538 — HOW THIS MACHINE CROPS ──────────────────────────────────────────────────────────
+  // Konyo asked whether running it on his Windows PC would be enough of a test. It is — but only
+  // if the answer is VISIBLE, and REG-086 stayed invisible for as long as it did precisely because
+  // nothing ever said which branch a frame took.
+  test('★ the crop branch is stated, so one Windows run PROVES the fix', async ({ page }) => {
+    await open(page, { ...HEALTH, crop: { aspect: 1.7778, branch: 'derived', size: [530, 289],
+      says: 'a band DERIVED for this aspect (v1536).' } });
+    const row = (await page.textContent('.readh-row')) || '';
+    expect(row).toContain('derived');
+    expect(row).toContain('1.7778');
+    expect(row, 'the pixel size is the number the whole diagnosis turned on').toContain('530×289px');
+  });
+
+  test('★ the 46% slab reads as BROKEN — that is REG-086 still happening', async ({ page }) => {
+    await open(page, { ...HEALTH, crop: { aspect: 1.7778, branch: 'slab-46pct', size: [883, 1080],
+      says: '⚠ the coarse 46%-of-screen fallback — 5x more diluted than the calibrated band.' } });
+    const first = page.locator('.readh-row').first();
+    expect(await first.getAttribute('class')).toContain('bad');
+    expect(await first.textContent()).toContain('5x more diluted');
+  });
+
+  test('the calibrated Mac path reads as fine, not as a warning', async ({ page }) => {
+    await open(page, { ...HEALTH, crop: { aspect: 1.5377, branch: 'locked-mac', size: [612, 289],
+      says: "the LOCKED band measured on Konyo's own film — the calibrated path" } });
+    expect(await page.locator('.readh-row').first().getAttribute('class')).toContain('good');
+  });
+
+  test('no crop decision yet means no crop row — never a guessed one', async ({ page }) => {
+    await open(page, { ...HEALTH, crop: null });
+    const rows = await page.$$eval('.readh-row', (n: any[]) => n.map((x) => x.textContent));
+    expect(rows.join(' ')).not.toContain('crop ');
+  });
+
   test('each broken link is named with the evidence behind it', async ({ page }) => {
     await open(page, HEALTH);
     expect(await page.isHidden('#hd-readh')).toBe(false);
