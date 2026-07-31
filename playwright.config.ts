@@ -20,6 +20,26 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // v1491 — SAY WHICH WORLD THE SUITE IS TESTING. devices['Desktop Chrome'] ships a
+        // "Windows NT 10.0" user agent. The board derives its storage world by joining EVERY
+        // platform signal (userAgentData.platform + navigator.platform + userAgent) and asking
+        // /mac|iphone|ipad|ipod/ — so on Konyo's Mac the platform probes still say "MacIntel" and
+        // the world is `mac` (bare keys), while on the Linux CI runner nothing says mac and the
+        // world becomes the isolated `W·` COUSIN world (W·d2r_wishlist, W·d2r_muleAssign, …).
+        // 105 spec files address the BARE keys, so the suite was silently exercising a different
+        // world than it was written for: 100 spec files red on CI, every one of them green on the
+        // Mac, with the app innocent each time (REG-082). The subject of this suite is Konyo's Mac
+        // world, so declare it instead of inheriting it from whichever host runs the job. The
+        // cousin world keeps its own coverage in v663_machine_shell.spec.ts, which sets the
+        // machine by hand and is unaffected by the UA.
+        userAgent:
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+          '(KHTML, like Gecko) Chrome/148.0.7778.96 Safari/537.36',
+      },
+    },
   ],
 });

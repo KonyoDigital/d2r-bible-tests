@@ -1576,6 +1576,29 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   makes an unreferenced `tv/test_*.py` a failure in its own right — the fix for this defect is not
   the two assertions, it is that nothing was watching them.
 
+## REG-084 — the suite spent 30 versions testing a world it was never written for (2026-07-31)
+- **Symptom:** Routine I went from FULL GREEN at v1459 (235 passed, 0 failed) to **100 distinct spec
+  files red** by v1489 — every one of them green on the Mac. v1490's sigil fix took that to 60, with
+  zero new failures, and the remainder clustered in vault / mule / intake / locker / craft persistence.
+- **Root cause:** `devices['Desktop Chrome']` ships a **"Windows NT 10.0" user agent**. The board derives
+  its storage world by joining EVERY platform signal (`userAgentData.platform` + `navigator.platform` +
+  `userAgent`) and asking `/mac|iphone|ipad|ipod/`. On Konyo's Mac the platform probes still say
+  "MacIntel", so the world stays `mac` and keys are bare. On the Linux CI runner nothing says mac, so
+  the world becomes the isolated **`W·` COUSIN world** — `W·d2r_wishlist`, `W·d2r_muleAssign`, … —
+  while **105 spec files** address the BARE keys. The v1477-v1488 world-routing work did not break the
+  app; it made the suite's hidden assumption load-bearing, and only the Mac could hide it.
+- **Fix (v1491):** the chromium project declares a Mac user agent. The subject of this suite is Konyo's
+  Mac world; saying so beats inheriting it from whichever host runs the job. No spec depends on the old
+  UA (checked), and the cousin world keeps its dedicated coverage in `v663_machine_shell.spec.ts`, which
+  sets the machine by hand.
+- **Prove:** the world resolution was measured in both directions locally by forcing `d2r_activeMachine`
+  (`d2r_muleAssign` → bare on mac, `W·d2r_muleAssign` on windows). CI is the verdict on the rest.
+- **NOT fixed by this:** `v663_machine_shell` fails identically WITH and WITHOUT the change — it was
+  already red locally and on CI before it, and wants its own session.
+- **Prevention:** a test harness must state which world/profile it is exercising. Inheriting that from
+  the host means the same suite asserts different things on different machines — and the machine the
+  author uses is always the one where it looks fine.
+
 ## REG-083 — the pre-push gate: 10 minutes, red, and about the machine not the code (2026-07-31)
 - **Symptom:** on Konyo's Mac `tv/test_control.py` took **608s** and came back **FAILED (1 failure,
   3 errors)**. Every one of the four was `subprocess._check_timeout` — the whole browser-driven family
