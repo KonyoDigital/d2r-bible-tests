@@ -168,5 +168,50 @@ class TestTheWholeChain(unittest.TestCase):
             self.assertNotIn("cross-lane", cr.witnesses(sightings))
 
 
+
+class TestTheDoctorTellsTheTruth(unittest.TestCase):
+    """v1533 — a health check that overstates is worse than none: it sends him to fix what is not
+    broken, and hides what is."""
+
+    def setUp(self):
+        import chronicle_doctor as cd
+        self.cd = cd
+
+    def test_it_runs_and_answers_every_check(self):
+        d = self.cd.diagnose()
+        self.assertEqual(len(d["checks"]), len(self.cd.CHECKS))
+        for r in d["checks"]:
+            self.assertIn(r["state"], (self.cd.OK, self.cd.MISSING, self.cd.UNKNOWN))
+            self.assertTrue(r["detail"], r["name"] + " answered with no reason")
+
+    def test_UNKNOWN_is_never_counted_as_broken(self):
+        # ★ "I could not check" and "it is broken" are different sentences. Collapsing them is how a
+        # health check starts lying — and it lies in the direction that wastes his time.
+        d = self.cd.diagnose()
+        for name in d["unknown"]:
+            self.assertNotIn(name, d["blocking"])
+
+    def test_a_check_that_CRASHES_is_unknown_not_a_failure(self):
+        r = self.cd._check("boom", lambda: 1 / 0)
+        self.assertEqual(r["state"], self.cd.UNKNOWN)
+        self.assertIn("the check itself failed", r["detail"])
+
+    def test_a_MISSING_check_says_what_to_do_about_it(self):
+        # a health check that names a problem without a next step is just an alarm
+        for r in self.cd.diagnose()["checks"]:
+            if r["state"] == self.cd.MISSING:
+                self.assertGreater(len(r["detail"]), 30, r["name"] + " reported missing with no fix")
+
+    def test_a_SILENT_GROK_does_not_block_readiness(self):
+        # one eye is a working system — it just scores lower at the gate. Calling that "not ready"
+        # would push him to fix something that is not wrong.
+        self.assertNotIn("grok lane", self.cd.diagnose()["blocking"])
+
+    def test_the_things_that_DO_block_are_the_things_that_stop_it_working(self):
+        import chronicle_doctor as cd
+        src = open(cd.__file__, encoding="utf-8").read()
+        for name in ("reader prompts", "claude lane", "frame grouping", "board apply"):
+            self.assertIn(name, src)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

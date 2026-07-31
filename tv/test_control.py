@@ -3770,6 +3770,34 @@ class TestNoOrphanSuite(unittest.TestCase):
     now a list in `tv/run_gates.py`, and this test makes falling out of it impossible.
     """
 
+    def test_no_suite_defines_a_class_BELOW_unittest_main(self):
+        """v1533 — the trap this repo already paid for once (v1457: 7 tests in test_control.py were
+        defined below the guard and had NEVER run, while the suite reported OK). It has no automated
+        check, so it is still live — I walked straight into it appending a class to
+        test_chronicle_chain.py: 6 tests written, 0 defined, suite green.
+
+        unittest.main() exits the interpreter. Anything after it is dead code that LOOKS like
+        coverage, which is the most expensive kind of nothing."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        bad = []
+        for path in sorted(glob.glob(os.path.join(here, "test_*.py"))):
+            with open(path, encoding="utf-8") as fh:
+                src = fh.read()
+            # anchor on the REAL guard, not the string: this very test's own docstring mentions
+            # unittest.main(), and a naive find() matched that and flagged this file (caught on the
+            # first run — a guard whose first victim is itself is not yet a guard)
+            m = re.search(r'^if __name__ == ["\']__main__["\']:', src, re.M)
+            if not m:
+                continue
+            tail = src[m.start():]
+            if re.search(r"^class\s+\w+", tail, re.M):
+                bad.append(os.path.basename(path))
+        self.assertEqual(
+            bad, [],
+            "these suites define a test class AFTER unittest.main(), which exits the interpreter — "
+            "every class below it is NEVER DEFINED and the suite still reports OK:\n  "
+            + "\n  ".join(bad) + "\nMove the class above the `if __name__` guard.")
+
     def test_every_suite_is_in_the_gate_set(self):
         here = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(here, "run_gates.py"), encoding="utf-8") as fh:

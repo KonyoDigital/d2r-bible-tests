@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1532",
+  "ver": "v1533",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1532: every link had its own tests; this walks the seams between them, with only the vision stubbed",
+  "note": "v1533: one command says whether the arc is wired on THIS machine; plus a guard for test classes stranded below unittest.main",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
