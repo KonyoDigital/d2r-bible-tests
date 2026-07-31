@@ -8025,6 +8025,42 @@ def chronicle_regate(conf_floor=None, min_witnesses=None):
     }
 
 
+def reader_health():
+    """v1537 — 🔍 WHY DIDN'T IT READ MY STASH, as a route.
+
+    v1536 built the audit as a CLI, and a CLI is the wrong shape for the person who needs it most:
+    his cousin is on a Windows box he may never open a terminal on, and Konyo has to relay the
+    output by hand. The console is already open in front of both of them.
+
+    Read-only, costs nothing, and it reads THIS machine's journal — which is the machine whose
+    reading is in question.
+    """
+    try:
+        import live_miss_audit as lma
+    except Exception as e:
+        return {"ok": False, "why": "the audit module is unavailable: %s" % str(e)[:100]}
+    path = _journal_path() if "_journal_path" in globals() else os.path.join(HERE, "sessions.jsonl")
+    rows = lma.load(path)
+    if rows is None:
+        return {"ok": False, "why": "could not read this machine's journal at %s" % path}
+    res = lma.audit(rows)
+    findings = [{"session": a, "tab": b, "verdict": c, "detail": d, "fix": lma._fix_for(c)}
+                for a, b, c, d in res["findings"]]
+    broken = [f for f in findings if f["verdict"] != lma.E_OK]
+    # ★ "no findings" is NOT "everything works" — it is "nothing to judge". Saying the first when
+    # you mean the second is how a health panel earns trust it has not got.
+    return {
+        "ok": True,
+        "sessions": res["sessions"],
+        "findings": findings,
+        "broken": len(broken),
+        "verdict": ("nothing to judge — no stash activity in this journal" if not findings
+                    else "every tally tab that was opened got a real total" if not broken
+                    else "%d broken link(s)" % len(broken)),
+        "spent": 0,
+    }
+
+
 def chronicle_visits(limit=8):
     """v1522 — the Chronicle panels he has opened IN GAME, newest first.
 
@@ -8518,7 +8554,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1536",
+        "ver": "v1537",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9949,6 +9985,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, chronicle_regate(
                 conf_floor=(q.get("floor") or [None])[0],
                 min_witnesses=(q.get("witnesses") or [None])[0]))
+            return
+        if path == "/api/reader_health":
+            # v1537 — which link of the read chain broke, on THIS machine. Free, read-only.
+            self._json(200, reader_health())
             return
         if path == "/api/chronicle_visits":
             # v1522 — the Chronicle panels he opened in game, as an offer. Read-only, costs nothing.

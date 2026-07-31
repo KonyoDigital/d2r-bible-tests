@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1536",
+  "ver": "v1537",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1536: 16:9 fell to a 46 percent slab; a derived band restores it, and live_miss_audit names which link broke",
+  "note": "v1537: which of the five links broke, in the console, on the machine whose reading is in question",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
