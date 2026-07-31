@@ -1198,6 +1198,16 @@
   .th-caption .th-dl { color: var(--gold-hi); }
   .th-caption .th-dl-sys { margin-left: 6px; color: var(--muted); opacity: .75;
     font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); }
+  /* v1517 — the same rule, everywhere a reader reports a scene: HIS game's word leads, the engine's
+     word trails muted. The system word is kept (he debugs with it) but it stops being the headline. */
+  .ar-dl { color: var(--gold-hi); font-weight: var(--fw-semibold); }
+  .ar-dl .ar-dl-sub { color: var(--gold-dim); font-weight: var(--fw-medium); }
+  .ar-dl-sys { margin-left: 6px; opacity: .6; font: var(--fw-medium) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-snug); }
+  .fx-dl { color: var(--gold-hi); font-weight: var(--fw-semibold); }
+  .fx-dl-sys { margin-left: 5px; color: var(--muted); opacity: .6;
+    font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); }
+
   /* v825 (Konyo: 'the info window opened but i cant close it back') — the drawer COVERED the
      strip buttons including its own ℹ toggle. It now stops above the transport, carries its own
      ✕, and never outranks the controls. */
@@ -4017,7 +4027,9 @@
       + (f0.frameId ? '<img src="/hist/' + encodeURIComponent(f0.frameId) + '.jpg?w=440" alt="" onerror="this.style.display=\'none\'">' : '');
     var trail = frames.map(function(fr, i){
       var hit = (i === frames.length - 1) || (rd.status && rd.status.indexOf('recovered') === 0);
-      return '<div class="fx-tf'+(hit ? ' hit' : '')+'"><b>'+esc(fr.frameId || ('frame ' + (i + 1)))+'</b>'+(fr.scene ? ' · '+esc(fr.scene) : '')+'<div class="fx-tf-r">raw: <b>"'+esc(fr.raw || '—')+'"</b></div></div>';
+      return '<div class="fx-tf'+(hit ? ' hit' : '')+'"><b>'+esc(fr.frameId || ('frame ' + (i + 1)))+'</b>'+(fr.scene ? (function(){ var d = _diabloScene(fr.scene, fr.stashTab || fr.chronicleTab, fr.area);
+          return d ? ' <span class="fx-dl">'+d.ic+' '+d.key+'</span><span class="fx-dl-sys">'+esc(fr.scene)+'</span>'
+                   : ' · '+esc(fr.scene); })() : '')+'<div class="fx-tf-r">raw: <b>"'+esc(fr.raw || '—')+'"</b></div></div>';
     }).join('') || '<div class="fx-tf-r" style="opacity:.6">single frame</div>';
     d.innerHTML = '<div class="fx-drill-h">🔎 read trail · '+esc(rd.item || rd.status || 'read')+'</div>'
       + '<div class="fx-frame">'+frameHtml+'</div>'
@@ -4781,7 +4793,13 @@
     inventory:  { ic: '🎒', key: 'INVENTORY', full: 'inventory' },
     loot:       { ic: '⚔', key: 'FARMING',   full: 'farming' },
     gameplay:   { ic: '⚔', key: 'IN-GAME',   full: 'in-game' },
-    tooltip:    { ic: '🔍', key: 'ITEM',      full: 'inspecting item' }
+    tooltip:    { ic: '🔍', key: 'ITEM',      full: 'inspecting item' },
+    // v1517 — THE CHRONICLE, in his words, in the same dictionary every surface already reads from.
+    // Three entries and not one, because the two ledgers are two different things to be looking at
+    // and a reader that could not tell which must not be shown claiming either.
+    chronicle:  { ic: '📜', key: 'CHRONICLE', full: 'reading the chronicle' },
+    'chronicle-uniques': { ic: '🏆', key: 'CHRONICLE', full: 'the Holy Grail ledger' },
+    'chronicle-sets':    { ic: '🧩', key: 'CHRONICLE', full: 'the Set-piece ledger' }
   };
   var _DIABLO_TABS = { personal: 'Personal', shared: 'Shared', gems: 'Gems', materials: 'Materials', runes: 'Runes' };
   // returns {ic,key,full,tab,area} for a real Diablo scene, or null for engine-internal/absent (kai/intake/null)
@@ -6024,7 +6042,18 @@
             return esc(nm) + badge + thSocketPill(b, nm);   // v830 WHERE · v946.5 sockets
           }).join(' · ') + '</b>')
                         : (thReadStatus(b, false) || '<span class="ar-dim">no item text on this frame (honest empty)</span>'))
-        + (b.scene ? ' <span class="ar-dim">· ' + esc(b.scene) + (b.area ? ' @ ' + esc(b.area) : '') + '</span>' : '') + '</div>'
+        + (b.scene ? (function(){
+            // v1517 (task #8) — PLAIN D2R WORDS FIRST. This row used to read "· stash @ Harrogath":
+            // the engine's word leading, his game's word absent. Now the Diablo label leads and the
+            // raw scene trails muted — the system word is kept because he debugs with it, but it is
+            // no longer the thing he reads first.
+            var d = _diabloScene(b.scene, b.stashTab || b.chronicleTab, b.area);
+            if (!d) return ' <span class="ar-dim">· ' + esc(b.scene) + (b.area ? ' @ ' + esc(b.area) : '') + '</span>';
+            var sub = d.tab || d.area;
+            return ' <span class="ar-dl">' + d.ic + ' <b>' + d.key + '</b>'
+              + (sub ? ' <span class="ar-dl-sub">· ' + esc(sub) + '</span>' : '')
+              + '</span> <span class="ar-dim ar-dl-sys">' + esc(b.scene) + '</span>';
+          })() : '') + '</div>'
         + ((ocrN.length || b.ocr_ms) ? (function(){
             // v848 — the headline shows ITEM-ISH ocr only; raw garbage stays drawer-truth
             var _runes = /^(el|eld|tir|nef|eth|ith|tal|ral|ort|thul|amn|sol|shael|dol|hel|io|lum|ko|fal|lem|pul|um|mal|ist|gul|vex|ohm|lo|sur|ber|jah|cham|zod)( rune)?$/i;

@@ -5164,7 +5164,16 @@ def _area_with_act(ar):
     return ("Act %d · %s" % (act, ar)) if act else ar
 
 
-def _diablo_scene_label(scene, area):
+def _diablo_scene_label(scene, area, tab=""):
+    """v1517 — `tab` names the CHRONICLE ledger (uniques/sets) when the reader knew it. Optional and
+    last, so every existing caller is unchanged; a chronicle read without a tab still says the honest
+    "📜 THE CHRONICLE" instead of picking a ledger."""
+    if tab and str(scene or "").lower() == "chronicle":
+        scene = "chronicle-" + str(tab).lower()
+    return _diablo_scene_label_inner(scene, area)
+
+
+def _diablo_scene_label_inner(scene, area):
     """(scene, area) → {kind, label, area, act}. kind ∈ entering|town|farming|menu|unclear.
     TOWN vs FARMING is decided deterministically by _TOWN_AREAS (safe vs drops), never guessed.
     B10 — the label carries the ACT in Diablo terms ("FARMING · Act 1 · Dark Wood") when the area
@@ -8134,7 +8143,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1516",
+        "ver": "v1517",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9258,7 +9267,8 @@ class Handler(BaseHTTPRequestHandler):
                     # uses — so the two surfaces can never drift into describing one frame two ways
                     # (that split is what REG-076 was made of). The raw scene stays on the beat right
                     # above this, so a bug is still traceable back to the machine word.
-                    "diablo": _diablo_scene_label(r.get("scene", ""), r.get("area", "")),
+                    "diablo": _diablo_scene_label(r.get("scene", ""), r.get("area", ""),
+                                                  r.get("chronicleTab", "")),
                     "note": (r.get("note") or "")[:120],
                     "frame": _frel if has else "",
                     "frameId": fid,

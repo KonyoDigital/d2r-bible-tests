@@ -4717,6 +4717,20 @@ class TestChronicleSpeaksDiablo(unittest.TestCase):
         self.assertNotIn("Grail", r["label"])
         self.assertNotIn("Set", r["label"])
 
+    def test_the_LEDGER_reaches_the_label_from_the_read(self):
+        # v1517 — the reader reports scene=chronicle + chronicleTab; the label is where they meet.
+        # Optional and last in the signature, so no existing caller changed.
+        self.assertIn("Holy Grail", ca._diablo_scene_label("chronicle", "", "uniques")["label"])
+        self.assertIn("Set", ca._diablo_scene_label("chronicle", "", "sets")["label"])
+        # ★ and a chronicle read whose ledger the reader could NOT name still says so honestly
+        bare = ca._diablo_scene_label("chronicle", "", "")["label"]
+        self.assertIn("CHRONICLE", bare)
+        self.assertNotIn("Grail", bare)
+
+    def test_a_tab_on_a_non_chronicle_scene_changes_nothing(self):
+        self.assertEqual(ca._diablo_scene_label("stash", "Harrogath", "uniques")["label"],
+                         ca._diablo_scene_label("stash", "Harrogath")["label"])
+
     def test_chronicle_is_a_menu_not_farming(self):
         # it is a screen he is READING, not a run he is farming — kind drives the theatre icon
         self.assertEqual(ca._diablo_scene_label("chronicle-sets", "Harrogath")["kind"], "menu")

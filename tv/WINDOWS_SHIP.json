@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1516",
+  "ver": "v1517",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1516: console panel + /api/chronicle_scan free pass; found and fixed the escaper-scope bug that had the FLEET panel lying since v1496",
+  "note": "v1517: plain D2R words lead every reader surface, system words trail muted; the Chronicle joins the shared dictionary",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

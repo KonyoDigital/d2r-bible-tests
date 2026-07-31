@@ -1695,6 +1695,24 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** a capability the harness cannot assume gets PROBED, cheaply, once — and a test that
   could not run says so. An environment fact must never render as a verdict about the code.
 
+## REG-083 — a panel reported an outage it invented (2026-07-31, v1516)
+- **Symptom:** the FLEET panel in the console rendered "fleet unreachable" even when `/api/fleet`
+  answered perfectly. Shipped in v1496 and wrong ever since — twenty versions of a panel that
+  reported a network failure that never happened.
+- **Caught by:** writing the v1516 Chronicle-panel spec. A probe showed the fetch returning **200
+  with real JSON** while the DOM said "unreachable" — the fetch succeeded and the RENDER died.
+- **Root cause:** `tv/control_ui.html` has TWO `<script>` blocks. `esc()` is declared at the top
+  level of the first, so nothing in the second can see it. Every `esc(` call from the second block
+  threw a ReferenceError *inside the try*, and the catch — written for network failure — blamed the
+  network. The new Chronicle panel was about to ship with the identical bug.
+- **Fix:** `escC()` declared in the block that uses it; 19 call sites moved; the first block
+  untouched (asserted: 0 `escC` in block 1, 0 stray `esc` in block 2).
+- **Prevention:** a catch that names a CAUSE must only be reachable from that cause. `catch (e)`
+  around a fetch *and* a render will attribute render bugs to the network forever — and the message
+  is the only thing anyone sees. Where a handler spans both, split the try or report `e` itself.
+  Second lesson, same bug: an "unreachable/empty" state is exactly the state that looks plausible
+  when it is wrong, so it needs a spec that asserts it appears only when the route actually failed.
+
 ## REG-082 — two specs read a key the app does not write (2026-07-31)
 - **Symptom:** `bug040_050 BUG-042 star toggle persists localStorage` red on CI, green on the Mac.
 - **Root cause:** the Linux runner is not a Mac, so `D2R_MACHINE` resolves to `windows` (by design —
