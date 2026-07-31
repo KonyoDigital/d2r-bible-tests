@@ -7,6 +7,9 @@
  *   kind omitted / 'items' → returns { items:[names], unrecognized:[] }   (presence; tooltip-text only)
  *   kind === 'tally'       → returns { tally:{name:count}, unrecognized:[] } (icon-count of runes/gems/etc.)
  *   kind === 'gridcount'   → returns { count:N, tally:{items:N} } (occupied personal/shared stash slots)
+ *   kind === 'chronicle-uniques' / 'chronicle-sets' (v1510) → returns { found:[], notFound:[], sets:[],
+ *        printed:{found,total}, read:{found,notFound}, witness:'agree'|'differ'|'none', note } — the in-game
+ *        Chronicle read as EVIDENCE, one kind per ledger, refusing out loud instead of guessing.
  */
 const CORS = {
   'Access-Control-Allow-Origin': 'https://bull-4-u.com',   // v697.1 — private tool: origin-locked (was *)
@@ -39,6 +42,14 @@ export async function onRequestPost(context) {
   const isGrail = kind === 'grail';   // v561 — bulk grail import: a grail/collection UI listing many item names with found-state
   const isTally2 = kind === 'tally2'; // v661 — FOREIGN-CAPTURE tally (WhatsApp-recompressed / windowed shots): the locked tally prompt + a compression addendum. Additive kind — the 'tally' path is byte-identical.
   const isTally = (kind === 'tally' || isTally2 || isCraft) && !isLocate;   // craft shares the {tally} count contract
+  // v1510 — THE CHRONICLE KINDS. Konyo: "SETS/ and UNIQUES completes SEPARATED accordingly."
+  // Two kinds, not one, because they are two ledgers: uniques land in d2r_foundLog, set pieces in
+  // d2r_setPieces. One kind with a tab field would let a misread tab write set pieces into the grail.
+  // Distinct kinds mean the CALLER states which ledger it is opening, and the reader is only asked to
+  // confirm — a much cheaper thing to get right than a classification.
+  const isChronU = kind === 'chronicle-uniques';
+  const isChronS = kind === 'chronicle-sets';
+  const isChron = isChronU || isChronS;
 
   // v561 — GRAIL IMPORT. The player photographs their grail/collection tracker UI (in-game mod tab or an
   // external grail tool): a long LIST/GRID of unique + set item names where each row/cell shows a FOUND state
@@ -54,6 +65,36 @@ export async function onRequestPost(context) {
     + '(4) Match each found name to the closest VOCABULARY entry (the vocabulary may carry suffixes like '
     + '"Harlequin Crest (Shako)" — match on the item name part). Truly unmatched readable names go to "unrecognized". '
     + '(5) Read the WHOLE image including partially-scrolled rows whose names are still legible. Never invent names.';
+  // v1510 — CHRONICLE READ. This is the grail prompt's stricter sibling, and the difference is the
+  // point. `grail` says: if no found-state is visible, treat EVERY readable name as found — safe when
+  // a human is deliberately photographing their tracker to import it. The Chronicle sweep runs
+  // UNATTENDED over sealed reels, so that same rule would mass-register a whole ledger off one
+  // misread frame. Here the default is inverted: no visible found-state ⇒ nothing is found.
+  const chronCommon = ''
+    + 'You read the in-game CHRONICLE (holy-grail) panel of Diablo II Resurrected (RotW mod): a long '
+    + 'scrollable list of item names where each row shows whether the player has FOUND it — bright/'
+    + 'coloured text vs grey/dim text, a tick, or a filled marker. Rules that matter more than coverage: '
+    + '(1) "found" holds ONLY names whose found-state is VISIBLE and positive. A dim, grey, empty or '
+    + 'ambiguous row goes in "notFound". '
+    + '(2) If the panel shows NO found-state at all — you cannot tell found from unfound — return found '
+    + 'as an EMPTY array and set stateVisible=false. Do NOT assume everything on screen is owned. This '
+    + 'read runs unattended, so a confident wrong page permanently mis-tallies his grail. '
+    + '(3) Read only what is legible. A half-scrolled row whose name you can still read counts; a '
+    + 'guessed one never does. Never invent a name to complete a set or fill a page. '
+    + '(4) If the panel prints its own progress numbers anywhere (e.g. "243/403", "Found 108 of 135"), '
+    + 'put them in printedFound and printedTotal EXACTLY as shown. They are checked against your own '
+    + 'count as a second witness — an honest mismatch is useful, a fabricated match is not. '
+    + '(5) conf = your own honest 0..1 confidence in this page.';
+  const chronUText = chronCommon
+    + ' THIS PAGE IS THE UNIQUES LEDGER: single unique items (Harlequin Crest, Windforce, Stormshield). '
+    + 'Set sections do NOT belong here — if what you see is grouped under set names, say so by setting '
+    + 'wrongTab=true and returning found empty, rather than tallying set pieces as uniques.';
+  const chronSText = chronCommon
+    + ' THIS PAGE IS THE SETS LEDGER: rows grouped under SET names (Tal Rasha\'s Wrappings, Immortal '
+    + 'King, Tancred\'s Battlegear). Fill "sets" with one entry per set NAME visible, each carrying the '
+    + 'PIECE names under it that are marked found. Also put every found piece in "found". If what you '
+    + 'see is a flat list of single unique items with no set grouping, set wrongTab=true and return '
+    + 'found empty.';
   const itemsText = 'You read Diablo 2 Resurrected screenshots (stash/inventory panels, ground loot, hover tooltips). '
     + 'Extract ITEM NAMES whose text is VISIBLE in the image and return vocabulary matches in "items". STRICT RULES: '
     + '(0) Report an item ONLY where its NAME is shown as clearly-readable TEXT — a hover tooltip, a '
@@ -447,6 +488,7 @@ export async function onRequestPost(context) {
   };
   const sysText = isLocate ? locateText : isRaw ? rawText : isSock ? sockText
     : isGridCount ? gridCountText
+    : isChron ? (isChronU ? chronUText : chronSText)
     : isCraft ? craftText : isTally ? (isTally2 ? tally2Text : tallyText) : isGrail ? grailText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
@@ -495,7 +537,7 @@ export async function onRequestPost(context) {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isSock ? 'Does this item tooltip contain a "Socketed (N)" line? Check every line carefully, especially near the bottom. Return the N, or 0 if the line is absent.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isGridCount ? 'Count occupied item icon slots in this personal/shared stash grid. Return only {count:N}. No names.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally2 ? 'Read every labeled tile on this contact sheet and return its rune name + the printed stack number.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isSock ? 'Does this item tooltip contain a "Socketed (N)" line? Check every line carefully, especially near the bottom. Return the N, or 0 if the line is absent.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isGridCount ? 'Count occupied item icon slots in this personal/shared stash grid. Return only {count:N}. No names.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally2 ? 'Read every labeled tile on this contact sheet and return its rune name + the printed stack number.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : isChron ? (isChronU ? 'This is my in-game CHRONICLE, uniques ledger. Return only the uniques whose found-state is visibly positive, the rest in notFound, plus any printed progress numbers.' : 'This is my in-game CHRONICLE, sets ledger. Return the sets on screen with their found pieces, the unfound pieces in notFound, plus any printed progress numbers.') : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
@@ -511,7 +553,7 @@ export async function onRequestPost(context) {
   }
   const data = await apiResp.json();
   const usage = data.usage ? { in: data.usage.input_tokens, out: data.usage.output_tokens, cached: data.usage.cache_read_input_tokens } : null;
-  if (data.stop_reason === 'refusal') return json(isLocate ? { found: false, box: [0, 0, 0, 0], note: 'refused' } : isGridCount ? { count: 0, tally: {}, note: 'refused' } : isTally ? { tally: {}, unrecognized: [], note: 'refused' } : { items: [], unrecognized: [], note: 'refused' }, 200);
+  if (data.stop_reason === 'refusal') return json(isChron ? { kind, ledger: isChronU ? 'uniques' : 'sets', found: [], notFound: [], sets: [], witness: 'none', note: 'refused' } : isLocate ? { found: false, box: [0, 0, 0, 0], note: 'refused' } : isGridCount ? { count: 0, tally: {}, note: 'refused' } : isTally ? { tally: {}, unrecognized: [], note: 'refused' } : { items: [], unrecognized: [], note: 'refused' }, 200);
   const textBlock = (data.content || []).find((b) => b.type === 'text');
   let parsed = {};
   try { parsed = JSON.parse(textBlock ? textBlock.text : '{}'); } catch {}
@@ -572,6 +614,65 @@ export async function onRequestPost(context) {
   // v421 — RAWNAME response: return the one read name. If it resolves to a vocab/grail item → "items"
   // (registers as owned); otherwise → "unrecognized" so it surfaces in the throw-out review (keepable),
   // NEVER the silent "∅ no tooltip text". A gold/green colour hints a real find; either way it's not lost.
+  // v1510 — CHRONICLE RETURN. Self-contained: it never enters the items/sockets/finds pipeline below,
+  // so nothing about the vault intake changes. What it hands back is deliberately not a verdict — it is
+  // EVIDENCE, and the caller (the retro sweep, task #3) decides whether to ground it:
+  //   found[]      names resolved to the vocabulary, found-state visibly positive
+  //   notFound[]   read but NOT found — carried so a caller can see the page was read whole, never to
+  //                un-tick anything (the ledger merges by MAX; a chronicle read only ever adds)
+  //   sets[]       sets ledger only: set name → its found pieces
+  //   printed/read the screen's own numbers vs our count = the second witness (multi-witness doctrine)
+  //   witness      'agree' | 'differ' | 'none' — stated, never silently resolved in our favour
+  if (isChron) {
+    const takeNames = (arr) => {
+      const out = [], bad = [];
+      for (const r of (Array.isArray(arr) ? arr : [])) {
+        const raw = String(r == null ? '' : r).trim();
+        if (!raw || !nameOk(raw)) continue;
+        const hit = resolve(raw);
+        if (hit) { if (!out.includes(hit)) out.push(hit); } else bad.push(raw);
+      }
+      return [out, bad];
+    };
+    const stateVisible = parsed.stateVisible !== false;   // absent ⇒ assume it was readable
+    const wrongTab = parsed.wrongTab === true;
+    let [found, unrecF] = takeNames(parsed.found);
+    const [notFound, unrecN] = takeNames(parsed.notFound);
+    // the two refusals the prompt is allowed to make, honoured here rather than argued with
+    if (!stateVisible || wrongTab) found = [];
+    const sets = [];
+    if (isChronS) {
+      for (const g of (Array.isArray(parsed.sets) ? parsed.sets : [])) {
+        const nm = g && typeof g.set === 'string' ? g.set.trim() : '';
+        if (!nm || !nameOk(nm)) continue;
+        const [pieces] = takeNames(g.pieces);
+        sets.push({ set: nm.slice(0, 60), pieces, complete: g.complete === true });
+      }
+    }
+    const num = (v) => { const n = parseInt(v, 10); return isFinite(n) && n >= 0 && n <= 9999 ? n : null; };
+    const printedFound = num(parsed.printedFound);
+    const printedTotal = num(parsed.printedTotal);
+    // A chronicle page is SCROLLABLE: the printed number counts the whole ledger while the page shows a
+    // slice, so agreement is only meaningful when the page IS the whole ledger — i.e. when nothing was
+    // left unread. Claiming a witness when the page was partial would be the exact false confidence the
+    // gate exists to stop.
+    const wholePage = printedTotal != null && (found.length + notFound.length) === printedTotal;
+    const witness = (printedFound == null || !wholePage) ? 'none'
+      : (printedFound === found.length ? 'agree' : 'differ');
+    const conf = (() => { const c = Number(parsed.conf); return isFinite(c) ? Math.min(1, Math.max(0, c)) : 0; })();
+    return json({
+      kind, ledger: isChronU ? 'uniques' : 'sets',
+      found, notFound, sets,
+      stateVisible, wrongTab, wholePage, witness, conf,
+      printed: { found: printedFound, total: printedTotal },
+      read: { found: found.length, notFound: notFound.length },
+      // the caller shows these; an unmatched chronicle row is a vocabulary gap worth seeing, not noise
+      unrecognized: [...new Set([...unrecF, ...unrecN])].slice(0, 40),
+      // ★ the refusal, said out loud rather than returned as an innocent empty list
+      note: wrongTab ? 'wrong-ledger' : !stateVisible ? 'no-found-state' : null,
+      usage,
+    }, 200);
+  }
   if (isSock) {
     const n = parsed && isFinite(+parsed.sockets) ? Math.max(0, Math.min(6, Math.round(+parsed.sockets))) : 0;
     return json({ sockets: n, usage }, 200);

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1509",
+  "ver": "v1510",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1509: the reader knows the Chronicle screen and tells Uniques from Sets; theatre + receipts name it in Diablo words",
+  "note": "v1510: chronicle-uniques / chronicle-sets intake kinds: evidence not verdicts, refusing out loud",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
