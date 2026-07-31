@@ -252,6 +252,8 @@
      MacBook Pro 16 (work)" would push the tabs off the same way the hint did. Ellipsis, not reflow. */
   .sigil .sg-txt { gap: 2px; max-width: clamp(120px, 14vw, 240px); }
   .sigil .sg-sub, .sigil .sg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* v1506 — the crest carries identity; the pill carries the NAME. One word, so the header row
+     stops paying for three identifiers that a hover answers better. */
   .sigil .sg-name {
     font-size: var(--fs-2xs); font-weight: var(--fw-bold); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--sg-hue, var(--gold)); line-height: var(--lh-none);
@@ -895,6 +897,14 @@
   /* v1456 HONESTY — a read the accuracy gate refused keeps its row but never reads as proven */
   .rcpt.rc-held { opacity: .72; }
   .rcpt.rc-held .rcpt-t { color: #9aa39b; text-decoration: underline dotted rgba(255,157,92,.5); }
+  /* v1506 — the provenance tags. Deliberately quiet: they must be readable without competing with
+     the read itself. Certified borrows the GOOD state, an unchecked guess borrows nothing at all —
+     it is dimmed and italic, so certainty is something a row has to EARN chrome for. */
+  .rcpt-sure { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: .78em;
+    font-weight: var(--fw-semibold); letter-spacing: var(--ls-label); color: var(--st-good);
+    border: 1px solid rgba(143,230,160,.34); background: rgba(143,230,160,.08); }
+  .rcpt-guess { flex: none; margin-left: 6px; font-size: .78em; font-style: italic;
+    font-weight: var(--fw-medium); letter-spacing: var(--ls-snug); color: var(--st-idle); opacity: .85; }
   .rcpt-held { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: .78em;
     font-weight: var(--fw-semibold); letter-spacing: var(--ls-label); color: #ffb27a;
     border: 1px solid rgba(255,157,92,.42); background: rgba(255,157,92,.1); }
@@ -3774,10 +3784,21 @@
     // as a proven one. Doctrine is surface, never hide — a held read keeps its row (and its route)
     // but wears a ⚠ HELD chip with the gate's own reason, so the feed never asserts what the gate denied.
     var held = r.held === true || (r.gate && r.gate.pass === false);
+    // v1506 — HOW SURE, not just WHAT. Konyo: "never let a live guess wear the same wax-seal chrome
+    // as a sealed verdict." v1457 marked the REFUSED reads; proven and ungated still looked
+    // identical, which is the more dangerous pair — an unchecked guess reading as a verdict.
+    // Three states, from the gate itself, never inferred:
+    //   pass === true  → the accuracy gate certified it (two independent witnesses)
+    //   pass === false → ⚠ HELD, the gate refused it
+    //   pass === null  → nothing has checked this yet. It is a live guess and must say so.
+    var gated = r.gate && r.gate.pass === true;
     var chip = held
       ? '<span class="rcpt-held" title="the accuracy gate REFUSED this read' +
         ((r.gate && r.gate.reason) ? ' — ' + esc(r.gate.reason) : '') + '">⚠ HELD</span>'
-      : '';
+      : (gated
+         ? '<span class="rcpt-sure" title="the accuracy gate certified this read' +
+           ((r.gate && r.gate.reason) ? ' — ' + esc(r.gate.reason) : '') + '">✓ gated</span>'
+         : '<span class="rcpt-guess" title="nothing has verified this yet — the live eye said it, the gate has not certified it">live guess</span>');
     return '<div class="rcpt ' + eng.cls + (go ? ' rc-go' : '') + (refs.frameId ? ' rc-art' : '')
       + (held ? ' rc-held' : '') + '"'
       + ' data-id="' + esc(r.id || '') + '"' + (refs.frameId ? (' data-frame="' + esc(refs.frameId) + '"') : '')
@@ -10036,7 +10057,7 @@ body:not(.shell-open) #tvd-eng {
     el.style.setProperty('--sg-hue', s.hue);
     el.style.setProperty('--sg-edge', s.hue + '66');
     gl.textContent = s.glyph;
-    nm.textContent = s.name;
+    nm.textContent = (idt.nickname || '').trim() || 'name me';
     var w = worldOf();
     // v1496 — A NAME, NOT A HOSTNAME. Konyo: "can it just be more nicknamed? like more UX and
     // friendlier." `konyo-3.local` and a 12-char hex id are how a machine identifies itself to
@@ -10049,6 +10070,13 @@ body:not(.shell-open) #tvd-eng {
     var host = String(idt.computer || '?').replace(/\.(local|lan|home|internal)$/i, '');
     var friendly = (idt.nickname || '').trim() || host;
     lastNick = (idt.nickname || '').trim();
+    // v1506 — THE PILL IS THE NICKNAME. Konyo: "can it just be nicknamed?? like my cuzin should be
+    // DeanDush... the tooltip can be informative but the rest is a waste of space."
+    // The crest already carries identity in colour+glyph — that is its whole job — so the pill needs
+    // ONE word beside it, the name a human would say out loud. The generated sigil name, the 4-char
+    // code, the hostname, the world and the install id all still exist and are all one hover away;
+    // they are provenance, not headline. An unnamed machine says so, because "konyo-3" is a hostname
+    // wearing a name's clothes.
     // v1498 — the machine leads, the code follows. An UNNAMED machine says so in words, because
     // "konyo-3.local" is a hostname pretending to be an answer — and the invitation to name it
     // belongs where he is already looking.
@@ -10060,10 +10088,12 @@ body:not(.shell-open) #tvd-eng {
     // to the pill and raised the line a size; together they widened the sigil enough to shove the
     // head tabs into the clock and the OFF AIR button. The header is a fixed row — anything that
     // grows in it takes the space from something else. The name stays legible; the hint moved.
-    sb.innerHTML = '<span class="sg-code">' + _e(s.code) + '</span>'
-      + (idt.nickname ? _e(friendly) : '<span class="sg-unnamed">' + _e(friendly) + '</span>');
+    // the second line is gone entirely: one word, one crest. Everything else lives in the tooltip.
+    sb.textContent = '';
+    sb.hidden = true;
     el.title =
-      'PROFILE SIGIL — ' + s.name + '  [' + s.code + ']\n' +
+      (idt.nickname ? ('THIS MACHINE — ' + friendly + '\n\n') : 'THIS MACHINE IS UNNAMED — double-click to name it\n\n') +
+      'crest        : ' + s.name + '  [' + s.code + ']\n' +
       'this machine : ' + friendly + (idt.nickname ? '  (' + host + ')' : '') + '\n' +
       'signed in as : ' + (idt.user || '?') + '\n' +
       'world        : ' + w.machine + ' / ' + w.profile + '\n' +

@@ -4590,6 +4590,20 @@ try {
 .tvf-console-pill:hover{color:#ffe6a8;border-color:rgba(255,224,150,.8);box-shadow:0 2px 22px rgba(240,192,96,.5),inset 0 1px 0 rgba(255,255,255,.1)}
 @keyframes tvfConsoleBreathe{0%,100%{box-shadow:0 2px 14px rgba(240,192,96,.22),inset 0 1px 0 rgba(255,255,255,.06)}50%{box-shadow:0 2px 22px rgba(240,192,96,.48),inset 0 1px 0 rgba(255,255,255,.08)}}
 @media(prefers-reduced-motion:reduce){.tvf-console-pill{animation:none}}
+/* ══ v1506 · ONE CREST, ONE PLACE ═══════════════════════════════════════════════════════════
+   Konyo: "i see the profile name is a couple places.. make it only the top left corner."
+   Inside the console the header already carries the crest top-left, so the board repeating it in
+   its search row is the same answer twice, competing for the row that holds SEARCH. Hidden in app
+   context only — standalone on the website the board is the only surface there is, so it keeps it. */
+body.app-ctx #bd-sigil { display: none !important; }
+/* ══ v1506 · THE MACHINE SWITCH IS GONE ═════════════════════════════════════════════════════
+   Konyo: "owner/this pc... is this needed? can it not be intelligent enough to understand alone?"
+   It can, now. That toggle existed because the world was GUESSED from the operating system and a
+   human had to be able to override the guess. Since v1499 the world is decided by which install
+   holds the claim — an explicit, per-machine fact — so asking him to pick is asking him to answer
+   a question the app already knows. The claim button is the only switch left, and it only appears
+   when there is genuinely something to decide. MAIN/LADDER stays: two accounts is a real choice. */
+#machine-pill { display: none !important; }
 body.app-ctx #v687-build-badge{top:40px}
 /* ═══ v857 — THE ENGINE CONSOLE (Konyo: 'remove the title, it's a console app — an engine
    backend for Diablo II; stretch, use every empty space, no scrollbar to reach the tabs').
@@ -35628,7 +35642,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1505', name:'v1505 - the header stops colliding and the hostname loses its domain', date:'2026-07-31', note:'Two things Konyo caught on the live v1504 window. The head row was over-full at his width - the tab strip ran into the clock and the clock into OFF AIR - because the strip was allowed to claim its content width and push its neighbours out instead of yielding; it can now shrink and scroll its own overflow while the clock and the ON OFF AIR control keep their space at any width. And the sigil was still showing konyo-3.local: a hostname is not a name and the Bonjour suffix is the least human part of it, so the domain is stripped and the naming invitation moved from the pill into the tooltip, which is also what had widened the pill in the first place.' };
+  window.D2R_BUILD = { id:'v1506', name:'v1506 - one crest, one word, one place', date:'2026-07-31', note:'The sigil pill carried three identifiers where Konyo wanted one word - a generated crest name, a four-char code and a hostname - so it is now the crest glyph plus the NICKNAME and nothing else, with every other identifier one hover away in the tooltip. An unnamed machine says name me instead of wearing a hostname as if it were a name. That shrank the pill from 340px to 125px, which as a side effect un-swallowed the TV-D tab: the strip now fits fully at 1470 and at 1280. The board stops repeating the crest in its search row while inside the console, and the OWNER THIS PC switch is retired - it existed because the world was guessed from the operating system and a human had to override the guess, and since v1499 the claim decides it.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

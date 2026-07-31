@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1505",
+  "ver": "v1506",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1505: Two things Konyo caught on the live v1504 window. The head row was over-full at his width - the tab strip ran into the clock and the clock into OFF AIR - because the strip was allowed to claim its content width and push its neighbours out instead of yielding; it can now shrink and scroll its own overflow while the clock and the ON OFF AIR control keep their space at any width. And the sigil was still showing konyo-3.local: a hostname is not a name and the Bonjour suffix is the least human part of it, so the domain is stripped and the naming invitation moved from the pill into the tooltip, which is also what had widened the pill in the first place.",
+  "note": "v1506: The sigil pill carried three identifiers where Konyo wanted one word - a generated crest name, a four-char code and a hostname - so it is now the crest glyph plus the NICKNAME and nothing else, with every other identifier one hover away in the tooltip. An unnamed machine says name me instead of wearing a hostname as if it were a name. That shrank the pill from 340px to 125px, which as a side effect un-swallowed the TV-D tab: the strip now fits fully at 1470 and at 1280. The board stops repeating the crest in its search row while inside the console, and the OWNER THIS PC switch is retired - it existed because the world was guessed from the operating system and a human had to override the guess, and since v1499 the claim decides it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

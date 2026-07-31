@@ -4664,6 +4664,40 @@ class TestV1504TypeFloor(unittest.TestCase):
                          "the floor is the token; if it moves, this test should be the thing that notices")
 
 
+class TestV1506EveryVerdictSaysHowSure(unittest.TestCase):
+    """v1506 — Konyo: "never let a live guess wear the same wax-seal chrome as a sealed verdict."
+
+    v1457 gave the REFUSED reads a ⚠ HELD chip. The more dangerous pair was left untouched: a read
+    the accuracy gate CERTIFIED and a read nothing has checked at all rendered identically, so an
+    unverified guess wore the same chrome as a verdict. Three states now, taken from the gate itself
+    and never inferred: certified · held · live guess."""
+
+    def _ui(self):
+        with open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_all_three_provenance_states_render(self):
+        ui = self._ui()
+        for cls in ("rcpt-sure", "rcpt-held", "rcpt-guess"):
+            self.assertIn(cls, ui, "%s must exist — certainty needs its own mark, and so does its "
+                                   "absence" % cls)
+
+    def test_the_states_come_from_the_gate_not_a_guess(self):
+        ui = self._ui()
+        self.assertIn("r.gate && r.gate.pass === true", ui,
+                      "certified must be read from the gate verdict, never inferred from the row")
+        self.assertIn("r.gate.pass === false", ui, "held likewise")
+
+    def test_an_unchecked_read_is_never_dressed_as_certified(self):
+        ui = self._ui()
+        i = ui.find(".rcpt-guess {")
+        self.assertGreater(i, 0)
+        rule = ui[i:i + 260]
+        self.assertNotIn("--st-good", rule,
+                         "an unchecked guess must not borrow the GOOD state's colour — that is the "
+                         "exact confusion this change exists to remove")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
