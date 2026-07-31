@@ -167,6 +167,43 @@ test.describe('v1520 — the review he decides from', () => {
     expect(await page.isHidden('#chron-visits')).toBe(true);
   });
 
+  // ── v1528 READ ONE VISIT ────────────────────────────────────────────────────────────────────
+  test('a visit with a KNOWN ledger is readable in one click', async ({ page }) => {
+    await open(page, DONE, [{ ts: 1234, ledger: 'uniques', n: 14, label: '🏆 Holy Grail' }]);
+    const btn = page.locator('.chron-v.can');
+    expect(await btn.count()).toBe(1);
+    expect(await btn.textContent()).toContain('read');
+
+    let posted: any = null;
+    await page.route((u: URL) => u.pathname === '/api/chronicle_sweep', (r: any) => {
+      if (r.request().method() === 'POST') posted = JSON.parse(r.request().postData() || '{}');
+      return r.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify(r.request().method() === 'POST' ? { ok: true, started: true } : DONE) });
+    });
+    await btn.click();
+    await page.waitForTimeout(400);
+    expect(posted, 'the click must ask for THAT visit, not a blind sweep').toEqual({ visit: 1234 });
+  });
+
+  test('★ a visit with NO ledger is shown but never offered', async ({ page }) => {
+    // sweeping it would have to guess which ledger, and a wrong guess writes set pieces into the grail
+    await open(page, DONE, [{ ts: 99, ledger: '', n: 3, label: '📜 ledger unread' }]);
+    expect(await page.locator('.chron-v.unread').count()).toBe(1);
+    expect(await page.locator('.chron-v.can').count()).toBe(0);
+    expect(await page.locator('button[data-visit]').count()).toBe(0);
+  });
+
+  test('a refused visit read says why', async ({ page }) => {
+    await open(page, DONE, [{ ts: 7, ledger: 'sets', n: 4, label: '🧩 Set pieces' }]);
+    await page.route((u: URL) => u.pathname === '/api/chronicle_sweep', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify(r.request().method() === 'POST'
+          ? { ok: false, why: 'the frames from that visit are no longer on disk' } : DONE) }));
+    await page.locator('.chron-v.can').click();
+    await page.waitForTimeout(400);
+    expect(await page.textContent('#chron-body')).toContain('no longer on disk');
+  });
+
   // ── v1525 THE EVIDENCE ──────────────────────────────────────────────────────────────────────
   test('★ every grounded name can show the FRAMES behind it', async ({ page }) => {
     // "why does it think I have Windforce" must be answerable with a frame he can look at

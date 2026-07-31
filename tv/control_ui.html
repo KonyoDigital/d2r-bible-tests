@@ -2231,6 +2231,10 @@
     font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label);
     color: var(--text-dim); }
   .chron-v b { color: #e8d9a8; font-weight: var(--fw-semibold); }
+  .chron-v.can { cursor: pointer; }
+  .chron-v.can:hover { border-color: rgba(198,166,100,.42); background: rgba(198,166,100,.08); }
+  .chron-v-go { color: var(--gold-dim); font-weight: var(--fw-semibold); }
+  .chron-v.unread .chron-v-go { color: var(--st-idle); }
   .chron-v.unread { border-color: rgba(233,185,110,.3); }
   .chron-v.unread b { color: var(--st-needs); }
 
@@ -10489,13 +10493,43 @@ function escC(s) {
       box.hidden = false;
       box.innerHTML = v.map(function (x) {
         var when = _agoMs(x.ts);
-        // an unread ledger is flagged, not hidden: it is the one a sweep may mis-file
-        return '<span class="chron-v' + (x.ledger ? '' : ' unread') + '">'
+        // v1528 — a visit with a KNOWN ledger is readable in one click, and costs no classifies at
+        // all (v1527). One without a ledger is shown but NOT offered: sweeping it would have to
+        // guess which ledger, and a wrong guess writes set pieces into his grail.
+        var can = !!x.ledger;
+        return '<' + (can ? 'button' : 'span') + ' class="chron-v' + (can ? ' can' : ' unread') + '"'
+          + (can ? ' type="button" data-visit="' + escC(String(x.ts)) + '"'
+                 + ' title="read these ' + escC(String(x.n || 0)) + ' frames — no classify needed, he already told us what this is"'
+                 : ' title="this panel was captured but its ledger was never read — re-open it in game and it becomes readable"')
+          + '>'
           + '<b>' + escC(x.label || '📜') + '</b>'
           + '<span>' + escC(String(x.n || 0)) + ' frames</span>'
-          + '<span>' + escC(when) + '</span></span>';
+          + '<span>' + escC(when) + '</span>'
+          + (can ? '<span class="chron-v-go">read ▸</span>' : '<span class="chron-v-go">—</span>')
+          + '</' + (can ? 'button' : 'span') + '>';
       }).join('');
+      Array.prototype.forEach.call(box.querySelectorAll('button[data-visit]'), function (b) {
+        b.addEventListener('click', function () { window._chronReadVisit(b.getAttribute('data-visit')); });
+      });
     } catch (e) { box.hidden = true; }
+  };
+  // v1528 — read ONE recorded visit. The cheapest read in the system: he already told us these
+  // frames are the Chronicle and which ledger was open, so there is no classify stage to pay for.
+  window._chronReadVisit = async function (ts) {
+    var body = document.getElementById('chron-body');
+    try {
+      var r = await fetch('/api/chronicle_sweep', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visit: Number(ts) }) });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        if (body) body.innerHTML = '<div class="chron-none">cannot read that visit — ' + escC((j && j.why) || 'no answer') + '</div>';
+        return;
+      }
+      if (!_chronPoll) _chronPoll = setInterval(function () { window._chronPollOnce(); }, 1200);
+      window._chronPollOnce();
+    } catch (e) {
+      if (body) body.innerHTML = '<div class="chron-none">could not reach the console</div>';
+    }
   };
   window._chronPollOnce = async function () {
     try {
