@@ -58,3 +58,31 @@ Three requirements, in his priority order:
 - **The accuracy gate exists** — `gatePass` / `gateReason`. Chronicle reads must flow through it, not
   around it.
 - **Never trust a clean tooltip grounder** — loosening it caused a false-positive flood before.
+
+## BOTH EYES, NOT ONE — Konyo's addition
+
+> "we have both claude which is the most important.. but grok for me specifically i can use as a
+> second pair of eyes and a different view for also these exact things! it must be also coded in so
+> it is identically trying to read and retro chronicle these tallied in"
+
+Two-lane **by design**, not Claude with an optional Grok bolt-on:
+
+- **Claude = primary reader.** Unchanged, and the one that must always work.
+- **Grok (G5) = an independent second pair of eyes**, running the SAME chronicle prompt over the SAME
+  frames, live and retro, returning its own name list.
+
+Why it matters more here than anywhere else: a chronicle screen is a **LIST**, and list reads fail by
+**omission**. A name quietly missing is invisible, unlike a wrong name, which looks wrong. Two readers
+over one frame turn omission into disagreement — and disagreement is detectable.
+
+**The rule:** compare the two lists, propose the union, and SURFACE the difference rather than
+silently merging it.
+- both readers agree → `✓ gated` (the two independent witnesses the accuracy gate already wants)
+- only one saw it → registered, marked `live guess` (v1506 provenance tags)
+- counts differ → say so on the sweep card. A silent `max()` would hide the exact omission the second
+  eye was bought to catch.
+
+G5 was repaired in v1501 — it had been switched to PRIMARY and silently dark for weeks because the
+console's launchd PATH could not see `~/.grok/bin/grok`. Any two-lane work must confirm
+`/api/g5_status` reports `mode=primary` before assuming the second eye is reading, and must degrade
+to one lane **labelled as one lane** when it is not.
