@@ -101,6 +101,39 @@ test.describe('v1521 — the apply writes once, and only forward', () => {
     expect(r.inSetStore).toBe(true);
   });
 
+  test('★ a set the panel called COMPLETE expands to all its pieces', async ({ page }) => {
+    // one row worth five: the Chronicle often shows a set as done without its pieces being legible,
+    // and the game saying "complete" IS the claim
+    await board(page);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const s = w.fsetsScan();
+      const target = (s.sets || []).find((x: any) => (x.pieces || []).some((p: any) => !p.have));
+      const before = (target.pieces || []).filter((p: any) => p.have).length;
+      const out = w.chronicleApply({ wouldAdd: { uniques: [], sets: [], completeSets: [{ name: target.name }] } });
+      const after = (w.fsetsScan().sets || []).find((x: any) => x.name === target.name);
+      return { set: target.name, total: target.pieces.length, before,
+               added: out.sets.length, skipped: out.skipped.length,
+               nowHave: (after.pieces || []).filter((p: any) => p.have).length };
+    });
+    expect(r.nowHave, 'every piece of the set must now be held').toBe(r.total);
+    expect(r.added, 'only the MISSING pieces are written').toBe(r.total - r.before);
+    expect(r.skipped, 'the ones he already had are skipped, not re-ticked').toBe(r.before);
+  });
+
+  test('★ an UNKNOWN set name invents nothing', async ({ page }) => {
+    // the board owns __allSets(); a name it does not recognise must produce no pieces at all
+    await board(page);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const out = w.chronicleApply({ wouldAdd: { uniques: [], sets: [],
+        completeSets: [{ name: "Some Mod Set That Does Not Exist" }] } });
+      return { added: out.sets, skipped: out.skipped };
+    });
+    expect(r.added).toEqual([]);
+    expect(r.skipped.join(' ')).toContain('unknown set');
+  });
+
   test('an empty proposal writes nothing and records no batch', async ({ page }) => {
     await board(page);
     const r = await page.evaluate(() => {

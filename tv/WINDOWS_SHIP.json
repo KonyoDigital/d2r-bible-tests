@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1529",
+  "ver": "v1530",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1529: clicking the invitation now names the machine: inline field, no dialog; plus hidden-means-hidden and this block gets its own toast",
+  "note": "v1530: a set the panel calls COMPLETE expands to all its pieces, gated the same as any name, expanded by the board that owns the catalogue",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

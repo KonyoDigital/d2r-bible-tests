@@ -317,8 +317,8 @@ def proposal_from_pages(pages):
     (no-found-state / wrong-ledger, v1510) contribute nothing but are counted, because "8 pages read,
     3 refused" is the honest headline and "5 pages read" is not.
     """
-    prop = {"uniques": {}, "sets": {}, "setGroups": {}, "refused": [], "pagesRead": 0,
-            "notFound": {"uniques": set(), "sets": set()}}
+    prop = {"uniques": {}, "sets": {}, "setGroups": {}, "completeSets": {}, "refused": [],
+            "pagesRead": 0, "notFound": {"uniques": set(), "sets": set()}}
     for p in (pages or []):
         resp = p.get("resp") or {}
         ledger = resp.get("ledger") or ("sets" if p.get("kind") == "chronicle-sets" else "uniques")
@@ -342,8 +342,20 @@ def proposal_from_pages(pages):
             prop["notFound"][ledger].add(nm)
         for g in (resp.get("sets") or []):
             nm = g.get("set")
-            if nm:
-                prop["setGroups"].setdefault(nm, set()).update(g.get("pieces") or [])
+            if not nm:
+                continue
+            prop["setGroups"].setdefault(nm, set()).update(g.get("pieces") or [])
+            # v1530 — A SET THE PANEL CALLS COMPLETE. The Chronicle often shows a set as done without
+            # listing its pieces legibly, and the game saying "complete" IS the claim — one row worth
+            # five. It is collected with sightings like any other name, so the gate judges it by the
+            # same rule and the board (which owns the piece list) does the expanding.
+            if g.get("complete") is True:
+                for lane in (lane_map.get(nm) or [resp.get("lane") or "claude"]):
+                    prop["completeSets"].setdefault(nm, []).append({
+                        "reel": p.get("reel"), "frame": p.get("frame"),
+                        "witness": resp.get("witness") or "none",
+                        "conf": resp.get("conf") or 0, "lane": lane,
+                    })
     prop["notFound"] = {k: sorted(v) for k, v in prop["notFound"].items()}
     prop["setGroups"] = {k: sorted(v) for k, v in prop["setGroups"].items()}
     return prop
@@ -574,6 +586,16 @@ def apply_proposal(proposal, existing, gate=None):
     """
     gate = gate or (lambda name, sightings: False)
     out, held = {}, []
+    # v1530 — a complete-set claim is judged by the SAME rule as a name. "The panel said Tal Rasha is
+    # done" is exactly the kind of claim that is cheap to read wrong and expensive to be wrong about,
+    # since one accepted claim ticks every piece.
+    passed_sets = []
+    for nm, sightings in sorted((proposal.get("completeSets") or {}).items()):
+        if gate(nm, sightings):
+            passed_sets.append(nm)
+        else:
+            held.append({"ledger": "completeSets", "name": nm, "sightings": sightings})
+    out["completeSets"] = passed_sets
     for ledger in ("uniques", "sets"):
         passed = []
         for nm, sightings in sorted((proposal.get(ledger) or {}).items()):
