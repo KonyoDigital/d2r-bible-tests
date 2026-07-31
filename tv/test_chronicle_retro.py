@@ -348,6 +348,34 @@ class TestTheGate(unittest.TestCase):
         self.assertEqual(v["witnesses"], [])
         self.assertFalse(v["pass"])
 
+    def test_ONE_sighting_in_each_of_two_reels_is_not_ALSO_cross_frame(self):
+        # ★ v1519 — the same repetition must not be banked twice. Counting (reel, frame) pairs
+        # globally let one sighting per session score cross-reel AND cross-frame, which is two
+        # witnesses' worth of credit for one piece of evidence — enough to clear a two-witness gate
+        # on its own. Independence has to be independent of itself.
+        v = cr.gate_verdict("Windforce", [self.s(reel="s1", frame="a.jpg"),
+                                          self.s(reel="s2", frame="b.jpg")])
+        self.assertIn("cross-reel", v["witnesses"])
+        self.assertNotIn("cross-frame", v["witnesses"])
+
+    def test_TWO_sessions_alone_do_not_ground_a_name_but_THREE_do(self):
+        # ★ two reads of one panel can share a systematic misread — same model, same font, same row —
+        # even when the sessions are months apart. Three makes that much harder, so repetition alone
+        # grounds a name only at three. Below that it is HELD, with the reason, for him to approve.
+        two = cr.gate_verdict("Windforce", [self.s(reel="s1", frame="a.jpg"),
+                                            self.s(reel="s2", frame="b.jpg")])
+        self.assertFalse(two["pass"])
+        three = cr.gate_verdict("Windforce", [self.s(reel="s1", frame="a.jpg"),
+                                              self.s(reel="s2", frame="b.jpg"),
+                                              self.s(reel="s3", frame="c.jpg")])
+        self.assertTrue(three["pass"])
+        self.assertIn("cross-reel-3+", three["witnesses"])
+
+    def test_two_frames_inside_ONE_reel_is_cross_frame(self):
+        v = cr.gate_verdict("Windforce", [self.s(reel="s1", frame="a.jpg"),
+                                          self.s(reel="s1", frame="b.jpg")])
+        self.assertIn("cross-frame", v["witnesses"])
+
     def test_two_frames_plus_the_panels_own_numbers_passes(self):
         v = cr.gate_verdict("Windforce", [
             self.s(frame="f1.jpg", witness="agree"),
@@ -365,7 +393,6 @@ class TestTheGate(unittest.TestCase):
         v = cr.gate_verdict("Windforce", [self.s(reel="s1", frame="a.jpg"),
                                           self.s(reel="s2", frame="b.jpg")])
         self.assertIn("cross-reel", v["witnesses"])
-        self.assertTrue(v["pass"])
 
     def test_an_unsure_read_is_refused_before_witnesses_are_even_counted(self):
         # ★ unsure twice is still unsure — corroborating a guess with another guess is not evidence

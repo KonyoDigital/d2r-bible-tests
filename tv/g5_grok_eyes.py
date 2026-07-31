@@ -121,43 +121,36 @@ def g5_chronicle_read(image_path, kind, *, force=True):
     """
     ledger = "sets" if str(kind or "").endswith("sets") else "uniques"
     import os as _os
+    # v1519 — TV_STUB is the zero-cost seam the Claude lane already honours (v711). Without it here
+    # the "free" end-to-end sweep test reached for the real grok CLI: a test that spends money is a
+    # test nobody runs, and a second lane nobody exercises is a second lane nobody trusts.
+    if _os.environ.get("TV_STUB"):
+        try:
+            import json as _json
+            mp = _os.environ.get("TV_STUB_MANIFEST") or _os.path.join(HERE, "stub_manifest.json")
+            with open(mp, encoding="utf-8") as fh:
+                man = _json.load(fh)
+        except Exception:
+            man = {}
+        base = _os.path.basename(str(image_path or ""))
+        raw = man.get(base + "#chronicle-grok") or man.get("*#chronicle-grok")
+        try:
+            import chronicle_retro as _cr
+        except Exception:
+            return None
+        # absent from the manifest ⇒ a SILENT lane, which two_lane_read already reports honestly
+        return _cr.normalize_page(raw, kind, "grok") if raw is not None else None
     path = _os.path.abspath(str(image_path or ""))
     raw = g5_vision_read(path, prompt=CHRONICLE_VISION_PROMPT.format(path=path, ledger=ledger),
                          force=force)
-    if not isinstance(raw, dict):
-        return None
-    def _names(v):
-        return [str(x).strip() for x in (v or []) if str(x).strip()][:400]
-    def _num(v):
-        try:
-            n = int(v)
-            return n if 0 <= n <= 9999 else None
-        except Exception:
-            return None
+    # v1519 — ONE normalizer, shared with the Claude lane (chronicle_retro.normalize_page). If each
+    # lane shaped its own answer, "witness: agree" would mean two different things depending on who
+    # said it — and cross-lane agreement is only evidence when both lanes answer in the same units.
     try:
-        conf = max(0.0, min(1.0, float(raw.get("conf") or 0)))
+        import chronicle_retro as _cr
     except Exception:
-        conf = 0.0
-    stateVisible = raw.get("stateVisible") is not False
-    wrongTab = raw.get("wrongTab") is True
-    out = {
-        "kind": kind, "ledger": ledger, "lane": "grok",
-        "found": [] if (wrongTab or not stateVisible) else _names(raw.get("found")),
-        "notFound": _names(raw.get("notFound")),
-        "sets": [{"set": str(g.get("set") or "")[:60], "pieces": _names(g.get("pieces"))}
-                 for g in (raw.get("sets") or []) if isinstance(g, dict) and g.get("set")],
-        "stateVisible": stateVisible, "wrongTab": wrongTab, "conf": conf,
-        "printed": {"found": _num(raw.get("printedFound")), "total": _num(raw.get("printedTotal"))},
-        "note": "wrong-ledger" if wrongTab else ("no-found-state" if not stateVisible else None),
-    }
-    # the second lane gets the SAME printed-vs-counted witness test as the primary, or "agree" would
-    # mean two different things depending on which lane said it
-    pf, pt = out["printed"]["found"], out["printed"]["total"]
-    whole = pt is not None and (len(out["found"]) + len(out["notFound"])) == pt
-    out["wholePage"] = whole
-    out["witness"] = "none" if (pf is None or not whole) else ("agree" if pf == len(out["found"]) else "differ")
-    out["read"] = {"found": len(out["found"]), "notFound": len(out["notFound"])}
-    return out
+        return None
+    return _cr.normalize_page(raw, kind, "grok")
 
 
 # ── subscription auth (NOT API keys) ───────────────────────────────────────────

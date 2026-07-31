@@ -201,6 +201,58 @@ def classifier(claude_read, on_seen=None):
     return _classify
 
 
+def normalize_page(raw, kind, lane):
+    """v1519 — ONE normalizer, both lanes. Turns a reader's raw JSON into the v1510 response shape.
+
+    This exists because the two lanes were each about to normalize their own answer, and the moment
+    they do, "witness: agree" starts meaning two different things depending on who said it — which is
+    exactly the drift REG-076 was about. Cross-lane agreement is only evidence if both lanes are
+    answering in the same units.
+
+    Returns None for a raw that is not a dict — a refusal, never an empty page (see the lane note in
+    two_lane_read: "didn't run" and "saw nothing" must stay different facts).
+    """
+    if not isinstance(raw, dict):
+        return None
+    ledger = "sets" if str(kind or "").endswith("sets") else "uniques"
+
+    def names(v, cap=400):
+        return [str(x).strip() for x in (v or []) if str(x).strip()][:cap]
+
+    def num(v):
+        try:
+            n = int(v)
+        except Exception:
+            return None
+        return n if 0 <= n <= 9999 else None
+
+    try:
+        conf = max(0.0, min(1.0, float(raw.get("conf") or 0)))
+    except Exception:
+        conf = 0.0
+    state_visible = raw.get("stateVisible") is not False
+    wrong_tab = raw.get("wrongTab") is True
+    found = [] if (wrong_tab or not state_visible) else names(raw.get("found"))
+    not_found = names(raw.get("notFound"))
+    sets = [{"set": str(g.get("set") or "")[:60], "pieces": names(g.get("pieces"), 20)}
+            for g in (raw.get("sets") or []) if isinstance(g, dict) and g.get("set")]
+    printed = {"found": num(raw.get("printedFound")), "total": num(raw.get("printedTotal"))}
+    # THE PARTIAL-PAGE TRAP, closed identically for both lanes: the panel scrolls, so its printed
+    # total counts the whole ledger while the page shows a slice. Agreement on a partial page is a
+    # coincidence, not corroboration.
+    whole = printed["total"] is not None and (len(found) + len(not_found)) == printed["total"]
+    witness = ("none" if (printed["found"] is None or not whole)
+               else ("agree" if printed["found"] == len(found) else "differ"))
+    return {
+        "kind": kind, "ledger": ledger, "lane": lane,
+        "found": found, "notFound": not_found, "sets": sets if ledger == "sets" else [],
+        "stateVisible": state_visible, "wrongTab": wrong_tab, "wholePage": whole,
+        "witness": witness, "conf": conf, "printed": printed,
+        "read": {"found": len(found), "notFound": len(not_found)},
+        "note": "wrong-ledger" if wrong_tab else ("no-found-state" if not state_visible else None),
+    }
+
+
 def two_lane_read(path, kind, claude_lane, grok_lane=None):
     """v1514 — TWO LANES ON THE SAME PAGE. Konyo: "we have both claude which is the most important..
     but grok for me specifically i can use as a second pair of eyes and a different view for also
@@ -321,12 +373,25 @@ def witnesses(sightings):
     tags = set()
     lanes = {(s.get("lane") or "claude") for s in (sightings or [])}
     reels = {s.get("reel") for s in (sightings or []) if s.get("reel")}
-    frames = {(s.get("reel"), s.get("frame")) for s in (sightings or []) if s.get("frame")}
     if len(lanes) >= 2:
         tags.add("cross-lane")
     if len(reels) >= 2:
         tags.add("cross-reel")
-    if len(frames) >= 2:
+    # Three separate sessions saying the same thing is a genuinely different strength from two, and
+    # it is the honest way to let repetition alone ground a name. TWO reads of one panel — even in
+    # different sessions — can share a systematic misread: same model, same font, same row. Three
+    # makes that much harder, so it counts as a witness in its own right.
+    if len(reels) >= 3:
+        tags.add("cross-reel-3+")
+    # v1519 — cross-frame means two frames WITHIN one reel. Counting (reel, frame) pairs globally
+    # made a single sighting in each of two sessions score cross-reel AND cross-frame — the same
+    # repetition banked twice, which would let two witnesses' worth of evidence pass a two-witness
+    # gate on the strength of one. Independence has to be independent of itself.
+    by_reel = {}
+    for s in (sightings or []):
+        if s.get("frame"):
+            by_reel.setdefault(s.get("reel"), set()).add(s.get("frame"))
+    if any(len(v) >= 2 for v in by_reel.values()):
         tags.add("cross-frame")
     if any((s.get("witness") == "agree") for s in (sightings or [])):
         tags.add("printed")

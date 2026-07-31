@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1518",
+  "ver": "v1519",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1518: REG-084: specs that spoof navigator.webdriver became guests under v1499 and asserted against a world that did not exist",
+  "note": "v1519: both lanes wired end to end, read-only; one shared normalizer; cross-frame no longer double-counts cross-reel",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

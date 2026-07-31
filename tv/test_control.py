@@ -11,7 +11,9 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
+from unittest import mock
 import urllib.request
 from http.server import ThreadingHTTPServer
 
@@ -4734,6 +4736,138 @@ class TestChronicleSpeaksDiablo(unittest.TestCase):
     def test_chronicle_is_a_menu_not_farming(self):
         # it is a screen he is READING, not a run he is farming — kind drives the theatre icon
         self.assertEqual(ca._diablo_scene_label("chronicle-sets", "Harrogath")["kind"], "menu")
+
+class TestChronicleSweepJob(unittest.TestCase):
+    """v1519 — THE REAL SWEEP, driven end to end at zero cost.
+
+    Both lanes honour TV_STUB, so this exercises the whole path — group frames, classify each still
+    run, read the chronicle pages on two lanes, fold into a proposal, run the gate — without a single
+    model call. A sweep nobody can test cheaply is a sweep nobody exercises, and a second lane nobody
+    exercises is a second lane nobody trusts."""
+
+    def setUp(self):
+        try:
+            from PIL import Image  # noqa: F401
+        except Exception:
+            self.skipTest("Pillow absent — frame grouping needs to decode the JPEGs")
+        self.d = tempfile.mkdtemp()
+        from PIL import Image
+        for sid in ("s_100", "s_200", "s_300"):
+            rd = os.path.join(self.d, "reel_" + sid)
+            os.makedirs(rd)
+            for n in range(6):
+                Image.new("RGB", (64, 48), (20, 30, 40)).save(os.path.join(rd, "f%d.jpg" % n))
+            with open(os.path.join(rd, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump({"sessionId": sid,
+                           "frames": [{"f": "f%d.jpg" % n, "ts": 1000 + n} for n in range(6)]}, fh)
+        self.man = os.path.join(self.d, "man.json")
+        self._env = {k: os.environ.get(k) for k in ("TV_STUB", "TV_STUB_MANIFEST", "TV_HIST")}
+
+    def tearDown(self):
+        for k, v in self._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(self.d, ignore_errors=True)
+        with ca._CHRON_LOCK:
+            ca._CHRON_JOB.update({"running": False, "phase": "idle", "result": None, "error": None})
+
+    def _sweep(self, manifest, timeout=30.0):
+        with open(self.man, "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh)
+        os.environ.update({"TV_STUB": "1", "TV_STUB_MANIFEST": self.man, "TV_HIST": self.d})
+        started = ca.chronicle_sweep_start(hist_dir=self.d)
+        self.assertTrue(started.get("ok"), started)
+        deadline = time.time() + timeout
+        while time.time() < deadline and ca.chronicle_sweep_state()["running"]:
+            time.sleep(0.05)
+        st = ca.chronicle_sweep_state()
+        self.assertFalse(st["running"], "the sweep never finished")
+        self.assertIsNone(st["error"])
+        return st["result"] or {}
+
+    BOTH = {
+        "*": {"scene": "chronicle", "chronicleTab": "uniques", "names": [], "conf": 0.9},
+        "*#chronicle": {"found": ["Harlequin Crest", "Windforce"], "notFound": ["Stormshield"],
+                        "printedFound": 2, "printedTotal": 3, "conf": 0.9},
+        "*#chronicle-grok": {"found": ["Harlequin Crest"],
+                             "notFound": ["Stormshield", "Windforce"], "conf": 0.85},
+    }
+
+    def test_the_whole_sweep_runs_and_the_gate_EXPLAINS_every_name(self):
+        res = self._sweep(self.BOTH)
+        add = res["wouldAdd"]["uniques"]
+        self.assertTrue(add, "the sweep found nothing at all")
+        for row in add:
+            self.assertTrue(row["why"], "a grounded name with no reason is not reviewable")
+            self.assertGreaterEqual(len(row["witnesses"]), 2)
+
+    def test_the_lane_that_DISAGREED_shows_in_the_witness_list(self):
+        # Grok put Windforce in notFound. Both names still ground here (3 sessions), but only the one
+        # BOTH lanes saw carries cross-lane — the disagreement is visible, not averaged away.
+        res = self._sweep(self.BOTH)
+        by = {r["name"]: r["witnesses"] for r in res["wouldAdd"]["uniques"]}
+        self.assertIn("cross-lane", by.get("Harlequin Crest", []))
+        self.assertNotIn("cross-lane", by.get("Windforce", []))
+
+    def test_a_SILENT_grok_lane_never_reads_as_agreement(self):
+        # no grok entry in the manifest ⇒ the lane returns None ⇒ nothing may claim cross-lane
+        man = dict(self.BOTH)
+        man.pop("*#chronicle-grok")
+        res = self._sweep(man)
+        for row in res["wouldAdd"]["uniques"]:
+            self.assertNotIn("cross-lane", row["witnesses"])
+
+    def test_a_page_the_reader_REFUSED_grounds_nothing(self):
+        man = dict(self.BOTH)
+        man["*#chronicle"] = {"found": ["Harlequin Crest"], "stateVisible": False}
+        res = self._sweep(man)
+        self.assertEqual(res["wouldAdd"]["uniques"], [])
+        self.assertTrue(res["refused"], "a refusal must be REPORTED, not silently dropped")
+
+    def test_the_sweep_writes_NOTHING_it_only_proposes(self):
+        res = self._sweep(self.BOTH)
+        self.assertIn("wouldAdd", res)
+        self.assertNotIn("applied", res)
+        self.assertNotIn("wrote", res)
+
+    def test_two_sweeps_at_once_are_refused(self):
+        # two sweeps over the same reels would double the spend and produce two proposals that each
+        # look like the whole truth
+        with ca._CHRON_LOCK:
+            ca._CHRON_JOB["running"] = True
+        try:
+            r = ca.chronicle_sweep_start(hist_dir=self.d)
+            self.assertFalse(r["ok"])
+            self.assertIn("already running", r["why"])
+        finally:
+            with ca._CHRON_LOCK:
+                ca._CHRON_JOB["running"] = False
+
+    def test_the_lanes_in_play_are_NAMED(self):
+        # "claude only" and "both lanes agreed" are different confidences and the gate scores them
+        # differently — so which lanes ran is part of the answer, not a detail
+        res = self._sweep(self.BOTH)
+        self.assertIn("claude", res["lanes"])
+
+
+class TestBothLanesShareOneNormalizer(unittest.TestCase):
+    """v1519 — cross-lane agreement is only evidence if both lanes answer in the same UNITS."""
+
+    def test_identical_raw_answers_normalize_identically(self):
+        import chronicle_retro as cr
+        import g5_grok_eyes as g5
+        raw = {"found": ["Windforce"], "notFound": ["Shako"], "printedFound": 1,
+               "printedTotal": 2, "conf": 0.8}
+        with mock.patch.object(g5, "g5_vision_read", return_value=raw):
+            grok = g5.g5_chronicle_read("/tmp/f.jpg", "chronicle-uniques")
+        claude = cr.normalize_page(raw, "chronicle-uniques", "claude")
+        for k in ("found", "notFound", "witness", "wholePage", "ledger", "read", "note"):
+            self.assertEqual(grok[k], claude[k], k + " must mean the same thing in both lanes")
+        self.assertNotEqual(grok["lane"], claude["lane"])   # only the byline differs
+
+
 
 
 

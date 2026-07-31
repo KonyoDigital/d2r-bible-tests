@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1518"   # spoof the tell, claim the world
+VERSION = "v1519"   # the sweep actually reads
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4426,7 +4426,7 @@ def _is_throttled():
 
 _ONESHOT_GATE = threading.Semaphore(1)   # v864 — a throttled pool must not herd 8 oneshots
 _ASK_NONE_STREAK = 0
-def _oneshot(ap, model, timeout=90):
+def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
     """v864 — serialized: under subscription throttle all 8 workers can time out together;
     eight parallel one-shot bridges would herd the same throttle. One at a time.
 
@@ -4449,12 +4449,16 @@ def _oneshot(ap, model, timeout=90):
         return None
     try:
         remaining = max(1.0, float(timeout) - (time.monotonic() - t0))
-        return _oneshot_inner(ap, model, remaining)
+        return _oneshot_inner(ap, model, remaining, prompt=prompt, raw_json=raw_json)
     finally:
         _ONESHOT_GATE.release()
 
 
-def _oneshot_inner(ap, model, timeout=90):
+def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
+    """v1519 — `prompt` / `raw_json` are the CHRONICLE seam, and both default to the old behaviour so
+    every existing caller is byte-identical. The chronicle read asks a different question (found-state
+    per row, not item names) and its answer must NOT go through _parse_read, which would shape it into
+    the item contract and throw the found/notFound split away."""
     """One cold `claude -p` on subscription (strict-mcp, no API key).
 
     v1379 — circuit-breaker + lean CLI (no monorepo project load / no session persist)."""
@@ -4481,7 +4485,7 @@ def _oneshot_inner(ap, model, timeout=90):
         _p_at = args.index("-p")
     except ValueError:
         _p_at = 0
-    args = args[:_p_at + 1] + [READ_PROMPT.format(path=ap)] + args[_p_at + 1:]
+    args = args[:_p_at + 1] + [prompt if prompt else READ_PROMPT.format(path=ap)] + args[_p_at + 1:]
     r = subprocess.run(
         args,
         capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, env=env,
@@ -4498,10 +4502,81 @@ def _oneshot_inner(ap, model, timeout=90):
         return None
     _sub_budget_record()
     globals()["_LAST_RAW"] = str(out)[:2048]   # v832 — THE THOUGHT (one-shot lane)
+    if raw_json:
+        try:
+            return json.loads(out[a:b + 1])
+        except Exception:
+            journal_skip("parse-null", "%s raw-json unparseable" % model)
+            return None
     _pr = _parse_read(out)
     if _pr is not None:
         _pr["_raw_txt"] = str(out)[:2048]
     return _pr
+
+# v1519 — THE CHRONICLE LANE, Claude side. Konyo's PRIMARY reader: if this lane does not answer,
+# there is no page (two_lane_read never pays Grok to second-guess a refusal).
+#
+# It is deliberately NOT READ_PROMPT with an extra field. READ_PROMPT asks "what items are on screen";
+# this asks "which rows are marked FOUND", which is a different question with a different failure
+# mode, and folding it into the live prompt would make every farming read carry chronicle instructions
+# it can never use.
+CHRONICLE_READ_PROMPT = (
+    "Image {path} = the in-game CHRONICLE (holy grail) panel of Diablo II Resurrected (RotW mod): a "
+    "long scrollable list of item names where each row shows whether the player has FOUND it — "
+    "bright/coloured text vs grey/dim, a tick, or a filled marker.\n"
+    "Reply with STRICT JSON only, no markdown, no prose:\n"
+    '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],"printedFound":null,'
+    '"printedTotal":null,"stateVisible":true,"wrongTab":false,"conf":0.0}}\n'
+    "found = ONLY names whose found-state is VISIBLY positive. notFound = names you can read whose "
+    "state is dim, empty or ambiguous.\n"
+    "If you cannot tell found from unfound ANYWHERE on this panel, set stateVisible=false and return "
+    "found EMPTY. This read runs unattended over old footage, so a confident wrong page permanently "
+    "mis-tallies a grail nobody is watching. An empty answer is recoverable; a wrong one is not.\n"
+    "THE LEDGER YOU WERE ASKED FOR IS {ledger}. uniques = single unique items (Harlequin Crest, "
+    "Windforce, Stormshield). sets = rows grouped under SET names (Tal Rasha's Wrappings, Immortal "
+    "King). If the panel is the OTHER one, set wrongTab=true and return found empty — never tally "
+    "set pieces as uniques or the reverse.\n"
+    'sets = only when ledger=sets: [{{"set":"<set name>","pieces":["<found piece>"]}}].\n'
+    "printedFound / printedTotal = the panel's own progress numbers if it shows any (\"243/403\", "
+    "\"Found 108 of 135\") EXACTLY as printed, else null. They are checked against your own count as "
+    "a second witness, so an honest mismatch is worth more than a flattering match.\n"
+    "Read only rows you can actually see. Do not complete a set from memory or fill a page.\n"
+    "conf = 0.0-1.0, your honest confidence in THIS page."
+)
+
+
+def claude_chronicle_read(image_path, kind, timeout=None):
+    """One chronicle page, read on Konyo's Claude subscription, in the v1510 shape.
+
+    Returns None on any refusal/failure — never an empty page, for the same reason the Grok lane
+    does: a dead lane must not read as "saw nothing"."""
+    if os.environ.get("TV_STUB"):
+        # the TDD seam: the sweep must be drivable end-to-end with zero vision cost, exactly like
+        # the live loop is (TV_STUB, v711)
+        try:
+            man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
+            with open(man_path, encoding="utf-8") as f:
+                man = json.load(f)
+        except Exception:
+            man = {}
+        raw = man.get(os.path.basename(image_path) + "#chronicle") or man.get("*#chronicle")
+        if raw is None:
+            return None
+    else:
+        ap = os.path.abspath(str(image_path or ""))
+        if not os.path.isfile(ap):
+            return None
+        ledger = "sets" if str(kind or "").endswith("sets") else "uniques"
+        raw = _oneshot(ap, GENIUS_MODEL,
+                       timeout=float(timeout or 120),
+                       prompt=CHRONICLE_READ_PROMPT.format(path=ap, ledger=ledger),
+                       raw_json=True)
+    try:
+        import chronicle_retro as _cr
+    except Exception:
+        return None
+    return _cr.normalize_page(raw, kind, "claude")
+
 
 def _maybe_genius(ap, parsed, t0, mode):
     """v723 — automatic Sonnet escalate when Haiku looks weak (session-capped)."""

@@ -7968,6 +7968,120 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
     }
 
 
+# ── v1519 THE REAL SWEEP ────────────────────────────────────────────────────────
+# A real sweep is minutes, not milliseconds — 11 classifies plus the pages, each a subscription read.
+# So it is a background JOB with progress, never a blocking route: a request that hangs for four
+# minutes is one he kills, and a sweep he kills halfway is one he never trusts again.
+#
+# It STILL WRITES NOTHING. The engine's read-only law holds all the way out to the route: this
+# produces a proposal and the gate's verdicts, and the apply step is a separate decision he makes.
+_CHRON_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0, "reelsTotal": 0,
+              "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": []}
+_CHRON_LOCK = threading.Lock()
+
+
+def _chron_lanes():
+    """The readers this machine can actually use, named honestly.
+
+    A lane that is missing is REPORTED missing rather than silently skipped — "claude only" and
+    "both lanes agreed" are different confidences, and the gate scores them differently."""
+    lanes = []
+    try:
+        import tv_diablo as _tv
+        if hasattr(_tv, "claude_chronicle_read"):
+            lanes.append("claude")
+    except Exception:
+        pass
+    try:
+        import g5_grok_eyes as _g5
+        if hasattr(_g5, "g5_chronicle_read") and _g5.has_subscription():
+            lanes.append("grok")
+    except Exception:
+        pass
+    return lanes
+
+
+def chronicle_sweep_state():
+    with _CHRON_LOCK:
+        return dict(_CHRON_JOB)
+
+
+def chronicle_sweep_start(hist_dir=None, limit=None):
+    """Kick the background sweep. Refuses to start a second one — two sweeps over the same reels
+    would double the spend and produce two proposals that each look like the whole truth."""
+    with _CHRON_LOCK:
+        if _CHRON_JOB["running"]:
+            return {"ok": False, "why": "a sweep is already running", "state": dict(_CHRON_JOB)}
+        lanes = _chron_lanes()
+        if "claude" not in lanes:
+            # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
+            return {"ok": False, "why": "the primary (Claude) lane is unavailable — nothing to sweep with"}
+        _CHRON_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
+                           "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
+                           "result": None, "error": None, "lanes": lanes})
+    threading.Thread(target=_chron_sweep_run, args=(hist_dir, limit),
+                     daemon=True, name="tvd-chronicle-sweep").start()
+    return {"ok": True, "started": True, "lanes": lanes}
+
+
+def _chron_sweep_run(hist_dir, limit):
+    try:
+        import chronicle_retro as _cr
+        import tv_diablo as _tv
+        try:
+            import g5_grok_eyes as _g5
+        except Exception:
+            _g5 = None
+        hist = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+        reels = _cr.reel_dirs(hist)[:limit] if limit else _cr.reel_dirs(hist)
+        with _CHRON_LOCK:
+            _CHRON_JOB["reelsTotal"] = len(reels)
+            _CHRON_JOB["phase"] = "reading"
+
+        def _tick(**kw):
+            with _CHRON_LOCK:
+                for k, v in kw.items():
+                    _CHRON_JOB[k] = _CHRON_JOB.get(k, 0) + v if isinstance(v, int) else v
+
+        def _classify(path):
+            _tick(classified=1)
+            return _cr.chronicle_kind(_tv.claude_read(path))
+
+        grok_lane = None
+        if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
+            grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
+        read_page = _cr.two_lane_reader(
+            lambda p, k: (_tick(pagesRead=1) or _tv.claude_chronicle_read(p, k)), grok_lane)
+
+        res = _cr.sweep_hist(hist, _classify, read_page, limit=limit,
+                             on_reel=lambda st: _tick(reelsDone=1))
+        prop = res["proposal"]
+        gate = _cr.strict_gate()
+        applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
+        with _CHRON_LOCK:
+            _CHRON_JOB.update({
+                "running": False, "phase": "done",
+                "result": {
+                    "totals": res["totals"], "reels": res["reels"],
+                    # what it WOULD add per ledger, each with the gate's own sentence
+                    "wouldAdd": {lg: [{"name": n,
+                                       "why": (gate.verdicts.get(n) or {}).get("why", ""),
+                                       "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", [])}
+                                      for n in applied[lg]["added"]]
+                                 for lg in ("uniques", "sets")},
+                    "held": [{"ledger": h["ledger"], "name": h["name"],
+                              "why": (gate.verdicts.get(h["name"]) or {}).get("why", ""),
+                              "sightings": len(h["sightings"])} for h in applied["held"]],
+                    "refused": prop.get("refused") or [],
+                    "setGroups": prop.get("setGroups") or {},
+                    "lanes": _CHRON_JOB.get("lanes") or [],
+                },
+            })
+    except Exception as e:
+        with _CHRON_LOCK:
+            _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
+
+
 def fleet_presence(force=False):
     """v1496 — WHO IS ONLINE, AND WHEN WAS EACH MACHINE LAST HERE.
 
@@ -8143,7 +8257,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1518",
+        "ver": "v1519",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9562,6 +9676,11 @@ class Handler(BaseHTTPRequestHandler):
             # v1496 — who is online and when each machine was last here (60s cached, read-only)
             self._json(200, fleet_presence(force=("force=1" in (self.path or ""))))
             return
+        if path == "/api/chronicle_sweep":
+            # v1519 — progress + result of the REAL sweep. GET never starts one; starting spends
+            # money, and a GET that spends money is a GET a page-refresh can fire twice.
+            self._json(200, chronicle_sweep_state())
+            return
         if path == "/api/chronicle_scan":
             # v1516 — THE FREE PASS. Groups every sealed reel's frames into still-runs and reports
             # what a real sweep WOULD cost. Zero model calls, zero writes — this is the number he
@@ -9958,6 +10077,15 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/chronicle_sweep":
+            # v1519 — POST starts it, deliberately. This is the call that spends subscription reads,
+            # and a GET that spends is a GET a page refresh can fire twice.
+            try:
+                _lim = int(body.get("limit") or 0) or None
+            except (TypeError, ValueError):
+                _lim = None
+            self._json(200, chronicle_sweep_start(limit=_lim))
+            return
         if path == "/api/evrank":
             # ⚔ EV-RANK — the client POSTs its MISSING grails + each one's best-source odds/kph
             # (from its Calculator); the engine ranks them by expected-hours-to-next-find. Stateless,
