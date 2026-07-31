@@ -3962,8 +3962,13 @@ class TestAFreshMachineStartsEmpty(unittest.TestCase):
                           % got["machine"])
         self.assertEqual(got["source"], "auto",
                          "a machine nobody has clicked through must be auto-derived, not 'user'")
-        self.assertEqual(got["route"], "windows",
-                         "the board published a route for a different world than it is in")
+        # v1501 — v1499 replaced the route's mac/windows vocabulary with owner/guest, because the
+        # world is now decided by which INSTALL holds the claim rather than by the OS. The PROMISE
+        # this test defends is unchanged and is the whole point: a machine nobody has claimed starts
+        # empty. An unclaimed machine is a GUEST.
+        self.assertIn(got["route"], ("guest", "windows"),
+                      "an unclaimed machine must publish a non-owner route (v1499: 'guest'; "
+                      "pre-v1499 builds said 'windows')")
         for key in ("W_foundLog", "W_rwMade", "W_setPieces"):
             self.assertEqual(
                 got[key], 0,
@@ -4292,12 +4297,18 @@ class TestTheFourWorldsNeverBleed(unittest.TestCase):
                 "<!doctype html><meta charset=utf-8><pre id=o></pre><script>\n"
                 "window._LP_FORKED = null; window._WP_FORKED = null;\n"
                 + lp + "\n" + wp + "\n" + keyfn + "\n"
-                "var WORLDS = [['mac','main'],['mac','ladder'],['windows','main'],['windows','ladder']];\n"
+                # v1501 — v1499 routes on the RESOLVED PREFIXES (window._D2R_PFX / _D2R_LPFX), not on
+                # D2R_MACHINE, so setting the old globals alone produced 'undefined' + key. Each world
+                # is now expressed as the pair of prefixes the board would publish for it, which is
+                # exactly what every other surface consumes from d2r_lsrRoute.v2.
+                "var WORLDS = [['mac','main','','L\u00b7'],['mac','ladder','','L\u00b7'],"
+                "['windows','main','W\u00b7','WL\u00b7'],['windows','ladder','W\u00b7','WL\u00b7']];\n"
                 # a forked ACCOUNT key, a windows-only CHRONICLE key, and a bare UI PREFERENCE
                 "var SAMPLES = ['d2r_owned','d2r_foundLog','d2r_activeTab'];\n"
                 "var res = {};\n"
                 "WORLDS.forEach(function(w){\n"
                 "  window.D2R_MACHINE = w[0]; window.D2R_PROFILE = w[1];\n"
+                "  window._D2R_OWNER = (w[0] === 'mac'); window._D2R_PFX = w[2]; window._D2R_LPFX = w[3];\n"
                 "  SAMPLES.forEach(function(k){ res[w[0]+'/'+w[1]+'|'+k] = key(k); });\n"
                 "});\n"
                 "document.getElementById('o').textContent = 'RESULT:' + JSON.stringify(res);\n"

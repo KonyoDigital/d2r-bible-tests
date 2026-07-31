@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1501",
+  "ver": "v1502",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1501: Konyo had G5 Grok Eyes set to PRIMARY - his mandated vision lane - and the console reported cliInstalled false, mode off, calls 0, errors 0, last_error none. Nothing was failing because nothing was ever attempted. The cause: shutil.which searches the PATH of THIS process, and the console runs as a GUI app under launchd whose PATH is the bare usr bin - it never inherits the shell PATH where the grok binary lives. control_app already carried _find_claude_bin for exactly this reason; the third eye had no equivalent. It now hunts env overrides, then PATH, then the known install locations, and the card leads with a warning whenever the switch and the effective mode disagree.",
+  "note": "v1502: Two agent tests went red on CI after v1499 and stayed green on the Mac, because both are browser-driven and browser tests SKIP on this machine - Chrome dump-dom never answers over loopback here. The fresh-PC test asserted the route says windows, but v1499 replaced the route vocabulary with owner and guest; its promise, that an unclaimed machine starts empty, is unchanged and now reads guest. The four-worlds test drove the router by setting D2R_MACHINE, which v1499 no longer reads, so every key came back as undefined plus the name; it now drives the resolved prefixes exactly as every other surface consumes them. Verified with Playwright, which can do loopback: the 2x2 resolves bare, L, W and WL as expected and a UI preference stays bare in all four.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
