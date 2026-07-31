@@ -837,6 +837,19 @@
   .brain .empty { color: #45563f; font-style: italic; }
   /* ══ v1356 (TV-D FINALE) · 🧾 AI-READS RECEIPT FEED — the ledger inside the ticker; each read routable + hover-art ══ */
   .brain.brain-receipts { justify-content: flex-start; overflow-y: auto; gap: 1px; scrollbar-width: thin; }
+  /* v1495 — THE LOG WAS UNREADABLE. Konyo: "i click AI log and its like scratched off, i cant read
+     anything, its like overlapped." At rest the ticker is a slim 38-50px bar (v1252, deliberately —
+     it only streams when live), and .brain centres its lines with overflow:hidden. Receipts got a
+     scrollable, top-aligned treatment when it was built; thoughts/story/log never did, so every one
+     of those modes poured many lines into a one-line bar and they printed on top of each other.
+     Same treatment for all of them, and the strip grows to a readable height while one is open —
+     the resting look is untouched, because it only applies once you click into a text mode. */
+  .brain.brain-text { justify-content: flex-start; overflow-y: auto; gap: 2px; scrollbar-width: thin; }
+  .brain.brain-text .line { white-space: pre-wrap; overflow: visible; text-overflow: clip; }
+  body .ticker.tk-open { height: clamp(190px, 26vh, 340px); }
+  body[data-state="off"] .ticker.tk-open { height: clamp(190px, 26vh, 340px); }
+  body[data-state="off"] .ticker.tk-open .brain { padding-top: clamp(8px,.9vw,14px); padding-bottom: clamp(8px,.9vw,14px); }
+  .ticker.tk-open .tag { align-items: flex-start; padding-top: clamp(10px,1vw,16px); }
   .rcpt { display: flex; align-items: baseline; gap: 7px; padding: 2px 7px; border-left: 2px solid transparent;
     border-radius: 5px; white-space: nowrap; overflow: hidden; opacity: .9; }
   .rcpt-ic { flex: none; font-size: .9em; line-height: 1; }
@@ -1834,7 +1847,7 @@
   #th-compare-ov { position: fixed; inset: 0; z-index: 972;   /* above dossier(970) */
     overflow-y: auto; background: rgba(4,6,5,.985); padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px) max(72px, env(safe-area-inset-bottom, 0px)); }
   #th-compare-ov[hidden] { display: none !important; }
-  .cmp-wrap { max-width: 860px; margin: 0 auto; }
+  .cmp-wrap { max-width: min(1500px, 94vw); margin: 0 auto; }   /* v1495 — same fullscreen fix as .dsr-wrap */
   .cmp-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   .cmp-back { font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); color: var(--gold-dim); background: rgba(0,0,0,.3);
     border: 1px solid var(--edge); border-radius: 8px; padding: 7px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
@@ -1901,7 +1914,13 @@
   .hm-note { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #6f6a58; letter-spacing: var(--ls-tight);
     border-top: 1px solid rgba(255,255,255,.06); padding-top: 12px; }
   .hm-empty { text-align: center; color: #8a7e68; font: var(--fw-medium) var(--fs-sm)/var(--lh-normal) var(--mono); padding: 40px 20px; }
-  .dsr-wrap { max-width: 860px; margin: 0 auto; }
+  /* v1495 — FULLSCREEN-FIRST, LIKE THE REST OF THIS CONSOLE. 860px was a reading-column cap on a
+     surface that is a DASHBOARD, not an article: on Konyo's fullscreen it used 58% of the width and
+     left the session dossier stranded in the middle of a black screen. The type scale in :root is
+     already built for a big screen ("this console lives in fullscreen, often on a big screen") — the
+     container was the one thing still sized for a phone. Scales with the viewport, with a ceiling so
+     a 5K display does not stretch a chip row into a horizon. */
+  .dsr-wrap { max-width: min(1500px, 94vw); margin: 0 auto; }
   .dsr-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   .dsr-back { font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); color: var(--gold-dim); background: rgba(0,0,0,.3); border: 1px solid var(--edge);
     border-radius: 8px; padding: 8px 13px; cursor: pointer; letter-spacing: var(--ls-snug); }
@@ -8257,8 +8276,20 @@
     var mm = $('mind-mode');
     if (mm) mm.textContent = '· ' + (window.__mindMode === 'receipts' ? 'live' : window.__mindMode);
     brainSig = '';
+    window._mindModeChrome();
     if (showLog) loadLog(); else refresh();
   };
+  // v1495 — one place decides the ticker's shape for the current mind mode, so the tag click, the
+  // 📋 button and any future entry point cannot disagree about it.
+  window._mindModeChrome = function(){
+    var mode = window.__mindMode || 'receipts';
+    var isText = (mode === 'thoughts' || mode === 'story' || mode === 'log');
+    var tk = document.querySelector('.ticker');
+    var br = document.getElementById('brain');
+    if (tk) tk.classList.toggle('tk-open', isText);
+    if (br) br.classList.toggle('brain-text', isText);
+  };
+
   $('btn-log').onclick = function(){
     // keep compat: jump straight to raw log / back to thoughts
     if (window.__mindMode === 'log') { window.__mindMode = 'thoughts'; showLog = false; }
@@ -8267,6 +8298,7 @@
     $('btn-log').classList.toggle('on', showLog);
     try { $('btn-log').querySelector('.glab').textContent = showLog ? 'Live Brain' : 'Toggle Log'; } catch(e){}
     brainSig = '';
+    window._mindModeChrome();   // v1495 — the other entry point must shape the strip the same way
     if (showLog) loadLog(); else refresh();
   };
   // v946/v947.4 — Chronicle inbox: review gate before grail write
