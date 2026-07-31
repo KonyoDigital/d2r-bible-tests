@@ -237,6 +237,81 @@ def proposal_from_pages(pages):
     return prop
 
 
+# ── v1513 THE GATE ──────────────────────────────────────────────────────────────
+# Konyo's multi-witness doctrine: require 2+ INDEPENDENT agreeing signals before grounding. The word
+# doing the work is *independent*. Reading the same frame twice is not two witnesses; nor is one
+# reader confident twice. Four kinds of independence exist in this evidence, and they are ranked by
+# how hard they are to fake:
+#
+#   cross-lane   two DIFFERENT readers (Claude, Grok) read the same name — strongest, because the
+#                lanes share no prompt, no model and no failure mode (v1514 supplies the second lane)
+#   cross-reel   the same name on two different SESSIONS — he opened the Chronicle twice, months
+#                apart maybe, and it said the same thing
+#   cross-frame  two different frames of one visit — catches a one-frame OCR slip
+#   printed      the panel's own progress numbers agreed with our count on that page (v1510)
+#
+# A name needs TWO. Not two sightings — two kinds, or two of a kind that is genuinely repeatable
+# (frames, reels, lanes are; `printed` is a property of a page, so it counts once).
+CONF_FLOOR = 0.55        # below this the reader itself was unsure; unsure twice is still unsure
+MIN_WITNESSES = 2
+
+
+def witnesses(sightings):
+    """The distinct, independent signals behind one proposed name. Returns a sorted list of tags."""
+    tags = set()
+    lanes = {(s.get("lane") or "claude") for s in (sightings or [])}
+    reels = {s.get("reel") for s in (sightings or []) if s.get("reel")}
+    frames = {(s.get("reel"), s.get("frame")) for s in (sightings or []) if s.get("frame")}
+    if len(lanes) >= 2:
+        tags.add("cross-lane")
+    if len(reels) >= 2:
+        tags.add("cross-reel")
+    if len(frames) >= 2:
+        tags.add("cross-frame")
+    if any((s.get("witness") == "agree") for s in (sightings or [])):
+        tags.add("printed")
+    return sorted(tags)
+
+
+def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+    """Should this name be grounded? Returns a verdict that EXPLAINS itself either way.
+
+    {"pass": bool, "witnesses": [...], "why": str, "bestConf": float, "sightings": n}
+
+    The `why` is not decoration. When he asks why his grail did not move, the answer has to be a
+    sentence, not a boolean — and when it DID move, the reason has to survive being questioned.
+    """
+    sightings = list(sightings or [])
+    best = max([float(s.get("conf") or 0) for s in sightings] or [0.0])
+    w = witnesses(sightings)
+    if not sightings:
+        return {"pass": False, "witnesses": [], "bestConf": 0.0, "sightings": 0,
+                "why": "no evidence at all"}
+    if best < conf_floor:
+        return {"pass": False, "witnesses": w, "bestConf": best, "sightings": len(sightings),
+                "why": "the reader itself was unsure (%.2f < %.2f) — unsure twice is still unsure"
+                       % (best, conf_floor)}
+    if len(w) < min_witnesses:
+        return {"pass": False, "witnesses": w, "bestConf": best, "sightings": len(sightings),
+                "why": "only %d independent witness%s (%s) — needs %d"
+                       % (len(w), "" if len(w) == 1 else "es", ", ".join(w) or "none", min_witnesses)}
+    return {"pass": True, "witnesses": w, "bestConf": best, "sightings": len(sightings),
+            "why": "corroborated by %s" % ", ".join(w)}
+
+
+def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+    """The gate to hand apply_proposal. Keeps the verdicts so a caller can show its reasoning."""
+    seen = {}
+
+    def _gate(name, sightings):
+        v = gate_verdict(name, sightings, conf_floor, min_witnesses)
+        seen[name] = v
+        return v["pass"]
+
+    _gate.verdicts = seen
+    return _gate
+
+
 def merge_max(existing, proposed_names):
     """THE MERGE LAW: union, never difference.
 

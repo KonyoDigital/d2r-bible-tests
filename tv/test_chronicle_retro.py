@@ -206,6 +206,70 @@ class TestMergeLaw(unittest.TestCase):
         self.assertIn("Windforce", m["merged"])   # ★ still found
 
 
+class TestTheGate(unittest.TestCase):
+    """v1513 — Konyo's multi-witness doctrine, as the rule that decides what touches his grail.
+
+    The word doing the work is INDEPENDENT. Reading the same frame twice is not two witnesses, and
+    one reader being confident twice is not two either."""
+
+    def s(self, **kw):
+        base = {"reel": "s1", "frame": "f1.jpg", "witness": "none", "conf": 0.9, "lane": "claude"}
+        base.update(kw)
+        return base
+
+    def test_one_sighting_however_confident_is_NOT_enough(self):
+        # ★ the doctrine in one test: confidence is not corroboration
+        v = cr.gate_verdict("Windforce", [self.s(conf=0.99)])
+        self.assertFalse(v["pass"])
+        self.assertIn("independent witness", v["why"])
+
+    def test_the_same_frame_read_twice_is_still_one_witness(self):
+        # a repeated read of one frame shares every failure mode the first read had
+        v = cr.gate_verdict("Windforce", [self.s(), self.s()])
+        self.assertEqual(v["witnesses"], [])
+        self.assertFalse(v["pass"])
+
+    def test_two_frames_plus_the_panels_own_numbers_passes(self):
+        v = cr.gate_verdict("Windforce", [
+            self.s(frame="f1.jpg", witness="agree"),
+            self.s(frame="f2.jpg"),
+        ])
+        self.assertEqual(v["witnesses"], ["cross-frame", "printed"])
+        self.assertTrue(v["pass"])
+
+    def test_two_INDEPENDENT_READERS_is_the_strongest_witness(self):
+        # the lanes share no prompt, no model and no failure mode
+        v = cr.gate_verdict("Windforce", [self.s(lane="claude"), self.s(lane="grok")])
+        self.assertIn("cross-lane", v["witnesses"])
+
+    def test_the_same_name_in_two_different_SESSIONS_counts(self):
+        v = cr.gate_verdict("Windforce", [self.s(reel="s1", frame="a.jpg"),
+                                          self.s(reel="s2", frame="b.jpg")])
+        self.assertIn("cross-reel", v["witnesses"])
+        self.assertTrue(v["pass"])
+
+    def test_an_unsure_read_is_refused_before_witnesses_are_even_counted(self):
+        # ★ unsure twice is still unsure — corroborating a guess with another guess is not evidence
+        v = cr.gate_verdict("Windforce", [
+            self.s(frame="a.jpg", conf=0.2, witness="agree"),
+            self.s(frame="b.jpg", conf=0.3, lane="grok"),
+        ])
+        self.assertFalse(v["pass"])
+        self.assertIn("unsure", v["why"])
+
+    def test_every_verdict_EXPLAINS_itself_pass_or_fail(self):
+        # when he asks why his grail did not move, the answer must be a sentence
+        for sightings in ([], [self.s()], [self.s(frame="a.jpg"), self.s(frame="b.jpg", lane="grok")]):
+            v = cr.gate_verdict("X", sightings)
+            self.assertTrue(v["why"] and len(v["why"]) > 10, "a bare boolean is not an answer")
+
+    def test_the_gate_keeps_its_reasoning_for_the_caller(self):
+        g = cr.strict_gate()
+        g("Windforce", [self.s()])
+        self.assertIn("Windforce", g.verdicts)
+        self.assertFalse(g.verdicts["Windforce"]["pass"])
+
+
 class TestApplyIsSeparateAndGated(unittest.TestCase):
     def setUp(self):
         self.prop = cr.proposal_from_pages([{
@@ -231,6 +295,20 @@ class TestApplyIsSeparateAndGated(unittest.TestCase):
         self.assertEqual(out["uniques"]["added"], ["Windforce"])   # Shako already had it
         self.assertEqual(out["uniques"]["merged"], ["Shako", "Windforce"])
         self.assertEqual(out["held"], [])
+
+    def test_the_real_gate_applies_only_the_corroborated_name(self):
+        # end to end: two names, one corroborated across frames+printed, one seen once
+        prop = cr.proposal_from_pages([
+            {"reel": "s1", "frame": "a.jpg", "kind": "chronicle-uniques", "resp": {
+                "ledger": "uniques", "found": ["Windforce", "Shako"], "witness": "agree", "conf": 0.9}},
+            {"reel": "s1", "frame": "b.jpg", "kind": "chronicle-uniques", "resp": {
+                "ledger": "uniques", "found": ["Windforce"], "conf": 0.9}},
+        ])
+        g = cr.strict_gate()
+        out = cr.apply_proposal(prop, {"uniques": []}, gate=g)
+        self.assertEqual(out["uniques"]["added"], ["Windforce"])
+        self.assertEqual([h["name"] for h in out["held"]], ["Shako"])
+        self.assertIn("independent witness", g.verdicts["Shako"]["why"])
 
     def test_sweeping_writes_nothing_anywhere(self):
         # ★ READ-ONLY UNTIL APPLY, proven structurally: the module has no write/open-for-write path

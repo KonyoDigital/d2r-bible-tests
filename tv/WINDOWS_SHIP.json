@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1512",
+  "ver": "v1513",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1512: chronicleTab survives the parse; classify adapter refuses an unknown ledger rather than guessing",
+  "note": "v1513: nothing touches the grail without 2 independent agreeing witnesses, and every verdict explains itself",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
