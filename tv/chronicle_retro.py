@@ -1,0 +1,235 @@
+"""v1511 — CHRONICLE RETRO SWEEP, the engine.
+
+Konyo: "retro and live... especially retro most important" — the sealed reels already contain every
+Chronicle screen he has ever opened on camera. This module finds those frames and turns them into a
+PROPOSAL. It never writes a ledger.
+
+Three laws, and they are the whole design:
+
+  1. READ-ONLY UNTIL APPLY. `sweep()` returns evidence. Only `apply_proposal()` changes anything, and
+     it is a separate call a human makes. A sweep that silently ticked 400 grail rows would be
+     unauditable — and un-untickable, because there is no "unfind" in Diablo.
+
+  2. MERGE-MAX. A chronicle read only ever ADDS. His ledger is the accumulated truth of years; a reel
+     from March cannot un-find something found in July, and a page that scrolled past a row is not
+     evidence that the row is empty. `notFound` is carried for auditing and never subtracts.
+
+  3. PAY FOR RUNS, NOT FRAMES. A reel is ~150 frames at 1-2fps; reading each one would cost more than
+     the tally is worth, and 140 of them are the same page held still. Frames are grouped into STILL
+     RUNS, one frame per run is classified, and only runs that come back `chronicle` are read in full.
+     A 153-frame reel with one Chronicle visit costs ~8 classifies + the pages, not 153 reads.
+
+Everything here is pure: the caller injects the signature function and the reader. That is what lets
+the tests exercise the laws against fixtures without a vision model or a single JPEG.
+"""
+
+import json
+import os
+
+# A "still" pair — frames this similar are the same screen held. Calibrated against sig_diff()'s own
+# scale in tv_diablo.py, where ambient render noise stays under the tolerance and opening a panel
+# moves whole regions past it. Scrolling a list moves a band, so the threshold is deliberately loose
+# enough to keep a scrolling read in one run rather than shattering it into singletons.
+STILL_MAX_DIFF = 0.22
+# Below this a run is somebody walking through town, not a screen being read.
+MIN_RUN_FRAMES = 3
+
+
+def jpeg_sig(path):
+    """A 16×16 grayscale fingerprint of a reel JPEG, as 256 bytes.
+
+    Deliberately NOT tv_diablo.frame_sig: that samples raw BMP pixel offsets, and JPEG entropy coding
+    shifts every byte after the smallest change — byte-sampling two near-identical JPEGs reads as a
+    total mismatch. Decoding is the only honest comparison. Returns None (never a wrong answer) when
+    Pillow is absent or the file is unreadable; callers treat None as "cannot group".
+    """
+    try:
+        from PIL import Image  # type: ignore
+    except Exception:
+        return None
+    try:
+        with Image.open(path) as im:
+            return im.convert("L").resize((16, 16)).tobytes()
+    except Exception:
+        return None
+
+
+def sig_diff(a, b, tol=28):
+    """Fraction of samples that MEANINGFULLY differ — the same contract as tv_diablo.sig_diff, so the
+    two halves of the system reason about "same screen" on one scale."""
+    if not a or not b:
+        return 1.0
+    if a == b:
+        return 0.0
+    m = min(len(a), len(b))
+    return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
+
+
+def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF):
+    """Group consecutive frames into runs of "the same screen held still".
+
+    frames: [{"f": name, "ts": ms}, ...] in capture order (a reel's index.json shape).
+    sig_of: name -> fingerprint (or None when it cannot be read).
+
+    An unreadable frame BREAKS the run rather than joining it. Silently absorbing a frame we could not
+    compare would let one unreadable frame weld two different screens into a single run, and the run
+    is what we then pay to classify ONCE — the misgrouping would be invisible and wrong.
+    """
+    runs = []
+    cur = None
+    prev_sig = None
+    for fr in (frames or []):
+        name = (fr or {}).get("f")
+        if not name:
+            continue
+        sig = sig_of(name)
+        if sig is None:
+            cur, prev_sig = None, None
+            continue
+        if cur is not None and sig_diff(prev_sig, sig) <= max_diff:
+            cur["frames"].append(name)
+            cur["end_ts"] = (fr.get("ts") or cur["end_ts"])
+        else:
+            cur = {"frames": [name], "start_ts": fr.get("ts") or 0, "end_ts": fr.get("ts") or 0}
+            runs.append(cur)
+        prev_sig = sig
+    return runs
+
+
+def candidate_runs(runs, min_frames=MIN_RUN_FRAMES):
+    """The runs worth paying a classify for: a screen held still long enough to be READ.
+
+    A Chronicle visit is somebody stopping to look. One or two still frames is a pause mid-fight."""
+    return [r for r in (runs or []) if len(r.get("frames") or []) >= min_frames]
+
+
+def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRAMES):
+    """Sweep ONE sealed reel. Returns evidence — it writes nothing, anywhere.
+
+    classify(frame_path) -> ("chronicle-uniques" | "chronicle-sets" | None)
+        one call per candidate run, on the run's middle frame (the most settled one: the first frame
+        of a run can still be mid-transition and the last can be mid-exit).
+    read_page(frame_path, kind) -> the /api/intake chronicle response dict (v1510 shape).
+
+    Returns {"reel": sid, "runs": n, "candidates": n, "classified": n, "pages": [ … ]}, where every
+    page keeps the frame it came from. Provenance is not decoration here: when he asks "why does it
+    think I have Windforce", the answer has to be a frame he can look at.
+    """
+    idx_path = os.path.join(reel_dir, "index.json")
+    try:
+        with open(idx_path, encoding="utf-8") as fh:
+            idx = json.load(fh)
+    except Exception:
+        return {"reel": os.path.basename(reel_dir), "runs": 0, "candidates": 0,
+                "classified": 0, "pages": [], "note": "no-index"}
+    sid = idx.get("sessionId") or os.path.basename(reel_dir)
+    sig_of = sig_of or (lambda n: jpeg_sig(os.path.join(reel_dir, n)))
+    runs = still_runs(idx.get("frames") or [], sig_of)
+    cands = candidate_runs(runs, min_frames=min_frames)
+    pages, classified = [], 0
+    for run in cands:
+        fr = run["frames"]
+        probe = fr[len(fr) // 2]
+        classified += 1
+        kind = classify(os.path.join(reel_dir, probe))
+        if kind not in ("chronicle-uniques", "chronicle-sets"):
+            continue
+        # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
+        # page is a different page — so read the distinct-looking frames, which for a held page is one.
+        for name in _distinct(fr, sig_of):
+            resp = read_page(os.path.join(reel_dir, name), kind) or {}
+            pages.append({"reel": sid, "frame": name, "kind": kind, "resp": resp})
+    return {"reel": sid, "runs": len(runs), "candidates": len(cands),
+            "classified": classified, "pages": pages}
+
+
+def _distinct(names, sig_of, max_diff=0.06):
+    """Within one run, keep only frames that actually LOOK different from the last kept one — a
+    scrolled list, not the same page re-photographed 40 times. Tighter than STILL_MAX_DIFF on
+    purpose: grouping asks "same screen?", this asks "same pixels?"."""
+    out, last = [], None
+    for n in names:
+        s = sig_of(n)
+        if s is None:
+            continue
+        if last is None or sig_diff(last, s) > max_diff:
+            out.append(n)
+            last = s
+    return out
+
+
+def proposal_from_pages(pages):
+    """Fold read pages into ONE proposal per ledger, keeping every name's evidence.
+
+    A name seen on several frames collects several witnesses — that is the multi-witness signal the
+    gate consumes, so the sightings are kept rather than deduped away. Pages the reader REFUSED
+    (no-found-state / wrong-ledger, v1510) contribute nothing but are counted, because "8 pages read,
+    3 refused" is the honest headline and "5 pages read" is not.
+    """
+    prop = {"uniques": {}, "sets": {}, "setGroups": {}, "refused": [], "pagesRead": 0,
+            "notFound": {"uniques": set(), "sets": set()}}
+    for p in (pages or []):
+        resp = p.get("resp") or {}
+        ledger = resp.get("ledger") or ("sets" if p.get("kind") == "chronicle-sets" else "uniques")
+        if resp.get("note"):
+            prop["refused"].append({"reel": p.get("reel"), "frame": p.get("frame"),
+                                    "why": resp.get("note")})
+            continue
+        prop["pagesRead"] += 1
+        for nm in (resp.get("found") or []):
+            prop[ledger].setdefault(nm, []).append({
+                "reel": p.get("reel"), "frame": p.get("frame"),
+                "witness": resp.get("witness") or "none",
+                "conf": resp.get("conf") or 0,
+                "lane": resp.get("lane") or "claude",
+            })
+        for nm in (resp.get("notFound") or []):
+            prop["notFound"][ledger].add(nm)
+        for g in (resp.get("sets") or []):
+            nm = g.get("set")
+            if nm:
+                prop["setGroups"].setdefault(nm, set()).update(g.get("pieces") or [])
+    prop["notFound"] = {k: sorted(v) for k, v in prop["notFound"].items()}
+    prop["setGroups"] = {k: sorted(v) for k, v in prop["setGroups"].items()}
+    return prop
+
+
+def merge_max(existing, proposed_names):
+    """THE MERGE LAW: union, never difference.
+
+    existing: the names already found (any iterable). proposed_names: names this sweep found.
+    Returns {"merged": sorted, "added": sorted, "already": sorted} — `added` is what he actually
+    gains, and it is the only number worth showing him.
+    """
+    have = set(existing or [])
+    prop = set(proposed_names or [])
+    return {
+        "merged": sorted(have | prop),
+        "added": sorted(prop - have),
+        "already": sorted(prop & have),
+    }
+
+
+def apply_proposal(proposal, existing, gate=None):
+    """The ONLY function here that produces a change — and even then it hands the change back rather
+    than writing it, so the caller owns the write and the receipt.
+
+    gate(name, sightings) -> bool decides what is allowed through. Default: nothing. An absent gate
+    means "no policy has been stated", and applying a whole grail because nobody specified a rule is
+    exactly the failure this arc exists to avoid. v1513 supplies the real gate.
+
+    Returns {"uniques": {...merge_max...}, "sets": {...}, "held": [...]} where `held` names everything
+    the gate refused, WITH its evidence, so a refusal is reviewable instead of silent.
+    """
+    gate = gate or (lambda name, sightings: False)
+    out, held = {}, []
+    for ledger in ("uniques", "sets"):
+        passed = []
+        for nm, sightings in sorted((proposal.get(ledger) or {}).items()):
+            if gate(nm, sightings):
+                passed.append(nm)
+            else:
+                held.append({"ledger": ledger, "name": nm, "sightings": sightings})
+        out[ledger] = merge_max((existing or {}).get(ledger) or [], passed)
+    out["held"] = held
+    return out
