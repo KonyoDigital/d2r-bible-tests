@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1491",
+  "ver": "v1492",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1491: devices Desktop Chrome ships a Windows NT user agent, so the board derived the isolated W cousin world on the Linux CI runner while the Mac derived its own bare-key world. 105 spec files address bare keys, so the whole suite silently exercised a world it was never written for - 100 spec files red on CI and green on the Mac with the app innocent every time. The chromium project now declares a Mac user agent; the cousin world keeps its own coverage in v663.",
+  "note": "v1492: v663 sets d2r_activeMachine to ascend to the WINDOWS world, but the board only honours a stored machine when d2r_machineSource is user - otherwise it auto-derives from the platform and overwrites the key it was just handed. So both tests stayed on mac and failed their W-world assertions. The spec now drives the master switch the way the console does, with both keys. This is the dedicated cousin-world coverage that makes the v1491 user-agent pin safe, so it needed to be real.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

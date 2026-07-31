@@ -35489,7 +35489,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1491', name:'v1491 - the suite says which world it tests', date:'2026-07-31', note:'devices Desktop Chrome ships a Windows NT user agent, so the board derived the isolated W cousin world on the Linux CI runner while the Mac derived its own bare-key world. 105 spec files address bare keys, so the whole suite silently exercised a world it was never written for - 100 spec files red on CI and green on the Mac with the app innocent every time. The chromium project now declares a Mac user agent; the cousin world keeps its own coverage in v663.' };
+  window.D2R_BUILD = { id:'v1492', name:'v1492 - the cousin-world spec finally visits the cousin world', date:'2026-07-31', note:'v663 sets d2r_activeMachine to ascend to the WINDOWS world, but the board only honours a stored machine when d2r_machineSource is user - otherwise it auto-derives from the platform and overwrites the key it was just handed. So both tests stayed on mac and failed their W-world assertions. The spec now drives the master switch the way the console does, with both keys. This is the dedicated cousin-world coverage that makes the v1491 user-agent pin safe, so it needed to be real.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

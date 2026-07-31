@@ -1576,6 +1576,24 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   makes an unreferenced `tv/test_*.py` a failure in its own right — the fix for this defect is not
   the two assertions, it is that nothing was watching them.
 
+## REG-085 — the cousin-world spec never visited the cousin world (2026-07-31)
+- **Symptom:** both `v663_machine_shell` tests red on CI *and* locally, on every version — and red
+  identically with and without the v1491 UA pin, so not caused by it.
+- **Root cause:** the spec ascends with `localStorage.setItem('d2r_activeMachine','windows')` alone.
+  The board only honours a stored machine when `d2r_machineSource === 'user'`; otherwise it
+  AUTO-DERIVES from the platform and **overwrites the key it was just handed**. Measured: after the
+  spec's ascend, `D2R_MACHINE` = `mac`, `d2r_activeMachine` = `mac`, `source` = `auto`. Both tests
+  then asserted W·-world facts from inside the MAC world.
+- **Fix (v1492):** a `setMachine(page, m)` helper writes BOTH keys — what the console's own master
+  switch writes — so the spec drives the product the way the product is driven. (First attempt put the
+  helper in module scope and called it inside `page.evaluate`, where it does not exist; it runs in the
+  page now.) Clean-up sites drop `d2r_machineSource` too, so no test inherits a pinned world.
+- **Prove:** `v663_machine_shell` 2/2 green locally, first time.
+- **Why it mattered beyond one spec:** this is the dedicated cousin-world coverage cited as the reason
+  the v1491 Mac-UA pin is safe. That justification was hollow while the spec sat in the mac world.
+- **Prevention:** when a product setting has a guard key, a test that sets the value without the guard
+  is testing the default — silently. Drive the switch the way the UI drives it.
+
 ## REG-084 — the suite spent 30 versions testing a world it was never written for (2026-07-31)
 - **Symptom:** Routine I went from FULL GREEN at v1459 (235 passed, 0 failed) to **100 distinct spec
   files red** by v1489 — every one of them green on the Mac. v1490's sigil fix took that to 60, with

@@ -2,6 +2,20 @@ import { test, expect } from './_net_stub';
 import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
+// v1491 — THE MASTER SWITCH IS TWO KEYS. Setting `d2r_activeMachine` alone does nothing: the board
+// only honours a stored machine when `d2r_machineSource === 'user'`, and otherwise AUTO-DERIVES from
+// the platform and overwrites the key it was just given. So every "ascend to WINDOWS" here silently
+// stayed on `mac` and then failed its W·-world assertions — the spec was not testing the cousin
+// world at all. This is what the console's own master switch writes, so the spec drives the product
+// the way the product is actually driven.
+// Runs IN THE PAGE (page.evaluate serialises the body — an outer-scope helper would be undefined there).
+const setMachine = (page: any, m: string) =>
+  page.evaluate((mm: string) => {
+    localStorage.setItem('d2r_activeMachine', mm);
+    localStorage.setItem('d2r_machineSource', 'user');
+  }, m);
+
+
 // v663 — MASTER MACHINE SWITCH (Konyo: "a master switch between the two — WINDOWS/MAC, same style,
 // same structure, same everything"). MAC = his world, byte-identical (bare keys + L· ladder fork).
 // WINDOWS = the cousin's OWN isolated world: the WHOLE d2r_* keyspace routes to W·, the chronicle
@@ -16,7 +30,7 @@ test('WINDOWS shell: full isolation, zero seeds, Cousin<N> filter, wide socketed
     found: (window as any).funiScan().found,
   }));
   // ascend to WINDOWS
-  await page.evaluate(() => localStorage.setItem('d2r_activeMachine', 'windows'));
+  await setMachine(page, 'windows');
   await page.reload(); await page.waitForTimeout(2200);
   const win = await page.evaluate(() => {
     const w: any = window;
@@ -46,7 +60,7 @@ test('WINDOWS shell: full isolation, zero seeds, Cousin<N> filter, wide socketed
     return { killed, macKeysIntact: before === after, wLeft: Object.keys(localStorage).filter((k) => k.indexOf('W·') === 0).length };
   });
   // descend to MAC — everything his
-  await page.evaluate(() => localStorage.setItem('d2r_activeMachine', 'mac'));
+  await setMachine(page, 'mac');
   await page.reload(); await page.waitForTimeout(2200);
   const back = await page.evaluate(() => ({
     machine: (window as any).D2R_MACHINE,
@@ -55,7 +69,7 @@ test('WINDOWS shell: full isolation, zero seeds, Cousin<N> filter, wide socketed
     ribbon: !!document.getElementById('cousin-ribbon'),
     filterName: JSON.parse((window as any).buildEndgameFilter().text).name,
   }));
-  await page.evaluate(() => { Object.keys(localStorage).filter((k) => k.indexOf('W·') === 0).forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('d2r_activeMachine'); });
+  await page.evaluate(() => { Object.keys(localStorage).filter((k) => k.indexOf('W·') === 0).forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('d2r_activeMachine'); localStorage.removeItem('d2r_machineSource'); });
 
   expect(mac.machine).toBe('mac');
   expect(mac.made).toBeGreaterThanOrEqual(88);
@@ -82,7 +96,7 @@ test('WINDOWS shell: full isolation, zero seeds, Cousin<N> filter, wide socketed
 test('v665.1 — the 2×2 matrix: WINDOWS-ladder forks WL·, shares the COUSIN chronicle, never touches MAC or cousin-main vaults', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(2200);
   // cousin main: forge a word + own a base
-  await page.evaluate(() => { localStorage.setItem('d2r_activeMachine', 'windows'); });
+  await setMachine(page, 'windows');
   await page.reload(); await page.waitForTimeout(2200);
   await page.evaluate(() => {
     const w: any = window;
@@ -112,13 +126,13 @@ test('v665.1 — the 2×2 matrix: WINDOWS-ladder forks WL·, shares the COUSIN c
     made: Object.keys(JSON.parse((window as any).LSR.getItem('d2r_rwMade') || '{}')),
   }));
   // back to MAC: everything his, no W/WL leakage
-  await page.evaluate(() => { localStorage.setItem('d2r_activeMachine', 'mac'); });
+  await setMachine(page, 'mac');
   await page.reload(); await page.waitForTimeout(2200);
   const mac = await page.evaluate(() => ({
     made: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length,
     profile: (window as any).D2R_PROFILE,
   }));
-  await page.evaluate(() => { Object.keys(localStorage).filter((k) => k.indexOf('W·') === 0 || k.indexOf('WL·') === 0).forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('d2r_activeMachine'); localStorage.removeItem('d2r_activeProfileWin'); });
+  await page.evaluate(() => { Object.keys(localStorage).filter((k) => k.indexOf('W·') === 0 || k.indexOf('WL·') === 0).forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('d2r_activeMachine'); localStorage.removeItem('d2r_machineSource'); localStorage.removeItem('d2r_activeProfileWin'); });
   expect(cl.machine).toBe('windows');
   expect(cl.profile).toBe('ladder');
   expect(cl.seesCousinForge).toBe(true);                       // ★ ONE cousin grail across his two accounts
