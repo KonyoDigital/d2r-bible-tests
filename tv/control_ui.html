@@ -2829,6 +2829,21 @@
   #th-hd:not([hidden]) { animation: shellFade .18s ease-out; }
   #theatre:not([hidden]) { animation: shellFade .22s ease-out; }
   .hd-taskforce:not([hidden]), .hd-lastsession:not([hidden]) { animation: shellReveal .24s ease-out; }
+  /* v1496 · THE FLEET — one row per console, online first, each with when it was last seen. */
+  .fleet-box { margin-top: 8px; border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px; }
+  .fleet-head { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
+    text-transform: uppercase; color: var(--gold-dim); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .fleet-refresh { margin-left: auto; padding: 2px 7px; }
+  .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
+    font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
+  .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
+  .fleet-row.on b { color: var(--mint); }
+  .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); flex: none;
+    box-shadow: 0 0 7px var(--mint); }
+  .fleet-dot.off { background: #43483f; box-shadow: none; }
+  .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: nowrap; }
+  .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
+
   /* ══ GROK EYES (G5) — optional advanced strip (removable) ══ */
   .g5-auth-btn {
     margin-left: 8px; flex: none; padding: 4px 10px; border-radius: 8px; cursor: pointer;
@@ -3343,7 +3358,7 @@
       <div class="rail-secondary">
         <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
              The utility strip keeps the rare paths one small click away, out of the flow. -->
-        <details class="sig-adv">
+        <details class="sig-adv" ontoggle="if (this.open) { try { window._fleetRefresh(); } catch(e) {} }">
           <summary>⚙ advanced</summary>
           <div class="util-strip">
             <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
@@ -3352,6 +3367,14 @@
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
           </div>
           <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
+          <!-- v1496 · 🖥 THE FLEET — who is online and when each machine was last here. Konyo asked for
+               "a tracker for whose logged in and when, like we have for the website"; /console has
+               answered that in a browser tab since v875, and this is the same answer inside the console
+               he already has open. Opening the panel fetches it (60s cached server-side). -->
+          <div class="fleet-box">
+            <div class="fleet-head">🖥 THE FLEET <button class="util-btn fleet-refresh" type="button" title="re-check who is online" onclick="window._fleetRefresh(true)">↻</button></div>
+            <div id="fleet-list"><div class="fleet-none">open ⚙ advanced to check the fleet…</div></div>
+          </div>
           <!-- ══ GROK EYES (G5) — REMOVABLE optional console toggle; OFF default; cousin never needs this ══ -->
           <div id="g5-eyes-card" class="g5-eyes-card" hidden title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
             <div class="g5-eyes-row">
@@ -9962,16 +9985,43 @@ body:not(.shell-open) #tvd-eng {
     gl.textContent = s.glyph;
     nm.textContent = s.name;
     var w = worldOf();
-    sb.textContent = s.code + ' · ' + (idt.computer || '?');
+    // v1496 — A NAME, NOT A HOSTNAME. Konyo: "can it just be more nicknamed? like more UX and
+    // friendlier." `konyo-3.local` and a 12-char hex id are how a machine identifies itself to
+    // another machine; they are not how he thinks about the laptop on his desk. The nickname he
+    // sets leads everywhere — here, and in the fleet list — with the hostname kept underneath as
+    // the technical fallback, and the opaque install id still the real identity.
+    var friendly = (idt.nickname || '').trim() || (idt.computer || '?');
+    lastNick = friendly;
+    sb.textContent = s.code + ' · ' + friendly;
     el.title =
       'PROFILE SIGIL — ' + s.name + '  [' + s.code + ']\n' +
-      'machine : ' + (idt.computer || '?') + '  (' + (idt.user || '?') + ')\n' +
-      'world   : ' + w.machine + ' / ' + w.profile + '\n' +
-      'install : ' + String(idt.id).slice(0, 12) + '\n\n' +
+      'this machine : ' + friendly + (idt.nickname ? '  (' + (idt.computer || '?') + ')' : '') + '\n' +
+      'signed in as : ' + (idt.user || '?') + '\n' +
+      'world        : ' + w.machine + ' / ' + w.profile + '\n' +
+      'install      : ' + String(idt.id).slice(0, 12) + '\n\n' +
       'Same sigil = same console + same install. Different sigil = a different profile,\n' +
-      'with its own vault, chronicle and forge progress. Click to copy for comparing.';
+      'with its own vault, chronicle and forge progress.\n' +
+      'Click to copy · DOUBLE-CLICK to name this machine.';
     el.hidden = false;
   }
+
+  // v1496 — double-click names the machine. One prompt, no settings screen: the name is a label,
+  // and the cost of changing it must be lower than the cost of tolerating a wrong one.
+  var lastNick = '';
+  el.addEventListener('dblclick', async function (ev) {
+    ev.preventDefault(); ev.stopPropagation();
+    var want = window.prompt('Name this machine — it is what you will see here and in the fleet list:', lastNick || '');
+    if (want === null) return;
+    try {
+      var r = await fetch('/api/identity_name', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: want })
+      });
+      var j = await r.json();
+      lastId = null;                       // force the next paint to redraw with the new name
+      if (j && j.identity) { try { toast('🪪 this machine is now "' + ((j.identity.nickname || '').trim() || j.identity.computer) + '"'); } catch (e) {} }
+    } catch (e) { try { toast('could not save the name'); } catch (e2) {} }
+  });
 
   el.addEventListener('click', function () {
     var t = el.title || '';
@@ -9979,6 +10029,49 @@ body:not(.shell-open) #tvd-eng {
     var was = nm.textContent; nm.textContent = 'COPIED';
     setTimeout(function () { nm.textContent = was; }, 900);
   });
+
+  // v1496 — WHO IS ONLINE, AND WHEN WAS EACH LAST HERE. Konyo: "i want to have a tracker for whose
+  // logged in and when.. like we have for the website." /console has answered that in a browser tab
+  // since v875; this brings the same answer into the console he is already looking at. The site key
+  // never touches the browser — control_app asks server-side with the beacon's own credentials.
+  var _fleetSince = function (iso) {
+    if (!iso) return 'never';
+    var ms = Date.now() - Date.parse(iso);
+    if (!isFinite(ms) || ms < 0) return 'just now';
+    var m = Math.round(ms / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.round(h / 24) + 'd ago';
+  };
+  window._fleetRefresh = async function () {
+    var box = document.getElementById('fleet-list');
+    if (!box) return;
+    try {
+      var r = await fetch('/api/fleet', { cache: 'no-store' });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        // honest-absent: say the fleet could not be reached, never imply "nobody is online"
+        box.innerHTML = '<div class="fleet-none">fleet unreachable — ' + esc((j && j.error) || 'no answer') + '</div>';
+        return;
+      }
+      var rows = (j.online || []).map(function (m) {
+        var nameFor = (m.nickname || '').trim() || m.machine || '?';
+        return '<div class="fleet-row on"><span class="fleet-dot"></span><b>' + esc(nameFor) + '</b>'
+          + '<span class="fleet-meta">' + esc(m.mode === 'live' ? '🔴 ON AIR' : 'idle')
+          + ' · ' + esc(m.ver || '') + ' · ' + esc(_fleetSince(m.t)) + '</span></div>';
+      }).concat((j.offline || []).map(function (m) {
+        var nameFor = (m.nickname || '').trim() || m.machine || '?';
+        return '<div class="fleet-row"><span class="fleet-dot off"></span><b>' + esc(nameFor) + '</b>'
+          + '<span class="fleet-meta">offline · last seen ' + esc(_fleetSince(m.t)) + '</span></div>';
+      }));
+      box.innerHTML = rows.length ? rows.join('')
+        : '<div class="fleet-none">no console has ever checked in</div>';
+    } catch (e) {
+      box.innerHTML = '<div class="fleet-none">fleet unreachable</div>';
+    }
+  };
 
   async function tick() {
     try {

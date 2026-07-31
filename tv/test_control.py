@@ -4451,6 +4451,50 @@ class TestV1493JournalIsolation(unittest.TestCase):
                              "the REAL journal must not be read-stamped or appended to by a test")
 
 
+class TestV1496MachineNickname(unittest.TestCase):
+    """v1496 — naming a machine, and the fleet answer. Konyo: "can it just be more nicknamed? like
+    more UX and friendlier... i want to have a tracker for whose logged in and when."."""
+
+    def test_nickname_round_trips_without_touching_the_identity(self):
+        tmp = tempfile.mkdtemp()
+        old_path = ca.IDENTITY_PATH
+        try:
+            ca.IDENTITY_PATH = os.path.join(tmp, ".tvd_identity.json")
+            born = ca.install_identity()
+            self.assertTrue(born.get("id"), "an install must mint an id")
+            named = ca.set_install_nickname("Konyo's MacBook")
+            self.assertEqual(named["nickname"], "Konyo's MacBook")
+            self.assertEqual(named["id"], born["id"], "naming a machine must NOT change its identity")
+            self.assertEqual(ca.install_identity()["nickname"], "Konyo's MacBook", "and it must persist")
+            # clearing falls back to the hostname, it does not invent one
+            self.assertEqual(ca.set_install_nickname("")["nickname"], "")
+            self.assertEqual(ca.install_identity()["id"], born["id"])
+            # a runaway name can never bloat the beacon
+            self.assertLessEqual(len(ca.set_install_nickname("x" * 200)["nickname"]), 40)
+        finally:
+            ca.IDENTITY_PATH = old_path
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_fleet_presence_is_honest_when_it_cannot_reach_the_site(self):
+        """Offline must read as UNREACHABLE, never as an empty fleet — an empty list would say
+        'no machine is online', which is a claim this function did not make."""
+        import urllib.request as ur
+        saved, savedcache = ur.urlopen, dict(ca._FLEET_PRESENCE_CACHE)
+        try:
+            ca._FLEET_PRESENCE_CACHE["d"] = None
+            def _boom(*a, **k):
+                raise OSError("no network")
+            ur.urlopen = _boom
+            out = ca.fleet_presence(force=True)
+            self.assertIs(out["ok"], False)
+            self.assertTrue(out.get("error"), "it must SAY why, not just return empty lists")
+            self.assertEqual(out["online"], [])
+        finally:
+            ur.urlopen = saved
+            ca._FLEET_PRESENCE_CACHE.clear()
+            ca._FLEET_PRESENCE_CACHE.update(savedcache)
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

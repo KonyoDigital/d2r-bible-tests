@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1495",
+  "ver": "v1496",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1495: Two fullscreen bugs Konyo hit live. The AI READS log printed its lines on top of each other: at rest the ticker is a slim 38-50px bar and .brain centres its lines with overflow hidden, and only the receipts mode ever got a scrollable top-aligned treatment - thoughts, story and log poured many lines into a one-line bar. All three now share that treatment and the strip opens to a readable height while one is showing. Separately the session dossier was capped at 860px, which used 58 percent of his fullscreen and left the reel stranded in the middle of a black screen.",
+  "note": "v1496: Konyo asked for the profile sigil to be friendlier and for a tracker of who is logged in and when - and the tracker already existed: /console has shown every console online since v875, twinned with the site /visits. He had lost the key, so a fresh VISITS_KEY was set. On top: an install can now be NAMED from its own console (double-click the sigil), the name rides the presence beacon so the fleet reads Konyo MacBook instead of konyo-3, and a FLEET panel under advanced answers who is online and when each machine was last seen without leaving the console. CI runners no longer check in - the fleet was listing a GitHub VM in Boydton beside his MacBook.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

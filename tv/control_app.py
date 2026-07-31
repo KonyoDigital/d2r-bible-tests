@@ -1026,7 +1026,13 @@ def _pid_cached():
 
 def _console_beacon(event="hb"):
     """v875 (Konyo: 'a tracker so I know whose console is online — like the site visits') —
-    phone the presence beacon home. Silent on any failure; never blocks a caller."""
+    phone the presence beacon home. Silent on any failure; never blocks a caller.
+
+    v1496 — CI IS NOT A MACHINE OF HIS. Every Routine-I / agent-test job boots this app, so the
+    runners were checking in and the fleet answered "who is online" with a GitHub VM in Boydton
+    sitting next to his MacBook. A tracker that lists strangers is not answering the question."""
+    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS") or os.environ.get("TVD_NO_BEACON"):
+        return
     try:
         import base64 as _b64, socket as _sock
         st = status_payload()
@@ -1036,6 +1042,10 @@ def _console_beacon(event="hb"):
             "mode": st.get("mode"), "event": event,
             "user": os.environ.get("TVD_USER", ""),
             "reads": st.get("readCount") or 0,
+            # v1496 — the name Konyo gave this machine, so the fleet reads "Konyo's MacBook"
+            # instead of konyo-3. The hostname still rides along as the technical fallback.
+            "nickname": (st.get("identity") or {}).get("nickname") or "",
+            "install": ((st.get("identity") or {}).get("id") or "")[:12],
         }).encode("utf-8")
         req = urllib.request.Request(
             "https://bull-4-u.com/api/console", data=body,
@@ -7886,6 +7896,55 @@ def _project_live_ring():
 IDENTITY_PATH = os.path.join(HERE, ".tvd_identity.json")
 
 
+def set_install_nickname(name):
+    """v1496 — name this machine. Konyo: "can it just be more nicknamed? more UX and friendlier."
+
+    The opaque install id stays the identity (two machines can share a hostname and a user, which is
+    exactly why v1465 minted a random id); the nickname is only what a human reads. Stored beside it
+    in the same gitignored file, so it never travels to another PC."""
+    data = install_identity() or {}
+    data["nickname"] = str(name or "").strip()[:40]
+    try:
+        tmp = IDENTITY_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, IDENTITY_PATH)
+    except Exception as e:
+        print(f"⚠ could not save the machine nickname: {e}", flush=True)
+    return data
+
+
+# NOT _FLEET_CACHE — that name belongs to v1418's fleet_origin_status (git origin vs this PC), and
+# reusing it swapped the dict shape out from under it. The suite caught it on the first run.
+_FLEET_PRESENCE_CACHE = {"t": 0.0, "d": None}
+
+
+def fleet_presence(force=False):
+    """v1496 — WHO IS ONLINE, AND WHEN WAS EACH MACHINE LAST HERE.
+
+    The presence data lives in the site's KV (fed by _console_beacon since v875) and the browser must
+    never hold the site key, so the CONSOLE asks for it server-side with the same Basic credentials
+    the beacon already uses. Cached 60s: this is a curiosity panel, not a live wire, and it must never
+    slow the status poll or hammer the site."""
+    now = time.time()
+    if not force and _FLEET_PRESENCE_CACHE["d"] is not None and (now - _FLEET_PRESENCE_CACHE["t"]) < 60:
+        return _FLEET_PRESENCE_CACHE["d"]
+    out = {"ok": False, "online": [], "offline": [], "error": "not fetched"}
+    try:
+        import base64 as _b64
+        req = urllib.request.Request(
+            "https://bull-4-u.com/api/console",
+            headers={"User-Agent": "TVD-Console/1.0",
+                     "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            out = json.loads(r.read().decode("utf-8", "replace"))
+    except Exception as e:
+        out = {"ok": False, "online": [], "offline": [], "error": str(e)[:120]}
+    _FLEET_PRESENCE_CACHE["t"] = now
+    _FLEET_PRESENCE_CACHE["d"] = out
+    return out
+
+
 def install_identity():
     """v1465 — a STABLE, PER-INSTALL identity. Gitignored, so it never travels between PCs.
 
@@ -8035,7 +8094,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1495",
+        "ver": "v1496",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9440,6 +9499,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._json(200, status_payload())
             return
+        if path == "/api/fleet":
+            # v1496 — who is online and when each machine was last here (60s cached, read-only)
+            self._json(200, fleet_presence(force=("force=1" in (self.path or ""))))
+            return
         if path.startswith("/art/"):
             self._serve_art(path[len("/art/") :])
             return
@@ -9842,6 +9905,12 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
+        if path == "/api/identity_name":
+            # v1496 — {"name": "Konyo's MacBook"} · empty string clears back to the hostname
+            data = set_install_nickname(body.get("name"))
+            _console_beacon_async("rename")   # the fleet learns the new name immediately
+            self._json(200, {"ok": True, "identity": data})
+            return
         if path == "/api/g5_toggle":
             # {"mode":"off"|"shadow"|"primary"} or {"on":true} → primary
             if _G5 is None:
