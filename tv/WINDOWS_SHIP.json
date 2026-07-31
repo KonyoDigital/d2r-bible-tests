@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1519",
+  "ver": "v1520",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1519: both lanes wired end to end, read-only; one shared normalizer; cross-frame no longer double-counts cross-reel",
+  "note": "v1520: the sweep proposal, with the gate reasoning beside every grounded and every held name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
