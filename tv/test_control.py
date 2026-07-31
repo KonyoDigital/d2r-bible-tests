@@ -4607,6 +4607,34 @@ class TestV1501ThirdEyeFindsItsBinary(unittest.TestCase):
             self.assertFalse(st["intentBlocked"])
 
 
+class TestV1503FourStatesOnly(unittest.TestCase):
+    """v1503 — Konyo: "standardize to four visual states app-wide... no fifth 'kinda ok purple'."
+
+    Every surface that reports a STATE draws from four tokens and nothing else, so the colour is
+    learned once and holds everywhere. --sim and --info are deliberately NOT states: one marks the
+    PAST/simulation mode, the other marks explanation. This test is the thing that keeps a fifth
+    state from being invented by accident on a busy night."""
+
+    def _ui(self):
+        with open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_four_tokens_exist_and_are_named_for_meaning(self):
+        ui = self._ui()
+        for tok in ("--st-good", "--st-working", "--st-needs", "--st-broken"):
+            self.assertIn(tok + ":", ui, "%s must be defined — it is one of the four states" % tok)
+
+    def test_state_surfaces_draw_from_the_tokens_not_loose_hexes(self):
+        ui = self._ui()
+        for sel in (".eh-organ.eh-ok   .eh-dot", ".eh-organ.eh-bad  .eh-dot"):
+            i = ui.find(sel)
+            self.assertGreater(i, 0, "%s must still exist" % sel)
+            rule = ui[i:i + 160]
+            self.assertIn("var(--st-", rule,
+                          "a state surface must draw from the four-state tokens, not a loose hex — "
+                          "loose hexes are how seven state-ish colours accumulated")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

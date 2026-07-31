@@ -14,6 +14,23 @@
     --danger: #ff7a7a;
     --info: #7ec8ff;
     --sim: #c9a8ff;
+    /* ══ v1503 · THE FOUR STATES, AND ONLY FOUR ═══════════════════════════════════════════════
+       Konyo: "standardize to four visual states app-wide... no fifth 'kinda ok purple' unless it
+       means something unique." Every surface that reports a STATE — capture pill, engine organs,
+       forge chips, vault integrity, G5, fleet — draws from these four and nothing else. A reader
+       should learn the colour once and have it hold everywhere.
+         GOOD    = it worked / it is locked in        (mint)
+         WORKING = it is happening right now          (gold)
+         NEEDS   = it wants you                       (amber)
+         BROKEN  = it is wrong                        (red)
+       --sim and --info are deliberately NOT states: --sim marks the SIMULATION/past mode (a mode,
+       not a health) and --info marks explanation. Anything else claiming to be a fifth state is a
+       bug — that is what the four-state test asserts. */
+    --st-good:    var(--mint);
+    --st-working: var(--gold);
+    --st-needs:   #ffb27a;
+    --st-broken:  var(--danger);
+    --st-idle:    #6f7a6f;   /* absence of state, not a state: nothing is happening yet */
     --text: #ece0c8;
     --muted: #8a7e68;
     --edge: rgba(240,192,96,.20);
@@ -2797,10 +2814,10 @@
   .eh-d-arr { color: var(--gold-dim); opacity: .55; font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); }
   .eh-d-meta { margin-left: auto; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); color: var(--text-dim); }
   /* health pulse — ok green · warn amber · bad red · idle gray (OFF AIR = idle, a sleeping engine is healthy) */
-  .eh-organ.eh-ok   .eh-dot { background: var(--mint); box-shadow: 0 0 8px rgba(143,230,160,.7); animation: ehPulse 2.2s ease-in-out infinite; }
-  .eh-organ.eh-warn .eh-dot { background: #e9b96e; box-shadow: 0 0 8px rgba(233,185,110,.7); animation: ehPulse 1.5s ease-in-out infinite; }
-  .eh-organ.eh-bad  .eh-dot { background: #ff6a5a; box-shadow: 0 0 9px rgba(255,106,90,.8); animation: ehPulse 1s ease-in-out infinite; }
-  .eh-organ.eh-idle { opacity: .72; } .eh-organ.eh-idle .eh-dot { background: #6b6455; }
+  .eh-organ.eh-ok   .eh-dot { background: var(--st-good); box-shadow: 0 0 8px rgba(143,230,160,.7); animation: ehPulse 2.2s ease-in-out infinite; }
+  .eh-organ.eh-warn .eh-dot { background: var(--st-needs); box-shadow: 0 0 8px rgba(233,185,110,.7); animation: ehPulse 1.5s ease-in-out infinite; }
+  .eh-organ.eh-bad  .eh-dot { background: var(--st-broken); box-shadow: 0 0 9px rgba(255,106,90,.8); animation: ehPulse 1s ease-in-out infinite; }
+  .eh-organ.eh-idle { opacity: .72; } .eh-organ.eh-idle .eh-dot { background: var(--st-idle); }
   .eh-organ.eh-ok   { border-color: rgba(143,230,160,.28); }
   .eh-organ.eh-warn { border-color: rgba(233,185,110,.4); }
   .eh-organ.eh-bad  { border-color: rgba(255,106,90,.5); }
@@ -2852,9 +2869,9 @@
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
-  .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); flex: none;
+  .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-good); flex: none;
     box-shadow: 0 0 7px var(--mint); }
-  .fleet-dot.off { background: #43483f; box-shadow: none; }
+  .fleet-dot.off { background: var(--st-idle); box-shadow: none; }
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: nowrap; }
   .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
 

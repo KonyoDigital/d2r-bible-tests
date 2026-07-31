@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1502",
+  "ver": "v1503",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1502: Two agent tests went red on CI after v1499 and stayed green on the Mac, because both are browser-driven and browser tests SKIP on this machine - Chrome dump-dom never answers over loopback here. The fresh-PC test asserted the route says windows, but v1499 replaced the route vocabulary with owner and guest; its promise, that an unclaimed machine starts empty, is unchanged and now reads guest. The four-worlds test drove the router by setting D2R_MACHINE, which v1499 no longer reads, so every key came back as undefined plus the name; it now drives the resolved prefixes exactly as every other surface consumes them. Verified with Playwright, which can do loopback: the 2x2 resolves bare, L, W and WL as expected and a UI preference stays bare in all four.",
+  "note": "v1503: Konyo asked for four visual states app-wide with no fifth kinda-ok purple. The engine bay already had four classes but seven state-ish hexes had accumulated underneath them, so the same meaning wore different colours depending on which surface drew it. The four are now tokens named for meaning - good, working, needs, broken - plus an idle token for the absence of state, and the engine organs and fleet dots draw from them. sim and info stay deliberately outside the set: one marks the past-simulation MODE and the other marks explanation, neither is a health. A gate keeps a fifth state from being invented by accident.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
