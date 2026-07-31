@@ -1,3 +1,16 @@
+// RETIRED at v1499 — SUPERSEDED, NOT BROKEN.
+//
+// This spec proved the v663 mac/windows machine switch routed storage keys. v1499 replaced that
+// premise: the world is now decided by which INSTALL holds the claim, not by the operating system,
+// because the OS answer handed any new Mac — Adi's, a borrowed one — Konyo's world. `d2r_activeMachine`
+// still exists and is still honoured by nothing; the legacy W·/WL· worlds are preserved untouched.
+//
+// Its invariants were not dropped. They live in tests/v1499_install_worlds.spec.ts: full isolation,
+// zero owner seeds in the other world, byte-level survival of his data — plus two the old model could
+// not express (an unclaimed load writes nothing bare; two installs never share a world).
+//
+// Kept as .txt rather than deleted so the original assertions stay readable if the model is revisited.
+
 import { test, expect } from './_net_stub';
 import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');

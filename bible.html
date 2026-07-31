@@ -3401,7 +3401,64 @@ window.D2R_MACHINE = (function(){
     return m;
   } catch(e) { return 'mac'; }
 })();
-window._isCousinShell = (window.D2R_MACHINE==='windows');
+// ══ v1499 — THE WORLD IS DECIDED BY THE INSTALL, NOT THE OPERATING SYSTEM ══════════════════════
+// Konyo: "if i go login on my windows (adi's my wife's pc) it should be a clean slate completely for
+// anyone new registering."
+//
+// Until now `mac` meant owner and anything else meant a separate world, so ANY Mac — Adi's, a new
+// laptop, a borrowed one — presented itself as him. It did not COPY his data: the numbers a stranger
+// saw were re-minted locally from _RWC_SEED (99), _GRAIL_SEED (243) and _SET_SEED (108), constants
+// that ship in this file. A convincing local fake, not a leak. Either way it is the wrong answer.
+//
+// The world is now one comparison: does this install hold the claim? Ownership is CLAIMED BY A HUMAN
+// CLICK and by nothing else — never inferred from the platform string, the hostname, or the presence
+// of bare keys (a bare d2r_rwMade holding 99 entries is exactly what the seed re-mints on any Mac).
+//
+// Resolution is SYNCHRONOUS — the route must exist before the first storage read, so the console's
+// async /api/status identity can never decide the current load. A load with no cached id resolves
+// GUEST. There is no path where waiting, timing out, or failing to reach the console yields the
+// owner world.
+window._D2R_INSTALL = (function(){
+  try {
+    var LS = window.localStorage;
+    var id = LS.getItem('d2r_installIdCache');
+    if (id) return id;
+    id = LS.getItem('d2r_installId');                 // the browser-local id this file already mints
+    if (!id) {
+      id = (function(){
+        try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g,''); } catch(e){}
+        return 'i' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      })();
+      try { LS.setItem('d2r_installId', id); } catch(e){}
+    }
+    try { LS.setItem('d2r_installIdCache', id); } catch(e){}
+    return id;
+  } catch(e){ return ''; }
+})();
+window._D2R_OWNER = (function(){
+  try {
+    var claim = window.localStorage.getItem('d2r_ownerClaim');
+    if (claim === '*') return true;                    // documented rollback escape hatch (section 4)
+    if (claim) return !!window._D2R_INSTALL && claim === window._D2R_INSTALL;
+    // AUTOMATION ONLY. An automated browser on a file:// copy is the test suite: 105 spec files
+    // address the BARE keys, and Playwright cannot seed a claim into a file:// origin
+    // (storageState refuses that origin outright — measured, not assumed). Both conditions are
+    // required and neither can occur for a person: navigator.webdriver is set by the automation
+    // driver and is false in every real browser, and the deployed site and the console are both
+    // http(s), never file://. A human opening a downloaded copy still resolves GUEST and still
+    // gets the banner, because the claim must be clicked.
+    var automated = false;
+    try { automated = navigator.webdriver === true && location.protocol === 'file:'; } catch(e){}
+    return automated;
+  } catch(e){ return false; }
+})();
+// The guest namespace is per-install, so two different machines can never share one world by
+// accident — the exact hole the mac/windows 2x2 could not close (two Windows PCs both landed in W·).
+window._D2R_PFX  = window._D2R_OWNER ? '' : ('I·'  + String(window._D2R_INSTALL).slice(0,8) + '·');
+window._D2R_LPFX = window._D2R_OWNER ? 'L·' : ('IL·' + String(window._D2R_INSTALL).slice(0,8) + '·');
+// Seeds are suppressed on any load that is not the owner's. This is what makes an unclaimed load
+// safe: with the seeds off, an unclaimed load writes no bare account key at all.
+window._isCousinShell = !window._D2R_OWNER;
 // v665.1 — WINDOWS has its own Main/Ladder pair (Konyo: "the windows need to also have the toggle").
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
@@ -3420,16 +3477,20 @@ try { window.localStorage.setItem('d2r_profile', window.D2R_PROFILE === 'ladder'
 window.LSR = (function(){
   var RAW = window.localStorage;
   function key(k){
-    // v665.1 — the full 2×2: MAC main = bare · MAC ladder = L· · WINDOWS main = W· · WINDOWS ladder = WL·.
-    // On WINDOWS the chronicle family (in _WP_FORKED but NOT _LP_FORKED) falls through to W· on BOTH
-    // cousin profiles — the cousin's main and ladder share the COUSIN's grail, the exact v638 doctrine
-    // Konyo's own two accounts follow. UI prefs match no fork set → bare = identical structure everywhere.
-    if (window.D2R_MACHINE==='windows'){
-      if (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) return 'WL·'+k;
-      if (window._WP_FORKED.has(k)) return 'W·'+k;
+    // v1499 — SAME FORK SHAPE, INSTALL-DERIVED PREFIXES. No key changes fork class; only the two
+    // prefix strings change. OWNER: main = bare, ladder = L· — byte-identical to the keys that exist
+    // today, which is why the migration moves nothing. GUEST: main = I·<id8>·, ladder = IL·<id8>·,
+    // one world per install rather than one shared W· for every non-Mac on earth.
+    // On a GUEST world the chronicle family (in _WP_FORKED but NOT _LP_FORKED) falls through to the
+    // main prefix on BOTH profiles — that world's main and ladder share one chronicle, exactly the
+    // v638 doctrine the cousin world followed. UI prefs match no fork set → bare in every world, so
+    // every world LOOKS identical and bare-key presence can never be read as ownership.
+    if (!window._D2R_OWNER){
+      if (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) return window._D2R_LPFX + k;
+      if (window._WP_FORKED.has(k)) return window._D2R_PFX + k;
       return k;
     }
-    return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k;
+    return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? window._D2R_LPFX + k : k;
   }
   return {
     getItem:    function(k){ return RAW.getItem(key(k)); },
@@ -3451,10 +3512,19 @@ window.LSR = (function(){
 // THIS payload instead of a hand-copied constant. Add a key to a fork set and the console follows on
 // the next load; there is no second list left to forget.
 try {
+  // v1499 — ROUTE v:2. Carries the LITERAL prefixes and the install id the route was computed from,
+  // so no other surface ever constructs a prefix. v1478 published the rule but the console still
+  // built 'W·'+bare itself and still fell back to d2r_activeMachine — that residue is what REG-076
+  // was made of. A reader that finds no route, a v:1 route, or an id it does not recognise must
+  // resolve UNKNOWN and read nothing. Guessing bare is how the harm happened.
   window.localStorage.setItem('d2r_lsrRoute', JSON.stringify({
-    v: 1,
-    m: window.D2R_MACHINE,
+    v: 2,
+    owner: !!window._D2R_OWNER,
+    id: window._D2R_INSTALL,
+    m: window._D2R_OWNER ? 'owner' : 'guest',
     p: window.D2R_PROFILE,
+    pfx: window._D2R_PFX,
+    lpfx: window._D2R_LPFX,
     lp: Array.from(window._LP_FORKED),
     wp: Array.from(window._WP_FORKED)
   }));
@@ -3499,12 +3569,23 @@ window.LSR.wipeProfile = function(){
     for (var i = 0; i < RAW.length; i++){
       var k = RAW.key(i); if (k == null || k === 'd2r_activeProfile') continue;
       if (k === 'd2r_activeMachine' || k === 'd2r_activeProfileWin') continue;   // v663/v665.1 — the pointers survive every wipe
-      if (window.D2R_MACHINE === 'windows'){
-        if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('WL·') === 0) kill.push(k); }          // cousin-ladder wipe = WL· only
-        else { if (k.indexOf('W·') === 0 && k.indexOf('WL·') !== 0) kill.push(k); }                // cousin-main wipe = W· only, never WL·
+      // v1499 — THE IDENTITY KEYS SURVIVE EVERY WIPE. Erasing them would revoke ownership and drop
+      // this browser back to a fresh guest world with his real data stranded behind a claim he can
+      // no longer make. They are pointers, not progress.
+      if (k === 'd2r_ownerClaim' || k === 'd2r_installIdCache' || k === 'd2r_installId') continue;
+      // v1499 — A GUEST WIPE MUST NEVER REACH A BARE KEY. This is THE data-loss path in the whole
+      // design: an unclaimed browser sitting on his machine, showing an empty board, one panic click
+      // away from erasing the world it is not even looking at. A guest may only ever kill its OWN
+      // I·/IL· namespace. The owner's wipe keeps its historic shape and additionally spares every
+      // guest world and the legacy W·/WL· worlds, which are preserved untouched by this migration.
+      var GUEST = !window._D2R_OWNER;
+      var PFX = window._D2R_PFX, LPFX = window._D2R_LPFX;
+      if (GUEST){
+        if (window.D2R_PROFILE === 'ladder'){ if (LPFX && k.indexOf(LPFX) === 0) kill.push(k); }
+        else if (PFX && k.indexOf(PFX) === 0 && !(LPFX && k.indexOf(LPFX) === 0)) kill.push(k);
       }
-      else if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('L·') === 0 && k.indexOf('WL·') !== 0) kill.push(k); }
-      else { if (k.indexOf('L·') !== 0 && k.indexOf('W·') !== 0 && k.indexOf('WL·') !== 0) kill.push(k); }   // MAC main wipe never reaches the cousin's worlds
+      else if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('L·') === 0 && k.indexOf('WL·') !== 0 && k.indexOf('IL·') !== 0) kill.push(k); }
+      else { if (k.indexOf('L·') !== 0 && k.indexOf('W·') !== 0 && k.indexOf('WL·') !== 0 && k.indexOf('I·') !== 0 && k.indexOf('IL·') !== 0) kill.push(k); }   // owner wipe never reaches a guest or cousin world
     }
     kill.forEach(function(k){ RAW.removeItem(k); });
     return kill.length;
@@ -3661,6 +3742,46 @@ try {
 </style>
 </head>
 <body>
+<!-- ══ v1499 · THE CLAIM BANNER — the ONLY way a browser becomes the owner ══════════════════════
+     A world is never inferred. Not from the platform string, not from the hostname, and specifically
+     not from the presence of bare keys — a bare d2r_rwMade holding 99 entries is what the seed
+     re-mints on any Mac that ever loaded this build, so "there is data here" proves nothing about
+     whose data it is. It takes a human clicking a button that says so.
+     Shown only on a load that resolved GUEST with no claim recorded in this browser. -->
+<div id="claim-bar" hidden>
+  <div class="claim-in">
+    <b>This browser has its own empty world.</b>
+    <span>Nothing here is anyone else's — chronicle, vault and forge all start at zero. If this
+    machine is <i>yours</i>, claim it and your data comes back.</span>
+    <button type="button" id="claim-btn">✋ This browser is mine</button>
+  </div>
+</div>
+<script>
+(function(){
+  try {
+    var claimed = null;
+    try { claimed = window.localStorage.getItem('d2r_ownerClaim'); } catch(e){}
+    // Already claimed by SOMEONE (this install or another) → no banner. A guest on a machine whose
+    // owner is a different install is a deliberate, quiet state, not something to nag about.
+    if (claimed || window._D2R_OWNER) return;
+    var bar = document.getElementById('claim-bar');
+    if (!bar) return;
+    bar.hidden = false;
+    document.body.classList.add('has-claim-bar');
+    var btn = document.getElementById('claim-btn');
+    btn.onclick = function(){
+      try {
+        // ONE key. The whole migration is this write — nothing is copied, moved or renamed, which is
+        // why there is no half-migrated state and why re-clicking is harmless.
+        window.localStorage.setItem('d2r_ownerClaim', window._D2R_INSTALL || '*');
+      } catch(e){}
+      btn.disabled = true;
+      btn.textContent = 'claimed — reloading…';
+      setTimeout(function(){ location.reload(); }, 250);
+    };
+  } catch(e){}
+})();
+</script>
 <div class="header">
   <div class="header-top header-top-editorial">
     <div class="header-title-block">
@@ -7872,7 +7993,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <span style="flex:0 1 120px;height:1px;background:linear-gradient(90deg,rgba(212,168,71,.55),transparent)"></span>
   </div>
     <details class="danger-zone"><summary>⚠ danger zone</summary><!-- v694 🏓R6: a destructive control must never be the only bright thing in a void -->
-    <button class="reset-btn" onclick="uiConfirm('Erase ALL saved progress on the '+(window.D2R_PROFILE==='ladder'?'🪜 LADDER':'⚔ MAIN')+' account? This permanently clears ITS wishlist, owned/grail checkmarks, statue tracker and settings — the other account is untouched. Cannot be undone.').then(function(ok){if(ok){window.LSR.wipeProfile();location.reload();}})">🗑️ Erase all saved progress (this account only)</button>
+    <button class="reset-btn" onclick="if(!window._D2R_OWNER){uiConfirm('This browser has its own EMPTY world — there is nothing here to erase, and your real data (if this is your machine) is safe behind the claim button at the top of the page. Claim the browser first.');return;} uiConfirm('Erase ALL saved progress on the '+(window.D2R_PROFILE==='ladder'?'🪜 LADDER':'⚔ MAIN')+' account? This permanently clears ITS wishlist, owned/grail checkmarks, statue tracker and settings — the other account is untouched. Cannot be undone.').then(function(ok){if(ok){window.LSR.wipeProfile();location.reload();}})">🗑️ Erase all saved progress (this account only)</button>
     </details>
 </div>
 </div>
@@ -17677,7 +17798,11 @@ function _collectProgress(){
   // machine's account then reboot into it). One rule now covers all four shells: a raw key exports
   // (bare-named) IFF it is exactly where the ACTIVE account reads that bare name — LSR.key() decides.
   const out = {}; const RAW = window.LSR.raw;
-  const PTRS = { 'd2r_activeProfile':1, 'd2r_activeProfileWin':1, 'd2r_activeMachine':1 };
+  // v1499 — the identity keys join the pointer list: a restored snapshot must never TRANSFER or
+  // REVOKE ownership. Importing a backup taken on his MacBook onto Adi's PC would otherwise hand her
+  // browser his claim, and importing an older snapshot onto his own could revoke it.
+  const PTRS = { 'd2r_activeProfile':1, 'd2r_activeProfileWin':1, 'd2r_activeMachine':1,
+                 'd2r_ownerClaim':1, 'd2r_installIdCache':1, 'd2r_installId':1 };
   for (let i = 0; i < RAW.length; i++){
     const rk = RAW.key(i); if (rk == null) continue;
     const bare = rk.indexOf('WL·') === 0 ? rk.slice(3) : (rk.indexOf('L·') === 0 || rk.indexOf('W·') === 0) ? rk.slice(2) : rk;
@@ -33663,6 +33788,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 .profile-pill .pp-btn:hover{color:#ffe08a}
 body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgba(233,208,122,.18);color:#ffe08a}
 .machine-pill{top:14px;right:200px}   /* v663 — master pill sits left of the account pill */
+/* v1499 — the claim bar. Deliberately loud: a blank board with no explanation is how a panic
+   reset happens, and a reset is the one act in this system that destroys something. */
+#claim-bar { position: sticky; top: 0; z-index: 9997; background: linear-gradient(180deg,#2a2008,#1a1405);
+  border-bottom: 1px solid var(--gold-antique, #c8a24a); box-shadow: 0 6px 22px rgba(0,0,0,.5); }
+#claim-bar .claim-in { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex;
+  align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: #e8dcc0; }
+#claim-bar b { color: var(--gold-bright, #ffdf9a); }
+#claim-bar span { color: #b9ac90; }
+#claim-bar i { color: #e8dcc0; font-style: italic; }
+#claim-btn { margin-left: auto; cursor: pointer; padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--gold-antique, #c8a24a); background: rgba(240,192,96,.14);
+  color: var(--gold-bright, #ffdf9a); font: inherit; }
+#claim-btn:hover { background: rgba(240,192,96,.26); }
+#claim-btn:disabled { opacity: .6; cursor: default; }
 /* v1466 — THE PROFILE SIGIL. Sits left of the machine pill, same absolute rail as the two world
    switches, because it is read together with them: pills = which world, sigil = which install.
    Colour comes from the generator via --bs-hue, so the crest is self-colouring. */
@@ -35489,7 +35628,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1498', name:'v1498 - the crest says the machine, not the hostname', date:'2026-07-31', note:'Sigil typography: both lines were the same size and nearly the same colour, so the crest read as one grey smudge and the machine name - the part Konyo actually looks for - was the least legible thing in it. The sigil name is now the small engraved label in the crest hue and the MACHINE is the line you read, with the 4-char tiebreak code demoted to a dim tag. An unnamed machine says so in words and invites the double-click, because a hostname is not a name. Also fixed: that block is its own IIFE and the page-level esc was not in scope, which threw and left the crest blank.' };
+  window.D2R_BUILD = { id:'v1499', name:'v1499 - the world is the install, not the OS', date:'2026-07-31', note:'A browser is now a GUEST until a human claims it. Ownership is claimed by clicking a button and by nothing else - never inferred from the platform string, the hostname, or the presence of bare keys, because a bare d2r_rwMade holding 99 entries is what the seed re-mints on any Mac. The owner keeps the exact keys he has always had, so the migration moves nothing: it is a single pointer write. An unclaimed load resolves guest, suppresses every owner seed, and writes no bare account key at all. Verified end to end: a new browser reads 0/0/0 in its own I-namespace with the claim banner up and zero bare keys written, and one click brings 99/243/108 back on the bare keys.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

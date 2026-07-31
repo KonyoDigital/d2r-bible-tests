@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1498",
+  "ver": "v1499",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1498: Sigil typography: both lines were the same size and nearly the same colour, so the crest read as one grey smudge and the machine name - the part Konyo actually looks for - was the least legible thing in it. The sigil name is now the small engraved label in the crest hue and the MACHINE is the line you read, with the 4-char tiebreak code demoted to a dim tag. An unnamed machine says so in words and invites the double-click, because a hostname is not a name. Also fixed: that block is its own IIFE and the page-level esc was not in scope, which threw and left the crest blank.",
+  "note": "v1499: A browser is now a GUEST until a human claims it. Ownership is claimed by clicking a button and by nothing else - never inferred from the platform string, the hostname, or the presence of bare keys, because a bare d2r_rwMade holding 99 entries is what the seed re-mints on any Mac. The owner keeps the exact keys he has always had, so the migration moves nothing: it is a single pointer write. An unclaimed load resolves guest, suppresses every owner seed, and writes no bare account key at all. Verified end to end: a new browser reads 0/0/0 in its own I-namespace with the claim banner up and zero bare keys written, and one click brings 99/243/108 back on the bare keys.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
