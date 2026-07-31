@@ -8112,7 +8112,7 @@ def chronicle_sweep_state():
         return dict(_CHRON_JOB)
 
 
-def chronicle_sweep_start(hist_dir=None, limit=None, force=False):
+def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None):
     """Kick the background sweep. Refuses to start a second one — two sweeps over the same reels
     would double the spend and produce two proposals that each look like the whole truth."""
     with _CHRON_LOCK:
@@ -8125,9 +8125,88 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False):
         _CHRON_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            "result": None, "error": None, "lanes": lanes})
+    if visit:
+        threading.Thread(target=_chron_visit_run, args=(int(visit),),
+                         daemon=True, name="tvd-chronicle-visit").start()
+        return {"ok": True, "started": True, "lanes": lanes, "visit": int(visit)}
     threading.Thread(target=_chron_sweep_run, args=(hist_dir, limit, force),
                      daemon=True, name="tvd-chronicle-sweep").start()
     return {"ok": True, "started": True, "lanes": lanes}
+
+
+def _chron_visit_run(visit_ts):
+    """v1527 — sweep ONE recorded in-game visit. Cheapest path in the whole arc: no classify stage,
+    and only the distinct pages of a panel he already told us he was reading."""
+    try:
+        import chronicle_retro as _cr
+        import tv_diablo as _tv
+        try:
+            import g5_grok_eyes as _g5
+        except Exception:
+            _g5 = None
+        vis = None
+        for v in (chronicle_visits(limit=40).get("visits") or []):
+            if int(v.get("ts") or 0) == int(visit_ts):
+                vis = v
+                break
+        if not vis:
+            raise RuntimeError("that visit is no longer in the journal")
+        if not vis.get("ledger"):
+            # ★ the refusal. A visit whose ledger was never read cannot be swept: reading it as the
+            # wrong ledger writes set pieces into his grail, and there is no second chance on that.
+            raise RuntimeError("that visit's ledger was never read — it cannot be swept safely")
+        kind = "chronicle-" + vis["ledger"]
+        hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+        paths = []
+        for fid in (vis.get("frames") or []):
+            f = str(fid or "")
+            p = os.path.join(hist, f if f.endswith(".jpg") else f + ".jpg")
+            if os.path.isfile(p):
+                paths.append(p)
+        if not paths:
+            raise RuntimeError("the frames from that visit are no longer on disk")
+        grok_lane = None
+        if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
+            grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
+        read_page = _cr.two_lane_reader(lambda p, k: _tv.claude_chronicle_read(p, k), grok_lane)
+        res = _cr.sweep_frames(paths, kind, read_page)
+        with _CHRON_LOCK:
+            _CHRON_JOB["pagesRead"] = res["pagesRead"]
+        prop = _cr.proposal_from_pages(res["pages"])
+        gate = _cr.strict_gate()
+        applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
+        with _CHRON_LOCK:
+            _CHRON_JOB.update({
+                "running": False, "phase": "done",
+                "result": {
+                    "totals": {"reels": 1, "framesSeen": res["framesGiven"], "classified": 0,
+                               "pagesRead": res["pagesRead"], "skippedReels": 0},
+                    "reels": [{"reel": vis.get("label") or "visit", "runs": 1, "candidates": 1,
+                               "classified": 0, "pages": res["pagesRead"]}],
+                    "wouldAdd": {lg: [{"name": n,
+                                       "why": (gate.verdicts.get(n) or {}).get("why", ""),
+                                       "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
+                                       "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
+                                                 "lane": sg.get("lane") or "claude"}
+                                                for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
+                                      for n in applied[lg]["added"]]
+                                 for lg in ("uniques", "sets")},
+                    "held": [{"ledger": h["ledger"], "name": h["name"],
+                              "why": (gate.verdicts.get(h["name"]) or {}).get("why", ""),
+                              "sightings": len(h["sightings"]),
+                              "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
+                                        "lane": sg.get("lane") or "claude"}
+                                       for sg in (h["sightings"] or [])[:6]]}
+                             for h in applied["held"]],
+                    "refused": prop.get("refused") or [],
+                    "setGroups": prop.get("setGroups") or {},
+                    "lanes": _CHRON_JOB.get("lanes") or [],
+                    "fromVisit": int(visit_ts),
+                },
+            })
+    except Exception as e:
+        with _CHRON_LOCK:
+            _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
 
 
 def _chron_sweep_run(hist_dir, limit, force=False):
@@ -8387,7 +8466,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1526",
+        "ver": "v1527",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10224,7 +10303,8 @@ class Handler(BaseHTTPRequestHandler):
                 _lim = None
             # v1524 — force=true re-reads reels the memory says are done (after a prompt change,
             # a new lane, or plain doubt). Opt-in, because it re-spends the whole sweep.
-            self._json(200, chronicle_sweep_start(limit=_lim, force=bool(body.get("force"))))
+            self._json(200, chronicle_sweep_start(limit=_lim, force=bool(body.get("force")),
+                                                  visit=body.get("visit")))
             return
         if path == "/api/chronicle_forget":
             self._json(200, chronicle_forget_swept())

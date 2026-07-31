@@ -437,6 +437,36 @@ def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
     return _gate
 
 
+def sweep_frames(paths, kind, read_page, sig_of=None, reel_of=None):
+    """v1527 — read a KNOWN set of chronicle frames. No classify, at all.
+
+    This is what the live lane buys. A recorded visit (v1522) already knows two things a blind sweep
+    has to pay a model to discover: that these frames ARE the Chronicle, and WHICH ledger was open.
+    So a visit sweep skips the classify stage entirely and pays only for distinct pages — typically
+    one or two reads for a whole panel he scrolled through.
+
+    Frames are still de-duplicated by appearance: he holds the panel still for seconds at 2fps, and
+    reading the same pixels forty times would cost forty reads for one page.
+    """
+    sig_of = sig_of or jpeg_sig
+    reel_of = reel_of or (lambda p: os.path.basename(os.path.dirname(p)))
+    paths = [p for p in (paths or []) if p]
+    keep, last = [], None
+    for p in paths:
+        sg = sig_of(p)
+        if sg is None:
+            keep.append(p)          # unreadable to US is not unreadable to the model — let it try
+            continue
+        if last is None or sig_diff(last, sg) > 0.06:
+            keep.append(p)
+            last = sg
+    pages = []
+    for p in keep:
+        resp = read_page(p, kind) or {}
+        pages.append({"reel": reel_of(p), "frame": os.path.basename(p), "kind": kind, "resp": resp})
+    return {"framesGiven": len(paths), "pagesRead": len(keep), "classified": 0, "pages": pages}
+
+
 def reel_dirs(hist_dir, newest_first=True):
     """Every sealed reel under a hist root, newest first by default."""
     try:

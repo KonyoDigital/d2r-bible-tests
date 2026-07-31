@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1526",
+  "ver": "v1527",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1526: the live Chronicle visits shown as a receipt above the sweep controls",
+  "note": "v1527: a recorded in-game visit reads with ZERO classifies; an unread ledger is refused outright",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

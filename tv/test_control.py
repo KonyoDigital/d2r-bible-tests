@@ -4934,6 +4934,70 @@ class TestChronicleVisitsOffer(unittest.TestCase):
             self.assertEqual(ca.chronicle_visits()["visits"], [])
 
 
+class TestSweepOneVisit(unittest.TestCase):
+    """v1527 — sweeping a RECORDED visit: the cheapest path in the arc, and the one with the most
+    dangerous shortcut available to it."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._env = {k: os.environ.get(k) for k in ("TV_STUB", "TV_STUB_MANIFEST", "TV_HIST")}
+
+    def tearDown(self):
+        for k, v in self._env.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        shutil.rmtree(self.d, ignore_errors=True)
+        with ca._CHRON_LOCK:
+            ca._CHRON_JOB.update({"running": False, "phase": "idle", "result": None, "error": None})
+
+    def _run(self, visits, timeout=20.0):
+        with mock.patch.object(ca, "chronicle_visits", return_value={"visits": visits}):
+            ca._CHRON_JOB.update({"running": False, "lanes": ["claude"]})
+            ca.chronicle_sweep_start(visit=visits[0]["ts"] if visits else 1)
+            deadline = time.time() + timeout
+            while time.time() < deadline and ca.chronicle_sweep_state()["running"]:
+                time.sleep(0.05)
+        return ca.chronicle_sweep_state()
+
+    def test_A_VISIT_WITH_NO_LEDGER_IS_REFUSED(self):
+        # ★ THE dangerous shortcut. Reading an unknown ledger as "probably uniques" writes set pieces
+        # into his grail, and there is no second chance on that. Refusing costs him one re-open.
+        st = self._run([{"ts": 5, "ledger": "", "n": 3, "frames": ["reel_x/f1"]}])
+        self.assertEqual(st["phase"], "error")
+        self.assertIn("ledger was never read", st["error"])
+
+    def test_a_visit_that_left_the_journal_says_so(self):
+        st = self._run([])
+        self.assertIn("no longer in the journal", st["error"])
+
+    def test_frames_pruned_off_disk_say_so_rather_than_reading_nothing(self):
+        # hist is pruned by the retention governor; "0 found" would be a lie about his chronicle
+        os.environ["TV_HIST"] = self.d
+        st = self._run([{"ts": 7, "ledger": "uniques", "n": 2, "frames": ["reel_gone/f1"]}])
+        self.assertEqual(st["phase"], "error")
+        self.assertIn("no longer on disk", st["error"])
+
+    def test_a_real_visit_reads_its_pages_with_ZERO_classifies(self):
+        try:
+            from PIL import Image
+        except Exception:
+            self.skipTest("Pillow absent")
+        rd = os.path.join(self.d, "reel_s_1")
+        os.makedirs(rd)
+        for n in range(5):
+            Image.new("RGB", (48, 32), (30, 30, 30)).save(os.path.join(rd, "f%d.jpg" % n))
+        man = os.path.join(self.d, "man.json")
+        with open(man, "w", encoding="utf-8") as fh:
+            json.dump({"*#chronicle": {"found": ["Windforce"], "notFound": [], "conf": 0.9}}, fh)
+        os.environ.update({"TV_STUB": "1", "TV_STUB_MANIFEST": man, "TV_HIST": self.d})
+        st = self._run([{"ts": 9, "ledger": "uniques", "n": 5,
+                         "frames": ["reel_s_1/f%d" % n for n in range(5)]}])
+        self.assertEqual(st["phase"], "done", st.get("error"))
+        res = st["result"]
+        self.assertEqual(res["totals"]["classified"], 0)      # ★ the visit already answered that
+        self.assertEqual(res["totals"]["pagesRead"], 1)       # 5 identical frames = ONE page
+        self.assertEqual(res["fromVisit"], 9)
+
+
 class TestBothLanesShareOneNormalizer(unittest.TestCase):
     """v1519 — cross-lane agreement is only evidence if both lanes answer in the same UNITS."""
 

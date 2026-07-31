@@ -150,6 +150,50 @@ class TestClassifyAdapter(unittest.TestCase):
         self.assertEqual(seen, ["f1.jpg"])
 
 
+class TestSweepAKnownVisit(unittest.TestCase):
+    """v1527 — what the live lane BUYS. A recorded visit already knows the two things a blind sweep
+    pays a model to discover: that these frames are the Chronicle, and which ledger was open."""
+
+    def test_a_known_visit_costs_ZERO_classifies(self):
+        # ★ the whole point: the visit already answered the question the classify stage exists for
+        reads = []
+        r = cr.sweep_frames(["/x/reel_s1/f1.jpg", "/x/reel_s1/f2.jpg"], "chronicle-uniques",
+                            lambda p, k: reads.append(p) or {"found": []},
+                            sig_of=lambda p: sig(10 if p.endswith("f1.jpg") else 200))
+        self.assertEqual(r["classified"], 0)
+        self.assertEqual(r["pagesRead"], 2)
+
+    def test_a_held_panel_is_ONE_read_not_forty(self):
+        # he holds the panel still for seconds at 2fps; the same pixels must not cost 40 reads
+        paths = ["/x/reel_s1/f%d.jpg" % i for i in range(40)]
+        r = cr.sweep_frames(paths, "chronicle-sets", lambda p, k: {"found": []},
+                            sig_of=lambda p: sig(60))
+        self.assertEqual(r["framesGiven"], 40)
+        self.assertEqual(r["pagesRead"], 1)
+
+    def test_a_frame_WE_cannot_fingerprint_is_still_offered_to_the_model(self):
+        # unreadable to our thumbnailer is not unreadable to the reader — dropping it would lose a page
+        r = cr.sweep_frames(["/x/reel_s1/a.jpg", "/x/reel_s1/b.jpg"], "chronicle-uniques",
+                            lambda p, k: {"found": []}, sig_of=lambda p: None)
+        self.assertEqual(r["pagesRead"], 2)
+
+    def test_pages_carry_their_reel_and_frame_so_the_evidence_still_works(self):
+        r = cr.sweep_frames(["/x/reel_s_900/f7.jpg"], "chronicle-sets",
+                            lambda p, k: {"ledger": "sets", "found": ["X"]}, sig_of=lambda p: sig(9))
+        self.assertEqual(r["pages"][0]["reel"], "reel_s_900")
+        self.assertEqual(r["pages"][0]["frame"], "f7.jpg")
+
+    def test_the_visit_LEDGER_is_used_and_never_re_guessed(self):
+        kinds = []
+        cr.sweep_frames(["/x/reel_s1/a.jpg"], "chronicle-sets",
+                        lambda p, k: kinds.append(k) or {}, sig_of=lambda p: sig(1))
+        self.assertEqual(kinds, ["chronicle-sets"])
+
+    def test_no_frames_reads_nothing(self):
+        r = cr.sweep_frames([], "chronicle-uniques", lambda p, k: 1 / 0, sig_of=lambda p: sig(1))
+        self.assertEqual(r["pagesRead"], 0)
+
+
 class TestProposal(unittest.TestCase):
     def _pages(self, *resps):
         return [{"reel": "s1", "frame": "f%d.jpg" % i, "kind": "chronicle-uniques", "resp": r}
