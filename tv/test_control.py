@@ -4541,6 +4541,61 @@ class TestV1500BundleVersionIsNotAFifthTruth(unittest.TestCase):
                       "the bundle version must come from the SAME file the other four stamps come from")
 
 
+class TestV1501ThirdEyeFindsItsBinary(unittest.TestCase):
+    """v1501 — THE THIRD EYE WAS SWITCHED ON AND DARK.
+
+    Konyo had G5 set to PRIMARY — his mandated vision lane, grok CLI on the SuperGrok subscription.
+    The console reported cliInstalled=False, mode=off, and calls=0 / errors=0 / last_error=None,
+    because a lane that never ATTEMPTS never records a failure. Meanwhile `which grok` in his shell
+    resolved /Users/konyo/.grok/bin/grok perfectly.
+
+    The cause: `shutil.which` searches the PATH OF THIS PROCESS, and the console runs as a GUI app
+    under launchd/pywebview whose PATH is the bare /usr/bin:/bin:/usr/sbin:/sbin — it never inherits
+    the shell PATH where ~/.grok/bin lives. control_app.py already carries `_find_claude_bin` for
+    exactly this reason; the third eye had no equivalent.
+
+    This test IS the GUI's environment. It fails on any build where the lane can only be found by a
+    friendly PATH."""
+
+    def _g5(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(ca.__file__)))
+        try:
+            import g5_grok_eyes
+            return g5_grok_eyes
+        except Exception:
+            self.skipTest("g5_grok_eyes not present (removable lane)")
+
+    def test_binary_is_found_with_a_launchd_style_PATH(self):
+        g5 = self._g5()
+        real = os.path.expanduser("~/.grok/bin/grok")
+        if not os.path.isfile(real):
+            self.skipTest("no grok CLI installed on this machine — nothing to find")
+        saved = os.environ.get("PATH")
+        try:
+            os.environ["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin"      # exactly what the GUI app gets
+            found = g5._grok_bin()
+            self.assertTrue(found, "the third eye must find its binary without the shell's PATH — "
+                                   "this is the bug that left it switched to PRIMARY and dark")
+            self.assertTrue(os.path.isfile(found))
+        finally:
+            if saved is None:
+                os.environ.pop("PATH", None)
+            else:
+                os.environ["PATH"] = saved
+
+    def test_intent_and_reality_disagreeing_is_reported(self):
+        """A switch set to primary while the mode is off must SAY so — silence is what hid this."""
+        g5 = self._g5()
+        st = g5.status()
+        self.assertIn("intentBlocked", st)
+        self.assertIn("blockedWhy", st)
+        if st.get("switch") != "off" and st.get("mode") == "off":
+            self.assertTrue(st["intentBlocked"], "a blocked lane must declare itself blocked")
+            self.assertTrue(st["blockedWhy"].strip(), "and it must say WHY, in words")
+        else:
+            self.assertFalse(st["intentBlocked"])
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.

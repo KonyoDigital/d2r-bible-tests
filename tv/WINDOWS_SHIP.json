@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1500",
+  "ver": "v1501",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1500: The macOS app bundle was a FIFTH version surface outside the v1489 parity gate: install-tvd.sh hardcoded 787 while the installed apps advertised 1379.3 and the tree was v1499, so re-running the installer would have regressed the advertised version by 600. Both bundles restamped to 1499 in place - they are unsigned, so this costs no re-grant - and the installer now derives the number from tv_diablo.py like every other stamp. A gate proves it can never be typed again.",
+  "note": "v1501: Konyo had G5 Grok Eyes set to PRIMARY - his mandated vision lane - and the console reported cliInstalled false, mode off, calls 0, errors 0, last_error none. Nothing was failing because nothing was ever attempted. The cause: shutil.which searches the PATH of THIS process, and the console runs as a GUI app under launchd whose PATH is the bare usr bin - it never inherits the shell PATH where the grok binary lives. control_app already carried _find_claude_bin for exactly this reason; the third eye had no equivalent. It now hunts env overrides, then PATH, then the known install locations, and the card leads with a warning whenever the switch and the effective mode disagree.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

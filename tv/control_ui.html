@@ -7934,6 +7934,11 @@
       // stats.last_error and then never shown — the card still read "linked · primary" while the
       // work quietly continued on Claude. This is the CONTROL process's own Grok lane (intake); the
       // agent's vision-read failures arrive in the reads/thoughts feed as "⚠ G5 primary … why: …".
+      // v1501 — INTENT vs REALITY leads the card. If he set PRIMARY and the lane is not primary,
+      // that is the first thing he needs to read, not a footnote under budget counters.
+      if (st.intentBlocked) {
+        bits.unshift('⚠ switched to ' + esc(intent).toUpperCase() + ' but NOT running — ' + esc(st.blockedWhy || 'blocked'));
+      }
       var g5s = st.stats || {};
       if (g5s.last_error) bits.push('⚠ last Grok error (intake lane): ' + String(g5s.last_error).slice(0, 90));
       if (g5s.errors) bits.push(g5s.errors + ' error(s) / ' + (g5s.calls || 0) + ' call(s)');

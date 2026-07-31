@@ -78,13 +78,38 @@ _DEFAULT_VISION_PROMPT = (
 
 
 # ── subscription auth (NOT API keys) ───────────────────────────────────────────
+_GROK_CANDIDATES = (
+    "~/.grok/bin/grok",            # the official installer's home — where Konyo's actually is
+    "~/.local/bin/grok",
+    "/opt/homebrew/bin/grok",
+    "/usr/local/bin/grok",
+)
+
+
 def _grok_bin():
-    return (
-        os.environ.get("G5_GROK_BIN")
-        or os.environ.get("TV_GROK_BIN")
-        or shutil.which("grok")
-        or ""
-    ).strip()
+    """v1501 — FIND IT THE WAY WE FIND CLAUDE. `shutil.which` searches the PATH OF THIS PROCESS, and
+    the console runs as a GUI app under launchd/pywebview, whose PATH is the bare
+    /usr/bin:/bin:/usr/sbin:/sbin — it does NOT inherit the shell PATH where ~/.grok/bin lives.
+
+    Measured on Konyo's Mac: `which grok` in his shell resolves /Users/konyo/.grok/bin/grok, while
+    the console reported cliInstalled=False. He had set the switch to PRIMARY — his mandated vision
+    lane — and it had been silently dark ever since, with calls=0, errors=0 and last_error=None,
+    because a lane that never ATTEMPTS never records a failure.
+
+    control_app.py already carries `_find_claude_bin` for exactly this reason on Windows. The third
+    eye gets the same courtesy: env override first, then PATH, then the known install locations."""
+    for env in ("G5_GROK_BIN", "TV_GROK_BIN"):
+        v = (os.environ.get(env) or "").strip()
+        if v and os.path.isfile(os.path.expanduser(v)):
+            return os.path.expanduser(v)
+    hit = shutil.which("grok")
+    if hit and os.path.isfile(hit):
+        return hit
+    for cand in _GROK_CANDIDATES:
+        p = os.path.expanduser(cand)
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+    return ""
 
 
 def _subscription_logged_in():
@@ -332,6 +357,16 @@ def status():
         "power": "grok -p + SuperGrok OIDC login (no API keys)",
         "switch": mode_intent(),
         "mode": mode(),
+        # v1501 — SAY IT WHEN INTENT AND REALITY DISAGREE. Konyo had this switched to PRIMARY while
+        # the effective mode sat at off, and nothing said so: a lane that never attempts never
+        # records an error, so calls/errors/last_error all read clean while the eye was dark. The
+        # switch is a statement of intent; when the system cannot honour it, that is the headline.
+        "intentBlocked": bool(mode_intent() != "off" and mode() == "off"),
+        "blockedWhy": ("" if mode_intent() == "off" or mode() != "off"
+                       else ("the grok CLI is not installed where this app can see it"
+                             if not _grok_bin() else
+                             ("not signed in to SuperGrok — click Authorize" if not _subscription_logged_in()
+                              else "the lane is switched on but the app could not start it"))),
         "on": is_on(),
         "hasKey": can_run,       # UI compat: means "can run", not API key
         "hasSubscription": can_run,
