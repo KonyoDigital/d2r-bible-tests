@@ -2805,7 +2805,9 @@
     min-width: 52px; padding: 4px 8px; border-radius: 8px; background: rgba(255,255,255,.03);
     border: 1px solid rgba(240,192,96,.1); }
   .eh-d-step b { font: var(--fw-bold) var(--fs-md)/1 var(--mono); color: #e8d9a8; }
-  .eh-d-step i { font: var(--fw-medium) 9px/1 var(--mono); letter-spacing: .4px; color: var(--text-dim);
+  /* v1504 — was 9px: the dispatch step labels (seen · queued · fired) were the smallest text in
+     the app, on a strip that reports whether work is moving. Below the declared floor. */
+  .eh-d-step i { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); color: var(--text-dim);
     font-style: normal; text-transform: uppercase; }
   .eh-d-step.hot { border-color: rgba(143,230,160,.45); box-shadow: 0 0 10px rgba(143,230,160,.15); }
   .eh-d-step.hot b { color: #b6f0c0; }
@@ -2895,7 +2897,9 @@
   .g5-eyes-lab { font-size: var(--fs-2xs); letter-spacing: .05em; color: #c4b5e8; font-weight: var(--fw-medium); }
   .g5-seg { display: inline-flex; border: 1px solid rgba(185,162,224,.35); border-radius: 7px; overflow: hidden; }
   .g5-seg-btn { appearance: none; border: 0; background: transparent; color: #9a8fb8;
-    font: inherit; font-size: 10px; letter-spacing: .04em; padding: 5px 8px; cursor: pointer; }
+    /* v1504 — was 10px: these are the G5 mode buttons. The control that decides whether the third
+       eye runs must not be the hardest thing on screen to read. */
+    font: inherit; font-size: var(--fs-2xs); letter-spacing: var(--ls-snug); padding: 5px 8px; cursor: pointer; }
   .g5-seg-btn + .g5-seg-btn { border-left: 1px solid rgba(185,162,224,.25); }
   .g5-seg-btn:hover { background: rgba(185,162,224,.12); color: #e6dcf8; }
   .g5-seg-btn.is-on { background: rgba(185,162,224,.28); color: #f2ebff; font-weight: var(--fw-semibold); }
@@ -2904,7 +2908,9 @@
   .g5-eyes-card[data-mode="primary"] { border-color: rgba(240,192,96,.5); }
   .g5-eyes-card[data-mode="primary"] .g5-seg-btn[data-g5="primary"].is-on {
     background: rgba(240,192,96,.35); color: #fff4d8; }
-  .g5-eyes-hint { margin-top: 5px; font-size: 10px; opacity: .6; line-height: 1.35; }
+  /* v1504 — was 10px at 60% opacity: this line carries the third eye's WHY — "switched to PRIMARY
+     but NOT running" lands here. A warning nobody can read is not a warning. */
+  .g5-eyes-hint { margin-top: 5px; font-size: var(--fs-2xs); opacity: .78; line-height: var(--lh-normal); }
   /* ══ END GROK EYES (G5) ══ */
   /* native <details> disclosures (the ⚙ advanced + raw-answer toggles): the content reveals smoothly */
   details.sig-adv[open] > *:not(summary),

@@ -4635,6 +4635,35 @@ class TestV1503FourStatesOnly(unittest.TestCase):
                           "loose hexes are how seven state-ish colours accumulated")
 
 
+class TestV1504TypeFloor(unittest.TestCase):
+    """v1504 — Konyo's own mandate, still open until now: "nothing important under ~12-13px at
+    fullscreen."
+
+    The :root scale already declares --fs-2xs (13px) as the smallest anything may render, and the
+    visual-lock keeps WEIGHTS honest — but a raw `font-size: 10px` slipped past both, because
+    neither gate looked at size. Three surfaces were under the floor, and two of them were the G5
+    card: the buttons that decide whether the third eye runs, and the line that says WHY it is not
+    running. A warning nobody can read is not a warning."""
+
+    def _ui(self):
+        with open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_nothing_renders_below_the_declared_floor(self):
+        ui = self._ui()
+        bad = re.findall(r"font-size: *(\d+(?:\.\d+)?)px", ui)
+        bad += re.findall(r"font: [^;]*?\b(\d+(?:\.\d+)?)px", ui)
+        under = sorted({float(x) for x in bad if float(x) < 13})
+        self.assertEqual(under, [],
+                         "these raw px sizes render below the 13px fullscreen floor: %s — use a "
+                         "--fs-* token instead, which clamps and scales" % under)
+
+    def test_the_floor_token_still_exists_to_use(self):
+        ui = self._ui()
+        self.assertRegex(ui, r"--fs-2xs:\s*clamp\(13px",
+                         "the floor is the token; if it moves, this test should be the thing that notices")
+
+
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
