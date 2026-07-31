@@ -8094,7 +8094,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1507",
+        "ver": "v1508",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9210,6 +9210,15 @@ class Handler(BaseHTTPRequestHandler):
                     "completedTs": done_ts,
                     "n": r.get("n"), "scene": r.get("scene", ""),
                     "area": r.get("area", ""), "names": r.get("names", []),
+                    # v1508 — THEATRE SPEAKS DIABLO. Konyo: "the readers and diablo language
+                    # obviously in the THEATRE mode also so i can surgically debug whats needed and
+                    # not right." Theatre is where he scrubs frames to find what a reader got wrong,
+                    # and a caption saying `stash` tells him nothing about what the AI was LOOKING at.
+                    # The label comes from _diablo_scene_label — the SAME function the receipts feed
+                    # uses — so the two surfaces can never drift into describing one frame two ways
+                    # (that split is what REG-076 was made of). The raw scene stays on the beat right
+                    # above this, so a bug is still traceable back to the machine word.
+                    "diablo": _diablo_scene_label(r.get("scene", ""), r.get("area", "")),
                     "note": (r.get("note") or "")[:120],
                     "frame": _frel if has else "",
                     "frameId": fid,

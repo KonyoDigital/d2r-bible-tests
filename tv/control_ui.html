@@ -1194,6 +1194,10 @@
     font-size: var(--fs-md); color: var(--text); letter-spacing: var(--ls-tight);   /* v945 — never below readable app scale */
     text-shadow: 0 2px 8px rgba(0,0,0,.9); background: linear-gradient(0deg, rgba(5,4,3,.85), transparent); }
   .th-caption b { color: var(--gold-hi); }
+  /* v1508 — Diablo word leads, system word trails in muted mono (task #8's rule, applied here) */
+  .th-caption .th-dl { color: var(--gold-hi); }
+  .th-caption .th-dl-sys { margin-left: 6px; color: var(--muted); opacity: .75;
+    font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); }
   /* v825 (Konyo: 'the info window opened but i cant close it back') — the drawer COVERED the
      strip buttons including its own ℹ toggle. It now stops above the transport, carries its own
      ✕, and never outranks the controls. */
@@ -5946,6 +5950,14 @@
     // v824 (Grok R9a) — ONE read card: the old accuracy strip carried the same clocks twice.
     // It shrinks to identity + lock + story flags; all timing lives in the AI Read Line.
     var bits = ['read #'+esc(b.n||'?')];
+    // v1508 — WHAT THE AI WAS LOOKING AT, in Diablo words, leading the caption. This is the line he
+    // reads while scrubbing to debug a bad read; "FARMING · Act 1 · Dark Wood" locates the frame in
+    // the game, where `gameplay` located it in an enum. The machine word rides behind it in muted
+    // mono so a wrong label can still be traced to the scene that produced it.
+    if (b.diablo && b.diablo.label) {
+      bits.push('<b class="th-dl">' + esc(b.diablo.label) + '</b>'
+        + (b.scene ? '<span class="th-dl-sys">' + esc(b.scene) + '</span>' : ''));
+    }
     bits.push(lock);
     if (b.intent === 'farmed') bits.push('🛍 farmed');
     if (b.farewell) bits.push('👋 farewell');
