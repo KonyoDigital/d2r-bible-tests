@@ -248,7 +248,10 @@
      small engraved label (uppercase, wide-tracked, in the crest's own hue), and the MACHINE is the
      line you read, a size up in the app's text colour, with the 4-char code demoted to a dim
      monospace tag beside it. Same tokens as everywhere else — no raw weights, no one-off sizes. */
-  .sigil .sg-txt { gap: 2px; }
+  /* v1505 — HARD CAP. A nickname is user text in a fixed header row; without a ceiling, "Konyo's
+     MacBook Pro 16 (work)" would push the tabs off the same way the hint did. Ellipsis, not reflow. */
+  .sigil .sg-txt { gap: 2px; max-width: clamp(120px, 14vw, 240px); }
+  .sigil .sg-sub, .sigil .sg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sigil .sg-name {
     font-size: var(--fs-2xs); font-weight: var(--fw-bold); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--sg-hue, var(--gold)); line-height: var(--lh-none);
@@ -311,7 +314,7 @@
     color: var(--gold-dim);
     font-variant-numeric: tabular-nums;
     text-align: right;
-  }
+   flex: none; white-space: nowrap; }
   .clock .d { font-size: var(--fs-2xs); color: var(--muted); letter-spacing: var(--ls-wider); display: block; margin-top: .3em; }   /* v956 R1 — was .68em, dipped under the floor */
 
   .live-bug {
@@ -2442,7 +2445,15 @@
   button.act.lit.b-off { box-shadow: inset 0 1px 0 rgba(200,187,158,.16), 0 0 14px rgba(200,187,158,.14); filter: none; opacity: .92; animation: none; }
 
   /* 🌙 v774 — THE BIBLE RAIL */
-  .head-tabs { display: flex; gap: 6px; align-items: center; margin-left: 12px; flex: 1 1 auto; }
+  /* v1505 — the row was over-full at 1470pt: the tab strip ran into the clock and the clock into
+     OFF AIR. `flex: 1 1 auto` let the strip claim its content width and push its neighbours out of
+     the row rather than yield. It may now SHRINK (min-width:0 is what actually allows that in a flex
+     child) and scroll its own overflow, so the two things that must never be covered — the clock and
+     the ON/OFF AIR control — keep their space at any width. */
+  .head-tabs { display: flex; gap: 6px; align-items: center; margin-left: 12px;
+    flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .head-tabs::-webkit-scrollbar { display: none; }
+  .head-tabs .ht { flex: none; }
   /* v903 — THE MOTHERBOARD: sessions-home dashboard (left column, row 2 — the rail spans) */
   /* ══ v1464 (SESSIONS R5 · the dash actually columns) — was `1fr 1fr`, but EVERY .zone-banner
      and every .hd-wide card is `grid-column: 1 / -1`, so a spanning element sat between each
@@ -10032,7 +10043,11 @@ body:not(.shell-open) #tvd-eng {
     // another machine; they are not how he thinks about the laptop on his desk. The nickname he
     // sets leads everywhere — here, and in the fleet list — with the hostname kept underneath as
     // the technical fallback, and the opaque install id still the real identity.
-    var friendly = (idt.nickname || '').trim() || (idt.computer || '?');
+    // v1505 — Konyo: "the local shouldn't be shown." A hostname is not a name, and `.local` is the
+    // least human part of it — Bonjour's suffix, meaningless to a reader. Until he names the machine
+    // we show the bare host (konyo-3), never the domain, and the pill invites the naming instead.
+    var host = String(idt.computer || '?').replace(/\.(local|lan|home|internal)$/i, '');
+    var friendly = (idt.nickname || '').trim() || host;
     lastNick = (idt.nickname || '').trim();
     // v1498 — the machine leads, the code follows. An UNNAMED machine says so in words, because
     // "konyo-3.local" is a hostname pretending to be an answer — and the invitation to name it
@@ -10041,12 +10056,15 @@ body:not(.shell-open) #tvd-eng {
     // for it silently threw and left the crest blank. Local escape, no dependency.
     var _e = function (v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
+    // v1505 — the invitation lives in the TOOLTIP, not inline. v1498 appended "· dbl-click to name"
+    // to the pill and raised the line a size; together they widened the sigil enough to shove the
+    // head tabs into the clock and the OFF AIR button. The header is a fixed row — anything that
+    // grows in it takes the space from something else. The name stays legible; the hint moved.
     sb.innerHTML = '<span class="sg-code">' + _e(s.code) + '</span>'
-      + (idt.nickname ? _e(friendly)
-         : '<span class="sg-unnamed">' + _e(friendly) + ' · dbl-click to name</span>');
+      + (idt.nickname ? _e(friendly) : '<span class="sg-unnamed">' + _e(friendly) + '</span>');
     el.title =
       'PROFILE SIGIL — ' + s.name + '  [' + s.code + ']\n' +
-      'this machine : ' + friendly + (idt.nickname ? '  (' + (idt.computer || '?') + ')' : '') + '\n' +
+      'this machine : ' + friendly + (idt.nickname ? '  (' + host + ')' : '') + '\n' +
       'signed in as : ' + (idt.user || '?') + '\n' +
       'world        : ' + w.machine + ' / ' + w.profile + '\n' +
       'install      : ' + String(idt.id).slice(0, 12) + '\n\n' +
