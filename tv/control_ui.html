@@ -225,15 +225,29 @@
     font-weight: var(--fw-bold);
   }
   .sigil .sg-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+  /* v1498 — TYPOGRAPHY. Both lines were the same size, the same case-feel and nearly the same
+     colour, so the crest read as one grey smudge and the machine name — the thing Konyo actually
+     looks for — was the least legible part of it. Now they do different jobs: the SIGIL NAME is the
+     small engraved label (uppercase, wide-tracked, in the crest's own hue), and the MACHINE is the
+     line you read, a size up in the app's text colour, with the 4-char code demoted to a dim
+     monospace tag beside it. Same tokens as everywhere else — no raw weights, no one-off sizes. */
+  .sigil .sg-txt { gap: 2px; }
   .sigil .sg-name {
-    font-size: var(--fs-2xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-wide);
-    text-transform: uppercase; color: var(--sg-hue, var(--gold)); line-height: 1;
-    white-space: nowrap;
+    font-size: var(--fs-2xs); font-weight: var(--fw-bold); letter-spacing: var(--ls-label);
+    text-transform: uppercase; color: var(--sg-hue, var(--gold)); line-height: var(--lh-none);
+    white-space: nowrap; opacity: .92;
   }
   .sigil .sg-sub {
-    font-size: var(--fs-2xs); font-style: normal; color: var(--muted); line-height: 1;
-    letter-spacing: var(--ls-tight); white-space: nowrap;
+    font-size: var(--fs-xs); font-weight: var(--fw-semibold); font-style: normal;
+    color: var(--text); line-height: var(--lh-tight);
+    letter-spacing: var(--ls-snug); white-space: nowrap;
   }
+  /* the 4-char tiebreak code rides quietly beside the machine name, never competing with it */
+  .sigil .sg-sub .sg-code {
+    color: var(--muted); font-weight: var(--fw-medium); letter-spacing: var(--ls-wide);
+    margin-right: 6px; opacity: .8;
+  }
+  .sigil .sg-sub .sg-unnamed { color: var(--muted); font-weight: var(--fw-medium); font-style: italic; }
   @media (max-width: 1080px){ .sigil .sg-txt { display: none; } .sigil { padding: 5px 7px; } }
   .emblem {
     width: clamp(44px, 4vw, 64px);
@@ -9991,8 +10005,17 @@ body:not(.shell-open) #tvd-eng {
     // sets leads everywhere — here, and in the fleet list — with the hostname kept underneath as
     // the technical fallback, and the opaque install id still the real identity.
     var friendly = (idt.nickname || '').trim() || (idt.computer || '?');
-    lastNick = friendly;
-    sb.textContent = s.code + ' · ' + friendly;
+    lastNick = (idt.nickname || '').trim();
+    // v1498 — the machine leads, the code follows. An UNNAMED machine says so in words, because
+    // "konyo-3.local" is a hostname pretending to be an answer — and the invitation to name it
+    // belongs where he is already looking.
+    // NOTE: this block is its own IIFE — the page-level esc() is not in scope here, and reaching
+    // for it silently threw and left the crest blank. Local escape, no dependency.
+    var _e = function (v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
+    sb.innerHTML = '<span class="sg-code">' + _e(s.code) + '</span>'
+      + (idt.nickname ? _e(friendly)
+         : '<span class="sg-unnamed">' + _e(friendly) + ' · dbl-click to name</span>');
     el.title =
       'PROFILE SIGIL — ' + s.name + '  [' + s.code + ']\n' +
       'this machine : ' + friendly + (idt.nickname ? '  (' + (idt.computer || '?') + ')' : '') + '\n' +

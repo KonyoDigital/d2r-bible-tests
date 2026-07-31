@@ -35489,7 +35489,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1497', name:'v1497 - the beacon test owns its environment', date:'2026-07-31', note:'v1496 made the presence beacon skip CI so GitHub runners stop appearing in Konyo fleet, and the test that asserts the beacon SENDS then errored on the runner - it passed on the Mac only because CI is not set there. The test now clears those variables for the sending half and sets CI for the other half, so it proves both sides of the contract on any host.' };
+  window.D2R_BUILD = { id:'v1498', name:'v1498 - the crest says the machine, not the hostname', date:'2026-07-31', note:'Sigil typography: both lines were the same size and nearly the same colour, so the crest read as one grey smudge and the machine name - the part Konyo actually looks for - was the least legible thing in it. The sigil name is now the small engraved label in the crest hue and the MACHINE is the line you read, with the 4-char tiebreak code demoted to a dim tag. An unnamed machine says so in words and invites the double-click, because a hostname is not a name. Also fixed: that block is its own IIFE and the page-level esc was not in scope, which threw and left the crest blank.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

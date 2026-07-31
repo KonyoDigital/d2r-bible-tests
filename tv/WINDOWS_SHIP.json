@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1497",
+  "ver": "v1498",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1497: v1496 made the presence beacon skip CI so GitHub runners stop appearing in Konyo fleet, and the test that asserts the beacon SENDS then errored on the runner - it passed on the Mac only because CI is not set there. The test now clears those variables for the sending half and sets CI for the other half, so it proves both sides of the contract on any host.",
+  "note": "v1498: Sigil typography: both lines were the same size and nearly the same colour, so the crest read as one grey smudge and the machine name - the part Konyo actually looks for - was the least legible thing in it. The sigil name is now the small engraved label in the crest hue and the MACHINE is the line you read, with the 4-char tiebreak code demoted to a dim tag. An unnamed machine says so in words and invites the double-click, because a hostname is not a name. Also fixed: that block is its own IIFE and the page-level esc was not in scope, which threw and left the crest blank.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
