@@ -97,13 +97,44 @@ Tests: `tv/test_chronicle_retro.py` (60), the chronicle classes in `tv/test_cont
 - **A visit whose ledger was never read is never swept.** The cost of refusing is him re-opening a
   panel for a second. The cost of guessing is a corrupted ledger.
 
+## Added after the first write-up (v1529 → v1533)
+
+| version | what |
+|---|---|
+| v1530 | a set the panel calls **COMPLETE** expands to all its pieces — gated the same as any name, expanded by the board (which owns `__allSets()`) |
+| v1531 | **tune the gate for free** — `GET /api/chronicle_gate?floor=&witnesses=` re-runs the gate over the last sweep's evidence and NAMES what loosening would let in and tightening would keep out |
+| v1532 | **the whole chain in one test** — `tv/test_chronicle_chain.py`; every other suite mocks its neighbours, this one walks the seams |
+| v1533 | **the doctor** — `python3 tv/chronicle_doctor.py` says whether the arc is wired on THIS machine |
+
+Two of the three gaps named below are now closed: set-NAME rows (v1530) and
+unmeasurable thresholds (v1531). One remains, and it is the important one.
+
+## ⚠ THE ONE THING STILL UNVERIFIED
+
+**No part of this has ever read a real Chronicle screenshot.** Everything has been exercised against
+real film with stubbed readers, and against real readers with synthetic frames. The machinery is
+verified; the READING is not. The prompts are the least-tested code in the arc.
+
+**It cannot be verified from inside a Claude Code session.** `claude -p` hangs when nested (the agent
+warns about this itself at `tv_diablo.py:5023`), so the one command that would answer it has to be
+run by a human in a BARE terminal:
+
+```bash
+cd ~/d2r_bible_tests
+python3 tv/chronicle_doctor.py          # confirm the arc is wired on this machine (free)
+python3 tv/chronicle_retro.py --cost    # what a sweep would cost, on your own film (free)
+# then, in the console: 📜 CHRONICLE SWEEP → "run it for real"
+```
+
+Until that has run once against footage containing an actual Chronicle panel, treat every claim in
+this document as "the machinery is right", never as "the tally is right".
+
 ## Picking it up
 
 Everything is wired and green. The natural next steps, in value order:
 
-1. **Run it against his real footage** — nothing here has been through a real Chronicle screenshot
-   yet, only real film with stubbed readers. The prompts are the least-tested part of the arc.
-2. **Set-name → pieces.** The sets ledger reads piece names; a Chronicle page grouped under a set
-   NAME with unnamed piece rows is not yet resolvable.
-3. **Tune the gate on real data.** `CONF_FLOOR = 0.55` and `MIN_WITNESSES = 2` are reasoned, not
-   measured. Once a real sweep has run, the HELD list is the evidence for whether they are right.
+1. **Run it against his real footage** — see the section above. This is the only remaining gap, and
+   it is the one that decides whether any of the rest was worth building.
+2. ~~Set-name → pieces~~ — closed in v1530.
+3. ~~Tune the gate on real data~~ — the *tooling* is closed in v1531 (`/api/chronicle_gate`); the
+   tuning itself still needs a real sweep to tune against.
