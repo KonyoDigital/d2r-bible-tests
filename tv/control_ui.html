@@ -2203,6 +2203,31 @@
   body[data-state="off"] .meters .m .v { color: var(--muted); font-weight: var(--fw-semibold); }
   /* v1464 — the old @media(max-width:1000px) 3-across override is GONE: auto-fit/minmax above
      already resolves every width, and leaving a hard 3-col rule would fight it. */
+  /* v1520 — THE PROPOSAL REVIEW. Two columns that mean opposite things, so they are coloured as
+     opposites: what WOULD be added reads in the good state, what is HELD reads in the needs state.
+     Neither is an alarm — a held name is the system being careful, not a failure. */
+  .chron-review { margin-top: 10px; border-top: 1px solid rgba(198,166,100,.16); padding-top: 9px; }
+  .chron-run { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+    font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label);
+    color: var(--text-dim); }
+  .chron-run b { color: #e8d9a8; font-weight: var(--fw-semibold); }
+  .chron-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px; margin-top: 8px; }
+  .chron-c { min-width: 0; }
+  .chron-c-h { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
+    padding-bottom: 5px; margin-bottom: 5px; border-bottom: 1px solid rgba(198,166,100,.14); }
+  .chron-c.add .chron-c-h { color: var(--st-good); }
+  .chron-c.held .chron-c-h { color: var(--st-needs); }
+  .chron-list { max-height: 190px; overflow-y: auto; }
+  .chron-n { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .chron-n b { display: block; font: var(--fw-semibold) var(--fs-xs)/1.35 var(--body);
+    color: #e8d9a8; }
+  .chron-n i { display: block; font-style: normal; font: var(--fw-medium) var(--fs-2xs)/1.45 var(--mono);
+    letter-spacing: var(--ls-label); color: var(--text-dim); }
+  .chron-w { display: inline-block; margin: 3px 4px 0 0; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid rgba(143,230,160,.28); color: var(--st-good);
+    font: var(--fw-semibold) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label); }
+
   /* v1516 — 📜 CHRONICLE SWEEP panel. Reads as a QUOTE, not a result: the big number is a price
      (calls it would make), and the caption says what it is instead of a tally. */
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
@@ -3363,8 +3388,13 @@
           </div>
           <div class="chron-foot">
             <button class="chron-btn" type="button" id="chron-scan">price the sweep</button>
+            <button class="chron-btn chron-go" type="button" id="chron-run" hidden>run it for real</button>
             <span class="chron-note" id="chron-note">reads nothing · costs nothing · changes nothing</span>
           </div>
+          <!-- v1520 — THE REVIEW. Everything below is what he DECIDES from, so it never shows a count
+               without the evidence behind it: every grounded name carries the gate's own sentence,
+               and every held name carries the reason it was held. -->
+          <div class="chron-review" id="chron-review" hidden></div>
         </div>
         <!-- v936 (STORY ARC R2b) — LAST SESSION digest -->
         <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
@@ -10302,15 +10332,119 @@ function escC(s) {
       body.innerHTML = figs + '<div class="chron-reels">' + (reels || '') + '</div>';
       // ★ the claim the panel must never overstate: this pass read nothing and wrote nothing
       if (note) note.textContent = 'priced from your own film · 0 calls spent · nothing written';
+      // v1520 — the real run is offered only AFTER he has seen what it costs
+      var go = document.getElementById('chron-run'); if (go) go.hidden = false;
     } catch (e) {
       body.innerHTML = '<div class="chron-none">could not reach the console</div>';
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'price the sweep again'; }
     }
   };
+  // v1520 — THE REAL SWEEP, and the review he decides from.
+  var _chronPoll = null;
+  function _chronRunRow(st, res) {
+    var t = (res && res.totals) || {};
+    var lanes = (res && res.lanes) || st.lanes || [];
+    return '<div class="chron-run">'
+      + '<b>' + escC(String(t.pagesRead != null ? t.pagesRead : st.pagesRead || 0)) + '</b> pages read'
+      + ' · <b>' + escC(String(t.classified != null ? t.classified : st.classified || 0)) + '</b> frames classified'
+      + ' · <b>' + escC(String(t.reels != null ? t.reels : st.reelsTotal || 0)) + '</b> reels'
+      // ★ WHICH EYES RAN is part of the answer: "claude only" and "both agreed" are different
+      // confidences, and the gate scores them differently
+      + ' · eyes: <b>' + escC(lanes.length ? lanes.join(' + ') : 'none') + '</b>'
+      + ((res && res.refused && res.refused.length)
+          ? ' · <b>' + escC(String(res.refused.length)) + '</b> pages the reader refused' : '')
+      + '</div>';
+  }
+  function _chronNames(rows, held) {
+    if (!rows.length) return '<div class="chron-none">' + (held ? 'nothing held' : 'nothing new to add') + '</div>';
+    return rows.map(function (r) {
+      var ws = held ? '' : (r.witnesses || []).map(function (w) {
+        return '<span class="chron-w">' + escC(w) + '</span>'; }).join('');
+      // the reason is never optional: a name with no sentence is not reviewable
+      return '<div class="chron-n"><b>' + escC(r.name) + '</b><i>' + escC(r.why || '—') + '</i>' + ws + '</div>';
+    }).join('');
+  }
+  function _chronPaint(st) {
+    var body = document.getElementById('chron-body');
+    var rev = document.getElementById('chron-review');
+    var note = document.getElementById('chron-note');
+    var run = document.getElementById('chron-run');
+    if (!rev) return;
+    if (st.running) {
+      var done = st.reelsDone || 0, tot = st.reelsTotal || 0;
+      if (body) body.innerHTML = '<div class="chron-idle">📜 reading — reel ' + escC(String(done)) + ' of '
+        + escC(String(tot)) + ' · ' + escC(String(st.classified || 0)) + ' frames classified · '
+        + escC(String(st.pagesRead || 0)) + ' pages read</div>';
+      if (run) { run.disabled = true; run.textContent = 'sweeping…'; }
+      rev.hidden = true;
+      return;
+    }
+    if (run) { run.disabled = false; run.textContent = 'run it again'; }
+    if (st.phase === 'error') {
+      if (body) body.innerHTML = '<div class="chron-none">the sweep stopped — ' + escC(st.error || 'no reason given') + '</div>';
+      return;
+    }
+    var res = st.result;
+    if (!res) return;
+    var add = (res.wouldAdd || {}), held = res.held || [];
+    var u = add.uniques || [], sset = add.sets || [];
+    rev.hidden = false;
+    rev.innerHTML = _chronRunRow(st, res)
+      + '<div class="chron-cols">'
+      + '<div class="chron-c add"><div class="chron-c-h">🏆 WOULD ADD · Holy Grail (' + u.length + ')</div>'
+      +   '<div class="chron-list">' + _chronNames(u, false) + '</div></div>'
+      + '<div class="chron-c add"><div class="chron-c-h">🧩 WOULD ADD · Set pieces (' + sset.length + ')</div>'
+      +   '<div class="chron-list">' + _chronNames(sset, false) + '</div></div>'
+      + '<div class="chron-c held"><div class="chron-c-h">⚖ HELD (' + held.length + ')</div>'
+      +   '<div class="chron-list">' + _chronNames(held, true) + '</div></div>'
+      + '</div>';
+    // ★ the claim that must stay true until an Apply exists: this changed nothing
+    if (note) note.textContent = 'read-only — nothing has been written to your chronicle';
+  }
+  window._chronPollOnce = async function () {
+    try {
+      var r = await fetch('/api/chronicle_sweep', { cache: 'no-store' });
+      var st = await r.json();
+      _chronPaint(st);
+      if (!st.running && _chronPoll) { clearInterval(_chronPoll); _chronPoll = null; }
+      return st;
+    } catch (e) { return null; }
+  };
+  window._chronRun = async function () {
+    var body = document.getElementById('chron-body');
+    var btn = document.getElementById('chron-run');
+    if (btn) { btn.disabled = true; btn.textContent = 'starting…'; }
+    try {
+      var r = await fetch('/api/chronicle_sweep', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        // honest-absent: name the refusal, never fall silent and let him click again
+        if (body) body.innerHTML = '<div class="chron-none">cannot sweep — ' + escC((j && j.why) || 'no answer') + '</div>';
+        if (btn) { btn.disabled = false; btn.textContent = 'run it for real'; }
+        return;
+      }
+      if (!_chronPoll) _chronPoll = setInterval(function () { window._chronPollOnce(); }, 1500);
+      window._chronPollOnce();
+    } catch (e) {
+      if (body) body.innerHTML = '<div class="chron-none">could not reach the console</div>';
+      if (btn) { btn.disabled = false; btn.textContent = 'run it for real'; }
+    }
+  };
   (function () {
     var b = document.getElementById('chron-scan');
     if (b) b.addEventListener('click', function () { window._chronScan(); });
+    var g = document.getElementById('chron-run');
+    if (g) g.addEventListener('click', function () { window._chronRun(); });
+    // a sweep started before this page loaded (or still running from a reload) must be visible —
+    // otherwise a refresh looks like nothing is happening while reads are being spent
+    window._chronPollOnce().then(function (st) {
+      if (st && (st.running || st.result)) {
+        var rb = document.getElementById('chron-run'); if (rb) rb.hidden = false;
+        if (st.running && !_chronPoll) _chronPoll = setInterval(function () { window._chronPollOnce(); }, 1500);
+      }
+    });
   })();
 
   async function tick() {
