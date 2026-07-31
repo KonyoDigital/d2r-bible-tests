@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1521",
+  "ver": "v1522",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1521: gated names reach the real ledger through the same tick his hand uses: dated, merge-max, undoable as a batch",
+  "note": "v1522: the live visit is recorded free and offered; the read is never auto-fired mid-farm",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

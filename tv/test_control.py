@@ -4852,6 +4852,49 @@ class TestChronicleSweepJob(unittest.TestCase):
         self.assertIn("claude", res["lanes"])
 
 
+class TestChronicleVisitsOffer(unittest.TestCase):
+    """v1522 — the Chronicle panels he opened IN GAME, surfaced as an offer rather than an auto-spend."""
+
+    def setUp(self):
+        self.rows = [
+            {"lane": "chronicle", "kind": "visit", "ts": 100, "ledger": "uniques",
+             "n": 14, "frames": ["a", "b"]},
+            {"lane": "read", "kind": "read", "ts": 150},
+            {"lane": "chronicle", "kind": "visit", "ts": 200, "ledger": "", "n": 3, "frames": ["c"]},
+        ]
+
+    def _visits(self, **kw):
+        with mock.patch.object(ca, "_kai_journal_rows", return_value=self.rows):
+            return ca.chronicle_visits(**kw)
+
+    def test_newest_visit_first(self):
+        v = self._visits()["visits"]
+        self.assertEqual([x["ts"] for x in v], [200, 100])
+
+    def test_each_visit_is_named_in_HIS_words(self):
+        # newest first, so the uniques visit (ts 100) is second
+        labels = [x["label"] for x in self._visits()["visits"]]
+        self.assertIn("Holy Grail", labels[1])
+        self.assertIn("🏆", labels[1])
+
+    def test_a_visit_whose_ledger_was_never_read_says_SO(self):
+        # ★ not a guess, and not silence either — "ledger unread" is the reviewable state
+        v = self._visits()["visits"][0]
+        self.assertEqual(v["ledger"], "")
+        self.assertIn("unread", v["label"])
+
+    def test_non_chronicle_journal_rows_are_ignored(self):
+        self.assertEqual(len(self._visits()["visits"]), 2)
+
+    def test_it_spends_NOTHING(self):
+        # the whole point: recording was free, and looking at what was recorded is free too
+        self.assertEqual(self._visits()["spent"], 0)
+
+    def test_a_journal_that_cannot_be_read_returns_no_visits_not_a_crash(self):
+        with mock.patch.object(ca, "_kai_journal_rows", side_effect=RuntimeError("boom")):
+            self.assertEqual(ca.chronicle_visits()["visits"], [])
+
+
 class TestBothLanesShareOneNormalizer(unittest.TestCase):
     """v1519 — cross-lane agreement is only evidence if both lanes answer in the same UNITS."""
 

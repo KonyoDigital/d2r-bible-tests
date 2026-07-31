@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1521"   # the apply writes once and only forward
+VERSION = "v1522"   # opening the chronicle arms the reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3702,6 +3702,67 @@ def _stash_tab_ocr_path(frame_path, model_tab=""):
         return ""
 
 
+# ══ v1522 — THE LIVE CHRONICLE VISIT ══════════════════════════════════════════════════════════
+# Konyo: "when chronicle/menu is clicked ingame it should automatically know we are about to register
+# and read and analyze the CHRONICLE lists."
+#
+# WHAT IT DOES AND DELIBERATELY DOES NOT DO. It RECORDS the visit — every frame, which ledger, how
+# long — and that costs nothing. It does NOT fire chronicle reads mid-farm: that would spend his
+# subscription reads without asking, in the middle of a run, on frames he is scrolling past. The
+# recorded visit becomes an offer ("📜 a Chronicle visit was captured — 14 frames, Holy Grail ledger"),
+# and the read is the same priced, reviewable, gated sweep the retro lane already uses. Same doctrine
+# everywhere: see the price, then decide.
+#
+# THE STICKY exists because the ledger is read off the panel's tab header, and mid-scroll frames often
+# do not show it. Losing the ledger halfway through a visit would split one visit into an identified
+# half and an unidentified half — so the first confident answer holds for the whole visit, and a
+# CONTRADICTING answer ends it (he switched tabs; that is genuinely a new visit).
+_CHRON_VISIT = {"open": False, "ledger": "", "since": 0, "last": 0, "frames": []}
+_CHRON_VISIT_MAX = 400   # a visit is minutes of frames, not a session; the cap is a memory guard
+
+
+def _chron_visit_step(scene, chron_tab, frame_id=None, ts=None):
+    """Advance the live visit state machine. Returns a CLOSED visit dict when one just ended, else None.
+
+    Closing on the way OUT (rather than reporting continuously) is what makes the visit a single
+    reviewable thing with a real frame count — a half-open visit has no honest number to show."""
+    ts = int(ts or time.time() * 1000)
+    scene = str(scene or "").lower()
+    tab = _norm_chron_tab(chron_tab, "chronicle" if scene == "chronicle" else None)
+
+    def _close():
+        if not _CHRON_VISIT["open"]:
+            return None
+        out = {"ledger": _CHRON_VISIT["ledger"], "since": _CHRON_VISIT["since"],
+               "until": _CHRON_VISIT["last"], "frames": list(_CHRON_VISIT["frames"])}
+        out["n"] = len(out["frames"])
+        _CHRON_VISIT.update({"open": False, "ledger": "", "since": 0, "last": 0, "frames": []})
+        return out
+
+    if scene != "chronicle":
+        return _close()
+    # a CONTRADICTING ledger means he switched tabs — that is a new visit, not a confused one
+    if _CHRON_VISIT["open"] and tab and _CHRON_VISIT["ledger"] and tab != _CHRON_VISIT["ledger"]:
+        closed = _close()
+        _CHRON_VISIT.update({"open": True, "ledger": tab, "since": ts, "last": ts,
+                             "frames": [frame_id] if frame_id else []})
+        return closed
+    if not _CHRON_VISIT["open"]:
+        _CHRON_VISIT.update({"open": True, "ledger": tab, "since": ts, "last": ts, "frames": []})
+    if tab and not _CHRON_VISIT["ledger"]:
+        _CHRON_VISIT["ledger"] = tab          # the sticky: first confident answer holds the visit
+    _CHRON_VISIT["last"] = ts
+    if frame_id and len(_CHRON_VISIT["frames"]) < _CHRON_VISIT_MAX:
+        _CHRON_VISIT["frames"].append(frame_id)
+    return None
+
+
+def chron_visit_open():
+    """Is a Chronicle panel open RIGHT NOW — the 'we are about to register' signal, for the console."""
+    return {"open": bool(_CHRON_VISIT["open"]), "ledger": _CHRON_VISIT["ledger"],
+            "since": _CHRON_VISIT["since"], "frames": len(_CHRON_VISIT["frames"])}
+
+
 def _resolve_stash_tab(scene, model_tab, frame_path=None, ocr_rd=None, ts=None):
     """v946.1 — final stashTab for journal/driver: model + tab-strip OCR + sticky walk.
 
@@ -5950,6 +6011,21 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         ocr_rd=ocr_rd, ts=_cap_for_tab)
     try:
         rd["stashTab"] = stash_tab  # lifecycle / state ring match journal
+    except Exception:
+        pass
+    # v1522 — the live Chronicle visit. Recording is free; the READ is offered, never auto-fired.
+    try:
+        _closed_visit = _chron_visit_step(rd.get("scene"), rd.get("chronicleTab"),
+                                          frame_id=frame_id, ts=_cap_for_tab)
+        if _closed_visit and _closed_visit.get("n"):
+            _lg = _closed_visit.get("ledger") or ""
+            ev("read", "📜 Chronicle visit captured — %d frames%s · ask the console to read it"
+               % (_closed_visit["n"], (" · " + ("Holy Grail" if _lg == "uniques" else "Set pieces"))
+                  if _lg else " · ledger unread"))
+            _journal({"lane": "chronicle", "kind": "visit", "ts": int(time.time() * 1000),
+                     "ledger": _lg, "frames": _closed_visit["frames"][:120],
+                     "n": _closed_visit["n"], "since": _closed_visit["since"],
+                     "until": _closed_visit["until"]})
     except Exception:
         pass
     ocr_set = {_norm_name(x) for x in ((ocr_rd or {}).get("names") or [])}

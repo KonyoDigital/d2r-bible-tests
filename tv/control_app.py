@@ -7937,6 +7937,36 @@ def set_install_nickname(name):
 _FLEET_PRESENCE_CACHE = {"t": 0.0, "d": None}
 
 
+def chronicle_visits(limit=8):
+    """v1522 — the Chronicle panels he has opened IN GAME, newest first.
+
+    The live agent journals a `chronicle/visit` row when a visit ends (recording is free). This turns
+    those rows into an OFFER — "📜 14 frames of the Holy Grail ledger, captured 6 minutes ago" — which
+    the console can price and read on demand. Nothing here reads a page or spends anything.
+    """
+    out = []
+    try:
+        rows = _kai_journal_rows()
+    except Exception:
+        rows = []
+    for r in reversed(rows or []):
+        if r.get("lane") != "chronicle" or r.get("kind") != "visit":
+            continue
+        out.append({
+            "ts": int(r.get("ts") or 0),
+            "ledger": r.get("ledger") or "",
+            "n": int(r.get("n") or 0),
+            "frames": (r.get("frames") or [])[:120],
+            # named the way he would say it; "" stays honest rather than picking a ledger
+            "label": ("🏆 Holy Grail" if r.get("ledger") == "uniques"
+                      else "🧩 Set pieces" if r.get("ledger") == "sets"
+                      else "📜 ledger unread"),
+        })
+        if len(out) >= limit:
+            break
+    return {"ok": True, "visits": out, "spent": 0}
+
+
 def chronicle_scan_cost(hist_dir=None, limit=None):
     """v1516 — what a Chronicle retro sweep would cost, computed on HIS film. No model calls.
 
@@ -8257,7 +8287,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1521",
+        "ver": "v1522",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9680,6 +9710,10 @@ class Handler(BaseHTTPRequestHandler):
             # v1519 — progress + result of the REAL sweep. GET never starts one; starting spends
             # money, and a GET that spends money is a GET a page-refresh can fire twice.
             self._json(200, chronicle_sweep_state())
+            return
+        if path == "/api/chronicle_visits":
+            # v1522 — the Chronicle panels he opened in game, as an offer. Read-only, costs nothing.
+            self._json(200, chronicle_visits())
             return
         if path == "/api/chronicle_scan":
             # v1516 — THE FREE PASS. Groups every sealed reel's frames into still-runs and reports

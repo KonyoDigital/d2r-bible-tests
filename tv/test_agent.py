@@ -3173,5 +3173,87 @@ class TestChronicleScene(unittest.TestCase):
         self.assertEqual(tv.PROMPT_VER, "p1509")
 
 
+class TestLiveChronicleVisit(unittest.TestCase):
+    """v1522 — Konyo: "when chronicle/menu is clicked ingame it should automatically know we are about
+    to register."
+
+    The visit is RECORDED (free) and the read is OFFERED. It deliberately does not fire chronicle
+    reads mid-farm: that would spend his subscription reads without asking, in the middle of a run,
+    on frames he is scrolling past."""
+
+    def setUp(self):
+        tv._CHRON_VISIT.update({"open": False, "ledger": "", "since": 0, "last": 0, "frames": []})
+
+    def step(self, scene, tab="", fid=None, ts=1000):
+        return tv._chron_visit_step(scene, tab, frame_id=fid, ts=ts)
+
+    def test_opening_the_panel_ARMS_a_visit(self):
+        self.assertIsNone(self.step("chronicle", "uniques", "f1", 1000))
+        st = tv.chron_visit_open()
+        self.assertTrue(st["open"])
+        self.assertEqual(st["ledger"], "uniques")
+
+    def test_the_visit_CLOSES_when_he_leaves_and_carries_its_frames(self):
+        # closing on the way OUT is what makes a visit one reviewable thing with a real frame count
+        for i, f in enumerate(("f1", "f2", "f3")):
+            self.step("chronicle", "uniques", f, 1000 + i)
+        closed = self.step("gameplay", "", "f4", 1100)
+        self.assertEqual(closed["n"], 3)
+        self.assertEqual(closed["frames"], ["f1", "f2", "f3"])
+        self.assertEqual(closed["ledger"], "uniques")
+        self.assertFalse(tv.chron_visit_open()["open"])
+
+    def test_the_ledger_STICKS_across_frames_that_lost_the_tab(self):
+        # ★ the tab header is off-screen on most mid-scroll frames. Losing the ledger halfway would
+        # split one visit into an identified half and an unidentified half.
+        self.step("chronicle", "sets", "f1", 1000)
+        self.step("chronicle", "", "f2", 1001)
+        self.step("chronicle", "", "f3", 1002)
+        closed = self.step("town", "", None, 1003)
+        self.assertEqual(closed["ledger"], "sets")
+        self.assertEqual(closed["n"], 3)
+
+    def test_a_ledger_the_reader_never_named_stays_EMPTY(self):
+        self.step("chronicle", "", "f1", 1000)
+        closed = self.step("gameplay", "", None, 1001)
+        self.assertEqual(closed["ledger"], "", "an unread ledger must not be guessed at the visit level either")
+
+    def test_SWITCHING_TABS_ends_one_visit_and_starts_another(self):
+        # a contradicting ledger is him switching tabs — genuinely a new visit, not a confused one
+        self.step("chronicle", "uniques", "f1", 1000)
+        self.step("chronicle", "uniques", "f2", 1001)
+        closed = self.step("chronicle", "sets", "f3", 1002)
+        self.assertIsNotNone(closed)
+        self.assertEqual(closed["ledger"], "uniques")
+        self.assertEqual(closed["n"], 2)
+        now = tv.chron_visit_open()
+        self.assertTrue(now["open"])
+        self.assertEqual(now["ledger"], "sets")
+
+    def test_a_visit_with_no_frames_reports_nothing(self):
+        self.step("chronicle", "uniques", None, 1000)
+        closed = self.step("gameplay", "", None, 1001)
+        self.assertEqual(closed["n"], 0)   # the caller checks n before announcing anything
+
+    def test_leaving_when_nothing_was_open_is_a_no_op(self):
+        self.assertIsNone(self.step("gameplay", "", "f1", 1000))
+
+    def test_the_frame_list_is_CAPPED(self):
+        # a visit is minutes of frames, not a session — the cap is a memory guard
+        for i in range(tv._CHRON_VISIT_MAX + 50):
+            self.step("chronicle", "uniques", "f%d" % i, 1000 + i)
+        closed = self.step("town", "", None, 9999)
+        self.assertEqual(closed["n"], tv._CHRON_VISIT_MAX)
+
+    def test_the_live_loop_never_fires_a_chronicle_READ_by_itself(self):
+        # ★ the money question: recording is free, reading is offered. If this ever changes, a farm
+        # session could silently spend a subscription budget on frames he scrolled past.
+        src = open(os.path.join(os.path.dirname(tv.__file__), "tv_diablo.py"), encoding="utf-8").read()
+        seam = src[src.index("_chron_visit_step(rd.get"):]
+        seam = seam[:seam.index("except Exception")]
+        self.assertNotIn("claude_chronicle_read", seam)
+        self.assertIn("ask the console to read it", seam)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
