@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1511"   # retro sweep engine
+VERSION = "v1512"   # the reader keeps its ledger
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3588,6 +3588,24 @@ def _norm_stash_tab(raw, scene=None):
     return _STASH_TAB_ALIASES.get(lo, "") if lo in _STASH_TAB_ALIASES else ""
 
 
+def _norm_chron_tab(raw, scene=None):
+    """v1512 — WHICH CHRONICLE LEDGER is on screen: "uniques" | "sets" | "".
+
+    Only meaningful when scene=chronicle, and deliberately STRICT: anything the reader was not sure
+    about comes back "" rather than a guess. The two ledgers are two different stores (d2r_foundLog
+    vs d2r_setPieces) — an unknown ledger just costs a re-read, a WRONG one writes set pieces into
+    his grail. So the fuzzy matching that serves the stash tabs well would be the wrong instinct here.
+    """
+    if scene is not None and scene != "chronicle":
+        return ""
+    lo = str(raw or "").strip().lower()
+    if lo in ("uniques", "unique", "holy grail", "grail"):
+        return "uniques"
+    if lo in ("sets", "set", "set pieces", "setpieces"):
+        return "sets"
+    return ""
+
+
 # v946.1 — STASH TAB IDENTITY (live farm: gems/materials never journaled when model said only
 # "shared"/empty). Tab-strip OCR + sticky walk so tally tabs stick for driver/KAI time-map.
 _STASH_TAB_STICKY = {"open": False, "tab": "", "ts": 0}
@@ -3814,6 +3832,7 @@ def _parse_read(out):
         conf = None
         _audit["dropped"].append({"field": "conf", "from": str(_conf_raw)[:12], "why": "not-a-number"})
     stash_tab = _norm_stash_tab(j.get("stashTab") or j.get("stash_tab"), scene)
+    chron_tab = _norm_chron_tab(j.get("chronicleTab") or j.get("chronicle_tab"), scene)
     discovered = [str(x).strip() for x in (j.get("discovered") or []) if str(x).strip()][:12]
     names_loc = {}
     try:
@@ -3847,6 +3866,7 @@ def _parse_read(out):
         sockets = {}
     return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names,
             "tz": tz, "conf": conf, "stashTab": stash_tab,
+            "chronicleTab": chron_tab,   # v1512 — WHICH ledger; "" when unsure, never a guess
             "discovered": discovered,
             "names_loc": names_loc,
             "sockets": sockets,
@@ -4554,6 +4574,7 @@ def claude_read(path, worker=None, out_jpg=None):
                 "names": rd.get("names", []), "tz": rd.get("tz", []),
                 "conf": rd.get("conf", 1.0), "intent": _intent_for(scene),
                 "stashTab": _norm_stash_tab(rd.get("stashTab") or rd.get("stash_tab"), scene),
+                "chronicleTab": _norm_chron_tab(rd.get("chronicleTab") or rd.get("chronicle_tab"), scene),
                 "model": "stub", "mode": "stub", "escalated": False, "ms": 0}
     ap = _readable_frame(os.path.abspath(path), out_jpg)
     EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None,

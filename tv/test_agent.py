@@ -3150,6 +3150,24 @@ class TestChronicleScene(unittest.TestCase):
         self.assertEqual(len(line), 1)
         self.assertIn('"chronicle"', line[0])
 
+    def test_the_ledger_SURVIVES_the_parse(self):
+        # v1512 — v1509 taught the PROMPT the field; the parser dropped it on the floor, so the
+        # classifier could say "chronicle" and never say WHICH. A scene without its ledger cannot
+        # drive a read.
+        r = tv._parse_read('{"area":"","scene":"chronicle","chronicleTab":"sets","names":[],"conf":0.8}')
+        self.assertEqual(r["scene"], "chronicle")
+        self.assertEqual(r["chronicleTab"], "sets")
+
+    def test_an_unsure_ledger_stays_EMPTY_never_a_guess(self):
+        for raw in ('"chronicleTab":""', '"chronicleTab":"who knows"', ''):
+            body = '{"scene":"chronicle","names":[]' + (',' + raw if raw else '') + '}'
+            self.assertEqual(tv._parse_read(body)["chronicleTab"], "",
+                             "an unknown ledger costs a re-read; a wrong one corrupts the other store")
+
+    def test_a_ledger_claimed_on_a_NON_chronicle_scene_is_dropped(self):
+        r = tv._parse_read('{"scene":"stash","chronicleTab":"uniques","names":[]}')
+        self.assertEqual(r["chronicleTab"], "")
+
     def test_prompt_version_moved_with_the_prompt(self):
         # PROMPT_VER gates cache reuse — a changed prompt on an old version replays stale reads
         self.assertEqual(tv.PROMPT_VER, "p1509")

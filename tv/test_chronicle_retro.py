@@ -112,6 +112,44 @@ class TestReadReel(unittest.TestCase):
         self.assertEqual(r["note"], "no-index")
 
 
+class TestClassifyAdapter(unittest.TestCase):
+    """v1512 — the seam between the reader and the sweep."""
+
+    def test_the_two_ledgers_map_to_their_own_kinds(self):
+        self.assertEqual(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "uniques"}),
+                         "chronicle-uniques")
+        self.assertEqual(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "sets"}),
+                         "chronicle-sets")
+
+    def test_a_chronicle_page_with_an_UNKNOWN_ledger_is_not_read_at_all(self):
+        # ★ the refusal that matters. Guessing "uniques" (bigger ledger, likelier screen) does not
+        # cost a re-read — it writes set pieces into his grail.
+        self.assertIsNone(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": ""}))
+        self.assertIsNone(cr.chronicle_kind({"scene": "chronicle"}))
+
+    def test_every_other_scene_is_none(self):
+        for sc in ("stash", "gameplay", "loot", "inventory", "transition", "town"):
+            self.assertIsNone(cr.chronicle_kind({"scene": sc, "chronicleTab": "uniques"}),
+                              sc + " must never classify as a chronicle")
+
+    def test_junk_in_never_becomes_a_kind_out(self):
+        for bad in (None, "chronicle", 42, [], {}):
+            self.assertIsNone(cr.chronicle_kind(bad))
+
+    def test_a_reader_that_throws_is_a_miss_not_a_crash(self):
+        def boom(p):
+            raise RuntimeError("model died")
+        self.assertIsNone(cr.classifier(boom)("f.jpg"))
+
+    def test_EVERY_probe_is_observable_including_the_misses(self):
+        # "11 runs probed, 2 were Chronicle" is honest; reporting only the hits looks like the sweep
+        # found everything there was to find
+        seen = []
+        c = cr.classifier(lambda p: {"scene": "gameplay"}, on_seen=lambda p, r: seen.append(p))
+        self.assertIsNone(c("f1.jpg"))
+        self.assertEqual(seen, ["f1.jpg"])
+
+
 class TestProposal(unittest.TestCase):
     def _pages(self, *resps):
         return [{"reel": "s1", "frame": "f%d.jpg" % i, "kind": "chronicle-uniques", "resp": r}

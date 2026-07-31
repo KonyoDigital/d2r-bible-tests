@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1511",
+  "ver": "v1512",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1511: chronicle retro sweep: read-only until Apply, merge-max, pay-for-runs (394 real frames → 11 classifies)",
+  "note": "v1512: chronicleTab survives the parse; classify adapter refuses an unknown ledger rather than guessing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

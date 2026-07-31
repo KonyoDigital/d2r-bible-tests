@@ -158,6 +158,49 @@ def _distinct(names, sig_of, max_diff=0.06):
     return out
 
 
+def chronicle_kind(read):
+    """v1512 — a reader's answer → the intake kind to read that page with, or None.
+
+    read: the dict tv_diablo.claude_read returns ({"scene": ..., "chronicleTab": ..., ...}).
+
+    THE REFUSAL THAT MATTERS: scene=chronicle with an EMPTY tab returns None. It is tempting to guess
+    uniques — it is the bigger ledger and the likelier screen — but a guess here does not cost a
+    re-read, it writes set pieces into his grail. A Chronicle page the reader could not identify is
+    a page we do not read, and the sweep says so rather than picking a side.
+    """
+    if not isinstance(read, dict):
+        return None
+    if str(read.get("scene") or "").lower() != "chronicle":
+        return None
+    tab = str(read.get("chronicleTab") or "").lower()
+    if tab == "uniques":
+        return "chronicle-uniques"
+    if tab == "sets":
+        return "chronicle-sets"
+    return None
+
+
+def classifier(claude_read, on_seen=None):
+    """Wrap a reader into the `classify` callable read_reel() wants.
+
+    on_seen(path, read) — optional observer, so a caller can journal EVERY probe including the ones
+    that came back "not a chronicle". A sweep that only reports its hits looks like it found
+    everything there was; "11 runs probed, 2 were Chronicle" is the honest shape.
+    """
+    def _classify(path):
+        try:
+            read = claude_read(path)
+        except Exception:
+            return None
+        if on_seen:
+            try:
+                on_seen(path, read)
+            except Exception:
+                pass
+        return chronicle_kind(read)
+    return _classify
+
+
 def proposal_from_pages(pages):
     """Fold read pages into ONE proposal per ledger, keeping every name's evidence.
 
