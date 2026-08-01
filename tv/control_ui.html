@@ -2331,6 +2331,21 @@
   .chron-reels .cr { display: flex; gap: 8px; justify-content: space-between; }
   .chron-reels .cr b { color: #cbbf9a; font-weight: var(--fw-semibold); }
   .chron-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  /* v1550 — the gate tuner. Sizes come from the --fs-* scale: the console enforces a 13px
+     fullscreen floor (TestV1504TypeFloor) because it is watched on a TV, not a laptop. */
+  .chron-tune { margin-top: 8px; padding: 9px 11px; border-radius: 8px;
+    border: 1px solid rgba(181,140,255,.28); background: rgba(181,140,255,.05); }
+  .ct-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ct-lab { font-size: var(--fs-2xs); opacity: .82; white-space: nowrap; }
+  .ct-lab b { opacity: 1; }
+  .ct-row input[type=range] { flex: 1 1 120px; min-width: 90px; }
+  .ct-out { margin-top: 7px; font-size: var(--fs-2xs); line-height: 1.55; }
+  .ct-now b { color: #c9a6ff; }
+  .ct-gain { color: #8fe0a0; margin-top: 4px; }
+  .ct-lose { color: #e0a860; margin-top: 4px; }
+  .ct-same, .ct-idle, .ct-none { opacity: .72; margin-top: 4px; }
+  .ct-note { opacity: .6; margin-top: 6px; }
+  .chron-btn.chron-arm { border-color: rgba(224,168,96,.6); color: #e0a860; }
   .chron-btn { cursor: pointer; padding: 6px 12px; border-radius: 7px;
     border: 1px solid rgba(198,166,100,.3); background: rgba(198,166,100,.08); color: #e8d9a8;
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); }
@@ -3504,7 +3519,27 @@
             <button class="chron-btn" type="button" id="chron-scan">price the sweep</button>
             <button class="chron-btn chron-go" type="button" id="chron-run" hidden>run it for real</button>
             <button class="chron-btn chron-apply" type="button" id="chron-apply" hidden>register them ✓</button>
+            <!-- v1550 — TWO TOOLS THAT EXISTED WITH NO TAP.
+                 An audit of every /api/ route against control_ui.html found four with no consumer.
+                 Two are the tvd CLI's. These two were nobody's:
+                   /api/chronicle_gate   (v1531) re-runs the gate over the last sweep at different
+                     thresholds, for free, and NAMES what loosening would let in and tightening would
+                     keep out. CHRONICLE_ARC.md lists tuning the gate as the #1 remaining job and the
+                     tool for it had no button.
+                   /api/chronicle_forget (v1524) clears the sweep memory. Its own docstring says
+                     "an optimisation he cannot clear is a cage" — and it was one. -->
+            <button class="chron-btn" type="button" id="chron-tune" hidden>⚖ tune the gate</button>
+            <button class="chron-btn" type="button" id="chron-forget">↺ forget what is swept</button>
             <span class="chron-note" id="chron-note">reads nothing · costs nothing · changes nothing</span>
+          </div>
+          <div class="chron-tune" id="chron-tune-panel" hidden>
+            <div class="ct-row">
+              <label class="ct-lab">confidence floor <b id="ct-floor-v">0.55</b></label>
+              <input type="range" id="ct-floor" min="0" max="1" step="0.05" value="0.55">
+              <label class="ct-lab">witnesses <b id="ct-wit-v">2</b></label>
+              <input type="range" id="ct-wit" min="1" max="4" step="1" value="2">
+            </div>
+            <div class="ct-out" id="ct-out"></div>
           </div>
           <!-- v1537 — 🔍 THE READ CHAIN. Konyo's cousin did an ON AIR and his rune stash never got
              read; "the readers aren't working" turned out to be five different possible failures
@@ -10652,6 +10687,100 @@ function escC(s) {
     else _tzWire();
   } catch (e) {}
 
+  /* ── v1550 — ⚖ TUNE THE GATE, and ↺ FORGET WHAT IS SWEPT ─────────────────────────────────────
+     Two routes that existed with no caller. The gate tuner re-gates the LAST sweep's evidence at
+     different thresholds — it never re-reads a frame, so it costs nothing — and answers the only
+     question worth asking about a threshold: which NAMES would this let in, and which would it keep
+     out. Counts cannot be argued with; names can.
+
+     `forget` clears the sweep memory. It is the cheapest destructive action in the arc (the cost of
+     being wrong is re-reading reels he has already paid for once), so it confirms in place rather
+     than firing on the first tap — but it does not hide behind a modal either.
+     ──────────────────────────────────────────────────────────────────────────────────────────── */
+  async function _chronTune() {
+    var f = document.getElementById('ct-floor');
+    var w = document.getElementById('ct-wit');
+    var out = document.getElementById('ct-out');
+    if (!f || !w || !out) return;
+    document.getElementById('ct-floor-v').textContent = Number(f.value).toFixed(2);
+    document.getElementById('ct-wit-v').textContent = w.value;
+    out.innerHTML = '<span class="ct-idle">re-gating the last sweep…</span>';
+    try {
+      var r = await fetch('/api/chronicle_gate?floor=' + encodeURIComponent(f.value)
+        + '&witnesses=' + encodeURIComponent(w.value), { cache: 'no-store' });
+      var d = await r.json();
+      if (!d || !d.ok) {
+        out.innerHTML = '<span class="ct-none">' + escC((d && d.why) || 'nothing to re-gate') + '</span>';
+        return;
+      }
+      var gain = d.wouldGainNames || [], lose = d.wouldLoseNames || [];
+      out.innerHTML =
+        '<div class="ct-now">now <b>' + d.current.grounded + '</b> grounded · ' + d.current.held + ' held'
+        + ' &nbsp;→&nbsp; at ' + Number(d.asked.confFloor).toFixed(2) + ' / ' + d.asked.minWitnesses
+        + ' witness(es): <b>' + d.asked.grounded + '</b> grounded · ' + d.asked.held + ' held</div>'
+        + (gain.length
+          ? '<div class="ct-gain">＋ would let IN (' + gain.length + '): '
+            + gain.slice(0, 20).map(escC).join(' · ')
+            + (gain.length > 20 ? ' …' : '') + '</div>' : '')
+        + (lose.length
+          ? '<div class="ct-lose">－ would keep OUT (' + lose.length + '): '
+            + lose.slice(0, 20).map(escC).join(' · ')
+            + (lose.length > 20 ? ' …' : '') + '</div>' : '')
+        + (!gain.length && !lose.length
+          ? '<div class="ct-same">no change — the same names ground either way</div>' : '')
+        + '<div class="ct-note">re-gates the evidence already read · no frame is read again · '
+        + 'nothing is written</div>';
+    } catch (e) {
+      out.innerHTML = '<span class="ct-none">could not reach the console — ' + escC(String(e).slice(0, 90)) + '</span>';
+    }
+  }
+
+  function _chronToolsWire() {
+    var tune = document.getElementById('chron-tune');
+    var panel = document.getElementById('chron-tune-panel');
+    if (tune && panel) {
+      tune.onclick = function () {
+        panel.hidden = !panel.hidden;
+        if (!panel.hidden) _chronTune();
+      };
+    }
+    ['ct-floor', 'ct-wit'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.oninput = _chronTune;
+    });
+    var f = document.getElementById('chron-forget');
+    if (f) {
+      var armed = false, t = null;
+      f.onclick = async function () {
+        if (!armed) {
+          // confirm IN PLACE — cheap to undo (he re-reads reels he already paid for once), so it
+          // does not deserve a modal, but it does deserve a second tap
+          armed = true;
+          f.textContent = '↺ sure? this re-reads every reel';
+          f.classList.add('chron-arm');
+          if (t) clearTimeout(t);
+          t = setTimeout(function () { armed = false; f.textContent = '↺ forget what is swept'; f.classList.remove('chron-arm'); }, 5000);
+          return;
+        }
+        armed = false;
+        if (t) clearTimeout(t);
+        f.classList.remove('chron-arm');
+        f.textContent = 'forgetting…';
+        try {
+          await fetch('/api/chronicle_forget', { method: 'POST' });
+          f.textContent = '↺ forgotten — the next sweep reads everything';
+        } catch (e) {
+          f.textContent = '↺ could not reach the console';
+        }
+        setTimeout(function () { f.textContent = '↺ forget what is swept'; }, 4000);
+      };
+    }
+  }
+  try {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _chronToolsWire);
+    else _chronToolsWire();
+  } catch (e) {}
+
   function _chronPaint(st) {
     var body = document.getElementById('chron-body');
     var rev = document.getElementById('chron-review');
@@ -10673,6 +10802,10 @@ function escC(s) {
       return;
     }
     var res = st.result;
+    // v1550 — the gate tuner appears only once there IS evidence to re-gate. A control that can only
+    // answer "no sweep in memory" is a dead button, and a dead button teaches him to stop pressing.
+    var tuneBtn = document.getElementById('chron-tune');
+    if (tuneBtn) tuneBtn.hidden = !res;
     if (!res) return;
     var add = (res.wouldAdd || {}), held = res.held || [];
     var u = add.uniques || [], sset = add.sets || [];
