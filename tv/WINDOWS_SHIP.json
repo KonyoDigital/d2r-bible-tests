@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1539",
+  "ver": "v1541",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1539: REG-087: applying a read deleted a set piece you already owned, because typeof on a cross-scope name never throws",
+  "note": "v1541: six ways to find nothing and only one is the reader; the cost pass names the frames it would classify",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -2290,6 +2290,15 @@
   /* v1516 — 📜 CHRONICLE SWEEP panel. Reads as a QUOTE, not a result: the big number is a price
      (calls it would make), and the caption says what it is instead of a tally. */
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  /* v1541 — the verdict on an empty sweep. Deliberately NOT red for the ok states: "no Chronicle
+     appeared in your footage" is information, and dressing it as a fault sends him debugging a
+     machine that is working. Only read-nothing — the one case that IS the reader — goes amber. */
+  .chron-verdict { flex: 1 1 100%; padding: 10px 12px; border-radius: 8px; line-height: 1.55;
+    border: 1px solid rgba(181,140,255,.32); background: rgba(181,140,255,.06); }
+  .chron-verdict.bad { border-color: rgba(224,168,96,.45); background: rgba(224,168,96,.08); }
+  .chron-verdict .cv-say { color: #d8cbe8; }
+  .chron-verdict.bad .cv-say { color: #e0a860; }
+  .chron-verdict .cv-do { margin-top: 6px; opacity: .82; }
   .chron-idle, .chron-none { font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono);
     letter-spacing: var(--ls-label); color: var(--text-dim); padding: 4px 0; }
   .chron-fig { flex: 0 0 auto; min-width: 132px; padding: 8px 12px; border-radius: 8px;
@@ -10556,6 +10565,21 @@ function escC(s) {
     if (!res) return;
     var add = (res.wouldAdd || {}), held = res.held || [];
     var u = add.uniques || [], sset = add.sets || [];
+    /* v1541 — THE VERDICT, and it goes FIRST. A sweep that proposes nothing used to render three
+       empty columns and a "read-only" note, which is what a broken sweep would also render. This
+       says which of the four nothings it was, and what to do about that one. */
+    var vd = res.verdict;
+    if (vd && !(u.length + sset.length)) {
+      if (body) {
+        body.innerHTML = '<div class="chron-verdict ' + escC(vd.state || '') + (vd.ok ? ' ok' : ' bad') + '">'
+          + '<div class="cv-say">' + (vd.ok ? '·' : '⚠') + ' ' + escC(vd.say || '') + '</div>'
+          + (vd.do ? '<div class="cv-do">→ ' + escC(vd.do) + '</div>' : '')
+          + '</div>';
+      }
+      rev.hidden = true;
+      if (note) note.textContent = 'read-only — nothing has been written to your chronicle';
+      return;
+    }
     rev.hidden = false;
     rev.innerHTML = _chronRunRow(st, res)
       + '<div class="chron-cols">'

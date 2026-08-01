@@ -534,5 +534,81 @@ class TestApplyIsSeparateAndGated(unittest.TestCase):
             self.assertNotIn(forbidden, src, forbidden + " has no business in a read-only sweep")
 
 
+
+class TestSweepVerdict(unittest.TestCase):
+    """v1541 — WHY AN EMPTY SWEEP IS EMPTY.
+
+    Konyo ran the sweep on his Windows PC and reported it "didn't work properly". It may well have
+    worked perfectly: a sweep over footage with no Chronicle in it correctly proposes nothing, and
+    renders exactly like a broken one. There is more than one way to find nothing and they need
+    different things done about them — only ONE of them is the reader's fault, and sending him to
+    debug a prompt for any of the others wastes his evening on a machine that is working.
+    """
+
+    def v(self, **kw):
+        t = {"reels": 1, "skippedReels": 0, "candidates": 5, "classified": 5,
+             "pagesRead": 1, "uniques": 0, "sets": 0}
+        t.update(kw)
+        return cr.sweep_verdict(t)
+
+    def test_names_found_is_not_a_complaint(self):
+        v = self.v(uniques=7, pagesRead=3)
+        self.assertEqual(v["state"], "found")
+        self.assertTrue(v["ok"])
+
+    def test_no_footage_at_all(self):
+        self.assertEqual(self.v(reels=0, candidates=0, pagesRead=0)["state"], "no-footage")
+
+    def test_everything_already_swept_is_the_memory_working(self):
+        v = self.v(reels=4, skippedReels=4, candidates=0, pagesRead=0)
+        self.assertEqual(v["state"], "all-swept")
+        self.assertTrue(v["ok"], "a working cache must never read as a fault")
+
+    def test_nothing_held_still_long_enough(self):
+        self.assertEqual(self.v(candidates=0, pagesRead=0)["state"], "no-stills")
+
+    def test_KONYO_CASE_screens_examined_but_no_chronicle_among_them(self):
+        # his four Mac reels: 394 frames, 11 still screens, every one a lobby / stash / blank window
+        v = self.v(reels=4, candidates=11, classified=11, pagesRead=0)
+        self.assertEqual(v["state"], "no-chronicle")
+        self.assertTrue(v["ok"], "footage without a Chronicle in it is not a reader failure")
+        self.assertIn("NONE was a Chronicle", v["say"])
+        self.assertIn("not a reader failure", v["say"])
+        self.assertTrue(v["do"], "it must say what to DO, not just what happened")
+        self.assertIn("Chronicle", v["do"])
+
+    def test_the_ONE_case_that_really_is_the_reader(self):
+        v = self.v(pagesRead=2, uniques=0, sets=0)
+        self.assertEqual(v["state"], "read-nothing")
+        self.assertFalse(v["ok"], "pages read that yield nothing IS the reader, and only this one is")
+
+    def test_classified_counts_ATTEMPTS_not_chronicles(self):
+        """read_reel() increments `classified` BEFORE it asks the classifier, so it counts calls.
+        Reading it as "screens that came back Chronicle" put the no-chronicle case in the wrong
+        branch and told him to hold the panel steadier when the panel was never opened."""
+        no_chron = self.v(reels=4, candidates=11, classified=11, pagesRead=0)
+        self.assertEqual(no_chron["state"], "no-chronicle")
+        self.assertNotIn("hold it still", no_chron["say"])
+
+    def test_every_verdict_says_something_and_stays_short(self):
+        for kw in ({"uniques": 3}, {"reels": 0, "candidates": 0, "pagesRead": 0},
+                   {"reels": 2, "skippedReels": 2, "candidates": 0, "pagesRead": 0},
+                   {"candidates": 0, "pagesRead": 0}, {"candidates": 9, "pagesRead": 0},
+                   {"pagesRead": 2}):
+            v = self.v(**kw)
+            self.assertTrue(v.get("say"), "every outcome needs a sentence")
+            self.assertLess(len(v["say"]), 260)
+            self.assertIn("state", v)
+            self.assertIn("ok", v)
+
+    def test_sweep_hist_carries_the_verdict(self):
+        """The engine must hand it to the caller — a verdict the UI cannot reach is a comment."""
+        with tempfile.TemporaryDirectory() as d:
+            res = cr.sweep_hist(d, classify=lambda p: None, read_page=lambda p, k: {})
+            self.assertIn("verdict", res)
+            self.assertEqual(res["verdict"]["state"], "no-footage")
+            self.assertIn("candidates", res["totals"], "the verdict's inputs travel with it")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

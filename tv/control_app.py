@@ -8377,6 +8377,13 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                 "running": False, "phase": "done",
                 "result": {
                     "totals": res["totals"], "reels": res["reels"],
+                    # v1541 — WHY IT FOUND WHAT IT FOUND, carried to the UI. An empty sweep that says
+                    # nothing is indistinguishable from a broken one, and that is exactly how it read
+                    # to Konyo on his Windows PC. sweep_verdict() separates "no Chronicle appeared in
+                    # your footage" from "pages were read and yielded nothing" — only the second is
+                    # the reader's fault, and sending him to debug a prompt for the first would waste
+                    # his evening on a machine that is working.
+                    "verdict": res.get("verdict"),
                     # what it WOULD add per ledger, each with the gate's own sentence
                     # v1525 — THE EVIDENCE TRAVELS WITH THE NAME. The engine has always kept each
                     # sighting's reel and frame; until now the route threw them away and left "why
@@ -8584,7 +8591,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1539",
+        "ver": "v1541",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

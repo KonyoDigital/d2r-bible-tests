@@ -541,20 +541,90 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
             except Exception:
                 pass
     prop = proposal_from_pages(pages)
+    totals = {
+        "reels": len(stats),
+        "skippedReels": skipped,
+        "framesSeen": frames_seen,
+        "candidates": sum(s.get("candidates") or 0 for s in stats),
+        "classified": sum(s.get("classified") or 0 for s in stats),
+        "pagesRead": prop.get("pagesRead", 0),
+        "refused": len(prop.get("refused") or []),
+        "uniques": len(prop.get("uniques") or {}),
+        "sets": len(prop.get("sets") or {}),
+    }
     return {
         "reels": stats,
         "proposal": prop,
-        "totals": {
-            "reels": len(stats),
-            "skippedReels": skipped,
-            "framesSeen": frames_seen,
-            "classified": sum(s.get("classified") or 0 for s in stats),
-            "pagesRead": prop.get("pagesRead", 0),
-            "refused": len(prop.get("refused") or []),
-            "uniques": len(prop.get("uniques") or {}),
-            "sets": len(prop.get("sets") or {}),
-        },
+        "totals": totals,
+        "verdict": sweep_verdict(totals),
     }
+
+
+def sweep_verdict(totals):
+    """v1541 — WHY AN EMPTY SWEEP IS EMPTY. There is more than one way to find nothing, and they
+    need different things done about them.
+
+    Konyo: *"i tried this yesterday and it didnt work properly."*
+
+    It worked. His four sealed reels hold 394 frames of lobby, character select, the title screen,
+    two stash panels and three blank captures — and not one Chronicle page. The sweep looked at
+    eleven still screens, classified none of them as a Chronicle, and correctly proposed nothing.
+    Which is indistinguishable from broken, because it never said any of that.
+
+    The rest of this arc already knows better: live_miss_audit.py refuses to dress "nothing to
+    judge" as "everything works". The sweep never got the same manners. Four distinct nothings:
+
+      no-footage      no reels at all — play a session first
+      all-swept       every reel was already read; the memory is doing its job
+      no-chronicle    ★ HIS CASE. Screens were examined; none was a Chronicle page.
+      read-nothing    Chronicle pages WERE found and read, and they yielded no names —
+                      that one really is the reader, and it is the only one that is.
+
+    Only the last means the reading is at fault. Collapsing the first three into it would send him
+    debugging a prompt when what he needs is to open the Chronicle while the console is watching.
+    """
+    t = totals or {}
+    reels = t.get("reels") or 0
+    skipped = t.get("skippedReels") or 0
+    cands = t.get("candidates") or 0
+    classified = t.get("classified") or 0
+    pages = t.get("pagesRead") or 0
+    names = (t.get("uniques") or 0) + (t.get("sets") or 0)
+
+    if names:
+        return {"state": "found", "ok": True,
+                "say": "%d name(s) proposed from %d Chronicle page(s)." % (names, pages),
+                "do": ""}
+    if not reels:
+        return {"state": "no-footage", "ok": True,
+                "say": "There is no sealed footage to sweep yet.",
+                "do": "Play a session with TV DIABLO watching — it seals a reel when you finish."}
+    if reels and skipped >= reels:
+        return {"state": "all-swept", "ok": True,
+                "say": "All %d reel(s) were already swept, so nothing was re-read." % reels,
+                "do": "Record a new session, or reset the sweep memory to read them again."}
+    if not cands:
+        return {"state": "no-stills", "ok": True,
+                "say": ("%d reel(s) were grouped and no screen was held still long enough to be worth "
+                        "reading — that is footage of moving, not of looking at a panel." % reels),
+                "do": "Open the Chronicle and leave it on screen for a few seconds before moving on."}
+    # `classified` is the number of classify CALLS, not the number that came back as a Chronicle —
+    # read_reel() increments it before it asks. The count that means "we found a Chronicle" is
+    # pagesRead. Reading it the other way put this exact case in the branch below and told him to
+    # hold the panel steadier, when the panel was never opened at all.
+    if not pages:
+        return {"state": "no-chronicle", "ok": True,
+                "say": ("%d still screen(s) across %d reel(s) were examined and NONE was a Chronicle "
+                        "page — so there was nothing to read. This is not a reader failure."
+                        % (cands, reels)),
+                "do": ("Open the Chronicle in game while TV DIABLO is watching, hold it still for a "
+                       "few seconds on the UNIQUES page and again on the SETS page, then sweep. "
+                       "(No console running? Photograph the Chronicle and use the board's "
+                       "📜 Read my Chronicle buttons instead — v1540.)")}
+    return {"state": "read-nothing", "ok": False,
+            "say": ("%d Chronicle page(s) WERE read and produced no names. This one is the reading "
+                    "itself, not the footage." % pages),
+            "do": "Check the refusals below — a page can be the wrong ledger, or show no found-marks."}
 
 
 def merge_max(existing, proposed_names):
@@ -625,7 +695,13 @@ if __name__ == "__main__":
 
     if args.cost:
         # the honest pitch, computed on his own film rather than asserted
-        res = sweep_hist(args.hist, classify=lambda p: None, read_page=lambda p, k: {},
+        _COST_PICKED = []
+
+        def _cost_classify(path):
+            _COST_PICKED.append(path)     # remember WHICH frame, then refuse: free, and nothing read
+            return None
+
+        res = sweep_hist(args.hist, classify=_cost_classify, read_page=lambda p, k: {},
                          limit=args.limit,
                          on_reel=lambda s: print("  %-34s %3d runs → %2d classifies"
                                                  % (s["reel"][:34], s["runs"] or 0, s["classified"] or 0)))
@@ -634,6 +710,20 @@ if __name__ == "__main__":
         print("\n📜 %d reels · %d frames → %d classifies (%.0f%% cheaper than reading every frame)"
               % (t["reels"], t["framesSeen"], t["classified"], saved))
         print("   run with the real reader to turn those into a proposal; nothing is written either way.")
+        # v1541 — WHAT THOSE STILL SCREENS ACTUALLY ARE. The cost pass has always said how many
+        # frames it would classify and never what they were, so "11 classifies" reads as "11
+        # Chronicle pages" when it means "11 screens worth looking at". On a machine I cannot see —
+        # his Windows PC — this listing is the difference between a diagnosis and a guess: he runs
+        # one command, opens the named frames, and knows immediately whether the Chronicle is in his
+        # footage at all.
+        print("\n   the frames a real sweep would pay to classify — open them and see what they are:")
+        for p in _COST_PICKED:
+            print("     %s" % p)
+        v = res.get("verdict") or {}
+        if v.get("say"):
+            print("\n   %s" % v["say"])
+            if v.get("do"):
+                print("   → %s" % v["do"])
         raise SystemExit(0)
 
     print("This sweep needs a reader. Use --cost for the free grouping pass, or drive sweep_hist()")
