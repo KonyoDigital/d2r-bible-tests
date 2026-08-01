@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1547",
+  "ver": "v1548",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1547: control_ui had zero TZ references - the v944 relay existed only so the board could reach it",
+  "note": "v1548: a warm-up gate: no footage archived until the window has painted once, and it says what it held back",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

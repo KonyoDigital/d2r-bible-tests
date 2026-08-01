@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1547"   # the Terror Zone, in the console
+VERSION = "v1548"   # stop making the blank captures
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1274,6 +1274,30 @@ def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
         if not src_path or not os.path.isfile(src_path) or os.path.getsize(src_path) < 4000:
             globals()["_FOOTAGE_REJECTS"] = int(globals().get("_FOOTAGE_REJECTS") or 0) + 1
             return False
+        # ── v1548 — THE WARM-UP GATE ────────────────────────────────────────────────────────────
+        # 16 of the 17 blank captures in his worst reel land in the FIRST NINETEEN SECONDS: capture
+        # starts while D2R is still launching, so the window exists — the grab succeeds, the file is
+        # a perfectly valid 2940x1912 JPEG well past the 4000-byte floor — and it is blank.
+        #
+        # v1543 stopped paying to classify them and v1545 marked them at seal. This stops making
+        # them, which is the only one of the three that costs nothing at all.
+        #
+        # It gates ONLY the warm-up. Once one painted frame has landed the gate opens for the rest of
+        # the session, permanently — a blank frame LATER is not startup noise, it is the game
+        # crashing or the window vanishing, and that is evidence worth keeping rather than a fault to
+        # suppress. Suppressing it would hide the very thing a watchdog exists to notice.
+        if not globals().get("_FOOTAGE_WARM"):
+            try:
+                import chronicle_retro as _cr
+                if _cr.is_dead_frame(src_path):
+                    globals()["_FOOTAGE_WARMSKIP"] = int(globals().get("_FOOTAGE_WARMSKIP") or 0) + 1
+                    globals()["_FOOTAGE_WHY"] = "warming-up (window not painted yet)"
+                    return False
+                globals()["_FOOTAGE_WARM"] = True
+            except Exception:
+                # cannot measure -> cannot refuse. An unmeasurable frame is archived, because
+                # dropping what we could not judge is how real footage goes missing.
+                globals()["_FOOTAGE_WARM"] = True
         hist_dir = HIST_DIR
         os.makedirs(hist_dir, exist_ok=True)
         import shutil as _sh
@@ -6409,6 +6433,11 @@ def close_session(reason="stop", farewell=True):
                 except Exception:
                     _blank = 0
                 print(f"  🎞 reel folded — {_moved} footage frames sealed into reel_{SESSION_ID}")
+                # v1548 — the warm-up gate is only trustworthy if it says what it withheld
+                _ws = int(globals().get("_FOOTAGE_WARMSKIP") or 0)
+                if _ws:
+                    print(f"  ⏳ {_ws} frame(s) held back while D2R was still painting — "
+                          f"blank captures that never reached the reel")
                 # said out loud, because a capture lane producing blank frames is a fault that would
                 # eat a real Chronicle page exactly as happily as it eats a loading screen
                 if _blank:

@@ -3255,5 +3255,80 @@ class TestLiveChronicleVisit(unittest.TestCase):
         self.assertIn("ask the console to read it", seam)
 
 
+
+class TestWarmUpGate(unittest.TestCase):
+    """v1548 — do not archive footage until the window has actually painted.
+
+    16 of the 17 blank captures in his worst reel land in the FIRST NINETEEN SECONDS. The grab
+    succeeds while D2R is launching: the window exists, the JPEG is valid and well past the
+    4000-byte floor, and it is blank. v1543 stopped paying to classify them, v1545 marked them at
+    seal; this stops making them.
+    """
+
+    def setUp(self):
+        try:
+            from PIL import Image  # noqa: F401
+        except Exception:
+            self.skipTest("Pillow absent")
+        self.d = tempfile.mkdtemp()
+        for k in ("_FOOTAGE_WARM", "_FOOTAGE_WARMSKIP"):
+            tv.__dict__.pop(k, None)
+
+    def tearDown(self):
+        import shutil as _sh
+        _sh.rmtree(self.d, ignore_errors=True)
+        for k in ("_FOOTAGE_WARM", "_FOOTAGE_WARMSKIP"):
+            tv.__dict__.pop(k, None)
+
+    def _blank(self, name="blank.jpg"):
+        from PIL import Image
+        p = os.path.join(self.d, name)
+        Image.new("RGB", (900, 700), (255, 255, 255)).save(p, quality=95)
+        return p
+
+    def _painted(self, name="live.jpg"):
+        from PIL import Image
+        import random
+        rnd = random.Random(3)
+        im = Image.new("RGB", (900, 700))
+        im.putdata([(rnd.randrange(256), rnd.randrange(256), rnd.randrange(256))
+                    for _ in range(900 * 700)])
+        p = os.path.join(self.d, name)
+        im.save(p, quality=95)
+        return p
+
+    def test_the_blank_startup_frame_is_big_enough_to_pass_the_old_floor(self):
+        """The reason the size check never caught these: a flat JPEG of a real window is a valid
+        file far above 4000 bytes."""
+        self.assertGreater(os.path.getsize(self._blank()), 4000)
+
+    def test_a_blank_frame_is_recognised_before_the_window_paints(self):
+        import chronicle_retro as cr
+        self.assertTrue(cr.is_dead_frame(self._blank()))
+        self.assertFalse(cr.is_dead_frame(self._painted()))
+
+    def test_the_gate_opens_permanently_once_a_painted_frame_lands(self):
+        """A blank LATER is not startup noise — it is the game crashing or the window vanishing, and
+        suppressing that would hide the exact thing a watchdog exists to notice."""
+        import chronicle_retro as cr
+        warm = False
+        kept = []
+        for p in (self._blank("a.jpg"), self._blank("b.jpg"), self._painted("c.jpg"),
+                  self._blank("d.jpg")):
+            if not warm:
+                if cr.is_dead_frame(p):
+                    continue
+                warm = True
+            kept.append(os.path.basename(p))
+        self.assertEqual(kept, ["c.jpg", "d.jpg"],
+                         "the two startup blanks are dropped; the one AFTER warm-up is kept")
+
+    def test_an_unmeasurable_frame_is_archived_not_dropped(self):
+        import chronicle_retro as cr
+        self.assertFalse(cr.is_dead_frame(os.path.join(self.d, "missing.jpg")),
+                         "cannot measure -> cannot refuse; dropping what we could not judge is how "
+                         "real footage goes missing")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
