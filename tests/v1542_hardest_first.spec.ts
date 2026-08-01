@@ -9,10 +9,19 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // Normal in the hunts its wanting me to do. its first run for me in Forge is Nightmare Pindleskin i
 // rather finish off Hell and then the others."
 //
-// Both forges scored a source on `kph/chance` alone — drops per hour. That number does not know what
+// Both forges RANKED runs on `kph/chance` alone — drops per hour. That number does not know what
 // difficulty it describes, and it prefers the easiest one twice over: Normal/NM have smaller chance
 // denominators AND a kph bonus (×1.2 / ×1.1 where sources are built). So the hunt list handed him
 // content he had already outgrown.
+//
+// v1549 CORRECTS WHERE THE PRIORITY LIVES. v1542 first made difficulty the primary key of SOURCE
+// SELECTION, and that was an over-application: every item's Hell source wins, Hell sources are
+// dominated by a handful of bosses, and the hunt COLLAPSED — uniques 20 runs -> 9, all seven
+// resolvable set hunts onto one card. It also silently redrew the sealed grounds, which are grouped
+// by the chosen source, and took three older specs red for a real reason.
+//
+// He asked for it "in the hunts": an ORDER. So selection is drops-per-hour again — the honest answer
+// to where an item actually falls — and difficulty leads the SORT.
 
 const boot = async (page: any) => {
   await page.goto(URL);
@@ -20,51 +29,51 @@ const boot = async (page: any) => {
 };
 
 test.describe('v1542 — Hell before Nightmare before Normal', () => {
-  test('★ the ranking helper puts difficulty ABOVE drops-per-hour', async ({ page }) => {
+  test('★ SELECTION stays drops-per-hour — the priority is NOT in here', async ({ page }) => {
+    // v1542 put difficulty first HERE and it collapsed the hunt: every item's Hell source wins, Hell
+    // sources are dominated by a few bosses, uniques went 20 runs -> 9 and every resolvable set hunt
+    // onto one card. Where an item actually falls is a question about odds, not about ambition.
     await boot(page);
     const r = await page.evaluate(() => {
       const w: any = window;
-      // a deliberately unfair pair: Normal is TEN TIMES the drop rate, Hell must still win
       const pick = w._pickSrc([
         { boss: 'Normal Pindleskin', diffKey: 'norm', chance: 1000, kph: 300, bossId: 'pind' },
         { boss: 'Hell Pindleskin', diffKey: 'hell', chance: 10000, kph: 300, bossId: 'pind' },
       ]);
       return { boss: pick.s.boss, diff: pick.diff };
     });
-    expect(r.boss, 'Hell must win even when Normal has ten times the rate').toContain('Hell');
-    expect(r.diff).toBe(2);
+    expect(r.boss, 'ten times the rate wins the SOURCE — the ordering happens later').toContain('Normal');
+    expect(r.diff, 'and it still reports which difficulty it chose, for the sort').toBe(0);
   });
 
-  test('★ Nightmare beats Normal, and Hell beats both', async ({ page }) => {
+  test('★ the difficulty RANK is what the sort uses', async ({ page }) => {
     await boot(page);
-    const r = await page.evaluate(() => {
-      const w: any = window;
-      const S = (k: string) => ({ boss: k + ' X', diffKey: k, chance: 5000, kph: 100, bossId: 'x' });
-      return {
-        nmOverNorm: w._pickSrc([S('norm'), S('nm')]).s.diffKey,
-        hellOverNm: w._pickSrc([S('nm'), S('hell')]).s.diffKey,
-        ranks: ['norm', 'normTz', 'nm', 'nmTz', 'hell', 'hellTz'].map((k) => w._diffRank(k)),
-      };
-    });
-    expect(r.nmOverNorm).toBe('nm');
-    expect(r.hellOverNm).toBe('hell');
-    expect(r.ranks, 'TZ is the same difficulty at a higher mlvl, not a separate tier')
+    const ranks = await page.evaluate(() =>
+      ['norm', 'normTz', 'nm', 'nmTz', 'hell', 'hellTz'].map((k) => (window as any)._diffRank(k)));
+    expect(ranks, 'TZ is the same difficulty at a higher mlvl, not a separate tier')
       .toEqual([0, 0, 1, 1, 2, 2]);
   });
 
-  test('within one difficulty the FASTEST run still wins', async ({ page }) => {
-    // hardest-first must not become "ignore the numbers" — inside the tier he is clearing, the
-    // better run is still the better run
+  test('the faster source wins on equal footing', async ({ page }) => {
+    await boot(page);
+    const r = await page.evaluate(() => (window as any)._pickSrc([
+      { boss: 'Hell Slow', diffKey: 'hell', chance: 90000, kph: 50, bossId: 'a' },
+      { boss: 'Hell Fast', diffKey: 'hellTz', chance: 9000, kph: 300, bossId: 'b' },
+    ]).s.boss);
+    expect(r).toBe('Hell Fast');
+  });
+
+  test('★ THE RESOLUTION IS KEPT — runs exist at every tier, not just Hell', async ({ page }) => {
+    // the regression v1542 caused and v1549 undid. A hunt list of nine Hell blobs is worse guidance
+    // than twenty runs he can actually choose between.
     await boot(page);
     const r = await page.evaluate(() => {
-      const w: any = window;
-      const pick = w._pickSrc([
-        { boss: 'Hell Slow', diffKey: 'hell', chance: 90000, kph: 50, bossId: 'a' },
-        { boss: 'Hell Fast', diffKey: 'hellTz', chance: 9000, kph: 300, bossId: 'b' },
-      ]);
-      return pick.s.boss;
+      const s: any = (window as any).funiScan();
+      const diffs = (s.runs || []).map((x: any) => x.diff);
+      return { n: diffs.length, tiers: [...new Set(diffs)].sort() };
     });
-    expect(r).toBe('Hell Fast');
+    expect(r.n, 'twenty-ish runs, not a handful of blobs').toBeGreaterThan(12);
+    expect(r.tiers.length, 'lower-tier runs still exist — they just sort below').toBeGreaterThan(1);
   });
 
   test('★ THE REPORT: the first unique run is a HELL run, not Nightmare Pindleskin', async ({ page }) => {
@@ -118,9 +127,11 @@ test.describe('v1542 — Hell before Nightmare before Normal', () => {
     expect(r.working, 'there must be working sets at all').toBeGreaterThan(0);
     expect(r.out.length, 'at least some sets must resolve to a source to judge').toBeGreaterThan(0);
     // every set piece hunt should point at the hardest difficulty that can drop it
-    const easy = r.out.filter((x: any) => x.diff < 2);
-    expect(easy.length,
-      'a set hunt still pointing below Hell: ' + JSON.stringify(easy)).toBe(0);
+    // NOT "every set must point at Hell" — that was the v1542 over-application, and it put all seven
+    // resolvable set hunts on one card. What must hold is that the sets side uses the SAME helper as
+    // the uniques side, so the two forges can never recommend by different rules.
+    const bosses = new Set(r.out.map((x: any) => x.boss));
+    expect(bosses.size, 'set hunts must stay spread across their real sources').toBeGreaterThan(1);
   });
 
   test('an item that genuinely cannot drop in Hell is not invented into it', async ({ page }) => {
@@ -186,22 +197,13 @@ test.describe('v1542 — Hell before Nightmare before Normal', () => {
     expect(r.sealedAllFound, 'a sealed ground must still be a pool that is entirely found').toBe(true);
   });
 
-  test('★ hardest-first CONSOLIDATES the hunt instead of scattering it', async ({ page }) => {
-    // A real side effect worth keeping: when every item keys to its Hell source, missing items fall
-    // into fewer, larger runs (20 -> 9 on his data) rather than being spread across three difficulties
-    // of the same boss. Fewer runs, each worth more per trip.
+  test('★ the whole list descends: every Hell run, then every NM, then every Normal', async ({ page }) => {
     await boot(page);
-    const r = await page.evaluate(() => {
-      const s: any = (window as any).funiScan();
-      const runs = s.runs || [];
-      const labels = runs.map((x: any) => String(x.boss || ''));
-      return {
-        n: runs.length,
-        splitBosses: labels.filter((b: string) => /^(NM|Normal)/.test(b)).length,
-      };
-    });
-    expect(r.splitBosses,
-      'no run should still be keyed to a Normal or Nightmare boss while a Hell source exists').toBe(0);
-    expect(r.n).toBeGreaterThan(0);
+    const diffs = await page.evaluate(() =>
+      ((window as any).funiScan().runs || []).map((x: any) => x.diff));
+    expect(diffs.length).toBeGreaterThan(0);
+    expect(diffs, 'the list must never climb back up in difficulty')
+      .toEqual([...diffs].sort((a: number, b: number) => b - a));
+    expect(diffs[0], 'and it opens on Hell').toBe(2);
   });
 });

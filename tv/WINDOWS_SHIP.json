@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1548",
+  "ver": "v1549",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1548: a warm-up gate: no footage archived until the window has painted once, and it says what it held back",
+  "note": "v1549: v1542 collapsed the hunt 20 runs to 9 and broke a sealed ground - Routine I caught it, my own safety spec did not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

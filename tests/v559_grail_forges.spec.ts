@@ -50,11 +50,20 @@ test('v559.2 — runs are ranked by EXPECTED YIELD per hour (Σ kph/odds), the t
   const r = await page.evaluate(() => {
     const w: any = window;
     const runs = w.funiScan().runs.filter((x: any) => x.ev > 0);
+    // v1549 — expected yield still ranks the list, but WITHIN a difficulty tier. Konyo asked for
+    // "HELL then Nightmare then Normal in the hunts", so the tier leads and ev orders each tier;
+    // a single global descent cannot hold once the list is allowed to step down a difficulty.
     let sorted = true;
-    for (let i = 1; i < runs.length; i++) if (runs[i - 1].ev < runs[i].ev - 1e-9) sorted = false;
-    return { sorted, top: runs[0]?.boss, topEv: runs[0]?.ev, n: runs.length };
+    for (let i = 1; i < runs.length; i++) {
+      if (runs[i - 1].diff !== runs[i].diff) continue;            // a tier boundary resets it
+      if (runs[i - 1].ev < runs[i].ev - 1e-9) sorted = false;
+    }
+    let tiersDescend = true;
+    for (let i = 1; i < runs.length; i++) if (runs[i - 1].diff < runs[i].diff) tiersDescend = false;
+    return { sorted, tiersDescend, top: runs[0]?.boss, topEv: runs[0]?.ev, n: runs.length };
   });
-  expect(r.sorted).toBe(true);        // descending expected-drops-per-hour
+  expect(r.sorted).toBe(true);        // descending expected-drops-per-hour INSIDE each tier
+  expect(r.tiersDescend).toBe(true);  // …and the tiers themselves never climb back up
   expect(r.topEv).toBeGreaterThan(0);
 });
 

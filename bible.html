@@ -33255,16 +33255,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window._diffRank = _diffRank;
   function _diffLabel(r){ return r === 2 ? 'Hell' : r === 1 ? 'Nightmare' : 'Normal'; }
-  /** Best source for an item: hardest difficulty that can actually drop it, fastest within it. */
+  /* v1549 — WHERE THE PRIORITY BELONGS, AND WHERE IT DOES NOT.
+     v1542 made difficulty the primary key of SOURCE SELECTION, and that was an over-application of
+     what he asked for. Measured consequence: every item's Hell source wins, Hell sources are
+     dominated by a handful of bosses, and the whole hunt collapses — uniques 20 runs → 9, and all
+     seven resolvable set hunts onto ONE card ("Hell TZ Pindleskin"). A list that says "farm Hell
+     Mephisto for 40 items" is worse guidance than the one it replaced.
+
+     He asked for it "in the hunts": an ORDER, not a redefinition of what a run is. So selection goes
+     back to drops-per-hour — the honest answer to "where does this item actually fall" — and the
+     difficulty priority moves to the SORT, where every Hell run comes before every Nightmare one and
+     those before every Normal one. His complaint is fixed (the first run is a Hell run) and the list
+     keeps its resolution.
+
+     It also stopped three older specs going red for a real reason: the sealed grounds are grouped by
+     the chosen source, so redefining "chosen" silently redrew which pools count as complete. */
   function _pickSrc(sources){
-    var best=null, bestR=-1, bestD=-1;
+    var best=null, bestR=-1;
     (sources||[]).forEach(function(s){
       if(!s || s.blocked || s.chance==null) return;
-      var d=_diffRank(s.diffKey), rate=(s.kph||30)/s.chance;
-      // strictly harder wins outright; same tier falls back to drops-per-hour
-      if(d>bestD || (d===bestD && rate>bestR)){ bestD=d; bestR=rate; best=s; }
+      var rate=(s.kph||30)/s.chance;
+      if(rate>bestR){ bestR=rate; best=s; }
     });
-    return best && { s:best, rate:bestR, diff:bestD };
+    return best && { s:best, rate:bestR, diff:_diffRank(best.diffKey) };
   }
   window._pickSrc = _pickSrc;
   function _bestSrc(it){ return _pickSrc(it && it.sources); }
@@ -33278,9 +33291,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.s.bossId, items:[], ev:0, diff:-1}); g.items.push(x);
       if(b){ g.ev+=b.rate; x._bs=b; if(b.diff>g.diff){ g.diff=b.diff; g.diffLabel=_diffLabel(b.diff); } }   // per-run expected missing-unique drops per HOUR (Σ kph/chance) — the true farm metric
     });
-    // v1542 — HARDEST FIRST: difficulty leads, drops-per-hour breaks the tie. Sorting on ev alone
-    // put Nightmare and Normal runs above Hell ones, because the easy tiers have both better odds
-    // and a kph bonus — so the list told him to farm what he had already outgrown.
+    // v1542 / v1549 — HARDEST FIRST, IN THE SORT. Every Hell run comes before every Nightmare one
+    // and those before every Normal one; inside a tier the best expected yield still wins. Sorting
+    // on ev alone put Nightmare and Normal runs above Hell ones, because the easy tiers have both
+    // better odds and a kph bonus — so the list told him to farm what he had already outgrown.
+    // The priority lives HERE and not in source selection: v1549 has the measurements for why.
     var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return (b.diff-a.diff) || b.ev-a.ev || b.items.length-a.items.length; });
     // v559.2 — chips inside a run lead with the most-likely drops (best odds first)
     runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?a._bs.s.chance:9e9), cb=(b._bs?b._bs.s.chance:9e9); return ca-cb; }); });
@@ -35984,7 +35999,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1548', name:'v1548 - stop making the blank captures', date:'2026-07-31', note:'a warm-up gate: no footage archived until the window has painted once, and it says what it held back' };
+  window.D2R_BUILD = { id:'v1549', name:'v1549 - the priority belongs in the sort not the selection', date:'2026-07-31', note:'v1542 collapsed the hunt 20 runs to 9 and broke a sealed ground - Routine I caught it, my own safety spec did not' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
