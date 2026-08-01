@@ -178,18 +178,40 @@ blanked mid-visit is exactly when the rest of the run is still real. An unmeasur
 read. And the skip is COUNTED: a silent one would turn a capture fault into a smaller invoice and
 nothing else.
 
+## Blank captures stop being MADE (v1548)
+
+v1543 stopped paying for them; v1545 marked them at seal; v1548 stops creating them.
+
+**16 of the 17 blanks in the worst reel land in the first NINETEEN SECONDS.** Capture starts while
+D2R is launching, so the grab succeeds: the window exists, the JPEG is valid, and at 2940×1912 it
+clears the 4000-byte floor comfortably — which is why the existing size check never caught them.
+
+The gate covers the **warm-up only**. Once one painted frame lands it opens for the rest of the
+session, permanently: a blank frame *later* is the game crashing or the window vanishing, and
+suppressing that would hide the exact thing a watchdog exists to notice.
+
+## The tools got taps (v1547 · v1550 · v1551)
+
+An audit of every `path == "/api/…"` against `control_ui.html` found four routes with no consumer.
+Two belong to the `tvd` CLI. Three surfaces were built for the rest:
+
+| version | what had no tap |
+|---|---|
+| v1547 | 🌀 **the Terror Zone**. `/api/tz` has relayed the live rotation since v944 so the *board* served at `/board` could reach it; the console itself had **zero** TZ references. Stale is never dressed as live. |
+| v1550 | ⚖ **tune the gate** (`/api/chronicle_gate`, v1531) — the #1 remaining job in this document, and its tool had no button. It NAMES what loosening lets in and tightening keeps out; a count cannot be argued with. And ↺ **forget what is swept** (`/api/chronicle_forget`, v1524), whose own docstring reads *"an optimisation he cannot clear is a cage"*. |
+| v1551 | the **price pass** now names its frames and carries the verdict, the way `--cost` has since v1541. Two answers to one question on one machine, and the wrong one was the one in front of him. |
+
+The audit is now a spec: any `/api` route with no caller in the console or the CLI fails the suite.
+
 ## Picking it up
 
 Everything is wired and green. What is left, in value order:
 
-1. **Tune the gate against a real sweep.** The *tooling* has existed since v1531
-   (`/api/chronicle_gate?floor=&witnesses=` re-runs the gate over the last sweep's evidence for free
-   and names what loosening would let in). It has never been pointed at a real proposal, so
-   `CONF_FLOOR = 0.55` and `MIN_WITNESSES = 2` are still guesses that have never been wrong in
-   anger — which is not the same as being right.
-2. **Fix the blank captures at the source.** v1543 stops paying for them; it does not stop them
-   happening. Something in the capture lane is grabbing the window with nothing on it, and that same
-   fault would eat a real Chronicle frame just as happily as a lobby one.
+1. **Tune the gate against a real sweep.** The tooling is now one tap away in the console (v1550),
+   but it has still never been pointed at a real proposal — so `CONF_FLOOR = 0.55` and
+   `MIN_WITNESSES = 2` remain guesses that have never been wrong in anger, which is not the same as
+   being right. This needs a sweep over footage that actually contains a Chronicle.
+2. ~~Fix the blank captures at the source~~ — closed in v1548.
 3. **A second machine's verdict.** Every number in this document was measured on the Mac. The
    Windows PC and the cousin's box are where the reads actually fail (REG-086), and
    `chronicle_retro.py --cost` now prints enough for either of them to be diagnosed remotely.

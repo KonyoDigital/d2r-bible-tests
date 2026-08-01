@@ -119,8 +119,23 @@ test('the card opens glued to the hovered item and never detaches across the scr
       // CI rounds. The detach bug-class = the card moving when (and where) the anchor didn't.
       const dxCard = tr2.left - tr.left, dyCard = tr2.top - tr.top;
       const dxAnch = ar2.left - ar1.left, dyAnch = ar2.top - ar1.top;
-      const still = Math.abs(dxCard - dxAnch) <= 8 && Math.abs(dyCard - dyAnch) <= 8;
-      results.push({ name: (a as any).getAttribute('data-arttip'), adjacent, onScreen, still,
+      /* v1553 — GROWTH IS NOT A JUMP.
+         CI failed this on Archon Plate with dxCard -9, dyCard -13, dxAnch 0, dyAnch 0, dW 18,
+         dH 21: the card GREW by 18x21 and its top-left moved 9 left and 13 up. That is one event,
+         not two — a card anchored anywhere but its top-left corner moves that corner when it grows,
+         and every pixel of this movement is accounted for by the growth. The bug class this test
+         exists for is DETACHMENT: the card flying off to sit somewhere its anchor is not, which
+         produces displacement far larger than the card's own size change.
+         v1459's settle loop is bounded at 600ms on purpose — waiting longer would wait a genuinely
+         wandering card into looking still — so on a loaded runner it can hand the sample over while
+         late art is still landing. Rather than wait longer, allow exactly what growth can explain.
+         `grew` is recorded either way, so a pass that needed the allowance still says so. */
+      const slack = 8;
+      const rawX = Math.abs(dxCard - dxAnch), rawY = Math.abs(dyCard - dyAnch);
+      const dWv = tr2.width - tr.width, dHv = tr2.height - tr.height;
+      const still = rawX <= slack + Math.max(0, dWv) && rawY <= slack + Math.max(0, dHv);
+      const grewIntoIt = still && (rawX > slack || rawY > slack);
+      results.push({ name: (a as any).getAttribute('data-arttip'), adjacent, onScreen, still, grewIntoIt,
         dxCard: Math.round(dxCard), dyCard: Math.round(dyCard), dxAnch: Math.round(dxAnch), dyAnch: Math.round(dyAnch),
         // v1459 — card box deltas ride the failure text too: a nonzero dW/dH names late art
         // growth as the cause instead of leaving the next reader to guess (this cost 3 CI rounds).
