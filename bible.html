@@ -33232,11 +33232,42 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var ex=Object.keys(window._UNI_EXTRA||{}).map(function(n){ return xc[n]||(xc[n]={ n:n, tier:'common', sources:[] }); });
     return base.concat(ex); }
   function _ownedNames(){ try { var s=new Set(JSON.parse(window.LSR.getItem('d2r_owned')||'[]')); Object.keys(JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}')).forEach(function(n){ s.add(n); }); return s; } catch(e){ return new Set(); } }   // v677 — found = ledger ∪ legacy owned
-  function _bestSrc(it){
-    var best=null, bestR=-1;
-    (it.sources||[]).forEach(function(s){ if(!s||s.blocked||s.chance==null) return; var rate=(s.kph||30)/s.chance; if(rate>bestR){ bestR=rate; best=s; } });
-    return best && { s:best, rate:bestR };
+  /* ── v1542 — HARDEST FIRST. Konyo: "it should be prioritized by HELL then Nightmare then Normal
+     in the hunts its wanting me to do. its first run for me in Forge is Nightmare Pindleskin i
+     rather finish off Hell and then the others."
+
+     Every ranking in both grail forges scored a source on pure `kph/chance` — drops per hour. That
+     metric has no idea what difficulty it is describing, and it systematically prefers the EASIEST
+     one: Normal and Nightmare have smaller chance denominators AND a kph bonus (×1.2 / ×1.1 at
+     bible.html's source build), so a low-tier run wins twice over on the same item. Nightmare
+     Pindleskin leading his hunt list is that bias, working exactly as written.
+
+     Difficulty is now the PRIMARY key and drops-per-hour the tie-break, so the order is Hell → NM →
+     Normal and the fastest run inside the tier he is actually clearing still wins. hell/hellTz share
+     a tier — a Terror Zone is not a separate difficulty, it is the same one with a higher mlvl, and
+     splitting them would rank him into a TZ that may not be up right now.
+
+     ONE helper, used by both forges. The uniques side and the sets side each had their own copy of
+     the same three lines, which is how they would have drifted apart the first time one was tuned. */
+  function _diffRank(dk){
+    var k = String(dk || '');
+    return k.indexOf('hell') === 0 ? 2 : k.indexOf('nm') === 0 ? 1 : 0;
   }
+  window._diffRank = _diffRank;
+  function _diffLabel(r){ return r === 2 ? 'Hell' : r === 1 ? 'Nightmare' : 'Normal'; }
+  /** Best source for an item: hardest difficulty that can actually drop it, fastest within it. */
+  function _pickSrc(sources){
+    var best=null, bestR=-1, bestD=-1;
+    (sources||[]).forEach(function(s){
+      if(!s || s.blocked || s.chance==null) return;
+      var d=_diffRank(s.diffKey), rate=(s.kph||30)/s.chance;
+      // strictly harder wins outright; same tier falls back to drops-per-hour
+      if(d>bestD || (d===bestD && rate>bestR)){ bestD=d; bestR=rate; best=s; }
+    });
+    return best && { s:best, rate:bestR, diff:bestD };
+  }
+  window._pickSrc = _pickSrc;
+  function _bestSrc(it){ return _pickSrc(it && it.sources); }
   window.funiScan=function(){
     var own=_ownedNames(), items=_uniItems();
     var missing=[], found=0;
@@ -33244,10 +33275,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bySrc={};
     missing.forEach(function(x){
       var b=_bestSrc(x); var key=b?b.s.boss:'Anywhere — no verified source yet';
-      var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.s.bossId, items:[], ev:0}); g.items.push(x);
-      if(b){ g.ev+=b.rate; x._bs=b; }   // per-run expected missing-unique drops per HOUR (Σ kph/chance) — the true farm metric
+      var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.s.bossId, items:[], ev:0, diff:-1}); g.items.push(x);
+      if(b){ g.ev+=b.rate; x._bs=b; if(b.diff>g.diff){ g.diff=b.diff; g.diffLabel=_diffLabel(b.diff); } }   // per-run expected missing-unique drops per HOUR (Σ kph/chance) — the true farm metric
     });
-    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return b.ev-a.ev || b.items.length-a.items.length; });
+    // v1542 — HARDEST FIRST: difficulty leads, drops-per-hour breaks the tie. Sorting on ev alone
+    // put Nightmare and Normal runs above Hell ones, because the easy tiers have both better odds
+    // and a kph bonus — so the list told him to farm what he had already outgrown.
+    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return (b.diff-a.diff) || b.ev-a.ev || b.items.length-a.items.length; });
     // v559.2 — chips inside a run lead with the most-likely drops (best odds first)
     runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?a._bs.s.chance:9e9), cb=(b._bs?b._bs.s.chance:9e9); return ca-cb; }); });
     var low=missing.filter(function(x){ return (x.qlvl||99)<=35; }).sort(function(a,b){ return (a.qlvl||0)-(b.qlvl||0); });
@@ -33458,10 +33492,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);
       var agg=L.find(function(x){ return x.tier==='set' && String(x.n).toLowerCase().indexOf(stem.slice(0,12))===0; });
       if(!agg) return null;
-      var best=null,bestR=-1; (agg.sources||[]).forEach(function(src){ if(!src||src.blocked||src.chance==null) return; var r=(src.kph||30)/src.chance; if(r>bestR){bestR=r;best=src;} });
-      return best;
+      // v1542 — the sets side ranks by the SAME rule as the uniques side. It carried its own copy of
+      // the pure rate scan, which is how the two forges would have told him to farm different
+      // difficulties for the same evening.
+      var p=_pickSrc(agg.sources);
+      return p && p.s;
     } catch(e){ return null; }
   }
+  /* Published for the same reason _grailVocab and _gFound are: a helper that decides what he farms
+     must be reachable from a test, and REG-083/REG-087 were both a name that only LOOKED available
+     from outside its IIFE. My own v1542 spec then proved the point — it called window._setAggSrc,
+     got undefined, and its try/catch reported that as "this set has no source" for all 135. */
+  window._setAggSrc = _setAggSrc;
   var _fsF='all';
   window.fsetsSetFilter=function(f){ _fsF=(_fsF===f&&f!=='all')?'all':f; window.renderForgeSets(); };
   window.grailTogglePiece=function(el,piece){
@@ -35942,7 +35984,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1541', name:'v1541 - an empty sweep says which nothing it is', date:'2026-08-02', note:'six ways to find nothing and only one is the reader; the cost pass names the frames it would classify' };
+  window.D2R_BUILD = { id:'v1542', name:'v1542 - hardest first - Hell before Nightmare before Normal', date:'2026-07-31', note:'both grail forges ranked on drops-per-hour alone, which prefers the easiest difficulty twice over; difficulty is now the primary key' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

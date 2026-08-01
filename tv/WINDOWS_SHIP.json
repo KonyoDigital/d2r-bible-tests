@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1541",
+  "ver": "v1542",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1541: six ways to find nothing and only one is the reader; the cost pass names the frames it would classify",
+  "note": "v1542: both grail forges ranked on drops-per-hour alone, which prefers the easiest difficulty twice over; difficulty is now the primary key",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
