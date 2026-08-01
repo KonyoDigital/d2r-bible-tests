@@ -35,6 +35,28 @@ def _pillow():
         return False
 
 
+
+def _screenish(size, seed, shade=None):
+    """v1543 — a fixture frame that looks like a SCREEN, not a paint swatch.
+
+    These stood in for captured frames as a single flat colour, which is precisely what
+    chronicle_retro.is_dead_frame() now refuses as a blank capture — so every fixture run read as a
+    dead one and the sweep stopped being exercised at all. A fixture that could not survive the
+    product's own liveness check was never simulating a frame; it was simulating a bug.
+
+    Deterministic, so frames built with the same seed are byte-identical and still group into one
+    still run.
+    """
+    import random
+    from PIL import Image
+    w, h = size
+    rnd = random.Random(seed)
+    im = Image.new("RGB", (w, h))
+    base = shade if shade is not None else 40
+    im.putdata([(rnd.randrange(256), (base + rnd.randrange(120)) % 256, rnd.randrange(256))
+                for _ in range(w * h)])
+    return im
+
 class TestTheWholeChain(unittest.TestCase):
     """live panel → recorded visit → swept → read on two lanes → gated → proposed."""
 
@@ -51,7 +73,7 @@ class TestTheWholeChain(unittest.TestCase):
         # 6 frames of one held panel, then 2 of a different one — a real visit's shape
         for n in range(8):
             shade = 30 if n < 6 else 200
-            Image.new("RGB", (64, 48), (shade, shade, shade)).save(
+            _screenish((64, 48), shade, shade).save(
                 os.path.join(self.reel, "f%d.jpg" % n))
         self.man = os.path.join(self.d, "man.json")
         with open(self.man, "w", encoding="utf-8") as fh:

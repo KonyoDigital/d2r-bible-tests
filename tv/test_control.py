@@ -40,6 +40,28 @@ def _get(port, path, timeout=3):
         return r.status, r.read(), dict(r.headers)
 
 
+
+def _screenish(size, seed, shade=None):
+    """v1543 — a fixture frame that looks like a SCREEN, not a paint swatch.
+
+    These stood in for captured frames as a single flat colour, which is precisely what
+    chronicle_retro.is_dead_frame() now refuses as a blank capture — so every fixture run read as a
+    dead one and the sweep stopped being exercised at all. A fixture that could not survive the
+    product's own liveness check was never simulating a frame; it was simulating a bug.
+
+    Deterministic, so frames built with the same seed are byte-identical and still group into one
+    still run.
+    """
+    import random
+    from PIL import Image
+    w, h = size
+    rnd = random.Random(seed)
+    im = Image.new("RGB", (w, h))
+    base = shade if shade is not None else 40
+    im.putdata([(rnd.randrange(256), (base + rnd.randrange(120)) % 256, rnd.randrange(256))
+                for _ in range(w * h)])
+    return im
+
 class TestTheatre(unittest.TestCase):
     """v765 — Konyo: 'its not really simulated anymore… its own independent VIEW, eyes on
     history' — the theatre serves REAL journaled sessions + REAL archived frames."""
@@ -4784,7 +4806,7 @@ class TestChronicleSweepJob(unittest.TestCase):
             rd = os.path.join(self.d, "reel_" + sid)
             os.makedirs(rd)
             for n in range(6):
-                Image.new("RGB", (64, 48), (20, 30, 40)).save(os.path.join(rd, "f%d.jpg" % n))
+                _screenish((64, 48), 11).save(os.path.join(rd, "f%d.jpg" % n))
             with open(os.path.join(rd, "index.json"), "w", encoding="utf-8") as fh:
                 json.dump({"sessionId": sid,
                            "frames": [{"f": "f%d.jpg" % n, "ts": 1000 + n} for n in range(6)]}, fh)
@@ -5070,7 +5092,7 @@ class TestSweepOneVisit(unittest.TestCase):
         rd = os.path.join(self.d, "reel_s_1")
         os.makedirs(rd)
         for n in range(5):
-            Image.new("RGB", (48, 32), (30, 30, 30)).save(os.path.join(rd, "f%d.jpg" % n))
+            _screenish((48, 32), 12).save(os.path.join(rd, "f%d.jpg" % n))
         man = os.path.join(self.d, "man.json")
         with open(man, "w", encoding="utf-8") as fh:
             json.dump({"*#chronicle": {"found": ["Windforce"], "notFound": [], "conf": 0.9}}, fh)

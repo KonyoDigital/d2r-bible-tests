@@ -54,6 +54,70 @@ def jpeg_sig(path):
         return None
 
 
+# v1543 — a frame this uniformly one tone carries no screen. Measured on his own reels: the two dead
+# captures came in at 95.0% and 99.4%, while the BUSIEST legitimately-dark frame — the D2R title
+# screen, which is mostly black — sat at 82.7%. 0.92 leaves a wide margin on both sides. Calibrated
+# on one machine's footage, so it is a named constant rather than a number buried in a comparison.
+DEAD_FLATNESS = 0.92
+
+
+def frame_flatness(path):
+    """What share of the frame is a single flat tone (0..1), or None if it cannot be measured.
+
+    None is not 0.0 and the difference matters: "I could not look" must never be spent as "I looked
+    and it was fine", which is the mistake REG-086 was made of.
+    """
+    try:
+        from PIL import Image  # type: ignore
+    except Exception:
+        return None
+    try:
+        with Image.open(path) as im:
+            h = im.convert("L").resize((96, 96)).histogram()
+    except Exception:
+        return None
+    n = sum(h)
+    if not n:
+        return None
+    # widest share inside any 17-wide luminance window — one flat tone, allowing for JPEG dither
+    return max(sum(h[i:i + 17]) for i in range(0, 240)) / float(n)
+
+
+def is_dead_frame(path, threshold=DEAD_FLATNESS):
+    """A blank capture: the window was grabbed while it had nothing on it.
+
+    Konyo's four reels hold three of these among eleven still screens — a white window, a black one,
+    and a black one with a title bar. They are not Chronicle pages and never can be, but the sweep
+    still paid a classify for each, and the reader dutifully answered "not a chronicle" about a photo
+    of nothing. Refusing them is a straight saving; more importantly, a capture lane producing blank
+    frames at all is a fault worth SEEING rather than quietly paying for.
+
+    Returns False when flatness cannot be measured — an unmeasurable frame is still read, because
+    skipping something we could not judge is how a real Chronicle page would go missing.
+    """
+    f = frame_flatness(path)
+    if f is None:
+        return False
+    return f >= threshold
+
+
+def live_probe(frames, path_of, threshold=DEAD_FLATNESS):
+    """Pick the frame in a run worth classifying: the middle one, unless it is blank.
+
+    The middle frame is the most settled — the first can be mid-transition and the last mid-exit — so
+    it stays the preference. When it is dead the run is not abandoned, because a window that blanked
+    for a moment mid-visit is exactly the case where the rest of the run is still a real screen.
+    Returns (frame, dead_seen), and (None, n) only when EVERY frame in the run is blank.
+    """
+    order = sorted(range(len(frames)), key=lambda i: abs(i - len(frames) // 2))
+    dead = 0
+    for i in order:
+        if not is_dead_frame(path_of(frames[i]), threshold):
+            return frames[i], dead
+        dead += 1
+    return None, dead
+
+
 def sig_diff(a, b, tol=28):
     """Fraction of samples that MEANINGFULLY differ — the same contract as tv_diablo.sig_diff, so the
     two halves of the system reason about "same screen" on one scale."""
@@ -126,10 +190,15 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     sig_of = sig_of or (lambda n: jpeg_sig(os.path.join(reel_dir, n)))
     runs = still_runs(idx.get("frames") or [], sig_of)
     cands = candidate_runs(runs, min_frames=min_frames)
-    pages, classified = [], 0
+    pages, classified, blank_runs = [], 0, 0
     for run in cands:
         fr = run["frames"]
-        probe = fr[len(fr) // 2]
+        # v1543 — never pay to classify a photo of nothing. A blank capture cannot be a Chronicle,
+        # and a run that is blank all the way through is a capture fault, not a screen he looked at.
+        probe, _dead = live_probe(fr, lambda n: os.path.join(reel_dir, n))
+        if probe is None:
+            blank_runs += 1
+            continue
         classified += 1
         kind = classify(os.path.join(reel_dir, probe))
         if kind not in ("chronicle-uniques", "chronicle-sets"):
@@ -140,7 +209,7 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
             resp = read_page(os.path.join(reel_dir, name), kind) or {}
             pages.append({"reel": sid, "frame": name, "kind": kind, "resp": resp})
     return {"reel": sid, "runs": len(runs), "candidates": len(cands),
-            "classified": classified, "pages": pages}
+            "classified": classified, "blankRuns": blank_runs, "pages": pages}
 
 
 def _distinct(names, sig_of, max_diff=0.06):
@@ -532,7 +601,7 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
         except Exception:
             pass
         pages.extend(r.get("pages") or [])
-        stat = {k: r.get(k) for k in ("reel", "runs", "candidates", "classified", "note")}
+        stat = {k: r.get(k) for k in ("reel", "runs", "candidates", "classified", "blankRuns", "note")}
         stat["pages"] = len(r.get("pages") or [])
         stats.append(stat)
         if on_reel:
@@ -547,6 +616,7 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
         "framesSeen": frames_seen,
         "candidates": sum(s.get("candidates") or 0 for s in stats),
         "classified": sum(s.get("classified") or 0 for s in stats),
+        "blankRuns": sum(s.get("blankRuns") or 0 for s in stats),
         "pagesRead": prop.get("pagesRead", 0),
         "refused": len(prop.get("refused") or []),
         "uniques": len(prop.get("uniques") or {}),
@@ -589,6 +659,7 @@ def sweep_verdict(totals):
     cands = t.get("candidates") or 0
     classified = t.get("classified") or 0
     pages = t.get("pagesRead") or 0
+    blank = t.get("blankRuns") or 0
     names = (t.get("uniques") or 0) + (t.get("sets") or 0)
 
     if names:
@@ -613,10 +684,15 @@ def sweep_verdict(totals):
     # pagesRead. Reading it the other way put this exact case in the branch below and told him to
     # hold the panel steadier, when the panel was never opened at all.
     if not pages:
+        # v1543 — a blank-capture count is not a footnote. Runs that were skipped for being one flat
+        # tone are the capture lane handing the reader photographs of nothing, and saying so here is
+        # the difference between "your Chronicle was not on camera" and "your camera was not on".
+        blanks = (" %d run(s) were skipped as BLANK CAPTURES — the window was grabbed with nothing "
+                  "on it, which is worth fixing on its own." % blank) if blank else ""
         return {"state": "no-chronicle", "ok": True,
                 "say": ("%d still screen(s) across %d reel(s) were examined and NONE was a Chronicle "
-                        "page — so there was nothing to read. This is not a reader failure."
-                        % (cands, reels)),
+                        "page — so there was nothing to read. This is not a reader failure.%s"
+                        % (cands, reels, blanks)),
                 "do": ("Open the Chronicle in game while TV DIABLO is watching, hold it still for a "
                        "few seconds on the UNIQUES page and again on the SETS page, then sweep. "
                        "(No console running? Photograph the Chronicle and use the board's "

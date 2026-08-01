@@ -610,5 +610,98 @@ class TestSweepVerdict(unittest.TestCase):
             self.assertIn("candidates", res["totals"], "the verdict's inputs travel with it")
 
 
+
+class TestBlankCaptures(unittest.TestCase):
+    """v1543 — DO NOT PAY TO CLASSIFY A PHOTOGRAPH OF NOTHING.
+
+    Three of the eleven still screens in Konyo's reels are blank captures: a white window, a black
+    one, and a black one with a title bar. The sweep paid a classify for each and the reader
+    dutifully answered "not a chronicle" about a picture of nothing.
+
+    Measured on that footage: the dead frames sit at 95.0% and 99.4% single-tone, and the busiest
+    legitimately-dark real frame — the D2R title screen — at 82.7%. The threshold has room on both
+    sides, and the numbers are in the source so the next person can re-derive them.
+    """
+
+    def _png(self, dirpath, name, shade):
+        from PIL import Image
+        p = os.path.join(dirpath, name)
+        Image.new("L", (120, 90), shade).save(p)
+        return p
+
+    def _busy(self, dirpath, name):
+        from PIL import Image
+        import random
+        im = Image.new("L", (120, 90))
+        rnd = random.Random(7)
+        im.putdata([rnd.randrange(256) for _ in range(120 * 90)])
+        p = os.path.join(dirpath, name)
+        im.save(p)
+        return p
+
+    def test_a_flat_white_or_black_frame_is_dead(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertTrue(cr.is_dead_frame(self._png(d, "w.png", 255)))
+            self.assertTrue(cr.is_dead_frame(self._png(d, "b.png", 0)))
+            self.assertTrue(cr.is_dead_frame(self._png(d, "g.png", 128)))
+
+    def test_a_frame_with_a_screen_on_it_is_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertFalse(cr.is_dead_frame(self._busy(d, "busy.png")))
+
+    def test_an_unmeasurable_frame_is_READ_not_skipped(self):
+        """"I could not look" must never be spent as "nothing there". Skipping what we could not
+        judge is exactly how a real Chronicle page would go missing."""
+        self.assertFalse(cr.is_dead_frame("/nope/does/not/exist.jpg"))
+        self.assertIsNone(cr.frame_flatness("/nope/does/not/exist.jpg"))
+
+    def test_live_probe_prefers_the_middle_frame(self):
+        with tempfile.TemporaryDirectory() as d:
+            names = [os.path.basename(self._busy(d, "f%d.png" % i)) for i in range(5)]
+            got, dead = cr.live_probe(names, lambda n: os.path.join(d, n))
+            self.assertEqual(got, names[2], "the middle frame is the most settled one")
+            self.assertEqual(dead, 0)
+
+    def test_a_blank_middle_does_not_condemn_the_whole_run(self):
+        """A window that blanked for a moment mid-visit is exactly when the rest of the run is
+        still a real screen — so it steps outward rather than giving up."""
+        with tempfile.TemporaryDirectory() as d:
+            names = []
+            for i in range(5):
+                names.append(os.path.basename(
+                    self._png(d, "f%d.png" % i, 0) if i == 2 else self._busy(d, "f%d.png" % i)))
+            got, dead = cr.live_probe(names, lambda n: os.path.join(d, n))
+            self.assertIsNotNone(got)
+            self.assertNotEqual(got, names[2])
+            self.assertEqual(dead, 1, "it reports the blank it stepped over")
+
+    def test_an_all_blank_run_is_refused_and_COUNTED(self):
+        with tempfile.TemporaryDirectory() as d:
+            names = [os.path.basename(self._png(d, "f%d.png" % i, 255)) for i in range(4)]
+            got, dead = cr.live_probe(names, lambda n: os.path.join(d, n))
+            self.assertIsNone(got, "there is nothing in this run worth paying for")
+            self.assertEqual(dead, 4)
+
+    def test_the_verdict_names_blank_captures_rather_than_hiding_the_saving(self):
+        """A silent skip would turn a capture fault into a smaller invoice and nothing else. He needs
+        to know the difference between 'your Chronicle was not on camera' and 'your camera was off'."""
+        t = {"reels": 3, "skippedReels": 0, "candidates": 8, "classified": 5,
+             "blankRuns": 3, "pagesRead": 0, "uniques": 0, "sets": 0}
+        v = cr.sweep_verdict(t)
+        self.assertEqual(v["state"], "no-chronicle")
+        self.assertIn("BLANK CAPTURES", v["say"])
+        self.assertIn("3 run(s)", v["say"])
+
+    def test_no_blanks_means_no_noise_about_blanks(self):
+        t = {"reels": 3, "skippedReels": 0, "candidates": 8, "classified": 8,
+             "blankRuns": 0, "pagesRead": 0, "uniques": 0, "sets": 0}
+        self.assertNotIn("BLANK", cr.sweep_verdict(t)["say"])
+
+    def test_blankRuns_reaches_the_totals(self):
+        with tempfile.TemporaryDirectory() as d:
+            res = cr.sweep_hist(d, classify=lambda p: None, read_page=lambda p, k: {})
+            self.assertIn("blankRuns", res["totals"], "a count the UI cannot reach is a comment")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

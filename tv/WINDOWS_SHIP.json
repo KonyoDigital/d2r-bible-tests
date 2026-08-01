@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1542",
+  "ver": "v1543",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1542: both grail forges ranked on drops-per-hour alone, which prefers the easiest difficulty twice over; difficulty is now the primary key",
+  "note": "v1543: blank captures are refused and COUNTED - a silent skip would turn a capture fault into a smaller invoice and nothing else",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
