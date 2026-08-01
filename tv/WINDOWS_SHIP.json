@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1551",
+  "ver": "v1552",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1551: the CLI has printed both since v1541 and the console printed neither - and the console is the only surface his Windows PC will show him",
+  "note": "v1552: the sigil algorithm is duplicated in board and console with no link; D2R_SIGIL was the one export nothing called and is now the seam that pins them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
