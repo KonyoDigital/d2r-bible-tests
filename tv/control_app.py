@@ -8136,7 +8136,17 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
     if not os.path.isdir(hist):
         return {"ok": True, "reels": [], "totals": {"reels": 0, "framesSeen": 0, "classified": 0},
                 "note": "no sealed reels yet"}
-    res = _cr.sweep_hist(hist, classify=lambda p: None, read_page=lambda p, k: {}, limit=limit)
+    # v1551 — REMEMBER WHICH FRAMES, not just how many. The classify stub is already called once per
+    # candidate run; recording the path costs nothing and turns "11 classifies" into eleven frames he
+    # can open. The CLI has printed this since v1541 and the console — the surface he actually uses,
+    # and the only one his Windows PC will ever show him — did not.
+    picked = []
+
+    def _probe(path):
+        picked.append(path)
+        return None
+
+    res = _cr.sweep_hist(hist, classify=_probe, read_page=lambda p, k: {}, limit=limit)
     t = res["totals"]
     seen, calls = t.get("framesSeen") or 0, t.get("classified") or 0
     return {
@@ -8149,6 +8159,9 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
         "wouldRead": calls,
         "insteadOf": seen,
         "spent": 0,          # ★ said out loud: this route cannot cost anything
+        # the same two things the CLI prints: WHICH frames, and WHY the answer is what it is
+        "frames": [os.path.relpath(p, hist) for p in picked[:40]],
+        "verdict": res.get("verdict"),
     }
 
 
@@ -8591,7 +8604,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1550",
+        "ver": "v1551",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

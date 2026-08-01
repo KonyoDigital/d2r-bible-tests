@@ -150,4 +150,36 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
       .toEqual([]);
     expect(routes.length).toBeGreaterThan(25);
   });
+
+  test('★ v1551 — the PRICE pass names the frames and the verdict, like the CLI does', async ({ page }) => {
+    // "11 classifies" reads as "11 Chronicle pages". It means "11 screens worth looking at", and on
+    // his footage every one was a lobby, a stash or a blank capture. The CLI has printed both since
+    // v1541; the console — the only surface his Windows PC will ever show him — printed neither.
+    await page.route(ORIGIN + '/ui', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: UI_HTML }));
+    await page.route((u: URL) => u.pathname.startsWith('/api/'), (r: any) => {
+      const p = new URL(r.request().url()).pathname;
+      if (p !== '/api/chronicle_scan') return r.abort();
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        ok: true, reels: [{ reel: 'reel_s_1', runs: 6, classified: 4 }],
+        totals: { reels: 1, framesSeen: 153, classified: 4, blankRuns: 1 },
+        savedPct: 97.4, wouldRead: 4, insteadOf: 153, spent: 0,
+        frames: ['reel_s_1/f_100.jpg', 'reel_s_1/f_200.jpg'],
+        verdict: { state: 'no-chronicle', ok: true,
+          say: '4 still screen(s) across 1 reel(s) were examined and NONE was a Chronicle page — so there was nothing to read. This is not a reader failure.',
+          do: 'Open the Chronicle in game while TV DIABLO is watching.' },
+      }) });
+    });
+    await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(500);
+    await page.click('#chron-scan');
+    await page.waitForTimeout(700);
+    const txt = (await page.textContent('#chron-body')) || '';
+    expect(txt, 'the verdict travels with the price').toContain('NONE was a Chronicle page');
+    expect(txt, 'and what to do about it').toContain('Open the Chronicle in game');
+    expect(txt, 'and the frames he can open himself').toContain('f_100.jpg');
+    expect(await page.locator('.chron-frames').count()).toBe(1);
+    expect((await page.textContent('#chron-note')) || '',
+      'the free pass must still say it spent nothing').toContain('0 calls spent');
+  });
 });

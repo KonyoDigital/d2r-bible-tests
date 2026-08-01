@@ -2318,6 +2318,11 @@
   .chron-verdict .cv-say { color: #d8cbe8; }
   .chron-verdict.bad .cv-say { color: #e0a860; }
   .chron-verdict .cv-do { margin-top: 6px; opacity: .82; }
+  /* v1551 — the frame list the price pass now names */
+  .chron-frames { flex: 1 1 100%; margin-top: 8px; font-size: var(--fs-2xs); }
+  .chron-frames summary { cursor: pointer; opacity: .8; }
+  .chron-frames .cf-list { margin-top: 6px; max-height: 190px; overflow: auto; }
+  .chron-frames .cf { opacity: .72; font-family: var(--font-mono, monospace); line-height: 1.5; }
   .chron-idle, .chron-none { font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono);
     letter-spacing: var(--ls-label); color: var(--text-dim); padding: 4px 0; }
   .chron-fig { flex: 0 0 auto; min-width: 132px; padding: 8px 12px; border-radius: 8px;
@@ -10558,7 +10563,24 @@ function escC(s) {
         return '<div class="cr"><span>' + escC(String(x.reel || '?').slice(0, 28)) + '</span>'
           + '<span><b>' + escC(String(x.runs || 0)) + '</b> runs → <b>' + escC(String(x.classified || 0)) + '</b> calls</span></div>';
       }).join('');
-      body.innerHTML = figs + '<div class="chron-reels">' + (reels || '') + '</div>';
+      /* v1551 — WHICH FRAMES, AND WHY. "11 classifies" reads as "11 Chronicle pages"; it means
+         "11 screens worth looking at", and on his footage every one was a lobby, a stash or a blank
+         capture. The CLI has printed both since v1541 and the console — the surface he actually
+         uses, and the only one his Windows PC will ever show him — printed neither. */
+      var vd = j.verdict, frames = j.frames || [];
+      var verdictHtml = vd
+        ? '<div class="chron-verdict ' + escC(vd.state || '') + (vd.ok ? ' ok' : ' bad') + '">'
+          + '<div class="cv-say">' + (vd.ok ? '·' : '⚠') + ' ' + escC(vd.say || '') + '</div>'
+          + (vd.do ? '<div class="cv-do">→ ' + escC(vd.do) + '</div>' : '') + '</div>'
+        : '';
+      var framesHtml = frames.length
+        ? '<details class="chron-frames"><summary>the ' + frames.length
+          + ' frame(s) it would pay to read — open them and see what they are</summary>'
+          + '<div class="cf-list">' + frames.map(function (f) {
+            return '<div class="cf">' + escC(f) + '</div>'; }).join('') + '</div></details>'
+        : '';
+      body.innerHTML = figs + '<div class="chron-reels">' + (reels || '') + '</div>'
+        + verdictHtml + framesHtml;
       // ★ the claim the panel must never overstate: this pass read nothing and wrote nothing
       if (note) note.textContent = 'priced from your own film · 0 calls spent · nothing written';
       // v1520 — the real run is offered only AFTER he has seen what it costs
