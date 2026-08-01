@@ -1576,6 +1576,34 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   makes an unreferenced `tv/test_*.py` a failure in its own right — the fix for this defect is not
   the two assertions, it is that nothing was watching them.
 
+## REG-087 — applying a read DELETED a set piece you already owned (2026-08-01, v1539)
+- **Symptom:** none. That is the whole problem: your F-Sets count went DOWN, silently, and for a
+  SEEDED piece it could never come back.
+- **Caught by:** the deliberate hunt for REG-083's class (a name called in one script/IIFE scope and
+  declared in another) — the first thing that hunt found, and the worst.
+- **Root cause:** `_setHave` is declared inside the IIFE at `bible.html:33155`; both call sites
+  (36765, 36848) are in the IIFE at 35817, and nothing ever published it. The guard reads
+  `hv = (typeof _setHave === 'function') && _setHave().has(key)` — and **`typeof` on an UNDECLARED
+  name does not throw**, it returns `'undefined'`. So `hv` was permanently FALSE, the catch never
+  ran, the owned-piece early-return never fired, and `toggleSetPiece(key)` ran against a piece
+  already owned.
+- **Why that is destruction, not a no-op** (bible.html:18607-18625): the toggle (1) `delete fl[piece]`
+  from `d2r_foundLog` — the found date is gone; (2) writes `d2r_grailUnfound[piece]=1`, so the boot
+  seed floor can **never re-assert it**; (3) `setPieces.delete` + persist.
+- **Proof it was a mistake, not a design:** one line above at 36847 the `uni` branch guards with
+  `_gFound`, which IS published (`window._gFound`, 15093) and returns early correctly. Same guard,
+  same intent — alive for uniques, dead for sets.
+- **Fix:** publish `window._setHave` beside the declaration (a shim, not a ported copy — the same
+  function feeds fsetsScan, toggleSetPiece and _chronAlreadySet), point both call sites at it, and
+  KEEP the typeof guards so they become real load-order guards instead of dead ones.
+- **Prevention:** `tests/v1539_setpiece_deletion.spec.ts` — owns a real piece, applies a read naming
+  it, and asserts the piece survives, the found date survives, and `d2r_grailUnfound` is NOT written.
+- **Lesson, and it is the sharpest one this class has produced:** `typeof x === 'function'` on a
+  name from another scope is not a guard, it is an OFF SWITCH — and unlike a bare call it does not
+  even throw, so no catch fires, no console error appears, and the code takes the other branch
+  forever. Every `typeof someBareName ===` in a multi-IIFE file deserves the question: can this
+  scope actually SEE that name?
+
 ## REG-086 — TV_SESSIONS isolated 1 of 11 journal sites (2026-07-31)
 - **Symptom:** an isolated harness (private ports, fixture journal via `TV_SESSIONS`) returned **25
   receipts of Konyo's REAL session data** from a fixture seeded with four rows. Found while verifying

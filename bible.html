@@ -33418,6 +33418,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   /* ── SETS ────────────────────────────────────────────── */
   function _setHave(){ try { return new Set(JSON.parse(window.LSR.getItem('d2r_setPieces')||'[]')); } catch(e){ return new Set(); } }
+  // v1539 (REG-087) — PUBLISHED, because two call sites in the LATER IIFE (~35817) guard on
+  // `typeof _setHave==='function'` and this declaration is invisible to them. typeof on an
+  // undeclared name does not throw, so that guard was permanently FALSE and the owned-piece
+  // early-return never fired — window.toggleSetPiece then ran on a piece already owned and TOGGLED
+  // IT OFF, deleting the found date and writing d2r_grailUnfound so the seed floor could never
+  // restore it. A shim, not a ported copy: this same function feeds fsetsScan, toggleSetPiece and
+  // _chronAlreadySet, and a second copy would be a second thing to drift.
+  try { window._setHave = _setHave; } catch(e){}
   window.fsetsScan=function(){
     var have=_setHave(); var sets=(typeof window.__allSets==='function')?window.__allSets():[];
     var totalP=0, haveP=0;
@@ -35743,7 +35751,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1538', name:'v1538 - prove it on your windows', date:'2026-07-31', note:'the crop branch and pixel size are reported, so one ON AIR on a 16:9 box turns the derived fix into a fact' };
+  window.D2R_BUILD = { id:'v1539', name:'v1539 - the guard that was an off switch', date:'2026-07-31', note:'REG-087: applying a read deleted a set piece you already owned, because typeof on a cross-scope name never throws' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -36762,7 +36770,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var pm=V.pieceMap[clean]||V.pieceMap[n];
         if(!pm){ Object.keys(V.pieceMap).some(function(k){ if(k.toLowerCase()===clean.toLowerCase()){ pm=V.pieceMap[k]; return true; } return false; }); }
         if(pm){
-          var have=false; try { have=(typeof _setHave==='function')&&_setHave().has(pm); } catch(e){ try { have=(typeof setPieces!=='undefined')&&setPieces.has(pm); } catch(e2){} }
+          var have=false; try { have=(typeof window._setHave==='function')&&window._setHave().has(pm); } catch(e){ try { have=(typeof setPieces!=='undefined')&&setPieces.has(pm); } catch(e2){} }   /* v1539 REG-087 — same dead guard: the chip rendered NOT-done for owned pieces and actively invited the destructive click */
           return { kind:'set', key:pm, label:'🧩 '+clean, done:have, db:true };
         }
       }
@@ -36845,7 +36853,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if(kind==='rune'){ runeStash[key]=(parseInt(runeStash[key],10)||0)+1; persist(); if(typeof renderRuneStash==='function') renderRuneStash(); }
       else if(kind==='gem'){ gemStash[key]=(parseInt(gemStash[key],10)||0)+1; persist(); if(typeof renderGemStash==='function') renderGemStash(); }
       else if(kind==='uni'){ if(typeof _gFound==='function'&&_gFound(key)) return; if(typeof window.toggleOwned==='function') window.toggleOwned(key); }
-      else if(kind==='set'){ var hv=false; try{ hv=(typeof _setHave==='function')&&_setHave().has(key); }catch(e){} if(hv) return; if(typeof window.toggleSetPiece==='function') window.toggleSetPiece(key); }
+      else if(kind==='set'){ var hv=false; try{ hv=(typeof window._setHave==='function')&&window._setHave().has(key); }catch(e){} if(hv) return; if(typeof window.toggleSetPiece==='function') window.toggleSetPiece(key); }   /* v1539 REG-087 — window._setHave: the bare name is declared in a DIFFERENT IIFE, so this guard was always false and applying a read TOGGLED OFF a piece he already owned */
       else return;
       if(typeof window._tvdCountApply==='function') window._tvdCountApply();
       if(chip){ chip.classList.add('tc-done'); var a=chip.querySelector('.tc-apply'); if(a){ a.textContent='✓ done'; a.onclick=null; } }

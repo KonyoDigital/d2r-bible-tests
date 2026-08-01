@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1538",
+  "ver": "v1539",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1538: the crop branch and pixel size are reported, so one ON AIR on a 16:9 box turns the derived fix into a fact",
+  "note": "v1539: REG-087: applying a read deleted a set piece you already owned, because typeof on a cross-scope name never throws",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
