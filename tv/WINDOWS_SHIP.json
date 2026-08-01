@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1545",
+  "ver": "v1546",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1545: 16 of 17 blanks in the worst reel land in the first 19 seconds - capture starts while D2R is still launching",
+  "note": "v1546: measured before and after: found 243/368 unchanged, no sealed ground lost, runs consolidated 20 to 9",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

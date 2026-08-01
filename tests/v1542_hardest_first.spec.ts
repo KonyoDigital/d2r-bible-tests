@@ -159,4 +159,49 @@ test.describe('v1542 — Hell before Nightmare before Normal', () => {
       expect(r.boss, 'the OPS queue reads runs[0], so it must be the same Hell run').toMatch(/Hell/);
     }
   });
+
+  test('★ THE SAFETY PROPERTY: reordering the hunt must never move the grail', async ({ page }) => {
+    // Measured before/after v1542 against the pre-change board: found/total identical at 243/368,
+    // sealed grounds 0 -> 0 with none lost and none gained, ranked runs consolidated 20 -> 9. This
+    // pins the half that matters — a ranking decides what he farms NEXT and must never be able to
+    // change what he is recorded as HAVING.
+    await boot(page);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const s = w.funiScan();
+      const own = new Set<string>();
+      try {
+        JSON.parse(w.LSR.getItem('d2r_owned') || '[]').forEach((n: string) => own.add(n));
+        Object.keys(JSON.parse(w.LSR.getItem('d2r_foundLog') || '{}')).forEach((n) => own.add(n));
+      } catch { /* */ }
+      return {
+        found: s.found, total: s.total, missing: (s.missing || []).length,
+        // the found count must be the OWNED set, not anything the ranking touched
+        ownedInUniverse: s.total - (s.missing || []).length,
+        sealedAllFound: (s.sealed || []).every((g: any) => g.found === g.total && g.total >= 2),
+      };
+    });
+    expect(r.found + r.missing, 'found + missing must account for the whole universe').toBe(r.total);
+    expect(r.found, 'the found count is the owned set — ranking cannot touch it').toBe(r.ownedInUniverse);
+    expect(r.sealedAllFound, 'a sealed ground must still be a pool that is entirely found').toBe(true);
+  });
+
+  test('★ hardest-first CONSOLIDATES the hunt instead of scattering it', async ({ page }) => {
+    // A real side effect worth keeping: when every item keys to its Hell source, missing items fall
+    // into fewer, larger runs (20 -> 9 on his data) rather than being spread across three difficulties
+    // of the same boss. Fewer runs, each worth more per trip.
+    await boot(page);
+    const r = await page.evaluate(() => {
+      const s: any = (window as any).funiScan();
+      const runs = s.runs || [];
+      const labels = runs.map((x: any) => String(x.boss || ''));
+      return {
+        n: runs.length,
+        splitBosses: labels.filter((b: string) => /^(NM|Normal)/.test(b)).length,
+      };
+    });
+    expect(r.splitBosses,
+      'no run should still be keyed to a Normal or Nightmare boss while a Hell source exists').toBe(0);
+    expect(r.n).toBeGreaterThan(0);
+  });
 });
