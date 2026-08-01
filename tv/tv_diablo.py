@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1544"   # the arc doc stops claiming two things that are no longer true
+VERSION = "v1545"   # mark the blank captures where they are made
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -6376,17 +6376,44 @@ def close_session(reason="stop", farewell=True):
                         f for f in os.listdir(_reel)
                         if f.startswith("f_") and f.endswith(".jpg")
                     )
+                    # v1545 — MARK THE BLANK CAPTURES, ONCE, HERE.
+                    #
+                    # 18 of the 394 frames in his sealed footage are the window grabbed with nothing
+                    # on it, and 16 of the 17 in the worst reel land in the FIRST NINETEEN SECONDS:
+                    # capture starts while D2R is still launching, so the window exists (the grab
+                    # succeeds) and is blank until the title screen paints.
+                    #
+                    # Marking beats deleting — that footage is real, the SIM replays it, and throwing
+                    # away evidence to tidy a count is the wrong trade. Marking beats measuring later
+                    # too: the flatness is computed once at seal instead of on every sweep, and a
+                    # blank frame sitting inside a real Chronicle visit no longer splits that visit
+                    # into two runs and charges for two classifies.
+                    _blank = 0
                     _meta = []
                     for _fn in _idx:
                         try:
-                            _meta.append({"f": _fn, "ts": int(_fn[2:-4])})
+                            _row = {"f": _fn, "ts": int(_fn[2:-4])}
                         except Exception:
-                            pass
+                            continue
+                        try:
+                            import chronicle_retro as _cr
+                            if _cr.is_dead_frame(os.path.join(_reel, _fn)):
+                                _row["blank"] = True
+                                _blank += 1
+                        except Exception:
+                            pass          # unmeasurable stays unmarked — never guessed blank
+                        _meta.append(_row)
                     with open(os.path.join(_reel, "index.json"), "w", encoding="utf-8") as _jf:
-                        json.dump({"sessionId": SESSION_ID, "n": len(_meta), "frames": _meta}, _jf)
+                        json.dump({"sessionId": SESSION_ID, "n": len(_meta),
+                                   "blank": _blank, "frames": _meta}, _jf)
                 except Exception:
-                    pass
+                    _blank = 0
                 print(f"  🎞 reel folded — {_moved} footage frames sealed into reel_{SESSION_ID}")
+                # said out loud, because a capture lane producing blank frames is a fault that would
+                # eat a real Chronicle page exactly as happily as it eats a loading screen
+                if _blank:
+                    print(f"  ⚠ {_blank} blank capture(s) in this reel — the window was grabbed with "
+                          f"nothing painted on it (usually D2R still launching)")
     except Exception:
         pass
     with _state_lock:

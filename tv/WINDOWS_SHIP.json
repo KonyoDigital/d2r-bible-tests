@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1544",
+  "ver": "v1545",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1544: the worker kinds have a caller and the reading has been run for real; what is left is the gate tuning and the blank captures at source",
+  "note": "v1545: 16 of 17 blanks in the worst reel land in the first 19 seconds - capture starts while D2R is still launching",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

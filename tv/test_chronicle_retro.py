@@ -703,5 +703,46 @@ class TestBlankCaptures(unittest.TestCase):
             self.assertIn("blankRuns", res["totals"], "a count the UI cannot reach is a comment")
 
 
+
+class TestBlankMarkedAtSeal(unittest.TestCase):
+    """v1545 — the seal marks blank captures, and grouping skips them.
+
+    16 of the 17 blanks in his worst reel land in the first NINETEEN SECONDS — capture starts while
+    D2R is launching, so the window exists and is blank until the title paints. v1543 stopped paying
+    for them; this stops them costing anything at all, and says so at the moment they are created.
+    """
+
+    def test_a_blank_marked_frame_is_skipped_by_grouping(self):
+        frames = [{"f": "a", "ts": 1}, {"f": "b", "ts": 2, "blank": True}, {"f": "c", "ts": 3}]
+        sigs = {"a": b"\x01" * 16, "b": b"\xff" * 16, "c": b"\x01" * 16}
+        runs = cr.still_runs(frames, lambda n: sigs[n])
+        self.assertEqual(len(runs), 1, "a one-frame flicker must not split a visit into two runs")
+        self.assertEqual(runs[0]["frames"], ["a", "c"])
+
+    def test_a_blank_frame_is_NOT_treated_as_unreadable(self):
+        """An unreadable frame BREAKS the run — we cannot tell what it was, so welding across it
+        would be a guess. A blank one is different: we know it carried no screen."""
+        sigs = {"a": b"\x01" * 16, "b": None, "c": b"\x01" * 16}
+        runs = cr.still_runs([{"f": "a"}, {"f": "b"}, {"f": "c"}], lambda n: sigs[n])
+        self.assertEqual(len(runs), 2, "an UNREADABLE frame must still break the run")
+
+    def test_an_unmarked_index_still_works(self):
+        """Reels sealed before v1545 carry no `blank` key at all. They must group exactly as before —
+        v1543's live_probe is what protects those."""
+        frames = [{"f": "a"}, {"f": "b"}, {"f": "c"}]
+        sigs = {"a": b"\x01" * 16, "b": b"\x01" * 16, "c": b"\x01" * 16}
+        runs = cr.still_runs(frames, lambda n: sigs[n])
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(len(runs[0]["frames"]), 3)
+
+    def test_marking_never_removes_the_footage(self):
+        """The mark is a flag on the index row, not a deletion. That footage is real, the SIM replays
+        it, and discarding evidence to tidy a count is the wrong trade."""
+        frames = [{"f": "a", "blank": True}, {"f": "b"}]
+        self.assertIn("f", frames[0], "the frame is still named in the index")
+        runs = cr.still_runs(frames, lambda n: b"\x01" * 16)
+        self.assertEqual(runs[0]["frames"], ["b"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

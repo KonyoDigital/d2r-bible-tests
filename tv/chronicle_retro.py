@@ -146,6 +146,12 @@ def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF):
         name = (fr or {}).get("f")
         if not name:
             continue
+        # v1545 — a frame the seal marked BLANK is skipped outright rather than broken on. It is not
+        # an unreadable frame (which must break the run, because we cannot tell what it was); it is a
+        # frame we know carried no screen. Dropping it lets a visit that flickered for one frame stay
+        # ONE run instead of two, which is one classify instead of two for the same panel.
+        if fr.get("blank"):
+            continue
         sig = sig_of(name)
         if sig is None:
             cur, prev_sig = None, None
