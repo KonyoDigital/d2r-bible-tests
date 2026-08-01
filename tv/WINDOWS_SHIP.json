@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1543",
+  "ver": "v1544",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1543: blank captures are refused and COUNTED - a silent skip would turn a capture fault into a smaller invoice and nothing else",
+  "note": "v1544: the worker kinds have a caller and the reading has been run for real; what is left is the gate tuning and the blank captures at source",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

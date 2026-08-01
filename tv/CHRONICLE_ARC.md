@@ -84,9 +84,13 @@ gets *why*; when it does, the reason survives being questioned.
 | the panel | `tv/control_ui.html` — `#hd-chron` |
 | the apply | `bible.html` — `chronicleApply` / `chronicleUndoLast` |
 | worker intake kinds | `functions/api/intake.js` — `chronicle-uniques` / `chronicle-sets` |
+| the photo intake (no console) | `bible.html` — `chronicleShotIntake` / `chronicleShotApply` (v1540) |
+| why an empty sweep is empty | `tv/chronicle_retro.py` — `sweep_verdict` (v1541) |
+| blank-capture refusal | `tv/chronicle_retro.py` — `is_dead_frame` / `live_probe` (v1543) |
 
-Tests: `tv/test_chronicle_retro.py` (60), the chronicle classes in `tv/test_control.py` and
-`tv/test_agent.py`, and `tests/v1510_*`, `tests/v1520_*`, `tests/v1521_*`.
+Tests: `tv/test_chronicle_retro.py` (78), `tv/test_chronicle_chain.py` (10), the chronicle classes in
+`tv/test_control.py` and `tv/test_agent.py`, and `tests/v1510_*`, `tests/v1520_*`, `tests/v1521_*`,
+`tests/v1540_*` (12).
 
 ## What is deliberately NOT done
 
@@ -109,47 +113,86 @@ Tests: `tv/test_chronicle_retro.py` (60), the chronicle classes in `tv/test_cont
 Two of the three gaps named below are now closed: set-NAME rows (v1530) and
 unmeasurable thresholds (v1531). One remains, and it is the important one.
 
-## ⚠ THE ONE THING STILL UNVERIFIED
+## THE READING ITSELF — reported working (2026-08-02)
 
-**No part of this has ever read a real Chronicle screenshot.** Everything has been exercised against
-real film with stubbed readers, and against real readers with synthetic frames. The machinery is
-verified; the READING is not. The prompts are the least-tested code in the arc.
+For thirty versions this section read: *"No part of this has ever read a real Chronicle screenshot."*
+Everything was exercised against real film with stubbed readers and against real readers with
+synthetic frames; the machinery was verified and the READING was not.
 
-**It cannot be verified from inside a Claude Code session.** `claude -p` hangs when nested (the agent
-warns about this itself at `tv_diablo.py:5023`), so the one command that would answer it has to be
-run by a human in a BARE terminal:
+Konyo has now run it on his own machine and reports it working. That is one person's report rather
+than a test, so treat it as it is: the prompts are no longer unexercised, and they are still the
+least-covered code in the arc. The cheap checks remain free and worth running after any prompt change:
 
 ```bash
-cd ~/d2r_bible_tests
-python3 tv/chronicle_doctor.py          # confirm the arc is wired on this machine (free)
-python3 tv/chronicle_retro.py --cost    # what a sweep would cost, on your own film (free)
-# then, in the console: 📜 CHRONICLE SWEEP → "run it for real"
+python3 tv/chronicle_doctor.py          # is the arc wired on THIS machine
+python3 tv/chronicle_retro.py --cost    # what a sweep would cost + which frames + the verdict
 ```
 
-Until that has run once against footage containing an actual Chronicle panel, treat every claim in
-this document as "the machinery is right", never as "the tally is right".
+## ✅ CLOSED: the worker intake kinds now have a caller (v1540)
 
-## ⚠ ALSO UNWIRED: the worker intake kinds
+`functions/api/intake.js` gained `chronicle-uniques` / `chronicle-sets` in v1510 and for thirty
+versions nothing called them — nine tests, zero callers, a road with no traffic.
 
-`functions/api/intake.js` gained `chronicle-uniques` / `chronicle-sets` in v1510 and **nothing calls
-them**. The sweep reads through the Claude and Grok lanes directly, so the worker kinds have 9 tests
-and zero callers. They are not wrong — they are the same contract `normalize_page` speaks — but
-today they are a road with no traffic.
+**v1540 built the road.** The Forge tabs carry 📜 **Read my Chronicle · UNIQUES** and 🧩 **· SETS**:
+photograph the in-game panel, it reads as evidence, and nothing is written until he presses register.
 
-Where they SHOULD be wired, and why it matters for the fleet: a photographed or screenshotted
-Chronicle, posted from the board the way the v561 `grail` import already works. That is the path
-that works when the console is **not** watching — on his phone, or on the Windows PC and his
-cousin's box, which may never run TV DIABLO at all. The live and retro lanes both assume the console
-is running; this one does not.
+This is the only Chronicle path that works when the console is **not** running — on his phone, on the
+Windows PC, on his cousin's box. The live and retro lanes both assume TV DIABLO is watching; this one
+does not, which is the whole reason it exists.
+
+It inherits rather than reinvents: the caller states the ledger (two buttons, never auto-detect), the
+read is read-only until Apply, found[] merge-maxes across pages, and the write goes through the one
+`chronicleApply()` so the owned-item guard (REG-087) and the batch undo come along. Refusals
+(`wrong-ledger`, `no-found-state`) are shown, not swallowed. Tests: `tests/v1540_*` (12).
+
+## An empty sweep now says WHICH nothing it is (v1541)
+
+Konyo ran the retro sweep on his Windows PC: *"it didnt work properly."* It may well have worked —
+a sweep over footage with no Chronicle in it correctly proposes nothing and renders exactly like a
+broken one.
+
+`sweep_verdict()` separates six outcomes, and only ONE of them is the reader:
+
+| state | meaning |
+|---|---|
+| `no-footage` | no sealed reels yet |
+| `all-swept` | the memory doing its job |
+| `no-stills` | nothing held still long enough to be worth reading |
+| `no-chronicle` | screens WERE examined and none was a Chronicle page |
+| `read-nothing` | **pages were read and yielded nothing — this one is the reading itself** |
+| `found` | names proposed |
+
+`--cost` also lists the frames a real sweep would pay to classify. On a machine nobody can reach,
+that listing is the difference between a diagnosis and a guess.
+
+## Blank captures are refused, and counted (v1543)
+
+Three of the eleven still screens in the Mac's reels are blank captures — a white window, a black
+one, and a black one with a title bar. The sweep paid a classify for each.
+
+Measured: dead frames at **95.0%** and **99.4%** single-tone; the busiest legitimately-dark real
+frame (the D2R title screen) at **82.7%**. `DEAD_FLATNESS = 0.92`.
+
+A blank *middle* frame does not condemn the run — `live_probe` steps outward, because a window that
+blanked mid-visit is exactly when the rest of the run is still real. An unmeasurable frame is still
+read. And the skip is COUNTED: a silent one would turn a capture fault into a smaller invoice and
+nothing else.
 
 ## Picking it up
 
-Everything is wired and green. The natural next steps, in value order:
+Everything is wired and green. What is left, in value order:
 
-1. **Run it against his real footage** — see the section above. This is the gap that decides whether
-   any of the rest was worth building.
-2. **Wire the worker kinds to a board photo-intake** — the only Chronicle path that works without
-   the console running, which is the only path the Windows PC and the cousin's box may ever have.
-3. ~~Set-name → pieces~~ — closed in v1530.
-4. ~~Tune the gate on real data~~ — the *tooling* is closed in v1531 (`/api/chronicle_gate`); the
-   tuning itself still needs a real sweep to tune against.
+1. **Tune the gate against a real sweep.** The *tooling* has existed since v1531
+   (`/api/chronicle_gate?floor=&witnesses=` re-runs the gate over the last sweep's evidence for free
+   and names what loosening would let in). It has never been pointed at a real proposal, so
+   `CONF_FLOOR = 0.55` and `MIN_WITNESSES = 2` are still guesses that have never been wrong in
+   anger — which is not the same as being right.
+2. **Fix the blank captures at the source.** v1543 stops paying for them; it does not stop them
+   happening. Something in the capture lane is grabbing the window with nothing on it, and that same
+   fault would eat a real Chronicle frame just as happily as a lobby one.
+3. **A second machine's verdict.** Every number in this document was measured on the Mac. The
+   Windows PC and the cousin's box are where the reads actually fail (REG-086), and
+   `chronicle_retro.py --cost` now prints enough for either of them to be diagnosed remotely.
+4. ~~Run it against real footage~~ — reported working 2026-08-02.
+5. ~~Wire the worker kinds to a board photo-intake~~ — closed in v1540.
+6. ~~Set-name → pieces~~ — closed in v1530.
