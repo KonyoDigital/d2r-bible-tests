@@ -2289,6 +2289,25 @@
 
   /* v1516 — 📜 CHRONICLE SWEEP panel. Reads as a QUOTE, not a result: the big number is a price
      (calls it would make), and the caption says what it is instead of a tally. */
+  /* v1547 — the Terror Zone panel */
+  .hd-tz .tz-body { display: flex; flex-direction: column; gap: 6px; }
+  .tz-idle { opacity: .6; }
+  .tz-slot { display: flex; align-items: baseline; gap: 10px; padding: 7px 10px; border-radius: 7px;
+    border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); }
+  .tz-slot.now { border-color: rgba(120,230,160,.34); background: rgba(120,230,160,.06); }
+  /* v1547 — --fs-* tokens, not raw px: the console enforces a 13px fullscreen floor and
+     TestV1504TypeFloor caught 10px/11px here on the first run. A number that reads fine on a
+     laptop is unreadable on the TV this console is actually watched on. */
+  .tz-lab { font-size: var(--fs-2xs); letter-spacing: .1em; opacity: .8; white-space: nowrap; }
+  .tz-slot.now .tz-lab { color: #8fe0a0; }
+  .tz-zone { font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+  .tz-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #8fe0a0; box-shadow: 0 0 7px #8fe0a0; margin-right: 4px; }
+  /* stale and down are amber, never green — a tracker that dresses old data as live is lying */
+  .tz-stale, .tz-down { color: #e0a860; font-size: var(--fs-2xs); line-height: 1.5;
+    border: 1px solid rgba(224,168,96,.34); background: rgba(224,168,96,.07);
+    padding: 6px 9px; border-radius: 7px; }
+  .hd-tz .tz-foot { display: flex; gap: 6px; margin-top: 8px; }
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
   /* v1541 — the verdict on an empty sweep. Deliberately NOT red for the ok states: "no Chronicle
      appeared in your footage" is information, and dressing it as a fault sends him debugging a
@@ -3457,6 +3476,21 @@
         <!-- v1374 — TALLY ENGINE launcher in the RECORD zone -->
         <div class="hd-col hd-wide hd-tallybar" id="hd-tallybar">
           <div class="hd-chips" id="hd-tallybar-chips"></div>
+        </div>
+        <!-- v1547 — 🌀 TERROR ZONE. Konyo: "i DONT see the TZ tracker anywhere within the console."
+             He was right: control_ui.html had ZERO TZ references. The relay has existed since v944
+             (/api/tz proxies the live Pages function through the site's gate, 90s cache, and serves
+             the last good rotation flagged `stale` when upstream dies) — but it existed so the BOARD
+             served at /board could reach it. Nothing in the console itself ever showed it. -->
+        <div class="hd-col hd-wide hd-tz" id="hd-tz">
+          <div class="hd-h">🌀 TERROR ZONE <span class="hd-sub" id="tz-updated"></span></div>
+          <div class="tz-body" id="tz-body">
+            <div class="tz-idle">reading the rotation…</div>
+          </div>
+          <div class="tz-foot">
+            <button class="chron-btn" type="button" id="tz-refresh">↻ refresh</button>
+            <button class="chron-btn" type="button" id="tz-open" title="the hunt-or-skip judgement lives on the board — one copy, not two">open the full tracker →</button>
+          </div>
         </div>
         <!-- v1516 — 📜 THE CHRONICLE SWEEP. The free pass, in the RECORD zone because that is where
              the chronicle of his runs already lives. It reports a PRICE, never a tally: nothing here
@@ -10541,6 +10575,83 @@ function escC(s) {
         + _chronSeen(r.seen) + '</details>';
     }).join('');
   }
+  /* ── v1547 — 🌀 THE TERROR ZONE PANEL ────────────────────────────────────────────────────────
+     Shows the rotation and NOTHING it cannot stand behind.
+
+     The zone NAMES come from the relay. The hunt-or-skip judgement does not, and deliberately: that
+     lives in bible.html's tzHuntMatch, and a second copy in the console is a second thing to drift
+     the next time a zone is reclassified. So this reports the rotation and hands off to the board —
+     which this very server already serves at /board — for the verdict.
+
+     Three states, told apart rather than blurred:
+       live   · a fresh rotation
+       stale  · the relay could not reach upstream and is serving the last good one. It says so.
+                v944 already flags it; blurring that into "live" is how a tracker starts lying.
+       down   · no rotation at all, and no pretending otherwise
+     ─────────────────────────────────────────────────────────────────────────────────────────── */
+  var _tzTimer = null;
+
+  function _tzPaint(d) {
+    var body = document.getElementById('tz-body');
+    var upd = document.getElementById('tz-updated');
+    if (!body) return;
+    if (!d || (!d.current && !d.next)) {
+      body.innerHTML = '<div class="tz-down">⚠ no rotation available — '
+        + escC((d && d.error) || 'the tracker relay could not reach the live site') + '</div>';
+      if (upd) upd.textContent = '';
+      return;
+    }
+    var row = function (label, zone, cls) {
+      return '<div class="tz-slot ' + cls + '">'
+        + '<span class="tz-lab">' + label + '</span>'
+        + '<span class="tz-zone">' + escC(zone || '(unknown)') + '</span></div>';
+    };
+    body.innerHTML =
+      row('<span class="tz-dot"></span> LIVE NOW', d.current, 'now')
+      + row('⏭ NEXT · ~30 min', d.next, 'next')
+      + (d.stale
+        ? '<div class="tz-stale">⚠ the live site was unreachable — this is the LAST GOOD rotation, '
+          + 'not the current one</div>'
+        : '');
+    if (upd) {
+      var t = '';
+      try { t = d.ts ? new Date(d.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''; }
+      catch (e) { t = ''; }
+      upd.textContent = d.stale ? ('stale · last good ' + t) : (t ? 'updated ' + t : '');
+    }
+  }
+
+  async function _tzFetch() {
+    var body = document.getElementById('tz-body');
+    try {
+      var r = await fetch('/api/tz', { cache: 'no-store' });
+      var d = await r.json();
+      _tzPaint(r.ok ? d : { error: (d && d.error) || ('http ' + r.status) });
+    } catch (e) {
+      _tzPaint({ error: String((e && e.message) || e).slice(0, 120) });
+    }
+  }
+
+  function _tzWire() {
+    var rf = document.getElementById('tz-refresh');
+    if (rf) rf.onclick = function () {
+      var b = document.getElementById('tz-body');
+      if (b) b.innerHTML = '<div class="tz-idle">reading the rotation…</div>';
+      _tzFetch();
+    };
+    var op = document.getElementById('tz-open');
+    // this server serves the board itself (v774), so the full tracker is one hop away
+    if (op) op.onclick = function () { try { window.open('/board#tztracker', '_blank'); } catch (e) {} };
+    _tzFetch();
+    if (_tzTimer) clearInterval(_tzTimer);
+    // the rotation turns hourly; the relay caches 90s, so polling faster only burns the cache
+    _tzTimer = setInterval(_tzFetch, 120000);
+  }
+  try {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _tzWire);
+    else _tzWire();
+  } catch (e) {}
+
   function _chronPaint(st) {
     var body = document.getElementById('chron-body');
     var rev = document.getElementById('chron-review');
