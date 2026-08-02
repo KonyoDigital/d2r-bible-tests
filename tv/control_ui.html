@@ -2770,6 +2770,7 @@
     background: linear-gradient(180deg,#ffe6a6,#f0c060 45%,#b8842f); box-shadow: 0 0 16px rgba(240,192,96,.5), inset 0 1px 0 rgba(255,255,255,.5); }
   .hm-cap { margin-top: 6px; font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: var(--muted); }
   .hm-cap b { color: var(--parch-dim); font-weight: var(--fw-semibold); }
+  .hm-gap { color: var(--muted); }   /* v1556 — the app's own coverage, said quietly */
   .hm-idle, .hh-idle { font: var(--fw-regular) var(--fs-xs)/1.5 var(--mono); color: var(--muted); font-style: italic; }
   /* THE NEXT GRAIL hero — the one bold moment */
   /* v1378.1 (Konyo live) — hero shrunk + BALANCED: a two-column composition (the grail name leads left, the
@@ -9861,7 +9862,14 @@
       var found = g.found || 0, total = g.total, pct = Math.round(found / total * 100), left = Math.max(0, total - found);
       host.innerHTML = '<div class="hm-h"><span class="hm-l">🏆 Holy Grail</span><span class="hm-v">' + found + '<small> / ' + total + '</small></span></div>'
         + '<div class="hm-bar"><i style="width:' + (found / total * 100).toFixed(1) + '%"></i></div>'
-        + '<div class="hm-cap"><b>' + left + '</b> grails still out there · <b>' + pct + '%</b> claimed</div>';
+        /* v1556 — "160 grails still out there" is the GAME's number, and the app can only guide
+           him to the ones it has a card and a source for. Saying only the 160 implies help it
+           cannot give; saying only the 125 would understate his actual grail. It says both, and
+           only mentions the gap when there IS one. */
+        + '<div class="hm-cap"><b>' + left + '</b> grails still out there · <b>' + pct + '%</b> claimed'
+        + ((g.huntable != null && g.huntable < left)
+            ? '<span class="hm-gap"> · <b>' + g.huntable + '</b> with a known hunt here</span>' : '')
+        + '</div>';
     } catch(e){}
   }
   function _hubHrs(h){ h = +h; if (!isFinite(h) || h <= 0) return '—'; return (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10) + 'h'; }
@@ -9936,6 +9944,12 @@
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span></div>' : '');
   }
   window._hubNextGrail = hubNextGrail;
+  /* v1556 — published for the same reason _hubNextGrail is: a panel a spec cannot invoke is
+     a panel nobody checks. The v1556 spec's first attempt called window.hubMeter, got
+     undefined, and optional chaining swallowed it — the meter rendered empty and the test
+     read that as 'the caption is missing'. A seam that only exists for one of two twins
+     invites exactly that. */
+  window._hubMeter = hubMeter;
   // live refresh: the bridge rewrites d2r_grailFarm on grail found/unfound + MF/players change → re-rank.
   try { window.addEventListener('storage', function(e){ if (e && e.key && e.key.indexOf('grailFarm') !== -1) hubNextGrail(); }); } catch(e){}
   function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); hdEngines(st); hdTaskForce(st); hubMeter(); try { hdLivePulse(st); } catch(e){} try { hdKaiGate(st); } catch(e){} }

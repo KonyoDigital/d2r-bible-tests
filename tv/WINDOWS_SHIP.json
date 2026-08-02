@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1555",
+  "ver": "v1556",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1555: the hero ranked 51 of the 125 items the meter counts, and obeyed a different difficulty rule than the Forge",
+  "note": "v1556: 160 grails still out there but only 125 have a card and a source here",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

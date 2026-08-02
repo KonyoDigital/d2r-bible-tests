@@ -32301,7 +32301,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 try { u = (typeof _rwArtName === 'function' && typeof artUrl === 'function') ? (artUrl(_rwArtName(t.rw)) || '') : _fsArt(t.rw); } catch(e2){ u = _fsArt(t.rw); }
                 if (u){ if (u.charAt(0) !== '/' && u.indexOf('http') !== 0 && u.indexOf('data:') !== 0) u = '/' + u; a[t.rw] = u; }
             }); } catch(e){} return a; })(),   // v913-R5 (Grok) — the RW resolver + console-absolute paths
-            grail: (function(){ try { var fu = window.funiScan(); return fu ? { found: fu.found, total: fu.chronTotal || fu.total } : null; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
+            /* v1556 — the meter promises 160 hunts and the app can guide 125 of them.
+               `total` is the GAME's denominator (chronTotal 403, the in-game Chronicle's own count).
+               `found` is his real 243. So the caption says "160 grails still out there" — true of
+               Diablo, and 35 of those 160 have no card and no source in this app at all: they are
+               the internal-typo aliases, the 8 Rainbow Facet rows, quest uniques and RotW customs
+               the v663 comment already names. They cannot be hunted, ranked or ticked here.
+               `huntable` carries what the app can actually help with, so the caption can stop
+               implying it will help with all 160. Same defect as the hero-vs-meter split: a number
+               shown next to a promise the machinery behind it does not make. */
+            grail: (function(){ try { var fu = window.funiScan(); if (!fu) return null;
+              var huntable = 0;
+              try { huntable = (fu.missing || []).filter(function(x){ return !!window._pickSrc(x.sources); }).length; } catch(e2){ huntable = 0; }
+              return { found: fu.found, total: fu.chronTotal || fu.total, carded: fu.total, huntable: huntable }; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
             sets: (function(){ try { var fs9 = window.fsetsScan(); return fs9 ? { found: fs9.havePieces, total: fs9.totalPieces, done: (fs9.done || []).length } : null; } catch(e){ return null; } })(),   // v922 (Konyo: 'F-SETS is also a chronicle') — the F·Sets tab's own truth
             chron: (function(){ try { var rm = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}');
                 var _tip = (typeof RUNEWORD_TIP !== 'undefined') ? RUNEWORD_TIP : null;
@@ -36024,7 +36036,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1555', name:'v1555 - the hero and the meter now count the same grail', date:'2026-07-31', note:'the hero ranked 51 of the 125 items the meter counts, and obeyed a different difficulty rule than the Forge' };
+  window.D2R_BUILD = { id:'v1556', name:'v1556 - the meter says what the app can actually help with', date:'2026-07-31', note:'160 grails still out there but only 125 have a card and a source here' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
