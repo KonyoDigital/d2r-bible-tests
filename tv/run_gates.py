@@ -63,6 +63,9 @@ GATES = [
     Gate("test_tz_art", [sys.executable, os.path.join(HERE, "test_tz_art.py")], 120,
          why="the Terror Zone panel's facts: 67 zones -> game-extracted art + the game's own "
              "density/level, and the tiering that decides which zones get greyed out"),
+    Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
+         why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
+             "evidence than keep, order cannot change the ledger, missing is never zero"),
     Gate("test_chronicle_retro", [sys.executable, os.path.join(HERE, "test_chronicle_retro.py")], 300,
          why="the retro sweep's three laws: read-only until Apply, merge-max, pay-for-runs"),
     Gate("test_chronicle_chain", [sys.executable, os.path.join(HERE, "test_chronicle_chain.py")], 300,

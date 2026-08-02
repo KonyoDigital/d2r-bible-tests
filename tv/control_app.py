@@ -1511,7 +1511,10 @@ def _stop_capture():
         pass
 
 
-def start_agent(sim=False, test=False):
+def start_agent(sim=False, test=False, mini=None, focus=None):
+    """mini/focus — the ⏱ MINI CAPTURE bound (seconds, already clamped) and the ONE focus name.
+    They are appended to the SPAWN ARGV on BOTH platforms so the cousin's Windows box gets the
+    identical agent invocation; nothing about the mini branches on platform."""
     global _agent_proc, _agent_mode, _log_fp
     # v847 — never "already live" on a stranger/orphan: hard-stop anything on the bridge first
     if _stop_inflight:
@@ -1620,6 +1623,15 @@ def start_agent(sim=False, test=False):
         cmd = [py_exe, os.path.join(HERE, "tv_diablo.py")]
         if IS_WIN:
             cmd.append("--watch")
+        # ⏱ MINI CAPTURE — the ONE flag name and the ONE focus name, appended for mac AND
+        # windows (the cousin's box must get the identical argv). An agent build that does not
+        # know them ignores them and the watchdog still seals on time.
+        if mini:
+            try:
+                cmd.append("%s=%d" % (MINI_FLAG, int(mini)))
+                cmd.append("%s=%s" % (MINI_FOCUS_FLAG, str(focus or MINI_FOCUS)))
+            except (TypeError, ValueError):
+                pass
         _log_fp.write("spawn: %s\n" % " ".join(cmd))
         _log_fp.flush()
 
@@ -1981,6 +1993,23 @@ def stop_agent(farewell=True):
     STOP: short farewell (hard-cap ~18s, was 95s). OFF: seal only. Then hard-kill orphans.
     Never leave _stop_inflight True if the agent is already dead (unstick ON AIR)."""
     global _agent_proc, _agent_mode, _stop_inflight, _BOARD_OPENED
+    # v1578 — ⏱ MINI stands down on EVERY seal path, not just its own deadline. He presses END
+    # SESSION by hand at 12s; without this the latch stays up for the remaining 28s (ON AIR
+    # refuses "already recording") and the watchdog then fires a SECOND stop that could land on
+    # a session he started in between. _mini_seal() clears the flag BEFORE it calls here, so
+    # this is a no-op on the timer's own path — no recursion, no double kill.
+    try:
+        with _MINI_LOCK:
+            # "arming" fences the ONE stop_agent() that start_agent() itself may fire to clear a
+            # port orphan while the mini is booting. Without the fence that internal stop would
+            # stand the watchdog down and the mini would run UNBOUNDED — the exact outcome the
+            # button exists to prevent.
+            if _MINI["running"] and not _MINI.get("arming"):
+                _MINI["running"] = False
+                _MINI["sealedTs"] = int(time.time() * 1000)
+                _MINI["sealedBy"] = "hand"
+    except Exception:
+        pass
     if _stop_inflight:
         # v946.2 — another stop in flight: wait SHORT, then force-clear (never hang End Session)
         deadline = time.time() + 2.5
@@ -8280,6 +8309,547 @@ def chronicle_forget_swept():
     return {"ok": True, "forgot": True}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# ⏱ MINI CAPTURE + 🗄 VAULT ACCUMULATOR  —  the mini-capture arc
+#
+# MINI CAPTURE is ON AIR with a bound. He is parked in the stash looking at gems / runes /
+# materials, not playing: 10–40 seconds is the whole session. Same start path, same seal
+# path, same spawn — the ONLY difference is two argv flags the agent reads and a watchdog
+# that seals at the deadline. An unbounded "mini" is the one outcome that makes the button
+# worthless, so the timer is armed BEFORE the button ever reports ok.
+#
+# THE ARGV CONTRACT (one flag name, one focus name — the cousin's Windows box gets the
+# IDENTICAL argv; nothing here branches on platform):
+#     --mini=<seconds>        the bound, already clamped to [10,40]
+#     --mini-focus=stash      the ONE focus name
+# Both are appended in start_agent() for mac AND windows. An agent build that does not know
+# them ignores them (tv_diablo.py scans sys.argv, it does not argparse) — so a stale agent
+# degrades to a normal session that the watchdog still seals on time.
+# ═══════════════════════════════════════════════════════════════════════════════════════
+
+MINI_FLAG = "--mini"                 # the ONE flag name
+MINI_FOCUS_FLAG = "--mini-focus"     # carries the ONE focus name below
+MINI_FOCUS = "stash"                 # the ONE focus name
+MINI_MIN_SECONDS = 10
+MINI_MAX_SECONDS = 40
+MINI_DEFAULT_SECONDS = 25
+
+_MINI_LOCK = threading.Lock()
+_MINI = {"running": False, "seconds": 0, "startedTs": 0, "endsTs": 0,
+         "focus": MINI_FOCUS, "token": 0, "sid": None, "sealedTs": 0, "sealedBy": "",
+         "arming": False}
+
+
+def _mini_clamp(seconds):
+    """Clamp to [10,40] and report the ASKED value beside it. 5 and 999 come back honest —
+    a button that silently rewrites what he typed is a button he stops trusting."""
+    try:
+        asked = int(seconds)
+    except (TypeError, ValueError):
+        return MINI_DEFAULT_SECONDS, None
+    return max(MINI_MIN_SECONDS, min(MINI_MAX_SECONDS, asked)), asked
+
+
+def _mini_sid():
+    """The live session id, straight from the agent bridge. None when it cannot be read —
+    honest-absent beats inventing an id that no reel on disk will ever match."""
+    try:
+        st = _bridge_state()
+    except Exception:
+        return None
+    if not isinstance(st, dict):
+        return None
+    for k in ("sessionId", "sid", "session_id"):
+        v = st.get(k)
+        if v:
+            return str(v)
+    s = st.get("session")
+    if isinstance(s, dict):
+        for k in ("id", "sessionId", "sid"):
+            if s.get(k):
+                return str(s[k])
+    return None
+
+
+def _mini_frames_seen(sid):
+    """Frames actually on disk for this reel. Counted, never estimated: 0 means 0."""
+    if not sid:
+        return 0
+    try:
+        rd = os.path.join(HIST_DIR, "reel_" + str(sid))
+        return sum(1 for f in os.listdir(rd) if f.lower().endswith(".jpg"))
+    except Exception:
+        return 0
+
+
+def _mini_seal(token, why="deadline"):
+    """Seal a mini through the SAME path /api/stop uses — stop_agent(farewell=False), with the
+    same _force_kill_all_agents fallback. Sealing is NOT re-implemented here.
+
+    RE-ENTRANT BY TOKEN: if he already pressed END SESSION by hand, the running flag is down
+    (or the token has moved on) and this is a harmless no-op. A watchdog that could fire a
+    SECOND kill would take out the next session he started in the meantime."""
+    with _MINI_LOCK:
+        if not _MINI["running"] or token != _MINI["token"]:
+            return {"ok": True, "noop": True, "why": "already sealed by hand — timer stood down"}
+        _MINI["running"] = False
+        _MINI["sealedTs"] = int(time.time() * 1000)
+        _MINI["sealedBy"] = why
+    try:
+        r = stop_agent(farewell=False)
+    except Exception as _e:
+        r = _force_kill_all_agents("mini (%s; stop_agent raised: %s)" % (why, str(_e)[:100]))
+    if not isinstance(r, dict):
+        r = {"ok": True}
+    return dict(r, mini=True, sealedBy=why)
+
+
+def _mini_watchdog(token, ends_ts):
+    """Daemon. Wakes twice a second, seals once, dies. It never extends and never re-arms."""
+    while True:
+        with _MINI_LOCK:
+            if not _MINI["running"] or token != _MINI["token"]:
+                return          # sealed by hand / superseded — stand down, do not kill
+        if time.time() * 1000 >= ends_ts:
+            break
+        time.sleep(0.5)
+    try:
+        _mini_seal(token, why="deadline")
+    except Exception:
+        pass
+
+
+def mini_state():
+    """GET shape. secondsLeft is clamped at 0 — a negative countdown is a lie about a session
+    that is already over."""
+    with _MINI_LOCK:
+        m = dict(_MINI)
+    left = 0
+    if m["running"] and m["endsTs"]:
+        left = max(0, int(round((m["endsTs"] - time.time() * 1000) / 1000.0)))
+    sid = m.get("sid") or (_mini_sid() if m["running"] else None)
+    if m["running"] and sid and not m.get("sid"):
+        with _MINI_LOCK:
+            if _MINI["running"]:
+                _MINI["sid"] = sid          # first read that could see it wins; never overwritten
+    return {
+        "ok": True,
+        "running": bool(m["running"]),
+        "mode": "mini",
+        "focus": m.get("focus") or MINI_FOCUS,
+        "seconds": int(m.get("seconds") or 0),
+        "secondsLeft": left,
+        "endsTs": int(m.get("endsTs") or 0),
+        "sid": sid,
+        "framesSeen": _mini_frames_seen(sid),
+        "sealedBy": m.get("sealedBy") or "",
+    }
+
+
+def mini_start(seconds=None, test=False):
+    """⏱ MINI ON AIR. Same start_agent() as ON AIR — no second spawn path anywhere."""
+    secs, asked = _mini_clamp(MINI_DEFAULT_SECONDS if seconds is None else seconds)
+    # v891 (Grok C3) — DISK PREFLIGHT, copied verbatim from /api/on: below the floor the reaper
+    # can't keep a reel alive; refuse loudly with the exact ask instead of recording a doomed
+    # session. A mini that records a doomed reel is worse than one that refuses — the whole
+    # point of the mini is the RETRO read afterwards, and a reaped reel has nothing to read.
+    try:
+        import shutil as _shd
+        _free = _shd.disk_usage(HIST_DIR).free / 1e9
+        if _free < 8.0:
+            return {"ok": False, "mode": "off", "seconds": secs, "secondsAsked": asked,
+                    "error": "DISK TOO FULL to record — %.1fGB free, need 8GB. Free ~%.0fGB and press MINI again." % (_free, 9 - _free)}
+    except Exception:
+        pass
+    if _stop_inflight:
+        # v899 — if the agent is already dead, clear the latch and allow the start
+        if not _agent_alive() and _port_listener_pid() is None:
+            globals()["_stop_inflight"] = False
+            globals()["_agent_mode"] = "off"
+        else:
+            return {"ok": False, "seconds": secs, "secondsAsked": asked,
+                    "msg": "still shutting down — session saving; try MINI again in a moment",
+                    "mode": "stopping", "error": "still stopping"}
+    # REFUSE LOUDLY, never silently. Two overlapping captures write into one reel and neither
+    # read afterwards can be trusted to belong to the session he thinks it does.
+    with _MINI_LOCK:
+        if _MINI["running"]:
+            # secondsLeft computed INLINE. Calling mini_state() here would re-acquire _MINI_LOCK
+            # inside the block that already holds it — threading.Lock is not reentrant, so the
+            # second press of the button deadlocked the whole HTTP handler thread. Caught by the
+            # trace below (the "second press while running" probe never returned).
+            _left = max(0, int(round((_MINI["endsTs"] - time.time() * 1000) / 1000.0)))
+            return {"ok": False, "seconds": secs, "secondsAsked": asked,
+                    "why": "already recording — seal the current session first",
+                    "mode": "mini", "secondsLeft": _left}
+    if _agent_alive():
+        return {"ok": False, "seconds": secs, "secondsAsked": asked,
+                "why": "already recording — seal the current session first", "mode": "live"}
+    with _MINI_LOCK:
+        _MINI["token"] += 1
+        token = _MINI["token"]
+        now_ms = int(time.time() * 1000)
+        _MINI.update({"running": True, "seconds": secs, "startedTs": now_ms,
+                      "endsTs": now_ms + secs * 1000, "focus": MINI_FOCUS,
+                      "sid": None, "sealedTs": 0, "sealedBy": "", "arming": True})
+        ends = _MINI["endsTs"]
+    # ARM FIRST. If the spawn hangs past the deadline the watchdog still seals it; a timer armed
+    # only on success is a timer that is absent exactly when it is needed.
+    threading.Thread(target=_mini_watchdog, args=(token, ends), daemon=True,
+                     name="tvd-mini-watchdog").start()
+    try:
+        r = start_agent(sim=False, test=bool(test), mini=secs, focus=MINI_FOCUS)
+    finally:
+        with _MINI_LOCK:
+            if _MINI["token"] == token:
+                _MINI["arming"] = False      # fence down: from here a hand-stop stands the timer down
+    if not isinstance(r, dict):
+        r = {"ok": False, "error": "start_agent answered nothing"}
+    if not r.get("ok"):
+        # the start failed — stand the timer down rather than leaving a phantom mini running
+        with _MINI_LOCK:
+            if _MINI["token"] == token:
+                _MINI["running"] = False
+                _MINI["sealedBy"] = "start-failed"
+        return dict(r, mode="off", seconds=secs, secondsAsked=asked, mini=False)
+    sid = _mini_sid()
+    with _MINI_LOCK:
+        if _MINI["token"] == token:
+            _MINI["sid"] = sid
+    _console_beacon_async("onair")   # v875 — the dashboard flips 🔴 within seconds
+    return dict(r, mini=True, mode="mini", focus=MINI_FOCUS,
+                seconds=secs, secondsAsked=asked, secondsLeft=secs,
+                endsTs=ends, sid=sid,
+                # ★ the clamp said out loud. 5 and 999 come back with what he asked beside what
+                # he got, never silently altered.
+                msg=("mini capture — %ds%s" % (secs, "" if asked in (None, secs)
+                                               else " (asked %s, bound is %d–%ds)"
+                                               % (asked, MINI_MIN_SECONDS, MINI_MAX_SECONDS))))
+
+
+# ── 🗄 VAULT ACCUMULATOR — the retro half, and the priority half ────────────────────────
+# Same shape as the Chronicle sweep, pointed at a different target: read the sealed reels,
+# propose, apply through the BOARD with merge-max. Its own job dict + lock so a vault sweep
+# and a chronicle sweep cannot corrupt each other's progress or each other's result.
+#
+# ALL reading / grouping / gating lives in tv/vault_retro.py. This file is the job runner and
+# the HTTP surface — it holds NO accumulation logic, so there is exactly one place where the
+# merge rules can drift.
+#
+# THE LEDGER (vault_accum.json) IS EVIDENCE, NOT TRUTH. It is what the readers have SEEN
+# across sessions, rebuildable from the reels at any time. The board is the only source of
+# truth for what he owns. Merge-max only — a read that saw fewer items than he has must never
+# subtract, because an obstructed or half-scrolled stash frame is a NORMAL event, not evidence
+# he threw something away.
+
+VAULT_LEDGER_PATH = os.path.join(HERE, "vault_accum.json")
+_VAULT_SWEPT_PATH = os.path.join(HERE, "vault_swept.json")
+
+_VAULT_LOCK = threading.Lock()
+_VAULT_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0, "reelsTotal": 0,
+              "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": []}
+
+
+def _vault_retro():
+    """Import the reader module, or say exactly which piece is missing. Never a stub that
+    pretends to read — an invented count in the vault is an item he throws away."""
+    import vault_retro as _vr
+    return _vr
+
+
+def _vault_swept_load():
+    try:
+        with open(_VAULT_SWEPT_PATH, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _vault_swept_save(rec):
+    """Torn-write safe (v1209 doctrine): a crash mid-write must not read back as
+    'nothing was ever swept' and re-pay for the whole hist."""
+    _vault_json_save(_VAULT_SWEPT_PATH, rec)
+
+
+def _vault_json_save(path, rec):
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(rec, fh, indent=1)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+        return True
+    except Exception:
+        return False
+
+
+def vault_ledger_load():
+    try:
+        with open(VAULT_LEDGER_PATH, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def vault_ledger_save(led):
+    return _vault_json_save(VAULT_LEDGER_PATH, led if isinstance(led, dict) else {})
+
+
+def vault_scan_cost(hist_dir=None, limit=None):
+    """THE FREE PASS, vault edition. What a vault retro sweep WOULD cost, computed on HIS film.
+    Zero model calls, zero writes — the number he gets to check before agreeing to spend."""
+    try:
+        _vr = _vault_retro()
+    except Exception as e:
+        return {"ok": False, "why": "vault_retro unavailable: %s" % str(e)[:160]}
+    if not hasattr(_vr, "sweep"):
+        return {"ok": False, "why": "vault_retro has no sweep() — nothing to price"}
+    hist = hist_dir or os.environ.get("TV_HIST") or HIST_DIR
+    if not os.path.isdir(hist):
+        return {"ok": True, "reels": [], "totals": {"sessionsSeen": 0, "framesSeen": 0,
+                                                    "classified": 0, "pagesRead": 0},
+                "note": "no sealed reels yet", "spent": 0}
+    picked = []
+
+    def _probe(path):
+        picked.append(path)
+        return None            # ★ refuses everything: no reader is ever reached, so this cannot spend
+
+    try:
+        import chronicle_retro as _cr
+        dirs = _cr.reel_dirs(hist)
+        res = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_probe,
+                        reader=lambda p, s: {"note": "cost-pass"}, limit=limit)
+    except Exception as e:
+        return {"ok": False, "why": "vault scan failed: %s" % str(e)[:160], "spent": 0}
+    t = res.get("totals") or {}
+    seen, calls = t.get("framesSeen") or 0, t.get("classified") or 0
+    return {
+        "ok": True,
+        "why": res.get("why") or "",
+        "reels": [os.path.basename(d) for d in _vr.order_reels(dirs)[:40]],   # mini-first order
+        "totals": t,
+        "savedPct": round(100.0 * (1 - (calls / seen)), 1) if seen else 0.0,
+        "wouldRead": calls,
+        "insteadOf": seen,
+        "spent": 0,            # ★ said out loud: this route cannot cost anything
+        "frames": [os.path.relpath(p, hist) for p in picked[:40]],
+    }
+
+
+def vault_sweep_state():
+    with _VAULT_LOCK:
+        return dict(_VAULT_JOB)
+
+
+def vault_sweep_start(hist_dir=None, limit=None, force=False):
+    """Kick the background vault sweep. Refuses a second one — two sweeps over the same reels
+    double the spend and produce two proposals that each look like the whole truth.
+
+    Needs NO live agent. That is the whole point of retro: he plays, seals, and the reading
+    happens afterwards against film that is not going to change."""
+    try:
+        _vr = _vault_retro()
+    except Exception as e:
+        return {"ok": False, "why": "vault_retro unavailable: %s" % str(e)[:160]}
+    for fn in ("sweep", "merge_vault", "apply_payload"):
+        if not hasattr(_vr, fn):
+            return {"ok": False, "why": "vault_retro has no %s() — this build cannot sweep safely" % fn}
+    with _VAULT_LOCK:
+        if _VAULT_JOB["running"]:
+            return {"ok": False, "why": "a vault sweep is already running", "state": dict(_VAULT_JOB)}
+        lanes = _chron_lanes()
+        if "claude" not in lanes:
+            # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
+            return {"ok": False, "why": "the primary (Claude) lane is unavailable — nothing to sweep with"}
+        _VAULT_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
+                           "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
+                           "result": None, "error": None, "lanes": lanes})
+    threading.Thread(target=_vault_sweep_run, args=(hist_dir, limit, force),
+                     daemon=True, name="tvd-vault-sweep").start()
+    return {"ok": True, "started": True, "lanes": lanes}
+
+
+def _vault_sweep_run(hist_dir, limit, force=False):
+    try:
+        _vr = _vault_retro()
+        import tv_diablo as _tv
+        try:
+            import g5_grok_eyes as _g5
+        except Exception:
+            _g5 = None
+        import chronicle_retro as _cr
+        hist = hist_dir or os.environ.get("TV_HIST") or HIST_DIR
+        swept = _vault_swept_load()
+        # the swept memory is keyed by whatever sweep() reports in sessionsRead; check the reel
+        # basename BOTH ways (reel_<sid> and bare <sid>) so a naming mismatch can only ever cause a
+        # re-read — never a silently skipped reel.
+        dirs = [d for d in _cr.reel_dirs(hist)
+                if force or (os.path.basename(d) not in swept
+                             and os.path.basename(d).replace("reel_", "", 1) not in swept)]
+        with _VAULT_LOCK:
+            _VAULT_JOB["reelsTotal"] = len(dirs)
+            _VAULT_JOB["phase"] = "reading"
+
+        def _tick(**kw):
+            with _VAULT_LOCK:
+                for k, v in kw.items():
+                    _VAULT_JOB[k] = _VAULT_JOB.get(k, 0) + v if isinstance(v, int) else v
+
+        # v1577 doctrine — ONE BAD FRAME MUST NOT ABANDON THE WHOLE SWEEP. vault_retro.sweep()
+        # calls these lanes directly, so the isolation lives here: a throwing probe answers None
+        # (honest-absent — "not read", never a guessed surface) and every later reel is still read.
+        # The tick stays INSIDE the lane so "classified" counts probes ATTEMPTED — a probe that
+        # died is still money spent and still belongs in the count.
+        def _classify(p):
+            _tick(classified=1)
+            try:
+                return _tv.claude_read(p)
+            except Exception:
+                return None
+
+        def _reader(p, surface):
+            _tick(pagesRead=1)
+            try:
+                return _tv.claude_chronicle_read(p, surface)
+            except Exception:
+                return {"note": "the reader failed on this page — not read"}
+
+        prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit)
+        _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
+        # remember ONLY the reels this run actually read — a reel that errored or was skipped stays
+        # unread, or one bad run permanently hides footage from every future sweep.
+        for sess in (prop.get("sessionsRead") or []):
+            swept[str(sess)] = {"ts": int(time.time() * 1000)}
+        _vault_swept_save(swept)
+
+        # ACCUMULATE ACROSS SESSIONS — merge-max only, and the merge itself lives in vault_retro.
+        # This ledger is what the readers have SEEN; it is never what he owns.
+        led = _vr.merge_vault(vault_ledger_load(), prop)
+        vault_ledger_save(led)
+        # The proposal he presses is the ACCUMULATED picture (every session so far), not just this
+        # run's — that is the whole point of an accumulator. throwOut/unsure/held stay from this
+        # run's gate, which is the only place they were reasoned about.
+        out = dict(prop, owned=led.get("owned") or prop.get("owned") or [],
+                   accum={"added": led.get("added") or [], "raised": led.get("raised") or [],
+                          "held": led.get("held") or []})
+        globals()["_VAULT_LAST_PROPOSAL"] = out
+        with _VAULT_LOCK:
+            _VAULT_JOB.update({"running": False, "phase": "done", "result": out, "error": None})
+    except Exception as e:
+        with _VAULT_LOCK:
+            _VAULT_JOB.update({"running": False, "phase": "error", "error": str(e)[:200]})
+
+
+_VAULT_LAST_PROPOSAL = None
+
+
+def vault_forget(ledger=False):
+    """Let him re-read everything. The swept memory is an optimisation, and an optimisation he
+    cannot clear is a cage. ledger=true ALSO drops the accumulated evidence — safe, because the
+    ledger is rebuildable from the reels and was never the source of truth for what he owns."""
+    _vault_swept_save({})
+    if ledger:
+        vault_ledger_save({})
+    return {"ok": True, "forgot": True, "ledgerCleared": bool(ledger)}
+
+
+def vault_apply(proposal=None):
+    """Ask THE BOARD to apply the vault accumulator's gated rows. The console never writes the
+    vault, the grail or localStorage.
+
+    The ledger lives in the board (THE VAULT / d2r_foundLog / the stash tallies) and the board's
+    own window.vaultAccumApply routes through the same tick his hand uses — dated, merge-max,
+    undoable. Reaching around it to write localStorage from here would create a second write path
+    into his vault, which is a second thing that can drift from the first.
+
+    Returns what the board reports. If the board window is not there, it says so — an apply that
+    silently did nothing is the worst possible answer, because the proposal still looks unapplied
+    and he will just run the sweep again."""
+    st = vault_sweep_state()
+    # ── v1595 — RE-GATE AT THE WRITE, not only at the sweep. ──────────────────────────────────
+    # A caller-supplied proposal used to go straight through: the two-witness / confidence gate
+    # runs when the SWEEP builds its result, so a hand-made body posted to this endpoint carried
+    # rows nothing had ever corroborated, and they landed in his stash with a single unverified
+    # sighting behind them. Localhost-only is not an argument — the board itself is a caller, and
+    # a rule enforced in one place is a rule with a door beside it.
+    # Grok's third-eye pass on v1594 flagged exactly this, and it was right.
+    caller_supplied = proposal is not None
+    prop = proposal or (st.get("result") if isinstance(st.get("result"), dict) else None)
+    if caller_supplied and isinstance(prop, dict):
+        try:
+            _vr = _vault_retro()
+            _kept, _dropped = [], []
+            for _r in (prop.get("owned") or []):
+                _ev = _r.get("evidence") or _r.get("witnesses") or []
+                _v = _vr.gate(_ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
+                (_kept if _v.get("pass") else _dropped).append(_r)
+            if _dropped:
+                return {"ok": False,
+                        "why": "%d row(s) in that proposal do not clear the gate (%s conf, %s "
+                               "witnesses) — a proposal handed in from outside is re-checked here, "
+                               "because the gate has to hold where the WRITE happens"
+                               % (len(_dropped), _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES),
+                        "rejected": [str(_r.get("name") or "?") for _r in _dropped][:20]}
+        except Exception as _e:
+            return {"ok": False, "why": "could not re-gate the supplied proposal: %s" % str(_e)[:120]}
+    if not prop:
+        return {"ok": False, "why": "no vault sweep result to apply — run a sweep first"}
+    owned = prop.get("owned") or []
+    unsure = prop.get("unsure") or []
+    throw = prop.get("throwOut") or []
+    if not owned and not unsure and not throw:
+        return {"ok": False, "why": "the sweep grounded nothing — there is nothing to apply"}
+    if not owned and not unsure:
+        # ★ THE THROW-OUT REFUSAL. Advising him to bin an item is the one irreversible action in
+        # this whole app — there is no un-throw in Diablo. A proposal that is ONLY throw-outs has
+        # nothing to register, so pressing apply could only ever destroy.
+        return {"ok": False, "why": "this proposal is throw-out suggestions only — there is nothing "
+                                    "to register, and a throw-out is never applied for you"}
+    w = globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    # SHAPED BY vault_retro.apply_payload — the module that owns the gating owns the shape too.
+    # throwOut ships WITH the payload (as `throwOut` and as apply_payload's `suggestions`, both
+    # flagged automatic:false) and the BOARD ignores it by contract — it is shown as a SUGGESTION
+    # there and never registered. It is deliberately NOT filtered here as well: filtering in two
+    # places is how two places drift, and the board is the one that owns the rule.
+    try:
+        shaped = _vault_retro().apply_payload(prop)
+    except Exception as e:
+        return {"ok": False, "why": "could not shape the proposal: %s" % str(e)[:160]}
+    payload = json.dumps(dict(shaped, owned=owned, unsure=unsure, throwOut=throw,
+                              source="vault-accumulator"))
+    js = ("(function(){try{if(typeof window.vaultAccumApply!=='function')return JSON.stringify("
+          "{ok:false,why:'this board build has no vaultAccumApply — update the board'});"
+          "var r=window.vaultAccumApply(%s);return JSON.stringify({ok:true,applied:r});}"
+          "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % payload
+    try:
+        raw = _ejs(w, js, timeout=8.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused the apply: %s" % str(e)[:160]}
+    if not raw:
+        # _ejs returns None on timeout — and a timeout is NOT a success. Saying so is the point:
+        # the apply may or may not have landed, and he needs to go look rather than be told it worked.
+        return {"ok": False, "why": "the board did not answer in time — the apply may or may not have "
+                                    "landed; check THE VAULT before retrying"}
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
+
+
+def _jsq(s):
+    """Single-quoted JS string literal — kept single-quoted so the emitted tally JS is
+    byte-identical to the two hand-written copies this helper replaced."""
+    return "'" + str(s).replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+
+
 def _chron_lanes():
     """The readers this machine can actually use, named honestly.
 
@@ -8722,7 +9292,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1594",
+        "ver": "v1595",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10185,6 +10755,20 @@ class Handler(BaseHTTPRequestHandler):
             # gets to check before agreeing to spend anything.
             self._json(200, chronicle_scan_cost())
             return
+        if path == "/api/vault_scan":
+            # v1578 — THE FREE PASS, vault edition. Prices a vault retro sweep on HIS film.
+            # Zero model calls, zero writes.
+            self._json(200, vault_scan_cost())
+            return
+        if path == "/api/vault_sweep":
+            # v1578 — progress + result of the vault sweep. GET never starts one; starting spends
+            # money, and a GET that spends money is a GET a page-refresh can fire twice.
+            self._json(200, vault_sweep_state())
+            return
+        if path == "/api/mini":
+            # v1578 — ⏱ MINI CAPTURE countdown. Read-only; secondsLeft is clamped at 0.
+            self._json(200, mini_state())
+            return
         if path.startswith("/art/"):
             self._serve_art(path[len("/art/") :])
             return
@@ -10593,6 +11177,23 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/chronicle_forget":
             self._json(200, chronicle_forget_swept())
+            return
+        if path == "/api/vault_apply":
+            # v1578 — the write. POST only, and it goes through the BOARD, which owns the vault.
+            self._json(200, vault_apply(body.get("proposal")))
+            return
+        if path == "/api/vault_sweep":
+            # v1578 — POST starts it, deliberately (this is the call that spends reads).
+            # Needs NO live agent: retro reads sealed film.
+            try:
+                _vlim = int(body.get("limit") or 0) or None
+            except (TypeError, ValueError):
+                _vlim = None
+            self._json(200, vault_sweep_start(limit=_vlim, force=bool(body.get("force"))))
+            return
+        if path == "/api/vault_forget":
+            # {"ledger":true} also drops the accumulated evidence — rebuildable from the reels.
+            self._json(200, vault_forget(ledger=bool(body.get("ledger"))))
             return
         if path == "/api/evrank":
             # ⚔ EV-RANK — the client POSTs its MISSING grails + each one's best-source odds/kph
@@ -11074,7 +11675,22 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._json(500, {"ok": False, "msg": str(e)[:160]})
             return
+        if path == "/api/mini":
+            # v1578 — ⏱ MINI CAPTURE: ON AIR with a bound, for the 10–40s he spends parked in
+            # the stash on gems / runes / materials. Same start_agent(), same seal path.
+            # The clamped value is ECHOED (5 and 999 come back honest, never silently altered).
+            self._json(200, mini_start(body.get("seconds"), test=bool(body.get("test"))))
+            return
         if path == "/api/on":
+            # v1578 — REFUSE LOUDLY while a mini is counting down (the mirror of mini_start's
+            # refusal for a live session). Silently starting a second capture over the same reel
+            # makes every read afterwards unattributable to the session he thinks it came from.
+            _mn = mini_state()
+            if _mn.get("running"):
+                self._json(200, {"ok": False, "mode": "mini",
+                                 "why": "already recording — seal the current session first",
+                                 "secondsLeft": _mn.get("secondsLeft", 0)})
+                return
             # v891 (Grok C3) — DISK PREFLIGHT: below the floor the reaper can't keep a reel
             # alive; refuse loudly with the exact ask instead of recording a doomed session.
             try:

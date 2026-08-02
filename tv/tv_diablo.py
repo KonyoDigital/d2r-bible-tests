@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1594"   # the apply repaints what it changed
+VERSION = "v1595"   # the mini capture arc, wired end to end
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -80,6 +80,36 @@ POLL_S       = float(os.environ.get("TV_POLL", ("1.8" if LIGHT_MODE else "0.15")
 # you're playing hard, and only picks up when you stop to look — the one time a read matters.
 PLAY_GAP_S   = float(os.environ.get("TV_PLAY_GAP", "4.0" if LIGHT_MODE else "1.0") or 4.0)
 WATCH_MODE   = "--watch" in sys.argv
+
+# ── v1595 — THE MINI FLAG. control_app has appended --mini=<secs> --mini-focus=<what> to this
+# agent's argv since the mini endpoint landed, and this file parsed argv with bare `in sys.argv`
+# checks, so BOTH were read as unknown words and dropped. The consequence was quiet and total: a
+# mini run behaved exactly like ON AIR, and — the part that mattered — NO REEL WAS EVER STAMPED as
+# mini, so vault_retro.is_mini_reel() could never once return True and its mini-first ordering was
+# unreachable code sitting behind a condition nothing could satisfy.
+#
+# A parked stash session is the densest evidence in the whole archive: he is not fighting, the
+# panel is held still, and every frame is a clean look at what he owns. That is exactly the footage
+# the accumulator wants first, and it was indistinguishable from a boss run.
+def _argv_val(flag, default=None):
+    """--flag=value or --flag value. Returns default when absent or malformed."""
+    pre = flag + "="
+    for i, a in enumerate(sys.argv):
+        if a.startswith(pre):
+            return a[len(pre):]
+        if a == flag and i + 1 < len(sys.argv) and not sys.argv[i + 1].startswith("--"):
+            return sys.argv[i + 1]
+    return default
+
+_mini_raw   = _argv_val("--mini")
+MINI_MODE   = _mini_raw is not None
+try:
+    MINI_SECONDS = max(10, min(40, int(float(_mini_raw)))) if MINI_MODE else 0
+except Exception:
+    MINI_SECONDS = 25 if MINI_MODE else 0        # a garbled number is still a mini run
+MINI_FOCUS  = (_argv_val("--mini-focus") or "stash") if MINI_MODE else ""
+if MINI_MODE:
+    print(f"⏱ MINI CAPTURE — {MINI_SECONDS}s, focus={MINI_FOCUS}", flush=True)
 MOTION_PEAK  = 0.10
 SETTLE       = 0.03
 _FILM_FPS = max(4, min(30, int(float(os.environ.get("TV_FILM_FPS", "5" if not ROBOT_MODE else "8") or 5))))
@@ -6459,8 +6489,16 @@ def close_session(reason="stop", farewell=True):
                             pass          # unmeasurable stays unmarked — never guessed blank
                         _meta.append(_row)
                     with open(os.path.join(_reel, "index.json"), "w", encoding="utf-8") as _jf:
-                        json.dump({"sessionId": SESSION_ID, "n": len(_meta),
-                                   "blank": _blank, "frames": _meta}, _jf)
+                        _idx = {"sessionId": SESSION_ID, "n": len(_meta),
+                                "blank": _blank, "frames": _meta}
+                        # v1595 — STAMP THE MINI. Without this the flag changes nothing that
+                        # outlives the process: vault_retro reads the sealed reel, not the argv of
+                        # a run that has already exited.
+                        if MINI_MODE:
+                            _idx["mini"] = True
+                            _idx["focus"] = MINI_FOCUS
+                            _idx["miniSeconds"] = MINI_SECONDS
+                        json.dump(_idx, _jf)
                 except Exception:
                     _blank = 0
                 print(f"  🎞 reel folded — {_moved} footage frames sealed into reel_{SESSION_ID}")

@@ -36100,6 +36100,93 @@ window._renderStashFresh = function(){
     };
   }
 
+  /* ── v1595 — THE VAULT ACCUMULATOR'S WRITE. The console never writes the vault; it asks HERE.
+     Konyo: "it should eventually in retro KAI READERS get a read on it and slowly also feed the
+     vault manager for throwing out or muling the items read at the time."
+
+     This lives inside the tally IIFE ON PURPOSE — _writeStash and _snap are right here, and they
+     are the path his AI tally intake already uses. Reaching around them from another block would
+     be a second way into the same three stores, which is a second thing that drifts.
+
+     FOUR RULES, all of them load-bearing:
+
+     1. MERGE-MAX, PER ITEM. A read that saw FEWER never lowers a count. The accumulator sweeps
+        sessions in whatever order reels come off disk, and a half-scrolled stash frame is a normal
+        event — subtracting on it would eat his stash one bad frame at a time while looking healthy.
+     2. ROUTE BY KIND. runes/gems/materials are TALLIES; a grail `item` is not, and goes through
+        window.chronicleApply — the same function his hand-tick uses, so it inherits the date stamp,
+        the merge-max and the undo bar. Writing a Shako into the rune stash would be worse than
+        writing nothing.
+     3. THROW-OUTS ARE NEVER WRITTEN. They arrive in the payload and are counted back in the
+        receipt as suggestions. There is no un-throw in Diablo, and nothing here may bin anything.
+     4. AN HONEST RECEIPT. Raised / held / skipped are reported separately, because "12 applied"
+        when 9 were already held reads as nine finds he did not make. */
+  window.vaultAccumApply = function(payload){
+    var p = (payload && typeof payload === 'object') ? payload : {};
+    var out = { ok:true, raised:[], held:[], grail:[], suggestions:0, skipped:[], ts:Date.now() };
+    var items = p.items || [];
+    if (!items.length && !(p.throwOut||p.suggestions||[]).length)
+      return { ok:false, why:'the payload carried no items' };
+
+    /* throw-outs are acknowledged and NOT acted on — the count is the receipt that they were
+       received and deliberately ignored, which is the only honest way to report a refusal. */
+    out.suggestions = ((p.throwOut && p.throwOut.length) || (p.suggestions && p.suggestions.length) || 0);
+
+    var byKind = { rune:'runes', gem:'gems', material:'materials' };
+    var pend = {};                       // kind -> merged map, written once at the end
+    var grailNames = [];
+
+    items.forEach(function(it){
+      var nm = it && it.name; if (!nm) { return; }
+      var kind = byKind[it.kind];
+      if (!kind){                        // a grail item — not a tally
+        if (it.kind === 'item') grailNames.push(nm); else out.skipped.push(nm + ' (unknown kind)');
+        return;
+      }
+      /* v1595 — THE BASE IS THE MAX OF BOTH STORES, not whichever _snap happens to prefer.
+         _snap reads the IN-MEMORY map first and falls back to localStorage. Normally they agree.
+         When they do not — a tab that loaded before an import, a store written by another surface,
+         a fork mid-session — taking one and writing it back DELETES whatever the other held. My own
+         first test hit exactly that: localStorage said Ral 9, memory said nothing, and the write
+         put Ral 3 on disk. A merge-max accumulator that can lower a count is the one bug that
+         destroys his stash silently, so the floor is the higher of the two, always. */
+      if (!pend[kind]) {
+        var _mem = _snap(kind) || {};
+        var _ls = {}; try { _ls = JSON.parse(window.LSR.getItem(KEY[kind]) || '{}') || {}; } catch(e){}
+        var _base = {};
+        Object.keys(_mem).forEach(function(k){ _base[k] = parseInt(_mem[k],10) || 0; });
+        Object.keys(_ls).forEach(function(k){
+          var v = parseInt(_ls[k],10) || 0; if (v > (_base[k] || 0)) _base[k] = v;
+        });
+        pend[kind] = _base;
+      }
+      var have = parseInt(pend[kind][nm], 10) || 0;
+      var saw  = parseInt(it.count, 10);
+      if (!isFinite(saw) || saw <= 0){ out.skipped.push(nm + ' (no readable count)'); return; }
+      if (saw > have){ pend[kind][nm] = saw; out.raised.push(nm + ' ' + have + '→' + saw); }
+      else            { out.held.push(nm + ' (held ' + have + ', read ' + saw + ')'); }
+    });
+
+    Object.keys(pend).forEach(function(kind){
+      try { _writeStash(kind, pend[kind]); } catch(e){ out.skipped.push(kind + ' (write failed)'); }
+      try { window._stashTouch(kind); } catch(e){}
+      try { var r = window[REND[kind]]; if (typeof r === 'function') r(); } catch(e){}
+    });
+
+    /* grail items go through THE one write path — never a second one */
+    if (grailNames.length){
+      if (typeof window.chronicleApply === 'function'){
+        try {
+          var res = window.chronicleApply({ wouldAdd: { uniques: grailNames, sets: [] } });
+          out.grail = (res && res.uniques) || [];
+        } catch(e){ out.skipped.push('grail apply failed: ' + (e && e.message || e)); }
+      } else {
+        out.skipped.push('no chronicleApply on this build — ' + grailNames.length + ' grail item(s) not registered');
+      }
+    }
+    return out;
+  };
+
   function _wrapIntake(name, kind, review){
     var orig = window[name];
     if (typeof orig !== 'function' || orig.__v687) return;
@@ -36867,7 +36954,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1594', name:'v1594 - the apply repaints what it changed', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1595', name:'v1595 - the mini capture arc, wired end to end', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

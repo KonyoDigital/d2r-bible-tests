@@ -1,0 +1,617 @@
+"""v1571 — VAULT ACCUMULATOR, the engine. Retro sweep of the sealed reels for what he OWNS.
+
+Konyo: *"the vault manager is synced to also slowly analyze and remember especially between and among
+sessions ... it should eventually in retro KAI READERS get a read on it and slowly also feed the vault
+manager for throwing out or muling the items read at the time."*
+
+RETRO IS THE PRIORITY LANE. A live read has one look at a panel; the sealed reels have every look he
+has ever given one, and a mini stash session (MC-03) is the densest evidence in the whole archive —
+he is parked, not fighting, and the panel is held still. So the sweep prefers those reels first.
+
+This module is the CHRONICLE SWEEP pointed at a different target. It does not re-implement it: the
+signature function, STILL_MAX_DIFF, MIN_RUN_FRAMES, the still-run grouping, the blank-capture probe
+and the within-run dedupe are all imported from `chronicle_retro`. Two copies of a threshold
+calibrated on his footage is two things that drift apart, and only one of them would get re-tuned.
+
+THE FIVE LAWS, in his terms:
+
+  1. MERGE-MAX ACROSS SESSIONS. A read NEVER lowers a count and never removes a row. An obstructed
+     or half-scrolled stash frame is a NORMAL event, not evidence he threw something away. A later
+     session that sees fewer says so in `held` and changes nothing. No ordering of the inputs can
+     change the answer — every fold here is a max() or a sorted union.
+
+  2. MULTI-WITNESS CORROBORATION. A name grounds on TWO INDEPENDENT witnesses, and independence is
+     counted in SESSIONS: two still-runs inside one reel are the same eye looking twice at the same
+     stash, so they are ONE witness. One witness goes to `unsure`, never to `owned`.
+
+  3. THERE IS NO UN-THROW IN DIABLO. Advising him to bin an item is the only irreversible act in the
+     whole app, so a throw-out clears a STRICTLY higher bar than a keep on BOTH axes — confidence and
+     witnesses — and can never be reached on single-session evidence however confident the reader is.
+     Everything in `throwOut` is a SUGGESTION for the Vault manager to show him. Nothing here is
+     automatic and nothing here is a write.
+
+  4. HONEST-ABSENT. An unknown count stays None; it never defaults to 1. A run that cannot be
+     classified is `held` with a why, not guessed into a lane. A name the reader did not return is
+     never invented. A missing sig/reader/classify returns ok:False with a why — never a fabricated
+     empty success, which is the one failure shape that looks exactly like "you own nothing".
+
+  5. NEVER WRITE. No filesystem writes, no ledger, no board access, no second apply path.
+     `apply_payload()` only SHAPES the proposal so the caller can hand it to the ONE existing apply
+     (window.chronicleApply), which owns the date stamp, the merge-max and the undo bar.
+
+Pure by construction: the caller injects the signature fn, the classifier and the reader, so the
+tests drive every law from fixtures with zero JPEGs and zero vision calls.
+"""
+
+import os
+import json
+import time
+
+try:
+    import chronicle_retro as _cr
+except ImportError:  # pragma: no cover — running from the repo root rather than from tv/
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import chronicle_retro as _cr
+
+
+# The production signature function, BORROWED not re-typed (see the module note on drift). The caller
+# passes it in — this module never picks a default for itself, because law 4 says a missing sig is an
+# answer ("I was not given eyes"), not something to paper over.
+DEFAULT_SIG = _cr.jpeg_sig
+
+# Grouping thresholds live in ONE place: chronicle_retro, calibrated on Konyo's own footage.
+STILL_MAX_DIFF = _cr.STILL_MAX_DIFF
+MIN_RUN_FRAMES = _cr.MIN_RUN_FRAMES
+
+# The surfaces that show what he OWNS. Anything else in the footage — town, a fight, the Chronicle,
+# character select — is not evidence of ownership and is skipped without paying a read.
+OWNERSHIP_SURFACES = ("stash", "inventory", "equipment", "runes", "gems", "materials")
+
+# Which lane a surface's items land in. Runes/gems/materials are STASH TABS in his game, so their
+# items are stash items; the reader may override per item when it can actually see the split.
+SURFACE_LANE = {
+    "stash": "stash", "runes": "stash", "gems": "stash", "materials": "stash",
+    "inventory": "inventory", "equipment": "equipment",
+}
+LANES = ("stash", "inventory", "equipment")
+
+# A surface that already tells us what KIND of thing is on it. Used only as a fallback when the
+# reader does not say — never to invent an item, only to type one it did return.
+SURFACE_KIND = {"runes": "rune", "gems": "gem", "materials": "material"}
+KINDS = ("rune", "gem", "material", "item")
+
+# ── THE TWO BARS (law 3) ────────────────────────────────────────────────────────
+# These floors are REASONED, not measured — exactly as honest as the chronicle gate is about its own
+# CONF_FLOOR. The keep bar matches the chronicle's (an unsure reader is unsure twice over). The throw
+# bar is deliberately stricter on BOTH axes because the two mistakes are not symmetrical: a missed
+# keep costs one more look at the stash, a wrong throw costs an item that does not come back.
+KEEP_CONF_FLOOR = _cr.CONF_FLOOR          # 0.55 — one number, shared with the chronicle gate
+KEEP_MIN_WITNESSES = 2                    # two DIFFERENT sessions agreeing
+THROWOUT_CONF_FLOOR = 0.85                # strictly above KEEP_CONF_FLOOR
+THROWOUT_MIN_WITNESSES = 3                # strictly above KEEP_MIN_WITNESSES — and >1 session, always
+
+
+# ── reel selection ──────────────────────────────────────────────────────────────
+
+def is_mini_reel(idx, reel_dir=""):
+    """Was this reel a MINI stash capture (MC-03)? Preferred first — densest evidence per read.
+
+    Several markers are accepted on purpose: the journal field is MC-03's to name, and a sweep that
+    silently mis-detects would just quietly read the reels in a worse order. Being wrong here costs
+    ordering, never correctness — the laws below do not depend on it.
+    """
+    idx = idx if isinstance(idx, dict) else {}
+    if idx.get("mini") is True:
+        return True
+    if str(idx.get("mode") or "").lower() in ("mini", "mini_stash", "ministash"):
+        return True
+    if str(idx.get("kind") or "").lower() in ("mini", "mini_stash"):
+        return True
+    if str(idx.get("focus") or "").lower() in OWNERSHIP_SURFACES:
+        return True
+    return "_mini" in os.path.basename(reel_dir or "").lower()
+
+
+def _load_index(reel_dir):
+    try:
+        with open(os.path.join(reel_dir, "index.json"), encoding="utf-8") as fh:
+            idx = json.load(fh)
+        return idx if isinstance(idx, dict) else None
+    except Exception:
+        return None
+
+
+def _frame_rows(frames):
+    """A reel index's frame list, normalised to the {"f","ts"} rows the grouping expects.
+
+    Real sealed reels always carry dicts, but an older or hand-built index can carry bare filenames,
+    and chronicle_retro.still_runs() calls .get() on each row — a bare string raises AttributeError
+    and takes the whole sweep down with it. Normalising HERE keeps that shape out of the borrowed
+    grouping without touching it: a sweep that dies on one odd reel reads as "the vault is broken".
+    """
+    out = []
+    for fr in (frames or []):
+        if isinstance(fr, dict):
+            out.append(fr)
+        elif isinstance(fr, str) and fr.strip():
+            out.append({"f": fr.strip(), "ts": 0})
+    return out
+
+
+def order_reels(hist_dirs):
+    """Mini/stash-focused reels first, everything else in the order given (newest-first, per caller).
+
+    A STABLE sort: reels of equal preference keep the caller's order, so the answer cannot depend on
+    a filesystem listing order (law 1's "no ordering of inputs may change the answer" applies to the
+    reels too — this only chooses what we PAY to read first, not what the fold concludes).
+    """
+    dirs = [d for d in (hist_dirs or []) if d]
+    return sorted(dirs, key=lambda d: 0 if is_mini_reel(_load_index(d), d) else 1)
+
+
+# ── normalisation (law 4: honest-absent) ────────────────────────────────────────
+
+def _surface_of(verdict):
+    """A classifier's answer → an ownership surface, or None. Accepts a bare string or a dict."""
+    if isinstance(verdict, dict):
+        verdict = verdict.get("surface") or verdict.get("scene") or verdict.get("kind")
+    s = str(verdict or "").strip().lower()
+    return s if s in OWNERSHIP_SURFACES else None
+
+
+def _count_of(v):
+    """A count, or None. None is NOT 1 and never becomes 1 (law 4)."""
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        n = int(v)
+    except Exception:
+        return None
+    return n if 0 <= n <= 99999 else None
+
+
+def _conf_of(v, fallback=0.0):
+    try:
+        return max(0.0, min(1.0, float(v)))
+    except Exception:
+        return fallback
+
+
+def _max_count(a, b):
+    """MERGE-MAX on one count (law 1). Unknown loses to any number; unknown+unknown stays unknown.
+
+    Commutative and idempotent by construction — that is what makes the fold order-independent.
+    """
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a if a >= b else b
+
+
+def normalize_item(raw, surface, lane_default, page_conf):
+    """One reader row → the canonical owned-row seed, or None if it is not an item at all.
+
+    Never invents: no name, no row. Never types what it cannot type: an unknown kind falls back to
+    the SURFACE's kind (a rune page holds runes) and only then to the generic 'item'.
+    """
+    if not isinstance(raw, dict):
+        return None
+    name = str(raw.get("name") or "").strip()[:80]
+    if not name:
+        return None
+    lane = str(raw.get("lane") or "").strip().lower()
+    if lane not in LANES:
+        lane = lane_default
+    kind = str(raw.get("kind") or "").strip().lower()
+    if kind not in KINDS:
+        kind = SURFACE_KIND.get(surface, "item")
+    return {
+        "name": name,
+        "lane": lane,
+        "kind": kind,
+        "count": _count_of(raw.get("count")),
+        "conf": _conf_of(raw.get("conf"), page_conf),
+        "throwOut": raw.get("throwOut") is True,
+        "throwWhy": str(raw.get("throwWhy") or "").strip()[:160] or "the reader flagged it as junk",
+    }
+
+
+# ── THE GATE (laws 2 and 3) ─────────────────────────────────────────────────────
+
+def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES):
+    """Does this pile of sightings ground? Returns a verdict that EXPLAINS itself either way.
+
+    evidence: [{"session","frame","lane","conf",...}, ...]
+    -> {"pass", "why", "sessions": [sid...], "witnesses": n, "sightings": n, "bestConf": float}
+
+    WITNESS IDENTITY (law 2): witnesses are DISTINCT SESSION IDS. Two still-runs inside one reel are
+    one eye looking at the same stash twice — repetition, not corroboration.
+
+    Law 3 is enforced here and not by the caller: whatever floors are passed in, a single-session
+    pile can never satisfy a throw-out bar, because THROWOUT_MIN_WITNESSES is >1 and the witness
+    count is a count of sessions. The `why` is what the Vault manager shows him when it declines.
+    """
+    ev = [e for e in (evidence or []) if isinstance(e, dict)]
+    sessions = sorted({str(e.get("session")) for e in ev if e.get("session")})
+    best = max([_conf_of(e.get("conf")) for e in ev] or [0.0])
+    base = {"sessions": sessions, "witnesses": len(sessions), "sightings": len(ev), "bestConf": best}
+    if not ev:
+        return dict(base, **{"pass": False, "why": "no evidence at all"})
+    if best < conf_floor:
+        return dict(base, **{"pass": False,
+                             "why": "the reader itself was unsure (%.2f < %.2f) — unsure twice is "
+                                    "still unsure" % (best, conf_floor)})
+    if len(sessions) < min_witnesses:
+        return dict(base, **{"pass": False,
+                             "why": "only %d independent session%s (%s) — needs %d; two looks inside "
+                                    "one reel are ONE witness"
+                                    % (len(sessions), "" if len(sessions) == 1 else "s",
+                                       ", ".join(sessions) or "none", min_witnesses)})
+    return dict(base, **{"pass": True,
+                         "why": "corroborated across %d sessions (%s) at conf %.2f"
+                                % (len(sessions), ", ".join(sessions), best)})
+
+
+# ── THE FOLD (law 1) ────────────────────────────────────────────────────────────
+
+def _witness_rows(evidence):
+    """The provenance the board shows when he asks WHY it thinks he owns this. Sorted = stable."""
+    rows = [{"session": e.get("session"), "frame": e.get("frame"), "lane": e.get("lane")}
+            for e in evidence]
+    return sorted(rows, key=lambda r: (str(r["session"]), str(r["frame"]), str(r["lane"])))
+
+
+def _owned_row(key, evidence):
+    """Fold one (name, lane) pile into an owned row. MERGE-MAX on count and conf; max on lastSeen.
+
+    Law 1 lives here: `count` is a max() across every sighting, so no session can ever produce a row
+    whose count is lower than one already seen, and the result does not depend on the order the
+    sightings arrived in.
+    """
+    name, lane = key
+    count = None
+    conf = 0.0
+    last = None
+    kinds = {}
+    for e in evidence:
+        count = _max_count(count, e.get("count"))
+        conf = max(conf, _conf_of(e.get("conf")))
+        ts = e.get("ts")
+        if isinstance(ts, (int, float)):
+            last = ts if last is None else max(last, ts)
+        k = e.get("kind") or "item"
+        kinds[k] = kinds.get(k, 0) + 1
+    # the kind the most sightings agreed on; ties broken by name so the answer is order-independent
+    kind = sorted(kinds.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] if kinds else "item"
+    return {"name": name, "lane": lane, "kind": kind, "count": count, "conf": round(conf, 3),
+            "witnesses": _witness_rows(evidence), "lastSeenTs": last}
+
+
+def merge_vault(existing, incoming):
+    """MERGE-MAX ACROSS SESSIONS (law 1) — fold a new proposal into the accumulated picture.
+
+    Both sides may be a proposal dict, a list of owned rows, or a {key: row} map; the result is the
+    same either way and merge_vault(a, b) agrees with merge_vault(b, a) on every count.
+
+    A row the incoming read saw FEWER of does not subtract and does not disappear — the shortfall is
+    reported in `held` with a why, because an obstructed or half-scrolled stash frame is a normal
+    event and not evidence he threw something away. A row missing from the incoming read entirely is
+    simply absent evidence, and absence is never a claim.
+
+    -> {"owned": [...], "added": [...], "raised": [...], "held": [...], "byKey": {"lane|name": row}}
+    """
+    have = {}
+    for row in _rows_of(existing):
+        _absorb(have, row)
+    added, raised, held = [], [], []
+    for row in _rows_of(incoming):
+        key = (row["name"], row["lane"])
+        prev = have.get(key)
+        if prev is None:
+            _absorb(have, row)
+            added.append(row["name"])
+            continue
+        pc, nc = prev.get("count"), row.get("count")
+        if pc is not None and nc is not None and nc < pc:
+            # LAW 1. Never lower a count. Say so instead.
+            held.append({"name": row["name"],
+                         "why": "this read saw %d in %s but %d was already recorded — kept the "
+                                "higher count; a half-scrolled or obstructed panel is normal and is "
+                                "not evidence anything was thrown away" % (nc, row["lane"], pc)})
+        elif nc is not None and (pc is None or nc > pc):
+            raised.append(row["name"])
+        _absorb(have, row)
+    owned = sorted(have.values(), key=lambda r: (r["lane"], r["name"].lower(), r["name"]))
+    return {
+        "owned": owned,
+        "added": sorted(set(added)),
+        "raised": sorted(set(raised)),
+        "held": held,
+        "byKey": {"%s|%s" % (r["lane"], r["name"]): r for r in owned},
+    }
+
+
+def _absorb(have, row):
+    """Merge one row into the accumulator under MERGE-MAX. Idempotent: absorbing twice is a no-op."""
+    key = (row["name"], row["lane"])
+    cur = have.get(key)
+    if cur is None:
+        have[key] = dict(row)
+        return
+    cur["count"] = _max_count(cur.get("count"), row.get("count"))
+    cur["conf"] = round(max(_conf_of(cur.get("conf")), _conf_of(row.get("conf"))), 3)
+    a, b = cur.get("lastSeenTs"), row.get("lastSeenTs")
+    cur["lastSeenTs"] = a if b is None else (b if a is None else max(a, b))
+    seen = {(w.get("session"), w.get("frame"), w.get("lane")) for w in (cur.get("witnesses") or [])}
+    for w in (row.get("witnesses") or []):
+        if (w.get("session"), w.get("frame"), w.get("lane")) not in seen:
+            cur.setdefault("witnesses", []).append(w)
+            seen.add((w.get("session"), w.get("frame"), w.get("lane")))
+    cur["witnesses"] = sorted(cur.get("witnesses") or [],
+                              key=lambda r: (str(r.get("session")), str(r.get("frame")),
+                                             str(r.get("lane"))))
+    if cur.get("kind") in (None, "item"):
+        cur["kind"] = row.get("kind") or cur.get("kind") or "item"
+
+
+def _rows_of(blob):
+    """Accept a proposal, a list of rows, or a {key: row} map. Anything else contributes nothing."""
+    if not blob:
+        return []
+    if isinstance(blob, dict):
+        rows = blob.get("owned") if "owned" in blob else list(blob.values())
+    else:
+        rows = list(blob)
+    out = []
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        name = str(r.get("name") or "").strip()
+        lane = str(r.get("lane") or "").strip().lower()
+        if not name or lane not in LANES:
+            continue
+        out.append({"name": name, "lane": lane, "kind": r.get("kind") or "item",
+                    "count": _count_of(r.get("count")), "conf": _conf_of(r.get("conf")),
+                    "witnesses": [w for w in (r.get("witnesses") or []) if isinstance(w, dict)],
+                    "lastSeenTs": r.get("lastSeenTs")})
+    return out
+
+
+# ── THE SWEEP ───────────────────────────────────────────────────────────────────
+
+def _empty(why, sessions_seen=0):
+    """A refusal, fully shaped. ok:False with a why — never a fabricated empty success (law 4)."""
+    return {"ok": False, "generatedTs": int(time.time() * 1000), "why": why, "sessionsRead": [],
+            "owned": [], "throwOut": [], "unsure": [], "held": [],
+            "totals": {"sessionsSeen": sessions_seen, "framesSeen": 0, "classified": 0,
+                       "pagesRead": 0, "skipped": 0}}
+
+
+def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
+    """THE VAULT RETRO SWEEP: sealed reels in, a PROPOSAL of what he owns out. Writes nothing.
+
+    hist_dirs: sealed reel directories, newest-first (mini/stash reels are re-ordered to the front).
+    sig(frame_path)      -> fingerprint or None. Production value: DEFAULT_SIG (chronicle_retro.jpeg_sig).
+    classify(frame_path) -> an ownership surface name, a dict carrying one, or None. ONE call per
+                            candidate still-run, on the run's most settled frame.
+    reader(frame_path, surface) -> {"items": [{name, kind, count, conf, lane, throwOut, throwWhy}],
+                            "conf": float, "note": str|None}. Only ownership runs are ever read.
+    limit: read at most N reels (after the mini-first re-ordering) — the cost dial, not a filter on
+           what counts as evidence.
+
+    PAY FOR RUNS, NOT FRAMES — inherited wholesale from the chronicle sweep: ~150 frames become a
+    handful of still-runs, one classify each, and only ownership runs cost a read.
+    """
+    if sig is None or reader is None or classify is None:
+        # Law 4. "I was not given eyes" is a fact; dressing it as an empty stash would read exactly
+        # like "you own nothing", which is the one wrong answer that looks like a right one.
+        missing = ", ".join(n for n, v in (("sig", sig), ("reader", reader), ("classify", classify))
+                            if v is None)
+        return _empty("cannot sweep: no %s was supplied — this is not an empty vault, it is a sweep "
+                      "that never ran" % missing, len(hist_dirs or []))
+
+    dirs = order_reels(hist_dirs)
+    if limit:
+        dirs = dirs[:limit]
+    evidence = {}          # (name, lane) -> [sighting...]
+    throw_flags = {}       # (name, lane) -> [sighting...] the reader flagged as junk
+    unsure, held = [], []
+    sessions_read, sessions_seen = [], 0
+    frames_seen = classified = pages_read = skipped = 0
+
+    for reel_dir in dirs:
+        sessions_seen += 1
+        idx = _load_index(reel_dir)
+        if idx is None:
+            held.append({"name": None, "why": "reel %s has no readable index.json — held, not guessed"
+                                              % os.path.basename(reel_dir)})
+            continue
+        sid = str(idx.get("sessionId") or os.path.basename(reel_dir))
+        frames = _frame_rows(idx.get("frames"))
+        frames_seen += len(frames)
+        # BORROWED grouping — chronicle_retro owns STILL_MAX_DIFF / MIN_RUN_FRAMES and the run logic.
+        sig_of = lambda n, _d=reel_dir: sig(os.path.join(_d, n))          # noqa: E731 — per-reel bind
+        runs = _cr.still_runs(frames, sig_of)
+        cands = _cr.candidate_runs(runs, min_frames=MIN_RUN_FRAMES)
+        read_this_reel = False
+        for run in cands:
+            names = run.get("frames") or []
+            probe, _dead = _cr.live_probe(names, lambda n, _d=reel_dir: os.path.join(_d, n))
+            if probe is None:
+                skipped += 1
+                held.append({"name": None,
+                             "why": "a %d-frame run in %s was BLANK all the way through — the window "
+                                    "was grabbed with nothing on it; that is a capture fault, not an "
+                                    "empty stash" % (len(names), sid)})
+                continue
+            classified += 1
+            surface = _surface_of(classify(os.path.join(reel_dir, probe)))
+            if surface is None:
+                # Law 4: unclassifiable is HELD, never guessed into a lane.
+                skipped += 1
+                held.append({"name": None,
+                             "why": "a still run in %s (frame %s) could not be classified — held "
+                                    "rather than guessed onto a shelf" % (sid, probe)})
+                continue
+            if surface not in OWNERSHIP_SURFACES:   # unreachable via _surface_of; kept as the law
+                skipped += 1
+                continue
+            lane_default = SURFACE_LANE.get(surface, "stash")
+            # A held-still panel is ONE page; a SCROLLED panel is several. _distinct is the chronicle's
+            # calibrated "same pixels?" test — borrowed so the two sweeps pay alike.
+            for name in _cr._distinct(names, sig_of):
+                path = os.path.join(reel_dir, name)
+                resp = reader(path, surface)
+                if not isinstance(resp, dict) or resp.get("note"):
+                    skipped += 1
+                    held.append({"name": None,
+                                 "why": "the reader refused %s in %s (%s)"
+                                        % (name, sid, (resp or {}).get("note") if isinstance(resp, dict)
+                                           else "no answer")})
+                    continue
+                pages_read += 1
+                read_this_reel = True
+                page_conf = _conf_of(resp.get("conf"))
+                ts = resp.get("ts") if isinstance(resp.get("ts"), (int, float)) else run.get("end_ts")
+                for raw in (resp.get("items") or []):
+                    item = normalize_item(raw, surface, lane_default, page_conf)
+                    if item is None:
+                        unsure.append({"name": None,
+                                       "why": "the reader returned a row with no name on %s in %s — "
+                                              "nothing was invented for it" % (name, sid)})
+                        continue
+                    sight = {"session": sid, "frame": name, "lane": item["lane"],
+                             "conf": item["conf"], "count": item["count"], "kind": item["kind"],
+                             "ts": ts}
+                    key = (item["name"], item["lane"])
+                    evidence.setdefault(key, []).append(sight)
+                    if item["throwOut"]:
+                        throw_flags.setdefault(key, []).append(dict(sight, why=item["throwWhy"]))
+        if read_this_reel:
+            sessions_read.append(sid)
+
+    owned, throw_out = [], []
+    for key in sorted(evidence, key=lambda k: (k[1], k[0].lower(), k[0])):
+        ev = evidence[key]
+        v = gate(ev, KEEP_CONF_FLOOR, KEEP_MIN_WITNESSES)
+        if not v["pass"]:
+            # Law 2: one witness is never `owned`. It is remembered as unsure so a later session can
+            # corroborate it — the accumulator's whole point.
+            unsure.append({"name": key[0], "why": "%s in %s — %s" % (key[0], key[1], v["why"])})
+            continue
+        owned.append(_owned_row(key, ev))
+    for key in sorted(throw_flags, key=lambda k: (k[1], k[0].lower(), k[0])):
+        ev = throw_flags[key]
+        # Law 3: the STRICTER bar, on both axes. Single-session evidence can never clear it.
+        v = gate(ev, THROWOUT_CONF_FLOOR, THROWOUT_MIN_WITNESSES)
+        if not v["pass"]:
+            held.append({"name": key[0],
+                         "why": "throw-out SUGGESTION withheld for %s in %s — %s. There is no "
+                                "un-throw in Diablo, so this bar is higher than the keep bar on "
+                                "purpose" % (key[0], key[1], v["why"])})
+            continue
+        whys = sorted({str(e.get("why") or "").strip() for e in ev if e.get("why")})
+        throw_out.append({"name": key[0], "lane": key[1],
+                          "why": "; ".join(whys) or "the reader flagged it as junk",
+                          "conf": round(v["bestConf"], 3), "witnesses": _witness_rows(ev),
+                          "suggestion": True})   # never automatic — the Vault manager ASKS him
+
+    totals = {"sessionsSeen": sessions_seen, "framesSeen": frames_seen, "classified": classified,
+              "pagesRead": pages_read, "skipped": skipped}
+    return {"ok": True, "generatedTs": int(time.time() * 1000), "why": _verdict(totals, owned, unsure),
+            "sessionsRead": sorted(set(sessions_read)),
+            "owned": owned, "throwOut": throw_out, "unsure": unsure, "held": held, "totals": totals}
+
+
+def _verdict(totals, owned, unsure):
+    """WHY an empty sweep is empty. Four different nothings, exactly as the chronicle sweep does it —
+    collapsing them would send him debugging a reader when what he needs is to open his stash."""
+    if owned:
+        return ("%d item(s) grounded across %d session(s) from %d page(s) — %d more need a second "
+                "session to corroborate." % (len(owned), totals["sessionsSeen"], totals["pagesRead"],
+                                             len(unsure)))
+    if not totals["sessionsSeen"]:
+        return "There is no sealed footage to sweep yet — record a mini stash session first."
+    if not totals["classified"]:
+        return ("%d reel(s) held no screen still long enough to be worth reading — that is footage of "
+                "moving, not of looking at a stash." % totals["sessionsSeen"])
+    if not totals["pagesRead"]:
+        return ("%d still screen(s) were examined across %d reel(s) and NONE was a stash, inventory "
+                "or equipment panel — there was nothing to read. This is not a reader failure."
+                % (totals["classified"], totals["sessionsSeen"]))
+    if unsure:
+        return ("%d page(s) were read and every name so far has only ONE session behind it — open the "
+                "same stash on camera once more and they ground." % totals["pagesRead"])
+    return ("%d page(s) were read and produced no items. This one is the reading itself, not the "
+            "footage." % totals["pagesRead"])
+
+
+# ── APPLY (law 5: shapes, never writes) ─────────────────────────────────────────
+
+def apply_payload(proposal):
+    """Shape a proposal for the ONE existing apply path. It does not write and cannot write.
+
+    The caller hands this to window.chronicleApply — the same function his hand-tick uses — so the
+    write inherits the date stamp, the merge-max and the undo bar. A second write path is a second
+    thing that drifts, and this module deliberately does not have one.
+
+    THROW-OUTS ARE NOT IN `items`. They ride along as `suggestions`, flagged as suggestions, because
+    nothing this module produces may bin anything on its own.
+    """
+    p = proposal if isinstance(proposal, dict) else {}
+    if not p.get("ok"):
+        return {"ok": False, "source": "vault-retro", "mode": "merge-max", "items": [],
+                "suggestions": [], "why": p.get("why") or "no proposal to apply",
+                "generatedTs": p.get("generatedTs")}
+    items = [{"name": r["name"], "lane": r["lane"], "kind": r.get("kind") or "item",
+              "count": r.get("count"), "conf": r.get("conf"),
+              "witnesses": len(r.get("witnesses") or []), "lastSeenTs": r.get("lastSeenTs")}
+             for r in (p.get("owned") or [])]
+    return {
+        "ok": True,
+        "source": "vault-retro",
+        "mode": "merge-max",            # the receiving apply must raise counts, never lower them
+        "readOnlyUntilApply": True,     # nothing has been written; this is a proposal he presses
+        "generatedTs": p.get("generatedTs"),
+        "sessionsRead": p.get("sessionsRead") or [],
+        "items": items,
+        "suggestions": [dict(t, automatic=False) for t in (p.get("throwOut") or [])],
+        "unsure": p.get("unsure") or [],
+        "held": p.get("held") or [],
+        "totals": p.get("totals") or {},
+        "why": p.get("why") or "",
+    }
+
+
+# ── CLI ─────────────────────────────────────────────────────────────────────────
+# Print-only, like the chronicle sweep's. This module may never write, and a CLI that dropped a
+# proposal file would break the law the whole arc rests on.
+if __name__ == "__main__":
+    import console_safe  # noqa: F401  — emoji must survive a non-UTF-8 console
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Vault accumulator: what the sealed reels say he owns.")
+    ap.add_argument("--hist", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                   "frames", "hist"))
+    ap.add_argument("--limit", type=int, default=None, help="only the N best reels")
+    ap.add_argument("--cost", action="store_true",
+                    help="FREE: group frames into runs and report what a real sweep WOULD cost")
+    args = ap.parse_args()
+
+    dirs = _cr.reel_dirs(args.hist)
+    if args.cost:
+        # the free pass: real grouping, a classifier that refuses everything, a reader that is never
+        # reached. Nothing is read, nothing is charged, and the run/classify arithmetic is his own.
+        res = sweep(dirs, sig=DEFAULT_SIG, classify=lambda p: None,
+                    reader=lambda p, s: {"note": "cost-pass"}, limit=args.limit)
+        t = res["totals"]
+        print("🗄  %d reel(s) · %d frames → %d classifies · %d pages read"
+              % (t["sessionsSeen"], t["framesSeen"], t["classified"], t["pagesRead"]))
+        print("   mini-first order: %s" % ", ".join(os.path.basename(d) for d in order_reels(dirs)[:8]))
+        print("   %s" % res["why"])
+        raise SystemExit(0)
+
+    print("This sweep needs a reader and a classifier. Use --cost for the free grouping pass, or")
+    print("drive sweep() from the console, which owns the reader lanes and the apply step.")
