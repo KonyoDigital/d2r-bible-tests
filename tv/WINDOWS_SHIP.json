@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1565",
+  "ver": "v1567",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1565: the run cards said expected ~1 every 4h on F-Uniques and nothing on F-Sets, and the item cards on both showed odds with no time",
+  "note": "v1567: three readers ask for complete now and the route carries completeSets; TZ is a composition with a rotation clock",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

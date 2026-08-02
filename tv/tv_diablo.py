@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1565"   # one time-to-find for both forges
+VERSION = "v1567"   # the complete-set path was dead end to end, and the terror zone got designed
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4621,7 +4621,15 @@ CHRONICLE_READ_PROMPT = (
     "Windforce, Stormshield). sets = rows grouped under SET names (Tal Rasha's Wrappings, Immortal "
     "King). If the panel is the OTHER one, set wrongTab=true and return found empty — never tally "
     "set pieces as uniques or the reverse.\n"
-    'sets = only when ledger=sets: [{{"set":"<set name>","pieces":["<found piece>"]}}].\n'
+    # v1566 — `complete` is READ in three places and was EMITTED by none of the reader lanes.
+    # intake.js:691 reads g.complete === true, chronicle_retro.py:427 reads g.get("complete") is
+    # True, and bible.html's chronicleApply expands a COMPLETE set into all its pieces (v1530).
+    # Neither this lane nor the Grok one ever asked for it, so prop["completeSets"] was always
+    # empty and v1530 has never fired once from a sweep. A page that says a set is done is one row
+    # worth five, and it was being thrown away at the only point that could have captured it.
+    'sets = only when ledger=sets: [{{"set":"<set name>","pieces":["<found piece>"],"complete":true|false}}].\n'
+    'set `complete` true ONLY when the panel itself marks that set finished — never inferred from '
+    'the pieces you happen to see.\n'
     "printedFound / printedTotal = the panel's own progress numbers if it shows any (\"243/403\", "
     "\"Found 108 of 135\") EXACTLY as printed, else null. They are checked against your own count as "
     "a second witness, so an honest mismatch is worth more than a flattering match.\n"

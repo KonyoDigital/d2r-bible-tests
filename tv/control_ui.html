@@ -2290,20 +2290,47 @@
   /* v1516 — 📜 CHRONICLE SWEEP panel. Reads as a QUOTE, not a result: the big number is a price
      (calls it would make), and the caption says what it is instead of a tally. */
   /* v1547 — the Terror Zone panel */
-  .hd-tz .tz-body { display: flex; flex-direction: column; gap: 6px; }
+  /* ── v1567 — the TERROR ZONE section, composed ─────────────────────────────────────────────
+     Konyo: "TZ now and next should be upgraded... flagship style section, more design here not
+     just text." It was two label:value rows. The rotation he is deciding about now leads at hero
+     weight, the multi-zone lists D2R actually serves ("Nihlathak's Temple, Halls of Anguish,
+     Halls of Pain, and Halls of Vaught") break into chips instead of one long sentence, and a
+     rotation clock runs underneath. Sizes are --fs-* tokens (13px console floor — it is watched
+     on a TV) and every weight is a --fw-* token (visual-lock invariant). */
+  .hd-tz .tz-body { display: flex; flex-direction: column; gap: 7px; }
   .tz-idle { opacity: .6; }
-  .tz-slot { display: flex; align-items: baseline; gap: 10px; padding: 7px 10px; border-radius: 7px;
+  .tz-slot { padding: 9px 11px 10px; border-radius: 9px;
     border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); }
-  .tz-slot.now { border-color: rgba(120,230,160,.34); background: rgba(120,230,160,.06); }
-  /* v1547 — --fs-* tokens, not raw px: the console enforces a 13px fullscreen floor and
-     TestV1504TypeFloor caught 10px/11px here on the first run. A number that reads fine on a
-     laptop is unreadable on the TV this console is actually watched on. */
-  .tz-lab { font-size: var(--fs-2xs); letter-spacing: .1em; opacity: .8; white-space: nowrap; }
-  .tz-slot.now .tz-lab { color: #8fe0a0; }
-  .tz-zone { font-size: var(--fs-sm); font-weight: var(--fw-medium); }
-  .tz-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-    background: #8fe0a0; box-shadow: 0 0 7px #8fe0a0; margin-right: 4px; }
-  /* stale and down are amber, never green — a tracker that dresses old data as live is lying */
+  .tz-slot.now { border-color: rgba(120,230,160,.34);
+    background: radial-gradient(120% 160% at 8% 0%, rgba(120,230,160,.13), transparent 60%),
+                linear-gradient(180deg, rgba(120,230,160,.05), rgba(0,0,0,.2)); }
+  .tz-lab { display: flex; align-items: center; gap: 7px; margin-bottom: 6px;
+    font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .22em;
+    text-transform: uppercase; opacity: .85; }
+  .tz-slot.now .tz-lab { color: #8fe0a0; opacity: 1; }
+  .tz-zones { display: flex; flex-wrap: wrap; gap: 5px; }
+  .tzz { padding: 3px 9px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.13); background: rgba(255,255,255,.04);
+    font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); }
+  .tz-zones-hero .tzz { font: var(--fw-semibold) var(--fs-sm)/1.45 var(--mono);
+    border-color: rgba(120,230,160,.4); background: rgba(120,230,160,.09); color: #d8ffe9;
+    padding: 4px 12px; }
+  .tz-unknown { opacity: .55; font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); }
+  .tz-dot { width: 7px; height: 7px; border-radius: 50%; flex: none;
+    background: #8fe0a0; box-shadow: 0 0 8px #8fe0a0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .tz-slot.now .tz-dot { animation: tzPulse 2.4s ease-in-out infinite; }
+  }
+  @keyframes tzPulse { 0%,100% { opacity: 1; box-shadow: 0 0 8px #8fe0a0; }
+                       50% { opacity: .55; box-shadow: 0 0 14px #8fe0a0; } }
+  .tz-clock { margin-top: 8px; }
+  .tzc-bar { height: 4px; border-radius: 3px; overflow: hidden;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); }
+  .tzc-bar i { display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, rgba(120,230,160,.5), #8fe0a0); }
+  .tzc-lab { display: flex; align-items: baseline; gap: 8px; margin-top: 5px;
+    font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: var(--muted); }
+  .tzc-lab b { color: #8fe0a0; font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
   .tz-stale, .tz-down { color: #e0a860; font-size: var(--fs-2xs); line-height: 1.5;
     border: 1px solid rgba(224,168,96,.34); background: rgba(224,168,96,.07);
     padding: 6px 9px; border-radius: 7px; }
@@ -3524,6 +3551,12 @@
           <div class="hd-h">🌀 TERROR ZONE <span class="hd-sub" id="tz-updated"></span></div>
           <div class="tz-body" id="tz-body">
             <div class="tz-idle">reading the rotation…</div>
+          </div>
+          <!-- v1567 — the rotation clock. TZ turns on the hour in D2R, which is a rule of the game
+               and not a claim about the feed, so it is computed here and LABELLED as the rule. -->
+          <div class="tz-clock" id="tz-clock" hidden>
+            <div class="tzc-bar"><i id="tz-clock-fill"></i></div>
+            <div class="tzc-lab"><b id="tz-clock-t">—</b><span>until the zone turns · on the hour</span></div>
           </div>
           <div class="tz-foot">
             <button class="chron-btn" type="button" id="tz-refresh">↻ refresh</button>
@@ -10753,24 +10786,59 @@ function escC(s) {
       if (upd) upd.textContent = '';
       return;
     }
-    var row = function (label, zone, cls) {
-      return '<div class="tz-slot ' + cls + '">'
-        + '<span class="tz-lab">' + label + '</span>'
-        + '<span class="tz-zone">' + escC(zone || '(unknown)') + '</span></div>';
+    /* v1567 — a composition rather than two label:value rows. The zone he is deciding about gets
+       hero weight; NEXT is plainly secondary; the multi-zone rotations that D2R actually serves
+       ("Nihlathak's Temple, Halls of Anguish, Halls of Pain, and Halls of Vaught") break into
+       chips instead of running as one long sentence he has to parse. Sizes come from the --fs-*
+       scale — the console is watched on a TV and enforces a 13px floor. */
+    var zones = function (z) {
+      var parts = String(z || '').split(/,\s*|\s+and\s+/).map(function (x) { return x.trim(); })
+        .filter(function (x) { return x.length; });
+      if (!parts.length) return '<span class="tz-unknown">(unknown)</span>';
+      return parts.map(function (x) { return '<span class="tzz">' + escC(x) + '</span>'; }).join('');
     };
     body.innerHTML =
-      row('<span class="tz-dot"></span> LIVE NOW', d.current, 'now')
-      + row('⏭ NEXT · ~30 min', d.next, 'next')
+      '<div class="tz-slot now">'
+      + '<div class="tz-lab"><span class="tz-dot"></span>LIVE NOW</div>'
+      + '<div class="tz-zones tz-zones-hero">' + zones(d.current) + '</div></div>'
+      + '<div class="tz-slot next">'
+      + '<div class="tz-lab">⏭ UP NEXT</div>'
+      + '<div class="tz-zones">' + zones(d.next) + '</div></div>'
       + (d.stale
         ? '<div class="tz-stale">⚠ the live site was unreachable — this is the LAST GOOD rotation, '
           + 'not the current one</div>'
         : '');
+    _tzClock(!d.stale);
     if (upd) {
       var t = '';
       try { t = d.ts ? new Date(d.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''; }
       catch (e) { t = ''; }
       upd.textContent = d.stale ? ('stale · last good ' + t) : (t ? 'updated ' + t : '');
     }
+  }
+
+  /* v1567 — minutes to the top of the hour. This is the GAME's rule (terror zones turn hourly),
+     not something the relay tells us, so it is labelled as the rule and never as a countdown the
+     feed guarantees. Hidden entirely when the rotation shown is stale — a clock ticking beside
+     data we know is old is the worst of both. */
+  var _tzClockTimer = null;
+  function _tzClock(show) {
+    var box = document.getElementById('tz-clock');
+    var fill = document.getElementById('tz-clock-fill');
+    var t = document.getElementById('tz-clock-t');
+    if (!box) return;
+    if (!show) { box.hidden = true; if (_tzClockTimer) { clearInterval(_tzClockTimer); _tzClockTimer = null; } return; }
+    box.hidden = false;
+    var tick = function () {
+      var now = new Date();
+      var left = 3600 - (now.getMinutes() * 60 + now.getSeconds());
+      var m = Math.floor(left / 60), sec = left % 60;
+      if (t) t.textContent = m + ':' + (sec < 10 ? '0' : '') + sec;
+      if (fill) fill.style.width = (100 - (left / 3600) * 100).toFixed(1) + '%';
+    };
+    tick();
+    if (_tzClockTimer) clearInterval(_tzClockTimer);
+    _tzClockTimer = setInterval(tick, 1000);
   }
 
   async function _tzFetch() {

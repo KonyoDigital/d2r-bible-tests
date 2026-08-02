@@ -102,7 +102,10 @@ CHRONICLE_VISION_PROMPT = (
     "THE LEDGER YOU WERE GIVEN IS {ledger}. uniques = single unique items (Harlequin Crest, "
     "Windforce, Stormshield). sets = rows grouped under SET names (Tal Rasha's Wrappings, Immortal "
     "King). If the panel on screen is the OTHER one, set wrongTab=true and return found empty.\n"
-    "sets = only when ledger=sets: [{{\"set\":\"<set name>\",\"pieces\":[<found piece names>]}}].\n"
+    # v1566 — see tv_diablo.py: the second eye must speak the same shape as the first, or a
+    # cross-lane agreement on a COMPLETE set is impossible by construction.
+    "sets = only when ledger=sets: [{{\"set\":\"<set name>\",\"pieces\":[<found piece names>],\"complete\":true|false}}].\n"
+    "set `complete` true ONLY when the panel itself marks that set finished — never inferred.\n"
     "printedFound / printedTotal = the panel's own progress numbers if it prints any (\"243/403\", "
     "\"Found 108 of 135\") EXACTLY as shown, else null. They are checked against your own count — an "
     "honest mismatch is useful, a fabricated match is not.\n"

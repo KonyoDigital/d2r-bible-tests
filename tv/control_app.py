@@ -7977,7 +7977,10 @@ def chronicle_apply(proposal=None):
     prop = proposal or (st.get("result") if isinstance(st.get("result"), dict) else None)
     if not prop:
         return {"ok": False, "why": "no sweep result to apply — run a sweep first"}
-    if not (prop.get("wouldAdd") or {}).get("uniques") and not (prop.get("wouldAdd") or {}).get("sets"):
+    # v1566 — a proposal whose ONLY content is completeSets is not empty. The guard bounced it and
+    # the board never saw the one row worth five.
+    _wa = prop.get("wouldAdd") or {}
+    if not _wa.get("uniques") and not _wa.get("sets") and not _wa.get("completeSets"):
         return {"ok": False, "why": "the sweep grounded nothing — there is nothing to apply"}
     w = globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
@@ -8349,6 +8352,13 @@ def _chron_visit_run(visit_ts):
                                                 for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
+                    # v1566 — carry the COMPLETE sets through. bible.html's chronicleApply has
+                    # expanded a set the panel calls complete into all its pieces since v1530, and
+                    # this route never sent them — so the receiving half of that feature was
+                    # unreachable from the console. One row worth five, dropped at the last hop.
+                    "completeSets": [{"name": _cn,
+                                      "why": (gate.verdicts.get(_cn) or {}).get("why", "")}
+                                     for _cn in ((applied.get("completeSets") or {}).get("added") or [])],
                     "held": [{"ledger": h["ledger"], "name": h["name"],
                               "why": (gate.verdicts.get(h["name"]) or {}).get("why", ""),
                               "sightings": len(h["sightings"]),
@@ -8441,6 +8451,13 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                                                 for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
+                    # v1566 — carry the COMPLETE sets through. bible.html's chronicleApply has
+                    # expanded a set the panel calls complete into all its pieces since v1530, and
+                    # this route never sent them — so the receiving half of that feature was
+                    # unreachable from the console. One row worth five, dropped at the last hop.
+                    "completeSets": [{"name": _cn,
+                                      "why": (gate.verdicts.get(_cn) or {}).get("why", "")}
+                                     for _cn in ((applied.get("completeSets") or {}).get("added") or [])],
                     "held": [{"ledger": h["ledger"], "name": h["name"],
                               "why": (gate.verdicts.get(h["name"]) or {}).get("why", ""),
                               "sightings": len(h["sightings"]),
@@ -8635,7 +8652,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1565",
+        "ver": "v1567",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
