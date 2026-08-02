@@ -213,12 +213,21 @@ def _safe_console():
             pass
 
 
+# Shared with tv/run_gates.py — a gate that could not run says so with this code.
+SKIP_EXIT = 77
+
+
 def main(argv):
     _safe_console()
     problems, skipped = check(argv[1:] or None)
     if skipped:
+        # v1601 — EXIT 77, NOT 0. Returning 0 made run_gates print a green tick beside the words
+        # "GATE SKIPPED", which is the exact lie run_gates' own docstring forbids: "a check that did
+        # not happen is not a check that passed". On this Mac the browser never answers --dump-dom
+        # over http://127.0.0.1, so this gate skips on EVERY local run — the one surface most likely
+        # to be silently unprotected was the one wearing a tick.
         print(f"⚠ JS SYNTAX GATE SKIPPED — {skipped}")
-        return 0
+        return SKIP_EXIT
     if problems:
         print("❌ JS SYNTAX GATE — %d problem(s):" % len(problems))
         for p in problems:

@@ -96,6 +96,8 @@ GATES = [
          why="every app button, against the LIVE control API"),
 ]
 
+SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
+
 _OK = re.compile(r"^(OK|✅|Ran \d+ tests)", re.M)
 
 
@@ -124,7 +126,15 @@ def run(only=None):
             dt = time.time() - t0
             blob = (p.stdout or "") + (p.stderr or "")
             tail = [ln for ln in blob.strip().split("\n") if ln.strip()][-1:] or [""]
-            results.append((g, "PASS" if p.returncode == 0 else "FAIL", dt, tail[0][:150]))
+            # v1601 — exit 77 means "I could not run", not "I passed". Without this a gate that
+            # self-skipped printed its own ⚠ SKIPPED line and still got counted green, which is the
+            # lie this file's docstring opens by forbidding. js-syntax skips on every local run on
+            # Konyo's Mac, so the surface least protected was the one showing a tick.
+            if p.returncode == SKIP_EXIT:
+                status = "SKIP"
+            else:
+                status = "PASS" if p.returncode == 0 else "FAIL"
+            results.append((g, status, dt, tail[0][:150]))
         except subprocess.TimeoutExpired:
             results.append((g, "FAIL", time.time() - t0,
                             "timed out after %ds — a hung gate is a failed gate" % g.timeout))

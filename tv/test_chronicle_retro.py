@@ -744,6 +744,33 @@ class TestBlankMarkedAtSeal(unittest.TestCase):
         self.assertEqual(runs[0]["frames"], ["b"])
 
 
+
+# v1601 — REAL, DECODABLE FRAMES. The fixture below used to write four magic bytes and 64 zeros as
+# a ".jpg". Pillow cannot decode that, so jpeg_sig() returned None for every frame; still_runs()
+# treats an unreadable frame as a run BREAK (deliberately — one unreadable frame must never weld two
+# screens into one run), so no run ever reached MIN_RUN_FRAMES and the classifier was never called
+# even once. `classified` was 0, which is why "the throwing probe" never threw.
+#
+# The frames must therefore be (a) decodable and (b) NOT blank — live_probe() skips a run that is
+# dead all the way through, which would silence the classifier a second way. Identical frames per
+# reel is the point: four identical frames are ONE held screen, which is exactly one classify.
+try:
+    from PIL import Image as _PILImage
+except Exception:                                   # pragma: no cover
+    _PILImage = None
+
+
+def _write_frame(path):
+    """One small, decodable, visibly-non-blank JPEG."""
+    im = _PILImage.new("RGB", (48, 48))
+    px = im.load()
+    for y in range(48):
+        for x in range(48):
+            px[x, y] = ((x * 5) % 256, (y * 7) % 256, ((x + y) * 3) % 256)
+    im.save(path, "JPEG", quality=90)
+
+
+@unittest.skipIf(_PILImage is None, "Pillow absent — the sweep cannot group frames without it")
 class TestV1577ClassifyIsolation(unittest.TestCase):
     """v1577 — a sweep must survive ONE bad frame, and production must actually use the thing that
     makes it survive.
@@ -759,17 +786,30 @@ class TestV1577ClassifyIsolation(unittest.TestCase):
     """
 
     def _reels(self, root, n=3, frames=4):
-        """A minimal hist dir: n reels, each with an index.json of `frames` frame names."""
+        """A minimal hist dir: n reels, each with an index.json in the REAL reel shape.
+
+        v1601 — THIS FIXTURE WAS WRONG FROM THE DAY IT WAS WRITTEN, and it took both tests in this
+        class down with it. It wrote `frames` as a list of bare STRINGS, but a sealed reel's
+        index.json holds ROWS — `{"f": "f_1784984130673.jpg", "ts": 1784984130673}` — which is what
+        the agent writes and what every real reel on disk contains. still_runs() reads `fr.get("f")`,
+        so both tests died on `AttributeError: 'str' object has no attribute 'get'` INSIDE the
+        fixture's own sweep, before reaching the isolation they exist to pin.
+
+        So from v1577 until now, the two tests guarding "one bad frame must not abandon the whole
+        sweep" have never once exercised it, and tv/test_chronicle_retro.py has been a red gate
+        nobody chased. That is precisely LAW19's clause about proving added tests actually RAN: a
+        test that errors in its setup is not a weaker test, it is no test at all.
+        """
         for i in range(n):
             d = os.path.join(root, "reel_s_%d_%05d" % (1700000000000 + i, i))
             os.makedirs(d, exist_ok=True)
-            names = []
+            rows = []
             for f in range(frames):
                 nm = "f%03d.jpg" % f
-                open(os.path.join(d, nm), "wb").write(b"\xff\xd8\xff\xdb" + b"\x00" * 64)
-                names.append(nm)
+                _write_frame(os.path.join(d, nm))
+                rows.append({"f": nm, "ts": 1700000000000 + i * 10000 + f * 500})
             with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
-                json.dump({"frames": names}, fh)
+                json.dump({"sessionId": "s_%05d" % i, "frames": rows}, fh)
         return root
 
     def test_a_throwing_probe_aborts_the_bare_sweep(self):

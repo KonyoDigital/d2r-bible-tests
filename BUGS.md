@@ -2134,3 +2134,33 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   resolves what was typed, cancels to null and leaves no orphaned overlay.
 - **Lesson:** *a `typeof` guard is only defensive if the name exists somewhere.* When it does not, it
   is a promise nobody kept — and it is invisible precisely because the surrounding code still works.
+
+## REG-097 — the v1577 isolation tests never ran once, and the gate was red for 24 versions (2026-08-02)
+
+- **Symptom:** `tv/test_chronicle_retro.py` exited 1 with `errors=2`. Nobody was chasing it, which is
+  the same shape as REG-079 (`test_routes` red for ~100 versions).
+- **Caught by:** running the FULL gate set instead of the subset touched by the change.
+- **Root cause:** `TestV1577ClassifyIsolation._reels` wrote `index.json` frames as a list of bare
+  STRINGS. A sealed reel holds ROWS — `{"f": "f_1784984130673.jpg", "ts": 1784984130673}` — which is
+  what the agent writes and what every real reel on disk contains. `still_runs()` reads `fr.get("f")`,
+  so both tests died with `AttributeError: 'str' object has no attribute 'get'` **inside the
+  fixture's own sweep**, before reaching the isolation they exist to pin.
+- **Second fault underneath the first:** once the shape was fixed the tests still failed —
+  `classified == 0`. The fixture wrote four magic bytes and 64 zeros as a `.jpg`, which Pillow cannot
+  decode, so `jpeg_sig()` returned None for every frame. An unreadable frame BREAKS a run by design
+  (one unreadable frame must never weld two screens into one), so no run ever reached
+  `MIN_RUN_FRAMES` and the classifier was never called — which is why "the throwing probe" never
+  threw. Fixed by writing real, decodable, non-blank JPEGs.
+- **What this means:** from v1577 until now, the two tests guarding *"one bad frame must not abandon
+  the whole retro sweep"* have never once exercised it. **The behaviour they pin is correct** — both
+  pass immediately once the fixture is right — but nothing was checking it. That is exactly LAW19's
+  clause about proving added tests actually RAN: a test that errors in its setup is not a weaker
+  test, it is no test at all.
+- **Related honesty fix, same run:** `js_syntax_gate.py` printed "⚠ GATE SKIPPED" and returned **0**,
+  so `run_gates` showed a green tick beside it — contradicting its own docstring ("a check that did
+  not happen is not a check that passed"). On this Mac that gate skips on EVERY local run, so the
+  surface least protected was the one wearing a tick. It now exits **77**, and `run_gates` maps 77 to
+  SKIP. Verified no other caller runs it as a subprocess expecting 0 (`test_control` imports
+  `check()` directly; the pre-push hook does not invoke it).
+- **Prevention:** run the whole gate set, not the subset you touched. Both faults here were invisible
+  to any targeted run, and the fixture had been wrong since the day it was written.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1600",
+  "ver": "v1601",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1600: the symbol half of reachability is now enforced too - 262 typeof-function guards checked against declarations across both surfaces; proven to catch the real v1599 bug by reintroducing it",
+  "note": "v1601: test_chronicle_retro has errored since v1577 because its fixture wrote frames in a shape no reel uses - the two isolation tests never ran once; and a self-skipping gate no longer wears a green tick",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
