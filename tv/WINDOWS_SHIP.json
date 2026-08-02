@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1559",
+  "ver": "v1561",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1559: two defects in code shipped today, found by a 12-agent adversarial audit",
+  "note": "v1561: the ring said 37 percent inside a section whose header said 60; and four 1-in-N odds were being read as percentages",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

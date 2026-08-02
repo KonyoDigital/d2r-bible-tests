@@ -15300,15 +15300,36 @@ const PLAYER_Q = {"countess":{"norm":0.0,"nm":0.0,"hell":0.0},"andariel":{"norm"
     }
     function effChance(base, bossId, diffKey){
       var a = adjustChance(base, mf);
-      if (a === null || a < 100) return a;
+      if (a === null || a <= EVENT_PCT_MAX) return a;
       var m = playerMult(bossId, diffKey, players);
       return m > 1 ? Math.round(a / m) : a;
     }
-    const fmt = c => c === null || c === undefined ? "—" : (c < 100 ? `${c}%` : `1:${c.toLocaleString()}`);
-const runsFor = (chance, conf) => !chance || chance < 100 ? null : Math.ceil(Math.log(1-conf)/Math.log(1-1/chance));
+    const fmt = c => c === null || c === undefined ? "—" : (c <= EVENT_PCT_MAX ? `${c}%` : `1:${c.toLocaleString()}`);
+/* ── v1561 — THE PERCENT SENTINEL WAS 37 POINTS TOO HIGH ──────────────────────────────────────
+   The convention (documented at the aid card, "raw chance < 100 is a PERCENTAGE per kill") assumes
+   no real 1:N drop is better than 1:100. Four of them are, and they were being read as percentages.
+
+   I enumerated every sub-100 chance in the DB — 28 of them — and the split is not close:
+
+     GENUINE event percentages   Annihilus 12 · Key of Destruction 36 · Key of Hate 36 · Key of
+                                 Terror 42, and every one is IDENTICAL across all six difficulties,
+                                 which is exactly what a per-kill percentage looks like: an event
+                                 drop does not get rarer in Hell.
+     MISREAD as percentages      Nagelring 79 (Normal Andariel) · Crushflange 84 (Normal Andariel)
+                                 · Venom Ward 91 (Normal Diablo) · Venom Ward 98 (Normal Baal) —
+                                 each the FIRST step of an ascending 1:N series whose own siblings
+                                 climb (Nagelring: 79 → 153 → 152 → 271 → 272). A percentage that
+                                 SHRINKS as difficulty rises would mean Normal Andariel drops
+                                 Nagelring 79% of the time.
+
+   42 and 79 with nothing between them. The threshold moves to the middle of that gap rather than
+   the shape of the rule changing, because the rule is consulted in 55 places and one constant is
+   one definition. */
+const EVENT_PCT_MAX = 50;
+const runsFor = (chance, conf) => !chance || chance <= EVENT_PCT_MAX ? null : Math.ceil(Math.log(1-conf)/Math.log(1-1/chance));
 // hours for X% confidence given chance + kills_per_hour
 const hoursFor = (chance, conf, kph) => {
-  if (!chance || chance < 100 || !kph) return null;
+  if (!chance || chance <= EVENT_PCT_MAX || !kph) return null;
   const runs = runsFor(chance, conf);
   return runs / kph;
 };
@@ -15368,7 +15389,7 @@ function _writeGrailFarm(){
          2.3h Hell hunt moving the same meter existed and was never named. 42% slower. */
       var best = null, bestHell = null;
       (item.sources || []).forEach(function(s){
-        if (!s.chance || s.chance < 100) return;
+        if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         var adj = effChance(s.chance, s.bossId, s.diffKey);
         var hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
@@ -16122,9 +16143,23 @@ function sparkline(chance, kph, hoursMax) {
 }
 
 function renderGrailProgress() {
+  /* ── v1560 — 60% ON THE CLOSED ROW, 37% ONE CLICK INSIDE IT ────────────────────────────────
+     The section header's peek (#grail-peek, filled at :36014 from window.funiScan) reads
+     243 / 403 · 60%. Open the same section and this ring said 37%, with "31 / 83 grails owned".
+     Same heading. One click apart. A 4.9x smaller denominator, because this was a FOURTH tier
+     filter — grail+uber — while the Forge, the peek, the console meter and the hero all count the
+     chronicle's own 403.
+
+     Verified live: ringUniverse 83, ringHave 31, ringPct 37 against forge 243/403 = 60%.
+
+     The ring now takes its numbers from the published seam, like everything else. The TIER
+     BREAKDOWN below keeps `allGrails` and its own sub-pools on purpose — those rows are
+     self-labelled "🔱 Uber / elite uniques" and "💍 Grail uniques", so a smaller denominator there
+     is a stated scope rather than a contradiction. */
   const allGrails = ITEMS.filter(i => i.tier === "grail" || i.tier === "uber");
-  const total = allGrails.length;
-  const have = allGrails.filter(i => _gFound(i.n)).length;
+  let _fu = null; try { if (typeof window.funiScan === 'function') _fu = window.funiScan(); } catch (e) {}
+  const total = _fu ? (_fu.chronTotal || _fu.total) : allGrails.length;
+  const have = _fu ? _fu.found : allGrails.filter(i => _gFound(i.n)).length;
   const pct = total ? have / total : 0;
   const pctNum = Math.round(pct * 100);
   const circleC = 2 * Math.PI * 26;
@@ -16135,11 +16170,21 @@ function renderGrailProgress() {
   const remaining = total - have;
   let msg = "";
   if (have === 0) msg = `Mark grail items as ✓ owned to track your Holy Grail collection. <strong>${total}</strong> grails tracked.`;
-  else if (remaining === 0) msg = `<strong style="color:var(--best)">🏆 GRAIL COMPLETE!</strong> You collected all ${total} tracked items. Send a screenshot.`;
+  /* v1560 — this fired at 83/83 while ~320 chronicle rows were still missing, because `total` was
+     the elite sub-pool. On the real denominator 403 is unreachable by design (35 of those rows have
+     no card here at all — see v1556), so the celebration names what was actually completed. */
+  else if (remaining === 0) msg = `<strong style="color:var(--best)">🏆 GRAIL COMPLETE!</strong> Every one of the ${total} tracked rows is ticked. Send a screenshot.`;
   else msg = `<strong>${have} / ${total}</strong> grails owned · ${remaining} to go · ⭐ ${wishlist.size} starred for priority. See the Hero card above for next pickup ideas.`;
   $("gp-detail").innerHTML = msg;
   renderGrailTierBreakdown(allGrails);
 }
+/* v1561 — REPAINT ONCE THE FORGE HALF EXISTS.
+   renderGrailProgress runs at boot; window.funiScan is published in a LATER script block, so on
+   first paint the seam is genuinely absent and the ring fell back to the old grail+uber universe —
+   which is why v1560's fix appeared to do nothing. The fallback is correct (it must render
+   something), it just must not be the LAST word. One repaint after the forge is up, guarded so a
+   board without the forge half still boots. */
+try { window.renderGrailProgress = renderGrailProgress; } catch (e) {}
 // Split the grail circle into its two honest sub-pools — uber/elite uniques vs the broad
 // grail-unique set — counting only the user's own ✓-owned items per item.tier. Pure
 // aggregation of existing data; no new odds or categories are invented.
@@ -16408,7 +16453,7 @@ function renderWishlistHuntPath() {
       if (_gFound(item.n)) return;
       let best = null;
       (item.sources || []).forEach(s => {
-        if (!s.chance || s.chance < 100) return;
+        if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         const adj = effChance(s.chance, s.bossId, s.diffKey);
         const hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
@@ -16447,7 +16492,7 @@ function renderWishlistHuntPath() {
     if (!item) return;
     let best = null;
     (item.sources || []).forEach(s => {
-      if (!s.chance || s.chance < 100) return;
+      if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
       const adj = effChance(s.chance, s.bossId, s.diffKey);
       const hrs = hoursFor(adj, 0.5, s.kph || 100);
       const r50 = runsFor(adj, 0.5);
@@ -16585,7 +16630,7 @@ function renderItemDetailCard(itemName) {
   // Compute all viable sources at current MF, sorted by hours
   const sources = [];
   (item.sources || []).forEach(s => {
-    if (!s.chance || s.chance < 100) return;
+    if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
     const adj = effChance(s.chance, s.bossId, s.diffKey);
     const hrs = hoursFor(adj, 0.5, s.kph || 100);
     const r50 = runsFor(adj, 0.5);
@@ -16819,7 +16864,7 @@ function renderHeroV31() {
       if (_gFound(item.n)) return;
       itemBossHrs[item.n] = {};
       (item.sources || []).forEach(s => {
-        if (!s.chance || s.chance < 100) return;
+        if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         const adj = effChance(s.chance, s.bossId, s.diffKey);
         const hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
@@ -16850,7 +16895,7 @@ function renderHeroV31() {
       let bestSource = null;
       (item.sources || []).forEach(s => {
         if (s.bossId !== bossActive) return;
-        if (!s.chance || s.chance < 100) return;
+        if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         const adj = effChance(s.chance, s.bossId, s.diffKey);
         const hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
@@ -16936,7 +16981,7 @@ function renderHeroV31() {
     if (_gFound(item.n)) return;
     const bestPerBoss = {};
     (item.sources || []).forEach(s => {
-      if (!s.chance || s.chance < 100) return;
+      if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
       const adj = effChance(s.chance, s.bossId, s.diffKey);
       const hrs = hoursFor(adj, 0.5, s.kph || 100);
       if (hrs === null) return;
@@ -16996,7 +17041,10 @@ function renderHeroV31() {
   const starredCount = wishlist.size;
   // v684 — post-v677 `owned` is the PHYSICAL vault only; the hero's ✓ count must be grail-found
   // (same semantics as renderGrailProgress) or it visibly disagrees with the meter beside it.
-  const ownedCount = ITEMS.filter(i => (i.tier === "grail" || i.tier === "uber") && _gFound(i.n)).length;
+  /* v1560 — the hero sub-line printed "✓ 31 owned" off the same grail+uber filter as the ring,
+     three inches under a header saying 243. One seam, everywhere. */
+  const ownedCount = (function(){ try { var _f = window.funiScan(); if (_f) return _f.found; } catch(e){}
+    return ITEMS.filter(i => (i.tier === "grail" || i.tier === "uber") && _gFound(i.n)).length; })();
   $('hero-sub').innerHTML = `Top ${final.length} fastest grail farms at <strong>${mf}% MF</strong> · <strong>/players ${typeof players !== 'undefined' ? players : 1}</strong> · time-to-50% · 🔒 = verified · ⭐ ${starredCount} wishlist · ✓ ${ownedCount} owned · <em>click any pick → opens Golden Item Card</em>`;
 
   // Reset title to global
@@ -23773,7 +23821,7 @@ window.exportWishlistAsMarkdown = function() {
     if (!item) return null;
     let bestSrc = null;
     (item.sources || []).forEach(s => {
-      if (!s.chance || s.chance < 100) return;
+      if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
       const adj = effChance(s.chance, s.bossId, s.diffKey);
       const hrs = hoursFor(adj, 0.5, s.kph || 100);
       if (hrs === null) return;
@@ -33334,6 +33382,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window._pickSrc = _pickSrc;
   function _bestSrc(it){ return _pickSrc(it && it.sources); }
+  /* v1561 — the moment funiScan exists, the landing ring can stop guessing. See the note on
+     renderGrailProgress: it paints before this block loads, so it needs telling. */
+  try { setTimeout(function(){
+    try { window.renderGrailProgress && window.renderGrailProgress(); } catch(e){}
+    // the hero sub-line reads the same seam and paints just as early — repaint it together, or it
+    // keeps printing the old sub-pool count three inches under a corrected header
+    try { if (typeof renderHero === 'function') renderHero(); } catch(e){}
+  }, 60); } catch(e){}
   window.funiScan=function(){
     var own=_ownedNames(), items=_uniItems();
     var missing=[], found=0;
@@ -36095,7 +36151,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1559', name:'v1559 - the chronicle read had no schema and the hell bucket had no hell sources', date:'2026-07-31', note:'two defects in code shipped today, found by a 12-agent adversarial audit' };
+  window.D2R_BUILD = { id:'v1561', name:'v1561 - one grail one denominator and a percent sentinel 37 points too high', date:'2026-07-31', note:'the ring said 37 percent inside a section whose header said 60; and four 1-in-N odds were being read as percentages' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
