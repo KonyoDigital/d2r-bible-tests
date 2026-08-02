@@ -3811,6 +3811,30 @@ try {
   .gf-piece .gp-rm.gp-rm-armed{border-color:#e06a6a;color:#ff9a9a;background:rgba(224,106,106,.14)}
 </style>
 <style id="v1572-found">
+  /* ── v1590 — the SET ledger's own furniture ────────────────────────────────────────────────
+     Three numbers, per-set blocks, and a fill bar for the ones he is building. The bar is the only
+     new visual idea here and it earns its place: "4/6" is a fact he has to read, a bar is one he
+     can see across five rows at a glance. */
+  .gs-tally{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 4px}
+  .gs-t{display:flex;flex-direction:column;gap:1px;padding:8px 14px;border-radius:10px;
+    border:1px solid var(--border);background:rgba(255,255,255,.02);min-width:104px}
+  .gs-t b{font-family:ui-monospace,monospace;font-size:20px;font-weight:var(--fw-bold);line-height:var(--lh-none);font-variant-numeric:tabular-nums}
+  .gs-t i{font-style:normal;font-size:var(--fs-meta);letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+  .gs-t-seal{border-color:rgba(102,255,136,.34)}  .gs-t-seal b{color:var(--best)}
+  .gs-t-work{border-color:rgba(240,192,96,.30)}   .gs-t-work b{color:var(--gold-bright)}
+  .gs-t-pc b{color:var(--text-muted)}
+  .gs-head{font-family:ui-monospace,monospace;font-size:var(--fs-meta);letter-spacing:.16em;
+    text-transform:uppercase;color:var(--text-dim);margin:16px 0 7px}
+  .gs-set{border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin:0 0 8px;
+    background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}
+  .gs-set-done{border-color:rgba(102,255,136,.26);background:linear-gradient(180deg,rgba(102,255,136,.05),transparent)}
+  .gs-set-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .gs-set-n{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:15.5px;font-weight:var(--fw-semibold);color:var(--text)}
+  .gs-set-done .gs-set-n{color:#d8ffe9}
+  .gs-set-m{font-family:ui-monospace,monospace;font-size:var(--fs-meta);color:var(--text-dim);margin-left:auto;font-variant-numeric:tabular-nums}
+  .gs-set-m b{color:var(--gold-bright)}
+  .gs-bar{height:4px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin:0 0 8px}
+  .gs-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold),var(--gold-bright))}
   .gf-find{display:flex;align-items:center;gap:10px;margin:8px 0 10px}
   .gf-find input{flex:1 1 auto;min-width:0;padding:7px 12px;border-radius:9px;
     border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.3);color:inherit;font:inherit}
@@ -33609,9 +33633,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* v1572 — the filter. Pure DOM show/hide over chips already rendered: no re-render, so it cannot
      touch the ledger, and a mis-typed letter can never be a write. Month headings hide when nothing
      under them matches, so the result reads as a list rather than a set of empty rooms. */
-  window._gfFilter = function(q){
+  /* ── v1590 — ONE LEDGER FILTER, BOTH FORGES ──────────────────────────────────────────────────
+     v1572 gave F·Uniques a filter and month headings and F·Sets got neither, so the two completed
+     views drifted into different products: one a navigable dated ledger, the other a flat wall of
+     chips. The obvious fix was to copy the filter across — and a copy is the thing this repo keeps
+     paying for (REG-090, REG-091: a fix applied to some sites and not the one that mattered next).
+     So it is ONE function, and both forges call it.
+
+     It handles two shapes because the two ledgers genuinely differ: uniques are a flat chip list
+     broken by MONTH headings (`.gf-mon`), sets are per-set BLOCKS (`[data-grp]`) whose own name
+     must match as well as their pieces. A block hides only when nothing inside it survives. */
+  window._ledgerFilter = function(q, ids){
     try {
-      var box = document.getElementById('gf-found-chips'); if (!box) return;
+      var box = document.getElementById(ids.box); if (!box) return;
       var needle = String(q || '').trim().toLowerCase();
       var shown = 0, kids = box.children, lastMon = null, monHas = false;
       for (var i = 0; i < kids.length; i++) {
@@ -33620,17 +33654,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (lastMon) lastMon.style.display = monHas ? '' : 'none';
           lastMon = el; monHas = false; continue;
         }
+        if (el.hasAttribute('data-grp')) {
+          // a per-set block: the SET name counts as a match for every piece it holds, so typing
+          // "Tal Rasha" keeps the whole set rather than only the pieces with his name in them
+          var grpHit = !needle || (el.getAttribute('data-grp') || '').toLowerCase().indexOf(needle) !== -1;
+          var chips = el.querySelectorAll('[data-chip]'), hitN = 0;
+          for (var j = 0; j < chips.length; j++) {
+            var ch = grpHit || (chips[j].textContent || '').toLowerCase().indexOf(needle) !== -1;
+            chips[j].style.display = ch ? '' : 'none';
+            if (ch) hitN++;
+          }
+          el.style.display = hitN ? '' : 'none';
+          shown += hitN; if (hitN) monHas = true;
+          continue;
+        }
         var hit = !needle || (el.textContent || '').toLowerCase().indexOf(needle) !== -1;
         el.style.display = hit ? '' : 'none';
         if (hit) { shown++; monHas = true; }
       }
       if (lastMon) lastMon.style.display = monHas ? '' : 'none';
-      var n = document.getElementById('gf-found-n');
-      if (n) n.textContent = needle ? (shown + ' of ' + (shown === 1 ? 'your finds' : 'your finds')) : '';
-      var ct = document.getElementById('gf-found-ct');
+      var n = ids.note && document.getElementById(ids.note);
+      if (n) n.textContent = needle ? (shown + ' of your finds') : '';
+      var ct = ids.count && document.getElementById(ids.count);
       if (ct && needle) ct.textContent = shown;
     } catch(e){}
   };
+  window._gfFilter = function(q){ window._ledgerFilter(q, { box:'gf-found-chips', count:'gf-found-ct', note:'gf-found-n' }); };
+  window._gsFilter = function(q){ window._ledgerFilter(q, { box:'gs-found-blocks', count:'gs-found-ct', note:'gs-found-n' }); };
 
   window._armUnmark = function(btn, name, kind){
     try {
@@ -34001,7 +34051,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          MONTH HEADINGS so the newest-first order becomes navigable instead of merely true. The
          order itself is untouched: newest first is the right default for a ledger, and grouping by
          boss or set would throw away the chronology that makes it one. */
+      /* v1590 — THE SAME THREE-FACT TALLY THE SETS LEDGER GOT. One number answered "how many"
+         and nothing else. These three are different questions: what is done, what is left, and
+         whether the grail is still MOVING — the last one is the only figure here that says
+         anything about this month rather than about the whole history, and it is the one that
+         tells him whether the hunt has stalled. Derived from the same dated store the month
+         headings below already read; no new state. */
+      var _flTally = _flog();
+      var _nowMon = (function(){ try { return new Date().toLocaleString('en-US',{month:'short'}) + ' ' + new Date().getFullYear(); } catch(e){ return ''; } })();
+      var _thisMon = 0;
+      try { Object.keys(_flTally).forEach(function(k){
+        var m = String(_flTally[k]||'').match(/^([A-Za-z]{3})\s+\d+,\s*(\d{4})/);
+        if (m && (m[1] + ' ' + m[2]) === _nowMon) _thisMon++;
+      }); } catch(e){}
+      var _uniLeft = (s.chronTotal || 0) - s.found;
       H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct" id="gf-found-ct">'+s.found+'</span><span class="forge-sec-sub">the grail ledger — dated, newest first, synced with the Calculator ✓ — tap to open, ✕ to un-mark</span></div>'
+        +'<div class="gs-tally">'
+        +'<span class="gs-t gs-t-seal"><b>'+s.found+'</b><i>found</i></span>'
+        +(s.chronTotal?'<span class="gs-t gs-t-pc"><b>'+_uniLeft+'</b><i>still missing</i></span>':'')
+        +'<span class="gs-t gs-t-work"><b>'+_thisMon+'</b><i>this month</i></span>'
+        +'</div>'
         +'<div class="gf-find"><input type="search" id="gf-found-q" placeholder="filter '+s.found+' finds — type a name…" oninput="window._gfFilter(this.value)" autocomplete="off"><span class="gf-find-n" id="gf-found-n"></span></div>'
         +'<div class="gf-chips" id="gf-found-chips">');
       var own=_ownedNames();
@@ -34518,7 +34587,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        chip body stops carrying it. A found piece and a missing piece must not react the same way
        to the same gesture when one of the two outcomes cannot be taken back. */
     if (p.have) {
-      return '<span class="gf-piece have" data-arttip="'+esc(clean)+'" title="'+esc(clean)+'"><span class="gp-ck">✓</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(nm)+'\',\'set\')">✕</button></span>';
+      /* v1590 — the DATE, which this chip has always had and never shown. toggleSetPiece has
+         stamped d2r_foundLog[piece] since v644, so every found piece already carries the day it
+         landed — the sets ledger simply never read it while the uniques ledger built month
+         headings out of the same store. data-chip lets the shared filter see it. */
+      var _pd = _flog()[nm] || '';
+      return '<span class="gf-piece have" data-chip data-arttip="'+esc(clean)+'" title="'+esc(clean)+'"><span class="gp-ck">✓</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+(_pd?'<span class="gp-date">'+esc(_pd)+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(nm)+'\',\'set\')">✕</button></span>';
     }
     return '<span class="gf-piece" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="mark found"><span class="gp-ck">○</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
   }
@@ -34678,8 +34752,78 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // FOUND — green chips (tap to un-mark), synced to the Item Set Tracker
     if(F==='done'){
-      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.havePieces+'</span><span class="forge-sec-sub">synced with the Item Set Tracker — tap to open, ✕ to un-mark</span></div><div class="gf-chips">');
-      s.sets.forEach(function(r){ r.pieces.forEach(function(pp){ if(pp.have) H.push(_pieceChip(pp)); }); });
+      /* ── v1590 — A SET LEDGER, NOT A PILE OF PIECES ───────────────────────────────────────────
+         Konyo: "the COMPLETED section for both F-UNIQUES and F-SETS, structure and design this
+         better. theres a more intelligent way to tally these right?"
+
+         There is, and the old view had the least intelligent one available: it counted PIECES and
+         rendered them as one flat wall in set order — 108 chips with no grouping, no dates and no
+         filter, while the uniques ledger beside it had all three since v1572.
+
+         PIECES ARE THE WRONG UNIT. "108 found" cannot answer the only questions a set ledger is
+         for: how many sets do I actually HAVE, and which am I close to? A set is the thing that
+         pays out — the full-set bonus is all-or-nothing — so 108 pieces spread thinly across 30
+         sets and 108 concentrated into 18 complete ones are the same number and completely
+         different positions. Three numbers now, because they are three different facts.
+
+         SEALED SETS ARE DATED, which no view showed. A set's completion date is the date of its
+         LAST piece — derived, not stored, and honest: it is exactly when the set became complete.
+         That turns the trophy shelf into a chronology, newest first, the same way the uniques
+         ledger reads. */
+      var _fl = _flog();
+      var _setDate = function(r){
+        var best = 0, str = '';
+        (r.pieces||[]).forEach(function(pp){
+          var d = _fl[pp.name]; if (!d) return;
+          var t = _flogTime(d);
+          if (t >= best) { best = t; str = d; }
+        });
+        return { t: best, s: str };
+      };
+      var sealed  = (s.done||[]).map(function(r){ var d=_setDate(r); return { r:r, t:d.t, d:d.s }; })
+                      .sort(function(a2,b2){ return b2.t - a2.t || a2.r.name.localeCompare(b2.r.name); });
+      /* in progress = has pieces AND is missing pieces. A set he owns nothing of is not part of
+         his ledger of finds; it belongs in the missing views, and putting it here would pad the
+         page with 100 empty rows. */
+      var working = (s.sets||[]).filter(function(r){ return r.got > 0 && r.left > 0; })
+                      .sort(function(a2,b2){ return (b2.got/b2.pieces.length) - (a2.got/a2.pieces.length)
+                                                    || a2.left - b2.left || a2.name.localeCompare(b2.name); });
+
+      H.push('<div class="forge-sec forge-sec-now">'
+        +'<div class="forge-sec-h">✅ Found'
+        +'<span class="forge-sec-ct" id="gs-found-ct">'+s.havePieces+'</span>'
+        +'<span class="forge-sec-sub">the set ledger — sealed sets newest first, then what you are building · synced with the Item Set Tracker</span></div>');
+
+      // THE TALLY — three facts, not one number
+      H.push('<div class="gs-tally">'
+        +'<span class="gs-t gs-t-seal"><b>'+sealed.length+'</b><i>sets sealed</i></span>'
+        +'<span class="gs-t gs-t-work"><b>'+working.length+'</b><i>in progress</i></span>'
+        +'<span class="gs-t gs-t-pc"><b>'+s.havePieces+'</b><i>of '+s.totalPieces+' pieces</i></span>'
+        +'</div>');
+
+      H.push('<div class="gf-find"><input type="search" id="gs-found-q" placeholder="filter your sets and pieces — type a name…" oninput="window._gsFilter(this.value)" autocomplete="off"><span class="gf-find-n" id="gs-found-n"></span></div>'
+        +'<div id="gs-found-blocks">');
+
+      if (sealed.length) {
+        H.push('<div class="gs-head">🏆 sealed — the full-set bonus is live on these</div>');
+        sealed.forEach(function(x){
+          H.push('<div class="gs-set gs-set-done" data-grp="'+esc(x.r.name)+'">'
+            +'<div class="gs-set-h"><span class="gs-set-n">'+esc(x.r.name)+'</span>'
+            +'<span class="gs-set-m">'+x.r.pieces.length+' pieces'+(x.d?' · sealed '+esc(x.d):'')+'</span></div>'
+            +'<div class="gf-chips">'+x.r.pieces.map(_pieceChip).join('')+'</div></div>');
+        });
+      }
+      if (working.length) {
+        H.push('<div class="gs-head">⚒ in progress — what you already hold</div>');
+        working.forEach(function(r){
+          var pct = Math.round((r.got / r.pieces.length) * 100);
+          H.push('<div class="gs-set" data-grp="'+esc(r.name)+'">'
+            +'<div class="gs-set-h"><span class="gs-set-n">'+esc(r.name)+'</span>'
+            +'<span class="gs-set-m"><b>'+r.got+'</b>/'+r.pieces.length+' · '+r.left+' to go</span></div>'
+            +'<div class="gs-bar"><i style="width:'+pct+'%"></i></div>'
+            +'<div class="gf-chips">'+r.pieces.filter(function(pp){return pp.have;}).map(_pieceChip).join('')+'</div></div>');
+        });
+      }
       H.push('</div></div>');
       if(!s.havePieces) H.push('<div class="forge-empty">Nothing marked found yet — tick pieces here or in the Item Set Tracker (they sync).</div>');
     }
@@ -36676,7 +36820,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1589', name:'v1589 - locked or routable, and the rotation lives only in sessions', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1590', name:'v1590 - the set ledger counts sets, and both forges tell three facts', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
