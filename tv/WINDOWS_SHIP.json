@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1552",
+  "ver": "v1553",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1552: the sigil algorithm is duplicated in board and console with no link; D2R_SIGIL was the one export nothing called and is now the seam that pins them",
+  "note": "v1553: the anchored-tooltip stability check failed CI on movement entirely explained by the card growing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
