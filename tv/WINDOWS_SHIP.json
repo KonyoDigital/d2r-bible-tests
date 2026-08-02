@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1557",
+  "ver": "v1559",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1557: 9 of 16 in-progress sets had no farm run; two of them had the data all along and the other seven now say so",
+  "note": "v1559: two defects in code shipped today, found by a 12-agent adversarial audit",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

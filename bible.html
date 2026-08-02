@@ -15355,16 +15355,32 @@ function _writeGrailFarm(){
         if (item.tier !== 'grail' && item.tier !== 'uber' && item.tier !== 'high' && item.tier !== 'common') return;
         if (typeof _gFound === 'function' && _gFound(item.n)) return;   // MISSING only
       }
-      var best = null;
+      /* v1559 — EXPORT THE HELL SOURCE TOO, OR THE TIER SORT HAS NOTHING TO SORT.
+         v1555 taught the console hero to prefer Hell. But this exports exactly ONE source per item
+         — the globally fastest, difficulty-blind — and the console then applies _tierOf() to that
+         already-collapsed string. So an item whose best source is Normal can never enter the Hell
+         bucket even when it HAS a Hell source, and "fastest in hell" was computed over the 49 items
+         that happened to collapse Hell-ward, not the 125 that have a Hell source.
+
+         Measured: Frostburn's stored source is Normal TZ Mephisto (1.51h), and its HELL source is
+         Hell Mephisto at 2.27h — invisible to the Hell bucket, which therefore led with Shadow
+         Killer at 3.89h. He asked to finish Hell first and was sent on the 3.9h Hell hunt while a
+         2.3h Hell hunt moving the same meter existed and was never named. 42% slower. */
+      var best = null, bestHell = null;
       (item.sources || []).forEach(function(s){
         if (!s.chance || s.chance < 100) return;
         var adj = effChance(s.chance, s.bossId, s.diffKey);
         var hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
         if (!best || hrs < best.hours) best = { boss: s.boss, chance: adj, kph: s.kph || 100, hours: hrs };
+        if (String(s.diffKey || '').indexOf('hell') === 0 && (!bestHell || hrs < bestHell.hours))
+          bestHell = { boss: s.boss, chance: adj, kph: s.kph || 100, hours: hrs };
       });
       if (best && best.chance > 0)
-        out.push({ name: item.n, source: best.boss, dropChance: 1 / best.chance, killsPerHr: best.kph });
+        out.push({ name: item.n, source: best.boss, dropChance: 1 / best.chance, killsPerHr: best.kph,
+                   hellSource: bestHell ? bestHell.boss : null,
+                   hellDropChance: bestHell ? 1 / bestHell.chance : null,
+                   hellKillsPerHr: bestHell ? bestHell.kph : null });
     });
     var _new = JSON.stringify(out), _old = null;
     try { _old = LS.getItem('d2r_grailFarm'); } catch(e){}
@@ -36079,7 +36095,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1557', name:'v1557 - the possessive was hiding his farm data', date:'2026-07-31', note:'9 of 16 in-progress sets had no farm run; two of them had the data all along and the other seven now say so' };
+  window.D2R_BUILD = { id:'v1559', name:'v1559 - the chronicle read had no schema and the hell bucket had no hell sources', date:'2026-07-31', note:'two defects in code shipped today, found by a 12-agent adversarial audit' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

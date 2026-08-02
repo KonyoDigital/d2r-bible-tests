@@ -382,6 +382,48 @@ export async function onRequestPost(context) {
     required: ['items', 'unrecognized', 'finds', 'sockets'],
     additionalProperties: false,
   };
+  /* ── v1558 — THE CHRONICLE READ HAD NO SCHEMA, SO IT COULD NOT ANSWER ─────────────────────────
+     v1510 built the chronicle prompts, the handler and nine tests. v1540 gave them a caller. But
+     the `output_config` chain below never grew an `isChron` branch, so a Chronicle read fell
+     through to `itemsSchema` — which can express `items` and `unrecognized` and NOTHING ELSE.
+     The handler at the bottom of this file reads parsed.found, parsed.notFound, parsed.sets,
+     parsed.printedFound, parsed.stateVisible, parsed.wrongTab. A structured-output schema is a
+     GRAMMAR: the model is not merely discouraged from emitting those keys, it is unable to. So
+     every "📜 Read my Chronicle" returned found:[] — and the board's panel, correctly refusing to
+     invent anything from an empty read, reported it as a clean "Nothing to register".
+     A read that cannot succeed, reporting success. Worse than an error, which at least says so. */
+  const chronSchema = {
+    type: 'object',
+    properties: {
+      // the ledger rows whose found-state is visibly POSITIVE
+      found: { type: 'array', items: { type: 'string' } },
+      // read but NOT found — carried so a caller can see the page was read whole; it never subtracts
+      notFound: { type: 'array', items: { type: 'string' } },
+      // sets ledger only: the set name, its found pieces, and whether the panel calls it complete
+      sets: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            set: { type: 'string' },
+            pieces: { type: 'array', items: { type: 'string' } },
+            complete: { type: 'boolean' },
+          },
+          required: ['set', 'pieces'],
+          additionalProperties: false,
+        },
+      },
+      // the SCREEN'S OWN numbers — the second witness the gate scores against our count
+      printedFound: { type: 'integer' },
+      printedTotal: { type: 'integer' },
+      // the two refusals the prompt is allowed to make, and the handler already honours
+      stateVisible: { type: 'boolean' },
+      wrongTab: { type: 'boolean' },
+      conf: { type: 'number' },
+    },
+    required: ['found'],
+    additionalProperties: false,
+  };
   const tallySchema = {
     type: 'object',
     properties: {
@@ -532,7 +574,7 @@ export async function onRequestPost(context) {
       // non-determinism remains) but it removes the run-to-run wobble.
       temperature: 0,
       system,
-      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isRaw ? rawSchema : isSock ? sockSchema : isGridCount ? gridCountSchema : isTally ? tallySchema : itemsSchema } },
+      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isRaw ? rawSchema : isSock ? sockSchema : isGridCount ? gridCountSchema : isChron ? chronSchema : isTally ? tallySchema : itemsSchema } },
       messages: [{
         role: 'user',
         content: [

@@ -107,10 +107,17 @@ test.describe('v1554 — the lead outranks the room it is announced in', () => {
       if (p !== '/api/evrank') return r.abort();
       return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
         ranked: [
-          { name: 'Umbral Disk', source: 'Normal Andariel', expectedHours: 1.2 },
-          { name: 'Greyform', source: 'NM TZ Pindleskin', expectedHours: 2.0 },
-          { name: 'Shadow Killer', source: 'Hell TZ Mephisto', expectedHours: 3.9 },
-          { name: "Baranar's Star", source: 'Hell Mephisto', expectedHours: 4.0 },
+          // v1559 — Frostburn's GLOBAL best is Normal, and it has a Hell source at 2.27h. Before
+          // the fix it could not enter the Hell bucket at all and the hero led with Shadow Killer
+          // at 3.9h — 42% slower, in the tier he asked to finish first.
+          { name: 'Umbral Disk', source: 'Normal Andariel', expectedHours: 1.2,
+            hellSource: null, hellExpectedHours: null },
+          { name: 'Frostburn', source: 'Normal TZ Mephisto', expectedHours: 1.51,
+            hellSource: 'Hell Mephisto', hellExpectedHours: 2.27 },
+          { name: 'Greyform', source: 'NM TZ Pindleskin', expectedHours: 2.0,
+            hellSource: 'Hell TZ Pindleskin', hellExpectedHours: 5.4 },
+          { name: 'Shadow Killer', source: 'Hell TZ Mephisto', expectedHours: 3.89,
+            hellSource: 'Hell TZ Mephisto', hellExpectedHours: 3.89 },
         ], unranked: [], confidence: 0.5 }) });
     });
     await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
@@ -122,9 +129,11 @@ test.describe('v1554 — the lead outranks the room it is announced in', () => {
     await page.evaluate(() => (window as any)._hubNextGrail());
     await page.waitForTimeout(500);
     const txt = (await page.textContent('#hub-hero')) || '';
-    expect(txt, 'the LEAD must be the fastest HELL item, not the fastest overall').toContain('Shadow Killer');
-    expect(txt).toContain('Hell TZ Mephisto');
+    expect(txt, 'the LEAD must be the fastest HELL item, not the fastest overall').toContain('Frostburn');
+    expect(txt, 'and it must show the HELL source, never the global one').toContain('Hell Mephisto');
+    expect(txt, 'the global source of that same item must NOT be presented').not.toContain('Normal TZ Mephisto');
     expect(txt, 'and it says which rule it applied').toContain('fastest in hell');
+    expect(txt, 'with the denominator it applied it over').toMatch(/of \d+/);
     expect(txt, 'the materially quicker option below Hell is named, not hidden').toContain('Umbral Disk');
     expect(txt).toContain('quicker below Hell');
   });

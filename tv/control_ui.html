@@ -9916,11 +9916,24 @@
       return /^Hell/.test(t) ? 2 : /^NM|^Nightmare/.test(t) ? 1 : 0;
     };
     var _ranked = data.ranked.slice();
-    var _best = _ranked.slice().sort(function (a, b) {
-      return (_tierOf(b.source) - _tierOf(a.source))
-        || ((a.expectedHours == null ? 1e9 : a.expectedHours) - (b.expectedHours == null ? 1e9 : b.expectedHours));
-    });
-    var top = _best[0] || _ranked[0];
+    /* v1559 — rank the HELL bucket on each item's own Hell source, not on whichever source happened
+       to be globally fastest. Before this, an item whose best source is Normal could never enter the
+       Hell bucket even when it had a perfectly good Hell source: "fastest in hell" was computed over
+       49 of his 125 items, and led with Shadow Killer 3.9h while Frostburn sat at Hell Mephisto
+       2.27h, unseen. The hours come from /api/evrank either way — one formula, two inputs. */
+    var _hell = _ranked.filter(function (r) { return r.hellExpectedHours != null; })
+      .sort(function (a, b) { return a.hellExpectedHours - b.hellExpectedHours; });
+    var top = null;
+    if (_hell.length) {
+      var h0 = _hell[0];
+      // present the Hell source and the Hell time — the pair must never be mixed with the global one
+      top = { name: h0.name, source: h0.hellSource, expectedHours: h0.hellExpectedHours };
+    } else {
+      top = _ranked.slice().sort(function (a, b) {
+        return (_tierOf(b.source) - _tierOf(a.source))
+          || ((a.expectedHours == null ? 1e9 : a.expectedHours) - (b.expectedHours == null ? 1e9 : b.expectedHours));
+      })[0] || _ranked[0];
+    }
     // the quickest anywhere, named only when it is MATERIALLY quicker than the lead (>=30%)
     var _fastest = _ranked[0];
     var _alt = (_fastest && top && _fastest.name !== top.name
@@ -9933,7 +9946,9 @@
          ranks 51 of his 125 missing uniques; Umbral Disk is ~2h and is not in the universe at all.
          Naming the universe costs one word and makes the number checkable. */
       + '<div class="hh-eye"><span class="hh-dot"></span>the next grail · '
-        + (_tierOf(top.source) === 2 ? 'fastest in hell' : 'fastest of ' + data.ranked.length)
+        + (_tierOf(top.source) === 2
+            ? 'fastest in hell · of ' + (_hell.length || data.ranked.length)
+            : 'fastest of ' + data.ranked.length)
         + '</div>'
       + '<div class="hh-name">' + esc(top.name || '—') + '</div>'
       + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b>'

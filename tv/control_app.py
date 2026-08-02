@@ -5298,12 +5298,22 @@ def _ev_rank(items, confidence=0.5):
         if not name:
             continue
         h = _ev_hours(it.get("dropChance"), it.get("killsPerHr"), confidence)
+        # v1559 — the same formula, applied to the item's best HELL source when it has one.
+        # The client used to export only the globally-fastest source, so a caller wanting "fastest
+        # in Hell" could only filter the already-collapsed answer and silently lost every item whose
+        # global best happened to be Normal. Ranking both here keeps ONE hours formula: a second
+        # implementation in the console is exactly how the hero and the meter drifted apart.
+        hh = _ev_hours(it.get("hellDropChance"), it.get("hellKillsPerHr"), confidence)
         if h is None:
             unranked.append({"name": name, "why": "no known farm / odds"})
         else:
             ranked.append({"name": name, "source": it.get("source"),
                            "expectedHours": round(h, 2),
-                           "dropChance": it.get("dropChance"), "killsPerHr": it.get("killsPerHr")})
+                           "dropChance": it.get("dropChance"), "killsPerHr": it.get("killsPerHr"),
+                           # honest-absent: an item with no Hell source carries None, never a copy
+                           # of the easier number dressed as a Hell one
+                           "hellSource": it.get("hellSource") if hh is not None else None,
+                           "hellExpectedHours": round(hh, 2) if hh is not None else None})
     ranked.sort(key=lambda r: (r["expectedHours"], r["name"].lower()))
     return {"ranked": ranked, "unranked": unranked, "confidence": confidence}
 
@@ -8604,7 +8614,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1557",
+        "ver": "v1559",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
