@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1608",
+  "ver": "v1609",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1608: the seal wrote index.json only after decoding every jpeg for blank marking - 7.4s on a 98 frame reel against a 3.5s kill deadline - so the reel kept its frames and lost the one file that makes it playable; the index is now written first and atomically, a failure is loud instead of swallowed, and any reel that already lost one can be rebuilt from the filenames",
+  "note": "v1609: the exit handler deleted the supervisor pause flag on its own, so a recording-capable console was silently swapped for one that cannot record - four times in one night",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

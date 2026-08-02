@@ -2107,14 +2107,31 @@ def _console_exit_stop_onair(reason="quit"):
             result = dict(result or {}, hardcap=True)
     except Exception:
         pass
-    # Resume always-up headless console after a real window session ends
+    # ── v1609 — THE APP NO LONGER HANDS RECORDING AWAY ON ITS OWN WAY OUT ────────────────
+    # This used to os.remove() the supervisor pause flag whenever a windowed session ended,
+    # to "resume the always-up headless console". That intent was fine when a headless console
+    # could still record. It cannot: a launchd-spawned console holds no Screen Recording grant
+    # (VERIFIED 2026-08-03 — TV DIABLO.app granted, headless-from-shell granted,
+    # headless-from-launchd NOT granted, even after the python3 binary was granted in System
+    # Settings). So clearing the flag here silently swapped a recording-capable console for one
+    # that refuses ON AIR, and the supervisor did it within ~20 s.
+    #
+    # It fired FOUR times in one night. Each time Konyo pressed record and got a black screen,
+    # and each time the recovery was a command he had to be told again.
+    #
+    # v1608 already made tv/tvd-console.sh refuse this by default and demand --force, on exactly
+    # this reasoning. Doing the same thing implicitly from an exit handler is the same act with
+    # less consent, so it stops here too: the flag STAYS, and the line says what did not happen
+    # and how to ask for it deliberately. Handing the port back is now always a choice.
     try:
         pause = os.path.join(HERE, ".tvd_supervisor_pause")
         if os.path.isfile(pause) and not globals().get("_WINDOW_ONLY"):
-            os.remove(pause)
-            print("   supervisor pause cleared — headless console may resume", flush=True)
+            print("   supervisor pause KEPT — the always-up headless console was NOT restored, "
+                  "because it cannot hold Screen Recording (ON AIR would refuse and nothing "
+                  "would record). To hand the port back on purpose: "
+                  "bash tv/tvd-console.sh --force", flush=True)
     except Exception as _pe:
-        print(f"   pause clear skipped: {_pe}", flush=True)
+        print(f"   pause check skipped: {_pe}", flush=True)
     print(f"   exit stop done in {time.time()-t0:.2f}s", flush=True)
     return result
 
@@ -9766,7 +9783,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1608",
+        "ver": "v1609",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -37041,7 +37041,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1608', name:'v1608 - the index IS the reel', date:'2026-07-31', note:'the seal wrote index.json only after decoding every jpeg for blank marking - 7.4s on a 98 frame reel against a 3.5s kill deadline - so the reel kept its frames and lost the one file that makes it playable; the index is now written first and atomically, a failure is loud instead of swallowed, and any reel that already lost one can be rebuilt from the filenames' };
+  window.D2R_BUILD = { id:'v1609', name:'v1609 - the app stops handing recording away', date:'2026-07-31', note:'the exit handler deleted the supervisor pause flag on its own, so a recording-capable console was silently swapped for one that cannot record - four times in one night' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
