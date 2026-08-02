@@ -140,4 +140,24 @@ test.describe('v1596 — the NEXT terror zone states its own worth', () => {
     expect(c!.onclick, 'nor routable').toBeNull();
     expect(c!.hasLockGlyph).toBe(true);
   });
+
+  test('★ v1602 — a group that SPANS ACTS says so; a same-act group stays quiet', async ({ page }) => {
+    /* Konyo, seeing Frozen Tundra (act 5) beside Infernal Pit (act 4) under one UP NEXT: "how can
+       act 4 and act 5 be in the same NEXT terror zone?" They can — the upstream feed serves that
+       pair as ONE group, and of the 34 distinct groups in his own 95-window history TWO pair an
+       Act 4 pit with an Act 5 zone ("Arreat Plateau and Pit of Acheron" is the other). Terror-zone
+       slots are the game's own definitions, not areas that touch. Every OTHER group is contiguous,
+       which is exactly why the two that are not read as a bug — so the panel now says it. */
+    await open(page, { ok: true, current: 'Tamoe Highland, Outer Cloister, and The Pit',
+                       next: 'Frozen Tundra and Infernal Pit', ts: Date.now() });
+    const chips = await page.evaluate(() => ({
+      next: (document.querySelector('#hd-tz .tz-slot.next .tz-together')?.textContent || '').trim(),
+      now: (document.querySelector('#hd-tz .tz-slot.now .tz-together')?.textContent || '').trim(),
+    }));
+    expect(chips.next, 'the cross-act group must name its acts, or it reads as two slots glued together')
+      .toMatch(/acts\s*4\+5/i);
+    expect(chips.now, 'three Act 1 zones need no act note — that would be noise on the common case')
+      .not.toMatch(/acts/i);
+    expect(chips.now, 'the count itself still shows').toContain('3');
+  });
 });

@@ -2464,6 +2464,10 @@
   .tzz-tag.good { background: rgba(143,230,160,.14); color: #9fe0b0;
     box-shadow: inset 0 0 0 1px rgba(143,230,160,.34); }
   /* the slot-level verdict, on the LIVE NOW / UP NEXT label */
+  /* v1602 — the cross-act note rides INSIDE the "N live together" chip, dimmer than the count:
+     it is a clarification, not a second fact competing with it. */
+  .tz-acts { opacity: .72; font-weight: var(--fw-medium); cursor: help;
+    border-bottom: 1px dotted currentColor; }
   .tz-verdict { margin-left: 8px; padding: 2px 9px; border-radius: 999px; flex: none;
     font: var(--fw-bold) var(--fs-micro,var(--fs-2xs))/1.5 var(--mono); letter-spacing: .13em;
     text-transform: none; }
@@ -11377,7 +11381,33 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       .filter(function (x) { return x.length; }).length; };
     var _together = function (z) {
       var n = _count(z);
-      return n > 1 ? '<span class="tz-together">' + n + ' live together</span>' : '';
+      if (n <= 1) return '';
+      /* v1602 — NAME THE ACTS WHEN A GROUP SPANS THEM. Konyo, seeing Frozen Tundra (act 5) beside
+         Infernal Pit (act 4) under one UP NEXT: "how can act 4 and act 5 be in the same NEXT terror
+         zone?"
+
+         They can, and this one is real — the upstream feed serves "Frozen Tundra and Infernal Pit"
+         as ONE group, and it is not a one-off: of the 34 distinct groups in his own 95-window
+         history, TWO pair an Act 4 pit with an Act 5 zone (the other is "Arreat Plateau and Pit of
+         Acheron"). Terror-zone slots are the game's own definitions, not "areas that touch" — every
+         other group happens to be contiguous, which is exactly why the two that are not read as a
+         bug.
+
+         So the panel says so out loud. "2 live together" told him the count and nothing about the
+         thing he actually doubted; "2 live together · acts 4+5" answers the question before he has
+         to ask it. Same-act groups are unchanged — adding "act 1" to three Act 1 zones would be
+         noise, and the whole point is to mark the case that looks wrong but is not. */
+      var acts = String(z || '').split(/,\s*|\s+and\s+/)
+        .map(function (x) { return x.trim().replace(/^and\s+/i, '').trim(); })
+        .filter(function (x) { return x.length; })
+        .map(function (x) { return _actOf(_artFor(x)); })
+        .filter(function (a) { return a; });
+      var uniq = acts.filter(function (a, i) { return acts.indexOf(a) === i; }).sort();
+      var span = uniq.length > 1
+        ? ' <span class="tz-acts" title="terror zones are the game\'s own slot definitions, not '
+          + 'connected areas — a few groups deliberately span acts">acts ' + uniq.join('+') + '</span>'
+        : '';
+      return '<span class="tz-together">' + n + ' live together' + span + '</span>';
     };
     /* v1596 — THE VERDICT, ON THE HEADER, FOR BOTH SLOTS.
        Reading two or three cards to work out whether the coming window is worth staying up for is

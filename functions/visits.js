@@ -229,6 +229,18 @@ export async function onRequestGet(context) {
   .muted{color:#6b6149;font-weight:400}
   .empty{padding:44px;text-align:center;color:#9c8d6b}
   .t{font-variant-numeric:tabular-nums}
+  /* v1602 — the crossover door to /console. Deliberately the loudest thing under the title:
+     the failure it fixes was a correct sentence that got read past. */
+  .xover{display:flex;align-items:center;gap:13px;margin:13px 0 2px;padding:12px 15px;
+    background:linear-gradient(180deg,rgba(240,192,96,.10),rgba(240,192,96,.04));
+    border:1px solid rgba(240,192,96,.42);border-radius:10px;text-decoration:none;color:inherit}
+  .xover:hover{border-color:#f0c060;background:rgba(240,192,96,.14)}
+  .xo-ic{font-size:22px;flex:none}
+  .xo-txt{font-size:13px;line-height:1.5;color:#d9cbab}
+  .xo-txt b{display:block;color:#f0c060;font-size:14px;margin-bottom:2px}
+  .xo-go{margin-left:auto;flex:none;white-space:nowrap;font-size:13px;font-weight:700;color:#f0c060;
+    border:1px solid rgba(240,192,96,.5);border-radius:999px;padding:7px 13px}
+  @media (max-width:640px){.xover{flex-wrap:wrap}.xo-go{margin-left:0}}
   .note{margin-top:9px;font-size:12px;color:#6b6149;line-height:1.6}
   .scope{margin-top:18px;background:#1c180f;border:1px solid #3a3122;border-left:3px solid #d4af37;
          border-radius:10px;padding:13px 16px;font-size:13px;line-height:1.65;color:#c8bb98}
@@ -245,8 +257,20 @@ export async function onRequestGet(context) {
 </style></head><body>
 <header>
   <h1>👁 Visits &middot; browser page-views of /d2r/</h1>
-  <div class="sub">bull-4-u.com/d2r · private · times in your local zone · entries auto-expire after ${ttlDays} days
-    · <b>not</b> the 📺 TV DIABLO console app — <a href="${esc(consoleHref)}" style="color:#f0c060">that's here</a></div>
+  <div class="sub">bull-4-u.com/d2r · private · times in your local zone · entries auto-expire after ${ttlDays} days</div>
+  <!-- v1602 — A DOOR, NOT A FOOTNOTE. This used to be six words at the end of the subtitle
+       ("...not the console app — that's here"), with the link text "that's here". Konyo went looking
+       for his cousin's activity, read past it, and reported the tracker as not tracking him at all —
+       while /console had been listing that exact machine (LAPTOP-QNFL860M, "Dean", Monroe US) the
+       whole time. The data was never missing; the DOOR was. A correct sentence nobody reads is not
+       documentation, it is decoration. -->
+  <a class="xover" href="${esc(consoleHref)}">
+    <span class="xo-ic">📺</span>
+    <span class="xo-txt"><b>Looking for the TV DIABLO console app?</b>
+      Machines that RAN the app — your Windows PC, your cousin&rsquo;s — are not on this page.
+      They are tracked separately.</span>
+    <span class="xo-go">open /console &rarr;</span>
+  </a>
 </header>
 <div class="wrap">
 
