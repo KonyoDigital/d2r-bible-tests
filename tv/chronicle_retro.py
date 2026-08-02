@@ -309,7 +309,12 @@ def normalize_page(raw, kind, lane):
     wrong_tab = raw.get("wrongTab") is True
     found = [] if (wrong_tab or not state_visible) else names(raw.get("found"))
     not_found = names(raw.get("notFound"))
-    sets = [{"set": str(g.get("set") or "")[:60], "pieces": names(g.get("pieces"), 20)}
+    # v1570 — CARRY `complete`. This rebuilt every set row as {set, pieces} and dropped the flag,
+    # while proposal_from_pages reads g.get("complete") off THIS normalised dict — so completeSets
+    # could never populate through the normalised path no matter what the reader emitted. The
+    # v1566 prompt work fed a funnel that threw the answer away one function later.
+    sets = [{"set": str(g.get("set") or "")[:60], "pieces": names(g.get("pieces"), 20),
+             "complete": g.get("complete") is True}
             for g in (raw.get("sets") or []) if isinstance(g, dict) and g.get("set")]
     printed = {"found": num(raw.get("printedFound")), "total": num(raw.get("printedTotal"))}
     # THE PARTIAL-PAGE TRAP, closed identically for both lanes: the panel scrolls, so its printed

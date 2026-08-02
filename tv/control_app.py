@@ -7961,6 +7961,20 @@ def set_install_nickname(name):
 _FLEET_PRESENCE_CACHE = {"t": 0.0, "d": None}
 
 
+def _completed_names(applied):
+    """v1570 — read completeSets whatever shape it arrives in.
+
+    chronicle_retro.apply_proposal returns a LIST of names; a merge_max result would be a dict with
+    "added". Accepting both is not defensive clutter — the two producers genuinely differ, and the
+    version that assumed one shape was a live grenade with the pin already out.
+    """
+    v = (applied or {}).get("completeSets")
+    if isinstance(v, dict):
+        return list(v.get("added") or [])
+    if isinstance(v, (list, tuple, set)):
+        return list(v)
+    return []
+
 def chronicle_apply(proposal=None):
     """v1523 — ask THE BOARD to apply the sweep's gated names. The console never writes the grail.
 
@@ -8344,7 +8358,13 @@ def _chron_visit_run(visit_ts):
                                "pagesRead": res["pagesRead"], "skippedReels": 0},
                     "reels": [{"reel": vis.get("label") or "visit", "runs": 1, "candidates": 1,
                                "classified": 0, "pages": res["pagesRead"]}],
-                    "wouldAdd": {lg: [{"name": n,
+                    # v1570 — completeSets must live INSIDE wouldAdd. It was emitted as a SIBLING
+                    # of it, and all three consumers read inside: the emptiness guard (_wa.get),
+                    # the payload that ships only prop["wouldAdd"], and bible.html's
+                    # `var add = proposal.wouldAdd`. So even a populated list was invisible to
+                    # every single reader. dict(comprehension, completeSets=...) keeps the existing
+                    # per-ledger shape untouched and adds the third key beside it.
+                    "wouldAdd": dict({lg: [{"name": n,
                                        "why": (gate.verdicts.get(n) or {}).get("why", ""),
                                        "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
                                        "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
@@ -8352,13 +8372,18 @@ def _chron_visit_run(visit_ts):
                                                 for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
-                    # v1566 — carry the COMPLETE sets through. bible.html's chronicleApply has
-                    # expanded a set the panel calls complete into all its pieces since v1530, and
-                    # this route never sent them — so the receiving half of that feature was
-                    # unreachable from the console. One row worth five, dropped at the last hop.
-                    "completeSets": [{"name": _cn,
-                                      "why": (gate.verdicts.get(_cn) or {}).get("why", "")}
-                                     for _cn in ((applied.get("completeSets") or {}).get("added") or [])],
+                                completeSets=[{"name": _cn,
+                                               "why": (gate.verdicts.get(_cn) or {}).get("why", "")}
+                                     # v1570 — apply_proposal returns completeSets as a plain LIST
+                                     # (only uniques/sets go through merge_max, which is what makes
+                                     # those dicts). `or {}` swapped a dict in for the EMPTY list,
+                                     # so .get worked and CI stayed green — and the FIRST complete
+                                     # set to pass the gate would make the list truthy, .get would
+                                     # hit a list, AttributeError would fire inside the _CHRON_JOB
+                                     # literal, and the except below would discard the WHOLE sweep:
+                                     # uniques, sets, held, evidence — on the exact run that found
+                                     # the row worth five. Armed by me in v1567, defused here.
+                                              for _cn in _completed_names(applied)]),
                     "held": [{"ledger": h["ledger"], "name": h["name"],
                               "why": (gate.verdicts.get(h["name"]) or {}).get("why", ""),
                               "sightings": len(h["sightings"]),
@@ -8443,7 +8468,13 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                     # sighting's reel and frame; until now the route threw them away and left "why
                     # does it think I have Windforce" answerable only in principle. Capped at 6 —
                     # enough to show the corroboration, not enough to bloat the payload.
-                    "wouldAdd": {lg: [{"name": n,
+                    # v1570 — completeSets must live INSIDE wouldAdd. It was emitted as a SIBLING
+                    # of it, and all three consumers read inside: the emptiness guard (_wa.get),
+                    # the payload that ships only prop["wouldAdd"], and bible.html's
+                    # `var add = proposal.wouldAdd`. So even a populated list was invisible to
+                    # every single reader. dict(comprehension, completeSets=...) keeps the existing
+                    # per-ledger shape untouched and adds the third key beside it.
+                    "wouldAdd": dict({lg: [{"name": n,
                                        "why": (gate.verdicts.get(n) or {}).get("why", ""),
                                        "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
                                        "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
@@ -8451,13 +8482,18 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                                                 for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
-                    # v1566 — carry the COMPLETE sets through. bible.html's chronicleApply has
-                    # expanded a set the panel calls complete into all its pieces since v1530, and
-                    # this route never sent them — so the receiving half of that feature was
-                    # unreachable from the console. One row worth five, dropped at the last hop.
-                    "completeSets": [{"name": _cn,
-                                      "why": (gate.verdicts.get(_cn) or {}).get("why", "")}
-                                     for _cn in ((applied.get("completeSets") or {}).get("added") or [])],
+                                completeSets=[{"name": _cn,
+                                               "why": (gate.verdicts.get(_cn) or {}).get("why", "")}
+                                     # v1570 — apply_proposal returns completeSets as a plain LIST
+                                     # (only uniques/sets go through merge_max, which is what makes
+                                     # those dicts). `or {}` swapped a dict in for the EMPTY list,
+                                     # so .get worked and CI stayed green — and the FIRST complete
+                                     # set to pass the gate would make the list truthy, .get would
+                                     # hit a list, AttributeError would fire inside the _CHRON_JOB
+                                     # literal, and the except below would discard the WHOLE sweep:
+                                     # uniques, sets, held, evidence — on the exact run that found
+                                     # the row worth five. Armed by me in v1567, defused here.
+                                              for _cn in _completed_names(applied)]),
                     "held": [{"ledger": h["ledger"], "name": h["name"],
                               "why": (gate.verdicts.get(h["name"]) or {}).get("why", ""),
                               "sightings": len(h["sightings"]),
@@ -8652,7 +8688,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1569",
+        "ver": "v1570",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -3520,6 +3520,10 @@
         <div class="hub-meter" id="hub-meter"></div>
       </div>
       <div class="hub-hero idle" id="hub-hero"></div>
+      <!-- v1570 — the SETS chronicle answers "what next" too. Konyo: "each is a grail of their
+           own. they both should maybe do this then." Same bridge, same ranker, same Hell-first
+           rule — and its own label, because a set's odds are for ANY piece of that set. -->
+      <div class="hub-hero hub-hero-sets idle" id="hub-hero-sets"></div>
       <!-- v1424 — DOM is the source of truth for Sessions storyline order (no CSS-order only).
            Was: banners stacked (ⅠⅡⅢ) then content mixed later → zones read out of order when order
            failed / half-width pairing shifted. Now each movement owns its banner + body in sequence. -->
@@ -10023,6 +10027,55 @@
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span></div>' : '');
   }
   window._hubNextGrail = hubNextGrail;
+
+  /* v1570 — THE SETS CHRONICLE'S OWN NEXT. Deliberately a separate hero rather than a second line
+     on the uniques one: they are two chronicles with two meters (243/403 and 108/135), and folding
+     them together would imply one queue.
+     The label says "NEXT PIECE" and the source line says "any piece of <set>", because the drop
+     data is an AGGREGATE — "Tal Rasha set (any piece)" — so the time is to the set's next piece,
+     not to the specific one named. Claiming otherwise would overclaim by roughly the piece count. */
+  async function hubNextSet(){
+    var host = $('hub-hero-sets'); if (!host) return;
+    var farm = null; try { farm = JSON.parse(lsFork('d2r_setFarm') || 'null'); } catch(e){}
+    if (!farm || !farm.length){ host.className = 'hub-hero hub-hero-sets idle'; host.innerHTML = ''; return; }
+    var data = null;
+    try {
+      var r = await fetch(API + '/api/evrank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: farm }) });
+      data = await r.json();
+    } catch(e){ data = null; }
+    if (!data || !data.ranked || !data.ranked.length){ host.className = 'hub-hero hub-hero-sets idle'; host.innerHTML = ''; return; }
+    var byName = {}; farm.forEach(function(f){ byName[f.name] = f; });
+    var tier = function (src) { var t = String(src||''); return /^Hell/.test(t) ? 2 : /^NM|^Nightmare/.test(t) ? 1 : 0; };
+    var hell = data.ranked.filter(function(x){ return x.hellExpectedHours != null; })
+      .sort(function(a,b){ return a.hellExpectedHours - b.hellExpectedHours
+        || ((byName[a.name]||{}).left||9) - ((byName[b.name]||{}).left||9); });
+    var top, hrs;
+    if (hell.length){ top = { name: hell[0].name, source: hell[0].hellSource, expectedHours: hell[0].hellExpectedHours }; }
+    else {
+      top = data.ranked.slice().sort(function(a,b){
+        return (tier(b.source) - tier(a.source))
+          || ((a.expectedHours==null?1e9:a.expectedHours) - (b.expectedHours==null?1e9:b.expectedHours))
+          || ((byName[a.name]||{}).left||9) - ((byName[b.name]||{}).left||9); })[0];
+    }
+    if (!top) { host.className = 'hub-hero hub-hero-sets idle'; host.innerHTML = ''; return; }
+    hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
+    var meta = byName[top.name] || {};
+    var setName = String(meta.set || '').replace(/\s*\([^)]+\)\s*$/, '');
+    host.className = 'hub-hero hub-hero-sets';
+    host.innerHTML = '<div class="hh-main">'
+      + '<div class="hh-eye"><span class="hh-dot"></span>the next piece · '
+        + (tier(top.source) === 2 ? 'fastest in hell · of ' + (hell.length || data.ranked.length)
+                                  : 'fastest of ' + data.ranked.length) + '</div>'
+      + '<div class="hh-name">' + esc(top.name || '—') + '</div>'
+      + '<div class="hh-src">'
+        + (setName ? 'completes <b>' + esc(setName) + '</b>'
+            + (meta.left ? ' <span class="hh-alt">· ' + meta.left + ' piece' + (meta.left===1?'':'s') + ' left</span>' : '') : '')
+        + (top.source ? ' · hunt at <b>' + esc(top.source) + '</b>' : '')
+        + '<span class="hh-alt"> · the clock is for ANY piece of this set</span></div>'
+      + '</div>'
+      + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to the next piece</span></div>' : '');
+  }
+  window._hubNextSet = hubNextSet;
   /* v1556 — published for the same reason _hubNextGrail is: a panel a spec cannot invoke is
      a panel nobody checks. The v1556 spec's first attempt called window.hubMeter, got
      undefined, and optional chaining swallowed it — the meter rendered empty and the test
@@ -10030,7 +10083,9 @@
      invites exactly that. */
   window._hubMeter = hubMeter;
   // live refresh: the bridge rewrites d2r_grailFarm on grail found/unfound + MF/players change → re-rank.
-  try { window.addEventListener('storage', function(e){ if (e && e.key && e.key.indexOf('grailFarm') !== -1) hubNextGrail(); }); } catch(e){}
+  try { window.addEventListener('storage', function(e){ if (!e || !e.key) return;
+    if (e.key.indexOf('grailFarm') !== -1) hubNextGrail();
+    if (e.key.indexOf('setFarm') !== -1) hubNextSet(); }); } catch(e){}
   function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); hdEngines(st); hdTaskForce(st); hubMeter(); try { hdLivePulse(st); } catch(e){} try { hdKaiGate(st); } catch(e){} }
 
   // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it

@@ -3463,7 +3463,7 @@ window._isCousinShell = !window._D2R_OWNER;
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -3739,6 +3739,13 @@ try {
 /* chip-grid symmetry: uniform height + portrait|name divider */
 .boss-chip{min-height:68px!important}
 .boss-chip .d2art-wrap.sm{border-right:1px solid var(--rule-color)}
+</style>
+<style id="v1570-unmark">
+  .gf-piece .gp-rm{margin-left:7px;padding:1px 6px;border-radius:6px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(255,255,255,.34);
+    font:inherit;font-size:.86em;line-height:1.3}
+  .gf-piece .gp-rm:hover{border-color:rgba(224,120,120,.55);color:#e08a8a}
+  .gf-piece .gp-rm.gp-rm-armed{border-color:#e06a6a;color:#ff9a9a;background:rgba(224,106,106,.14)}
 </style>
 </head>
 <body>
@@ -15285,7 +15292,13 @@ let craftBaseStash = _safeJsonParse(LS.getItem('d2r_craftBaseStash'), {});
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
 const adjustChance = (base, gMF) => {
   if (!base) return null;
-  if (base < 100) return base;
+  /* v1570 — THE THIRTEENTH SITE. v1561 moved the percent sentinel from 100 to EVENT_PCT_MAX=50 at
+     twelve places and missed this one, so the two thresholds DISAGREED for exactly the four values
+     it had just re-classified. Nagelring 1:79, Crushflange 1:84 and Venom Ward 1:91/1:98 were
+     ranked as 1:N everywhere else but never MF-adjusted here — Nagelring showed 1.68h against a
+     true ~2.6h, a 55% understatement on the item v1561 promotes to the FASTEST in the whole DB.
+     A sentinel with two values is not a sentinel. Found by the adversarial review, not by me. */
+  if (base <= EVENT_PCT_MAX) return base;
   const refEff = effMF(300, 250);
   const userEff = effMF(gMF, 250);
   return Math.round(base * (1+refEff/100) / (1+userEff/100));
@@ -15410,6 +15423,61 @@ function _writeGrailFarm(){
   } catch(e){}
 }
 try { window._writeGrailFarm = _writeGrailFarm; } catch(e){}
+/* ── v1570 — THE SETS CHRONICLE GETS ITS OWN "NEXT" ──────────────────────────────────────────
+   Konyo: "where is the next grail for F-SETS? each is a grail of their own. they both should
+   maybe do this then."
+
+   Right — bible.html has called sets "the THIRD chronicle" since v922, the meter reads 108/135
+   beside the uniques' 243/403, and only one of the two ever answered "so what do I hunt next".
+
+   Same bridge shape as _writeGrailFarm so /api/evrank ranks both with ONE hours formula, and the
+   same Hell-first preference the Forge and the uniques hero use.
+
+   ★ ONE HONESTY POINT, and it is why the label differs. A set's drop data is an AGGREGATE — the
+   entry is literally "Tal Rasha set (any piece)" — so its odds are for ANY piece of that set, not
+   for the specific one he still needs. Presenting that as "≈2h to find Tal Rasha's Adjudication"
+   would overclaim by roughly the number of pieces in the set. It is exported and labelled as what
+   it is: time to the NEXT PIECE of that set. The tiebreak prefers a set with fewer pieces left,
+   because finishing a set is worth more than a fourth piece of one he has barely started. */
+function _writeSetFarm(){
+  try {
+    if (typeof window.fsetsScan !== 'function') return;
+    var s = window.fsetsScan(); if (!s) return;
+    var out = [];
+    (s.working || []).forEach(function(st){
+      var src = null; try { src = window._setAggSrc(st.name); } catch(e){}
+      if (!src || !src.chance) return;
+      var miss = (st.pieces || []).filter(function(p){ return !p.have; });
+      if (!miss.length) return;
+      var adj = effChance(src.chance, src.bossId, src.diffKey);
+      if (!adj || adj <= 0) return;
+      // the hardest source this set has, exported alongside — the hero ranks Hell on Hell data
+      var bestHell = null;
+      try {
+        var agg = ((typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[])).find(function(x){
+          return x.tier === 'set' && window._setKey(x.n) === window._setKey(src.setKeyName || st.name); });
+        (agg && agg.sources || []).forEach(function(z){
+          if (!z.chance || z.blocked) return;
+          if (String(z.diffKey||'').indexOf('hell') !== 0) return;
+          var a2 = effChance(z.chance, z.bossId, z.diffKey);
+          var h2 = hoursFor(a2, 0.5, z.kph || 100);
+          if (h2 === null) return;
+          if (!bestHell || h2 < bestHell.h) bestHell = { h: h2, boss: z.boss, chance: a2, kph: z.kph || 100 };
+        });
+      } catch(e){}
+      out.push({ name: miss[0].name, set: st.name, left: st.left,
+                 source: src.boss, dropChance: 1 / adj, killsPerHr: src.kph || 100,
+                 hellSource: bestHell ? bestHell.boss : null,
+                 hellDropChance: bestHell ? 1 / bestHell.chance : null,
+                 hellKillsPerHr: bestHell ? bestHell.kph : null });
+    });
+    var _new = JSON.stringify(out), _old = null;
+    try { _old = LS.getItem('d2r_setFarm'); } catch(e){}
+    if (_new !== _old) LS.setItem('d2r_setFarm', _new);
+  } catch(e){}
+}
+try { window._writeSetFarm = _writeSetFarm; } catch(e){}
+try { setTimeout(function(){ try { _writeSetFarm(); } catch(e){} }, 1600); } catch(e){}
 try { setTimeout(function(){ try { _writeGrailFarm(); } catch(e){} }, 1500); } catch(e){}
 let _persistT = null;
 try { window.addEventListener('pagehide', () => { if (_persistT){ clearTimeout(_persistT); _persistT = null; persist(); } }); } catch(e){}
@@ -33314,6 +33382,43 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch (e) { return ''; }
   }
   window._ttf = _ttf;
+  /* v1570 — ARM, THEN REMOVE. A single tap on ✕ turns the chip red and asks; a second tap inside
+     4 seconds performs it. Anything else — moving on, tapping elsewhere, waiting — cancels. The
+     cost of the guard is one extra tap on a thing he does rarely; the cost of not having it was a
+     find from July deleted by a mis-click. */
+  window._armUnmark = function(btn, name, kind){
+    try {
+      if (btn.dataset.armed === '1') {
+        btn.dataset.armed = '';
+        if (kind === 'set') { if (typeof window.grailTogglePiece === 'function') window.grailTogglePiece(btn, name); }
+        else if (typeof window.grailFoundUni === 'function') window.grailFoundUni(btn, name);
+        return;
+      }
+      btn.dataset.armed = '1';
+      btn.classList.add('gp-rm-armed');
+      btn.textContent = 'remove?';
+      setTimeout(function(){
+        try { btn.dataset.armed=''; btn.classList.remove('gp-rm-armed'); btn.textContent='✕'; } catch(e){}
+      }, 4000);
+    } catch(e){}
+  };
+
+  /* v1570 — REDO, not just undo. Konyo: "two ways like undo but also undo the undo like forward
+     back?" The ledger already recorded the last change; nothing remembered what an undo had
+     reverted, so an accidental undo was as unrecoverable as the accidental un-mark. One slot each
+     way is enough: this is a mis-tap corrector, not version control, and a deep stack would invite
+     him to trust it as history when the ledger's own dates are the history. */
+  window._FORGE_REDO = null;
+  window._forgeRedo = function(){
+    var r = window._FORGE_REDO; if (!r) return;
+    window._FORGE_REDO = null;
+    try {
+      if (r.kind === 'set') { if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(r.name); }
+      else if (typeof window.toggleOwned === 'function') window.toggleOwned(r.name);
+    } catch(e){}
+    try { window.renderForgeUni && window.renderForgeUni(); window.renderForgeSets && window.renderForgeSets(); } catch(e){}
+  };
+
   function _undoBar(kind){
     var fl=_flog(); var keys=Object.keys(fl);
     var _L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);   // v644.1 — ITEMS is const-scoped elsewhere; the bare typeof check silently emptied the 'uni' ledger
@@ -33606,11 +33711,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div>');
     }
     if(F==='found'){
-      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.found+'</span><span class="forge-sec-sub">the grail ledger — dated, newest first, synced with the Calculator ✓ — tap to un-mark</span></div><div class="gf-chips">');
+      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.found+'</span><span class="forge-sec-sub">the grail ledger — dated, newest first, synced with the Calculator ✓ — tap to open, ✕ to un-mark</span></div><div class="gf-chips">');
       var own=_ownedNames();
       var _flU=_flog(); var _ownF=_ownedNames();
       _flogSort(_uniItems().filter(function(x){return _ownF.has(x.n);}).map(function(x){return x.n;})).forEach(function(n){
-        H.push('<span class="gf-piece have" data-arttip="'+esc(n)+'" onclick="window.grailFoundUni(this,\''+jsq(n)+'\')"><span class="gp-ck">✓</span>'+chipLogo(n)+esc(n)+(_flU[n]?'<span class="gp-date">'+esc(_flU[n])+'</span>':'')+'</span>');
+        /* ── v1570 — A FOUND ITEM IS NOT A BUTTON ────────────────────────────────────────────
+           Konyo: "i accidentally clicked one of these items and it removed it from my chronicle."
+           The whole chip carried the un-mark handler, so any click anywhere on a years-old find
+           destroyed it — while in the MISSING list above, the chip body opens the card and only a
+           small tick toggles. The destructive surface was the LARGER one, on the side where the
+           mistake is unrecoverable. There is no unfind in Diablo, and there was no redo.
+           Now: the body opens the item card, like every other chip in the app. Un-marking is a
+           deliberate ✕ on the chip, and it ARMS first — one tap says "remove?", a second removes,
+           and it disarms itself after 4s so a stray tap cannot linger as a loaded trigger. */
+        H.push('<span class="gf-piece have" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card"><span class="gp-ck">✓</span>'+chipLogo(n)+esc(n)+(_flU[n]?'<span class="gp-date">'+esc(_flU[n])+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(n)+'\',\'uni\')">✕</button></span>');
       });
       H.push('</div></div>');
       if(!s.found) H.push('<div class="forge-empty">Nothing marked found yet — tick uniques here or in the Calculator (they sync).</div>');
@@ -34074,7 +34188,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _pieceChip(p){
     var nm=p.name, clean=nm.replace(/\s*\(([^)]+)\)\s*$/,''), slot=(nm.match(/\(([^)]+)\)\s*$/)||[])[1]||'';
-    return '<span class="gf-piece'+(p.have?' have':'')+'" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="'+(p.have?'un-mark':'mark found')+'"><span class="gp-ck">'+(p.have?'✓':'○')+'</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
+    /* v1570 — same asymmetry as the uniques side. Marking a piece FOUND is cheap to get wrong
+       (tap again). Un-marking one destroys a dated find, so it moves behind an arming ✕ and the
+       chip body stops carrying it. A found piece and a missing piece must not react the same way
+       to the same gesture when one of the two outcomes cannot be taken back. */
+    if (p.have) {
+      return '<span class="gf-piece have" data-arttip="'+esc(clean)+'" title="'+esc(clean)+'"><span class="gp-ck">✓</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(nm)+'\',\'set\')">✕</button></span>';
+    }
+    return '<span class="gf-piece" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="mark found"><span class="gp-ck">○</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
   }
   function _setCard(r,cls){
     var pct=r.pieces.length?Math.round(r.got/r.pieces.length*100):0;
@@ -34223,7 +34344,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // FOUND — green chips (tap to un-mark), synced to the Item Set Tracker
     if(F==='done'){
-      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.havePieces+'</span><span class="forge-sec-sub">synced with the Item Set Tracker — tap to un-mark</span></div><div class="gf-chips">');
+      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.havePieces+'</span><span class="forge-sec-sub">synced with the Item Set Tracker — tap to open, ✕ to un-mark</span></div><div class="gf-chips">');
       s.sets.forEach(function(r){ r.pieces.forEach(function(pp){ if(pp.have) H.push(_pieceChip(pp)); }); });
       H.push('</div></div>');
       if(!s.havePieces) H.push('<div class="forge-empty">Nothing marked found yet — tick pieces here or in the Item Set Tracker (they sync).</div>');
@@ -36221,7 +36342,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1569', name:'v1569 - every terror zone gets its own face', date:'2026-07-31', note:'13 CASC act graphics matched to real area names; a zone with no art shows a rune, never another act picture' };
+  window.D2R_BUILD = { id:'v1570', name:'v1570 - a found item is not a button', date:'2026-07-31', note:'the whole found chip carried the un-mark handler; plus the sentinel v1561 missed and a trap armed to destroy a whole sweep' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
