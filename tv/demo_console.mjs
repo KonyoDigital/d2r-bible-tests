@@ -296,6 +296,42 @@ async function j8_sessionsFlagship(page) {
   record(name, true, 'session→data-view=sessions (hunt shown, stage hidden, no shell) · tvd→cockpit');
 }
 
+
+// v1578 — J9: the TERROR ZONE flagship. Three things had to become true at once and each one was
+// invisible on its own: the art has to come from the GAME (not the diablo2.io act pictures that
+// covered 13 of 67 zones), a three-zone rotation must not render a chip called "and <Zone>", and a
+// weak zone must LOOK weak. The route is stubbed with a rotation chosen to exercise all three:
+// a dense prime, a boss-prime that density alone would have greyed, and two thin Act 1 zones.
+async function j9_terrorZoneFlagship(page) {
+  const name = 'J9 TERROR ZONE FLAGSHIP';
+  await page.route('**/api/tz', (r) => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ current: 'Stony Tomb, Travincal, and Blood Moor',
+                           next: 'Cold Plains and The Pit', ts: Date.now() }) }));
+  await goHome(page);
+  await page.click('#head-tabs .ht[data-tab="session"]');
+  await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
+  await page.waitForFunction(() => document.querySelectorAll('#tz-body .tzz').length >= 5,
+                             null, { timeout: 9000 });
+  const out = await page.evaluate(() => [...document.querySelectorAll('#tz-body .tzz')].map((z) => ({
+    n: (z.querySelector('b') || {}).textContent || '',
+    t: [...z.classList].find((c) => ['tzz-prime', 'tzz-good', 'tzz-thin'].includes(c)) || '',
+    art: ((z.querySelector('.tzz-art') || {}).style || {}).backgroundImage || '',
+    grey: getComputedStyle(z).filter })));
+  const by = (n) => out.find((o) => o.n === n);
+  const fail = [];
+  if (out.some((o) => /^and /i.test(o.n))) fail.push('a chip is labelled "and <Zone>" — the Oxford-comma split is back');
+  if (!out.every((o) => o.art.includes('/art/tz_'))) fail.push('a zone has no game-extracted face');
+  if ((by('Travincal') || {}).t !== 'tzz-prime') fail.push('Travincal (density 325, the Council) was not PRIME');
+  if ((by('Blood Moor') || {}).t !== 'tzz-thin') fail.push('Blood Moor was not greyed');
+  if (!((by('Blood Moor') || {}).grey || '').includes('grayscale')) fail.push('the THIN treatment is not visually distinct');
+  if ((by('Stony Tomb') || {}).t !== 'tzz-prime') fail.push('Stony Tomb (density 2200) was not PRIME');
+  await page.unroute('**/api/tz');
+  record(name, fail.length === 0,
+         fail.length ? fail.join(' · ')
+                     : `${out.length} zones · all faces game-extracted · PRIME/THIN separated (Travincal kept by boss override)`);
+}
+
 // ── runner ──────────────────────────────────────────────────────────────────────
 async function main() {
   const t0 = Date.now();
@@ -310,13 +346,13 @@ async function main() {
     await warmEngine(page);
   } catch (e) {
     console.log(`❌ BOOT — ${e.message}`);
-    console.log('DEMOS: 0/8 ✅');
+    console.log('DEMOS: 0/9 ✅');
     await browser.close();
     process.exitCode = 1;
     return;
   }
 
-  const journeys = [j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship];
+  const journeys = [j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship];
   for (const j of journeys) {
     try {
       await j(page);
@@ -329,8 +365,8 @@ async function main() {
   await browser.close();
   const pass = results.filter((r) => r.ok).length;
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(`DEMOS: ${pass}/8 ✅  (${secs}s)`);
-  process.exitCode = pass === 8 ? 0 : 1;
+  console.log(`DEMOS: ${pass}/9 ✅  (${secs}s)`);
+  process.exitCode = pass === 9 ? 0 : 1;
 }
 
 main().catch((e) => {

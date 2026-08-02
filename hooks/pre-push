@@ -82,6 +82,12 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   if ! gate_run "test_control" "python3 tv/test_control.py" -- python3 "$REPO/tv/test_control.py"; then
     exit 1
   fi
+  # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
+  # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at
+  # every hour: a missing art key is a broken image on his TV that the browser reports to nobody.
+  if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" -- python3 "$REPO/tv/test_tz_art.py"; then
+    exit 1
+  fi
   echo "pre-push: ✅ tv suites green."
   # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the six
   # demonstration journeys must pass (1.6s). App down → skip with a note (never block on

@@ -1,0 +1,163 @@
+"""v1578 — the Terror Zone panel: every zone the game can serve has a face and a verdict.
+
+Konyo: "the TZ with the HD art isnt rendering properly i want it HD diablo ii extracted from the
+game like it should be.. and make it bigger! i said flagship style and i want it to be seen on the
+top" and "some of them should be greyed out (worthless zones) compared to good ones that need to be
+emphasized. make sure theres a distinguished difference between them".
+
+Three things were wrong and only one of them was the art:
+
+1. THE ART WAS NOT FROM THE GAME. The 13 act graphics came from diablo2.io in v231. They covered
+   13 of the 67 zones the rotation serves, and on the rotation live when he reported it the match
+   rate was ZERO. The art is now extracted from his own D2R install (CASC -> .texture -> BC3).
+
+2. THE OXFORD COMMA. The splitter tried `,\\s*` before `\\s+and\\s+`, so "Lost City, Valley of
+   Snakes, and Claw Viper Temple" produced a chip labelled literally "and Claw Viper Temple" —
+   which then missed every art and density lookup too, because levels.txt has no such level.
+
+3. NOTHING DISTINGUISHED A GOOD ZONE FROM A DEAD ONE. Every zone rendered identically.
+
+These tests guard the DATA behind all three. The RENDERING is proven separately, in a real browser,
+by journey J9 in tv/demo_console.mjs — it stubs a rotation chosen to exercise every case at once
+(a dense prime, a boss-prime that density alone would have greyed, two thin Act 1 zones) and asserts
+on computed style, not on markup. This file guards the facts that rendering depends on, because a
+wrong number rendered beautifully is worse than a right number rendered plainly.
+"""
+
+import json
+import os
+import re
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import console_safe  # noqa: F401,E402 — the failure messages carry non-ASCII (arrows, the
+                     # em dash, Nihlathak); without this they die on a non-UTF-8 console
+                     # instead of reporting, which is the one moment they must not.
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
+UI = os.path.join(HERE, "control_ui.html")
+
+
+def _tz_info():
+    src = open(UI, encoding="utf-8").read()
+    m = re.search(r"var TZ_INFO = (\{.*?\});", src, re.S)
+    assert m, "TZ_INFO table is gone from control_ui.html"
+    return json.loads(m.group(1)), src
+
+
+class TestTZArtCoverage(unittest.TestCase):
+    def test_every_zone_has_den_lvl_and_an_art_key(self):
+        info, _ = _tz_info()
+        self.assertGreaterEqual(len(info), 60, "the rotation serves ~67 zones")
+        for zone, row in info.items():
+            self.assertEqual(len(row), 3, "%s: expected [den, lvl, artKey]" % zone)
+            den, lvl, art = row
+            self.assertIsInstance(den, int)
+            self.assertTrue(60 <= lvl <= 99, "%s: implausible area level %r" % (zone, lvl))
+            self.assertTrue(art, "%s has no art key" % zone)
+
+    def test_every_art_key_is_a_file_that_exists(self):
+        """The v1569 failure mode was a name match that resolved to nothing. A key with no file is
+        a broken image on his TV, and the browser reports it to nobody."""
+        info, _ = _tz_info()
+        missing = sorted({
+            row[2] for row in info.values()
+            if not os.path.isfile(os.path.join(REPO, "art", "tz_%s.jpg" % row[2]))
+        })
+        self.assertEqual(missing, [], "art keys with no file in art/: %s" % missing)
+
+    def test_the_art_is_real_images_not_placeholders(self):
+        """v497 taught this repo that ~487 base_*.png were one identical corrupt placeholder. A
+        size check is cheap and catches a whole extraction going wrong at once."""
+        info, _ = _tz_info()
+        keys = sorted({row[2] for row in info.values()})
+        sizes = {}
+        for k in keys:
+            p = os.path.join(REPO, "art", "tz_%s.jpg" % k)
+            n = os.path.getsize(p)
+            self.assertGreater(n, 5000, "tz_%s.jpg is only %d bytes — suspect a failed decode" % (k, n))
+            sizes.setdefault(n, []).append(k)
+        dupes = {n: v for n, v in sizes.items() if len(v) > 1}
+        self.assertEqual(dupes, {}, "byte-identical art files = the v497 placeholder bug: %s" % dupes)
+
+    def test_the_live_rotation_vocabulary_is_covered(self):
+        """The zones D2R actually served in the relay history, spelled the way it spells them."""
+        info, _ = _tz_info()
+        for z in ["Lost City", "Valley of Snakes", "Claw Viper Temple", "Glacial Trail",
+                  "Drifter Cavern", "Travincal", "The Pit", "Worldstone Keep", "Blood Moor",
+                  "Halls of Anguish", "Nihlathak's Temple", "Tal Rasha's Tombs", "Moo Moo Farm"]:
+            self.assertIn(z, info, "%s is served by the rotation and has no entry" % z)
+
+
+class TestTZTiering(unittest.TestCase):
+    """The grey-out has to be DEFENSIBLE. Dimming a zone is advice, and wrong advice printed in
+    confident type is worse than no advice."""
+
+    def _tier(self, name, info, notable):
+        den, lvl = info[name][0], info[name][1]
+        if name in notable:
+            return "prime"
+        if not den:
+            return "good"
+        s = (den / 2200) * 0.85 + max(0, (lvl - 67) / 18) * 0.15
+        return "prime" if s >= 0.5 else ("good" if s >= 0.28 else "thin")
+
+    def _notable(self, src):
+        m = re.search(r"var TZ_NOTABLE = \{(.*?)\};", src, re.S)
+        assert m
+        return set(re.findall(r"'((?:[^'\\]|\\.)*)'\s*:", m.group(1)))
+
+    def test_travincal_is_never_greyed_out(self):
+        """THE CASE THAT PROVES THE OVERRIDE IS NEEDED. Travincal has density 325 — among the
+        lowest in the game — and is still a destination, because the Council is there. A purely
+        density-driven ranking greys it out, and that is bad advice, not a cosmetic slip."""
+        info, src = _tz_info()
+        notable = self._notable(src)
+        self.assertLess(info["Travincal"][0], 400, "if Travincal got dense, this test is stale")
+        self.assertIn("Travincal", {n.replace("\\'", "'") for n in notable})
+        self.assertEqual(self._tier("Travincal", info, {n.replace("\\'", "'") for n in notable}), "prime")
+
+    def test_a_zero_density_row_is_missing_data_not_a_thin_zone(self):
+        """Nihlathak's Temple carries MonDen(H)=0 in levels.txt because it is an entrance. Greying
+        it would be the panel presenting an absent number as a low one."""
+        info, src = _tz_info()
+        notable = {n.replace("\\'", "'") for n in self._notable(src)}
+        zero = [z for z, r in info.items() if r[0] == 0]
+        self.assertTrue(zero, "expected at least one zero-density row")
+        for z in zero:
+            self.assertNotEqual(self._tier(z, info, notable), "thin",
+                                "%s has NO density on record — that is missing data" % z)
+
+    def test_the_tiers_actually_separate(self):
+        """A ranking where everything lands in one bucket distinguishes nothing. He asked for a
+        DISTINGUISHED difference; this is the check that there is one."""
+        info, src = _tz_info()
+        notable = {n.replace("\\'", "'") for n in self._notable(src)}
+        tiers = [self._tier(z, info, notable) for z in info]
+        for t in ("prime", "good", "thin"):
+            self.assertGreaterEqual(tiers.count(t), 5,
+                                    "only %d zones are %r — the tiering is not separating"
+                                    % (tiers.count(t), t))
+
+    def test_the_weakest_act1_zones_are_the_ones_greyed(self):
+        """Sanity on direction: Blood Moor must never outrank Stony Tomb."""
+        info, src = _tz_info()
+        notable = {n.replace("\\'", "'") for n in self._notable(src)}
+        self.assertEqual(self._tier("Blood Moor", info, notable), "thin")
+        self.assertEqual(self._tier("Stony Tomb", info, notable), "prime")
+
+
+class TestTZSplitter(unittest.TestCase):
+    def test_the_and_stripper_is_present(self):
+        """The regex fix, pinned at the source. The behaviour is proven in the browser spec; this
+        catches someone 'simplifying' the two-step split back into the one-step version."""
+        _, src = _tz_info()
+        self.assertIn("replace(/^and\\s+/i, '')", src,
+                      "the leading-'and' strip is gone — three-zone rotations will render a chip "
+                      "labelled 'and <Zone>' again")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
