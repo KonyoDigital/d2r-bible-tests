@@ -158,6 +158,63 @@ class TestTZSplitter(unittest.TestCase):
                       "the leading-'and' strip is gone — three-zone rotations will render a chip "
                       "labelled 'and <Zone>' again")
 
+class TestBoardConsoleAgree(unittest.TestCase):
+    """v1579 — the board and the console must tell Konyo the SAME thing about the same zone.
+
+    TZ_INFO is duplicated into bible.html because the board is a single file that has to work from
+    file:// with no server and no build step. Duplication that nobody checks is just a slower way of
+    disagreeing, so this is the check: the two tables must be identical, and both surfaces must
+    apply the same tier thresholds. If they ever drift, the push fails instead of Konyo finding two
+    different verdicts for the same hour on two screens.
+    """
+
+    def _board(self):
+        src = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+        m = re.search(r"var TZ_INFO = (\{.*?\});", src, re.S)
+        self.assertTrue(m, "bible.html has no TZ_INFO — the board tracker lost its data")
+        return json.loads(m.group(1)), src
+
+    def test_the_two_tables_are_identical(self):
+        console, _ = _tz_info()
+        board, _ = self._board()
+        self.assertEqual(board, console,
+                         "bible.html and tv/control_ui.html disagree about the zones — one surface "
+                         "would show art/density the other does not")
+
+    def test_both_surfaces_use_the_same_thresholds(self):
+        _, ui = _tz_info()
+        _, board = self._board()
+        for needle in ("(den / 2200) * 0.85", "0.5", "0.28"):
+            self.assertIn(needle.replace(" ", ""), ui.replace(" ", ""),
+                          "console lost the %r threshold" % needle)
+        for needle in ("(den/2200)*0.85", "0.5", "0.28"):
+            self.assertIn(needle.replace(" ", ""), board.replace(" ", ""),
+                          "board lost the %r threshold" % needle)
+
+    def test_both_surfaces_normalise_the_apostrophe(self):
+        """Four zones carry an apostrophe and the names arrive as text from a web feed. A curly
+        U+2019 misses the table, and the miss is SILENT — an emoji with no numbers reads as "we
+        have nothing on this zone" rather than "the lookup failed". Found by my own test passing
+        the curly form and getting tier 'unknown' back."""
+        _, ui = _tz_info()
+        _, board = self._board()
+        for name, src in (("console", ui), ("board", board)):
+            self.assertIn("\\u2019", src,
+                          "%s does not normalise the typographic apostrophe" % name)
+
+    def test_the_board_splits_the_rotation_into_zones(self):
+        """The board used to hand the WHOLE rotation string to one card as if it were one zone."""
+        _, board = self._board()
+        self.assertIn("function tzSplitZones", board)
+        self.assertIn("tzZonesHtml(data.current)", board,
+                      "renderTzTracker must render the rotation as a LIST, not as one name")
+        # Strip /* */ comments before the NEGATIVE check. The comment that explains this very bug
+        # quotes the old call verbatim, so a naive assertNotIn matches the documentation and fails
+        # on correct code — the same trap v1533 hit when its guard flagged its own docstring.
+        code = re.sub(r"/\*.*?\*/", "", board, flags=re.S)
+        self.assertNotIn("tzZoneRowHtml(data.current)", code,
+                         "the single-card renderer is back — a three-zone hour will show one card")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

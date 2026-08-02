@@ -1931,3 +1931,36 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **STILL OPEN:** which test flaked is unknown and unrecoverable. The suspicion is the sub-100ms
   wall-clock budgets near `tv/test_control.py:1179` / `:1211` under load, but that is a guess and is
   recorded as one. The next occurrence will name itself.
+
+## REG-091 — the ten-minute push: a bounded timeout that could not bound anything (2026-08-02)
+
+- **Symptom:** the v1578 `git push` sat inside `tv/test_control.py` for TEN MINUTES and had to be
+  killed from outside. Earlier, the v1575 push was blocked by the same suite and passed on every
+  re-run. Both were the same defect; only the second one was slow enough to be caught in the act.
+- **Why it hid:** it needs Chrome to be launchable AND to stall, so it does not reproduce on demand.
+  Three standalone runs, one straight after `test_agent.py` (in case of REG-088's leaked-port
+  shape), and one under a hook-like git environment were all 340/340 green.
+- **Caught by:** sampling the blocked pid while it was still stuck (`sample <pid>`): the main thread
+  was parked in `poll()`, and two orphan "Google Chrome for Testing" processes were burning CPU
+  beside it. The process also held ESTABLISHED sockets to the live console on :17772.
+- **Root cause, two halves that only hang when combined:**
+  1. Three tests launched Chrome with `--headless=old`. That mode does not answer on this Mac —
+     `tv/js_syntax_gate.py` ALREADY knew, and skips with the words "this browser never answers
+     --dump-dom over http://127.0.0.1 on this machine". These three asked anyway.
+  2. They used a bare `subprocess.run(..., capture_output=True, timeout=90)`. **A subprocess
+     timeout kills the LAUNCHER, not the renderer helpers Chrome forks.** Those grandchildren
+     inherit and hold the stdout pipe, so `capture_output` keeps waiting on a pipe that will never
+     close — past the timeout, forever.
+  So the timeout fired, killed the wrong process, and then the call blocked anyway. A timeout that
+  cannot interrupt what it is timing is decoration.
+- **Fix (v1579):** one `_dump_dom()` helper — `--headless=new` first with `--headless=old` only as
+  a fallback, `start_new_session=True` so the launch owns its process group, and `killpg` on
+  timeout so the kill reaches the helpers. Returns None when no mode answered, and callers
+  `skipTest` on None: a probe that could not run proves nothing and must never report a pass.
+- **This was already known and already fixed — once.** v1490 fixed exactly this in ONE test,
+  writing the reason in its comments ("subprocess.run's timeout kills the launcher, NOT the
+  renderer helpers"). Three other tests kept the broken shape for ~90 versions.
+- **Prevention:** the same rule REG-090 needed — **a fix is not applied until it is applied
+  everywhere the shape occurs.** When a comment explains a trap, grep for the trap before moving
+  on. And the pre-push gates are now individually time-bound (`hooks/pre-push`), so the next
+  unbounded wait fails loudly with its log instead of holding a push hostage in silence.

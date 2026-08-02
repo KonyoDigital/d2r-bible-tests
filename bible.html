@@ -3178,9 +3178,40 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .tzt-zone.tzt-hunt:hover .tzt-z-go{box-shadow:0 7px 22px rgba(240,192,96,.5)}
   .tzt-now .tzt-zone.tzt-hunt{border-color:rgba(102,255,136,.26);background:linear-gradient(180deg,rgba(102,255,136,.07),rgba(0,0,0,.22))}
   .tzt-now .tzt-zone.tzt-hunt .tzt-z-name{color:#eafff0}
-  .tzt-filler{opacity:.6}
+  /* v1579 — THE TIER DIMS THE CARD, NOT THE BOSS LIST. `.tzt-filler{opacity:.6}` dimmed every zone
+     outside a hardcoded 14-entry hunt list, so Stony Tomb — density 2200, the densest tier in the
+     game — rendered almost as faint as Blood Moor at 520. The old binary and the new data were
+     fighting over the same pixels and the data was losing. Dimming now comes from the tier alone;
+     "no named boss" is a fact about bosses, not a verdict on the zone. */
+  .tzt-zone.tzt-filler.tzt-t-good{opacity:.86}
   .tzt-zone.tzt-filler .tzt-z-name{font-weight:var(--fw-medium);color:var(--text-muted);font-size:clamp(18px,2.3vw,25px)}
+  .tzt-zone.tzt-filler.tzt-t-prime .tzt-z-name{color:var(--text);font-weight:var(--fw-semibold)}
   .tzt-zone.tzt-filler .tzt-z-emoji{animation:none;opacity:.72}
+  /* v1579 — one card PER ZONE, with the game's own art as the face. The rotation is a list; it was
+     being rendered as a sentence, so a three-zone hour showed one card and named one zone. */
+  .tzt-zone-row{position:relative;z-index:1;display:flex;gap:12px;width:100%;align-items:stretch}
+  .tzt-zone-row .tzt-zone{flex:1 1 0;min-width:0}
+  @media(max-width:820px){.tzt-zone-row{flex-direction:column}}
+  .tzt-zone-row-many .tzt-z-name{font-size:clamp(17px,1.9vw,23px)}
+  .tzt-zone-row-many .tzt-z-art{width:clamp(64px,7vw,104px);height:clamp(64px,7vw,104px)}
+  .tzt-zone-row-many .tzt-z-why{font-size:13px}
+  /* the face: extracted from the local D2R install (CASC -> .texture -> BC3), not a stock icon */
+  .tzt-z-art{width:clamp(78px,9vw,132px);height:clamp(78px,9vw,132px);border-radius:16px;
+    background-size:cover;background-position:center;border:1px solid rgba(255,255,255,.14);
+    box-shadow:inset 0 0 26px rgba(0,0,0,.6),0 8px 22px rgba(0,0,0,.34);flex:none;
+    transition:filter .18s ease,opacity .18s ease}
+  .tzt-z-stat{font-family:ui-monospace,monospace;font-size:12px;letter-spacing:.04em;color:#9fd8ff;opacity:.9}
+  .tzt-z-why-tag{color:var(--gold-bright);font-weight:var(--fw-semibold)}
+  .tzt-z-nodata{color:var(--text-dim)}
+  /* THE DIFFERENCE HAS TO BE VISIBLE ACROSS THE ROOM, not a shade apart. PRIME takes the gold
+     frame; THIN desaturates and dims — the ART greys with it, which is what actually sells it,
+     because the picture is the loudest thing on the card. */
+  .tzt-zone.tzt-t-prime{border-color:rgba(240,192,96,.34);
+    background:linear-gradient(180deg,rgba(240,192,96,.09),rgba(0,0,0,.20))}
+  .tzt-zone.tzt-t-prime .tzt-z-art{border-color:rgba(240,192,96,.40)}
+  .tzt-zone.tzt-t-thin{opacity:.44;filter:grayscale(.85)}
+  .tzt-zone.tzt-t-thin:hover{opacity:.92;filter:grayscale(.1)}
+  .tzt-zone.tzt-t-thin .tzt-z-art{box-shadow:inset 0 0 30px rgba(0,0,0,.8)}
   .tzt-foot{display:flex;align-items:center;gap:14px;margin-top:12px}
   .tzt-refresh{background:var(--surface-2);border:1px solid var(--border-light);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:12px;font-weight:var(--fw-semibold);padding:7px 14px;border-radius:8px;cursor:pointer;transition:border-color .12s,background .12s}
   .tzt-refresh:hover{border-color:var(--gold-bright);background:rgba(240,192,96,.08)}
@@ -23112,6 +23143,67 @@ const TZ_HUNT = [
   { id:'flayer',   m:['flayer dungeon'],                                           label:'Flayer Dungeon',     emoji:'🪓', why:'Endugu · mlvl 96 + TC85 when terror’d',          go:()=>window.navTo&&navTo('tz') },
   { id:'crystal',  m:['crystalline passage','frozen river'],                       label:'Crystalline Passage',emoji:'🧊', why:'Frozenstein · dense cold-imm pack',                   go:()=>window.navTo&&navTo('tz') },
 ];
+/* v1579 — THE BOARD'S TRACKER GETS THE SAME TRUTH AS THE CONSOLE'S.
+
+   This tab was worse than the console panel in a way that is easy to miss because it still looked
+   fine: it never SPLIT the rotation at all. tzZoneRowHtml(data.current) was handed the whole
+   string — "Lost City, Valley of Snakes, and Claw Viper Temple" — as ONE zone name and rendered it
+   as one row. So a three-zone rotation showed one card, its substring hunt-match could fire on any
+   one of the three and label the card after it, and the other two were never mentioned at all.
+
+   TZ_INFO / TZ_NOTABLE are copied VERBATIM from tv/control_ui.html. They are duplicated rather
+   than shared because bible.html is a single file that must work from file:// with no server and
+   no build step — but duplication rots, so tv/test_tz_art.py asserts the two tables agree and
+   fails the push if they drift.
+
+   den/lvl are the game's own levels.txt (MonDen(H), MonLvlEx(H)); the art is extracted from the
+   local D2R install (CASC -> .texture -> BC3). See v1578. */
+  var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-icecave"],"Arcane Sanctuary":[990,79,"act2-arcane"],"Arreat Plateau":[350,81,"exp-siege"],"Barracks":[680,70,"act1-cathedral"],"Black Marsh":[520,69,"act1-outdoors"],"Blood Moor":[520,67,"act1-outdoors"],"Bloody Foothills":[650,80,"exp-siege"],"Burial Grounds":[520,80,"act1-graveyard"],"Catacombs":[680,73,"act1-catacomb"],"Cathedral":[680,72,"act1-cathedral"],"City of the Damned":[800,84,"act4-lava"],"Claw Viper Temple":[2200,83,"act2-tomb"],"Cold Plains":[520,68,"act1-outdoors"],"Crypt":[1056,83,"act1-catacomb"],"Crystalline Passage":[700,82,"exp-icecave"],"Dark Wood":[520,68,"act1-outdoors"],"Den of Evil":[600,79,"act1-caves"],"Disused Fane":[990,85,"act3-kurast"],"Drifter Cavern":[600,85,"exp-icecave"],"Dry Hills":[880,76,"act2-outdoors"],"Durance of Hate":[800,83,"act3-sewer"],"Far Oasis":[880,76,"act2-outdoors"],"Flayer Dungeon":[700,83,"act3-jungle"],"Flayer Jungle":[650,80,"act3-jungle"],"Frigid Highlands":[450,81,"exp-siege"],"Frozen River":[800,83,"exp-icecave"],"Frozen Tundra":[550,81,"exp-icecave"],"Glacial Trail":[700,83,"exp-icecave"],"Great Marsh":[650,80,"act3-jungle"],"Halls of Anguish":[700,83,"exp-wildtemple"],"Halls of Pain":[700,84,"exp-wildtemple"],"Halls of Vaught":[700,84,"exp-wildtemple"],"Halls of the Dead":[2200,82,"act2-tomb"],"Icy Cellar":[650,85,"exp-icecave"],"Infernal Pit":[700,85,"act4-lava"],"Jail":[680,71,"act1-cathedral"],"Kurast Bazaar":[325,81,"act3-kurast"],"Lost City":[880,77,"act2-outdoors"],"Lut Gholein Sewers":[680,85,"act2-sewer"],"Mausoleum":[1056,85,"act1-graveyard"],"Moo Moo Farm":[800,81,"act1-outdoors"],"Nihlathak's Temple":[0,83,"exp-wildtemple"],"Outer Cloister":[600,70,"act1-cathedral"],"Outer Steppes":[800,82,"act4-lava"],"Pit of Acheron":[800,85,"act4-lava"],"Plains of Despair":[800,83,"act4-lava"],"River of Flame":[800,85,"act4-lava"],"Rocky Waste":[880,75,"act2-outdoors"],"Ruined Temple":[990,85,"act3-kurast"],"Spider Cavern":[700,79,"act3-spider"],"Spider Forest":[650,79,"act3-spider"],"Stony Field":[520,68,"act1-outdoors"],"Stony Tomb":[2200,85,"act2-tomb"],"Tal Rasha's Chamber":[2200,80,"act2-tomb"],"Tal Rasha's Tombs":[2200,80,"act2-tomb"],"Tamoe Highland":[520,69,"act1-outdoors"],"The Cave":[600,78,"act1-caves"],"The Chaos Sanctuary":[800,85,"act4-diab"],"The Hole":[600,81,"act1-caves"],"The Pit":[600,85,"act1-caves"],"Throne of Destruction":[700,85,"exp-baallair"],"Travincal":[325,82,"act3-travincal"],"Underground Passage":[600,85,"act1-caves"],"Valley of Snakes":[880,77,"act2-outdoors"],"Worldstone Chamber":[0,85,"exp-baallair"],"Worldstone Keep":[700,85,"exp-baallair"]};
+
+  var TZ_NOTABLE = {
+    'Travincal': 'the Council', 'The Chaos Sanctuary': 'Diablo', 'Durance of Hate': 'Mephisto',
+    'Worldstone Keep': 'the Baal run', 'Throne of Destruction': 'Baal', 'Worldstone Chamber': 'Baal',
+    'The Pit': 'the best drop tier in the game', 'Arcane Sanctuary': 'the Summoner',
+    'Halls of Vaught': 'Nihlathak', 'Moo Moo Farm': 'the Cow King', 'Mausoleum': 'Bloodraven country',
+    'Ancient\'s Way': 'next door to the Ancient Tunnels'
+  };
+
+  /* Density dominates because a Terror Zone raises monster level to the player's own — what the
+     boost cannot change is how many monsters are standing there. den 0 = no density on record for
+     that level (an entrance), which is MISSING DATA and must never be rendered as "thin". */
+  /* Zone names arrive as text from a web feed, and four of the 67 carry an apostrophe
+     (Ancient's Way, Nihlathak's Temple, Tal Rasha's Chamber/Tombs). A typographic U+2019 instead
+     of a straight quote misses the table completely — and the miss is SILENT: the card falls back
+     to an emoji with no numbers and no tier, which looks like a zone we simply have nothing on
+     rather than a lookup that failed. Caught by my own test passing the curly form. */
+  function tzKey(name){
+    const n = String(name||'').replace(/[\u2018\u2019\u02BC\u00B4`]/g, "'").trim();
+    if (TZ_INFO[n]) return n;
+    const flat = n.toLowerCase().replace(/[^a-z0-9]/g,'');
+    for (const k in TZ_INFO){ if (k.toLowerCase().replace(/[^a-z0-9]/g,'') === flat) return k; }
+    return n;
+  }
+  function tzTier(name){
+    name = tzKey(name);
+    const inf = TZ_INFO[name];
+    if (!inf) return { tier:'unknown', den:0, lvl:0 };
+    const den = inf[0], lvl = inf[1];
+    if (TZ_NOTABLE[name]) return { tier:'prime', den:den, lvl:lvl, why:TZ_NOTABLE[name] };
+    if (!den) return { tier:'good', den:0, lvl:lvl, nodata:true };
+    const s = (den/2200)*0.85 + Math.max(0,(lvl-67)/18)*0.15;
+    return { tier: s>=0.5 ? 'prime' : (s>=0.28 ? 'good' : 'thin'), den:den, lvl:lvl };
+  }
+  function tzArtFor(name){ const i = TZ_INFO[tzKey(name)]; return i ? i[2] : null; }
+  /* Split commas FIRST, then strip a leading "and " — the one-pass /,\s*|\s+and\s+/ tries the
+     comma alternative first and leaves a zone literally named "and Claw Viper Temple". */
+  function tzSplitZones(z){
+    return String(z||'').split(/,\s*|\s+and\s+/)
+      .map(function(x){ return x.trim().replace(/^and\s+/i,'').trim(); })
+      .filter(function(x){ return x.length; });
+  }
+  window.tzKey = tzKey; window.tzTier = tzTier; window.tzArtFor = tzArtFor; window.tzSplitZones = tzSplitZones;
+  window.TZ_INFO = TZ_INFO;
+
 function tzHuntMatch(zoneName){
   const z = String(zoneName||'').toLowerCase();
   for (const h of TZ_HUNT){ for (const n of h.m){ if (z.indexOf(n) !== -1) return h; } }
@@ -23123,20 +23215,51 @@ window.tzGo = tzGo; window.tzHuntMatch = tzHuntMatch; window.TZ_HUNT = TZ_HUNT;
 function _tzEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function tzZoneRowHtml(zoneName){
   if (!zoneName) return '<div class="tzt-zone tzt-filler"><span class="tzt-z-emoji">·</span><span class="tzt-z-name">(unknown)</span></div>';
-  const h = tzHuntMatch(zoneName);
+  const h = tzHuntMatch(zoneName), t = tzTier(zoneName), art = tzArtFor(zoneName);
+  /* THE FACE IS THE GAME'S OWN ART. The emoji stays as the fallback for a zone the table does not
+     know, because a wrong picture asserts something false about where he is going — an emoji only
+     admits it has nothing. */
+  const face = art
+    ? '<span class="tzt-z-art" style="background-image:url(art/tz_'+art+'.jpg)"></span>'
+    : '<span class="tzt-z-emoji">'+(h ? h.emoji : '😴')+'</span>';
+  /* The verdict carries its evidence: the numbers it was judged on, or the reason density could
+     not see. A dimmed card with no reason on it is an assertion he cannot argue with. */
+  const meta = t.nodata ? '<span class="tzt-z-stat tzt-z-nodata">no density on record</span>'
+    : (t.why ? '<span class="tzt-z-stat tzt-z-why-tag">★ '+_tzEsc(t.why)+'</span>'
+             : (t.den ? '<span class="tzt-z-stat">'+t.den+' density · alvl '+t.lvl+'</span>' : ''));
   if (h){
-    return '<div class="tzt-zone tzt-hunt" role="button" tabindex="0" data-tz-hunt="'+h.id+'" '
+    return '<div class="tzt-zone tzt-hunt tzt-t-'+t.tier+'" role="button" tabindex="0" data-tz-hunt="'+h.id+'" '
       + 'onclick="window.tzGo(\''+h.id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.tzGo(\''+h.id+'\')}" '
       + 'title="hunt → '+_tzEsc(h.label)+'">'
-      + '<span class="tzt-z-emoji">'+h.emoji+'</span>'
+      + face
       + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
+      + meta
       + '<span class="tzt-z-go">'+_tzEsc(h.label)+' →</span>'
       + '<span class="tzt-z-why">'+_tzEsc(h.why)+'</span></div>';
   }
-  return '<div class="tzt-zone tzt-filler"><span class="tzt-z-emoji">😴</span>'
+  /* NOT A HUNT ZONE IS NOT THE SAME AS NOT WORTH IT. The old copy said "sit this one out" for every
+     zone outside a hardcoded 14-entry list — including Stony Tomb at density 2200, the densest tier
+     in the game. It now says what the game's numbers say, and only a genuinely thin zone is told to
+     be skipped. */
+  const skip = t.tier === 'thin'
+    ? 'thin — low density and a low base level. Sit this one out.'
+    : (t.tier === 'prime' ? 'no named boss, but the density is there — worth a clear.'
+                          : 'no named boss here — a fine filler clear.');
+  return '<div class="tzt-zone tzt-filler tzt-t-'+t.tier+'">' + face
     + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
-    + '<span class="tzt-z-skip">not a hunt zone — sit this one out</span></div>';
+    + meta
+    + '<span class="tzt-z-skip">'+skip+'</span></div>';
 }
+
+/* One card per zone. The rotation is a LIST and was being rendered as a sentence. */
+function tzZonesHtml(rotation){
+  const parts = tzSplitZones(rotation);
+  if (!parts.length) return tzZoneRowHtml(null);
+  return '<div class="tzt-zone-row'+(parts.length > 2 ? ' tzt-zone-row-many' : '')+'">'
+    + parts.map(tzZoneRowHtml).join('') + '</div>';
+}
+window.tzZonesHtml = tzZonesHtml;
+
 function renderTzTracker(data){
   const body = document.getElementById('tztracker-body');
   if (!body) return;
@@ -23158,8 +23281,8 @@ function renderTzTracker(data){
     return;
   }
   body.innerHTML =
-    '<div class="tzt-slot tzt-now"><div class="tzt-slot-label"><span class="tzt-live-dot"></span> LIVE NOW</div>'+tzZoneRowHtml(data.current)+'</div>'
-    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN</div>'+tzZoneRowHtml(data.next)+'</div>';
+    '<div class="tzt-slot tzt-now"><div class="tzt-slot-label"><span class="tzt-live-dot"></span> LIVE NOW</div>'+tzZonesHtml(data.current)+'</div>'
+    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN</div>'+tzZonesHtml(data.next)+'</div>';
   const u = document.getElementById('tzt-updated');
   if (u){ try { u.textContent = data.ts ? ('updated '+new Date(data.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) : ''; } catch(e){ u.textContent=''; } }
 }
@@ -36464,7 +36587,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1578', name:'v1578 - terror zones wear the real game art now, and the weak ones say so', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1579', name:'v1579 - the board tracker splits the rotation and shows the same truth as the console', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

@@ -41,6 +41,56 @@ def _get(port, path, timeout=3):
 
 
 
+def _dump_dom(browser, url, budget=6000, timeout=45):
+    """v1579 — launch Chrome --dump-dom WITHOUT the hang that held a push hostage.
+
+    Two tests here still used the pre-v1490 shape: `--headless=old` plus a bare
+    subprocess.run(timeout=...). Both parts are wrong on Konyo's Mac and together they hang
+    forever rather than timing out:
+
+      - `--headless=old` does not answer on this Chrome. tv/js_syntax_gate.py already knows this
+        and skips with the words "this browser never answers --dump-dom over http://127.0.0.1 on
+        this machine". These tests asked anyway.
+      - subprocess.run's timeout kills the LAUNCHER, not the renderer helpers Chrome forks. Those
+        grandchildren keep the stdout pipe open, so capture_output waits on a pipe that will never
+        close - past the timeout, forever, in poll().
+
+    That is the ten-minute stall that blocked the v1578 push. It was invisible in every re-run
+    because it needs Chrome to be reachable AND to stall, and the kept log ended mid dot-stream
+    with no summary. Caught live by sampling the blocked pid: main thread parked in poll(), two
+    orphan "Google Chrome for Testing" processes burning CPU beside it.
+
+    Returns a CompletedProcess, or None if no mode answered - callers skipTest on None, because a
+    probe that could not run proves nothing and must not be reported as a pass.
+    """
+    for mode in ("--headless=new", "--headless=old"):
+        with tempfile.TemporaryDirectory() as prof:
+            proc = subprocess.Popen(
+                [browser, mode, "--disable-gpu", "--no-sandbox",
+                 "--user-data-dir=%s" % prof,
+                 "--blink-settings=imagesEnabled=false",
+                 "--virtual-time-budget=%d" % budget, "--dump-dom", url],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                start_new_session=True)      # its own group, so the kill reaches the helpers
+            try:
+                out, err = proc.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except Exception:
+                    proc.kill()
+                try:
+                    proc.communicate(timeout=10)
+                except Exception:
+                    pass
+                continue
+            return subprocess.CompletedProcess(
+                proc.args, proc.returncode,
+                (out or b"").decode("utf-8", "replace"),
+                (err or b"").decode("utf-8", "replace"))
+    return None
+
+
 def _screenish(size, seed, shade=None):
     """v1543 — a fixture frame that looks like a SCREEN, not a paint swatch.
 
@@ -3596,12 +3646,11 @@ class TestConsoleReadsTheActiveWorld(unittest.TestCase):
         srv, port = js_syntax_gate._serve(repo)
         try:
             with tempfile.TemporaryDirectory() as prof:
-                r = subprocess.run(
-                    [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
-                     "--user-data-dir=%s" % prof, "--virtual-time-budget=6000", "--dump-dom",
-                     "http://127.0.0.1:%d/_lsfork_probe.html" % port],
-                    capture_output=True, text=True, encoding="utf-8",
-                    errors="replace", timeout=90)
+                r = _dump_dom(browser, "http://127.0.0.1:%d/_lsfork_probe.html" % port)
+                if r is None:
+                    self.skipTest("Chrome never answered --dump-dom over http on this "
+                                  "machine (js_syntax_gate reports the same); a probe "
+                                  "that could not run proves nothing")
             blob = (r.stdout or "") + (r.stderr or "")
         finally:
             srv.shutdown()
@@ -4195,11 +4244,11 @@ class TestProfileSigil(unittest.TestCase):
         srv, port = js_syntax_gate._serve(repo)
         try:
             with tempfile.TemporaryDirectory() as prof:
-                r = subprocess.run(
-                    [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
-                     "--user-data-dir=%s" % prof, "--virtual-time-budget=6000", "--dump-dom",
-                     "http://127.0.0.1:%d/_sigil_probe.html" % port],
-                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+                r = _dump_dom(browser, "http://127.0.0.1:%d/_sigil_probe.html" % port)
+                if r is None:
+                    self.skipTest("Chrome never answered --dump-dom over http on this "
+                                  "machine (js_syntax_gate reports the same); a probe "
+                                  "that could not run proves nothing")
             blob = (r.stdout or "") + (r.stderr or "")
         finally:
             srv.shutdown()
@@ -4368,11 +4417,11 @@ class TestTheFourWorldsNeverBleed(unittest.TestCase):
         srv, port = js_syntax_gate._serve(repo)
         try:
             with tempfile.TemporaryDirectory() as prof:
-                r = subprocess.run(
-                    [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
-                     "--user-data-dir=%s" % prof, "--virtual-time-budget=6000", "--dump-dom",
-                     "http://127.0.0.1:%d/_worlds_probe.html" % port],
-                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+                r = _dump_dom(browser, "http://127.0.0.1:%d/_worlds_probe.html" % port)
+                if r is None:
+                    self.skipTest("Chrome never answered --dump-dom over http on this "
+                                  "machine (js_syntax_gate reports the same); a probe "
+                                  "that could not run proves nothing")
             blob = (r.stdout or "") + (r.stderr or "")
         finally:
             srv.shutdown()

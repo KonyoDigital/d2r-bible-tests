@@ -10958,7 +10958,18 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
        loud rather than presenting a bare verdict.
        den 0 = a level with no density of its own in levels.txt (an entrance such as Nihlathak's
        Temple). That is MISSING DATA, not a thin zone, and must never be greyed on it. */
+    /* Four of the 67 zone names carry an apostrophe and arrive as text from a web feed. A
+       typographic U+2019 misses the table completely, and the miss is SILENT — a rune glyph with
+       no numbers reads as "we have nothing on this zone" rather than "the lookup failed". */
+    var _tzKey = function (name) {
+      var n = String(name || '').replace(/[\u2018\u2019\u02BC\u00B4`]/g, "'").trim();
+      if (TZ_INFO[n]) return n;
+      var flat = n.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (var k in TZ_INFO) { if (k.toLowerCase().replace(/[^a-z0-9]/g, '') === flat) return k; }
+      return n;
+    };
     var _tzTier = function (name) {
+      name = _tzKey(name);
       var inf = TZ_INFO[name];
       if (!inf) return { tier: 'unknown', score: 0 };
       var den = inf[0], lvl = inf[1];
@@ -10967,7 +10978,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
       var s = (den / 2200) * 0.85 + Math.max(0, (lvl - 67) / 18) * 0.15;
       return { tier: s >= 0.5 ? 'prime' : (s >= 0.28 ? 'good' : 'thin'), score: s, den: den, lvl: lvl };
     };
-    var _artFor = function (name) { var i = TZ_INFO[name]; return i ? i[2] : null; };
+    var _artFor = function (name) { var i = TZ_INFO[_tzKey(name)]; return i ? i[2] : null; };
     var _actOf = function (file) {
       if (!file) return null;
       return file.indexOf('exp-') === 0 ? '5' : file.slice(3, 4);
