@@ -3346,15 +3346,9 @@
   /* v911 — the emblem is the GRAIL now */
   .brand .emblem img { border-radius: 10px; filter: drop-shadow(0 0 14px rgba(240,192,96,.45)); }
   @media (max-width: 900px){ .head-tabs { gap: 3px; } .head-tabs .ht { padding: 7px 8px; font-size: var(--fs-xs); } }   /* v882 — tabs shrink, never vanish (the rail is gone) */
-  .bible-rail { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(6px,.7vw,10px); }
-  .bible-rail .brl { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
-    color: var(--gold-dim); font-family: var(--mono); font-size: var(--fs-xs);
-    font-weight: var(--fw-semibold); letter-spacing: var(--ls-wide); padding: clamp(8px,.9vw,12px) 6px;
-    border-radius: clamp(9px,.9vw,12px); cursor: pointer; transition: .15s; text-align: center; }
-  .bible-rail .brl:hover { color: var(--gold); border-color: var(--edge-hi);
-    background: rgba(240,192,96,.07); box-shadow: 0 0 14px rgba(240,192,96,.15); }
-  .bible-rail .brl:active { transform: translateY(1px); }
-  .bible-rail .brl:nth-child(5) { grid-column: 1 / -1; }
+  /* v1576 (dead-seam sweep) — the .bible-rail / .brl rule set was left behind when v882 wiped the
+     rail's markup ("ONE NAV: header tabs are the nav"). Five live CSSOM rules that could never match
+     an element (0 × #bible-rail, 0 × .brl in this document). Removed with its orphaned click wiring. */
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; }
@@ -8696,12 +8690,10 @@
     if (b.dataset.tab === 'session'){ showSessions(); return; }   // v1376 — Sessions = console-native flagship hunt hub
     document.body.removeAttribute('data-view'); shellOpen(b.dataset.tab);
   });
-  var _brl = document.getElementById('bible-rail');
-  if (_brl) _brl.addEventListener('click', function(e){
-    var b = e.target.closest('.brl'); if (!b) return;
-    e.preventDefault();
-    shellOpen(b.dataset.tab);
-  });
+  // v1576 (dead-seam sweep) — the BIBLE RAIL delegation used to live here. v882 ("ONE NAV: BIBLE rail
+  // wiped — header tabs are the nav") deleted the rail's markup but left this listener and its CSS
+  // behind: #bible-rail is absent from this document, so the null-guard was permanently false and the
+  // handler could never bind. The surviving nav is the _ht header-tab delegation directly above.
   // v936 R2 (Grok #2) — SMART Esc: while the shell is open, a visible board overlay/lightbox
   // owns the first Esc. Only close the shell when nothing inside the board is up. Console-side
   // lightboxes (the console's own overlays OUTSIDE the iframe) still win first, as before.

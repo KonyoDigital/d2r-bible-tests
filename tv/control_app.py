@@ -1833,20 +1833,35 @@ def _request_console_exit(reason="quit", hard_delay=None):
       4) arm hard os._exit deadline (Force-Quit killer)
       5) best-effort destroy the native window
 
-    Safe on every thread; never blocks more than a few ms."""
+    Safe on every thread; never blocks more than a few ms.
+
+    v1576 — RETURNS AN HONEST RECEIPT. Every step here is best-effort try/except, so
+    a total failure used to be indistinguishable from a clean exit: /api/quit answered
+    {"ok": True, "msg": "control quitting"} while nothing was armed and the process
+    stayed up forever. Ground truth for "the process WILL die" is the module flag
+    _FORCE_EXIT_ARMED (not _arm_force_exit's return value — that is False on the
+    idempotent second call, which is a success, not a failure). Callers that do not
+    care may keep ignoring the return."""
     win = globals().get("_MAIN_WIN")
+    errs = []
+    marked = False
+    stop_scheduled = False
+    destroyed = False
     try:
         _mark_window_gone(reason)
-    except Exception:
-        pass
+        marked = True
+    except Exception as e:
+        errs.append("mark_window_gone: %s" % str(e)[:80])
     try:
         _schedule_exit_stop(reason)
-    except Exception:
-        pass
+        stop_scheduled = True
+    except Exception as e:
+        errs.append("schedule_exit_stop: %s" % str(e)[:80])
     try:
         _arm_force_exit(reason, delay=hard_delay)
-    except Exception:
-        pass
+    except Exception as e:
+        errs.append("arm_force_exit: %s" % str(e)[:80])
+    armed = bool(globals().get("_FORCE_EXIT_ARMED"))
     if win is not None:
         # v1460 — DESTROY ONLY. The old chain fell back to hide() when destroy() raised,
         # which produced the worst possible state: process alive, still holding :17772, with
@@ -1857,8 +1872,19 @@ def _request_console_exit(reason="quit", hard_delay=None):
             fn = getattr(win, "destroy", None)
             if callable(fn):
                 fn()
+                destroyed = True
         except Exception as e:
+            errs.append("window_destroy: %s" % str(e)[:80])
             print(f"⚠ window destroy failed ({e}) — force-exit deadline will close it", flush=True)
+    return {
+        "ok": bool(armed or destroyed),
+        "armed": armed,
+        "windowDestroyed": destroyed,
+        "markedGone": marked,
+        "stopScheduled": stop_scheduled,
+        "reason": reason,
+        "errors": errs,
+    }
 
 
 def _schedule_exit_stop(reason="quit"):
@@ -8688,7 +8714,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1575",
+        "ver": "v1576",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -11136,16 +11162,34 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/quit":
             # v1410/v1420 — Esc empty-stack + programmatic quit: same force-exit path as ✕
+            # v1576 — ANSWER HONESTLY. Both this call and its fallback swallowed every
+            # failure and the handler then hard-coded {"ok": True, "control quitting"} —
+            # a false green: nothing armed, process alive, board told "quitting". Same
+            # doctrine as /api/off (v926.2): on failure, report it instead of painting OK.
+            r = None
             try:
-                _request_console_exit("api-quit", hard_delay=0.55)
-            except Exception:
+                r = _request_console_exit("api-quit", hard_delay=0.55)
+            except Exception as _e:
                 try:
                     _mark_window_gone("api-quit")
                     _schedule_exit_stop("api-quit")
                     _arm_force_exit("api-quit-fallback", delay=0.55)
-                except Exception:
-                    pass
-            self._json(200, {"ok": True, "msg": "control quitting"})
+                except Exception as _e2:
+                    _e = _e2
+                r = {"ok": bool(globals().get("_FORCE_EXIT_ARMED")),
+                     "armed": bool(globals().get("_FORCE_EXIT_ARMED")),
+                     "windowDestroyed": False,
+                     "errors": ["request_console_exit: %s" % str(_e)[:120]]}
+            if not isinstance(r, dict):
+                r = {"ok": bool(globals().get("_FORCE_EXIT_ARMED")),
+                     "armed": bool(globals().get("_FORCE_EXIT_ARMED")),
+                     "windowDestroyed": False, "errors": []}
+            if r.get("ok"):
+                self._json(200, dict(r, msg="control quitting"))
+            else:
+                self._json(500, dict(r, ok=False,
+                                     msg="quit FAILED — nothing armed, console still up: "
+                                         + ("; ".join(r.get("errors") or []) or "unknown")))
             return
         self._json(404, {"ok": False, "msg": "not found"})
 

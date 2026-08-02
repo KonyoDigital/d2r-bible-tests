@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1575"   # the redo i shipped dead three hours ago
+VERSION = "v1576"   # four dead seams cut - a toast that never fired a fix-all with no receipt a quit that lied green and a weak-name guard nothing called
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2695,8 +2695,9 @@ def _heartbeat_in_flight_n():
         return sum(1 for j in _in_flight.values() if j.get("origin") == "heartbeat")
 
 
-def _heartbeat_in_flight():
-    return _heartbeat_in_flight_n() > 0
+# v1576 — `_heartbeat_in_flight()` (a bare `_heartbeat_in_flight_n() > 0` wrapper) was removed:
+# zero callers repo-wide; the one live consumer (the ROBOT_MODE heartbeat gate) counts with
+# `_heartbeat_in_flight_n() < _heartbeat_cap()` and never asked the boolean question.
 
 
 def _in_flight_has_sig(sig):
@@ -3981,7 +3982,18 @@ _JUNK_SUBSTR = (
     "antidote potion", "thawing potion", "energy potion", "rancid", "bile", "gas potion",
     "arrows", "bolts", "quill", " gold",
 )
-# Bare / vision-fluff labels that must never auto-vault without a real identity chain
+# Bare / vision-fluff labels.
+# v1576 HONESTY — this comment used to read "must never auto-vault without a real identity
+# chain", which described a guard that NOTHING ENFORCES. Its only consumer is _is_weak_name()
+# below, and _is_weak_name() has ZERO callers in the repo (grep: tv/, bible.html — one hit, its
+# own def). Executed proof: LootLifecycle._on_loot(["Ring","Jewel"], ...) tags both "seen" (not
+# "skip-weak") and the resulting chain carries them straight into _on_stash → _commit. The rule
+# that IS live is the v738 universal chain gate in _on_stash (SEEN/HOLDING/candidate required
+# for EVERY name) — which happens to be exactly what _is_weak_name's docstring asked for, so
+# behaviour is unchanged; only the claim was false. Whether these bare labels should ALSO be
+# barred from BUILDING that provenance in _on_loot is a product call — PARKED for Konyo, since
+# a real D2R jewel's floor label literally is "Jewel" and gating it would lose true drops.
+# Kept (not deleted) because the curated list is the input any future gate would use.
 _WEAK_EXACT = frozenset({
     "jewel", "ring", "amulet", "shield", "armor", "sword", "bow", "helm", "boots",
     "gloves", "belt", "item", "charm", "scrollof", "scroll", "tome", "key",
@@ -4123,7 +4135,14 @@ def _is_never_vault(n):
     return False
 
 def _is_weak_name(n):
-    """Too generic alone — only stash-commits if already SEEN/HOLDING/candidate."""
+    """UNREACHABLE as of v1576 — kept as the reference predicate for _WEAK_EXACT, NOT a live gate.
+
+    Original claim: "Too generic alone — only stash-commits if already SEEN/HOLDING/candidate."
+    That rule is real and IS enforced — but by the v738 chain gate in _on_stash, for every name,
+    not by this function. This function has no caller (see the _WEAK_EXACT block above for the
+    grep + executed evidence). Do not read a call to it into the pipeline; there isn't one.
+    If you wire it up, that is a behaviour change: it would also reject bare-but-genuine floor
+    labels ("Jewel"), which is the parked product question, not a bug fix."""
     lo = _norm_name(n)
     if _is_never_vault(n):
         return True
@@ -4138,6 +4157,10 @@ def _area_key(a):
     return str(a or "").strip().lower()
 
 def _is_town_area(area):
+    """UNREACHABLE as of v1576 — zero callers repo-wide (grep tv/ bible.html: one hit, this def).
+    No town-specific branch exists anywhere in the engine; nothing suppresses reads or loot
+    provenance in town today. Kept as the town-name table any such gate would need. Whether the
+    engine SHOULD gate on town is a product call — PARKED, not guessed at here."""
     lo = _area_key(area)
     return any(t in lo for t in (
         "rogue encampment", "lut gholein", "kurast docks", "kurast",

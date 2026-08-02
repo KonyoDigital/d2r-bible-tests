@@ -29271,7 +29271,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<span class="va-sum">'+r.total+' issue'+(r.total===1?'':'s')
       + (r.fixable?' · <b>'+r.fixable+'</b> auto-fixable':'')
       + (r.review?' · '+r.review+' to review':'')+'</span>'
-      + (r.fixable? '<button class="va-fixall" onclick="var n=window._vaultAuditFixAll();window._toast&&window._toast(\'🔍 fixed \'+n+\' vault issue\'+(n===1?\'\':\'s\'))">🪄 Fix all safe ('+r.fixable+')</button>':'')
+      + (r.fixable? '<button class="va-fixall" onclick="var n=window._vaultAuditFixAll();window._grailToast&&window._grailToast(\'🔍\',\'fixed <b>\'+n+\'</b> vault issue\'+(n===1?\'\':\'s\'),\'vault integrity\')">🪄 Fix all safe ('+r.fixable+')</button>':'')
       + '</div><div class="va-rows">'+rows+'</div>'
       + (r.findings.length>40?'<div class="va-more">+ '+(r.findings.length-40)+' more</div>':'');
   }
@@ -31304,7 +31304,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       window.LSR.setItem(SEEN_KEY, JSON.stringify(_sNow));
     } catch(e){}
     journalAdd(logged, perFile);
-    try { var _promoted=(typeof window._promoteUnknownBases==='function')?window._promoteUnknownBases():[]; if(_promoted.length && typeof toast==='function') toast('🧰 '+_promoted.length+' read'+(_promoted.length>1?'s':'')+' promoted to forge bases: '+_promoted.join(', ')); } catch(e){}   // v631
+    try { var _promoted=(typeof window._promoteUnknownBases==='function')?window._promoteUnknownBases():[]; if(_promoted.length && typeof window._grailToast==='function') window._grailToast('🧰','<b>'+_promoted.length+'</b> read'+(_promoted.length>1?'s':'')+' promoted to forge bases',_promoted.join(', ')); } catch(e){}   // v631 · v1576 — was `typeof toast`, a name declared NOWHERE in the file: the guard was permanently false and this promotion never once announced itself. The real toast is window._grailToast(ico,main,sub).
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     // v342.7 — fixed-format, scrollable, ORGANIZED report card with a grand TOTAL (Konyo: "fixed format
@@ -36464,7 +36464,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1575', name:'v1575 - the redo i shipped dead three hours ago', date:'2026-07-31', note:'v1570 declared the slot read it and cleared it and nothing ever wrote it; no button ever called it' };
+  window.D2R_BUILD = { id:'v1576', name:'v1576 - four dead seams cut - a toast that never fired a fix-all with no receipt a quit that lied green and a weak-name guard nothing called', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -36842,7 +36842,10 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // shows ONLY when there are un-undone auto-adds (honest-absent). sessions-visual can restyle/relocate.
   window._g3ForwardRender = function(){
     var el = document.getElementById('g3-forward-panel'); if (!el) return;
-    var esc = (typeof escHtml === 'function') ? escHtml : function(s){ return String(s); };
+    // v1576 — escHtml is declared NOWHERE in this file, so this ternary always took the fallback,
+    // and the fallback did no escaping at all: a grail name carrying < > " broke both the markup and
+    // the data-n attribute the ↩ undo button reads back. Fallback now actually escapes.
+    var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
     var list = window._g3ForwardList();
     if (!list.length){ el.innerHTML = ''; return; }
     var rows = list.slice(0, 12).map(function(x){
