@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1553",
+  "ver": "v1554",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1553: the anchored-tooltip stability check failed CI on movement entirely explained by the card growing",
+  "note": "v1554: MY HUNT was 40px and the grail it sends you to hunt was 36px; measured and re-ordered at his real console width",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

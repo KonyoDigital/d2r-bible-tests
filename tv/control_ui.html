@@ -2749,9 +2749,14 @@
   body[data-view="sessions"] .hub-crown { display: flex; }
   body[data-view="sessions"] .hub-hero { display: block; }
   .hub-crown { grid-column: 1 / -1; order: -3; align-items: flex-end; justify-content: space-between; gap: 24px;
-    flex-wrap: wrap; padding-bottom: 13px; border-bottom: 1px solid var(--edge); margin-bottom: 2px; }
-  .hub-crest .hc-ey { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .34em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 8px; }
-  .hub-crest .hc-t { font: var(--fw-bold) clamp(24px,3vw,40px)/1 var(--serif); letter-spacing: .10em; text-transform: uppercase; color: var(--parch-hi); text-shadow: 0 0 26px rgba(240,192,96,.16); }
+    flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--edge); margin-bottom: 2px; }
+  .hub-crest .hc-ey { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .34em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 6px; }
+  /* v1554 — 40px -> 23px. "MY HUNT" is a running page title: it says where you are, and it was
+     the largest thing on the surface at his real console width — larger than the grail it is
+     telling him to hunt. Editorial order is now lead > title > stat: BARANAR'S STAR 27px, MY HUNT
+     23px, the ETA 21px. The title keeps its serif, its tracking and its gold accent, so it still
+     reads as a crown; it just stops outranking the news. */
+  .hub-crest .hc-t { font: var(--fw-bold) clamp(17px,1.8vw,23px)/1 var(--serif); letter-spacing: .10em; text-transform: uppercase; color: var(--parch-hi); text-shadow: 0 0 20px rgba(240,192,96,.14); }
   .hub-crest .hc-t span { color: var(--gold); }
   /* the grail meter — the signature vessel */
   .hub-meter { min-width: 280px; flex: 1 1 320px; max-width: 440px; }
@@ -2773,14 +2778,18 @@
   .hub-hero { order: -2; grid-column: 1 / -1; position: relative; overflow: hidden;
     align-items: center; justify-content: space-between; gap: clamp(18px,3vw,40px);
     border: 1px solid rgba(240,192,96,.34); border-radius: var(--hd-radius); margin-bottom: 2px;
-    padding: clamp(15px,1.9vw,24px) clamp(20px,2.6vw,34px);
+    /* v1554 — 17px, not 24px. Measured at his real 1520px console the hero stood 136px tall
+        against a ~513px fold, and v1467 already records what first-screen budget costs here. */
+    padding: clamp(12px,1.4vw,17px) clamp(16px,2.1vw,26px);
     background: radial-gradient(120% 130% at 88% 30%, rgba(240,192,96,.12), transparent 56%), linear-gradient(180deg, rgba(28,22,10,.72), rgba(8,6,4,.6));
     box-shadow: 0 0 0 1px rgba(0,0,0,.5) inset, 0 18px 44px -30px rgba(240,192,96,.26); }
   body[data-view="sessions"] .hub-hero { display: flex; }
   body[data-view="sessions"] .hub-hero.idle { display: block; }
   .hub-hero.idle { border-color: var(--card-bd); background: var(--card-bg); box-shadow: none; }   /* v1470 — one recipe */
   .hub-hero::before { content: "✦"; position: absolute; right: clamp(18px,2vw,30px); top: 50%; transform: translateY(-50%);
-    font: var(--fs-display)/1 var(--serif); color: rgba(240,192,96,.05); pointer-events: none; }
+    /* v1554 — --fs-display tops out at 150px inside a box now ~100px tall, so the ornament was
+       taller than its own container and clipped by overflow:hidden. Scaled to the block. */
+    font: var(--fs-2xl)/1 var(--serif); color: rgba(240,192,96,.05); pointer-events: none; }
   /* v1467 — the IDLE hero is decoration with nothing to say: at low data it renders two italic
      placeholders and a large ornament, and it sits ABOVE zone Ⅰ, so it pushes every real number
      (sessions · reads/hr · grails · tallies · run history) toward or past the fold on a 700px-tall
@@ -2795,14 +2804,19 @@
   .hh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); flex: none; }
   /* v1470 — eased from clamp(26px,3.9vw,44px): at the real 1657px viewport that pinned to 44px
      and dwarfed .kpi-v's 27px, so the ornament outweighed every hard metric on the surface. */
-  .hh-name { font: var(--fw-bold) clamp(24px,3.2vw,36px)/1.04 var(--serif); letter-spacing: .03em; text-transform: uppercase; margin: 9px 0 8px;
+  /* v1554 — TYPOGRAPHY: 36px -> 27px, and the margins tighten with it. Measured, the name was
+     36px and the ETA beside it 38px: a ratio of 0.95, so the supporting statistic was LARGER than
+     the subject and neither led. v1470 already eased this once for the same reason against .kpi-v;
+     it was eased against the wrong neighbour. The pair is now 27/21 — a ratio of 1.29, which reads
+     as name-then-number instead of two headlines competing. */
+  .hh-name { font: var(--fw-bold) clamp(19px,2.1vw,27px)/1.06 var(--serif); letter-spacing: .03em; text-transform: uppercase; margin: 6px 0 5px;
     color: #ffdf9b; text-shadow: 0 0 26px rgba(240,192,96,.34), 0 2px 0 rgba(0,0,0,.4); animation: hhBreathe 5.5s ease-in-out infinite; }
   @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px rgba(240,192,96,.28), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px rgba(240,192,96,.5), 0 2px 0 rgba(0,0,0,.4);} }
   .hh-src { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); color: var(--parch-dim); letter-spacing: .02em; }
   .hh-src b { color: var(--mint); font-weight: var(--fw-semibold); }
   .hh-eta { position: relative; flex: none; text-align: right; }
-  .hh-eta b { display: block; font: var(--fw-bold) clamp(24px,3vw,38px)/1 var(--serif); color: var(--gold); letter-spacing: .02em; }
-  .hh-eta span { display: block; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); letter-spacing: .10em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .hh-eta b { display: block; font: var(--fw-bold) clamp(17px,1.65vw,21px)/1 var(--serif); color: var(--gold); letter-spacing: .02em; }
+  .hh-eta span { display: block; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); letter-spacing: .10em; text-transform: uppercase; color: var(--muted); margin-top: 3px; max-width: 13ch; margin-left: auto; }
   @media (prefers-reduced-motion: reduce){ .hh-name { animation: none; } }
   @media (max-width: 640px){ .hub-hero { flex-direction: column; align-items: flex-start; } .hh-eta { text-align: left; } }
   /* ══ v1370 (SESSIONS R6 · cohesion) — each zone OWNS a colour and its cards carry it: the card header
@@ -9876,7 +9890,11 @@
     var top = data.ranked[0], hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
     host.className = 'hub-hero';
     host.innerHTML = '<div class="hh-main">'
-      + '<div class="hh-eye"><span class="hh-dot"></span>the next grail · your fastest find</div>'
+      /* v1554 — "fastest FIND" overclaims. _writeGrailFarm exports GRAIL-tier items only, so this
+         ranks 51 of his 125 missing uniques; Umbral Disk is ~2h and is not in the universe at all.
+         Naming the universe costs one word and makes the number checkable. */
+      + '<div class="hh-eye"><span class="hh-dot"></span>the next grail · fastest of '
+        + data.ranked.length + ' grails</div>'
       + '<div class="hh-name">' + esc(top.name || '—') + '</div>'
       + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b></div>' : '')
       + '</div>'
