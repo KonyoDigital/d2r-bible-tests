@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1604",
+  "ver": "v1605",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1604: MINI refusals put their reason in error or msg and the console only read why - disk-full and still-sealing both rendered as the useless mini could not start; now surfaced and the label keeps it",
+  "note": "v1605: a mini that seals with zero frames now reports it instead of looking identical to a good one; and the idle label stopped clobbering both the warning and the chosen focus",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

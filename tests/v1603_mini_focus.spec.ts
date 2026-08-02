@@ -185,3 +185,53 @@ test.describe('v1604 — a refusal has to say WHY', () => {
       .toMatch(/no reason given/i);
   });
 });
+
+test.describe('v1605 — an empty mini must not look like a good one', () => {
+  // Konyo: "i clicked mini and it doesnt record anything." MINI replicates ON AIR everywhere that
+  // matters — same start_agent, same disk preflight, same stop path, and MINI_MODE changes no
+  // capture behaviour in the agent. The one thing it ADDS is a 25s bound, and that is where the
+  // gap was: if capture had not warmed up inside it, the watchdog sealed a reel with ZERO frames
+  // and reported the same quiet success as a full one.
+  const UI = fs.readFileSync(path.resolve(__dirname, '..', 'tv', 'control_ui.html'), 'utf8');
+
+  async function afterSeal(page: any, state: any) {
+    await page.route(ORIGIN + '/ui', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: UI }));
+    await page.route((u: URL) => u.pathname === '/api/mini', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'application/json',
+                  body: JSON.stringify({ running: false, focuses: FOCUSES, ...state }) }));
+    await page.route((u: URL) => u.pathname.startsWith('/api/') && u.pathname !== '/api/mini',
+      (r: any) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false}' }));
+    await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1600);
+    await page.click('#btn-mini').catch(() => {});
+    await page.waitForTimeout(1200);
+    return {
+      sub: (await page.textContent('#mini-sub')) || '',
+      toast: (await page.textContent('#toast')) || '',
+      empty: await page.evaluate(() =>
+        !!document.getElementById('btn-mini')?.classList.contains('mini-empty')),
+    };
+  }
+
+  test('★★ ZERO frames is reported — this is the exact thing he could not see', async ({ page }) => {
+    const out = await afterSeal(page, { sealedTs: 1785700000000, sealedFrames: 0 });
+    expect(out.sub, 'the label must carry it — a toast can be missed').toMatch(/0 frames|nothing/i);
+    expect(out.empty, 'and the button must show it, not sit there looking normal').toBe(true);
+    expect(out.toast, 'and it should point at the likely cause rather than just stating failure')
+      .toMatch(/D2R|Doctor/i);
+  });
+
+  test('★ UNKNOWN (null) is NOT reported as zero — never accuse the capture on missing evidence',
+    async ({ page }) => {
+      const out = await afterSeal(page, { sealedTs: 1785700000000, sealedFrames: null });
+      expect(out.sub).not.toMatch(/0 frames/i);
+      expect(out.empty).toBe(false);
+    });
+
+  test('a mini that DID record says nothing alarming', async ({ page }) => {
+    const out = await afterSeal(page, { sealedTs: 1785700000000, sealedFrames: 47 });
+    expect(out.sub).not.toMatch(/0 frames|nothing was captured/i);
+    expect(out.empty).toBe(false);
+  });
+});

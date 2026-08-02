@@ -2468,6 +2468,10 @@
      it is a clarification, not a second fact competing with it. */
   /* v1603 — the MINI focus row. Small, quiet, and always visible: picking the right one is what
      lets the retro sweep skip a classify call and file his runes in the right lane. */
+  /* v1605 — a mini that sealed with zero frames. Amber, not red: the capture is fine on the next
+     try in most cases (D2R was simply not up yet) — this is "look at me", not "something broke". */
+  .b-mini.mini-empty { border-color: rgba(224,128,58,.6) !important;
+    box-shadow: inset 0 0 0 1px rgba(224,128,58,.28); }
   .mini-foc { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
   .mini-foc .mf { appearance: none; cursor: pointer; border-radius: 999px; padding: 4px 9px;
     border: 1px solid rgba(198,166,100,.24); background: rgba(0,0,0,.3); color: var(--text-dim);
@@ -8614,6 +8618,7 @@
     } catch (err) { toast('⏱ mini could not start — the console is not reachable'); }
   };
   var _miniTimer = null;
+  var _miniEmptyToldTs = 0;   // v1605 — tell him ONCE per sealed mini, not every poll tick
   function _miniPoll(){
     if (_miniTimer) clearInterval(_miniTimer);
     var sub = document.getElementById('mini-sub'), btn = document.getElementById('btn-mini');
@@ -8622,12 +8627,41 @@
         var r = await fetch('/api/mini', { cache: 'no-store' });
         var j = await r.json();
         if (j && j.focuses) _miniFocuses(j.focuses);   // the engine owns the vocabulary
+        /* v1605 — AN EMPTY REEL MUST NOT LOOK LIKE A GOOD ONE. Konyo: "i clicked mini and it
+           doesnt record anything." MINI replicates ON AIR everywhere that matters, but it adds a
+           25s bound — and if capture has not warmed up inside it (D2R not running, window not
+           found yet, a cold first grab on Windows) the watchdog seals a reel with ZERO frames and
+           used to report the same quiet success as a full one. `null` here means the index could
+           not be read: unknown, NOT zero — never accuse the capture on missing evidence. */
+        var emptyMini = !!(j && !j.running && j.sealedTs && j.sealedFrames === 0);
+        if (emptyMini) {
+          if (btn) btn.classList.add('mini-empty');
+          if (j.sealedTs !== _miniEmptyToldTs) {
+            _miniEmptyToldTs = j.sealedTs;
+            toast('⏱ MINI recorded NOTHING — 0 frames. Is D2R running and visible? Check Doctor → '
+                  + 'd2r_window / capture.', 11000);
+          }
+        } else if (j && !j.running && j.sealedFrames > 0) {
+          if (btn) btn.classList.remove('mini-empty');
+        }
         if (j && j.running) {
           if (btn) btn.classList.add('mini-live');
           if (sub) sub.textContent = 'recording · ' + (j.secondsLeft || 0) + 's left';
         } else {
           if (btn) btn.classList.remove('mini-live');
-          if (sub) sub.textContent = 'stash · 25s, stops itself';
+          /* v1605.1 — THE IDLE LABEL LAST, AND IT MUST NOT CLOBBER. My own spec caught this: the
+             warning above set the label and this line overwrote it one tick later, so the "0
+             frames" message was invisible for the ~1s between poll ticks and then gone.
+             It also hardcoded "stash", which silently discarded whichever focus he had picked —
+             choose 🪨 runes, wait one second, and the button claimed stash again while the POST
+             still sent runes. A label that disagrees with what the button does is worse than a
+             plain one. */
+          if (sub) {
+            sub.textContent = emptyMini
+              ? '⚠ sealed with 0 frames — nothing was captured'
+              : (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus).replace(/^\S+\s/, '')
+                + ' · 25s, stops itself';
+          }
           if (_miniTimer) { clearInterval(_miniTimer); _miniTimer = null; }
         }
       } catch (e) { if (_miniTimer) { clearInterval(_miniTimer); _miniTimer = null; } }

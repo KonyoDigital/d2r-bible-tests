@@ -8516,6 +8516,7 @@ MINI_DEFAULT_SECONDS = 25
 _MINI_LOCK = threading.Lock()
 _MINI = {"running": False, "seconds": 0, "startedTs": 0, "endsTs": 0,
          "focus": MINI_FOCUS, "token": 0, "sid": None, "sealedTs": 0, "sealedBy": "",
+         "sealedFrames": None,
          "arming": False}
 
 
@@ -8580,7 +8581,30 @@ def _mini_seal(token, why="deadline"):
         r = _force_kill_all_agents("mini (%s; stop_agent raised: %s)" % (why, str(_e)[:100]))
     if not isinstance(r, dict):
         r = {"ok": True}
-    return dict(r, mini=True, sealedBy=why)
+    # ── v1605 — DID IT ACTUALLY RECORD ANYTHING? ───────────────────────────────────────────
+    # Konyo, on his wife's Windows PC: "i clicked mini and it doesnt record anything."
+    #
+    # MINI replicates ON AIR everywhere that matters — same start_agent, same disk preflight, same
+    # stop path, and MINI_MODE changes NO capture behaviour in the agent (it only stamps the reel).
+    # The one thing it adds is a 25-second bound, and that bound is exactly where an honest gap
+    # opens: if capture needs longer to warm up than the deadline allows — D2R not running, window
+    # not found yet, a cold first grab on a Windows box — the watchdog seals a reel with ZERO frames
+    # and reports the same cheerful success as a good one.
+    #
+    # An empty reel and a full one must not look alike. The count is read off the sealed reel's own
+    # index, so it is the reel's word and not the agent's.
+    frames = None
+    try:
+        _sid = _MINI.get("sid")
+        if _sid:
+            _idxp = os.path.join(HIST_DIR, "reel_" + str(_sid), "index.json")
+            with open(_idxp, encoding="utf-8") as _fh:
+                frames = len(json.load(_fh).get("frames") or [])
+    except Exception:
+        frames = None          # unreadable is NOT zero — say unknown rather than accuse the capture
+    with _MINI_LOCK:
+        _MINI["sealedFrames"] = frames
+    return dict(r, mini=True, sealedBy=why, frames=frames)
 
 
 def _mini_watchdog(token, ends_ts):
@@ -8619,6 +8643,9 @@ def mini_state():
         "seconds": int(m.get("seconds") or 0),
         "secondsLeft": left,
         "endsTs": int(m.get("endsTs") or 0),
+        # v1605 — frames in the reel this mini sealed. None = could not read the index (unknown,
+        # NOT zero). 0 = it genuinely recorded nothing, which is the case he hit and could not see.
+        "sealedFrames": m.get("sealedFrames"),
         "sid": sid,
         "framesSeen": _mini_frames_seen(sid),
         "sealedBy": m.get("sealedBy") or "",
@@ -9495,7 +9522,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1604",
+        "ver": "v1605",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
