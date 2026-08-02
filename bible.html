@@ -3284,6 +3284,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .lf-tag-all{color:#ffe08a;background:rgba(255,200,80,.14);border-color:rgba(255,200,80,.5)}
 #tab-tools .lf-tag-elite{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
 #tab-tools .lf-b-desc{font-size:12px;color:var(--text-dim,#9a8c72);line-height:var(--lh-normal);margin-bottom:10px}
+#tab-tools .lf-sealed{margin:8px 0 10px;padding:9px 12px;border-radius:9px;font-size:12.5px;line-height:var(--lh-normal);border:1px solid rgba(102,255,136,.30);background:linear-gradient(180deg,rgba(102,255,136,.08),rgba(0,0,0,.18));color:var(--text-muted)}
+#tab-tools .lf-sealed b{color:var(--best)}
 #tab-tools .lf-copy-btn{font-family:var(--mono,monospace);font-size:12.5px;font-weight:var(--fw-semibold);color:#1a140a;background:linear-gradient(180deg,#f0c060,#d4a849);border:none;border-radius:8px;padding:8px 15px;cursor:pointer;box-shadow:0 2px 8px -2px rgba(224,168,74,.6)}
 #tab-tools .lf-copy-btn:hover{filter:brightness(1.08)}
 #tab-tools .lf-status{font-size:11.5px;margin-left:10px;font-family:var(--mono,monospace)}
@@ -5182,6 +5184,12 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="lf-lead">One ready-to-import filter, <strong>rebuilt live from your Chronicle</strong> every time you copy it. Shows uniques · sets · runes · gems · charms · <strong>super/rejuv potions</strong> + <strong>only the socket-correct bases worth grabbing for the runewords you still need</strong> (rare circlets only — white circlets can't hold runewords). Tap <strong>Copy</strong>, then in D2R open the <strong>Loot Filter</strong> window → New/Import → paste.</div>
       <div class="lf-block">
         <div class="lf-b-head"><span class="lf-b-name">KonyoEndgame</span><span class="lf-b-tag lf-tag-elite" id="lf-endgame-count">bases</span></div>
+        <!-- v1592 — THE SEALED STATE, SAID OUT LOUD. Konyo: "base items are useless basically
+             once the runeword chronicle is hit." He is right, and the filter already behaves that way
+             since v1591 — but the badge just read "0 hunt · 0 sock", which is honest and looks exactly
+             like something broken. That ambiguity is how the v1591 bug hid for weeks. A finished
+             chronicle is an ACHIEVEMENT, not an empty state, and the card should say which it is. -->
+        <div class="lf-sealed" id="lf-sealed-note" hidden></div>
         <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet. <strong>🔩 Common bases show only when they drop eth/socketed</strong> — you farm the sockets instead of grinding Larzuk quests. Plain (unsocketed) whites light up only when they are <strong>💎 premium trade bases</strong> or <strong>🔨 Larzuk-exact</strong> (the base's max sockets equal a wanted word's count — ONE quest turns that white into the word's base). As you tick words off in the Chronicle, the filter shrinks to match. <strong>💎 Premium trade bases are EARLY-ONLY</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. ride the filter as trade capital while you are <strong>under 50% forged</strong>. From 50% on they obey the same engine gates as every other base (hostability × socket feasibility × unmade words) — your own call in v667.2: <em>&ldquo;not every single item though&rdquo;</em>. This line used to promise they never shrink off; the behaviour changed and the sentence did not.</div>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('endgame')">📋 Copy live KonyoEndgame filter</button>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('cousin')" title="fresh-grail build: ignores the Chronicle — EVERY runeword base lights up socketed/eth (what a from-zero player hunts). Send this one to the cousin.">👤 Copy COUSIN filter (fresh grail — all socketed bases)</button>
@@ -5530,7 +5538,20 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       var _ebb = window._endgameFilterBases();
       // v664.1 — BOTH truths on the badge: the curated hunt set (what SI/base-hunt shows) AND the
       // engine-true socketed universe the filter actually ships (army audit: '27 bases' vs 204 lit).
-      if (el) el.textContent = _ebb.names.length + ' hunt · ' + (_ebb.sockCodes || _ebb.codes).length + ' sock';
+      var _sealed = !(_ebb.names.length) && !((_ebb.sockCodes || _ebb.codes).length);
+      if (el) el.textContent = _sealed ? 'loot only' : (_ebb.names.length + ' hunt · ' + (_ebb.sockCodes || _ebb.codes).length + ' sock');
+      /* v1592 — a sealed chronicle is not an empty state. The base rules go quiet BY DESIGN
+         (v1591 made that real instead of accidental), so the card says so rather than leaving
+         him to read '0 hunt · 0 sock' as a malfunction — which is precisely how the inverted
+         filter hid: the number looked like the bug rather than the symptom. */
+      var _sn = document.getElementById('lf-sealed-note');
+      if (_sn) {
+        _sn.hidden = !_sealed;
+        if (_sealed) _sn.innerHTML = '\u2705 <b>Chronicle sealed \u2014 no bases left to farm.</b> '
+          + 'Every base rule is switched OFF on purpose, so white and magic gear stays on the floor. '
+          + 'What still lights up: <b>uniques \u00b7 sets \u00b7 runes \u00b7 gems \u00b7 charms \u00b7 essences \u00b7 potions \u00b7 jewels, rings and amulets</b>. '
+          + 'This is the filter doing its job at the end of a grail, not a broken one.';
+      }
       // v665.2 (identity swarm) — the card label must follow the shell: it displayed 'KonyoEndgame0'
       // on WINDOWS while the export was correctly named 'Cousin0'.
       var _lfBrand = (window._isCousinShell ? 'Cousin' : 'KonyoEndgame');
@@ -36846,7 +36867,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1591', name:'v1591 - an empty code list meant show everything, not nothing', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1592', name:'v1592 - a sealed chronicle is an achievement, not an empty state', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
