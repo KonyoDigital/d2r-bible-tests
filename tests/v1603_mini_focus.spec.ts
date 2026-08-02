@@ -130,3 +130,58 @@ test.describe('v1603 — the mini capture has a subject', () => {
     expect(errs).toEqual([]);
   });
 });
+
+test.describe('v1604 — a refusal has to say WHY', () => {
+  // Konyo, on his wife's Windows PC: "i clicked mini and it doesnt record anything". mini_start()
+  // returns a precise reason for every one of its four refusals — but two put it in `error` and one
+  // in `msg`, and the console only ever read `why`. So "DISK TOO FULL to record" and "still shutting
+  // down — session saving" both rendered as "mini could not start". The engine was never silent;
+  // the console was deaf, and he was left with a button that did nothing and no way to find out why.
+  const UI = fs.readFileSync(path.resolve(__dirname, '..', 'tv', 'control_ui.html'), 'utf8');
+
+  async function refuse(page: any, payload: any) {
+    await page.route(ORIGIN + '/ui', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: UI }));
+    await page.route((u: URL) => u.pathname === '/api/mini', (r: any) =>
+      r.request().method() === 'POST'
+        ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) })
+        : r.fulfill({ status: 200, contentType: 'application/json',
+                      body: JSON.stringify({ running: false, focuses: FOCUSES }) }));
+    await page.route((u: URL) => u.pathname.startsWith('/api/') && u.pathname !== '/api/mini',
+      (r: any) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false}' }));
+    await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1600);
+    await page.click('#btn-mini');
+    await page.waitForTimeout(350);
+    return {
+      toast: (await page.textContent('#toast')) || '',
+      sub: (await page.textContent('#mini-sub')) || '',
+    };
+  }
+
+  test('★ a DISK-FULL refusal reaches him — it arrives in `error`, not `why`', async ({ page }) => {
+    const out = await refuse(page, { ok: false, mode: 'off',
+      error: 'DISK TOO FULL to record — 3.1GB free, need 8GB. Free ~6GB and press MINI again.' });
+    expect(out.toast, 'this is the exact reason the engine gave; dropping it leaves him guessing')
+      .toContain('DISK TOO FULL');
+    expect(out.sub, 'a toast can be missed — the button label must keep the reason').toContain('DISK');
+  });
+
+  test('★ a STILL-SEALING refusal reaches him — it arrives in `msg`', async ({ page }) => {
+    const out = await refuse(page, { ok: false, mode: 'stopping', error: 'still stopping',
+      msg: 'still shutting down — session saving; try MINI again in a moment' });
+    expect(out.toast).toMatch(/still (shutting down|stopping)/i);
+  });
+
+  test('a `why` refusal still works — the old key was never wrong, only incomplete', async ({ page }) => {
+    const out = await refuse(page, { ok: false, mode: 'live',
+      why: 'already recording — seal the current session first' });
+    expect(out.toast).toContain('already recording');
+  });
+
+  test('★ a refusal with NO reason says so, rather than pretending', async ({ page }) => {
+    const out = await refuse(page, { ok: false });
+    expect(out.toast, '"no reason given" is a fact he can report; silence is not')
+      .toMatch(/no reason given/i);
+  });
+});

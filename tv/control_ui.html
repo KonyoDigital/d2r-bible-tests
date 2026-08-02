@@ -4206,12 +4206,15 @@
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
     });
   }
-  function toast(msg){
+  // v1604 — `ms` is optional and defaults to the old 2400. A refusal he must ACT on ("free 5GB and
+  // press MINI again") cannot share a dwell time with "saved" — 2.4s is not long enough to read a
+  // sentence, and a message that vanishes before it is read is the same as no message.
+  function toast(msg, ms){
     var t = $('toast');
     t.textContent = msg;
     t.classList.add('show');
     clearTimeout(t._tm);
-    t._tm = setTimeout(function(){ t.classList.remove('show'); }, 2400);
+    t._tm = setTimeout(function(){ t.classList.remove('show'); }, Math.max(1200, ms || 2400));
   }
   // v801 (Grok R7) — surface every hard blocker from /api/doctor into the toast/ticker,
   // one line per block check: "id: detail -> fix". Minimal — no new panel; the toast
@@ -8589,7 +8592,20 @@
       var r = await fetch('/api/mini', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                          body: JSON.stringify({ focus: _miniFocus }) });
       var j = await r.json();
-      if (!j || j.ok === false) { toast('⏱ ' + ((j && j.why) || 'mini could not start')); return; }
+      if (!j || j.ok === false) {
+        /* v1604 — SAY WHY. Konyo, on his wife's Windows PC: "i clicked mini and it doesnt record
+           anything". mini_start() returns a precise reason for every refusal — but two of the four
+           put it in `error` and one in `msg`, and this line only ever read `why`. So "DISK TOO FULL
+           to record — 3.1GB free, need 8GB" and "still shutting down — session saving; try MINI
+           again in a moment" both rendered as the useless "mini could not start", and he was left
+           with a button that did nothing and no way to find out why.
+           The engine was never silent. The console was deaf. */
+        var why = (j && (j.why || j.error || j.msg)) || 'mini could not start — no reason given';
+        toast('⏱ ' + why, 9000);
+        var sub0 = document.getElementById('mini-sub');
+        if (sub0) sub0.textContent = String(why).slice(0, 90);   // a toast can be missed; this stays
+        return;
+      }
       // ECHO THE FOCUS THE ENGINE ACCEPTED, not the one we sent — it validates against its own
       // list, and a silent fallback to "stash" must be visible rather than assumed.
       var f = j.focus || _miniFocus;

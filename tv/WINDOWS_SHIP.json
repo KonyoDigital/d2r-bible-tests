@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1603",
+  "ver": "v1604",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1603: the focus he declares now STEERS the read instead of only ordering reels - a declared surface replaces the classify call, so a rune tab can no longer be misread into the inventory lane; and both grail chronicles get their own focus button",
+  "note": "v1604: MINI refusals put their reason in error or msg and the console only read why - disk-full and still-sealing both rendered as the useless mini could not start; now surfaced and the label keeps it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
