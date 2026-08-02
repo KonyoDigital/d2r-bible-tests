@@ -8992,8 +8992,10 @@
     if (e.key !== 'Escape' || !document.body.classList.contains('shell-open')) return;
     // 1) console-side lightboxes take priority — let their own handler close them (no shellHome).
     if (typeof TLY !== 'undefined' && TLY.open) return;
-    var cLb = document.getElementById('tvd-frame-lb');
-    if (cLb && _fVis(window, cLb)) return;
+    // v1598 — the console-side lookup for #tvd-frame-lb is GONE (LAW19). That element belongs to
+    // the BOARD (bible.html), never to this document, so getElementById could only ever return
+    // null here and the guard could never fire. The real check is the iframe probe immediately
+    // below, which queries the board's own document and has been doing the work all along.
     // 2) probe the BOARD inside the iframe for a visible overlay; if one is up, feed it the Esc.
     try {
       var f = document.getElementById('tvd-eng');
@@ -9547,7 +9549,10 @@
       if (typeof RLOG !== 'undefined' && RLOG.open) return;
       if (typeof LEG !== 'undefined' && LEG.open) return;
       if (document.body.classList.contains('shell-open')) return;
-      var _ovIds = ['forensics-ov', 'th-dossier-ov', 'tvd-frame-lb'];
+      // 'tvd-frame-lb' was in this list too and is NOT a console element (it is the board's,
+      // inside the iframe) — it could never be found by getElementById here. The two that
+      // remain are genuinely this document's overlays.
+      var _ovIds = ['forensics-ov', 'th-dossier-ov'];
       for (var _oi = 0; _oi < _ovIds.length; _oi++){
         var _ov = document.getElementById(_ovIds[_oi]);
         if (_ov && !_ov.hidden) return;
@@ -9693,36 +9698,15 @@
       } else { hdIntake._heroKey = null; }
     } catch(e){}
   }
-  var HD_PAGE = 0, HD_PER = 8, HD_ALL = [];
-  function hdShelfRender(){
-    var pages = Math.max(1, Math.ceil(HD_ALL.length / HD_PER));
-    HD_PAGE = Math.max(0, Math.min(HD_PAGE, pages - 1));
-    var sl = HD_ALL.slice(HD_PAGE * HD_PER, HD_PAGE * HD_PER + HD_PER);
-    $('hd-shelf-grid').innerHTML = sl.map(function(sm){
-      var d0 = sm.t0 ? new Date(sm.t0) : null;
-      var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
-      var art = sm.thumb
-        ? '<img class="sh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'sh-art-fb\')">'
-        : '<img class="sh-art sh-art-fb" src="/art/hd_zod_rune.png" alt="">';
-      return '<div class="sh-card hd-card" data-hn="' + (sm.n || 1) + '">' + art
-        + '<div class="hdc-body"><div class="hdc-t">session ' + (sm.n || '?')
-        + (spanS ? ' <span class="hdc-len">' + Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + '</span>' : '') + '</div>'
-        + '<div class="hdc-when">' + (d0 ? d0.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' + d0.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—') + '</div>'
-        + '<div class="hdc-chips">'
-        + (sm.intakes ? '<span class="hdc-chip in">📸 ' + sm.intakes + '</span>' : '')
-        + (sm.footageN ? '<span class="hdc-chip">📹 ' + sm.footageN + '</span>' : '<span class="hdc-chip dim">no film</span>')
-        + (sm.named ? '<span class="hdc-chip nm">✦ ' + sm.named + '</span>' : '')
-        + '</div></div></div>';
-    }).join('');
-    $('hd-shelf-pager').innerHTML = pages > 1
-      ? '<button class="hd-pg" id="hd-prev"' + (HD_PAGE === 0 ? ' disabled' : '') + '>‹</button>'
-        + '<span class="hd-pgn">' + (HD_PAGE + 1) + ' / ' + pages + '</span>'
-        + '<button class="hd-pg" id="hd-next"' + (HD_PAGE >= pages - 1 ? ' disabled' : '') + '>›</button>'
-      : '';
-    var pv = $('hd-prev'), nx = $('hd-next');
-    if (pv) pv.onclick = function(){ HD_PAGE--; hdShelfRender(); };
-    if (nx) nx.onclick = function(){ HD_PAGE++; hdShelfRender(); };
-  }
+  // v1598 — HD_PAGE/HD_PER and hdShelfRender() REMOVED (LAW19 reachability).
+  // They rendered into #hd-shelf-grid / #hd-shelf-pager, and those two IDs are READ in four
+  // places and CREATED in none — not in this file, not anywhere in the repo. v910 moved the
+  // markup ("the grid lives in the shelf now") and left the renderer behind, so the guard in
+  // hdShelf() below was permanently true and everything past it was unreachable for ~680
+  // versions. The feature itself is NOT lost: the shelf renders in #th-shelfov .sh-grid and
+  // the per-session strip in #hd-hist-strip via _hdHistoryRender(), both alive and polled.
+  // HD_ALL stays — 19 live references, including the Theatre pickers and the KPI panel.
+  var HD_ALL = [];
   // v936 (STORY ARC R2b) — LAST SESSION digest: the newest SEALED reel (KAI has closed it,
   // kaiMissed!=null), rendered as one flagship tf-row on the home dash. Fed by HD_ALL, which
   // hdShelf() repopulates from /api/sessions every poll. Hidden entirely until a reel seals.
@@ -9840,23 +9824,14 @@
       var r = await fetch(API + '/api/sessions'); var j = await r.json();
       // v908 (Grok P1) — hold the page by MEMBERSHIP, not number: a new run prepending must
       // not slide the cards under the viewer's feet
-      var anchorSid = (HD_ALL[HD_PAGE * HD_PER] || {}).sessionId;
       HD_ALL = (j.sessions || []).filter(function(x){ return !x.stub; });
-      hdLastSession();   // v936 (STORY ARC R2b) — refresh the home digest on every poll
-      _hdHistoryRender();   // v1275 (D3) — the HISTORY board region rides the same poll
-      _hdKpiRender();   // v1274 (D4) — farming-productivity KPIs ride the same poll
-      if (!$('hd-shelf-grid')) return;   // v910 — data still feeds the task force; the grid lives in the shelf now
-      if (!HD_ALL.length){ $('hd-shelf-grid').innerHTML = '<span class="hd-empty">no sessions yet — your first ON AIR seals one</span>'; $('hd-shelf-pager').innerHTML = ''; return; }
-      if (anchorSid){
-        var ai = HD_ALL.findIndex(function(x){ return x.sessionId === anchorSid; });
-        if (ai >= 0) HD_PAGE = Math.floor(ai / HD_PER);
-      }
-      hdShelfRender();
-      $('hd-shelf-grid').onclick = async function(e){
-        var c = e.target.closest('.sh-card'); if (!c) return;
-        if (!TH.open) await thOpen();
-        thLoadSession(Number(c.dataset.hn) || 1);
-      };
+      // These three ARE the job now. Everything that followed them wrote into #hd-shelf-grid,
+      // an element nothing creates — see the v1598 note above. The page-anchor bookkeeping that
+      // used to sit above this line existed only to hold that grid's scroll position, so it went
+      // with it; the surviving surfaces keep their own.
+      hdLastSession();      // v936  — the home digest
+      _hdHistoryRender();   // v1275 — the HISTORY strip (#hd-hist-strip)
+      _hdKpiRender();       // v1274 — farming-productivity KPIs
     } catch(e){}
   }
   function hdEngines(st){

@@ -2066,3 +2066,36 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   3. **Platform limits are not testable locally.** After deploying anything that changes read
      volume, hit the live URL and read `wrangler pages deployment tail` — a green local suite is
      not evidence about production.
+
+## REG-095 — ~680 versions of unreachable render code, found by making LAW19 a gate (2026-08-02)
+
+- **Symptom:** none visible. That is the point of this entry — nothing was broken on screen, so
+  nothing ever prompted a look.
+- **Caught by:** a static sweep of every DOM id READ in each surface against every id WRITTEN in the
+  same document. Not by a user report, and not by any existing test.
+- **Root cause:** `#hd-shelf-grid` and `#hd-shelf-pager` were read in four places and created in
+  **none** — not in `control_ui.html`, not anywhere in the repo. v910 moved the markup ("the grid
+  lives in the shelf now") and left the renderer behind. So `if (!$('hd-shelf-grid')) return;` in
+  `hdShelf()` was permanently TRUE, and `hdShelfRender()` plus everything after that guard had been
+  unreachable ever since. Roughly 60 lines of render code, its paging state (`HD_PAGE` / `HD_PER`)
+  and the scroll-anchor bookkeeping that existed only to serve it.
+- **Same shape, three more places:** `#tvd-frame-lb` looked up TWICE in the console's own document
+  when it belongs to the board (the working check is the iframe probe beside it); and the board's
+  routine-widget lookup chained three ids "because the widget id varies across bible versions" when
+  only ONE bible document exists at runtime and it defines `#routine-status-bar` as static markup —
+  so `routine-toggle-pulse` and `routine-bar` named nothing that could ever be present.
+- **Fix:** all of it deleted. The features are NOT lost — the shelf renders in `#th-shelfov .sh-grid`
+  and the session strip in `#hd-hist-strip`; the board's routine toggle keeps its real id and its
+  attribute-selector catch-all, which is a genuine safety net precisely because it names no phantom.
+- **Prevention:** `tv/test_reachability.py`, registered in `tv/run_gates.py`. Every id read must be
+  written in the same document; a genuinely cross-document read goes in `CROSS_DOCUMENT` **with a
+  reason**. It carries three tests proving the detector actually fires, because a gate nobody has
+  seen fail is a gate nobody knows works.
+- **Why this was worth a version:** it is the FOURTH instance of one defect — REG-083/087 (a
+  `typeof` guard on a name declared nowhere), v1576 (a tested-but-uncalled classifier while the live
+  copy was the unsafe one), v1593 (`RUNES`/`_flat` deleted with the reference left behind, which
+  crashed the whole Terror Zone panel), and now this. Three were found by accident and one by a
+  crash. It is a mechanical property, so it stopped being a habit and became a gate.
+- **Lesson, generalised:** *a reference to a name nothing produces is checkable without running
+  anything.* Where a defect class is mechanical, automate it — an intention that depends on someone
+  remembering to look has already failed once by the time you notice it.

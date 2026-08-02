@@ -16565,8 +16565,10 @@ const KBD_SHORTCUTS = [
   {keys:['Shift+6'], desc:'MF 1000%', action:() => setMFPreset(1000)},
   {keys:['d','D'], desc:'Toggle the MF / Players dock (bottom)', action:() => window.toggleDock()},
   {keys:['r','R','Shift+R','Shift+r'], desc:'Toggle routine status widget (bottom-right)', action:() => {
-    const bar = document.getElementById('routine-status-bar')
-             || document.getElementById('routine-toggle-pulse');
+    // v1598 — the '|| routine-toggle-pulse' fallback is gone (LAW19): that id is created nowhere
+    // in this document, so the branch could never be taken. 'routine-status-bar' is real static
+    // markup further down this file, which is why the shortcut has always worked.
+    const bar = document.getElementById('routine-status-bar');
     if (!bar) return;
     // v1425 — toggle [hidden] + .rs-open (never style.display=block → width thrash)
     const open = bar.hasAttribute('hidden') || !bar.classList.contains('rs-open');
@@ -25030,10 +25032,12 @@ function _v41_refreshStatus() {
 
 // Inject the fires counter + refresh button into the routine widget header
 function _v41_findRoutineBar() {
-  // Widget ID varies across bible versions. Try known IDs in order.
-  return document.getElementById('routine-toggle-pulse')
-      || document.getElementById('routine-status-bar')
-      || document.getElementById('routine-bar')
+  // v1598 — was a chain of three named ids "because the widget id varies across bible versions".
+  // Only ONE bible document exists at runtime and it defines #routine-status-bar as static markup,
+  // so 'routine-toggle-pulse' and 'routine-bar' named nothing that could ever be present and both
+  // branches were unreachable. The real id stays, and so does the attribute-selector catch-all —
+  // that one is a genuine safety net precisely BECAUSE it does not name a phantom.
+  return document.getElementById('routine-status-bar')
       || document.querySelector('[id*="routine"][id*="bar"], [id*="routine"][id*="pulse"]');
 }
 
@@ -36954,7 +36958,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1597', name:'v1597 - fleet tracker + TZ next-window verdict', date:'2026-07-31', note:'REG-093: the fleet listed the OLDEST 400 events so every recent machine was invisible - now full cursor pagination + durable lastseen + an honest beacon result; TZ next window states its own verdict (Catacombs = Andariel = PRIME); scope banners so /visits and /console say what they do NOT cover' };
+  window.D2R_BUILD = { id:'v1598', name:'v1598 - LAW19 becomes a gate', date:'2026-07-31', note:'removed ~680 versions of unreachable shelf render code and three phantom-id fallbacks; every DOM id READ must now be WRITTEN in the same document, enforced by tv/test_reachability.py' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

@@ -1,0 +1,172 @@
+"""v1598 — LAW19 REACHABILITY, as a gate instead of an intention.
+
+The workflow's law says: *every symbol a change adds must have a caller AND a writer.* It has been
+enforced by asking an agent to look. Asking works until nobody asks, and this repo has now paid for
+that four separate times:
+
+  REG-083/087  a `typeof NAME === 'function'` guard on a name declared NOWHERE — permanently false
+  v1576        `chronicle_retro.classifier()` had tests and no production caller, while control_app
+               carried an unsafe inline copy: the DEAD code was the SAFE one
+  v1593        `RUNES` / `_flat` deleted while the only line referencing them stayed, so an unknown
+               zone threw inside the paint and killed the whole Terror Zone panel
+  v1598        `#hd-shelf-grid` / `#hd-shelf-pager` — READ in four places, CREATED in none, since
+               v910 moved the markup and left the renderer behind. The guard in hdShelf() had been
+               permanently true for ~680 versions and everything past it was unreachable
+
+All four are one shape: **a reference to a name nothing produces.** That is mechanically checkable,
+so it should not depend on anyone remembering to look.
+
+WHAT THIS GATE CHECKS, and deliberately not more
+------------------------------------------------
+For every surface, every DOM id READ (`getElementById('x')`, `$('x')`) must be PRODUCED somewhere in
+the same document — as static markup (`id="x"`), inside a JS template string (`id=\\'x\\'`), or
+assigned at runtime (`el.id = 'x'`). Cross-document reads are real and legitimate (the console
+probes the board through an iframe), so those are proven by a `querySelector` on another document
+and are listed explicitly rather than pattern-matched — an allowlist you have to justify is the
+point; one that grows silently is not.
+
+It is deliberately a STATIC check with no browser: it must be cheap enough to run on every push,
+and the failure it catches is a spelling-level fact that needs no runtime to establish.
+
+WHY IT IS NOT A GREP
+--------------------
+The workflow's own LAW19 text says *prefer execution to grep*, and that is right for "is this
+function called". It is wrong here: a DOM id is a string, it cannot be reached indirectly through a
+live cross-file reference, and the whole failure mode is that the string exists on one side only.
+"""
+
+import os
+import re
+import sys
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+import console_safe  # noqa: F401,E402 — the verdict must survive a non-UTF-8 console
+
+SURFACES = [
+    ("tv/control_ui.html", os.path.join(HERE, "control_ui.html")),
+    ("bible.html", os.path.join(REPO, "bible.html")),
+]
+
+# Ids READ in one document that genuinely LIVE in another. Each needs a reason, and the reason has
+# to be checkable by reading the line it names.
+CROSS_DOCUMENT = {
+    # (surface, id): why it is legitimately absent from this document
+}
+
+# Reads that are provably not element lookups — a selector string, a data key, a CSS class.
+_READ_PATTERNS = [
+    re.compile(r"getElementById\(\s*['\"]([A-Za-z0-9_\-]+)['\"]\s*\)"),
+    re.compile(r"(?<![A-Za-z0-9_])\$\(\s*['\"]([A-Za-z0-9_\-]+)['\"]\s*\)"),
+]
+
+_WRITE_PATTERNS = [
+    re.compile(r"""\bid\s*=\s*["']([A-Za-z0-9_\-]+)["']"""),        # static markup + template strings
+    re.compile(r"""\bid\s*=\s*\\+["']([A-Za-z0-9_\-]+)\\*["']"""),  # escaped inside a JS string
+    re.compile(r"""\.id\s*=\s*['"]([A-Za-z0-9_\-]+)['"]"""),        # el.id = 'x' at runtime
+    re.compile(r"""id:\s*['"]([A-Za-z0-9_\-]+)['"]"""),             # object literal → rendered later
+]
+
+
+def ids_read(src):
+    out = {}
+    for pat in _READ_PATTERNS:
+        for m in pat.finditer(src):
+            out.setdefault(m.group(1), src.count("\n", 0, m.start()) + 1)
+    return out
+
+
+def ids_written(src):
+    out = set()
+    for pat in _WRITE_PATTERNS:
+        out.update(m.group(1) for m in pat.finditer(src))
+    return out
+
+
+class TestEveryIdReadIsAlsoWritten(unittest.TestCase):
+    """The whole gate. One test per surface so a failure names the file without hunting."""
+
+    def _check(self, label, path):
+        if not os.path.isfile(path):
+            self.skipTest("%s not present" % label)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        read, written = ids_read(src), ids_written(src)
+        orphans = {i: ln for i, ln in read.items()
+                   if i not in written and (label, i) not in CROSS_DOCUMENT}
+        if orphans:
+            lines = "\n".join(
+                "    %s:%d  reads #%s — nothing in this document ever creates it"
+                % (label, ln, i) for i, ln in sorted(orphans.items(), key=lambda kv: kv[1]))
+            self.fail(
+                "%d DOM id(s) are READ but never WRITTEN in %s.\n%s\n\n"
+                "Every guard on these is permanently false and every write to them is unreachable "
+                "— that is the v1598 shelf bug, the v1593 Terror Zone crash and REG-083/087, which "
+                "are all the same defect. Either create the element, delete the dead reference, or "
+                "— if the id genuinely belongs to ANOTHER document (the console probing the board "
+                "through its iframe is the real case) — add it to CROSS_DOCUMENT with the reason."
+                % (len(orphans), label, lines))
+
+    def test_console_ui(self):
+        self._check(*SURFACES[0])
+
+    def test_board(self):
+        self._check(*SURFACES[1])
+
+
+class TestTheGateCanActuallyFail(unittest.TestCase):
+    """A gate nobody has seen fail is a gate nobody knows works. This proves the detector fires on
+    the exact shape it exists to catch, using a synthetic document rather than the real one."""
+
+    def test_it_flags_a_read_with_no_writer(self):
+        src = "<div id=\"real\"></div><script>var a=document.getElementById('real');" \
+              "var b=document.getElementById('phantom');</script>"
+        read, written = ids_read(src), ids_written(src)
+        self.assertIn("phantom", read)
+        self.assertNotIn("phantom", written)
+        self.assertIn("real", written)
+
+    def test_it_accepts_a_runtime_assigned_id(self):
+        """ov.id = 'x' is how the console builds its overlays — a real writer, not markup."""
+        src = "<script>var ov=document.createElement('div');ov.id='tly-ov';" \
+              "document.getElementById('tly-ov');</script>"
+        self.assertIn("tly-ov", ids_written(src))
+
+    def test_it_accepts_an_id_emitted_inside_a_template_string(self):
+        src = """<script>el.innerHTML = '<button id="hd-prev">x</button>';
+                 document.getElementById('hd-prev');</script>"""
+        self.assertIn("hd-prev", ids_written(src))
+
+
+class TestTheKnownOffendersStayFixed(unittest.TestCase):
+    """Named regressions. These are cheap and they name the bug, so a reintroduction is obvious
+    rather than being one line in a list of orphans."""
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            raw = fh.read()
+        # STRIP COMMENTS FIRST. The v1598 removal left a comment explaining what was deleted and
+        # naming the dead calls verbatim — so the first version of this test failed on its own
+        # documentation. A "did this code come back" check has to read CODE; prose that mentions
+        # the bug is the opposite of the bug.
+        no_line = re.sub(r"^\s*//.*$", "", raw, flags=re.M)
+        self.ui = re.sub(r"/\*.*?\*/", "", no_line, flags=re.S)
+
+    def test_the_phantom_shelf_grid_stays_gone(self):
+        for dead in ("$('hd-shelf-grid')", "$('hd-shelf-pager')", "hdShelfRender("):
+            self.assertNotIn(dead, self.ui,
+                             "%s is back. Its element is created nowhere, so everything it guards "
+                             "is unreachable — that was ~680 versions of dead render code." % dead)
+
+    def test_the_board_lightbox_is_only_probed_through_the_iframe(self):
+        """#tvd-frame-lb belongs to bible.html. A console-side getElementById for it is always null."""
+        self.assertNotIn("getElementById('tvd-frame-lb')", self.ui)
+        self.assertIn("#tvd-frame-lb:not([hidden])", self.ui,
+                      "the iframe probe is the one that WORKS — if it goes, Esc stops reaching a "
+                      "board overlay and the console closes out from under an open lightbox")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
