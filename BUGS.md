@@ -1,5 +1,12 @@
 # v21_kai → v21_kai_fixed bug tracker
 
+> ⚠ **DUPLICATE REG NUMBERS — read the DATE, not just the number.** REG-002 and REG-083…REG-087
+> were each allocated twice: once on **2026-07-31** and again on **2026-08-01**, for different
+> bugs. Ten entries, five numbers. They are NOT renumbered because commit messages already cite
+> them (v1516, v1518, v1529, v1536, v1539 among others) and rewriting a number would break the
+> only link between a bug and the ship that fixed it. Every duplicated heading now carries its
+> date, so the pair can be told apart at a glance. New entries continue from REG-088.
+
 ## Strategy
 - Side branch: `/Users/konyo/Downloads/konyo_d2r_bible_v21_kai.html`
 - Test bench: `/Users/konyo/d2r_bible_tests/bible.html` (copy)

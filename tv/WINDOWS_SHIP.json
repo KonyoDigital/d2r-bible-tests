@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1567",
+  "ver": "v1568",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1567: three readers ask for complete now and the route carries completeSets; TZ is a composition with a rotation clock",
+  "note": "v1568: REG-002 and REG-083 to 087 were each allocated twice; documented rather than renumbered because commits cite them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
