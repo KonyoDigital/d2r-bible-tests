@@ -3145,7 +3145,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     border:1px dashed var(--border);border-radius:12px;background:var(--surface-2)}
   .tzt-offline a{color:var(--gold-bright)}
   .tzt-slot{position:relative;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:18px;
-    padding:20px 22px 26px;min-height:clamp(300px,40vh,440px);background:linear-gradient(180deg,var(--surface),var(--surface-2))}
+    padding:20px 22px 24px;min-height:clamp(200px,24vh,300px);background:linear-gradient(180deg,var(--surface),var(--surface-2))}
+  /* v1582 — the 440px floor was sized for ONE hero card per slot. Since v1579 a slot holds a ROW
+     of compact zone cards, so the floor stopped being a minimum and became a hole: both slots
+     reserved up to 440px for content that needed ~250, leaving a third of the panel empty under
+     the cards. */
   .tzt-now{border-color:rgba(102,255,136,.34);box-shadow:0 0 0 1px rgba(102,255,136,.10),0 12px 34px rgba(0,0,0,.30);animation:tztNowBreath 3.8s ease-in-out infinite}
   @keyframes tztNowBreath{0%,100%{box-shadow:0 0 0 1px rgba(102,255,136,.10),0 12px 34px rgba(0,0,0,.30)}
     50%{box-shadow:0 0 0 1px rgba(102,255,136,.24),0 0 34px rgba(102,255,136,.17),0 12px 34px rgba(0,0,0,.30)}}
@@ -3163,8 +3167,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .tzt-live-dot{width:10px;height:10px;border-radius:50%;background:var(--best);box-shadow:0 0 0 0 rgba(102,255,136,.55);animation:tztPulse 1.5s ease-out infinite}
   @keyframes tztPulse{0%{box-shadow:0 0 0 0 rgba(102,255,136,.5)}70%{box-shadow:0 0 0 10px rgba(102,255,136,0)}100%{box-shadow:0 0 0 0 rgba(102,255,136,0)}}
   /* the big hero zone card filling each half */
-  .tzt-zone{position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;gap:13px;padding:16px 12px;border-radius:14px;background:rgba(0,0,0,.18);border:1px solid transparent}
+  /* v1582 — START at the top, do not CENTRE. Centring each card independently meant every card
+     in a row put its name wherever its own content happened to fall: Travincal carries a CTA
+     and a why-line, so its title sat 25px above the titles either side of it. Same row, three
+     different baselines. Starting from the top gives them one. */
+  .tzt-zone{position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    text-align:center;gap:11px;padding:16px 12px;border-radius:14px;background:rgba(0,0,0,.18);border:1px solid transparent}
+  /* the why-line is the only variable-height part, so it takes the slack and keeps the CTA
+     from being pushed to a different height on each card */
+  .tzt-z-why{margin-top:auto}
   .tzt-z-emoji{font-size:clamp(48px,7vw,80px);line-height:var(--lh-none);filter:drop-shadow(0 5px 16px rgba(0,0,0,.5));animation:tztFloat 4.4s ease-in-out infinite}
   @keyframes tztFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
   .tzt-z-name{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:var(--fw-semibold);font-size:clamp(21px,2.7vw,32px);line-height:var(--lh-tightest);color:var(--text);letter-spacing:var(--ls-tight)}
@@ -4315,7 +4326,7 @@ try {
     </div>
     <div class="tzt-title-block">
       <h1 class="tzt-title">Terror Zone Tracker</h1>
-      <div class="tzt-sub">Live region rotation — only the zones worth hunting light up</div>
+      <div class="tzt-sub">Live region rotation — ranked on the game&rsquo;s own monster density</div>
     </div>
   </div>
   <div class="tzt-panel" id="tztracker-body">
@@ -4325,7 +4336,7 @@ try {
     <button class="tzt-refresh" type="button" onclick="window.refreshTzTracker&&window.refreshTzTracker(true)">↻ Refresh</button>
     <span class="tzt-updated" id="tzt-updated"></span>
   </div>
-  <div class="lead" style="margin-top:18px">🎯 <strong>Only huntable zones route.</strong> The 5 act bosses + the S-tier farm zones (Travincal · Countess · Pindle · Cows · Pit · Eldritch · Arcane …) glow gold and jump straight to their card — the exact set your Telegram alert calls out. Filler zones show dimmed. Region-wide rotation, refreshes every 30 min.</div>
+  <div class="lead" style="margin-top:18px">🎯 <strong>Only huntable zones route.</strong> The 5 act bosses + the S-tier farm zones (Travincal · Countess · Pindle · Cows · Pit · Eldritch · Arcane …) glow gold and jump straight to their card — the exact set your Telegram alert calls out. Zones are ranked on the game&rsquo;s own monster density (levels.txt), and only genuinely THIN ones dim &mdash; a dense zone with no named boss stays lit, because &ldquo;no boss&rdquo; is a fact about bosses, not a verdict on the zone. Region-wide rotation, refreshes every 30 min.</div>
 
   <details class="tzt-history" id="tzt-history">
     <summary class="tzt-history-head">
@@ -36587,7 +36598,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1581', name:'v1581 - the zone turns every half hour, not every hour', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1582', name:'v1582 - the tracker tab stops reserving space it no longer needs', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
