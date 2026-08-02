@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1571",
+  "ver": "v1572",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1571: it sorted by qlvl so the list read 3.2h 2.9h 2.6h 2.9h; the sets side sorted alphabetically",
+  "note": "v1572: 243 dated chips in one flat wall had no way to answer do i have stormshield",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

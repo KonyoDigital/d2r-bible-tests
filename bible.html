@@ -3747,6 +3747,14 @@ try {
   .gf-piece .gp-rm:hover{border-color:rgba(224,120,120,.55);color:#e08a8a}
   .gf-piece .gp-rm.gp-rm-armed{border-color:#e06a6a;color:#ff9a9a;background:rgba(224,106,106,.14)}
 </style>
+<style id="v1572-found">
+  .gf-find{display:flex;align-items:center;gap:10px;margin:8px 0 10px}
+  .gf-find input{flex:1 1 auto;min-width:0;padding:7px 12px;border-radius:9px;
+    border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.3);color:inherit;font:inherit}
+  .gf-find input:focus{outline:none;border-color:rgba(120,230,160,.5)}
+  .gf-find-n{opacity:.6;font-size:.86em;white-space:nowrap}
+  .gf-mon{flex:1 1 100%;margin:10px 0 2px;opacity:.5;letter-spacing:.22em;text-transform:uppercase;font-size:.78em}
+</style>
 </head>
 <body>
 <!-- ══ v1499 · THE CLAIM BANNER — the ONLY way a browser becomes the owner ══════════════════════
@@ -33386,6 +33394,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      4 seconds performs it. Anything else — moving on, tapping elsewhere, waiting — cancels. The
      cost of the guard is one extra tap on a thing he does rarely; the cost of not having it was a
      find from July deleted by a mis-click. */
+  /* v1572 — the filter. Pure DOM show/hide over chips already rendered: no re-render, so it cannot
+     touch the ledger, and a mis-typed letter can never be a write. Month headings hide when nothing
+     under them matches, so the result reads as a list rather than a set of empty rooms. */
+  window._gfFilter = function(q){
+    try {
+      var box = document.getElementById('gf-found-chips'); if (!box) return;
+      var needle = String(q || '').trim().toLowerCase();
+      var shown = 0, kids = box.children, lastMon = null, monHas = false;
+      for (var i = 0; i < kids.length; i++) {
+        var el = kids[i];
+        if (el.classList.contains('gf-mon')) {
+          if (lastMon) lastMon.style.display = monHas ? '' : 'none';
+          lastMon = el; monHas = false; continue;
+        }
+        var hit = !needle || (el.textContent || '').toLowerCase().indexOf(needle) !== -1;
+        el.style.display = hit ? '' : 'none';
+        if (hit) { shown++; monHas = true; }
+      }
+      if (lastMon) lastMon.style.display = monHas ? '' : 'none';
+      var n = document.getElementById('gf-found-n');
+      if (n) n.textContent = needle ? (shown + ' of ' + (shown === 1 ? 'your finds' : 'your finds')) : '';
+      var ct = document.getElementById('gf-found-ct');
+      if (ct && needle) ct.textContent = shown;
+    } catch(e){}
+  };
+
   window._armUnmark = function(btn, name, kind){
     try {
       if (btn.dataset.armed === '1') {
@@ -33723,10 +33757,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div>');
     }
     if(F==='found'){
-      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.found+'</span><span class="forge-sec-sub">the grail ledger — dated, newest first, synced with the Calculator ✓ — tap to open, ✕ to un-mark</span></div><div class="gf-chips">');
+      /* ── v1572 — A WALL OF 234 IS NOT A LEDGER YOU CAN READ ──────────────────────────────
+         Konyo: "is this the best way to really show these?"
+         No. 234 dated chips in one flat wall has no way in: he cannot answer "do I have
+         Stormshield" without scrolling 234 items, and the dates — the one thing that makes this a
+         LEDGER rather than a list — are only legible on the newest few.
+         Two additions, both cheap and neither destructive: a filter that narrows as he types, and
+         MONTH HEADINGS so the newest-first order becomes navigable instead of merely true. The
+         order itself is untouched: newest first is the right default for a ledger, and grouping by
+         boss or set would throw away the chronology that makes it one. */
+      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct" id="gf-found-ct">'+s.found+'</span><span class="forge-sec-sub">the grail ledger — dated, newest first, synced with the Calculator ✓ — tap to open, ✕ to un-mark</span></div>'
+        +'<div class="gf-find"><input type="search" id="gf-found-q" placeholder="filter '+s.found+' finds — type a name…" oninput="window._gfFilter(this.value)" autocomplete="off"><span class="gf-find-n" id="gf-found-n"></span></div>'
+        +'<div class="gf-chips" id="gf-found-chips">');
       var own=_ownedNames();
       var _flU=_flog(); var _ownF=_ownedNames();
+      var _lastMon = '';
       _flogSort(_uniItems().filter(function(x){return _ownF.has(x.n);}).map(function(x){return x.n;})).forEach(function(n){
+        /* v1572 — a month heading each time the ledger crosses one. Cheap, and it turns a scroll
+           into a place: "June" is somewhere he can aim for. Derived from the stored date string, so
+           an undated legacy find groups under "earlier" rather than inventing a month for it. */
+        var _d = _flU[n] || '', _m = (_d.match(/^([A-Za-z]{3})\s+\d+,\s*(\d{4})/) || []);
+        var _mon = _m.length ? (_m[1] + ' ' + _m[2]) : 'earlier';
+        if (_mon !== _lastMon) { _lastMon = _mon;
+          H.push('<div class="gf-mon" data-mon="'+esc(_mon)+'">'+esc(_mon)+'</div>'); }
         /* ── v1570 — A FOUND ITEM IS NOT A BUTTON ────────────────────────────────────────────
            Konyo: "i accidentally clicked one of these items and it removed it from my chronicle."
            The whole chip carried the un-mark handler, so any click anywhere on a years-old find
@@ -36363,7 +36416,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1571', name:'v1571 - quick wins now sorted by quickness', date:'2026-07-31', note:'it sorted by qlvl so the list read 3.2h 2.9h 2.6h 2.9h; the sets side sorted alphabetically' };
+  window.D2R_BUILD = { id:'v1572', name:'v1572 - the sets chronicle gets its own next, and the found wall gets a way in', date:'2026-07-31', note:'243 dated chips in one flat wall had no way to answer do i have stormshield' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
