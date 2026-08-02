@@ -33902,7 +33902,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   window.chronicleApply = function(proposal){
     var add = (proposal && proposal.wouldAdd) || {};
-    var res = { uniques: [], sets: [], skipped: [], ts: Date.now() };
+    var res = { uniques: [], sets: [], skipped: [], unknown: [], ts: Date.now() };
     (add.uniques || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
       if (_chronAlreadyUni(n)) { res.skipped.push(n); return; }   // ★ never un-find
@@ -33924,7 +33924,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try {
         def = (window.__allSets() || []).find(function(st){ return st.name === setName; });
       } catch(e){}
-      if (!def) { res.skipped.push(setName + ' (unknown set)'); return; }   // never invent pieces
+      /* v1574 — AN UNRECOGNISED SET IS A FAILED READ, AND WAS BEING REPORTED AS A SUCCESS.
+         This filed it into res.skipped, and res.skipped is printed to him as "already yours" /
+         "you already had". So a misread or hallucinated set name — the one case where he most
+         needs to know the reader got it wrong — came back as reassurance. Wrong direction on a
+         ledger whose only undo is the batch bar. It gets its own bucket now, and the panel says
+         it out loud. */
+      if (!def) { (res.unknown = res.unknown || []).push(setName); return; }   // never invent pieces
       (def.pieces || []).forEach(function(pc){
         if (_chronAlreadySet(pc)) { res.skipped.push(pc); return; }
         try { if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(pc); res.sets.push(pc); } catch(e){}
@@ -33947,7 +33953,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       if (res.uniques.length || res.sets.length) {
         _grailToast('📜', '<b>' + (res.uniques.length + res.sets.length) + '</b> registered from the Chronicle',
-          res.skipped.length ? (res.skipped.length + ' you already had') : 'swept from your own footage');
+          (res.unknown && res.unknown.length)
+            ? (res.unknown.length + ' set name(s) NOT RECOGNISED — nothing was written for those')
+            : (res.skipped.length ? (res.skipped.length + ' you already had') : 'swept from your own footage'));
       }
     } catch(e){}
     return res;
@@ -34091,7 +34099,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _chronShotPaint(){
     var p = _chronShot;
     if (!p) return;
-    var n = p.wouldAdd.uniques.length + p.wouldAdd.sets.length + p.wouldAdd.completeSets.length;
+    /* v1574 — COUNT THE WRITES, NOT THE ROWS. A completeSets row is ONE line in the proposal and
+       up to SIX toggleSetPiece writes when chronicleApply expands it (v1530). The button said
+       "Register these 2" and ten pieces landed. Nothing was corrupted and merge-max held, but he
+       approved a number he was never shown — on a ledger whose only undo is the batch bar. The
+       count now reflects what will actually be written, and the complete rows say how they expand. */
+    var _expand = 0;
+    (p.wouldAdd.completeSets || []).forEach(function(cs){
+      var nm = (cs && (cs.name || cs)) || '', def = null;
+      try { def = (window.__allSets() || []).find(function(st){ return st.name === nm; }); } catch(e){}
+      _expand += def ? (def.pieces || []).length : 1;
+    });
+    var n = p.wouldAdd.uniques.length + p.wouldAdd.sets.length + _expand;
     var H = [];
     // the refusals FIRST — they are the reason an empty read is empty
     (p.pages || []).filter(function(x){ return x.note; }).forEach(function(x){
@@ -34122,8 +34141,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (names.length) H.push('<div class="chron-shot-names" style="opacity:.85;margin:4px 0">' +
       names.slice(0, 40).map(_cse).join(' · ') +
       (names.length > 40 ? ' <span style="opacity:.7">+' + (names.length - 40) + ' more</span>' : '') + '</div>');
-    if (p.wouldAdd.completeSets.length) H.push('<div class="chron-shot-complete" style="opacity:.85">🧩 sets the page called COMPLETE: ' +
-      p.wouldAdd.completeSets.map(_cse).join(' · ') + '</div>');
+    if (p.wouldAdd.completeSets.length) H.push('<div class="chron-shot-complete" style="opacity:.85">🧩 sets the page called COMPLETE (each expands to all its pieces): ' +
+      p.wouldAdd.completeSets.map(function(cs){
+        var nm = (cs && (cs.name || cs)) || '', def = null;
+        try { def = (window.__allSets() || []).find(function(st){ return st.name === nm; }); } catch(e){}
+        return _cse(nm) + (def ? ' <span style="opacity:.7">(' + (def.pieces||[]).length + ' pieces)</span>' : '');
+      }).join(' · ') + '</div>');
     if (p.unknown.length) H.push('<div class="chron-shot-unknown forge-note" style="opacity:.75">names we could not match (a vocabulary gap worth seeing, not an error): ' +
       p.unknown.slice(0, 15).map(_cse).join(', ') + '</div>');
     H.push('<div style="margin-top:8px">' +
@@ -34146,7 +34169,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var res = window.chronicleApply(_chronShot);
     _chronShot = null;
     _chronShotReport('<span class="chron-shot-done">✅ registered <b>' + (res.uniques.length + res.sets.length) + '</b>' +
-      (res.skipped.length ? ' · ' + res.skipped.length + ' already yours' : '') + '</span>' +
+      (res.skipped.length ? ' · ' + res.skipped.length + ' already yours' : '') +
+      ((res.unknown && res.unknown.length)
+        ? ' · <span style="color:#e0a860">' + res.unknown.length + ' set name(s) not recognised — nothing written for those</span>' : '') + '</span>' +
       ' <button class="f-btn" id="chron-shot-undo" onclick="var r=window.chronicleUndoLast();' +
       'document.getElementById(\'chron-shot-report\').innerHTML=\'↩ undone \'+r.undone;">↩ undo this batch</button>');
     return res;
@@ -36416,7 +36441,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1573', name:'v1573 - the only panel with a clock on it moves to the top', date:'2026-07-31', note:'TZ sat below productivity and tallies in a half column; it is the one thing on the screen that expires' };
+  window.D2R_BUILD = { id:'v1574', name:'v1574 - count the writes not the rows', date:'2026-07-31', note:'register these 2 wrote ten pieces; an unrecognised set name was reported as already yours; a null timestamp could span 56 years' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

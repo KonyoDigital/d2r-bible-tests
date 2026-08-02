@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1573",
+  "ver": "v1574",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1573: TZ sat below productivity and tallies in a half column; it is the one thing on the screen that expires",
+  "note": "v1574: register these 2 wrote ten pieces; an unrecognised set name was reported as already yours; a null timestamp could span 56 years",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

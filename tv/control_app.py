@@ -8688,7 +8688,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1573",
+        "ver": "v1574",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9669,10 +9669,15 @@ class Handler(BaseHTTPRequestHandler):
                             # 283. A rate whose denominator is "how long the app was open" is not a
                             # reading rate. Measured from the reads' OWN timestamps.
                             "readMs": (lambda _t: (max(_t) - min(_t)) if len(_t) > 1 else 0)(
-                                [r2.get("ts") or 0 for r2 in sess
+                                # v1574 — a row with a missing or zero ts must be EXCLUDED, not
+                                # counted as the epoch. `or 0` let one null drag min(ts) to 0, so
+                                # a two-read session would span max(ts) - 0 = ~56 YEARS and drown
+                                # the fleet rate at ~0/hr — the exact ghost-span class v1563 was
+                                # written to kill, reintroduced by its own guard.
+                                [_t for _t in ((r2.get("ts") or 0) for r2 in sess
                                  if not r2.get("sessionEnd") and r2.get("scene") != "session_end"
                                  and r2.get("mode") != "session_end" and r2.get("kind") != "skip"
-                                 and r2.get("lane") not in ("kai", "verify", "intake")]),
+                                 and r2.get("lane") not in ("kai", "verify", "intake")) if _t > 0]),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
