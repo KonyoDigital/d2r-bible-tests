@@ -48,6 +48,7 @@ REPO="$(git rev-parse --show-toplevel)" || exit 1
 # What is fixed is the SHAPE of the failure: a hung gate now dies at its limit and reports as a
 # timeout with its log path, instead of blocking the push until a human gives up.
 # macOS ships no coreutils `timeout`; perl does the same job with alarm+exec (SIGALRM = 142).
+GATE_RC=0
 GATE_LOG_DIR="${TMPDIR:-/tmp}/d2r-pre-push"
 mkdir -p "$GATE_LOG_DIR" 2>/dev/null || GATE_LOG_DIR="/tmp"
 
@@ -68,8 +69,18 @@ gate_run() {
            my $p = fork; die "fork: $!" unless defined $p;
            if (!$p) { exec @ARGV; exit 127 }
            $SIG{ALRM} = sub { kill "TERM", $p; waitpid($p, 0); exit 142 };
-           alarm $t; waitpid($p, 0); alarm 0; exit($? >> 8);' "$limit" "$@" >"$log" 2>&1 && return 0
+           alarm $t; waitpid($p, 0); my $st = $?; alarm 0;
+           # A child killed by a SIGNAL puts the signal in the LOW byte and leaves $?>>8 as 0,
+           # so the old `exit($? >> 8)` reported a KILLED gate as a PASS. v1582 was SIGTERMed
+           # mid-smoke; with this wrapper in front of it the push would have been waved
+           # through green. A wrapper that reports success when the thing it wrapped died is
+           # worse than no wrapper. 128+signal is what a shell reports, so match it.
+           exit(($st & 127) ? 128 + ($st & 127) : ($st >> 8));' "$limit" "$@" >"$log" 2>&1 && return 0
   rc=$?
+  GATE_RC="$rc"        # the REAL code, for callers that must tell a kill from a red result;
+                       # gate_run itself returns 1, so `rc=$?` at the call site sees 1 and a
+                       # caller checking for 143 there would never fire. Found by testing the
+                       # branch instead of trusting it.
   if [ "$rc" -eq 142 ]; then
     echo "pre-push: ⏱ ${label} HUNG — killed after ${limit}s. Push blocked."
     echo "          Partial output kept at: ${log}"
@@ -208,13 +219,31 @@ else
   echo "pre-push: running critical-path Playwright smoke (~1-2 min)…"
   echo "          (emergency bypass: git push --no-verify)"
   echo ""
-  if npx playwright test "${SMOKE_SPECS[@]}" --workers=2 --reporter=line; then
+  # v1583 — the smoke gate goes through gate_run like every other gate. It was the ONE left
+  # running bare, and the v1582 push showed what that costs: the run was SIGTERMed from outside at
+  # test 7 of 64, and the hook answered "smoke FAILED — fix the failing spec(s)". No spec had
+  # failed. The advice was confidently wrong, the output was not kept, and the only reason the
+  # cause was recoverable at all is that "Terminated: 15" happened to still be on screen.
+  #
+  # This is the same shape as REG-090 and REG-091, for the third time in two days: a fix (keep the
+  # log · bound the wait) applied to some sites and not to the one that mattered next.
+  if gate_run "smoke" "npx playwright test ${SMOKE_SPECS[*]} --workers=2" 900 -- \
+       npx playwright test "${SMOKE_SPECS[@]}" --workers=2 --reporter=line; then
     echo ""
     echo "pre-push: smoke GREEN — push allowed."
   else
+    rc=$?
     echo ""
-    echo "pre-push: smoke FAILED — push BLOCKED."
-    echo "          Fix the failing spec(s), then push again. Full suite: npx playwright test"
+    # 143 = SIGTERM. A killed run is NOT a red spec, and telling him to "fix the failing spec"
+    # sends him hunting for a bug that does not exist.
+    if [ "$rc" -eq 143 ] || [ "$rc" -eq 137 ]; then
+      echo "pre-push: smoke was KILLED (SIGTERM), not failed — no spec went red."
+      echo "          Something outside the hook terminated it (a reaped background job, a closed"
+      echo "          terminal). Re-run the push in the foreground."
+    else
+      echo "pre-push: smoke FAILED — push BLOCKED."
+      echo "          Fix the failing spec(s), then push again. Full suite: npx playwright test"
+    fi
     echo "          Emergency override (NOT recommended): git push --no-verify"
     exit 1
   fi
