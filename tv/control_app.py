@@ -9522,7 +9522,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1606",
+        "ver": "v1607",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10043,6 +10043,26 @@ def doctor_payload():
     # v1597 — CONSOLE BEACON: does this machine actually appear at bull-4-u.com/console?
     # severity is WARN and NEVER block/fail — an offline night must not turn the doctor red
     # (v840 learned that already). It only has to be VISIBLE.
+    # ── v1607 — THE ONE THING THAT STOPS RECORDING, AND THE DOCTOR NEVER MENTIONED IT ──────
+    # _screen_recording_ok_quick() has existed since v1251 and is used to REFUSE ON AIR. It was
+    # never reported as a health fact, so on 2026-08-03 the doctor said "overall ok: True" on a
+    # console that could not record at all: no grant → /api/on refuses → the agent never spawns →
+    # black Theatre and one-frame reels. Konyo read that as the app being broken and lost an hour.
+    #
+    # A check that can BLOCK the primary action must be visible BEFORE he presses it, not only as
+    # the refusal afterwards. Severity 'block' because that is exactly what it does.
+    if sys.platform == "darwin":
+        _sr = _screen_recording_ok_quick()
+        checks.append(_chk(
+            "screen_recording", bool(_sr), "block",
+            ("granted to this process — ON AIR can pin the D2R window"
+             if _sr else
+             "NOT granted to this Python — ON AIR will refuse and NOTHING will record. This "
+             "console is running headless; a headless launch does not inherit the grant."),
+            None if _sr else
+            ("Quit this console, then: bash tv/tvd-scan.sh (or open TV DIABLO.app via Terminal), "
+             "and tick Python in System Settings -> Privacy & Security -> Screen Recording")))
+
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")
     _age = (time.time() - _bt) if isinstance(_bt, (int, float)) else None

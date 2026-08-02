@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1606",
+  "ver": "v1607",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1606: ON AIR was correctly refusing with the Screen Recording instruction and showing it for 2.4 seconds; blocking refusals now dwell 14s",
+  "note": "v1607: screen recording grant is now a doctor check with severity block - it could refuse ON AIR since v1251 but was never reported, so the doctor said ok True on a console that could not record at all",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
