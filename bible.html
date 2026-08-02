@@ -30667,6 +30667,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       catch(e2){ try { window.LSR.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 5))); } catch(e3){} }
     }
   }
+  /* v1562 — published. The badge on the vault journal is LIVE-RENDERED from `intakeLogger` on
+     every renderJournal(), and window.setIntakeLogger (a different script block) guards its
+     refresh with `typeof renderJournal === 'function'` — which is false from out there, because
+     this declaration lives inside this IIFE. So renaming the logger persisted correctly and the
+     badge kept showing the old name: he clicks 👤, types his cousin's name, presses OK, and it
+     still says Konyo. It looks like the rename failed, so he does it again — while every intake
+     from that moment is already being tagged Cousin. The label on screen disagreeing with the tag
+     being written is the worse half. */
   function renderJournal(){
     var el = document.getElementById('vault-journal');
     if (!el) return;
@@ -30734,6 +30742,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<div class="vj-scroll">' + sessions + (j.length>8 ? '<div class="vj-more">… and ' + (j.length-8) + ' older session' + (j.length-8===1?'':'s') + '</div>' : '') + '</div>'
       + '</details>';
   }
+  try { window.renderJournal = renderJournal; } catch(e){}   /* v1562 — see the note above */
   function persistOwned(){
     try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
     try { window.LSR.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
@@ -35559,9 +35568,21 @@ window.renderSessionCockpit = function(){
     } catch(e){}
     var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}
     if (_scFuni) kh.push('<div class="sc-kpi"><b>'+_scFuni.found+'/'+(_scFuni.chronTotal||_scFuni.total)+'</b><span>Grail</span></div>');
+    /* v1562 — THIS TILE HAS NEVER RENDERED, NOT ONCE.
+       The guard needs `SETS`, and there is no SETS anywhere in this file — the array is ITEM_SETS.
+       `typeof` on a name that was never declared does not throw, it returns 'undefined', so the
+       condition was permanently false and silently drew nothing. The REG-083 / REG-087 shape again,
+       this time hiding a whole KPI rather than corrupting one.
+       Konyo's Session cockpit therefore reported Chronicle 99/99 and Grail 243/403 and said nothing
+       about sets, while the F·Sets tab one click away said 108/135 — a "where do I stand" screen
+       omitting a third of where he stands.
+       It reads fsetsScan() now, deliberately NOT ITEM_SETS: setPieces.size over an ITEM_SETS
+       denominator would be a DIFFERENT pair of numbers from F·Sets, which is the exact
+       two-surfaces-two-answers defect this whole sweep is about. */
     try {
-      if (typeof setPieces!=='undefined' && typeof SETS!=='undefined' && Array.isArray(SETS))
-        kh.push('<div class="sc-kpi"><b>'+setPieces.size+'/'+SETS.reduce(function(a,s){return a+s.pieces.length;},0)+'</b><span>Sets</span></div>');
+      var _fsk = (typeof window.fsetsScan==='function') ? window.fsetsScan() : null;
+      if (_fsk && _fsk.totalPieces)
+        kh.push('<div class="sc-kpi"><b>'+_fsk.havePieces+'/'+_fsk.totalPieces+'</b><span>Sets</span></div>');
     } catch(e){}
     try { kh.push('<div class="sc-kpi"><b>'+((typeof mf!=='undefined')?mf:(window.LSR.getItem('d2r_mf')||'0'))+'%</b><span>MF</span></div>'); } catch(e){}
     try { kh.push('<div class="sc-kpi"><b>/p'+((typeof players!=='undefined')?players:(window.LSR.getItem('d2r_players')||'1'))+'</b><span>Players</span></div>'); } catch(e){}
@@ -36151,7 +36172,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1561', name:'v1561 - one grail one denominator and a percent sentinel 37 points too high', date:'2026-07-31', note:'the ring said 37 percent inside a section whose header said 60; and four 1-in-N odds were being read as percentages' };
+  window.D2R_BUILD = { id:'v1563', name:'v1563 - three dead seams and a rate whose denominator was how long the app was open', date:'2026-07-31', note:'the Sets tile had never rendered once; the logger badge never repainted; the gate tuner was dead after a live visit; READS/HR read 1 against an honest 283' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

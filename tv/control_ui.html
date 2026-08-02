@@ -9430,10 +9430,18 @@
       if (s.t0 && s.t0 >= startToday) sToday++;
       reads += s.reads || 0; frames += s.frames || 0; named += s.named || 0; tallies += s.tallies || 0;
       grails += (s.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
-      if (s.t0 && s.t1 && s.t1 > s.t0) ms += (s.t1 - s.t0);
+      /* v1563 — prefer the READ span. t0..t1 is the session's first row to its last, idle and
+         trailing heartbeats included; one of his sessions covers 1798.9 minutes around 3.5 minutes
+         of reading, and summing spans made the fleet rate 1/hr against an honest 283. Older rows
+         from a console that predates readMs fall back to the wall-clock span rather than vanishing
+         from the average. */
+      if (s.readMs > 0) ms += s.readMs;
+      else if (s.t0 && s.t1 && s.t1 > s.t0) ms += (s.t1 - s.t0);
     });
     var hrs = ms / 3.6e6;
-    var readsHr = (hrs > 0.02 && reads > 0) ? _kpiFmt(Math.round(reads / hrs)) : '—';   // guard: need real reading time
+    // v1563 — the floor drops with the denominator: 0.02h was two thirds of the honest 0.109h
+    // total, so a truthful read-span could fall under a guard written for wall-clock spans.
+    var readsHr = (hrs > 0.002 && reads > 0) ? _kpiFmt(Math.round(reads / hrs)) : '—';   // guard: need real reading time
     var avgFrames = _kpiFmt(Math.round(frames / n));
     var npr = named / n, namedRun = npr >= 10 ? _kpiFmt(Math.round(npr)) : (Math.round(npr * 10) / 10).toString();
     el.innerHTML = _kpiTile(_kpiFmt(sToday), 'sessions today')

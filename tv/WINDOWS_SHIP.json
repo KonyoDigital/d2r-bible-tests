@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1561",
+  "ver": "v1563",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1561: the ring said 37 percent inside a section whose header said 60; and four 1-in-N odds were being read as percentages",
+  "note": "v1563: the Sets tile had never rendered once; the logger badge never repainted; the gate tuner was dead after a live visit; READS/HR read 1 against an honest 283",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

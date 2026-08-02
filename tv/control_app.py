@@ -8310,6 +8310,13 @@ def _chron_visit_run(visit_ts):
         with _CHRON_LOCK:
             _CHRON_JOB["pagesRead"] = res["pagesRead"]
         prop = _cr.proposal_from_pages(res["pages"])
+        # v1562 — the LIVE-VISIT path never stored its evidence, so "⚖ tune the gate" appeared
+        # (control_ui reveals it on any result) and could only answer "no sweep evidence in memory
+        # — run a sweep first". v1550 wired the retro path only.
+        # This is the path that needs it MOST: one visit is one reel, often one lane, so it has the
+        # fewest witnesses per name and is exactly where names get HELD — and re-gating at
+        # minWitnesses=1 is the intended remedy. The one path where the remedy was unreachable.
+        globals()["_CHRON_LAST_PROPOSAL"] = prop
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -8614,7 +8621,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1561",
+        "ver": "v1563",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9587,6 +9594,18 @@ class Handler(BaseHTTPRequestHandler):
                             "superRecovery": _super_recovery, "missedFrames": _missed_frames,   # v1278 (D6 engine) — recovery badge + missed-text drill
                             "sealMs": _seal_ms, "regretItems": _regret_items,   # v1280 (D7 engine) — seal-latency chip + regret spotlight
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
+                            # v1563 — READ SPAN, not wall-clock. t0..t1 is the session's first row to
+                            # its last, which includes idle and any trailing heartbeat. One of his
+                            # sessions spans 1798.9 MINUTES around 3.5 minutes of actual reading, and
+                            # because the tile sums every session's reads over every session's span,
+                            # that one ghost dragged the fleet rate to 1/hr when the honest figure is
+                            # 283. A rate whose denominator is "how long the app was open" is not a
+                            # reading rate. Measured from the reads' OWN timestamps.
+                            "readMs": (lambda _t: (max(_t) - min(_t)) if len(_t) > 1 else 0)(
+                                [r2.get("ts") or 0 for r2 in sess
+                                 if not r2.get("sessionEnd") and r2.get("scene") != "session_end"
+                                 and r2.get("mode") != "session_end" and r2.get("kind") != "skip"
+                                 and r2.get("lane") not in ("kai", "verify", "intake")]),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
