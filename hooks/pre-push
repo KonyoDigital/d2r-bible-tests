@@ -29,13 +29,45 @@ set -u
 
 REPO="$(git rev-parse --show-toplevel)" || exit 1
 
+# v1576 — KEEP THE EVIDENCE. Every gate below used to run with `>/dev/null 2>&1`, so a
+# blocked push told you only *that* a suite failed, never *which test*. The output was
+# destroyed at the exact moment it became evidence, and the only remedy on offer ("run it
+# by hand") is the one thing that cannot recover a FLAKY failure — by the time you re-run,
+# it passes and the failing run is gone for good. That happened on the v1575 push: 340
+# tests, one of them red, and no way left to learn which.
+#
+# gate_run <label> <human-rerun-cmd> -- <cmd...>
+#   Runs the command with output tee'd to a kept log. On failure prints the last 40 lines
+#   (the unittest FAIL/ERROR block lives there) + the log path, then returns 1.
+GATE_LOG_DIR="${TMPDIR:-/tmp}/d2r-pre-push"
+mkdir -p "$GATE_LOG_DIR" 2>/dev/null || GATE_LOG_DIR="/tmp"
+
+gate_run() {
+  label="$1"; rerun="$2"; shift 3   # shift past label, rerun, and the literal --
+  # Log name carries the label + pid so concurrent/consecutive pushes never overwrite
+  # each other's evidence.
+  log="$GATE_LOG_DIR/${label}.$$.log"
+  # NOT `if "$@"; then return 0; fi` + `rc=$?` — after an if-block whose branch did not
+  # run, $? is the *if statement's* status (0), so the report would claim "exit 0" on a
+  # failure. `&& return 0` short-circuits and leaves the command's own code in $?.
+  "$@" >"$log" 2>&1 && return 0
+  rc=$?
+  echo "pre-push: ❌ ${label} FAILED (exit ${rc}) — push blocked."
+  echo "          Reproduce: ${rerun}"
+  echo "          Full output kept at: ${log}"
+  echo "          ── last 40 lines ───────────────────────────────────────────"
+  tail -40 "$log" | sed 's/^/          /'
+  echo "          ────────────────────────────────────────────────────────────"
+  return 1
+}
+
 # v1359 — VISUAL-LOCK gate (instant, pure stdlib, no deps): the tokenized type system
 # (font-weights + structure/spacing/line-height on bible.html + tv/control_ui.html) must
 # never regress to a raw literal instead of a var(--fw/--hd/--ls/--lh) token. Runs on every
 # push; catches drift BEFORE the remote. See LOCKED_TYPE_SYSTEM.md.  (bypass: git push --no-verify)
-if ! python3 "$REPO/visual_lock_invariant.py" >/dev/null 2>&1; then
-  echo "pre-push: ❌ VISUAL-LOCK DRIFT — a raw font-weight/spacing literal crept in (or a token went missing)."
-  echo "          Run: python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)"
+if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)" -- \
+     python3 "$REPO/visual_lock_invariant.py"; then
+  echo "          ↑ a raw font-weight/spacing literal crept in (or a token went missing)."
   exit 1
 fi
 echo "pre-push: ✅ visual-lock intact."
@@ -44,12 +76,10 @@ echo "pre-push: ✅ visual-lock intact."
 # no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
 if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   echo "pre-push: tv/ python touched — running the agent+control suites…"
-  if ! python3 "$REPO/tv/test_agent.py" >/dev/null 2>&1; then
-    echo "pre-push: ❌ tv/test_agent.py FAILED — push blocked. Run: python3 tv/test_agent.py"
+  if ! gate_run "test_agent" "python3 tv/test_agent.py" -- python3 "$REPO/tv/test_agent.py"; then
     exit 1
   fi
-  if ! python3 "$REPO/tv/test_control.py" >/dev/null 2>&1; then
-    echo "pre-push: ❌ tv/test_control.py FAILED — push blocked. Run: python3 tv/test_control.py"
+  if ! gate_run "test_control" "python3 tv/test_control.py" -- python3 "$REPO/tv/test_control.py"; then
     exit 1
   fi
   echo "pre-push: ✅ tv suites green."
@@ -58,10 +88,9 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   # an environment the push didn't break). Konyo's "full test system" law.
   if git diff --cached --name-only 2>/dev/null | grep -q "tv/control_ui.html" ||      git log -1 --name-only --pretty=format: 2>/dev/null | grep -q "tv/control_ui.html"; then
     if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
-      if node "$REPO/tv/demo_console.mjs" >/dev/null 2>&1; then
+      if gate_run "console-demos" "node tv/demo_console.mjs" -- node "$REPO/tv/demo_console.mjs"; then
         echo "pre-push: ✅ console demos 6/6."
       else
-        echo "pre-push: ❌ console demos FAILED — push blocked. Run: node tv/demo_console.mjs"
         exit 1
       fi
     else
