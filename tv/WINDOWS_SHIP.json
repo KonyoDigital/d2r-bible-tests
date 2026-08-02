@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1572",
+  "ver": "v1573",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1572: 243 dated chips in one flat wall had no way to answer do i have stormshield",
+  "note": "v1573: TZ sat below productivity and tallies in a half column; it is the one thing on the screen that expires",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

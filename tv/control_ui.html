@@ -2290,6 +2290,26 @@
   /* v1516 — 📜 CHRONICLE SWEEP panel. Reads as a QUOTE, not a result: the big number is a price
      (calls it would make), and the caption says what it is instead of a tally. */
   /* v1547 — the Terror Zone panel */
+  /* ── v1573 — THE TZ TRACKER MOVES TO THE TOP, FULL WIDTH ───────────────────────────────────
+     Konyo: "TZ tracker should be on the top area of sessions so we can see it and stretched from
+     left to right so its bigger and more emphasized. More editorial and titles emphasized."
+
+     It sat below PRODUCTIVITY and TALLIES in a half-width column, which is backwards for the one
+     thing on this screen with a CLOCK on it: the rotation turns hourly and everything above it is
+     cumulative and can be read any time. Placing the only time-critical panel below two that are
+     not is an ordering that ignores what the numbers are for.
+     order:-1 puts it directly under the crown and the NEXT GRAIL hero — identity, objective, then
+     the thing that expires — and grid-column 1/-1 gives it the full width its content already
+     wanted (multi-zone rotations were wrapping in a half column). */
+  body[data-view="sessions"] .hd-tz { order: -1; grid-column: 1 / -1; }
+  .hd-tz .hd-h { font: var(--fw-bold) var(--fs-sm)/1 var(--serif); letter-spacing: .2em; }
+  .hd-tz .hd-h .hd-sub { letter-spacing: .12em; }
+  /* full width means the two rows can sit side by side instead of stacking */
+  @media (min-width: 900px) {
+    .hd-tz .tz-body { flex-direction: row; align-items: stretch; }
+    .hd-tz .tz-slot { flex: 1 1 0; min-width: 0; }
+    .hd-tz .tz-slot.now { flex: 1.35 1 0; }
+  }
   /* ── v1567 — the TERROR ZONE section, composed ─────────────────────────────────────────────
      Konyo: "TZ now and next should be upgraded... flagship style section, more design here not
      just text." It was two label:value rows. The rotation he is deciding about now leads at hero
