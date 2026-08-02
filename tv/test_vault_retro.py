@@ -168,8 +168,20 @@ class TestMiniReelIsFoundable(unittest.TestCase):
         """The other half. A reader that recognises a stamp nobody writes is the dead-seam class."""
         agent = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "tv_diablo.py"), encoding="utf-8").read()
-        self.assertIn('_idx["mini"] = True', agent,
-                      "tv_diablo must stamp the reel, or is_mini_reel can never fire on real footage")
+        # v1608 — MATCH THE FACT, NOT THE VARIABLE NAME. This asserted the literal
+        # `_idx["mini"] = True`, and when the seal was restructured (the index is now written
+        # before the blank pass) the dict was renamed _idx -> _ixdoc. The stamp was still written,
+        # byte-identical in meaning, and this test went red on a rename — a false alarm on a
+        # healthy change, which is the failure mode that teaches people to delete tests.
+        # The dead-seam protection is "something writes a mini flag into the reel index"; that is
+        # what is checked now, independent of what the local variable happens to be called.
+        import re as _re
+        self.assertTrue(_re.search(r'\[\s*["\']mini["\']\s*\]\s*=\s*True', agent),
+                        "tv_diablo must stamp the reel with a mini flag, or is_mini_reel can "
+                        "never fire on real footage")
+        self.assertTrue(_re.search(r'\[\s*["\']focus["\']\s*\]\s*=\s*MINI_FOCUS', agent),
+                        "and the FOCUS must be stamped too — v1603's sweep trusts it in place of "
+                        "a classify call, so a reel without it silently loses that whole benefit")
         self.assertIn("MINI_MODE", agent)
 
 

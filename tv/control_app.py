@@ -2119,6 +2119,197 @@ def _console_exit_stop_onair(reason="quit"):
     return result
 
 
+# ── REEL INDEX — a reel with frames on disk must never render as a BLACK theatre ──────────────
+# 2026-08-03: reel_s_1785708285647_38665 held 98 real JPGs and NO index.json, so every reader in
+# this file (reel listing, kai closer, mini-seal count, theatre footage) skipped it and Konyo saw a
+# black screen and reported "still not recording" — the capture had worked perfectly. The agent
+# writes the index at the END of a per-frame blank-detect pass that DECODES every archived JPEG
+# (measured 0.076 s/frame on this Mac → ~7.4 s for 98 frames); the console's 2.5 s force-kill landed
+# inside that pass. SEAL-1 makes the index durable at the source; these helpers are the console's
+# belt: an index rebuilds from the f_<epoch-ms>.jpg filenames, which is exactly what its rows carry.
+# The reconstruction READER lives in chronicle_retro (load_index); the WRITER is reel_index.
+# ensure_reel_index() (v1608 — chronicle_retro must stay provably write-free). It is NEVER
+# duplicated here — one implementation, one truth.
+
+
+def _cr_index_api():
+    """(reel_index.ensure_reel_index, chronicle_retro.load_index), or (None, None).
+
+    Imported lazily and defensively: a chronicle_retro that is missing, unimportable, or older than
+    these symbols must degrade the console to its pre-repair behaviour, never break it."""
+    try:
+        import chronicle_retro as _cr
+    except Exception:
+        return None, None
+    try:
+        import reel_index as _ri          # v1608 — the WRITER lives here; chronicle_retro stays read-only
+    except Exception:
+        _ri = None
+    return (getattr(_ri, "ensure_reel_index", None) if _ri else None), getattr(_cr, "load_index", None)
+
+
+def _reel_jpg_count(reel_dir):
+    """Frames actually on disk for this reel. Counted, never estimated: 0 means 0."""
+    try:
+        return sum(1 for f in os.listdir(reel_dir)
+                   if f.startswith("f_") and f.lower().endswith(".jpg"))
+    except Exception:
+        return 0
+
+
+def _seal_index_ok(reel_dir):
+    try:
+        p = os.path.join(reel_dir, "index.json")
+        return os.path.isfile(p) and os.path.getsize(p) > 0
+    except Exception:
+        return False
+
+
+def _seal_progress(reel_dir):
+    """A cheap signature of a seal in flight, or None when there is no reel dir to seal into.
+    (index-on-disk, tmp-present, frames archived, index bytes) — any change means the agent is
+    still working, so the stop path may extend its patience."""
+    if not reel_dir:
+        return None
+    try:
+        names = os.listdir(reel_dir)
+    except Exception:
+        return None
+    idx_sz = 0
+    try:
+        idx_sz = os.path.getsize(os.path.join(reel_dir, "index.json"))
+    except Exception:
+        pass
+    return (idx_sz > 0,
+            any(n.startswith("index.json.") for n in names),
+            sum(1 for n in names if n.startswith("f_") and n.lower().endswith(".jpg")),
+            idx_sz)
+
+
+def _seal_sid_hint():
+    """The session whose reel is being sealed right now: the bridge knows, then the journal's last
+    row, then the newest reel_* dir. "" when unknown — a WRONG sid must never buy grace for a reel
+    nobody is writing, so every fallback is evidence off disk, never a guess."""
+    try:
+        sid = _mini_sid()
+        if sid:
+            return str(sid)
+    except Exception:
+        pass
+    try:
+        with open(_journal_path(), "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            back = min(fh.tell(), 8192)
+            fh.seek(-back, os.SEEK_END)
+            tail = fh.read().decode("utf-8", "replace").splitlines()
+        for ln in reversed(tail):
+            try:
+                sid = (json.loads(ln) or {}).get("sessionId")
+            except Exception:
+                continue
+            if sid:
+                return str(sid)
+    except Exception:
+        pass
+    try:
+        cands = [d for d in os.listdir(HIST_DIR)
+                 if d.startswith("reel_") and os.path.isdir(os.path.join(HIST_DIR, d))]
+        if cands:
+            newest = max(cands, key=lambda d: os.path.getmtime(os.path.join(HIST_DIR, d)))
+            return newest[len("reel_"):]
+    except Exception:
+        pass
+    return ""
+
+
+def _reel_ensure_index(reel_dir):
+    """Guarantee reel_dir has a playable index.json when it holds frames.
+
+    → (playable, rebuilt). Never raises: a repair failure degrades to exactly today's behaviour
+    (the reel is treated as it sits on disk) and says so on the console instead of hiding."""
+    try:
+        had = os.path.isfile(os.path.join(reel_dir, "index.json"))
+    except Exception:
+        return False, False
+    ensure, _load = _cr_index_api()
+    if ensure is None:
+        return had, False
+    try:
+        got = ensure(reel_dir)
+    except Exception as e:
+        print("\u26a0 index repair failed for %s: %s" % (os.path.basename(reel_dir), e), flush=True)
+        return had, False
+    ok = got is not None
+    return ok, bool(ok and not had)
+
+
+def _reel_index_frames(reel_dir, repair=True):
+    """This reel's frame rows [{"f":..., "ts":...}, ...] via chronicle_retro.load_index(), so a reel
+    that lost its index still plays. None = genuinely unreadable (callers keep their own fallbacks).
+    A repair failure can never raise into an HTTP handler — it degrades and logs."""
+    try:
+        if repair:
+            _reel_ensure_index(reel_dir)
+        _ensure, load = _cr_index_api()
+        if load is not None:
+            try:
+                idx = load(reel_dir)
+            except Exception as e:
+                print("\u26a0 index read failed for %s: %s" % (os.path.basename(reel_dir), e),
+                      flush=True)
+                idx = None
+            if isinstance(idx, dict):
+                return idx.get("frames") or []
+            if isinstance(idx, list):
+                return idx
+            if idx is not None:
+                return []
+        # chronicle_retro too old / unimportable -> the pre-repair read, unchanged
+        with open(os.path.join(reel_dir, "index.json"), encoding="utf-8") as _jf:
+            return (json.load(_jf) or {}).get("frames") or []
+    except Exception:
+        return None
+
+
+def _reels_missing_index(hist=None):
+    """[(reel dir name, frames on disk)] for reels holding f_*.jpg with NO index.json — i.e. real
+    footage the theatre currently plays as black. Only dirs behind the reel_ guard: cache160 and
+    cache1280 are thumbnail caches (24/32 jpgs), not reels, and must never be flagged."""
+    hist = hist or HIST_DIR
+    out = []
+    try:
+        names = sorted(os.listdir(hist))
+    except Exception:
+        return out
+    for d in names:
+        rd = os.path.join(hist, d)
+        if not (d.startswith("reel_") and os.path.isdir(rd)):
+            continue
+        if os.path.isfile(os.path.join(rd, "index.json")):
+            continue
+        n = _reel_jpg_count(rd)
+        if n > 0:
+            out.append((d, n))
+    return out
+
+
+def _reel_sweep_indexes(hist=None, why="boot"):
+    """Rebuild every missing reel index under HIST_DIR and SAY IT OUT LOUD — a silently repaired
+    reel is the same class of bug as a silently lost one. Prints nothing when the count is 0.
+    -> [(reel name, frames)] repaired."""
+    fixed = []
+    for d, _n in _reels_missing_index(hist):
+        rd = os.path.join(hist or HIST_DIR, d)
+        _ok, rebuilt = _reel_ensure_index(rd)
+        if rebuilt:
+            fixed.append((d, _reel_jpg_count(rd)))
+    if fixed:
+        print("\U0001fa79 rebuilt missing index for %d reel%s [%s]: %s"
+              % (len(fixed), "" if len(fixed) == 1 else "s", why,
+                 ", ".join("%s (%d frames)" % (d, n) for d, n in fixed)), flush=True)
+    return fixed
+
+
 def stop_agent(farewell=True):
     """v847/v899 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
     STOP: short farewell (hard-cap ~18s, was 95s). OFF: seal only. Then hard-kill orphans.
@@ -2190,15 +2381,54 @@ def stop_agent(farewell=True):
                 for pid in pids:
                     _kill_pid(pid, force=False)
 
-        # 3) Wait for bridge death, then FORCE-KILL — v946.2: 2.5s max (was 3–6s); seal is
-        # already on disk before kill, so a stuck agent must never pin End Session.
+        # 3) Wait for bridge death, then FORCE-KILL.
+        #    v946.2 wrote "2.5s max ... seal is already on disk before kill". THAT ASSERTION WAS
+        #    FALSE and it cost Konyo a night: the agent's seal ends with a per-frame blank-detect
+        #    pass that DECODES every archived JPEG — measured 0.076 s/frame on this Mac, i.e.
+        #    ~7.4 s for a 98-frame reel — and the index was written only after it. The 2.5 s kill
+        #    landed mid-pass, so reel_s_1785708285647_38665 ended up with 98 real frames and NO
+        #    index.json: the theatre skipped it and played BLACK while he was told "session saved".
+        #    DIVISION OF LABOUR: SEAL-1 makes the index survive the kill regardless, so this grace
+        #    is NOT the load-bearing fix — it only buys the OPTIONAL blank-flag enrichment time to
+        #    finish. So the fast 2.5 s stays byte-for-byte for any stop with no reel on disk, and
+        #    the deadline extends ONLY while a seal is visibly progressing (reel dir present, index
+        #    still unwritten or still changing), hard-capped at 8 s so End Session never feels hung.
         wait_s = 2.5
-        deadline = time.time() + wait_s
-        while time.time() < deadline:
+        cap_s = 8.0
+        _t0 = time.time()
+        deadline = _t0 + wait_s
+        _hard = _t0 + cap_s
+        _seal_sid = _seal_sid_hint()
+        _seal_reel = os.path.join(HIST_DIR, "reel_" + _seal_sid) if _seal_sid else ""
+        _seal_sig = None
+        _grace = 0.0
+        _dead = False
+        while True:
             if _port_listener_pid() is None and not any(_pid_alive(p) for p in (pids or [])):
+                _dead = True
+                break
+            _now = time.time()
+            if _now >= deadline:
+                _sig = _seal_progress(_seal_reel)
+                # extend ONLY on evidence: a reel dir that exists and is still being sealed
+                # (index not on disk yet, or the seal's artefacts still changing)
+                if _sig is not None and _now < _hard and (_sig != _seal_sig or not _sig[0]):
+                    _seal_sig = _sig
+                    deadline = min(_now + 1.0, _hard)
+                    _grace = deadline - (_t0 + wait_s)
+                    continue
                 break
             time.sleep(0.15)
-        else:
+        if _grace > 0:
+            print("\u23f3 End Session: seal in flight for reel_%s — waited +%.1fs for it (index %s)"
+                  % (_seal_sid, _grace,
+                     "on disk" if _seal_index_ok(_seal_reel) else "STILL MISSING"), flush=True)
+        if not _dead:
+            if _seal_reel and not _seal_index_ok(_seal_reel) and _reel_jpg_count(_seal_reel) > 0:
+                print("\U0001f6a8 End Session: force-killing the agent after %.1fs with reel_%s "
+                      "holding %d frames and NO index.json — the theatre would play this reel "
+                      "BLACK. Rebuilding the index from the frame filenames..."
+                      % (time.time() - _t0, _seal_sid, _reel_jpg_count(_seal_reel)), flush=True)
             # force-kill every remaining agent pid + port holder
             for pid in set(pids or []) | set(filter(None, [_port_listener_pid(), _read_pid(PID_PATH)])):
                 _kill_pid(pid, force=True)
@@ -2227,6 +2457,22 @@ def stop_agent(farewell=True):
                 os.remove(_eye)
         except Exception:
             pass
+        # BELT AND BRACES — the agent is gone now. A reel holding frames but no index is
+        # invisible to every theatre reader in this file, so rebuild it from the frame filenames
+        # and SAY SO. Repair lives in chronicle_retro; a failure here can never break End Session.
+        try:
+            if _seal_reel and _reel_jpg_count(_seal_reel) > 0:
+                _ok, _rebuilt = _reel_ensure_index(_seal_reel)
+                if _rebuilt:
+                    print("\U0001fa79 rebuilt missing index for 1 reel: reel_%s (%d frames) — the "
+                          "seal was cut short by End Session; footage recovered, blank flags fill "
+                          "in lazily" % (_seal_sid, _reel_jpg_count(_seal_reel)), flush=True)
+                elif not _ok:
+                    print("\u26a0 reel_%s holds %d frames and still has no readable index — the "
+                          "theatre will skip it. Restarting the console retries the repair."
+                          % (_seal_sid, _reel_jpg_count(_seal_reel)), flush=True)
+        except Exception as _re:
+            print("\u26a0 post-stop index repair skipped: %s" % _re, flush=True)
         _BOARD_OPENED = False
         dead = _port_listener_pid() is None
         return {
@@ -6432,7 +6678,10 @@ def _kai_closer_loop():
             for d in sorted(os.listdir(hist)):
                 if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
                     continue
-                if not os.path.isfile(os.path.join(hist, d, "index.json")):
+                # This `continue` is literally what hid reel_s_1785708285647_38665 (98 frames,
+                # no index) from the theatre. Repair FIRST — skip only a reel that truly has
+                # nothing playable. The reel_ guard above keeps cache160/cache1280 out.
+                if not _reel_ensure_index(os.path.join(hist, d))[0]:
                     continue
                 kr = os.path.join(hist, d, "kai_report.json")
                 if not os.path.isfile(kr):
@@ -6462,12 +6711,7 @@ def _kai_closer_loop():
                 os.remove(os.path.join(rd, ".kai_priority"))
             except Exception:
                 pass
-            frames = []
-            try:
-                with open(os.path.join(rd, "index.json"), encoding="utf-8") as f:
-                    frames = (json.load(f) or {}).get("frames") or []
-            except Exception:
-                pass
+            frames = _reel_index_frames(rd) or []
             # what the session's eyes actually read (deep + ocr + verify lanes)
             read_text = set()
             try:
@@ -8592,14 +8836,14 @@ def _mini_seal(token, why="deadline"):
     # and reports the same cheerful success as a good one.
     #
     # An empty reel and a full one must not look alike. The count is read off the sealed reel's own
-    # index, so it is the reel's word and not the agent's.
+    # index, so it is the reel's word and not the agent's. If the seal was cut short before it
+    # wrote one, the index is rebuilt from the frame filenames first — still the reel's own word.
     frames = None
     try:
         _sid = _MINI.get("sid")
         if _sid:
-            _idxp = os.path.join(HIST_DIR, "reel_" + str(_sid), "index.json")
-            with open(_idxp, encoding="utf-8") as _fh:
-                frames = len(json.load(_fh).get("frames") or [])
+            _rows = _reel_index_frames(os.path.join(HIST_DIR, "reel_" + str(_sid)))
+            frames = len(_rows) if _rows is not None else None
     except Exception:
         frames = None          # unreadable is NOT zero — say unknown rather than accuse the capture
     with _MINI_LOCK:
@@ -9522,7 +9766,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1607",
+        "ver": "v1608",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10062,6 +10306,23 @@ def doctor_payload():
             None if _sr else
             ("Quit this console, then: bash tv/tvd-scan.sh (or open TV DIABLO.app via Terminal), "
              "and tick Python in System Settings -> Privacy & Security -> Screen Recording")))
+
+    # ── SEAL — reels whose index was lost play as a BLACK theatre, and nothing ever said so ──
+    # Severity 'warn', not block: the footage is recoverable (the index rebuilds from the frame
+    # filenames), it just is not playable until it is rebuilt.
+    _noidx = _reels_missing_index()
+    checks.append(_chk(
+        "reels_indexed", not _noidx, "warn",
+        ("every reel in frames/hist has an index.json — the theatre can play them all"
+         if not _noidx else
+         "%d reel%s hold frames on disk with NO index.json, so the theatre skips them and plays "
+         "BLACK: %s. The footage is NOT lost — an index rebuilds from the frame filenames."
+         % (len(_noidx), "" if len(_noidx) == 1 else "s",
+            ", ".join("%s (%d frames)" % (n, c) for n, c in _noidx[:6]))),
+        None if not _noidx else
+        "Restart TV DIABLO — this console rebuilds every missing reel index at boot. Standalone: "
+        "`python3 tv/reel_repair.py` to survey, `--apply` to rebuild (idempotent, never "
+        "overwrites a usable index)."))
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")
@@ -10789,15 +11050,10 @@ class Handler(BaseHTTPRequestHandler):
                 _reel_ok = _reel_dir and os.path.isdir(_reel_dir)
                 _foot = []
                 if _reel_ok:
-                    # v894 — index.json first (O(n) no re-stat name parse thrash when present)
-                    _idxp = os.path.join(_reel_dir, "index.json")
-                    _frames = None
-                    if os.path.isfile(_idxp):
-                        try:
-                            with open(_idxp, encoding="utf-8") as _jf:
-                                _frames = (json.load(_jf) or {}).get("frames") or []
-                        except Exception:
-                            _frames = None
+                    # v894 — index.json first (O(n) no re-stat name parse thrash when present),
+                    # now via chronicle_retro so a reel whose seal never wrote one is rebuilt from
+                    # its filenames instead of falling through as an unindexed frame scan.
+                    _frames = _reel_index_frames(_reel_dir)
                     if _frames is None:
                         _frames = []
                         for fn in os.listdir(_reel_dir):
@@ -12421,6 +12677,13 @@ def main():
         signal.signal(signal.SIGINT, _sig_exit)
     except Exception:
         pass
+
+    # SEAL — anything an earlier kill left index-less is playable again the next time he starts
+    # the app, with no action from him. Prints only when it actually repaired something.
+    try:
+        _reel_sweep_indexes(why="console boot")
+    except Exception as _se:
+        print("\u26a0 boot index sweep skipped: %s" % _se, flush=True)
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875

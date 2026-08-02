@@ -2198,3 +2198,57 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   rather than the one we asked for. Engine-side, `tv/test_vault_retro.py` pins that an unknown or
   cross-sweep focus is never trusted. Totals now report `trustedFocus` — "9 classifies" and
   "9 classifies + 4 you told us" are different facts about the same sweep.
+
+## REG-099 — 98 real frames, no index.json: the reel's existence was written last (2026-08-03)
+
+- **Symptom:** Konyo — *"still a black screen when trying to record."* Capture itself was fine:
+  **98 real JPGs, ~85 MB**, on disk in `tv/frames/hist/reel_s_1785708285647_38665`. But that reel had
+  **no `index.json`**, and theatre / `read_reel` / `sweep_hist` all key off `index.json` — so a reel
+  without one is invisible and unplayable. The footage existed; nothing could find it.
+- **Caught by:** Konyo, on his live recording path, **after** a separate fault had already been fixed
+  in the same session — a headless console (`control_app.py --no-open`) does not hold the Screen
+  Recording TCC grant, so `/api/on` refused and nothing recorded at all; fixed by relaunching via
+  `tv/tvd-scan.sh` (TV DIABLO.app, `--open`). **Two distinct bugs stacked behind one sentence.** That
+  is why the first fix looked like it had failed: the grant fix was real and verified (`/api/on` →
+  `ok:true`, agent alive, `eye.jpg` refreshing every second), and the screen stayed black anyway
+  because the reel it produced had no index. When a fix "doesn't work", check whether the SECOND
+  failure downstream of it is a different bug before undoing the first.
+- **Root cause:** `tv/tv_diablo.py` ~6457-6514 wrote `index.json` — the one artefact without which
+  the entire reel is worthless — only **after** a per-frame blank-detection pass that decodes every
+  JPEG. Measured: **0.076 s/frame → ~7.4 s** for this 98-frame reel. `control_app.stop_agent()`
+  (~line 2193) asks for shutdown with `timeout=1.0` and force-kills after `wait_s = 2.5`, so the hard
+  kill lands **~3.5 s** in — about **4 s before the index would have been written**. The 1-frame reel
+  sealed 34 minutes earlier DID get an index (a single 76 ms decode, comfortably inside the deadline),
+  which is exactly the contrast the timing predicts. The comment at the kill site asserting *"seal is
+  already on disk before kill"* was simply false.
+- **Compounding fault — a double-swallowing `except`:** the block was wrapped in
+  `except Exception: _blank = 0` inside an outer `except Exception: pass`, so a failure to open,
+  serialise, write or complete `index.json` was indistinguishable from success. Nothing logged, nothing
+  retried, and the reel silently became unplayable.
+- **Stated honestly — the race is NOT deterministic:** three older reels of **114 / 126 / 153** frames
+  also got indexes, so different stop paths grant different grace. The exact stop path taken by the
+  01:04 session is **not established**.
+- **Blast radius, with numbers:** the archive survey found **6 reels** (153, 126, 114, 98, 1, 1 frames)
+  plus two thumbnail caches (`cache1280`, `cache160` — jpgs, no index, correctly not reels). Exactly
+  **ONE** reel was ever silently lost: the 98-frame session — **18% of the 543 archived frames**, and
+  the newest session. It has since been recovered. 2 reels carry an index over a single frame. This has
+  **not** been quietly eating footage for a long time; the archive does not support that claim.
+- **Fix:** `index.json` is written **FIRST and atomically**, from the filenames alone (tmp + `fsync` +
+  `os.replace`) — every frame is `f_<epoch-ms>.jpg`, which is exactly what an index row carries
+  (`{"f": name, "ts": int(name[2:-4])}`), so nothing has to be decoded to produce it. Blank flags are
+  demoted to an optional, time-bounded **second** atomic rewrite. An index-write failure is now logged
+  loudly and retried once. Readers reconstruct a missing index from the filenames via
+  `chronicle_retro.ensure_reel_index` / `load_index`, and `chronicle_retro.reel_dirs()` no longer drops
+  index-less reels. `control_app` repairs after a kill and at boot, and reports it. The blind 2.5 s is
+  replaced by a bounded seal-aware stop grace (hard cap ~8 s). `tv/reel_repair.py` gives a
+  hand-runnable survey/repair, doctor gains a `reels_indexed` warn check, and `tvd-console.sh` now
+  refuses **by default** to hand back a console that cannot record — the always-up headless console is
+  precisely the thing that reintroduces the TCC half of this symptom.
+- **Prevention — the general law, and this is the transferable part: THE CHEAP, ESSENTIAL ARTEFACT
+  MUST BE DURABLE BEFORE THE EXPENSIVE, OPTIONAL ENRICHMENT RUNS.** The index costs microseconds and
+  is the reel's existence; the blank flags cost seconds and only save classify calls later. Writing
+  them in the wrong order turned a shutdown race into lost footage. And a swallowing `except` around
+  the essential write is what converts a race into **silent** data loss — the same failure with a loud
+  log would have been a one-line diagnosis instead of a night. Regression suite:
+  `tv/test_reel_index_durability.py`, **observed RED on the pre-fix code first** (LAW19) and registered
+  in `tv/run_gates.py` per REG-079 — an unregistered suite rots.

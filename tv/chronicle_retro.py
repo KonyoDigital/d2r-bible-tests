@@ -9,6 +9,10 @@ Three laws, and they are the whole design:
   1. READ-ONLY UNTIL APPLY. `sweep()` returns evidence. Only `apply_proposal()` changes anything, and
      it is a separate call a human makes. A sweep that silently ticked 400 grail rows would be
      unauditable — and un-untickable, because there is no "unfind" in Diablo.
+     NO exception: this module cannot write AT ALL, and `test_chronicle_retro` proves it from the
+     source text. The v1608 index recovery therefore lives next door in `reel_index.py` — this file
+     only READS a missing index back (`reconstruct_index`/`load_index`); reel_index.py is the one
+     that puts the rebuilt index on disk.
 
   2. MERGE-MAX. A chronicle read only ever ADDS. His ledger is the accumulated truth of years; a reel
      from March cannot un-find something found in July, and a page that scrolled past a row is not
@@ -184,6 +188,83 @@ def _declared_kind(idx):
     return f if f in ("chronicle-uniques", "chronicle-sets") else None
 
 
+# v1607 — THE MARK OF A REBUILT INDEX. Stamped into every index this module reconstructs so a reader
+# can always tell "sealed with a full index" from "recovered from the frames on disk". Keep this
+# string identical to the one the seal-side recovery writes; two different marks for the same fact
+# is exactly the two-screens-disagree failure.
+INDEX_REBUILD_MARK = "v1607-recovery"
+
+
+def reconstruct_index(reel_dir):
+    """v1607 — REBUILD A REEL'S index.json FROM THE FRAME NAMES ALONE. PURE: reads a directory
+    listing, writes nothing, raises nothing.
+
+    THE BUG THIS EXISTS FOR: a reel whose seal was interrupted keeps all its JPEGs and loses its
+    index — and every reader in this file goes through index.json, so 98 frames of real farming
+    footage become a black screen. Nothing about that is unrecoverable: a frame is named
+    `f_<epoch-ms>.jpg`, which is EXACTLY the payload of an index row — {"f": name, "ts": ms}. The
+    filenames ARE the index; the index.json was only ever a cache of them.
+
+    BLANK FLAGS ARE DELIBERATELY OMITTED, and that is a decision, not an oversight:
+      · they cost a full JPEG decode per frame (MEASURED on his own 98-frame reel: 0.076–0.082 s
+        per frame, ≈8 s of decoding for that one reel),
+        and that decode pass is the exact expense that let a kill land before the index was written.
+        Rebuilding must never be able to lose the thing it is rebuilding.
+      · absent "blank" already means "unmeasured, not blank" everywhere in this module (see the
+        seal's v1545 note and live_probe(), which measures for itself when the flag is missing) —
+        so an index without the flags is READ correctly today, at the cost of some decodes later.
+      · a GUESSED flag would be worse than none: a frame wrongly marked blank is footage silently
+        withheld from the sweep, and there is no "unfind" for a page he never got read.
+    An index that omits what it did not measure is honest. There is no lazy backfill here on purpose.
+
+    Returns the index dict, or None when the directory holds no parseable frame.
+    """
+    try:
+        names = os.listdir(reel_dir)
+    except Exception:
+        return None
+    rows = []
+    for n in names:
+        if not (n.startswith("f_") and n.endswith(".jpg")):
+            continue
+        try:
+            ts = int(n[2:-4])
+        except (ValueError, TypeError):
+            continue          # a name that is not f_<ms>.jpg is not a frame; skip it, never raise
+        rows.append({"f": n, "ts": ts})
+    if not rows:
+        return None
+    # Capture ORDER is what still_runs() consumes, and for these names ts order IS capture order.
+    rows.sort(key=lambda r: (r["ts"], r["f"]))
+    base = os.path.basename(os.path.normpath(reel_dir))
+    sid = base[5:] if base.startswith("reel_") else base
+    return {"sessionId": sid, "n": len(rows), "frames": rows, "rebuilt": INDEX_REBUILD_MARK}
+
+
+def _index_ok(idx):
+    """A parsed index is USABLE only if it actually carries frames. A dict with an empty/absent
+    frames list is indistinguishable from a black screen to every reader here."""
+    return isinstance(idx, dict) and bool(idx.get("frames"))
+
+
+def load_index(reel_dir):
+    """THE ONE ACCESSOR every read path in this module goes through. Never writes.
+
+    On-disk index when it exists and parses; otherwise the reconstruction. A truncated or corrupt
+    index FALLS BACK rather than raising — a half-written index.json is the same interrupted seal,
+    and refusing to play the reel would punish him twice for one crash. Returns None only when there
+    is no index and no frame to rebuild one from.
+    """
+    try:
+        with open(os.path.join(reel_dir, "index.json"), encoding="utf-8") as fh:
+            idx = json.load(fh)
+        if _index_ok(idx):
+            return idx
+    except Exception:
+        idx = None
+    return reconstruct_index(reel_dir) or (idx if isinstance(idx, dict) else None)
+
+
 def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRAMES):
     """Sweep ONE sealed reel. Returns evidence — it writes nothing, anywhere.
 
@@ -196,11 +277,14 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     page keeps the frame it came from. Provenance is not decoration here: when he asks "why does it
     think I have Windforce", the answer has to be a frame he can look at.
     """
-    idx_path = os.path.join(reel_dir, "index.json")
-    try:
-        with open(idx_path, encoding="utf-8") as fh:
-            idx = json.load(fh)
-    except Exception:
+    # v1607 — go through load_index(), never straight at index.json. A reel whose seal was killed
+    # mid-write still has every frame; rebuilding the index from the names costs a listdir and turns
+    # a black screen back into footage. "no-index" now means what it says: no frames either.
+    # Tolerant by construction: rows carry no "blank" key on a rebuilt index (live_probe measures
+    # for itself), and the extra "rebuilt"/"blankPass"/"blankPartial" keys the seal may stamp are
+    # read through .get() like every other optional field here.
+    idx = load_index(reel_dir)
+    if not _index_ok(idx):
         return {"reel": os.path.basename(reel_dir), "runs": 0, "candidates": 0,
                 "classified": 0, "pages": [], "note": "no-index"}
     sid = idx.get("sessionId") or os.path.basename(reel_dir)
@@ -595,7 +679,16 @@ def reel_dirs(hist_dir, newest_first=True):
     except Exception:
         return []
     paths = [os.path.join(hist_dir, n) for n in names]
-    paths = [p for p in paths if os.path.isfile(os.path.join(p, "index.json"))]
+    # v1607 — THIS LINE USED TO SILENTLY DROP AN INDEX-LESS REEL, which is how 98 real frames became
+    # invisible to sweep_hist / vault_retro / theatre at once. Now every candidate is HEALED on first
+    # read: a missing index is rebuilt from the frame names, a present one is returned untouched, and
+    # only a directory with no frames at all is dropped.
+    # The `reel_` prefix filter above is load-bearing — tv/frames/hist also holds cache1280/cache160,
+    # thumbnail caches full of f_*.jpg that are NOT reels and must never be given an index.
+    # v1608 — PURE. A reel with frames but no index.json is still footage: load_index() rebuilds it
+    # IN MEMORY so it is VISIBLE here without this read-only module writing anything. Putting that
+    # rebuilt index on disk is reel_index.ensure_reel_index()'s job (console boot sweep / --apply).
+    paths = [p for p in paths if os.path.isdir(p) and _index_ok(load_index(p))]
     paths.sort(key=lambda p: os.path.basename(p), reverse=newest_first)
     return paths
 
@@ -635,11 +728,10 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
                     pass
             continue
         r = read_reel(reel_dir, classify, read_page, sig_of=sig_of)
-        try:
-            with open(os.path.join(reel_dir, "index.json"), encoding="utf-8") as fh:
-                frames_seen += len(json.load(fh).get("frames") or [])
-        except Exception:
-            pass
+        # v1607 — same accessor as read_reel(), so the frame COUNT and the frames actually swept can
+        # never disagree. Counting straight off index.json here would have reported 0 frames for a
+        # reel the sweep had just read 98 of.
+        frames_seen += len((load_index(reel_dir) or {}).get("frames") or [])
         pages.extend(r.get("pages") or [])
         stat = {k: r.get(k) for k in ("reel", "runs", "candidates", "classified", "blankRuns", "note")}
         stat["pages"] = len(r.get("pages") or [])

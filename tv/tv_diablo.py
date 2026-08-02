@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1607"   # the doctor names the blocker
+VERSION = "v1608"   # the index IS the reel
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -6456,64 +6456,172 @@ def close_session(reason="stop", farewell=True):
                         pass
             if _moved:
                 # v894 — write reel index so SIM loads without scanning every jpg name
+                #
+                # v1608 (Konyo: 'still a black screen when trying to record') — THE INDEX *IS*
+                # THE REEL, SO IT GOES DOWN FIRST. TWO PHASES. DO NOT RE-INVERT THEM.
+                #
+                # Measured on his real footage: chronicle_retro.is_dead_frame() costs ~0.076 s per
+                # frame, so the blank pass below runs ~7.4 s on a 98-frame reel. Meanwhile
+                # control_app.stop_agent() asks for shutdown (timeout 1.0 s), waits wait_s = 2.5 s
+                # and then SIGKILLs every agent pid — the hard kill lands ~3.5 s after the ask.
+                # Writing index.json only AFTER the blank pass therefore put the one artefact the
+                # reel cannot exist without ~4 s the WRONG side of the kill: the 01:04 session
+                # sealed 98 real jpgs and no index at all, and theatre / read_reel / sweep_hist all
+                # read index.json — an index-less reel plays BLACK. The 1-frame reels survived only
+                # because their pass finished in ~0.1 s. It is not deterministic (three older
+                # 114/126/153-frame reels did get indexes; /api/off, window close and atexit give
+                # different grace) — but the ordering is the whole difference:
+                #   phase 1  filenames only, milliseconds, atomic  -> the reel is PLAYABLE
+                #   phase 2  blank enrichment, time-boxed, atomic  -> the reel is nicer
+                # The blank flags are an optimisation. The index is the reel's existence.
+                _blank = 0
+                _idx = []
                 try:
                     _idx = sorted(
                         f for f in os.listdir(_reel)
                         if f.startswith("f_") and f.endswith(".jpg")
                     )
-                    # v1545 — MARK THE BLANK CAPTURES, ONCE, HERE.
-                    #
-                    # 18 of the 394 frames in his sealed footage are the window grabbed with nothing
-                    # on it, and 16 of the 17 in the worst reel land in the FIRST NINETEEN SECONDS:
-                    # capture starts while D2R is still launching, so the window exists (the grab
-                    # succeeds) and is blank until the title screen paints.
-                    #
-                    # Marking beats deleting — that footage is real, the SIM replays it, and throwing
-                    # away evidence to tidy a count is the wrong trade. Marking beats measuring later
-                    # too: the flatness is computed once at seal instead of on every sweep, and a
-                    # blank frame sitting inside a real Chronicle visit no longer splits that visit
-                    # into two runs and charges for two classifies.
-                    _blank = 0
-                    _meta = []
-                    for _fn in _idx:
-                        try:
-                            _row = {"f": _fn, "ts": int(_fn[2:-4])}
-                        except Exception:
-                            continue
-                        try:
-                            import chronicle_retro as _cr
-                            if _cr.is_dead_frame(os.path.join(_reel, _fn)):
-                                _row["blank"] = True
-                                _blank += 1
-                        except Exception:
-                            pass          # unmeasurable stays unmarked — never guessed blank
-                        _meta.append(_row)
-                    with open(os.path.join(_reel, "index.json"), "w", encoding="utf-8") as _jf:
-                        _idx = {"sessionId": SESSION_ID, "n": len(_meta),
-                                "blank": _blank, "frames": _meta}
-                        # v1595 — STAMP THE MINI. Without this the flag changes nothing that
-                        # outlives the process: vault_retro reads the sealed reel, not the argv of
-                        # a run that has already exited.
-                        if MINI_MODE:
-                            _idx["mini"] = True
-                            _idx["focus"] = MINI_FOCUS
-                            _idx["miniSeconds"] = MINI_SECONDS
-                        json.dump(_idx, _jf)
-                except Exception:
-                    _blank = 0
+                except Exception as _e:
+                    print(f"  ⛔ REEL LISTING FAILED for reel_{SESSION_ID}: {_e!r} — "
+                          f"no index can be written, reel is UNPLAYABLE until repaired")
+
+                def _reel_index_write(_doc):
+                    # atomic: same-dir tmp -> flush -> fsync -> os.replace. A SIGKILL landing at any
+                    # instant leaves either the previous index or the new one, never a half file.
+                    _tmp = os.path.join(_reel, "index.json.tmp")
+                    with open(_tmp, "w", encoding="utf-8") as _jf:
+                        json.dump(_doc, _jf)
+                        _jf.flush()
+                        os.fsync(_jf.fileno())
+                    os.replace(_tmp, os.path.join(_reel, "index.json"))
+
+                # ── phase 1: filenames only ───────────────────────────────────────────────
+                _meta = []
+                for _fn in _idx:
+                    try:
+                        _meta.append({"f": _fn, "ts": int(_fn[2:-4])})
+                    except Exception:
+                        continue      # unparseable stamp is not a frame — same as v894
+                _ixdoc = {"sessionId": SESSION_ID, "n": len(_meta),
+                          "blank": 0, "frames": _meta, "blankPass": False}
+                # v1595 — STAMP THE MINI. Without this the flag changes nothing that
+                # outlives the process: vault_retro reads the sealed reel, not the argv of
+                # a run that has already exited.
+                if MINI_MODE:
+                    _ixdoc["mini"] = True
+                    _ixdoc["focus"] = MINI_FOCUS
+                    _ixdoc["miniSeconds"] = MINI_SECONDS
+                _indexed = False
+                for _attempt in (1, 2):     # one retry, then say so out loud
+                    try:
+                        _reel_index_write(_ixdoc)
+                        _indexed = True
+                        break
+                    except Exception as _e:
+                        if _attempt == 2:
+                            print(f"  ⛔ REEL INDEX WRITE FAILED for reel_{SESSION_ID}: {_e!r} — "
+                                  f"reel is UNPLAYABLE until repaired")
+                if _indexed:
+                    print(f"  🗂 reel index written — reel_{SESSION_ID} lists "
+                          f"{len(_meta)} frame(s)")
+
+                # ── phase 2: blank enrichment ─────────────────────────────────────────────
+                # v1545 — MARK THE BLANK CAPTURES, ONCE, HERE.
+                #
+                # 18 of the 394 frames in his sealed footage are the window grabbed with nothing
+                # on it, and 16 of the 17 in the worst reel land in the FIRST NINETEEN SECONDS:
+                # capture starts while D2R is still launching, so the window exists (the grab
+                # succeeds) and is blank until the title screen paints.
+                #
+                # Marking beats deleting — that footage is real, the SIM replays it, and throwing
+                # away evidence to tidy a count is the wrong trade. Marking beats measuring later
+                # too: the flatness is computed once at seal instead of on every sweep, and a
+                # blank frame sitting inside a real Chronicle visit no longer splits that visit
+                # into two runs and charges for two classifies.
+                #
+                # v1608 — and TIME-BOXED at 2.0 s, under the console's 2.5 s force-kill. Unbounded,
+                # this pass is guaranteed to be killed on any real reel; whatever it cannot reach
+                # in time simply stays unmarked (blankPartial), which is honest, and the phase-1
+                # index is already on disk so the reel plays either way.
+                if _indexed and _meta:
+                    _t_blank = time.time()
+                    _scanned = 0
+                    _partial = False
+                    try:
+                        import chronicle_retro as _cr
+                        for _row in _meta:
+                            if time.time() - _t_blank > 2.0:
+                                _partial = True
+                                break
+                            try:
+                                if _cr.is_dead_frame(os.path.join(_reel, _row["f"])):
+                                    _row["blank"] = True
+                                    _blank += 1
+                            except Exception:
+                                pass      # unmeasurable stays unmarked — never guessed blank
+                            _scanned += 1
+                        _ixdoc["blank"] = _blank
+                        _ixdoc["blankPass"] = True
+                        if _partial:
+                            _ixdoc["blankPartial"] = True
+                            _ixdoc["blankScanned"] = _scanned
+                        _reel_index_write(_ixdoc)
+                    except Exception as _e:
+                        print(f"  ⚠ reel_{SESSION_ID}: blank-capture pass incomplete ({_e!r}) — "
+                              f"index stands, those frames are just unmarked")
                 print(f"  🎞 reel folded — {_moved} footage frames sealed into reel_{SESSION_ID}")
                 # v1548 — the warm-up gate is only trustworthy if it says what it withheld
                 _ws = int(globals().get("_FOOTAGE_WARMSKIP") or 0)
                 if _ws:
                     print(f"  ⏳ {_ws} frame(s) held back while D2R was still painting — "
                           f"blank captures that never reached the reel")
+                # ── v1608.1 — THE LATE SWEEP. Phase 2 runs up to 2 s AFTER the fold above, and the
+                # film thread keeps writing f_<ms>.jpg into FRAMES the whole time. Those frames land
+                # after the fold has already walked the directory, so they stay loose — outside the
+                # reel, in the shared pool the reaper sheds FIRST (the exact v883 bug: sessions going
+                # hollow within hours). test_roundtrip_sim caught it as "loose frames survived the
+                # fold inside the session window", which is footage he would simply never see again.
+                #
+                # So sweep once more, with the SAME window rule as the fold, and re-index if anything
+                # moved. Cheap (one listdir, a rename each) and it closes the window no matter how
+                # long phase 2 took — which matters because phase 2's duration is deliberately
+                # variable.
+                try:
+                    _late = 0
+                    _t1b = int(time.time() * 1000) + 2000
+                    for _fn in os.listdir(_hd):
+                        if not (_fn.startswith("f_") and _fn.endswith(".jpg")):
+                            continue
+                        try:
+                            _fts = int(_fn[2:-4])
+                        except Exception:
+                            continue
+                        if _t0 - 2000 <= _fts <= _t1b:
+                            try:
+                                os.replace(os.path.join(_hd, _fn), os.path.join(_reel, _fn))
+                                _late += 1
+                                _meta.append({"f": _fn, "ts": _fts})
+                            except Exception:
+                                pass
+                    if _late:
+                        _meta.sort(key=lambda _r: _r["ts"])
+                        _ixdoc["frames"] = _meta
+                        _ixdoc["n"] = len(_meta)
+                        _ixdoc["lateFolded"] = _late
+                        _reel_index_write(_ixdoc)
+                        print(f"  🧹 {_late} late frame(s) folded in after the seal pass")
+                except Exception as _e:
+                    print(f"  ⚠ late fold sweep skipped ({_e!r}) — some frames may remain loose")
+
                 # said out loud, because a capture lane producing blank frames is a fault that would
                 # eat a real Chronicle page exactly as happily as it eats a loading screen
                 if _blank:
                     print(f"  ⚠ {_blank} blank capture(s) in this reel — the window was grabbed with "
                           f"nothing painted on it (usually D2R still launching)")
-    except Exception:
-        pass
+    except Exception as _e:
+        # v1608 — a reel fold that dies silently is how footage disappears without a trace
+        print(f"  ⛔ REEL FOLD FAILED for reel_{SESSION_ID}: {_e!r} — "
+              f"this session's footage may be unsealed or unindexed")
     with _state_lock:
         try:
             st = _load()
