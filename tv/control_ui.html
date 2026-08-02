@@ -9843,8 +9843,13 @@
     var el = document.getElementById('kai-gate'); if (!el) return;
     var gt = ((st && st.sessionHealth) || {}).gate || {};
     var proven = gt.proven, held = gt.held;
+    /* v1564 — `skipped` is frames with no panel on them (gateReason 'no-label'). They used to be
+       counted as HELD, i.e. as reads the gate refused — so the scorecard rated the reader worse the
+       more he simply played. They are not a verdict either way and never enter the percentage. */
+    var skipped = gt.skipped || 0;
     if (proven == null && held == null){ el.hidden = true; return; }   // no gate verdicts to show — stay honest, take no space
     proven = proven || 0; held = held || 0;
+    if (!proven && !held){ el.hidden = true; return; }   // only no-panel frames — no verdict to show
     el.hidden = false;
     el.classList.toggle('kg-guarding', held > 0);   // gold = the gate is actively holding uncertain reads back
     var pEl = document.getElementById('kg-proven'); if (pEl) pEl.textContent = proven;

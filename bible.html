@@ -34078,9 +34078,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'<div class="fp-lbl">🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets<span class="fp-pct">'+pct+'%</span></div></div>');
     // group missing pieces by best run (same shape as Forge·Uniques)
     var bySrc={};
-    missingP.forEach(function(mp){ var key=mp.src?mp.src.boss:'Drops broadly — no single best run';
-      var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0}); g.items.push(mp); if(mp.src)g.ev+=(mp.src.kph||30)/mp.src.chance; });
-    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){return b.ev-a.ev||b.items.length-a.items.length;});
+    /* v1564 — Konyo: "Run drops broadly? what level is this, is this a mistake?"
+       Not a mistake — but it was dressed as one thing while being another. Pieces whose set has NO
+       resolvable farm source were bucketed under a key and then rendered by the SAME card template
+       as a real run: "Run <name>", ranked, green, "can drop 10 of your missing pieces". So the
+       leftovers looked like a destination, and his question — what difficulty is it — has no answer
+       BECAUSE there is no source. These are the same seven sets v1557 named (Tancred's, Vidala's,
+       Horazon's, Death's, Bul-Kathos', Heaven's Brethren, The Disciple).
+       It is flagged now so the card can say what it is instead of pretending to be a run. */
+    var NO_RUN_KEY = 'No verified farm source yet';
+    missingP.forEach(function(mp){ var key=mp.src?mp.src.boss:NO_RUN_KEY;
+      var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0,noRun:!mp.src}); g.items.push(mp); if(mp.src)g.ev+=(mp.src.kph||30)/mp.src.chance; });
+    // v1564 — the no-source bucket sorts LAST regardless of size. It is not a better run than a
+    // real one just because more orphans landed in it.
+    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){
+      if (!!a.noRun !== !!b.noRun) return a.noRun ? 1 : -1;
+      return b.ev-a.ev||b.items.length-a.items.length; });
     var quick=missingP.filter(function(mp){return mp.left===1;}).sort(function(a,b){return String(a.set).localeCompare(String(b.set));});
     // UNIFIED tiles — identical names to Forge·Uniques
     H.push('<div class="forge-tabs">'
@@ -34142,8 +34155,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var more=g.items.length>12?'<span class="gf-note">+ '+(g.items.length-12)+' more pieces</span>':'';
         var bossBtn=g.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(g.bossId)+'\')">📜 boss card</button></div>':'';
         return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art((g.items[0]?g.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,''),'🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
-          +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(g.boss)+'</b></div>'
-          +'<div class="f-atomsubrow">can drop <b>'+g.items.length+'</b> of your missing pieces — tap a piece the moment it drops</div>'
+          +'<div class="f-cardtitle"><div class="f-atomact">'+(g.noRun?'<b class="f-rwbig">':'Run <b class="f-rwbig">')+esc(g.boss)+'</b></div>'
+          /* v1564 — "can drop 10 of your missing pieces" is true of a run. Said under the no-source
+             bucket it implies somewhere to go and drops the question he actually asked: what
+             difficulty? There is no difficulty, because there is no source. */
+          +'<div class="f-atomsubrow">'+(g.noRun
+              ? '<b>'+g.items.length+'</b> pieces whose set has no verified farm source in this app — hunt them anywhere, and tap one the moment it drops'
+              : 'can drop <b>'+g.items.length+'</b> of your missing pieces — tap a piece the moment it drops')+'</div>'
           +'<div class="gf-chips">'+chips+more+'</div></div>'+bossBtn+'</div></div>');
       });
       if(F==='runs') H.push(_baseHuntStrip());   // v709 — courtesy strip above the set run cards
@@ -36172,7 +36190,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1563', name:'v1563 - three dead seams and a rate whose denominator was how long the app was open', date:'2026-07-31', note:'the Sets tile had never rendered once; the logger badge never repainted; the gate tuner was dead after a live visit; READS/HR read 1 against an honest 283' };
+  window.D2R_BUILD = { id:'v1564', name:'v1564 - not a run, and a gameplay frame is not a refused read', date:'2026-07-31', note:'the drops-broadly card was the no-source leftovers dressed as a destination; the KAI GATE badge counted empty frames as reads it refused' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

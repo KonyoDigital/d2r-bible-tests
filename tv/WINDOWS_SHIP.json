@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1563",
+  "ver": "v1564",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1563: the Sets tile had never rendered once; the logger badge never repainted; the gate tuner was dead after a live visit; READS/HR read 1 against an honest 283",
+  "note": "v1564: the drops-broadly card was the no-source leftovers dressed as a destination; the KAI GATE badge counted empty frames as reads it refused",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

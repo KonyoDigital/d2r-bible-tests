@@ -4401,9 +4401,23 @@ def _newest_gate_count():
         if _GATE_COUNT_CACHE["reel"] == reels[0] and _GATE_COUNT_CACHE["mtime"] == mt:
             return _GATE_COUNT_CACHE["val"]
         rt = (json.load(open(rp, encoding="utf-8")) or {}).get("routing") or []
+        # v1564 — A GAMEPLAY FRAME IS NOT A REFUSED READ.
+        # _gate_check returns {"pass": False, "reason": "no-label"} for `not label or label ==
+        # "gameplay"` — a frame with no panel on it at all. The badge's own comment calls held
+        # "uncertain, refused", and the gate refused nothing: there was nothing to judge. Counting
+        # those as held inflates the denominator with every frame of him walking through a level,
+        # so the scorecard reports the reader as less accurate the MORE he plays.
+        # This is the same honest-absent line the chronicle sweep draws between "nothing to judge"
+        # and "everything works" — "I could not look" must never be spent as "I looked and failed".
+        # NOTE: unmeasured on his own footage. No readtrail.jsonl exists in any sealed reel yet, so
+        # this is fixed on the logic, not on a ratio I watched change. The classification is wrong
+        # regardless of how many frames currently land in each bucket.
         prov = sum(1 for r in rt if r.get("gatePass") is True)
-        held = sum(1 for r in rt if r.get("gatePass") is False)
-        val = {"proven": prov, "held": held} if (prov or held) else None
+        held = sum(1 for r in rt if r.get("gatePass") is False
+                   and str(r.get("gateReason") or "") != "no-label")
+        skipped = sum(1 for r in rt if r.get("gatePass") is False
+                      and str(r.get("gateReason") or "") == "no-label")
+        val = {"proven": prov, "held": held, "skipped": skipped} if (prov or held or skipped) else None
         _GATE_COUNT_CACHE.update(reel=reels[0], mtime=mt, val=val)
         return val
     except Exception:
@@ -8621,7 +8635,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1563",
+        "ver": "v1564",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
