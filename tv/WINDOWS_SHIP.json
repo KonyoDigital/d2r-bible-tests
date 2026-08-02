@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1599",
+  "ver": "v1600",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1599: five renderAll guards were permanently false and left the grail meter, hero, boss cards, calculator and both forge tallies stale after every un-own, clear, reset and intake - now one real repaint; uiPrompt written at last so the one type-in dialog stops raising the OS-native white box",
+  "note": "v1600: the symbol half of reachability is now enforced too - 262 typeof-function guards checked against declarations across both surfaces; proven to catch the real v1599 bug by reintroducing it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

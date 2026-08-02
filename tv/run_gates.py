@@ -67,10 +67,11 @@ GATES = [
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),
     Gate("test_reachability", [sys.executable, os.path.join(HERE, "test_reachability.py")], 120,
-         why="LAW19 as a gate, not an intention: every DOM id READ must be WRITTEN somewhere in "
-             "the same document. Four separate bugs were this one shape — REG-083/087, the "
-             "v1576 dead-safe-classifier, the v1593 TZ crash, and ~680 versions of unreachable "
-             "shelf render code"),
+         why="LAW19 as a gate, not an intention — BOTH halves. Every DOM id READ must be WRITTEN "
+             "in the same document, and every `typeof X === function` guard must name a symbol "
+             "that exists. Six bugs were this one shape: REG-083/087, the v1576 dead-safe "
+             "classifier, the v1593 TZ crash, ~680 versions of unreachable shelf code (REG-095), "
+             "and five ownership changes that never repainted (REG-096)"),
     Gate("test_free_pass_quote", [sys.executable, os.path.join(HERE, "test_free_pass_quote.py")], 180,
          why="the free pass may never quote BELOW what a real sweep spends — it priced only the "
              "classify lane and structurally could not count a page read (v1596)"),

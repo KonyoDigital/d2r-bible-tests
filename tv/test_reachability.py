@@ -140,6 +140,120 @@ class TestTheGateCanActuallyFail(unittest.TestCase):
         self.assertIn("hd-prev", ids_written(src))
 
 
+
+# ── LAW19, second half: SYMBOLS ────────────────────────────────────────────────────────────────
+# The id check above catches `getElementById('phantom')`. This catches its twin:
+#     if (typeof renderAll === 'function') renderAll();
+# ...where `renderAll` is declared NOWHERE, so the guard is permanently false. v1599 found five of
+# those by hand — and they were not merely dead, they were five ownership changes that never
+# repainted the surfaces showing ownership. Doing that by hand once is fine; relying on doing it
+# again is not.
+#
+# WHY THIS SCANS LINE-WISE INSTEAD OF STRIPPING COMMENTS — learned the expensive way, twice:
+#
+#   1. NOT stripping means a comment can MASK the truth. My first sweep reported `renderAll` dead
+#      long after it was fixed, because the comment explaining the fix quotes the dead guard.
+#   2. Stripping NAIVELY is worse: `re.sub(r"/\*.*?\*/", "", src, flags=S)` on a 39k-line document
+#      that contains regex literals and strings holding "/*" swallowed real spans of code, and the
+#      sweep then reported THREE healthy functions (_aicIsGrailName, _chIsJunkName, refreshOpenCard)
+#      as undeclared. A gate that invents findings gets ignored, which is worse than no gate —
+#      refreshOpenCard is called bare in four places and would throw on load if that were true.
+#
+# So: read line by line, SKIP lines that are comments, and never rewrite the source. Conservative in
+# the safe direction — a fake declaration hidden in a trailing comment on a code line would be
+# missed, and missing one is survivable in a way that fabricating three is not.
+_DECL_PATTERNS = [re.compile(p) for p in (
+    r"function\s+([A-Za-z_$][\w$]*)\s*\(",
+    r"(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=",
+    r"window\.([A-Za-z_$][\w$]*)\s*=",
+    r"([A-Za-z_$][\w$]*)\s*[:=]\s*(?:async\s+)?function",
+    r"([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>",
+)]
+_GUARD_PATTERNS = [
+    re.compile(r"typeof\s+([A-Za-z_$][\w$]*)\s*===?\s*['\"]function['\"]"),
+    re.compile(r"typeof\s+window\.([A-Za-z_$][\w$]*)\s*===?\s*['\"]function['\"]"),
+]
+
+# Guards on names this document does NOT own. Each needs a reason a reader can check.
+EXTERNAL_SYMBOLS = {
+    # (surface, symbol): why it legitimately lives elsewhere
+}
+
+
+def scan_symbols(path):
+    """-> (declared:set, guarded:{name: first_line}). Skips comment lines; never rewrites source."""
+    declared, guarded = set(), {}
+    with open(path, encoding="utf-8") as fh:
+        for n, line in enumerate(fh, 1):
+            t = line.lstrip()
+            if t.startswith("//") or t.startswith("*") or t.startswith("/*"):
+                continue
+            for p in _DECL_PATTERNS:
+                declared.update(m.group(1) for m in p.finditer(line))
+            for p in _GUARD_PATTERNS:
+                for m in p.finditer(line):
+                    guarded.setdefault(m.group(1), n)
+    return declared, guarded
+
+
+class TestEveryGuardedSymbolExists(unittest.TestCase):
+    """`typeof X === 'function'` is only defensive if X exists somewhere. Otherwise it is a promise
+    nobody kept — and it hides forever, because the surrounding code still works."""
+
+    def _check(self, label, path):
+        if not os.path.isfile(path):
+            self.skipTest("%s not present" % label)
+        declared, guarded = scan_symbols(path)
+        dead = {g: ln for g, ln in guarded.items()
+                if g not in declared and (label, g) not in EXTERNAL_SYMBOLS}
+        if dead:
+            lines = "\n".join("    %s:%d  guards `typeof %s === 'function'` — declared nowhere"
+                               % (label, ln, g) for g, ln in sorted(dead.items(), key=lambda kv: kv[1]))
+            self.fail(
+                "%d guard(s) in %s test a symbol that does not exist.\n%s\n\n"
+                "Every one of these is permanently false, so the branch behind it never runs. That "
+                "is REG-083/087 and REG-096: five `renderAll` guards meant five ownership changes "
+                "that never repainted the grail meter. Either write the function, delete the dead "
+                "branch, or — if it genuinely lives in another file — add it to EXTERNAL_SYMBOLS "
+                "with the reason." % (len(dead), label, lines))
+
+    def test_console_ui(self):
+        self._check(*SURFACES[0])
+
+    def test_board(self):
+        self._check(*SURFACES[1])
+
+
+class TestTheSymbolDetectorCanFail(unittest.TestCase):
+    def test_it_flags_a_guard_with_no_declaration(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as fh:
+            fh.write("<script>function real(){}\n"
+                     "if (typeof real === 'function') real();\n"
+                     "if (typeof ghost === 'function') ghost();</script>\n")
+            p = fh.name
+        try:
+            declared, guarded = scan_symbols(p)
+            self.assertIn("real", declared)
+            self.assertIn("ghost", guarded)
+            self.assertNotIn("ghost", declared)
+        finally:
+            os.unlink(p)
+
+    def test_a_guard_inside_a_COMMENT_is_not_counted(self):
+        """The exact false positive that made the first sweep report an already-fixed bug."""
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as fh:
+            fh.write("<script>\n// was: if (typeof renderAll === 'function') renderAll();\n"
+                     "var ok = 1;</script>\n")
+            p = fh.name
+        try:
+            _declared, guarded = scan_symbols(p)
+            self.assertNotIn("renderAll", guarded,
+                             "a guard quoted in a comment is documentation, not code")
+        finally:
+            os.unlink(p)
+
 class TestTheKnownOffendersStayFixed(unittest.TestCase):
     """Named regressions. These are cheap and they name the bug, so a reintroduction is obvious
     rather than being one line in a list of orphans."""
