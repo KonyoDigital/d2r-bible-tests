@@ -358,6 +358,58 @@ class TestTierSeparation(unittest.TestCase):
         self.assertIn("not published yet", ui, "console still says (unknown) for an absent next")
         self.assertIn("not published yet", board, "board still says (unknown) for an absent next")
 
+class TestPanelAlignmentAndPolling(unittest.TestCase):
+    """v1586-87 — three things Konyo saw that the panel should have said or done itself.
+
+    "why are they not aligned? the next and live?" — auto-fit sized each row to its OWN item count,
+    so a 2-zone LIVE NOW made two 50% columns while a 3-zone UP NEXT made three 33% ones and no card
+    lined up with the card above it. Both rows share one column count now.
+
+    "the LIVE NOW is rendering two of the separted tz zones?? maybe theres a mistake here?" — there
+    is no mistake, and that is exactly why it had to change. A terror zone in D2R is a GROUP of
+    connected areas terrorised together for one window: across the last 95 windows of his own feed,
+    30 had one area, 43 had two, 21 had three and one had four. Two cards side by side with nothing
+    saying they are concurrent reads like the half hour split in two.
+
+    "i want it to be greyed out really.. so its known" — THIN is now full grayscale at .3, so it
+    never has to be compared against a neighbour to be recognised.
+    """
+
+    def test_both_rows_share_one_column_count(self):
+        _, ui = _tz_info()
+        self.assertIn("--tz-cols", ui, "the shared column count is gone")
+        self.assertIn("repeat(var(--tz-cols", ui)
+        self.assertIn("Math.max(1, _count(d.current), _count(d.next))", ui,
+                      "the column count must span BOTH rows or they cannot align")
+
+    def test_a_multi_zone_window_says_the_zones_are_concurrent(self):
+        _, ui = _tz_info()
+        board = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+        self.assertIn("terrorised together", ui, "console does not say the zones are simultaneous")
+        self.assertIn("terrorised together", board, "board does not say the zones are simultaneous")
+
+    def test_thin_is_unmistakable_not_merely_dimmer(self):
+        _, ui = _tz_info()
+        self.assertIn("grayscale(1)", ui, "THIN is not fully desaturated")
+        m = re.search(r"\.tzz-thin \{ opacity: ([\d.]+)", ui)
+        self.assertTrue(m, "the THIN opacity rule is gone")
+        thin = float(m.group(1))
+        g = re.search(r"\.tzz-good \{ opacity: ([\d.]+)", ui)
+        good = float(g.group(1))
+        self.assertLess(thin, good - 0.3,
+                        "THIN (%.2f) is not far enough below FINE (%.2f) to be read without "
+                        "comparing them" % (thin, good))
+
+    def test_the_lean_in_is_actually_re_armed(self):
+        """v1586 shipped this DEAD: _tzNextMissing was set inside the fetch, but _tzSchedule() only
+        ran once at wire time, so it read the flag before any fetch had set it and the cadence
+        stayed 120s forever. Its own test caught it — two fetches before, two after 63 seconds.
+        Same shape as the v1570 redo: a slot written, read and cleared, with nothing re-arming."""
+        _, ui = _tz_info()
+        self.assertIn("if (wasMissing !== _tzNextMissing", ui,
+                      "nothing re-schedules when the cadence changes — the lean-in is dead again")
+        self.assertIn("_tzNextMissing ? 60000 : 120000", ui)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

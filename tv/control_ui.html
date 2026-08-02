@@ -2340,7 +2340,9 @@
   .tz-slot.now { border-color: rgba(120,230,160,.34);
     background: radial-gradient(120% 160% at 8% 0%, rgba(120,230,160,.13), transparent 60%),
                 linear-gradient(180deg, rgba(120,230,160,.05), rgba(0,0,0,.2)); }
-  .tz-lab { display: flex; align-items: center; gap: 7px; margin-bottom: 6px;
+  .tz-together { font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); letter-spacing: .02em;
+    text-transform: none; color: rgba(255,255,255,.46); margin-left: 4px; }
+  .tz-lab { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap;
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .22em;
     text-transform: uppercase; opacity: .85; }
   .tz-slot.now .tz-lab { color: #8fe0a0; opacity: 1; }
@@ -2353,8 +2355,11 @@
      makes them equal HEIGHT — so "Travincal / the Council" and "Blood Moor / 520 density" line up
      on the same baselines instead of floating at their own. */
   .tz-zones { display: grid; gap: 9px; align-items: stretch;
-    grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); }
-  .tz-zones-hero { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+    grid-template-columns: repeat(var(--tz-cols, 2), minmax(0, 1fr)); }
+  /* below the fold of a narrow console the shared grid would squeeze; fall back to auto-fit */
+  @media (max-width: 900px) {
+    .tz-zones { grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); }
+  }
 
   /* v1578 — FLAGSHIP. The zone card carries the game's own art as its FACE, at a size that can
      actually be read from the couch: the console is watched on a TV, and a 30px thumbnail of a
@@ -2396,9 +2401,16 @@
   .tzz-prime .tzz-art { border-color: rgba(240,192,96,.42); }
   .tzz-good { opacity: .74; filter: saturate(.55); }
   .tzz-good:hover { opacity: .95; filter: saturate(.9); }
-  .tzz-thin { opacity: .46; filter: grayscale(.85); border-color: rgba(255,255,255,.08); }
-  .tzz-thin .tzz-art { box-shadow: inset 0 0 22px rgba(0,0,0,.75); }
-  .tzz-thin:hover { opacity: .9; filter: grayscale(.15); }
+  /* v1587 — THIN has to read as DEAD. Konyo: "i want it to be greyed out really.. so its known".
+     At .46/grayscale(.85) beside a .74 middle tier the step was there but small on a dark panel,
+     and the point of the treatment is that he never has to compare two cards to tell them apart.
+     Full grayscale, deeper fade, flattened frame — and it comes back on hover, because unreadable
+     is not the same as hidden and he still needs to be able to check what it says. */
+  .tzz-thin { opacity: .3; filter: grayscale(1) brightness(.72); border-color: rgba(255,255,255,.05);
+    background: rgba(255,255,255,.012); }
+  .tzz-thin .tzz-art { box-shadow: inset 0 0 26px rgba(0,0,0,.85); }
+  .tzz-thin .tzz-txt b { font-weight: var(--fw-medium); }
+  .tzz-thin:hover { opacity: .92; filter: grayscale(.1) brightness(1); }
   /* The tag is a FLEX ITEM, not an absolute overlay. Absolutely positioned at top:-7px it sat on
      top of the zone name on every short name — the first render covered the word "Travincal"
      with the word "PRIME", which is a label obscuring the thing it labels. */
@@ -11085,12 +11097,38 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
           + (act ? '<i>act ' + act + '</i>' : '') + meta + '</span></div>';
       }).join('');
     };
+    /* v1586 — SAY THAT THEY ARE SIMULTANEOUS. Konyo, seeing two cards under LIVE NOW: "the LIVE NOW
+       is rendering two of the separated tz zones?? like it should just be 30minutes and then next
+       the 30 minutes? maybe theres a mistake here?"
+
+       There is no mistake, and that is exactly why the panel had to change: a terror zone in D2R is
+       a GROUP of connected areas terrorised together for one window, not one area. Across the last
+       95 windows in his own feed: 30 had a single area, 43 had two, 21 had three, one had four. So
+       two cards under LIVE NOW is the common case, not a split of the half hour — and the panel
+       showed them side by side with nothing saying they are concurrent, which reads exactly like
+       one slot rendered twice. Now it says so, and only when there is more than one to explain. */
+    var _count = function (z) { return String(z || '').split(/,\s*|\s+and\s+/)
+      .map(function (x) { return x.trim().replace(/^and\s+/i, ''); })
+      .filter(function (x) { return x.length; }).length; };
+    var _together = function (z) {
+      var n = _count(z);
+      return n > 1 ? '<div class="tz-together">all ' + n + ' are terrorised together for this '
+        + 'window &mdash; take whichever suits the run</div>' : '';
+    };
+    /* v1587 — ONE GRID FOR BOTH ROWS. Konyo: "why are they not aligned? the next and live?"
+       auto-fit sized each row to its OWN item count, so a 2-zone LIVE NOW made two 50% columns
+       while a 3-zone UP NEXT made three 33% ones, and no card lined up with the card above it.
+       Both rows now use the SAME column count — the larger of the two — so the columns are a
+       single grid down the panel. A row with fewer zones leaves its last column empty rather than
+       stretching to fill, because stretching is what broke the alignment in the first place. */
+    var _cols = Math.max(1, _count(d.current), _count(d.next));
+    body.style.setProperty('--tz-cols', _cols);
     body.innerHTML =
       '<div class="tz-slot now">'
-      + '<div class="tz-lab"><span class="tz-dot"></span>LIVE NOW</div>'
+      + '<div class="tz-lab"><span class="tz-dot"></span>LIVE NOW' + _together(d.current) + '</div>'
       + '<div class="tz-zones tz-zones-hero">' + zones(d.current, true) + '</div></div>'
       + '<div class="tz-slot next">'
-      + '<div class="tz-lab">⏭ UP NEXT</div>'
+      + '<div class="tz-lab">⏭ UP NEXT' + _together(d.next) + '</div>'
       + '<div class="tz-zones">' + zones(d.next) + '</div></div>'
       + (d.stale
         ? '<div class="tz-stale">⚠ the live site was unreachable — this is the LAST GOOD rotation, '
@@ -11147,11 +11185,22 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
     _tzClockTimer = setInterval(tick, 1000);
   }
 
+  var _tzNextMissing = false;
   async function _tzFetch() {
     var body = document.getElementById('tz-body');
     try {
       var r = await fetch('/api/tz', { cache: 'no-store' });
       var d = await r.json();
+      /* v1586 — remember whether the NEXT window is still unpublished, so the panel can lean in
+         and ask again sooner instead of sitting on "not published yet" until he hits refresh. */
+      var wasMissing = _tzNextMissing;
+      _tzNextMissing = !!(r.ok && d && !String(d.next || '').trim());
+      /* v1587 — THE LEAN-IN I WROTE IN v1586 NEVER FIRED. _tzNextMissing was set here, but
+         _tzSchedule() only ever ran once at wire time, so it read the flag before any fetch had
+         set it and the interval stayed at 120s forever. Proven dead by its own test: two fetches
+         before, two after 63 seconds, leanedIn false. The slot was written, read and cleared and
+         nothing re-armed it — the same shape as the v1570 redo. Re-arm when the cadence changes. */
+      if (wasMissing !== _tzNextMissing && typeof _tzSchedule === 'function') _tzSchedule();
       _tzPaint(r.ok ? d : { error: (d && d.error) || ('http ' + r.status) });
     } catch (e) {
       _tzPaint({ error: String((e && e.message) || e).slice(0, 120) });
@@ -11169,9 +11218,34 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
     // this server serves the board itself (v774), so the full tracker is one hop away
     if (op) op.onclick = function () { try { window.open('/board#tztracker', '_blank'); } catch (e) {} };
     _tzFetch();
+    _tzSchedule();
+  }
+
+  /* v1586 — POLL AROUND THE TURN, not on a flat metronome.
+     The old schedule was one fetch every 120s with a comment reading "the rotation turns hourly",
+     which v1581 had already disproved and left standing. Two consequences, both of them things
+     Konyo would see rather than read:
+
+       · At the turn, a flat 120s poll plus the relay's 90s cache could leave the panel showing the
+         PREVIOUS window for ~3.5 minutes. In an hourly world that is 6% of the slot; in the real
+         half-hourly one it is 12%, at the exact moment the answer matters most.
+       · When the tracker had not published NEXT yet, nothing ever went back to look. Konyo:
+         "7-8 minutes later we already should know the next TZ zone". The feed does fill in — the
+         panel simply never asked again until he pressed refresh.
+
+     So: a fetch six seconds after the boundary (the feed needs a beat to settle), and a 60s cadence
+     while NEXT is missing instead of 120s. */
+  var _tzBoundaryTimer = null;
+  function _tzSchedule() {
     if (_tzTimer) clearInterval(_tzTimer);
-    // the rotation turns hourly; the relay caches 90s, so polling faster only burns the cache
-    _tzTimer = setInterval(_tzFetch, 120000);
+    _tzTimer = setInterval(function () { _tzFetch(); }, _tzNextMissing ? 60000 : 120000);
+    if (_tzBoundaryTimer) clearTimeout(_tzBoundaryTimer);
+    var now = new Date();
+    var intoMs = ((now.getMinutes() % 30) * 60 + now.getSeconds()) * 1000 + now.getMilliseconds();
+    _tzBoundaryTimer = setTimeout(function () {
+      _tzFetch();
+      _tzSchedule();                       // re-arm for the slot that just began
+    }, (1800000 - intoMs) + 6000);
   }
   try {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _tzWire);

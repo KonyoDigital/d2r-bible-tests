@@ -3160,6 +3160,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .tzt-next::after{content:"";position:absolute;top:-40%;left:-60%;width:46%;height:180%;pointer-events:none;transform:rotate(18deg);
     background:linear-gradient(90deg,transparent,rgba(240,192,96,.10),transparent);animation:tztSheen 5s ease-in-out infinite}
   @keyframes tztSheen{0%{left:-60%}58%,100%{left:135%}}
+  .tzt-together{font-family:ui-monospace,monospace;font-size:11.5px;font-weight:var(--fw-regular);
+    letter-spacing:.02em;text-transform:none;color:var(--text-dim);margin-left:auto}
   .tzt-slot-label{position:relative;z-index:1;font-family:ui-monospace,monospace;font-size:var(--fs-body);font-weight:var(--fw-bold);letter-spacing:1.5px;
     color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:9px}
   .tzt-now .tzt-slot-label{color:var(--best)}
@@ -23282,6 +23284,13 @@ function tzZoneRowHtml(zoneName){
     + '<span class="tzt-z-skip">'+skip+'</span></div>';
 }
 
+/* v1586 — the note that stops two cards reading like two half-hours. */
+function tzTogether(rotation){
+  const n = tzSplitZones(rotation).length;
+  return n > 1 ? '<span class="tzt-together">all '+n+' terrorised together this window</span>' : '';
+}
+window.tzTogether = tzTogether;
+
 /* One card per zone. The rotation is a LIST and was being rendered as a sentence. */
 function tzZonesHtml(rotation){
   const parts = tzSplitZones(rotation);
@@ -23312,8 +23321,14 @@ function renderTzTracker(data){
     return;
   }
   body.innerHTML =
-    '<div class="tzt-slot tzt-now"><div class="tzt-slot-label"><span class="tzt-live-dot"></span> LIVE NOW</div>'+tzZonesHtml(data.current)+'</div>'
-    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN</div>'
+    /* v1586 — a terror zone is a GROUP of connected areas terrorised together for one window, not
+       one area per window. In Konyo's own feed, 65 of the last 95 windows had two or more. Two
+       cards side by side with nothing saying they are concurrent reads like the half hour split in
+       two, which is what he asked about. Said out loud, and only when there is more than one. */
+    '<div class="tzt-slot tzt-now"><div class="tzt-slot-label"><span class="tzt-live-dot"></span> LIVE NOW'
+      + tzTogether(data.current) + '</div>'+tzZonesHtml(data.current)+'</div>'
+    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN'
+      + tzTogether(data.next) + '</div>'
       + (String(data.next || '').trim()
           ? tzZonesHtml(data.next)
           /* v1585 — the upstream really does return next:"" for part of every slot, so "(unknown)"
@@ -36651,7 +36666,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1585', name:'v1585 - three tiers, three treatments, and a density floor', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1587', name:'v1587 - the two rows share one grid, and thin reads as dead', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
