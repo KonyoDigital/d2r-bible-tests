@@ -7522,6 +7522,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-piece img{width:15px;height:15px}
 .gf-src{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:#b6a888}
 .gf-src b{color:#9fd4ff}
+.gf-ttf{color:#8fe0a0}   /* v1565 */
 .gf-odds{font-size:10.5px;font-weight:var(--fw-bold);color:#9fd4ff;background:rgba(159,212,255,.1);border-radius:6px;padding:1px 7px}
 .gf-setbar{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:7px}
 .gf-setbar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4ade80,#86efac);box-shadow:0 0 8px -1px rgba(74,222,128,.7);transition:width .5s ease}
@@ -33292,6 +33293,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v695 🏓R7 — human-first drop intervals: '~1 every 0.1h' forced mid-session math; under an hour
   // reads in MINUTES ('~1 every 6m'), an hour and up keeps hours. Odds math untouched — display only.
   function _fuRate(ev){ var h = 1/ev; if (h < 1) return Math.max(1, Math.round(h*60)) + 'm'; if (h < 10) return (Math.round(h*10)/10) + 'h'; return Math.round(h) + 'h'; }
+  /* ── v1565 — ONE TIME-TO-FIND, FOR BOTH FORGES ───────────────────────────────────────────────
+     Konyo: "for F·Sets i dont see the items section rendering with time frames for each run... it
+     is like that on F·Uniques already... only the first one on each section is already time frame
+     based, but also the ones on the bottom should be for both."
+
+     He is right on both counts. The RUN cards said "expected ~1 every 4h" on F·Uniques and nothing
+     at all on F·Sets, and the ITEM cards on BOTH forges showed odds (1:766) with no time — so the
+     one number he actually plans an evening around appeared on a third of the cards.
+
+     This is the same 50%-confidence figure the console hero and /api/evrank use, so a piece cannot
+     read 4h in one place and something else in another. Honest-absent: no odds or no kills-per-hour
+     returns '', never a guessed duration. */
+  function _ttf(chance, kph){
+    try {
+      if (!chance || !kph) return '';
+      var h = (typeof hoursFor === 'function') ? hoursFor(chance, 0.5, kph) : null;
+      if (h === null || !isFinite(h) || h <= 0) return '';
+      return (h < 1) ? Math.max(1, Math.round(h * 60)) + 'm' : (h < 10 ? (Math.round(h * 10) / 10) + 'h' : Math.round(h) + 'h');
+    } catch (e) { return ''; }
+  }
+  window._ttf = _ttf;
   function _undoBar(kind){
     var fl=_flog(); var keys=Object.keys(fl);
     var _L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);   // v644.1 — ITEMS is const-scoped elsewhere; the bare typeof check silently emptied the 'uni' ledger
@@ -33486,7 +33508,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _uniItemCard(x){
     var bb=_bestSrc(x); var b=bb&&bb.s;
-    var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(b.chance)+'</span>'+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
+    var _t=b?_ttf(b.chance,b.kph):'';
+    var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(b.chance)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
              :'<div class="gf-note">no verified source — drops broadly</div>';
     return '<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(x.n,'🏆')+'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
@@ -34161,7 +34184,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
              difficulty? There is no difficulty, because there is no source. */
           +'<div class="f-atomsubrow">'+(g.noRun
               ? '<b>'+g.items.length+'</b> pieces whose set has no verified farm source in this app — hunt them anywhere, and tap one the moment it drops'
-              : 'can drop <b>'+g.items.length+'</b> of your missing pieces — tap a piece the moment it drops')+'</div>'
+              : 'can drop <b>'+g.items.length+'</b> of your missing pieces'
+                + (g.ev>0?' · expected <b>~1 every '+_fuRate(g.ev)+'</b> of running':'')
+                + ' — tap a piece the moment it drops')+'</div>'
           +'<div class="gf-chips">'+chips+more+'</div></div>'+bossBtn+'</div></div>');
       });
       if(F==='runs') H.push(_baseHuntStrip());   // v709 — courtesy strip above the set run cards
@@ -34178,7 +34203,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _qCards=[];
       quick.slice(0,99999).forEach(function(mp){
         var clean=mp.name.replace(/\s*\(([^)]+)\)\s*$/,''), slot=(mp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||'';
-        var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(mp.src.chance)+'</span></div>'):'<div class="gf-note">drops broadly — any high-MF run</div>';
+        /* v1565 — the piece card carried odds (1:766) and no time, so the number he plans an
+           evening around was missing from exactly the card he taps. Same helper as F·Uniques.
+           The no-source line also stops saying "drops broadly — any high-MF run", which promised a
+           run: these are the sets with no verified source at all (v1557), and inviting a high-MF
+           run implies the odds improve with MF when we do not know that they drop there. */
+        var _ts=mp.src?_ttf(mp.src.chance,mp.src.kph):'';
+        var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(mp.src.chance)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
         _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(clean)+'">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
           +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
@@ -36190,7 +36221,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1564', name:'v1564 - not a run, and a gameplay frame is not a refused read', date:'2026-07-31', note:'the drops-broadly card was the no-source leftovers dressed as a destination; the KAI GATE badge counted empty frames as reads it refused' };
+  window.D2R_BUILD = { id:'v1565', name:'v1565 - one time-to-find for both forges', date:'2026-07-31', note:'the run cards said expected ~1 every 4h on F-Uniques and nothing on F-Sets, and the item cards on both showed odds with no time' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

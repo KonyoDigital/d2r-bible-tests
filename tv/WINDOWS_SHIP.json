@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1564",
+  "ver": "v1565",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1564: the drops-broadly card was the no-source leftovers dressed as a destination; the KAI GATE badge counted empty frames as reads it refused",
+  "note": "v1565: the run cards said expected ~1 every 4h on F-Uniques and nothing on F-Sets, and the item cards on both showed odds with no time",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
