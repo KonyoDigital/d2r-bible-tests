@@ -5182,7 +5182,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="lf-lead">One ready-to-import filter, <strong>rebuilt live from your Chronicle</strong> every time you copy it. Shows uniques · sets · runes · gems · charms · <strong>super/rejuv potions</strong> + <strong>only the socket-correct bases worth grabbing for the runewords you still need</strong> (rare circlets only — white circlets can't hold runewords). Tap <strong>Copy</strong>, then in D2R open the <strong>Loot Filter</strong> window → New/Import → paste.</div>
       <div class="lf-block">
         <div class="lf-b-head"><span class="lf-b-name">KonyoEndgame</span><span class="lf-b-tag lf-tag-elite" id="lf-endgame-count">bases</span></div>
-        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet. <strong>🔩 Common bases show only when they drop eth/socketed</strong> — you farm the sockets instead of grinding Larzuk quests. Plain (unsocketed) whites light up only when they are <strong>💎 premium trade bases</strong> or <strong>🔨 Larzuk-exact</strong> (the base's max sockets equal a wanted word's count — ONE quest turns that white into the word's base). As you tick words off in the Chronicle, the filter shrinks to match. <strong>💎 Premium trade bases never shrink off</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. stay in the filter regardless of the Chronicle: each is worth ≥ an Ist in trade as a clean white/eth/socketed drop.</div>
+        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet. <strong>🔩 Common bases show only when they drop eth/socketed</strong> — you farm the sockets instead of grinding Larzuk quests. Plain (unsocketed) whites light up only when they are <strong>💎 premium trade bases</strong> or <strong>🔨 Larzuk-exact</strong> (the base's max sockets equal a wanted word's count — ONE quest turns that white into the word's base). As you tick words off in the Chronicle, the filter shrinks to match. <strong>💎 Premium trade bases are EARLY-ONLY</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. ride the filter as trade capital while you are <strong>under 50% forged</strong>. From 50% on they obey the same engine gates as every other base (hostability × socket feasibility × unmade words) — your own call in v667.2: <em>&ldquo;not every single item though&rdquo;</em>. This line used to promise they never shrink off; the behaviour changed and the sentence did not.</div>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('endgame')">📋 Copy live KonyoEndgame filter</button>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('cousin')" title="fresh-grail build: ignores the Chronicle — EVERY runeword base lights up socketed/eth (what a from-zero player hunts). Send this one to the cousin.">👤 Copy COUSIN filter (fresh grail — all socketed bases)</button>
         <span class="lf-status" id="lf-endgame-status"></span>
@@ -5217,6 +5217,32 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     'Thresher', 'Giant Thresher', 'Cryptic Axe',                                     // eth merc polearms (Insight/Infinity)
     'Matriarchal Bow', 'Grand Matron Bow'                                            // Faith / Brand bows
   ];
+  /* ── v1591 — AN EMPTY CODE LIST MEANS "NO CONSTRAINT", NOT "NOTHING" ─────────────────────────
+     Konyo: "Loot Filter needs to be fixed also.. its not correctly filtering out the garbage items
+     i dont need."
+
+     THE FILTER INVERTED ITSELF THE MOMENT HIS CHRONICLE SEALED. Every base rule is populated from
+     the live "still to farm" set, and v553 wrote the assumption down: "Empty = show no bases".
+     It is the opposite. The mod treats a rule with an empty equipmentItemCode as UNCONSTRAINED —
+     on import it drops the empty key entirely, leaving `Show Base Items` as nothing but
+     rarity:[normal] + quality:[all], which matches EVERY white item in the game. Proof is sitting
+     in his Saved Games folder: the imported KonyoEndgame99.fltr has no equipmentItemCode key on
+     that rule at all, and the floor is knee-deep in white gear.
+
+     So finishing all 99 runewords turned his loot filter into a firehose — the better his
+     chronicle got, the worse the filter behaved, which is exactly backwards.
+
+     The inversion cuts BOTH ways and the hides are the dangerous half: `Hide Magic Wanted Bases`
+     with an empty code list stops meaning "hide the magic copies of bases I want" and starts
+     meaning "hide EVERY magic, rare and low-quality item" — his rare circlets included.
+
+     "Target nothing" cannot be said with an empty list. It is said by the rule not running. */
+  function _lfCodes(r, codes){
+    r.equipmentItemCode = (codes || []).slice();
+    if (!r.equipmentItemCode.length) r.enabled = false;
+    return r;
+  }
+
   window._endgameFilterBases = function(opts){
     // v662 — opts.fresh: build for a FRESH grail (the cousin's reality). The normal build shrinks to
     // KONYO's Chronicle — and the shared-chronicle seed floors his 88 words on ANY browser, so a cousin
@@ -5363,8 +5389,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     // floor (Bone Visage class — rare/valuable enough to burn a Larzuk or trade as-is); every other
     // wanted base appears eth/socketed ONLY (rule 3). No more plain War Spikes begging for a quest.
     tpl.rules.forEach(function(r){
-      if (r.name==='3. Show ETH and Socket bases'){ r.equipmentItemCode = (eb.sockCodes||eb.codes).slice(); }   // v662.1 — the engine-true socketed universe
-      if (r.name==='Show Base Items'){ r.equipmentItemCode = (eb.plainCodes||[]).slice(); }
+      if (r.name==='3. Show ETH and Socket bases'){ _lfCodes(r, eb.sockCodes||eb.codes); }   // v662.1 — the engine-true socketed universe
+      if (r.name==='Show Base Items'){ _lfCodes(r, eb.plainCodes); }
     });
     // v562 — PLUG THE BLUE-MAGIC LEAK (Konyo's cow-run screenshots: magic Gothic Shield + magic Coronet showing).
     // The template's hide lists are STATIC complements of the OLD ~50-base draft: 70 codes (the wanted bases,
@@ -5417,8 +5443,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       var _plainIs = {}; (eb.plainCodes||[]).forEach(function(c){ _plainIs[c]=1; });
       var plainHide = hideCodes.concat((eb.sockCodes||eb.codes).filter(function(c){ return !_plainIs[c]; })).sort();
       tpl.rules.forEach(function(r){
-        if (r.name==='1. Hide Trash Gear'){ r.equipmentItemCode = plainHide.slice(); }
-        if (r.name==='Hide ETH Sockets'){ r.equipmentItemCode = hideCodes.slice(); }
+        if (r.name==='1. Hide Trash Gear'){ _lfCodes(r, plainHide); }
+        if (r.name==='Hide ETH Sockets'){ _lfCodes(r, hideCodes); }
         if (r.name==='3. Show ETH and Socket bases'){ r.equipmentRarity = ['normal','hiQuality']; }
       });
       var TRASH_R = ['magic','rare','lowQuality'], Q3 = ['normal','exceptional','elite'];
@@ -5444,8 +5470,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         );
       }
       tpl.rules.push(
-        { name:'Hide Magic Wanted Bases',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: (eb.sockCodes||eb.codes).slice() },
-        { name:'Hide Magic Wanted Bases ETH', enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: (eb.sockCodes||eb.codes).slice() },   // magic can never host a runeword — socketed magic of a wanted base is still trash
+        _lfCodes({ name:'Hide Magic Wanted Bases',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice() }, eb.sockCodes||eb.codes),
+        _lfCodes({ name:'Hide Magic Wanted Bases ETH', enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice() }, eb.sockCodes||eb.codes),   // magic can never host a runeword — socketed magic of a wanted base is still trash
         { name:'Hide Non-Rare Circlets',      enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:CIRC_R.slice(),  equipmentQuality:Q3.slice(), equipmentItemCode: CIRC.slice() },
         { name:'Hide Non-Rare Circlets ETH',  enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:CIRC_R.slice(),  equipmentQuality:Q3.slice(), equipmentItemCode: CIRC.slice() },
         { name:'Hide Magic Circlets Not Diadem',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:['magic'], equipmentQuality:Q3.slice(), equipmentItemCode: CIRC_MAGIC.slice() },
@@ -36820,7 +36846,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1590', name:'v1590 - the set ledger counts sets, and both forges tell three facts', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1591', name:'v1591 - an empty code list meant show everything, not nothing', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
