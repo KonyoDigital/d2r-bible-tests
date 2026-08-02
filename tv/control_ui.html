@@ -2814,6 +2814,9 @@
   @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px rgba(240,192,96,.28), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px rgba(240,192,96,.5), 0 2px 0 rgba(0,0,0,.4);} }
   .hh-src { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); color: var(--parch-dim); letter-spacing: .02em; }
   .hh-src b { color: var(--mint); font-weight: var(--fw-semibold); }
+  /* v1555 — the cheaper option at a lower difficulty, said quietly. He asked to finish Hell first;
+     that is a choice, and a choice needs the alternative visible to be one. */
+  .hh-alt { color: var(--muted); }
   .hh-eta { position: relative; flex: none; text-align: right; }
   .hh-eta b { display: block; font: var(--fw-bold) clamp(17px,1.65vw,21px)/1 var(--serif); color: var(--gold); letter-spacing: .02em; }
   .hh-eta span { display: block; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); letter-spacing: .10em; text-transform: uppercase; color: var(--muted); margin-top: 3px; max-width: 13ch; margin-left: auto; }
@@ -9887,16 +9890,48 @@
       _HUB_RANK = null; return;
     }
     _HUB_RANK = data;
-    var top = data.ranked[0], hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
+    /* ── v1555 — THE HERO OBEYS THE SAME RULE THE FORGE DOES ───────────────────────────────────
+       Konyo, on the Forge: "prioritized by HELL then Nightmare then Normal in the hunts... i
+       rather finish off Hell and then the others." The hero is a hunt it wants him to do, so it
+       cannot quietly rank by a different rule — two surfaces sending him to two difficulties is
+       the same class of disagreement as the meter and the hero counting different grails.
+
+       Difficulty leads, expected hours orders within it — exactly v1549's shape. evrank stays pure
+       (ascending hours); the preference is a PRESENTATION choice and lives here.
+
+       On his own data this costs nothing: Shadow Killer at 3.9h in Hell is marginally FASTER than
+       the 4.0h Baranar's Star the old grail-tier-only ranking was showing. And when something
+       materially quicker exists at a lower difficulty, the source line says so rather than hiding
+       it — he can still choose, he just is not choosing blind. */
+    var _tierOf = function (src) {
+      var t = String(src || '');
+      return /^Hell/.test(t) ? 2 : /^NM|^Nightmare/.test(t) ? 1 : 0;
+    };
+    var _ranked = data.ranked.slice();
+    var _best = _ranked.slice().sort(function (a, b) {
+      return (_tierOf(b.source) - _tierOf(a.source))
+        || ((a.expectedHours == null ? 1e9 : a.expectedHours) - (b.expectedHours == null ? 1e9 : b.expectedHours));
+    });
+    var top = _best[0] || _ranked[0];
+    // the quickest anywhere, named only when it is MATERIALLY quicker than the lead (>=30%)
+    var _fastest = _ranked[0];
+    var _alt = (_fastest && top && _fastest.name !== top.name
+      && _fastest.expectedHours != null && top.expectedHours != null
+      && _fastest.expectedHours <= top.expectedHours * 0.7) ? _fastest : null;
+    var hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
     host.className = 'hub-hero';
     host.innerHTML = '<div class="hh-main">'
       /* v1554 — "fastest FIND" overclaims. _writeGrailFarm exports GRAIL-tier items only, so this
          ranks 51 of his 125 missing uniques; Umbral Disk is ~2h and is not in the universe at all.
          Naming the universe costs one word and makes the number checkable. */
-      + '<div class="hh-eye"><span class="hh-dot"></span>the next grail · fastest of '
-        + data.ranked.length + ' grails</div>'
+      + '<div class="hh-eye"><span class="hh-dot"></span>the next grail · '
+        + (_tierOf(top.source) === 2 ? 'fastest in hell' : 'fastest of ' + data.ranked.length)
+        + '</div>'
       + '<div class="hh-name">' + esc(top.name || '—') + '</div>'
-      + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b></div>' : '')
+      + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b>'
+          + (_alt ? '<span class="hh-alt"> · quicker below Hell: ' + esc(_alt.name) + ' ≈'
+              + esc(_hubHrs(_alt.expectedHours)) + '</span>' : '')
+          + '</div>' : '')
       + '</div>'
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span></div>' : '');
   }

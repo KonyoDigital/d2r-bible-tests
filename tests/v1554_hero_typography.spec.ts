@@ -91,8 +91,42 @@ test.describe('v1554 — the lead outranks the room it is announced in', () => {
   test('★ the label names its universe instead of overclaiming', async () => {
     // "fastest find" over a grail-tier-only ranking is a wider claim than the data supports
     expect(UI, 'the old overclaim must be gone').not.toContain('your fastest find');
-    expect(UI, 'and the universe named').toContain("fastest of '");
+    expect(UI, 'and the universe named').toContain('fastest of ');
     expect(UI).toContain('data.ranked.length');
+  });
+
+  test('★ v1555 — the hero obeys the SAME difficulty rule as the Forge', async ({ page }) => {
+    // two surfaces sending him to two difficulties is the same class of disagreement as the meter
+    // and the hero counting different grails. On his data hardest-first costs nothing: Shadow
+    // Killer 3.9h in Hell beats the 4.0h the grail-tier-only ranking was showing.
+    await page.setViewportSize({ width: 1520, height: 860 });
+    await page.route(ORIGIN + '/ui', (r: any) =>
+      r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: UI }));
+    await page.route((u: URL) => u.pathname.startsWith('/api/'), (r: any) => {
+      const p = new URL(r.request().url()).pathname;
+      if (p !== '/api/evrank') return r.abort();
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        ranked: [
+          { name: 'Umbral Disk', source: 'Normal Andariel', expectedHours: 1.2 },
+          { name: 'Greyform', source: 'NM TZ Pindleskin', expectedHours: 2.0 },
+          { name: 'Shadow Killer', source: 'Hell TZ Mephisto', expectedHours: 3.9 },
+          { name: "Baranar's Star", source: 'Hell Mephisto', expectedHours: 4.0 },
+        ], unranked: [], confidence: 0.5 }) });
+    });
+    await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      document.body.dataset.view = 'sessions';
+      (window as any).LSR = (window as any).LSR || localStorage;
+      localStorage.setItem('d2r_grailFarm', JSON.stringify([{ name: 'x', source: 'y', dropChance: 0.01, killsPerHr: 100 }]));
+    });
+    await page.evaluate(() => (window as any)._hubNextGrail());
+    await page.waitForTimeout(500);
+    const txt = (await page.textContent('#hub-hero')) || '';
+    expect(txt, 'the LEAD must be the fastest HELL item, not the fastest overall').toContain('Shadow Killer');
+    expect(txt).toContain('Hell TZ Mephisto');
+    expect(txt, 'and it says which rule it applied').toContain('fastest in hell');
+    expect(txt, 'the materially quicker option below Hell is named, not hidden').toContain('Umbral Disk');
+    expect(txt).toContain('quicker below Hell');
   });
 
   test('the composition still holds on a narrow console', async ({ page }) => {

@@ -15326,10 +15326,35 @@ const fmtHours = h => {
 function _writeGrailFarm(){
   try {
     if (typeof ITEMS === 'undefined' || !Array.isArray(ITEMS)) return;
+    /* ── v1555 — THE HERO AND THE METER MUST COUNT THE SAME GRAIL ──────────────────────────────
+       Konyo: "where is the 2h ... i cant see it where is it located exactly?"
+
+       Nowhere, and that was the bug. This filtered to tier grail/uber and ranked 51 items. The
+       HOLY GRAIL meter directly above it reads 243/403 and counts grail + high + common — 125
+       missing with cards. So the two most prominent things on the Sessions surface disagreed about
+       what a grail is, and the hero answered "what do I hunt next" over 51 of the 125 items that
+       actually move the number beside it.
+
+       Measured cost on his own data: it sent him to Baranar's Star at 4.0h while Umbral Disk —
+       tier `common`, in the meter, invisible to the hero — sits at 1.2h at Normal Andariel. Same
+       meter, same +1, a third of the time.
+
+       It now walks funiScan()'s OWN missing list rather than re-deciding the universe. That is the
+       published seam (window.funiScan) precisely so there is one definition; a third tier filter
+       in a third place is how these two drifted apart to begin with. Falls back to the old scan if
+       the board's forge half has not booted, so it degrades instead of going blank. */
     var out = [];
-    ITEMS.forEach(function(item){
-      if (!item || (item.tier !== 'grail' && item.tier !== 'uber')) return;
-      if (typeof _gFound === 'function' && _gFound(item.n)) return;   // MISSING grails only
+    var universe = null;
+    try {
+      if (typeof window.funiScan === 'function') universe = (window.funiScan().missing || []);
+    } catch(e){ universe = null; }
+    (universe || ITEMS).forEach(function(item){
+      if (!item) return;
+      if (!universe) {
+        // fallback path only: the old tier gate, widened to the tiers the meter actually counts
+        if (item.tier !== 'grail' && item.tier !== 'uber' && item.tier !== 'high' && item.tier !== 'common') return;
+        if (typeof _gFound === 'function' && _gFound(item.n)) return;   // MISSING only
+      }
       var best = null;
       (item.sources || []).forEach(function(s){
         if (!s.chance || s.chance < 100) return;
@@ -35999,7 +36024,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1554', name:'v1554 - the lead outranks the room it is announced in', date:'2026-07-31', note:'MY HUNT was 40px and the grail it sends you to hunt was 36px; measured and re-ordered at his real console width' };
+  window.D2R_BUILD = { id:'v1555', name:'v1555 - the hero and the meter now count the same grail', date:'2026-07-31', note:'the hero ranked 51 of the 125 items the meter counts, and obeyed a different difficulty rule than the Forge' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
