@@ -3220,7 +3220,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .tzt-zone.tzt-t-prime{border-color:rgba(240,192,96,.34);
     background:linear-gradient(180deg,rgba(240,192,96,.09),rgba(0,0,0,.20))}
   .tzt-zone.tzt-t-prime .tzt-z-art{border-color:rgba(240,192,96,.40)}
-  .tzt-zone.tzt-t-thin{opacity:.44;filter:grayscale(.85)}
+  /* v1585 — the middle tier gets its own look. 'good' rendered like PRIME minus the gold, so most
+     of the rotation read as emphasised. Three tiers, three treatments. */
+  .tzt-zone.tzt-t-good{opacity:.72;filter:saturate(.5)}
+  .tzt-zone.tzt-t-good:hover{opacity:.95;filter:saturate(.9)}
+  .tzt-zone.tzt-t-thin{opacity:.4;filter:grayscale(.9)}
   .tzt-zone.tzt-t-thin:hover{opacity:.92;filter:grayscale(.1)}
   .tzt-zone.tzt-t-thin .tzt-z-art{box-shadow:inset 0 0 30px rgba(0,0,0,.8)}
   .tzt-foot{display:flex;align-items:center;gap:14px;margin-top:12px}
@@ -3244,9 +3248,21 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .tzt-hist-empty{text-align:center;color:var(--text-muted);font-style:italic;padding:22px 12px;font-size:12.5px}
   .tzt-hist-day{font-family:ui-monospace,monospace;font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:1.4px;text-transform:uppercase;color:var(--gold-dim);margin:12px 0 5px;padding-left:4px;border-bottom:1px solid var(--border);padding-bottom:4px}
   .tzt-hist-day:first-child{margin-top:4px}
-  .tzt-hist-row{display:grid;grid-template-columns:64px auto 1fr auto;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;border-left:2px solid transparent}
+  /* v1584 — FIVE columns now: time · glyph · zone · density · go. The density badge is a new
+     child, and a 4-column template with 5 children silently pushes the last one onto an implicit
+     row, which reads as a broken line rather than an added one. */
+  .tzt-hist-row{display:grid;grid-template-columns:64px auto 1fr auto auto;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;border-left:2px solid transparent}
   .tzt-hist-time{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--text-dim);white-space:nowrap}
   .tzt-hist-emoji{font-size:var(--fs-title);text-align:center}
+  /* v1584 — the log's own ranking. The density badge names the BEST zone of that window (hover
+     says which), so a row is judged by the zone you would actually have gone to. */
+  .tzt-hist-den{font-family:ui-monospace,monospace;font-size:11px;color:#9fd8ff;opacity:.75;
+    justify-self:end;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tzt-hist-den-none{opacity:0}
+  .tzt-hist-row.tzt-h-prime .tzt-hist-zone{color:var(--text)}
+  .tzt-hist-row.tzt-h-prime .tzt-hist-emoji{opacity:1}
+  .tzt-hist-row.tzt-h-thin{opacity:.42}
+  .tzt-hist-row.tzt-h-thin:hover{opacity:.85}
   .tzt-hist-zone{font-size:13.5px;color:var(--text-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tzt-hist-go{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:var(--fw-semibold);color:var(--gold-bright);white-space:nowrap;opacity:0;transition:opacity .12s}
   .tzt-hist-row.tzt-hunt{cursor:pointer;border-left-color:rgba(240,192,96,.5);background:linear-gradient(90deg,rgba(240,192,96,.07),transparent 70%)}
@@ -4341,7 +4357,7 @@ try {
   <details class="tzt-history" id="tzt-history">
     <summary class="tzt-history-head">
       <span class="tzt-history-scroll">📜</span>
-      <span class="tzt-history-tt"><span class="tzt-history-title">Last 48 Hours</span><span class="tzt-history-sub">the full rotation log — huntable windows glow gold &amp; stay clickable</span></span>
+      <span class="tzt-history-tt"><span class="tzt-history-title">Last 48 Hours</span><span class="tzt-history-sub">the full rotation log &mdash; each window ranked by its BEST zone, with that zone&rsquo;s density on the right; boss windows stay clickable</span></span>
       <span class="tzt-history-count" id="tzt-history-count"></span>
       <span class="tzt-history-chev">▾</span>
     </summary>
@@ -23201,6 +23217,10 @@ const TZ_HUNT = [
     const den = inf[0], lvl = inf[1];
     if (TZ_NOTABLE[name]) return { tier:'prime', den:den, lvl:lvl, why:TZ_NOTABLE[name] };
     if (!den) return { tier:'good', den:0, lvl:lvl, nodata:true };
+    /* v1585 — a density FLOOR. The level term was rescuing sparse zones: Burial Grounds and Blood
+       Moor are both density 520, and only their base level (80 vs 67) separated them — the exact
+       number a terror zone overrides. Under 600 is thin, whatever the level says. */
+    if (den < 600) return { tier:'thin', den:den, lvl:lvl };
     const s = (den/2200)*0.85 + Math.max(0,(lvl-67)/18)*0.15;
     return { tier: s>=0.5 ? 'prime' : (s>=0.28 ? 'good' : 'thin'), den:den, lvl:lvl };
   }
@@ -23293,7 +23313,18 @@ function renderTzTracker(data){
   }
   body.innerHTML =
     '<div class="tzt-slot tzt-now"><div class="tzt-slot-label"><span class="tzt-live-dot"></span> LIVE NOW</div>'+tzZonesHtml(data.current)+'</div>'
-    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN</div>'+tzZonesHtml(data.next)+'</div>';
+    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN</div>'
+      + (String(data.next || '').trim()
+          ? tzZonesHtml(data.next)
+          /* v1585 — the upstream really does return next:"" for part of every slot, so "(unknown)"
+             was TRUE — and it read like a broken panel. Say which of the two it is: the tracker has
+             not published it yet. No guess about when; I do not know how far ahead it publishes and
+             will not invent a number for a thing he would then wait on. */
+          : '<div class="tzt-zone tzt-filler tzt-t-unknown"><span class="tzt-z-emoji">🕓</span>'
+            + '<span class="tzt-z-name">not published yet</span>'
+            + '<span class="tzt-z-skip">the tracker has not announced the next window — it appears '
+            + 'before the turn</span></div>')
+      + '</div>';
   const u = document.getElementById('tzt-updated');
   if (u){ try { u.textContent = data.ts ? ('updated '+new Date(data.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) : ''; } catch(e){ u.textContent=''; } }
 }
@@ -23317,19 +23348,41 @@ function renderTzHistory(history){
     const time = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     const hu = tzHuntMatch(h.zone);
     const isNow = h.slot === nowSlot;
+    /* v1584 — THE LOG RANKS TOO. Every past window rendered identically unless it happened to
+       contain one of the fourteen hardcoded bosses, so a Stony Tomb hour (density 2200) and a
+       Blood Moor hour (520) were the same row. A rotation is judged by its BEST zone, because
+       that is the one you would have gone to — and the density shown is that zone's, not an
+       average of the hour, which would flatter a bad window that happened to include one good
+       area. Thin rows dim; nothing is hidden. */
+    const zs = tzSplitZones(h.zone).map(z => ({ z: z, t: tzTier(z) }));
+    const ORDER = { prime: 3, good: 2, unknown: 1, thin: 0 };
+    const best = zs.slice().sort((a2, b2) =>
+      (ORDER[b2.t.tier] || 0) - (ORDER[a2.t.tier] || 0) || (b2.t.den || 0) - (a2.t.den || 0))[0];
+    const rowTier = best ? best.t.tier : 'unknown';
+    const badge = best && best.t.den
+      ? '<span class="tzt-hist-den" title="' + _tzEsc(best.z) + ' — the best zone in this window">'
+        + best.t.den + '</span>'
+      : '<span class="tzt-hist-den tzt-hist-den-none"></span>';
     if (hu){
-      out += '<div class="tzt-hist-row tzt-hunt'+(isNow?' tzt-now':'')+'" role="button" tabindex="0" '
+      out += '<div class="tzt-hist-row tzt-hunt tzt-h-'+rowTier+(isNow?' tzt-now':'')+'" role="button" tabindex="0" '
         + 'onclick="window.tzGo(\''+hu.id+'\')" onkeydown="if(event.key===\'Enter\'){window.tzGo(\''+hu.id+'\')}" title="hunt → '+_tzEsc(hu.label)+'">'
         + '<span class="tzt-hist-time">'+time+'</span><span class="tzt-hist-emoji">'+hu.emoji+'</span>'
-        + '<span class="tzt-hist-zone">'+_tzEsc(h.zone)+'</span><span class="tzt-hist-go">'+_tzEsc(hu.label)+' →</span></div>';
+        + '<span class="tzt-hist-zone">'+_tzEsc(h.zone)+'</span>'+badge+'<span class="tzt-hist-go">'+_tzEsc(hu.label)+' →</span></div>';
     } else {
-      out += '<div class="tzt-hist-row tzt-filler'+(isNow?' tzt-now':'')+'">'
-        + '<span class="tzt-hist-time">'+time+'</span><span class="tzt-hist-emoji">·</span>'
-        + '<span class="tzt-hist-zone">'+_tzEsc(h.zone)+'</span><span></span></div>';
+      out += '<div class="tzt-hist-row tzt-filler tzt-h-'+rowTier+(isNow?' tzt-now':'')+'">'
+        + '<span class="tzt-hist-time">'+time+'</span><span class="tzt-hist-emoji">'
+        + (rowTier === 'prime' ? '◆' : rowTier === 'thin' ? '·' : '◇')+'</span>'
+        + '<span class="tzt-hist-zone">'+_tzEsc(h.zone)+'</span>'+badge+'<span></span></div>';
     }
   }
   el.innerHTML = out;
-  if (cnt){ const huntable = history.filter(h => tzHuntMatch(h.zone)).length; cnt.textContent = history.length+' slots · '+huntable+' huntable'; }
+  /* v1584 — count PRIME windows, not "huntable" ones. "Huntable" counted the fourteen hardcoded
+     bosses, so a log full of density-2200 tomb hours could read "0 huntable" and look like a dead
+     two days. */
+  if (cnt){
+    const prime = history.filter(h => tzSplitZones(h.zone).some(z => tzTier(z).tier === 'prime')).length;
+    cnt.textContent = history.length+' slots · '+prime+' worth running';
+  }
 }
 window.renderTzHistory = renderTzHistory;
 
@@ -36598,7 +36651,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1583', name:'v1583 - the smoke gate keeps its log too, and a killed gate is no longer a pass', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1585', name:'v1585 - three tiers, three treatments, and a density floor', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

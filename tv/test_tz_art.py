@@ -249,6 +249,115 @@ class TestRotationCadence(unittest.TestCase):
         _, ui = _tz_info()
         self.assertNotIn("turn hourly), ", ui.replace("\n", " "))
 
+class TestHistoryRanking(unittest.TestCase):
+    """v1584 — the 48-hour log ranks its windows, and by the RIGHT zone.
+
+    Every past window rendered identically unless it happened to contain one of fourteen hardcoded
+    bosses, so a Stony Tomb hour (density 2200) and a Blood Moor hour (520) were the same row, and
+    the summary could read "0 huntable" over two days of excellent tomb rotations.
+
+    A window is judged by its BEST zone — the one you would actually have gone to. An AVERAGE would
+    let a bad window that happened to include one good area look mediocre instead of worth running,
+    and would let a good one be dragged down by filler it shares the hour with.
+    """
+
+    def _board(self):
+        return open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+
+    def test_the_log_splits_and_ranks_by_the_best_zone(self):
+        src = self._board()
+        self.assertIn("tzSplitZones(h.zone)", src, "the log must split the rotation, not match the string")
+        self.assertIn("ORDER[b2.t.tier]", src, "windows must be ordered by tier")
+        self.assertIn("tzt-h-", src, "rows must carry their tier")
+
+    def test_the_summary_counts_prime_not_the_boss_list(self):
+        src = self._board()
+        self.assertIn("worth running", src)
+        self.assertNotIn("' huntable'", src,
+                         "the old count is back — it reports 0 for a log full of density-2200 hours")
+
+    def test_a_zero_density_window_is_not_dimmed(self):
+        """Same rule as the live cards: no density on record is MISSING DATA, not a thin window."""
+        src = self._board()
+        self.assertIn("if (!den) return { tier:'good'", src.replace(" ", " "),
+                      "tzTier must still treat den 0 as good, which keeps its log row lit")
+
+class TestTierSeparation(unittest.TestCase):
+    """v1585 — three tiers must have THREE treatments, and a sparse zone must not be rescued by its
+    base level.
+
+    Konyo, looking at Outer Steppes and Plains of Despair at full brightness: "when its a real
+    terror zone is emphasized correct? like these dont look greyed out... i want a distinguished
+    difference between the real tz zones worth farming compared to the not."
+
+    He was right, and the cause was measurable: 38 of the 67 zones were 'good', and 'good' rendered
+    exactly like PRIME minus a badge. 57% of the rotation looked emphasised, which means nothing
+    did. The middle tier now reads as middle.
+
+    And the level term was rescuing sparse zones. Burial Grounds and Blood Moor are BOTH density
+    520; only their base level (80 vs 67) separated them — the exact number a terror zone overrides
+    by lifting monsters to the player's level. A density floor settles it.
+    """
+
+    def _tier(self, z, info, notable):
+        den, lvl = info[z][0], info[z][1]
+        if z in notable:
+            return "prime"
+        if not den:
+            return "good"
+        if den < 600:
+            return "thin"
+        s = (den / 2200) * 0.85 + max(0, (lvl - 67) / 18) * 0.15
+        return "prime" if s >= 0.5 else ("good" if s >= 0.28 else "thin")
+
+    def _notable(self, src):
+        m = re.search(r"var TZ_NOTABLE = \{(.*?)\};", src, re.S)
+        return {n.replace("\\'", "'") for n in re.findall(r"'((?:[^'\\]|\\.)*)'\s*:", m.group(1))}
+
+    def test_two_zones_at_the_same_density_get_the_same_verdict(self):
+        info, src = _tz_info()
+        notable = self._notable(src)
+        self.assertEqual(info["Burial Grounds"][0], info["Blood Moor"][0],
+                         "if these stop sharing a density this test is stale")
+        self.assertEqual(self._tier("Burial Grounds", info, notable),
+                         self._tier("Blood Moor", info, notable),
+                         "same density, different verdict — the base level is deciding, and a "
+                         "terror zone overrides exactly that")
+
+    def test_the_density_floor_is_in_both_surfaces(self):
+        _, ui = _tz_info()
+        board = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+        self.assertIn("den < 600", ui, "console lost the density floor")
+        self.assertIn("den < 600", board, "board lost the density floor")
+
+    def test_the_middle_tier_is_visually_distinct_from_prime(self):
+        """The whole complaint. 'good' must not render like PRIME minus a badge."""
+        _, ui = _tz_info()
+        board = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+        self.assertIn(".tzz-good", ui, "the console has no middle-tier treatment")
+        self.assertIn("tzt-t-good{", board, "the board has no middle-tier treatment")
+        for name, src in (("console", ui), ("board", board)):
+            self.assertIn("saturate(.5", src.replace("0.5", ".5"),
+                          "%s: the middle tier is not desaturated" % name)
+
+    def test_prime_is_not_the_majority(self):
+        """If most of the rotation is emphasised, nothing is."""
+        info, src = _tz_info()
+        notable = self._notable(src)
+        tiers = [self._tier(z, info, notable) for z in info]
+        self.assertLess(tiers.count("prime"), len(tiers) * 0.45,
+                        "PRIME has grown to most of the map — emphasis that common is not emphasis")
+        self.assertGreaterEqual(tiers.count("thin"), 10,
+                                "almost nothing dims; the weak zones should be visibly weak")
+
+    def test_an_unpublished_next_window_says_so(self):
+        """The upstream really returns next:"" for part of every slot. "(unknown)" was true and read
+        like a broken panel."""
+        _, ui = _tz_info()
+        board = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+        self.assertIn("not published yet", ui, "console still says (unknown) for an absent next")
+        self.assertIn("not published yet", board, "board still says (unknown) for an absent next")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
