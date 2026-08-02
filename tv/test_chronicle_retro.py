@@ -744,5 +744,76 @@ class TestBlankMarkedAtSeal(unittest.TestCase):
         self.assertEqual(runs[0]["frames"], ["b"])
 
 
+class TestV1577ClassifyIsolation(unittest.TestCase):
+    """v1577 — a sweep must survive ONE bad frame, and production must actually use the thing that
+    makes it survive.
+
+    read_reel() calls classify() bare and sweep_hist() calls read_reel() bare, so an exception raised
+    while probing a single frame propagated all the way out and abandoned every reel after it. The
+    probe is a MODEL CALL over the network, so "it threw once" is not exotic — it is Tuesday.
+
+    cr.classifier() was written to isolate exactly that, was covered by its own tests, and had no
+    production caller at all: control_app had re-implemented it inline WITHOUT the try. That is the
+    v1576 defect class (plumbing with no tap) in its most expensive form — the dead code was the
+    SAFE version, and the live code was the unsafe copy.
+    """
+
+    def _reels(self, root, n=3, frames=4):
+        """A minimal hist dir: n reels, each with an index.json of `frames` frame names."""
+        for i in range(n):
+            d = os.path.join(root, "reel_s_%d_%05d" % (1700000000000 + i, i))
+            os.makedirs(d, exist_ok=True)
+            names = []
+            for f in range(frames):
+                nm = "f%03d.jpg" % f
+                open(os.path.join(d, nm), "wb").write(b"\xff\xd8\xff\xdb" + b"\x00" * 64)
+                names.append(nm)
+            with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump({"frames": names}, fh)
+        return root
+
+    def test_a_throwing_probe_aborts_the_bare_sweep(self):
+        """The bug, pinned. If this ever stops raising, the isolation moved and the test below is
+        no longer measuring anything."""
+        with tempfile.TemporaryDirectory() as td:
+            hist = self._reels(td)
+            calls = {"n": 0}
+
+            def flaky(path):
+                calls["n"] += 1
+                if calls["n"] == 2:
+                    raise RuntimeError("transient model failure on one frame")
+                return {"scene": "gameplay"}
+
+            with self.assertRaises(RuntimeError):
+                cr.sweep_hist(hist, lambda p: cr.chronicle_kind(flaky(p)), lambda p, k: {})
+
+    def test_classifier_keeps_sweeping_past_it(self):
+        with tempfile.TemporaryDirectory() as td:
+            hist = self._reels(td)
+            calls = {"n": 0}
+
+            def flaky(path):
+                calls["n"] += 1
+                if calls["n"] == 2:
+                    raise RuntimeError("transient model failure on one frame")
+                return {"scene": "gameplay"}
+
+            res = cr.sweep_hist(hist, cr.classifier(flaky), lambda p, k: {})
+            self.assertEqual(len(res["reels"]), 3,
+                             "one bad frame must cost ONE run, not every reel after it")
+            self.assertGreaterEqual(sum(r.get("classified") or 0 for r in res["reels"]), 3)
+
+    def test_the_console_retro_sweep_actually_goes_through_classifier(self):
+        """The isolation is worth nothing if production keeps its own unguarded copy — which is
+        precisely what happened between v1527 and v1577."""
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn("_cr.classifier(", src,
+                      "the retro sweep must build its classify through cr.classifier()")
+        self.assertNotIn("return _cr.chronicle_kind(_tv.claude_read(path))", src,
+                         "the unguarded inline classify is back — one bad frame will abandon the sweep")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

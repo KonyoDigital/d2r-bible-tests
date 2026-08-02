@@ -5129,5 +5129,43 @@ class TestBothLanesShareOneNormalizer(unittest.TestCase):
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
+class TestV1577NoOrphanedTests(unittest.TestCase):
+    """v1577 — a test defined AFTER `unittest.main()` never runs, and reports nothing.
+
+    unittest.main() does not return: it calls sys.exit(). Any TestCase class below it is collected by
+    nobody, so the suite prints a green count that silently excludes it. There is no error, no skip
+    and no warning — the tests simply are not there.
+
+    This repo has paid for it twice. v1457 shipped seven tests that never executed. On 2026-08-02 I
+    appended three tests to test_chronicle_retro.py, watched the suite report OK, and only caught it
+    because I asked for one class BY NAME and unittest could not find it — the count was 82 before my
+    change and 82 after. A gate that cannot see the tests it is guarding is worse than no gate: it
+    reports confidence it has not earned.
+    """
+
+    def test_no_testcase_is_defined_below_unittest_main(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        checked = 0
+        for name in sorted(os.listdir(here)):
+            if not (name.startswith("test_") and name.endswith(".py")):
+                continue
+            path = os.path.join(here, name)
+            lines = open(path, encoding="utf-8").read().split("\n")
+            idx = [k for k, l in enumerate(lines) if l.startswith("if __name__ ==")]
+            if not idx:
+                continue
+            checked += 1
+            orphans = [
+                "%s:%d  %s" % (name, k + 1, l.strip())
+                for k, l in enumerate(lines)
+                if k > idx[0] and re.match(r"^class .*\(.*TestCase", l)
+            ]
+            self.assertEqual(
+                orphans, [],
+                "these TestCase classes sit below unittest.main() and NEVER RUN — move them above "
+                "the main block:\n  " + "\n  ".join(orphans))
+        self.assertGreaterEqual(checked, 3, "the guard must actually be scanning the suites")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1576"   # four dead seams cut - a toast that never fired a fix-all with no receipt a quit that lied green and a weak-name guard nothing called
+VERSION = "v1577"   # one bad frame no longer abandons the whole retro sweep
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

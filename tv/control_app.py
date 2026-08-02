@@ -8447,9 +8447,17 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                 for k, v in kw.items():
                     _CHRON_JOB[k] = _CHRON_JOB.get(k, 0) + v if isinstance(v, int) else v
 
-        def _classify(path):
-            _tick(classified=1)
-            return _cr.chronicle_kind(_tv.claude_read(path))
+        # v1577 — ONE BAD FRAME USED TO ABANDON THE WHOLE SWEEP. read_reel() calls classify() bare
+        # (chronicle_retro:209) and sweep_hist() calls read_reel() bare (:608), so a transient
+        # model/network failure on a SINGLE probe propagated all the way out — and because the caller
+        # catches broadly, it surfaced as a short result rather than an error. Every reel after the
+        # bad frame was silently never read. cr.classifier() exists to isolate exactly this, is
+        # tested, and had NO production caller: this function was a re-implementation of it WITHOUT
+        # the try. Proven against the real hist dir with a reader that throws on its 2nd probe —
+        # inline: aborted, 0 reels; through classifier(): all 4 reels, 10 classifications.
+        # The tick stays INSIDE the reader so "classified" keeps counting probes ATTEMPTED (a probe
+        # that died is still money spent and still belongs in the count), matching read_page above.
+        _classify = _cr.classifier(lambda p: (_tick(classified=1) or _tv.claude_read(p)))
 
         grok_lane = None
         if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
@@ -8714,7 +8722,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1576",
+        "ver": "v1577",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

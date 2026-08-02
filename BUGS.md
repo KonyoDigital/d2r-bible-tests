@@ -1874,3 +1874,60 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   a much broader claim than "one app per port", and the extra breadth is invisible until something
   legitimate needs a second instance. (2) Never send a spawned child's output to DEVNULL in a
   harness whose failure mode is "the child did not start"; capture it and print it on timeout.
+
+## REG-089 — plumbing with no tap: guards that can never be true (2026-08-02)
+
+- **Symptom:** features that look shipped in the source, are described as working in their own
+  commit message, and do nothing at all. Four live instances, found by the v1576 sweep:
+  - `typeof toast === 'function'` guarded the v631 forge-base promotion. `toast` is declared
+    NOWHERE in the 38,888-line file, so the guard was permanently false. The promotion was really
+    running (it returned `["Heater (2 os)"]`) — it had simply never once announced itself.
+  - The Vault **🪄 Fix all safe** button reported through `window._toast && window._toast(...)`.
+    No writer for `_toast` exists anywhere in the repo; the `&&` swallowed it in silence. The
+    button repaired N issues and gave Konyo zero receipt that it had done anything.
+  - `_g3ForwardRender` fell back to a "safe" escaper when `typeof escHtml !== 'function'` — and
+    that fallback did not escape. It wrote into `data-n`, which `kaiForwardUndo` reads back, so a
+    grail name containing a quote would have made ↩ undo un-tick **the wrong grail**.
+  - `window._FORGE_REDO` (v1570, MINE): the slot was declared, read and cleared, and no code ever
+    wrote it while no button ever called `_forgeRedo`. Shipped three hours after I wrote a spec
+    whose whole purpose was to make orphaned routes fail the suite.
+- **Caught by:** a targeted 14-agent sweep for this one class, then `tests/v1577_dead_seams.spec.ts`.
+- **Root cause:** a name is checked with `typeof` before use, the checked name is wrong or was never
+  written, and the guard's whole purpose is to fail quietly. Nothing throws, nothing logs, and the
+  code reads as defensive rather than broken. `X && X()` and `try{}catch(e){}` are the same shape.
+- **Fix (v1576):** each guard pointed at the name the board actually owns (`window._grailToast`),
+  the escaping fallback removed, `/api/quit`'s hard-coded `{ok:true}` replaced with a receipt keyed
+  off the ground-truth `_FORCE_EXIT_ARMED` flag.
+- **The premise that was wrong, and matters more than the bugs:** a `typeof NAME` guard sitting in a
+  DIFFERENT `<script>` block from its declaration is **not** dead. Top-level `let`/`const` in
+  classic scripts share ONE global lexical environment across the document — 190 of 196 guarded
+  names in `bible.html` are live, and a detector built on "different block = dead" would condemn
+  all of them. The REG-083/087 shape only bites when the SOLE declaration is nested inside an IIFE;
+  the v1576 scope map found zero live instances of that.
+- **Prevention:** `tests/v1577_dead_seams.spec.ts` requires TWO independent witnesses before it
+  condemns a name — the live browser says it resolves nowhere at global scope, AND the source says
+  it is declared nowhere at all. Either witness alone lies, in opposite directions: the browser
+  cannot see function-locals (its first run flagged 26 healthy names — `v`, `d`, `map`,
+  `refreshOpenCard`…), and the source cannot see scope. Known limit, stated rather than hidden: it
+  does NOT catch an IIFE-nested declaration guarded from outside; that needs a parser, not a regex.
+
+## REG-090 — the pre-push gate destroyed the evidence it existed to produce (2026-08-02)
+
+- **Symptom:** the v1575 push was blocked by `tv/test_control.py`. The re-run passed. Three further
+  runs passed. 340 tests, one of them red, and no way left on earth to learn which one.
+- **Root cause:** every gate in `hooks/pre-push` ran with `>/dev/null 2>&1`, so a blocked push said
+  only THAT a suite failed. The one remedy it offered — "run it by hand" — is precisely the thing
+  that cannot recover a FLAKY failure, because by the time you run it, it passes.
+- **Fix:** `gate_run()` tees each gate to a kept, pid-scoped log and prints the last 40 lines on
+  failure, where unittest's FAIL block lives. Applied to all four gates. Proven against a
+  deliberately failing suite; a passing gate still prints nothing.
+- **Also fixed in the fix:** the first version reported `exit 0` on every failure. After an `if`
+  block whose branch did not run, `$?` is the *if statement's* status, not the command's;
+  `&& return 0` short-circuits and preserves the real code. Verified against a command exiting 42.
+- **Prevention:** this is REG-088's own prevention rule (2) — never send output to DEVNULL in a
+  harness whose failure mode is "it did not work" — which had been written down for this repo and
+  applied only to the Windows harness, while the gate every push goes through kept discarding it.
+  A prevention rule is not applied until it is applied *everywhere the shape occurs*.
+- **STILL OPEN:** which test flaked is unknown and unrecoverable. The suspicion is the sub-100ms
+  wall-clock budgets near `tv/test_control.py:1179` / `:1211` under load, but that is a guess and is
+  recorded as one. The next occurrence will name itself.

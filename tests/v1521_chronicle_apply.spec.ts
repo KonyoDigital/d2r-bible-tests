@@ -121,17 +121,29 @@ test.describe('v1521 — the apply writes once, and only forward', () => {
     expect(r.skipped, 'the ones he already had are skipped, not re-ticked').toBe(r.before);
   });
 
-  test('★ an UNKNOWN set name invents nothing', async ({ page }) => {
-    // the board owns __allSets(); a name it does not recognise must produce no pieces at all
+  test('★ an UNKNOWN set name invents nothing — and is never reported as "already yours"', async ({ page }) => {
+    // the board owns __allSets(); a name it does not recognise must produce no pieces at all.
+    //
+    // v1574 changed WHERE that failure is reported, and this spec was written against the old
+    // place (it asserted res.skipped contained '(unknown set)'). It went red on 61ed48f. The
+    // code is right and the spec was stale: res.skipped is printed to Konyo verbatim as
+    // "N already yours", so filing a FAILED READ there told him the one thing that was not
+    // true, in the exact case where he most needs to know the reader got it wrong. It has its
+    // own res.unknown bucket now and the panel says it out loud in amber.
+    //
+    // So this no longer checks only that nothing was written — it pins the DIRECTION of the
+    // report, which is the part that was wrong and the part that can silently regress.
     await board(page);
     const r = await page.evaluate(() => {
       const w: any = window;
       const out = w.chronicleApply({ wouldAdd: { uniques: [], sets: [],
         completeSets: [{ name: "Some Mod Set That Does Not Exist" }] } });
-      return { added: out.sets, skipped: out.skipped };
+      return { added: out.sets, skipped: out.skipped, unknown: out.unknown };
     });
-    expect(r.added).toEqual([]);
-    expect(r.skipped.join(' ')).toContain('unknown set');
+    expect(r.added, 'a name the board does not know must invent no pieces').toEqual([]);
+    expect(r.skipped, 'a FAILED READ must never be filed as "you already had it"').toEqual([]);
+    expect(r.unknown.join(' '),
+      'the unrecognised name must be named back to him, not swallowed').toContain('Some Mod Set That Does Not Exist');
   });
 
   test('an empty proposal writes nothing and records no batch', async ({ page }) => {
