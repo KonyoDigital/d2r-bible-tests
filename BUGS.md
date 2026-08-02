@@ -1964,3 +1964,25 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   everywhere the shape occurs.** When a comment explains a trap, grep for the trap before moving
   on. And the pre-push gates are now individually time-bound (`hooks/pre-push`), so the next
   unbounded wait fails loudly with its log instead of holding a push hostage in silence.
+
+## REG-092 — the terror-zone countdown overstated the window by up to 30 minutes (2026-08-02)
+
+- **Symptom:** the console's TZ clock read "50:46 until the zone turns · on the hour" at 15:09,
+  when the zone actually turned at 15:30 — 20 minutes away. That number is what Konyo uses to
+  decide whether there is time to start a run.
+- **Root cause:** v1567 counted to the top of the hour and wrote the reason in its own comment —
+  "This is the GAME's rule (terror zones turn hourly)". It was stated as a rule and never checked
+  against the feed, which is the kind of claim that survives longest: nothing contradicts a comment.
+- **The contradiction was already on screen.** The board's tracker tab labelled the next slot
+  "⏭️ NEXT · ~30 MIN" and its lead text said "refreshes every 30 min". Two surfaces of the same app
+  disagreed about the same fact for fourteen versions, and neither was checked against the source.
+- **Evidence (measured, not assumed):** the relay's own history has slots on :00 and :30 with
+  nothing in between, and across 93 adjacent half-hour pairs the zone CHANGED in 90. An hourly
+  rotation would repeat roughly half of them; 3 of 93 is 3%, consistent with genuine back-to-back
+  draws rather than a slower clock.
+- **Fix (v1581):** `SLOT_S = 1800`, counting to the next :00 or :30, and the label now says "on the
+  hour and the half hour". The progress bar fills over the half hour instead of the hour. Verified
+  live: 13:49 remaining where the old code would have shown 43:49.
+- **Prevention:** `tv/test_tz_art.py::TestRotationCadence` pins the slot length, the label, and —
+  most importantly — that the two surfaces AGREE. The bug was not that one number was wrong; it
+  was that two screens gave different answers and nothing compared them.

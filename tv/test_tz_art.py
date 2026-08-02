@@ -215,6 +215,40 @@ class TestBoardConsoleAgree(unittest.TestCase):
         self.assertNotIn("tzZoneRowHtml(data.current)", code,
                          "the single-card renderer is back — a three-zone hour will show one card")
 
+class TestRotationCadence(unittest.TestCase):
+    """v1581 — the countdown must match how often the zone actually turns.
+
+    v1567 wrote "terror zones turn hourly" and counted to the top of the hour. The board's own
+    tracker tab said "~30 MIN" for the next slot, so the two surfaces contradicted each other and
+    only one could be right. The FEED settles it: its slots land on :00 and :30 with nothing in
+    between, and across 93 adjacent half-hour pairs the zone changed in 90 of them. Hourly rotation
+    would repeat about half of those; 3 of 93 is 3%.
+
+    This was not cosmetic. At 15:09 the panel read 50:46 when the zone turned in 20 minutes — the
+    number Konyo uses to decide whether there is time to start a run, overstating the window by up
+    to half an hour.
+    """
+
+    def test_the_console_counts_to_the_half_hour(self):
+        _, ui = _tz_info()
+        self.assertIn("var SLOT_S = 1800", ui, "the slot length must be half an hour")
+        self.assertNotIn("3600 - (now.getMinutes() * 60", ui,
+                         "the hourly countdown is back — it overstates the window by up to 30 min")
+        self.assertIn("(now.getMinutes() % 30)", ui)
+
+    def test_the_label_does_not_promise_the_hour(self):
+        _, ui = _tz_info()
+        self.assertIn("on the hour and the half hour", ui,
+                      "the clock label still claims an hourly turn")
+
+    def test_the_two_surfaces_agree_on_cadence(self):
+        """The board said 30 minutes while the console said 60. Whichever is right, they must not
+        disagree — two screens showing different answers is worse than one wrong answer."""
+        src = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+        self.assertIn("~30 MIN", src, "the board's next-slot label lost its cadence")
+        _, ui = _tz_info()
+        self.assertNotIn("turn hourly), ", ui.replace("\n", " "))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

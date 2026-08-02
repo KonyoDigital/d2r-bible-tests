@@ -3634,7 +3634,7 @@
                and not a claim about the feed, so it is computed here and LABELLED as the rule. -->
           <div class="tz-clock" id="tz-clock" hidden>
             <div class="tzc-bar"><i id="tz-clock-fill"></i></div>
-            <div class="tzc-lab"><b id="tz-clock-t">—</b><span>until the zone turns · on the hour</span></div>
+            <div class="tzc-lab"><b id="tz-clock-t">—</b><span>until the zone turns · on the hour and the half hour</span></div>
           </div>
           <div class="tz-foot">
             <button class="chron-btn" type="button" id="tz-refresh">↻ refresh</button>
@@ -11079,10 +11079,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
     }
   }
 
-  /* v1567 — minutes to the top of the hour. This is the GAME's rule (terror zones turn hourly),
-     not something the relay tells us, so it is labelled as the rule and never as a countdown the
-     feed guarantees. Hidden entirely when the rotation shown is stale — a clock ticking beside
-     data we know is old is the worst of both. */
+  /* v1581 — minutes to the next SLOT BOUNDARY (:00 or :30). v1567 said "terror zones turn hourly"
+     and this comment is where that belief lived; it was stated as the GAME's rule and never
+     checked against the feed, which is exactly the kind of claim that survives longest. It was
+     wrong — see the measurement in _tzClock below.
+     Still labelled as a rule rather than as something the relay guarantees, and still hidden
+     entirely when the rotation shown is stale: a clock ticking beside data we know is old is the
+     worst of both. */
   var _tzClockTimer = null;
   function _tzClock(show) {
     var box = document.getElementById('tz-clock');
@@ -11091,12 +11094,27 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
     if (!box) return;
     if (!show) { box.hidden = true; if (_tzClockTimer) { clearInterval(_tzClockTimer); _tzClockTimer = null; } return; }
     box.hidden = false;
+    /* v1581 — HALF-HOURLY, and this was measured rather than assumed. v1567 wrote "terror zones
+       turn hourly" and counted to the top of the hour; the board's own tracker tab said "~30 MIN"
+       in the next-slot label, so the two surfaces had been contradicting each other and only one
+       of them could be right.
+
+       The feed settles it. Its slots land on :00 and :30 with nothing in between, and across 93
+       adjacent half-hour pairs the zone CHANGED in 90 of them. If the rotation were hourly, about
+       half of those pairs would repeat; 3 of 93 is 3%, and those read as genuine back-to-back
+       draws rather than a slower clock.
+
+       The old countdown was not merely cosmetic: at 15:09 it read 50:46 when the zone actually
+       turned in 20 minutes. That is the number he uses to decide whether there is time to start a
+       run, and it was overstating the window by up to half an hour. */
+    var SLOT_S = 1800;
     var tick = function () {
       var now = new Date();
-      var left = 3600 - (now.getMinutes() * 60 + now.getSeconds());
+      var into = (now.getMinutes() % 30) * 60 + now.getSeconds();
+      var left = SLOT_S - into;
       var m = Math.floor(left / 60), sec = left % 60;
       if (t) t.textContent = m + ':' + (sec < 10 ? '0' : '') + sec;
-      if (fill) fill.style.width = (100 - (left / 3600) * 100).toFixed(1) + '%';
+      if (fill) fill.style.width = ((into / SLOT_S) * 100).toFixed(1) + '%';
     };
     tick();
     if (_tzClockTimer) clearInterval(_tzClockTimer);
