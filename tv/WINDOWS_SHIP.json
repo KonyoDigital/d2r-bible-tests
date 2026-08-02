@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1605",
+  "ver": "v1606",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1605: a mini that seals with zero frames now reports it instead of looking identical to a good one; and the idle label stopped clobbering both the warning and the chosen focus",
+  "note": "v1606: ON AIR was correctly refusing with the Screen Recording instruction and showing it for 2.4 seconds; blocking refusals now dwell 14s",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -4268,7 +4268,15 @@
         // v1380.4 — also surface msg + first logTail line (Windows hung-boot / missing Claude)
         var why = j.error || j.msg || 'failed';
         var fix = j.fix ? (' → ' + String(j.fix).split('\n')[0]) : '';
-        toast('⚠ ' + why + fix);
+        /* v1606 — A BLOCKING REFUSAL GETS TIME TO BE READ. This toast was 2.4s, the same dwell as
+           "saved". The message it carries is the opposite of that: on 2026-08-03 Konyo pressed ON
+           AIR repeatedly and got a black film, while the engine was returning — correctly, every
+           single time — "Screen Recording not granted to this Python ... quit the headless console,
+           run bash tv/tvd-scan.sh, enable Python in System Settings → Privacy → Screen Recording".
+           Four sentences and a shell command, shown for 2.4 seconds. He reported it as the app being
+           broken, and spent an hour on it, because the one thing that could have told him what to do
+           had already vanished. The engine was never silent; nobody could read it in time. */
+        toast('⚠ ' + why + fix, 14000);
         if (j.logTail) {
           try {
             var tail = String(j.logTail).trim().split(/\n/).filter(Boolean).slice(-3).join(' · ');
