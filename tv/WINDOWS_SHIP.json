@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1568",
+  "ver": "v1569",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1568: REG-002 and REG-083 to 087 were each allocated twice; documented rather than renumbered because commits cite them",
+  "note": "v1569: 13 CASC act graphics matched to real area names; a zone with no art shows a rune, never another act picture",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
