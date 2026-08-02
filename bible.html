@@ -3226,7 +3226,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      of the rotation read as emphasised. Three tiers, three treatments. */
   .tzt-zone.tzt-t-good{opacity:.72;filter:saturate(.5)}
   .tzt-zone.tzt-t-good:hover{opacity:.95;filter:saturate(.9)}
-  .tzt-zone.tzt-t-thin{opacity:.4;filter:grayscale(.9)}
+  .tzt-zone.tzt-t-thin{opacity:.3;filter:grayscale(1) brightness(.75)}
+  .tzt-locked{cursor:not-allowed;user-select:none}
+  .tzt-locked:hover{transform:none;box-shadow:none}
+  .tzt-lock{font-size:13px;opacity:.55;filter:grayscale(1)}
   .tzt-zone.tzt-t-thin:hover{opacity:.92;filter:grayscale(.1)}
   .tzt-zone.tzt-t-thin .tzt-z-art{box-shadow:inset 0 0 30px rgba(0,0,0,.8)}
   .tzt-foot{display:flex;align-items:center;gap:14px;margin-top:12px}
@@ -23187,10 +23190,11 @@ const TZ_HUNT = [
 
    den/lvl are the game's own levels.txt (MonDen(H), MonLvlEx(H)); the art is extracted from the
    local D2R install (CASC -> .texture -> BC3). See v1578. */
-  var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-icecave"],"Arcane Sanctuary":[990,79,"act2-arcane"],"Arreat Plateau":[350,81,"exp-siege"],"Barracks":[680,70,"act1-cathedral"],"Black Marsh":[520,69,"act1-outdoors"],"Blood Moor":[520,67,"act1-outdoors"],"Bloody Foothills":[650,80,"exp-siege"],"Burial Grounds":[520,80,"act1-graveyard"],"Catacombs":[680,73,"act1-catacomb"],"Cathedral":[680,72,"act1-cathedral"],"City of the Damned":[800,84,"act4-lava"],"Claw Viper Temple":[2200,83,"act2-tomb"],"Cold Plains":[520,68,"act1-outdoors"],"Crypt":[1056,83,"act1-catacomb"],"Crystalline Passage":[700,82,"exp-icecave"],"Dark Wood":[520,68,"act1-outdoors"],"Den of Evil":[600,79,"act1-caves"],"Disused Fane":[990,85,"act3-kurast"],"Drifter Cavern":[600,85,"exp-icecave"],"Dry Hills":[880,76,"act2-outdoors"],"Durance of Hate":[800,83,"act3-sewer"],"Far Oasis":[880,76,"act2-outdoors"],"Flayer Dungeon":[700,83,"act3-jungle"],"Flayer Jungle":[650,80,"act3-jungle"],"Frigid Highlands":[450,81,"exp-siege"],"Frozen River":[800,83,"exp-icecave"],"Frozen Tundra":[550,81,"exp-icecave"],"Glacial Trail":[700,83,"exp-icecave"],"Great Marsh":[650,80,"act3-jungle"],"Halls of Anguish":[700,83,"exp-wildtemple"],"Halls of Pain":[700,84,"exp-wildtemple"],"Halls of Vaught":[700,84,"exp-wildtemple"],"Halls of the Dead":[2200,82,"act2-tomb"],"Icy Cellar":[650,85,"exp-icecave"],"Infernal Pit":[700,85,"act4-lava"],"Jail":[680,71,"act1-cathedral"],"Kurast Bazaar":[325,81,"act3-kurast"],"Lost City":[880,77,"act2-outdoors"],"Lut Gholein Sewers":[680,85,"act2-sewer"],"Mausoleum":[1056,85,"act1-graveyard"],"Moo Moo Farm":[800,81,"act1-outdoors"],"Nihlathak's Temple":[0,83,"exp-wildtemple"],"Outer Cloister":[600,70,"act1-cathedral"],"Outer Steppes":[800,82,"act4-lava"],"Pit of Acheron":[800,85,"act4-lava"],"Plains of Despair":[800,83,"act4-lava"],"River of Flame":[800,85,"act4-lava"],"Rocky Waste":[880,75,"act2-outdoors"],"Ruined Temple":[990,85,"act3-kurast"],"Spider Cavern":[700,79,"act3-spider"],"Spider Forest":[650,79,"act3-spider"],"Stony Field":[520,68,"act1-outdoors"],"Stony Tomb":[2200,85,"act2-tomb"],"Tal Rasha's Chamber":[2200,80,"act2-tomb"],"Tal Rasha's Tombs":[2200,80,"act2-tomb"],"Tamoe Highland":[520,69,"act1-outdoors"],"The Cave":[600,78,"act1-caves"],"The Chaos Sanctuary":[800,85,"act4-diab"],"The Hole":[600,81,"act1-caves"],"The Pit":[600,85,"act1-caves"],"Throne of Destruction":[700,85,"exp-baallair"],"Travincal":[325,82,"act3-travincal"],"Underground Passage":[600,85,"act1-caves"],"Valley of Snakes":[880,77,"act2-outdoors"],"Worldstone Chamber":[0,85,"exp-baallair"],"Worldstone Keep":[700,85,"exp-baallair"]};
+  var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-tomb"],"Ancient's Way":[650,82,"exp-icecave"],"Arachnid Lair":[700,85,"act3-spider"],"Arcane Sanctuary":[990,79,"act2-arcane"],"Arreat Plateau":[350,81,"exp-siege"],"Barracks":[680,70,"act1-cathedral"],"Black Marsh":[520,69,"act1-outdoors"],"Blood Moor":[520,67,"act1-outdoors"],"Bloody Foothills":[650,80,"exp-siege"],"Burial Grounds":[520,80,"act1-graveyard"],"Canyon of the Magi":[880,79,"act2-outdoors"],"Catacombs":[680,73,"act1-catacomb"],"Cathedral":[680,72,"act1-cathedral"],"City of the Damned":[800,84,"act4-lava"],"Claw Viper Temple":[2200,83,"act2-tomb"],"Cold Plains":[520,68,"act1-outdoors"],"Crypt":[1056,83,"act1-catacomb"],"Crystalline Passage":[700,82,"exp-icecave"],"Dark Wood":[520,68,"act1-outdoors"],"Den of Evil":[600,79,"act1-caves"],"Disused Fane":[990,85,"act3-kurast"],"Drifter Cavern":[600,85,"exp-icecave"],"Dry Hills":[880,76,"act2-outdoors"],"Durance of Hate":[800,83,"act3-sewer"],"Far Oasis":[880,76,"act2-outdoors"],"Flayer Dungeon":[700,83,"act3-jungle"],"Flayer Jungle":[650,80,"act3-jungle"],"Forgotten Tower":[1024,79,"act1-catacomb"],"Frigid Highlands":[450,81,"exp-siege"],"Frozen River":[800,83,"exp-icecave"],"Frozen Tundra":[550,81,"exp-icecave"],"Glacial Trail":[700,83,"exp-icecave"],"Great Marsh":[650,80,"act3-jungle"],"Halls of Anguish":[700,83,"exp-wildtemple"],"Halls of Pain":[700,84,"exp-wildtemple"],"Halls of Vaught":[700,84,"exp-wildtemple"],"Halls of the Dead":[2200,82,"act2-tomb"],"Harem":[2200,78,"act2-palace"],"Icy Cellar":[650,85,"exp-icecave"],"Infernal Pit":[700,85,"act4-lava"],"Jail":[680,71,"act1-cathedral"],"Kurast Bazaar":[325,81,"act3-kurast"],"Kurast Causeway":[325,81,"act3-kurast"],"Lost City":[880,77,"act2-outdoors"],"Lut Gholein Sewers":[680,85,"act2-sewer"],"Maggot Lair":[990,85,"act2-maggot"],"Mausoleum":[1056,85,"act1-graveyard"],"Moo Moo Farm":[800,81,"act1-outdoors"],"Nihlathak's Temple":[0,83,"exp-wildtemple"],"Outer Cloister":[600,70,"act1-cathedral"],"Outer Steppes":[800,82,"act4-lava"],"Palace Cellar":[2200,78,"act2-palace"],"Pit of Acheron":[800,85,"act4-lava"],"Plains of Despair":[800,83,"act4-lava"],"River of Flame":[800,85,"act4-lava"],"Rocky Waste":[880,75,"act2-outdoors"],"Ruined Temple":[990,85,"act3-kurast"],"Sewers":[680,85,"act3-sewer"],"Spider Cavern":[700,79,"act3-spider"],"Spider Forest":[650,79,"act3-spider"],"Stony Field":[520,68,"act1-outdoors"],"Stony Tomb":[2200,85,"act2-tomb"],"Swampy Pit":[700,85,"act3-jungle"],"Tal Rasha's Chamber":[2200,80,"act2-tomb"],"Tal Rasha's Tombs":[2200,80,"act2-tomb"],"Tamoe Highland":[520,69,"act1-outdoors"],"The Cave":[600,78,"act1-caves"],"The Chaos Sanctuary":[800,85,"act4-diab"],"The Hole":[600,81,"act1-caves"],"The Pit":[600,85,"act1-caves"],"Throne of Destruction":[700,85,"exp-baallair"],"Tower Cellar":[1024,79,"act1-catacomb"],"Travincal":[325,82,"act3-travincal"],"Tristram":[520,83,"act1-tristram"],"Underground Passage":[600,85,"act1-caves"],"Upper Kurast":[325,81,"act3-kurast"],"Valley of Snakes":[880,77,"act2-outdoors"],"Worldstone Chamber":[0,85,"exp-baallair"],"Worldstone Keep":[700,85,"exp-baallair"]};
 
   var TZ_NOTABLE = {
-    'Travincal': 'the Council', 'The Chaos Sanctuary': 'Diablo', 'Durance of Hate': 'Mephisto',
+    'Travincal': 'the Council', 'Forgotten Tower': 'the Countess',
+      'Tower Cellar': 'the Countess', 'Ancient Tunnels': 'a TC85 pocket with no boss to kill', 'The Chaos Sanctuary': 'Diablo', 'Durance of Hate': 'Mephisto',
     'Worldstone Keep': 'the Baal run', 'Throne of Destruction': 'Baal', 'Worldstone Chamber': 'Baal',
     'The Pit': 'the best drop tier in the game', 'Arcane Sanctuary': 'the Summoner',
     'Halls of Vaught': 'Nihlathak', 'Moo Moo Farm': 'the Cow King', 'Mausoleum': 'Bloodraven country',
@@ -23278,8 +23282,14 @@ function tzZoneRowHtml(zoneName){
     ? 'thin — low density and a low base level. Sit this one out.'
     : (t.tier === 'prime' ? 'no named boss, but the density is there — worth a clear.'
                           : 'no named boss here — a fine filler clear.');
-  return '<div class="tzt-zone tzt-filler tzt-t-'+t.tier+'">' + face
-    + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
+  /* v1588 — a thin zone is LOCKED, not merely dim. No hover response, a not-allowed cursor and a
+     padlock beside the name, so the difference is something he meets with the mouse before he
+     reads a word. A non-thin zone with no named boss stays a normal card: it is worth running, and
+     inventing a click target that goes nowhere would be worse than having none. */
+  const locked = (t.tier === 'thin');
+  return '<div class="tzt-zone tzt-filler tzt-t-'+t.tier+(locked?' tzt-locked':'')+'"'
+    + (locked ? ' aria-disabled="true"' : '') + '>' + face
+    + '<span class="tzt-z-name">'+_tzEsc(zoneName)+(locked?' <span class="tzt-lock">&#128274;</span>':'')+'</span>'
     + meta
     + '<span class="tzt-z-skip">'+skip+'</span></div>';
 }
@@ -36666,7 +36676,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1587', name:'v1587 - the two rows share one grid, and thin reads as dead', date:'2026-07-31', note:'' };
+  window.D2R_BUILD = { id:'v1589', name:'v1589 - locked or routable, and the rotation lives only in sessions', date:'2026-07-31', note:'' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

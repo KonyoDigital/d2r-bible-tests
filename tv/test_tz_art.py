@@ -410,6 +410,65 @@ class TestPanelAlignmentAndPolling(unittest.TestCase):
                       "nothing re-schedules when the cadence changes — the lean-in is dead again")
         self.assertIn("_tzNextMissing ? 60000 : 120000", ui)
 
+class TestLockedVsRoutable(unittest.TestCase):
+    """v1588 — the verdict is an AFFORDANCE, not a paragraph.
+
+    v1580 answered "why is this dimmed" with a standfirst that spelled the ranking out. Konyo:
+    "i dont want this desription here.. no description needed for it.. should be visually logicaly
+    and visually rendering this in greyed out and like not clickable even so its locked kinda
+    feeling.. and for the real TZ ZONEs clickable and routable."
+
+    He is right that a panel explaining itself in prose is a panel whose visuals are not doing the
+    work. A zone worth the window is a button — pointer, lift, and it routes to the tracker. A thin
+    one has no handler at all, a not-allowed cursor and a padlock. He meets the difference with the
+    mouse before he reads anything, and the numbers stay on every card so the basis is still there
+    without the lecture.
+    """
+
+    def test_the_explanatory_standfirst_is_gone(self):
+        _, ui = _tz_info()
+        self.assertNotIn('class="tz-standfirst"', ui,
+                         "the prose legend is back — the treatment should be carrying this")
+
+    def test_thin_is_inert_and_worth_running_routes(self):
+        _, ui = _tz_info()
+        self.assertIn("var dead = (t.tier === 'thin')", ui)
+        self.assertIn("window._tzRoute()", ui, "a live card must route somewhere")
+        self.assertIn("aria-disabled=\"true\"", ui, "a locked card must say so to assistive tech")
+        self.assertIn(".tzz-locked { cursor: not-allowed", ui)
+        self.assertIn("window._tzRoute = function", ui, "the router the cards call must EXIST — a "
+                      "handler with no function behind it is the v1570 shape again")
+
+    def test_the_board_locks_its_thin_zones_too(self):
+        board = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+        self.assertIn("tzt-locked", board)
+        self.assertIn(".tzt-locked{cursor:not-allowed", board)
+
+class TestSessionsOnly(unittest.TestCase):
+    """v1589 — the rotation card lives in ONE place. Konyo: "remove it completely from TV-D tab..
+    i want it only in sessions". It was rendering 419px tall in the cockpit too, where the job is
+    the live feed and a rotation clock is someone else's business."""
+
+    def test_hidden_outside_the_sessions_view(self):
+        _, ui = _tz_info()
+        self.assertIn(".hd-tz { display: none; }", ui, "the card is visible everywhere again")
+        self.assertIn('body[data-view="sessions"] .hd-tz { display: block;', ui)
+
+    def test_it_does_not_poll_while_off_screen(self):
+        """Polling for a panel nobody can see is the background chatter he has complained about."""
+        _, ui = _tz_info()
+        self.assertIn("if (_tzOnScreen()) _tzFetch();", ui, "the off-screen guard is gone")
+        self.assertIn("function _tzOnScreen()", ui, "the guard calls a function that must EXIST")
+
+    def test_entering_sessions_refreshes_it(self):
+        """It stops polling off screen, so without this he would open Sessions to whatever was true
+        when he last looked."""
+        _, ui = _tz_info()
+        self.assertIn("window._tzRefresh = function", ui,
+                      "the refresh the view-switch calls must exist — a call with no function "
+                      "behind it is the v1570 shape again")
+        self.assertIn("window._tzRefresh()", ui, "showSessions must actually call it")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

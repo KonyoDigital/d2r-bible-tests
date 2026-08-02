@@ -340,7 +340,12 @@ async function j9_terrorZoneFlagship(page) {
       equalW: new Set(cards.map((c) => c.w)).size === 1,
       equalH: new Set(cards.map((c) => c.h)).size === 1,
       oneRow: new Set(cards.map((c) => c.y)).size === 1,
-      legend: !!document.querySelector('.tz-standfirst .tz-sf-txt'),
+      // v1588 — the prose legend was REMOVED on purpose; the treatment carries the verdict now.
+      locked: [...document.querySelectorAll('#tz-body .tzz-thin')]
+        .every((c) => c.classList.contains('tzz-locked') && c.getAttribute('role') !== 'button'),
+      thinSeen: document.querySelectorAll('#tz-body .tzz-thin').length,
+      routes: [...document.querySelectorAll('#tz-body .tzz-prime, #tz-body .tzz-good')]
+        .every((c) => c.getAttribute('role') === 'button'),
     };
   });
   if (place.missing) fail.push('the TZ panel is gone from Sessions');
@@ -350,7 +355,11 @@ async function j9_terrorZoneFlagship(page) {
     if (!place.bannerAbove) fail.push('the card jumped above its own zone banner');
     if (!place.fullWidth) fail.push('it is not stretched left to right');
     if (!place.equalW || !place.equalH || !place.oneRow) fail.push('the zone cards are not an even row');
-    if (!place.legend) fail.push('nothing explains what the dimming means');
+    // the stub rotation deliberately contains a thin zone, so seeing none means the tiering
+    // stopped working rather than that this window happened to be all good
+    if (!place.thinSeen) fail.push('no thin zone rendered — the tiering is not running');
+    if (!place.locked) fail.push('a thin zone is not locked (still a button, or no padlock class)');
+    if (!place.routes) fail.push('a zone worth running does not route anywhere');
   }
   if (out.some((o) => /^and /i.test(o.n))) fail.push('a chip is labelled "and <Zone>" — the Oxford-comma split is back');
   if (!out.every((o) => o.art.includes('/art/tz_'))) fail.push('a zone has no game-extracted face');

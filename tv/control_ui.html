@@ -2307,7 +2307,12 @@
      rule became actively wrong — it jumped the card ABOVE its own "Ⅰ THE HUNT" banner, leaving the
      heading stranded over the card below it. v1424 already wrote the rule this breaks: DOM is the
      source of truth for Sessions storyline order. */
-  body[data-view="sessions"] .hd-tz { grid-column: 1 / -1; }
+  /* v1589 — SESSIONS ONLY. Konyo: "remove it completely from TV-D tab.. i want it only in
+     sessions". It was rendering 419px tall in the cockpit as well, where the job is the live feed
+     and a rotation clock is someone else's business. Hidden by default and shown only in the
+     Sessions view, so there is exactly one place it lives. */
+  .hd-tz { display: none; }
+  body[data-view="sessions"] .hd-tz { display: block; grid-column: 1 / -1; }
   .hd-tz .hd-h { font: var(--fw-bold) var(--fs-sm)/1 var(--serif); letter-spacing: .2em; }
   .hd-tz .hd-h .hd-sub { letter-spacing: .12em; }
   /* full width means the two rows can sit side by side instead of stacking */
@@ -2340,8 +2345,9 @@
   .tz-slot.now { border-color: rgba(120,230,160,.34);
     background: radial-gradient(120% 160% at 8% 0%, rgba(120,230,160,.13), transparent 60%),
                 linear-gradient(180deg, rgba(120,230,160,.05), rgba(0,0,0,.2)); }
-  .tz-together { font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); letter-spacing: .02em;
-    text-transform: none; color: rgba(255,255,255,.46); margin-left: 4px; }
+  .tz-together { font: var(--fw-bold) var(--fs-micro,var(--fs-2xs))/1.6 var(--mono);
+    letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.5);
+    border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 0 8px; margin-left: 4px; }
   .tz-lab { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap;
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .22em;
     text-transform: uppercase; opacity: .85; }
@@ -2406,6 +2412,17 @@
      and the point of the treatment is that he never has to compare two cards to tell them apart.
      Full grayscale, deeper fade, flattened frame — and it comes back on hover, because unreadable
      is not the same as hidden and he still needs to be able to check what it says. */
+  /* v1588 — LOCKED vs LIVE, felt with the mouse and not read.
+     A zone worth the window behaves like a button: pointer, lift, glow, and it routes. A thin one
+     is inert — not-allowed cursor, no hover response, a padlock where the tag would be. That is
+     the "kinda locked feeling" Konyo asked for, and it is a stronger signal than any sentence
+     because he meets it before he reads anything. */
+  .tzz-live { cursor: pointer; transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease; }
+  .tzz-live:hover { transform: translateY(-2px); border-color: rgba(240,192,96,.66);
+    box-shadow: 0 10px 26px rgba(0,0,0,.42); }
+  .tzz-live:focus-visible { outline: 2px solid var(--fg-accent, #f0c060); outline-offset: 2px; }
+  .tzz-locked { cursor: not-allowed; user-select: none; }
+  .tzz-lock { font-size: var(--fs-2xs); opacity: .5; margin-left: auto; flex: none; filter: grayscale(1); }
   .tzz-thin { opacity: .3; filter: grayscale(1) brightness(.72); border-color: rgba(255,255,255,.05);
     background: rgba(255,255,255,.012); }
   .tzz-thin .tzz-art { box-shadow: inset 0 0 26px rgba(0,0,0,.85); }
@@ -3642,16 +3659,13 @@
              the CSS said yes and the page said no. Now it is first, in the right story. -->
         <div class="hd-col hd-wide hd-tz" id="hd-tz">
           <div class="hd-h">🌀 TERROR ZONE <span class="hd-sub" id="tz-updated"></span></div>
-          <!-- v1580 — A DIMMED CARD IS A CLAIM, and a claim with no stated basis is just the panel
-               being confident at him. This one line says where the ranking comes from and what the
-               grey means, so the treatment is legible without anyone having to explain it. -->
-          <div class="tz-standfirst">
-            <span class="tz-sf-key"><i class="tz-sw tz-sw-prime"></i>PRIME</span>
-            <span class="tz-sf-key"><i class="tz-sw tz-sw-good"></i>FINE</span>
-            <span class="tz-sf-key"><i class="tz-sw tz-sw-thin"></i>THIN</span>
-            <span class="tz-sf-txt">ranked on the game&rsquo;s own monster density &mdash; a terror zone
-              lifts monster level to yours, so density is what actually separates them</span>
-          </div>
+          <!-- v1588 — NO EXPLANATORY PARAGRAPH. v1580 answered "why is this dimmed" with a
+               standfirst that spelled out the ranking. Konyo: "i dont want this desription here..
+               no description needed for it.. should be visually logicaly". He is right that a panel
+               explaining itself in prose is a panel whose visuals are not doing the work. The
+               ranking is now carried entirely by the treatment: a zone worth running is lit and
+               CLICKS THROUGH to the tracker; a thin one is greyed, cursor-locked and inert. The
+               numbers stay on each card, so the basis is still visible without a lecture. -->
           <div class="tz-body" id="tz-body">
             <div class="tz-idle">reading the rotation…</div>
           </div>
@@ -8775,6 +8789,9 @@
     _shellLight('session');
     try { hubMeter(); } catch(e){}
     try { hubNextGrail(); } catch(e){}   // v1378 — load the EV-rank hero when the flagship opens
+    // v1589 — the rotation card only lives here now and does not poll while off screen, so ask
+    // once on the way in rather than showing him whatever was true when he last looked.
+    try { if (typeof window._tzRefresh === 'function') window._tzRefresh(); } catch(e){}
     try { requestAnimationFrame(function(){ _shellDemotePane(); _shellRestoreConsole(); }); } catch(e){}
   }
   window._showSessions = showSessions;
@@ -11003,14 +11020,15 @@ function escC(s) {
 
        THE NUMBERS ARE THE GAME'S TOO. den/lvl come from the game's own levels.txt
        (MonDen(H), MonLvlEx(H)) — not from a tier list I invented. */
-var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-icecave"],"Arcane Sanctuary":[990,79,"act2-arcane"],"Arreat Plateau":[350,81,"exp-siege"],"Barracks":[680,70,"act1-cathedral"],"Black Marsh":[520,69,"act1-outdoors"],"Blood Moor":[520,67,"act1-outdoors"],"Bloody Foothills":[650,80,"exp-siege"],"Burial Grounds":[520,80,"act1-graveyard"],"Catacombs":[680,73,"act1-catacomb"],"Cathedral":[680,72,"act1-cathedral"],"City of the Damned":[800,84,"act4-lava"],"Claw Viper Temple":[2200,83,"act2-tomb"],"Cold Plains":[520,68,"act1-outdoors"],"Crypt":[1056,83,"act1-catacomb"],"Crystalline Passage":[700,82,"exp-icecave"],"Dark Wood":[520,68,"act1-outdoors"],"Den of Evil":[600,79,"act1-caves"],"Disused Fane":[990,85,"act3-kurast"],"Drifter Cavern":[600,85,"exp-icecave"],"Dry Hills":[880,76,"act2-outdoors"],"Durance of Hate":[800,83,"act3-sewer"],"Far Oasis":[880,76,"act2-outdoors"],"Flayer Dungeon":[700,83,"act3-jungle"],"Flayer Jungle":[650,80,"act3-jungle"],"Frigid Highlands":[450,81,"exp-siege"],"Frozen River":[800,83,"exp-icecave"],"Frozen Tundra":[550,81,"exp-icecave"],"Glacial Trail":[700,83,"exp-icecave"],"Great Marsh":[650,80,"act3-jungle"],"Halls of Anguish":[700,83,"exp-wildtemple"],"Halls of Pain":[700,84,"exp-wildtemple"],"Halls of Vaught":[700,84,"exp-wildtemple"],"Halls of the Dead":[2200,82,"act2-tomb"],"Icy Cellar":[650,85,"exp-icecave"],"Infernal Pit":[700,85,"act4-lava"],"Jail":[680,71,"act1-cathedral"],"Kurast Bazaar":[325,81,"act3-kurast"],"Lost City":[880,77,"act2-outdoors"],"Lut Gholein Sewers":[680,85,"act2-sewer"],"Mausoleum":[1056,85,"act1-graveyard"],"Moo Moo Farm":[800,81,"act1-outdoors"],"Nihlathak's Temple":[0,83,"exp-wildtemple"],"Outer Cloister":[600,70,"act1-cathedral"],"Outer Steppes":[800,82,"act4-lava"],"Pit of Acheron":[800,85,"act4-lava"],"Plains of Despair":[800,83,"act4-lava"],"River of Flame":[800,85,"act4-lava"],"Rocky Waste":[880,75,"act2-outdoors"],"Ruined Temple":[990,85,"act3-kurast"],"Spider Cavern":[700,79,"act3-spider"],"Spider Forest":[650,79,"act3-spider"],"Stony Field":[520,68,"act1-outdoors"],"Stony Tomb":[2200,85,"act2-tomb"],"Tal Rasha's Chamber":[2200,80,"act2-tomb"],"Tal Rasha's Tombs":[2200,80,"act2-tomb"],"Tamoe Highland":[520,69,"act1-outdoors"],"The Cave":[600,78,"act1-caves"],"The Chaos Sanctuary":[800,85,"act4-diab"],"The Hole":[600,81,"act1-caves"],"The Pit":[600,85,"act1-caves"],"Throne of Destruction":[700,85,"exp-baallair"],"Travincal":[325,82,"act3-travincal"],"Underground Passage":[600,85,"act1-caves"],"Valley of Snakes":[880,77,"act2-outdoors"],"Worldstone Chamber":[0,85,"exp-baallair"],"Worldstone Keep":[700,85,"exp-baallair"]};
+var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-tomb"],"Ancient's Way":[650,82,"exp-icecave"],"Arachnid Lair":[700,85,"act3-spider"],"Arcane Sanctuary":[990,79,"act2-arcane"],"Arreat Plateau":[350,81,"exp-siege"],"Barracks":[680,70,"act1-cathedral"],"Black Marsh":[520,69,"act1-outdoors"],"Blood Moor":[520,67,"act1-outdoors"],"Bloody Foothills":[650,80,"exp-siege"],"Burial Grounds":[520,80,"act1-graveyard"],"Canyon of the Magi":[880,79,"act2-outdoors"],"Catacombs":[680,73,"act1-catacomb"],"Cathedral":[680,72,"act1-cathedral"],"City of the Damned":[800,84,"act4-lava"],"Claw Viper Temple":[2200,83,"act2-tomb"],"Cold Plains":[520,68,"act1-outdoors"],"Crypt":[1056,83,"act1-catacomb"],"Crystalline Passage":[700,82,"exp-icecave"],"Dark Wood":[520,68,"act1-outdoors"],"Den of Evil":[600,79,"act1-caves"],"Disused Fane":[990,85,"act3-kurast"],"Drifter Cavern":[600,85,"exp-icecave"],"Dry Hills":[880,76,"act2-outdoors"],"Durance of Hate":[800,83,"act3-sewer"],"Far Oasis":[880,76,"act2-outdoors"],"Flayer Dungeon":[700,83,"act3-jungle"],"Flayer Jungle":[650,80,"act3-jungle"],"Forgotten Tower":[1024,79,"act1-catacomb"],"Frigid Highlands":[450,81,"exp-siege"],"Frozen River":[800,83,"exp-icecave"],"Frozen Tundra":[550,81,"exp-icecave"],"Glacial Trail":[700,83,"exp-icecave"],"Great Marsh":[650,80,"act3-jungle"],"Halls of Anguish":[700,83,"exp-wildtemple"],"Halls of Pain":[700,84,"exp-wildtemple"],"Halls of Vaught":[700,84,"exp-wildtemple"],"Halls of the Dead":[2200,82,"act2-tomb"],"Harem":[2200,78,"act2-palace"],"Icy Cellar":[650,85,"exp-icecave"],"Infernal Pit":[700,85,"act4-lava"],"Jail":[680,71,"act1-cathedral"],"Kurast Bazaar":[325,81,"act3-kurast"],"Kurast Causeway":[325,81,"act3-kurast"],"Lost City":[880,77,"act2-outdoors"],"Lut Gholein Sewers":[680,85,"act2-sewer"],"Maggot Lair":[990,85,"act2-maggot"],"Mausoleum":[1056,85,"act1-graveyard"],"Moo Moo Farm":[800,81,"act1-outdoors"],"Nihlathak's Temple":[0,83,"exp-wildtemple"],"Outer Cloister":[600,70,"act1-cathedral"],"Outer Steppes":[800,82,"act4-lava"],"Palace Cellar":[2200,78,"act2-palace"],"Pit of Acheron":[800,85,"act4-lava"],"Plains of Despair":[800,83,"act4-lava"],"River of Flame":[800,85,"act4-lava"],"Rocky Waste":[880,75,"act2-outdoors"],"Ruined Temple":[990,85,"act3-kurast"],"Sewers":[680,85,"act3-sewer"],"Spider Cavern":[700,79,"act3-spider"],"Spider Forest":[650,79,"act3-spider"],"Stony Field":[520,68,"act1-outdoors"],"Stony Tomb":[2200,85,"act2-tomb"],"Swampy Pit":[700,85,"act3-jungle"],"Tal Rasha's Chamber":[2200,80,"act2-tomb"],"Tal Rasha's Tombs":[2200,80,"act2-tomb"],"Tamoe Highland":[520,69,"act1-outdoors"],"The Cave":[600,78,"act1-caves"],"The Chaos Sanctuary":[800,85,"act4-diab"],"The Hole":[600,81,"act1-caves"],"The Pit":[600,85,"act1-caves"],"Throne of Destruction":[700,85,"exp-baallair"],"Tower Cellar":[1024,79,"act1-catacomb"],"Travincal":[325,82,"act3-travincal"],"Tristram":[520,83,"act1-tristram"],"Underground Passage":[600,85,"act1-caves"],"Upper Kurast":[325,81,"act3-kurast"],"Valley of Snakes":[880,77,"act2-outdoors"],"Worldstone Chamber":[0,85,"exp-baallair"],"Worldstone Keep":[700,85,"exp-baallair"]};
 
     /* Zones worth running for a REASON DENSITY CANNOT SEE. Travincal is one of the sparsest
        zones in the game (den 325) and is still a destination, because the Council is there.
        Ranking on density alone would have greyed it out — which is not a cosmetic mistake, it is
        bad advice printed in confident type. Each entry says WHY, and the card shows the why. */
     var TZ_NOTABLE = {
-      'Travincal': 'the Council', 'The Chaos Sanctuary': 'Diablo', 'Durance of Hate': 'Mephisto',
+      'Travincal': 'the Council', 'Forgotten Tower': 'the Countess',
+      'Tower Cellar': 'the Countess', 'Ancient Tunnels': 'a TC85 pocket with no boss to kill', 'The Chaos Sanctuary': 'Diablo', 'Durance of Hate': 'Mephisto',
       'Worldstone Keep': 'the Baal run', 'Throne of Destruction': 'Baal', 'Worldstone Chamber': 'Baal',
       'The Pit': 'the best drop tier in the game', 'Arcane Sanctuary': 'the Summoner',
       'Halls of Vaught': 'Nihlathak', 'Moo Moo Farm': 'the Cow King', 'Mausoleum': 'Bloodraven country',
@@ -11092,8 +11110,20 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
            it ate ~60px of the same flex row, which pushed "2200 density · alvl 85" into wrapping
            after the separator — a dangling "·" at the end of a line. Inside the name row the
            numbers get the column's full width and the tag still cannot cover the name. */
-        return '<div class="tzz tzz-' + t.tier + (hero ? ' tzz-hero' : '') + '">' + face
-          + '<span class="tzz-txt"><span class="tzz-top"><b>' + escC(x) + '</b>' + tag + '</span>'
+        /* v1588 — THE AFFORDANCE IS THE VERDICT. A zone worth running is a button: it lifts on
+           hover and opens the full tracker. A thin one is not a button at all — no handler, no
+           pointer, aria-disabled, and a lock glyph where the tag would be. He should be able to
+           tell them apart with the mouse, not by reading. */
+        var dead = (t.tier === 'thin');
+        var attrs = dead
+          ? ' aria-disabled="true" title="' + escC(x) + ' — thin: low density, not worth the window"'
+          : ' role="button" tabindex="0" onclick="window._tzRoute()"'
+            + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tzRoute();}"'
+            + ' title="' + escC(x) + ' — open the full tracker"';
+        return '<div class="tzz tzz-' + t.tier + (hero ? ' tzz-hero' : '') + (dead ? ' tzz-locked' : ' tzz-live')
+          + '"' + attrs + '>' + face
+          + '<span class="tzz-txt"><span class="tzz-top"><b>' + escC(x) + '</b>'
+          + (dead ? '<span class="tzz-lock">&#128274;</span>' : tag) + '</span>'
           + (act ? '<i>act ' + act + '</i>' : '') + meta + '</span></div>';
       }).join('');
     };
@@ -11112,8 +11142,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
       .filter(function (x) { return x.length; }).length; };
     var _together = function (z) {
       var n = _count(z);
-      return n > 1 ? '<div class="tz-together">all ' + n + ' are terrorised together for this '
-        + 'window &mdash; take whichever suits the run</div>' : '';
+      return n > 1 ? '<span class="tz-together">' + n + ' live together</span>' : '';
     };
     /* v1587 — ONE GRID FOR BOTH ROWS. Konyo: "why are they not aligned? the next and live?"
        auto-fit sized each row to its OWN item count, so a 2-zone LIVE NOW made two 50% columns
@@ -11150,6 +11179,18 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
      Still labelled as a rule rather than as something the relay guarantees, and still hidden
      entirely when the rotation shown is stale: a clock ticking beside data we know is old is the
      worst of both. */
+  /* one destination, the same one the footer button uses — the hunt-or-skip judgement lives on
+     the board, and a second copy is a second thing that drifts (v1567's note, still true). */
+  window._tzRoute = function () { try { window.open('/board#tztracker', '_blank'); } catch (e) {} };
+
+  /* offsetParent is null for a display:none ancestor OR the element itself — one check covers the
+     panel being hidden and the whole view being off. */
+  function _tzOnScreen() {
+    var el = document.getElementById('hd-tz');
+    return !!(el && el.offsetParent !== null);
+  }
+  window._tzOnScreen = _tzOnScreen;
+
   var _tzClockTimer = null;
   function _tzClock(show) {
     var box = document.getElementById('tz-clock');
@@ -11186,6 +11227,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
   }
 
   var _tzNextMissing = false;
+  window._tzRefresh = function () { try { _tzFetch(); } catch (e) {} };
   async function _tzFetch() {
     var body = document.getElementById('tz-body');
     try {
@@ -11238,7 +11280,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
   var _tzBoundaryTimer = null;
   function _tzSchedule() {
     if (_tzTimer) clearInterval(_tzTimer);
-    _tzTimer = setInterval(function () { _tzFetch(); }, _tzNextMissing ? 60000 : 120000);
+    /* and do not fetch for a panel that is not on screen. Since v1589 this card only exists in
+       the Sessions view, so on the cockpit every tick was a request for something nobody could
+       look at — the shape of the background chatter he has complained about before. The tab
+       switch fetches immediately, so nothing is stale when it does appear. */
+    _tzTimer = setInterval(function () {
+      if (_tzOnScreen()) _tzFetch();
+    }, _tzNextMissing ? 60000 : 120000);
     if (_tzBoundaryTimer) clearTimeout(_tzBoundaryTimer);
     var now = new Date();
     var intoMs = ((now.getMinutes() % 30) * 60 + now.getSeconds()) * 1000 + now.getMilliseconds();
