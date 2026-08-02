@@ -2223,6 +2223,18 @@
     padding-bottom: 5px; margin-bottom: 5px; border-bottom: 1px solid rgba(198,166,100,.14); }
   .chron-c.add .chron-c-h { color: var(--st-good); }
   .chron-c.held .chron-c-h { color: var(--st-needs); }
+  /* v1596 — THE THROW-OUT LANE READS AS A SUGGESTION, ON PURPOSE.
+     The other two lanes describe what he HAS. This one proposes destroying something, and it is the
+     only irreversible action in the app. So it is styled as an aside rather than a result: dimmer,
+     no gold, a dashed rule instead of a solid one, and never the same visual weight as OWNED. If it
+     ever starts looking like the other two, the next change after that is someone giving it a
+     button. */
+  .chron-c.throw { opacity: .9; }
+  .chron-c.throw .chron-c-h { color: var(--st-warn, #d8a657); border-bottom-style: dashed; }
+  .chron-c.throw .chron-n b { color: #cbb894; font-weight: var(--fw-medium); }
+  .vault-lane-note { margin-top: 6px; font: var(--fw-medium) var(--fs-2xs)/1.45 var(--mono);
+    letter-spacing: var(--ls-label); color: var(--text-dim); }
+  .hd-vault .vault-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
   .chron-list { max-height: 190px; overflow-y: auto; }
   .chron-n { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
   .chron-n b { display: block; font: var(--fw-semibold) var(--fs-xs)/1.35 var(--body);
@@ -2319,7 +2331,10 @@
   @media (min-width: 900px) {
     .hd-tz .tz-body { flex-direction: row; align-items: stretch; }
     .hd-tz .tz-slot { flex: 1 1 0; min-width: 0; }
-    .hd-tz .tz-slot.now { flex: 1.35 1 0; }
+    /* v1596 — EQUAL WIDTH. LIVE used to take 1.35 of the row, so even once the two cards shared a
+       type scale their columns still could not line up. The rotation is one thing at two moments;
+       both moments get the same column. */
+    .hd-tz .tz-slot.now { flex: 1 1 0; }
   }
   /* ── v1567 — the TERROR ZONE section, composed ─────────────────────────────────────────────
      Konyo: "TZ now and next should be upgraded... flagship style section, more design here not
@@ -2443,15 +2458,65 @@
     font: var(--fw-bold) var(--fs-micro,var(--fs-2xs))/1.5 var(--mono); letter-spacing: .16em; }
   .tzz-tag.prime { background: linear-gradient(180deg,#f0c060,#c99a34); color: #241a06; }
   .tzz-tag.thin { background: rgba(255,255,255,.13); color: rgba(255,255,255,.6); }
+  /* v1596 — GOOD is a verdict, not a recommendation, so it reads as an outline rather than a
+     filled badge. It has to be clearly LESS than PRIME at a glance while still being present:
+     the bug it fixes is that "no badge" was doing double duty as "fine" and "unremarkable". */
+  .tzz-tag.good { background: rgba(143,230,160,.14); color: #9fe0b0;
+    box-shadow: inset 0 0 0 1px rgba(143,230,160,.34); }
+  /* the slot-level verdict, on the LIVE NOW / UP NEXT label */
+  .tz-verdict { margin-left: 8px; padding: 2px 9px; border-radius: 999px; flex: none;
+    font: var(--fw-bold) var(--fs-micro,var(--fs-2xs))/1.5 var(--mono); letter-spacing: .13em;
+    text-transform: none; }
+  .tz-verdict.prime { background: linear-gradient(180deg,#f0c060,#c99a34); color: #241a06; }
+  .tz-verdict.good { background: rgba(143,230,160,.16); color: #9fe0b0;
+    box-shadow: inset 0 0 0 1px rgba(143,230,160,.36); }
+  .tz-verdict.thin { background: rgba(255,255,255,.10); color: rgba(255,255,255,.55); }
 
-  /* the LIVE row is the decision — bigger face, bigger name, mint frame */
-  .tz-zones-hero .tzz { padding: 9px 18px 9px 9px; border-color: rgba(120,230,160,.4);
+  /* v1596 — ONE TYPE SCALE FOR BOTH ROWS. Konyo: "font and text should be atleast more aligned and
+     same like size no? the live maybe more ALIVE as a feature".
+
+     LIVE NOW used to be the bigger card — 78px art and --fs-md bold against UP NEXT's 52px and
+     --fs-sm. Size was carrying the state, so the two rows never lined up and the panel read as two
+     different components rather than one rotation at two moments. SIZE IS THE WRONG AXIS: the same
+     zone is the same kind of thing whether it is live now or live in 27 minutes, and it does not
+     grow when the clock turns. So both rows now share one scale, and LIVE earns its status the way
+     a live thing should — colour and MOTION, which UP NEXT cannot accidentally look like. */
+  .tz-slot .tzz { padding: 9px 18px 9px 9px; }
+  .tz-slot .tzz-art { width: 68px; height: 68px; border-radius: 11px; }
+  .tz-slot .tzz-txt b { font: var(--fw-bold) var(--fs-md)/1.22 var(--mono); letter-spacing: .01em; }
+  .tz-slot .tzz-txt i, .tz-slot .tzz-txt em {
+    font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); }
+  /* ...but a LOCKED zone stays quiet. The `font:` shorthand above resets weight, and it is both
+     later in the file and equal in specificity to `.tzz-thin .tzz-txt b` — so without these two
+     lines the one-scale change would have silently re-bolded every worthless zone and undone the
+     v1588 "thin is not a button" verdict. Same for a pending row. */
+  .tz-slot .tzz-thin .tzz-txt b,
+  .tz-slot .tzz-pending .tzz-txt b { font-weight: var(--fw-medium); }
+  /* the LIVE row keeps the mint identity — colour only, no size of its own */
+  .tz-zones-hero .tzz { border-color: rgba(120,230,160,.4);
     background: linear-gradient(180deg, rgba(120,230,160,.11), rgba(120,230,160,.04)); }
-  .tz-zones-hero .tzz-art { width: 78px; height: 78px; border-radius: 11px;
-    border-color: rgba(120,230,160,.32); }
-  .tz-zones-hero .tzz-txt b { font: var(--fw-bold) var(--fs-md)/1.22 var(--mono); color: #d8ffe9;
-    letter-spacing: .01em; }
+  .tz-zones-hero .tzz-art { border-color: rgba(120,230,160,.32); }
+  .tz-zones-hero .tzz-txt b { color: #d8ffe9; }
   .tz-zones-hero .tzz-txt i { opacity: .62; color: #8fe0a0; }
+  /* UP NEXT is the SAME card, waiting. A touch cooler and quieter — enough to rank the two at a
+     glance, never enough to look like a different component. */
+  .tz-slot.next .tzz { opacity: .9; }
+  .tz-slot.next .tzz-txt b { color: #e6dcc2; }
+  /* ★ ALIVE. A slow breath on the live card and its art, so "this one is on right now" is legible
+     from across the room and from peripheral vision — the thing a font size can never do. Gated on
+     prefers-reduced-motion like every other animation here. */
+  @media (prefers-reduced-motion: no-preference) {
+    .tz-zones-hero .tzz { animation: tzAlive 3.4s ease-in-out infinite; }
+    .tz-zones-hero .tzz-art { animation: tzAliveArt 3.4s ease-in-out infinite; }
+  }
+  @keyframes tzAlive {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(120,230,160,.16), 0 0 16px rgba(120,230,160,.08); }
+    50%      { box-shadow: 0 0 0 1px rgba(120,230,160,.44), 0 0 30px rgba(120,230,160,.24); }
+  }
+  @keyframes tzAliveArt {
+    0%, 100% { border-color: rgba(120,230,160,.32); filter: saturate(1); }
+    50%      { border-color: rgba(120,230,160,.72); filter: saturate(1.18) brightness(1.06); }
+  }
   .tz-zones-hero .tzz-prime { border-color: rgba(240,192,96,.62); }
   .tz-zones-hero .tzz-prime .tzz-art { border-color: rgba(240,192,96,.5); }
   .tz-unknown { opacity: .55; font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); }
@@ -2499,6 +2564,12 @@
   .chron-fig i { display: block; margin-top: 3px; font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono);
     letter-spacing: var(--ls-label); font-style: normal; color: var(--text-dim); }
   .chron-fig.saved b { color: var(--st-good); }
+  /* v1596 — the two lanes behind the headline number. Full-width so it sits UNDER the figures
+     rather than competing with them: it is the receipt for the big number, not a fourth figure. */
+  .chron-split { flex: 1 0 100%; margin-top: -2px; padding: 0 2px;
+    font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono);
+    letter-spacing: var(--ls-label); color: var(--text-dim); }
+  .chron-split span { border-bottom: 1px dotted rgba(198,166,100,.5); cursor: help; }
   .chron-reels { flex: 1 1 260px; min-width: 0; max-height: 132px; overflow-y: auto;
     font: var(--fw-medium) var(--fs-2xs)/1.55 var(--mono); color: var(--text-dim); }
   .chron-reels .cr { display: flex; gap: 8px; justify-content: space-between; }
@@ -3768,6 +3839,37 @@
                without the evidence behind it: every grounded name carries the gate's own sentence,
                and every held name carries the reason it was held. -->
           <div class="chron-review" id="chron-review" hidden></div>
+        </div>
+        <!-- v1596 — 🏦 THE VAULT ACCUMULATOR. Konyo: "the vault manager is synced to also slowly
+             analyze and remember especially between and among sessions ... it should eventually in
+             retro KAI READERS get a read on it and slowly also feed the vault manager for throwing
+             out or muling the items read at the time."
+
+             The engine has existed since v1578 and the accumulator's write since v1595. Every
+             route was live — /api/vault_scan, /api/vault_sweep, /api/vault_apply, /api/vault_forget
+             — and NOT ONE of them had a control in this console. That is the v1576 defect class
+             (plumbing with no tap) and it is why this panel exists.
+
+             THREE LANES, and they are three because the gate produces three genuinely different
+             claims — folding them into one list is what would make a suggestion look like a fact:
+               OWNED    cleared the keep gate (2+ independent witnesses). This is what Apply writes.
+               UNSURE   seen once. NOT owned, kept so a later session can corroborate it — the whole
+                        point of an accumulator. Never written.
+               THROW    a SUGGESTION, held to a stricter bar than keep, and never applied by anything.
+                        There is no un-throw in Diablo, so this lane has no button that acts on it. -->
+        <div class="hd-col hd-wide hd-vault" id="hd-vault">
+          <div class="hd-h">🏦 VAULT ACCUMULATOR <span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
+          <div class="vault-body" id="vault-body">
+            <div class="chron-idle">tap to price it — no model call, nothing written</div>
+          </div>
+          <div class="chron-foot">
+            <button class="chron-btn" type="button" id="vault-scan">price the sweep</button>
+            <button class="chron-btn chron-go" type="button" id="vault-run" hidden>run it for real</button>
+            <button class="chron-btn chron-apply" type="button" id="vault-apply" hidden>register them ✓</button>
+            <button class="chron-btn" type="button" id="vault-forget">↺ forget what is swept</button>
+            <span class="chron-note" id="vault-note">reads nothing · costs nothing · changes nothing</span>
+          </div>
+          <div class="chron-review" id="vault-review" hidden></div>
         </div>
         <!-- v936 (STORY ARC R2b) — LAST SESSION digest -->
         <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
@@ -8856,6 +8958,21 @@
     if (b.dataset.tab === 'session'){ showSessions(); return; }   // v1376 — Sessions = console-native flagship hunt hub
     document.body.removeAttribute('data-view'); shellOpen(b.dataset.tab);
   });
+  /* v1596 — SESSIONS IS THE HOMEPAGE. Konyo: "sessions should be the MAIN tab when opening the
+     console the homepage instead of the TV-D tab (AS IT IS NOW)".
+
+     The console opened on the TV·D cockpit because that is what an empty data-view renders, which
+     was a default by omission rather than a decision. Sessions is where the hunt is — the grail
+     meter, the next grail, the rotation — and it is the screen he actually opens the app to look
+     at. Routed through showSessions() rather than by setting data-view here, so the tab lights up
+     and the panels that only refresh on entry (the TZ rotation) get their first load. */
+  try {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { showSessions(); });
+    } else {
+      showSessions();
+    }
+  } catch (e) { /* a failed default must never take the console down — TV·D still renders */ }
   // v1576 (dead-seam sweep) — the BIBLE RAIL delegation used to live here. v882 ("ONE NAV: BIBLE rail
   // wiped — header tabs are the nav") deleted the rail's markup but left this listener and its CSS
   // behind: #bible-rail is absent from this document, so the null-guard was permanently false and the
@@ -10944,10 +11061,24 @@ function escC(s) {
         body.innerHTML = '<div class="chron-none">' + escC(j.note || 'no sealed reels yet — play a session and it seals one') + '</div>';
         return;
       }
+      /* v1596 — SAY "AT MOST", AND SHOW THE TWO LANES. The quote used to count only the classify
+         lane and print it as "AI calls it would make", which was a FLOOR wearing a total's clothes —
+         on a fixture it said 2 where the real sweep made 6. The backend now prices both lanes and
+         marks the figure as an upper bound; the panel has to say so, or he reads a bound as a bill.
+         The breakdown is rendered only when the backend sent it, so an older payload degrades to the
+         previous headline instead of printing "undefined". */
+      var bounded = j.upperBound === true;
       var figs = ''
         + '<div class="chron-fig saved"><b>' + escC(String(j.savedPct)) + '%</b><i>cheaper than<br>reading every frame</i></div>'
-        + '<div class="chron-fig"><b>' + escC(String(j.wouldRead)) + '</b><i>AI calls it<br>would make</i></div>'
+        + '<div class="chron-fig"><b>' + (bounded ? '\u2264 ' : '') + escC(String(j.wouldRead)) + '</b><i>AI calls it<br>would make'
+        + (bounded ? ' (at most)' : '') + '</i></div>'
         + '<div class="chron-fig"><b>' + escC(String(j.insteadOf)) + '</b><i>frames across<br>' + escC(String(t.reels)) + ' sealed reels</i></div>';
+      if (j.wouldClassify !== undefined && j.wouldReadPages !== undefined) {
+        figs += '<div class="chron-split">' + escC(String(j.wouldClassify)) + ' to look at a screen + '
+          + escC(String(j.wouldReadPages)) + ' to read a page'
+          + (j.boundWhy ? ' \u00b7 <span title="' + escC(String(j.boundWhy)) + '">upper bound</span>' : '')
+          + '</div>';
+      }
       var reels = (j.reels || []).map(function (x) {
         return '<div class="cr"><span>' + escC(String(x.reel || '?').slice(0, 28)) + '</span>'
           + '<span><b>' + escC(String(x.runs || 0)) + '</b> runs → <b>' + escC(String(x.classified || 0)) + '</b> calls</span></div>';
@@ -11091,8 +11222,39 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       'Tower Cellar': 'the Countess', 'Ancient Tunnels': 'a TC85 pocket with no boss to kill', 'The Chaos Sanctuary': 'Diablo', 'Durance of Hate': 'Mephisto',
       'Worldstone Keep': 'the Baal run', 'Throne of Destruction': 'Baal', 'Worldstone Chamber': 'Baal',
       'The Pit': 'the best drop tier in the game', 'Arcane Sanctuary': 'the Summoner',
-      'Halls of Vaught': 'Nihlathak', 'Moo Moo Farm': 'the Cow King', 'Mausoleum': 'Bloodraven country',
-      'Ancient\'s Way': 'next door to the Ancient Tunnels'
+      'Halls of Vaught': 'Nihlathak', 'Moo Moo Farm': 'the Cow King',
+      /* v1596 — THREE BOSS ZONES WERE MISSING, and Konyo caught it on the panel: "the NEXT is
+         catacombs. this is a BOSS level act for farming."
+
+         He was right and the table was wrong. Catacombs is where Andariel is, and it was ranked on
+         density alone (680) — which lands it in the middle tier with no badge at all, so the panel
+         showed his next window as unremarkable when it is one of the best runs in Act 1.
+
+         These are NOT from memory. They are cross-referenced against the board's own BOSSES[]
+         array in bible.html — the verified data he already trusts — by matching each boss's `loc`
+         and `subtitle` against the terror-zone list. Guessing boss locations is exactly the class
+         of error he has flagged repeatedly, so the source is his data, not my recall. */
+      'Catacombs': 'Andariel',
+      'Tal Rasha\'s Chamber': 'Duriel',
+      'Nihlathak\'s Temple': 'Pindleskin'
+    };
+
+    /* v1596 — CONTEXT THAT DOES NOT PROMOTE. TZ_NOTABLE forces a zone to PRIME, which is right for
+       "there is a boss here" and WRONG for "this is next door to one".
+
+       I got this wrong on the first pass and the screenshot caught it: I put Cathedral in NOTABLE
+       with the note "the way into the Andariel run", which promoted a 680-density corridor to PRIME
+       and — because it sorts first — let it take the UP NEXT header chip away from CATACOMBS, the
+       zone with the actual boss. The panel ended up advertising the hallway instead of Andariel.
+
+       So adjacency notes live here instead: they attach a WHY without touching the verdict. A zone
+       in this table is ranked purely on its own density and level, and simply carries a sentence
+       explaining where it sits. 'Ancient's Way' and 'Mausoleum' were the same mistake already in
+       the table — both were being promoted on a neighbour's merit. */
+    var TZ_HINT = {
+      'Cathedral': 'the way into the Andariel run',
+      'Ancient\'s Way': 'next door to the Ancient Tunnels',
+      'Mausoleum': 'Bloodraven country'
     };
 
     /* WHY DENSITY DOMINATES THE SCORE. In a Terror Zone the monster level is raised to the
@@ -11118,16 +11280,19 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (!inf) return { tier: 'unknown', score: 0 };
       var den = inf[0], lvl = inf[1];
       if (TZ_NOTABLE[name]) return { tier: 'prime', score: 1, why: TZ_NOTABLE[name], den: den, lvl: lvl };
-      if (!den) return { tier: 'good', score: 0, den: 0, lvl: lvl, nodata: true };
+      // v1596 — a HINT rides along on whatever the numbers already decided; it never lifts a tier.
+      var hint = TZ_HINT[name] || null;
+      if (!den) return { tier: 'good', score: 0, den: 0, lvl: lvl, nodata: true, why: hint };
       /* v1585 — A DENSITY FLOOR. The 0.15 level term was letting a sparse zone be rescued by a
          high base level: Burial Grounds and Blood Moor BOTH sit at density 520, and Burial Grounds
          came out 'good' purely because its base level is 80 against Blood Moor's 67. But a terror
          zone lifts monster level to the player's own, so that base level is exactly the thing the
          boost overrides — it was the least meaningful number in the row deciding the verdict.
          Under 600 density is thin, whatever the level says. */
-      if (den < 600) return { tier: 'thin', score: 0, den: den, lvl: lvl };
+      if (den < 600) return { tier: 'thin', score: 0, den: den, lvl: lvl, why: hint };
       var s = (den / 2200) * 0.85 + Math.max(0, (lvl - 67) / 18) * 0.15;
-      return { tier: s >= 0.5 ? 'prime' : (s >= 0.28 ? 'good' : 'thin'), score: s, den: den, lvl: lvl };
+      return { tier: s >= 0.5 ? 'prime' : (s >= 0.28 ? 'good' : 'thin'), score: s, den: den,
+               lvl: lvl, why: hint };
     };
     var _artFor = function (name) { var i = TZ_INFO[_tzKey(name)]; return i ? i[2] : null; };
     var _actOf = function (file) {
@@ -11182,10 +11347,25 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
            panel asserting rather than showing, and he cannot argue with an assertion. */
         var meta = t.nodata
           ? '<em class="tzz-nodata">no density on record</em>'
-          : (t.why ? '<em class="tzz-why">' + escC(t.why) + '</em>'
-                   : (t.den ? '<em class="tzz-den">' + t.den + ' density' + (t.lvl ? ' · alvl ' + t.lvl : '') + '</em>' : ''));
+          /* v1596 — WHY *AND* THE NUMBERS. `why` used to REPLACE the density line, which was fine
+             when only boss zones had one: "Andariel" is the whole answer. But a HINT zone is
+             ranked on its numbers, so hiding them behind a sentence removes the very evidence the
+             verdict rests on. Show both when both exist. */
+          : ((t.why ? '<em class="tzz-why">' + escC(t.why) + '</em>' : '')
+             + (t.den ? '<em class="tzz-den">' + t.den + ' density'
+                        + (t.lvl ? ' · alvl ' + t.lvl : '') + '</em>' : ''));
+        /* v1596 — EVERY CARD STATES ITS VERDICT. Konyo, looking at a window whose UP NEXT was
+           Cathedral + Catacombs: "how is this emphasized so i know the next terror zone is
+           EMPHASIZED enough so i know not only this specific LIVE is a good farm terror zone but
+           also the next."
+
+           The middle tier had NO badge. So a decent zone and a zone the ranker had nothing to say
+           about rendered identically — an absence of a badge was doing double duty as "fine" and
+           as "unremarkable", and the reader cannot tell those apart. Now the tier is always named.
+           GOOD is deliberately quieter than PRIME: it is a verdict, not a recommendation. */
         var tag = t.tier === 'prime' ? '<span class="tzz-tag prime">PRIME</span>'
-                : t.tier === 'thin' ? '<span class="tzz-tag thin">THIN</span>' : '';
+                : t.tier === 'thin' ? '<span class="tzz-tag thin">THIN</span>'
+                : t.tier === 'good' ? '<span class="tzz-tag good">GOOD</span>' : '';
         /* v1580 — the tag rides the NAME line, not the card row. As a sibling of the text column
            it ate ~60px of the same flex row, which pushed "2200 density · alvl 85" into wrapping
            after the separator — a dangling "·" at the end of a line. Inside the name row the
@@ -11224,6 +11404,34 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       var n = _count(z);
       return n > 1 ? '<span class="tz-together">' + n + ' live together</span>' : '';
     };
+    /* v1596 — THE VERDICT, ON THE HEADER, FOR BOTH SLOTS.
+       Reading two or three cards to work out whether the coming window is worth staying up for is
+       work he should not have to do — and UP NEXT is precisely the slot where the answer has to be
+       readable at a glance, because it is the one he plans around. This lifts the BEST verdict of
+       the slot's zones onto its label, with the reason when there is one ("PRIME · Andariel").
+       Best-of, not average: if any zone in a simultaneous group is prime, the window is worth it —
+       he can walk to that one. */
+    var _bestChip = function (z) {
+      var parts = String(z || '').split(/,\s*|\s+and\s+/)
+        .map(function (x) { return x.trim().replace(/^and\s+/i, '').trim(); })
+        .filter(function (x) { return x.length; });
+      if (!parts.length) return '';
+      var rank = { prime: 3, good: 2, thin: 1, unknown: 0 };
+      var best = null;
+      parts.forEach(function (x) {
+        var t = _tzTier(x);
+        // tier first, then SCORE — so among two primes the boss zone (score 1, set by TZ_NOTABLE)
+        // beats one that got there on density, and the chip names the actual prize.
+        if (!best || (rank[t.tier] || 0) > (rank[best.tier] || 0)
+            || ((rank[t.tier] || 0) === (rank[best.tier] || 0) && (t.score || 0) > (best.score || 0))) {
+          best = t;
+        }
+      });
+      if (!best || best.tier === 'unknown') return '';
+      var label = best.tier === 'prime' ? 'PRIME' : best.tier === 'good' ? 'GOOD' : 'THIN';
+      return '<span class="tz-verdict ' + best.tier + '">' + label
+        + (best.why ? ' · ' + escC(String(best.why)) : '') + '</span>';
+    };
     /* v1587 — ONE GRID FOR BOTH ROWS. Konyo: "why are they not aligned? the next and live?"
        auto-fit sized each row to its OWN item count, so a 2-zone LIVE NOW made two 50% columns
        while a 3-zone UP NEXT made three 33% ones, and no card lined up with the card above it.
@@ -11234,10 +11442,11 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     body.style.setProperty('--tz-cols', _cols);
     body.innerHTML =
       '<div class="tz-slot now">'
-      + '<div class="tz-lab"><span class="tz-dot"></span>LIVE NOW' + _together(d.current) + '</div>'
+      + '<div class="tz-lab"><span class="tz-dot"></span>LIVE NOW' + _together(d.current)
+      + _bestChip(d.current) + '</div>'
       + '<div class="tz-zones tz-zones-hero">' + zones(d.current, true) + '</div></div>'
       + '<div class="tz-slot next">'
-      + '<div class="tz-lab">⏭ UP NEXT' + _together(d.next) + '</div>'
+      + '<div class="tz-lab">⏭ UP NEXT' + _together(d.next) + _bestChip(d.next) + '</div>'
       + '<div class="tz-zones">' + zones(d.next) + '</div></div>'
       + (d.stale
         ? '<div class="tz-stale">⚠ the live site was unreachable — this is the LAST GOOD rotation, '
@@ -11732,6 +11941,255 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (btn) { btn.disabled = false; btn.textContent = 'try registering again'; }
     }
   };
+  /* ══ v1596 — 🏦 THE VAULT ACCUMULATOR PANEL ══════════════════════════════════════════════════
+     Four routes shipped in v1578 and the accumulator's board-side write in v1595, and not one of
+     them had a control here. Deliberately built on the chronicle panel's shape — same buttons, same
+     poll, same read-only-until-apply promise — because a second interaction model for the same
+     kind of decision is a second set of habits to learn and a second place for the doctrine to rot.
+
+     THE ONE RULE THIS PANEL ADDS: the throw-out lane is display-only. It gets no checkbox, no
+     button and no path into apply. There is no un-throw in Diablo. */
+  var _vaultPoll = null;
+
+  function _vaultNames(rows, withWhy) {
+    if (!rows || !rows.length) return '<div class="chron-idle">none</div>';
+    return rows.map(function (r) {
+      /* An unnamed row is a REASON, not an item — the sweeps emit {name:null, why:...} for a run
+         they refused, and `held` is mostly those. Printing "null" there is how a refusal starts
+         looking like a find.
+
+         v1596.1 — THE FIRST VERSION OF THIS LINE RENDERED "[object Object]". It read
+         `(r && (r.name || r)) || ''`, so a row whose `name` was null fell back to the ROW ITSELF
+         and got String()'d. Every DOM assertion still passed — the lane existed, the count was
+         right, the text was non-empty — and the panel was visibly broken. It took looking at a
+         screenshot to see it, which is exactly why the render gate is being taught to look. */
+      var nm = (r && typeof r === 'object') ? (r.name || '') : (r || '');
+      var head = nm ? escC(String(nm)) : '<span style="opacity:.72">a run it would not guess at</span>';
+      var bits = [];
+      if (r && r.lane) bits.push(escC(String(r.lane)));
+      if (r && r.kind && r.kind !== 'item') bits.push(escC(String(r.kind)));
+      if (r && r.count !== undefined && r.count !== null) bits.push('×' + escC(String(r.count)));
+      if (r && r.conf !== undefined && r.conf !== null) bits.push('conf ' + escC(String(r.conf)));
+      if (r && r.witnesses !== undefined) {
+        var w = r.witnesses;
+        bits.push((typeof w === 'number' ? w : (w || []).length) + ' witness(es)');
+      }
+      return '<div class="chron-n"><b>' + head + '</b>'
+        + (bits.length ? '<i>' + bits.join(' · ') + '</i>' : '')
+        + (withWhy && r && r.why ? '<i>' + escC(String(r.why)) + '</i>' : '') + '</div>';
+    }).join('');
+  }
+
+  window._vaultScan = async function () {
+    var body = document.getElementById('vault-body');
+    var btn = document.getElementById('vault-scan');
+    var note = document.getElementById('vault-note');
+    if (!body) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'grouping frames…'; }
+    try {
+      var r = await fetch('/api/vault_scan', { cache: 'no-store' });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        body.innerHTML = '<div class="chron-none">could not price the sweep — '
+          + escC((j && j.why) || 'no answer') + '</div>';
+        return;
+      }
+      var t = j.totals || {};
+      if (!t.sessionsSeen) {
+        body.innerHTML = '<div class="chron-none">'
+          + escC(j.note || 'no sealed reels yet — play a session and it seals one') + '</div>';
+        return;
+      }
+      var bounded = j.upperBound === true;
+      var figs = ''
+        + '<div class="chron-fig saved"><b>' + escC(String(j.savedPct)) + '%</b><i>cheaper than<br>reading every frame</i></div>'
+        + '<div class="chron-fig"><b>' + (bounded ? '≤ ' : '') + escC(String(j.wouldRead))
+        + '</b><i>AI calls it<br>would make' + (bounded ? ' (at most)' : '') + '</i></div>'
+        + '<div class="chron-fig"><b>' + escC(String(j.insteadOf)) + '</b><i>frames across<br>'
+        + escC(String(t.sessionsSeen)) + ' sealed reels</i></div>';
+      if (j.wouldClassify !== undefined && j.wouldReadPages !== undefined) {
+        figs += '<div class="chron-split">' + escC(String(j.wouldClassify)) + ' to look at a screen + '
+          + escC(String(j.wouldReadPages)) + ' to read a page'
+          + (j.boundWhy ? ' · <span title="' + escC(String(j.boundWhy)) + '">upper bound</span>' : '')
+          + '</div>';
+      }
+      body.innerHTML = figs;
+      if (note) note.textContent = 'priced from your own film · 0 calls spent · nothing written';
+      var go = document.getElementById('vault-run'); if (go) go.hidden = false;
+    } catch (e) {
+      body.innerHTML = '<div class="chron-none">could not reach the console</div>';
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'price it again'; }
+    }
+  };
+
+  function _vaultPaint(st) {
+    var body = document.getElementById('vault-body');
+    var rev = document.getElementById('vault-review');
+    var note = document.getElementById('vault-note');
+    var run = document.getElementById('vault-run');
+    var sub = document.getElementById('vault-sub');
+    if (!rev) return;
+    if (st.running) {
+      if (body) body.innerHTML = '<div class="chron-idle">🏦 reading — reel '
+        + escC(String(st.reelsDone || 0)) + ' of ' + escC(String(st.reelsTotal || 0)) + ' · '
+        + escC(String(st.classified || 0)) + ' screens looked at · '
+        + escC(String(st.pagesRead || 0)) + ' pages read</div>';
+      if (run) { run.disabled = true; run.textContent = 'sweeping…'; }
+      rev.hidden = true;
+      return;
+    }
+    if (run) { run.disabled = false; run.textContent = 'run it again'; }
+    if (st.phase === 'error') {
+      if (body) body.innerHTML = '<div class="chron-none">the sweep stopped — '
+        + escC(st.error || 'no reason given') + '</div>';
+      return;
+    }
+    var res = st.result;
+    if (!res) return;
+    var owned = res.owned || [], unsure = res.unsure || [], throwOut = res.throwOut || [];
+    var held = res.held || [];
+    // WHY an empty sweep is empty. vault_retro._verdict() distinguishes four different nothings and
+    // hands them over as `why`; collapsing them into "nothing found" sends him debugging a reader
+    // when what he needs is to open his stash on camera.
+    if (!owned.length && !unsure.length && !throwOut.length) {
+      if (body) body.innerHTML = '<div class="chron-none">' + escC(res.why || 'the sweep grounded nothing') + '</div>';
+      rev.hidden = true;
+      if (note) note.textContent = 'read-only — nothing has been written to your vault';
+      return;
+    }
+    if (sub) sub.textContent = (res.sessionsRead || []).length + ' session(s) read into the ledger';
+    rev.hidden = false;
+    rev.innerHTML = '<div class="chron-cols">'
+      + '<div class="chron-c add"><div class="chron-c-h">🏦 OWNED · corroborated (' + owned.length + ')</div>'
+      +   '<div class="chron-list">' + _vaultNames(owned, false) + '</div></div>'
+      + '<div class="chron-c held"><div class="chron-c-h">👁 UNSURE · seen once (' + unsure.length + ')</div>'
+      +   '<div class="chron-list">' + _vaultNames(unsure, true) + '</div>'
+      +   '<div class="vault-lane-note">not owned — kept so a later session can corroborate them. '
+      +   'Never written.</div></div>'
+      + '<div class="chron-c throw"><div class="chron-c-h">🗑 THROW-OUT · suggestions (' + throwOut.length + ')</div>'
+      +   '<div class="chron-list">' + _vaultNames(throwOut, true) + '</div>'
+      +   '<div class="vault-lane-note">★ suggestions only. Nothing here is ever applied — there is '
+      +   'no un-throw in Diablo, so this lane has no button.</div></div>'
+      + (held.length ? '<div class="chron-c held"><div class="chron-c-h">⚖ HELD (' + held.length + ')</div>'
+          + '<div class="chron-list">' + _vaultNames(held, true) + '</div></div>' : '')
+      + '</div>';
+    if (note) note.textContent = 'read-only — nothing has been written to your vault';
+    var ap = document.getElementById('vault-apply');
+    if (ap) {
+      // ★ ONLY `owned` can be registered. unsure has not cleared the gate and throw-outs are never
+      // applied, so a proposal of those two alone offers no button at all.
+      ap.hidden = !owned.length;
+      ap.disabled = false;
+      ap.textContent = 'register ' + owned.length + ' ✓';
+    }
+  }
+
+  window._vaultPollOnce = async function () {
+    try {
+      var r = await fetch('/api/vault_sweep', { cache: 'no-store' });
+      var st = await r.json();
+      _vaultPaint(st);
+      if (!st.running && _vaultPoll) { clearInterval(_vaultPoll); _vaultPoll = null; }
+      return st;
+    } catch (e) { return null; }
+  };
+
+  window._vaultRun = async function () {
+    var body = document.getElementById('vault-body');
+    var btn = document.getElementById('vault-run');
+    if (btn) { btn.disabled = true; btn.textContent = 'starting…'; }
+    try {
+      var r = await fetch('/api/vault_sweep', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        if (body) body.innerHTML = '<div class="chron-none">cannot sweep — '
+          + escC((j && j.why) || 'no answer') + '</div>';
+        if (btn) { btn.disabled = false; btn.textContent = 'run it for real'; }
+        return;
+      }
+      if (!_vaultPoll) _vaultPoll = setInterval(function () { window._vaultPollOnce(); }, 1500);
+      window._vaultPollOnce();
+    } catch (e) {
+      if (body) body.innerHTML = '<div class="chron-none">could not reach the console</div>';
+      if (btn) { btn.disabled = false; btn.textContent = 'run it for real'; }
+    }
+  };
+
+  window._vaultApply = async function () {
+    var btn = document.getElementById('vault-apply');
+    var note = document.getElementById('vault-note');
+    if (btn) { btn.disabled = true; btn.textContent = 'registering…'; }
+    try {
+      // NO BODY. Posting the proposal back would hand the server a client-editable payload; the
+      // engine already holds the gated result, and v1595 re-gates anything supplied from outside
+      // precisely because that door existed. Not opening it is better than re-checking it.
+      var r = await fetch('/api/vault_apply', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var j = await r.json();
+      if (!j || j.ok === false) {
+        if (note) note.textContent = '⚠ not registered — ' + escC((j && j.why) || 'no answer');
+        if (btn) { btn.disabled = false; btn.textContent = 'try registering again'; }
+        return;
+      }
+      /* The board's window.vaultAccumApply returns {ok, raised, held, grail, suggestions, skipped}.
+         There is no `added` — an earlier draft of this counted one and would have reported a
+         confident "0 row(s)" after a perfectly good apply, which is the failure mode this whole
+         panel is built to avoid.
+
+         HELD AND SKIPPED ARE REPORTED, not swallowed. A row the board refused to lower (merge-max)
+         and a row with no readable count are both things that did NOT go in, and a receipt that
+         only counts wins is how he ends up believing his vault is more complete than it is. */
+      var a = j.applied || {};
+      var wrote = (a.raised || []).length + (a.grail || []).length;
+      var msg = '✓ ' + wrote + ' row(s) into your vault · merge-max · undo from the board';
+      if ((a.held || []).length) msg += ' · ' + a.held.length + ' kept at the higher count already on record';
+      if ((a.skipped || []).length) msg += ' · ' + a.skipped.length + ' skipped (no readable count)';
+      if (a.suggestions) msg += ' · ' + a.suggestions + ' throw-out suggestion(s) NOT applied';
+      if (note) note.textContent = msg;
+      if (btn) { btn.hidden = true; }
+    } catch (e) {
+      if (note) note.textContent = '⚠ not registered — could not reach the console';
+      if (btn) { btn.disabled = false; btn.textContent = 'try registering again'; }
+    }
+  };
+
+  window._vaultForget = async function () {
+    var note = document.getElementById('vault-note');
+    try {
+      var r = await fetch('/api/vault_forget', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var j = await r.json();
+      // the LEDGER is deliberately kept — this clears which reels were swept, so a re-read is
+      // possible. Dropping the accumulated evidence too is a different, bigger button.
+      if (note) note.textContent = (j && j.ok)
+        ? '↺ swept memory cleared — the next sweep re-reads every reel'
+        : '⚠ could not clear — ' + escC((j && j.why) || 'no answer');
+    } catch (e) {
+      if (note) note.textContent = '⚠ could not reach the console';
+    }
+  };
+
+  (function () {
+    var s = document.getElementById('vault-scan');
+    if (s) s.addEventListener('click', function () { window._vaultScan(); });
+    var g = document.getElementById('vault-run');
+    if (g) g.addEventListener('click', function () { window._vaultRun(); });
+    var a = document.getElementById('vault-apply');
+    if (a) a.addEventListener('click', function () { window._vaultApply(); });
+    var f = document.getElementById('vault-forget');
+    if (f) f.addEventListener('click', function () { window._vaultForget(); });
+    // a sweep already running (or finished) before this page loaded must be visible, or a refresh
+    // looks like nothing is happening while reads are being spent
+    window._vaultPollOnce().then(function (st) {
+      if (st && (st.running || st.result)) {
+        var rb = document.getElementById('vault-run'); if (rb) rb.hidden = false;
+        if (st.running && !_vaultPoll) _vaultPoll = setInterval(function () { window._vaultPollOnce(); }, 1500);
+      }
+    });
+  })();
+
   (function () {
     var ab = document.getElementById('chron-apply');
     if (ab) ab.addEventListener('click', function () { window._chronApply(); });

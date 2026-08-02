@@ -52,6 +52,10 @@ tv/__pycache__/
 
 # v1465 — per-install identity: unique per PC, must NEVER travel between machines
 tv/.tvd_identity.json
+# v1597 — the beacon's own last-result record. Per-install and machine-specific (attempts,
+# failures, the IP-dependent verdict), exactly like .tvd_identity.json beside it. Committing
+# it would push one machine's beacon history onto every other machine that pulls.
+tv/.tvd_beacon.json
 
 # scratch probes used while debugging — never ship
 _forgecheck.html

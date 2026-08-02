@@ -16,13 +16,20 @@ const UI_HTML = fs.readFileSync(path.resolve(__dirname, '..', 'tv', 'control_ui.
 // things worth locking are: the number is a price, the price comes from the route (never from the
 // page's own arithmetic), and the panel never implies it read or wrote anything.
 
+// v1596 — this fixture used to carry `pagesRead: 0, wouldRead: 11`, which was not a simplification
+// but the BUG itself written down as an expectation: the route's cost probe answered None, so the
+// sweep skipped its read stage and the quote billed only the classify lane. A real sweep pays for
+// BOTH lanes, so the priced payload now looks like one — 11 classifies plus 14 page reads — and the
+// panel is expected to say "at most", because the route prices every candidate run as readable.
 const PRICED = {
   ok: true,
-  totals: { reels: 4, framesSeen: 394, classified: 11, pagesRead: 0, refused: 0 },
-  savedPct: 97.2, wouldRead: 11, insteadOf: 394, spent: 0,
+  totals: { reels: 4, framesSeen: 394, classified: 11, pagesRead: 14, refused: 0 },
+  savedPct: 93.7, wouldRead: 25, wouldClassify: 11, wouldReadPages: 14,
+  upperBound: true, boundWhy: 'prices every candidate run as a readable page',
+  insteadOf: 394, spent: 0,
   reels: [
-    { reel: 's_1784984019250_95276', runs: 6, classified: 6, pages: 0 },
-    { reel: 's_1785078127173_28278', runs: 4, classified: 4, pages: 0 },
+    { reel: 's_1784984019250_95276', runs: 6, classified: 6, pages: 8 },
+    { reel: 's_1785078127173_28278', runs: 4, classified: 4, pages: 6 },
   ],
 };
 
@@ -60,13 +67,14 @@ test.describe('v1516 — the Chronicle Sweep prices itself, honestly', () => {
 
   test('★ the price comes from the ROUTE, never from the page doing its own arithmetic', async ({ page }) => {
     // a page that recomputes the saving can drift from the engine that will actually spend the calls
-    await open(page, { ...PRICED, savedPct: 42.0, wouldRead: 7, insteadOf: 100 });
+    await open(page, { ...PRICED, savedPct: 42.0, wouldRead: 7, wouldClassify: 3,
+                       wouldReadPages: 4, insteadOf: 100 });
     await page.click('#chron-scan');
     await page.waitForTimeout(250);
     const txt = await page.textContent('#chron-body');
     expect(txt).toContain('42');
     expect(txt).toContain('7');
-    expect(txt).not.toContain('97');
+    expect(txt).not.toContain('93.7');
   });
 
   test('the real numbers render as a price with its units named', async ({ page }) => {
@@ -74,13 +82,41 @@ test.describe('v1516 — the Chronicle Sweep prices itself, honestly', () => {
     await page.click('#chron-scan');
     await page.waitForTimeout(250);
     const txt = (await page.textContent('#chron-body')) || '';
-    expect(txt).toContain('97.2');
-    expect(txt).toContain('11');
+    expect(txt).toContain('93.7');
+    expect(txt).toContain('25');
     expect(txt).toContain('394');
-    expect(txt).toMatch(/AI calls it/);           // 11 is calls, not items found
+    expect(txt).toMatch(/AI calls it/);           // 25 is calls, not items found
     expect(txt).toMatch(/frames across/);         // 394 is frames, not a tally
     expect(txt).not.toMatch(/found|grail|tallied/i);   // ★ never reads as a result
   });
+
+  test('★ v1596 — the headline is shown as a CEILING, with both lanes broken out', async ({ page }) => {
+    // The route prices every candidate run as though it were readable, so the figure it returns is
+    // an upper bound. A bound printed as a flat number is read as a bill, and the whole purpose of
+    // this panel is that he does not have to take the number on faith.
+    await open(page, PRICED);
+    await page.click('#chron-scan');
+    await page.waitForTimeout(250);
+    const txt = (await page.textContent('#chron-body')) || '';
+    expect(txt, 'the figure must be marked as a ceiling, not a flat price').toMatch(/≤|at most/);
+    expect(txt, 'the classify lane must be named').toContain('11');
+    expect(txt, 'and the READ lane — the half the old quote could not count at all').toContain('14');
+    expect(txt).toMatch(/to read a page/);
+  });
+
+  test('★ v1596 — an older payload without the breakdown degrades, it does not print "undefined"',
+    async ({ page }) => {
+      // The console and the route ship together, but a stale tab against a new server (or the
+      // reverse) is a real state on his machine — and "undefined AI calls" is the kind of thing he
+      // reports as the panel being broken.
+      const { wouldClassify, wouldReadPages, upperBound, boundWhy, ...older } = PRICED as any;
+      await open(page, older);
+      await page.click('#chron-scan');
+      await page.waitForTimeout(250);
+      const txt = (await page.textContent('#chron-body')) || '';
+      expect(txt).not.toMatch(/undefined/i);
+      expect(txt).toContain('25');
+    });
 
   test('after pricing it says what it did NOT do', async ({ page }) => {
     await open(page, PRICED);

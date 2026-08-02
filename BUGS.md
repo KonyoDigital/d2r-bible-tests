@@ -1986,3 +1986,83 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** `tv/test_tz_art.py::TestRotationCadence` pins the slot length, the label, and —
   most importantly — that the two surfaces AGREE. The bug was not that one number was wrong; it
   was that two screens gave different answers and nothing compared them.
+
+## REG-093 — `limit:400` on a timestamp-keyed KV list returned the OLDEST 400, so the fleet tracker hid every recent machine (2026-08-02)
+
+- **Symptom:** Konyo — "my cousin in the states used the console as recently as yesterday and I
+  DONT SEE IT, and my Windows PC I dont see logged either." Live
+  `GET https://bull-4-u.com/api/console` returned `online=[konyo-3 / mac / v1595 / Jerusalem]` and
+  `offline=[]` — exactly ONE machine and an EMPTY offline list, on a tracker whose whole job is to
+  say which machines have been here.
+- **Caught by:** the user report; confirmed by reading `functions/api/console.js:78` and
+  `functions/console.js:25`.
+- **Root cause (confirmed):** both files listed the event log with
+  `kv.list({ prefix: 'consolelog:', limit: 400 })`. Cloudflare KV returns keys in **LEXICOGRAPHIC
+  ASCENDING** order and the keys are `consolelog:<ISO-ts>:<machine>` — so `limit:400` returned the
+  OLDEST 400 events in the 30-day window, not the newest. Once the log passed 400 entries, every
+  RECENT machine fell outside the window and became invisible. The list was not truncated at the
+  end Konyo was looking at; it was truncated at the other end.
+- **Contributing cause (design, not a typo):** presence keys carry a 600s TTL, so any machine off
+  for more than ten minutes vanished from `online` entirely, and "when was this machine last here"
+  had to be reconstructed from an event log that was never designed to answer it. Heartbeats wrote
+  no durable record at all — the most frequent signal the fleet produces was the one nothing kept.
+- **Contributing cause (honesty):** `_console_beacon` in `tv/control_app.py` swallowed every failure
+  with a bare `except Exception: pass`. A machine whose beacon had been failing for months looked
+  IDENTICAL to a machine that was never switched on. Silence was being read as absence.
+- **Contributing cause (UX):** `/visits` and `/console` are DIFFERENT trackers answering DIFFERENT
+  questions — `/visits` counts browser page-views of `/d2r/`, `/console` tracks TV-D console APP
+  presence, and the console app never appears in `/visits` by design. Neither page said so.
+  Conflating them cost a debugging session before a line of code was read.
+- **Refuted hypothesis, recorded so it is never re-opened:** a suspected prefix collision between
+  `console:` and `consolelog:` is **NOT REAL**. Character 8 of `console:` is `:` and of
+  `consolelog:` is `l`, so `consolelog:…` never matches `prefix: 'console:'`. Verified by
+  execution, not by reading; a test now pins it in BOTH directions.
+- **Fix:** full cursor pagination in both files — correct under EITHER ordering, which is the whole
+  point of paginating instead of raising the limit; a durable `lastseen:<machine>` key written on
+  EVERY beacon including heartbeats (~400-day TTL); scan diagnostics in the API response so the
+  window is visible instead of assumed; a `lastBeacon` result reported by the app, stored
+  server-side and rendered RED when failing; and scope banners on `/visits` and `/console` stating
+  what each one does and does not cover.
+- **Prevention:** `tv/test_console_fleet.py`, registered in `tv/run_gates.py`, containing a test
+  **observed RED on the pre-fix code** — a regression test that never failed on the bug proves
+  nothing. Two general rules, stated so they outlive this entry:
+  1. **Never use a bare `limit:` on a KV list of timestamp-keyed records to mean "the most recent
+     N".** Lexicographic ascending order makes that "the OLDEST N". Paginate the cursor, or key by
+     descending timestamp.
+  2. **Silent fire-and-forget telemetry is not evidence.** Any beacon must record and surface its
+     own last result; otherwise "we have no data" and "everything is fine" are the same picture.
+
+## REG-094 — the fix for REG-093 read 2,556 KV values in one request and 500'd `/console` (2026-08-02)
+
+- **Symptom:** minutes after deploying the REG-093 fix, `https://bull-4-u.com/console?k=…` returned
+  **HTTP 500** on every request (`error code: 1101`). `/api/console` kept returning 200, which made
+  it look like a page-specific rendering bug rather than a shared one.
+- **Caught by:** a live check immediately after deploying — not by any test. Every local test passed,
+  including a stub reproduction carrying all 2,556 records.
+- **Root cause:** REG-093 was fixed by listing EVERY `consolelog:` key (correct) and then doing one
+  `kv.get()` per key to learn which machine each event belonged to (**not** correct). That is 2,556
+  subrequests in a single Worker invocation, and Cloudflare caps subrequests per invocation. The
+  real exception — `Error - Too many API requests by single Worker invocation` — was only visible
+  from `npx wrangler pages deployment tail <deployment> --format=json`. **A local stub cannot
+  reproduce this class at all: the limit does not exist off-platform.**
+- **The nastier half:** each read was wrapped in `.catch(() => null)`. So when the cap was hit,
+  every remaining read resolved to `null` and the code reported an EMPTY offline list — "we exceeded
+  a limit" was silently rewritten as "no machines have ever been here". That is REG-093's own
+  honesty defect, reintroduced by REG-093's fix, one layer down.
+- **Fix:** read the KEY, not the value. `consolelog:<ISO-ts>:<machine>` already carries both facts,
+  so `machinesFromLogKeys()` derives newest-event-per-machine from key names at **zero** subrequests;
+  only the records actually rendered are fetched. Measured on the 2,556-key fixture: `/api/console`
+  went 2,556 → **2** reads, `/console` → **121**. Split on the LAST ':' — an ISO timestamp contains
+  colons, so `parts[1]` is the hour, not the machine.
+- **Proof it was the real cause:** with the corrected read path the live offline list immediately
+  returned the two machines that started this whole investigation — `LAPTOP-QNFL860M` ("Dean",
+  Windows v1551, Monroe US, 2 Aug 00:02) and `AdiJusid` (Windows v1489, Jerusalem, 1 Aug 21:07).
+- **Prevention:**
+  1. **Never fan out one KV read per listed key.** Design keys so the listing itself answers the
+     question; fetch values only for what you render.
+  2. **A per-item `.catch(() => null)` over a bulk read is a lie generator.** It converts a
+     platform-level refusal into ordinary-looking emptiness. If a bulk read can partially fail,
+     count the failures and say so.
+  3. **Platform limits are not testable locally.** After deploying anything that changes read
+     volume, hit the live URL and read `wrangler pages deployment tail` — a green local suite is
+     not evidence about production.

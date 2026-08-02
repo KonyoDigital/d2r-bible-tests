@@ -66,6 +66,9 @@ GATES = [
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),
+    Gate("test_free_pass_quote", [sys.executable, os.path.join(HERE, "test_free_pass_quote.py")], 180,
+         why="the free pass may never quote BELOW what a real sweep spends — it priced only the "
+             "classify lane and structurally could not count a page read (v1596)"),
     Gate("test_chronicle_retro", [sys.executable, os.path.join(HERE, "test_chronicle_retro.py")], 300,
          why="the retro sweep's three laws: read-only until Apply, merge-max, pay-for-runs"),
     Gate("test_chronicle_chain", [sys.executable, os.path.join(HERE, "test_chronicle_chain.py")], 300,
@@ -74,6 +77,10 @@ GATES = [
          why="the arc is wired on THIS machine — lanes, footage, board build"),
     Gate("test_stash_eye_aspect", [sys.executable, os.path.join(HERE, "test_stash_eye_aspect.py")], 120,
          why="the stash crops must stay locked on Konyo's Mac AND reach 16:9 for the cousin"),
+    Gate("test_console_fleet", [sys.executable, os.path.join(HERE, "test_console_fleet.py")], 180,
+         why="the fleet tracker must SHOW the machines that were here — the 'console:' prefix also "
+             "matched every 'consolelog:' key, and the offline window listed the OLDEST 400 events, "
+             "so the cousin who ran it yesterday was invisible"),
     Gate("test_g5_grok_eyes", [sys.executable, os.path.join(HERE, "test_g5_grok_eyes.py")], 300,
          why="the vision-eye contract"),
     Gate("test_roundtrip_sim", [sys.executable, os.path.join(HERE, "test_roundtrip_sim.py")], 900,

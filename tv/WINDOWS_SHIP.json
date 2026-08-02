@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1595",
+  "ver": "v1597",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1595: ",
+  "note": "v1597: REG-093: the fleet listed the OLDEST 400 events so every recent machine was invisible - now full cursor pagination + durable lastseen + an honest beacon result; TZ next window states its own verdict (Catacombs = Andariel = PRIME); scope banners so /visits and /console say what they do NOT cover",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

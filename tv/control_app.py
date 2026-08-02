@@ -1024,15 +1024,117 @@ def _pid_cached():
     return _PID_CACHE["pid"]
 
 
+# ── v1597 BEACON HONESTY ─────────────────────────────────────────────────────
+# Konyo: "my windows PC i dont see it here logged". He could not tell whether that machine had
+# NEVER been switched on or had been FAILING to check in for months — because the beacon below
+# swallowed every exception into a bare `except: pass` and left no trace anywhere. Those two
+# states looked IDENTICAL from the outside AND from the machine itself. This record is the only
+# thing that tells them apart, so the bare-except must never be restored without it.
+# Fire-and-forget and non-blocking are UNCHANGED — only the bookkeeping is new.
+_BEACON_LOCK = threading.Lock()
+_BEACON_STATE_PATH = os.path.join(HERE, ".tvd_beacon.json")   # per-install, alongside .tvd_identity.json
+_BEACON_LAST = {"t": None, "ts": None, "ok": None, "code": None, "err": "", "event": "",
+                "okAt": None, "attempts": 0, "failures": 0, "suppressed_by": "", "fleet": None}
+
+
+def _beacon_now():
+    return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _beacon_state_save():
+    """Persist across restarts — otherwise 'it has never ONCE succeeded' is unanswerable after a
+    reboot, which is the actual question about the Windows PC. Own try/except: a read-only or
+    full disk must never affect the beacon."""
+    try:
+        with _BEACON_LOCK:
+            data = dict(_BEACON_LAST)
+        tmp = _BEACON_STATE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, _BEACON_STATE_PATH)
+    except Exception:
+        pass
+
+
+def _beacon_state_load():
+    try:
+        with open(_BEACON_STATE_PATH, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, dict):
+            with _BEACON_LOCK:
+                for k in _BEACON_LAST:
+                    if k in data:
+                        _BEACON_LAST[k] = data[k]
+                _BEACON_LAST["attempts"] = int(_BEACON_LAST.get("attempts") or 0)
+                _BEACON_LAST["failures"] = int(_BEACON_LAST.get("failures") or 0)
+    except Exception:
+        pass
+
+
+def _beacon_snapshot():
+    with _BEACON_LOCK:
+        return dict(_BEACON_LAST)
+
+
+def _beacon_status():
+    """v1597 — the honest, UI-facing shape. Additive to status_payload()."""
+    s = _beacon_snapshot()
+    return {
+        "lastAttempt": s.get("t"), "lastOk": s.get("ok"), "lastOkAt": s.get("okAt"),
+        "code": s.get("code"), "error": s.get("err") or "",
+        "attempts": int(s.get("attempts") or 0), "failures": int(s.get("failures") or 0),
+        "suppressedBy": s.get("suppressed_by") or "", "fleet": s.get("fleet"),
+    }
+
+
+_beacon_state_load()   # startup: carry the verdict across restarts
+
+
 def _console_beacon(event="hb"):
     """v875 (Konyo: 'a tracker so I know whose console is online — like the site visits') —
-    phone the presence beacon home. Silent on any failure; never blocks a caller.
+    phone the presence beacon home. Never blocks a caller; never raises into one.
 
     v1496 — CI IS NOT A MACHINE OF HIS. Every Routine-I / agent-test job boots this app, so the
     runners were checking in and the fleet answered "who is online" with a GitHub VM in Boydton
-    sitting next to his MacBook. A tracker that lists strangers is not answering the question."""
-    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS") or os.environ.get("TVD_NO_BEACON"):
+    sitting next to his MacBook. A tracker that lists strangers is not answering the question.
+
+    v1597 — HONEST ABOUT ITS OWN FAILURES. This used to end in a bare `except Exception: pass`.
+    A machine whose beacon had failed on EVERY attempt for months was indistinguishable from a
+    machine that was never switched on — that is the root cause under Konyo's whole "I don't see
+    my Windows PC" report. Every outcome (success, failure, deliberate suppression) is now
+    recorded in _BEACON_LAST, persisted to disk, and surfaced by BOTH /api/status and /api/doctor.
+    The except stays broad and still swallows: only the bookkeeping is new.
+    The PRIOR attempt's result also rides upstream as `lastBeacon`, so a beacon that reaches the
+    server can report that the previous one did not — the transient/partial failure case that is
+    otherwise invisible from either end. Chicken-and-egg is intentional: a machine that NEVER
+    reaches the server says so on its own screen (doctor check `console_beacon`), not here."""
+    supp = ("CI" if os.environ.get("CI") else
+            "GITHUB_ACTIONS" if os.environ.get("GITHUB_ACTIONS") else
+            "TVD_NO_BEACON" if os.environ.get("TVD_NO_BEACON") else "")
+    if supp:
+        # v1597 — the v1496 suppression is CORRECT and stays. But a machine with TVD_NO_BEACON
+        # stuck in its environment was permanently absent from the fleet with zero explanation.
+        # Record WHICH variable, so status + doctor can say "deliberately not reporting, because X".
+        with _BEACON_LOCK:
+            _BEACON_LAST["t"] = _beacon_now()
+            _BEACON_LAST["ts"] = time.time()
+            _BEACON_LAST["ok"] = None
+            _BEACON_LAST["code"] = None
+            _BEACON_LAST["err"] = ""
+            _BEACON_LAST["event"] = event
+            _BEACON_LAST["suppressed_by"] = supp
+        _beacon_state_save()
         return
+    _ts_iso, _ts_epoch = _beacon_now(), time.time()
+    with _BEACON_LOCK:
+        # snapshot the PRIOR result BEFORE this attempt overwrites it — that is what rides upstream
+        prior = {"ok": _BEACON_LAST.get("ok"), "code": _BEACON_LAST.get("code"),
+                 "err": (_BEACON_LAST.get("err") or "")[:200], "t": _BEACON_LAST.get("t")}
+        _BEACON_LAST["suppressed_by"] = ""
+        _BEACON_LAST["attempts"] = int(_BEACON_LAST.get("attempts") or 0) + 1
+        _BEACON_LAST["t"] = _ts_iso
+        _BEACON_LAST["ts"] = _ts_epoch
+        _BEACON_LAST["event"] = event
     try:
         import base64 as _b64, socket as _sock
         st = status_payload()
@@ -1046,6 +1148,10 @@ def _console_beacon(event="hb"):
             # instead of konyo-3. The hostname still rides along as the technical fallback.
             "nickname": (st.get("identity") or {}).get("nickname") or "",
             "install": ((st.get("identity") or {}).get("id") or "")[:12],
+            # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
+            # /console renders a failed one red, so a transient failure is visible from the site
+            # too, not only on the machine that suffered it.
+            "lastBeacon": prior,
         }).encode("utf-8")
         req = urllib.request.Request(
             "https://bull-4-u.com/api/console", data=body,
@@ -1053,9 +1159,34 @@ def _console_beacon(event="hb"):
                      "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()},
             method="POST")
         with urllib.request.urlopen(req, timeout=8) as r:
-            r.read()
-    except Exception:
-        pass
+            raw = r.read()
+            code = getattr(r, "status", None) or r.getcode()
+        # v1597 — the server answers {ok, machine, recorded, stored, fleet}. Parse DEFENSIVELY:
+        # a body that is empty, HTML (a captive portal) or a changed shape must never raise here.
+        fleet = None
+        try:
+            _b = json.loads(raw.decode("utf-8", "replace"))
+            if isinstance(_b, dict) and isinstance(_b.get("fleet"), (int, float)) and not isinstance(_b.get("fleet"), bool):
+                fleet = int(_b["fleet"])
+        except Exception:
+            fleet = None
+        with _BEACON_LOCK:
+            _BEACON_LAST["ok"] = True
+            _BEACON_LAST["code"] = code
+            _BEACON_LAST["err"] = ""
+            _BEACON_LAST["okAt"] = _ts_iso
+            _BEACON_LAST["fleet"] = fleet
+    except Exception as e:
+        _c = getattr(e, "code", None)
+        with _BEACON_LOCK:
+            _BEACON_LAST["ok"] = False
+            _BEACON_LAST["t"] = _ts_iso
+            _BEACON_LAST["ts"] = _ts_epoch
+            _BEACON_LAST["code"] = _c if isinstance(_c, int) else None
+            _BEACON_LAST["err"] = type(e).__name__ + ": " + str(e)[:200]
+            _BEACON_LAST["failures"] = int(_BEACON_LAST.get("failures") or 0) + 1
+        pass   # STILL fire-and-forget — the caller must never learn this failed
+    _beacon_state_save()
 
 
 def _console_beacon_async(event):
@@ -8222,7 +8353,20 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
 
     Konyo has been told "97% cheaper" — this is the route that lets him verify it instead of
     believing it. It returns the per-reel grouping and the totals, and it cannot spend anything:
-    the classify and read lanes are stubbed to None, so no reader is ever reached.
+    both lanes are local stubs, so no model is ever reached.
+
+    v1596 — THE QUOTE USED TO UNDER-CHARGE ITSELF, and by a lot. The probe returned None, which is
+    "not a Chronicle page"; read_reel then SKIPS the read stage for that run. So the free pass
+    counted classify calls and literally could not count a single page read — the second and larger
+    half of a real sweep's bill. On a two-reel fixture it quoted 2 calls against an actual 6, hiding
+    67% of the spend, and told him "83% cheaper" where the truth was 50%.
+
+    THE FIX IS TO PRICE THE WORST CASE, not to add a second copy of the walk. The probe now answers
+    a real kind, so the SAME read_reel code path runs the read stage and counts pages for us. That
+    makes the number an UPPER BOUND — it prices every candidate run as though it were a readable
+    Chronicle page, and a real sweep will classify some of them as a lobby or a stash and read
+    nothing. That asymmetry is deliberate and is the only safe direction for a cost quote: quoting
+    high costs him a sweep he could have afforded, quoting low spends money he did not agree to.
     """
     try:
         import chronicle_retro as _cr
@@ -8240,11 +8384,18 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
 
     def _probe(path):
         picked.append(path)
-        return None
+        # a REAL kind, so the read stage runs and its pages get counted. Costs nothing: the page
+        # lane below is a local stub too.
+        return "chronicle-uniques"
 
+    # {} is a dict with no "note", which proposal_from_pages counts as a page read and folds in as
+    # zero found names — exactly the accounting we want, and zero model calls.
     res = _cr.sweep_hist(hist, classify=_probe, read_page=lambda p, k: {}, limit=limit)
     t = res["totals"]
-    seen, calls = t.get("framesSeen") or 0, t.get("classified") or 0
+    seen = t.get("framesSeen") or 0
+    classifies = t.get("classified") or 0
+    pages = t.get("pagesRead") or 0
+    calls = classifies + pages            # ★ BOTH lanes. A sweep pays for the read, not just the look.
     return {
         "ok": True,
         "reels": res["reels"],
@@ -8253,6 +8404,12 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
         # is the thing this replaces
         "savedPct": round(100.0 * (1 - (calls / seen)), 1) if seen else 0.0,
         "wouldRead": calls,
+        # the breakdown, because one number he cannot take apart is one he has to take on faith
+        "wouldClassify": classifies,
+        "wouldReadPages": pages,
+        "upperBound": True,
+        "boundWhy": "prices every candidate run as a readable page; a real sweep classifies some as "
+                    "lobby/stash and reads nothing for them, so the true bill lands at or under this",
         "insteadOf": seen,
         "spent": 0,          # ★ said out loud: this route cannot cost anything
         # the same two things the CLI prints: WHICH frames, and WHY the answer is what it is
@@ -8600,7 +8757,15 @@ def vault_ledger_save(led):
 
 def vault_scan_cost(hist_dir=None, limit=None):
     """THE FREE PASS, vault edition. What a vault retro sweep WOULD cost, computed on HIS film.
-    Zero model calls, zero writes — the number he gets to check before agreeing to spend."""
+    Zero model calls, zero writes — the number he gets to check before agreeing to spend.
+
+    v1596 — same under-quote as the Chronicle pass, same fix. The probe answered None, sweep() read
+    that as "unclassifiable", held the run and never reached the reader — so `pagesRead` was
+    structurally pinned at 0 and the quote billed only the classify lane. Measured on a fixture:
+    quoted 2, actual 6. The probe now answers a real surface so the SAME sweep() code counts the
+    pages, which makes this an UPPER BOUND. See chronicle_scan_cost for why high is the only safe
+    direction to be wrong in.
+    """
     try:
         _vr = _vault_retro()
     except Exception as e:
@@ -8616,17 +8781,24 @@ def vault_scan_cost(hist_dir=None, limit=None):
 
     def _probe(path):
         picked.append(path)
-        return None            # ★ refuses everything: no reader is ever reached, so this cannot spend
+        # a real ownership surface, so sweep()'s read stage runs and counts pages. Still cannot
+        # spend: the reader below is a local stub.
+        return "stash"
 
     try:
         import chronicle_retro as _cr
         dirs = _cr.reel_dirs(hist)
+        # a dict with NO "note" — sweep() counts it as a page read and finds zero items in it. A
+        # {"note": ...} here is a REFUSAL and is exactly what kept pagesRead at 0 before v1596.
         res = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_probe,
-                        reader=lambda p, s: {"note": "cost-pass"}, limit=limit)
+                        reader=lambda p, s: {"items": []}, limit=limit)
     except Exception as e:
         return {"ok": False, "why": "vault scan failed: %s" % str(e)[:160], "spent": 0}
     t = res.get("totals") or {}
-    seen, calls = t.get("framesSeen") or 0, t.get("classified") or 0
+    seen = t.get("framesSeen") or 0
+    classifies = t.get("classified") or 0
+    pages = t.get("pagesRead") or 0
+    calls = classifies + pages            # ★ BOTH lanes, or the quote is not a quote
     return {
         "ok": True,
         "why": res.get("why") or "",
@@ -8634,6 +8806,11 @@ def vault_scan_cost(hist_dir=None, limit=None):
         "totals": t,
         "savedPct": round(100.0 * (1 - (calls / seen)), 1) if seen else 0.0,
         "wouldRead": calls,
+        "wouldClassify": classifies,
+        "wouldReadPages": pages,
+        "upperBound": True,
+        "boundWhy": "prices every candidate run as a readable ownership surface; a real sweep skips "
+                    "the ones that are not, so the true bill lands at or under this",
         "insteadOf": seen,
         "spent": 0,            # ★ said out loud: this route cannot cost anything
         "frames": [os.path.relpath(p, hist) for p in picked[:40]],
@@ -9292,7 +9469,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1595",
+        "ver": "v1597",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -9308,6 +9485,10 @@ def status_payload():
         "receipts": _receipts_stream(),   # 🧾 bounded newest-first read-receipt stream (routable ids); empty off-air
         "forensicsSummary": _newest_forensics_summary(),   # 🔬 lean {clean,corrected,recovered,blocked,unresolved} badge; full detail at /api/forensics
         "fleet": _fleet,   # v1418 — {behind, latest, dirty, howTo} so Mac/Win never silently drift
+        # v1597 — ADDITIVE. Whether THIS machine is actually reaching the presence tracker, or
+        # has been failing silently. Never remove: it is the only difference between "never on"
+        # and "on but unable to check in".
+        "beacon": _beacon_status(),
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
@@ -9805,6 +9986,57 @@ def doctor_payload():
                 ("%s present" % label) if os.path.isfile(pth) else ("%s MISSING" % label),
                 fix="Re-run Windows installer (not the Mac .sh)" if not os.path.isfile(pth) else None,
             ))
+
+    # v1597 — CONSOLE BEACON: does this machine actually appear at bull-4-u.com/console?
+    # severity is WARN and NEVER block/fail — an offline night must not turn the doctor red
+    # (v840 learned that already). It only has to be VISIBLE.
+    _bs = _beacon_status()
+    _bt = _beacon_snapshot().get("ts")
+    _age = (time.time() - _bt) if isinstance(_bt, (int, float)) else None
+    _cnt = "%d attempts / %d failed" % (_bs["attempts"], _bs["failures"])
+    # v1597.1 — READ THE ENVIRONMENT LIVE, not only what the last attempt happened to record.
+    # `suppressedBy` is stamped by _console_beacon() when it returns early, so a console asked
+    # "will this machine appear in the fleet?" BEFORE any beacon has run reported the generic
+    # "NOT reaching the fleet tracker" — pointing Konyo at his internet connection when the real
+    # answer was a variable set in his own shell. The question this check answers is about the
+    # CURRENT environment, so it has to look at the current environment.
+    _live_supp = ("CI" if os.environ.get("CI") else
+                  "GITHUB_ACTIONS" if os.environ.get("GITHUB_ACTIONS") else
+                  "TVD_NO_BEACON" if os.environ.get("TVD_NO_BEACON") else "")
+    if _live_supp or _bs["suppressedBy"]:
+        _bs = dict(_bs, suppressedBy=(_live_supp or _bs["suppressedBy"]))
+    if _bs["suppressedBy"]:
+        checks.append(_chk(
+            "console_beacon", True, "warn",
+            "beacon deliberately OFF because %s is set in this environment — this machine will "
+            "NOT be listed at bull-4-u.com/console, on purpose (%s)" % (_bs["suppressedBy"], _cnt)))
+    elif _bs["lastOk"] and _age is not None and _age <= 900:
+        checks.append(_chk(
+            "console_beacon", True, "warn",
+            "checked in %s (HTTP %s)%s · %s" % (
+                _bs["lastOkAt"] or _bs["lastAttempt"],
+                _bs["code"] if _bs["code"] is not None else "?",
+                (" · fleet %d online" % _bs["fleet"]) if isinstance(_bs["fleet"], int) else "",
+                _cnt)))
+    elif _bs["lastOk"]:
+        checks.append(_chk(
+            "console_beacon", False, "warn",
+            "last successful check-in %s (%s ago) — the 240s heartbeat loop may be dead · %s" % (
+                _bs["lastOkAt"] or _bs["lastAttempt"],
+                ("%d min" % (_age / 60)) if _age is not None else "unknown",
+                _cnt),
+            "Restart TV DIABLO; the beacon heartbeat re-fires on boot and every 240s"))
+    else:
+        _never = "never once succeeded on this install" if not _bs["lastOkAt"] else (
+            "last success %s" % _bs["lastOkAt"])
+        checks.append(_chk(
+            "console_beacon", False, "warn",
+            "NOT reaching the fleet tracker — %s · last attempt %s · %s · %s" % (
+                _never, _bs["lastAttempt"] or "none recorded",
+                _bs["error"] or "no error recorded (no attempt yet)", _cnt),
+            "this machine will NOT appear at /console — check internet access to bull-4-u.com, "
+            "the Basic credential, and whether CI / GITHUB_ACTIONS / TVD_NO_BEACON is set in "
+            "your environment"))
 
     ok = not any((not c["ok"]) and c["severity"] == "block" for c in checks)
 
