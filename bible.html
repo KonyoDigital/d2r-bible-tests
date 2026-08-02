@@ -33544,7 +33544,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return (b.diff-a.diff) || b.ev-a.ev || b.items.length-a.items.length; });
     // v559.2 — chips inside a run lead with the most-likely drops (best odds first)
     runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?a._bs.s.chance:9e9), cb=(b._bs?b._bs.s.chance:9e9); return ca-cb; }); });
-    var low=missing.filter(function(x){ return (x.qlvl||99)<=35; }).sort(function(a,b){ return (a.qlvl||0)-(b.qlvl||0); });
+    /* v1571 — QUICK WINS SORTED BY QUICKNESS. Konyo: "shouldnt it be from quickest to slowest
+       farmed? the slower ones on the bottom and the faster ones on top."
+       It sorted by qlvl, so the list read 3.2h, 2.9h, 2.6h, 2.9h — ascending item level, which is
+       what "early uniques" means but NOT what "quick wins" promises. qlvl is what QUALIFIES for
+       this list (the early ones skipped on the way to Hell); expected time-to-find is what should
+       ORDER it. Same 50%-confidence figure the cards already print, so the number he reads on each
+       row is the number the list is sorted by — qlvl only breaks ties. */
+    var _lowHrs=function(x){ var b=_bestSrc(x); if(!b||!b.s) return 1e9;
+      var h=(typeof hoursFor==='function')?hoursFor(b.s.chance,0.5,b.s.kph||100):null;
+      return (h===null||!isFinite(h))?1e9:h; };
+    var low=missing.filter(function(x){ return (x.qlvl||99)<=35; })
+      .map(function(x){ x._qh=_lowHrs(x); return x; })
+      .sort(function(a,b){ return a._qh-b._qh || (a.qlvl||0)-(b.qlvl||0); });
     // v619 (Konyo: F-Uniques gets the same smart sync + stamps) — SEALED GROUNDS: group EVERY verified-
     // source item (found or not) by its best boss; a run whose whole pool is found earns the horizontal
     // seal. Only fixed-pool runs can seal honestly — the run must have ≥2 verified items so a lone drop
@@ -34238,7 +34250,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){
       if (!!a.noRun !== !!b.noRun) return a.noRun ? 1 : -1;
       return b.ev-a.ev||b.items.length-a.items.length; });
-    var quick=missingP.filter(function(mp){return mp.left===1;}).sort(function(a,b){return String(a.set).localeCompare(String(b.set));});
+    /* v1571 — the sets quick wins sorted ALPHABETICALLY, which is not a hunting order at all.
+       Same rule as the uniques side: one-piece-away is what QUALIFIES, expected time is what
+       ORDERS. A set with no known source sinks rather than leading, because "quick" is a claim we
+       cannot make about it. */
+    var _qsHrs=function(mp){ var sc=mp.src; if(!sc||!sc.chance) return 1e9;
+      var h=(typeof hoursFor==='function')?hoursFor(sc.chance,0.5,sc.kph||100):null;
+      return (h===null||!isFinite(h))?1e9:h; };
+    var quick=missingP.filter(function(mp){return mp.left===1;})
+      .map(function(mp){ mp._qh=_qsHrs(mp); return mp; })
+      .sort(function(a,b){ return a._qh-b._qh || String(a.set).localeCompare(String(b.set)); });
     // UNIFIED tiles — identical names to Forge·Uniques
     H.push('<div class="forge-tabs">'
       +_tile('all','▦','All missing','ft-all',missingP.length,F,'window.fsetsSetFilter')
@@ -36342,7 +36363,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1570', name:'v1570 - a found item is not a button', date:'2026-07-31', note:'the whole found chip carried the un-mark handler; plus the sentinel v1561 missed and a trap armed to destroy a whole sweep' };
+  window.D2R_BUILD = { id:'v1571', name:'v1571 - quick wins now sorted by quickness', date:'2026-07-31', note:'it sorted by qlvl so the list read 3.2h 2.9h 2.6h 2.9h; the sets side sorted alphabetically' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
