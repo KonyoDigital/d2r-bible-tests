@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1574",
+  "ver": "v1575",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1574: register these 2 wrote ten pieces; an unrecognised set name was reported as already yours; a null timestamp could span 56 years",
+  "note": "v1575: v1570 declared the slot read it and cleared it and nothing ever wrote it; no button ever called it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

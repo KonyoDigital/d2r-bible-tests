@@ -33442,6 +33442,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      reverted, so an accidental undo was as unrecoverable as the accidental un-mark. One slot each
      way is enough: this is a mis-tap corrector, not version control, and a deep stack would invite
      him to trust it as history when the ledger's own dates are the history. */
+  /* v1575 — undo, but REMEMBER. The slot is filled here and nowhere else, so redo can only put
+     back something an undo actually took away — it can never invent a find. */
+  window._forgeUndo = function(el, name, kind){
+    window._FORGE_REDO = { name: name, kind: kind };
+    try {
+      if (kind === 'set') { if (typeof window.grailTogglePiece === 'function') return window.grailTogglePiece(el, name); }
+      else if (typeof window.grailFoundUni === 'function') return window.grailFoundUni(el, name);
+    } catch(e){}
+  };
   window._FORGE_REDO = null;
   window._forgeRedo = function(){
     var r = window._FORGE_REDO; if (!r) return;
@@ -33460,8 +33469,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(!mine.length) return '';
     mine=_flogSort(mine); var last=mine[0];
     var fn=kind==='uni'?'grailFoundUni':'grailTogglePiece';
+    /* ── v1575 — THE REDO I SHIPPED DEAD IN v1570 ────────────────────────────────────────────
+       v1570 answered "undo but also undo the undo like forward back?" with window._FORGE_REDO and
+       window._forgeRedo — and NOTHING EVER WROTE THE SLOT, and no button ever called it. Declared,
+       read, cleared, never set. I described it in that commit as if it worked. It is the exact
+       plumbing-with-no-tap defect I spent the night finding in older code, committed by me three
+       hours earlier.
+       Undo now RECORDS what it reverted before reverting it, and redo renders only when there is
+       something to put back — a control that can only say "nothing to redo" is the dead button
+       v1550 already refused to ship. */
+    var _redo = window._FORGE_REDO;
     return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: <b data-arttip="'+esc(last)+'">'+esc(last)+'</b> <span class="gp-date">'+esc(fl[last])+'</span></span>'
-      +'<button class="f-btn f-btn-mini" onclick="window.'+fn+'(this,\''+jsq(last)+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button></div>';
+      +'<button class="f-btn f-btn-mini" onclick="window._forgeUndo(this,\''+jsq(last)+'\',\''+kind+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button>'
+      +(_redo && _redo.kind===kind
+        ? '<button class="f-btn f-btn-mini" onclick="window._forgeRedo()" title="put it back — undoing the undo">↪ redo <b>'+esc(_redo.name)+'</b></button>'
+        : '')
+      +'</div>';
   }
   function _tickBtn(name, fn){ return '<span class="gf-tick" role="button" tabindex="0" data-gf-tick="'+esc(name)+'" onclick="event.stopPropagation();window.'+fn+'(this,\''+jsq(name)+'\')" title="✓ mark '+esc(name)+' FOUND — tallies the Calculator + grail meters instantly">✓</span>'; }
   // v646 — THE GRAIL WALL is a DRAWER, not an avalanche (Konyo: "it takes up the whole page —
@@ -36441,7 +36464,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1574', name:'v1574 - count the writes not the rows', date:'2026-07-31', note:'register these 2 wrote ten pieces; an unrecognised set name was reported as already yours; a null timestamp could span 56 years' };
+  window.D2R_BUILD = { id:'v1575', name:'v1575 - the redo i shipped dead three hours ago', date:'2026-07-31', note:'v1570 declared the slot read it and cleared it and nothing ever wrote it; no button ever called it' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
