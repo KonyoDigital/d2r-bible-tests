@@ -320,6 +320,38 @@ async function j9_terrorZoneFlagship(page) {
     grey: getComputedStyle(z).filter })));
   const by = (n) => out.find((o) => o.n === n);
   const fail = [];
+  // v1580 — PLACEMENT, pinned. Konyo asked twice for this panel at the top of Sessions. v1573
+  // answered with `order:-1`, which only sorts a card WITHIN its own zone — and the card was in
+  // Ⅲ THE RECORD, so it was hoisted to the top of the BOTTOM zone and rendered at y=613 under
+  // three empty placeholders. The CSS said yes and the page said no, and nothing caught it.
+  const place = await page.evaluate(() => {
+    const el = document.getElementById('hd-tz');
+    if (!el) return { missing: true };
+    const zone = el.closest('section.zone');
+    const ban = zone && zone.querySelector('.zone-banner');
+    const cards = [...document.querySelectorAll('#tz-body .tz-zones-hero .tzz')]
+      .map((c) => { const r = c.getBoundingClientRect(); return { w: Math.round(r.w || r.width), h: Math.round(r.height), y: Math.round(r.y) }; });
+    return {
+      numeral: ban ? (ban.querySelector('.zb-no') || {}).textContent : null,
+      firstCard: zone ? zone.children[1] === el : false,
+      bannerAbove: ban ? ban.getBoundingClientRect().y < el.getBoundingClientRect().y : false,
+      fullWidth: Math.round(el.getBoundingClientRect().width)
+                 >= Math.round(el.parentElement.getBoundingClientRect().width) - 24,
+      equalW: new Set(cards.map((c) => c.w)).size === 1,
+      equalH: new Set(cards.map((c) => c.h)).size === 1,
+      oneRow: new Set(cards.map((c) => c.y)).size === 1,
+      legend: !!document.querySelector('.tz-standfirst .tz-sf-txt'),
+    };
+  });
+  if (place.missing) fail.push('the TZ panel is gone from Sessions');
+  else {
+    if (place.numeral !== 'Ⅰ') fail.push(`the rotation is filed under ${place.numeral}, not Ⅰ THE HUNT`);
+    if (!place.firstCard) fail.push('it is not the first card in its zone');
+    if (!place.bannerAbove) fail.push('the card jumped above its own zone banner');
+    if (!place.fullWidth) fail.push('it is not stretched left to right');
+    if (!place.equalW || !place.equalH || !place.oneRow) fail.push('the zone cards are not an even row');
+    if (!place.legend) fail.push('nothing explains what the dimming means');
+  }
   if (out.some((o) => /^and /i.test(o.n))) fail.push('a chip is labelled "and <Zone>" — the Oxford-comma split is back');
   if (!out.every((o) => o.art.includes('/art/tz_'))) fail.push('a zone has no game-extracted face');
   if ((by('Travincal') || {}).t !== 'tzz-prime') fail.push('Travincal (density 325, the Council) was not PRIME');

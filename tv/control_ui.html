@@ -2301,7 +2301,13 @@
      order:-1 puts it directly under the crown and the NEXT GRAIL hero — identity, objective, then
      the thing that expires — and grid-column 1/-1 gives it the full width its content already
      wanted (multi-zone rotations were wrapping in a half column). */
-  body[data-view="sessions"] .hd-tz { order: -1; grid-column: 1 / -1; }
+  /* v1580 — full width, and NO `order`. v1573 used order:-1 to hoist this card, which only sorts
+     it WITHIN its own zone; the card was in Ⅲ THE RECORD, so it was hoisted to the top of the
+     bottom zone and nothing visibly moved. Now that it lives in Ⅰ THE HUNT in the DOM, the order
+     rule became actively wrong — it jumped the card ABOVE its own "Ⅰ THE HUNT" banner, leaving the
+     heading stranded over the card below it. v1424 already wrote the rule this breaks: DOM is the
+     source of truth for Sessions storyline order. */
+  body[data-view="sessions"] .hd-tz { grid-column: 1 / -1; }
   .hd-tz .hd-h { font: var(--fw-bold) var(--fs-sm)/1 var(--serif); letter-spacing: .2em; }
   .hd-tz .hd-h .hd-sub { letter-spacing: .12em; }
   /* full width means the two rows can sit side by side instead of stacking */
@@ -2319,6 +2325,15 @@
      on a TV) and every weight is a --fw-* token (visual-lock invariant). */
   .hd-tz .tz-body { display: flex; flex-direction: column; gap: 7px; }
   .tz-idle { opacity: .6; }
+  .tz-standfirst { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px;
+    margin: 2px 0 9px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .tz-sf-key { display: inline-flex; align-items: center; gap: 5px; flex: none;
+    font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: .18em; opacity: .9; }
+  .tz-sw { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+  .tz-sw-prime { background: linear-gradient(180deg,#f0c060,#c99a34); }
+  .tz-sw-thin { background: rgba(255,255,255,.2); }
+  .tz-sf-txt { font: var(--fw-medium) var(--fs-2xs)/1.45 var(--mono); letter-spacing: .01em;
+    color: rgba(255,255,255,.5); flex: 1 1 320px; min-width: 0; }
   .tz-slot { padding: 9px 11px 10px; border-radius: 9px;
     border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); }
   .tz-slot.now { border-color: rgba(120,230,160,.34);
@@ -2331,7 +2346,14 @@
   /* v1569 — each zone is a CARD with its own extracted act art, not a text pill. The face is a
      CASC graphic (v384 extraction) served from /art/; a zone with no art shows a rune derived from
      its own name rather than borrowing another act's picture. */
-  .tz-zones { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* v1580 — A GRID, NOT A WRAP. flex-wrap left a three-zone rotation as two cards on one row and
+     a third alone beside a hole, with every card a different width because each sized to its own
+     name. auto-fit + minmax gives equal columns that reflow at the same breakpoint, and stretch
+     makes them equal HEIGHT — so "Travincal / the Council" and "Blood Moor / 520 density" line up
+     on the same baselines instead of floating at their own. */
+  .tz-zones { display: grid; gap: 9px; align-items: stretch;
+    grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); }
+  .tz-zones-hero { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
 
   /* v1578 — FLAGSHIP. The zone card carries the game's own art as its FACE, at a size that can
      actually be read from the couch: the console is watched on a TV, and a 30px thumbnail of a
@@ -2370,6 +2392,9 @@
   /* The tag is a FLEX ITEM, not an absolute overlay. Absolutely positioned at top:-7px it sat on
      top of the zone name on every short name — the first render covered the word "Travincal"
      with the word "PRIME", which is a label obscuring the thing it labels. */
+  .tzz-top { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .tzz-top b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tzz-txt em, .tzz-txt i { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tzz-tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; flex: none;
     align-self: center;
     font: var(--fw-bold) var(--fs-micro,var(--fs-2xs))/1.5 var(--mono); letter-spacing: .16em; }
@@ -3584,6 +3609,41 @@
       <!-- Ⅰ THE HUNT — what to hunt today (task force) -->
       <section class="zone">
         <div class="zone-banner zone-hunt"><span class="zb-no">Ⅰ</span><span class="zb-ico">🏆</span>THE HUNT<span class="zb-sub">what to hunt today</span></div>
+        <!-- v1580 — THE ROTATION IS "WHAT TO HUNT TODAY", so it lives in Ⅰ THE HUNT.
+             It was in Ⅲ THE RECORD — "the chronicle of your runs" — which is the wrong
+             movement for a thing that expires in under an hour, and being third meant it
+             rendered at y=613 under three EMPTY placeholder cards. v1573 gave it order:-1,
+             but order only sorts a card WITHIN its own zone: reordering inside a box that
+             is already at the bottom moves nothing. Konyo asked twice for this at the top;
+             the CSS said yes and the page said no. Now it is first, in the right story. -->
+        <div class="hd-col hd-wide hd-tz" id="hd-tz">
+          <div class="hd-h">🌀 TERROR ZONE <span class="hd-sub" id="tz-updated"></span></div>
+          <!-- v1580 — A DIMMED CARD IS A CLAIM, and a claim with no stated basis is just the panel
+               being confident at him. This one line says where the ranking comes from and what the
+               grey means, so the treatment is legible without anyone having to explain it. -->
+          <div class="tz-standfirst">
+            <span class="tz-sf-key"><i class="tz-sw tz-sw-prime"></i>PRIME</span>
+            <span class="tz-sf-key"><i class="tz-sw tz-sw-thin"></i>THIN</span>
+            <span class="tz-sf-txt">ranked on the game&rsquo;s own monster density &mdash; a terror zone
+              lifts monster level to yours, so density is what actually separates them</span>
+          </div>
+          <div class="tz-body" id="tz-body">
+            <div class="tz-idle">reading the rotation…</div>
+          </div>
+          <!-- v1567 — the rotation clock. TZ turns on the hour in D2R, which is a rule of the game
+               and not a claim about the feed, so it is computed here and LABELLED as the rule. -->
+          <div class="tz-clock" id="tz-clock" hidden>
+            <div class="tzc-bar"><i id="tz-clock-fill"></i></div>
+            <div class="tzc-lab"><b id="tz-clock-t">—</b><span>until the zone turns · on the hour</span></div>
+          </div>
+          <div class="tz-foot">
+            <button class="chron-btn" type="button" id="tz-refresh">↻ refresh</button>
+            <button class="chron-btn" type="button" id="tz-open" title="the hunt-or-skip judgement lives on the board — one copy, not two">open the full tracker →</button>
+          </div>
+        </div>
+        <!-- v1516 — 📜 THE CHRONICLE SWEEP. The free pass, in the RECORD zone because that is where
+             the chronicle of his runs already lives. It reports a PRICE, never a tally: nothing here
+             reads a page, spends a call, or touches a ledger. -->
         <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
           <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
           <div class="hd-tf-rows" id="hd-tf-rows"></div>
@@ -3616,25 +3676,6 @@
              (/api/tz proxies the live Pages function through the site's gate, 90s cache, and serves
              the last good rotation flagged `stale` when upstream dies) — but it existed so the BOARD
              served at /board could reach it. Nothing in the console itself ever showed it. -->
-        <div class="hd-col hd-wide hd-tz" id="hd-tz">
-          <div class="hd-h">🌀 TERROR ZONE <span class="hd-sub" id="tz-updated"></span></div>
-          <div class="tz-body" id="tz-body">
-            <div class="tz-idle">reading the rotation…</div>
-          </div>
-          <!-- v1567 — the rotation clock. TZ turns on the hour in D2R, which is a rule of the game
-               and not a claim about the feed, so it is computed here and LABELLED as the rule. -->
-          <div class="tz-clock" id="tz-clock" hidden>
-            <div class="tzc-bar"><i id="tz-clock-fill"></i></div>
-            <div class="tzc-lab"><b id="tz-clock-t">—</b><span>until the zone turns · on the hour</span></div>
-          </div>
-          <div class="tz-foot">
-            <button class="chron-btn" type="button" id="tz-refresh">↻ refresh</button>
-            <button class="chron-btn" type="button" id="tz-open" title="the hunt-or-skip judgement lives on the board — one copy, not two">open the full tracker →</button>
-          </div>
-        </div>
-        <!-- v1516 — 📜 THE CHRONICLE SWEEP. The free pass, in the RECORD zone because that is where
-             the chronicle of his runs already lives. It reports a PRICE, never a tally: nothing here
-             reads a page, spends a call, or touches a ledger. -->
         <div class="hd-col hd-wide hd-chron" id="hd-chron">
           <div class="hd-h">📜 CHRONICLE SWEEP <span class="hd-sub">what a retro read of your reels would cost</span></div>
           <div class="chron-body" id="chron-body">
@@ -11009,9 +11050,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient's Way":[650,82,"exp-iceca
                    : (t.den ? '<em class="tzz-den">' + t.den + ' density' + (t.lvl ? ' · alvl ' + t.lvl : '') + '</em>' : ''));
         var tag = t.tier === 'prime' ? '<span class="tzz-tag prime">PRIME</span>'
                 : t.tier === 'thin' ? '<span class="tzz-tag thin">THIN</span>' : '';
+        /* v1580 — the tag rides the NAME line, not the card row. As a sibling of the text column
+           it ate ~60px of the same flex row, which pushed "2200 density · alvl 85" into wrapping
+           after the separator — a dangling "·" at the end of a line. Inside the name row the
+           numbers get the column's full width and the tag still cannot cover the name. */
         return '<div class="tzz tzz-' + t.tier + (hero ? ' tzz-hero' : '') + '">' + face
-          + '<span class="tzz-txt"><b>' + escC(x) + '</b>'
-          + (act ? '<i>act ' + act + '</i>' : '') + meta + '</span>' + tag + '</div>';
+          + '<span class="tzz-txt"><span class="tzz-top"><b>' + escC(x) + '</b>' + tag + '</span>'
+          + (act ? '<i>act ' + act + '</i>' : '') + meta + '</span></div>';
       }).join('');
     };
     body.innerHTML =
