@@ -173,6 +173,17 @@ def candidate_runs(runs, min_frames=MIN_RUN_FRAMES):
     return [r for r in (runs or []) if len(r.get("frames") or []) >= min_frames]
 
 
+def _declared_kind(idx):
+    """The chronicle ledger HE declared for this reel, or None.
+
+    Accepts only the two chronicle focuses. A stash/rune/gem mini returns None here and this sweep
+    ignores the reel exactly as before — the vault sweep is the one that owns those.
+    """
+    idx = idx if isinstance(idx, dict) else {}
+    f = str(idx.get("focus") or "").strip().lower()
+    return f if f in ("chronicle-uniques", "chronicle-sets") else None
+
+
 def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRAMES):
     """Sweep ONE sealed reel. Returns evidence — it writes nothing, anywhere.
 
@@ -193,10 +204,23 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
         return {"reel": os.path.basename(reel_dir), "runs": 0, "candidates": 0,
                 "classified": 0, "pages": [], "note": "no-index"}
     sid = idx.get("sessionId") or os.path.basename(reel_dir)
+    # v1603 — A CHRONICLE-FOCUSED MINI ALREADY KNOWS ITS LEDGER. Konyo: "for chronicles too.. should
+    # have ... a button for it so its focused specifically for each grail chronicle individually and
+    # relevant". When he presses 🏆 UNIQUES or 🧩 SETS the reel is stamped focus=chronicle-uniques /
+    # chronicle-sets, which is the SAME thing sweep_frames() has skipped the classifier for since
+    # v1527 on the live lane — "a recorded visit already knows two things a blind sweep has to pay a
+    # model to discover: that these frames ARE the Chronicle, and WHICH ledger was open."
+    #
+    # This matters more here than on the vault side. chronicle_kind() deliberately returns None for
+    # a Chronicle page whose TAB it cannot read, because guessing "uniques" would write set pieces
+    # into his grail — so an unreadable tab currently costs the whole page. If he has already SAID
+    # which ledger he opened, that failure mode disappears.
+    declared_kind = _declared_kind(idx)
     sig_of = sig_of or (lambda n: jpeg_sig(os.path.join(reel_dir, n)))
     runs = still_runs(idx.get("frames") or [], sig_of)
     cands = candidate_runs(runs, min_frames=min_frames)
     pages, classified, blank_runs = [], 0, 0
+    trusted = 0   # runs whose ledger came from HIS declared focus rather than a paid classify
     for run in cands:
         fr = run["frames"]
         # v1543 — never pay to classify a photo of nothing. A blank capture cannot be a Chronicle,
@@ -205,8 +229,12 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
         if probe is None:
             blank_runs += 1
             continue
-        classified += 1
-        kind = classify(os.path.join(reel_dir, probe))
+        if declared_kind:
+            kind = declared_kind          # he told us; do not pay to rediscover it
+            trusted += 1
+        else:
+            classified += 1
+            kind = classify(os.path.join(reel_dir, probe))
         if kind not in ("chronicle-uniques", "chronicle-sets"):
             continue
         # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
@@ -215,7 +243,8 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
             resp = read_page(os.path.join(reel_dir, name), kind) or {}
             pages.append({"reel": sid, "frame": name, "kind": kind, "resp": resp})
     return {"reel": sid, "runs": len(runs), "candidates": len(cands),
-            "classified": classified, "blankRuns": blank_runs, "pages": pages}
+            "classified": classified, "blankRuns": blank_runs, "pages": pages,
+            "trustedFocus": trusted}
 
 
 def _distinct(names, sig_of, max_diff=0.06):
@@ -627,6 +656,7 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
         "framesSeen": frames_seen,
         "candidates": sum(s.get("candidates") or 0 for s in stats),
         "classified": sum(s.get("classified") or 0 for s in stats),
+        "trustedFocus": sum(s.get("trustedFocus") or 0 for s in stats),
         "blankRuns": sum(s.get("blankRuns") or 0 for s in stats),
         "pagesRead": prop.get("pagesRead", 0),
         "refused": len(prop.get("refused") or []),

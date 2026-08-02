@@ -2164,3 +2164,37 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   `check()` directly; the pre-push hook does not invoke it).
 - **Prevention:** run the whole gate set, not the subset you touched. Both faults here were invisible
   to any targeted run, and the fixture had been wrong since the day it was written.
+
+## REG-098 — MINI's focus was stamped on every reel and never once steered a read (2026-08-03)
+
+- **Symptom:** Konyo — *"so for MINI AIR ON is this finally focused and understanding of the fact
+  that it is reading stash/runes/gems/materials and to look out specifically for this"*. The honest
+  answer was **no**.
+- **Root cause:** `MINI_FOCUS` was carried all the way from the button to `--mini-focus` to
+  `_idx["focus"]` in the sealed reel — and then used for exactly ONE thing: sweeping mini reels
+  first. `is_mini_reel`'s own docstring stated the limit plainly: *"being wrong here costs ordering,
+  never correctness."* Nothing told the READER what it was looking at, so a capture taken while
+  parked in the rune tab still paid a model call to **discover** that, and could still get it wrong.
+- **Why that is worse than a wasted call:** a rune tab misclassified as `inventory` files his runes
+  in the wrong lane, and merge-max then makes it permanent. Measured on a two-reel fixture with a
+  deliberately-wrong classifier: `Ral Rune → lane=inventory, kind=item`. With the focus declared:
+  `lane=stash, kind=rune`, and 2 classify calls became **0**.
+- **Fix:** the retro sweep now TRUSTS a declared focus in place of the classify call — the same
+  trade `chronicle_retro.sweep_frames()` has made for the live lane since v1527 (*"a recorded visit
+  already knows two things a blind sweep has to pay a model to discover"*). Cheaper and more
+  accurate at once, which is rare enough to state: the call it removes is the one that could lie.
+- **Trusted NARROWLY, on purpose:** only a focus in the engine's own vocabulary, and only where the
+  sweep owns it. `chronicle-uniques` / `chronicle-sets` return None from the vault's
+  `_declared_surface()` and fall through to the chronicle sweep, which has its own `_declared_kind()`
+  — claiming one in the wrong sweep would file grail pages into the vault as a stash tab.
+- **Second half, same shape:** the chronicle sweep now skips its classify for a chronicle-focused
+  mini. That matters more there than on the vault side, because `chronicle_kind()` deliberately
+  returns None for a Chronicle page whose TAB it cannot read — guessing "uniques" would write set
+  pieces into his grail — so an unreadable tab used to cost the whole page. If he has already said
+  which ledger he opened, that failure mode is gone.
+- **Prevention:** `tests/v1603_mini_focus.spec.ts` drives the real UI and asserts THE CHOICE REACHES
+  THE ENGINE (a focus row that renders correctly and posts `{}` would be the same dead-plumbing
+  defect the feature exists to remove), plus that the toast echoes the focus the engine ACCEPTED
+  rather than the one we asked for. Engine-side, `tv/test_vault_retro.py` pins that an unknown or
+  cross-sweep focus is never trusted. Totals now report `trustedFocus` — "9 classifies" and
+  "9 classifies + 4 you told us" are different facts about the same sweep.

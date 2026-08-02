@@ -2466,6 +2466,15 @@
   /* the slot-level verdict, on the LIVE NOW / UP NEXT label */
   /* v1602 — the cross-act note rides INSIDE the "N live together" chip, dimmer than the count:
      it is a clarification, not a second fact competing with it. */
+  /* v1603 — the MINI focus row. Small, quiet, and always visible: picking the right one is what
+     lets the retro sweep skip a classify call and file his runes in the right lane. */
+  .mini-foc { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+  .mini-foc .mf { appearance: none; cursor: pointer; border-radius: 999px; padding: 4px 9px;
+    border: 1px solid rgba(198,166,100,.24); background: rgba(0,0,0,.3); color: var(--text-dim);
+    font: var(--fw-medium) var(--fs-2xs)/1.35 var(--mono); letter-spacing: var(--ls-label); }
+  .mini-foc .mf:hover { border-color: rgba(240,192,96,.5); color: #e8d9a8; }
+  .mini-foc .mf.on { border-color: rgba(240,192,96,.7); background: rgba(240,192,96,.14);
+    color: #f0c060; }
   .tz-acts { opacity: .72; font-weight: var(--fw-medium); cursor: help;
     border-bottom: 1px dotted currentColor; }
   .tz-verdict { margin-left: 8px; padding: 2px 9px; border-radius: 999px; flex: none;
@@ -3926,6 +3935,15 @@
              is the densest evidence in the archive: the panel is held still and every frame is a
              clean look at what he owns. -->
         <button class="act b-mini" id="btn-mini" type="button"><span class="ic">⏱</span><span class="lab"><b>Mini</b><span id="mini-sub">stash · 25s, stops itself</span></span></button>
+        <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
+             fact that it is reading stash/runes/gems/materials and to look out specifically for
+             this" — and then "for chronicles too.. a button for it so its focused specifically for
+             each grail chronicle individually".
+             The focus is not a label. The retro sweep TRUSTS it in place of a classify call, so
+             pressing the right one is both cheaper (one fewer model call per run) and more accurate
+             (a rune tab misread as "inventory" files his runes in the wrong lane, and merge-max
+             then makes that permanent). Rendered from the engine's own list — see _miniFocuses. -->
+        <div class="mini-foc" id="mini-foc" role="group" aria-label="what the mini capture is looking at"></div>
       </div>
       <!-- v1354 (density R6, Konyo) — ENGINES FIRST: the AI-ENGINES bay sits directly under the primary
            On Air / End Session button; the secondary controls (⚙ advanced · Theatre) drop BELOW the bay
@@ -8536,14 +8554,46 @@
      visible rather than silently corrected. The countdown is polled from the same endpoint (GET),
      so the button always reflects the server rather than a local timer that can drift out of step
      with the run it claims to describe. */
+  // v1603 — the focus he last picked. Sent with the start and stamped into the reel.
+  var _miniFocus = 'stash';
+  var MINI_FOCUS_LABEL = {
+    'stash': '🏦 stash', 'runes': '🪨 runes', 'gems': '💎 gems', 'materials': '🧪 materials',
+    'chronicle-uniques': '🏆 uniques', 'chronicle-sets': '🧩 sets'
+  };
+  function _miniFocuses(list){
+    var box = document.getElementById('mini-foc');
+    if (!box || !list || !list.length) return;
+    if (list.indexOf(_miniFocus) < 0) _miniFocus = list[0];
+    box.innerHTML = list.map(function(f){
+      return '<button type="button" class="mf' + (f === _miniFocus ? ' on' : '') + '" data-f="' + escC(f) + '">'
+        + escC(MINI_FOCUS_LABEL[f] || f) + '</button>';
+    }).join('');
+  }
+  (function(){
+    var box = document.getElementById('mini-foc');
+    if (!box) return;
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('.mf'); if (!b) return;
+      _miniFocus = b.dataset.f || 'stash';
+      Array.prototype.forEach.call(box.querySelectorAll('.mf'), function(x){
+        x.classList.toggle('on', x === b);
+      });
+      var sub = document.getElementById('mini-sub');
+      if (sub) sub.textContent = (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus).replace(/^\S+\s/, '')
+        + ' · 25s, stops itself';
+    });
+  })();
   $('btn-mini').onclick = async function(e){
     var btn = this;
     try {
       var r = await fetch('/api/mini', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                         body: JSON.stringify({}) });
+                                         body: JSON.stringify({ focus: _miniFocus }) });
       var j = await r.json();
       if (!j || j.ok === false) { toast('⏱ ' + ((j && j.why) || 'mini could not start')); return; }
-      if (j.seconds) toast('⏱ MINI — ' + j.seconds + 's on the stash · it stops itself');
+      // ECHO THE FOCUS THE ENGINE ACCEPTED, not the one we sent — it validates against its own
+      // list, and a silent fallback to "stash" must be visible rather than assumed.
+      var f = j.focus || _miniFocus;
+      if (j.seconds) toast('⏱ MINI — ' + j.seconds + 's on ' + (MINI_FOCUS_LABEL[f] || f) + ' · it stops itself');
       _miniPoll();
     } catch (err) { toast('⏱ mini could not start — the console is not reachable'); }
   };
@@ -8555,6 +8605,7 @@
       try {
         var r = await fetch('/api/mini', { cache: 'no-store' });
         var j = await r.json();
+        if (j && j.focuses) _miniFocuses(j.focuses);   // the engine owns the vocabulary
         if (j && j.running) {
           if (btn) btn.classList.add('mini-live');
           if (sub) sub.textContent = 'recording · ' + (j.secondsLeft || 0) + 's left';

@@ -94,6 +94,18 @@ THROWOUT_MIN_WITNESSES = 3                # strictly above KEEP_MIN_WITNESSES �
 
 # ── reel selection ──────────────────────────────────────────────────────────────
 
+def _declared_surface(idx):
+    """The ownership surface HE declared for this reel, or None.
+
+    v1603 — only an OWNERSHIP surface counts. `chronicle-uniques` / `chronicle-sets` are real mini
+    focuses but they are the chronicle sweep's business, not this one, so they return None here and
+    the run falls through to the classifier exactly as before.
+    """
+    idx = idx if isinstance(idx, dict) else {}
+    f = str(idx.get("focus") or "").strip().lower()
+    return f if f in OWNERSHIP_SURFACES else None
+
+
 def is_mini_reel(idx, reel_dir=""):
     """Was this reel a MINI stash capture (MC-03)? Preferred first — densest evidence per read.
 
@@ -420,6 +432,7 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
     unsure, held = [], []
     sessions_read, sessions_seen = [], 0
     frames_seen = classified = pages_read = skipped = 0
+    trusted = 0   # runs whose surface came from HIS declared focus rather than a paid read
 
     for reel_dir in dirs:
         sessions_seen += 1
@@ -429,6 +442,9 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
                                               % os.path.basename(reel_dir)})
             continue
         sid = str(idx.get("sessionId") or os.path.basename(reel_dir))
+        # the focus HE declared when he pressed MINI — trusted below in place of a classify call,
+        # but only when it names an ownership surface this sweep actually owns.
+        declared = _declared_surface(idx)
         frames = _frame_rows(idx.get("frames"))
         frames_seen += len(frames)
         # BORROWED grouping — chronicle_retro owns STILL_MAX_DIFF / MIN_RUN_FRAMES and the run logic.
@@ -446,8 +462,27 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
                                     "was grabbed with nothing on it; that is a capture fault, not an "
                                     "empty stash" % (len(names), sid)})
                 continue
-            classified += 1
-            surface = _surface_of(classify(os.path.join(reel_dir, probe)))
+            # ── v1603 — A DECLARED FOCUS IS NOT A GUESS. ─────────────────────────────────
+            # When he presses MINI he TELLS the app what he is parked on, and that stamp lands in
+            # the reel's index.json. Until now the sweep used it only to read mini reels first;
+            # every run still paid a classify call to rediscover a fact already on disk, and could
+            # still get it wrong — a rune tab misread as "inventory" files his runes in the wrong
+            # lane, which merge-max then makes permanent.
+            #
+            # This is the same trade chronicle_retro.sweep_frames() already makes for the live
+            # lane: "a recorded visit already knows two things a blind sweep has to pay a model to
+            # discover". Cheaper AND more accurate, which is rare enough to be worth saying out
+            # loud — the model call it removes was the one that could be wrong.
+            #
+            # TRUSTED NARROWLY, on purpose: only when the reel declares a focus that IS an
+            # ownership surface. A chronicle-focused mini is NOT an ownership surface, so it falls
+            # through to the classifier here and is read by the chronicle sweep instead.
+            if declared:
+                surface = declared
+                trusted += 1
+            else:
+                classified += 1
+                surface = _surface_of(classify(os.path.join(reel_dir, probe)))
             if surface is None:
                 # Law 4: unclassifiable is HELD, never guessed into a lane.
                 skipped += 1
@@ -519,7 +554,11 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
                           "suggestion": True})   # never automatic — the Vault manager ASKS him
 
     totals = {"sessionsSeen": sessions_seen, "framesSeen": frames_seen, "classified": classified,
-              "pagesRead": pages_read, "skipped": skipped}
+              "pagesRead": pages_read, "skipped": skipped,
+              # v1603 — classify calls SKIPPED because he had already said what he was looking at.
+              # Reported rather than silently pocketed: "9 classifies" and "9 classifies + 4 you
+              # told us" are different facts about the same sweep.
+              "trustedFocus": trusted}
     return {"ok": True, "generatedTs": int(time.time() * 1000), "why": _verdict(totals, owned, unsure),
             "sessionsRead": sorted(set(sessions_read)),
             "owned": owned, "throwOut": throw_out, "unsure": unsure, "held": held, "totals": totals}

@@ -8485,8 +8485,30 @@ def chronicle_forget_swept():
 # ═══════════════════════════════════════════════════════════════════════════════════════
 
 MINI_FLAG = "--mini"                 # the ONE flag name
-MINI_FOCUS_FLAG = "--mini-focus"     # carries the ONE focus name below
-MINI_FOCUS = "stash"                 # the ONE focus name
+MINI_FOCUS_FLAG = "--mini-focus"     # carries the focus name
+MINI_FOCUS = "stash"                 # the DEFAULT focus
+
+# v1603 — MINI GETS A SUBJECT. Konyo: "is this finally focused and understanding of the fact that
+# it is reading stash/runes/gems/materials and to look out specifically for this" — and then, for
+# the chronicles: "should have either a chronicle focused based click on.. and button for it so its
+# focused specifically for each grail chronicle individually and relevant".
+#
+# Until now `focus` was stamped onto the reel and used for exactly ONE thing: sweeping mini reels
+# first. is_mini_reel's own docstring said so — "being wrong here costs ordering, never
+# correctness". Nothing told the READER what it was looking at, so a capture he took while parked
+# in his rune tab still paid a model call to DISCOVER that, and could still get it wrong.
+#
+# These are the surfaces a mini can declare. Kept as one list because two lists of the same names
+# drift: the console renders its buttons from this, the agent validates against it, and the retro
+# sweep decides whether the stamp is trustworthy by membership in it.
+MINI_FOCUSES = ("stash", "runes", "gems", "materials", "chronicle-uniques", "chronicle-sets")
+
+
+def _mini_focus(v):
+    """A focus name, or the default. Never a caller's arbitrary string — it is stamped into a reel
+    and later TRUSTED by the sweep in place of a classify call, so an unknown value must not travel."""
+    v = str(v or "").strip().lower()
+    return v if v in MINI_FOCUSES else MINI_FOCUS
 MINI_MIN_SECONDS = 10
 MINI_MAX_SECONDS = 40
 MINI_DEFAULT_SECONDS = 25
@@ -8603,8 +8625,12 @@ def mini_state():
     }
 
 
-def mini_start(seconds=None, test=False):
-    """⏱ MINI ON AIR. Same start_agent() as ON AIR — no second spawn path anywhere."""
+def mini_start(seconds=None, test=False, focus=None):
+    """⏱ MINI ON AIR. Same start_agent() as ON AIR — no second spawn path anywhere.
+
+    v1603 — `focus` names WHAT he is parked on, and it is not decoration: the retro sweep trusts it
+    in place of a classify call, so it is validated here rather than passed through raw."""
+    focus = _mini_focus(focus)
     secs, asked = _mini_clamp(MINI_DEFAULT_SECONDS if seconds is None else seconds)
     # v891 (Grok C3) — DISK PREFLIGHT, copied verbatim from /api/on: below the floor the reaper
     # can't keep a reel alive; refuse loudly with the exact ask instead of recording a doomed
@@ -8647,7 +8673,7 @@ def mini_start(seconds=None, test=False):
         token = _MINI["token"]
         now_ms = int(time.time() * 1000)
         _MINI.update({"running": True, "seconds": secs, "startedTs": now_ms,
-                      "endsTs": now_ms + secs * 1000, "focus": MINI_FOCUS,
+                      "endsTs": now_ms + secs * 1000, "focus": focus,
                       "sid": None, "sealedTs": 0, "sealedBy": "", "arming": True})
         ends = _MINI["endsTs"]
     # ARM FIRST. If the spawn hangs past the deadline the watchdog still seals it; a timer armed
@@ -8655,7 +8681,7 @@ def mini_start(seconds=None, test=False):
     threading.Thread(target=_mini_watchdog, args=(token, ends), daemon=True,
                      name="tvd-mini-watchdog").start()
     try:
-        r = start_agent(sim=False, test=bool(test), mini=secs, focus=MINI_FOCUS)
+        r = start_agent(sim=False, test=bool(test), mini=secs, focus=focus)
     finally:
         with _MINI_LOCK:
             if _MINI["token"] == token:
@@ -8674,7 +8700,7 @@ def mini_start(seconds=None, test=False):
         if _MINI["token"] == token:
             _MINI["sid"] = sid
     _console_beacon_async("onair")   # v875 — the dashboard flips 🔴 within seconds
-    return dict(r, mini=True, mode="mini", focus=MINI_FOCUS,
+    return dict(r, mini=True, mode="mini", focus=focus,
                 seconds=secs, secondsAsked=asked, secondsLeft=secs,
                 endsTs=ends, sid=sid,
                 # ★ the clamp said out loud. 5 and 999 come back with what he asked beside what
@@ -9469,7 +9495,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1602",
+        "ver": "v1603",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10999,7 +11025,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/mini":
             # v1578 — ⏱ MINI CAPTURE countdown. Read-only; secondsLeft is clamped at 0.
-            self._json(200, mini_state())
+            # v1603 — ships the focus vocabulary too, so the console renders its buttons from the
+            # engine's list instead of holding a second copy that can drift out of step.
+            self._json(200, dict(mini_state(), focuses=list(MINI_FOCUSES)))
             return
         if path.startswith("/art/"):
             self._serve_art(path[len("/art/") :])
@@ -11911,7 +11939,8 @@ class Handler(BaseHTTPRequestHandler):
             # v1578 — ⏱ MINI CAPTURE: ON AIR with a bound, for the 10–40s he spends parked in
             # the stash on gems / runes / materials. Same start_agent(), same seal path.
             # The clamped value is ECHOED (5 and 999 come back honest, never silently altered).
-            self._json(200, mini_start(body.get("seconds"), test=bool(body.get("test"))))
+            self._json(200, mini_start(body.get("seconds"), test=bool(body.get("test")),
+                                       focus=body.get("focus")))
             return
         if path == "/api/on":
             # v1578 — REFUSE LOUDLY while a mini is counting down (the mirror of mini_start's

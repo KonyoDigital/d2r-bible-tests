@@ -173,5 +173,40 @@ class TestMiniReelIsFoundable(unittest.TestCase):
         self.assertIn("MINI_MODE", agent)
 
 
+class TestADeclaredFocusIsTrusted(unittest.TestCase):
+    """v1603 — Konyo: "is this finally focused and understanding of the fact that it is reading
+    stash/runes/gems/materials and to look out specifically for this".
+
+    Before this, no: `focus` was stamped on the reel and used ONLY to sweep mini reels first
+    (is_mini_reel's docstring: "being wrong here costs ordering, never correctness"). Every run
+    still paid a classify call to rediscover a fact already on disk — and could still get it wrong,
+    which is worse than the cost: a rune tab misread as "inventory" files his runes in the wrong
+    lane, and merge-max then makes that permanent.
+
+    Trusting it is the SAME trade chronicle_retro.sweep_frames() has made for the live lane since
+    v1527. Cheaper and more accurate at once, because the call it removes is the one that could lie.
+    """
+
+    def test_an_ownership_focus_is_taken_from_the_stamp(self):
+        self.assertEqual(v._declared_surface({"focus": "runes"}), "runes")
+        self.assertEqual(v._declared_surface({"focus": "STASH"}), "stash")
+
+    def test_a_chronicle_focus_is_NOT_this_sweep_s_business(self):
+        """chronicle-uniques/sets are real mini focuses, but the chronicle sweep owns them. Claiming
+        one here would file grail pages into the vault as though they were a stash tab."""
+        self.assertIsNone(v._declared_surface({"focus": "chronicle-uniques"}))
+        self.assertIsNone(v._declared_surface({"focus": "chronicle-sets"}))
+
+    def test_an_unknown_focus_is_never_trusted(self):
+        """The stamp replaces a paid read, so anything not in the vocabulary must fall through to
+        the classifier rather than becoming a lane by assertion."""
+        for junk in ("", None, "cube", "belt", "../stash", 7, {"a": 1}):
+            self.assertIsNone(v._declared_surface({"focus": junk}), repr(junk))
+
+    def test_a_reel_with_no_focus_behaves_exactly_as_before(self):
+        self.assertIsNone(v._declared_surface({}))
+        self.assertIsNone(v._declared_surface(None))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
