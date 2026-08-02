@@ -11655,6 +11655,28 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         + ((a.skipped || []).length ? ' · ' + a.skipped.length + ' you already had' : '')
         + ' · undo from the board';
       if (btn) { btn.hidden = true; }
+      /* v1594 — REPAINT WHAT THE WRITE CHANGED. Konyo: "nothing should have this LAG as an option.
+         should run smooth anywhere we can."
+
+         The apply registers finds in his grail and then updated ONE line of its own note. Every
+         other console surface that reads the grail — the meter, the NEXT GRAIL hero, the NEXT SET
+         hero — kept showing the pre-apply picture until something else happened to repaint them.
+         Nothing was wrong with the data; the page just declined to look at it again. That is the
+         same shape as the sigil rename in v1593, and it is the worse half of the class: a rename
+         you can re-hover, but a grail count that has not moved after "✓ 12 registered" reads as the
+         apply not having worked.
+
+         These three live in the OTHER script block, inside an IIFE — plain `hubNextGrail()` is
+         undefined here, which is exactly the dead call this sweep exists to avoid writing. I probed
+         a real browser before wiring it: window._hubMeter / _hubNextGrail / _hubNextSet are the
+         published handles (v1556 added _hubMeter after a spec called window.hubMeter and got
+         undefined). Guarded because a missing painter must never take the apply down with it —
+         registering the finds is the part that matters. */
+      if (n) {
+        try { if (typeof window._hubMeter === 'function') window._hubMeter(); } catch (e) {}
+        try { if (typeof window._hubNextGrail === 'function') window._hubNextGrail(); } catch (e) {}
+        try { if (typeof window._hubNextSet === 'function') window._hubNextSet(); } catch (e) {}
+      }
     } catch (e) {
       if (note) note.textContent = '⚠ not registered — could not reach the console';
       if (btn) { btn.disabled = false; btn.textContent = 'try registering again'; }
