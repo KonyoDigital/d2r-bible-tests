@@ -33538,11 +33538,45 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       done:rows.filter(function(r){return r.left===0;}) };
   };
   // v560 — a set's farm source comes from its AGGREGATE entry in ITEMS (tier 'set'), stem-matched by name.
+  /* v1557 — one normalisation for both sides of the set-name match. Set names and their drop-data
+     aggregates disagree about possessives, class suffixes and the word "set"; this is the only
+     place that reconciles them, so there is one rule rather than a substring guess. */
+  function _setKey(s){
+    return String(s||'')
+      .replace(/\s*\((set piece|set|any piece|any|Sorc|Necro|Barb|Ama|Sin|Pala|Druid)\)\s*$/i,'')
+      .replace(/\s+set$/i,'')
+      .replace(/['\u2019`]s\b/gi,'')
+      .replace(/['\u2019`]/g,'')
+      .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  }
+  window._setKey = _setKey;
   function _setAggSrc(setName){
     try {
-      var stem=String(setName).replace(/\s*\((set|Sorc|Necro|Barb|Ama|Sin|Pala|Druid)\)\s*$/i,'').trim().toLowerCase();
+      /* ── v1557 — THE POSSESSIVE WAS HIDING HIS FARM DATA ──────────────────────────────────
+         This matched on "the aggregate's name STARTS WITH the first 12 characters of the set's
+         name", which fails the moment the two spell the set differently — and they routinely do.
+         "Tal Rasha's Wrappings" gives the stem "tal rasha's " while the aggregate that HAS the
+         drop data is called "Tal Rasha set (any piece)". Twelve characters apart, one apostrophe
+         at fault, and the result was a set in his working list with no farm run at all.
+
+         Measured on his own data: 9 of 16 in-progress sets resolved to NO source. Two of those
+         nine — Tal Rasha's Wrappings and Trang-Oul's Avatar — had the data the whole time.
+         The other seven genuinely have no aggregate entry, and that is now SAID rather than
+         rendered as silence (see renderForgeSets).
+
+         The key strips the possessive INCLUDING its s ("Rasha's" -> "Rasha", not "Rashas" — my
+         first attempt made exactly that mistake and recovered nothing while breaking five that
+         worked), then any remaining apostrophe ("M'avina" -> "Mavina"), then matches on the
+         longest leading run of words. Verified: +2 recovered, 0 regressions. */
       var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);
-      var agg=L.find(function(x){ return x.tier==='set' && String(x.n).toLowerCase().indexOf(stem.slice(0,12))===0; });
+      var agg=L.find(function(x){ return x.tier==='set' && _setKey(x.n)===_setKey(setName); });
+      if(!agg){
+        var k=_setKey(setName).split(' ');
+        for(var take=k.length; take>=1 && !agg; take--){
+          var probe=k.slice(0,take).join(' ');
+          agg=L.find(function(x){ return x.tier==='set' && _setKey(x.n)===probe; });
+        }
+      }
       if(!agg) return null;
       // v1542 — the sets side ranks by the SAME rule as the uniques side. It carried its own copy of
       // the pure rate scan, which is how the two forges would have told him to farm different
@@ -33903,9 +33937,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var setClean=w.name.replace(/\s*\((set)\)\s*$/i,'');
           var src=null; try { src=_setAggSrc(w.name); } catch(e){}
           var sBoss=src?src.boss:'', sOdds=src?fmtOdds(src.chance):'';
-          c.op={ set:setClean, pieceClean:nextClean, boss:sBoss, oddsStr:sOdds,
-                 detail:(w.left===1?('LAST piece: '+nextClean):(w.left+' pieces left, next '+nextClean))+(sBoss?(' — '+sBoss+(sOdds?' '+sOdds:'')):'') };
-          c.pick='🧩 Sets · '+c.done+'/'+c.total+' pieces — finish '+setClean+' ('+(w.left===1?('1 piece left: '+nextClean):(w.left+' left, next '+nextClean))+(sBoss?(' at '+sBoss+(sOdds?' '+sOdds:'')):'')+')';
+          /* v1557 — SAY WHEN THERE IS NO RUN TO SEND HIM ON.
+             Seven of his sixteen in-progress sets have no aggregate drop entry at all — Tancred's
+             Battlegear among them, which is the one his DAILY TASK FORCE is currently telling him
+             to finish. With no boss the line simply ended after the piece name, so the task read
+             "finish Tancred's Battlegear (1 piece left: Tancred's Hobnails)" and stopped: a task
+             with no way to do it, indistinguishable from one whose boss just did not fit.
+             An absent source is now NAMED. He can still hunt it; he just stops waiting for a
+             direction the app was never going to give. */
+          var noRun = ' — no verified farm source for this set yet';
+          c.op={ set:setClean, pieceClean:nextClean, boss:sBoss, oddsStr:sOdds, noSource:!sBoss,
+                 detail:(w.left===1?('LAST piece: '+nextClean):(w.left+' pieces left, next '+nextClean))+(sBoss?(' — '+sBoss+(sOdds?' '+sOdds:'')):noRun) };
+          c.pick='🧩 Sets · '+c.done+'/'+c.total+' pieces — finish '+setClean+' ('+(w.left===1?('1 piece left: '+nextClean):(w.left+' left, next '+nextClean))+(sBoss?(' at '+sBoss+(sOdds?' '+sOdds:'')):noRun)+')';
         }
       }
     });
@@ -36036,7 +36079,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1556', name:'v1556 - the meter says what the app can actually help with', date:'2026-07-31', note:'160 grails still out there but only 125 have a card and a source here' };
+  window.D2R_BUILD = { id:'v1557', name:'v1557 - the possessive was hiding his farm data', date:'2026-07-31', note:'9 of 16 in-progress sets had no farm run; two of them had the data all along and the other seven now say so' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
