@@ -10789,6 +10789,16 @@ function escC(s) {
       if (j && j.identity) {
         lastNick = (j.identity.nickname || '').trim();
         nm.textContent = lastNick || 'name me';
+        /* v1593 — REPAINT NOW, NOT ON THE NEXT POLL. Konyo, after renaming: "the tooltip is stil
+           rendering the old files. can it be synced too?" — the pill said KONYO while the hover
+           still read "THIS MACHINE — Dean Dush", because only nm.textContent was written here and
+           everything ELSE the sigil shows (the tooltip, the crest line, the rename hint) is built
+           inside paint(). paint() is driven by the status poll, so the two halves of one control
+           disagreed for as long as the next tick took. Setting lastId=null only made the next
+           paint redraw; it did not make one happen. The server already had the new name — this is
+           purely the page lagging its own successful write, which is the worst kind of stale
+           because the change LOOKS half-applied. */
+        try { paint({ identity: j.identity }); } catch (e) {}
         try { toastC('🪪 this machine is now "' + (lastNick || j.identity.computer) + '"'); } catch (e) {}
       } else {
         // an unnamed machine that stays unnamed must SAY so — a silent no-op is what sent him here
@@ -11097,7 +11107,27 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         var file = _artFor(x), act = _actOf(file), t = _tzTier(x);
         var face = file
           ? '<span class="tzz-art" style="background-image:url(/art/tz_' + file + '.jpg)"></span>'
-          : '<span class="tzz-art tzz-noart">' + RUNES[Math.abs(_flat(x).length * 7 + (_flat(x).charCodeAt(0) || 0)) % RUNES.length] + '</span>';
+          /* v1593 — SELF-CONTAINED, AND THIS BUG WAS MINE. v1569 drew a rune glyph for a zone with
+             no art, using `RUNES` and `_flat` declared alongside the old art table. v1578 replaced
+             that whole block and deleted BOTH — leaving this line as the only reference to either.
+             All 80 known zones have art, so the branch never ran and nothing noticed for six
+             versions.
+
+             It was never cosmetic. The reference throws a ReferenceError from INSIDE the paint, so
+             one unrecognised zone name does not lose its glyph — it kills the WHOLE panel: LIVE NOW
+             and UP NEXT both vanish and the box reads "no rotation available — RUNES is not
+             defined". Any upstream wording change, or any zone the feed serves that TZ_INFO does
+             not carry, and the tracker goes dark. Caught by tests/v1547_console_tz.spec.ts, whose
+             stub says "The Secret Cow Level" — a name the live feed spells "Moo Moo Farm".
+
+             Exactly the shape LAW19 exists for, in reverse: not a declaration nobody references,
+             but a reference whose declaration was removed. Inlined so there is nothing left to
+             delete out from under it. */
+          : '<span class="tzz-art tzz-noart">' + (function (n) {
+              var R = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗ';
+              var f = String(n || '').toLowerCase().replace(/[^a-z]/g, '');
+              return R.charAt(Math.abs(f.length * 7 + (f.charCodeAt(0) || 0)) % R.length) || '·';
+            })(x) + '</span>';
         /* The verdict always carries its evidence. A zone dimmed with no reason on it is the
            panel asserting rather than showing, and he cannot argue with an assertion. */
         var meta = t.nodata

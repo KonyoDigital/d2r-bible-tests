@@ -27,6 +27,14 @@ async function open(page: any, payload: any, status = 200) {
     payload === null ? r.abort()
       : r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) }));
   await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+  // v1589 — THE PANEL LIVES IN SESSIONS ONLY. Konyo: "remove it completely from TV-D tab.. i want
+  // it only in sessions". It was rendering 419px tall in the cockpit as well, so it is now
+  // display:none outside the Sessions view. This helper loads the console standalone (every /api/
+  // but /api/tz is aborted), which lands on the cockpit — so the view has to be set, or every
+  // assertion below is measuring a hidden element. Setting the attribute rather than calling
+  // _showSessions() is deliberate: showSessions() reaches for endpoints this harness aborts, and
+  // what these tests need is exactly the CSS contract the attribute drives.
+  await page.evaluate(() => document.body.setAttribute('data-view', 'sessions'));
   await page.waitForTimeout(700);
 }
 
@@ -37,6 +45,17 @@ test.describe('v1547 — the rotation, in the console', () => {
     await open(page, LIVE);
     expect(await page.locator('#hd-tz').count(), 'there must be a Terror Zone panel').toBe(1);
     expect(await page.isHidden('#hd-tz')).toBe(false);
+  });
+
+  test('★ and it is hidden OUTSIDE Sessions — the cockpit is not its home', async ({ page }) => {
+    // the other half of v1589. Without this, "Sessions only" is enforced by nothing and the panel
+    // could drift back into the cockpit the next time someone touches the grid.
+    await open(page, LIVE);
+    expect(await page.isHidden('#hd-tz'), 'it must be visible in Sessions').toBe(false);
+    await page.evaluate(() => document.body.removeAttribute('data-view'));
+    await page.waitForTimeout(120);
+    expect(await page.isHidden('#hd-tz'),
+      'the rotation must NOT render in the cockpit — that view is the live feed').toBe(true);
   });
 
   test('★ live now and next are both named', async ({ page }) => {
@@ -125,6 +144,10 @@ test.describe('v1547 — the rotation, in the console', () => {
       });
     });
     await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+    // v1589 — this test builds its OWN routes instead of using open(), so it never got the
+    // Sessions view the helper now sets — and the panel (with its ↻ button) is display:none in the
+    // cockpit. The click timed out on an invisible button for 3 minutes before failing.
+    await page.evaluate(() => document.body.setAttribute('data-view', 'sessions'));
     await page.waitForTimeout(700);
     const before = n;
     await page.click('#tz-refresh');
@@ -137,6 +160,10 @@ test.describe('v1547 — the rotation, in the console', () => {
     await open(page, { current: 'Travincal', ts: Date.now() });
     const txt = (await page.textContent('#tz-body')) || '';
     expect(txt).toContain('Travincal');
-    expect(txt, 'an unknown next is named as unknown, not left blank').toContain('(unknown)');
+    // v1585 — the wording changed on purpose and the INTENT is unchanged: an absent NEXT must be
+    // NAMED, never left blank. It used to say "(unknown)", which was true and read like a broken
+    // panel — the upstream really does return next:"" for part of every slot, so this is a normal
+    // state, not a fault. It now says which of the two it is.
+    expect(txt, 'an absent next must be named, not left blank').toContain('not published yet');
   });
 });
