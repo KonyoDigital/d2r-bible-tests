@@ -2099,3 +2099,38 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Lesson, generalised:** *a reference to a name nothing produces is checkable without running
   anything.* Where a defect class is mechanical, automate it — an intention that depends on someone
   remembering to look has already failed once by the time you notice it.
+
+## REG-096 — five ownership changes never repainted the surfaces that show ownership (2026-08-02)
+
+- **Symptom:** un-own an item, clear the unsorted dock, run a full reset, or log an intake — and the
+  grail meter, the hero card, the boss cards, the calculator and both forge tallies kept showing the
+  PRE-change picture until something unrelated happened to repaint them. Same family as the v1594
+  chronicle-apply staleness and the tooltip complaint before it.
+- **Caught by:** sweeping `typeof X === 'function'` guards for names declared nowhere — the
+  REG-083/087 detector pointed at symbols instead of DOM ids.
+- **Root cause:** all five sites ended with `if (typeof renderAll === 'function') renderAll();`.
+  **There is no `renderAll` in this app and there never was** — the name is declared nowhere, so
+  every one of those guards was permanently false. They were not merely dead code: each site MUTATES
+  `owned`, and the repaints they DID run (`renderVault` / `refreshOpenCard` / `renderJournal`) cover
+  the vault and the journal only. The intended repaint of everything else simply never existed.
+- **Why it hid for so long:** the guard reads as defensive, and the app never errored — it just
+  showed a stale number. `typeof X === 'function'` on a name that exists nowhere is indistinguishable
+  at a glance from the same guard on a function that is merely loaded later.
+- **Fix:** `window._repaintOwned()` — the EXACT six painters `toggleOwned()` already runs for the
+  same kind of change, so un-owning now costs what ticking costs and no new performance profile is
+  introduced. Each painter is individually try-guarded: the state change has already happened by
+  then, and a repaint that aborts halfway leaves a worse picture than none — half the surfaces
+  updated, half stale, nothing saying so.
+- **Second promise, same shape:** `window.cycleIntakeLogger` read
+  `(typeof uiPrompt === 'function') ? await uiPrompt(...) : prompt(...)`. `uiPrompt` was declared
+  nowhere, so the app's only type-in dialog always raised the OS-native white box that `uiConfirm`
+  was written in v341.41 to replace. `uiPrompt` now exists, reusing the `.ui-confirm` skin (two
+  dialog themes is how one of them ends up looking foreign after a palette change). Esc resolves
+  **null**, not `""` — `setIntakeLogger` coerces empty to "Konyo", so an empty string on cancel would
+  have silently renamed the logger instead of leaving it alone.
+- **Prevention:** `tests/v1599_kept_promises.spec.ts` — 7 tests that assert the repaint actually
+  reaches its painters (a stub that does nothing would pass a `typeof` check, which is the same
+  defect one layer up), that a throwing painter cannot stop the rest, and that the prompt focuses,
+  resolves what was typed, cancels to null and leaves no orphaned overlay.
+- **Lesson:** *a `typeof` guard is only defensive if the name exists somewhere.* When it does not, it
+  is a promise nobody kept — and it is invisible precisely because the surrounding code still works.

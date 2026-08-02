@@ -515,6 +515,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .ui-confirm-ov.on .ui-confirm{transform:none}
 .ui-confirm-ic{font-size:30px;line-height:var(--lh-none);margin-bottom:9px;filter:drop-shadow(0 0 10px rgba(240,192,96,.5))}
 .ui-confirm-msg{font-size:14px;line-height:var(--lh-normal);color:var(--text,#e8dcc0);margin-bottom:18px}
+/* v1599 — the input for uiPrompt. Rides the .ui-confirm skin on purpose (one dialog theme,
+   not two that drift). Gold focus ring matches every other focusable surface in the app. */
+.ui-prompt-input{width:100%;box-sizing:border-box;margin:0 0 18px;padding:10px 12px;font:var(--fw-normal) 14px/1.4 inherit;color:var(--text,#e8dcc0);background:rgba(0,0,0,.42);border:1px solid var(--border-light,#4a3f2a);border-radius:8px;outline:none}
+.ui-prompt-input:focus{border-color:var(--gold-bright,#f0c060);box-shadow:0 0 0 2px rgba(240,192,96,.22)}
 .ui-confirm-msg b{color:var(--gold-bright,#f0c060)}
 .ui-confirm-row{display:flex;gap:10px;justify-content:center}
 .ui-confirm-btn{cursor:pointer;font-family:inherit;font-size:var(--fs-body);font-weight:var(--fw-semibold);letter-spacing:var(--ls-tight);border-radius:9px;padding:9px 22px;transition:filter .14s,transform .1s,box-shadow .14s}
@@ -14667,6 +14671,60 @@ window.uiConfirm = function(message, opts){
   });
 };
 
+// v1599 — uiPrompt: the sibling uiConfirm has had since v341.41, finally written.
+//
+// window.cycleIntakeLogger has always read `(typeof uiPrompt === 'function') ? await uiPrompt(...)
+// : prompt(...)`. uiPrompt was declared NOWHERE, so that ternary always took the second branch and
+// raised the OS-native prompt box — the exact white box uiConfirm exists to replace, in the one
+// dialog that asks Konyo to TYPE something. The guard was not defensive; it was a promise nobody
+// kept, and it read as one because `prompt()` does work.
+//
+// Deliberately reuses the .ui-confirm CSS rather than adding a parallel theme: two dialog skins
+// that must be kept in visual sync is how one of them ends up looking foreign after a palette
+// change. Same contract as uiConfirm — Esc/backdrop cancel (resolve null, which the caller already
+// checks with `if (nm != null)`), Enter accepts.
+window.uiPrompt = function(message, initial, opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    var esc = function(t){ return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    var ov = document.createElement('div');
+    ov.className = 'ui-confirm-ov';
+    ov.innerHTML = '<div class="ui-confirm" role="dialog" aria-modal="true">'
+      + '<div class="ui-confirm-ic">' + (opts.icon || '✏️') + '</div>'
+      + '<div class="ui-confirm-msg">' + esc(message).replace(/\n/g,'<br>') + '</div>'
+      + '<input class="ui-prompt-input" type="text" value="' + esc(initial) + '" '
+      + 'autocomplete="off" spellcheck="false" aria-label="' + esc(message) + '">'
+      + '<div class="ui-confirm-row">'
+      + '<button class="ui-confirm-btn ui-confirm-cancel">' + esc(opts.cancel || 'Cancel') + '</button>'
+      + '<button class="ui-confirm-btn ui-confirm-ok">' + esc(opts.ok || 'OK') + '</button>'
+      + '</div></div>';
+    var inp = ov.querySelector('.ui-prompt-input');
+    var done = false;
+    function close(val){
+      if (done) return; done = true;
+      ov.classList.remove('on');
+      document.removeEventListener('keydown', onKey);
+      setTimeout(function(){ try { ov.remove(); } catch(e){} }, 180);
+      resolve(val);
+    }
+    // Enter accepts from anywhere in the dialog, INCLUDING the input — a text field that swallows
+    // Enter is the small thing that makes a themed dialog feel worse than the native one it replaced.
+    function onKey(e){
+      if (e.key === 'Escape'){ e.preventDefault(); close(null); }
+      else if (e.key === 'Enter'){ e.preventDefault(); close(inp ? inp.value : null); }
+    }
+    ov.addEventListener('click', function(e){ if (e.target === ov) close(null); });
+    ov.querySelector('.ui-confirm-cancel').onclick = function(){ close(null); };
+    ov.querySelector('.ui-confirm-ok').onclick = function(){ close(inp ? inp.value : null); };
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){
+      ov.classList.add('on');
+      try { inp.focus(); inp.select(); } catch(e){}
+    });
+  });
+};
+
 // ═══ v113/v115 Warlock bind-aura logos — "what to look for" on a bound demon ═
 // v115: swapped the static PNGs for the ANIMATED aura gifs cryptography posted on
 // the diablo2.io /skills/ threads (each curl-confirmed → 200 image/gif, ~8 MB) so
@@ -17049,7 +17107,7 @@ window.toggleStarred = function(name) {
       if (typeof persist === 'function') persist();
     }
   }
-  if (typeof renderAll === "function") renderAll();
+  window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
   if (typeof renderWishlistHuntPath === "function") renderWishlistHuntPath();
   if (typeof renderHero === "function") renderHero();
 };
@@ -18068,6 +18126,31 @@ function toggleStar(name) {
   renderCalc();
   renderGrailProgress();
 }
+// v1599 — THE ONE REPAINT FOR AN OWNERSHIP CHANGE.
+//
+// Five places used to end with `if (typeof renderAll === 'function') renderAll();`. There is no
+// renderAll in this app and there never was — the name is declared NOWHERE, so all five guards were
+// permanently false (the REG-083/087 shape). They were not merely dead: each of those five sites
+// MUTATES `owned`, and the specific repaints they do run (renderVault / refreshOpenCard /
+// renderJournal) cover the vault and the journal only. The grail meter, the hero, the boss cards,
+// the calculator and both forge tallies kept showing the pre-change picture until something else
+// happened to repaint them — which is the "it still shows the old thing" complaint class, the same
+// one v1594 fixed for the chronicle apply.
+//
+// This is EXACTLY the set toggleOwned() already runs for the same kind of change, so it introduces
+// no new cost profile: un-owning an item now costs what ticking one costs. Each call is guarded
+// individually because two of the six live on `window` from a later script block, and a repaint
+// that throws must never take the surrounding operation (the delete, the reset, the intake) with
+// it — the state change is the part that matters.
+window._repaintOwned = function _repaintOwned() {
+  try { if (typeof renderHero === 'function') renderHero(); } catch (e) {}
+  try { if (typeof renderBossCards === 'function') renderBossCards(); } catch (e) {}
+  try { if (typeof renderCalc === 'function') renderCalc(); } catch (e) {}
+  try { if (typeof renderGrailProgress === 'function') renderGrailProgress(); } catch (e) {}
+  try { if (typeof window.renderForgeUni === 'function') window.renderForgeUni(); } catch (e) {}
+  try { if (typeof window.renderForgeSets === 'function') window.renderForgeSets(); } catch (e) {}
+};
+
 function toggleOwned(name) {
   // v677 — grail items live in the FOUND LEDGER (d2r_foundLog), never the vault: a chronicle tick
   // is knowledge, not possession (Konyo throws most finds away). Non-grail labels (socketed bases,
@@ -29902,7 +29985,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { owned.delete(name); } catch(e){}
     delete assign[name];
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
-    try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
+    window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🗑 "'+name+'" removed from owned — if that was wrong, re-✓ it on its item card');
   };
   // v342.3 — throw out a Magic & Rare keeper (rolled-name item; lives in magicFinds, not grail `owned`)
@@ -30549,7 +30632,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
     unsorted.forEach(function(name){ try{ owned.delete(name); }catch(e){} delete assign[name]; });
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
-    try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
+    window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🗑 cleared '+unsorted.length+' unsorted item'+(unsorted.length===1?'':'s')+' from the dock');
   };
   window.vaultAddMule = function(){
@@ -30995,7 +31078,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (typeof window._vUnlinkFolder === 'function') await window._vUnlinkFolder(); } catch(e){}
     try { renderJournal(); } catch(e){}
     try { renderVault(); } catch(e){}
-    try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
+    window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🧹 full reset — 0 owned, folder unlinked, blank start');
   };
   // v342.25 — LIGHT reset: wipe ONLY the seen-files scan ledger (d2r_intakeSeen) so the folder
@@ -31593,7 +31676,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     journalAdd(logged, perFile);
     try { var _promoted=(typeof window._promoteUnknownBases==='function')?window._promoteUnknownBases():[]; if(_promoted.length && typeof window._grailToast==='function') window._grailToast('🧰','<b>'+_promoted.length+'</b> read'+(_promoted.length>1?'s':'')+' promoted to forge bases',_promoted.join(', ')); } catch(e){}   // v631 · v1576 — was `typeof toast`, a name declared NOWHERE in the file: the guard was permanently false and this promotion never once announced itself. The real toast is window._grailToast(ico,main,sub).
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
-    try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
+    window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     // v342.7 — fixed-format, scrollable, ORGANIZED report card with a grand TOTAL (Konyo: "fixed format
     // on the bottom … scrollbar … total of registered items also not just each section").
     // v349 — rarity colour + #arttip hover (image+description) on every name in the report body.
@@ -36958,7 +37041,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1598', name:'v1598 - LAW19 becomes a gate', date:'2026-07-31', note:'removed ~680 versions of unreachable shelf render code and three phantom-id fallbacks; every DOM id READ must now be WRITTEN in the same document, enforced by tv/test_reachability.py' };
+  window.D2R_BUILD = { id:'v1599', name:'v1599 - kept promises', date:'2026-07-31', note:'five renderAll guards were permanently false and left the grail meter, hero, boss cards, calculator and both forge tallies stale after every un-own, clear, reset and intake - now one real repaint; uiPrompt written at last so the one type-in dialog stops raising the OS-native white box' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1598",
+  "ver": "v1599",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1598: removed ~680 versions of unreachable shelf render code and three phantom-id fallbacks; every DOM id READ must now be WRITTEN in the same document, enforced by tv/test_reachability.py",
+  "note": "v1599: five renderAll guards were permanently false and left the grail meter, hero, boss cards, calculator and both forge tallies stale after every un-own, clear, reset and intake - now one real repaint; uiPrompt written at last so the one type-in dialog stops raising the OS-native white box",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
