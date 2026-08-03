@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1618",
+  "ver": "v1619",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1618: the item tooltip is now synced to the boards own card - same mono title, same greys, same green range pills, same frame - with sizes lifted to the consoles 13px floor so it stays readable",
+  "note": "v1619: THE NEXT PIECE had only ever been wired to a storage event so it never painted on a cold open - the uniques hero was on the open line since v1378 and its twin never was",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

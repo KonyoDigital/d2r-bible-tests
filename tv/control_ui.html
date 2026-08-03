@@ -9566,6 +9566,17 @@
     _shellLight('session');
     try { hubMeter(); } catch(e){}
     try { hubNextGrail(); } catch(e){}   // v1378 — load the EV-rank hero when the flagship opens
+    /* v1619 — AND ITS TWIN. Konyo: "now i dont see the griswald shield.. under the grail in
+       sessions.. we had them both sections there.. for sets and uniques where did it go?"
+
+       hubNextSet has existed since v1570 but was never added to this line. Its ONLY callers were
+       _hubResync (which fires on a storage EVENT) and the chronicle-apply path — so THE NEXT PIECE
+       painted just when the board happened to rewrite d2r_setFarm while the console was already
+       open, and never on simply opening Sessions. That is why it looked intermittent rather than
+       broken, and why restarting his PC made it vanish: a fresh boot has no storage event to ride.
+       The uniques hero was on this line from v1378 and so always appeared, which is exactly why
+       the missing twin read as "it disappeared" instead of "it never loaded". */
+    try { hubNextSet(); } catch(e){}
     // v1589 — the rotation card only lives here now and does not poll while off screen, so ask
     // once on the way in rather than showing him whatever was true when he last looked.
     try { if (typeof window._tzRefresh === 'function') window._tzRefresh(); } catch(e){}
