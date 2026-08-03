@@ -501,10 +501,6 @@ class TestSessionsOnly(unittest.TestCase):
         self.assertIn("window._tzRefresh()", ui, "showSessions must actually call it")
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
-
 class TestKnownBadArtStaysNamedAndSmall(unittest.TestCase):
     """An exception list is only honest while it is short and every entry says why.
 
@@ -533,3 +529,6 @@ class TestKnownBadArtStaysNamedAndSmall(unittest.TestCase):
             self.assertIn(k, keys,
                           "%s is excused but no zone uses that art key any more — delete the "
                           "exception" % k)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
