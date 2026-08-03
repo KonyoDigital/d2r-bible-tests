@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1613",
+  "ver": "v1614",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1613: every name Sessions shows him is now a link to the thing it names — grail hero to the item card, TZ boss zones to the boss run, task-force ledgers to their own tab, open-Forge chips to the Forge",
+  "note": "v1614: the six header tabs and the six MINI focuses now carry real sprites extracted from the local D2R install instead of system emoji, and the lit tab is legible again",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

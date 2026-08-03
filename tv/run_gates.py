@@ -66,6 +66,11 @@ GATES = [
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),
+    Gate("ui_icons", [sys.executable, os.path.join(HERE, "extract_ui_icons.py"), "--check"], 60,
+         why="v1614 — every console tab and MINI focus icon is present in art/. The icons are "
+             "committed PNGs; this proves none was deleted or renamed out from under the HTML, "
+             "which fails SILENTLY: each <img> carries onerror=this.remove(), so a missing file "
+             "leaves a tidy label with no picture rather than anything that looks broken"),
     Gate("test_reachability", [sys.executable, os.path.join(HERE, "test_reachability.py")], 120,
          why="LAW19 as a gate, not an intention — BOTH halves. Every DOM id READ must be WRITTEN "
              "in the same document, and every `typeof X === function` guard must name a symbol "

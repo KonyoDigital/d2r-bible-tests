@@ -3891,7 +3891,12 @@ class TestNoOrphanSuite(unittest.TestCase):
         import run_gates
         missing = []
         for g in run_gates.GATES:
-            target = g.argv[-1]
+            # v1614 — the last argv element is not always the file. A gate may pass a FLAG
+            # (`extract_ui_icons.py --check`), and reading argv[-1] blindly reported the flag
+            # itself as a missing file: a true guard failing on correct configuration, which is
+            # the kind of red that teaches people to ignore the gate. Take the last argument that
+            # is not an option instead.
+            target = next((a for a in reversed(g.argv) if not a.startswith("-")), g.argv[-1])
             if not os.path.isfile(target):
                 missing.append("%s -> %s" % (g.name, os.path.relpath(target, repo)))
         self.assertEqual(missing, [], "gates point at files that do not exist:\n  "

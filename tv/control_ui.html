@@ -2333,6 +2333,10 @@
   .hd-tz { display: none; }
   body[data-view="sessions"] .hd-tz { display: block; grid-column: 1 / -1; }
   .hd-tz .hd-h { font: var(--fw-bold) var(--fs-sm)/1 var(--serif); letter-spacing: .2em; }
+  /* v1614 — the TZ glyph is a wide, flat shape (83x70), so it is sized by HEIGHT and left free in
+     width; forcing it square would letterbox it inside its own box and shrink it below legibility. */
+  .hd-h .hd-h-i { height: 17px; width: auto; object-fit: contain; vertical-align: -3px;
+    margin-right: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
   .hd-tz .hd-h .hd-sub { letter-spacing: .12em; }
   /* full width means the two rows can sit side by side instead of stacking */
   @media (min-width: 900px) {
@@ -2493,6 +2497,13 @@
   .mini-foc .mf:hover { border-color: rgba(240,192,96,.5); color: #e8d9a8; }
   .mini-foc .mf.on { border-color: rgba(240,192,96,.7); background: rgba(240,192,96,.14);
     color: #f0c060; }
+  /* v1614 — each focus wears the item MINI is about to read. Unselected focuses sit at .7 so the
+     chosen one is the brightest thing in the row; the picture reinforces the pick, it does not
+     compete with the gold border that carries it. */
+  .mini-foc .mf .mf-i { width: 16px; height: 16px; object-fit: contain; vertical-align: -3px;
+    margin-right: 4px; opacity: .7; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+  .mini-foc .mf:hover .mf-i { opacity: .92; }
+  .mini-foc .mf.on .mf-i { opacity: 1; filter: brightness(1.15) drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
   .tz-acts { opacity: .72; font-weight: var(--fw-medium); cursor: help;
     border-bottom: 1px dotted currentColor; }
   .tz-verdict { margin-left: 8px; padding: 2px 9px; border-radius: 999px; flex: none;
@@ -3552,6 +3563,17 @@
   .head-tabs .ht.shell-on { color: #1a1206; background: linear-gradient(180deg, var(--gold-hi), var(--gold-antique));
     border-color: var(--gold-hi); box-shadow: 0 0 12px rgba(240,192,96,.3); opacity: 1 !important; }
   .head-tabs .ht:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6); }
+  /* v1614 — the extracted quest medallion that replaced each tab's emoji.
+     `vertical-align:-3px` rather than a flex row on .ht: the button is `white-space:nowrap` with a
+     single text node, and turning it into a flex container would break the `:active` translate and
+     the nowrap sizing that the six-tab strip depends on at narrow widths.
+     The lit tab inverts to near-black, where a dark medallion would disappear into its own
+     background — so the ON state lifts brightness rather than dimming it further. */
+  .head-tabs .ht .ht-i { width: 18px; height: 18px; object-fit: contain; vertical-align: -3px;
+    margin-right: 3px; opacity: .88; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+  .head-tabs .ht:hover .ht-i { opacity: 1; }
+  .head-tabs .ht.shell-on .ht-i { opacity: 1; filter: brightness(1.25) contrast(1.08) drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+  @media (max-width: 900px){ .head-tabs .ht .ht-i { width: 15px; height: 15px; vertical-align: -2px; } }
   .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .55; font-size: var(--fs-xs); padding: 7px 9px; }   /* v905 — the main four lead */
   /* v911 — one continuous motion between surfaces */
   .shell { animation: shellIn .32s ease; }
@@ -3600,13 +3622,23 @@
                aria-label="name this machine" placeholder="name this machine">
         <!-- v881 (Konyo #47: 'tabs structured properly, easily navigatable — the title is
              pointless, this is an engine console') — the 5 board tabs ARE the header -->
+        <!-- v1614 — REAL GAME ART, NOT SYSTEM EMOJI. Konyo: "the logo images should be ART0R also
+             for the tabs themselves not these emojis.. needs to be HD art0r extracted from the
+             local 28giga game we did this for other things just needs to be replicated also here".
+             These six are the game's own quest medallions, pulled from the local CASC install by
+             tv/extract_ui_icons.py — one family, one frame, so the strip reads as a set; four are
+             literal name matches (Hell's Forge -> Forge, Tools of the Trade -> Tools, Terror's End
+             -> TV·D, Lam Esen's Tome -> the session log). The emoji they replace were never game
+             art and rendered as a different glyph on every machine he owns.
+             onerror strips a broken icon rather than leaving a torn placeholder next to the label:
+             the WORD is the tab, the picture is the ornament, and the tab must survive without it. -->
         <nav class="head-tabs" id="head-tabs">
-          <button class="ht" type="button" data-tab="session">⚡ Sessions</button>
-          <button class="ht" type="button" data-tab="forge">🔨 Forge</button>
-          <button class="ht" type="button" data-tab="funi">🏆 F·Uniques</button>
-          <button class="ht" type="button" data-tab="fsets">🧩 F·Sets</button>
-          <button class="ht" type="button" data-tab="tools">🧰 Tools</button>
-          <button class="ht" type="button" data-tab="tvd">📺 TV·D</button>
+          <button class="ht" type="button" data-tab="session"><img class="ht-i" src="/art/ui_tab_session.png" alt="" onerror="this.remove()"> Sessions</button>
+          <button class="ht" type="button" data-tab="forge"><img class="ht-i" src="/art/ui_tab_forge.png" alt="" onerror="this.remove()"> Forge</button>
+          <button class="ht" type="button" data-tab="funi"><img class="ht-i" src="/art/ui_tab_funi.png" alt="" onerror="this.remove()"> F·Uniques</button>
+          <button class="ht" type="button" data-tab="fsets"><img class="ht-i" src="/art/ui_tab_fsets.png" alt="" onerror="this.remove()"> F·Sets</button>
+          <button class="ht" type="button" data-tab="tools"><img class="ht-i" src="/art/ui_tab_tools.png" alt="" onerror="this.remove()"> Tools</button>
+          <button class="ht" type="button" data-tab="tvd"><img class="ht-i" src="/art/ui_tab_tvd.png" alt="" onerror="this.remove()"> TV·D</button>
         </nav>
       </div>
       <div class="head-right">
@@ -3773,7 +3805,11 @@
              is already at the bottom moves nothing. Konyo asked twice for this at the top;
              the CSS said yes and the page said no. Now it is first, in the right story. -->
         <div class="hd-col hd-wide hd-tz" id="hd-tz">
-          <div class="hd-h">🌀 TERROR ZONE <span class="hd-sub" id="tz-updated"></span></div>
+          <!-- v1614 — the game's OWN terror-zone glyph, extracted from
+               data\hd\global\ui\panel\waypoints\terror_zone_icon.sprite. This is the exact mark
+               D2R paints on his waypoint list, so the panel and the game now agree on what a
+               terror zone looks like — 🌀 was a spiral that meant nothing in particular. -->
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_tz.png" alt="" onerror="this.remove()"> TERROR ZONE <span class="hd-sub" id="tz-updated"></span></div>
           <!-- v1588 — NO EXPLANATORY PARAGRAPH. v1580 answered "why is this dimmed" with a
                standfirst that spelled out the ranking. Konyo: "i dont want this desription here..
                no description needed for it.. should be visually logicaly". He is right that a panel
@@ -8666,16 +8702,31 @@
      with the run it claims to describe. */
   // v1603 — the focus he last picked. Sent with the start and stamped into the reel.
   var _miniFocus = 'stash';
+  /* v1614 — the focus buttons wear the ITEM they are pointing the camera at.
+     The four physical categories take real item sprites (the Horadric Cube, a Ber rune, a perfect
+     ruby, an essence) because an item icon says "runes" more directly than any symbol could. The
+     two CHRONICLE focuses take their own board tab's medallion, which both reads at 18px and says
+     "this focus is that chronicle". All of it is CASC art from the local install —
+     tv/extract_ui_icons.py, which records the exact game path each one came from. */
   var MINI_FOCUS_LABEL = {
-    'stash': '🏦 stash', 'runes': '🪨 runes', 'gems': '💎 gems', 'materials': '🧪 materials',
-    'chronicle-uniques': '🏆 uniques', 'chronicle-sets': '🧩 sets'
+    'stash': 'stash', 'runes': 'runes', 'gems': 'gems', 'materials': 'materials',
+    'chronicle-uniques': 'uniques', 'chronicle-sets': 'sets'
+  };
+  var MINI_FOCUS_ART = {
+    'stash': '/art/ui_foc_stash.png', 'runes': '/art/hd_ber_rune.png',
+    'gems': '/art/hd_perfect_ruby.png', 'materials': '/art/hd_burning_essence_of_terror.png',
+    'chronicle-uniques': '/art/ui_tab_funi.png', 'chronicle-sets': '/art/ui_tab_fsets.png'
   };
   function _miniFocuses(list){
     var box = document.getElementById('mini-foc');
     if (!box || !list || !list.length) return;
     if (list.indexOf(_miniFocus) < 0) _miniFocus = list[0];
     box.innerHTML = list.map(function(f){
+      var art = MINI_FOCUS_ART[f];
+      // the engine owns this vocabulary, so a focus can arrive that has no art yet — it must still
+      // render as a working button, just without the picture
       return '<button type="button" class="mf' + (f === _miniFocus ? ' on' : '') + '" data-f="' + escC(f) + '">'
+        + (art ? '<img class="mf-i" src="' + art + '" alt="" onerror="this.remove()">' : '')
         + escC(MINI_FOCUS_LABEL[f] || f) + '</button>';
     }).join('');
   }
@@ -8689,7 +8740,7 @@
         x.classList.toggle('on', x === b);
       });
       var sub = document.getElementById('mini-sub');
-      if (sub) sub.textContent = (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus).replace(/^\S+\s/, '')
+      if (sub) sub.textContent = (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus)
         + ' · 25s, stops itself';
     });
   })();
@@ -8762,7 +8813,7 @@
           if (sub) {
             sub.textContent = emptyMini
               ? '⚠ sealed with 0 frames — nothing was captured'
-              : (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus).replace(/^\S+\s/, '')
+              : (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus)
                 + ' · 25s, stops itself';
           }
           if (_miniTimer) { clearInterval(_miniTimer); _miniTimer = null; }
@@ -10938,10 +10989,20 @@ body.shell-open #head-tabs .ht {
   position: relative;
   z-index: 2;
 }
+/* v1614 — THE LIT TAB WAS GOLD TEXT ON A GOLD GRADIENT.
+   Two rules were describing the same state and neither knew about the other. v945 lit the current
+   tab as near-black on a gold pill (`color:#1a1206` + a gold-gradient background). This block, added
+   later in a shell-open hotfix, re-set the COLOUR back to #f0c060 for a dark pill it assumed was
+   still there — but it never touched the background, so v945's gradient survived and the label
+   ended up gold on gold: computed rgb(240,192,96) over rgb(255,223,154)→rgb(200,162,74).
+   That is roughly 1.2:1. The one indicator that answers "which tab am I on" was the least legible
+   thing in the header, which is the same complaint as v1613's unobservable destination wearing a
+   different hat. The background wins because a lit pill should be the loudest thing in the strip;
+   the text goes dark to match it. */
 #head-tabs .ht.shell-on {
-  color: #f0c060;
-  border-color: rgba(240,192,96,.65);
-  box-shadow: 0 0 10px rgba(240,192,96,.25);
+  color: #1a1206;
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 12px rgba(240,192,96,.3);
   opacity: 1 !important;
 }
 /* Keep console subtree in the layout tree (no visibility:hidden). Only block pointer
