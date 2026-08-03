@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1617",
+  "ver": "v1618",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1617: every item the console names now shows its own HD art and opens the real in-game stat card - the next grail the next piece the daily pick and the ops queue - and the sets hero is clickable at last",
+  "note": "v1618: the item tooltip is now synced to the boards own card - same mono title, same greys, same green range pills, same frame - with sizes lifted to the consoles 13px floor so it stays readable",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

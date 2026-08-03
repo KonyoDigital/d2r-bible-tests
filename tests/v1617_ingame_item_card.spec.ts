@@ -209,3 +209,115 @@ test.describe('v1617 — the in-game card, everywhere an item is named', () => {
     expect(board, 'and the art has a size, or it renders full-bleed').toContain('.sc-ops-art{');
   });
 });
+
+// ── v1618 — SYNCED, NOT MERELY SIMILAR ────────────────────────────────────────────────────────
+// Konyo, with two screenshots of the board's own card: "why not copy this exact template for each?
+// i want a synced tooltip for these items ... no need to create a new one just sync the current
+// one". v1617 reproduced the board's STRUCTURE but styled it in the console's idiom — a big
+// uppercase serif name where the board uses a small mono one. Same facts, visibly different
+// object.
+//
+// This test compares the two cards' COMPUTED style, so "synced" is a measurement rather than an
+// opinion, and drifting one of them apart fails here instead of in a screenshot months later.
+test.describe('v1618 — the console card is the board card', () => {
+  test('★★★ the title, type and meta match bible.html #arttip computed-for-computed', async ({ page }) => {
+    // what the BOARD renders
+    await page.goto(BOARD); await page.waitForTimeout(2400);
+    const board = await page.evaluate(() => {
+      const mk = (cls: string, parent: any) => { const d = document.createElement('div'); d.className = cls; parent.appendChild(d); return d; };
+      const t = document.createElement('div'); t.id = 'arttip'; t.className = 'tip-rich';
+      document.body.appendChild(t);
+      // the real card nests the body in .att-desc (bible.html:22916) — att-type/meta/aff INHERIT
+      // its 10.5px from there, so measuring them as direct children of #arttip reads the page
+      // default instead and compares the console against a card the board never renders
+      const n = mk('att-name', t), desc = mk('att-desc', t);
+      const ty = mk('att-type', desc), me = mk('att-meta', desc), af = mk('att-aff', desc);
+      const g = (e: any) => { const c = getComputedStyle(e);
+        return { ff: c.fontFamily, fs: c.fontSize, fw: c.fontWeight, color: c.color }; };
+      const out = { name: g(n), type: g(ty), meta: g(me), aff: g(af),
+                    box: (() => { const c = getComputedStyle(t);
+                      return { radius: c.borderRadius, border: c.borderColor, maxW: c.maxWidth, align: c.textAlign }; })() };
+      t.remove(); return out;
+    });
+
+    // what the CONSOLE renders
+    await console_(page);
+    await page.evaluate(() => {
+      const n: any = document.querySelector('#hub-hero .hh-name');
+      (window as any)._itemTip.show(n); (window as any)._itemTip.move(300, 300);
+    });
+    const cons = await page.evaluate(() => {
+      const t: any = document.getElementById('itip');
+      const g = (sel: string) => { const e = t.querySelector(sel); if (!e) return null;
+        const c = getComputedStyle(e); return { ff: c.fontFamily, fs: c.fontSize, fw: c.fontWeight, color: c.color }; };
+      const c = getComputedStyle(t);
+      return { name: g('.itip-n'), type: g('.att-type'), meta: g('.att-meta'), aff: g('.att-aff'),
+               box: { radius: c.borderRadius, border: c.borderColor, maxW: c.maxWidth, align: c.textAlign } };
+    });
+
+    /* EVERYTHING EXCEPT SIZE IS IDENTICAL — family, weight-class, colour, alignment, radius.
+       Size is the one deliberate divergence: the board sets 10.5px/9.5px and the console has a
+       13px floor (v1504, Konyo's own "nothing important under ~12-13px at fullscreen", enforced by
+       TestV1504TypeFloor). Copying the board's px would honour his newer request by breaking his
+       older one, so the rule asserted here is NEVER SMALLER THAN THE BOARD — same card, legible. */
+    const px = (v: string) => parseFloat(v);
+
+    expect(cons.name!.ff, 'the board titles in mono; v1617 used the console serif').toBe(board.name.ff);
+    expect(cons.name!.color, 'unique gold, same hex').toBe(board.name.color);
+    expect(px(cons.name!.fs)).toBeGreaterThanOrEqual(px(board.name.fs));
+
+    expect(cons.type!.ff).toBe(board.type.ff);
+    expect(cons.type!.color, '#c9c9c9, the board\'s type-line grey').toBe(board.type.color);
+    expect(px(cons.type!.fs)).toBeGreaterThanOrEqual(px(board.type.fs));
+
+    expect(cons.meta!.color, '#8f8f8f').toBe(board.meta.color);
+    expect(px(cons.meta!.fs)).toBeGreaterThanOrEqual(px(board.meta.fs));
+
+    expect(cons.aff!.ff).toBe(board.aff.ff);
+    expect(cons.aff!.color, '#d8d8d8, the stat-line grey').toBe(board.aff.color);
+    expect(px(cons.aff!.fs)).toBeGreaterThanOrEqual(px(board.aff.fs));
+
+    // the hierarchy the board establishes must survive the size lift
+    expect(px(cons.name!.fs), 'the name still leads').toBeGreaterThan(px(cons.type!.fs));
+
+    // and the card itself is the board's object
+    expect(cons.box.radius).toBe(board.box.radius);
+    expect(cons.box.align).toBe(board.box.align);
+    expect(px(cons.box.maxW), 'a touch wider than 300px only because the type is larger')
+      .toBeLessThanOrEqual(px(board.box.maxW) + 40);
+
+    // nothing in the console card may fall under his floor
+    const floor = await page.evaluate(() => {
+      const t: any = document.getElementById('itip');
+      return Array.from(t.querySelectorAll('*')).map((e: any) => parseFloat(getComputedStyle(e).fontSize))
+        .filter((n: number) => n > 0);
+    });
+    expect(Math.min(...floor), 'v1504: nothing important under 13px').toBeGreaterThanOrEqual(13);
+  });
+
+  test('★★ the CSS block cannot silently die again', async ({ page }) => {
+    /* Writing this sync, a comment inside the rule contained a literal comment-terminator in the middle of a
+       CSS-variable name. It closed the comment early and killed the ENTIRE #itip block — the card
+       rendered its text completely unstyled, position:static, full page width, and the only reason
+       it was caught is that a screenshot came back black. A stylesheet that dies is silent. */
+    await console_(page);
+    const pos = await page.evaluate(() => {
+      const n: any = document.querySelector('#hub-hero .hh-name');
+      (window as any)._itemTip.show(n); (window as any)._itemTip.move(300, 300);
+      const c = getComputedStyle(document.getElementById('itip') as any);
+      return { position: c.position, maxWidth: c.maxWidth };
+    });
+    expect(pos.position, 'the rule block is alive').toBe('fixed');
+    expect(pos.maxWidth).not.toBe('none');
+    const ui = fs.readFileSync(path.join(REPO, 'tv', 'control_ui.html'), 'utf8');
+    const block = ui.slice(ui.indexOf('#itip { position: fixed'), ui.indexOf('#itip .itip-go'));
+    // A comment legitimately ENDS with the terminator, so its presence proves nothing — the real
+    // invariant is BALANCE. The bug produced one opener and two terminators, because a variable
+    // name inside the prose closed the comment a paragraph early.
+    const OPEN = '/' + '*', TERM = '*' + '/';
+    const opens = block.split(OPEN).length - 1, closes = block.split(TERM).length - 1;
+    expect(closes, `the #itip block has ${opens} comment opener(s) and ${closes} terminator(s) — ` +
+      'an extra terminator means a comment closed early and the rest of the rule is now garbage')
+      .toBe(opens);
+  });
+});
