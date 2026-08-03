@@ -924,6 +924,37 @@
     opacity: 0; transform: translateY(4px) scale(.98); transition: opacity .12s, transform .12s; }
   #rcpt-art.on { opacity: 1; transform: translateY(0) scale(1); }
   @media (prefers-reduced-motion: reduce){ #rcpt-art { transition: opacity .12s; transform: none; } }
+  /* ══ v1616 — THE ITEM IS THE POINT, SO SHOW THE ITEM ══════════════════════════════════════
+     Konyo, on the grail hero: "instead of this tooltip text it needs to have IMAGE HD ART ...
+     floating cursor of the item with descriptions just like the whole console is".
+     What he was looking at was a native `title=` — the OS's grey box, the one thing on this
+     console that does not look like this console. #itip is its replacement: ONE card, shared by
+     the grail hero and the Daily Pick, mirroring #rcpt-art's geometry (fixed, cursor-following,
+     pointer-events:none, same fade) so the console has one hover idiom rather than three.
+     Every colour is an existing token — the rarity classes MAP onto the palette (unique=gold,
+     set=mint, rare=pale gold, magic=info); no new hexes enter the file. */
+  #itip { position: fixed; z-index: 9999; pointer-events: none; max-width: min(340px, 84vw);
+    padding: clamp(10px,1vw,14px) clamp(12px,1.1vw,16px); border: 1px solid var(--gold-antique); border-radius: 10px;
+    background: linear-gradient(180deg, rgba(18,15,11,.985), rgba(10,9,7,.985));
+    box-shadow: 0 16px 46px rgba(0,0,0,.74);
+    opacity: 0; transform: translateY(4px) scale(.98); transition: opacity .12s, transform .12s; }
+  #itip.on { opacity: 1; transform: none; }
+  #itip .itip-art { display: block; width: clamp(66px,7vw,98px); height: auto; margin: 0 auto 9px; }
+  #itip .itip-n { font: var(--fw-bold) var(--fs-lg)/1.08 var(--serif); letter-spacing: .03em;
+    text-transform: uppercase; text-align: center; color: var(--gold); }
+  #itip .itip-n.r-set   { color: var(--mint); }
+  #itip .itip-n.r-rare  { color: var(--gold-hi); }
+  #itip .itip-n.r-magic { color: var(--info); }
+  #itip .itip-f { margin-top: 9px; display: grid; gap: 4px;
+    font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); color: var(--parch-dim); }
+  #itip .itip-f b { color: var(--parch); font-weight: var(--fw-semibold); }
+  #itip .itip-go { margin-top: 8px; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--muted); text-align: center; }
+  @media (prefers-reduced-motion: reduce){ #itip { transition: opacity .12s; transform: none; } }
+  /* the item's own art, INLINE in the title — it rotates with the item, so it is sized in `em`
+     and rides the line rather than sitting in a fixed box the next item would not fit */
+  .hh-i { height: 1.12em; width: auto; vertical-align: -.16em; margin-right: .4em; }
+  .tf-i-item { height: 1.25em; width: auto; vertical-align: -.24em; }
   /* the little 🔬 that opens the deep forensics from the AI-READS feed */
   .fx-open { margin-left: 9px; background: none; border: 1px solid var(--edge); color: var(--gold); border-radius: 7px;
     cursor: pointer; font-size: var(--fs-sm); line-height: 1; padding: 3px 6px; transition: border-color .15s, box-shadow .15s; }
@@ -4273,6 +4304,38 @@
     return u ? '<img class="' + (cls || 'hd-h-i') + '" src="' + u + '" alt="" loading="lazy" onerror="this.remove()">' : '';
   }
 
+  /* ══ v1616 — PER-ITEM ART IS DATA, NOT CONSOLE VOCABULARY ══════════════════════════════════
+     CONSOLE_ART above is the console's own icon vocabulary and stays the only place a CONSOLE
+     icon path is chosen. An ITEM's picture is a different kind of thing: Frostburn's art is a
+     fact about Frostburn, it rotates every time the hero re-ranks, and the console cannot know
+     the list — so it arrives from the board over the localStorage bridge (d2r_grailFarm /
+     d2r_setFarm entries carry `art` + `rarity`; the daily pick carries d2r_createNowAiArt),
+     exactly the way hdForge already reads runeword art out of d2r_forgeSummary (_chipArt).
+     No item art path is ever written as a literal in this file, and none may be.
+     Same onerror contract as artImg: a missing file removes the PICTURE and leaves the WORD. */
+  function _itemArtPath(url, name){
+    var u = String(url || '');
+    // bridge data, so it is treated as untrusted: same-origin relative art paths only — never a
+    // remote URL, never a javascript:/data: payload smuggled through localStorage.
+    var ok = function(p){ return /^\/?art\/[\w.\-\/]+\.(png|jpg|jpeg|webp)$/i.test(p); };
+    if (!ok(u)){
+      // SECOND WITNESS, not a guess: the board's own name→art manifest (D2IO_ART, 639 HD entries)
+      // is already mirrored into this document by thArtInit/thArt for the tally + card surfaces.
+      // Using it here means the hero and the tally chips resolve one item to ONE picture.
+      u = '';
+      try { if (name && typeof thArt === 'function') u = thArt(name) || ''; } catch(e){ u = ''; }
+      if (!ok(u)) return '';
+    }
+    return u.charAt(0) === '/' ? u : ('/' + u);
+  }
+  function _itemArtImg(url, cls, name){
+    var u = _itemArtPath(url, name);
+    // NO ART FOR THIS ITEM → NO PICTURE. Not a placeholder, not a fallback glyph, not a guess:
+    // the WORD survives on its own, and a wrong picture would be worse than none.
+    if (!u) return '';
+    return '<img class="' + (cls || 'hh-i') + '" src="' + esc(u) + '" alt="" loading="lazy" onerror="this.remove()">';
+  }
+
   var API = '';
   var busy = false;
   var showLog = false;
@@ -4553,6 +4616,103 @@
       hide: function(){ if (el){ el.classList.remove('on'); cur = ''; } }
     };
   })();
+  /* ══ v1616 — THE ITEM HOVER CARD ═══════════════════════════════════════════════════════════
+     ONE helper, deliberately: the grail hero and the Daily Pick both want "show me this item",
+     and v1613 had to go back and fix FOUR surfaces that had each grown their own routing. Two
+     hover cards would drift the same way inside a version.
+
+     It mirrors #rcpt-art (the console's existing cursor-following float) rather than inventing a
+     third idiom, and it mirrors the board's own #arttip in behaviour: fixed, follows the cursor,
+     flips/clamps at the viewport edge so it never falls off screen, pointer-events:none so it can
+     never eat the click on the thing it describes.
+
+     BINDING IS DELEGATED at the document, on purpose. Every surface that carries a card
+     (hub-hero, the task force) is repainted by innerHTML, so per-element listeners would be
+     re-attached on every repaint and a card whose anchor was destroyed mid-hover would never
+     receive its mouseout — a stale panel stranded on screen. The mousemove sweep re-decides from
+     the CURRENT DOM every time, which is exactly what _rcptBind already does for the frame float.
+
+     CONTENT IS ONLY WHAT IS ALREADY KNOWN for that item — art, name in its rarity colour, and the
+     facts the surface itself computed (where to hunt, the ETA, chronicle progress). Nothing is
+     derived, nothing is invented; it is the dead `title=` attribute's payload, rendered honestly.
+     No art path → the card renders WITHOUT a picture rather than a torn placeholder. */
+  var _itemTip = (function(){
+    var el = null, cur = null;
+    function ensure(){
+      if (el) return el;
+      el = document.createElement('div'); el.id = 'itip';
+      el.setAttribute('aria-hidden', 'true');   // the anchor carries the aria-label; this is decoration
+      document.body.appendChild(el); return el;
+    }
+    function build(d){
+      var rar = String(d.rarity || '').toLowerCase();
+      var rcls = (rar === 'set' || rar === 'rare' || rar === 'magic') ? (' r-' + rar) : '';
+      var facts = (d.facts || []).filter(function(f){ return f && f[0] && f[1]; })
+        .map(function(f){ return '<div>' + esc(String(f[0])) + ' <b>' + esc(String(f[1])) + '</b></div>'; })
+        .join('');
+      return _itemArtImg(d.art, 'itip-art', d.name)
+        + '<div class="itip-n' + rcls + '">' + esc(String(d.name || '')) + '</div>'
+        + (facts ? '<div class="itip-f">' + facts + '</div>' : '')
+        + (d.go ? '<div class="itip-go">' + esc(String(d.go)) + '</div>' : '');
+    }
+    return {
+      show: function(node){
+        if (!node) return this.hide();
+        var raw = node.getAttribute('data-itip'); if (!raw) return this.hide();
+        ensure();
+        if (cur !== raw){
+          cur = raw;
+          var d = null; try { d = JSON.parse(raw); } catch(e){ d = null; }
+          if (!d || !d.name){ return this.hide(); }
+          el.innerHTML = build(d);
+        }
+        el.classList.add('on');
+      },
+      move: function(x, y){
+        if (!el) return;
+        var pad = 18, w = el.offsetWidth || 300, h = el.offsetHeight || 180;
+        // flip to the cursor's left / above when the card would run off the edge, then clamp
+        var left = (x + pad + w > window.innerWidth - 8) ? (x - pad - w) : (x + pad);
+        var top  = (y + pad + h > window.innerHeight - 8) ? (y - pad - h) : (y + pad);
+        el.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
+        el.style.top  = Math.max(8, Math.min(top,  window.innerHeight - h - 8)) + 'px';
+      },
+      hide: function(){ if (el){ el.classList.remove('on'); cur = null; } },
+      /* teardown — no stray card left in the DOM (a spec can assert this, and a panel that
+         rebuilds the whole shell can call it) */
+      destroy: function(){ if (el && el.parentNode){ el.parentNode.removeChild(el); } el = null; cur = null; }
+    };
+  })();
+  window._itemTip = _itemTip;   // published for the same reason _hubNextGrail is: an unreachable seam is unchecked
+  (function _itipBind(){
+    try {
+      var last = { x: 0, y: 0 };
+      document.addEventListener('mousemove', function(e){
+        last.x = e.clientX; last.y = e.clientY;
+        var node = e.target && e.target.closest && e.target.closest('[data-itip]');
+        if (node){ _itemTip.show(node); _itemTip.move(e.clientX, e.clientY); }
+        else _itemTip.hide();
+      }, true);
+      // keyboard parity: the same surfaces are focusable buttons, so focus must open the card too
+      document.addEventListener('focusin', function(e){
+        var node = e.target && e.target.closest && e.target.closest('[data-itip]');
+        if (!node) return;
+        var r = node.getBoundingClientRect();
+        _itemTip.show(node); _itemTip.move(r.left + r.width / 2, r.bottom);
+      });
+      document.addEventListener('focusout', function(){ _itemTip.hide(); });
+      document.addEventListener('scroll', function(){ _itemTip.hide(); }, true);
+      window.addEventListener('blur', function(){ _itemTip.hide(); });
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape') _itemTip.hide(); });
+    } catch(e){ /* a hover affordance must never break the console it decorates */ }
+  })();
+
+  /* one builder for the anchor attributes, so the hero and the daily pick cannot describe the
+     same item two different ways. `facts` = [[label, value], ...] — falsy values drop out. */
+  function _itipAttr(d){
+    try { return ' data-itip="' + esc(JSON.stringify(d)) + '"'; } catch(e){ return ''; }
+  }
+
   // route into the bible board — grounding is CLIENT-SIDE via the board iframe's helpers; never a fake dossier
   function _routeReceipt(rtype, rtarget){
     if (!rtype || !rtarget) return; _rcptArt.hide();
@@ -4560,7 +4720,9 @@
     try {
       if (rtype === 'item'){
         var grounded = w && typeof w._aicIsGrailName === 'function' && w._aicIsGrailName(rtarget);
-        if (grounded && typeof w.setActiveItem === 'function'){ shellOpen('funi'); try { w.setActiveItem(rtarget); } catch(e){} }
+        // v1616 — the receipt route had the SAME defect the hero did: setActiveItem exists, so the
+        // guard always passed and the item was never opened. One helper now, so the two cannot drift.
+        if (grounded){ _hubOpenItem(rtarget); }
         else { shellOpen('tools'); if (w && typeof w._aicSeedFromName === 'function'){ try { w._aicSeedFromName(rtarget); } catch(e){} } }
       } else if (rtype === 'session'){ shellOpen('session'); try { if (typeof _sessionDossier === 'function') _sessionDossier(rtarget); } catch(e){} }
       else if (rtype === 'flag'){ shellOpen('tools'); }
@@ -4601,8 +4763,52 @@
   }
   window._hubGo = _hubGo;
 
-  // the grail hero's item -> the uniques chronicle, opened ON that item
-  window._hubGoItem = function(name){ if (name) _hubGo('funi', 'setActiveItem', name); };
+  /* ══ v1616 — ROUTE TO THE ITEM, NOT THE TAB ════════════════════════════════════════════════
+     Konyo: "for frostburn good that its routable but it doesnt really route me to the right
+     place.. it should be either the item itself."
+
+     THE EXACT DEFECT: v1613 called _hubGo('funi', 'setActiveItem', name). `setActiveItem` DOES
+     exist on the board — so `typeof w[fnName] === 'function'` passed every time, the call was
+     made, and the item still never opened, because setActiveItem alone does not switch to the
+     item's card, scroll it into view or highlight it. A guard that always passes is not a guard;
+     it is a comment that compiles. This is the LAW19 / tv/test_reachability.py bug class exactly,
+     and the reason the fix cannot be "another typeof check".
+
+     The board now publishes `d2rOpenItem(name)` — switchTab + setActiveItem + scrollIntoView +
+     highlight — and it RETURNS whether it actually landed. We use that return value: `false`
+     means the board does not know that name, and the honest response is to say so, not to leave
+     him on a tab wondering which of 403 uniques he was sent to look at. `setActiveItem` survives
+     ONLY as the fallback for an older board build that has no d2rOpenItem. */
+  function _hubOpenItem(name){
+    if (!name) return;
+    shellOpen('funi');
+    try {
+      var fr = document.getElementById('tvd-eng');
+      var n = 0, t = setInterval(function(){
+        n++;
+        var w = null; try { w = fr && fr.contentWindow; } catch(e){ w = null; }
+        try {
+          if (w && typeof w.d2rOpenItem === 'function'){
+            clearInterval(t);
+            var landed = false;
+            try { landed = w.d2rOpenItem(name); } catch(e){ landed = false; }
+            // an explicit false = the board looked and did not find it. Anything else (true, or an
+            // older build returning undefined) is taken at face value and left silent.
+            if (landed === false) toast('couldn’t locate ' + name + ' — opened the uniques chronicle instead', 4200);
+            return;
+          }
+          // older board build: no deep-link published. Do what it can do, and claim nothing.
+          if (w && typeof w.setActiveItem === 'function'){
+            clearInterval(t); try { w.setActiveItem(name); } catch(e){}
+            return;
+          }
+        } catch (e) { /* cross-document while the board boots */ }
+        if (n > 40){ clearInterval(t); toast('couldn’t locate ' + name + ' — the board pane isn’t ready', 4200); }
+      }, 80);
+    } catch (e) { /* routing must never throw into the panel that called it */ }
+  }
+  // the grail hero's item / the daily pick / a grounded receipt -> the uniques chronicle, opened ON that item
+  window._hubGoItem = function(name){ _hubOpenItem(name); };
   // a terror zone's boss -> the boss page, opened on the run itself
   window._hubGoBoss = function(id){ if (id) _hubGo('bosses', 'openBossDetail', id); };
 
@@ -10209,6 +10415,30 @@
       var fs = null, ai = '', led = [];
       try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
       try { ai = lsFork('d2r_createNowAi') || ''; } catch(e){}
+      /* v1616 — THE DAILY PICK NAMES AN ITEM, SO IT MUST SHOW IT AND LAND ON IT.
+         Konyo: "for daily pick the item tancred here should also have the same logic".
+         d2r_createNowAi is a free-text SENTENCE — the console cannot parse an item name out of
+         English prose without guessing, and a guess here routes him to the wrong card. So the
+         board publishes the resolved item alongside it: d2r_createNowAiArt = {name, art, rarity}.
+         Read fork-aware like every other bridge value. If it does not resolve, the row stays
+         EXACTLY as it is today — plain text, no cursor, no link to a name nobody knows. An
+         affordance that leads nowhere is worse than no affordance. */
+      var aiArt = null;
+      try { aiArt = JSON.parse(lsFork('d2r_createNowAiArt') || 'null'); } catch(e){}
+      if (!aiArt || !aiArt.name) aiArt = null;
+      // one description of the pick, so the hero form and the row form cannot say different things
+      var _aiTip = aiArt ? _itipAttr({
+        name: aiArt.name, art: aiArt.art || '', rarity: aiArt.rarity || 'unique',
+        facts: [['today’s pick', String(ai).slice(0, 90)]],
+        go: 'click to open it in the uniques chronicle'
+      }) : '';
+      var _aiGo = aiArt ? (' role="button" tabindex="0"'
+        + ' aria-label="daily pick: ' + esc(aiArt.name) + ' — open it in the uniques chronicle"'
+        + _aiTip
+        + ' onclick="window._hubGoItem(' + JSON.stringify(aiArt.name).replace(/"/g, '&quot;') + ')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+        + 'window._hubGoItem(' + JSON.stringify(aiArt.name).replace(/"/g, '&quot;') + ');}"') : '';
+      var _aiIcon = aiArt ? _itemArtImg(aiArt.art, 'tf-i tf-i-item', aiArt.name) : '';
       try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
       var rows = [];
       var nowList = (fs && fs.now) || [], oneList = (fs && fs.onestep) || [];
@@ -10227,12 +10457,14 @@
         hero = { g: '🎯', t: 'Hunt <b>' + esc(String(on0)) + '</b> — ' + (o0.sub === 'runes' ? 'one rune away' : o0.sub === 'base' ? 'one base away' : 'one step away'), tag: 'ONE STEP', cls: 'step' };
       } else if (ai){
         heroAi = true;
-        hero = { g: '✶', t: esc(String(ai).slice(0, 84)), tag: 'DAILY PICK', cls: 'ai' };
+        hero = { g: '✶', icon: _aiIcon, go: _aiGo, t: esc(String(ai).slice(0, 84)), tag: 'DAILY PICK', cls: 'ai' };
       } else if (fs && fs.grail && fs.grail.total && (fs.grail.total - (fs.grail.found || 0)) > 0){
         var gl = fs.grail.total - (fs.grail.found || 0);
         hero = { art: 'uniques', g: '🏆', t: 'Chase the Grail — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'GRAIL', cls: 'grail' };
       }
-      if (hero) rows.push('<div class="tf-row tf-hero tf-hero-' + hero.cls + '"><span class="tf-g">' + (hero.art ? artImg(hero.art, 'tf-i') : hero.g) + '</span><span class="tf-t">' + hero.t + '</span><span class="tf-tag tgt">' + hero.tag + '</span></div>');
+      // v1616 — `icon` (the item's OWN art, from the bridge) beats `art` (a CONSOLE_ART key) beats the glyph
+      if (hero) rows.push('<div class="tf-row tf-hero tf-hero-' + hero.cls + (hero.go ? ' tf-go' : '') + '"' + (hero.go || '')
+        + '><span class="tf-g">' + (hero.icon || (hero.art ? artImg(hero.art, 'tf-i') : hero.g)) + '</span><span class="tf-t">' + hero.t + '</span><span class="tf-tag tgt">' + hero.tag + '</span></div>');
       // READY — make-it-now wins (the hero already surfaced the first if it led with one)
       nowList.slice(heroNow ? 1 : 0, 3).forEach(function(rw){
         rows.push('<div class="tf-row tf-ready"><span class="tf-g">' + artImg('forge', 'tf-i') + '</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
@@ -10242,7 +10474,8 @@
       oneList.slice(heroOne ? 1 : 0, 2).forEach(function(t){
         rows.push('<div class="tf-row"><span class="tf-g">◈</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
       });
-      if (ai && !heroAi) rows.push('<div class="tf-row tf-ai"><span class="tf-g">✶</span><span class="tf-t">' + esc(String(ai).slice(0, 90)) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');
+      if (ai && !heroAi) rows.push('<div class="tf-row tf-ai' + (_aiGo ? ' tf-go' : '') + '"' + _aiGo
+        + '><span class="tf-g">' + (_aiIcon || '✶') + '</span><span class="tf-t">' + esc(String(ai).slice(0, 90)) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');
       // v1256 (Konyo: "what about my OTHER chronicles?") — MULTI-CHRONICLE PROGRESS context: runewords AND
       // grail uniques AND sets, steering the focus at the INCOMPLETE ones (where the hunt still is). Truthful
       // — a chronicle with no data (absent) omits its row.
@@ -10612,6 +10845,25 @@
       && _fastest.expectedHours != null && top.expectedHours != null
       && _fastest.expectedHours <= top.expectedHours * 0.7) ? _fastest : null;
     var hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
+    /* v1616 — THE TITLE CARRIES THE ITEM'S OWN ART. The ranker (/api/evrank) is pure and echoes
+       back only what it ranks, so the picture comes from the FARM payload the board published —
+       keyed by name, exactly the way hubNextSet already reads `set` and `left`. Resolved at render
+       time on purpose: the hero re-ranks every time he finds something or moves a slider, and a
+       hardcoded path would show Frostburn's gloves under Baranar's Star within one find. */
+    var _byName = {}; farm.forEach(function(f){ if (f && f.name) _byName[f.name] = f; });
+    var _meta = _byName[top.name] || {};
+    var _fsum = null; try { _fsum = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
+    var _gp = _fsum && _fsum.grail && _fsum.grail.total
+      ? (_fsum.grail.found || 0) + ' / ' + _fsum.grail.total + ' claimed' : '';
+    /* NO derived "difficulty" line here on purpose: the source string the board sends IS the
+       difficulty ("Hell Mephisto"), and re-deriving it would let the card disagree with the hero
+       line two pixels above it whenever the source is phrased differently. One fact, one source. */
+    var _tip = _itipAttr({
+      name: top.name || '', art: _meta.art || '', rarity: _meta.rarity || 'unique',
+      facts: [['hunt at', top.source || ''],
+              ['to your next find', hrs ? '≈ ' + hrs : ''], ['grail', _gp]],
+      go: 'click to open it in the uniques chronicle'
+    });
     host.className = 'hub-hero';
     host.innerHTML = '<div class="hh-main">'
       /* v1554 — "fastest FIND" overclaims. _writeGrailFarm exports GRAIL-tier items only, so this
@@ -10625,14 +10877,19 @@
       /* v1613 — the item name is a LINK now. It already knows which item it is; making him go
          find it in the chronicle was work the panel could do. The title carries what the hero
          computed (where to hunt, the ETA) so a hover answers "why this one?" without a click. */
+      /* v1616 — the native `title=` is GONE. It was the grey OS box in his screenshot: the one
+         surface on this console that did not look like this console. Its payload now renders in
+         #itip (art + rarity-coloured name + the same facts), and the accessible name it was
+         doubling as moved to aria-label, where it belongs. */
       + '<div class="hh-name hh-go" role="button" tabindex="0"'
-        + ' title="' + esc(top.name || '') + (top.source ? ' — hunt at ' + esc(top.source) : '')
+        + ' aria-label="' + esc(top.name || '') + (top.source ? ' — hunt at ' + esc(top.source) : '')
         + (hrs ? ' · about ' + esc(hrs) + ' to your next find' : '')
-        + '\nopen it in the uniques chronicle"'
+        + ' · open it in the uniques chronicle"'
+        + _tip
         + ' onclick="window._hubGoItem(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ')"'
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
         + 'window._hubGoItem(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ');}">'
-        + esc(top.name || '—') + '</div>'
+        + _itemArtImg(_meta.art, 'hh-i', top.name) + esc(top.name || '—') + '</div>'
       + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b>'
           + (_alt ? '<span class="hh-alt"> · quicker below Hell: ' + esc(_alt.name) + ' ≈'
               + esc(_hubHrs(_alt.expectedHours)) + '</span>' : '')
@@ -10680,7 +10937,11 @@
       + '<div class="hh-eye"><span class="hh-dot"></span>the next piece · '
         + (tier(top.source) === 2 ? 'fastest in hell · of ' + (hell.length || data.ranked.length)
                                   : 'fastest of ' + data.ranked.length) + '</div>'
-      + '<div class="hh-name">' + esc(top.name || '—') + '</div>'
+      /* v1616 — the twin wears the same art rule as the uniques hero (art comes from the d2r_setFarm
+         entry, resolved at render time). It is NOT made clickable: the set farm ranks an AGGREGATE
+         ("any piece of Tal Rasha"), so there is no single item card to land on — a link here would
+         promise a destination the data cannot name. */
+      + '<div class="hh-name">' + _itemArtImg(meta.art, 'hh-i', top.name) + esc(top.name || '—') + '</div>'
       + '<div class="hh-src">'
         + (setName ? 'completes <b>' + esc(setName) + '</b>'
             + (meta.left ? ' <span class="hh-alt">· ' + meta.left + ' piece' + (meta.left===1?'':'s') + ' left</span>' : '') : '')
@@ -10696,10 +10957,41 @@
      read that as 'the caption is missing'. A seam that only exists for one of two twins
      invites exactly that. */
   window._hubMeter = hubMeter;
-  // live refresh: the bridge rewrites d2r_grailFarm on grail found/unfound + MF/players change → re-rank.
+  /* ══ v1616 — THE HERO OBEYS THE SLIDERS ════════════════════════════════════════════════════
+     Konyo: "the MF finder on the bottom should be silopen synced ... for all forges and grails".
+
+     WHERE THE CONSOLE'S HALF OF THAT WAS BROKEN: this listener only fired on a key containing
+     'grailFarm'. Move the MF slider and the board rewrites d2r_mf (and d2r_players) — the console
+     heard nothing, so the flagship ETA kept quoting the ranking computed at the PREVIOUS MF while
+     the board's own numbers moved. Two screens, two answers, and nothing comparing them.
+
+     WHAT IS DELIBERATELY NOT DONE HERE: mf/players are NOT sent to /api/evrank. The ranker is
+     pure — _ev_hours consumes the per-run `dropChance` the board already computed through
+     effChance(), which has MF and /players baked in. Applying MF again server-side would be a
+     silent double-count in every ETA on the flagship. The console's job is to RE-ASK, not to
+     re-derive. (Verified against tv/control_app.py:_ev_hours — it takes no MF at all, correctly.)
+
+     DEBOUNCED because a slider DRAG writes on every tick: without it one drag = dozens of POSTs.
+     The in-flight _hubReq token already discards superseded replies, so a burst can never paint an
+     out-of-order answer; the debounce is about not making the burst. */
+  var _hubSyncT = null;
+  function _hubResync(){
+    if (_hubSyncT) clearTimeout(_hubSyncT);
+    _hubSyncT = setTimeout(function(){
+      _hubSyncT = null;
+      try { hubNextGrail(); } catch(e){}
+      try { hubNextSet(); } catch(e){}
+      try { hubMeter(); } catch(e){}
+      try { hdTaskForce(null); } catch(e){}
+    }, 260);
+  }
+  window._hubResync = _hubResync;
+  // live refresh: a grail found/unfound rewrites d2r_grailFarm; the MF% and /players sliders rewrite
+  // d2r_mf / d2r_players — all four change what the hunt SHOULD be, so all four re-rank.
   try { window.addEventListener('storage', function(e){ if (!e || !e.key) return;
-    if (e.key.indexOf('grailFarm') !== -1) hubNextGrail();
-    if (e.key.indexOf('setFarm') !== -1) hubNextSet(); }); } catch(e){}
+    var k = e.key;
+    if (k.indexOf('grailFarm') !== -1 || k.indexOf('setFarm') !== -1
+     || k.indexOf('d2r_mf') !== -1 || k.indexOf('d2r_players') !== -1) _hubResync(); }); } catch(e){}
   function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); hdEngines(st); hdTaskForce(st); hubMeter(); try { hdLivePulse(st); } catch(e){} try { hdKaiGate(st); } catch(e){} }
 
   // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it

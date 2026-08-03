@@ -146,10 +146,24 @@ test.describe('v1613 — every name on the hunt hub goes where it says', () => {
     expect(await hit('.tf-chron', 'Sets')).toBe('fsets');
     expect(await hit('#hd-forge-chips .hd-chip', 'open Forge')).toBe('forge');
 
-    // and the hero's tooltip answers the question the click is about to answer
-    const title = await page.evaluate(() =>
-      (document.querySelector('.hh-name') as any)?.getAttribute('title') || '');
-    expect(title).toContain('Frostburn');
-    expect(title, 'the tooltip should say where to hunt it, not just repeat the name').toMatch(/Mephisto/i);
+    // and the hero's tooltip answers the question the click is about to answer.
+    // v1616 — this assertion moved from `title=` to `data-itip`, and NOT to make it pass: the
+    // native title= was the grey OS box in Konyo's screenshot and was deliberately deleted in
+    // favour of the console-skinned floating card. The v1613 INTENT is unchanged and still
+    // enforced here — the hero must name the item and say where to hunt it BEFORE the click —
+    // it is only read off the surface that now carries it. Accessible-name parity is asserted
+    // too, so the payload cannot quietly vanish from assistive tech.
+    const tip = await page.evaluate(() =>
+      (document.querySelector('.hh-name') as any)?.getAttribute('data-itip') || '');
+    expect(tip, 'the hero must carry a hover payload, not a native title=').not.toBe('');
+    expect(tip).toContain('Frostburn');
+    expect(tip, 'the tooltip should say where to hunt it, not just repeat the name').toMatch(/Mephisto/i);
+    expect(await page.evaluate(() =>
+      (document.querySelector('.hh-name') as any)?.getAttribute('title')),
+      'the native OS tooltip must be gone — it is the one surface that did not look like the console').toBeFalsy();
+    const aria = await page.evaluate(() =>
+      (document.querySelector('.hh-name') as any)?.getAttribute('aria-label') || '');
+    expect(aria).toContain('Frostburn');
+    expect(aria, 'the accessible name must keep the where-to-hunt fact the title used to carry').toMatch(/Mephisto/i);
   });
 });

@@ -3532,7 +3532,7 @@ window._isCousinShell = !window._D2R_OWNER;
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -15615,7 +15615,14 @@ function _writeGrailFarm(){
         out.push({ name: item.n, source: best.boss, dropChance: 1 / best.chance, killsPerHr: best.kph,
                    hellSource: bestHell ? bestHell.boss : null,
                    hellDropChance: bestHell ? 1 / bestHell.chance : null,
-                   hellKillsPerHr: bestHell ? bestHell.kph : null });
+                   hellKillsPerHr: bestHell ? bestHell.kph : null,
+                   /* v1616 — THE ITEM IS THE POINT, SO SHIP THE ITEM'S FACE. The console is a
+                      separate document around an iframe and cannot read D2IO_ART, so the art
+                      travels on the bridge exactly like d2r_forgeSummary.art does (_chipArt).
+                      null when we genuinely have none — ~487 of the base_*.png are one identical
+                      corrupt placeholder, so a WRONG picture is worse than no picture. */
+                   art: (typeof artUrl === 'function' ? (artUrl(item.n) || null) : null),
+                   rarity: (typeof _artRarity === 'function' ? (_artRarity(item.n) || null) : null) });
     });
     var _new = JSON.stringify(out), _old = null;
     try { _old = LS.getItem('d2r_grailFarm'); } catch(e){}
@@ -15669,7 +15676,12 @@ function _writeSetFarm(){
                  source: src.boss, dropChance: 1 / adj, killsPerHr: src.kph || 100,
                  hellSource: bestHell ? bestHell.boss : null,
                  hellDropChance: bestHell ? 1 / bestHell.chance : null,
-                 hellKillsPerHr: bestHell ? bestHell.kph : null });
+                 hellKillsPerHr: bestHell ? bestHell.kph : null,
+                 /* v1616 — same art bridge as _writeGrailFarm. The PIECE's own art (that is the
+                    thing he is hunting); setArt is the aggregate's, for the set-level headline. */
+                 art: (typeof artUrl === 'function' ? (artUrl(miss[0].name) || null) : null),
+                 rarity: (typeof _artRarity === 'function' ? (_artRarity(miss[0].name) || null) : null),
+                 setArt: (typeof artUrl === 'function' ? (artUrl(st.name) || null) : null) });
     });
     var _new = JSON.stringify(out), _old = null;
     try { _old = LS.getItem('d2r_setFarm'); } catch(e){}
@@ -18859,6 +18871,103 @@ function renderAidCard(name, opts){
 }
 window.clearActiveItem = () => setActiveItem(null);
 
+/* ── v1616 — ONE PUBLISHED DEEP-LINK: window.d2rOpenItem(name) ───────────────────────────────
+   Konyo: "for frostburn good that its routable but it doesnt really route me to the right place".
+
+   Exactly right, and here is why. The console called setActiveItem(name) behind a
+   `typeof === 'function'` guard — and setActiveItem DOES exist, so the guard passed and the
+   console was told nothing was wrong. But setActiveItem only sets `activeItem` and shows
+   #active-item-bar; it never selects the item, never renders its card and never scrolls. He
+   landed on a TAB, not on the ITEM.
+
+   The behaviour that PROVABLY lands was already in this file four times over (item-grid tile
+   onclick, the best-source box, "jump to fastest", "jump to boss"): selectedItem + activeItem →
+   setActiveItem(name, bestBossId, bestDiffKey) → renderCalc()/renderDetail() → scrollIntoView on
+   #item-detail. It was never published, so the console could not call it. It is now.
+
+   HONEST RETURN VALUE: true ONLY when a real ITEMS entry resolved AND its card actually rendered.
+   The console needs a failure signal it can trust — being told `true` blind is how A1 shipped.
+   NEVER THROWS. setActiveItem is left byte-identical so older console builds keep degrading
+   gracefully into their current tab-only behaviour. */
+window.d2rOpenItem = function(name, opts){
+  try {
+    opts = opts || {};
+    var _list = (typeof ITEMS !== 'undefined' && Array.isArray(ITEMS)) ? ITEMS : (window.ITEMS || []);
+    if (!_list || !_list.length) return false;
+    var raw = String(name == null ? '' : name).trim();
+    if (!raw) return false;
+    var _match = function(q){
+      if (!q) return null;
+      var exact = _list.find(function(x){ return x && x.n === q; });
+      if (exact) return exact;
+      var lq = q.toLowerCase();
+      return _list.find(function(x){ return x && String(x.n).toLowerCase() === lq; }) || null;
+    };
+    // exact → trailing-parenthetical strip (the console passes "Frostburn (Gauntlets)") → case-insensitive
+    var item = _match(raw) || _match(raw.replace(/\s*\([^)]*\)\s*$/, '').trim());
+    // EXTRA_ITEMS are real owned items but have NO calculator card to land on — say so honestly
+    // rather than switching tabs and pretending. (They render via renderAidCard's codex path only.)
+    if (!item) return false;
+    var nm = item.n;
+
+    // best source = min expected hours at the CURRENT MF/players, through the existing seams
+    // (effChance/hoursFor) so the landing agrees with every other estimate in the app.
+    var best = null;
+    try {
+      (item.sources || []).forEach(function(s){
+        if (!s || !s.chance || s.blocked) return;
+        var adj = (typeof effChance === 'function') ? effChance(s.chance, s.bossId, s.diffKey) : s.chance;
+        if (!adj || adj <= 0) return;
+        var h = (typeof hoursFor === 'function') ? hoursFor(adj, 0.5, s.kph || 100) : null;
+        if (h === null || h === undefined) return;
+        if (!best || h < best.h) best = { h: h, bossId: s.bossId, diffKey: s.diffKey };
+      });
+    } catch(e){}
+
+    // ── the proven landing sequence (item-grid tile onclick, bible.html:18332) ──
+    try { selectedItem = nm; } catch(e){}
+    try { activeItem = nm; } catch(e){}
+    try {
+      if (typeof setActiveItem === 'function'){
+        if (best) setActiveItem(nm, best.bossId, best.diffKey); else setActiveItem(nm);
+      }
+    } catch(e){}
+    try { if (typeof switchTab === 'function') switchTab('calc'); } catch(e){}
+    try { if (typeof renderCalc === 'function') renderCalc(); } catch(e){}
+    try { if (typeof renderDetail === 'function') renderDetail(); } catch(e){}
+
+    // did the card GENUINELY render? that — not the name lookup — is what we report.
+    var det = null;
+    try { det = document.getElementById('item-detail'); } catch(e){}
+    var landed = !!(det && det.innerHTML && det.innerHTML.replace(/\s+/g, '').length > 40);
+
+    if (landed){
+      setTimeout(function(){
+        try {
+          var card = document.querySelector('#item-detail .aid-card') || det;
+          if (card){
+            card.scrollIntoView({behavior:'smooth', block:'start'});
+            // reuse the existing flash (CSS .search-match-highlight → @keyframes flashHl) so he
+            // SEES where he landed. Same 1.5s life as jumpToBossItem's row flash.
+            card.classList.add('search-match-highlight');
+            setTimeout(function(){ try { card.classList.remove('search-match-highlight'); } catch(e){} }, 1500);
+          }
+        } catch(e){}
+        // opt-in: also highlight the drop row on the bosses tab (the 'jump to boss' behaviour)
+        try {
+          if (opts.boss && best && best.bossId && typeof jumpToBossItem === 'function'){
+            switchTab('bosses');
+            setTimeout(function(){
+              try { document.getElementById(best.bossId)?.scrollIntoView(); jumpToBossItem(nm, best.bossId); } catch(e){}
+            }, 100);
+          }
+        } catch(e){}
+      }, 100);
+    }
+    return landed;
+  } catch(e){ return false; }
+};
+
 
 /* One terror-zone card. zi MUST stay the zone's index in TZ_ZONES (routing + tests key
    off data-zone-idx), so grouping is presentation-only — the card identity is unchanged. */
@@ -21605,6 +21714,7 @@ window.dailyCreateAi = function(force){
       else if (_rot && _rot.sealed){ window.LSR.setItem('d2r_createNowAi', '🏅 All chronicles sealed — runewords, grail & sets complete. Enjoy the spoils or hunt trades.'); }
       else { window.LSR.removeItem('d2r_createNowAi'); }
     } catch(e){ try{ window.LSR.removeItem('d2r_createNowAi'); }catch(e2){} }
+    try { window._syncCreateNowAiArt(); } catch(e){}     // v1616 — the DAILY PICK gets its item's face
     try { if(typeof window.renderCreateNow==='function') window.renderCreateNow(); } catch(e){}
     return;
   }
@@ -21612,8 +21722,61 @@ window.dailyCreateAi = function(force){
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
   fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing to make right now from my Top Picks and why. PRIORITISE an unmade RUNEWORD from snapshot.forge.makeNow — finishing runewords advances my Chronicle (snapshot.chronicle made/100) and a runeword outweighs a craft. Recommend a CRAFT (e.g. a caster amulet) ONLY if I have no makeable unmade runeword left. Once my Chronicle is complete it is naturally all crafts/items.',snapshot:snap})})
-    .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ window.LSR.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
+    .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ window.LSR.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} try{ window._syncCreateNowAiArt(); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
 };
+
+/* ── v1616 — THE DAILY PICK IS ABOUT AN ITEM, SO NAME THE ITEM AND SHIP ITS ART ──────────────
+   d2r_createNowAi is a free-text sentence ("Tancred's Hobn ...") and the console renders it as
+   prose. It cannot resolve art from prose: it is a separate document around an iframe and cannot
+   read D2IO_ART. So the board resolves it once, here, and publishes the companion key.
+
+   HONESTY: only when the sentence genuinely NAMES an item we know AND that item genuinely has
+   art. Otherwise the key is REMOVED, never filled with a guess — ~487 of art/base_*.png are one
+   identical corrupt placeholder, which is exactly why a wrong picture is worse than no picture.
+   Longest match wins so "Tal Rasha's Adjudication" never loses to a shorter substring. */
+window._syncCreateNowAiArt = function(){
+  try {
+    var txt = '';
+    try { txt = window.LSR.getItem('d2r_createNowAi') || ''; } catch(e){}
+    if (!txt){ try { window.LSR.removeItem('d2r_createNowAiArt'); } catch(e){} return; }
+    var names = [];
+    try { ((typeof ITEMS !== 'undefined' && Array.isArray(ITEMS)) ? ITEMS : (window.ITEMS || [])).forEach(function(x){ if (x && x.n) names.push(x.n); }); } catch(e){}
+    try { if (typeof ITEM_CODEX !== 'undefined' && ITEM_CODEX) names = names.concat(Object.keys(ITEM_CODEX)); } catch(e){}
+    try { if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS) names = names.concat(Object.keys(EXTRA_ITEMS)); } catch(e){}
+    /* SET PIECES ARE NOT IN ITEMS. ITEMS carries the AGGREGATE ("Tancred's Battlegear"); the pick
+       names the PIECE ("Tancred's Hobnails"), which only the sets registry knows — and the piece is
+       the thing with art. Measured: without this the exact sentence from his screenshot resolved to
+       nothing, because the aggregate has no art and the piece was not in the pool. */
+    try {
+      var _fs = (typeof window.fsetsScan === 'function') ? window.fsetsScan() : null;
+      if (_fs) Object.keys(_fs).forEach(function(k){
+        var v = _fs[k]; if (!Array.isArray(v)) return;
+        v.forEach(function(st){ ((st && st.pieces) || []).forEach(function(pc){ if (pc && pc.name) names.push(pc.name); }); });
+      });
+    } catch(e){}
+    var hit = null, best = 0;
+    for (var i = 0; i < names.length; i++){
+      var n = names[i];
+      if (!n || n.length < 6) continue;                       // guards junk/1-word base collisions
+      // set pieces are stored slot-suffixed ("Tancred's Hobnails (boots)") while the pick sentence
+      // names them plainly — match on the stripped alias but publish the CANONICAL name, so artUrl
+      // still resolves the entry the rest of the app knows.
+      var alias = n.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      var probe = (txt.indexOf(n) >= 0) ? n : ((alias.length >= 6 && txt.indexOf(alias) >= 0) ? alias : null);
+      if (!probe) continue;
+      if (probe.length > best){ best = probe.length; hit = n; }
+    }
+    if (!hit){ try { window.LSR.removeItem('d2r_createNowAiArt'); } catch(e){} return; }
+    var art = null, rar = null;
+    try { art = (typeof artUrl === 'function') ? (artUrl(hit) || null) : null; } catch(e){}
+    try { rar = (typeof _artRarity === 'function') ? (_artRarity(hit) || null) : null; } catch(e){}
+    if (!art){ try { window.LSR.removeItem('d2r_createNowAiArt'); } catch(e){} return; }   // no art > wrong art
+    var payload = JSON.stringify({ name: hit, art: art, rarity: rar });
+    var old = null; try { old = window.LSR.getItem('d2r_createNowAiArt'); } catch(e){}
+    if (payload !== old) window.LSR.setItem('d2r_createNowAiArt', payload);
+  } catch(e){}
+};
+try { setTimeout(function(){ try { window._syncCreateNowAiArt(); } catch(e){} }, 1700); } catch(e){}
 (function(){
   function inject(){
     var tools=document.getElementById('tab-tools');
@@ -23603,8 +23766,47 @@ function tzTrackerOnShow(){
 }
 window.tzTrackerOnShow = tzTrackerOnShow;
 
-$("mf").oninput = () => { mf = parseInt($("mf").value); persistSoon(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
-$("players").oninput = () => { players = parseInt($("players").value); persistSoon(); updatePlayers(); renderHero(); renderBossNav(); renderBossCards(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
+/* ── v1616 — THE SLIDERS NOW REACH EVERY ESTIMATE (ASK B) ───────────────────────────────────
+   Konyo: "this worked back in the day.. i just dont now when it stopped or what bugged it."
+
+   ARCHAEOLOGY, and the answer is uncomfortable: nothing ever broke.
+   `git log -S '$("mf").oninput' -- bible.html` returns exactly ONE commit — 8b0eb54, the initial
+   v41 lockdown — so these two handlers are the v41 originals, untouched for ~1575 versions. They
+   are a HAND-MAINTAINED render whitelist, and every estimate surface built after v41 (the
+   F-Uniques chronicle "Best runs" / "DO THIS ONE THING", the F-Sets chronicle, the Forge task
+   estimates, the d2r_setFarm + d2r_forgeSummary console bridges) was simply never added to it.
+   It felt like a regression because the surfaces he watches today are all post-v41 ones.
+
+   What was ALREADY fine and is deliberately untouched: persist() calls _writeGrailFarm(), and
+   both handlers call persistSoon() — so the UNIQUES console bridge already refreshed. What was
+   genuinely frozen: _writeSetFarm() ran ONLY from the boot timeout, so the console's SETS hero
+   was pinned to boot-time MF forever. That is fixed here.
+
+   ONE fan-out, every call guarded, so one missing function cannot kill the rest.
+   TIMER: persistSoon's idiom (module-level handle + setTimeout + null it) but TRAILING rather
+   than leading — a drag fires ~20 times and these renderers walk the whole item universe three
+   times over (funiScan/fsetsScan/forgeScan), so they must run once when the drag settles, not
+   four times a second.
+   HONESTY: not one number is recomputed here. Every surface goes back through the existing
+   effChance()/hoursFor()/adjustChance()/playerMult() seams, so MF still moves QUALITY only
+   (uniques 250 / rares 600 — never runes, gems, jewels, charms, gold, quest drops, gambling or
+   crafting) and /players still shrinks NoDrop only (never Countess/Duriel/Pindleskin). Zero
+   drift: re-rendering a surface cannot change a number MF is not allowed to touch. */
+let _fanT = null;
+const _sliderFanout = () => {
+  if (_fanT) clearTimeout(_fanT);
+  _fanT = setTimeout(() => {
+    _fanT = null;
+    // the post-v41 surfaces that were never on the whitelist
+    try { if (typeof window.renderForgeUni === 'function') window.renderForgeUni(); } catch(e){}    // F-Uniques: 'Best runs' + 'DO THIS ONE THING — BEST FARM'
+    try { if (typeof window.renderForgeSets === 'function') window.renderForgeSets(); } catch(e){}  // F-Sets chronicle
+    try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}          // Forge tasks/quests + the d2r_forgeSummary bridge (written inside forgeScan)
+    // the console bridges — d2r_grailFarm rides persist(); d2r_setFarm had NO live caller at all
+    try { if (typeof window._writeSetFarm === 'function') window._writeSetFarm(); } catch(e){}
+  }, 220);
+};
+$("mf").oninput = () => { mf = parseInt($("mf").value); persistSoon(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); _sliderFanout(); };
+$("players").oninput = () => { players = parseInt($("players").value); persistSoon(); updatePlayers(); renderHero(); renderBossNav(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); _sliderFanout(); };
 $("item-search").oninput = e => { searchQ = e.target.value; renderCalc(); };
 document.querySelectorAll(".filter-pill").forEach(p => {
   p.onclick = () => {
@@ -33960,17 +34162,104 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
      It also stopped three older specs going red for a real reason: the sealed grounds are grouped by
      the chosen source, so redefining "chosen" silently redrew which pools count as complete. */
-  function _pickSrc(sources){
-    var best=null, bestR=-1;
+  /* ── v1616 — THE CHRONICLES WERE READING SILOSPEN BASELINE ODDS, NOT HIS ─────────────────────
+     Konyo: "the MF finder on the bottom should be silopen synced to the drops relevant to players
+     and the MF % find... for all forges and grails."
+
+     Measured before this line existed: dragging MF 0 → 1200 changed ZERO lines of the F-Uniques
+     chronicle. Every ETA on that tab came from the RAW source chance, so "expected ~1 every 1.5h"
+     and "~38h to find" were true of a character with 300 MF at /players 1 and of nobody else.
+     Frostburn's own calculator card moved 1:3,321 → 1:1,845 across that same drag.
+
+     _adjC is the ONLY new arithmetic here and it is not arithmetic: it defers to effChance(), the
+     same seam the Calculator, the hero and the console bridges use — so MF still improves QUALITY
+     only (uniques factor 250) and /players still shrinks NoDrop only, and the chronicles cannot
+     drift from the calculator by construction. Falls back to the raw chance if effChance is out of
+     scope, which is the honest degradation: baseline odds, never invented ones. */
+  /* MF IS NOT ALLOWED NEAR THESE. The rule this app already documents (the "What Magic Find does
+     NOT touch" panel): MF does nothing for runes, gems, jewels, charms, gold, quest/guaranteed
+     drops, gambling or crafting — "an Ist rune or a Sunder charm is found at the same rate at 0%
+     MF as at 700%". Two ITEMS entries live in the uniques pool and are exactly that class —
+     "Jah/Ber/Sur rune" (tier grail) and "Ist rune" (tier high) — verified by enumerating ITEMS:
+     they are the ONLY two of the 403 whose name matches. Without this gate, teaching the chronicle
+     to respect MF would have made his Ist-rune ETA fall from 1:27,818 to 1:15,455 on the drag,
+     which is a lie the old MF-blind code never told. /players still applies to them: it shrinks
+     NoDrop, which is QUANTITY, and quantity is real for runes. */
+  /* v1616.1 — CLASSIFY BY WHAT THE ITEM *IS*, NOT BY WHAT ITS NAME SAYS.
+     The note above reasons about "the ONLY two of the 403 whose name matches", and that is exactly
+     the flaw: a name regex was answering a question about item CLASS. It was verified against the
+     strings "Perfect gem" and "Sunder charm" — neither of which is an item. Both contain the class
+     word, so both passed, while every REAL member of those classes fell straight through:
+
+       Perfect Ruby        1:7,727 -> 1:4,293 on the MF drag   (no gem is called "gem")
+       Gheed's Fortune     MF-scaled                            (no charm is called "charm")
+       Annihilus           MF-scaled                            — and both are in his grail
+
+     Telling him magic find shortens a hunt it cannot touch is the silent kind of wrong.
+
+     The mirror bug is one character away: "Rune Bow", "Rune Sword", "Rune Scepter" and "Rune Staff"
+     are WEAPON bases, so Magewrath and Plague Bearer are ordinary uniques that MUST stay MF-scaled.
+     Substring matching is wrong in BOTH directions, so this asks the data instead — the codex's own
+     `base`, and the vocabularies the app already ships (GEM_TYPES, RUNES, SUNDER_CHARMS). */
+  var _MFB_BASE = { 'charm':1, 'charms':1, 'small charm':1, 'large charm':1, 'grand charm':1,
+                    'rune':1, 'runes':1, 'high rune':1, 'jewel':1, 'jewels':1,
+                    'gem':1, 'gems':1, 'gold':1 };
+  var _mfbVocabCache = null;
+  function _mfbVocab(){
+    if (_mfbVocabCache) return _mfbVocabCache;
+    var S = Object.create(null), add = function(v){ if (v) S[String(v).trim().toLowerCase()] = 1; };
+    // every gem the app knows, by its REAL name ("Chipped Amethyst" … "Perfect Skull")
+    try { (window.GEM_TYPES||[]).forEach(function(g){ (g.q||[]).forEach(function(x){ add(x.name); }); }); } catch(e){}
+    /* runes as they are actually written. Only the "<n> rune" form — adding the bare rune letters
+       would blind anything that happens to be called "El" or "Ko". */
+    try { (window.RUNES||[]).forEach(function(r){ add(r.n + ' rune'); }); } catch(e){}
+    try { (window.SUNDER_CHARMS||[]).forEach(function(c){ add(c.n); add(c.n + ' sunder charm'); }); } catch(e){}
+    _mfbVocabCache = S; return S;
+  }
+  function _mfBlind(n){
+    try {
+      var name = String(n||'').trim(); if (!name) return false;
+      if (_mfbVocab()[name.toLowerCase()]) return true;
+      // ITEM_CODEX is a module const, not a window property — reach it whichever way is in scope
+      var CX = (typeof ITEM_CODEX !== 'undefined') ? ITEM_CODEX : (window.ITEM_CODEX || null);
+      var e = CX && CX[name];
+      var b = (e && e.base) ? String(e.base).trim().toLowerCase() : '';
+      if (b && _MFB_BASE[b]) return true;                       // EXACT class, never a substring
+      // multi-rune grail rows ("Jah/Ber/Sur rune") and plain gold carry the class in the name and
+      // have no codex base to ask
+      if (/^[a-z/ ]+\brunes?$/i.test(name)) return true;
+      return /^gold$/i.test(name);
+    } catch(e){ return false; }
+  }
+  function _adjC(s, name){
+    try {
+      if (!s || s.chance == null) return null;
+      if (_mfBlind(name)){
+        // players-only: the same playerMult() the calculator uses, never adjustChance()
+        if (typeof playerMult !== 'function' || s.chance <= (typeof EVENT_PCT_MAX!=='undefined'?EVENT_PCT_MAX:50)) return s.chance;
+        var m = playerMult(s.bossId, s.diffKey, (typeof players!=='undefined'?players:1));
+        return m > 1 ? Math.round(s.chance / m) : s.chance;
+      }
+      if (typeof effChance !== 'function') return s.chance;
+      var a = effChance(s.chance, s.bossId, s.diffKey);
+      return (a == null || !isFinite(a) || a <= 0) ? s.chance : a;
+    } catch(e){ return s && s.chance; }
+  }
+  window._fAdjC = _adjC;
+  function _pickSrc(sources, name){
+    var best=null, bestR=-1, bestC=null;
     (sources||[]).forEach(function(s){
       if(!s || s.blocked || s.chance==null) return;
-      var rate=(s.kph||30)/s.chance;
-      if(rate>bestR){ bestR=rate; best=s; }
+      var c=_adjC(s, name);
+      var rate=(s.kph||30)/c;
+      if(rate>bestR){ bestR=rate; best=s; bestC=c; }
     });
-    return best && { s:best, rate:bestR, diff:_diffRank(best.diffKey) };
+    // .chance = the MF/players-adjusted odds every caller must print; .s.chance stays the raw
+    // source row so nothing downstream silently loses the baseline it was calibrated against.
+    return best && { s:best, rate:bestR, chance:bestC, diff:_diffRank(best.diffKey) };
   }
   window._pickSrc = _pickSrc;
-  function _bestSrc(it){ return _pickSrc(it && it.sources); }
+  function _bestSrc(it){ return _pickSrc(it && it.sources, it && it.n); }
   /* v1561 — the moment funiScan exists, the landing ring can stop guessing. See the note on
      renderGrailProgress: it paints before this block loads, so it needs telling. */
   try { setTimeout(function(){
@@ -33996,7 +34285,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // The priority lives HERE and not in source selection: v1549 has the measurements for why.
     var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return (b.diff-a.diff) || b.ev-a.ev || b.items.length-a.items.length; });
     // v559.2 — chips inside a run lead with the most-likely drops (best odds first)
-    runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?a._bs.s.chance:9e9), cb=(b._bs?b._bs.s.chance:9e9); return ca-cb; }); });
+    /* v1616 — sort on the SAME adjusted odds the chips print, or the list order and the numbers
+       on it can disagree the moment /players makes two bosses shrink by different amounts. */
+    runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?(a._bs.chance!=null?a._bs.chance:a._bs.s.chance):9e9), cb=(b._bs?(b._bs.chance!=null?b._bs.chance:b._bs.s.chance):9e9); return ca-cb; }); });
     /* v1571 — QUICK WINS SORTED BY QUICKNESS. Konyo: "shouldnt it be from quickest to slowest
        farmed? the slower ones on the bottom and the faster ones on top."
        It sorted by qlvl, so the list read 3.2h, 2.9h, 2.6h, 2.9h — ascending item level, which is
@@ -34005,7 +34296,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        ORDER it. Same 50%-confidence figure the cards already print, so the number he reads on each
        row is the number the list is sorted by — qlvl only breaks ties. */
     var _lowHrs=function(x){ var b=_bestSrc(x); if(!b||!b.s) return 1e9;
-      var h=(typeof hoursFor==='function')?hoursFor(b.s.chance,0.5,b.s.kph||100):null;
+      /* v1616 — b.chance (MF/players-adjusted) is literally "the same 50% figure the cards already
+         print" this comment promises; b.s.chance stopped being that the moment the cards adjusted. */
+      var h=(typeof hoursFor==='function')?hoursFor(b.chance!=null?b.chance:b.s.chance,0.5,b.s.kph||100):null;
       return (h===null||!isFinite(h))?1e9:h; };
     var low=missing.filter(function(x){ return (x.qlvl||99)<=35; })
       .map(function(x){ x._qh=_lowHrs(x); return x; })
@@ -34078,8 +34371,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _uniItemCard(x){
     var bb=_bestSrc(x); var b=bb&&bb.s;
-    var _t=b?_ttf(b.chance,b.kph):'';
-    var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(b.chance)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
+    var _bc=bb?bb.chance:null;                                  // v1616 — his MF/players odds, not the baseline
+    var _t=b?_ttf(_bc,b.kph):'';
+    var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(_bc)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
              :'<div class="gf-note">no verified source — drops broadly</div>';
     return '<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(x.n,'🏆')+'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
@@ -34670,7 +34964,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           run={ boss:(m0._bs&&m0._bs.s&&m0._bs.s.boss)||(m0.boss||''), bossId:(m0._bs&&m0._bs.s&&m0._bs.s.bossId)||m0.bossId||'', items:[it], ev:0 };
         }
         if (it){
-          var bs=it._bs, boss=bs?bs.s.boss:(run&&run.boss)||'', oddsStr=bs?fmtOdds(bs.s.chance):'';
+          var bs=it._bs, boss=bs?bs.s.boss:(run&&run.boss)||'', oddsStr=bs?fmtOdds(bs.chance!=null?bs.chance:bs.s.chance):'';   /* v1616 — his odds */
           c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:(run&&run.bossId)||''),
                  route:(run&&run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
           c.pick='🏆 Grail · '+c.done+'/'+c.total+' — hunt '+it.n+(boss?(' (best at '+boss+(oddsStr?', '+oddsStr:'')+')'):'')+'; '+c.left+' uniques left';
@@ -34765,7 +35059,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        It is flagged now so the card can say what it is instead of pretending to be a run. */
     var NO_RUN_KEY = 'No verified farm source yet';
     missingP.forEach(function(mp){ var key=mp.src?mp.src.boss:NO_RUN_KEY;
-      var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0,noRun:!mp.src}); g.items.push(mp); if(mp.src)g.ev+=(mp.src.kph||30)/mp.src.chance; });
+      var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0,noRun:!mp.src}); g.items.push(mp); if(mp.src)g.ev+=(mp.src.kph||30)/_adjC(mp.src, mp.name); });   /* v1616 — MF/players-adjusted, like F·Uniques */
     // v1564 — the no-source bucket sorts LAST regardless of size. It is not a better run than a
     // real one just because more orphans landed in it.
     var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){
@@ -34871,8 +35165,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            The no-source line also stops saying "drops broadly — any high-MF run", which promised a
            run: these are the sets with no verified source at all (v1557), and inviting a high-MF
            run implies the odds improve with MF when we do not know that they drop there. */
-        var _ts=mp.src?_ttf(mp.src.chance,mp.src.kph):'';
-        var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(mp.src.chance)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
+        var _sc=mp.src?_adjC(mp.src, mp.name):null;                  // v1616 — same seam as F·Uniques; sets were baseline-only too
+        var _ts=mp.src?_ttf(_sc,mp.src.kph):'';
+        var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_sc)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
         _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(clean)+'">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
           +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
@@ -37041,7 +37336,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1615', name:'v1615 - one concept one picture', date:'2026-08-03', note:'the Daily Task Force rows and hero, the Forge panel and its chips, the Vault header and the Chronicle Sweep header all now wear the SAME game art their tab and MINI focus wear - one vocabulary, enforced by test' };
+  window.D2R_BUILD = { id:'v1616.1', name:'v1616.1 - show the item and drive every number', date:'2026-08-03', note:'the console shows each item HD art lands you ON it and both sliders now reach every estimate - with MF-blindness decided by item CLASS so gems and charms stop pretending magic find helps' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

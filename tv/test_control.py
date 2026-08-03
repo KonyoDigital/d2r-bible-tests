@@ -4492,9 +4492,15 @@ class TestVersionStampsAgree(unittest.TestCase):
             return fh.read()
 
     def test_all_four_stamps_are_the_same_version(self):
-        board = re.search(r"window\.D2R_BUILD = \{ id:'(v\d+)'", self._read("bible.html"))
-        control = re.search(r'"ver": "(v\d+)"', self._read(os.path.join("tv", "control_app.py")))
-        agent = re.search(r'VERSION = "(v\d+)"', self._read(os.path.join("tv", "tv_diablo.py")))
+        # v1616.1 — POINT RELEASES ARE REAL VERSIONS. `v\d+` rejected v1616.1 outright, so the
+        # stamp read as MISSING and this guard fired on a correctly-stamped tree. It disagreed
+        # with tv/bump_version.py, which deliberately accepts `^v\d+(\.\d+)*$` — and the repo
+        # has shipped point releases for a thousand versions (v342.8, v665.3, v693.2). Two
+        # guards holding different definitions of "a version" is the actual defect.
+        VER = r"(v\d+(?:\.\d+)*)"
+        board = re.search(r"window\.D2R_BUILD = \{ id:'" + VER + "'", self._read("bible.html"))
+        control = re.search(r'"ver": "' + VER + '"', self._read(os.path.join("tv", "control_app.py")))
+        agent = re.search(r'VERSION = "' + VER + '"', self._read(os.path.join("tv", "tv_diablo.py")))
         with open(os.path.join(self.tv, "WINDOWS_SHIP.json"), encoding="utf-8") as fh:
             ship = json.load(fh).get("ver")
 
@@ -4515,7 +4521,7 @@ class TestVersionStampsAgree(unittest.TestCase):
     def test_the_board_note_has_no_apostrophe(self):
         """`D2R_BUILD.note` is a single-quoted JS literal. An apostrophe terminates it early and
         throws a SyntaxError that blanks the whole 37k-line board — which happened in v1478."""
-        m = re.search(r"window\.D2R_BUILD = \{ id:'v\d+', name:'([^']*)', date:'[^']*', "
+        m = re.search(r"window\.D2R_BUILD = \{ id:'v\d+(?:\.\d+)*', name:'([^']*)', date:'[^']*', "
                       r"note:'(.*)' \};", self._read("bible.html"))
         self.assertIsNotNone(m, "D2R_BUILD is not in the expected single-quoted shape — if it was "
                                 "reformatted, this guard needs to follow it")
