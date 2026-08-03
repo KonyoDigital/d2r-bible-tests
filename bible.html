@@ -33150,7 +33150,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             // v1409/v1411 — craft quests for the console FORGE QUESTS + CREATE pillar
             crafts: (out.crafts || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, craft:t.craft, slot:t.slot, gem:t.gem, rune:t.rune }; }),
             craftOnestep: (out.craftOnestep || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, missing:t.missing||'', missKind:t.missKind||'' }; }),
-            craftTypes: (out.craftTypes || []).map(function(t){ return t.craft; }),
+            /* v1621 — SHIP THE GEM, NOT JUST THE NAME. Konyo: "for blood safety... they should be
+               gems extracted from the game like is the forge for the caster.. they are gems
+               relevant and colored". The board already knows all of it — CRAFTS carries
+               gem/gemType/color per craft — and this line threw it away, flattening to the bare
+               craft name, which is why every FORGE QUESTS chip in the console wore the same
+               generic medallion. The gem's art is resolved HERE because artUrl lives on this side
+               of the iframe. */
+            craftTypes: (out.craftTypes || []).map(function(t){
+              var u = null; try { u = (typeof artUrl === 'function') ? (artUrl(t.gem) || null) : null; } catch(e){}
+              return { craft: t.craft, gem: t.gem || null, color: t.color || null, art: u };
+            }),
             counts: out.counts || {},
             art: (function(){ var a = {}; try { (out.now || []).concat(out.onestep || []).slice(0, 12).forEach(function(t){
                 var u = '';
@@ -37486,7 +37496,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1620', name:'v1620 - set pieces get their in-game block', date:'2026-08-03', note:'the sets hero card was blank because set pieces live in the codex setMembers not in ITEM_TIP - and the quicker-alternative item is now an anchor with its own art and card' };
+  window.D2R_BUILD = { id:'v1621', name:'v1621 - rarity on the title gems on the crafts', date:'2026-08-03', note:'the hero title now wears the items own rarity colour - green for a set piece gold for a unique - from one palette the hover card also reads, and each Forge craft chip wears its real extracted gem' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

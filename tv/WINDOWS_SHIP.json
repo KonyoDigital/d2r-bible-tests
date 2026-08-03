@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1620",
+  "ver": "v1621",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1620: the sets hero card was blank because set pieces live in the codex setMembers not in ITEM_TIP - and the quicker-alternative item is now an anchor with its own art and card",
+  "note": "v1621: the hero title now wears the items own rarity colour - green for a set piece gold for a unique - from one palette the hover card also reads, and each Forge craft chip wears its real extracted gem",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

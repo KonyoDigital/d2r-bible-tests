@@ -88,6 +88,16 @@ ICONS = {
                   "Tome of Identify", "the book you read your own history out of — CHRONICLE SWEEP"),
 }
 
+# v1621 — icons that must land under a NAME the rest of the app already uses, rather than ui_<role>.
+# The four craft gems are addressed as hd_perfect_<gem>.png by the v384 item pull; three were there
+# and Perfect Sapphire was not, so the Hit Power craft had no gem to show. Note the in-game spelling
+# is "saphire" with one p — a real CASC filename typo, documented in [[d2r-casc-hd-art-extraction]].
+NAMED_ICONS = {
+    "hd_perfect_sapphire.png": (
+        r"data\hd\global\ui\items\misc\gem\perfect_saphire.sprite",
+        "Perfect Sapphire", "the Hit Power craft's gem — the only one of the four missing"),
+}
+
 # Roles served by art that already exists, so nothing is pulled twice.
 #
 # The two CHRONICLE focuses deliberately reuse their own tab medallion. Three real set items were
@@ -177,6 +187,9 @@ def main():
             p = os.path.join(ART, "ui_%s.png" % role)
             if not os.path.exists(p) or os.path.getsize(p) < 200:
                 bad.append("ui_%s.png" % role)
+        for fname in sorted(NAMED_ICONS):
+            if not os.path.exists(os.path.join(ART, fname)):
+                bad.append(fname)
         for role, fn in sorted(REUSED.items()):
             if not os.path.exists(os.path.join(ART, fn)):
                 bad.append("%s (reused by %s)" % (fn, role))
@@ -193,6 +206,22 @@ def main():
         return SKIP
 
     from PIL import Image
+    for fname in sorted(NAMED_ICONS):
+        casc, what, why = NAMED_ICONS[fname]
+        out = os.path.join(ART, fname)
+        if os.path.exists(out):
+            print("%-14s %-22s already present" % (fname.replace(".png", ""), what))
+            continue
+        raw = pull(casc, fname)
+        im = best_frame(raw, fname)
+        bb = im.getbbox()
+        if not bb:
+            raise RuntimeError("%s decoded to a fully transparent image" % fname)
+        im = im.crop(bb)
+        im.thumbnail((OUT_PX, OUT_PX), Image.LANCZOS)
+        im.save(out, optimize=True)
+        print("%-14s %-22s %sx%s  <- %s" % (fname.replace(".png", ""), what, im.width, im.height, casc))
+
     for role in sorted(ICONS):
         casc, what, why = ICONS[role]
         raw = pull(casc, role)

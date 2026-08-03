@@ -9,6 +9,15 @@
     --bg0: #060504;
     --gold: #f0c060;
     --gold-hi: #ffdf9a;
+    /* v1621 — THE ITEM RARITY PALETTE, one place. These are D2's own quality colours, the same
+       four bible.html paints item names with (--q-unique/--q-set/--q-rare/--q-magic), so an item
+       reads the same on the board, on the hero title and in the hover card. Defined here rather
+       than repeated at each surface: the hero and the card disagreeing about what colour a set
+       piece is was the bug this closes. */
+    --rar-unique: #f0c060;
+    --rar-set:    #00ff00;
+    --rar-rare:   #ffff64;
+    --rar-magic:  #6969ff;
     --gold-dim: #a07830;
     --mint: #8fe6a0;
     --danger: #ff7a7a;
@@ -970,11 +979,11 @@
   /* the board's tip-rich title: MONO, body-size, semibold, glowing in its rarity colour */
   #itip .itip-n { font-family: var(--mono, monospace); font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
-    line-height: 1.35; letter-spacing: .3px; margin-bottom: 1px; color: #f0c060;
+    line-height: 1.35; letter-spacing: .3px; margin-bottom: 1px; color: var(--rar-unique);
     text-shadow: 0 0 7px currentColor, 0 1px 1px rgba(0,0,0,.55); }
-  #itip .itip-n.r-set   { color: #00ff00; }
-  #itip .itip-n.r-rare  { color: #ffff64; }
-  #itip .itip-n.r-magic { color: #6969ff; }
+  #itip .itip-n.r-set   { color: var(--rar-set); }
+  #itip .itip-n.r-rare  { color: var(--rar-rare); }
+  #itip .itip-n.r-magic { color: var(--rar-magic); }
   #itip .att-type { color: #c9c9c9; font-family: var(--mono, monospace); font-size: var(--fs-2xs);
     line-height: 1.5; margin-bottom: 3px; }
   #itip .att-meta { color: #8f8f8f; font-family: var(--mono, monospace); font-size: var(--fs-2xs);
@@ -3185,9 +3194,22 @@
      the subject and neither led. v1470 already eased this once for the same reason against .kpi-v;
      it was eased against the wrong neighbour. The pair is now 27/21 — a ratio of 1.29, which reads
      as name-then-number instead of two headlines competing. */
+  /* ── v1621 — THE TITLE WEARS THE ITEM'S RARITY ────────────────────────────────────────────
+     Konyo: "now for griswald i want it green color as is the rest of the console sycned to that
+     color.. and same for UNIQUES the frostburn needs the unique color."
+     Both heroes printed the same cream-gold whatever they named, so a set piece and a unique were
+     indistinguishable at the biggest text on the page — while the card one hover away had them
+     right. These read from --rar-*, the SAME four values the card uses, so the title and its own
+     card can never disagree. The glow follows currentColor rather than being hardcoded gold, or a
+     green title would have kept a gold halo. */
   .hh-name { font: var(--fw-bold) clamp(19px,2.1vw,27px)/1.06 var(--serif); letter-spacing: .03em; text-transform: uppercase; margin: 6px 0 5px;
-    color: #ffdf9b; text-shadow: 0 0 26px rgba(240,192,96,.34), 0 2px 0 rgba(0,0,0,.4); animation: hhBreathe 5.5s ease-in-out infinite; }
-  @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px rgba(240,192,96,.28), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px rgba(240,192,96,.5), 0 2px 0 rgba(0,0,0,.4);} }
+    color: var(--rar-unique); text-shadow: 0 0 26px color-mix(in srgb, currentColor 34%, transparent), 0 2px 0 rgba(0,0,0,.4);
+    animation: hhBreathe 5.5s ease-in-out infinite; }
+  .hh-name.r-set    { color: var(--rar-set); }
+  .hh-name.r-unique { color: var(--rar-unique); }
+  .hh-name.r-rare   { color: var(--rar-rare); }
+  .hh-name.r-magic  { color: var(--rar-magic); }
+  @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px color-mix(in srgb, currentColor 28%, transparent), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px color-mix(in srgb, currentColor 50%, transparent), 0 2px 0 rgba(0,0,0,.4);} }
   .hh-src { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); color: var(--parch-dim); letter-spacing: .02em; }
   .hh-src b { color: var(--mint); font-weight: var(--fw-semibold); }
   /* v1555 — the cheaper option at a lower difficulty, said quietly. He asked to finish Hell first;
@@ -3640,6 +3662,11 @@
      off-air/Sessions content, so it's hidden while live: bleed gone, and the stage/film gets the room. */
   body[data-state="on"] .home-dash { display: none; }
   body[data-state="on"] .stage { min-height: 420px; }   /* v913-R6 (Grok) — the film NEVER starves for the live strip */
+  /* v1621 — a craft chip tinted by its own gem, so the four read as four things */
+  .hd-chip.hd-chip-gem { border-color: color-mix(in srgb, var(--gemc) 46%, transparent);
+    color: color-mix(in srgb, var(--gemc) 78%, #f4e8d0); }
+  .hd-chip.hd-chip-gem:hover { border-color: var(--gemc);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--gemc) 26%, transparent); }
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
   .hd-chip.nm { color: #e6cf90; border-color: rgba(240,192,96,.4); }   /* v945.4 — GRAIL/SETS are ACHIEVEMENT progress (gold), not a live lane; mint now means live-only */
   /* v889 (Konyo: 'no dead space · breathing room · stretched · symmetric') */
@@ -4791,6 +4818,13 @@
 
   /* one builder for the anchor attributes, so the hero and the daily pick cannot describe the
      same item two different ways. `facts` = [[label, value], ...] — falsy values drop out. */
+  /* v1621 — one rarity -> one class, so the hero title and its card cannot disagree. Unknown or
+     absent rarity yields NO class, which falls through to the base colour rather than guessing. */
+  function _rarCls(r){
+    var v = String(r || '').toLowerCase();
+    return (v === 'set' || v === 'unique' || v === 'rare' || v === 'magic') ? (' r-' + v) : '';
+  }
+
   function _itipAttr(d){
     try { return ' data-itip="' + esc(JSON.stringify(d)) + '"'; } catch(e){ return ''; }
   }
@@ -4922,12 +4956,30 @@
   window._hubGoBoss = function(id){ if (id) _hubGo('bosses', 'openBossDetail', id); };
 
   // v1613 — one forge chip, used by both quest sources so they cannot drift into two behaviours.
+  /* v1621 — EACH CRAFT WEARS ITS OWN GEM. Konyo: "for blood safety... they should be gems
+     extracted from the game like is the forge for the caster.. they are gems relevant and colored".
+     All four chips wore the same Hell's Forge medallion, which said "forge" four times and "which
+     craft" never. The mapping is not invented here: bible.html's CRAFTS has carried
+     gem/gemType/color since the workshop was built (Caster=Perfect Amethyst #b48ce0, Blood=Perfect
+     Ruby #e0556a, Safety=Perfect Emerald #5fd07a, Hit Power=Perfect Sapphire #5b8ff0) and the
+     bridge was flattening it to a bare name. It now ships the gem, its colour and its art.
+     `ck` may still arrive as a plain string from an older board build — that degrades to the
+     medallion rather than to a broken chip. */
   function _forgeChip(ck){
-    return '<span class="hd-chip hd-go" role="button" tabindex="0" title="open the Forge"'
+    var name = (ck && typeof ck === 'object') ? (ck.craft || '') : String(ck || '');
+    var art = (ck && typeof ck === 'object' && ck.art) ? ck.art : null;
+    var col = (ck && typeof ck === 'object' && ck.color) ? ck.color : null;
+    var gem = (ck && typeof ck === 'object' && ck.gem) ? ck.gem : null;
+    var pic = art
+      ? '<img class="hd-chip-art" src="' + escC(art) + '" alt="" loading="lazy" onerror="this.remove()">'
+      : artImg('forge', 'hd-chip-art');
+    return '<span class="hd-chip hd-go' + (col ? ' hd-chip-gem' : '') + '" role="button" tabindex="0"'
+      + (col ? ' style="--gemc:' + escC(col) + '"' : '')
+      + ' title="' + escC(name + (gem ? ' craft — needs a ' + gem : '')) + ' · open the Forge"'
       + ' onclick="window._hubGo(&quot;forge&quot;)"'
       + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
-      + 'window._hubGo(&quot;forge&quot;);}">' + artImg('forge', 'hd-chip-art')
-      + escC(ck) + ' · open Forge</span>';
+      + 'window._hubGo(&quot;forge&quot;);}">' + pic
+      + escC(name) + ' · open Forge</span>';
   }
 
   // ══ v1361 · 🔬 READS FORENSICS drawer — the deep X-ray opened from the AI-READS feed (flat, 3 status sections) ══
@@ -11003,7 +11055,7 @@
          surface on this console that did not look like this console. Its payload now renders in
          #itip (art + rarity-coloured name + the same facts), and the accessible name it was
          doubling as moved to aria-label, where it belongs. */
-      + '<div class="hh-name hh-go" role="button" tabindex="0"'
+      + '<div class="hh-name hh-go' + _rarCls(_meta.rarity || 'unique') + '" role="button" tabindex="0"'
         + ' aria-label="' + esc(top.name || '') + (top.source ? ' — hunt at ' + esc(top.source) : '')
         + (hrs ? ' · about ' + esc(hrs) + ' to your next find' : '')
         + ' · open it in the uniques chronicle"'
@@ -11086,7 +11138,7 @@
          other item, so the destination the data could not name was in the heading all along.
          Konyo: "and griswald shield right under it ... also needs to be image upgraded with a
          description tool tip and routabel and clicable". */
-      + '<div class="hh-name hh-go" role="button" tabindex="0"'
+      + '<div class="hh-name hh-go' + _rarCls(meta.rarity || 'set') + '" role="button" tabindex="0"'
         + ' aria-label="' + esc(top.name || '') + (setName ? ' — a piece of ' + esc(setName) : '')
         + ' — open it in the sets chronicle"'
         + _itipAttr({ name: top.name || '', art: meta.art || '', rarity: meta.rarity || 'set',
