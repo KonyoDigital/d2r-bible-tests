@@ -50,19 +50,10 @@ def _tz_info():
 # v1610 — ART THAT IS KNOWN BAD, NAMED RATHER THAN TOLERATED SILENTLY.
 # An exception you have to write a sentence for is a debt on the books. An exception with no
 # entry here is a bug nobody can see — which is exactly how a flat grey tile shipped and stayed.
-KNOWN_FLAT_ART = {
-    "act3-spider": (
-        "tz_act3-spider.jpg is a flat grey tile (pixel stdev 2.8 against 14-43 for every healthy "
-        "tile, 7,779 bytes against 37k-80k). Spider Forest and Spider Cavern therefore render as "
-        "empty boxes. The source art/act3-spiderforest_graphic.png is FINE (800x800, stdev 31.5) "
-        "but it is a diablo2.io zone graphic, and every working tile here is a TILED TERRAIN "
-        "TEXTURE extracted from the game via CASC — deriving from the graphic produces a visibly "
-        "different, harsher image (compared side by side, 2026-08-03). Konyo's standing "
-        "requirement is game-extracted art, so a substitute is worse than a known gap. "
-        "TO FIX: re-extract the act3 spider terrain tile with art/hd_extract_tools (CascLib), "
-        "same pass that produced the other 22."
-    ),
-}
+# v1611 — act3-spider was extracted properly from the game and the entry is GONE, which is the
+# only correct end state for this table. An exception that outlives its bug is a lie with a
+# comment on it, and test_no_exception_outlives_its_file exists to make sure that never happens.
+KNOWN_FLAT_ART = {}
 
 
 class TestTZArtCoverage(unittest.TestCase):

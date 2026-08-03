@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1610",
+  "ver": "v1611",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1610: spider forest and spider cavern rendered as empty boxes because tz_act3-spider.jpg is a flat grey tile that passed the byte-size floor at 7779 bytes - the gate now measures pixel variance, which is the property that actually separates art from a placeholder",
+  "note": "v1611: extracted the act3 spider texture from the 28GB install via CascLib - BC3 at a 124 byte header - so the flat grey tile that emptied two cards is gone and the known-bad list is back to empty",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
