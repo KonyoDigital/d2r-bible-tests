@@ -7790,6 +7790,39 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow .f-skip{position:static;top:auto;right:auto;flex:none;opacity:.55}
 /* v777 — SEALED completed-state: the 99/99 hero owns the view; the full roll folds behind ONE disclosure. */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{margin-top:8px}
+/* v1630 ITEM C — the SEALED card was a 44px-padded box holding a crest, one title line, two
+   lines of prose and two centred pills, with roughly half its height empty. It is the reward
+   surface for finishing the entire runeword chronicle and it read as an empty panel.
+   Structure fills the height instead of padding: a diagonal wax stamp behind the content, the
+   99/99 promoted to a trophy figure, and the two routes anchored in a footer band that spans
+   the width. Scoped to .forge-sealed-done — the not-yet-sealed .forge-sealed is untouched. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{position:relative;overflow:hidden;padding:30px 30px 0;text-align:left}
+/* DECORATIVE ONLY: pointer-events:none + aria-hidden in the markup, and z-index 0 keeps it
+   BEHIND the routes band (z-index 2) so it can never eat a click on the reward surface. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-stamp{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-19deg);pointer-events:none;user-select:none;z-index:0;white-space:nowrap;font-family:var(--serif-display,serif);font-variant-caps:small-caps;text-transform:uppercase;font-size:clamp(44px,9vw,88px);letter-spacing:.22em;line-height:var(--lh-none);padding:.1em .34em .14em;color:rgba(212,168,71,.115);border:5px double rgba(212,168,71,.13);border-radius:16px;text-shadow:0 1px 0 rgba(0,0,0,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-donetop{position:relative;z-index:1;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+/* the trophy figure — the count used to be buried mid-sentence in the title */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig{flex:none;min-width:150px;text-align:center;padding:14px 18px 12px;border:1px solid rgba(212,168,71,.34);border-radius:13px;background:linear-gradient(180deg,rgba(240,192,96,.09),rgba(240,192,96,.02));box-shadow:inset 0 1px 0 rgba(255,220,140,.14)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-n{display:block;font-family:var(--serif-display,serif);font-size:56px;line-height:var(--lh-none);color:var(--gold-bright,#f0c060);text-shadow:0 0 26px rgba(240,192,96,.45)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-of{display:block;margin-top:4px;font-family:var(--mono);font-size:13px;color:var(--gold-dim,#c8a24a);letter-spacing:var(--ls-wide)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-lab{display:block;margin-top:7px;font-family:var(--mono);font-size:var(--fs-meta);text-transform:uppercase;letter-spacing:var(--ls-label);color:var(--text-dim,#9a8c72)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-doneline{flex:1 1 300px;min-width:260px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-crest{font-size:26px;margin-bottom:4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-title{margin-bottom:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-sub{margin-bottom:0}
+/* the routes band: anchored footer that spans the card, not two pills floating in dead space */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{position:relative;z-index:2;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:26px -30px 0;padding:20px 30px;border-top:1px solid rgba(212,168,71,.22);background:linear-gradient(180deg,rgba(0,0,0,.24),rgba(0,0,0,.34))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes .fs-btn{display:block;width:100%;max-width:420px;text-align:left;padding:12px 16px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-rt-t{display:block;font-size:var(--fs-body);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-rt-s{display:block;margin-top:2px;font-size:var(--fs-meta);opacity:.72}
+@media (prefers-reduced-motion: no-preference){
+  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-stamp{animation:fsStampIn .5s cubic-bezier(.2,1.5,.4,1) both}
+  @keyframes fsStampIn{from{opacity:0;transform:translate(-50%,-50%) rotate(-19deg) scale(1.5)}to{opacity:1;transform:translate(-50%,-50%) rotate(-19deg) scale(1)}}
+}
+@media (max-width:640px){
+  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{padding:24px 18px 0}
+  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{margin:22px -18px 0;padding:16px 18px}
+}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll{margin:14px 0 8px;border:1px solid rgba(212,168,71,.24);border-radius:12px;background:linear-gradient(180deg,rgba(26,20,10,.4),rgba(14,11,6,.22));overflow:hidden}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary{cursor:pointer;list-style:none;padding:12px 16px;font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--gold-dim,#c8a24a);display:flex;align-items:center;gap:9px;user-select:none;transition:color .14s,background .14s}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary:hover{color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.05)}
@@ -13382,6 +13415,48 @@ try { Object.assign(ITEM_CODEX, {
 function __allSets(){ return (typeof ITEM_SETS!=='undefined'?ITEM_SETS:[]).concat(SET_PIECES_EXTRA).concat(typeof SET_PIECES_EXTRA2!=='undefined'?SET_PIECES_EXTRA2:[]); }
 function __pieceBase(pc){ return String(pc).replace(/\s*\([^)]*\)\s*$/,''); }
 function __pieceSlot(pc){ var m=String(pc).match(/\(([^)]*)\)\s*$/); return m?m[1]:''; }
+/* v1630 ITEM A — ONE definition of "what a set piece is CALLED on screen".
+   Konyo: "for griswald it doesnt need to say (SHIELD) remove it also for tooltip image".
+   The hover card's own type line already reads "Set · Vortex Shield", so the name line
+   repeating "(shield)" states the slot twice.
+
+   DISPLAY ONLY. The raw "Name (slot)" string is a KEY: findSetPiece/_bridgeSetTip/
+   window._hubGoSetPiece match EXACT NAME FIRST and paren-stripped second, setPieces{}
+   and the d2r_setFarm bridge are keyed on it, and bible.html deletes _UNI_EXTRA rows by
+   exact name. So this is NEVER used on a lookup argument, a payload `name`, a
+   data-arttip, localStorage, or anything a click resolves against — only on the visible
+   text node. Where a site needs both, the raw value stays in the handler.
+
+   It strips a SINGLE trailing parenthesised group and ONLY when its contents is a known
+   equipment-slot / armour-class token. The vocabulary is DATA-DERIVED: every distinct
+   trailing "(...)" across the 135 piece strings in the ITEM_SETS / SET_PIECES_EXTRA
+   `pieces` arrays, plus the set-name marker "(set)" and its aggregate variants.
+   Anything else survives verbatim — "Rainbow Facet (Cold/Death)" comes back unchanged,
+   and so do the LOAD-BEARING socket labels "Grim Scythe (6os)" / "Circlet (Larzuk base)",
+   which are a different class entirely and must never be stripped. */
+var _PIECE_SLOT_VOCAB = (function(){
+  var v = ('armor,helm,belt,gloves,amulet,shield,boots,sword,bow,scepter,ring,heavy boots,'
+        + 'spired helm,orb,hammer,claws,mace,mask,chainmail,rod,war bonnet,studded leather,'
+        + 'cryptic sword,balrog skin,basinet,elder staff,hellforge plate,circlet,winged helm,'
+        + 'round shield,sharkskin gloves,battle belt,cap,bone wand,heavy gloves,military pick,'
+        + 'light plated boots,bone helm,full plate mail,dusk shroud,mithril coil,bramble mitts,'
+        + 'sharkskin boots,cuirass,ward,reinforced mace,grand crown,tigulated mail,bill,staff,'
+        + 'axe,wand,grimoire,'
+        + 'set,set piece,any piece,any,slot').split(',');
+  var o = Object.create(null);
+  for (var i=0;i<v.length;i++) o[v[i]] = true;
+  return o;
+})();
+function _pieceLabel(n){
+  if (n === null || n === undefined) return n;
+  var s = String(n);
+  if (!s) return n;
+  var m = s.match(/^([\s\S]*?)\s*\(([^()]*)\)\s*$/);
+  if (!m) return s;
+  if (!_PIECE_SLOT_VOCAB[m[2].toLowerCase().trim()]) return s;   // not a slot → survives verbatim
+  return m[1] || s;
+}
+window._pieceLabel = _pieceLabel;
 function findSetPiece(name){
   if(!name) return null;
   var q=_norm(name);
@@ -19288,7 +19363,7 @@ function renderSetTracker() {
       const _b = _i >= 0 ? p.slice(0, _i) : p;            // strip the "(slot)" suffix -> base item name
       const _bAttr = _b.replace(/"/g, '&quot;');
       // set pieces have no individual openDrop card, so art-logo + hover-popup only (no dead route)
-      const _nm = `<span class="set-piece-name" data-arttip="${_bAttr}"${_qStyle(_b, 'set')}>${artOr(_b, _setSlotGlyph(p), 'sm')} ${p}</span>`;
+      const _nm = `<span class="set-piece-name" data-arttip="${_bAttr}"${_qStyle(_b, 'set')}>${artOr(_b, _setSlotGlyph(p), 'sm')} ${_pieceLabel(p)}</span>`;
       return `<div class="set-piece ${setPieces.has(p)?'checked':''}" onclick="toggleSetPiece('${esc}')">
         <span class="set-piece-box"></span>
         ${_nm}
@@ -30321,7 +30396,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (window._gFound && window._gFound(pieceName)) return { ok:true, kind:'set', already:true, name: pieceName };
         if (typeof window.toggleSetPiece !== 'function') return { ok:false, why:'no-engine' };
         window.toggleSetPiece(pieceName);
-        try { window._grailToast && window._grailToast('🧩', '<b>'+pieceName+'</b> '+(src==='chat'?'DISCOVERED in game':'chronicled!'), 'the set grail grows'); } catch(e){}
+        try { window._grailToast && window._grailToast('🧩', '<b>'+_pieceLabel(pieceName)+'</b> '+(src==='chat'?'DISCOVERED in game':'chronicled!'), 'the set grail grows'); } catch(e){}
         return { ok:true, kind:'set', name: pieceName };
       }
       // grail universe names carry base suffixes ('Harlequin Crest (Shako)') — resolve
@@ -33690,11 +33765,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             +'<button class="f-skip" title="clear from this list (stays created in the Chronicle)" onclick="window.forgeDismissDone(\''+_fJs(m.n)+'\')">✕</button></div>';
         }).join('') : '<div class="forge-empty">Nothing here yet — forge a runeword and tick <b>✓ created</b>, or hit <b>↺ Restore all</b> to bring back a cleared list.</div>';
       if (_cSealed && made.length){
-        H.push('<div class="forge-sealed forge-sealed-done"><div class="fs-crest">⚒👑⚒</div>'
-          +'<div class="fs-title">Chronicle Sealed · '+_madeRw().length+' / '+_cSealT+'</div>'
-          +'<div class="fs-sub">Every runeword in the catalog stands forged — this is the end of the line.<br>The hunt is pure grail now: bases for trade, uniques &amp; sets for the wall.</div>'
-          +'<div class="fs-btns"><button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
-          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button></div></div>');
+        /* v1630 ITEM C — the seal earns its height: diagonal wax stamp (decorative: aria-hidden +
+           pointer-events:none in CSS, and it stacks BEHIND the routes band), the count promoted
+           out of the title into a trophy figure, and the two routes in an anchored footer band.
+           Both routes stay real <button>s, so they stay keyboard-reachable with no extra ARIA.
+           Colours come from the v1627 tokens via .fs-btn-uni/.fs-btn-set — no literal hex here. */
+        H.push('<div class="forge-sealed forge-sealed-done">'
+          +'<div class="fs-stamp" aria-hidden="true">Sealed</div>'
+          +'<div class="fs-donetop">'
+            +'<div class="fs-fig"><span class="fs-fig-n">'+_madeRw().length+'</span><span class="fs-fig-of">of '+_cSealT+'</span><span class="fs-fig-lab">runewords forged</span></div>'
+            +'<div class="fs-doneline"><div class="fs-crest" aria-hidden="true">⚒👑⚒</div>'
+              +'<div class="fs-title">Chronicle Sealed</div>'
+              +'<div class="fs-sub">Every runeword in the catalog stands forged — this is the end of the line.<br>The hunt is pure grail now: bases for trade, uniques &amp; sets for the wall.</div></div>'
+          +'</div>'
+          +'<div class="fs-btns fs-routes"><button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')"><span class="fs-rt-t">🏆 F·Uniques</span><span class="fs-rt-s">the grail wall — every unique still dark</span></button>'
+          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')"><span class="fs-rt-t">🧩 F·Sets</span><span class="fs-rt-s">finish the sets — closest first</span></button></div></div>');
         if (_skipNote) H.push(_skipNote);
         H.push('<details class="forge-sealed-roll"><summary>📜 show the sealed chronicle · '+made.length+' runeword'+(made.length===1?'':'s')+'</summary><div class="fsr-body">'+_doneTools+_doneList+'</div></details>');
       } else {
@@ -34304,10 +34389,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(!_lRar || !(typeof _Q_HEX!=='undefined' && _Q_HEX[_lRar])) _lRar = (kind==='uni') ? 'unique' : 'set';
     try { _lCol = (typeof _Q_HEX!=='undefined' && _Q_HEX[_lRar]) ? _Q_HEX[_lRar] : ''; } catch(e){}
     try { _lArt = (typeof chipLogo==='function') ? chipLogo(last) : ''; } catch(e){}
-    return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: '+_lArt+'<b class="gf-lastname" data-arttip="'+esc(last)+'"'+(_lCol?' style="color:'+_lCol+'"':'')+'>'+esc(last)+'</b> <span class="gp-date">'+esc(fl[last])+'</span></span>'
+    return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: '+_lArt+'<b class="gf-lastname" data-arttip="'+esc(last)+'"'+(_lCol?' style="color:'+_lCol+'"':'')+'>'+esc(_pieceLabel(last))+'</b> <span class="gp-date">'+esc(fl[last])+'</span></span>'
       +'<button class="f-btn f-btn-mini" onclick="window._forgeUndo(this,\''+jsq(last)+'\',\''+kind+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button>'
       +(_redo && _redo.kind===kind
-        ? '<button class="f-btn f-btn-mini" onclick="window._forgeRedo()" title="put it back — undoing the undo">↪ redo <b>'+esc(_redo.name)+'</b></button>'
+        ? '<button class="f-btn f-btn-mini" onclick="window._forgeRedo()" title="put it back — undoing the undo">↪ redo <b>'+esc(_pieceLabel(_redo.name))+'</b></button>'
         : '')
       +'</div>';
   }
@@ -35333,8 +35418,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var w=(c.data.working&&c.data.working[0])||null;   // fewest pieces left = closest set
         if (w){
           var miss=w.pieces.filter(function(p){return !p.have;});
-          var next=miss[0], nextClean=next?next.name.replace(/\s*\([^)]+\)\s*$/,''):'';
-          var setClean=w.name.replace(/\s*\((set)\)\s*$/i,'');
+          /* v1630 ITEM A(b) — was three hand-rolled strippers (nextClean/setClean/qClean); now ONE
+             definition. nextClean is DISPLAY + is what rides into c.op.pieceClean, which the console
+             re-prints ("Find Cow King's Hooves") and which _rotM feeds to mission.name at the Sessions
+             cockpit — that mission name was ALREADY the stripped form before this change, so nothing
+             that routes on it moves; c.op.set stays resolvable and next.name stays raw in `miss`. */
+          var next=miss[0], nextClean=next?_pieceLabel(next.name):'';
+          var setClean=_pieceLabel(w.name);
           var src=null; try { src=_setAggSrc(w.name); } catch(e){}
           var sBoss=src?src.boss:'', sOdds=src?fmtOdds(src.chance):'';
           /* v1557 — SAY WHEN THERE IS NO RUN TO SEND HIM ON.
@@ -35471,7 +35561,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // HERO — a quick-win piece if one exists, else the top run (same priority spirit as uniques)
     if(F!=='done'){
       if(quick.length){
-        var q0=quick[0], qClean=q0.name.replace(/\s*\([^)]+\)\s*$/,'');
+        var q0=quick[0], qClean=_pieceLabel(q0.name);   /* v1630 ITEM A(b) — same one stripper; qClean is BOTH the visible text and the art/navigateToItem key here, and those resolve paren-stripped (findSetPiece matches exact-then-stripped), so it stays the value passed to the lookups. */
         H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
           +'<div class="fh-artwrap"><div class="fh-art">'+art(qClean,'🧩')+'</div><div class="fh-icobadge">⚡</div></div>'
           +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · quick win</div><div class="fh-name"><span class="fs-piece" data-arttip="'+esc(qClean)+'" role="button" tabindex="0" aria-label="open '+esc(qClean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\');}">'+esc(qClean)+'</span></div>'
@@ -37712,7 +37802,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1629', name:'v1629 - the boss art is a boss', date:'2026-08-03', note:'Mephisto rendered his soulstone and Diablo a book because v1624 asked an ITEM map for a boss - an explicit portrait table now, and the level-art fallback was pointing at paths that never existed' };
+  window.D2R_BUILD = { id:'v1630', name:'v1630 - TZ Tracker', date:'2026-08-03', note:'TZ Tracker rename, display-only slot-suffix strip, sealed-card stamp' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1629",
+  "ver": "v1630",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1629: Mephisto rendered his soulstone and Diablo a book because v1624 asked an ITEM map for a boss - an explicit portrait table now, and the level-art fallback was pointing at paths that never existed",
+  "note": "v1630: TZ Tracker rename, display-only slot-suffix strip, sealed-card stamp",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

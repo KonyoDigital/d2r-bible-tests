@@ -85,7 +85,15 @@ test.describe('v1613 — every name on the hunt hub goes where it says', () => {
   });
 
   test('★ a chip that says "open Forge" opens the Forge — from BOTH quest sources', async () => {
-    const chip = UI.slice(UI.indexOf('function _forgeChip'), UI.indexOf('function _forgeChip') + 500);
+    /* v1630 — SLICE THE FUNCTION, NOT 500 CHARACTERS. This read a fixed 500-char window and
+       called it the body of _forgeChip. The function has grown twice since (v1621 gave each craft
+       its own gem + colour, v1630 touched it again) and the routing call now sits at ~776 chars,
+       outside the window — so the assertion went red on code that is correct, the third time this
+       session a test has defended its own past instead of the behaviour. A fixed-length slice is
+       not a function body; take everything up to the NEXT top-level declaration instead. */
+    const chipStart = UI.indexOf('function _forgeChip');
+    const after = UI.indexOf('\n  function ', chipStart + 1);
+    const chip = UI.slice(chipStart, after > chipStart ? after : chipStart + 4000);
     expect(chip).toContain('_hubGo(&quot;forge&quot;)');
     // Both call sites must use the shared builder, or one of them drifts back to a dead label.
     // Count RETURNS, not every mention — `function _forgeChip(ck){` matches a naive pattern too,
