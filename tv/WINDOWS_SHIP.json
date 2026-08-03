@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1619",
+  "ver": "v1620",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1619: THE NEXT PIECE had only ever been wired to a storage event so it never painted on a cold open - the uniques hero was on the open line since v1378 and its twin never was",
+  "note": "v1620: the sets hero card was blank because set pieces live in the codex setMembers not in ITEM_TIP - and the quicker-alternative item is now an anchor with its own art and card",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

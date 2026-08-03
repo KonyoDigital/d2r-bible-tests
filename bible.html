@@ -15584,6 +15584,57 @@ function _bridgeTip(name){
 }
 try { window._bridgeTip = _bridgeTip; } catch(e){}
 
+/* ── v1620 — SET PIECES KEEP THEIR STATS SOMEWHERE ELSE ───────────────────────────────────────
+   Konyo: "also the girswald sheild in the sessions. doesnt show the item description ingame.. it
+   needs that extra detail integrated too into it".
+
+   _bridgeTip only knew ITEM_TIP, which holds 301 UNIQUES and not one set piece — so every one of
+   the nine entries on his set bridge shipped with tip:null and the card had nothing to show. The
+   data was never missing, only shaped differently: ITEM_CODEX keys the SET ("Griswold's Legacy
+   (any)") and carries setMembers[] = {name, slot, reqLvl, affixes[]}, which for this piece reads
+   Vortex Shield, req 68, Paladin Smite Damage 5-87 / 65% Faster Block Rate / +108 Defense / All
+   Resistances +45. That IS the in-game block.
+
+   Matching is deliberately narrow: the bridge names a piece "Griswold's Honor (Shield)" and the
+   member is "Griswold's Honor", so the parenthetical is stripped — but ONLY exact and
+   paren-stripped equality count. No fuzzy match: handing him another piece's affixes under this
+   piece's name would be worse than the blank card he is complaining about.
+
+   ITEM_CODEX is a module const, not a window property (see [[d2r-casc-hd-art-extraction]]'s note
+   on the same trap), so it is reached whichever way is in scope. */
+function _bridgeSetTip(pieceName, setName){
+  try {
+    var CX = (typeof ITEM_CODEX !== 'undefined') ? ITEM_CODEX : (window.ITEM_CODEX || null);
+    if (!CX) return null;
+    var want = String(setName || '').trim();
+    if (!want) return null;
+    var bare = function(v){ return String(v || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase(); };
+    // the codex names a set "<Set> (any)" / "<Set> (set)"; the bridge sends it bare
+    var key = null, wb = bare(want);
+    for (var k in CX){
+      if (!CX[k] || CX[k].rarity !== 'set') continue;
+      if (k === want || bare(k) === wb || bare(CX[k].setName) === wb){ key = k; break; }
+    }
+    var e = key ? CX[key] : null;
+    var members = (e && e.setMembers) || [];
+    if (!members.length) return null;
+
+    var pb = bare(pieceName);
+    var m = null;
+    for (var i = 0; i < members.length; i++){
+      var n = members[i] && members[i].name;
+      if (!n) continue;
+      if (n === pieceName || bare(n) === pb){ m = members[i]; break; }
+    }
+    if (!m || !m.affixes || !m.affixes.length) return null;
+
+    return { t: 'Set', b: m.slot || null,
+             r: (m.reqLvl != null ? m.reqLvl : null), q: null,
+             l: m.affixes.slice(0, 12) };
+  } catch(e){ return null; }
+}
+try { window._bridgeSetTip = _bridgeSetTip; } catch(e){}
+
 function _writeGrailFarm(){
   try {
     if (typeof ITEMS === 'undefined' || !Array.isArray(ITEMS)) return;
@@ -15711,7 +15762,9 @@ function _writeSetFarm(){
                  setArt: (typeof artUrl === 'function' ? (artUrl(st.name) || null) : null),
                  /* v1617 — the piece's own in-game stat block, same bridge as the uniques hero.
                     Konyo asked for Griswold to read exactly like Frostburn. */
-                 tip: _bridgeTip(miss[0].name) });
+                 /* v1620 — uniques live in ITEM_TIP, set pieces in the codex's setMembers[].
+                    Try the piece first so a set piece that DOES have its own entry still wins. */
+                 tip: (_bridgeTip(miss[0].name) || _bridgeSetTip(miss[0].name, st.name)) });
     });
     var _new = JSON.stringify(out), _old = null;
     try { _old = LS.getItem('d2r_setFarm'); } catch(e){}
@@ -37433,7 +37486,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1619', name:'v1619 - the sets hero loads when Sessions opens', date:'2026-08-03', note:'THE NEXT PIECE had only ever been wired to a storage event so it never painted on a cold open - the uniques hero was on the open line since v1378 and its twin never was' };
+  window.D2R_BUILD = { id:'v1620', name:'v1620 - set pieces get their in-game block', date:'2026-08-03', note:'the sets hero card was blank because set pieces live in the codex setMembers not in ITEM_TIP - and the quicker-alternative item is now an anchor with its own art and card' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

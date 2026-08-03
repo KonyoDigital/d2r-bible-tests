@@ -3193,6 +3193,14 @@
   /* v1555 — the cheaper option at a lower difficulty, said quietly. He asked to finish Hell first;
      that is a choice, and a choice needs the alternative visible to be one. */
   .hh-alt { color: var(--muted); }
+  /* v1620 — the alternative item's own face, inline in the sentence. Sized in em so it tracks the
+     line it sits in rather than fighting it. */
+  .hh-alt-i { width: 1.15em; height: 1.15em; object-fit: contain; vertical-align: -.22em;
+    margin-right: .3em; filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
+  .hh-altgo { cursor: pointer; border-bottom: 1px dotted currentColor; }
+  .hh-altgo:hover { color: var(--gold-hi); }
+  .hh-altgo:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6);
+    border-radius: 4px; }
   .hh-eta { position: relative; flex: none; text-align: right; }
   .hh-eta b { display: block; font: var(--fw-bold) clamp(17px,1.65vw,21px)/1 var(--serif); color: var(--gold); letter-spacing: .02em; }
   .hh-eta span { display: block; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); letter-spacing: .10em; text-transform: uppercase; color: var(--muted); margin-top: 3px; max-width: 13ch; margin-left: auto; }
@@ -11005,8 +11013,28 @@
         + 'window._hubGoItem(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ');}">'
         + _itemArtImg(_meta.art, 'hh-i', top.name) + esc(top.name || '—') + '</div>'
       + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b>'
-          + (_alt ? '<span class="hh-alt"> · quicker below Hell: ' + esc(_alt.name) + ' ≈'
-              + esc(_hubHrs(_alt.expectedHours)) + '</span>' : '')
+          /* v1620 — THE ALTERNATIVE IS AN ITEM TOO. This line names a second real unique
+             ("quicker below Hell: Umbral Disk") two pixels under a title that shows its art and
+             opens a card, and offered neither — the same gap Konyo has now reported on four
+             separate surfaces. Its art and stat block are already in _byName; nothing new is
+             fetched. Sized inline so the sentence still reads as a sentence. */
+          + (_alt ? '<span class="hh-alt"> · quicker below Hell: '
+              + (function(){
+                  var am = _byName[_alt.name] || {};
+                  return '<span class="hh-altgo" role="button" tabindex="0"'
+                    + ' aria-label="' + esc(_alt.name) + ' — open it in the uniques chronicle"'
+                    + _itipAttr({ name: _alt.name || '', art: am.art || '',
+                                  rarity: am.rarity || 'unique', tip: am.tip || null,
+                                  facts: [['hunt at', _alt.source || ''],
+                                          ['to your next find', _alt.expectedHours != null
+                                            ? '≈ ' + _hubHrs(_alt.expectedHours) : '']],
+                                  go: 'click to open it in the uniques chronicle' })
+                    + ' onclick="window._hubGoItem(' + JSON.stringify(_alt.name || '').replace(/"/g, '&quot;') + ')"'
+                    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+                    + 'window._hubGoItem(' + JSON.stringify(_alt.name || '').replace(/"/g, '&quot;') + ');}">'
+                    + _itemArtImg(am.art, 'hh-alt-i', _alt.name) + esc(_alt.name) + '</span>';
+                })()
+              + ' ≈' + esc(_hubHrs(_alt.expectedHours)) + '</span>' : '')
           + '</div>' : '')
       + '</div>'
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span></div>' : '');
