@@ -1117,9 +1117,16 @@
   body.theatre-open .shell {
     grid-template-rows: auto minmax(0, 1fr) 0 auto auto !important;   /* head · STAGE(flex) · dash(0) · tick · foot */
   }
-  body.theatre-open .stage,
-  body.theatre-open[data-view="sessions"] .stage {
-    display: flex !important;            /* beats body[data-view=sessions] .stage { display:none } */
+  /* v1612 — THE SESSIONS VARIANT IS GONE. This selector used to carry
+     `body.theatre-open[data-view="sessions"] .stage` with a comment boasting that it "beats
+     body[data-view=sessions] .stage { display:none }" — and it did, with !important and higher
+     specificity. That is precisely how a 1090x694 stage appeared on the hunt hub wrapped around
+     #th-film with src=(none): a black rectangle exactly where Konyo expects the live feed, which
+     cost him a night of believing recording was broken while the cockpit worked perfectly.
+     The theatre still opens everywhere it belongs; it simply may not commandeer Sessions, which
+     owns no film surface. thOpen() routes to the cockpit first, so the reel still plays. */
+  body.theatre-open:not([data-view="sessions"]) .stage {
+    display: flex !important;
     min-height: 0 !important;            /* beat off-air clamp(256px,26vh,330px) */
     height: auto !important;
     max-height: none !important;
@@ -2991,7 +2998,16 @@
   /* the Sessions flagship view: the cockpit stage steps aside so the hunt leads; the RECORD chronicles below.
      The "full grail bible →" link appears here to reach bible.html's deep session data. */
   /* v1380.3 — hide standby stage on Sessions, BUT never while theatre is open (cinema needs the CRT) */
-  body[data-view="sessions"]:not(.theatre-open) .stage { display: none !important; }
+  /* v1612 — UNCONDITIONAL ON SESSIONS. This used to carry `:not(.theatre-open)`, so anything that
+     set theatre-open — from any code path, deliberate or accidental — unhid a 1090x694 stage
+     wrapped around #th-film with src=(none). That is a BLACK SCREEN sitting exactly where Konyo
+     expects the live feed, and he spent a night reading it as "recording is broken" while the
+     cockpit recorded perfectly.
+     Sessions is the hunt hub; it owns no film surface. thOpen() now routes to the cockpit BEFORE
+     opening, so the reel still plays — this rule is the backstop for every path that does not go
+     through thOpen. Worst case is now "no stage here" instead of "a black rectangle here", and
+     an absent surface is honest where an empty one is not. */
+  body[data-view="sessions"] .stage { display: none !important; }
   .hub-bible { display: none; }
   body[data-view="sessions"] .hub-bible { display: inline-flex; align-items: center; gap: 7px; grid-column: 1 / -1;
     justify-self: end; margin: -2px 0 2px; padding: 6px 12px; border: 1px solid var(--edge); border-radius: 8px;
@@ -7328,6 +7344,31 @@
     }
   }
   async function thOpen(){
+    /* v1612 — THE THEATRE BELONGS TO THE COCKPIT, SO GO THERE FIRST.
+       Konyo: "i think i know what that blackscreen is.. its in sessions.. maybe when clicking on
+       air or mini it routes me to the TV-D page? but regardless the Sessions tab is like falsely
+       showing the AI screenrecording?"
+
+       He was right, and the measurement is unambiguous. On Sessions the stage is correctly hidden
+       by `body[data-view="sessions"]:not(.theatre-open) .stage { display:none }` — but the moment
+       ANYTHING sets theatre-open, that exception fires and a 1090x694 stage appears wrapping
+       #th-film, whose src is (none) and naturalWidth 0. A large empty element on a dark page is a
+       BLACK SCREEN, and it sat right where he expects the live feed, so it read as "recording is
+       broken" while TV-D was working perfectly.
+
+       The v1380.5 doctrine already says Theatre (past) and ON AIR (live) never share the stage.
+       This is the same separation one level up: Sessions is the hunt hub and does not own a film
+       surface at all. So opening the theatre from Sessions LEAVES Sessions first — the reel then
+       plays on the cockpit where the stage lives, instead of unhiding a bare rectangle here.
+
+       Deliberately NOT done by making the CSS unconditional: that would hide the stage even when
+       he opens Theatre on purpose, trading a black box for a dead button. */
+    try {
+      if (document.body.getAttribute('data-view') === 'sessions'
+          && typeof window._shellHome === 'function') {
+        window._shellHome();
+      }
+    } catch (e) { /* routing must never stop the reel from opening */ }
     // v859 (Grok UX #4) — pixels BEFORE network: the theatre shell opens instantly
     TH.open = true;
     try { thArtInit(); } catch (e) {}   // v945 — warm the HD-art map so item icons are ready
