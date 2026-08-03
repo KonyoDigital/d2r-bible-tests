@@ -47,6 +47,24 @@ def _tz_info():
     return json.loads(m.group(1)), src
 
 
+# v1610 — ART THAT IS KNOWN BAD, NAMED RATHER THAN TOLERATED SILENTLY.
+# An exception you have to write a sentence for is a debt on the books. An exception with no
+# entry here is a bug nobody can see — which is exactly how a flat grey tile shipped and stayed.
+KNOWN_FLAT_ART = {
+    "act3-spider": (
+        "tz_act3-spider.jpg is a flat grey tile (pixel stdev 2.8 against 14-43 for every healthy "
+        "tile, 7,779 bytes against 37k-80k). Spider Forest and Spider Cavern therefore render as "
+        "empty boxes. The source art/act3-spiderforest_graphic.png is FINE (800x800, stdev 31.5) "
+        "but it is a diablo2.io zone graphic, and every working tile here is a TILED TERRAIN "
+        "TEXTURE extracted from the game via CASC — deriving from the graphic produces a visibly "
+        "different, harsher image (compared side by side, 2026-08-03). Konyo's standing "
+        "requirement is game-extracted art, so a substitute is worse than a known gap. "
+        "TO FIX: re-extract the act3 spider terrain tile with art/hd_extract_tools (CascLib), "
+        "same pass that produced the other 22."
+    ),
+}
+
+
 class TestTZArtCoverage(unittest.TestCase):
     def test_every_zone_has_den_lvl_and_an_art_key(self):
         info, _ = _tz_info()
@@ -78,6 +96,28 @@ class TestTZArtCoverage(unittest.TestCase):
             p = os.path.join(REPO, "art", "tz_%s.jpg" % k)
             n = os.path.getsize(p)
             self.assertGreater(n, 5000, "tz_%s.jpg is only %d bytes — suspect a failed decode" % (k, n))
+            # v1610 — BYTES CANNOT SEE A BLANK IMAGE. tz_act3-spider.jpg was a flat grey tile that
+            # sailed through this floor at 7,779 bytes: a featureless JPEG compresses small but not
+            # THAT small, so the size check said "fine" while Spider Forest and Spider Cavern both
+            # rendered as empty boxes in the panel. Konyo found it by looking, which is the one
+            # thing a gate is supposed to make unnecessary.
+            #
+            # Pixel VARIANCE is the property that actually distinguishes art from a placeholder.
+            # Measured across the 22 healthy tiles: stdev 14.0 - 42.7. The blank one: 2.8. A floor
+            # of 8 sits far below every real tile and far above the failure, so it cannot fire on a
+            # legitimately dark or low-contrast extraction.
+            try:
+                from PIL import Image, ImageStat
+                _st = ImageStat.Stat(Image.open(p).convert("L"))
+                if k in KNOWN_FLAT_ART:
+                    continue        # named, reasoned, and re-checked by the test below
+                self.assertGreater(
+                    _st.stddev[0], 8.0,
+                    "tz_%s.jpg has pixel stdev %.1f — that is a FLAT image, not art. Every real "
+                    "tile measures 14-43. It will render as an empty grey box for every zone that "
+                    "uses this key, and the byte-size floor above cannot catch it." % (k, _st.stddev[0]))
+            except ImportError:
+                pass          # no Pillow in this env — the size floor above still applies
             sizes.setdefault(n, []).append(k)
         dupes = {n: v for n, v in sizes.items() if len(v) > 1}
         self.assertEqual(dupes, {}, "byte-identical art files = the v497 placeholder bug: %s" % dupes)
@@ -472,3 +512,33 @@ class TestSessionsOnly(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestKnownBadArtStaysNamedAndSmall(unittest.TestCase):
+    """An exception list is only honest while it is short and every entry says why.
+
+    This is the half that makes KNOWN_FLAT_ART a debt rather than a hiding place: it fails if the
+    list grows past a couple of entries, if an entry has no real reason written against it, or if
+    an entry names a key that no longer exists (a stale excuse outliving its bug).
+    """
+
+    def test_every_exception_carries_a_real_reason(self):
+        for k, why in KNOWN_FLAT_ART.items():
+            self.assertGreater(len(str(why).strip()), 80,
+                               "%s is excused with no explanation — say what is wrong and how to "
+                               "fix it, or fix it" % k)
+            self.assertIn("TO FIX", str(why),
+                          "%s must say how to fix it, or it is not a debt, it is a shrug" % k)
+
+    def test_the_list_does_not_become_a_dumping_ground(self):
+        self.assertLessEqual(len(KNOWN_FLAT_ART), 2,
+                             "more than two tiles excused at once means the extraction pass broke, "
+                             "not that individual files are unlucky: %s" % sorted(KNOWN_FLAT_ART))
+
+    def test_no_exception_outlives_its_file(self):
+        info, _ = _tz_info()
+        keys = {row[2] for row in info.values()}
+        for k in KNOWN_FLAT_ART:
+            self.assertIn(k, keys,
+                          "%s is excused but no zone uses that art key any more — delete the "
+                          "exception" % k)
