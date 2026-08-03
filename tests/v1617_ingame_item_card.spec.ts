@@ -225,7 +225,12 @@ test.describe('v1618 — the console card is the board card', () => {
     await page.goto(BOARD); await page.waitForTimeout(2400);
     const board = await page.evaluate(() => {
       const mk = (cls: string, parent: any) => { const d = document.createElement('div'); d.className = cls; parent.appendChild(d); return d; };
-      const t = document.createElement('div'); t.id = 'arttip'; t.className = 'tip-rich';
+      /* v1622 — the probe must carry the SAME rarity the console card under test is showing.
+         The board tints its title through a class on the container (#arttip.tip-r-unique
+         .att-name{color:#c7b377}), so a bare #arttip measures the UNTINTED base gold and compares
+         the console's unique against a card the board never renders for a unique. That is how this
+         assertion went red on a correct v1622 fix: it was pinned to the wrong reference. */
+      const t = document.createElement('div'); t.id = 'arttip'; t.className = 'tip-rich tip-r-unique';
       document.body.appendChild(t);
       // the real card nests the body in .att-desc (bible.html:22916) — att-type/meta/aff INHERIT
       // its 10.5px from there, so measuring them as direct children of #arttip reads the page
@@ -263,7 +268,7 @@ test.describe('v1618 — the console card is the board card', () => {
     const px = (v: string) => parseFloat(v);
 
     expect(cons.name!.ff, 'the board titles in mono; v1617 used the console serif').toBe(board.name.ff);
-    expect(cons.name!.color, 'unique gold, same hex').toBe(board.name.color);
+    expect(cons.name!.color, "the board's unique tan #c7b377, same hex on both surfaces").toBe(board.name.color);
     expect(px(cons.name!.fs)).toBeGreaterThanOrEqual(px(board.name.fs));
 
     expect(cons.type!.ff).toBe(board.type.ff);

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1622",
+  "ver": "v1623",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1622: frostburn was painted #f0c060 which is the console chrome colour so a unique title looked like every gold label around it - the four rarity values now equal the boards --q-* exactly",
+  "note": "v1623: the v1618 card-sync test built a board card with no rarity class so it compared the consoles unique against a card the board never renders for a unique",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
