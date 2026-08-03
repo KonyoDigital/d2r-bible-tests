@@ -2479,6 +2479,13 @@
      try in most cases (D2R was simply not up yet) — this is "look at me", not "something broke". */
   .b-mini.mini-empty { border-color: rgba(224,128,58,.6) !important;
     box-shadow: inset 0 0 0 1px rgba(224,128,58,.28); }
+  /* v1613 — anything that routes says so with the pointer, and answers hover/focus like a control. */
+  .hh-go, .tf-go, .hd-go { cursor: pointer; }
+  .hh-go:hover { color: var(--gold-bright, #f0c060); }
+  .tf-go:hover { border-color: rgba(240,192,96,.45); }
+  .hd-go:hover { border-color: rgba(240,192,96,.55); color: #f0c060; }
+  .hh-go:focus-visible, .tf-go:focus-visible, .hd-go:focus-visible {
+    outline: 2px solid var(--fg-accent, #f0c060); outline-offset: 2px; }
   .mini-foc { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
   .mini-foc .mf { appearance: none; cursor: pointer; border-radius: 999px; padding: 4px 9px;
     border: 1px solid rgba(198,166,100,.24); background: rgba(0,0,0,.3); color: var(--text-dim);
@@ -4471,6 +4478,53 @@
       } else if (rtype === 'session'){ shellOpen('session'); try { if (typeof _sessionDossier === 'function') _sessionDossier(rtarget); } catch(e){} }
       else if (rtype === 'flag'){ shellOpen('tools'); }
     } catch(e){}
+  }
+
+  /* ══ v1613 — THE HUNT HUB IS ROUTABLE ══════════════════════════════════════════════════════
+     Konyo, in four messages about four surfaces: "frostburn item should be clickable and routable
+     to like the info of the item itself" · "durance of hate should be clicked and routed to
+     mephisto.. for the run itself and farming" · "for daily task force when clicked on a grail it
+     should route me to the accordingly relevant tab" · "same for open forge should be clickable
+     under the missions".
+
+     One complaint, four times: Sessions TELLS him things and then makes him go find them. Every
+     one of these names already knows where it belongs — the hero knows its item, the TZ card knows
+     its boss, a task-force row knows its ledger, a forge chip literally says "open Forge" — and
+     none of them was a link.
+
+     ONE HELPER, because four ad-hoc onclicks is how four surfaces drift apart. _routeReceipt above
+     already proved the mechanism (shellOpen + a call into the board iframe); this generalises it
+     rather than copying it a fifth time. */
+  function _hubGo(tab, fnName, arg){
+    try {
+      shellOpen(tab);
+      if (!fnName) return;
+      var fr = document.getElementById('tvd-eng');
+      // the board boots its JS async — retry briefly instead of failing on a cold pane, which is
+      // exactly the race _shellRoute already handles for switchTab
+      var n = 0, t = setInterval(function(){
+        n++;
+        var w = fr && fr.contentWindow;
+        try {
+          if (w && typeof w[fnName] === 'function'){ w[fnName](arg); clearInterval(t); return; }
+        } catch (e) { /* cross-document during boot */ }
+        if (n > 40) clearInterval(t);
+      }, 80);
+    } catch (e) { /* routing must never throw into the panel that called it */ }
+  }
+  window._hubGo = _hubGo;
+
+  // the grail hero's item -> the uniques chronicle, opened ON that item
+  window._hubGoItem = function(name){ if (name) _hubGo('funi', 'setActiveItem', name); };
+  // a terror zone's boss -> the boss page, opened on the run itself
+  window._hubGoBoss = function(id){ if (id) _hubGo('bosses', 'openBossDetail', id); };
+
+  // v1613 — one forge chip, used by both quest sources so they cannot drift into two behaviours.
+  function _forgeChip(ck){
+    return '<span class="hd-chip hd-go" role="button" tabindex="0" title="open the Forge"'
+      + ' onclick="window._hubGo(&quot;forge&quot;)"'
+      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+      + 'window._hubGo(&quot;forge&quot;);}">⚗️ ' + escC(ck) + ' · open Forge</span>';
   }
 
   // ══ v1361 · 🔬 READS FORENSICS drawer — the deep X-ray opened from the AI-READS feed (flat, 3 status sections) ══
@@ -9060,6 +9114,13 @@
   }
   function _shellLight(tab){
     try {
+      /* v1613 — THE DESTINATION IS RECORDED, not merely lit.
+         The header carries six buttons; the board has fifteen tabs. Routing to one of the nine
+         WITHOUT a button (bosses, runes, tztracker…) lit nothing at all, so the console gave no
+         answer to "where am I" — and, just as bad, left the route unobservable, which is why the
+         v1613 live check could confirm four of six destinations and had to reason about the rest.
+         The stamp fixes both: it is the honest record of where the shell went. */
+      document.body.dataset.shellTab = tab || '';
       document.querySelectorAll('#head-tabs .ht').forEach(function(b){
         b.classList.toggle('shell-on', b.dataset.tab === tab);
       });
@@ -9796,9 +9857,12 @@
         .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
       // always-visible craft types when nothing else queued
       if (!chips.length && f.craftTypes && f.craftTypes.length){
-        chips = f.craftTypes.map(function(ck){ return '<span class="hd-chip">⚗️ ' + ck + ' · open Forge</span>'; });
+        /* v1613 — a chip that SAYS "open Forge" must open the Forge. Konyo: "same for open forge
+           should be clickable under the missions". A label promising an action and not performing
+           it is worse than no label. */
+        chips = f.craftTypes.map(function(ck){ return _forgeChip(ck); });
       } else if (!chips.length && cr && cr.types && cr.types.length){
-        chips = cr.types.map(function(ck){ return '<span class="hd-chip">⚗️ ' + ck + ' · open Forge</span>'; });
+        chips = cr.types.map(function(ck){ return _forgeChip(ck); });
       }
       var html = chips.length
         ? chips.join('')
@@ -10079,16 +10143,25 @@
       // v1256 (Konyo: "what about my OTHER chronicles?") — MULTI-CHRONICLE PROGRESS context: runewords AND
       // grail uniques AND sets, steering the focus at the INCOMPLETE ones (where the hunt still is). Truthful
       // — a chronicle with no data (absent) omits its row.
-      var _tfChron = function(icon, name, found, total, leftLabel){
+      /* v1613 — EACH ROW OPENS ITS OWN LEDGER. Konyo: "for daily task force when clicked on a
+         grail it should route me to the accordingly relevant tab". The row already knows which
+         chronicle it is counting; making him find that tab himself was the panel withholding what
+         it plainly knew. */
+      var _tfChron = function(icon, name, found, total, leftLabel, tab){
         var left = Math.max(0, total - found), done = left === 0, pct = total ? Math.round(found / total * 100) : 0;
-        return '<div class="tf-row tf-chron' + (done ? ' tf-chron-done' : '') + '"><span class="tf-g">' + icon + '</span>'
+        var go = tab ? (' role="button" tabindex="0" title="open the ' + name + ' chronicle"'
+          + ' onclick="window._hubGo(&quot;' + tab + '&quot;)"'
+          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+          + 'window._hubGo(&quot;' + tab + '&quot;);}"') : '';
+        return '<div class="tf-row tf-chron' + (done ? ' tf-chron-done' : '') + (tab ? ' tf-go' : '') + '"'
+          + go + '><span class="tf-g">' + icon + '</span>'
           + '<span class="tf-t"><b>' + name + '</b> · ' + found + ' / ' + total
           + ' <span class="tf-chron-note">— ' + (done ? 'complete ✓' : (left + ' ' + leftLabel)) + '</span></span>'
           + '<span class="tf-tag ' + (done ? 'dim' : 'hunt') + '">' + (done ? 'DONE' : pct + '%') + '</span></div>';
       };
-      if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('🔨', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build'));
-      if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('🏆', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt'));
-      if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('🧩', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left'));
+      if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('🔨', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build', 'runes'));
+      if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('🏆', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt', 'funi'));
+      if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('🧩', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left', 'fsets'));
       var runsToday = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); }).length;
       rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + led.length + ' tallies synced</span><span class="tf-tag dim">TODAY</span></div>');
       var box = $('hd-taskforce');
@@ -10442,7 +10515,17 @@
             ? 'fastest in hell · of ' + (_hell.length || data.ranked.length)
             : 'fastest of ' + data.ranked.length)
         + '</div>'
-      + '<div class="hh-name">' + esc(top.name || '—') + '</div>'
+      /* v1613 — the item name is a LINK now. It already knows which item it is; making him go
+         find it in the chronicle was work the panel could do. The title carries what the hero
+         computed (where to hunt, the ETA) so a hover answers "why this one?" without a click. */
+      + '<div class="hh-name hh-go" role="button" tabindex="0"'
+        + ' title="' + esc(top.name || '') + (top.source ? ' — hunt at ' + esc(top.source) : '')
+        + (hrs ? ' · about ' + esc(hrs) + ' to your next find' : '')
+        + '\nopen it in the uniques chronicle"'
+        + ' onclick="window._hubGoItem(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+        + 'window._hubGoItem(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ');}">'
+        + esc(top.name || '—') + '</div>'
       + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b>'
           + (_alt ? '<span class="hh-alt"> · quicker below Hell: ' + esc(_alt.name) + ' ≈'
               + esc(_hubHrs(_alt.expectedHours)) + '</span>' : '')
@@ -11380,6 +11463,22 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
        in this table is ranked purely on its own density and level, and simply carries a sentence
        explaining where it sits. 'Ancient's Way' and 'Mausoleum' were the same mistake already in
        the table — both were being promoted on a neighbour's merit. */
+    /* v1613 — a zone's BOSS is a place he can go. Konyo: "durance of hate should be clicked and
+       routed to mephisto.. for the run itself and farming". TZ_NOTABLE already names the boss on
+       the card; these map that name to the board's own boss id (from BOSSES[] in bible.html) so
+       the card can open the actual run page instead of the generic tracker. Only zones whose
+       notable IS a boss appear here — "the best drop tier in the game" is not a boss and is
+       deliberately absent. */
+    var TZ_BOSS = {
+      'Durance of Hate': 'mephisto', 'The Chaos Sanctuary': 'diablo',
+      'Throne of Destruction': 'baal', 'Worldstone Chamber': 'baal',
+      'Catacombs': 'andariel', "Tal Rasha's Chamber": 'duriel',
+      'Forgotten Tower': 'countess', 'Tower Cellar': 'countess',
+      'Travincal': 'travincal', 'Arcane Sanctuary': 'summoner',
+      'Halls of Vaught': 'nihl', "Nihlathak's Temple": 'pindle',
+      'Moo Moo Farm': 'cows', 'The Pit': 'pit'
+    };
+
     var TZ_HINT = {
       'Cathedral': 'the way into the Andariel run',
       'Ancient\'s Way': 'next door to the Ancient Tunnels',
@@ -11504,11 +11603,16 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
            pointer, aria-disabled, and a lock glyph where the tag would be. He should be able to
            tell them apart with the mouse, not by reading. */
         var dead = (t.tier === 'thin');
+        /* v1613 — ROUTE TO THE BOSS WHEN THERE IS ONE. A zone with a boss is a RUN, and the run
+           page is what he actually wants ("for the run itself and farming"); the generic tracker
+           is the right destination only when there is no boss to open. Thin zones stay locked. */
+        var _boss = TZ_BOSS[_tzKey(x)] || '';
+        var _go = _boss ? 'window._hubGoBoss(&quot;' + escC(_boss) + '&quot;)' : 'window._tzRoute()';
         var attrs = dead
           ? ' aria-disabled="true" title="' + escC(x) + ' — thin: low density, not worth the window"'
-          : ' role="button" tabindex="0" onclick="window._tzRoute()"'
-            + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tzRoute();}"'
-            + ' title="' + escC(x) + ' — open the full tracker"';
+          : ' role="button" tabindex="0" onclick="' + _go + '"'
+            + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + _go + ';}"'
+            + ' title="' + escC(x) + (_boss ? ' — open the ' + escC(t.why || _boss) + ' run' : ' — open the full tracker') + '"';
         return '<div class="tzz tzz-' + t.tier + (hero ? ' tzz-hero' : '') + (dead ? ' tzz-locked' : ' tzz-live')
           + '"' + attrs + '>' + face
           + '<span class="tzz-txt"><span class="tzz-top"><b>' + escC(x) + '</b>'

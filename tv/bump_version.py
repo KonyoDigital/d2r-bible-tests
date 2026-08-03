@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """v1489 — stamp a new version across the four surfaces that carry one.
 
-Usage: python bump_version.py <ver> <short name> <note...>
+Usage: python bump_version.py v<N> <short name> <note...>   (the leading 'v' is required)
 
 The version lives in four places: the board's `D2R_BUILD`, `control_app.py`'s `/api/status`,
 `tv_diablo.py`'s `VERSION`, and `tv/WINDOWS_SHIP.json`. Bumping them by hand is four chances to
@@ -18,7 +18,7 @@ notice afterwards.
 Each stamp is verified after writing: a silent no-op replace would leave the tree half-bumped,
 which is the exact failure this tool exists to prevent.
 """
-import io, json, os, re, sys
+import datetime, io, json, os, re, sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,13 +36,27 @@ def bump(ver, name, note):
     if "'" in note or "'" in name:
         raise SystemExit("apostrophe in note/name would break the single-quoted D2R_BUILD literal")
 
+    # v1613 — REFUSE A VERSION WITHOUT ITS 'v'. Every consumer of these stamps matches `v\d+`:
+    # the parity tests, the ship manifest comparison, the badge. Handing this tool a bare "1613"
+    # wrote four stamps that all AGREED with each other and none of which any reader could parse —
+    # a half-bumped tree by a different route, and worse than a mismatch because the stamps looked
+    # internally consistent. It also poisons the next run: `cur` is found by the same `v\d+`
+    # pattern, so the tool could no longer find its own previous stamp to replace.
+    if not re.match(r"^v\d+(\.\d+)*$", ver):
+        raise SystemExit("version must look like v1613 (or v1613.1), not %r — every stamp reader "
+                         "matches a leading 'v' and would stop seeing the version entirely" % ver)
+
     p = os.path.join(REPO, "bible.html")
     s = io.open(p, encoding="utf-8").read()
     a = s.index("  window.D2R_BUILD = { id:'")
     b = s.index("\n", a)
     cur = re.search(r"id:'(v\d+)'", s[a:b]).group(1)
-    new = ("  window.D2R_BUILD = { id:'%s', name:'%s - %s', date:'2026-07-31', note:'%s' };"
-           % (ver, ver, name, note))
+    # v1613 — the date was HARDCODED to 2026-07-31, so every build stamped after that day carried
+    # a date that was simply false. The badge shows it on hover; a wrong date there is a small lie
+    # that costs nothing to tell and quietly misleads anyone dating a regression.
+    today = datetime.date.today().isoformat()
+    new = ("  window.D2R_BUILD = { id:'%s', name:'%s - %s', date:'%s', note:'%s' };"
+           % (ver, ver, name, today, note))
     io.open(p, "w", encoding="utf-8", newline="").write(s[:a] + new + s[b:])
 
     p = os.path.join(REPO, "tv", "control_app.py")

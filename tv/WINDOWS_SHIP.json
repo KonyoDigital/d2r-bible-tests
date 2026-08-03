@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1612",
+  "ver": "v1613",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1612: sessions was unhiding a 1090x694 film stage around an image with no source whenever theatre-open got set - a black rectangle exactly where the live feed belongs, which read as recording being broken while the cockpit was fine",
+  "note": "v1613: every name Sessions shows him is now a link to the thing it names — grail hero to the item card, TZ boss zones to the boss run, task-force ledgers to their own tab, open-Forge chips to the Forge",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
