@@ -37,7 +37,10 @@ const TABS = ['session', 'forge', 'funi', 'fsets', 'tools', 'tvd'];
 // #ff7d3c is the colour of a RUNE ITEM (El, Eld), a different concept that still owns that hex.
 // So this expectation was restating a hex the game disagrees with: exactly the v1621 failure
 // (a spec pinned to rgb(0,255,0) that went red when the palette became CORRECT). Fixed here.
-const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', forge: '--q-unique' };
+/* v1631 — the Forge tab maps to --rune, not --q-unique. A TAB labels a room; the Forge's room is
+   where runes become words. Runeword NAMES stay gold (the game has no runeword colour, so quality
+   decides it) — that rule lives in its own specs and is untouched here. */
+const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', forge: '--rune' };
 const PLAIN = ['session', 'tools', 'tvd'];
 // every quality colour the board declares — a plain tab must match NONE of them
 const QUALITIES = ['--q-unique', '--q-set', '--q-rare', '--q-magic', '--q-orange', '--rune'];
@@ -188,16 +191,23 @@ test.describe('v1625 — the six main tabs wear the game\'s quality palette', ()
         `the ${tab} tab must BE the game's ${tok} (${board[tok]}) — it is ${byTab[tab].color}`)
         .toBe(board[tok]);
     }
-    // v1628: the tints are no longer THREE colours, and that is the correct answer, not a weakening.
-    // In D2 a unique's name and a completed runeword's name are the SAME gold, so demanding three
-    // distinct hues here would force us to invent a Forge-only colour the game does not have — the
-    // very thing v1627's palette pull removed. What still has to bite: F·Sets green must differ from
-    // both golds (a repeated colour across DIFFERENT qualities says nothing), and the gold must not
-    // be the console's own chrome gold, or the tint is invisible as a tint (v1622's trap).
-    expect(byTab.fsets.color, 'set green is a different quality and must read differently from the gold')
+    /* v1631 — THREE TABS, THREE COLOURS. Konyo: "these two colors cant be the same... RUNEWORD is
+       separate from the F-UNIQUES".
+       v1628's comment here argued the opposite and it was reasoning about the wrong object. It is
+       true that a completed runeword's NAME is the same gold as a unique — the game has no
+       FontColorRuneword, and the runeword strings carry no colour code, so quality decides it at
+       render time. But a TAB is not an item name; it labels a ROOM. The Forge's room is where
+       runes become words, so it wears the RUNE colour, which IS a real game colour for a real
+       thing. Runeword NAMES are untouched and still gold everywhere in the app — that rule has its
+       own tests and this one does not contradict it.
+       Not FontColorDarkGold either: #78622f measures 3.42:1 against this background, under the
+       4.5:1 floor v1614 set. */
+    expect(byTab.fsets.color, 'set green must read differently from the gold').not.toBe(byTab.funi.color);
+    expect(byTab.forge.color, 'the Forge tab must not be the F·Uniques gold — he needs them apart')
       .not.toBe(byTab.funi.color);
-    expect(byTab.forge.color, 'runeword name = unique gold in game; Forge and F·Uniques agree BY DESIGN')
-      .toBe(byTab.funi.color);
+    expect(byTab.forge.color, 'nor the set green').not.toBe(byTab.fsets.color);
+    expect(new Set([byTab.forge.color, byTab.funi.color, byTab.fsets.color]).size,
+      'three quality tabs, three distinct colours').toBe(3);
     const chrome = await tokens(page, CHROME);
     for (const c of Object.values(chrome)) {
       if (!c) continue;

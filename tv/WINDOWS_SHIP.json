@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1630",
+  "ver": "v1631",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1630: TZ Tracker rename, display-only slot-suffix strip, sealed-card stamp",
+  "note": "v1631: the Forge tab wears the rune colour - the game has no runeword colour so runeword gold could only ever equal F-Uniques, and a tab labels a room not an item",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

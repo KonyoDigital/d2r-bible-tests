@@ -45,6 +45,20 @@
        forum. Consequence he accepted explicitly: the Forge tab and F·Uniques now read the same,
        because in D2 they ARE the same colour. */
     --rar-runeword:   #c7b377;
+    /* v1631 — THE FORGE TAB IS SIGNAGE, NOT AN ITEM NAME. Konyo: "these two colors cant be the
+       same... RUNEWORD is separate from the F-UNIQUES".
+       He is right that the tabs must differ, and checking the game settles WHY this was stuck:
+       there is no runeword colour to extract. _profilehd.json has no FontColorRuneword, and the
+       runeword strings ('Death', 'Insight', 'Pride') carry no colour code — D2R paints a
+       runeword's NAME from item quality at render time, and that quality is gold, the same gold
+       as a unique. So "Forge = the runeword colour" can only ever equal F·Uniques.
+       The split that resolves it: an item NAME obeys the game (--rar-runeword, gold, unchanged —
+       every runeword name in the app still paints gold). A TAB is a label for a ROOM, and the
+       Forge's room is where runes become words, so it wears the RUNE colour — a real game colour
+       for a real thing he collects, distinct and readable.
+       Not FontColorDarkGold #78622f, which was the obvious "gold but dimmer" answer and MEASURES
+       3.42:1 against this background — under the 4.5:1 floor v1614 set. Measured, not assumed. */
+    --rar-rune:       #ff7d3c;
     --rar-orange: #ffa800;
     --gold-dim: #a07830;
     --mint: #8fe6a0;
@@ -3776,7 +3790,10 @@
      held at 90% quality / 10% black so black-on-quality clears 4.5:1 for all three. */
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
-  .head-tabs .ht[data-tab="forge"] { --ht-q: var(--rar-runeword); }
+  /* v1631 — the Forge TAB wears the RUNE colour, not the runeword-name gold. See the token block:
+     the game has no runeword colour, so "runeword gold" can only ever equal F·Uniques, and Konyo
+     needs the two tabs to differ. Runeword NAMES are untouched and still gold everywhere. */
+  .head-tabs .ht[data-tab="forge"] { --ht-q: var(--rar-rune); }
   .head-tabs .ht[data-tab="funi"],
   .head-tabs .ht[data-tab="fsets"],
   .head-tabs .ht[data-tab="forge"] {
