@@ -34601,21 +34601,61 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      art the TZ panel already uses (loc's leading zone -> tzArtFor -> _tzArtSrc), 5 through their
      own portrait. Portrait first, because he asked for "the bosses themselves"; the level art is
      the fallback, and the emoji only if a boss somehow has neither. */
+  /* v1629 — bossId -> its own portrait in art/. Verified present on disk; a boss with no entry
+     resolves through the level art instead of guessing. */
+  var BOSS_PORTRAIT = {
+    andariel:  'Andariel_graphic.png',      mephisto:  'mephisto_graphic.png',
+    duriel:    'duriel_graphic.png',        diablo:    'diablo_graphic.png',
+    baal:      'baal-opt_graphic.png',      nihl:      'nihlathak-opt_graphic.png',
+    cows:      'hellbovine_graphic.png',    summoner:  'summoner_graphic.png',
+    countess:  'countess01_graphic.png',    travincal: 'councilmember_graphic.png'
+    // dclone / pindle / pit: no portrait shipped -> level art
+  };
   function _runBossArt(bossId, bossLabel){
     try {
       var B = (typeof BOSSES !== 'undefined') ? BOSSES : (window.BOSSES || []);
       var b = null;
       for (var i = 0; i < B.length; i++){ if (B[i] && B[i].id === bossId){ b = B[i]; break; } }
       if (!b) return null;
+      /* v1629 — NEVER ASK AN ITEM MAP FOR A BOSS. Konyo: "mephisto image is not correct.. it
+         needs a boss level image of mephisto not annihilus charm" and "diablo same thing its not
+         a book. its a boss".
+
+         v1624 asked artUrl(b.name) first. artUrl/D2IO_ART is an ITEM art map, so "Mephisto"
+         matched his SOULSTONE (the blue crystal he screenshotted) and "Diablo" matched a BOOK —
+         each under a hover card promising "open the boss card". A picture of the wrong thing,
+         confidently labelled.
+
+         The portraits were in art/ the whole time; v1624 just never used them. This map is
+         EXPLICIT on purpose. A prefix or fuzzy match is what caused the bug, and art/ contains
+         durielsshell_graphic.png — Duriel's SHELL, an item — which any "starts with duriel" rule
+         grabs on its way past. Ten of thirteen have a portrait; the three without fall through to
+         the LEVEL art, which is what he asked for originally. */
       var url = null;
-      try { url = (typeof artUrl === 'function') ? (artUrl(b.name) || null) : null; } catch(e){}
+      var pic = BOSS_PORTRAIT[bossId] || null;
+      if (pic) url = 'art/' + pic;
       if (!url){
-        // the boss's LEVEL, via the same seam the terror-zone cards paint with
-        var zone = String(b.loc || '').split('\u00b7')[0].trim().replace(/\s+L\d+(-L?\d+)?$/i, '').trim();
+        /* the boss's LEVEL, via the same seam the terror-zone cards paint with.
+           v1629 — TRY EVERY SEGMENT, not just the first. Pindleskin's loc reads
+           "Red Portal by Anya · Nihlathak's Temple · Act 5": the ZONE is the second segment, so
+           taking [0] asked tzArtFor about "Red Portal by Anya" and got nothing. He runs Pindle
+           more than almost anything, so that blank was the one most likely to be seen. */
+        var segs = String(b.loc || '').split('\u00b7');
         var slug = null;
-        try { slug = (typeof tzArtFor === 'function') ? tzArtFor(zone) : null; } catch(e){}
-        if (!slug){ try { slug = (typeof TZ_ZONE_ART !== 'undefined' ? TZ_ZONE_ART : (window.TZ_ZONE_ART||{}))[zone] || null; } catch(e){} }
-        if (slug){ try { url = (typeof _tzArtSrc === 'function') ? _tzArtSrc(slug) : null; } catch(e){} }
+        for (var si = 0; si < segs.length && !slug; si++){
+          var zone = segs[si].trim().replace(/\s+L\d+(-L?\d+)?$/i, '').trim();
+          if (!zone) continue;
+          try { slug = (typeof tzArtFor === 'function') ? tzArtFor(zone) : null; } catch(e){}
+          if (!slug){ try { slug = (typeof TZ_ZONE_ART !== 'undefined' ? TZ_ZONE_ART : (window.TZ_ZONE_ART||{}))[zone] || null; } catch(e){} }
+        }
+        /* v1629 — THE LEVEL ART LIVES AT art/tz_<slug>.jpg, not at _tzArtSrc's
+           art/<slug>_graphic.png. _tzArtSrc builds the second shape and NEITHER
+           act1-outdoors_graphic.png nor exp-wildtemple_graphic.png exists — so the Pit and
+           Pindleskin were resolving to 404s that the onerror handler quietly removed, rendering
+           nothing at all. The terror-zone cards have always used the tz_ form (bible.html:23782);
+           this fallback simply never asked them how. Caught by the "must actually decode"
+           assertion, which is the whole reason that assertion tests decoding rather than markup. */
+        if (slug){ url = TZ_ART_BASE + 'tz_' + slug + '.jpg'; }
       }
       return { url: url, name: b.name, emoji: b.emoji || '\ud83d\udcdc' };
     } catch(e){ return null; }
@@ -37672,7 +37712,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1628', name:'v1628 - every name wears its quality', date:'2026-08-03', note:'Colour/art/tooltip audit of both surfaces: one palette read from the token, runeword/rune/crafted split into three concepts, crafted+runeword added to the console hover card and hero title, arbitrary-picture fallbacks removed.' };
+  window.D2R_BUILD = { id:'v1629', name:'v1629 - the boss art is a boss', date:'2026-08-03', note:'Mephisto rendered his soulstone and Diablo a book because v1624 asked an ITEM map for a boss - an explicit portrait table now, and the level-art fallback was pointing at paths that never existed' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

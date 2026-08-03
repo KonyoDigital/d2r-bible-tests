@@ -75,9 +75,30 @@ test.describe('v1624 — the run wears its boss, the quick win wears its item', 
         const r = w._runBossArt ? w._runBossArt(b.id, b.name) : null;
         if (r && (r.url || r.emoji)) ok++;
       }
-      return { total: B.length, ok };
+      const rows = B.map((b: any) => {
+        const r = w._runBossArt ? w._runBossArt(b.id, b.name) : null;
+        return { id: b.id, url: r && r.url ? String(r.url) : null };
+      });
+      return { total: B.length, ok, rows };
     });
     expect(cover.total).toBeGreaterThan(10);
+    /* v1629 — "RESOLVES TO SOMETHING" IS NOT ENOUGH, and this assertion proved it. It passed
+       while Mephisto rendered his SOULSTONE and Diablo rendered a BOOK, because v1624 asked
+       artUrl() — an ITEM map — for a boss, and an item sprite satisfies "something" perfectly.
+       Konyo saw it before any test did. What is asserted now is that the picture is OF a boss or
+       its level: a *_graphic.* from the portrait table or the terror-zone art, never an item. */
     expect(cover.ok, 'every boss must resolve to something real').toBe(cover.total);
+    for (const r of cover.rows) {
+      if (!r.url) continue;   // a boss with no place and no portrait renders nothing, honestly
+      /* two legitimate shapes and no others: a boss PORTRAIT (art/<boss>_graphic.png) or the
+         LEVEL art the terror-zone cards use (art/tz_<slug>.jpg). Anything else means the resolver
+         has wandered back into the item map. */
+      expect(r.url, `${r.id}: boss art must be a portrait or the level art`)
+        .toMatch(/(_graphic\.(png|gif)|\/tz_[\w-]+\.jpg)$/i);
+      expect(r.url, `${r.id}: resolved to an ITEM sprite — art/ holds durielsshell_graphic.png, ` +
+        'and any fuzzy name match grabs it').not.toMatch(/shell|soul_?stone|_key|charm/i);
+    }
+    // and the roster must be mostly PICTURED, not mostly blank
+    expect(cover.rows.filter((r: any) => r.url).length).toBeGreaterThanOrEqual(cover.total - 1);
   });
 });
