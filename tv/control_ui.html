@@ -22,14 +22,20 @@
        now equal bible.html's --q-* exactly, which is what "synced to the rest of the console"
        has to mean: the same item is the same colour on the board and here. */
     --rar-unique: #c7b377;
-    --rar-set:    #00ff00;
+    --rar-set:    #00fc00;
     --rar-rare:   #ffff64;
-    --rar-magic:  #6969ff;
+    --rar-magic:  #6e6eff;
     /* v1625 — the two remaining D2 quality hues, copied from bible.html:12 (--rune / --q-orange),
-       not invented here. --rar-rune is the runeword/rune hue (the Forge tab wears it); --rar-orange
+       not invented here. --rar-runeword is the runeword/rune hue (the Forge tab wears it); --rar-orange
        is CRAFTED quality, which is orange in D2 and never purple. Same rule as the four above: a
        colour that means a quality is declared once and every surface reads it from here. */
-    --rar-rune:   #ff7d3c;
+    /* v1627 — THE RUNEWORD COLOUR IS GOLD, and Konyo chose accuracy over distinctness knowing
+       the cost. #ff7d3c was the colour of RUNES (El, Eld — the things you collect), not of a
+       finished runeword, whose name the game paints FontColorGoldYellow — the same gold as a
+       unique. Verified in his own install (data/global/ui/layouts/_profilehd.json), not from a
+       forum. Consequence he accepted explicitly: the Forge tab and F·Uniques now read the same,
+       because in D2 they ARE the same colour. */
+    --rar-runeword:   #c7b377;
     --rar-orange: #ffa800;
     --gold-dim: #a07830;
     --mint: #8fe6a0;
@@ -3715,12 +3721,12 @@
      matched and synced to green sets like it is ingame. F-UNIQUES it can be matched and synced to
      the uniques color... FORGE tab can match the runewords color ingame."
      Only three tabs get a tint, because only three of them NAME a D2 quality:
-       F·Uniques -> --rar-unique   F·Sets -> --rar-set   Forge -> --rar-rune (runewords)
+       F·Uniques -> --rar-unique   F·Sets -> --rar-set   Forge -> --rar-runeword (runewords)
      Sessions / Tools / TV·D stay chrome gold and are deliberately absent from every selector
      below: the game has no quality concept for a session log, a toolbox or a TV channel, and the
      v1615 rule is art-and-colour ONLY where the game has the concept. Tinting them would make the
      tint meaningless — six colours is six decorations, three colours is a legend.
-     WHY --rar-rune (#ff7d3c) AND NOT --rar-orange (#ffa800) FOR FORGE: #ffa800 is CRAFTED quality
+     WHY --rar-runeword (#ff7d3c) AND NOT --rar-orange (#ffa800) FOR FORGE: #ffa800 is CRAFTED quality
      this same version, so borrowing it would paint the Forge tab and the Crafts chip the identical
      colour and destroy the very sync this is for. #ff7d3c is the game's own rune/runeword hue and
      reads as neither chrome gold nor craft orange. One-token flip if Konyo prefers otherwise.
@@ -3732,7 +3738,7 @@
      held at 90% quality / 10% black so black-on-quality clears 4.5:1 for all three. */
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
-  .head-tabs .ht[data-tab="forge"] { --ht-q: var(--rar-rune); }
+  .head-tabs .ht[data-tab="forge"] { --ht-q: var(--rar-runeword); }
   .head-tabs .ht[data-tab="funi"],
   .head-tabs .ht[data-tab="fsets"],
   .head-tabs .ht[data-tab="forge"] {
@@ -7941,8 +7947,8 @@
        he opens Theatre on purpose, trading a black box for a dead button. */
     try {
       if (document.body.getAttribute('data-view') === 'sessions'
-          && typeof window._shellHome === 'function') {
-        window._shellHome();
+          && typeof window._toTVD === 'function') {
+        window._toTVD();   // v1627 — clears data-view too; _shellHome alone left the stage hidden
       }
     } catch (e) { /* routing must never stop the reel from opening */ }
     // v859 (Grok UX #4) — pixels BEFORE network: the theatre shell opens instantly
@@ -7995,6 +8001,7 @@
   }
   function thClose(){
     TH.open = false; clearTimeout(TH.timer); TH.playing = false;
+    try { window._backFromLive && window._backFromLive(); } catch(e){}   // v1627 — back to where he opened it from
     $('theatre').hidden = true;
     document.body.classList.remove('theatre-open');
     try { var _mp = $('th-more-pop'); if (_mp) thMore(false); } catch(e){}   // v940.5 — never leave the drawer armed behind a closed theatre
@@ -9179,8 +9186,50 @@
       try { thClose(); } catch (_tc) {}
       toast('Theatre closed · going ON AIR');
     }
+    _toTVD();                    // v1627 — go where the film will appear
     post('/api/on', this, e);
   };
+  /* ── v1627 — GOING LIVE MEANS GOING WHERE THE FILM IS ────────────────────────────────────────
+     Konyo: "when i click on mini air or ON AIR it like needs to aoutmatically route me to the TV-D
+     and also for THEATRE MODE like close theatre mode and theathre mode need to route me to the
+     relevant cell related. because its also a black screen like before when we had the
+     routing/bug".
+
+     Same shape as v1612, one layer up. v1612 stopped Sessions from unhiding an EMPTY stage; the
+     rule that did it is `body.theatre-open:not([data-view="sessions"]) .stage`, i.e. the stage is
+     deliberately not shown while he is on Sessions. ON AIR and MINI post to the server and change
+     nothing about where he is standing — so he starts a recording from Sessions and stays on a
+     surface that is designed NOT to show film. Nothing is broken underneath; he is simply in the
+     wrong room, and the room he is in is black by design.
+
+     Pressing a LIVE control now takes him to TV·D, which is the cockpit that owns the stage. */
+  var _preLiveView = null;   // where he was standing before a live control moved him
+  function _toTVD(){
+    try {
+      /* REMOVING data-view IS THE WHOLE FIX, and it is why v1612 did not finish the job.
+         v1612 taught thOpen to call _shellHome() when on Sessions — and _shellHome exists, so the
+         guard fires — but shellHome() never clears `data-view`, and the rule that reveals the
+         stage is `body.theatre-open:not([data-view="sessions"]) .stage`. The attribute survived
+         the navigation, the selector kept matching, the stage stayed hidden: a black screen with
+         a perfectly healthy film behind it. */
+      var v = document.body.getAttribute('data-view');
+      if (v) _preLiveView = v;
+      document.body.removeAttribute('data-view');
+      shellHome();                                   // TV·D = the console home; lights its tab
+    } catch(e){ }
+  }
+  window._toTVD = _toTVD;
+  /* v1627 — and leaving the film puts him back where he came from. Closing the Theatre used to
+     drop him in the cockpit regardless of whether he opened it from Sessions, which is the same
+     complaint in reverse: the app moved him and never moved him back. */
+  function _backFromLive(){
+    try {
+      var v = _preLiveView; _preLiveView = null;
+      if (v === 'sessions' && typeof showSessions === 'function') showSessions();
+    } catch(e){ }
+  }
+  window._backFromLive = _backFromLive;
+
   /* v1595 — MINI. Deliberately NOT a copy of the ON AIR path: it posts to /api/mini, which does
      its own clamping and its own refusal, and it ECHOES the clamp back so a nonsense value is
      visible rather than silently corrected. The countdown is polled from the same endpoint (GET),
@@ -9250,6 +9299,10 @@
         if (sub0) sub0.textContent = String(why).slice(0, 90);   // a toast can be missed; this stays
         return;
       }
+      /* v1627 — MINI routes to TV·D too, but only HERE: past the refusal branch above, so a
+         "disk too full" or "still shutting down" leaves him where he was, reading the reason,
+         instead of being moved to an empty cockpit for a run that never started. */
+      _toTVD();
       // ECHO THE FOCUS THE ENGINE ACCEPTED, not the one we sent — it validates against its own
       // list, and a silent fallback to "stash" must be visible rather than assumed.
       var f = j.focus || _miniFocus;

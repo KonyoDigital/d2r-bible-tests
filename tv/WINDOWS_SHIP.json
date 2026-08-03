@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1626",
+  "ver": "v1627",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1626: a v1625 follow-up reported the last-found inline colour as permanently dead - it fires on both tabs, measured live, and the reachability gate now covers that guard shape so the question is answered by a gate",
+  "note": "v1627: the quality palette now equals D2Rs font table extracted from the local install - set green was two points off and magic blue five - and ON AIR MINI and Theatre now leave Sessions so the stage is not hidden",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -71,8 +71,21 @@ test.describe('v1621 — rarity on the title, gems on the crafts', () => {
     });
     expect(c.setCls).toContain('r-set');
     expect(c.uniCls).toContain('r-unique');
-    expect(c.set, "D2's set green").toBe('rgb(0, 255, 0)');
-    expect(c.uni, "D2's unique tan — NOT the console's own gold, which is what it was").toBe('rgb(199, 179, 119)');
+    /* v1627 — READ THE TOKEN, DO NOT RESTATE THE HEX. This pinned rgb(0,255,0) and went red the
+       moment the palette was corrected to the game's real FontColorGreen rgb(0,252,0), extracted
+       from Konyo's own install. A test that hardcodes a colour defends whatever it was written
+       against — the same failure as v1622, where a hardcoded gold protected a wrong value. */
+    const tok = await page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const hex = (n: string) => cs.getPropertyValue(n).trim();
+      const toRgb = (h: string) => {
+        const m = h.replace('#', '').match(/.{2}/g) || [];
+        return `rgb(${m.map((x) => parseInt(x, 16)).join(', ')})`;
+      };
+      return { set: toRgb(hex('--rar-set')), uni: toRgb(hex('--rar-unique')) };
+    });
+    expect(c.set, "D2's set green, from the palette token").toBe(tok.set);
+    expect(c.uni, "D2's unique tan, from the palette token").toBe(tok.uni);
     expect(c.set, 'the whole point: two rarities cannot look the same').not.toBe(c.uni);
   });
 
@@ -171,9 +184,21 @@ test.describe('v1621 — rarity on the title, gems on the crafts', () => {
       const cs = getComputedStyle(document.documentElement);
       const g = (n: string) => cs.getPropertyValue(n).trim().toLowerCase();
       return { unique: g('--rar-unique'), set: g('--rar-set'), rare: g('--rar-rare'), magic: g('--rar-magic'),
-               rune: g('--rar-rune'), orange: g('--rar-orange') };
+               runeword: g('--rar-runeword'), orange: g('--rar-orange') };
     });
-    expect(cons).toEqual(board);
+    /* v1627 — RUNEWORD IS NOT A MIRROR OF THE BOARD'S --rune, and that is the point.
+       The board's --rune (#ff7d3c) is the colour of a RUNE ITEM (El, Eld — the things you
+       collect). The console's --rar-runeword is the colour of a completed RUNEWORD'S NAME, which
+       D2 paints gold: the same FontColorGoldYellow as a unique, confirmed in Konyo's own install
+       at data/global/ui/layouts/_profilehd.json. Two different concepts that were sharing one
+       token name, which is exactly how I came to call #ff7d3c "the runeword colour" out loud.
+       So the equality holds for the four QUALITIES, and the runeword is asserted separately
+       against the value the game actually uses for it. */
+    const { rune: _boardRune, ...boardQualities } = board as any;
+    const { runeword: _consRuneword, ...consQualities } = cons as any;
+    expect(consQualities).toEqual(boardQualities);
+    expect(_consRuneword, "a runeword's NAME is gold in game — the same gold as a unique")
+      .toBe(board.unique);
   });
 
   test('★★★ the craft GEM colours survive the purple→orange sweep untouched', async ({ page }) => {
