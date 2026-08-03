@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1624",
+  "ver": "v1625",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1624: the Best runs thumbnail was the art of whichever unique sorted first in that runs drop list - it is the boss now clickable with the hover card, and Quick wins keeps the item but becomes a control too",
+  "note": "v1625: Six quality surfaces now wear D2 own palette: the F-Uniques/F-Sets/Forge header tabs, crafts moved off purple onto orange, the sealed-card buttons and both found ledgers, the F-Sets run thumbnails (the boss, via the shared helper), the F-Sets hero and quick-win piece controls, and both grail page titles with HD art.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

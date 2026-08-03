@@ -3836,7 +3836,7 @@ try {
   .gs-set-done{border-color:rgba(102,255,136,.26);background:linear-gradient(180deg,rgba(102,255,136,.05),transparent)}
   .gs-set-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
   .gs-set-n{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:15.5px;font-weight:var(--fw-semibold);color:var(--text)}
-  .gs-set-done .gs-set-n{color:#d8ffe9}
+  .gs-set-done .gs-set-n{color:var(--gold-bright,#f0c060)}   /* v1625 ITEM3c — the TITLE is chrome; the PIECES are set-green */
   .gs-set-m{font-family:ui-monospace,monospace;font-size:var(--fs-meta);color:var(--text-dim);margin-left:auto;font-variant-numeric:tabular-nums}
   .gs-set-m b{color:var(--gold-bright)}
   .gs-bar{height:4px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin:0 0 8px}
@@ -7390,7 +7390,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-pipe  .ft-ct{color:#9fd4ff;background:rgba(91,159,208,.12)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-ct{color:#c79ce6;background:rgba(199,156,230,.12)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-ct{color:var(--q-orange);background:rgba(255,168,0,.12)}
 /* active = filled capsule + a top accent rail in the bucket colour + a soft outer glow */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on{box-shadow:inset 0 0 0 1px currentColor,0 3px 16px -6px currentColor}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-ct{color:#fff;background:rgba(255,255,255,.16);box-shadow:0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
@@ -7398,8 +7398,17 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-step.on{border-color:rgba(205,177,87,.65);background:rgba(205,177,87,.14);color:#e9d07a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(199,156,230,.65);background:rgba(199,156,230,.14);color:#c79ce6}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(255,168,0,.65);background:rgba(255,168,0,.14);color:var(--q-orange)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-lbl{color:inherit}
+/* v1625 ITEM2 — CRAFTED IS ORANGE. The chip's LABEL, not just its count badge, carries the craft
+   quality, resting AND lit. Measured before this rule: label rgb(183,168,136) in both states while
+   the badge was already rgb(255,168,0) — the quality lived on the number and nowhere else. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft,
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-lbl,
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on,
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on .ft-lbl{color:var(--q-orange)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft{border-color:rgba(255,168,0,.38)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(255,168,0,.65);background:rgba(255,168,0,.14)}
 /* an empty bucket recedes so the eye lands on what actually has tasks */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty{opacity:.42}
 /* v709 — the honest cross-mode courtesy strip on the runs views */
@@ -7407,12 +7416,12 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-funi,#tab-fsets) .fu-basehunt:hover{border-color:rgba(224,185,106,.75);color:var(--gold-bright)}
 :is(#tab-funi,#tab-fsets) .fu-basehunt b{color:var(--rune,#ff7d3c)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty.on{opacity:.72}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:#c79ce6}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:var(--q-orange)}
 /* v1409 — ✓ crafted action on every craft recipe row */
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid rgba(255,255,255,.05)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow .f-craft-made{margin-left:auto;font-size:11px;padding:4px 10px;flex:0 0 auto}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked .f-craft-made{opacity:.85}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-step{border-left:3px solid rgba(199,156,230,.55)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-step{border-left:3px solid rgba(255,168,0,.55)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
 /* v511 — Forge legend: floating hammer FAB + key popup (above the toolbox FABs) */
 .forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune,#e0b96a);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
@@ -7458,7 +7467,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fd-num{flex:0 0 26px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(232,200,120,.16);color:var(--best,#e8c878);font-weight:var(--fw-bold);font-size:var(--fs-body)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fd-now .fd-num{background:rgba(95,201,122,.18);color:#8fe0a0}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fd-pipe .fd-num{background:rgba(91,159,208,.18);color:#9fd4ff}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-craft .fd-num{background:rgba(199,156,230,.18);color:#c79ce6}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-craft .fd-num{background:rgba(255,168,0,.18);color:var(--q-orange)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fd-body{flex:1;min-width:0;font-size:13.5px;color:var(--text,#e0d4b6);line-height:var(--lh-normal)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fd-body b{color:var(--best,#e8c878)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fd-one{padding-top:3px}
@@ -7487,7 +7496,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn{font-size:10.5px;font-weight:var(--fw-semibold);color:#cdbf9f;background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn:hover{color:#fff;border-color:#8fe6a0}
 :is(#tab-forge,#tab-funi,#tab-fsets) .ft-done.on{border-color:#6fbf6f;color:#8fe6a0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftnow-lbl{font-size:12.5px;font-weight:var(--fw-semibold);color:#c79ce6;margin:14px 0 8px;letter-spacing:.2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftnow-lbl{font-size:12.5px;font-weight:var(--fw-semibold);color:var(--q-orange);margin:14px 0 8px;letter-spacing:.2px}
 /* Crafts filter — a COLUMN per craft type, slots stacked vertically under the type title */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
 :is(#tab-forge,#tab-funi,#tab-fsets) .craftcol{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-top:2px solid var(--cw-c,#b48ce0);border-radius:12px;padding:10px}
@@ -7671,6 +7680,11 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:var(--fw-semibold);color:#e2d6ba;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:4px 10px;cursor:pointer;transition:filter .12s,transform .07s,border-color .12s}
 .gf-chip:hover{filter:brightness(1.2);transform:translateY(-1px)}
 .gf-chip img{width:16px;height:16px;object-fit:contain}
+/* v1625 ITEM3 — the F·Uniques FOUND ledger names an in-game UNIQUE, so it wears the unique tan
+   "like the calculator tab". Scoped to the name span (.gf-cname) so the ✓ tick and the qlvl pill
+   keep their own colours, and to #tab-funi so the SET-piece chips (_pieceChip) stay set green. */
+#tab-funi .gf-chip .gf-cname{color:var(--q-unique)}
+#tab-fsets .gf-chip .gf-cname{color:var(--q-set)}
 .gf-chip .gq{font-size:9.5px;font-weight:var(--fw-bold);color:#9a8c72;background:rgba(0,0,0,.3);border-radius:5px;padding:0 5px}
 .gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--fw-semibold);border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
 .gf-piece:hover{filter:brightness(1.25);transform:translateY(-1px)}
@@ -7728,6 +7742,33 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btns{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn{padding:9px 18px;border:1px solid rgba(212,168,71,.45);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.13),rgba(240,192,96,.04));color:var(--gold-bright,#f0c060);font-size:var(--fs-body);cursor:pointer;transition:background .15s ease,transform .12s ease}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn:hover{background:rgba(240,192,96,.2);transform:translateY(-1px)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft{border-color:rgba(255,168,0,.55);background:linear-gradient(180deg,rgba(255,168,0,.13),rgba(255,168,0,.04));color:var(--q-orange)}   /* v1625 ITEM3a */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft:hover{background:rgba(255,168,0,.2)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{border-color:rgba(199,179,119,.6);background:linear-gradient(180deg,rgba(199,179,119,.13),rgba(199,179,119,.04));color:var(--q-unique)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni:hover{background:rgba(199,179,119,.2)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set{border-color:rgba(0,255,0,.45);background:linear-gradient(180deg,rgba(0,255,0,.11),rgba(0,255,0,.03));color:var(--q-set)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:rgba(0,255,0,.18)}
+#tab-funi .gf-piece .gf-nm{color:var(--q-unique)}   /* v1625 ITEM3b — a found unique reads unique, like the Calculator */
+#tab-fsets .gf-nm{color:var(--q-set)}               /* v1625 ITEM3c — a set piece reads set-green everywhere */
+:is(#tab-funi,#tab-fsets) .gs-set-h{line-height:var(--lh-snug);gap:10px;column-gap:12px}   /* v1625 ITEM3c typography */
+:is(#tab-funi,#tab-fsets) .gs-set-n{min-width:215px;line-height:var(--lh-snug)}
+:is(#tab-funi,#tab-fsets) .gs-head,:is(#tab-funi,#tab-fsets) .gs-set{padding-left:12px}
+:is(#tab-funi,#tab-fsets) .gs-set{padding-right:12px}
+#tab-fsets .fs-piece{color:var(--q-set);cursor:pointer;text-decoration:none;border-radius:5px}   /* v1625 ITEM5 */
+#tab-fsets .f-cardtitle .f-rwbig.fs-piece,#tab-fsets .fh-name .fs-piece{color:var(--q-set)}   /* v1625 ITEM5 — beats the (1,2,0) .f-cardtitle .f-rwbig rule that renders later in this sheet */
+#tab-fsets .fs-piece:hover{filter:brightness(1.18);text-decoration:underline}
+#tab-fsets .fs-piece:focus-visible{outline:2px solid var(--q-set);outline-offset:2px}
+#tab-funi .forge-title{color:var(--q-unique)}   /* v1625 ITEM6 — per-tab override; the plain Forge title stays chrome gold */
+#tab-fsets .forge-title{color:var(--q-set)}
+#tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
+#tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
+.tvf-emblem .tvf-emblem-art{width:40px;height:40px;object-fit:contain;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7))}
+#tab-funi .gf-lastname{color:var(--q-unique)}
+/* v1625 ITEM6 fix — the twin. The #tab-funi rule alone made the UNIQUE pass green-light while a SET
+   piece in the very same bar painted rgb(205,191,159) (plain gold). The inline colour _undoBar tries
+   to write is dead here: _Q_HEX is not in that closure's scope, so `typeof _Q_HEX` is 'undefined'
+   and _lCol stays ''. The tab we are standing on IS the rarity, so say it in CSS. */
+#tab-fsets .gf-lastname{color:var(--q-set)}
 /* v777 — the ✕ dismiss on a completed row is position:absolute (correct on a .f-card, which is
    position:relative). A .f-donerow was NOT positioned, so all 99 escaped to the nearest positioned
    ancestor and STACKED at the tab's top-right — reading as one stray × close. Anchor them per-row. */
@@ -33627,8 +33668,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         H.push('<div class="forge-sealed forge-sealed-done"><div class="fs-crest">⚒👑⚒</div>'
           +'<div class="fs-title">Chronicle Sealed · '+_madeRw().length+' / '+_cSealT+'</div>'
           +'<div class="fs-sub">Every runeword in the catalog stands forged — this is the end of the line.<br>The hunt is pure grail now: bases for trade, uniques &amp; sets for the wall.</div>'
-          +'<div class="fs-btns"><button class="fs-btn" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
-          +'<button class="fs-btn" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button></div></div>');
+          +'<div class="fs-btns"><button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
+          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button></div></div>');
         if (_skipNote) H.push(_skipNote);
         H.push('<details class="forge-sealed-roll"><summary>📜 show the sealed chronicle · '+made.length+' runeword'+(made.length===1?'':'s')+'</summary><div class="fsr-body">'+_doneTools+_doneList+'</div></details>');
       } else {
@@ -33651,9 +33692,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<div class="fs-title">Chronicle Sealed</div>'
           +'<div class="fs-sub">Every one of the <b>'+_sealN+'</b> runewords stands forged. The runeword Forge rests —<br>⚗️ <b>Crafts still live below</b> (and 🏆 grail / 🧩 sets). Bases for trade stay on the wall.</div>'
           +'<div class="fs-btns">'
-          +'<button class="fs-btn" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\')">⚗️ Crafts — create them all</button>'
-          +'<button class="fs-btn" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
-          +'<button class="fs-btn" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button>'
+          +'<button class="fs-btn fs-btn-craft" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\')">⚗️ Crafts — create them all</button>'
+          +'<button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
+          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button>'
           +'</div></div>');
       } else if (F !== 'crafts') {
         H.push('<div class="forge-empty">✅ <b>No runeword tasks queued.</b> Everything your runes &amp; bases can build is already ✓ created — or still needs a tally.<br>⚗️ <b>Crafts are always available below</b> · tally Perfect gems + slot runes to light ✓ make now.</div>');
@@ -33728,8 +33769,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var gemShort=String(c.gem||'').replace('Perfect ','P.');
           craftAtomic.push({
             icon:'⚗️', cls:'craft', skipKey:'craftslot|'+c.craft+'|'+c.slot,
-            craft:c.craft, slot:c.slot, color:c.color||'#c79ce6',
-            atoms:['<div class="f-atomact">Craft <b class="f-rwbig" style="color:'+_fEsc(c.color||'#c79ce6')+'">'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.top?' <span class="f-ideal">★</span>':'')+(c.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</div>'
+            craft:c.craft, slot:c.slot, color:c.color||'var(--q-orange)',
+            atoms:['<div class="f-atomact">Craft <b class="f-rwbig" style="color:'+_fEsc(c.color||'var(--q-orange)')+'">'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.top?' <span class="f-ideal">★</span>':'')+(c.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</div>'
               +'<div class="f-atomrecipe"><span class="f-reclbl">cube</span>'
               +'<span class="f-getchip" data-arttip="'+_fEsc(c.gem)+'">'+_fEsc(gemShort)+'</span>'
               +'<span class="f-cplus">+</span><span class="f-getchip" data-arttip="'+_fEsc(c.rune)+'">'+_fEsc(c.rune)+'</span>'
@@ -33854,9 +33895,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       (s.craftOnestep||[]).forEach(function(t){
         var miss = t.missing || (t.missKind==='gem' ? t.gem : t.rune);
         var journey = '<span class="f-jseg f-jseg-now">'+(t.missKind==='gem'?'💎 Get ':'🔨 Get ')+'<span class="f-getchip" data-arttip="'+_fEsc(miss)+'">'+_fEsc(miss)+'</span></span>'
-          +'<span class="f-jarrow">→</span><span class="f-jseg">⚗️ Craft <b style="color:'+_fEsc(t.color||'#c79ce6')+'">'+_fEsc(t.craft)+' '+_fEsc(t.slot)+'</b></span>';
+          +'<span class="f-jarrow">→</span><span class="f-jseg">⚗️ Craft <b style="color:'+_fEsc(t.color||'var(--q-orange)')+'">'+_fEsc(t.craft)+' '+_fEsc(t.slot)+'</b></span>';
         H.push('<div class="f-card f-step f-craft-step"><div class="f-cardbody">'
-          +'<div class="f-cardtitle">⚗️ <span style="color:'+_fEsc(t.color||'#c79ce6')+'">'+_fEsc(t.craft)+'</span> · '+_fEsc(t.slot)+(t.top?' <span class="f-ideal">★</span>':'')+'</div>'
+          +'<div class="f-cardtitle">⚗️ <span style="color:'+_fEsc(t.color||'var(--q-orange)')+'">'+_fEsc(t.craft)+'</span> · '+_fEsc(t.slot)+(t.top?' <span class="f-ideal">★</span>':'')+'</div>'
           +'<div class="f-journey">'+journey+'</div>'
           +'<div class="f-getsub">need <b data-arttip="'+_fEsc(miss)+'">'+_fEsc(miss)+'</b> · then cube magic '+_fEsc(t.slot)+' + jewel + '+_fEsc(t.rune||'')+' + '+_fEsc(t.gem||'')+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\');try{window.forgeCraftToggle&&window.forgeCraftToggle(\''+_fJs(t.craft)+'\')}catch(e){}">open recipe</button>'
@@ -34226,7 +34267,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        something to put back — a control that can only say "nothing to redo" is the dead button
        v1550 already refused to ship. */
     var _redo = window._FORGE_REDO;
-    return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: <b data-arttip="'+esc(last)+'">'+esc(last)+'</b> <span class="gp-date">'+esc(fl[last])+'</span></span>'
+    /* v1625 — the last find is named in ITS OWN in-game colour, resolved by the app's one
+       classifier (_artRarity → _Q_HEX), not by assuming 'unique' — this bar serves BOTH forges. */
+    var _lRar='', _lCol='', _lArt='';
+    try { _lRar = window._artRarity ? (window._artRarity(last)||'') : ''; } catch(e){}
+    /* v1625 ITEM6 fix — _artRarity does not classify SET PIECES (it answers for the item's art,
+       and a set piece resolves to its base). This bar serves BOTH forges and `kind` already knows
+       which ledger the name came from, so when the classifier has no answer, the LEDGER is the
+       answer: kind==='uni' → unique, otherwise → set. Measured before: "Cow King's Hooves" painted
+       rgb(205,191,159) (no colour at all); after: --q-set. */
+    if(!_lRar || !(typeof _Q_HEX!=='undefined' && _Q_HEX[_lRar])) _lRar = (kind==='uni') ? 'unique' : 'set';
+    try { _lCol = (typeof _Q_HEX!=='undefined' && _Q_HEX[_lRar]) ? _Q_HEX[_lRar] : ''; } catch(e){}
+    try { _lArt = (typeof chipLogo==='function') ? chipLogo(last) : ''; } catch(e){}
+    return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: '+_lArt+'<b class="gf-lastname" data-arttip="'+esc(last)+'"'+(_lCol?' style="color:'+_lCol+'"':'')+'>'+esc(last)+'</b> <span class="gp-date">'+esc(fl[last])+'</span></span>'
       +'<button class="f-btn f-btn-mini" onclick="window._forgeUndo(this,\''+jsq(last)+'\',\''+kind+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button>'
       +(_redo && _redo.kind===kind
         ? '<button class="f-btn f-btn-mini" onclick="window._forgeRedo()" title="put it back — undoing the undo">↪ redo <b>'+esc(_redo.name)+'</b></button>'
@@ -34504,7 +34557,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+esc(label)+'</span><span class="ft-ct">'+n+'</span></button>';
   }
   function _itemChip(n,q){
-    return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+_tickBtn(n,'grailFoundUni')+chipLogo(n)+'<span>'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
+    return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+_tickBtn(n,'grailFoundUni')+chipLogo(n)+'<span class="gf-cname">'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
   }
   /* ── v1624 — THE RUN'S PICTURE IS THE RUN ─────────────────────────────────────────────────────
      Konyo: "the item logos on the left for each Hell mephisto and the pindleskin.. like what are
@@ -34546,9 +34599,36 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      that opens the boss it is a picture OF. Anchor stays thumbnail-sized so the 430px hover guard
      still lets the card open. */
   try { window._runBossArt = _runBossArt; } catch(e){}   // published so a spec can measure coverage
+  /* v1625 — ITEM 6: the page title stops being text with an emoji next to it. The emblem slot is
+     filled from the app's OWN artUrl seam (first name that resolves), and the emoji stays behind it
+     as the fallback the <img> reveals if the file is missing. No hotlink, no new art path. */
+  function _paintForgeEmblem(sel, names, glyph){
+    try {
+      var host = document.querySelector(sel);
+      if (!host || host.getAttribute('data-art-painted')) return false;
+      var url = null;
+      for (var i=0;i<names.length && !url;i++){ try { url = (typeof artUrl==='function') ? (artUrl(names[i])||null) : null; } catch(e){} }
+      if (!url) return false;
+      host.setAttribute('data-art-painted','1');
+      host.innerHTML = '<img class="tvf-emblem-art" src="'+esc(url)+'" alt="" loading="lazy"'
+        + ' onerror="this.remove();var g=this.parentNode&&this.parentNode.querySelector(\'.tvf-gl\');if(g)g.style.display=\'block\'">'
+        + '<span class="tvf-gl" style="display:none">'+glyph+'</span>';
+      return true;
+    } catch(e){ return false; }
+  }
+  try { window._paintForgeEmblems = function(){
+    _paintForgeEmblem('#tab-funi .tvf-emblem', ['Harlequin Crest','Windforce','Griffon\'s Eye','Death\'s Fathom'], '\ud83c\udfc6');
+    _paintForgeEmblem('#tab-fsets .tvf-emblem', ["Tal Rasha's Lidless Eye","Cow King's Hooves","Aldur's Advance","Immortal King's Soul Cage"], '\ud83e\udde9');
+  }; } catch(e){}
+  try { if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ window._paintForgeEmblems(); });
+        else window._paintForgeEmblems(); } catch(e){}
   function _runArtThumb(r){
     var b = _runBossArt(r.bossId, r.boss);
-    if (!b) return art(r.items[0] ? r.items[0].n : '', '\ud83c\udfaf');
+    /* v1625 — the SAME helper now serves F·Sets, whose pieces carry .name (with a '(Helm)' slot
+       suffix) where uniques carry .n. One function, two shapes — not a second copy. */
+    if (!b){ var _it0 = (r.items && r.items[0]) ? r.items[0] : null;
+      var _f0 = _it0 ? (_it0.n || String(_it0.name || '').replace(/\s*\([^)]+\)\s*$/,'')) : '';
+      return art(_f0, '\ud83c\udfaf'); }
     var pic = b.url
       ? '<img class="f-art" src="' + esc(b.url) + '" alt="" loading="lazy" onerror="this.remove()">'
       : '<span class="f-artglyph">' + b.emoji + '</span>';
@@ -34559,6 +34639,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + 'window.openBossDetail&&window.openBossDetail(\'' + jsq(r.bossId) + '\');}"' : '')
       + ' style="cursor:' + (r.bossId ? 'pointer' : 'default') + '">' + pic + '</span>';
   }
+  try { window._runArtThumb = _runArtThumb; } catch(e){}   // v1625 — F·Sets calls it across the IIFE seam
   function _runCard(r,i){
     // v647.1 — the '+N more from this run' dead-end becomes an in-card drawer: EVERY drop of the
     // run is visible + tickable in place (Konyo: 'there should be 300+ in all — i dont see them').
@@ -34731,7 +34812,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            Now: the body opens the item card, like every other chip in the app. Un-marking is a
            deliberate ✕ on the chip, and it ARMS first — one tap says "remove?", a second removes,
            and it disarms itself after 4s so a stray tap cannot linger as a loaded trigger. */
-        H.push('<span class="gf-piece have" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card"><span class="gp-ck">✓</span>'+chipLogo(n)+esc(n)+(_flU[n]?'<span class="gp-date">'+esc(_flU[n])+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(n)+'\',\'uni\')">✕</button></span>');
+        H.push('<span class="gf-piece have" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card"><span class="gp-ck">✓</span>'+chipLogo(n)+'<span class="gf-nm">'+esc(n)+'</span>'+(_flU[n]?'<span class="gp-date">'+esc(_flU[n])+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(n)+'\',\'uni\')">✕</button></span>');
       });
       H.push('</div></div>');
       if(!s.found) H.push('<div class="forge-empty">Nothing marked found yet — tick uniques here or in the Calculator (they sync).</div>');
@@ -35230,9 +35311,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          landed — the sets ledger simply never read it while the uniques ledger built month
          headings out of the same store. data-chip lets the shared filter see it. */
       var _pd = _flog()[nm] || '';
-      return '<span class="gf-piece have" data-chip data-arttip="'+esc(clean)+'" title="'+esc(clean)+'"><span class="gp-ck">✓</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+(_pd?'<span class="gp-date">'+esc(_pd)+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(nm)+'\',\'set\')">✕</button></span>';
+      return '<span class="gf-piece have" data-chip data-arttip="'+esc(clean)+'" title="'+esc(clean)+'"><span class="gp-ck">✓</span>'+chipLogo(clean)+'<span class="gf-nm">'+esc(clean)+'</span>'+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+(_pd?'<span class="gp-date">'+esc(_pd)+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(nm)+'\',\'set\')">✕</button></span>';
     }
-    return '<span class="gf-piece" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="mark found"><span class="gp-ck">○</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
+    return '<span class="gf-piece" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="mark found"><span class="gp-ck">○</span>'+chipLogo(clean)+'<span class="gf-nm">'+esc(clean)+'</span>'+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
   }
   function _setCard(r,cls){
     var pct=r.pieces.length?Math.round(r.got/r.pieces.length*100):0;
@@ -35324,7 +35405,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var q0=quick[0], qClean=q0.name.replace(/\s*\([^)]+\)\s*$/,'');
         H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
           +'<div class="fh-artwrap"><div class="fh-art">'+art(qClean,'🧩')+'</div><div class="fh-icobadge">⚡</div></div>'
-          +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · quick win</div><div class="fh-name">'+esc(qClean)+'</div>'
+          +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · quick win</div><div class="fh-name"><span class="fs-piece" data-arttip="'+esc(qClean)+'" role="button" tabindex="0" aria-label="open '+esc(qClean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\');}">'+esc(qClean)+'</span></div>'
           +'<div class="fh-body">the LAST piece of <b>'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b>'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(q0.src.chance)+'</span>':'')+'</div></div>'
           +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">Quick wins <span class="fh-cta-arw">→</span></button></div>');
       } else if(runs.length){
@@ -35344,7 +35425,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var chips=g.items.slice(0,12).map(function(mp){ return _pieceChip({name:mp.name,have:false}); }).join('');
         var more=g.items.length>12?'<span class="gf-note">+ '+(g.items.length-12)+' more pieces</span>':'';
         var bossBtn=g.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(g.bossId)+'\')">📜 boss card</button></div>':'';
-        return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art((g.items[0]?g.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,''),'🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
+        return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+(window._runArtThumb?window._runArtThumb(g):art((g.items[0]?g.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,''),'🎯'))+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">'+(g.noRun?'<b class="f-rwbig">':'Run <b class="f-rwbig">')+esc(g.boss)+'</b></div>'
           /* v1564 — "can drop 10 of your missing pieces" is true of a run. Said under the no-source
              bucket it implies somewhere to go and drops the question he actually asked: what
@@ -35379,7 +35460,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _ts=mp.src?_ttf(_sc,mp.src.kph):'';
         var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_sc)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
         _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
-          +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(clean)+'">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
+          +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig fs-piece" data-arttip="'+esc(clean)+'" role="button" tabindex="0" aria-label="open '+esc(clean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\');}">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
           +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
           +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailTogglePiece(this,\''+jsq(mp.name)+'\')">✓ found it</button></div></div></div>');
       });
@@ -37562,7 +37643,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1624', name:'v1624 - the runs picture is the run', date:'2026-08-03', note:'the Best runs thumbnail was the art of whichever unique sorted first in that runs drop list - it is the boss now clickable with the hover card, and Quick wins keeps the item but becomes a control too' };
+  window.D2R_BUILD = { id:'v1625', name:'v1625 - the in-game palette, everywhere', date:'2026-08-03', note:'Six quality surfaces now wear D2 own palette: the F-Uniques/F-Sets/Forge header tabs, crafts moved off purple onto orange, the sealed-card buttons and both found ledgers, the F-Sets run thumbnails (the boss, via the shared helper), the F-Sets hero and quick-win piece controls, and both grail page titles with HD art.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

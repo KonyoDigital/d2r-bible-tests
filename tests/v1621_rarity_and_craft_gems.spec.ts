@@ -149,19 +149,120 @@ test.describe('v1621 — rarity on the title, gems on the crafts', () => {
        announce a unique looked like every gold border around it. Konyo spotted it immediately:
        "it doesnt look so it looks like the rest of the console". The other three happened to be
        right, which is exactly how a wrong one hides — so the invariant is not "the colours look
-       sensible", it is "they ARE the board's". */
+       sensible", it is "they ARE the board's".
+
+       v1625 extends the SAME mechanism to the two tokens this version needs: the runeword/rune
+       orange the Forge tab is tinted with, and the crafted orange the CRAFTS chip moves to. No hex
+       appears below — the board is read live and IS the reference, so a typo in either document
+       cannot be typed identically into the assertion. */
     await page.goto(BOARD); await page.waitForTimeout(2000);
     const board = await page.evaluate(() => {
       const cs = getComputedStyle(document.documentElement);
       const g = (n: string) => cs.getPropertyValue(n).trim().toLowerCase();
-      return { unique: g('--q-unique'), set: g('--q-set'), rare: g('--q-rare'), magic: g('--q-magic') };
+      return { unique: g('--q-unique'), set: g('--q-set'), rare: g('--q-rare'), magic: g('--q-magic'),
+               rune: g('--rune'), orange: g('--q-orange') };
     });
+    // the reference must actually exist — a board token that resolved to '' would make the
+    // comparison below pass against an equally-empty console token and prove nothing
+    for (const [k, v] of Object.entries(board))
+      expect(v, `board --q-${k} must be a real colour, not empty`).toMatch(/^#[0-9a-f]{3,8}$/);
     await console_(page);
     const cons = await page.evaluate(() => {
       const cs = getComputedStyle(document.documentElement);
       const g = (n: string) => cs.getPropertyValue(n).trim().toLowerCase();
-      return { unique: g('--rar-unique'), set: g('--rar-set'), rare: g('--rar-rare'), magic: g('--rar-magic') };
+      return { unique: g('--rar-unique'), set: g('--rar-set'), rare: g('--rar-rare'), magic: g('--rar-magic'),
+               rune: g('--rar-rune'), orange: g('--rar-orange') };
     });
     expect(cons).toEqual(board);
+  });
+
+  test('★★★ the craft GEM colours survive the purple→orange sweep untouched', async ({ page }) => {
+    /* v1625. Owner A moves every CRAFT-QUALITY surface off purple onto D2's crafted orange. The
+       four chips below are NOT the craft quality — they are the GEM each craft consumes (amethyst
+       / ruby / emerald / sapphire), shipped in v1621, and a grep-and-replace that swept them would
+       repaint four distinct crafts one colour again, which is the exact defect v1621 fixed.
+       Measured as COMPUTED style, not as "the class is present" — that is the v1622 lesson. */
+    // the crafted orange is taken from the BOARD, not from --rar-orange: if the console token were
+    // missing this test would otherwise compare every gem against an empty string and pass blind
+    await page.goto(BOARD); await page.waitForTimeout(2000);
+    const orangeHex = await page.evaluate(() => getComputedStyle(document.documentElement)
+      .getPropertyValue('--q-orange').trim().toLowerCase());
+    expect(orangeHex, 'the board must declare --q-orange for this guard to mean anything')
+      .toMatch(/^#[0-9a-f]{3,8}$/);
+    await console_(page);
+    const got = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      document.body.appendChild(probe);
+      const asRgb = (hex: string) => { probe.style.color = ''; probe.style.color = hex;
+        return getComputedStyle(probe).color; };
+      const out = Array.from(document.querySelectorAll('#hd-forge-chips .hd-chip')).map((c: any) => {
+        const cs = getComputedStyle(c);
+        return { text: (c.textContent || '').trim(),
+                 gemc: cs.getPropertyValue('--gemc').trim().toLowerCase(),
+                 gemcRgb: asRgb(cs.getPropertyValue('--gemc').trim()),
+                 color: cs.color, border: cs.borderTopColor };
+      });
+      probe.remove();
+      return out;
+    });
+    expect(got.length).toBe(4);
+    for (const c of CRAFTS) {
+      const chip = got.find((g) => g.text.startsWith(c.craft));
+      expect(chip, `${c.craft} chip missing`).toBeTruthy();
+      expect(chip!.gemc, `${c.craft} must still wear its ${c.gem} — the sweep must not touch gems`)
+        .toBe(c.color);
+      // and the tint must actually REACH the pixels: a live colour derived from the gem, never the
+      // chip's default cream (#d9c9a0) and never the crafted orange the sweep is spreading
+      expect(chip!.color, `${c.craft}: the gem tint must be rendered`).not.toBe('rgb(217, 201, 160)');
+    }
+    // four crafts, four DIFFERENT rendered colours — one flat colour is the v1621 defect returning
+    expect(new Set(got.map((g) => g.color)).size, 'the four crafts must still read as four things').toBe(4);
+    // and none of the four may have become the crafted orange
+    const orangeRgb = await page.evaluate((hex: string) => {
+      const p = document.createElement('span'); p.style.color = hex; document.body.appendChild(p);
+      const v = getComputedStyle(p).color; p.remove(); return v;
+    }, orangeHex);
+    for (const g of got)
+      expect(g.gemcRgb, `${g.text}: swept onto the crafted orange`).not.toBe(orangeRgb);
+  });
+
+  test('★★★ the board\'s CRAFTS filter chip is D2\'s crafted ORANGE, not the old purple', async ({ page }) => {
+    /* v1625. Konyo: "for crafts inpurple it can be changed to match the orange line ingame in
+       diablo ii color also". The chip was #c79ce6 — a colour D2 does not use for anything, on the
+       one quality D2 paints orange. Both states are measured: the resting count capsule
+       (.ft-craft .ft-ct, bible.html:7393) and the lit tab (.ft-craft.on, :7401). The expected value
+       is READ from --q-orange, never typed; the purple is named only as the thing it must not be. */
+    await page.goto(BOARD); await page.waitForTimeout(2400);
+    await page.evaluate(() => { try { (window as any).switchTab('forge'); } catch (e) {} });
+    await page.waitForTimeout(1500);
+    /* .forge-tab carries `transition: color .16s` (bible.html:7382). Reading getComputedStyle the
+       instant after classList.add('on') returns the START frame of that transition — the resting
+       #b7a888 — which is what this probe measured on its first draft and it wrongly accused the
+       board of ignoring its own rule. The lit state is therefore read AFTER the transition lands. */
+    const rest = await page.evaluate(() => {
+      const tab: any = document.querySelector('#tab-forge .forge-tab.ft-craft');
+      if (!tab) return null;
+      const probe = document.createElement('span');
+      probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--q-orange').trim();
+      document.body.appendChild(probe);
+      const orange = getComputedStyle(probe).color;
+      probe.remove();
+      const ct: any = tab.querySelector('.ft-ct');
+      const out = { orange, ct: ct ? getComputedStyle(ct).color : null, on: tab.classList.contains('on') };
+      tab.classList.add('on');           // lit state, measured after the .16s colour transition
+      return out;
+    });
+    await page.waitForTimeout(500);
+    const lit = rest ? await page.evaluate(() => {
+      const tab: any = document.querySelector('#tab-forge .forge-tab.ft-craft');
+      return { tab: getComputedStyle(tab).color, bd: getComputedStyle(tab).borderTopColor };
+    }) : null;
+    const m = rest ? { orange: rest.orange, rest: { ct: rest.ct }, lit: lit! } : null;
+    expect(m, 'the Forge CRAFTS filter chip must exist to be measured').toBeTruthy();
+    const PURPLE = 'rgb(199, 156, 230)';   // #c79ce6 — the colour being removed, named to be excluded
+    expect(m!.rest.ct, 'resting CRAFTS count: D2 paints crafted items orange').toBe(m!.orange);
+    expect(m!.rest.ct, 'and it must no longer be the invented purple').not.toBe(PURPLE);
+    expect(m!.lit.tab, 'lit CRAFTS tab: same orange').toBe(m!.orange);
+    expect(m!.lit.tab, 'lit CRAFTS tab must not be the invented purple').not.toBe(PURPLE);
   });
 });

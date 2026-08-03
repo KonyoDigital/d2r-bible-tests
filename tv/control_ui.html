@@ -25,6 +25,12 @@
     --rar-set:    #00ff00;
     --rar-rare:   #ffff64;
     --rar-magic:  #6969ff;
+    /* v1625 — the two remaining D2 quality hues, copied from bible.html:12 (--rune / --q-orange),
+       not invented here. --rar-rune is the runeword/rune hue (the Forge tab wears it); --rar-orange
+       is CRAFTED quality, which is orange in D2 and never purple. Same rule as the four above: a
+       colour that means a quality is declared once and every surface reads it from here. */
+    --rar-rune:   #ff7d3c;
+    --rar-orange: #ffa800;
     --gold-dim: #a07830;
     --mint: #8fe6a0;
     --danger: #ff7a7a;
@@ -3704,6 +3710,57 @@
   .head-tabs .ht.shell-on .ht-i { opacity: 1; filter: brightness(1.25) contrast(1.08) drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
   @media (max-width: 900px){ .head-tabs .ht .ht-i { width: 15px; height: 15px; vertical-align: -2px; } }
   .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .55; font-size: var(--fs-xs); padding: 7px 9px; }   /* v905 — the main four lead */
+  /* ══ v1625 · THE TAB WEARS ITS QUALITY ═══════════════════════════════════════════════════════
+     Konyo: "for the main tabs i want it colored accordingly to each relevant... F-SETS it can be
+     matched and synced to green sets like it is ingame. F-UNIQUES it can be matched and synced to
+     the uniques color... FORGE tab can match the runewords color ingame."
+     Only three tabs get a tint, because only three of them NAME a D2 quality:
+       F·Uniques -> --rar-unique   F·Sets -> --rar-set   Forge -> --rar-rune (runewords)
+     Sessions / Tools / TV·D stay chrome gold and are deliberately absent from every selector
+     below: the game has no quality concept for a session log, a toolbox or a TV channel, and the
+     v1615 rule is art-and-colour ONLY where the game has the concept. Tinting them would make the
+     tint meaningless — six colours is six decorations, three colours is a legend.
+     WHY --rar-rune (#ff7d3c) AND NOT --rar-orange (#ffa800) FOR FORGE: #ffa800 is CRAFTED quality
+     this same version, so borrowing it would paint the Forge tab and the Crafts chip the identical
+     colour and destroy the very sync this is for. #ff7d3c is the game's own rune/runeword hue and
+     reads as neither chrome gold nor craft orange. One-token flip if Konyo prefers otherwise.
+     v1622 IS THE LESSON HERE: --rar-unique was once #f0c060, this console's own --gold, and a
+     unique looked like every gold label around it. Each tint must read visibly NOT-gold.
+     CONTRAST: the unlit tabs paint the token at FULL strength (never mixed toward white, which
+     would drift the tan back into the chrome-gold family); the lit tab keeps the near-black
+     #1a1206 foreground of .shell-on and moves the QUALITY into the gradient, whose darker stop is
+     held at 90% quality / 10% black so black-on-quality clears 4.5:1 for all three. */
+  .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
+  .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
+  .head-tabs .ht[data-tab="forge"] { --ht-q: var(--rar-rune); }
+  .head-tabs .ht[data-tab="funi"],
+  .head-tabs .ht[data-tab="fsets"],
+  .head-tabs .ht[data-tab="forge"] {
+    color: var(--ht-q);
+    border-color: color-mix(in srgb, var(--ht-q) 34%, transparent); }
+  /* the base :hover forces var(--gold) and would stomp the tint back to chrome — a tinted tab
+     BRIGHTENS its own quality instead of reverting to a colour it is not. */
+  .head-tabs .ht[data-tab="funi"]:hover,
+  .head-tabs .ht[data-tab="fsets"]:hover,
+  .head-tabs .ht[data-tab="forge"]:hover {
+    color: var(--ht-q);
+    border-color: color-mix(in srgb, var(--ht-q) 62%, transparent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--ht-q) 24%, transparent); }
+  /* `#head-tabs` and not `.head-tabs` on purpose: v1614's fix lives at the bottom of this file as
+     `#head-tabs .ht.shell-on { border-color: var(--gold-hi); box-shadow: ...gold... }` (1,2,0), and
+     a class-only rule here loses to it — measured: the tinted gradient painted but the border and
+     the glow snapped back to chrome gold, so a lit F·Sets tab was green wearing a gold ring. */
+  #head-tabs .ht[data-tab="funi"].shell-on,
+  #head-tabs .ht[data-tab="fsets"].shell-on,
+  #head-tabs .ht[data-tab="forge"].shell-on {
+    color: #1a1206;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ht-q) 84%, white), color-mix(in srgb, var(--ht-q) 90%, black));
+    border-color: color-mix(in srgb, var(--ht-q) 84%, white);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--ht-q) 30%, transparent); }
+  .head-tabs .ht[data-tab="funi"]:focus-visible,
+  .head-tabs .ht[data-tab="fsets"]:focus-visible,
+  .head-tabs .ht[data-tab="forge"]:focus-visible {
+    outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px color-mix(in srgb, var(--ht-q) 72%, transparent); }
   /* v911 — one continuous motion between surfaces */
   .shell { animation: shellIn .32s ease; }
   @keyframes shellIn { from { opacity: 0; transform: scale(.992); } to { opacity: 1; transform: none; } }
