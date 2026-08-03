@@ -14,7 +14,14 @@
        reads the same on the board, on the hero title and in the hover card. Defined here rather
        than repeated at each surface: the hero and the card disagreeing about what colour a set
        piece is was the bug this closes. */
-    --rar-unique: #f0c060;
+    /* v1622 — --rar-unique WAS #f0c060, which is this console's own --gold. Konyo: "and frostburn
+       is UNIQUE colored? it doesnt look so it looks like the rest of the console" — correct, it was
+       literally the chrome colour, so the one title that was supposed to announce a unique blended
+       into every gold border and label around it. The other three were already D2's values; I had
+       copied the hover card's TITLE gold for unique instead of the item-QUALITY colour. These four
+       now equal bible.html's --q-* exactly, which is what "synced to the rest of the console"
+       has to mean: the same item is the same colour on the board and here. */
+    --rar-unique: #c7b377;
     --rar-set:    #00ff00;
     --rar-rare:   #ffff64;
     --rar-magic:  #6969ff;
@@ -4743,7 +4750,10 @@
     }
     function build(d){
       var rar = String(d.rarity || '').toLowerCase();
-      var rcls = (rar === 'set' || rar === 'rare' || rar === 'magic') ? (' r-' + rar) : '';
+      // v1622 — 'unique' belongs in this list. It was omitted while unique WAS the base colour;
+      // now that the base is the board's title gold and unique is D2's #c7b377, leaving it out
+      // would put the card back out of step with the title it belongs to.
+      var rcls = (rar === 'set' || rar === 'rare' || rar === 'magic' || rar === 'unique') ? (' r-' + rar) : '';
       var facts = (d.facts || []).filter(function(f){ return f && f[0] && f[1]; })
         .map(function(f){ return '<div>' + esc(String(f[0])) + ' <b>' + esc(String(f[1])) + '</b></div>'; })
         .join('');

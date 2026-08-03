@@ -72,7 +72,7 @@ test.describe('v1621 — rarity on the title, gems on the crafts', () => {
     expect(c.setCls).toContain('r-set');
     expect(c.uniCls).toContain('r-unique');
     expect(c.set, "D2's set green").toBe('rgb(0, 255, 0)');
-    expect(c.uni, 'and the unique gold').toBe('rgb(240, 192, 96)');
+    expect(c.uni, "D2's unique tan — NOT the console's own gold, which is what it was").toBe('rgb(199, 179, 119)');
     expect(c.set, 'the whole point: two rarities cannot look the same').not.toBe(c.uni);
   });
 
@@ -142,5 +142,26 @@ test.describe('v1621 — rarity on the title, gems on the crafts', () => {
       ['Safety', 'Perfect Emerald', '#5fd07a'],
       ['Hit Power', 'Perfect Sapphire', '#5b8ff0'],
     ]));
+  });
+
+  test('★★★ every --rar-* EQUALS the board\'s --q-* — this is what caught the wrong gold', async ({ page }) => {
+    /* v1622. --rar-unique shipped as #f0c060, this console's own --gold, so the one title meant to
+       announce a unique looked like every gold border around it. Konyo spotted it immediately:
+       "it doesnt look so it looks like the rest of the console". The other three happened to be
+       right, which is exactly how a wrong one hides — so the invariant is not "the colours look
+       sensible", it is "they ARE the board's". */
+    await page.goto(BOARD); await page.waitForTimeout(2000);
+    const board = await page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const g = (n: string) => cs.getPropertyValue(n).trim().toLowerCase();
+      return { unique: g('--q-unique'), set: g('--q-set'), rare: g('--q-rare'), magic: g('--q-magic') };
+    });
+    await console_(page);
+    const cons = await page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const g = (n: string) => cs.getPropertyValue(n).trim().toLowerCase();
+      return { unique: g('--rar-unique'), set: g('--rar-set'), rare: g('--rar-rare'), magic: g('--rar-magic') };
+    });
+    expect(cons).toEqual(board);
   });
 });

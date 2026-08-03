@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1621",
+  "ver": "v1622",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1621: the hero title now wears the items own rarity colour - green for a set piece gold for a unique - from one palette the hover card also reads, and each Forge craft chip wears its real extracted gem",
+  "note": "v1622: frostburn was painted #f0c060 which is the console chrome colour so a unique title looked like every gold label around it - the four rarity values now equal the boards --q-* exactly",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
