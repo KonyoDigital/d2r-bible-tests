@@ -42,45 +42,64 @@ def bump(ver, name, note):
     # a half-bumped tree by a different route, and worse than a mismatch because the stamps looked
     # internally consistent. It also poisons the next run: `cur` is found by the same `v\d+`
     # pattern, so the tool could no longer find its own previous stamp to replace.
-    if not re.match(r"^v\d+(\.\d+)*$", ver):
-        raise SystemExit("version must look like v1613 (or v1613.1), not %r — every stamp reader "
-                         "matches a leading 'v' and would stop seeing the version entirely" % ver)
+    # v1617 — WHOLE NUMBERS ONLY. Konyo: "we said version go up in whole numbers instead of
+    # decimals. so fix that too". Point releases were still being accepted here, so v1616.1 and
+    # v1616.2 went out before he caught it. The rule is his and it is easy to keep by hand and easy
+    # to forget under momentum, which is exactly the kind of rule that belongs in the tool.
+    if not re.match(r"^v\d+$", ver):
+        raise SystemExit("version must be a WHOLE number like v1617, not %r — no decimals, and the "
+                         "leading 'v' is required (every stamp reader matches it)" % ver)
+
+    # ── v1617 — COMPUTE ALL FOUR, THEN WRITE ALL FOUR ────────────────────────────────────────
+    # This used to write each file as it went and raise on the first stamp that did not match. Its
+    # own message said "the tree would have been left half-bumped" — but by the time tv_diablo.py
+    # failed, bible.html and control_app.py had ALREADY been rewritten, so the sentence described a
+    # state the tool had just created rather than one it prevented. (Seen for real stamping v1617
+    # over a v1616.1 tree: two files moved, two did not.)
+    # Every replacement is now resolved against the ORIGINAL text first; nothing touches disk until
+    # all four are known good. The failure mode becomes "nothing happened", which is recoverable.
+    today = datetime.date.today().isoformat()
+    pending = []          # [(path, new_text)]
 
     p = os.path.join(REPO, "bible.html")
     s = io.open(p, encoding="utf-8").read()
     a = s.index("  window.D2R_BUILD = { id:'")
     b = s.index("\n", a)
-    cur = re.search(r"id:'(v\d+)'", s[a:b]).group(1)
-    # v1613 — the date was HARDCODED to 2026-07-31, so every build stamped after that day carried
-    # a date that was simply false. The badge shows it on hover; a wrong date there is a small lie
-    # that costs nothing to tell and quietly misleads anyone dating a regression.
-    today = datetime.date.today().isoformat()
-    new = ("  window.D2R_BUILD = { id:'%s', name:'%s - %s', date:'%s', note:'%s' };"
-           % (ver, ver, name, today, note))
-    io.open(p, "w", encoding="utf-8", newline="").write(s[:a] + new + s[b:])
+    # STRICT ON WHAT IT WRITES, TOLERANT OF WHAT IT FINDS. The guard above refuses to STAMP a
+    # decimal, but the tree may still be HOLDING one (v1616.1 shipped before the rule landed), and a
+    # tool that cannot read the version it is replacing cannot replace it.
+    _m = re.search(r"id:'(v\d+(?:\.\d+)*)'", s[a:b])
+    if not _m:
+        raise SystemExit("could not find the current D2R_BUILD id in bible.html — nothing written")
+    cur = _m.group(1)
+    new_line = ("  window.D2R_BUILD = { id:'%s', name:'%s - %s', date:'%s', note:'%s' };"
+                % (ver, ver, name, today, note))
+    pending.append((p, s[:a] + new_line + s[b:]))
 
     p = os.path.join(REPO, "tv", "control_app.py")
     s = io.open(p, encoding="utf-8").read()
-    assert s.count('"ver": "%s"' % cur) == 1, "control_app stamp not found at %s" % cur
-    io.open(p, "w", encoding="utf-8", newline="").write(
-        s.replace('"ver": "%s"' % cur, '"ver": "%s"' % ver))
+    if s.count('"ver": "%s"' % cur) != 1:
+        raise SystemExit("control_app.py stamp not found at %s — nothing written" % cur)
+    pending.append((p, s.replace('"ver": "%s"' % cur, '"ver": "%s"' % ver)))
 
     p = os.path.join(REPO, "tv", "tv_diablo.py")
     s = io.open(p, encoding="utf-8").read()
-    # re.sub silently returns the input unchanged when nothing matches, which would leave the tree
-    # half-bumped — precisely the failure this tool exists to prevent. Count the substitutions.
-    s, n = re.subn(r'VERSION = "v\d+"   # .*', 'VERSION = "%s"   # %s' % (ver, name), s, count=1)
+    # tolerant read here too — the trailing comment is free text, and the version may be dotted
+    s2, n = re.subn(r'VERSION = "v\d+(?:\.\d+)*"   # .*',
+                    'VERSION = "%s"   # %s' % (ver, name), s, count=1)
     if n != 1:
-        raise SystemExit("tv_diablo.py VERSION line did not match — stamp NOT written; the tree "
-                         "would have been left half-bumped")
-    io.open(p, "w", encoding="utf-8", newline="").write(s)
+        raise SystemExit("tv_diablo.py VERSION line did not match — nothing written")
+    pending.append((p, s2))
 
     p = os.path.join(REPO, "tv", "WINDOWS_SHIP.json")
     d = json.load(io.open(p, encoding="utf-8"))
     d["ver"] = ver
     d["note"] = "%s: %s" % (ver, note)
-    io.open(p, "w", encoding="utf-8", newline="\n").write(
-        json.dumps(d, indent=2, ensure_ascii=False) + "\n")
+    pending.append((p, json.dumps(d, indent=2, ensure_ascii=False) + "\n"))
+
+    for path, text in pending:
+        nl = "\n" if path.endswith(".json") else ""
+        io.open(path, "w", encoding="utf-8", newline=nl).write(text)
 
     print("%s -> %s  (%s)" % (cur, ver, name))
 

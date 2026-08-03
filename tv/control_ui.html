@@ -948,6 +948,21 @@
   #itip .itip-f { margin-top: 9px; display: grid; gap: 4px;
     font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); color: var(--parch-dim); }
   #itip .itip-f b { color: var(--parch); font-weight: var(--fw-semibold); }
+  /* v1617 — the board's item-card grammar, reproduced. Values mirror bible.html's #arttip
+     (att-type #c9c9c9, att-var green pill) so the same item reads the same on both surfaces —
+     Konyo sent the board's card as the spec, and two dialects of one card is the drift v1615
+     spent a whole version removing. */
+  #itip .att-type { color: #c9c9c9; font: var(--fw-medium) var(--fs-2xs)/1.35 var(--mono);
+    letter-spacing: .04em; margin-top: 6px; }
+  #itip .att-meta { color: var(--text-dim); font: var(--fw-regular) var(--fs-2xs)/1.35 var(--mono);
+    margin-top: 2px; }
+  #itip .itip-stats { margin-top: 8px; display: grid; gap: 3px; }
+  #itip .att-aff { color: var(--parch); font: var(--fw-regular) var(--fs-2xs)/1.4 var(--mono);
+    text-align: center; }
+  #itip .att-var { display: inline-block; color: #5fd35f; background: rgba(95,211,95,.1);
+    border: 1px solid rgba(95,211,95,.35); border-radius: 4px; padding: 0 4px;
+    font-weight: var(--fw-semibold); }
+  #itip .att-or { color: var(--text-dim); font-style: italic; }
   #itip .itip-go { margin-top: 8px; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono);
     letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--muted); text-align: center; }
   @media (prefers-reduced-motion: reduce){ #itip { transition: opacity .12s; transform: none; } }
@@ -4644,14 +4659,44 @@
       el.setAttribute('aria-hidden', 'true');   // the anchor carries the aria-label; this is decoration
       document.body.appendChild(el); return el;
     }
+    /* v1617 — THE IN-GAME STAT BLOCK, RENDERED THE WAY THE BOARD ALREADY RENDERS IT.
+       Konyo sent two screenshots of the board's own hover card (Baranar's Star, Ormus' Robes) with
+       "this is the example it sohuld render and replicate and for griswald too". That card is
+       right, so this reproduces it rather than inventing a third look: type · base, then
+       "Req level: N · Quality level: N", then the affix lines with every [range] in a green pill —
+       the same att-type / att-meta / att-aff / att-var structure bible.html uses.
+       ESCAPED, NOT TRUSTED. The lines arrive over localStorage, which anything on this origin can
+       write, so the text is escaped first and the [range] pills are applied to the escaped string.
+       That is why the markup is built here instead of shipping the board's HTML across. */
+    function _tipLines(l){
+      return (l || []).map(function(line){
+        var t = esc(String(line));
+        // [10-20] -> a green range pill; " OR " -> the board's dimmed 'or'
+        t = t.replace(/\[([^\]]+)\]/g, '<span class="att-var">$1</span>')
+             .replace(/ OR /g, ' <span class="att-or">or</span> ');
+        return '<div class="att-aff">' + t + '</div>';
+      }).join('');
+    }
     function build(d){
       var rar = String(d.rarity || '').toLowerCase();
       var rcls = (rar === 'set' || rar === 'rare' || rar === 'magic') ? (' r-' + rar) : '';
       var facts = (d.facts || []).filter(function(f){ return f && f[0] && f[1]; })
         .map(function(f){ return '<div>' + esc(String(f[0])) + ' <b>' + esc(String(f[1])) + '</b></div>'; })
         .join('');
+      var tip = d.tip && d.tip.l && d.tip.l.length ? d.tip : null;
+      var head = '', meta = '';
+      if (tip){
+        head = esc(String(tip.t || 'Unique')) + (tip.b ? ' · ' + esc(String(tip.b)) : '');
+        meta = (tip.r != null && tip.q != null)
+          ? ('Req level: ' + esc(String(tip.r)) + ' · Quality level: ' + esc(String(tip.q)))
+          : (tip.r != null ? ('Req level: ' + esc(String(tip.r))) : '');
+      }
       return _itemArtImg(d.art, 'itip-art', d.name)
         + '<div class="itip-n' + rcls + '">' + esc(String(d.name || '')) + '</div>'
+        + (head ? '<div class="att-type">' + head + '</div>' : '')
+        + (meta ? '<div class="att-meta">' + meta + '</div>' : '')
+        + (tip ? '<div class="itip-stats">' + _tipLines(tip.l) + '</div>' : '')
+        // the hunt facts stay BELOW the stat block: the item first, then what to do about it
         + (facts ? '<div class="itip-f">' + facts + '</div>' : '')
         + (d.go ? '<div class="itip-go">' + esc(String(d.go)) + '</div>' : '');
     }
@@ -4809,6 +4854,33 @@
   }
   // the grail hero's item / the daily pick / a grounded receipt -> the uniques chronicle, opened ON that item
   window._hubGoItem = function(name){ _hubOpenItem(name); };
+  /* v1617 — a SET PIECE -> the sets chronicle, opened on that piece.
+     Deliberately its own entry point rather than reusing _hubGoItem: d2rOpenItem lands a unique on
+     the CALCULATOR, and a set piece belongs in F-Sets where its set and its siblings are. It falls
+     back to simply opening the chronicle when the board cannot locate the piece, which is honest —
+     the tab is still the right room even when the shelf is not found. */
+  window._hubGoSetPiece = function(name){
+    if (!name) return;
+    try {
+      shellOpen('fsets');
+      var fr = document.getElementById('tvd-eng'), n = 0;
+      var t = setInterval(function(){
+        n++;
+        var w = null; try { w = fr && fr.contentWindow; } catch(e){ w = null; }
+        try {
+          if (w && typeof w.d2rOpenSetPiece === 'function'){
+            clearInterval(t);
+            var landed = false;
+            try { landed = w.d2rOpenSetPiece(name); } catch(e){ landed = false; }
+            if (landed === false) toast('couldn’t locate ' + name + ' — opened the sets chronicle instead', 4200);
+            return;
+          }
+        } catch (e) { /* cross-document while the board boots */ }
+        // no deep-link on this board build: the tab is open, and that is all we may claim
+        if (n > 40) clearInterval(t);
+      }, 80);
+    } catch (e) { }
+  };
   // a terror zone's boss -> the boss page, opened on the run itself
   window._hubGoBoss = function(id){ if (id) _hubGo('bosses', 'openBossDetail', id); };
 
@@ -10429,6 +10501,7 @@
       // one description of the pick, so the hero form and the row form cannot say different things
       var _aiTip = aiArt ? _itipAttr({
         name: aiArt.name, art: aiArt.art || '', rarity: aiArt.rarity || 'unique',
+        tip: aiArt.tip || null,          // v1617 — the same in-game block the heroes show
         facts: [['today’s pick', String(ai).slice(0, 90)]],
         go: 'click to open it in the uniques chronicle'
       }) : '';
@@ -10860,6 +10933,7 @@
        line two pixels above it whenever the source is phrased differently. One fact, one source. */
     var _tip = _itipAttr({
       name: top.name || '', art: _meta.art || '', rarity: _meta.rarity || 'unique',
+      tip: _meta.tip || null,            // v1617 — Konyo: "it should be with ingame description just like it looks ingame"
       facts: [['hunt at', top.source || ''],
               ['to your next find', hrs ? '≈ ' + hrs : ''], ['grail', _gp]],
       go: 'click to open it in the uniques chronicle'
@@ -10937,11 +11011,27 @@
       + '<div class="hh-eye"><span class="hh-dot"></span>the next piece · '
         + (tier(top.source) === 2 ? 'fastest in hell · of ' + (hell.length || data.ranked.length)
                                   : 'fastest of ' + data.ranked.length) + '</div>'
-      /* v1616 — the twin wears the same art rule as the uniques hero (art comes from the d2r_setFarm
-         entry, resolved at render time). It is NOT made clickable: the set farm ranks an AGGREGATE
-         ("any piece of Tal Rasha"), so there is no single item card to land on — a link here would
-         promise a destination the data cannot name. */
-      + '<div class="hh-name">' + _itemArtImg(meta.art, 'hh-i', top.name) + esc(top.name || '—') + '</div>'
+      /* v1617 — IT IS CLICKABLE NOW, AND v1616's REASONING WAS WRONG.
+         v1616 left this inert because "the set farm ranks an AGGREGATE, so there is no single item
+         card to land on". But the hero does not print the aggregate — it prints top.name, which is
+         the specific missing PIECE ("Griswold's Honor (Shield)"). That piece has a card like any
+         other item, so the destination the data could not name was in the heading all along.
+         Konyo: "and griswald shield right under it ... also needs to be image upgraded with a
+         description tool tip and routabel and clicable". */
+      + '<div class="hh-name hh-go" role="button" tabindex="0"'
+        + ' aria-label="' + esc(top.name || '') + (setName ? ' — a piece of ' + esc(setName) : '')
+        + ' — open it in the sets chronicle"'
+        + _itipAttr({ name: top.name || '', art: meta.art || '', rarity: meta.rarity || 'set',
+                      tip: meta.tip || null,
+                      facts: [['completes', setName || ''],
+                              ['pieces left', meta.left ? String(meta.left) : ''],
+                              ['hunt at', top.source || ''],
+                              ['to the next piece', hrs ? '≈ ' + hrs : '']],
+                      go: 'click to open it in the sets chronicle' })
+        + ' onclick="window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+        + 'window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ');}">'
+        + _itemArtImg(meta.art, 'hh-i', top.name) + esc(top.name || '—') + '</div>'
       + '<div class="hh-src">'
         + (setName ? 'completes <b>' + esc(setName) + '</b>'
             + (meta.left ? ' <span class="hh-alt">· ' + meta.left + ' piece' + (meta.left===1?'':'s') + ' left</span>' : '') : '')

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1616.1",
+  "ver": "v1617",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1616.1: the console shows each item HD art lands you ON it and both sliders now reach every estimate - with MF-blindness decided by item CLASS so gems and charms stop pretending magic find helps",
+  "note": "v1617: every item the console names now shows its own HD art and opens the real in-game stat card - the next grail the next piece the daily pick and the ops queue - and the sets hero is clickable at last",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

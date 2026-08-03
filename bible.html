@@ -7830,6 +7830,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   padding:8px 0;border-bottom:1px solid rgba(58,47,30,.5);font-size:12.5px;
 }
 #tab-session .sc-ops-row:last-child{border-bottom:0}
+#tab-session .sc-ops-art{width:19px;height:19px;object-fit:contain;vertical-align:-4px;margin-right:5px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
 #tab-session .sc-ops-n{
   font:var(--fw-semibold) 11px/1 ui-monospace,Menlo,monospace;color:var(--gold-bright);
   width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -15558,6 +15559,31 @@ const fmtHours = h => {
 // NEXT GRAIL hero. Reuses the F-Uniques Calculator (effChance/hoursFor) — zero drift. dropChance =
 // 1/chance (per-run prob) matches the engine _ev_hours. Missing-only; no-source grails omitted
 // (honest). Fork-aware (d2r_grailFarm is in _LP_FORKED); writes only on change (like forgeSummary).
+/* ── v1617 — THE IN-GAME STAT BLOCK TRAVELS THE BRIDGE ────────────────────────────────────────
+   Konyo, pointing at the board's OWN hover card (Baranar's Star, Ormus' Robes): "for the frostburn
+   this is the example it sohuld render and replicate and for griswald too".
+
+   That card is already right, and it is already data: ITEM_TIP[name] = {t:type, b:base, r:req
+   level, q:qlvl, l:[affix lines]}, transcribed from diablo2.io's RotW item DB with zero
+   fabrication. The console cannot read it — different document, iframe in between — which is the
+   same wall the ART hit in v1616, so it takes the same road.
+
+   STRUCTURED, NOT PRE-RENDERED HTML. Shipping the board's markup across the bridge would mean the
+   console renders whatever bible.html hands it, and localStorage is writable by anything else that
+   runs on this origin. The console builds its own DOM from these fields and escapes them.
+
+   The line cap is not cosmetic: d2r_grailFarm carries ~130 entries and lands in localStorage, so
+   an uncapped stat block per entry is how a 5MB quota turns into a silently truncated bridge. */
+function _bridgeTip(name){
+  try {
+    var t = (window.ITEM_TIP || {})[name];
+    if (!t || !t.l || !t.l.length) return null;
+    return { t: t.t || null, b: t.b || null, r: (t.r != null ? t.r : null),
+             q: (t.q != null ? t.q : null), l: t.l.slice(0, 12) };
+  } catch(e){ return null; }
+}
+try { window._bridgeTip = _bridgeTip; } catch(e){}
+
 function _writeGrailFarm(){
   try {
     if (typeof ITEMS === 'undefined' || !Array.isArray(ITEMS)) return;
@@ -15622,7 +15648,8 @@ function _writeGrailFarm(){
                       null when we genuinely have none — ~487 of the base_*.png are one identical
                       corrupt placeholder, so a WRONG picture is worse than no picture. */
                    art: (typeof artUrl === 'function' ? (artUrl(item.n) || null) : null),
-                   rarity: (typeof _artRarity === 'function' ? (_artRarity(item.n) || null) : null) });
+                   rarity: (typeof _artRarity === 'function' ? (_artRarity(item.n) || null) : null),
+                   tip: _bridgeTip(item.n) });
     });
     var _new = JSON.stringify(out), _old = null;
     try { _old = LS.getItem('d2r_grailFarm'); } catch(e){}
@@ -15681,7 +15708,10 @@ function _writeSetFarm(){
                     thing he is hunting); setArt is the aggregate's, for the set-level headline. */
                  art: (typeof artUrl === 'function' ? (artUrl(miss[0].name) || null) : null),
                  rarity: (typeof _artRarity === 'function' ? (_artRarity(miss[0].name) || null) : null),
-                 setArt: (typeof artUrl === 'function' ? (artUrl(st.name) || null) : null) });
+                 setArt: (typeof artUrl === 'function' ? (artUrl(st.name) || null) : null),
+                 /* v1617 — the piece's own in-game stat block, same bridge as the uniques hero.
+                    Konyo asked for Griswold to read exactly like Frostburn. */
+                 tip: _bridgeTip(miss[0].name) });
     });
     var _new = JSON.stringify(out), _old = null;
     try { _old = LS.getItem('d2r_setFarm'); } catch(e){}
@@ -18968,6 +18998,56 @@ window.d2rOpenItem = function(name, opts){
   } catch(e){ return false; }
 };
 
+/* ── v1617 — THE SET-PIECE DEEP-LINK: window.d2rOpenSetPiece(name) ──────────────────────────────
+   Konyo, on the NEXT PIECE hero: "and griswald shield right under it ... needs to be image
+   upgraded with a description tool tip and routabel and clicable".
+
+   Its own entry point rather than a branch inside d2rOpenItem, because the DESTINATION differs:
+   d2rOpenItem lands a unique on the Calculator, and a set piece belongs in F-Sets beside its set
+   and its siblings. Landing a set piece on the calculator would be a correct-looking wrong room.
+
+   Returns an HONEST boolean — true only when a chip was actually found and scrolled to. The tab
+   still opens either way (it is the right room), but the caller is told whether we landed, exactly
+   like d2rOpenItem, so the console can say so instead of implying success. */
+window.d2rOpenSetPiece = function(name){
+  try {
+    var raw = String(name == null ? '' : name).trim();
+    if (!raw) return false;
+    try { if (typeof switchTab === 'function') switchTab('fsets'); } catch(e){}
+    try { if (typeof window.renderForgeSets === 'function') window.renderForgeSets(); } catch(e){}
+
+    // "Griswold's Honor (Shield)" is how the bridge names it; the chip may carry either form
+    var bare = raw.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    var chips = [];
+    try { chips = Array.prototype.slice.call(document.querySelectorAll('#tab-fsets .gf-piece')); } catch(e){}
+    var nameOf = function(el){
+      var a = el.getAttribute('data-arttip') || '';
+      var t = (el.querySelector('.gp-nm') || {}).textContent || el.textContent || '';
+      return [String(a).trim(), String(t).trim()];
+    };
+    var eq = function(el, q){
+      var lq = q.toLowerCase();
+      return nameOf(el).some(function(v){
+        return v === q || v.toLowerCase() === lq
+            || v.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase() === lq;
+      });
+    };
+    var hit = chips.find(function(el){ return eq(el, raw); })
+           || chips.find(function(el){ return eq(el, bare); }) || null;
+    if (!hit) return false;
+
+    setTimeout(function(){
+      try {
+        hit.scrollIntoView({behavior:'smooth', block:'center'});
+        // the same flash d2rOpenItem uses, so landing looks identical on both chronicles
+        hit.classList.add('search-match-highlight');
+        setTimeout(function(){ try { hit.classList.remove('search-match-highlight'); } catch(e){} }, 1500);
+      } catch(e){}
+    }, 100);
+    return true;
+  } catch(e){ return false; }
+};
+
 
 /* One terror-zone card. zi MUST stay the zone's index in TZ_ZONES (routing + tests key
    off data-zone-idx), so grouping is presentation-only — the card identity is unchanged. */
@@ -21771,7 +21851,8 @@ window._syncCreateNowAiArt = function(){
     try { art = (typeof artUrl === 'function') ? (artUrl(hit) || null) : null; } catch(e){}
     try { rar = (typeof _artRarity === 'function') ? (_artRarity(hit) || null) : null; } catch(e){}
     if (!art){ try { window.LSR.removeItem('d2r_createNowAiArt'); } catch(e){} return; }   // no art > wrong art
-    var payload = JSON.stringify({ name: hit, art: art, rarity: rar });
+    // v1617 — the daily pick gets the same in-game stat block as the two heroes
+    var payload = JSON.stringify({ name: hit, art: art, rarity: rar, tip: _bridgeTip(hit) });
     var old = null; try { old = window.LSR.getItem('d2r_createNowAiArt'); } catch(e){}
     if (payload !== old) window.LSR.setItem('d2r_createNowAiArt', payload);
   } catch(e){}
@@ -36969,7 +37050,7 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
       if (typeof wishlist!=='undefined'){
         [...wishlist].slice(0,2).forEach(function(n){
           if (mission && mission.name===n) return;
-          rest.push({ tag:'grail', cls:'want', txt:'Wishlist <b>'+esc(n)+'</b>', pin:n, act:'Open', item:n });
+          rest.push({ tag:'grail', cls:'want', txt:'Wishlist '+_opsMark(n,'⭐'), pin:n, act:'Open', item:n });
         });
       }
     } catch(e){}
@@ -36983,13 +37064,29 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
         if (c.key==='grail' && c.op){
           if (mission && mission.name===c.op.item) return;   // don't duplicate the pinned/auto mission
           rest.push({ tag:'grail', cls:'want', item:c.op.item, act:'Open',
-            txt:'🏆 <b>'+esc(c.op.item)+'</b> — '+esc(c.op.boss||'best run')+(c.op.oddsStr?' <span style="opacity:.72">'+esc(c.op.oddsStr)+'</span>':'')+' · '+c.left+' uniques left' });
+            txt:_opsMark(c.op.item,'🏆')+' — '+esc(c.op.boss||'best run')+(c.op.oddsStr?' <span style="opacity:.72">'+esc(c.op.oddsStr)+'</span>':'')+' · '+c.left+' uniques left' });
         } else if (c.key==='sets' && c.op){
           // v1273 — set pieces aren't in ITEMS; route the OPS row to F·Sets (quick-wins), not openItemDetail.
           rest.push({ tag:'set', cls:'want', goTab:'fsets', setNear:true, act:'Open',
-            txt:'🧩 <b>'+esc(c.op.set)+'</b> — '+esc(c.op.detail) });
+            txt:_opsMark(c.op.set,'🧩')+' — '+esc(c.op.detail) });
         }
       });
+    }
+    /* ── v1617 — EVERY ITEM NAME WEARS ITS FACE AND OPENS ITS CARD ──────────────────
+       Konyo: "even here the item names keywords need upgrading to full hd art0r image and title
+       and cursor image floating ... for ttancred battlegear and baranas star so it matches".
+       The ops queue was naming real items with a generic emoji while the same items, three inches
+       up in the MISSION BRIEF, showed their own art. `data-art-logo` is the board's existing hover
+       anchor — the SAME card he screenshotted as the reference — so this borrows it rather than
+       inventing a second one. It wraps the NAME ONLY: the hover binding refuses anchors wider than
+       430px, so marking the whole row would have silently disabled the card it was adding. */
+    function _opsMark(name, glyph){
+      var u = null; try { u = (typeof artUrl === 'function') ? (artUrl(name) || null) : null; } catch(e){}
+      var img = u ? '<img class="sc-ops-art" src="' + esc(u) + '" alt="" loading="lazy" onerror="this.remove()">'
+                  : (glyph ? esc(glyph) + ' ' : '');
+      return img + '<span class="zd-item-click" data-art-logo="' + esc(name) + '"'
+           + (glyph ? ' data-art-glyph="' + esc(glyph) + '"' : '')
+           + ' style="cursor:pointer"><b>' + esc(name) + '</b></span>';
     }
     ops = blockers.concat(rest).slice(0,6);
 
@@ -37336,7 +37433,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1616.1', name:'v1616.1 - show the item and drive every number', date:'2026-08-03', note:'the console shows each item HD art lands you ON it and both sliders now reach every estimate - with MF-blindness decided by item CLASS so gems and charms stop pretending magic find helps' };
+  window.D2R_BUILD = { id:'v1617', name:'v1617 - the in-game card everywhere an item is named', date:'2026-08-03', note:'every item the console names now shows its own HD art and opens the real in-game stat card - the next grail the next piece the daily pick and the ops queue - and the sets hero is clickable at last' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
