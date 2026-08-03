@@ -7574,6 +7574,11 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atom .f-cardtitle{font-size:15.5px;line-height:var(--lh-normal);padding-right:26px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-rwbig{font-size:1.13em;font-weight:var(--fw-bold);letter-spacing:.2px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-rwbig img{width:19px!important;height:19px!important;vertical-align:-4px}
+/* v1624 — the run/quick-win thumbnail is a control now: it opens the thing it is a picture of */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-runart{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;transition:filter .12s,box-shadow .12s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-runart:hover{filter:brightness(1.18);box-shadow:0 0 0 1px rgba(240,192,96,.45)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-runart:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(6,5,4,.9),0 0 0 3px rgba(240,192,96,.65)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-artglyph{font-size:22px;line-height:1}
 /* v557 — layered make-now card: action line → recipe row → dim sub-row (Fable-5 clarity pass) */
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomact{font-size:16px;line-height:var(--lh-normal)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomact .f-in{font-size:12.5px;color:var(--text-dim,#9a8c72);font-weight:var(--fw-regular);margin:0 2px}
@@ -34501,6 +34506,59 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _itemChip(n,q){
     return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+_tickBtn(n,'grailFoundUni')+chipLogo(n)+'<span>'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
   }
+  /* ── v1624 — THE RUN'S PICTURE IS THE RUN ─────────────────────────────────────────────────────
+     Konyo: "the item logos on the left for each Hell mephisto and the pindleskin.. like what are
+     they representing? ... something might be not coded properly and its confusing".
+
+     He was right and the answer was worse than a wrong picture — it was an arbitrary one. The
+     thumbnail was art(r.items[0].n): whichever unique happened to sort FIRST in that run's drop
+     list, with a target glyph when that item had no art. It meant nothing, changed as his grail
+     changed, and Pindleskin showed a bare emoji for no reason a reader could infer.
+
+     His call, after thinking it through: "for best runs it shows us the boss as a main.. and for
+     quick wins we dont touch and leave it as is which is the item as the main". So BEST RUNS wears
+     the boss, QUICK WINS keeps the item — and both become clickable with the hover card.
+
+     Coverage measured before writing this, not after: all 13 bosses resolve — 8 through the zone
+     art the TZ panel already uses (loc's leading zone -> tzArtFor -> _tzArtSrc), 5 through their
+     own portrait. Portrait first, because he asked for "the bosses themselves"; the level art is
+     the fallback, and the emoji only if a boss somehow has neither. */
+  function _runBossArt(bossId, bossLabel){
+    try {
+      var B = (typeof BOSSES !== 'undefined') ? BOSSES : (window.BOSSES || []);
+      var b = null;
+      for (var i = 0; i < B.length; i++){ if (B[i] && B[i].id === bossId){ b = B[i]; break; } }
+      if (!b) return null;
+      var url = null;
+      try { url = (typeof artUrl === 'function') ? (artUrl(b.name) || null) : null; } catch(e){}
+      if (!url){
+        // the boss's LEVEL, via the same seam the terror-zone cards paint with
+        var zone = String(b.loc || '').split('\u00b7')[0].trim().replace(/\s+L\d+(-L?\d+)?$/i, '').trim();
+        var slug = null;
+        try { slug = (typeof tzArtFor === 'function') ? tzArtFor(zone) : null; } catch(e){}
+        if (!slug){ try { slug = (typeof TZ_ZONE_ART !== 'undefined' ? TZ_ZONE_ART : (window.TZ_ZONE_ART||{}))[zone] || null; } catch(e){} }
+        if (slug){ try { url = (typeof _tzArtSrc === 'function') ? _tzArtSrc(slug) : null; } catch(e){} }
+      }
+      return { url: url, name: b.name, emoji: b.emoji || '\ud83d\udcdc' };
+    } catch(e){ return null; }
+  }
+  /* the thumbnail as a real control: the board's own hover card via data-art-logo, and a click
+     that opens the boss it is a picture OF. Anchor stays thumbnail-sized so the 430px hover guard
+     still lets the card open. */
+  try { window._runBossArt = _runBossArt; } catch(e){}   // published so a spec can measure coverage
+  function _runArtThumb(r){
+    var b = _runBossArt(r.bossId, r.boss);
+    if (!b) return art(r.items[0] ? r.items[0].n : '', '\ud83c\udfaf');
+    var pic = b.url
+      ? '<img class="f-art" src="' + esc(b.url) + '" alt="" loading="lazy" onerror="this.remove()">'
+      : '<span class="f-artglyph">' + b.emoji + '</span>';
+    return '<span class="f-runart" data-art-logo="' + esc(b.name) + '" title="' + esc(b.name)
+      + ' \u2014 open the boss card"' + (r.bossId ? ' role="button" tabindex="0"'
+        + ' onclick="event.stopPropagation();window.openBossDetail&&window.openBossDetail(\'' + jsq(r.bossId) + '\')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+        + 'window.openBossDetail&&window.openBossDetail(\'' + jsq(r.bossId) + '\');}"' : '')
+      + ' style="cursor:' + (r.bossId ? 'pointer' : 'default') + '">' + pic + '</span>';
+  }
   function _runCard(r,i){
     // v647.1 — the '+N more from this run' dead-end becomes an in-card drawer: EVERY drop of the
     // run is visible + tickable in place (Konyo: 'there should be 300+ in all — i dont see them').
@@ -34508,7 +34566,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var chips=_all.slice(0,10).join('');
     var more=_all.length>10?'<details class="gf-more gf-more-inline"><summary class="gf-more-sum">▾ all '+_all.length+' drops from this run <span class="gf-more-ct">+'+(_all.length-10)+' more</span></summary><div class="gf-more-body gf-chips">'+_all.slice(10).join('')+'</div></details>':'';
     var bossBtn=r.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')">📜 boss card</button></div>':'';
-    return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art(r.items[0]?r.items[0].n:'','🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
+    return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+_runArtThumb(r)+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
       +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+_fuRate(r.ev)+'</b> of running':'')+'</div>'
       +'<div class="gf-chips">'+chips+'</div>'+more+'</div>'+bossBtn+'</div></div>';
@@ -34519,7 +34577,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _t=b?_ttf(_bc,b.kph):'';
     var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(_bc)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
              :'<div class="gf-note">no verified source — drops broadly</div>';
-    return '<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(x.n,'🏆')+'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
+    /* v1624 — QUICK WINS still shows the ITEM (his call: "for quick wins we dont touch and leave
+       it as is which is the item as the main") — it just stops being an inert picture. */
+    return '<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'
+      +'<span class="f-runart" data-art-logo="'+esc(x.n)+'" title="'+esc(x.n)+' — open its card"'
+      +' role="button" tabindex="0" style="cursor:pointer"'
+      +' onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(x.n)+'\')"'
+      +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+      +'window.navigateToItem&&window.navigateToItem(\''+jsq(x.n)+'\');}">'+art(x.n,'🏆')+'</span>'
+      +'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
       +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')">✓ found it</button></div></div></div>';
   }
@@ -37496,7 +37562,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1623', name:'v1623 - the sync probe was pinned to the wrong reference', date:'2026-08-03', note:'the v1618 card-sync test built a board card with no rarity class so it compared the consoles unique against a card the board never renders for a unique' };
+  window.D2R_BUILD = { id:'v1624', name:'v1624 - the runs picture is the run', date:'2026-08-03', note:'the Best runs thumbnail was the art of whichever unique sorted first in that runs drop list - it is the boss now clickable with the hover card, and Quick wins keeps the item but becomes a control too' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

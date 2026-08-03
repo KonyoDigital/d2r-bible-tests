@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1623",
+  "ver": "v1624",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1623: the v1618 card-sync test built a board card with no rarity class so it compared the consoles unique against a card the board never renders for a unique",
+  "note": "v1624: the Best runs thumbnail was the art of whichever unique sorted first in that runs drop list - it is the boss now clickable with the hover card, and Quick wins keeps the item but becomes a control too",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
