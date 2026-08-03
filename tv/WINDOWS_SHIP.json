@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1625",
+  "ver": "v1626",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1625: Six quality surfaces now wear D2 own palette: the F-Uniques/F-Sets/Forge header tabs, crafts moved off purple onto orange, the sealed-card buttons and both found ledgers, the F-Sets run thumbnails (the boss, via the shared helper), the F-Sets hero and quick-win piece controls, and both grail page titles with HD art.",
+  "note": "v1626: a v1625 follow-up reported the last-found inline colour as permanently dead - it fires on both tabs, measured live, and the reachability gate now covers that guard shape so the question is answered by a gate",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

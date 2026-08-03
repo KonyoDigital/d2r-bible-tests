@@ -7765,9 +7765,18 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .tvf-emblem .tvf-emblem-art{width:40px;height:40px;object-fit:contain;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7))}
 #tab-funi .gf-lastname{color:var(--q-unique)}
 /* v1625 ITEM6 fix — the twin. The #tab-funi rule alone made the UNIQUE pass green-light while a SET
-   piece in the very same bar painted rgb(205,191,159) (plain gold). The inline colour _undoBar tries
-   to write is dead here: _Q_HEX is not in that closure's scope, so `typeof _Q_HEX` is 'undefined'
-   and _lCol stays ''. The tab we are standing on IS the rarity, so say it in CSS. */
+   piece in the very same bar painted rgb(205,191,159) (plain gold), so the sets side needed its own.
+
+   v1626 CORRECTION — this comment used to claim the inline colour _undoBar writes was DEAD, because
+   "_Q_HEX is not in that closure's scope". That is false. `var _Q_HEX` at line ~16224 is top-level,
+   therefore a window property, therefore visible from every closure in the document; measured live,
+   the bar renders style="color:#c7b377" on F·Uniques and style="color:#00ff00" on F·Sets, and the
+   inline wins over these rules. A comment describing a bug is indistinguishable from the bug to the
+   next reader, and this one would have sent someone hunting a scope problem that does not exist.
+
+   BOTH mechanisms are wanted, in this order: the inline colour is per-ITEM (it asks the classifier
+   what this specific find was), these rules are per-TAB and catch the case where the classifier has
+   no answer. Precise first, coarse as the floor. */
 #tab-fsets .gf-lastname{color:var(--q-set)}
 /* v777 — the ✕ dismiss on a completed row is position:absolute (correct on a .f-card, which is
    position:relative). A .f-donerow was NOT positioned, so all 99 escaped to the nearest positioned
@@ -37643,7 +37652,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1625', name:'v1625 - the in-game palette, everywhere', date:'2026-08-03', note:'Six quality surfaces now wear D2 own palette: the F-Uniques/F-Sets/Forge header tabs, crafts moved off purple onto orange, the sealed-card buttons and both found ledgers, the F-Sets run thumbnails (the boss, via the shared helper), the F-Sets hero and quick-win piece controls, and both grail page titles with HD art.' };
+  window.D2R_BUILD = { id:'v1626', name:'v1626 - the dead code was not dead', date:'2026-08-03', note:'a v1625 follow-up reported the last-found inline colour as permanently dead - it fires on both tabs, measured live, and the reachability gate now covers that guard shape so the question is answered by a gate' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

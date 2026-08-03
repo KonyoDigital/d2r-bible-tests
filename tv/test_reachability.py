@@ -172,11 +172,28 @@ _DECL_PATTERNS = [re.compile(p) for p in (
 _GUARD_PATTERNS = [
     re.compile(r"typeof\s+([A-Za-z_$][\w$]*)\s*===?\s*['\"]function['\"]"),
     re.compile(r"typeof\s+window\.([A-Za-z_$][\w$]*)\s*===?\s*['\"]function['\"]"),
+    # v1626 — THE OTHER HALF OF THE SAME GUARD. `typeof X !== 'undefined'` is the same promise in
+    # the same shape, and it was not covered. That gap cost real time: a v1625 follow-up reported
+    # the "last found" inline colour as permanently dead because `_Q_HEX is not in that closure's
+    # scope` — untrue (it is a top-level var, so a window property), and there was no gate to
+    # refute it, so it had to be disproved by rendering the bar on both tabs. 89 symbols in
+    # bible.html use this shape; exactly two resolve nowhere, and both are browser features being
+    # detected on purpose (see BROWSER_GLOBALS).
+    re.compile(r"typeof\s+([A-Za-z_$][\w$]*)\s*!==?\s*['\"]undefined['\"]"),
+    re.compile(r"typeof\s+window\.([A-Za-z_$][\w$]*)\s*!==?\s*['\"]undefined['\"]"),
 ]
 
 # Guards on names this document does NOT own. Each needs a reason a reader can check.
 EXTERNAL_SYMBOLS = {
     # (surface, symbol): why it legitimately lives elsewhere
+    #
+    # v1626 — BROWSER APIs, feature-detected on purpose. These are the ONLY two of the 89
+    # typeof-guarded symbols in bible.html that resolve to no declaration, and that is correct:
+    # the whole point of guarding them is that an older engine may not provide them. Allowlisting
+    # them is what keeps the new typeof-undefined coverage honest — a gate that cries wolf on
+    # legitimate feature detection is a gate people learn to skip.
+    ("bible.html", "AbortController"): "browser API — feature-detected, not ours to declare",
+    ("bible.html", "ResizeObserver"): "browser API — feature-detected, not ours to declare",
 }
 
 
