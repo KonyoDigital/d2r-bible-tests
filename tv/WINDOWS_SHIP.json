@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1614",
+  "ver": "v1615",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1614: the six header tabs and the six MINI focuses now carry real sprites extracted from the local D2R install instead of system emoji, and the lit tab is legible again",
+  "note": "v1615: the Daily Task Force rows and hero, the Forge panel and its chips, the Vault header and the Chronicle Sweep header all now wear the SAME game art their tab and MINI focus wear - one vocabulary, enforced by test",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

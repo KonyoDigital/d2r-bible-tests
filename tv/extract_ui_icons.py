@@ -84,6 +84,8 @@ ICONS = {
     # ── panel headers ───────────────────────────────────────────────────────────────────────
     "tz": (r"data\hd\global\ui\panel\waypoints\terror_zone_icon.sprite",
            "terror zone icon", "the game's OWN terror-zone glyph, for the TZ panel"),
+    "chronicle": (r"data\hd\global\ui\items\misc\book\identify_book.sprite",
+                  "Tome of Identify", "the book you read your own history out of — CHRONICLE SWEEP"),
 }
 
 # Roles served by art that already exists, so nothing is pulled twice.

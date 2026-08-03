@@ -75,9 +75,13 @@ test.describe('v1613 — every name on the hunt hub goes where it says', () => {
   });
 
   test('★ each task-force chronicle row routes to ITS OWN ledger', async () => {
-    expect(UI).toMatch(/_tfChron\('🔨', 'Runewords'[^)]*'runes'\)/);
-    expect(UI).toMatch(/_tfChron\('🏆', 'Grail Uniques'[^)]*'funi'\)/);
-    expect(UI).toMatch(/_tfChron\('🧩', 'Sets'[^)]*'fsets'\)/);
+    /* Asserts the DESTINATION, not the icon. The first version of this test pinned the emoji too
+       (`_tfChron('🔨', 'Runewords', …)`) and duly went red when v1615 replaced that argument with
+       an art key — a passing test failing on a correct change, which is how tests get loosened
+       instead of fixed. The tab is what this test is about; the picture has its own spec. */
+    expect(UI).toMatch(/_tfChron\('[^']+', 'Runewords'[^)]*'runes'\)/);
+    expect(UI).toMatch(/_tfChron\('[^']+', 'Grail Uniques'[^)]*'funi'\)/);
+    expect(UI).toMatch(/_tfChron\('[^']+', 'Sets'[^)]*'fsets'\)/);
   });
 
   test('★ a chip that says "open Forge" opens the Forge — from BOTH quest sources', async () => {

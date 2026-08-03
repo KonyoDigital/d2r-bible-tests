@@ -2333,10 +2333,20 @@
   .hd-tz { display: none; }
   body[data-view="sessions"] .hd-tz { display: block; grid-column: 1 / -1; }
   .hd-tz .hd-h { font: var(--fw-bold) var(--fs-sm)/1 var(--serif); letter-spacing: .2em; }
-  /* v1614 — the TZ glyph is a wide, flat shape (83x70), so it is sized by HEIGHT and left free in
-     width; forcing it square would letterbox it inside its own box and shrink it below legibility. */
-  .hd-h .hd-h-i { height: 17px; width: auto; object-fit: contain; vertical-align: -3px;
-    margin-right: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
+  /* v1614 — panel-header art is sized by HEIGHT with width left free, because these are not all
+     the same shape: the TZ glyph is wide and flat (83x70), the quest medallions are square, the
+     Tome is TALL (96x183). Constraining width would letterbox the wide one and starve the tall
+     one; one height keeps them all on the same optical baseline as the words beside them.
+     v1615 — max-width is the guard for the tall ones: a 1:2 sprite at 17px tall is only ~8px wide,
+     which is fine, but a future icon at 3:1 would push the header text sideways. */
+  .hd-h .hd-h-i { height: 17px; width: auto; max-width: 26px; object-fit: contain; vertical-align: -3px;
+    margin-right: 3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
+  /* v1615 — the task-force row's chronicle art, in the slot its emoji used to sit in. .tf-g is a
+     flex item sized by font-size for a glyph; an image needs its own box, so the span keeps the
+     spacing and the img fills it. */
+  .tf-g .tf-i { width: 17px; height: 17px; object-fit: contain; vertical-align: -3px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+  .tf-row.tf-chron:hover .tf-i { filter: brightness(1.12) drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
   .hd-tz .hd-h .hd-sub { letter-spacing: .12em; }
   /* full width means the two rows can sit side by side instead of stacking */
   @media (min-width: 900px) {
@@ -3467,6 +3477,8 @@
     box-shadow: inset 3px 0 0 var(--gold); }
   .tf-row.tf-hero .tf-t { font-size: var(--fs-sm); color: #ecdfbb; white-space: normal; }
   .tf-row.tf-hero .tf-g { font-size: var(--fs-lg); }
+  /* v1615 — the hero's art scales with its bigger glyph slot, so the lead row still leads */
+  .tf-row.tf-hero .tf-i { width: 23px; height: 23px; vertical-align: -4px; }
   .tf-row.tf-hero-ready { border-color: rgba(143,230,160,.5); box-shadow: inset 3px 0 0 var(--mint);
     background: linear-gradient(180deg, rgba(143,230,160,.10), rgba(0,0,0,.26)); }
   .tf-row.tf-hero-ai { border-color: rgba(185,165,255,.45); box-shadow: inset 3px 0 0 #b9a5ff;
@@ -3843,7 +3855,7 @@
       <section class="zone">
         <div class="zone-banner zone-mission"><span class="zb-no">Ⅱ</span><span class="zb-ico">📋</span>THE MISSIONS<span class="zb-sub">forge &amp; craft — what to make</span></div>
         <div class="hd-col" id="hd-forge">
-          <div class="hd-h">🔥 FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_tab_forge.png" alt="" loading="lazy" onerror="this.remove()"> FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
           <div class="hd-chips" id="hd-forge-chips"><span class="hd-empty">open the board's Forge once — quests land here</span></div>
         </div>
       </section>
@@ -3867,7 +3879,7 @@
              the last good rotation flagged `stale` when upstream dies) — but it existed so the BOARD
              served at /board could reach it. Nothing in the console itself ever showed it. -->
         <div class="hd-col hd-wide hd-chron" id="hd-chron">
-          <div class="hd-h">📜 CHRONICLE SWEEP <span class="hd-sub">what a retro read of your reels would cost</span></div>
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_chronicle.png" alt="" loading="lazy" onerror="this.remove()"> CHRONICLE SWEEP <span class="hd-sub">what a retro read of your reels would cost</span></div>
           <div class="chron-body" id="chron-body">
             <div class="chron-idle">tap to price it — no model call, nothing written</div>
           </div>
@@ -3934,7 +3946,7 @@
                THROW    a SUGGESTION, held to a stricter bar than keep, and never applied by anything.
                         There is no un-throw in Diablo, so this lane has no button that acts on it. -->
         <div class="hd-col hd-wide hd-vault" id="hd-vault">
-          <div class="hd-h">🏦 VAULT ACCUMULATOR <span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
           <div class="vault-body" id="vault-body">
             <div class="chron-idle">tap to price it — no model call, nothing written</div>
           </div>
@@ -4222,6 +4234,45 @@
 
 <script>
 (function(){
+  /* ══ v1615 — ONE CONCEPT, ONE PICTURE ═══════════════════════════════════════════════════════
+     The console names the same nine things over and over: the Forge, the uniques chronicle, the
+     sets chronicle, runes, the stash. Before this map each surface picked its own emoji for them,
+     so "sets" was 🧩 in the tab strip, 🧩 in the MINI row and 🧩 in the task force — three separate
+     decisions that happened to agree, and would not have stayed agreed. v1614 replaced the tab and
+     MINI glyphs with real game art and made that worse, not better: two surfaces showed a Golden
+     Bird medallion and the third still showed a jigsaw piece for the same chronicle.
+     Every dynamic surface now reads its picture from HERE. The static tab strip carries its src in
+     the markup (it is static, and threading a map through six literal buttons buys nothing), so a
+     test asserts the two agree rather than trusting them to.
+     WHAT IS DELIBERATELY NOT IN THIS MAP: Productivity, the Read Chain, Engine Health, Engines,
+     Live Intake, Last Session, the Task Force header. Those are console concepts, not game ones —
+     the game has no picture of a read-chain, and inventing one would be decoration pretending to
+     be provenance. They keep their emoji, honestly. ══ */
+  var CONSOLE_ART = {
+    forge:     '/art/ui_tab_forge.png',              // Hell's Forge quest medallion
+    uniques:   '/art/ui_tab_funi.png',               // The Seven Tombs
+    sets:      '/art/ui_tab_fsets.png',              // The Golden Bird — GREEN, the set colour
+    runes:     '/art/hd_ber_rune.png',               // a Ber rune (v384 item pull)
+    stash:     '/art/ui_foc_stash.png',              // the Horadric Cube
+    gems:      '/art/hd_perfect_ruby.png',
+    materials: '/art/hd_burning_essence_of_terror.png',
+    chronicle: '/art/ui_chronicle.png',              // the Tome of Identify
+    tz:        '/art/ui_tz.png',                     // the game's own terror-zone glyph
+    // These three name ONE surface each today, so nothing can currently disagree with them. They
+    // are in the map anyway: the map is the console's whole icon vocabulary, and an icon that
+    // lives outside it is exactly how the second picture for a concept gets in — which is the
+    // thing this version exists to stop.
+    session:   '/art/ui_tab_session.png',            // Lam Esen's Tome — the session log
+    tools:     '/art/ui_tab_tools.png',              // Tools of the Trade
+    tvd:       '/art/ui_tab_tvd.png'                 // Terror's End — Diablo himself
+  };
+  /* one <img> builder, so every surface gets the same onerror contract: a missing file removes the
+     picture and leaves the WORD, rather than leaving a torn placeholder beside a label */
+  function artImg(key, cls){
+    var u = CONSOLE_ART[key];
+    return u ? '<img class="' + (cls || 'hd-h-i') + '" src="' + u + '" alt="" loading="lazy" onerror="this.remove()">' : '';
+  }
+
   var API = '';
   var busy = false;
   var showLog = false;
@@ -4560,7 +4611,8 @@
     return '<span class="hd-chip hd-go" role="button" tabindex="0" title="open the Forge"'
       + ' onclick="window._hubGo(&quot;forge&quot;)"'
       + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
-      + 'window._hubGo(&quot;forge&quot;);}">⚗️ ' + escC(ck) + ' · open Forge</span>';
+      + 'window._hubGo(&quot;forge&quot;);}">' + artImg('forge', 'hd-chip-art')
+      + escC(ck) + ' · open Forge</span>';
   }
 
   // ══ v1361 · 🔬 READS FORENSICS drawer — the deep X-ray opened from the AI-READS feed (flat, 3 status sections) ══
@@ -8713,9 +8765,9 @@
     'chronicle-uniques': 'uniques', 'chronicle-sets': 'sets'
   };
   var MINI_FOCUS_ART = {
-    'stash': '/art/ui_foc_stash.png', 'runes': '/art/hd_ber_rune.png',
-    'gems': '/art/hd_perfect_ruby.png', 'materials': '/art/hd_burning_essence_of_terror.png',
-    'chronicle-uniques': '/art/ui_tab_funi.png', 'chronicle-sets': '/art/ui_tab_fsets.png'
+    'stash': CONSOLE_ART.stash, 'runes': CONSOLE_ART.runes,
+    'gems': CONSOLE_ART.gems, 'materials': CONSOLE_ART.materials,
+    'chronicle-uniques': CONSOLE_ART.uniques, 'chronicle-sets': CONSOLE_ART.sets
   };
   function _miniFocuses(list){
     var box = document.getElementById('mini-foc');
@@ -9897,13 +9949,13 @@
       var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">' + _chipArt(rw) + '⚒ ' + rw + ' · MAKE NOW</span>'; })
         .concat((craftNow || []).slice(0, 6).map(function(t){
           var nm = (t && (t.name || (t.craft ? (t.craft + ' ' + (t.slot || '')) : t))) || 'craft';
-          return '<span class="hd-chip now">⚗️ ' + nm + ' · CRAFT NOW</span>';
+          return '<span class="hd-chip now">' + artImg('forge', 'hd-chip-art') + nm + ' · CRAFT NOW</span>';
         }))
         .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
         .concat((craftStep || []).slice(0, 4).map(function(t){
           var nm = (t && (t.name || t)) || 'craft';
           var miss = (t && t.missing) ? (' · need ' + t.missing) : ' · one step';
-          return '<span class="hd-chip step">⚗️ ' + nm + miss + '</span>';
+          return '<span class="hd-chip step">' + artImg('forge', 'hd-chip-art') + nm + miss + '</span>';
         }))
         .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
       // always-visible craft types when nothing else queued
@@ -10139,8 +10191,8 @@
           else { lab = (localStorage.getItem('d2r_tvdOn') === '1' ? 'stamp only' : 'not armed'); cls = 'warn'; }
           return '<span class="hd-chip ' + cls + '" title="auto-tally engine (control-driven since v929.2)">🔌 ENGINE · ' + lab + '</span>';
         })(),
-        (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm">🏆 GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
-        (function(){ var sp = fs && fs.sets; return sp && sp.total ? '<span class="hd-chip nm">🧩 SETS · ' + sp.found + ' / ' + sp.total + (sp.done ? ' · ' + sp.done + ' complete' : '') + '</span>' : ''; })(),   /* v922 (Konyo) — F·Sets is a chronicle too */
+        (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm">' + artImg('uniques', 'hd-chip-art') + 'GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
+        (function(){ var sp = fs && fs.sets; return sp && sp.total ? '<span class="hd-chip nm">' + artImg('sets', 'hd-chip-art') + 'SETS · ' + sp.found + ' / ' + sp.total + (sp.done ? ' · ' + sp.done + ' complete' : '') + '</span>' : ''; })(),   /* v922 (Konyo) — F·Sets is a chronicle too */
         '<span class="hd-chip ' + (H.freeGB != null && H.freeGB < (H.minFreeGB || 8) ? 'warn' : '') + '">💾 ' + (H.freeGB != null ? H.freeGB + 'GB free' : 'disk —') + '</span>'
       ];
       $('hd-engine-chips').innerHTML = chips.join('');
@@ -10168,7 +10220,7 @@
       var heroNow = false, heroOne = false, heroAi = false, hero = null;
       if (nowList.length){
         heroNow = true;
-        hero = { g: '⚒', t: 'Forge <b>' + esc(String(nowList[0])) + '</b> — you own every rune', tag: 'READY NOW', cls: 'ready' };
+        hero = { art: 'forge', g: '⚒', t: 'Forge <b>' + esc(String(nowList[0])) + '</b> — you own every rune', tag: 'READY NOW', cls: 'ready' };
       } else if (oneList.length){
         heroOne = true;
         var o0 = oneList[0], on0 = o0.rw || o0;
@@ -10178,12 +10230,12 @@
         hero = { g: '✶', t: esc(String(ai).slice(0, 84)), tag: 'DAILY PICK', cls: 'ai' };
       } else if (fs && fs.grail && fs.grail.total && (fs.grail.total - (fs.grail.found || 0)) > 0){
         var gl = fs.grail.total - (fs.grail.found || 0);
-        hero = { g: '🏆', t: 'Chase the Grail — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'GRAIL', cls: 'grail' };
+        hero = { art: 'uniques', g: '🏆', t: 'Chase the Grail — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'GRAIL', cls: 'grail' };
       }
-      if (hero) rows.push('<div class="tf-row tf-hero tf-hero-' + hero.cls + '"><span class="tf-g">' + hero.g + '</span><span class="tf-t">' + hero.t + '</span><span class="tf-tag tgt">' + hero.tag + '</span></div>');
+      if (hero) rows.push('<div class="tf-row tf-hero tf-hero-' + hero.cls + '"><span class="tf-g">' + (hero.art ? artImg(hero.art, 'tf-i') : hero.g) + '</span><span class="tf-t">' + hero.t + '</span><span class="tf-tag tgt">' + hero.tag + '</span></div>');
       // READY — make-it-now wins (the hero already surfaced the first if it led with one)
       nowList.slice(heroNow ? 1 : 0, 3).forEach(function(rw){
-        rows.push('<div class="tf-row tf-ready"><span class="tf-g">⚒</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
+        rows.push('<div class="tf-row tf-ready"><span class="tf-g">' + artImg('forge', 'tf-i') + '</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
       });
       // v1368 (R5) — THE HUNT leads over PROGRESS: one-step-out targets (what to hunt next) + the AI daily
       // pick sit directly under the ready wins; the chronicle progress bars drop below them as context.
@@ -10198,21 +10250,25 @@
          grail it should route me to the accordingly relevant tab". The row already knows which
          chronicle it is counting; making him find that tab himself was the panel withholding what
          it plainly knew. */
-      var _tfChron = function(icon, name, found, total, leftLabel, tab){
+      /* v1615 — the row wears the SAME picture as its tab and its MINI focus. It was 🔨/🏆/🧩
+         while the tab strip showed a Hell's Forge medallion and a Golden Bird: one chronicle,
+         three different pictures, on one screen. `key` indexes CONSOLE_ART, which is the only
+         place any of these is chosen. */
+      var _tfChron = function(key, name, found, total, leftLabel, tab){
         var left = Math.max(0, total - found), done = left === 0, pct = total ? Math.round(found / total * 100) : 0;
         var go = tab ? (' role="button" tabindex="0" title="open the ' + name + ' chronicle"'
           + ' onclick="window._hubGo(&quot;' + tab + '&quot;)"'
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._hubGo(&quot;' + tab + '&quot;);}"') : '';
         return '<div class="tf-row tf-chron' + (done ? ' tf-chron-done' : '') + (tab ? ' tf-go' : '') + '"'
-          + go + '><span class="tf-g">' + icon + '</span>'
+          + go + '><span class="tf-g">' + artImg(key, 'tf-i') + '</span>'
           + '<span class="tf-t"><b>' + name + '</b> · ' + found + ' / ' + total
           + ' <span class="tf-chron-note">— ' + (done ? 'complete ✓' : (left + ' ' + leftLabel)) + '</span></span>'
           + '<span class="tf-tag ' + (done ? 'dim' : 'hunt') + '">' + (done ? 'DONE' : pct + '%') + '</span></div>';
       };
-      if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('🔨', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build', 'runes'));
-      if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('🏆', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt', 'funi'));
-      if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('🧩', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left', 'fsets'));
+      if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('runes', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build', 'runes'));
+      if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('uniques', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt', 'funi'));
+      if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('sets', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left', 'fsets'));
       var runsToday = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); }).length;
       rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + led.length + ' tallies synced</span><span class="tf-tag dim">TODAY</span></div>');
       var box = $('hd-taskforce');
