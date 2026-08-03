@@ -25,10 +25,19 @@
     --rar-set:    #00fc00;
     --rar-rare:   #ffff64;
     --rar-magic:  #6e6eff;
-    /* v1625 — the two remaining D2 quality hues, copied from bible.html:12 (--rune / --q-orange),
-       not invented here. --rar-runeword is the runeword/rune hue (the Forge tab wears it); --rar-orange
-       is CRAFTED quality, which is orange in D2 and never purple. Same rule as the four above: a
-       colour that means a quality is declared once and every surface reads it from here. */
+    /* v1625 — the two remaining D2 quality hues, copied from the game, not invented here.
+       v1628 CORRECTS THIS COMMENT, which outlived the value under it: it still said "--rar-runeword
+       is the runeword/rune hue" long after v1627 had made the token gold, and a stale sentence next
+       to a right number is exactly how a wrong number gets retyped from memory next session.
+       THE SETTLED TRUTH, three separate concepts that must not be collapsed again:
+         --rar-runeword #c7b377 — a COMPLETED RUNEWORD'S NAME. The game paints it FontColorGoldYellow,
+             the same gold as a unique. Same value as --rar-unique ON PURPOSE, not by accident.
+         --rar-orange   #ffa800 — CRAFTED quality. Orange in D2, never purple, never a runeword.
+         #ff7d3c        — the RUNE ITEM hue (El, Eld — the things you collect). It lives on the
+             BOARD as bible.html's --rune and is deliberately NOT declared here; a rune is an item
+             you hold, a runeword is a name on a finished item, and they are different colours.
+       Same rule as the four above: a colour that means a quality is declared once and every surface
+       reads it from here. */
     /* v1627 — THE RUNEWORD COLOUR IS GOLD, and Konyo chose accuracy over distinctness knowing
        the cost. #ff7d3c was the colour of RUNES (El, Eld — the things you collect), not of a
        finished runeword, whose name the game paints FontColorGoldYellow — the same gold as a
@@ -1003,6 +1012,14 @@
   #itip .itip-n.r-set   { color: var(--rar-set); }
   #itip .itip-n.r-rare  { color: var(--rar-rare); }
   #itip .itip-n.r-magic { color: var(--rar-magic); }
+  /* v1628 — the card knew four of D2's six qualities. A CRAFTED item's name rendered in the base
+     colour, which is unique gold, so the one surface that exists to say "what is this" told him
+     "unique" about an orange item. Silent, because a missing class is not an error. r-runeword is
+     the same gold as r-unique by design (the game paints a finished runeword FontColorGoldYellow)
+     and is declared explicitly anyway: relying on fall-through would make a real quality look like
+     an unrecognised one, and the next palette change would move only one of them. */
+  #itip .itip-n.r-crafted  { color: var(--rar-orange); }
+  #itip .itip-n.r-runeword { color: var(--rar-runeword); }
   #itip .att-type { color: #c9c9c9; font-family: var(--mono, monospace); font-size: var(--fs-2xs);
     line-height: 1.5; margin-bottom: 3px; }
   #itip .att-meta { color: #8f8f8f; font-family: var(--mono, monospace); font-size: var(--fs-2xs);
@@ -2958,8 +2975,8 @@
   .ch-modebar { display: flex; gap: 6px; padding: 8px 16px 0; flex-shrink: 0; }
   .ch-card-item .ch-art { width: 48px; height: 48px; object-fit: contain; align-self: center;
     image-rendering: auto; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
-  .ch-card-item .ch-art-ph { width: 48px; height: 48px; align-self: center; display: flex; align-items: center;
-    justify-content: center; font-size: var(--fs-xl); opacity: .7; }
+  /* v1628 removed .ch-art-ph — it styled the 📦 stand-in that chArtHtml no longer emits, and a
+     rule kept alive for a glyph nobody renders is an invitation to render it again. */
   .ch-card-item .ch-nm { font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); color: #f5edd8; text-align: center;
     word-break: break-word; min-height: 2.5em; }
   .ch-card-item .ch-tier { align-self: center; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-wide);
@@ -3224,10 +3241,18 @@
   .hh-name { font: var(--fw-bold) clamp(19px,2.1vw,27px)/1.06 var(--serif); letter-spacing: .03em; text-transform: uppercase; margin: 6px 0 5px;
     color: var(--rar-unique); text-shadow: 0 0 26px color-mix(in srgb, currentColor 34%, transparent), 0 2px 0 rgba(0,0,0,.4);
     animation: hhBreathe 5.5s ease-in-out infinite; }
-  .hh-name.r-set    { color: var(--rar-set); }
-  .hh-name.r-unique { color: var(--rar-unique); }
-  .hh-name.r-rare   { color: var(--rar-rare); }
-  .hh-name.r-magic  { color: var(--rar-magic); }
+  /* v1628 — ONE RULE SET, THREE SURFACES. The hero title, the Chronicle card's item name and (in
+     its own #itip block above) the hover card all name the same game items, so they share the same
+     r-* vocabulary rather than each growing its own half of the palette. .hh-name had four of six
+     qualities; .ch-nm had none at all and painted every named item a flat cream. Specificity note:
+     `.ch-card-item .ch-nm` (0,2,0) sets the plain base further up, and every selector here is
+     (0,3,0) or (0,2,0)+class, so the quality always wins regardless of source order. */
+  .hh-name.r-set,    .ch-card-item .ch-nm.r-set      { color: var(--rar-set); }
+  .hh-name.r-unique, .ch-card-item .ch-nm.r-unique   { color: var(--rar-unique); }
+  .hh-name.r-rare,   .ch-card-item .ch-nm.r-rare     { color: var(--rar-rare); }
+  .hh-name.r-magic,  .ch-card-item .ch-nm.r-magic    { color: var(--rar-magic); }
+  .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted  { color: var(--rar-orange); }
+  .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword { color: var(--rar-runeword); }
   @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px color-mix(in srgb, currentColor 28%, transparent), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px color-mix(in srgb, currentColor 50%, transparent), 0 2px 0 rgba(0,0,0,.4);} }
   .hh-src { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); color: var(--parch-dim); letter-spacing: .02em; }
   .hh-src b { color: var(--mint); font-weight: var(--fw-semibold); }
@@ -3726,10 +3751,20 @@
      below: the game has no quality concept for a session log, a toolbox or a TV channel, and the
      v1615 rule is art-and-colour ONLY where the game has the concept. Tinting them would make the
      tint meaningless — six colours is six decorations, three colours is a legend.
-     WHY --rar-runeword (#ff7d3c) AND NOT --rar-orange (#ffa800) FOR FORGE: #ffa800 is CRAFTED quality
-     this same version, so borrowing it would paint the Forge tab and the Crafts chip the identical
-     colour and destroy the very sync this is for. #ff7d3c is the game's own rune/runeword hue and
-     reads as neither chrome gold nor craft orange. One-token flip if Konyo prefers otherwise.
+     WHY --rar-runeword AND NOT --rar-orange FOR FORGE: #ffa800 is CRAFTED quality, so borrowing it
+     would paint the Forge tab and the Crafts chip the identical colour and destroy the very sync
+     this is for. The Forge tab names RUNEWORDS, so it wears the runeword token — whatever that
+     token's value is.
+     v1628 CORRECTS THIS PARAGRAPH, which still claimed --rar-runeword was #ff7d3c a whole version
+     after v1627 read the palette out of Konyo's own install and made it #c7b377. The value moved;
+     the sentence did not; and a stale sentence is how a wrong colour gets retyped from memory.
+     THE CONSEQUENCE, STATED PLAINLY SO NOBODY "FIXES" IT: because a finished runeword's name IS
+     FontColorGoldYellow in D2 — the same gold as a unique — the Forge tab and the F·Uniques tab now
+     read the SAME colour. That is not a regression and it is not a token collision to be broken by
+     minting a Forge-only hue: Konyo chose accuracy over distinctness knowing this exact cost
+     (v1627). The tint map below therefore still holds three QUALITIES; it no longer holds three
+     distinct pixels, and any test asserting "three distinct colours" is asserting the pre-v1627
+     palette, not this one. #ff7d3c stays on the board as --rune, where it means a RUNE ITEM.
      v1622 IS THE LESSON HERE: --rar-unique was once #f0c060, this console's own --gold, and a
      unique looked like every gold label around it. Each tint must read visibly NOT-gold.
      CONTRAST: the unlit tabs paint the token at FULL strength (never mixed toward white, which
@@ -4812,11 +4847,13 @@
       }).join('');
     }
     function build(d){
-      var rar = String(d.rarity || '').toLowerCase();
       // v1622 — 'unique' belongs in this list. It was omitted while unique WAS the base colour;
       // now that the base is the board's title gold and unique is D2's #c7b377, leaving it out
       // would put the card back out of step with the title it belongs to.
-      var rcls = (rar === 'set' || rar === 'rare' || rar === 'magic' || rar === 'unique') ? (' r-' + rar) : '';
+      // v1628 — and it is no longer A LIST, here. This was a second, shorter spelling of _rarCls
+      // sitting one screen away from it, and it is why the card knew four qualities while the rest
+      // of the console was being taught six: two copies of one rule only ever get fixed once.
+      var rcls = _rarCls(d.rarity);
       var facts = (d.facts || []).filter(function(f){ return f && f[0] && f[1]; })
         .map(function(f){ return '<div>' + esc(String(f[0])) + ' <b>' + esc(String(f[1])) + '</b></div>'; })
         .join('');
@@ -4893,8 +4930,20 @@
      same item two different ways. `facts` = [[label, value], ...] — falsy values drop out. */
   /* v1621 — one rarity -> one class, so the hero title and its card cannot disagree. Unknown or
      absent rarity yields NO class, which falls through to the base colour rather than guessing. */
+  /* v1628 — SIX QUALITIES, AND ONE PLACE THAT SPELLS THEM. This was the only normaliser and it
+     knew four, so 'crafted' and 'runeword' fell through to '' and rendered in the base gold — i.e.
+     an orange item was labelled "unique" by its colour, silently, because a missing class throws
+     nothing. The aliases matter as much as the two new names: the values that reach this function
+     come from a board handoff (d2r_createNowAiArt.rarity), a d2r_grailFarm/d2r_setFarm row and a
+     Chronicle ledger entry, and those write 'craft' and 'rw' as readily as the long words. Every
+     alias is folded HERE and nowhere else — a caller that normalises its own string is the second
+     spelling of the same rule, which is how the four-quality gap survived three versions.
+     Anything unrecognised still yields NO class and falls through to the base colour: an honest
+     "I don't know" beats guessing a quality onto a real item. */
   function _rarCls(r){
-    var v = String(r || '').toLowerCase();
+    var v = String(r || '').toLowerCase().replace(/[\s_-]+/g, '');
+    if (v === 'craft' || v === 'crafted') return ' r-crafted';
+    if (v === 'rw' || v === 'runeword' || v === 'runewords') return ' r-runeword';
     return (v === 'set' || v === 'unique' || v === 'rare' || v === 'magic') ? (' r-' + v) : '';
   }
 
@@ -9956,14 +10005,19 @@
     try {
       if (typeof thArt === 'function') {
         var p = thArt(name);
-        if (p) return '<img class="' + cls + '" src="/' + esc(p) + '" alt="" loading="lazy" onerror="this.outerHTML=\'<div class=ch-art-ph>📦</div>\'">';
+        if (p) return '<img class="' + cls + '" src="/' + esc(p) + '" alt="" loading="lazy" onerror="this.remove()">';
       }
       if (typeof thArtImg === 'function') {
         var img = thArtImg(name, cls);
         if (img) return img;
       }
     } catch(e){}
-    return '<div class="ch-art-ph">📦</div>';
+    /* v1628 — NO PICTURE RATHER THAN A WRONG ONE. Both exits used to render a 📦 box glyph: one on
+       the unresolved path, one when the src 404'd. Every item whose art the manifest doesn't carry
+       therefore wore the SAME picture as every other such item, which is the v1624 defect exactly —
+       a thumbnail that means nothing, presented with the same confidence as one that means
+       something. This matches _itemArtImg, which has always returned '' rather than a glyph. */
+    return '';
   }
   function chModalOpen(forceMode){
     try { if (typeof thArtInit === 'function') thArtInit(); } catch(e){}
@@ -10054,7 +10108,13 @@
     return '<div class="' + cardCls + '" data-name="' + esc(nm) + '">'
       + (act ? ('<input type="checkbox" class="ch-chk ch-row-chk" data-name="' + esc(nm) + '"' + (CH.selected[nm] ? ' checked' : '') + '>') : '')
       + chArtHtml(nm)
-      + '<div class="ch-nm">' + esc(nm) + '</div>'
+      /* v1628 — these are real game items and the card painted every one of them the same cream,
+         so a Shako and a crafted ring were the same colour on the one screen he triages from.
+         The class comes from the entry's OWN rarity if it carries one and is empty otherwise:
+         the Chronicle ledger has no D2-quality DB behind it (that is why `tier` exists), and
+         inferring "grail ⇒ unique" would paint set pieces gold. Unknown stays cream — plain is
+         honest, a guessed quality is not. */
+      + '<div class="ch-nm' + _rarCls(x.rarity || x.quality) + '">' + esc(nm) + '</div>'
       + '<span class="ch-status s-' + esc(st) + '">' + esc(chStatusLabel(st)) + '</span>'
       + (tier ? '<span class="ch-tier ' + tCls + '">' + esc(tier) + '</span>' : '')
       + '<div class="ch-meta">' + esc(meta) + '</div>'

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1627",
+  "ver": "v1628",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1627: the quality palette now equals D2Rs font table extracted from the local install - set green was two points off and magic blue five - and ON AIR MINI and Theatre now leave Sessions so the stage is not hidden",
+  "note": "v1628: Colour/art/tooltip audit of both surfaces: one palette read from the token, runeword/rune/crafted split into three concepts, crafted+runeword added to the console hover card and hero title, arbitrary-picture fallbacks removed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -9,7 +9,7 @@
 <meta name="d2r-build-date" content="2026-07-15">
 <meta name="d2r-build-note" content="📺 TV DIABLO v710.1 — receiver harden (read #s · Shako alias · no un-tick apply · safer chips) + agent port/offline · live scanner on YOUR Claude subscription">
 <style>
-:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
+:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:var(--lh-normal);margin:0}
 html{scroll-behavior:smooth}
@@ -176,7 +176,7 @@ table.drops td.item-name.q-unique{color:var(--q-unique)}
 table.drops td.item-name.q-set{color:var(--q-set)}
 table.drops td.item-name.q-magic{color:var(--q-magic)}
 table.drops td.item-name.q-rare{color:var(--q-rare)}
-table.drops td.item-name.q-rune,table.drops td.item-name.q-material,table.drops td.item-name.q-rw,table.drops td.item-name.q-crafted{color:var(--q-orange)}
+table.drops td.item-name.q-material,table.drops td.item-name.q-crafted{color:var(--q-orange)}table.drops td.item-name.q-rw{color:var(--q-runeword)}table.drops td.item-name.q-rune{color:var(--rune)}
 table.ref-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:780px}
 table.ref-tbl th,table.ref-tbl td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--border)}
 table.ref-tbl th{color:var(--gold);font-weight:var(--fw-medium);font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.6px;background:var(--surface-3);border-bottom:2px solid var(--border)}
@@ -186,7 +186,7 @@ table.ref-tbl td.item-name.q-unique,table.ref-tbl td.item-name .q-unique{color:v
 table.ref-tbl td.item-name.q-set,table.ref-tbl td.item-name .q-set{color:var(--q-set)}
 table.ref-tbl td.item-name.q-magic,table.ref-tbl td.item-name .q-magic{color:var(--q-magic)}
 table.ref-tbl td.item-name.q-rare,table.ref-tbl td.item-name .q-rare{color:var(--q-rare)}
-table.ref-tbl td.item-name.q-rune,table.ref-tbl td.item-name.q-rw,table.ref-tbl td.item-name.q-crafted,table.ref-tbl td.item-name .q-rune,table.ref-tbl td.item-name .q-rw,table.ref-tbl td.item-name .q-crafted{color:var(--q-orange)}
+table.ref-tbl td.item-name.q-crafted,table.ref-tbl td.item-name .q-crafted{color:var(--q-orange)}table.ref-tbl td.item-name.q-rw,table.ref-tbl td.item-name .q-rw{color:var(--q-runeword)}table.ref-tbl td.item-name.q-rune,table.ref-tbl td.item-name .q-rune{color:var(--rune)}
 .star-btn{cursor:pointer;color:var(--text-dim);font-size:14px;margin-right:4px;user-select:none;transition:color .15s}
 .star-btn:hover{color:var(--star)}
 .star-btn.starred{color:var(--star)}
@@ -239,9 +239,9 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 .item-tile:hover{background:var(--surface-3);border-color:var(--gold-bright);box-shadow:0 2px 8px rgba(0,0,0,.3)}
 /* v248: hover border matches the item's rarity (pairs with the v241 name colors) —
    set glows green, rune/runeword orange, magic blue, rare yellow; unique keeps gold. */
-.item-tile.it-r-set:hover{border-color:var(--q-set,#5fe85f);box-shadow:0 2px 10px rgba(0,0,0,.3),0 0 12px rgba(102,255,136,.18)}
+.item-tile.it-r-set:hover{border-color:var(--q-set);box-shadow:0 2px 10px rgba(0,0,0,.3),0 0 12px rgba(102,255,136,.18)}
 .item-tile.it-r-rw:hover,.item-tile.it-r-rune:hover{border-color:#ff9a3c;box-shadow:0 2px 10px rgba(0,0,0,.3),0 0 12px rgba(255,150,50,.18)}
-.item-tile.it-r-magic:hover{border-color:#7aa2ff;box-shadow:0 2px 10px rgba(0,0,0,.3),0 0 12px rgba(122,162,255,.16)}
+.item-tile.it-r-magic:hover{border-color:var(--q-magic);box-shadow:0 2px 10px rgba(0,0,0,.3),0 0 12px rgba(122,162,255,.16)}
 .item-tile.it-r-rare:hover{border-color:#ffe35a;box-shadow:0 2px 10px rgba(0,0,0,.3),0 0 12px rgba(255,235,90,.16)}
 .item-tile.selected{border-color:var(--gold-bright);background:linear-gradient(180deg,rgba(212,168,71,.12),var(--surface-3))}
 .item-tile-name{font-size:var(--fs-body);font-weight:var(--fw-normal);color:var(--text);line-height:var(--lh-snug);padding-right:14px}
@@ -261,9 +261,14 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
    the left border stays TC-tier. Most grail items are unique(gold)/set(green). */
 /* v326: rarity names now POP — authentic in-game hue + a soft same-colour glow + bump weight so the
    muted unique gold (#c7b377) reads as gold on the dark bg instead of washing out (Konyo: "make it pop"). */
-.item-tile.it-r-unique .item-tile-name{color:var(--q-unique,#c7b377);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
-.item-tile.it-r-set .item-tile-name{color:var(--q-set,#5fe85f);text-shadow:0 0 4px rgba(0,255,0,.5),0 0 10px rgba(0,255,0,.45),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
-.item-tile.it-r-rw .item-tile-name,.item-tile.it-r-rune .item-tile-name,.item-tile.it-r-crafted .item-tile-name{color:var(--q-orange);text-shadow:0 0 4px rgba(255,168,0,.55),0 0 10px rgba(255,168,0,.5),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
+.item-tile.it-r-unique .item-tile-name{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
+.item-tile.it-r-set .item-tile-name{color:var(--q-set);text-shadow:0 0 4px rgba(0,255,0,.5),0 0 10px rgba(0,255,0,.45),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
+.item-tile.it-r-crafted .item-tile-name{color:var(--q-orange);text-shadow:0 0 4px rgba(255,168,0,.55),0 0 10px rgba(255,168,0,.5),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
+/* v1628 - a completed RUNEWORD name is GOLD (same as a unique); a RUNE ITEM (El, Eld) is the
+   rune orange. They used to share the crafted orange, which named three concepts with one colour.
+   Glows are color-mixed off the same token so the shadow can never drift from the text. */
+.item-tile.it-r-rw .item-tile-name{color:var(--q-runeword);text-shadow:0 0 4px color-mix(in srgb,var(--q-runeword) 55%,transparent),0 0 10px color-mix(in srgb,var(--q-runeword) 50%,transparent),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
+.item-tile.it-r-rune .item-tile-name{color:var(--rune);text-shadow:0 0 4px color-mix(in srgb,var(--rune) 55%,transparent),0 0 10px color-mix(in srgb,var(--rune) 50%,transparent),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
 .item-tile.it-r-magic .item-tile-name{color:var(--q-magic);text-shadow:0 0 4px rgba(105,105,255,.6),0 0 10px rgba(105,105,255,.55),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
 .item-tile.it-r-rare .item-tile-name{color:var(--q-rare);text-shadow:0 0 4px rgba(255,255,100,.55),0 0 10px rgba(255,255,100,.5),0 1px 1px rgba(0,0,0,.55);font-weight:var(--fw-semibold)}
 .item-tile.it-r-basic .item-tile-name{color:var(--q-normal);text-shadow:0 0 4px rgba(244,244,244,.4),0 1px 1px rgba(0,0,0,.5);font-weight:var(--fw-medium)}
@@ -444,7 +449,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .top-drop-row:not(.top-drop-uber) .top-drop-name.q-set{color:var(--q-set)}
 .top-drop-row:not(.top-drop-uber) .top-drop-name.q-magic{color:var(--q-magic)}
 .top-drop-row:not(.top-drop-uber) .top-drop-name.q-rare{color:var(--q-rare)}
-.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rune,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-material,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rw,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-crafted{color:var(--q-orange)}
+.top-drop-row:not(.top-drop-uber) .top-drop-name.q-material,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-crafted{color:var(--q-orange)}.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rw{color:var(--q-runeword)}.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rune{color:var(--rune)}
 .top-drop-uber{border-left:2px solid var(--terror)}
 .top-drop-uber .top-drop-name{color:var(--terror)}
 .top-drop-uber .top-drop-rank{color:var(--terror);background:rgba(255,0,212,.10)}
@@ -1206,7 +1211,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .att-recipe{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin:4px 0 5px;padding:5px 7px;border-radius:7px;background:rgba(0,0,0,.3);border:1px dashed color-mix(in srgb,var(--cw-c,#b48ce0) 40%,transparent);font-size:var(--fs-meta)}
 .att-recipe img{max-width:18px;max-height:18px;vertical-align:middle}
 .att-rec-g{font-size:14px}.att-rec-i{display:inline-flex;align-items:center}.att-rec-p{color:var(--text-dim);margin:0 1px}
-.att-rec-j{color:#9fd0ff;opacity:.8;margin-left:2px}.att-rec-arrow{margin-left:5px;color:var(--gold-bright,#f0c060)}.att-rec-arrow b{color:var(--q-orange,#ffa800)}
+.att-rec-j{color:#9fd0ff;opacity:.8;margin-left:2px}.att-rec-arrow{margin-left:5px;color:var(--gold-bright,#f0c060)}.att-rec-arrow b{color:var(--q-orange)}
 .att-result-h{font-size:9px;font-weight:var(--fw-bold);letter-spacing:var(--ls-normal);text-transform:uppercase;color:var(--text-dim);margin:5px 0 2px;border-top:1px solid rgba(255,255,255,.07);padding-top:5px}
 .att-bis{margin-top:6px;font-size:var(--fs-micro);line-height:var(--lh-normal);color:#cfe0ff;padding:5px 8px;border-radius:6px;background:rgba(95,143,240,.1);border:1px solid rgba(95,143,240,.32)}.att-bis b{color:#9fc0ff}
 .att-grailroll{margin-top:6px;font-size:9.5px;font-weight:var(--fw-bold);letter-spacing:var(--ls-tight);color:#1a1207;background:linear-gradient(180deg,#ffe08a,#f0b84a);border-radius:6px;padding:3px 8px;display:inline-block;box-shadow:0 0 10px -2px rgba(240,184,74,.7)}
@@ -1219,7 +1224,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cbt-craft{font-size:var(--fs-micro);font-weight:var(--fw-bold);color:var(--cw-c,#b48ce0);min-width:46px}
 .cbt-bases{display:flex;flex-wrap:wrap;gap:3px}
 .cbt-base{font-size:9.5px;color:#aebfff;background:rgba(105,105,255,.12);border:1px solid rgba(105,105,255,.34);border-radius:4px;padding:1px 5px}/* magic-blue: these are magic-quality bases */
-.rs-name{font-weight:var(--fw-medium);font-size:12px;color:var(--q-orange);min-width:34px}/* v321: runes orange */
+.rs-name{font-weight:var(--fw-medium);font-size:12px;color:var(--rune);min-width:34px}/* v1628: a RUNE ITEM wears --rune, not the crafted orange */
 .rs-count{font-family:ui-monospace,monospace;font-size:var(--fs-body);color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:var(--fs-body);line-height:var(--lh-none);display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
 .rs-btn:hover{background:var(--surface);border-color:var(--gold-bright)}
@@ -1311,13 +1316,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12.5px;padding:6px 8px;border-bottom:1px dotted var(--border);cursor:pointer;border-radius:5px}
 .arw-row:hover{background:rgba(60,90,138,.16)}
 .arw-row:last-child{border-bottom:none}
-.arw-name{font-weight:var(--fw-semibold);color:var(--q-orange);min-width:150px}/* v311: runewords read orange like their ID card / drop tables */
+.arw-name{font-weight:var(--fw-semibold);color:var(--q-runeword);min-width:150px}/* v1628: a COMPLETED RUNEWORD name is gold (FontColorGoldYellow), same as a unique — it is not a crafted item */
 .arw-recipe{font-family:ui-monospace,monospace;font-size:var(--fs-meta);color:var(--gold-bright);display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
 /* v255: HD rune-icon chips in each runeword recipe */
 .arw-rune{display:inline-flex;align-items:center;gap:3px}
 .arw-rune .d2art-wrap.sm{width:18px;height:18px;vertical-align:middle}
 .arw-rune .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px}
-.arw-rune-n{color:var(--q-orange)}
+.arw-rune-n{color:var(--rune)}/* v1628: the RUNES inside a runeword row are rune items */
 .arw-plus{color:var(--text-dim);font-size:var(--fs-micro);margin:0 1px}
 .arw-rune-txt{color:var(--q-orange)}
 .arw-base{font-size:var(--fs-meta);color:var(--text-dim);margin-left:auto;white-space:nowrap}
@@ -1438,8 +1443,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* v277: "What I can make" reuses the runeword-row style in a boxed scroll list */
 .rw-make-scroll{margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:2px 8px;background:var(--surface-2);max-height:340px}
 /* v311: keep the name in runeword-orange; show craftable/cubeable as a GLOW, not a colour swap */
-.arw-row.rw-ready .arw-name{color:var(--q-orange);text-shadow:0 0 8px rgba(123,199,123,.6)}
-.arw-row.rw-cube .arw-name{color:var(--q-orange);text-shadow:0 0 8px rgba(240,192,96,.55)}
+.arw-row.rw-ready .arw-name{color:var(--q-runeword);text-shadow:0 0 8px rgba(123,199,123,.6)}
+.arw-row.rw-cube .arw-name{color:var(--q-runeword);text-shadow:0 0 8px rgba(240,192,96,.55)}
 .rw-make-stick{position:sticky;top:0;background:var(--surface-2);padding:8px 0 5px;z-index:2}
 .rw-make-hint{font-size:10.5px;color:var(--text-dim);font-style:italic;padding:1px 2px 6px;line-height:var(--lh-normal)}
 .rw-make-hint b{color:var(--gold-bright,#f0c060);font-style:normal}
@@ -1683,7 +1688,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-ing-col.cw-ing-miss{border-color:rgba(255,120,120,.45)}
 .cw-ing-col.cw-ing-need{border-color:rgba(240,176,80,.5)}
 .cw-ing-col.cw-ing-basic{border-color:rgba(122,155,216,.42)}
-.cw-ing-nm{color:var(--ing-c,#ffa800);text-shadow:0 0 5px var(--ing-c,#ffa800),0 1px 1px rgba(0,0,0,.5);font-weight:var(--fw-semibold)}
+.cw-ing-nm{color:var(--ing-c,var(--q-orange));text-shadow:0 0 5px var(--ing-c,var(--q-orange)),0 1px 1px rgba(0,0,0,.5);font-weight:var(--fw-semibold)}
 .cw-ing-badge{font-size:8px;font-weight:var(--fw-bold);letter-spacing:var(--ls-snug);text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:2px;flex:0 0 auto}
 .cw-bg-have{color:#0a1a0e;background:#5fd07a}.cw-bg-need{color:#1a1207;background:#f0b86a}.cw-bg-basic{color:#0c1018;background:#8fb0e0}
 /* v341.27 — the NEED⇄HAVE badge is its own clickable toggle (distinct from the routing chip body). */
@@ -1792,7 +1797,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .vj-gt-lbl{font-size:9px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);text-transform:uppercase;color:#8fd9a6}
 .vj-summary{display:flex;flex-wrap:wrap;gap:7px;padding:0 12px 10px}
 .vj-sum-chip{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-tight);border-radius:8px;padding:2px 9px;border:1px solid currentColor}
-.vj-sum-grail{color:#c7b377;background:rgba(199,179,119,.1)}
+.vj-sum-grail{color:var(--q-unique);background:rgba(199,179,119,.1)}
 .vj-sum-magic{color:#b58cff;background:rgba(181,140,255,.1)}
 .vj-sum-sess{color:#7fb9d8;background:rgba(127,185,216,.1)}
 .vj-chev{font-size:var(--fs-meta);color:var(--best,#66ff88);transition:transform .2s ease}
@@ -1821,7 +1826,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .hvf-name{font-weight:var(--fw-semibold);flex:1 1 auto;min-width:0}
 /* v332 — rare name-pool reference (top of High-Value Finds) */
 .rnp-details{margin:0 0 12px;border:1px solid rgba(255,255,100,.18);border-radius:10px;background:rgba(255,255,100,.03);overflow:hidden}
-.rnp-sum{cursor:pointer;list-style:none;padding:9px 12px;font-size:12.5px;color:var(--q-rare,#ffff64);display:flex;align-items:center;gap:6px;user-select:none}
+.rnp-sum{cursor:pointer;list-style:none;padding:9px 12px;font-size:12.5px;color:var(--q-rare);display:flex;align-items:center;gap:6px;user-select:none}
 .rnp-sum::-webkit-details-marker{display:none}
 .rnp-sum:hover{background:rgba(255,255,100,.06)}
 .rnp-hint{color:var(--text-dim);font-weight:var(--fw-regular);font-size:var(--fs-meta)}
@@ -1829,7 +1834,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rnp-body{padding:4px 12px 12px}
 .rnp-note{font-size:var(--fs-meta);color:var(--text-muted);line-height:var(--lh-normal);margin-bottom:9px}
 .rnp-row{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-top:1px dotted var(--border)}
-.rnp-slot{flex:0 0 64px;font-size:var(--fs-meta);font-weight:var(--fw-bold);letter-spacing:var(--ls-snug);text-transform:uppercase;color:var(--q-rare,#ffff64);padding-top:3px}
+.rnp-slot{flex:0 0 64px;font-size:var(--fs-meta);font-weight:var(--fw-bold);letter-spacing:var(--ls-snug);text-transform:uppercase;color:var(--q-rare);padding-top:3px}
 .rnp-slot-pre{color:var(--text-muted)}
 .rnp-words{display:flex;flex-wrap:wrap;gap:4px}
 .rnp-chip{font-size:var(--fs-meta);color:var(--text);background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:6px;padding:2px 7px}
@@ -3769,7 +3774,6 @@ try {
 </script>
 <noscript><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <style id="codex-styles">
-:root{ --d2-unique:#c7b377; --d2-set:#2fe35e; --d2-magic:#8c9cff; }
 .codex-card{ margin:14px 0; background:linear-gradient(165deg,#14110b,#0c0a06); border:1px solid var(--border-light); border-left:3px solid var(--cx-accent,var(--gold)); border-radius:12px; padding:18px 20px; }
 .codex-card .cx-head{ display:flex; flex-direction:column; gap:3px; margin-bottom:11px; }
 .codex-card .cx-rarity{ font-family:var(--mono); font-size:9.5px; letter-spacing:var(--ls-label); text-transform:uppercase; color:var(--cx-accent,var(--gold)); opacity:.9; }
@@ -3778,12 +3782,12 @@ try {
 .codex-card .cx-reqs{ display:flex; gap:7px; flex-wrap:wrap; margin-bottom:12px; }
 .codex-card .cx-req{ font-family:var(--mono); font-size:var(--fs-micro); color:var(--text-dim); background:rgba(212,168,71,.06); border:1px solid var(--border); border-radius:5px; padding:3px 8px; }
 .codex-card .cx-props{ background:rgba(140,156,255,.05); border:1px solid rgba(140,156,255,.13); border-radius:9px; padding:12px 15px; }
-.codex-card .cx-prop{ color:var(--d2-magic); font-size:var(--fs-body); line-height:var(--lh-relaxed); }
+.codex-card .cx-prop{ color:var(--q-magic); font-size:var(--fs-body); line-height:var(--lh-relaxed); }
 .codex-card .cx-setblock{ margin-top:10px; background:rgba(47,227,94,.05); border:1px solid rgba(47,227,94,.18); border-radius:9px; padding:11px 15px; }
-.codex-card .cx-set-head{ font-family:var(--serif-display); font-weight:var(--fw-medium); font-size:var(--fs-micro); letter-spacing:var(--ls-label); text-transform:uppercase; color:var(--d2-set); margin-bottom:7px; }
-.codex-card .cx-setbonus{ color:var(--d2-set); font-size:12.5px; line-height:var(--lh-relaxed); }
+.codex-card .cx-set-head{ font-family:var(--serif-display); font-weight:var(--fw-medium); font-size:var(--fs-micro); letter-spacing:var(--ls-label); text-transform:uppercase; color:var(--q-set); margin-bottom:7px; }
+.codex-card .cx-setbonus{ color:var(--q-set); font-size:12.5px; line-height:var(--lh-relaxed); }
 .codex-card .cx-members{ margin-top:10px; }
-.codex-card .cx-member{ font-size:12.5px; color:var(--d2-set); line-height:var(--lh-relaxed); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.codex-card .cx-member{ font-size:12.5px; color:var(--q-set); line-height:var(--lh-relaxed); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .codex-card .cx-member-art{ display:inline-flex; align-items:center; flex:0 0 auto; }
 .codex-card .cx-member-slot{ color:var(--text-dim); font-size:var(--fs-meta); font-style:italic; }
 .codex-card .cx-note{ font-family:var(--serif-text); font-style:italic; font-size:12.5px; color:var(--text-dim); margin-top:11px; line-height:var(--lh-normal); }
@@ -4986,7 +4990,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="rune-stash-card" style="--tc:#ffa800">
+  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="rune-stash-card" style="--tc:var(--rune)">
     <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/runeZod_icon.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,150,50,.5))" decoding="async"></span>
       <div class="boss-title-block">
@@ -5115,7 +5119,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium" id="all-runewords-card" style="--tc:#ffa800">
+  <div class="boss-card collapsible collapsed tool-premium" id="all-runewords-card" style="--tc:var(--q-runeword)">
     <div class="boss-header" onclick="window.toggleCardCollapse('all-runewords-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_scroll.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
       <div class="boss-title-block">
@@ -5761,7 +5765,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     <div class="boss-body"><div id="smart-insights-body" class="si-body">…</div></div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium" id="item-rarity-card" style="--tc:#c7b377">
+  <div class="boss-card collapsible collapsed tool-premium" id="item-rarity-card" style="--tc:var(--q-unique)">
     <div class="boss-header" onclick="window.toggleCardCollapse('item-rarity-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="font-size:34px">🎨</span>
       <div class="boss-title-block">
@@ -5889,7 +5893,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium" id="set-tracker-card" style="--tc:#5fe85f">
+  <div class="boss-card collapsible collapsed tool-premium" id="set-tracker-card" style="--tc:var(--q-set)">
     <div class="boss-header" onclick="window.toggleCardCollapse('set-tracker-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/gem_perfect_emerald.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(95,208,122,.5))" decoding="async"></span>
       <div class="boss-title-block">
@@ -7424,13 +7428,13 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-step{border-left:3px solid rgba(255,168,0,.55)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
 /* v511 — Forge legend: floating hammer FAB + key popup (above the toolbox FABs) */
-.forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune,#e0b96a);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
+.forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
 body:has(#tab-forge.active) .forge-legend-fab{display:flex}
 .forge-legend-fab:hover{transform:scale(1.08);border-color:#fff}
 .forge-legend-fab img{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 0 4px rgba(224,185,106,.5))}
-.forge-legend-pop{position:fixed;bottom:172px;right:88px;z-index:9001;width:342px;max-height:72vh;overflow:auto;background:rgba(16,13,9,.985);border:1px solid var(--rune,#e0b96a);border-radius:12px;padding:14px 16px;display:none;font-size:12px;line-height:var(--lh-normal);box-shadow:0 6px 26px rgba(0,0,0,.65)}
+.forge-legend-pop{position:fixed;bottom:172px;right:88px;z-index:9001;width:342px;max-height:72vh;overflow:auto;background:rgba(16,13,9,.985);border:1px solid var(--rune);border-radius:12px;padding:14px 16px;display:none;font-size:12px;line-height:var(--lh-normal);box-shadow:0 6px 26px rgba(0,0,0,.65)}
 body:has(#tab-forge.active) .forge-legend-pop.open{display:block}
-.forge-legend-pop .flp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:9px}
+.forge-legend-pop .flp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune);margin-bottom:9px}
 .forge-legend-pop .flp-sec{margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.07)}
 .forge-legend-pop .flp-sec>b{color:#e8dcc0;display:block;margin-bottom:3px;font-size:12.5px}
 .forge-legend-pop .flp-sec>div{color:#9a8c72;margin:3px 0}
@@ -7507,7 +7511,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-tile{display:block;padding:7px 10px;background:rgba(0,0,0,.25);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:8px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-slot{font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-rec{font-size:var(--fs-meta);color:var(--text-dim,#9a8c72);margin-top:2px;line-height:var(--lh-snug)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-rec b{color:var(--rune,#e0b96a)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-rec b{color:var(--rune)}
 /* Craft accordion (v495) — collapsing dropdown of slots + recipes per craft type */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftacc{display:flex;flex-direction:column;gap:10px;margin-top:8px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc{background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:12px;overflow:hidden;transition:border-color .15s}
@@ -7529,14 +7533,14 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked{opacity:.55}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-slot{font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0);min-width:62px;flex:none}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:var(--lh-normal);display:flex;flex-wrap:wrap;align-items:center;gap:5px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec b{color:var(--rune,#e0b96a)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec b{color:var(--rune)}
 /* v516 — craft ingredient chips: each ingredient (rune · base · jewel) carries its own HD art + a
    floating cursor tooltip. Hover any of them for the rich card (rune stats / base options / jewel). */
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:7px;background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);cursor:help;white-space:nowrap;max-width:100%}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-img{width:18px;height:18px;object-fit:contain;flex:none;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl{width:18px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-r{color:var(--rune,#e0b96a)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-j{color:#9fb0ff}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune{border-color:rgba(224,168,42,.4)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune b{color:#ffa800;font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-r{color:var(--rune)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-j{color:var(--q-magic)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune{border-color:rgba(224,168,42,.4)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune b{color:var(--rune);font-weight:var(--fw-semibold)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base{border-color:rgba(159,176,255,.32);flex-wrap:wrap}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cbnames{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cbn{color:#b9c4ff} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cdot{color:var(--text-dim,#6f6450);opacity:.7}
@@ -7770,7 +7774,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    v1626 CORRECTION — this comment used to claim the inline colour _undoBar writes was DEAD, because
    "_Q_HEX is not in that closure's scope". That is false. `var _Q_HEX` at line ~16224 is top-level,
    therefore a window property, therefore visible from every closure in the document; measured live,
-   the bar renders style="color:#c7b377" on F·Uniques and style="color:#00ff00" on F·Sets, and the
+   the bar renders the unique gold on F·Uniques and the set green on F·Sets (v1628: both now come
+   from _Q_HEX, which is itself read from the :root tokens — the set green is #00fc00, not #00ff00), and the
    inline wins over these rules. A comment describing a bug is indistinguishable from the bug to the
    next reader, and this one would have sent someone hunting a scope problem that does not exist.
 
@@ -8323,7 +8328,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
         <p>Your <b>100-runeword progress</b> — ✓ the ones you've made, live-synced with your rune stash so "can make now" is always current. Feeds the Forge + Loot Filters.</p></div>
       <div class="tlg-card" style="--tc:#e0a84a"><div class="tlg-card-h"><span class="tlg-card-ic">🎯</span><span class="tlg-card-t">Loot Filters</span></div>
         <p>One-tap copy of an <b>in-game loot filter</b>, rebuilt live from your Chronicle, that shows exactly the <b>socket-correct bases to find</b> for the runewords you still need (Larzuk them to size). Import in D2R.</p></div>
-      <div class="tlg-card" style="--tc:#ffa800"><div class="tlg-card-h"><span class="tlg-card-ic">⟐</span><span class="tlg-card-t">Rune Stash · Cube-Up</span></div>
+      <div class="tlg-card" style="--tc:var(--rune)"><div class="tlg-card-h"><span class="tlg-card-ic">⟐</span><span class="tlg-card-t">Rune Stash · Cube-Up</span></div>
         <p>Tally runes → what you can <b>cube up</b> (3→1) and which runewords/crafts it unlocks. One source of truth for the Forge + Workshop.</p></div>
       <div class="tlg-card" style="--tc:#6fd0e0"><div class="tlg-card-h"><span class="tlg-card-ic">◆</span><span class="tlg-card-t">Gem Stash · Cube-Up</span></div>
         <p>Tally gems → cube-up chains + the Perfect gems your crafts need, live.</p></div>
@@ -8339,13 +8344,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
         <p>Every unique/set + valuable magic item rated <b>High → Trash</b> (maxroll / DarkHumility). Owned items show the badge in 📋 Registered too.</p></div>
       <div class="tlg-card" style="--tc:#00e676"><div class="tlg-card-h"><span class="tlg-card-ic">🎽</span><span class="tlg-card-t">Item Set Tracker</span></div>
         <p>Every set + its pieces, per-piece affixes &amp; partial bonuses — track completion across your mules.</p></div>
-      <div class="tlg-card" style="--tc:#c7b377"><div class="tlg-card-h"><span class="tlg-card-ic">⭐</span><span class="tlg-card-t">High-Value Finds</span></div>
+      <div class="tlg-card" style="--tc:var(--q-unique)"><div class="tlg-card-h"><span class="tlg-card-ic">⭐</span><span class="tlg-card-t">High-Value Finds</span></div>
         <p>Reference items <i>beyond the grail</i> — godly crafted jackpots, top uniques &amp; god-rolled rares — each a golden ID card (also via the top search).</p></div>
     </div>
     <div class="tlg-legend">
       <div class="tlg-legend-t">🎨 In-game item colours — used everywhere</div>
       <div class="tlg-chips">
-        <span class="tlg-chip" style="--c:#c7b377">unique</span><span class="tlg-chip" style="--c:#00ff00">set</span><span class="tlg-chip" style="--c:#6969ff">magic</span><span class="tlg-chip" style="--c:#ffff64">rare</span><span class="tlg-chip" style="--c:#ffa800">runeword · rune · crafted</span><span class="tlg-chip" style="--c:#f4f4f4">base</span>
+        <span class="tlg-chip" style="--c:var(--q-unique)">unique</span><span class="tlg-chip" style="--c:var(--q-set)">set</span><span class="tlg-chip" style="--c:var(--q-magic)">magic</span><span class="tlg-chip" style="--c:var(--q-rare)">rare</span><span class="tlg-chip" style="--c:var(--q-runeword)">runeword</span><span class="tlg-chip" style="--c:var(--rune)">rune</span><span class="tlg-chip" style="--c:var(--q-orange)">crafted</span><span class="tlg-chip" style="--c:var(--q-normal)">base</span>
       </div>
       <div class="tlg-legend-sub">Hover any item's <b>art</b> for its stat card · hover its <b>name</b> for the rich description.</div>
     </div>
@@ -9496,7 +9501,7 @@ window._cubeUpNote = _cubeUpNote;
 function _magicFindCardHtml(name){
   var q = (typeof _mfQual === 'function') ? _mfQual(name) : 'magic';
   var base = (typeof _mfBase === 'function') ? _mfBase(name) : '';
-  var col = q === 'rare' ? '#ffd54a' : (q === 'crafted' ? 'var(--q-orange,#ffa800)' : '#7aa2ff');
+  var col = q === 'rare' ? 'var(--q-rare)' : (q === 'crafted' ? 'var(--q-orange)' : 'var(--q-magic)');
   var src = (typeof _magicArtSrc === 'function') ? _magicArtSrc(base || name) : null;
   var artHtml = src ? '<span class="d2art-wrap lg" role="img" aria-label="'+_d2artEsc(name)+'"><img class="d2art-img" src="'+src+'" alt=""></span>'
     : '<span style="font-size:34px;line-height:1;color:'+col+';text-shadow:0 0 10px currentColor">◆</span>';
@@ -10222,7 +10227,7 @@ function _socketGuideLine(base, quality){
   var mx = _socketMaxFor(base);
   var q = String(quality || 'normal').toLowerCase();
   if (q === 'magic'){
-    return '<div class="att-tag" style="margin-top:3px;color:#7aa2ff">💎 <b>Magic item — gem it, NOT a runeword base</b> (runewords need white/normal). Larzuk gives a random <b>1–2</b> sockets' + (mx != null ? ' (max ' + mx + ' for this base)' : '') + '; the cube can’t socket magic items.</div>';
+    return '<div class="att-tag" style="margin-top:3px;color:var(--q-magic)">💎 <b>Magic item — gem it, NOT a runeword base</b> (runewords need white/normal). Larzuk gives a random <b>1–2</b> sockets' + (mx != null ? ' (max ' + mx + ' for this base)' : '') + '; the cube can’t socket magic items.</div>';
   }
   if (q === 'rare' || q === 'crafted' || q === 'set' || q === 'unique'){
     return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔩 Larzuk adds exactly <b>1</b> socket' + (q === 'rare' ? ' (or SoJ + 3 Perfect Skulls in the cube → +1)' : '') + '. Not a runeword base.</div>';
@@ -16230,8 +16235,16 @@ function findExtraItem(name){
 }
 window.findExtraItem = findExtraItem;
 window.findExtraUnique = findExtraItem; // alias
-var _Q_HEX = { unique:'#c7b377', rare:'#ffff64', magic:'#6969ff', crafted:'#ffa800', set:'#00ff00', basic:'#f4f4f4', rw:'#ffa800', rune:'#ffa800' };
-var _Q_BADGE = { unique:'linear-gradient(135deg,#c7b377,#5c4a23)', rare:'linear-gradient(135deg,#caca4f,#5c5c1e)', magic:'linear-gradient(135deg,#6969ff,#26267a)', crafted:'linear-gradient(135deg,#ffa800,#6e4900)', basic:'linear-gradient(135deg,#cfcfcf,#5a5a5a)' };
+/* v1628 - _Q_HEX is READ FROM THE :root TOKENS, never typed. Four entries (magic, set, rw, rune)
+   had drifted from the palette Konyo's own install defines, and a hand-typed table is exactly how
+   they drifted: nothing compares a literal to the token. _qTok() falls back to the var() EXPRESSION
+   (not a hex), so every consumer stays valid CSS even if a token is missing. */
+var _qCS = getComputedStyle(document.documentElement);
+function _qTok(n){ var v = ''; try { v = (_qCS.getPropertyValue(n) || '').trim(); } catch(e) {} return v || ('var(' + n + ')'); }
+var _Q_HEX = { unique:_qTok('--q-unique'), rare:_qTok('--q-rare'), magic:_qTok('--q-magic'), crafted:_qTok('--q-orange'), set:_qTok('--q-set'), basic:_qTok('--q-normal'), rw:_qTok('--q-runeword'), rune:_qTok('--rune') };
+function _qGrad(c){ return 'linear-gradient(135deg,' + c + ',color-mix(in srgb,' + c + ' 38%,black))'; }
+var _Q_BADGE = { unique:_qGrad(_Q_HEX.unique), rare:_qGrad(_Q_HEX.rare), magic:_qGrad(_Q_HEX.magic), crafted:_qGrad(_Q_HEX.crafted), basic:_qGrad(_Q_HEX.basic) };
+window._Q_HEX = _Q_HEX; window._Q_BADGE = _Q_BADGE;
 var _Q_LABEL = { basic:'Base item' };
 // v309: "🔨 How to craft it" — for crafted reference cards, derive the exact Horadric Cube
 // recipe (rune + perfect gem + magic base + jewel) from the SAME CRAFTS data the Workshop
@@ -16313,7 +16326,7 @@ window.baseDetailHtml = baseDetailHtml;
 function extraItemDetailHtml(name){
   var key = findExtraItem(name); if (!key) return '';
   var e = EXTRA_ITEMS[key]; var rar = e.rarity || 'rare';
-  var col = _Q_HEX[rar] || '#c7b377'; var badgeBg = _Q_BADGE[rar] || _Q_BADGE.unique;
+  var col = _Q_HEX[rar] || _Q_HEX.unique; var badgeBg = _Q_BADGE[rar] || _Q_BADGE.unique;
   var tip = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[key] : null;
   var base = e.base || (tip && tip.b) || '';
   var reqLvl = (tip && tip.r != null) ? tip.r : (e.req != null ? e.req : null);
@@ -16408,7 +16421,7 @@ function renderHighValueFinds(){
   var html = order.filter(function(c){ return groups[c]; }).map(function(cat){
     groups[cat].sort(function(a,b){ return (EXTRA_ITEMS[b].beats?1:0) - (EXTRA_ITEMS[a].beats?1:0); });
     var rows = groups[cat].map(function(n){
-      var e = EXTRA_ITEMS[n]; var col = _Q_HEX[e.rarity] || '#c7b377'; shown++;
+      var e = EXTRA_ITEMS[n]; var col = _Q_HEX[e.rarity] || _Q_HEX.unique; shown++;
       var esc = n.replace(/'/g, "\\'");
       var star = e.beats ? ' hvf-star' : '';
       return '<div class="hvf-row' + star + '" data-arttip="' + n + '" role="button" tabindex="0" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" onkeydown="if(event.key===\'Enter\'){window.openDrop&&window.openDrop(\'' + esc + '\')}" title="open ' + n + '">'
@@ -18496,7 +18509,7 @@ function renderCodexCard(name){
   if (typeof ITEM_CODEX === 'undefined') return "";
   var c = ITEM_CODEX[name];
   if(!c) return "";
-  var RC = {unique:'var(--d2-unique)', set:'var(--d2-set)', special:'var(--d2-unique)'};
+  var RC = {unique:'var(--q-unique)', set:'var(--q-set)', special:'var(--q-unique)'};
   var ac = RC[c.rarity] || 'var(--gold)';
   var title = (c.cat==='set' && c.setName) ? c.setName : name.replace(/\s*\([^)]*\)\s*$/,'');
   // v380 — prefix the verified base TIER (Normal/Exceptional/Elite) → "Elite Unique" / "Elite Set", like diablo2.io.
@@ -21775,7 +21788,7 @@ window.renderCreateNow = function(){
     // rarity glow — crafts & runewords are both the orange (--q-orange) tier in D2; the tile
     // border/name/glow take that colour so the dashboard reads like in-game item rarity.
     var rar = (typeof _artRarity==='function') ? _artRarity(p.name) : '';
-    var glow = (typeof _Q_HEX!=='undefined' && _Q_HEX[rar]) ? _Q_HEX[rar] : '#ffa800';  // in-game palette, keyed by _artRarity
+    var glow = (typeof _Q_HEX!=='undefined' && _Q_HEX[rar]) ? _Q_HEX[rar] : _Q_HEX.crafted;  // in-game palette, keyed by _artRarity
     // the tile's main image = the FINISHED crafted item (the result), rarity-glowing — not the gem.
     // Crafted jackpots resolve to their base sprite (Blood Gloves → leather gloves, etc.).
     var icon = p.kind==='craft' ? ((typeof artOr==='function')?artOr(p.name,'🔨','sm'):'🔨') : '📜';
@@ -21831,10 +21844,10 @@ window.renderCreateNow = function(){
     // v341.17 — every picker name is coloured to its in-game rarity (synced like the hover cards):
     // rune orange · gem its gem colour · magic base/jewel blue · rare jewel yellow.
     function pvNmColor(name, kind){
-      if(kind==='rune') return '#ffa800';
-      if(kind==='gem') return (typeof _gemColor==='function') ? _gemColor(name) : '#ffa800';
-      if(kind==='base') return '#9fb0ff';
-      if(kind==='jewel') return /rare/i.test(name) ? '#ffff64' : '#9fb0ff';
+      if(kind==='rune') return _Q_HEX.rune;
+      if(kind==='gem') return (typeof _gemColor==='function') ? _gemColor(name) : _Q_HEX.rune;
+      if(kind==='base') return _Q_HEX.magic;
+      if(kind==='jewel') return /rare/i.test(name) ? _Q_HEX.rare : _Q_HEX.magic;
       return '';
     }
     function pvOpt(name, label, kind){
@@ -22012,13 +22025,13 @@ try { setTimeout(function(){ try { window._syncCreateNowAiArt(); } catch(e){} },
       +'.cn-now .cn-gh{color:#9fe6b0}.cn-cube .cn-gh{color:#a9d4ff}.cn-close .cn-gh{color:#e8c98a}'
       +'.cn-ct{color:var(--text-dim);font-weight:var(--fw-medium)}'
       +'.cn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:7px;padding:9px 11px}'
-      +'.cn-tile{display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.28);border:1px solid var(--border);border-left:3px solid var(--cn-glow,#ffa800);border-radius:9px;padding:7px 10px;cursor:pointer;transition:transform .12s,box-shadow .12s,background .12s}'
-      +'.cn-tile:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--cn-glow,#ffa800) 9%,transparent);box-shadow:0 0 16px -5px var(--cn-glow,#ffa800)}'
-      +'.cn-now{border-left:3px solid var(--best,#66ff88)}.cn-cube{border-left:3px solid var(--q-orange,#ffa800)}.cn-close{border-left:3px solid var(--text-dim)}'
+      +'.cn-tile{display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.28);border:1px solid var(--border);border-left:3px solid var(--cn-glow,var(--q-orange));border-radius:9px;padding:7px 10px;cursor:pointer;transition:transform .12s,box-shadow .12s,background .12s}'
+      +'.cn-tile:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--cn-glow,var(--q-orange)) 9%,transparent);box-shadow:0 0 16px -5px var(--cn-glow,var(--q-orange))}'
+      +'.cn-now{border-left:3px solid var(--best,#66ff88)}.cn-cube{border-left:3px solid var(--q-orange)}.cn-close{border-left:3px solid var(--text-dim)}'
       +'.cn-ic{flex:0 0 auto;font-size:18px;width:26px;height:26px;display:flex;align-items:center;justify-content:center}'
       +'.cn-ic .d2art-wrap.sm{width:26px;height:26px}.cn-ic .d2art-img{max-width:26px;max-height:26px}'
       +'.cn-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}'
-      +'.cn-name{font-weight:var(--fw-semibold);font-size:12.5px;color:var(--cn-glow,#ffa800);text-shadow:0 0 6px var(--cn-glow,#ffa800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+      +'.cn-name{font-weight:var(--fw-semibold);font-size:12.5px;color:var(--cn-glow,var(--q-orange));text-shadow:0 0 6px var(--cn-glow,var(--q-orange));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       +'.cn-recipe{font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       +'.cn-need{display:flex;align-items:center;flex-wrap:wrap;gap:3px;font-size:10.5px;color:#ffb3b3;margin-top:2px}.cn-need img{max-width:16px;max-height:16px}'
       +'.cn-need-n{font-size:8.5px;font-weight:var(--fw-bold);letter-spacing:.03em;text-transform:uppercase;color:#1a1207;background:#f0b86a;border-radius:4px;padding:1px 5px;margin-right:2px}'
@@ -22134,7 +22147,7 @@ function _gemColor(name){
   if (n.indexOf('topaz') >= 0) return '#ffd84d';
   if (n.indexOf('diamond') >= 0) return '#dfe6f0';
   if (n.indexOf('skull') >= 0) return '#cfcfcf';
-  return '#ffa800';
+  return 'var(--q-orange)';
 }
 window._gemColor = _gemColor;
 // v341.7 — the gem/rune ingredient chip: the NAME carries its in-game rarity colour + glow (rune
@@ -22144,7 +22157,7 @@ function _cwIngChip(name, have){
   var esc = String(name).replace(/'/g, "\\'");
   var logo = (typeof nameLogo === 'function') ? nameLogo(name) : '';
   var isRune = (typeof RUNE_INDEX !== 'undefined' && (name in RUNE_INDEX));
-  var col = isRune ? '#ffa800' : _gemColor(name);
+  var col = isRune ? _Q_HEX.rune : _gemColor(name);
   var kind = isRune ? 'rune' : 'gem';
   // v341.27 — badge is an independent toggle: click it to flip NEED⇄HAVE without routing.
   var badge = '<span class="cw-ing-badge cw-toggle ' + (have ? 'cw-bg-have' : 'cw-bg-need') + '" role="button" tabindex="0"'
@@ -22178,7 +22191,7 @@ const CRAFT_REROLL = {
 // A basic/vendor ingredient chip — the jewel. v341.7: NAME in magic-BLUE (a jewel is a magic
 // item) + glow, with a separate "basic ✓" badge, and a rich hover card via data-arttip.
 function _cwBasicChip(label, source){
-  return '<span class="cw-ing cw-ing-basic cw-ing-col" style="--ing-c:#6969ff" data-arttip="any jewel" title="' + source + ' — a basic item, assumed on hand (never gates cubeable)"><span class="cw-ing-nm">' + label + '</span> <span class="cw-ing-badge cw-bg-basic">basic ✓</span></span>';
+  return '<span class="cw-ing cw-ing-basic cw-ing-col" style="--ing-c:var(--q-magic)" data-arttip="any jewel" title="' + source + ' — a basic item, assumed on hand (never gates cubeable)"><span class="cw-ing-nm">' + label + '</span> <span class="cw-ing-badge cw-bg-basic">basic ✓</span></span>';
 }
 // v341 — the magic BASE is NOT auto-owned. A real, click-to-toggle ingredient: green ✓ when
 // you've told the bible you have a magic base of this slot, amber ＋ "need" otherwise. Gates
@@ -22187,7 +22200,7 @@ function _cwBasicChip(label, source){
 // assumed on hand. The HAVE badge is LOCKED (not toggleable) — the recipe only truly gates on the
 // Perfect gem + slot rune. (toggleCraftBase still exists if we ever want to re-enable tracking.)
 function _cwBaseChip(slot, have, baseHint){
-  return '<span class="cw-ing cw-ing-base cw-ing-col cw-ing-have cw-ing-locked" style="--ing-c:#6969ff" data-arttip="magic ' + slot + ' base" '
+  return '<span class="cw-ing cw-ing-base cw-ing-col cw-ing-have cw-ing-locked" style="--ing-c:var(--q-magic)" data-arttip="magic ' + slot + ' base" '
     + 'title="A magic (blue) ' + slot + ' base (' + baseHint + ') — buyable / gamble-able at will, so it is always assumed on hand (the gem + rune are what gate the craft).">'
     + '<span class="cw-ing-nm">magic ' + slot + ' base</span> <span class="cw-ing-badge cw-bg-have">✓ have <span class="cw-lock" aria-label="always on hand">🔒</span></span></span>';
 }
@@ -22898,22 +22911,23 @@ function _arttipResolve(nm){
 }
 window._arttipResolve = _arttipResolve;
 // v341.16 — the floating card TITLE tints to the item's in-game rarity (Konyo: "exact + synced").
-// magic base/jewel → magic blue · gem → its gem colour · rune/runeword/crafted → orange ·
+// magic base/jewel → magic blue · gem → its gem colour · crafted → orange · rune item → rune orange ·
+// a completed RUNEWORD name → gold (v1628: it is a unique-tier name, not a crafted one) ·
 // unique gold / set green / rare yellow via _Q_HEX. Empty → keep the default gold card title.
 function _tipTint(nm){
   try {
-    if (/rare jewel$/i.test(nm)) return '#ffff64';   // rare jewel → yellow
-    if (/^(any |magic )?jewel$/i.test(nm) || /^magic .+ base$/i.test(nm)) return '#9fb0ff';
+    if (/rare jewel$/i.test(nm)) return _Q_HEX.rare;   // rare jewel → yellow
+    if (/^(any |magic )?jewel$/i.test(nm) || /^magic .+ base$/i.test(nm)) return _Q_HEX.magic;
     // v341.20 — the item's DEFINITIVE rarity wins FIRST, so a unique/set/rare item whose NAME
     // collides with a runeword (e.g. "Crescent Moon (amulet)") stays gold, not runeword-orange.
     var rar = (typeof _artRarity === 'function') ? _artRarity(nm) : '';
     if (rar === 'unique' || rar === 'set' || rar === 'rare' || rar === 'crafted') return (typeof _Q_HEX !== 'undefined' && _Q_HEX[rar]) ? _Q_HEX[rar] : '';
-    if (rar === 'magic') return '#9fb0ff';   // lighten magic for title legibility on dark
-    if (rar === 'basic') return '#f4f4f4';   // v518 — white base items get a WHITE floating-card title (in-game synced)
+    if (rar === 'magic') return _Q_HEX.magic;   // v1628: the magic TOKEN, not a hand-lightened blue
+    if (rar === 'basic') return _Q_HEX.basic;   // v518 — white base items get a WHITE floating-card title (in-game synced)
     if (typeof findGem === 'function'){ var gk = findGem(nm); if (gk && typeof _gemColor === 'function') return _gemColor(gk); }
-    if (rar === 'rune' || rar === 'rw') return '#ffa800';
-    if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)) return '#ffa800';
-    if (typeof findRuneword === 'function' && findRuneword(nm)) return '#ffa800';
+    if (rar === 'rune' || rar === 'rw') return rar === 'rune' ? _Q_HEX.rune : _Q_HEX.rw;
+    if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)) return _Q_HEX.rune;
+    if (typeof findRuneword === 'function' && findRuneword(nm)) return _Q_HEX.rw;
   } catch (e) {}
   return '';
 }
@@ -22996,7 +23010,7 @@ function _craftBaseTipHtml(slot){
     var bases=String(sl.base).split('·').map(function(b){ return '<span class="cbt-base">'+b.trim()+'</span>'; }).join('');
     return '<div class="cbt-row" style="--cw-c:'+c.color+'"><span class="cbt-gem" title="'+c.gem+'">'+gi+'</span><span class="cbt-craft">'+c.key+'</span><span class="cbt-bases">'+bases+'</span></div>';
   }).join('');
-  return '<div class="att-basecard"><div class="att-type att-magic" style="color:#9fb0ff;text-shadow:0 0 7px rgba(105,105,255,.5)">'+glyph+' Magic '+slot+' base</div>'
+  return '<div class="att-basecard"><div class="att-type att-magic" style="color:var(--q-magic);text-shadow:0 0 7px rgba(110,110,255,.5)">'+glyph+' Magic '+slot+' base</div>'
     +'<div class="att-basenote">A magic (blue) '+slot+' to craft onto — <b>any</b> of these bases works; higher tiers roll higher. Choose by the craft you want:</div>'
     +'<div class="att-baserule">⚠ Crafting <b>only</b> works on a <b>MAGIC</b> base — a rare, unique or normal '+slot.toLowerCase()+' can\'t be crafted on.</div>'
     +rows
@@ -23005,10 +23019,10 @@ function _craftBaseTipHtml(slot){
 window._craftBaseTipHtml = _craftBaseTipHtml;
 // v341.7 — rich card for the "any jewel" recipe ingredient (the 4th craft item).
 function _jewelTipHtml(isRare){
-  if (isRare) return '<div class="att-basecard"><div class="att-type" style="color:#ffff64;text-shadow:0 0 7px rgba(255,255,100,.5)">◈ Rare Jewel — extra ingredient</div>'
+  if (isRare) return '<div class="att-basecard"><div class="att-type" style="color:var(--q-rare);text-shadow:0 0 7px rgba(255,255,100,.5)">◈ Rare Jewel — extra ingredient</div>'
     + '<div class="att-basenote">A <b>rare (yellow) jewel</b> works as the craft\'s 4th item AND carries its own 3–6 random affixes into the result — a god-roll rare jewel can add real power on top of the craft\'s guaranteed mods.</div>'
     + '<div class="att-tag">magic base + Perfect gem + slot rune + <b>this rare jewel</b> → cube → crafted rare</div></div>';
-  return '<div class="att-basecard"><div class="att-type" style="color:#9fb0ff;text-shadow:0 0 7px rgba(105,105,255,.5)">◈ Magic Jewel — extra ingredient</div>'
+  return '<div class="att-basecard"><div class="att-type" style="color:var(--q-magic);text-shadow:0 0 7px rgba(110,110,255,.5)">◈ Magic Jewel — extra ingredient</div>'
     + '<div class="att-basenote"><b>Any magic (blue) jewel</b> is the 4th item in every craft recipe. Jewels drop constantly, so this never holds a craft back — it is the one assumed-on-hand ingredient. A <b>rare</b> jewel works too (adds its own affixes).</div>'
     + '<div class="att-tag">magic base + Perfect gem + slot rune + <b>this jewel</b> → cube → crafted rare</div></div>';
 }
@@ -28354,12 +28368,14 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 /* v309: floating-tip item NAME painted in the EXACT in-game quality colour — synced with
    the ID-card name and the Vault chips so a rare reads yellow, a set green, a unique gold,
    a magic blue, a crafted orange, a base white. Same palette across the entire platform. */
-#arttip.tip-r-unique .att-name{color:#c7b377}
-#arttip.tip-r-set .att-name{color:#00ff00}
-#arttip.tip-r-magic .att-name{color:#6f6fff}
-#arttip.tip-r-rare .att-name{color:#ffff64}
-#arttip.tip-r-crafted .att-name{color:#ffa800}
-#arttip.tip-r-basic .att-name{color:#cfcfcf}
+#arttip.tip-r-unique .att-name{color:var(--q-unique)}
+#arttip.tip-r-set .att-name{color:var(--q-set)}
+#arttip.tip-r-magic .att-name{color:var(--q-magic)}
+#arttip.tip-r-rare .att-name{color:var(--q-rare)}
+#arttip.tip-r-crafted .att-name{color:var(--q-orange)}
+#arttip.tip-r-basic .att-name{color:var(--q-normal)}
+#arttip.tip-r-rw .att-name{color:var(--q-runeword)}
+#arttip.tip-r-rune .att-name{color:var(--rune)}
 #arttip.tip-r-rw .att-name,#arttip.tip-r-rune .att-name{color:#ffc070}
 /* v309: ⭐ star-tier emphasis — items that BEAT a named unique / runeword */
 #arttip .att-beats{margin:3px 0 2px;font-family:var(--mono,monospace);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:.4px;color:#ffe08a;background:linear-gradient(90deg,rgba(255,168,0,.22),rgba(255,168,0,.04));border:1px solid rgba(255,200,90,.5);border-radius:5px;padding:2px 6px}
@@ -28398,8 +28414,8 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 .aid-card.aid-r-rw{border-color:rgba(255,170,70,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,170,70,.1),inset 0 3px 0 rgba(255,170,70,.65)}
 .aid-card.aid-r-rune{border-color:rgba(255,150,50,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,150,50,.11),inset 0 3px 0 rgba(255,150,50,.68)}
 /* v294: the item NAME on every ID card is rendered in its EXACT in-game rarity colour
-   (the ÿc quality palette — unique gold #c7b377, set green #00ff00, magic blue #6969ff,
-   rare yellow #ffff64, crafted/rune orange #ffa800). _artRarity stamps aid-r-<rarity> on the
+   (the ÿc quality palette — v1628: every colour is now READ from the :root --q-* tokens
+   extracted from Konyo's own _profilehd.json, never typed here). _artRarity stamps aid-r-<rarity> on the
    card (line ~11408), so the name colour follows the item automatically. Overrides the
    default gold so a set item reads green, a rare reads yellow, etc. — matching the game. */
 .aid-card.aid-r-unique .aid-item-name{color:var(--q-unique)}
@@ -28701,7 +28717,7 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 /* v344 — "needs a look" banner: empty + throw-out-only shots surfaced at the top so misses aren't buried */
 .vir-needlook{padding:8px 14px;border-bottom:1px solid rgba(255,176,64,.28);background:rgba(255,160,48,.08)}
 .vir-nl-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
-.vir-nl-h{font-weight:var(--fw-bold);color:var(--q-orange,#ffa800);font-size:12.5px}
+.vir-nl-h{font-weight:var(--fw-bold);color:var(--q-orange);font-size:12.5px}
 .vir-nl-d{font-family:ui-monospace,monospace;font-size:var(--fs-meta);color:#d8c4a0}.vir-nl-d b{color:#fff;font-weight:var(--fw-bold)}
 .vir-nl-files{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .vir-nl-fn{font-family:ui-monospace,monospace;font-size:10.5px;color:#c7b48a;background:rgba(255,176,64,.12);border:1px solid rgba(255,176,64,.22);border-radius:4px;padding:1px 6px}
@@ -29560,7 +29576,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v342.21 — render each bucket as its OWN COLUMN (header + independent scrollbar) so all sections are
     // visible side-by-side at once, per Konyo. Responsive grid wraps on narrow screens.
     var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?_dedupCanon(Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort()):[];   // v439 — collapse OCR-variant dupes
-    var _qcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
+    var _qcol={magic:'var(--q-magic)',rare:'var(--q-rare)',crafted:'var(--q-orange)'};
     function _col(cls, title, count, rowsHtml){
       return '<div class="vrg-col"><div class="vrg-col-h '+cls+'">'+title+'<span class="vrg-col-ct">'+count+'</span></div>'
         +'<div class="vrg-col-body">'+rowsHtml+'</div></div>';
@@ -30152,7 +30168,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v342.5 — append the Magic & Rare keepers as their own coloured cells (no art/openDrop — they're
       // rolled-name items with no grail card; ✕ here = throw-out from magicFinds).
       if (magicItems.length){
-        var _mqcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
+        var _mqcol={magic:'var(--q-magic)',rare:'var(--q-rare)',crafted:'var(--q-orange)'};
         itemRows = itemRows.concat(magicItems.map(function(n){
           var q=_mfQual(n), col=_mqcol[q]||_mqcol.magic, base=_mfBase(n);
           var src=(typeof _magicArtSrc==='function')?_magicArtSrc(base||n):null;
@@ -31519,7 +31535,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var j = journal();
     if (!j.length){ el.style.display='none'; return; }
     el.style.display='';
-    var Q = { unique:'#c7b377', set:'#00ff00', rw:'#ffa800', rune:'#ff7d3c', magic:'#6969ff', rare:'#ffff64' };
+    var Q = { unique:'var(--q-unique)', set:'var(--q-set)', rw:'var(--q-runeword)', rune:'var(--rune)', magic:'var(--q-magic)', rare:'var(--q-rare)' };
     var sessions = j.slice(0, 8).map(function(e){
       var d = new Date(e.ts);
       var when = d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
@@ -32087,7 +32103,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (extraCopies.length) { var _ecUniq = extraCopies.filter(function(n, i){ return extraCopies.indexOf(n) === i; });   // v401 — list each item ONCE with its final ×count (not once per extra read)
       body += '<div class="vir-line"><span class="vir-k" style="color:var(--gold-bright,#f0c060)">📦 extra copies · ' + extraCopies.length + '</span> ' + _ecUniq.map(function(n){ return _colorNames([n]) + ' <span style="color:#b5a48a;font-size:var(--fs-meta)">(now ×' + copyCount(n) + (multiTarget(n) > 1 ? (' / ' + multiTarget(n)) : '') + ')</span>'; }).join(' · ') + ' <em>— extra copies, kept (not discarded)</em></div>'; }
     if (dupes.length) body += '<div class="vir-line"><span class="vir-k vir-k-own">already owned · ' + dupes.length + '</span> ' + _colorNames(dupes) + '</div>';
-    if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
+    if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'var(--q-rare)':(q==='crafted'?'var(--q-orange)':'var(--q-magic)'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
     if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">🗑 throw-out · ' + unrec.length + '</span> ' + unrec.map(function(n){ return (typeof _vColorName==='function')?_vColorName(n):esc(n); }).join(' · ') + ' <em>— not grail; review &amp; keep/dismiss in 📋 Registered</em></div>';
     if (cappedOut.length) { var _capUniq = cappedOut.filter(function(n,i){ return cappedOut.indexOf(n)===i; });   // v403 — over the 3-copy mule cap → throw out the extras
       body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched" style="border-color:rgba(240,192,96,.5);color:#f0c060">🗑 over-cap · ' + cappedOut.length + '</span> ' + _capUniq.map(function(n){ return _colorNames([n]); }).join(' · ') + ' <em>— already muling ' + _QTY_CAP + ' of these; throw out the extra' + (cappedOut.length===1?'':'s') + '</em></div>'; }
@@ -33479,7 +33495,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var ownN = (typeof _craftCount==='function') ? _craftCount(ck, r.slot) : 0;
         h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
           +_slotArtImg(r.slot, cc)
-          +'<span class="f-craftrow-slot" style="color:var(--q-orange,#ffa800)">'+_fEsc(r.slot)+(r.top?' <span class="f-ideal" title="recommended / jackpot slot">★</span>':'')+'</span>'
+          +'<span class="f-craftrow-slot" style="color:var(--q-orange)">'+_fEsc(r.slot)+(r.top?' <span class="f-ideal" title="recommended / jackpot slot">★</span>':'')+'</span>'
           +'<span class="f-craftrow-rec">'+_cingRune(r.rune)+'<span class="f-cplus">+</span>magic '+_cingBase(r.base, r.slot)+'<span class="f-cplus">+</span>'+_cingJewel()+'</span>'
           +'<span class="f-craftrow-st">'+(r.ready?('✓ make now'+(r.gemCube?' <span style="opacity:.72;font-weight:var(--fw-normal)">· cube 3→1 '+_fEsc(c.gem)+'</span>':'')):(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))
           +(ownN?' · <b>'+ownN+'</b> owned':'')+'</span>'
@@ -34635,9 +34651,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var b = _runBossArt(r.bossId, r.boss);
     /* v1625 — the SAME helper now serves F·Sets, whose pieces carry .name (with a '(Helm)' slot
        suffix) where uniques carry .n. One function, two shapes — not a second copy. */
-    if (!b){ var _it0 = (r.items && r.items[0]) ? r.items[0] : null;
-      var _f0 = _it0 ? (_it0.n || String(_it0.name || '').replace(/\s*\([^)]+\)\s*$/,'')) : '';
-      return art(_f0, '\ud83c\udfaf'); }
+    /* v1628 \u2014 RULE 3: NO ARBITRARY PICTURES. This used to fall back to art(items[0].name) plus a
+       \ud83c\udfaf glyph, i.e. whichever drop happened to sort first stood in for the whole run. That is the
+       exact defect v1624 found on the other thumbnail: a picture that means nothing reads as a
+       picture that means something. All 13 bosses resolve through _runBossArt, so this branch is
+       currently unreachable \u2014 but if it is ever reached, the honest answer is a tidy label with no
+       image at all, never a guess and never a placeholder. */
+    if (!b) return '';
     var pic = b.url
       ? '<img class="f-art" src="' + esc(b.url) + '" alt="" loading="lazy" onerror="this.remove()">'
       : '<span class="f-artglyph">' + b.emoji + '</span>';
@@ -35418,9 +35438,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<div class="fh-body">the LAST piece of <b>'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b>'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(q0.src.chance)+'</span>':'')+'</div></div>'
           +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">Quick wins <span class="fh-cta-arw">→</span></button></div>');
       } else if(runs.length){
-        var t0=runs[0], tClean=(t0.items[0]?t0.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,'');
+        var t0=runs[0];
         H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
-          +'<div class="fh-artwrap"><div class="fh-art">'+art(tClean,'🎯')+'</div><div class="fh-icobadge">🎯</div></div>'
+          +'<div class="fh-artwrap"><div class="fh-art">'+(window._runArtThumb?window._runArtThumb(t0):'')+'</div><div class="fh-icobadge">🎯</div></div>'
           +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(t0.boss)+'</div>'
           +'<div class="fh-body">drops <b>'+t0.items.length+'</b> of your missing set pieces</div></div>'
           +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>');
@@ -35434,7 +35454,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var chips=g.items.slice(0,12).map(function(mp){ return _pieceChip({name:mp.name,have:false}); }).join('');
         var more=g.items.length>12?'<span class="gf-note">+ '+(g.items.length-12)+' more pieces</span>':'';
         var bossBtn=g.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(g.bossId)+'\')">📜 boss card</button></div>':'';
-        return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+(window._runArtThumb?window._runArtThumb(g):art((g.items[0]?g.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,''),'🎯'))+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
+        return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+(window._runArtThumb?window._runArtThumb(g):'')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">'+(g.noRun?'<b class="f-rwbig">':'Run <b class="f-rwbig">')+esc(g.boss)+'</b></div>'
           /* v1564 — "can drop 10 of your missing pieces" is true of a run. Said under the no-source
              bucket it implies somewhere to go and drops the question he actually asked: what
@@ -37652,7 +37672,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1627', name:'v1627 - the games own colours and the live controls route', date:'2026-08-03', note:'the quality palette now equals D2Rs font table extracted from the local install - set green was two points off and magic blue five - and ON AIR MINI and Theatre now leave Sessions so the stage is not hidden' };
+  window.D2R_BUILD = { id:'v1628', name:'v1628 - every name wears its quality', date:'2026-08-03', note:'Colour/art/tooltip audit of both surfaces: one palette read from the token, runeword/rune/crafted split into three concepts, crafted+runeword added to the console hover card and hero title, arbitrary-picture fallbacks removed.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

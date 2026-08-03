@@ -31,7 +31,13 @@ const BOARD = 'file://' + path.join(REPO, 'bible.html');
 
 const TABS = ['session', 'forge', 'funi', 'fsets', 'tools', 'tvd'];
 // the three tabs the GAME has a quality for -> the board token that owns that quality
-const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', forge: '--rune' };
+// v1628 CORRECTS THIS MAP, NOT THE APP. It said forge: '--rune' because until v1627 the console's
+// --rar-runeword WAS #ff7d3c. v1627 pulled the palette from Konyo's own _profilehd.json and a
+// completed runeword's NAME is FontColorGoldYellow #c7b377 — the same gold as a unique. --rune
+// #ff7d3c is the colour of a RUNE ITEM (El, Eld), a different concept that still owns that hex.
+// So this expectation was restating a hex the game disagrees with: exactly the v1621 failure
+// (a spec pinned to rgb(0,255,0) that went red when the palette became CORRECT). Fixed here.
+const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', forge: '--q-unique' };
 const PLAIN = ['session', 'tools', 'tvd'];
 // every quality colour the board declares — a plain tab must match NONE of them
 const QUALITIES = ['--q-unique', '--q-set', '--q-rare', '--q-magic', '--q-orange', '--rune'];
@@ -182,22 +188,47 @@ test.describe('v1625 — the six main tabs wear the game\'s quality palette', ()
         `the ${tab} tab must BE the game's ${tok} (${board[tok]}) — it is ${byTab[tab].color}`)
         .toBe(board[tok]);
     }
-    // and the three tints are three DIFFERENT colours; one colour repeated says nothing
-    expect(new Set(Object.keys(TINTED).map((t) => byTab[t].color)).size,
-      'unique / set / runeword are three distinct qualities in game and must read as three here').toBe(3);
+    // v1628: the tints are no longer THREE colours, and that is the correct answer, not a weakening.
+    // In D2 a unique's name and a completed runeword's name are the SAME gold, so demanding three
+    // distinct hues here would force us to invent a Forge-only colour the game does not have — the
+    // very thing v1627's palette pull removed. What still has to bite: F·Sets green must differ from
+    // both golds (a repeated colour across DIFFERENT qualities says nothing), and the gold must not
+    // be the console's own chrome gold, or the tint is invisible as a tint (v1622's trap).
+    expect(byTab.fsets.color, 'set green is a different quality and must read differently from the gold')
+      .not.toBe(byTab.funi.color);
+    expect(byTab.forge.color, 'runeword name = unique gold in game; Forge and F·Uniques agree BY DESIGN')
+      .toBe(byTab.funi.color);
+    const chrome = await tokens(page, CHROME);
+    for (const c of Object.values(chrome)) {
+      if (!c) continue;
+      expect(byTab.funi.color, `the gold tint must not collapse into the console chrome ${c}`).not.toBe(c);
+    }
   });
 
-  test('★★★ the console\'s --rar-rune and --rar-orange equal the board\'s --rune and --q-orange', async ({ page }) => {
+  test('★★★ the console\'s --rar-runeword and --rar-orange equal the board\'s runeword gold and --q-orange', async ({ page }) => {
     /* Same invariant tests/v1621 holds for --rar-unique/set/rare/magic, extended to the two tokens
-       ITEM 1 and ITEM 2 introduce. Runeword orange and craft orange are D2's colours, not ours. */
+       ITEM 1 and ITEM 2 introduce. Runeword gold and craft orange are D2's colours, not ours.
+       v1628 CORRECTS THE TOKEN NAME: this asked for --rar-rune, which NEITHER file has ever
+       declared — the console's token is --rar-runeword and the board's is --q-runeword. The old
+       assertion could only pass by accident, so it is renamed to the tokens that exist and the
+       comparison is kept exact. --q-runeword is declared as var(--q-unique), so the board side is
+       read as the unique gold it aliases, and that aliasing is asserted rather than assumed. */
     await page.goto(BOARD); await page.waitForTimeout(2000);
-    const board = await tokens(page, ['--rune', '--q-orange']);
+    const board = await tokens(page, ['--q-unique', '--q-runeword', '--q-orange', '--rune']);
+    // tokens() RESOLVES through a probe element, so an alias arrives already computed — which is
+    // what we want here: the question is what the pixel is, not how it was spelled. That it is
+    // spelled as an alias and not a second literal is tests/v1628_no_literal_quality_hex.spec.ts's job.
+    expect(board['--q-runeword'],
+      'the board must declare a runeword token, and it must resolve to the unique gold')
+      .toBe(board['--q-unique']);
+    expect(board['--rune'], 'a RUNE ITEM keeps its own colour and must not have been folded into the gold')
+      .not.toBe(board['--q-unique']);
     await console_(page);
-    const cons = await tokens(page, ['--rar-rune', '--rar-orange']);
-    expect(cons['--rar-rune'], 'the console must declare --rar-rune').toBeTruthy();
+    const cons = await tokens(page, ['--rar-runeword', '--rar-orange']);
+    expect(cons['--rar-runeword'], 'the console must declare --rar-runeword').toBeTruthy();
     expect(cons['--rar-orange'], 'the console must declare --rar-orange').toBeTruthy();
-    expect({ rune: cons['--rar-rune'], orange: cons['--rar-orange'] })
-      .toEqual({ rune: board['--rune'], orange: board['--q-orange'] });
+    expect({ runeword: cons['--rar-runeword'], orange: cons['--rar-orange'] })
+      .toEqual({ runeword: board['--q-unique'], orange: board['--q-orange'] });
   });
 
   test('★★★ PLAIN STAYS PLAIN — Sessions, Tools and TV·D carry no quality colour (v1615)', async ({ page }) => {
