@@ -11228,16 +11228,68 @@
          F·Sets, where its set and its siblings are); this row was the last one still sending
          everything through _hubGoItem, which lands a set piece on the uniques calculator. The
          rarity decides the room — nothing is hardcoded, exactly as the sets hero does it. */
-      var _aiIsSet = !!(aiArt && String(aiArt.rarity || '').toLowerCase() === 'set');
+      /* ══ v1644 · THE PICK'S QUALITY IS READ, NEVER ASSUMED ═════════════════════════════════════
+         `_rarCls(aiArt.rarity || 'unique')` (and the `=== 'set'` test below it) was a BLIND
+         FALLBACK: a bridge payload that arrived without a rarity painted a SET PIECE in unique
+         GOLD and pushed it through _hubGoItem to the uniques calculator — the exact landing v1636
+         built _hubGoSetPiece to stop. Flipping the fallback to 'set' is the same bug mirrored, so
+         nothing is guessed here. Three sources, in order of how much each actually KNOWS:
+           1. the bridge's own `rarity` — explicit truth, _artRarity() on the board;
+           2. the d2r_setFarm registry — if the pick's name is a row in the SETS hunt list then it
+              IS a set piece; that is the surface's own knowledge, not an inference;
+           3. the sentence's own chronicle marker — d2r_createNowAi is written by _chronRotation
+              and always opens '🧩 Sets · ' / '🏆 Grail · ' / '📜 Runewords · '.
+         Nothing recognised → NO rarity class at all (_rarCls('') === '', the base cream) and the
+         pre-existing item route. An honest "I don't know" beats painting a quality onto a real
+         item. UNIQUE STAYS GOLD: a grail pick is caught by (1) or, if the bridge ever ships
+         rarity-less, by (3) — the gold path never reaches the neutral case. */
+      var _setFarm = null;
+      try { _setFarm = JSON.parse(lsFork('d2r_setFarm') || 'null'); } catch(e){}
+      var _setBy = {};
+      if (Array.isArray(_setFarm)) _setFarm.forEach(function(f){ if (f && f.name) _setBy[f.name] = f; });
+      var _aiRow = (aiArt && _setBy[aiArt.name]) || null;     // the pick, as the SETS hunt list knows it
+      var _aiRar = String((aiArt && aiArt.rarity) || '').toLowerCase();
+      if (!_aiRar && _aiRow) _aiRar = String(_aiRow.rarity || 'set').toLowerCase();
+      if (!_aiRar && aiArt){
+        var _aiHead = String(ai || '');
+        if (/^\s*🧩\s*Sets\b/.test(_aiHead)) _aiRar = 'set';
+        else if (/^\s*🏆\s*Grail\b/.test(_aiHead)) _aiRar = 'unique';
+      }
+      var _aiIsSet = _aiRar === 'set';
       var _aiFn = _aiIsSet ? '_hubGoSetPiece' : '_hubGoItem';
       var _aiRoom = _aiIsSet ? 'sets' : 'uniques';
       var _aiArg = aiArt ? JSON.stringify(aiArt.name).replace(/"/g, '&quot;') : '';
       // one description of the pick, so the hero form and the row form cannot say different things
       var _aiTip = aiArt ? _itipAttr({
-        name: aiArt.name, art: aiArt.art || '', rarity: aiArt.rarity || 'unique',
+        name: aiArt.name, art: aiArt.art || '', rarity: _aiRar,
         tip: aiArt.tip || null,          // v1617 — the same in-game block the heroes show
         facts: [['today’s pick', String(ai).slice(0, 90)]],
         go: 'click to open it in the ' + _aiRoom + ' chronicle'
+      }) : '';
+      /* ══ v1644 · THE SET THE PICK BELONGS TO IS A NAMED ITEM ON THIS ROW TOO ═══════════════════
+         Konyo, on the daily task: "i want tancred battle gear where it says 1 item left it should
+         render first of all the green set color synced like the console because it a set item and
+         for tancred it should also be image hd art with a tooltip image cursor HD floating image
+         for that specific item".
+         MEASURED on his own sentence — "🧩 Sets · 254/351 pieces — finish Tancred's Battlegear
+         (1 piece left: Tancred's Hobnails — no verified farm source for this set yet)" (132 chars,
+         both names inside the 90-char slice): the PIECE sits at index 70 and v1636 dressed it; the
+         SET name sits at index 34, three words from "1 piece left", and was still bare escaped
+         prose in the base cream. Two names of one family on one line, one dressed and one not —
+         which is the disagreement, not the colour.
+         The aggregate's OWN picture comes from d2r_setFarm's `setArt` (= artUrl(st.name), written
+         beside `art` since v1616 and until now read by NOBODY) — never the piece's icon under the
+         set's name, because a wrong picture is worse than none. No setArt → no picture and the
+         word stands alone, which is already _itemArtImg's own rule. The set name routes through
+         _hubGoSetPiece(piece), the same door the sets hero uses: it lands on the piece INSIDE its
+         set, which is where the siblings and the completion are. */
+      var _aiSetName = _aiRow ? String(_aiRow.set || '').replace(/\s*\([^)]+\)\s*$/, '').trim() : '';
+      var _aiSetTip = _aiSetName ? _itipAttr({
+        name: _aiSetName, art: _aiRow.setArt || '', rarity: 'set',
+        facts: [['next piece', String(aiArt.name)],
+                ['pieces left', _aiRow.left ? String(_aiRow.left) : ''],
+                ['today’s pick', String(ai).slice(0, 90)]],
+        go: 'click to open it in the sets chronicle'
       }) : '';
       var _aiGo = aiArt ? (' role="button" tabindex="0"'
         + ' aria-label="daily pick: ' + esc(aiArt.name) + ' — open it in the ' + _aiRoom + ' chronicle"'
@@ -11260,23 +11312,45 @@
          one navigation.
          WHEN THE BRIDGE DOES NOT RESOLVE the sentence stays exactly what it is today: plain
          escaped text, no cursor, no dead affordance (the v1616 rule directly above). Likewise if
-         the 84/90-char slice cuts the name in half — half a name is not a thing to click. */
+         the 84/90-char slice cuts the name in half — half a name is not a thing to click.
+         v1644 — the same treatment, now applied to EVERY name in the sentence we can stand behind
+         (the piece AND its set), each with its own quality, picture, card and door. One chip
+         builder, so a second dressed name can never drift into a fourth invention. */
+      var _aiMarks = [];
+      if (aiArt) _aiMarks.push({ nm: String(aiArt.name), art: aiArt.art || '', cls: _rarCls(_aiRar),
+                                 tip: _aiTip, fn: _aiFn, arg: _aiArg, room: _aiRoom });
+      if (_aiSetName) _aiMarks.push({ nm: _aiSetName, art: _aiRow.setArt || '', cls: _rarCls('set'),
+                                 tip: _aiSetTip, fn: '_hubGoSetPiece', arg: _aiArg, room: 'sets' });
+      var _aiChip = function(shown, m){
+        return '<b class="tf-nm hh-go' + m.cls + '" role="button" tabindex="0"'
+          + ' aria-label="' + esc(shown) + ' — open it in the ' + m.room + ' chronicle"'
+          + m.tip
+          + ' onclick="event.stopPropagation();window.' + m.fn + '(' + m.arg + ')"'
+          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();'
+          + 'event.preventDefault();window.' + m.fn + '(' + m.arg + ');}">'
+          + _itemArtImg(m.art, 'tf-i tf-i-item', m.nm) + esc(shown) + '</b>';
+      };
       var _aiSay = function(txt, max){
         var s = String(txt).slice(0, max);
-        if (!aiArt) return esc(s);
-        var nm = String(aiArt.name);
-        var i = s.toLowerCase().indexOf(nm.toLowerCase());
-        if (i < 0) return esc(s);                       // name absent or truncated away — stay plain
-        var shown = s.substr(i, nm.length);             // print what the SENTENCE says, not the key
-        return esc(s.slice(0, i))
-          + '<b class="tf-nm hh-go' + _rarCls(aiArt.rarity || 'unique') + '" role="button" tabindex="0"'
-          + ' aria-label="' + esc(shown) + ' — open it in the ' + _aiRoom + ' chronicle"'
-          + _aiTip
-          + ' onclick="event.stopPropagation();window.' + _aiFn + '(' + _aiArg + ')"'
-          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();'
-          + 'event.preventDefault();window.' + _aiFn + '(' + _aiArg + ');}">'
-          + _itemArtImg(aiArt.art, 'tf-i tf-i-item', aiArt.name) + esc(shown) + '</b>'
-          + esc(s.slice(i + nm.length));
+        if (!_aiMarks.length) return esc(s);            // bridge did not resolve — no dead affordance
+        var lo = s.toLowerCase(), hits = [];
+        _aiMarks.forEach(function(m){
+          var i = lo.indexOf(m.nm.toLowerCase());
+          if (i < 0) return;                            // name absent or truncated away — stay plain
+          hits.push({ i: i, len: m.nm.length, m: m });
+        });
+        if (!hits.length) return esc(s);
+        // earliest first; at an equal start the LONGER name wins, so a set name that opens with its
+        // piece's words ("Tancred's …") can never be half-wrapped by the shorter one
+        hits.sort(function(a, b){ return a.i - b.i || b.len - a.len; });
+        var out = '', at = 0;
+        hits.forEach(function(h){
+          if (h.i < at) return;                         // overlaps a name already dressed
+          out += esc(s.slice(at, h.i))                  // print what the SENTENCE says, not the key
+               + _aiChip(s.substr(h.i, h.len), h.m);
+          at = h.i + h.len;
+        });
+        return out + esc(s.slice(at));
       };
       try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
       var rows = [];

@@ -7754,8 +7754,6 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-src b{color:#9fd4ff}
 .gf-ttf{color:#8fe0a0}   /* v1565 */
 .gf-odds{font-size:10.5px;font-weight:var(--fw-bold);color:#9fd4ff;background:rgba(159,212,255,.1);border-radius:6px;padding:1px 7px}
-.gf-setbar{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:7px}
-.gf-setbar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4ade80,#86efac);box-shadow:0 0 8px -1px rgba(74,222,128,.7);transition:width .5s ease}
 .gf-note{font-size:var(--fs-meta);color:#8a7d64;font-style:italic;margin-top:5px}
 /* v559.1 — runeword-name chips in the Socketed Review / throw-out / intake lists (HD logo + arttip hover) */
 .rwn-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:var(--fw-semibold);color:#e0d0a8;background:rgba(233,208,122,.08);border:1px solid rgba(233,208,122,.2);border-radius:7px;padding:1px 8px;margin:2px 3px 2px 0;cursor:help;transition:filter .12s}
@@ -7822,6 +7820,15 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-fsets .f-cardtitle .f-rwbig.fs-piece,#tab-fsets .fh-name .fs-piece{color:var(--q-set)}   /* v1625 ITEM5 — beats the (1,2,0) .f-cardtitle .f-rwbig rule that renders later in this sheet */
 #tab-fsets .fs-piece:hover{filter:brightness(1.18);text-decoration:underline}
 #tab-fsets .fs-piece:focus-visible{outline:2px solid var(--q-set);outline-offset:2px}
+/* v1644 ITEM1 — the two BEST-FARM heroes named a boss in bare cream (measured rgb(244,232,208))
+   while the run row directly beneath named the SAME boss in --best green rgb(102,255,136). A hero
+   and a row naming one thing must not disagree. A boss is NOT an item, so --q-set / --q-unique
+   would be a lie here; the token the run rows already use for a boss name is --best, so the heroes
+   adopt THAT. Same hover/focus affordance as .fs-piece, routed to the boss card (openBossDetail),
+   which is what the run row's own boss surface routes to — no item arttip, a boss has none. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--best,#66ff88);cursor:pointer;text-decoration:none;border-radius:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:hover{filter:brightness(1.18);text-decoration:underline}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--best);outline-offset:2px}
 #tab-funi .forge-title{color:var(--q-unique)}   /* v1625 ITEM6 — per-tab override */
 /* v1633 — Konyo: "the forge title here should also be color synced to the tab. for FORGE within
    the tab color wise". The Forge TAB wears --rune (v1631); its page title was still the chrome
@@ -8087,6 +8094,12 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd .f-art{max-width:42px;max-height:42px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd .f-atomic-ic{font-size:26px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-badge{position:absolute;bottom:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:#140f09;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:var(--fs-meta);box-shadow:0 1px 3px rgba(0,0,0,.5)}
+/* v1644 ITEM2 — .f-cardart-badge is pinned absolute inside the 48px art box, so every user of it
+   printed a stamp ON TOP of the sprite. Decorative glyphs (⚡, the atom's own step icon) are gone
+   outright; the INFORMATIONAL ones (run rank, pieces-left/✅) keep their information but move OFF
+   the art into the title line as this pill. v1636 did this for F·Uniques Quick Wins only — this is
+   the same treatment reaching its siblings. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rankpill{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-right:6px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);font-size:var(--fs-meta);font-weight:var(--fw-bold);color:var(--text-muted,#b5a48a);vertical-align:1px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-art{max-width:40px;max-height:40px;object-fit:contain}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-glyph{font-size:22px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardbody{flex:1;min-width:0}
@@ -22180,6 +22193,29 @@ window._syncCreateNowAiArt = function(){
     var art = null, rar = null;
     try { art = (typeof artUrl === 'function') ? (artUrl(hit) || null) : null; } catch(e){}
     try { rar = (typeof _artRarity === 'function') ? (_artRarity(hit) || null) : null; } catch(e){}
+    /* v1644 ITEM3 — the consumer (tv/control_ui.html `_rarCls(aiArt.rarity || 'unique')`) DEFAULTS
+       a missing rarity to 'unique' and paints it gold. MEASURED here: _artRarity DOES return 'set'
+       for set pieces (Tancred's Weird → "set"), so sets were never mis-typed at this seam — but it
+       returns '' for plenty of grail UNIQUES (Harlequin Crest → "", Stone of Jordan → ""), which
+       only rendered correctly because the default happened to agree. That is luck, not truth, and
+       the daily pick ROTATES: the payload must state the type itself. So when the codex has no
+       rarity for the hit, derive it from membership — a name the set tables own is 'set', anything
+       else reaching this bridge came out of the unique grail and is 'unique'. Type-driven, no
+       per-item special cases. Uniques stay gold; nothing about the gold token changes here. */
+    /* v1644 — DERIVE A *MISSING* RARITY, NEVER OVERWRITE A TRUE ONE. The first draft of this read
+       `if (!rar || rar === 'basic')`, which swept a genuinely BASIC item into 'unique' and painted
+       it gold. 'basic' is not an absent answer, it is an answer: EXTRA_ITEMS (reference items owned
+       OUTSIDE the grail, v298) carries ~64 such keys and about half resolve art, so they can reach
+       this bridge — and `_rarCls('basic')` correctly returns '' (no rarity class, neutral), which
+       the remap turned into r-unique gold. Caught by the third eye on the pre-ship challenge.
+       Deriving from membership when the codex says NOTHING is right and stays; asserting 'unique'
+       over a type the codex actually stated is the same defect this whole item is about, pointed
+       the other way. Only the empty case derives now. */
+    if (!rar){
+      var _isSet = false;
+      try { _isSet = !!(window.findSetPiece && window.findSetPiece(hit)); } catch(e){}
+      rar = _isSet ? 'set' : 'unique';
+    }
     if (!art){ try { window.LSR.removeItem('d2r_createNowAiArt'); } catch(e){} return; }   // no art > wrong art
     // v1617 — the daily pick gets the same in-game stat block as the two heroes
     var payload = JSON.stringify({ name: hit, art: art, rarity: rar, tip: _bridgeTip(hit) });
@@ -34156,7 +34192,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkipAnim(this,\''+_fJs(sk)+'\')">✕</button>' : '';
           var backBtn = (a.chainKey && step>0) ? ' <button class="f-btn f-btn-mini" title="go back a step — I didn’t actually do the previous one" onclick="window.forgeStepBack(\''+a.chainKey+'\')">↺ back</button>' : '';
           var _atomArt = a.artName ? _rwArt(a.artName) : ('<span class="f-atomic-ic">'+a.icon+'</span>');
-          H.push('<div class="f-card f-'+a.cls+' f-atom" data-arttip="'+_fEsc(a.artName||(a.craft?a.craft+' '+a.slot:''))+'">'+skipBtn+'<div class="f-cardart f-cardart-hd">'+_atomArt+'<span class="f-cardart-badge">'+a.icon+'</span></div><div class="f-cardbody">'
+          /* v1644 ITEM2 — the atom's step glyph was ALSO stamped on the art corner. It is
+             decorative in both branches: with artName it covers the item sprite, and without it the
+             art slot IS that same glyph, so the badge printed the icon twice. The title line already
+             says the action in words ("Forge X in your 4os Y"), so the stamp is gone. */
+          H.push('<div class="f-card f-'+a.cls+' f-atom" data-arttip="'+_fEsc(a.artName||(a.craft?a.craft+' '+a.slot:''))+'">'+skipBtn+'<div class="f-cardart f-cardart-hd">'+_atomArt+'</div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+a.atoms[step]+'</div>'+prog
             +'<div class="f-cta">'+btn+backBtn+'</div></div></div>');
         };
@@ -35197,6 +35237,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + ' style="cursor:' + (r.bossId ? 'pointer' : 'default') + '">' + pic + '</span>';
   }
   try { window._runArtThumb = _runArtThumb; } catch(e){}   // v1625 — F·Sets calls it across the IIFE seam
+  /* v1644 ITEM1 — one shared boss-hero name renderer for BOTH best-farm heroes (F·Uniques and
+     F·Sets). Before this both emitted bare escaped text inside .fh-name, which inherits
+     --text: measured rgb(244,232,208) cream, while the run row beneath named the same boss in
+     --best rgb(102,255,136). Shape copied from the F·Sets quick-win hero (the one surface that was
+     already wired) — a span carrying the colour class, a role/tabindex affordance and a route —
+     except the route is openBossDetail, because a boss is not an item and navigateToItem would
+     land it on the item calculator. No data-arttip: that attribute drives the ITEM art tip and a
+     boss has no entry there; the boss's own row exposes its card the same way, via openBossDetail. */
+  function _bossHeroName(r){
+    var nm = esc(r && r.boss || '');
+    if (!nm) return '';
+    if (!r || !r.bossId) return '<span class="fh-boss" style="cursor:default">'+nm+'</span>';
+    var go = 'window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')';
+    return '<span class="fh-boss" role="button" tabindex="0" aria-label="open the '+nm+' boss card"'
+      +' title="open the '+nm+' boss card"'
+      +' onclick="event.stopPropagation();'+go+'"'
+      +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'+go+';}">'+nm+'</span>';
+  }
+  window._bossHeroName=_bossHeroName;
   function _runCard(r,i){
     // v647.1 — the '+N more from this run' dead-end becomes an in-card drawer: EVERY drop of the
     // run is visible + tickable in place (Konyo: 'there should be 300+ in all — i dont see them').
@@ -35204,8 +35263,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var chips=_all.slice(0,10).join('');
     var more=_all.length>10?'<details class="gf-more gf-more-inline"><summary class="gf-more-sum">▾ all '+_all.length+' drops from this run <span class="gf-more-ct">+'+(_all.length-10)+' more</span></summary><div class="gf-more-body gf-chips">'+_all.slice(10).join('')+'</div></details>':'';
     var bossBtn=r.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')">📜 boss card</button></div>':'';
-    return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+_runArtThumb(r)+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
-      +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
+    /* v1644 ITEM2 — the run rank moved OFF the boss portrait (it was a .f-cardart-badge pinned on
+       the sprite corner) into the title line as a .f-rankpill: same information, nothing covering
+       the artwork. */
+    return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+_runArtThumb(r)+'</div><div class="f-cardbody">'
+      +'<div class="f-cardtitle"><div class="f-atomact"><span class="f-rankpill">'+(i+1)+'</span>Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
       +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+_fuRate(r.ev)+'</b> of running':'')+'</div>'
       +'<div class="gf-chips">'+chips+'</div>'+more+'</div>'+bossBtn+'</div></div>';
   }
@@ -35225,9 +35287,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'window.navigateToItem&&window.navigateToItem(\''+jsq(x.n)+'\');}">'+art(x.n,'🏆')+'</span>'
       /* v1636 — the 🏆 corner badge is GONE from Quick Wins. .f-cardart-badge is pinned
          absolute at bottom:-5px right:-5px, so on this card it sat ON TOP of the item's own
-         artwork — a decoration obscuring the picture it decorated, and unlike every other user
-         of that badge (run order i+1, pieces-left/✅, ⚡) it carried NO information: every card
-         in this list is a grail unique, so the trophy said nothing the section title didn't.
+         artwork — a decoration obscuring the picture it decorated, and it carried NO information:
+         every card in this list is a grail unique, so the trophy said nothing the section title
+         didn't.  STALE-PROSE FIX v1644 — this used to point at "every other user of that badge
+         (run order i+1, pieces-left/✅, ⚡)" as the informational counterexamples. There are no
+         other users left: v1644 deleted the decorative ⚡ and the Forge atom glyph outright and
+         moved the informational rank / pieces-left counts into .f-rankpill in the title line, so
+         .f-cardart-badge now has a CSS rule and zero emitters.
          The art(x.n,'🏆') call above keeps the trophy as the missing-image FALLBACK — a
          different thing, and the only place the glyph still earns its space here. */
       +'</div><div class="f-cardbody">'
@@ -35289,7 +35355,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(top&&F!=='found'){
       H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
         +'<div class="fh-artwrap"><div class="fh-art">'+art(top.items[0]?top.items[0].n:'','🎯')+'</div><div class="fh-icobadge">🎯</div></div>'
-        +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(top.boss)+'</div>'
+        +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+_bossHeroName(top)+'</div>'
         +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+_fuRate(top.ev)+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
         +(F==='runs'
             ? '<button class="f-btn fh-cta" onclick="'+(top.bossId?'window.openBossDetail(\''+top.bossId+'\')':'window.switchTab(\'bosses\')')+'">Open boss card <span class="fh-cta-arw">→</span></button></div>'
@@ -35902,13 +35968,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     return '<span class="gf-piece" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="mark found"><span class="gp-ck">○</span>'+chipLogo(clean)+'<span class="gf-nm">'+esc(clean)+'</span>'+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
   }
-  function _setCard(r,cls){
-    var pct=r.pieces.length?Math.round(r.got/r.pieces.length*100):0;
-    return '<div class="f-card '+cls+'"><div class="f-cardart f-cardart-hd">'+_setArt(r.name,r.pieces)+'<span class="f-cardart-badge">'+(r.left===0?'✅':r.left)+'</span></div><div class="f-cardbody">'
-      +'<div class="f-cardtitle"><div class="f-atomact"><b class="f-rwbig">'+esc(r.name)+'</b> <span class="f-need">'+r.got+' / '+r.pieces.length+'</span>'+(r.left===1?' <span class="f-ideal">1 piece left!</span>':'')+'</div>'
-      +'<div class="gf-setbar"><i style="width:'+pct+'%"></i></div>'
-      +'<div class="gf-chips">'+r.pieces.map(_pieceChip).join('')+'</div></div></div></div>';
-  }
+  /* v1644 — _setCard IS GONE. It was DEFINED AND NEVER CALLED: `grep -n "_setCard" bible.html`
+     returned exactly one line, its own definition — no window._setCard, no string or map reference,
+     nothing in tests/ or tv/. Proven by execution too, not just by grep: rendering #tab-fsets under
+     all five filters (near/runs/working/done/all) gave ZERO `.gf-setbar` nodes, a class only this
+     function emitted.
+     Worth recording because it is the sharper half of the lesson: the v1644 badge sweep dutifully
+     moved the pieces-left count off the artwork INSIDE THIS FUNCTION, so that particular fix was
+     applied to code no user can reach. Nothing regressed — the badge it replaced was equally
+     unreachable — but the diff LOOKED like a fix and was not one. Caught by LAW19, which is exactly
+     the reachability question that no test asks: a spec proves code does what it claims WHEN RUN,
+     and says nothing about whether anything runs it.
+     Its orphaned CSS (.gf-setbar, .gf-setbar>i, .f-rankpill-left) went with it; the live F·Sets card
+     renderer is elsewhere and already carries no corner badge. */
   window.renderForgeSets=function(){
     var box=document.getElementById('fsets-body'); if(!box) return;
     var s=window.fsetsScan();
@@ -35999,7 +36071,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var t0=runs[0];
         H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
           +'<div class="fh-artwrap"><div class="fh-art">'+(window._runArtThumb?window._runArtThumb(t0):'')+'</div><div class="fh-icobadge">🎯</div></div>'
-          +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(t0.boss)+'</div>'
+          +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+(window._bossHeroName?window._bossHeroName(t0):esc(t0.boss))+'</div>'
           +'<div class="fh-body">drops <b>'+t0.items.length+'</b> of your missing set pieces</div></div>'
           +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>');
       }
@@ -36012,8 +36084,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var chips=g.items.slice(0,12).map(function(mp){ return _pieceChip({name:mp.name,have:false}); }).join('');
         var more=g.items.length>12?'<span class="gf-note">+ '+(g.items.length-12)+' more pieces</span>':'';
         var bossBtn=g.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(g.bossId)+'\')">📜 boss card</button></div>':'';
-        return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+(window._runArtThumb?window._runArtThumb(g):'')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
-          +'<div class="f-cardtitle"><div class="f-atomact">'+(g.noRun?'<b class="f-rwbig">':'Run <b class="f-rwbig">')+esc(g.boss)+'</b></div>'
+        return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+(window._runArtThumb?window._runArtThumb(g):'')+'</div><div class="f-cardbody">'
+          /* v1644 ITEM2 — rank pill in the title line, not a stamp on the boss portrait. */
+          +'<div class="f-cardtitle"><div class="f-atomact"><span class="f-rankpill">'+(i+1)+'</span>'+(g.noRun?'<b class="f-rwbig">':'Run <b class="f-rwbig">')+esc(g.boss)+'</b></div>'
           /* v1564 — "can drop 10 of your missing pieces" is true of a run. Said under the no-source
              bucket it implies somewhere to go and drops the question he actually asked: what
              difficulty? There is no difficulty, because there is no source. */
@@ -36046,7 +36119,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _sc=mp.src?_adjC(mp.src, mp.name):null;                  // v1616 — same seam as F·Uniques; sets were baseline-only too
         var _ts=mp.src?_ttf(_sc,mp.src.kph):'';
         var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_sc)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
-        _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
+        /* v1644 ITEM2 — Konyo (F·Sets → QUICK WINS): "the little electric little stamp on the items
+           i want removed .. leave only the items". The ⚡ was pure decoration pinned on the sprite
+           corner: every card in this list is a quick win, so the stamp said nothing the section
+           heading did not. v1636 removed the equivalent 🏆 from F·Uniques Quick Wins and stopped
+           there; this is the same removal reaching the sibling tab. */
+        _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig fs-piece" data-arttip="'+esc(clean)+'" role="button" tabindex="0" aria-label="open '+esc(clean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\');}">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
           +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
           +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailTogglePiece(this,\''+jsq(mp.name)+'\')">✓ found it</button></div></div></div>');
@@ -38248,7 +38326,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1643', name:'v1643 - PINDLESKIN HAS A FACE PLUS ART CACHE BUST', date:'2026-08-04', note:'Pindleskin finally wears Pindleskin. The v1642 note claimed no Pindleskin render exists in the repo and that claim was FALSE: art/reanimatedhorde-opt_graphic.png has been on disk since 2026-06-14 and the app own name-to-art map D2IO_ART has read Pindleskin -> art/reanimatedhorde-opt_graphic.png at bible.html line 14217 for weeks. One grep would have found it. The picture was OPENED before wiring: a gaunt undead skeletal warrior on white with bare bone limbs, a rectangular shield on the left arm and a long thin spear angled down, a Reanimated Horde, which is Pindleskin own monster class. BOSS_PORTRAIT now covers 12 of 13 bosses. The lesson: before concluding an asset does not exist, ask the app what it already believes. The one refusal that was right is kept: never borrow the Nihlathak portrait for pindle, because _runBossArt returns the BOSSES name and a robed elder would arrive labelled Pindleskin. pit stays on level art by decision because The Pit is an area farm with no boss in it. Second fix: EVERY art url now carries the build id. Art was built as art/file with no version query while the page itself loads as ?v=build, so a version bump busted the HTML and the JS and never the IMAGES. v269 broke about 230 art files in place and v1636 repaired them in place under the same filenames, so every cached browser copy kept serving the old picture. That is why an already-correct Diablo render kept being re-reported as a book. One shared helper _artV stamps the two _runBossArt seams (the boss portrait and the TZ level art) and a DOM restamp plus MutationObserver stamps every other img src as it mounts, which is the layer that actually makes a repaired asset visible. The earlier claim that _artV also stamps _tzArtSrc, artUrl and _magicArtSrc was FALSE and is corrected here: those three were measured returning bare urls. Extending the stamp to them is a separate change because specs call them directly and 10 spec files anchor on a png end-of-string.' };
+  window.D2R_BUILD = { id:'v1644', name:'v1644 - orphaned-siblings', date:'2026-08-04', note:'the electric stamp comes off the artwork, the boss hero name wears the same green as its own run row, and the daily pick states its own rarity instead of defaulting to gold' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

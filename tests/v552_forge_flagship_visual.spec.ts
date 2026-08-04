@@ -67,7 +67,13 @@ test('the sub-tab tiles are KPI dashboard tiles with counts', async ({ page }) =
   expect(r.activeExists).toBe(true);
 });
 
-test('make-now task cards carry the item HD art (not a generic glyph) with an icon badge', async ({ page }) => {
+/* SPEC MIGRATION v1644 — this used to demand `.f-cardart-badge` on the make-now card. That badge is
+   `position:absolute;bottom:-5px;right:-5px` INSIDE the 48px art box, i.e. a stamp printed on top of
+   the item sprite, and its content was the atom's own step glyph — decoration the title line already
+   states in words ("Forge X in your 4os Y"). Konyo asked for the stamp off the artwork (v1636 did it
+   for F·Uniques Quick Wins, v1644 finishes the sweep across F·Sets and the Forge), so the assertion
+   inverts: the HD art must be there and must be UNOBSTRUCTED. */
+test('make-now task cards carry the item HD art (not a generic glyph) with NO stamp on the sprite', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window; w.forgeSetFilter('now'); w.renderForge();
     const card = document.querySelector('#tab-forge .f-card.f-now');
@@ -76,12 +82,14 @@ test('make-now task cards carry the item HD art (not a generic glyph) with an ic
       hdSlot: !!card?.querySelector('.f-cardart-hd'),
       img: !!card?.querySelector('.f-cardart-hd img'),
       badge: !!card?.querySelector('.f-cardart-badge'),
+      artBoxChildren: card ? [...card.querySelectorAll('.f-cardart-hd > *')].map((n) => n.tagName).join(',') : '',
       arttip: !!card?.getAttribute('data-arttip'),
     };
   });
   expect(r.card).toBe(true);
   expect(r.hdSlot).toBe(true);
   expect(r.img).toBe(true);
-  expect(r.badge).toBe(true);
+  expect(r.badge).toBe(false);          // v1644 — no corner stamp over the sprite
+  expect(r.artBoxChildren).not.toContain('SPAN');   // the art box holds the art, nothing else
   expect(r.arttip).toBe(true);
 });
