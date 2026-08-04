@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1634",
+  "ver": "v1635",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1634: crafts join the celebration ladder, the grail parity question answered by measurement, and the sessions colour sweep finished",
+  "note": "v1635: v1635: the craft undo gets a real armed danger colour and a findable resting one, the do-now card can undo where it logged, and the Workshop footer now speaks the book number the Forge header speaks",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

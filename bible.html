@@ -8114,6 +8114,22 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-btn:hover{background:rgba(255,255,255,.09);color:var(--text,#e8dcc0)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-go{border-color:rgba(95,201,122,.5);color:#8fe0a0;background:rgba(95,201,122,.1)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-go:hover{background:rgba(95,201,122,.2)}
+/* v1635 — THE CRAFT ✕ GETS ITS OWN SKIN. v1634 shipped forgeUncraft() adding .gp-rm-armed, but the
+   only rule for that class is `.gf-piece .gp-rm.gp-rm-armed` (~:3836) which can never match a
+   .f-btn inside .f-craftrow — measured rest borderColor rgb(58,47,30) → armed borderColor
+   rgb(58,47,30), byte-identical. A destructive two-tap control whose armed state carries no danger
+   colour is a lie. Same colour INTENT as :3836 (that rule stays untouched — widening its .gf-piece
+   scope would restyle the grail chips), scoped with the same :is(#tab-…) prefix the surrounding
+   .f-btn rules use so it actually out-specifies them. MEASURED after: armed border
+   rgb(58,47,30) → rgb(224,106,106).
+   At rest the ✕ is --text-dim on rgba(255,255,255,.04) over the row. Measured from RENDERED PIXELS
+   (not an assumed backdrop): composited row rgb(34,22,19), so the real resting contrast was
+   3.18:1 — over the 3:1 floor, but with no margin, on a control you have to FIND before you can
+   undo. Lifted toward --text-muted by a derived mix (no fresh hex) → 3.80:1 measured. Deliberately
+   short of --text-muted itself (6:1): this is destructive, it should be findable, not loud. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-unchron{color:color-mix(in srgb,var(--text-muted) 20%,var(--text-dim))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-unchron:hover{color:#ff9a9a;border-color:rgba(224,106,106,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-unchron.gp-rm-armed{border-color:#e06a6a;color:#ff9a9a;background:rgba(224,106,106,.14)}
 </style>
 <div id="forge-body"></div>
 </div>
@@ -22463,7 +22479,14 @@ function renderCraftWorkshop(){
     + '<div class="cw-recipes">' + recipesHtml + '</div>'
     /* v1634 — was a hardcoded 36; derived now so this surface and the Forge chronicle line can never disagree once a recipe is added */
     + '<div class="cw-foot"><span class="cw-summary"><b>' + totalReady
-      + '</b> of ' + (window.CRAFTS||[]).reduce(function(a,c){ return a + Object.keys(c.slots||{}).length; }, 0) + ' recipes cubeable now · <b>' + totalOwned + '</b> crafted item' + (totalOwned === 1 ? '' : 's') + ' logged</span>'
+      + '</b> of ' + (window.CRAFTS||[]).reduce(function(a,c){ return a + Object.keys(c.slots||{}).length; }, 0) + ' recipes cubeable now · <b>' + totalOwned + '</b> crafted item' + (totalOwned === 1 ? '' : 's') + ' logged'
+      /* v1635 — THE TWO SURFACES SPEAK THE SAME LANGUAGE. This footer counts the STASH (copies on
+         hand) while the Forge header counts the BOOK (distinct recipes ever crafted) — both right,
+         but cube the same recipe twice and they read 2 and 1, which a human reads as a bug. The
+         book's number gets its own clause here, through the same window._craftChronCount() seam
+         the Forge header and the celebration ladder read, so the two can never drift. Deliberately
+         NOT collapsed into one number: copies-owned and recipes-chronicled are different facts. */
+      + (function(){ try { var _b = window._craftChronCount ? window._craftChronCount() : null; return _b ? (' · <b>' + _b.n + '</b>/' + _b.tot + ' recipes chronicled') : ''; } catch(e){ return ''; } })() + '</span>'
     + (totalOwned ? '<button class="rs-clear-btn" onclick="window.clearCraftStash()">clear owned</button>' : '') + '</div>'
     + '<div class="cw-quality">⚒ <strong>Roll quality:</strong> craft on a Hell base at high clvl — <code>crafted ilvl = ½ clvl + ½ base ilvl</code> (cap 99). An ilvl-71+ result can roll all <strong>4 random affixes</strong> on top of the 3 guaranteed. The jewel can be magic or rare; reroll the same recipe until the random mods land. <span style="opacity:.8">Source: maxroll.gg · Crafted Items (base-game recipes; Reign of the Warlock may retune the random-affix pool — verify in-game).</span></div>';
 }
@@ -34019,7 +34042,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               +'<span class="f-cplus">+</span>magic '+_fEsc(c.slot)
               +'<span class="f-cplus">+</span>jewel</div>'
               +'<div class="f-atomsubrow">you hold the gem + rune · buy a magic '+_fEsc(c.slot)+' from a vendor if needed</div>'],
+            /* v1635 — UNDO WHERE YOU LOGGED IT. v1634 emitted the ✕ only on the accordion row, so
+               anyone who ticked ✓ from this do-now card had no way to take it back from here. Same
+               guard, same handler, same title as ~:33709. */
             btn:'<button class="f-btn f-btn-go" onclick="window.forgeCrafted(\''+_fJs(c.craft)+'\',\''+_fJs(c.slot)+'\')">✓ crafted</button>'
+              +((window._craftMadeHas && window._craftMadeHas(c.craft, c.slot))?'<button class="f-btn f-craft-unchron" type="button" title="un-chronicle this recipe from the bench book — your owned count is untouched" onclick="event.stopPropagation();window.forgeUncraft(this,\''+_fJs(c.craft)+'\',\''+_fJs(c.slot)+'\')">✕</button>':'')
           });
         });
       } catch(e){}
@@ -34143,7 +34170,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<div class="f-journey">'+journey+'</div>'
           +'<div class="f-getsub">need <b data-arttip="'+_fEsc(miss)+'">'+_fEsc(miss)+'</b> · then cube magic '+_fEsc(t.slot)+' + jewel + '+_fEsc(t.rune||'')+' + '+_fEsc(t.gem||'')+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\');try{window.forgeCraftToggle&&window.forgeCraftToggle(\''+_fJs(t.craft)+'\')}catch(e){}">open recipe</button>'
-          +'<button class="f-btn f-btn-go" onclick="window.forgeCrafted(\''+_fJs(t.craft)+'\',\''+_fJs(t.slot)+'\')" title="I already cubed this — log it owned">✓ crafted</button></div>'
+          +'<button class="f-btn f-btn-go" onclick="window.forgeCrafted(\''+_fJs(t.craft)+'\',\''+_fJs(t.slot)+'\')" title="I already cubed this — log it owned">✓ crafted</button>'
+          +((window._craftMadeHas && window._craftMadeHas(t.craft, t.slot))?'<button class="f-btn f-craft-unchron" type="button" title="un-chronicle this recipe from the bench book — your owned count is untouched" onclick="event.stopPropagation();window.forgeUncraft(this,\''+_fJs(t.craft)+'\',\''+_fJs(t.slot)+'\')">✕</button>':'')+'</div>'   /* v1635 — the one-step row gets the same undo as the accordion row (~:33709) */
           +'</div></div>');
       });
       H.push('</div>');
@@ -38057,7 +38085,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1634', name:'v1634 - the bench keeps a book', date:'2026-08-04', note:'crafts join the celebration ladder, the grail parity question answered by measurement, and the sessions colour sweep finished' };
+  window.D2R_BUILD = { id:'v1635', name:'v1635 - the bench book finishes its affordances', date:'2026-08-04', note:'v1635: the craft undo gets a real armed danger colour and a findable resting one, the do-now card can undo where it logged, and the Workshop footer now speaks the book number the Forge header speaks' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

@@ -2284,3 +2284,82 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   divergence that does not exist. And the tell that it was wrong was available for free — the merge
   could not survive a reload, which is precisely what "the board derives this from somewhere else"
   looks like from the outside. NEVER ship a migration that cannot be shown to hold after a reload.
+
+## META — v1634 shipped through an adversarial gate that could not refuse anything (2026-08-04)
+
+- **Symptom:** v1634 was built, gated and pushed by a MAX run that reported every item as having
+  survived its adversarial skeptic panel. None of them had been reviewed at all.
+- **Caught by:** reading the workflow's own arithmetic after the fact, not by anything the run said.
+- **Root cause:** the kill threshold was the hardcoded literal `refutedN >= 2`, while triage had
+  sized the panel at **1** skeptic. One skeptic can produce at most one refutation, so the condition
+  was unreachable by construction — **every item auto-passed, unreviewed, and the run reported that
+  as a pass.** A fixed threshold that is not scaled to panel size is not a weak gate; it is no gate,
+  and it is indistinguishable from a strong one in the log.
+- **Fix:** the threshold now DERIVES from panel size instead of being a literal, so a panel of 1 can
+  refuse and a panel of 3 still needs a majority. Fixed in the workflow, not in this repo.
+- **Retroactive verdict on the code that got through — the payload of this entry:** v1634 was
+  re-gated adversarially after the fact, item by item, against the live board. **It survives, with
+  exactly one real defect: REG-101 below.** Everything else held (see the NOTE after REG-101).
+- **Prevention:** *a gate whose pass condition is arithmetically unreachable reports the same word as
+  a gate that passed on the merits.* Any quorum, threshold or majority must be computed from the
+  population it judges — and when a gate is repaired, the work it already waved through is owed the
+  review it never got. Re-gate retroactively; do not assume the ship was fine because it was green.
+
+## REG-101 — the armed state of a destructive control was invisible: a borrowed class name that matched nothing (2026-08-04)
+
+- **Symptom:** the two-tap un-chronicle control shipped in v1634 on the Craft Workshop rows
+  (`✕` → arm → confirm) looked **identical armed and at rest**. The tap that arms a destructive
+  control gave no colour, no border, no background — nothing but the word in the button changing.
+- **Caught by:** the retroactive adversarial re-gate driving the PAINTED board (not reading the
+  source), plus `tests/v1635_craft_book_painted.spec.ts`, which now asserts the armed state differs
+  from the resting state by a **computed** property.
+- **Root cause:** `window.forgeUncraft` applies `btn.classList.add('gp-rm-armed')` (bible.html
+  :33638) — the class name borrowed from the grail chips' `_armUnmark`. But the only rule for that
+  class in the entire file is **descendant-scoped**: `.gf-piece .gp-rm.gp-rm-armed` (:3836). The
+  craft button is `.f-btn.f-craft-unchron` inside `.f-craftrow` (:33709) — never inside a
+  `.gf-piece`, and `.f-craft-unchron` has no rule of its own anywhere in the file. The selector could
+  not match, so the class was decoration on a DOM node and nothing more.
+- **Measured, before and after:** at rest `borderColor` read **rgb(58,47,30)**; armed it read
+  **rgb(58,47,30)** — the same value, on the same element, in the same paint. The only surviving
+  signal that the control was armed was `textContent` flipping to `remove?`. After the fix the two
+  states differ by a computed property, which is what the spec now reads.
+- **Fix:** the craft row's armed state gets its OWN rule instead of borrowing one that cannot reach
+  it, so arming is visible where the control actually lives.
+- **Prevention — the transferable law: BORROWING A CLASS *NAME* FROM ANOTHER COMPONENT BORROWS
+  NOTHING IF THAT CLASS IS DESCENDANT-SCOPED. COPY THE RULE OR WRITE A NEW ONE.** And prove an armed
+  state differs by **measuring a computed property, never by eye** — a mirrored two-tap flow reads as
+  correct in the source and in review, because the code that arms it is right; only the paint is
+  missing, and only a measurement sees that. This is the same shape as every "it looked applied"
+  defect in this file: the class landed, the rule never did.
+
+## NOTE — v1634's other claims were re-gated adversarially and SURVIVED (2026-08-04)
+
+Recorded so nobody re-litigates them. Each was attacked with intent to refute; each held, and the
+evidence is here rather than in a run log that will be gone.
+
+- **`d2r_craftMade` belongs in `_WP_FORKED` (:3564) and needs NO migration.** A craft RECORD is the
+  same class of fact as `d2r_rwMade` / `d2r_setPieces` — something this bench made, once, shared
+  across MAIN and LADDER and forked on the Windows cousin. `_WP_FORKED` is built as a **superset** of
+  `_LP_FORKED`, so the choice is not an either/or. GUEST/cousin worlds route to `I·<id8>·` on both
+  profiles — measured, not assumed. And the store is **new in v1634**: there is no prior key, on any
+  prefix, for a migration to have anything to move. Verified rather than assumed, per REG-100.
+- **`window.forgeCrafted` cannot double-count, cannot fire on load, cannot be faked by a re-render.**
+  The celebration is gated on a genuine rise of the **distinct-recipe Set**, so a second ✓ on the
+  same recipe is a no-op (Set membership), and the handler is reachable only from `onclick` — it does
+  not run during render or on boot.
+- **`window.forgeUncraft` cannot leak arming between rows and cannot poison the baseline.** The armed
+  flag lives in the clicked element's own `dataset`, so two rows cannot share it; `__chronPrevN` is
+  **assigned a Set `.size`**, which cannot go negative or go stale, and a later re-log therefore
+  still reads as a rise of exactly one. It never celebrates — the v559.1 rule holds.
+- **The comment at bible.html :3540-3549 is TRUE, verified independently of the comment.**
+  `_ownedNames()` (:34571) computes `new Set(d2r_owned)` unioned with `Object.keys(d2r_foundLog)`,
+  and all four `d2r_owned` writers (:15991, :16642, :31751, :33482) go through the fork router
+  (`const LS = window.LSR`, :15249). `d2r_owned` really is the PHYSICAL vault, the grail read really
+  is `owned ∪ keys(foundLog)`, and the per-profile fork really is inert. **No grail migration was
+  owed. NOBODY BUILD THAT MIGRATION A FIFTH TIME** — see REG-100 for the four previous attempts.
+- **Two candidate defects were checked and are NOT real, so they get no number.** `chronicleReset()`
+  (:20626) does not clear `d2r_craftMade` — but it does not clear `d2r_setPieces` either; it is the
+  **runeword** chronicle reset and its own copy says so ("track their own runewords from zero"), so
+  that is scope, not a bug. And every `--rar-*` token used in `tv/control_ui.html` is defined there
+  (7 used, 7 defined: unique/set/rare/magic/runeword/rune/orange) — no usage falls through to an
+  inherited colour.

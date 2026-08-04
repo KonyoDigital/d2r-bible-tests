@@ -1507,7 +1507,11 @@
   .shc-headfind { position: absolute; left: 12px; right: 12px; bottom: 8px; z-index: 2;
     font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); color: #e8dcc0; text-shadow: 0 2px 7px rgba(0,0,0,.95);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .shc-headfind.grail { color: var(--gold-hi); }
+  /* v1635 RE-GATE — the v1634 sweep MISSED this one: .shc-headfind prints esc(_pieceLabel(_tf.name))
+     (see the shelf-card renderer), i.e. the ITEM NAME of the run's top find, and .grail says that
+     name is a unique. Same surface class as .hh-grail and .bt.bt-grail, which v1634 did move —
+     it was still var(--gold-hi), this console's chrome highlight. */
+  .shc-headfind.grail { color: var(--rar-unique); }
   /* body */
   .shc-body { display: flex; flex-direction: column; gap: 7px; padding: 11px 13px 13px; }
   .shc-when { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: #b9c9be; }
@@ -1913,7 +1917,12 @@
   .rnf-own { color: #d9e2da; font-weight: var(--fw-semibold); }
   .rnf-what { color: #e8dcc0; font-weight: var(--fw-bold); }
   .rnf-verd { color: #9df0bd; font-weight: var(--fw-semibold); }
-  .rnf-grail .rnf-verd { color: var(--gold-hi); }
+  /* v1635 RE-GATE — the verdict badge reading GRAIL on a grail row: exactly the shape of
+     .ch-card-item .ch-tier.t-grail, which v1634 moved to the token while leaving this one on
+     chrome --gold-hi. The two badges say the same word and must say it in the same colour.
+     The row's border-left/background stay chrome: they are the FRAME, and the shipped v1634
+     pattern (.find-card.fc-grail — name = token, frame = chrome gold) is the one they follow. */
+  .rnf-grail .rnf-verd { color: var(--rar-unique); }
   .rnf-why { color: #7f958a; flex: 1 1 100%; }
   /* v1249 r3 — RESTING state (discoverable off-air) + faded LAST-SESSION preview */
   .rnf-t-rest { color: #8a9d92; }
@@ -2253,7 +2262,11 @@
   .dfn-n { font: var(--fw-bold) var(--fs-lg)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; }
   .dfn-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); text-transform: uppercase; color: #8a7e68; white-space: nowrap; }
   .dfn-stage.dfn-grail { border-color: rgba(240,192,96,.5); background: linear-gradient(180deg, rgba(240,192,96,.09), rgba(0,0,0,.34)); }
-  .dfn-stage.dfn-grail .dfn-n { color: var(--gold); }
+  /* v1635 RE-GATE — the funnel's GRAILS number is a COUNT OF UNIQUES, the same fact the
+     .hd-chip.nm-grail "GRAIL · 229 / 403" chip states and which v1634 moved to the token. It was
+     still var(--gold) = #f0c060, this console's chrome, the v1622 defect. Stage frame stays
+     chrome (frame vs name, as in .find-card.fc-grail). */
+  .dfn-stage.dfn-grail .dfn-n { color: var(--rar-unique); }
   .dfn-arrow { display: flex; align-items: center; color: var(--gold-dim); font: var(--fw-semibold) var(--fs-md)/1 var(--mono); opacity: .7; }
   .dsr-cov { margin-top: 14px; }
   .dsr-cov-bar { height: 9px; border-radius: 999px; background: rgba(0,0,0,.4); border: 1px solid var(--edge); overflow: hidden; }
@@ -2915,7 +2928,10 @@
   .shl-reads .shl-l { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); text-transform: uppercase; letter-spacing: var(--ls-snug); color: #7d7358; }
   .shl-phase { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: #9df0bd; }
   .shl-find { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-tight); }
-  .shl-find.grail { color: var(--gold-hi); } .shl-find.keep { color: #bfead0; }
+  /* v1635 RE-GATE — #shl-find is set to '🏆 ' + esc(find.label): the live strip's ITEM NAME for
+     the newest grail find. Missed by the v1634 sweep, still on chrome --gold-hi. .keep stays mint:
+     KEEP is a STATE, not a rarity (v1503 four-states rule). */
+  .shl-find.grail { color: var(--rar-unique); } .shl-find.keep { color: #bfead0; }
   .sh-no-match { font: var(--fw-normal) var(--fs-base)/var(--lh-normal) var(--mono); color: #9a8e70; font-style: italic; text-align: center; padding: 6vh 20px; }
   /* v1285 (D10) — day-group headers span the shelf grid, sectioning the newest-sorted runs by date */
   .sh-daygroup { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; margin: 10px 2px 0;
@@ -3855,6 +3871,21 @@
      NAMES a quality or a chronicle now reads a --rar-* token (grail pill, grail tier badge, grail
      card border, GRAIL/SETS/FORGE home chips, bt-grail beat chip, fc-grail find name, hh-grail
      hero line, mind-grail brain line, sp-grail pulse, and the sweep-review WOULD-ADD lanes).
+
+     ── v1635 · THE ADVERSARIAL RE-GATE CORRECTS THAT CLAIM ─────────────────────────────────────
+     v1634 shipped through a skeptic panel that was arithmetically unable to refuse anything, so
+     "EVERY surface" above went unchecked. Re-grepped adversarially: FOUR text surfaces naming the
+     grail chronicle were still on chrome gold and are now on the token —
+       .shc-headfind.grail  (run's top-find ITEM NAME)      was var(--gold-hi)
+       .rnf-grail .rnf-verd (verdict badge reading GRAIL)   was var(--gold-hi)
+       .dfn-stage.dfn-grail .dfn-n (COUNT of uniques)       was var(--gold)
+       .shl-find.grail      (live strip ITEM NAME)          was var(--gold-hi)
+     The rule they follow is the one .find-card.fc-grail already shipped: the NAME/NUMBER takes the
+     quality token, the card FRAME stays chrome. Grail FRAMES therefore remain chrome on purpose —
+     .rnf-row.rnf-grail, .dfn-stage.dfn-grail, .find-card.fc-grail(:hover), .shtl-bar.shtl-grail
+     (a sparkline mark, not text). ONE known outlier: v1634 moved .ch-card-item.tier-grail's BORDER
+     to the token; left as shipped rather than churned, but it is the only grail frame on a token.
+
      These were CHECKED AND FOUND CORRECT AS CHROME — do not "sync" them, they name no quality:
        .chron-run b / .chron-v b / .chron-fig b / .chron-reels .cr b — session STATISTICS (runs,
          visits, minutes, reel filenames). A number about a session is not an item.
