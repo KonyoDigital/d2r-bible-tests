@@ -339,7 +339,36 @@ async function j9_terrorZoneFlagship(page) {
                  >= Math.round(el.parentElement.getBoundingClientRect().width) - 24,
       equalW: new Set(cards.map((c) => c.w)).size === 1,
       equalH: new Set(cards.map((c) => c.h)).size === 1,
-      oneRow: new Set(cards.map((c) => c.y)).size === 1,
+      /* v1639 — ONE ROW WAS A PROXY, AND IT BECAME A FALSE ONE. This asserted every zone card
+         shared a single y, which was right while the hero held all four zones across a ~1400px
+         card. v1637/v1639 split the card into LIVE NOW + UP NEXT slots of ~682px each, and four
+         cards in one 682px row is exactly what produced the defect Konyo screenshotted: tiles at
+         157.75px with THIRTEEN clipped text nodes, zone names rendered at 0px wide ("T a." /
+         "O u."). So the honest invariant is not "one row" — it is EVEN rows and NOTHING CLIPPED.
+         rowsEven keeps the alignment guarantee (cards sharing a y must share a width and height,
+         and there are at most two rows); clipped is the property that actually matters and was
+         never asserted at all, which is how the crammed row passed this gate for two versions. */
+      /* v1640 — THE SECOND ATTEMPT AT THIS WAS ALSO A LAYOUT ASSUMPTION. `oneRow` was wrong once
+         the card split into two slots; the replacement capped rows at TWO, and that failed on a
+         perfectly even stack — measured ["484x139@y456","484x139@y604","484x139@y752"], three
+         IDENTICAL cards in a 484px slot that fits one column. How many rows the zones land in is
+         the browser's business and changes with the slot width and the size of the rotation. What
+         must hold is that the cards agree with each other and nothing is clipped. So: every row's
+         cards share a width and a height — no cap on the number of rows. */
+      rowsEven: (() => {
+        const rows = new Map()
+        for (const c of cards) { if (!rows.has(c.y)) rows.set(c.y, []); rows.get(c.y).push(c) }
+        for (const row of rows.values()) {
+          if (new Set(row.map((c) => c.w)).size !== 1) return false
+          if (new Set(row.map((c) => c.h)).size !== 1) return false
+        }
+        return true
+      })(),
+      cardBoxes: cards.map((c) => c.w + 'x' + c.h + '@y' + c.y),
+      clipped: [...document.querySelectorAll('#tz-body .tz-zones-hero .tzz *')]
+        .filter((n) => n.childElementCount === 0 && (n.textContent || '').trim())
+        .filter((n) => n.scrollWidth > n.clientWidth + 1)
+        .map((n) => ((n.textContent || '').trim().slice(0, 24) + ' @' + Math.round(n.getBoundingClientRect().width) + 'px')),
       // v1588 — the prose legend was REMOVED on purpose; the treatment carries the verdict now.
       locked: [...document.querySelectorAll('#tz-body .tzz-thin')]
         .every((c) => c.classList.contains('tzz-locked') && c.getAttribute('role') !== 'button'),
@@ -354,7 +383,17 @@ async function j9_terrorZoneFlagship(page) {
     if (!place.firstCard) fail.push('it is not the first card in its zone');
     if (!place.bannerAbove) fail.push('the card jumped above its own zone banner');
     if (!place.fullWidth) fail.push('it is not stretched left to right');
-    if (!place.equalW || !place.equalH || !place.oneRow) fail.push('the zone cards are not an even row');
+    /* v1640 — A GATE THAT SAYS "not evenly placed" AND NOTHING ELSE COSTS A DEBUG CYCLE EVERY
+       TIME IT FIRES. Carry the geometry it just measured. */
+    if (!place.equalW || !place.equalH || !place.rowsEven) {
+      fail.push('the zone cards are not evenly placed — ' + JSON.stringify(place.cardBoxes || []));
+    }
+    // v1639 — the assertion that would have caught the crammed row on day one, instead of two
+    // versions later from a screenshot. A label the user cannot read is a broken card, whatever
+    // its geometry says.
+    if (place.clipped && place.clipped.length) {
+      fail.push(`${place.clipped.length} clipped label(s) in the zone cards: ${place.clipped.slice(0, 4).join(' · ')}`);
+    }
     // the stub rotation deliberately contains a thin zone, so seeing none means the tiering
     // stopped working rather than that this window happened to be all good
     if (!place.thinSeen) fail.push('no thin zone rendered — the tiering is not running');

@@ -2649,3 +2649,56 @@ serve the old bytes — browser cache, CDN, a service worker, a packaged copy. "
 correct" is not the same claim as "the user sees the correct file", and only the second one matters.
 The live Cloudflare Pages deploy needs the same audit; a cached soulstone there is this bug on a
 different server.
+
+## REG-111 — the TZ card showed the BASE area level on a zone that is by definition terrorized
+
+**Symptom.** Konyo, reading the tracker: "lvl 70-73 is okay? i thought 80 was the rarer drop
+levels.. but also being Terrorized Zones maybe makes it up more in level?" Jail printed `alvl 71`
+beside Ancient's Way at `alvl 82`, so the Jail run read as the weaker choice.
+
+**Caught by.** Him, from the live app — by disbelieving a number rather than by any gate.
+
+**Root cause.** The card printed `t.lvl`, the BASE area level. The board has stated the real rule
+since v700 (bible.html:11288): *terror raises any TZ-eligible area to mlvl 96*. While a zone is the
+terror zone, its base level is irrelevant — Jail (71) and Ancient's Way (82) are BOTH mlvl 96 and
+both reach TC87. Every number on the card was TRUE and the conclusion it invited was FALSE, which is
+the worst shape a display bug can take: nothing to catch, because nothing is wrong.
+
+**Fix.** The card now reads `alvl 71 → 96 terrorized`. The base stays — it is what the zone is worth
+when it is NOT terrorized, and the density beside it still discriminates between runs — but the
+number that decides the run sits next to it.
+
+**Prevention.** When a panel exists only for state X, check every figure on it is the figure that
+holds under X. A value copied from the general case into a specialised card is true and useless.
+
+## REG-112 — LIVE NOW and UP NEXT did not line up, because prose changed card height
+
+**Symptom.** "this needs to be symmetric and aligned to the other acts at LIVE. you see how its off."
+
+**Root cause.** Some zones carry a `why` subtitle ("next door to the Ancient Tunnels") and some do
+not, so cards were as tall as their prose and the two columns drifted apart row by row.
+
+**Fix.** `.tz-zones { grid-auto-rows: 1fr }` + `.tzz { height: 100% }` — every row in a slot is
+equal and the card fills it, so the columns agree whatever text each zone happens to have.
+
+**Prevention.** A card whose height is set by its content cannot align with a sibling card that has
+different content. Equal rows must be a property of the GRID, never of the prose.
+
+## REG-113 (OPEN, NOT FIXED) — act5-hallsofanguish_graphic.png is a bad extraction, not a dark scene
+
+**Symptom.** Grok, during the v1639 render gate: "depicts a near-black void with faint gold outlines
+— not a recognizable Halls of Anguish scene."
+
+**Measured.** mean luminance 7.7 against siblings at 41.3 / 44.2 / 46.1, with the SAME max (241 vs
+243) — so content existed and was crushed, not missing.
+
+**What was done, and what it did not achieve.** Exposure corrected (gamma 0.46) to the sibling
+profile, mean 7.7 → 42.9. An independent multimodal check then read the corrected file as "murky
+dark organic mess — UNREADABLE" while calling its sibling "stone dungeon floor with torch and figure
+— READABLE". So the exposure was A problem and not THE problem: this is a bad crop/extraction. The
+correction is kept because it removes one confound and matches the sibling profile; **the defect is
+NOT fixed.**
+
+**Next.** Re-extract from the game the way v1578 did the TZ art (CASC → .texture → BC3), then verify
+by OPENING it and by an independent read — not by luminance statistics, which is exactly what this
+entry proves insufficient.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1639",
+  "ver": "v1640",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1639: Sessions render gate: TZ the-article lookup, read chain un-nested from chron, lastsession hd-wide, TZ side-by-side and auto-fit measured",
+  "note": "v1640: the terror zone card shows the terrorized level beside the base one so a good run stops reading as a weak one, LIVE NOW and UP NEXT line up whatever prose a zone carries, and the demo gate now refuses clipped labels instead of asserting a single row",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -2662,7 +2662,15 @@
     display: flex; align-items: center; justify-content: center; }
   .tzz-noart { background: linear-gradient(160deg, rgba(255,255,255,.08), rgba(0,0,0,.35));
     color: rgba(255,255,255,.34); font: var(--fw-semibold) var(--fs-md)/1 var(--serif); }
-  .tzz-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  /* v1640 — EVERY CARD IN A SLOT IS THE SAME HEIGHT. Konyo: "this needs to be symmetric and
+     aligned to the other acts at LIVE. you see how its off". A card carrying a `why` subtitle
+     ("next door to the Ancient Tunnels") was taller than one without, so LIVE NOW and UP NEXT
+     stopped lining up row-for-row. grid-auto-rows:1fr makes every row in a slot equal, and the
+     card stretches to fill it, so the two columns agree whatever prose each zone happens to have. */
+  .tz-zones { grid-auto-rows: 1fr; }
+  .tzz { height: 100%; }
+  .tzz-terr { color: var(--q-orange, #d08a3c); font-weight: var(--fw-semibold); }
+  .tzz-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; justify-content: center; }
   .tzz-txt b { font: var(--fw-semibold) var(--fs-sm)/1.25 var(--mono);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tzz-txt i { font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono);
@@ -12853,8 +12861,20 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
              ranked on its numbers, so hiding them behind a sentence removes the very evidence the
              verdict rests on. Show both when both exist. */
           : ((t.why ? '<em class="tzz-why">' + escC(t.why) + '</em>' : '')
+             /* v1640 — THE BASE alvl IS THE WRONG NUMBER ON A CARD THAT IS BY DEFINITION
+                TERRORIZED. Konyo, reading Jail at 71 next to Ancient's Way at 82: "lvl 70-73 is
+                okay? i thought 80 was the rarer drop levels.. but also being Terrorized Zones
+                maybe makes it up more in level?" His last clause is the rule, and the board has
+                stated it since v700 (bible.html:11288): terror raises ANY TZ-eligible area to
+                mlvl 96, so both of those zones are mlvl 96 and both reach TC87 while they are
+                live. Printing the base alone made a perfectly good run read as a weak one —
+                every number on the card TRUE, and the conclusion it led to FALSE.
+                The base stays (it is what the zone is worth when it is NOT the terror zone, and
+                the density beside it still discriminates); the number that decides the run is
+                now beside it. */
              + (t.den ? '<em class="tzz-den">' + t.den + ' density'
-                        + (t.lvl ? ' · alvl ' + t.lvl : '') + '</em>' : ''));
+                        + (t.lvl ? ' · alvl ' + t.lvl + ' <b class="tzz-terr">&rarr; 96 terrorized</b>' : '')
+                        + '</em>' : ''));
         /* v1596 — EVERY CARD STATES ITS VERDICT. Konyo, looking at a window whose UP NEXT was
            Cathedral + Catacombs: "how is this emphasized so i know the next terror zone is
            EMPHASIZED enough so i know not only this specific LIVE is a good farm terror zone but
