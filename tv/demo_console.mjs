@@ -306,8 +306,20 @@ async function j9_terrorZoneFlagship(page) {
   const name = 'J9 TERROR ZONE FLAGSHIP';
   await page.route('**/api/tz', (r) => r.fulfill({
     status: 200, contentType: 'application/json',
-    body: JSON.stringify({ current: 'Stony Tomb, Travincal, and Blood Moor',
-                           next: 'Cold Plains and The Pit', ts: Date.now() }) }));
+    /* v1641 — THE ROTATION NOW CONTAINS THE CASE KONYO SCREENSHOTTED, WHICH IT NEVER DID.
+       The defect is a card carrying an optional `why` subtitle standing taller than one without,
+       so LIVE NOW and UP NEXT stop lining up. The old stub could not produce it across the two
+       slots: every slot had a why-bearing zone in it (Travincal · The Pit), so both grids grew by
+       the same line and the mismatch cancelled out. A gate whose fixture cannot express the bug
+       passes for the same reason an empty list passes every assertion about its members.
+       LIVE NOW now carries BOTH kinds of why — a TZ_NOTABLE boss line (Travincal · "the Council")
+       and a TZ_HINT adjacency line (Ancient's Way · "next door to the Ancient Tunnels") — beside
+       two zones with no why at all. UP NEXT carries NONE: Cold Plains (520) and Outer Cloister
+       (600) are both in TZ_INFO, both thin, and in neither TZ_NOTABLE nor TZ_HINT. So the two
+       slots are asymmetric exactly as he photographed them, and `whyNow`/`whyNext` below assert
+       that asymmetry is still there — deleting the why zone to make the gate green now FAILS. */
+    body: JSON.stringify({ current: "Stony Tomb, Travincal, Ancient's Way, and Blood Moor",
+                           next: 'Cold Plains and Outer Cloister', ts: Date.now() }) }));
   await goHome(page);
   await page.click('#head-tabs .ht[data-tab="session"]');
   await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
@@ -329,16 +341,41 @@ async function j9_terrorZoneFlagship(page) {
     if (!el) return { missing: true };
     const zone = el.closest('section.zone');
     const ban = zone && zone.querySelector('.zone-banner');
-    const cards = [...document.querySelectorAll('#tz-body .tz-zones-hero .tzz')]
-      .map((c) => { const r = c.getBoundingClientRect(); return { w: Math.round(r.w || r.width), h: Math.round(r.height), y: Math.round(r.y) }; });
+    /* v1641 — MEASURE BOTH SLOTS. Konyo's complaint is "this needs to be symmetric and aligned
+       to the other acts at LIVE. you see how its off" — a comparison BETWEEN LIVE NOW and UP
+       NEXT. This measured only `.tz-zones-hero`, i.e. LIVE NOW alone, so the one relationship he
+       was pointing at was the one thing never looked at. Inside a single grid the v1640 rule
+       (`grid-auto-rows:1fr`) really does equalise the rows even though the container is
+       auto-height — per CSS Grid §12.7.1 an indefinite container sizes every 1fr track to the
+       largest track's max-content — which is why the old one-slot measurement stayed green while
+       the panel was visibly uneven. What 1fr can never do is reach ACROSS two sibling grids. */
+    const boxes = (sel) => [...document.querySelectorAll(sel)].map((c) => {
+      const r = c.getBoundingClientRect();
+      return { n: ((c.querySelector('b') || {}).textContent || '').trim(),
+               w: Math.round(r.width), h: Math.round(r.height), y: Math.round(r.y),
+               /* v1641 — the .tzz-why ELEMENT is now always emitted (it reserves its line even
+                  when empty, which is the fix), so its PRESENCE means nothing. A card carries a
+                  why only if that line has TEXT — the proxy and the thing are different here. */
+               why: !!((c.querySelector('.tzz-why') || {}).textContent || '').trim() };
+    });
+    const cards = boxes('#tz-body .tz-zones-hero .tzz');
+    const nextCards = boxes('#tz-body .tz-slot.next .tzz');
+    const all = cards.concat(nextCards);
+    const hs = all.map((c) => c.h);
     return {
+      /* the fixture guard: if the rotation under test stops containing a why-bearing card beside
+         a why-less one, this gate is measuring nothing and must say so rather than pass. */
+      whyNow: cards.filter((c) => c.why).length,
+      whyNext: nextCards.filter((c) => c.why).length,
+      slotSpread: hs.length ? Math.max(...hs) - Math.min(...hs) : 0,
+      allBoxes: all.map((c) => (c.why ? '★' : '·') + c.n + ' ' + c.w + 'x' + c.h + '@y' + c.y),
       numeral: ban ? (ban.querySelector('.zb-no') || {}).textContent : null,
       firstCard: zone ? zone.children[1] === el : false,
       bannerAbove: ban ? ban.getBoundingClientRect().y < el.getBoundingClientRect().y : false,
       fullWidth: Math.round(el.getBoundingClientRect().width)
                  >= Math.round(el.parentElement.getBoundingClientRect().width) - 24,
-      equalW: new Set(cards.map((c) => c.w)).size === 1,
-      equalH: new Set(cards.map((c) => c.h)).size === 1,
+      equalW: new Set(all.map((c) => c.w)).size === 1,
+      equalH: new Set(all.map((c) => c.h)).size === 1,
       /* v1639 — ONE ROW WAS A PROXY, AND IT BECAME A FALSE ONE. This asserted every zone card
          shared a single y, which was right while the hero held all four zones across a ~1400px
          card. v1637/v1639 split the card into LIVE NOW + UP NEXT slots of ~682px each, and four
@@ -357,15 +394,15 @@ async function j9_terrorZoneFlagship(page) {
          cards share a width and a height — no cap on the number of rows. */
       rowsEven: (() => {
         const rows = new Map()
-        for (const c of cards) { if (!rows.has(c.y)) rows.set(c.y, []); rows.get(c.y).push(c) }
+        for (const c of all) { if (!rows.has(c.y)) rows.set(c.y, []); rows.get(c.y).push(c) }
         for (const row of rows.values()) {
           if (new Set(row.map((c) => c.w)).size !== 1) return false
           if (new Set(row.map((c) => c.h)).size !== 1) return false
         }
         return true
       })(),
-      cardBoxes: cards.map((c) => c.w + 'x' + c.h + '@y' + c.y),
-      clipped: [...document.querySelectorAll('#tz-body .tz-zones-hero .tzz *')]
+      cardBoxes: all.map((c) => c.w + 'x' + c.h + '@y' + c.y),
+      clipped: [...document.querySelectorAll('#tz-body .tz-slot .tzz *')]
         .filter((n) => n.childElementCount === 0 && (n.textContent || '').trim())
         .filter((n) => n.scrollWidth > n.clientWidth + 1)
         .map((n) => ((n.textContent || '').trim().slice(0, 24) + ' @' + Math.round(n.getBoundingClientRect().width) + 'px')),
@@ -386,7 +423,21 @@ async function j9_terrorZoneFlagship(page) {
     /* v1640 — A GATE THAT SAYS "not evenly placed" AND NOTHING ELSE COSTS A DEBUG CYCLE EVERY
        TIME IT FIRES. Carry the geometry it just measured. */
     if (!place.equalW || !place.equalH || !place.rowsEven) {
-      fail.push('the zone cards are not evenly placed — ' + JSON.stringify(place.cardBoxes || []));
+      fail.push('the zone cards are not evenly placed (spread ' + place.slotSpread + 'px) — '
+                + JSON.stringify(place.allBoxes || []));
+    }
+    /* v1641 — NON-VACUITY, ASSERTED. The height invariant above is only worth anything while the
+       rotation actually contains a card with a `why` subtitle standing beside cards without one;
+       with a uniform fixture it is true for free. So the fixture itself is now under test: LIVE
+       NOW must render at least one .tzz-why and UP NEXT must render none. Making this gate green
+       by deleting the why zone is the one cheat this assertion exists to refuse. */
+    if (!place.whyNow) {
+      fail.push('FIXTURE IS BLIND — no LIVE NOW card carries a `why` subtitle, so the equal-height '
+                + 'assertion above cannot fail; restore a why-bearing zone to the stub rotation');
+    }
+    if (place.whyNext) {
+      fail.push(`FIXTURE IS BLIND — ${place.whyNext} UP NEXT card(s) carry a \`why\` subtitle, so both `
+                + 'slots grow by the same line and a cross-slot mismatch cannot show');
     }
     // v1639 — the assertion that would have caught the crammed row on day one, instead of two
     // versions later from a screenshot. A label the user cannot read is a broken card, whatever
@@ -409,7 +460,9 @@ async function j9_terrorZoneFlagship(page) {
   await page.unroute('**/api/tz');
   record(name, fail.length === 0,
          fail.length ? fail.join(' · ')
-                     : `${out.length} zones · all faces game-extracted · PRIME/THIN separated (Travincal kept by boss override)`);
+                     : `${out.length} zones · all faces game-extracted · PRIME/THIN separated (Travincal kept by boss override)`
+                       + ` · cards level across BOTH slots, spread ${place.slotSpread}px `
+                       + `(${place.whyNow} why live / ${place.whyNext} up next): ${JSON.stringify(place.allBoxes)}`);
 }
 
 // ── runner ──────────────────────────────────────────────────────────────────────

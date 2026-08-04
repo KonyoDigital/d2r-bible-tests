@@ -2662,13 +2662,34 @@
     display: flex; align-items: center; justify-content: center; }
   .tzz-noart { background: linear-gradient(160deg, rgba(255,255,255,.08), rgba(0,0,0,.35));
     color: rgba(255,255,255,.34); font: var(--fw-semibold) var(--fs-md)/1 var(--serif); }
-  /* v1640 — EVERY CARD IN A SLOT IS THE SAME HEIGHT. Konyo: "this needs to be symmetric and
-     aligned to the other acts at LIVE. you see how its off". A card carrying a `why` subtitle
-     ("next door to the Ancient Tunnels") was taller than one without, so LIVE NOW and UP NEXT
-     stopped lining up row-for-row. grid-auto-rows:1fr makes every row in a slot equal, and the
-     card stretches to fill it, so the two columns agree whatever prose each zone happens to have. */
+  /* v1641 — THE CARD HEIGHT IS NOW DETERMINISTIC, BECAUSE 1fr CANNOT REACH ACROSS THE TWO SLOTS.
+     v1640 answered Konyo's "this needs to be symmetric and aligned to the other acts at LIVE. you
+     see how its off" with `grid-auto-rows:1fr` + `.tzz{height:100%}` and the gate went green —
+     while measuring LIVE NOW ALONE. Inside ONE grid that rule does work, auto-height container and
+     all (CSS Grid 12.7.1: with indefinite free space every 1fr track is sized to the largest
+     track's max-content), which is exactly why it looked fixed and was not. But LIVE NOW and UP
+     NEXT are two SEPARATE grids in two separate .tz-slot boxes, and no grid rule can equalise a
+     row in one against a row in the other. Measured at v1640, rotation with a `why` live and none
+     up next: LIVE 4 cards at 484x139 · NEXT 2 cards at 484x118 — a 21px step, exactly one prose
+     line, and the step he photographed.
+     So the card no longer depends on what prose a zone happens to carry: EVERY optional line (the
+     act, the `why`, the density) is always emitted and always reserves one line, empty or not.
+     Measured after: all six cards 484x139, spread 0px. The 1fr pair below stays — it is still the
+     right way to let a short card stretch to its neighbour inside a slot — but it is no longer
+     load-bearing, which is the only reason it survives.
+     RESIDUAL, stated rather than hidden: the zone NAME may still wrap to a second line (v1637
+     allowed that on purpose, so "Moo Moo Farm" is not halved), and a very long `why` can wrap on a
+     narrow card. Both are width-driven, and the two slots are the same width by construction
+     (:2593), so they wrap together — but a slot wide enough for two columns can still, in
+     principle, wrap a long name in one slot and not the other. J9 measures both slots and would
+     say so. */
   .tz-zones { grid-auto-rows: 1fr; }
   .tzz { height: 100%; }
+  /* the reserved lines. `display:block` is what makes min-height bite on an <i>/<em>, and an
+     empty one still occupies its line — that is the entire point. No clamp: truncating the
+     evidence a verdict rests on to buy alignment would trade one visible defect for a silent one. */
+  .tzz-txt i, .tzz-txt em { display: block; min-height: 1.25em; }
+  .tz-slot .tzz-txt i, .tz-slot .tzz-txt em { min-height: 1.3em; }
   .tzz-terr { color: var(--q-orange, #d08a3c); font-weight: var(--fw-semibold); }
   .tzz-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; justify-content: center; }
   .tzz-txt b { font: var(--fw-semibold) var(--fs-sm)/1.25 var(--mono);
@@ -12826,6 +12847,9 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
          inventing something he would then wait on. */
       if (!parts.length) return '<div class="tzz tzz-pending"><span class="tzz-art tzz-noart">🕓</span>'
         + '<span class="tzz-txt"><span class="tzz-top"><b>not published yet</b></span>'
+        /* v1641 — the placeholder reserves the same three lines as a real card, so a slot with
+           nothing to announce still stands the same height as the slot beside it. */
+        + '<i></i><em class="tzz-why"></em>'
         + '<em>the tracker has not announced the next window</em></span></div>';
       return parts.map(function (x) {
         var file = _artFor(x), act = _actOf(file), t = _tzTier(x);
@@ -12854,13 +12878,18 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
             })(x) + '</span>';
         /* The verdict always carries its evidence. A zone dimmed with no reason on it is the
            panel asserting rather than showing, and he cannot argue with an assertion. */
+        /* v1641 — THE OPTIONAL LINES ARE ALWAYS EMITTED. Whether a zone has a `why` is data,
+           not layout, and it was deciding the height of the card: a why-bearing card stood one
+           line taller than one without, so LIVE NOW and UP NEXT stopped lining up (see :2664).
+           The element is always here now; when there is nothing to say it holds its line empty. */
         var meta = t.nodata
-          ? '<em class="tzz-nodata">no density on record</em>'
+          ? '<em class="tzz-why">' + (t.why ? escC(t.why) : '') + '</em>'
+            + '<em class="tzz-nodata">no density on record</em>'
           /* v1596 — WHY *AND* THE NUMBERS. `why` used to REPLACE the density line, which was fine
              when only boss zones had one: "Andariel" is the whole answer. But a HINT zone is
              ranked on its numbers, so hiding them behind a sentence removes the very evidence the
              verdict rests on. Show both when both exist. */
-          : ((t.why ? '<em class="tzz-why">' + escC(t.why) + '</em>' : '')
+          : ('<em class="tzz-why">' + (t.why ? escC(t.why) : '') + '</em>'
              /* v1640 — THE BASE alvl IS THE WRONG NUMBER ON A CARD THAT IS BY DEFINITION
                 TERRORIZED. Konyo, reading Jail at 71 next to Ancient's Way at 82: "lvl 70-73 is
                 okay? i thought 80 was the rarer drop levels.. but also being Terrorized Zones
@@ -12872,9 +12901,9 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                 The base stays (it is what the zone is worth when it is NOT the terror zone, and
                 the density beside it still discriminates); the number that decides the run is
                 now beside it. */
-             + (t.den ? '<em class="tzz-den">' + t.den + ' density'
+             + '<em class="tzz-den">' + (t.den ? t.den + ' density'
                         + (t.lvl ? ' · alvl ' + t.lvl + ' <b class="tzz-terr">&rarr; 96 terrorized</b>' : '')
-                        + '</em>' : ''));
+                        : '') + '</em>');
         /* v1596 — EVERY CARD STATES ITS VERDICT. Konyo, looking at a window whose UP NEXT was
            Cathedral + Catacombs: "how is this emphasized so i know the next terror zone is
            EMPHASIZED enough so i know not only this specific LIVE is a good farm terror zone but
@@ -12910,7 +12939,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
           + '"' + attrs + '>' + face
           + '<span class="tzz-txt"><span class="tzz-top"><b>' + escC(x) + '</b>'
           + (dead ? '<span class="tzz-lock">&#128274;</span>' : tag) + '</span>'
-          + (act ? '<i>act ' + act + '</i>' : '') + meta + '</span></div>';
+          + '<i>' + (act ? 'act ' + act : '') + '</i>' + meta + '</span></div>';
       }).join('');
     };
     /* v1586 — SAY THAT THEY ARE SIMULTANEOUS. Konyo, seeing two cards under LIVE NOW: "the LIVE NOW

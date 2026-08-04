@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1640",
+  "ver": "v1641",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1640: the terror zone card shows the terrorized level beside the base one so a good run stops reading as a weak one, LIVE NOW and UP NEXT line up whatever prose a zone carries, and the demo gate now refuses clipped labels instead of asserting a single row",
+  "note": "v1641: the TZ cards stand level because prose no longer sets their height, and the gate that policed them can finally fail",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

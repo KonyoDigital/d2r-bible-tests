@@ -2684,6 +2684,51 @@ equal and the card fills it, so the columns agree whatever text each zone happen
 **Prevention.** A card whose height is set by its content cannot align with a sibling card that has
 different content. Equal rows must be a property of the GRID, never of the prose.
 
+## REG-114 — a gate that could not fail, and a grid rule that could not reach
+
+**Symptom.** Konyo, on the live TZ tracker: LIVE NOW and UP NEXT still did not line up after v1640
+claimed to fix exactly that. A card carrying a `why` subtitle ("next door to the Ancient Tunnels")
+stood one prose line taller than one without.
+
+**Caught by.** Konyo's own screen — NOT by the gate, which is the real finding. `grep -c why
+tv/demo_console.mjs` was **0**: the demo fixture contained no zone with a `why` subtitle, so every
+card in J9 was trivially equal-height and the gate passed 9/9 over a visibly uneven live view. A
+gate exercising a case that CANNOT FAIL is the same defect as the `oneRow` proxy v1640 had just
+replaced — the assertion changed, the fixture did not.
+
+**Root cause (and the v1640 diagnosis was wrong).** v1640 answered with `grid-auto-rows:1fr` +
+`.tzz{height:100%}`. The stated reason — "1fr only equalises rows when the container has a definite
+height" — is FALSE: per CSS Grid 12.7.1, with indefinite free space every 1fr track is sized to the
+largest track's max-content, so that rule does work inside one grid. That is precisely why it looked
+right and was not. The actual reason it could not work: **LIVE NOW and UP NEXT are two SEPARATE
+grids in two separate `.tz-slot` boxes, and no grid rule can equalise a row in one grid against a
+row in another.** Measured at v1640 with a `why` live and none up next: LIVE 4 cards at 484x139,
+NEXT 2 cards at 484x118 — a 21px step, exactly one prose line.
+
+**Fix.** Card height no longer depends on what prose a zone happens to carry. Every optional line
+(the act, the `why`, the density) is ALWAYS emitted and always reserves its line, empty or not
+(`.tzz-txt i, .tzz-txt em { display:block; min-height:1.25em }`). The `1fr` pair stays — it is still
+the right way to let a short card stretch inside its own slot — but it is no longer load-bearing.
+The pending-placeholder reserves the same three lines. Measured after: all six cards 484x139,
+**spread 0px**.
+
+**Prevention.** The fixture now carries the asymmetry it is meant to police: two `why`-bearing zones
+live, none up next. Proven red-then-green — with `tv/control_ui.html` reverted to v1640 and the new
+fixture kept, J9 goes RED 8/9; restored, 9/9. J9 also reports its measured geometry
+(`["·Stony Tomb 484x139@y456", ...]`) so a future failure names its own numbers. **The durable
+lesson is not about CSS: a green gate proves nothing until you have seen it go red for the reason
+you care about.** Strengthening an assertion while leaving the fixture unable to trigger it buys
+confidence and no coverage.
+
+**Still open, deliberately.** (a) The three missing boss portraits (`dclone` / `pindle` / `pit`)
+were NOT shipped — the run's agent ceiling trimmed `bible.html` from the plan. Pindleskin still
+falls through to the map-tile level art. (b) The candidate assets are unusable and this is measured,
+not assumed: `art/hdx_uberdiablo_icon.png` reads as corrupt scanline noise, and
+`art/Pitspawn_Fouldog.gif` depicts a purple horned bovine, not the dog-type unique — so item 3 needs
+a real CASC extraction, not a filename. (c) PRE-EXISTING, not a regression: at 1500x1000 the `why`
+line clips (`scrollWidth 308` vs `clientWidth 135`); identical on v1640 and here, and J9 does not
+see it because J9 runs at a different viewport.
+
 ## REG-113 (OPEN, NOT FIXED) — act5-hallsofanguish_graphic.png is a bad extraction, not a dark scene
 
 **Symptom.** Grok, during the v1639 render gate: "depicts a near-black void with faint gold outlines
