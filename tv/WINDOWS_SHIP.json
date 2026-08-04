@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1631",
+  "ver": "v1632",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1631: the Forge tab wears the rune colour - the game has no runeword colour so runeword gold could only ever equal F-Uniques, and a tab labels a room not an item",
+  "note": "v1632: test-quality audit: killed duplicated palette literals across 6 specs, replaced existence checks with relationship + distinctness assertions, and the new tip probe caught a real defect — a dead #ffc070 literal was overriding the runeword and rune tokens on the floating tip",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

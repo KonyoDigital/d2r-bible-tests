@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { boardTokens, assertTokens } from './_palette';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v157 — the Item-Set tracker cards (#set-tracker .set-card) adopt the rich gradient-header
 // first-glance of the TZ/Runes cards (Konyo: "i want the bottom of the page also like this"):
-// a compact emblem + gold-bright set name + N/M progress line across the card top, while the
+// a compact emblem + in-game-green set name + N/M progress line across the card top, while the
 // per-piece collect checklist body is unchanged. The header text node (.set-card-name) stays a
 // PURE set name (no emblem text leaks in) so v145's titleName gateway resolver still works, and
 // the per-piece data-arttip hover (v134) is untouched. ZERO fabrication — ITEM_SETS unchanged.
@@ -40,7 +41,18 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
     expect(r.piecesStillThere).toBe(r.count);  // checklist body intact under the bar
   });
 
-  test('the name is gold-bright + the header is a gradient bar; emblem text does not leak into the name', async ({ page }) => {
+  // AUDIT v1632 — this spec used to pin `toBe('rgb(0, 255, 0)')`, a hardcoded duplicate of an app
+  // constant (shape 1). When --q-set was corrected to D2's real FontColorGreen #00fc00 the test went
+  // RED ON THE FIX: it was defending a VALUE, never the RULE. It now reads the token live out of the
+  // document and asserts the RELATIONSHIP — the set name equals --q-set and is DISTINCT from
+  // --q-unique (the v1622 chrome-gold defect) and from --q-normal (silently falling back to body text).
+  test('the name resolves to the live --q-set token (not unique, not default) + gradient bar; emblem text does not leak into the name', async ({ page }) => {
+    // The palette spine resolves each :root token through the SAME engine that paints the card, so
+    // no hex is ever restated here. assertTokens() is the null-guard: a renamed/deleted token would
+    // otherwise resolve to null on BOTH sides and compare green, proving nothing.
+    const t = await boardTokens(page);
+    assertTokens(t, 'set', 'unique', 'normal');
+
     const r = await page.evaluate(() => {
       const card = document.querySelector('#set-tracker .set-card') as HTMLElement;
       const header = card.querySelector('.set-card-header') as HTMLElement;
@@ -48,17 +60,31 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
       const emblem = card.querySelector('.set-card-emblem') as HTMLElement;
       // v145 titleName: strip ↗ ✓ and trim — must equal a real set name (no emblem glyph)
       const titleName = (name.textContent || '').replace(/[↗✓]/g, '').trim();
-      const isAgg = (window as any).isSetAggregate as (n: string) => boolean;
+      const isAgg = (window as any).isSetAggregate;
       return {
         nameColor: getComputedStyle(name).color,
-        hasGradient: /gradient/.test(getComputedStyle(header).backgroundImage),
-        nameResolves: typeof isAgg === 'function' ? isAgg(titleName) : true,
+        headerBg: getComputedStyle(header).backgroundImage,
+        headerH: header.getBoundingClientRect().height,
+        titleName,
+        // NO SILENT-TRUE FALLBACK: a missing resolver reports its own absence ('undefined'), it does
+        // not answer `true` on the app's behalf. The two questions are asserted separately below.
+        isAggType: typeof isAgg,
+        nameResolves: typeof isAgg === 'function' ? isAgg(titleName) : null,
         emblemIsSibling: emblem.parentElement === header && !name.contains(emblem),
       };
     });
-    expect(r.nameColor).toBe('rgb(0, 255, 0)');   // v321: set-card-name = --q-set (in-game green)
-    expect(r.hasGradient).toBe(true);
-    expect(r.nameResolves).toBe(true);               // first card is a codex-backed set → titleName clean
+    // WHICH colour — equal to the token the stylesheet names, never a pinned literal
+    expect(r.nameColor, `set-card-name must paint --q-set (${t.set})`).toBe(t.set);
+    expect(r.nameColor, 'set names must NOT render in unique gold (the v1622 defect class)').not.toBe(t.unique);
+    expect(r.nameColor, 'set names must NOT fall back to default body text').not.toBe(t.normal);
+    // the header is a real, painted gradient bar — not a flat fill and not a 0px-tall nothing
+    expect(r.headerBg, 'set-card-header must be a gradient bar').toContain('linear-gradient');
+    expect(r.headerH, 'the gradient bar must actually occupy space').toBeGreaterThan(0);
+    // the v145 gateway resolver must EXIST — asserted on its own so its absence can never be
+    // mistaken for a passing answer …
+    expect(r.isAggType, 'window.isSetAggregate (v145 titleName gateway) must exist').toBe('function');
+    // … and must actually resolve THIS card's title (first card is a codex-backed set → clean name)
+    expect(r.nameResolves, `isSetAggregate(${JSON.stringify(r.titleName)}) must resolve the rendered set-card title`).toBe(true);
     expect(r.emblemIsSibling).toBe(true);            // emblem outside .set-card-name (no titleName pollution)
   });
 

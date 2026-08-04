@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { boardTokens, assertTokens } from './_palette';
 
 // v309: tooltip-style example items + ⭐ star tier (beats a named unique/runeword) +
 // "How to craft" recipe section on crafted cards + every reference item gets real
@@ -88,24 +89,49 @@ test('_artRarity exposes EXTRA_ITEMS rarity so the floating tip name colour sync
   expect(r.basic).toBe('basic');
 });
 
-test('the floating-tip name is painted in each quality\'s exact in-game colour', async ({ page }) => {
+// v1632 (test-quality audit): this test used to pin five rgb() LITERALS restated from the
+// stylesheet — shape 1. Two ways that was already wrong:
+//   · tip-r-magic was pinned to rgb(111, 111, 255) while --q-magic is the extracted
+//     FontColorBlue — one point off in every channel, i.e. latent RED ON CORRECT CODE, the
+//     exact v1621 shape (a pinned literal defending a value instead of a rule).
+//   · the app adds EIGHT tip-r-* classes (bible.html:23132) but only five were probed, so
+//     set / rw / rune were unguarded — a wrongly wired token there was invisible.
+// Now every expectation READS the live :root token the stylesheet itself names
+// (#arttip.tip-r-X .att-name{color:var(--…)}, bible.html:28446-28453) and asserts the
+// RELATIONSHIP. The fixture mirrors the real tip structure (img + .att-name + .att-desc);
+// it is only built when the page has not rendered one yet.
+test('the floating-tip name is painted from each quality\'s live token, and the qualities stay distinct', async ({ page }) => {
+  const t = await boardTokens(page);
+  assertTokens(t, 'unique', 'set', 'magic', 'rare', 'orange', 'normal', 'runeword', 'rune');
+
   const r = await page.evaluate(() => {
-    // ensure the #arttip element exists, then read the computed .att-name colour per rarity class
     let tip = document.getElementById('arttip');
     if (!tip) { tip = document.createElement('div'); tip.id = 'arttip'; tip.innerHTML = '<img alt=""><div class="att-name"></div><div class="att-desc"></div>'; document.body.appendChild(tip); }
     const lab = tip.querySelector('.att-name') as HTMLElement;
     lab.textContent = 'X';
-    const classes = ['tip-r-unique','tip-r-rare','tip-r-magic','tip-r-crafted','tip-r-basic'];
+    // the exact class list the app itself cycles through when it re-tints the tip
+    const classes = ['tip-r-unique','tip-r-set','tip-r-magic','tip-r-rare','tip-r-rw','tip-r-rune','tip-r-crafted','tip-r-basic'];
     const out: Record<string,string> = {};
-    for (const c of classes) {
-      tip.className = c;
-      out[c] = getComputedStyle(lab).color;
-    }
+    for (const c of classes) { tip.className = c; out[c] = getComputedStyle(lab).color; }
     return out;
   });
-  expect(r['tip-r-unique']).toBe('rgb(199, 179, 119)');  // #c7b377
-  expect(r['tip-r-rare']).toBe('rgb(255, 255, 100)');    // #ffff64
-  expect(r['tip-r-magic']).toBe('rgb(111, 111, 255)');   // #6f6fff
-  expect(r['tip-r-crafted']).toBe('rgb(255, 168, 0)');   // #ffa800
-  expect(r['tip-r-basic']).toBe('rgb(207, 207, 207)');   // #cfcfcf
+
+  // each surface must equal the token its own CSS rule names — no literal anywhere
+  expect(r['tip-r-unique'],  'tip-r-unique .att-name must be --q-unique').toBe(t.unique);
+  expect(r['tip-r-set'],     'tip-r-set .att-name must be --q-set').toBe(t.set);
+  expect(r['tip-r-magic'],   'tip-r-magic .att-name must be --q-magic').toBe(t.magic);
+  expect(r['tip-r-rare'],    'tip-r-rare .att-name must be --q-rare').toBe(t.rare);
+  expect(r['tip-r-rw'],      'tip-r-rw .att-name must be --q-runeword').toBe(t.runeword);
+  expect(r['tip-r-rune'],    'tip-r-rune .att-name must be --rune (its OWN orange)').toBe(t.rune);
+  expect(r['tip-r-crafted'], 'tip-r-crafted .att-name must be --q-orange').toBe(t.orange);
+  expect(r['tip-r-basic'],   'tip-r-basic .att-name must be --q-normal').toBe(t.normal);
+
+  // v1622 shape: eight green "== my own token" assertions all still pass if the palette
+  // collapses. The qualities a player must tell apart at a glance must be DISTINCT colours.
+  const distinct = [r['tip-r-unique'], r['tip-r-set'], r['tip-r-magic'], r['tip-r-rare'], r['tip-r-crafted'], r['tip-r-basic']];
+  expect(new Set(distinct).size, 'unique/set/magic/rare/crafted/basic must be six different colours').toBe(6);
+  // rune is its own orange, NOT the crafted orange (the two were conflated before v1628)
+  expect(r['tip-r-rune']).not.toBe(r['tip-r-crafted']);
+  // runeword is deliberately the unique gold — pin the alias so a silent divergence is caught
+  expect(r['tip-r-rw'], 'a completed runeword is painted like a unique, not like a crafted item').toBe(r['tip-r-unique']);
 });

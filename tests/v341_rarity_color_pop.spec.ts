@@ -9,6 +9,47 @@ test.beforeEach(async ({ page }) => {
   await page.waitForTimeout(900);
 });
 
+// v1632 — THE PALETTE IS OWNED BY THE APP, NOT BY THIS FILE.
+// bible.html declares it once on :root and `_qTok()` reads it into `_Q_HEX`; every rarity surface
+// derives from there. A restated hex in an expectation is a SECOND source of truth that silently
+// rots (this spec pinned a fully-saturated set green, a hand-lightened magic blue, and collapsed
+// rune + runeword + crafted onto ONE orange — three wrong slots, red on CORRECT code). So: read
+// the live token off :root and assert the RELATIONSHIP.
+// Deliberately LOCAL rather than importing tests/_palette.ts: that helper normalises every token
+// to an 'rgb(r, g, b)' string, while half the assertions here compare against _tipTint()'s raw
+// hex return, so a hex-native reader keeps both sides in one spelling. Both read the same :root.
+const readTokens = (page: import('@playwright/test').Page) => page.evaluate(() => {
+  const cs = getComputedStyle(document.documentElement);
+  const tok = (n: string) => (cs.getPropertyValue(n) || '').trim().toLowerCase();
+  return {
+    unique: tok('--q-unique'), set: tok('--q-set'), magic: tok('--q-magic'), rare: tok('--q-rare'),
+    crafted: tok('--q-orange'), rune: tok('--rune'), rw: tok('--q-runeword'), basic: tok('--q-normal'),
+  };
+});
+// A hex declaration → an 'rgb(r, g, b)' string, so a token can be compared against a COMPUTED colour.
+const rgbOf = (hex: string) => {
+  const h = hex.trim().replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+};
+
+// The palette must stay LEGIBLE: a rarity is only doing its job if it is distinguishable from the
+// qualities it is most confusable with. v1622 shipped --rar-unique as the console's chrome gold and
+// THREE specs passed over it because they only asserted "a rarity class is present". This is that
+// missing guard, at the token level.
+test('the quality tokens stay mutually DISTINCT (set≠rune-orange, magic≠rare, unique≠crafted)', async ({ page }) => {
+  const t = await readTokens(page);
+  Object.entries(t).forEach(([k, v]) => expect(v, `token for ${k} must resolve to a real colour`).toMatch(/^#[0-9a-f]{3,8}$/));
+  expect(t.set, 'set green must not collapse onto rune orange').not.toBe(t.rune);
+  expect(t.set, 'set green must not collapse onto crafted orange').not.toBe(t.crafted);
+  expect(t.rune, 'rune has its OWN orange — it is not the crafted orange').not.toBe(t.crafted);
+  expect(t.magic, 'magic blue must not collapse onto rare yellow').not.toBe(t.rare);
+  expect(t.unique, 'unique gold must not collapse onto crafted orange').not.toBe(t.crafted);
+  expect(t.basic, 'white base must not collapse onto rare yellow').not.toBe(t.rare);
+  // and the ONE deliberate alias: a runeword is rendered in the unique gold (--q-runeword:var(--q-unique))
+  expect(t.rw, 'runeword deliberately aliases the unique token').toBe(t.unique);
+});
+
 test('the item-detail card renders a rarity-coloured NAME span (was hardcoded gold)', async ({ page }) => {
   // open via the calculator grid (the real user path) — click an item tile, read its detail name colour
   const r = await page.evaluate(() => {
@@ -41,21 +82,37 @@ test('v341.7 craft recipe chips: rarity-coloured glowing name + separate have/ne
     const runeChip = w._cwIngChip('Nef', true);         // rune → orange + have badge
     const jewelChip = w._cwBasicChip('any jewel', 'any jewel');
     const baseChip = w._cwBaseChip('Gloves', false, 'Heavy · Sharkskin');
+    // v1632 — RENDER the chips and read the COMPUTED name colour. The old probe regexed
+    // a literal blue hex out of the `--ing-c:` markup string; the chips now ship the TOKEN
+    // (`--ing-c:var(--q-magic)`), so that regex could never match ANY markup the app produces
+    // — an assertion that cannot pass is
+    // as useless as one that cannot fail. Computed colour survives literal→token refactors.
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:-9999px;top:0';
+    document.body.appendChild(host);
+    host.innerHTML = runeChip + jewelChip + baseChip;
+    const nm = [...host.querySelectorAll('.cw-ing-nm')].map((e) => getComputedStyle(e as HTMLElement).color);
+    host.remove();
     return {
       gemHasName: /cw-ing-nm/.test(gemChip), gemColor: (gemChip.match(/--ing-c:([^";]+)/) || [])[1],
-      runeOrange: /--ing-c:#ffa800/.test(runeChip), runeHaveBadge: /cw-bg-have/.test(runeChip),
-      jewelBlue: /--ing-c:#6969ff/.test(jewelChip), jewelTip: jewelChip.includes('data-arttip="any jewel"'),
-      baseBlue: /--ing-c:#6969ff/.test(baseChip), baseLockedHave: /cw-bg-have/.test(baseChip) && /cw-ing-locked/.test(baseChip), baseTip: baseChip.includes('data-arttip="magic Gloves base"'),
+      nameColors: nm, runeHaveBadge: /cw-bg-have/.test(runeChip),
+      jewelTip: jewelChip.includes('data-arttip="any jewel"'),
+      baseLockedHave: /cw-bg-have/.test(baseChip) && /cw-ing-locked/.test(baseChip), baseTip: baseChip.includes('data-arttip="magic Gloves base"'),
       jewelResolvesRich: w._arttipResolve('any jewel')?.rich === true,
     };
   });
+  const t = await readTokens(page);
+  const [runeCol, jewelCol, baseCol] = r.nameColors;
   expect(r.gemHasName).toBe(true);
-  expect(r.gemColor).toBe('#e0556a');       // Perfect Ruby = ruby red
-  expect(r.runeOrange).toBe(true);          // rune = orange
+  expect(r.gemColor).toBe('#e0556a');       // Perfect Ruby = ruby red (a GEM colour, not a quality token)
+  expect(r.nameColors, 'rune + jewel + base chips must each render a name span').toHaveLength(3);
+  expect(runeCol, 'rune chip name = the live --rune token').toBe(rgbOf(t.rune));
+  expect(runeCol, 'rune orange is NOT the crafted orange — the two must stay tellable apart').not.toBe(rgbOf(t.crafted));
   expect(r.runeHaveBadge).toBe(true);       // status is a SEPARATE green badge
-  expect(r.jewelBlue).toBe(true);           // jewel = magic blue
+  expect(jewelCol, 'jewel chip name = the live --q-magic token').toBe(rgbOf(t.magic));
+  expect(jewelCol, 'magic blue must not read as rare yellow').not.toBe(rgbOf(t.rare));
   expect(r.jewelTip).toBe(true);            // rich hover card
-  expect(r.baseBlue).toBe(true);            // magic base = magic blue
+  expect(baseCol, 'magic base chip name = the live --q-magic token').toBe(rgbOf(t.magic));
   expect(r.baseLockedHave).toBe(true);      // v341.44 — base is vendor-buyable → locked HAVE (not a need toggle)
   expect(r.baseTip).toBe(true);             // base → golden options card
   expect(r.jewelResolvesRich).toBe(true);
@@ -96,10 +153,15 @@ test('v341.16 the floating tooltip TITLE tints to the item rarity (magic base = 
     const t = (window as any)._tipTint;
     return { base: t('magic Ring base'), jewel: t('any jewel'), rune: t('Sol'), gem: t('Perfect Ruby') };
   });
-  expect(r.base).toBe('#9fb0ff');   // magic base → blue (was white)
-  expect(r.jewel).toBe('#9fb0ff');  // jewel (magic) → blue
-  expect(r.rune).toBe('#ffa800');   // rune → orange
-  expect(r.gem).toBe('#e0556a');    // Perfect Ruby → ruby red
+  const t = await readTokens(page);
+  // v1632 — same surface, same token: v1628 made _tipTint return _Q_HEX.magic outright ("the magic
+  // TOKEN, not a hand-lightened blue"), so the old pinned blue was a second palette, not a
+  // second surface. Read the token; assert the relationship.
+  expect(r.base).toBe(t.magic);     // magic base → the magic token (was white)
+  expect(r.jewel).toBe(t.magic);    // jewel (magic) → same magic token
+  expect(r.rune).toBe(t.rune);      // rune → the RUNE token
+  expect(r.rune, 'the rune tint is its own orange, not the crafted one').not.toBe(t.crafted);
+  expect(r.gem).toBe('#e0556a');    // Perfect Ruby → ruby red (gem colour, outside the quality palette)
 });
 
 test('v341.17 jewel magic/rare distinction + picker name colours + gem-held craft sort', async ({ page }) => {
@@ -115,7 +177,8 @@ test('v341.17 jewel magic/rare distinction + picker name colours + gem-held craf
     return {
       jwMagicImg: !!jwMagic?.querySelector('.jw-magic img'), jwRareImg: !!jwRare?.querySelector('.jw-rare img'),
       jwMagicArttip: jwMagic?.getAttribute('data-arttip'), jwRareArttip: jwRare?.getAttribute('data-arttip'),
-      runeOrange: nmCol(rune).includes('#ffa800'), gemPurple: nmCol(gem).includes('#b48ce0'),
+      runeNameCol: rune ? getComputedStyle(rune.querySelector('.cn-pv-opt-nm') as HTMLElement).color : '',
+      gemPurple: nmCol(gem).includes('#b48ce0'),
       tipMagic: w._jewelTipHtml(false).includes('Magic Jewel'), tipRare: w._jewelTipHtml(true).includes('Rare Jewel'),
       tintRare: w._tipTint('rare jewel'),
       bloodFirst: closeCrafts.slice(0, 3).every((x: any) => x.craft === 'Blood'),  // gem-held (Ruby→Blood) ranks first
@@ -125,11 +188,14 @@ test('v341.17 jewel magic/rare distinction + picker name colours + gem-held craf
   expect(r.jwRareImg).toBe(true);
   expect(r.jwMagicArttip).toBe('magic jewel');
   expect(r.jwRareArttip).toBe('rare jewel');       // distinct tooltips
-  expect(r.runeOrange).toBe(true);                 // picker rune name = orange
-  expect(r.gemPurple).toBe(true);                  // picker gem name = its gem colour
+  const t = await readTokens(page);
+  expect(r.runeNameCol, 'picker rune name = the live --rune token').toBe(rgbOf(t.rune));
+  expect(r.runeNameCol, 'and it must stay distinct from the crafted orange').not.toBe(rgbOf(t.crafted));
+  expect(r.gemPurple).toBe(true);                  // picker gem name = its gem colour (not a quality token)
   expect(r.tipMagic).toBe(true);
   expect(r.tipRare).toBe(true);
-  expect(r.tintRare).toBe('#ffff64');              // rare jewel title = yellow
+  expect(r.tintRare).toBe(t.rare);                 // rare jewel title = the live rare token
+  expect(r.tintRare, 'rare yellow must not read as magic blue').not.toBe(t.magic);
   expect(r.bloodFirst).toBe(true);                 // committed-gem crafts lead the list
 });
 
@@ -169,24 +235,42 @@ test('v341.20 tooltip title tint matches the item rarity (no runeword-name colli
     const cm = w._tipTint('Crescent Moon (amulet)');
     const wilhelm = w._tipTint("Wilhelm's Pride");   // set → green
     const spirit = w._tipTint('Spirit');             // real runeword → orange
-    // scan every codex item: tint must match its rarity colour
-    const Q: any = { unique: '#c7b377', set: '#00ff00', magic: '#9fb0ff', rare: '#ffff64', crafted: '#ffa800', rw: '#ffa800', rune: '#ffa800', basic: '#f4f4f4' };
-    const items = eval('ITEM_CODEX'); let mism = 0;
+    // scan every codex item: tint must match its rarity colour. v1632 — the palette is read LIVE
+    // off :root by rarity NAME (was a hardcoded 8-slot duplicate that had rotted in three slots:
+    // a saturated set green, a lightened magic blue, and rune/rw/crafted collapsed onto ONE
+    // orange). A mismatch now
+    // reports the ITEM NAMES, not just a count, so a red says WHICH items broke.
+    const cs = getComputedStyle(document.documentElement);
+    const tk = (n: string) => (cs.getPropertyValue(n) || '').trim().toLowerCase();
+    const Q: any = { unique: tk('--q-unique'), set: tk('--q-set'), magic: tk('--q-magic'), rare: tk('--q-rare'),
+                     crafted: tk('--q-orange'), rw: tk('--q-runeword'), rune: tk('--rune'), basic: tk('--q-normal') };
+    const items = eval('ITEM_CODEX'); const mismNames: string[] = []; const seen: any = {}; let checked = 0;
     Object.keys(items).forEach((k: string) => {
       const it = items[k]; if (!it) return; const rar = w._artRarity(k) || it.rarity; const want = Q[rar]; const tint = w._tipTint(k);
-      if (want && tint && tint.toLowerCase() !== want.toLowerCase()) mism++;
+      if (!want || !tint) return;
+      checked++; seen[rar] = (seen[rar] || 0) + 1;
+      if (tint.toLowerCase() !== want.toLowerCase()) mismNames.push(k + ' [' + rar + '] tint=' + tint + ' expected=' + want);
     });
+    const mism = mismNames.length;
     // the #arttip title carries a currentColor glow
     let titleGlows = false;
     for (const ss of Array.from(document.styleSheets)) { try { for (const rule of Array.from((ss as CSSStyleSheet).cssRules)) {
       if (/#arttip .att-name\b/.test(rule.cssText) && /text-shadow/i.test(rule.cssText) && /currentcolor/i.test(rule.cssText)) titleGlows = true;
     } } catch (e) {} }
-    return { cm, wilhelm, spirit, mism, titleGlows };
+    return { cm, wilhelm, spirit, mism, mismNames, checked, seen, titleGlows };
   });
-  expect(r.cm).toBe('#c7b377');     // Crescent Moon = unique gold (was orange)
-  expect(r.wilhelm).toBe('#00ff00'); // set green
-  expect(r.spirit).toBe('#ffa800');  // runeword orange (real runeword still works)
-  expect(r.mism).toBe(0);            // ZERO tint/rarity mismatches across the codex
+  const t = await readTokens(page);
+  // NON-VACUITY GUARD: a zero-mismatch sweep proves nothing if the sweep examined nothing.
+  expect(r.checked, 'the codex sweep must actually examine the codex').toBeGreaterThan(200);
+  expect(Object.keys(r.seen).length, 'the sweep must span several rarities, not just one').toBeGreaterThanOrEqual(3);
+  expect(r.cm).toBe(t.unique);       // Crescent Moon = the unique token (name collides with a runeword; rarity wins)
+  expect(r.wilhelm).toBe(t.set);     // set green — the LIVE token (D2's FontColorGreen), never a pinned literal
+  expect(r.wilhelm, 'set green must not be mistakable for rune orange').not.toBe(t.rune);
+  // a real runeword: --q-runeword is declared as var(--q-unique), so Spirit renders in the unique
+  // gold. Assert the RELATIONSHIP the app actually declares, not a value someone remembered.
+  expect(r.spirit).toBe(t.rw);
+  expect(r.spirit).toBe(t.unique);
+  expect(r.mism, 'tint/rarity mismatches across the codex: ' + r.mismNames.join(' | ')).toBe(0);
   expect(r.titleGlows).toBe(true);   // tooltip title glows in its colour
 });
 
@@ -201,6 +285,10 @@ test('v341.21 the 🧰 Tools field-guide widget opens a premium structured legen
       cards: document.querySelectorAll('#tools-legend-modal .tlg-card').length,
       featured: !!document.querySelector('#tools-legend-modal .tlg-card.tlg-feat .tlg-badge'),
       chips: document.querySelectorAll('#tools-legend-modal .tlg-chip').length,
+      // v1632 — the legend is the one screen that TEACHES the palette, so it is asserted against
+      // the palette itself: label → computed colour, compared to the live token of the same name.
+      chipMap: [...document.querySelectorAll('#tools-legend-modal .tlg-chip')]
+        .map((c) => [(c.textContent || '').trim().toLowerCase(), getComputedStyle(c as HTMLElement).color] as [string, string]),
       hero: !!document.querySelector('#tools-legend-modal .tlg-hero-t'),
     };
   });
@@ -209,7 +297,18 @@ test('v341.21 the 🧰 Tools field-guide widget opens a premium structured legen
   expect(r.shown).toBe(true);
   expect(r.cards).toBe(14);              // v529 field-guide rebuild — one card per current tool
   expect(r.featured).toBe(true);         // flagship AI tools featured with a badge
-  expect(r.chips).toBe(6);               // the 6-rarity colour legend
+  // The old assertion pinned `chips === 6` and went RED when the legend correctly grew to 8
+  // (runeword + base joined). A count never said whether a single swatch was the RIGHT colour —
+  // exactly the v1622 blind spot. Assert coverage + correctness against the live tokens instead.
+  const tl = await readTokens(page);
+  const want: Record<string, string> = { unique: tl.unique, set: tl.set, magic: tl.magic, rare: tl.rare,
+    runeword: tl.rw, rune: tl.rune, crafted: tl.crafted, base: tl.basic };
+  const got = new Map(r.chipMap);
+  Object.entries(want).forEach(([label, hex]) => {
+    expect(got.has(label), `the palette legend must teach the "${label}" quality`).toBe(true);
+    expect(got.get(label), `legend swatch "${label}" must render its live token`).toBe(rgbOf(hex));
+  });
+  expect(r.chips).toBeGreaterThanOrEqual(Object.keys(want).length);   // every quality gets a chip
   expect(r.hero).toBe(true);             // hero header
 });
 

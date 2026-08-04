@@ -28451,7 +28451,11 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 #arttip.tip-r-basic .att-name{color:var(--q-normal)}
 #arttip.tip-r-rw .att-name{color:var(--q-runeword)}
 #arttip.tip-r-rune .att-name{color:var(--rune)}
-#arttip.tip-r-rw .att-name,#arttip.tip-r-rune .att-name{color:#ffc070}
+/* v1632 — REMOVED: this dead literal sat one line below the token rules and, at equal
+   specificity, silently overrode BOTH of them. On the floating tip a completed runeword
+   painted #ffc070 instead of --q-runeword (unique gold) and a rune painted #ffc070
+   instead of --rune (its own orange). No test saw it: the only tip-colour spec probed
+   five classes and never rw or rune. Truth is lines 28452-28453 above. */
 /* v309: ⭐ star-tier emphasis — items that BEAT a named unique / runeword */
 #arttip .att-beats{margin:3px 0 2px;font-family:var(--mono,monospace);font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:.4px;color:#ffe08a;background:linear-gradient(90deg,rgba(255,168,0,.22),rgba(255,168,0,.04));border:1px solid rgba(255,200,90,.5);border-radius:5px;padding:2px 6px}
 .hvf-row.hvf-star{background:linear-gradient(90deg,rgba(255,184,40,.10),transparent);border-left:2px solid rgba(255,196,80,.75)}
@@ -37802,7 +37806,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1631', name:'v1631 - three tabs three colours', date:'2026-08-03', note:'the Forge tab wears the rune colour - the game has no runeword colour so runeword gold could only ever equal F-Uniques, and a tab labels a room not an item' };
+  window.D2R_BUILD = { id:'v1632', name:'v1632 - assertions that can fail', date:'2026-08-04', note:'test-quality audit: killed duplicated palette literals across 6 specs, replaced existence checks with relationship + distinctness assertions, and the new tip probe caught a real defect — a dead #ffc070 literal was overriding the runeword and rune tokens on the floating tip' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
