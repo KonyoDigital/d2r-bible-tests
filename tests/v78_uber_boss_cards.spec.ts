@@ -49,7 +49,7 @@ test.describe('v78 Uber Boss ID cards (9)', () => {
         count: cards.length,
         // Desktop golden-merge: Colossal Ancients (Talic/Korlic/Madawc) art resolved
         // from D2IO_ART as avatar gallery .gif URLs, not /items/ .png — accept both.
-        allHaveArt: imgs.every((s) => /^art\//.test(s) && /\.(png|gif)$/.test(s)),
+        allHaveArt: imgs.every((s) => /^art\//.test(s) && /\.(png|gif)(?:\?|$)/.test(s)),
         allHidden: cards.every((c) => c.querySelector('.ubc-body')!.hasAttribute('hidden')),
         lilithArt: imgs[0],
         baalArt: imgs[5],
@@ -59,8 +59,8 @@ test.describe('v78 Uber Boss ID cards (9)', () => {
     expect(r.count).toBe(9);
     expect(r.allHaveArt).toBe(true);
     expect(r.allHidden).toBe(true);               // collapsed by default
-    expect(r.lilithArt).toMatch(/Andariel_graphic\.png$/);
-    expect(r.baalArt).toMatch(/baal-opt_graphic\.png$/);
+    expect(r.lilithArt).toMatch(/Andariel_graphic\.png(?:\?|$)/);
+    expect(r.baalArt).toMatch(/baal-opt_graphic\.png(?:\?|$)/);
   });
 
   test('verified immunities show in the stat block (Mephisto Lit+Pois, Duriel Cold)', async ({ page }) => {

@@ -91,7 +91,7 @@ test('D — every AURA_ART entry points at a clean self-hosted gif that actually
         im.onerror = () => res(false);
         im.src = String(u);
       });
-      results.push({ name, u, ok, named: /aura_[a-z_]+\.gif$/.test(String(u)) });
+      results.push({ name, u, ok, named: /aura_[a-z_]+\.gif(?:\?|$)/.test(String(u)) });
     }
     return results;
   });

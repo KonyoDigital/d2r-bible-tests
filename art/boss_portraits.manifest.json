@@ -1,5 +1,5 @@
 {
-  "_what": "The ten boss portraits BOSS_PORTRAIT (bible.html) serves, each with a description of what a human ACTUALLY SAW when they opened the file. This manifest exists because v1629 'verified' these portraits without looking at any of them.",
+  "_what": "The TWELVE boss portraits BOSS_PORTRAIT (bible.html) serves (v1643; was eleven at v1642, ten at v1636), each with a description of what a human ACTUALLY SAW when they opened the file. This manifest exists because v1629 'verified' these portraits without looking at any of them.",
   "_why": "art/mephisto_graphic.png shipped for seven weeks as a blue soulstone gem and art/diablo_graphic.png as a leather-bound book. Every automated check passed the whole time: the paths resolved, naturalWidth was > 0, md5 across art/ found zero duplicates, and file size flagged Mephisto (10KB) while missing Diablo (46KB, a book). A filename, a hash, a byte count and a successful load all prove a file EXISTS. None of them proves it is the RIGHT PICTURE.",
   "_root_cause": "commit ff2787e (v269, 'more D2R HD items ... via fuzzy base-item matching') rewrote 230 art/*_graphic.png files from item art. Two of its slugs collided with boss portraits that share a name with an ITEM: 'mephisto' -> Mephisto's Soulstone, 'diablo' -> a tome. The matcher had no notion that some *_graphic.png files are monsters, not items, so it silently clobbered them.",
   "_restored": "v1636 restored both from ab079b8 (the commit before v269) and re-opened them to confirm the pixels depict the boss. Restoring beat re-extracting from CASC: the other eight are diablo2.io-style full-body renders on white, and a raw SpA1 sprite frame would not have matched them.",
@@ -9,7 +9,7 @@
     "The hash only answers 'are these still the bytes someone opened?'. If it says CHANGED, OPEN THE",
     "IMAGE, decide what it depicts, and rewrite the 'depicts' + 'sha256' fields below by hand."
   ],
-  "_verified_by": "Claude Opus 5, 2026-08-04 (v1636) — every row below was written after opening that exact file",
+  "_verified_by": "Claude Opus 5, 2026-08-04 — rows 1-10 written at v1636, the dclone row and the _quarantine block at v1642, the pindle row at v1643. Every row was written after opening that exact file; nothing here was written from a filename.",
   "portraits": [
     {
       "bossId": "andariel",
@@ -90,12 +90,43 @@
       "sha256": "275349486e1b8290a2aba27775d1eb19c14b2e85c6deabdcc79e3eef5f420675",
       "depicts": "Dark grey winged demon with tall pointed ears/horns and deep red robes about the legs, mid-stride. Travincal Council Member.",
       "verdict": "correct"
+    },
+    {
+      "bossId": "dclone",
+      "file": "diablo_hell_graphic.png",
+      "bytes": 79823,
+      "sha256": "7d1e426c8afdae5bef35e8ae3760005798fe21ad66e206540db43d16489aaefb",
+      "depicts": "Huge hulking demon in a wide braced stance — heavy shoulders, long hooked claws on both hands, digitigrade legs, and two pairs of long horns swept up and back off a crested head. Same silhouette as diablo_graphic.png, but rendered near-BLACK with faint teal-green shading instead of blood-red: a darkened Diablo, which is what a Diablo Clone is.",
+      "verdict": "correct — ADDED v1642. Second, independent witness: the app's own name->art map already reads \"Uber Diablo (Diablo Clone)\": \"art/diablo_hell_graphic.png\" (bible.html:14336), and the standby-hero CSS comment calls it the Diablo silhouette (bible.html:36863). Honest caveat, stated rather than hidden: it is very dark — about 65% of the subject is pure black with only ~4% carrying any other shade — so it reads as a strong silhouette rather than a lit render like the other ten. It is a real render, not corruption; the shape is unambiguous at thumbnail size."
+    },
+    {
+      "bossId": "pindle",
+      "file": "reanimatedhorde-opt_graphic.png",
+      "bytes": 32237,
+      "sha256": "a247557e590530fd556fa3e4fb978f85eb5da7800a2a2ea679ea238dd6700e87",
+      "depicts": "Gaunt undead skeletal warrior standing on white, legs apart, dark brown and grey bone limbs with visible ribs and spine, a plain rectangular shield strapped to its left arm and a long thin spear held angled down and to the left. A Reanimated Horde.",
+      "verdict": "correct — ADDED v1643, and it CORRECTS v1642, which declared in this very file that 'there is no Pindleskin picture anywhere in this repo' and that 'D2IO_ART has no Pindleskin key'. Both statements were false. bible.html:14217 has read \"Pindleskin\": \"art/reanimatedhorde-opt_graphic.png\" for weeks and the file has been on disk since 2026-06-14. Pindleskin IS the unique Reanimated Horde / Defiled Warrior of Nihlathak's Temple, so his own monster class is exactly the right render — and that is the second, independent witness, the app's own name->art map, the same technique that settled dclone one version earlier and was simply not applied a second time. Honest caveat like dclone's: it is a dark, low-contrast render that reads as a silhouette rather than a lit portrait, but the subject (skeleton, shield, spear) is unambiguous. THE REUSABLE LESSON: before concluding an asset does not exist, ask the app what it already believes — one `grep -n Pindleskin bible.html` would have saved a whole version."
     }
   ],
-  "_not_shipped": {
-    "dclone": "no portrait by design — resolves through level art",
-    "pindle": "no portrait by design — resolves through level art",
-    "pit": "no portrait by design — resolves through level art"
+  "_quarantine": [
+    {
+      "file": "hdx_uberdiablo_icon.png",
+      "bytes": 53743,
+      "sha256": "2dbe0efb440f045c9ae47f30c01a0d9fac7aab4a962e4b230b8d2406ff075203",
+      "depicts": "NOTHING. Opened at v1641 and again at v1642: 171x171 of diagonal gold/purple SCANLINE NOISE. No subject, no silhouette, no boss.",
+      "verdict": "CORRUPT — MUST NOT be used as the dclone portrait. It is listed here because its FILENAME is the most attractive hit for anyone grepping 'uberdiablo', and a filename is not a picture. verify_boss_portraits.py now fails if any quarantined file appears in BOSS_PORTRAIT."
+    },
+    {
+      "file": "Pitspawn_Fouldog.gif",
+      "depicts": "A purple horned bovine — not the dog-type unique the filename claims.",
+      "verdict": "MISLABELLED — do not use it for anything. Irrelevant to the boss map because 'pit' is not a boss (see _declined), but recorded so the mislabelling is not rediscovered a third time. Not hash-pinned: it is not a portrait, it is a warning."
+    }
+  ],
+  "_declined": {
+    "_what": "bossIds with NO portrait. These are DECISIONS with reasons, not gaps waiting to be filled. verify_boss_portraits.py asserts each is still absent from BOSS_PORTRAIT, so silently 'fixing' one of them fails the check.",
+    "_pindle_resolved_v1643": "NO LONGER DECLINED — see the pindle row in \"portraits\" above. v1642's entry here asserted that no Pindleskin render existed and that D2IO_ART had no 'Pindleskin' key; both were FALSE, and the refusal was therefore wrong on the facts, not merely conservative. Kept as a stub because the error is the point: the previous run had already used 'consult the app's own name->art map' to settle dclone, and did not run the same one-line grep for pindle. The HALF of that refusal that WAS right survives and still binds: nihl's portrait must never be borrowed for pindle, because _runBossArt returns { name: b.name } and BOSSES holds a separate {\"id\":\"nihl\",\"name\":\"Nihlathak\"}, so a robed elder would arrive labelled 'Pindleskin'.",
+    "pit":"NOT A BOSS — closed, not pending. The row is { id:'pit', label:'The Pit', why:'mlvl 85 · TC85 — best non-boss item ceiling' } (bible.html:23894). The Pit is an AREA farm with no boss in it, so the LEVEL art is the correct picture and a portrait here would invent a monster that does not exist. Do not re-open this one."
   },
+  "_casc_note": "MOOT as of v1643, and instructive. v1642 spent this field explaining why extracting a Pindleskin from the local 28GB D2R install was hard (HD monsters are 3D models, SD monster art is DCC animation, and this repo's extractors — tv/casc_extract.c, tv/extract_ui_icons.py — read SpA1 sprite atlases only). All true, and all irrelevant: the render was already in art/ and already mapped by the app, so the expensive route was being costed before the cheap one had been checked. CHECK THE REPO'S OWN MAPS BEFORE COSTING AN EXTRACTION. Still genuinely NOT ESTABLISHED, recorded so nobody claims otherwise: whether any usable 2D Pindleskin asset exists in CASC. Nothing needs it now.",
   "_also_consumed_here": "art/diablo_graphic.png is served by a SECOND surface, the 'Diablo Clone -> Annihilus' branch emblem (bible.html ~15225). It was showing the book too. Both surfaces now show the same, correct Diablo — if this file is ever swapped again, both break together."
 }

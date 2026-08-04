@@ -43,7 +43,7 @@ test.describe('v73 TZ zone artwork emblems', () => {
       return {
         cardCount: cards.length,
         bannerCount: withArt.length,
-        allDiablo2io: withArt.every((i) => /^art\/act\d-[a-z0-9]+_graphic\.png$/.test(i.getAttribute('src') || '')),
+        allDiablo2io: withArt.every((i) => /^art\/act\d-[a-z0-9]+_graphic\.png(?:\?|$)/.test(i.getAttribute('src') || '')),
         allLazy: withArt.every((i) => i.getAttribute('loading') === 'lazy'),
         allOnerror: withArt.every((i) => (i.getAttribute('onerror') || '').includes('d2art-failed')),
       };
@@ -61,7 +61,7 @@ test.describe('v73 TZ zone artwork emblems', () => {
         .find((c) => /Arcane Sanctuary/.test(c.querySelector('.tz-zone-name')?.textContent || ''));
       return (card?.querySelector('.tz-zone-emblem .d2art-img') as HTMLImageElement)?.getAttribute('src') || '';
     });
-    expect(src).toMatch(/act2-arcanesanctuary_graphic\.png$/);
+    expect(src).toMatch(/act2-arcanesanctuary_graphic\.png(?:\?|$)/);
   });
 
   test('the permanent lvl-85 cross-link card (The Pit) also gets its scene banner', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('v73 TZ zone artwork emblems', () => {
       const card = document.querySelector('#tz-zones-container .tz-crosslink-card');
       return (card?.querySelector('.tz-zone-emblem .d2art-img') as HTMLImageElement)?.getAttribute('src') || '';
     });
-    expect(src).toMatch(/act1-underground_graphic\.png$/);
+    expect(src).toMatch(/act1-underground_graphic\.png(?:\?|$)/);
   });
 
   test('no console errors rendering the TZ tab with banners', async ({ page }) => {

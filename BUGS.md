@@ -2747,3 +2747,434 @@ NOT fixed.**
 **Next.** Re-extract from the game the way v1578 did the TZ art (CASC → .texture → BC3), then verify
 by OPENING it and by an independent read — not by luminance statistics, which is exactly what this
 entry proves insufficient.
+
+## REG-115 — Routine I: the 27 failures are ONE deterministic set, not flake, and not CI-only
+
+**Symptom.** `Routine I — Playwright suite` has been red since ~v1634 and, per the project record,
+has had no green since roughly v651. It had never once been isolated: no failing spec, no failing
+assertion, no numbers.
+
+**Caught by.** A deliberate isolation pass on run **30915493081** (v1641, main, 34m16s, 6 shards,
+27 failed) cross-read against run **30910708368** (v1640). `📺 TV DIABLO — agent tests` passes on
+both commits, so the red is specific to Routine I.
+
+**The two facts nobody had established.**
+
+1. **The failing set does not drift.** Extracting the failing `file:line:col › title` triples from
+   both runs and diffing them: **27 vs 27, `diff` empty — byte-identical, same line numbers, same
+   titles.** So none of it is shard/parallelism flake, none of it is retry noise, and the suite-tail
+   fatigue caveat does not apply. It is 27 deterministic failures.
+2. **It is NOT a CI-only artefact.** Four of the failing specs were re-run locally on a clean tree at
+   `f8367e6` (= the exact commit CI ran), `nice -n 19 --workers=4`:
+   `v518_forge_craft_art_colors`, `v123_inline_item_logos`, `v1518_webdriver_spoof_guard`,
+   `v232_tz_tracker` → **6 failed / 10 passed, and the 6 are the same 6 test titles CI reports.**
+   The Mac-absolute-path class that caused the last two CI-only reds (REG-…/v1455) is therefore
+   ruled out by measurement, not by inspection.
+
+**Root cause.** There is no single root cause — that assumption is why this stayed undiagnosed. The
+27 failures decompose into **12 independent groups**, logged below as REG-116…REG-126, of three
+different kinds: real app regressions in `bible.html`, specs asserting a design that has since
+changed, and one meta-guard whose allowlist went stale. Only ONE group (REG-116's sibling REG-117
+aside) has an onset that matches "~v1634": REG-116/REG-118 below.
+
+**Prevention.** Diff the failing-set between two consecutive red runs BEFORE theorising. An identical
+set means deterministic and worth grouping; a drifting set means flake and worth quarantining. That
+one `diff` is the difference between a 20-minute diagnosis and eight months of an unread red badge.
+
+## REG-116 — the ~v1634 ONSET: three new specs spoof `navigator.webdriver` and never claim the owner world
+
+**Symptom.** `tests/v1518_webdriver_spoof_guard.spec.ts:20` — `expect(offenders).toEqual([])`,
+Expected `[]`, Received a 3-name array:
+`["v1633_chronicle_celebration.spec.ts", "v1634_craft_chronicle.spec.ts", "v1635_craft_book_painted.spec.ts"]`.
+
+**Caught by.** The v1518 guard itself, working exactly as designed — and reproduced locally (not a
+CI artefact). **This is the group whose onset actually explains "red since ~v1634": the offending
+specs are named v1633, v1634 and v1635.**
+
+**Root cause.** v1499 makes a browser a GUEST until a human claims it, and identifies the suite by
+`navigator.webdriver` + `file://`. These three specs spoof `navigator.webdriver` to false — a
+legitimate move, to unmask motion effects the app silences under automation — and in doing so unmask
+themselves as guests. Every bare key they seed then lands in an `I·<id>·` world the app never reads,
+so they assert against a world that does not exist. REG-084 is the same trap; v1518 was built to
+close it, and three specs walked into it anyway within three versions of each other.
+
+**Fix — NOT APPLIED HERE, and the reason is ownership, not doubt.** This diagnosis ran under a
+one-file write lock (`BUGS.md`); `tests/*` was not written. The fix is the one the guard prints, one
+line per file, at the top of each spec's `beforeEach`/first navigation:
+
+    await page.addInitScript(() => localStorage.setItem('d2r_ownerClaim', '*'));
+
+Applied to `tests/v1633_chronicle_celebration.spec.ts`, `tests/v1634_craft_chronicle.spec.ts`,
+`tests/v1635_craft_book_painted.spec.ts`. Verified failing before the change (local run above); the
+three specs must be re-run after, because claiming the owner world changes what they see and may
+expose real assertions that the guest world was hiding.
+
+**Prevention.** The guard already exists and already works — it named its own offenders and printed
+its own fix. What failed is that nobody read a red Routine I for months. The durable lesson: a
+self-diagnosing guard is worth nothing behind a badge no one opens.
+
+## REG-117 — the shared `.forge-title` rule WAS repainted globally; v1625 ITEM 6's own assertion says it must not be
+
+**Symptom (9 of the 27 failures — the largest group).**
+- `tests/v775_tab_family.spec.ts:24` × 3 — "forge / funi / fsets GOLD title @1500": expected
+  `rgb(240, 192, 96)`; received `rgb(0, 252, 0)` for fsets.
+- `tests/v1625_board_quality_surfaces.spec.ts:327` — "the plain Forge title must stay chrome gold":
+  expected `rgb(240, 192, 96)`, received `rgb(255, 125, 60)`.
+- `tests/v1625_board_quality_surfaces.spec.ts:214` — "sealed 🏆 F·Uniques button": expected
+  `rgb(199, 179, 119)`, received `rgb(240, 192, 96)` — the **inverse** swap.
+- plus `v1628_board_quality_tokens.spec.ts:268` ("the F·Uniques route wears UNIQUE quality"),
+  `v1630_sealed_stamp.spec.ts:242`, `v311_unified_rarity.spec.ts:64`, `v331_ask_assistant.spec.ts:192`.
+
+**Root cause — located, with every received colour matched to its token.** `bible.html:7380` is the
+v775 family rule, `:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{ … color:#f0c060 }` = the
+`rgb(240,192,96)` gold three specs demand. Four later per-tab overrides beat it on specificity:
+
+    7825: #tab-funi  .forge-title{color:var(--q-unique)}   /* v1625 ITEM6 — per-tab override */
+    7830: #tab-forge .forge-title{color:var(--rune)}
+    7831: #tab-fsets .forge-title{color:var(--q-set)}
+    7832: #tab-fsets .forge-title{color:var(--q-set)}      /* byte-identical duplicate of 7831 */
+
+Token values in the same file: `--q-unique:#c7b377` = `rgb(199,179,119)`, `--rune:#ff7d3c` =
+`rgb(255,125,60)`, `--q-set:#00fc00` = `rgb(0,252,0)`. **Every received value above is exactly the
+token the override installs** — forge→rune, fsets→set green, funi→unique. That is the whole
+mechanism, and it is measured, not inferred.
+
+The sharpest part: **v1625 ITEM 6's own test (`:313`, "the shared `.forge-title` rule was not
+repainted globally") is one of the failures.** The change shipped under that item did precisely what
+the item's own guard forbade. Line 7830 (`#tab-forge` → `--rune`) has no defender anywhere: v775
+wants it gold and v1625 wants it gold.
+
+**Fix — NOT APPLIED. `bible.html` is owned by another agent this run, and one half needs a ruling.**
+- Unambiguous: **delete `bible.html:7830`** (plain Forge title returns to `#f0c060`), and delete the
+  duplicate at `:7832`. Both v775 and v1625 agree on this.
+- Ambiguous, needs Konyo or a design ruling: **v775 and the v1625/v1628 doctrine flatly contradict
+  each other on funi and fsets.** v775 (older) asserts all three sibling titles are one GOLD family;
+  v1625/v1628 (newer) assert each route wears its own quality. Both cannot pass. Whichever loses must
+  have its assertion retired — do not "fix" this by editing whichever file is closest to hand.
+
+**Prevention.** A per-tab override of a rule whose whole stated purpose is "one sibling title colour"
+should have failed review at the CSS, not at the assertion. When two specs written 850 versions apart
+assert opposite colours for the same element, the contradiction — not either colour — is the bug.
+
+## REG-118 — a runeword's floating item-card title is painted UNIQUE instead of ORANGE
+
+**Symptom.** `tests/v518_forge_craft_art_colors.spec.ts:45` — `expect(r.tipRW).toBe('#ffa800')`,
+received `#c7b377`. Corroborated independently by
+`tests/v1628_no_literal_quality_hex.spec.ts:254`: "quality colours that disagree with the settled
+palette (**1 of 10 checked**)".
+
+**Root cause.** `--q-orange:#ffa800` is the settled runeword colour and `--q-unique:#c7b377` is the
+unique colour; the floating card resolves a runeword's title to the unique token. Two independently
+written specs, one asserting a literal and one asserting against the live token table, agree — so
+this is the app being wrong, not a stale literal. Same family as REG-117 (a quality token applied to
+the wrong subject) but a different surface, so it will not be fixed by the `.forge-title` deletion.
+
+**Fix.** NOT APPLIED — `bible.html`-side, owned elsewhere this run. Route the floating card's title
+tint through the same quality resolver the board uses; `1 of 10` in v1628 pins the blast radius to a
+single entry.
+
+**Prevention.** v1628's "every quality-keyed colour equals its settled token value" is the right
+shape of guard and it caught this. It needs to be read.
+
+## REG-119 — v518 asserts a magic-blue literal the settled palette retired (STALE SPEC)
+
+**Symptom.** `tests/v518_forge_craft_art_colors.spec.ts:27` — `expect(r.tipTint).toBe('#9fb0ff')`,
+received `#6e6eff`.
+
+**Root cause.** `--q-magic:#6e6eff` in `bible.html`; `#9fb0ff` appears nowhere in the palette. A
+jewel IS magic, so the app is rendering the correct token and the spec is asserting a legacy literal
+from before the palette settled. **This one is the opposite verdict to REG-118 in the same file** —
+line 27 is a stale spec, line 45 is a real regression. Grouping by file would have got both wrong.
+
+**Fix.** NOT APPLIED (`tests/*` not written this run). Assert the resolved value of `var(--q-magic)`
+rather than a hardcoded hex, so the spec tracks the palette instead of racing it.
+
+**Prevention.** No spec should hardcode a quality hex — that is exactly what v1628 was created to
+forbid, and v518 predates it. Sweep the class: any `toBe('#…')` on a quality-tinted surface is the
+same latent failure.
+
+## REG-120 — v232/v234 assert TZ copy retired at v1584-85 / v1588-89 (STALE SPECS, red since ~v1585)
+
+**Symptom.**
+- `tests/v232_tz_tracker.spec.ts:46` — `expect(r.count).toContain('huntable')`; received
+  `"4 slots · 1 worth running"`.
+- `tests/v234_tz_history.spec.ts:62` — `expect(r.fillerName).toBe('Cold Plains and The Cave')`;
+  received `"Cold Plains 🔒"`.
+
+**Root cause.** Traced by `git log -S`: `668723b` (v1584-85, "the log ranks its windows, and three
+tiers finally look like three") removed the "huntable" copy and introduced "worth running";
+`acadf6f` (v1588-89, "locked or routable, and the rotation lives only in Sessions") replaced the
+filler zone's spelled-out name with a 🔒 marker. Both changes were deliberate. **These two have been
+red since ~v1585, not v1634** — they are part of why "no green since v651" is true while the
+proximate onset is REG-116.
+
+**Fix.** NOT APPLIED (`tests/*` not written this run). Re-point both assertions at the current copy —
+`'worth running'` and the 🔒 filler marker — keeping the intent (a count line that names how many
+zones are worth running; filler zones distinguishable from huntable ones).
+
+**Prevention.** A copy change that renames a user-visible string should grep `tests/` for that string
+in the same commit. `git log -S'<old string>'` answers "who changed this and did they mean to" in one
+call and was never run here.
+
+## REG-121 — v1577's PARKED allowlist is stale: `uiPrompt` now resolves
+
+**Symptom.** `tests/v1577_dead_seams.spec.ts:140` — "a PARKED name now resolves — it was
+implemented. Remove it from PARKED." Diff: Expected `-1` / Received `+0`, the missing entry being
+`"uiPrompt"`.
+
+**Root cause.** The v1577 guard deliberately fails when an allowlisted dead name comes alive, so the
+allowlist cannot outlive its reason. `uiPrompt` was implemented; the entry was not removed. The guard
+is behaving exactly as written — this is bookkeeping, not a defect.
+
+**Fix.** NOT APPLIED (`tests/*` not written this run). Delete the `uiPrompt` entry from `PARKED` in
+`tests/v1577_dead_seams.spec.ts`. Verified failing before any change by a local isolated run.
+
+**Prevention.** This is the guard working. The only prevention needed is reading Routine I.
+
+## REG-122 — board and run thumbnails have no boss anchor (same defect as the v1642 portrait item)
+
+**Symptom.**
+- `tests/v1624_run_thumbnails.spec.ts:40` — "**Hell Mephisto has no boss anchor**".
+- `tests/v1625_fsets_run_thumbnails.spec.ts:102` — "**NM Pindleskin: no data-art-logo, so the
+  board's hover card cannot bind**".
+- `tests/v1628_board_quality_tokens.spec.ts:392` — "a card with no resolvable subject still rendered
+  an `<img>` — that is the arbitrary picture v1624 removed; render nothing instead": expected
+  `false`, received `true`.
+
+**Root cause.** The same seam REG-112's "still open" note and the v1642 boss-portrait item describe:
+run rows whose boss has no portrait entry cannot bind a hover card, and the v1628 case shows the
+fallback still emits an `<img>` for an unresolvable subject instead of rendering nothing. Pindleskin
+is literally one of the two portraits the v1642 item exists to add.
+
+**Fix.** NOT APPLIED here — `bible.html`/`art/` are owned by the boss-portrait agent this run. These
+three assertions are the correct regression test for that item and should be re-run as its proof.
+
+**Prevention.** Wire the portrait map to a build-time completeness check over the run-row ids, so a
+row without a portrait fails at the map rather than at three separate hover-card specs.
+
+## REG-123 — the Task Force grail region renders ZERO times, and the guard that caught it is misnamed
+
+**Symptom.** `tests/v1556_meter_coverage.spec.ts` —
+- `:127` `expect(u.found).toBe(P.grail.found)`: expected `243`, received **`null`**.
+- `:155` same shape on the A/B payload-swap test.
+- `:194` `expect(regions, 'the hub must not print the grail pair in two places').toBe(1)`: expected
+  `1`, received **`0`**.
+
+**Root cause — NOT ESTABLISHED, deliberately.** Two readings fit and I could not separate them
+inside this pass: (a) the Task Force grail region is genuinely absent from the hub, or (b) this is
+another instance of the REG-116 guest-world family, where seeded keys land in an `I·<id>·` world and
+the region never renders because there is no data. `received null` and `regions 0` are equally
+consistent with both. **Resolve REG-116 first and re-run this spec before touching `bible.html` for
+it** — if the ownerClaim fix turns it green, there was never an app defect here.
+
+**Worth noting regardless.** The assertion message says "must not print the grail pair in two
+places", but received `0`, not `2`. A guard written against duplication reports its opposite as the
+same failure. Split it: assert `≥1` (it exists) and `≤1` (it is not duplicated) separately, so the
+message names the actual state.
+
+## REG-124 — `thOpen()` no longer routes off Sessions before unhiding the stage
+
+**Symptom.** `tests/v1612_sessions_no_black_stage.spec.ts:75` — `expect(fn).toContain('_shellHome')`
+with the message "thOpen must leave Sessions before opening, or the reel opens on a view that has no
+stage". Received source begins `"async function thOpen(){"` and does not contain `_shellHome`.
+
+**Root cause.** `thOpen` was rewritten and lost the `_shellHome` hop. Note the spec asserts on
+**function source text**, so it will also fail if the routing is achieved by a differently-named
+call — the assertion cannot tell "the behaviour is gone" from "the behaviour moved". Confirm the
+behaviour before assuming the regression.
+
+**Fix.** NOT APPLIED — `bible.html`-side. Related: `tests/v877_rinse.spec.ts:194` reports
+`stageW` expected `> 400`, received **`0`**, i.e. the self-hosted console stage lays out at zero
+width. Same symptom class (a stage that is not there when the reel opens); whether it is the same
+cause is **not established**.
+
+**Prevention.** Assert the observable — that the reel opens on a view that owns a stage, measured —
+rather than a substring of a function body. A source-text assertion is a proxy, and this project has
+already paid for proxies.
+
+## REG-125 — the slot-suffix seam disagrees with itself: one spec demands it kept, another demands it stripped
+
+**Symptom.**
+- `tests/v1617_ingame_item_card.spec.ts:119` — expected `"Griswold's Honor (Shield)"`, received
+  `"Griswold's Honor"` (suffix **stripped**, spec wants it kept).
+- `tests/v134_tools_cards_arthover_routing.spec.ts:75` — "set-tracker pieces get base-name art +
+  data-arttip (**slot suffix stripped**, no dead route)" — also failing.
+
+**Root cause — NOT ESTABLISHED.** Two specs, 1483 versions apart, place opposite requirements on the
+same slot-suffix handling, and both are red. That means at least one is stale and possibly the
+implementation satisfies neither. This needs a single ruling on where the suffix lives (in the
+display name, or only in the art-key) before either spec is touched. Fixing whichever is examined
+first is exactly how one bug ships three times.
+
+**Fix.** NOT APPLIED — needs the ruling above, then likely one `bible.html` change and one spec
+retirement.
+
+**Prevention.** The suffix rule should exist in one named helper that both surfaces call, so the two
+specs are testing one implementation instead of two.
+
+## REG-126 — `decorateItemLogos` lost idempotency, and an unmapped tag now decorates
+
+**Symptom.** `tests/v123_inline_item_logos.spec.ts` —
+- `:43` `expect(r.first).toBe(0)` ("already ran on load — nothing left to do"): received `1`.
+- `:83` `expect(r.added).toBe(0)` ("**unmapped name decorated nothing**"): received `1`.
+- `:91` `expect(r.labelKeepsSlot).toBe(true)`: received `false`.
+
+**Root cause.** NOT ESTABLISHED at source level — `bible.html` was not read for this pass because it
+is owned elsewhere. But `:83` is the load-bearing one and it is not cosmetic: **a `data-art-logo` tag
+with no mapping now gets decorated anyway.** That is the "arbitrary picture" failure mode again
+(cf. REG-122 / v1628:392) and the same shape as the corrupt-art class this project keeps re-paying
+for — a decoration that fires without a resolvable subject. `:43` (a second call adds one more) says
+the guard against re-decoration no longer holds, which is the likely single cause of all three.
+
+**Fix.** NOT APPLIED — `bible.html`-side. Restore the "already decorated" marker check and the
+mapped-name precondition; `:43` and `:83` are probably one fix.
+
+**Prevention.** Sweep the class: every decorator that writes into the DOM on a name lookup needs
+(a) an idempotency marker and (b) an early return when the lookup misses. `naturalWidth > 0` will
+never catch either — it only proves a file loaded, never that anything should have been drawn.
+
+## REG-127 — "no Pindleskin render exists in this repo" — the app's own map had been pointing at one for weeks
+
+**Symptom.** v1642 refused to wire a Pindleskin thumbnail and wrote the refusal into
+`art/boss_portraits.manifest.json` as fact: *"There is no Pindleskin picture anywhere in this repo."*
+So every `Hell Pindleskin` / `Hell TZ Pindleskin` best-run row kept rendering
+`art/tz_exp-wildtemple.jpg` — a bone-strewn top-down TERRAIN tile with no creature in it — under a
+hover card promising "open the boss card". Konyo has reported that picture more than once.
+
+**Caught by.** A human, by hand, in one command. `grep -n Pindleskin bible.html` →
+`bible.html:14217  "Pindleskin": "art/reanimatedhorde-opt_graphic.png"`. The file is 32KB, dated
+2026-06-14, and OPENING it shows a gaunt undead skeleton warrior — bare bone limbs, rectangular
+shield on the left arm, a long thin spear angled down — i.e. a Reanimated Horde, which is
+Pindleskin's own monster class. The boss picker had been rendering it, labelled 🧟Pindleskin, the
+whole time.
+
+**Root cause.** The search that produced "does not exist" was a filesystem search: `ls art/` for a
+file named after the boss, plus a look at the 17 super-unique GIFs and at `D2IO_ART`. Pindleskin's
+render is not filed under his name — it is filed under his MONSTER CLASS, and only the app's
+`name -> art` map knows that. The same run had just solved `dclone` by consulting that exact map
+(`bible.html:14336`), so the technique was already in hand and simply was not applied a second time.
+An absent result was then written down as a proven negative, which is how a wrong picture acquires a
+citation.
+
+**Fix.** v1643 — `BOSS_PORTRAIT.pindle = 'reanimatedhorde-opt_graphic.png'`, pinned in
+`art/boss_portraits.manifest.json` with what a human saw, covered by
+`art/verify_boss_portraits.py` (which now REQUIRES pindle rather than merely tolerating it, so
+re-declining the row cannot go green), and asserted end-to-end in
+`tests/v1624_run_thumbnails.spec.ts` — if `BOSS_PORTRAIT` knows a boss, the rendered row must be
+wearing that file. `pit` stays on level art deliberately: The Pit is an area farm, not a boss, and
+there is no creature to picture. The one refusal that was RIGHT also stands — never borrow `nihl`'s
+portrait for pindle, because `_runBossArt` returns `{name: b.name}` and `BOSSES` has
+`{"id":"pindle","name":"Pindleskin"}`, so Nihlathak's robed elder would arrive labelled Pindleskin.
+
+**Prevention.** **Before concluding an asset does not exist, ask the app what it already believes.**
+An `ls` of `art/` is not the index — the `name -> art` map is, and it is keyed by what the picture
+DEPICTS, not by what the row is CALLED. And a negative finding is a claim like any other: it does
+not get written into a manifest as settled fact on the strength of one search shape.
+
+## REG-128 — a repaired asset is invisible until its URL changes
+
+**Symptom.** Konyo re-reports pictures that were already fixed. The live one:
+`art/diablo_graphic.png` was repaired at v1636 and is CORRECT (opened: a red four-horned clawed
+Diablo, 149KB) — and he screenshotted the `Hell TZ Diablo` thumbnail still showing a tan rectangle,
+which is what the OLD bytes at that same filename (a leather-bound book) look like at 60px.
+
+**Caught by.** Reading `_runBossArt` after he re-reported a fixed asset: the URL is built as
+`'art/' + pic`, with no version query, at every art seam.
+
+**Root cause.** `tv/control_app.py` serves the page as `?v={_app_ver()}`, so a version bump busts
+the HTML and the JS and **never the images** — image URLs never changed. v269 rewrote ~230
+`art/*_graphic.png` files IN PLACE and v1636 repaired them IN PLACE, same filenames, new bytes.
+A cache keyed on URL has no way to know, and correctly keeps serving what it has. Every "I fixed
+it, reload" exchange after an in-place asset repair was therefore unfalsifiable on his machine.
+
+**Fix.** v1643 — the build id is appended at every art seam (`_runBossArt`, `_itemArtImg`,
+`artUrl`/`D2IO_ART`, the TZ art seam), so a version bump changes the URL of every picture.
+`tests/v1624_run_thumbnails.spec.ts` asserts it on the run board: every painted `src`, boss art and
+item art alike, must carry `?v=`.
+
+**Prevention.** Any in-place asset repair must change the URL, in the same change. And verification
+compares **the bytes the app renders**, not a reload-and-eyeball: "the file changed" is not "the
+running system changed" the moment anything caches.
+
+## REG-129 — a stale spec held Routine I red since ~v1634, and the message said so
+
+**Symptom.** `tests/v1624_run_thumbnails.spec.ts:40` —
+`expect(r.logo, 'Hell Mephisto has no boss anchor').toBeTruthy()` → *Expected truthy, Received null*.
+Routine I red for nine versions; never diagnosed, treated as mysterious.
+
+**Caught by.** Reproducing it locally and measuring all 8 best-run rows: `hasAnchor=true`,
+`logo=null`, and every `src` already the correct boss.
+
+**Root cause.** v1636 (`d200b7b`) deliberately replaced `data-art-logo` with `data-boss-tip` on the
+best-run `.f-runart` span, for a correct reason: `data-art-logo` resolves through the ITEM art map,
+so the row showed Mephisto's correct PORTRAIT while hovering it opened his SOULSTONE. The app was
+right and the spec was stale. `getAttribute('data-art-logo')` returns `null` for an attribute that
+no longer exists, and **a null was read as a mystery instead of as "the attribute is gone"**.
+
+**Fix.** v1643 — the spec reads `data-boss-tip`. Not as a rename: the old line compared the row
+title against the attribute, and the attribute is now an ID, so a straight swap would have asserted
+`"Hell TZ Pindleskin".contains("pindle")` — true by luck for four ids and nonsense for the rest
+(`"Hell Bovines"` does not contain `cows`). The id is resolved through `BOSSES` to that boss's NAME
+and the title must name that boss, which is what the assertion was always reaching for — and it is
+the check that catches the defect underneath: best-run Pindleskin rows carrying bossId `nihl`, fixed
+at source in the same version. The retired attribute is now itself asserted ABSENT on best-run rows,
+so its return (and the soulstone with it) is a red.
+
+**Prevention.** When you rename an attribute the app exposes for measurement, `grep tests/` for the
+old name in the same commit. And treat a NULL in a failing assertion as evidence about the shape of
+the DOM, not as noise — nine versions of red said "this attribute is gone" in plain text.
+
+## REG-130 — a gate with zero callers guarded nothing for weeks
+
+**Symptom.** `art/verify_boss_portraits.py` — the checker written specifically to stop boss art
+being silently swapped — never ran. Boss/manifest drift landed anyway.
+
+**Caught by.** A wiring audit: the script is absent from `hooks/pre-push` (which runs
+`visual_lock_invariant.py`, `tv/test_agent.py`, `tv/test_control.py`, `tv/test_tz_art.py`,
+`tv/demo_console.mjs` and the Playwright smoke), absent from all 8 `.github/workflows/*.yml`,
+absent from `package.json`, and absent from `tests/`. Zero callers.
+
+**Root cause.** The script WORKS — exit 0 on the real tree, exit 1 on deliberate breaks — so it
+passed its own hand-run at authoring time and was recorded as done. "It works" and "it runs" are
+different properties, and only the first one was ever checked.
+
+**Fix.** v1643 — wired into `hooks/pre-push` as the `boss-portraits` gate, immediately after
+`visual-lock`, through the same `gate_run` wrapper (kept log, 120s bound, non-zero exit blocks the
+push). Proven from the WIRED path: the hook went red on a real half-landed change (`BOSS_PORTRAIT`
+served `pindle` while the manifest still `_declined` it) and printed both mismatches, then green
+once the manifest caught up. The script also grew the check that hole implies — a portrait served by
+`bible.html` but in NEITHER manifest list is now a failure, not a silent pass.
+
+**Prevention.** A new checker is not done until (a) it is wired into pre-push or CI and (b) somebody
+has watched it FAIL from that wired path. A green nobody could ever have seen turn red is not a
+green.
+
+**Sweep (v1643).** The same stale read exists in two sibling specs on the same DOM and they are
+still red — `tests/v1625_fsets_run_thumbnails.spec.ts:102`
+(`expect(r.logo, 'no data-art-logo, so the board's hover card cannot bind').toBeTruthy()` on F·Sets
+run rows, which are built by the SAME `_runArtThumb` helper) and
+`tests/v1628_board_quality_tokens.spec.ts:490`
+(`querySelector('#tab-funi .f-card.f-pipe .f-runart[data-art-logo]')`, a selector that now matches
+nothing). Both were left untouched in v1643 only because another agent owned those files during the
+run; the diagnosis and the fix are identical to the one applied here — read `data-boss-tip`, resolve
+the id through `BOSSES` to a NAME, and compare the name. Until they are updated, Routine I stays red
+for this reason and no other. Measured on the v1643 tree: `v1624` 4/4 green, `v1625` 1 failure
+(`:90`), `v1628` 1 failure (`:368`), 16 other tests in those two files green.
+
+**Fallout, measured on the v1643 tree, and NOT yet fixed.** Appending `?v=<build>` changes the END
+of every art URL, and 14 spec files assert art `src` with an END-ANCHORED regex — 36 assertions of
+the shape `expect(src).toMatch(/lister01_graphic\.png$/)`, plus 8 exact-equality `toBe('art/…')`
+comparisons. Four of them sit in the PRE-PUSH SMOKE set, so the v1643 push was blocked by its own
+gate: `tests/v71_d2art.spec.ts:123` (rune-stash icons), `:219` (boss-nav chips — this one already
+asserted `reanimatedhorde-opt_graphic.png` for Pindleskin, which is a second independent witness
+that the picture was always there, cf. REG-127), `:273` (Lister's portrait), and
+`tests/v74_material_search.spec.ts:77` (Talic statue art). Distribution of the remaining anchored
+assertions: v71×10, v47×5, v127×4, v73×3, v78×2, v72×2, v116×2, v113×2, v564×1, v1616×1, v1615×1,
+v1614×1, v128×1, v74×1. The mechanical fix is `\.png$` → `\.png(\?|$)` (and `.split('?')[0]` before
+an equality compare), which is what `tests/v1624_run_thumbnails.spec.ts` already does.
+
+**Prevention (second lesson, and the expensive one).** A change to the SHAPE of a value — not its
+meaning — is a change to every assertion that pattern-matches it. Before shipping a global URL
+rewrite, grep the test suite for the OLD shape (`grep -rE '\.(png|jpg|gif)\$/' tests/`) in the same
+change. This is the same failure as REG-129 one layer up: an app-side rename that nobody grepped
+`tests/` for.

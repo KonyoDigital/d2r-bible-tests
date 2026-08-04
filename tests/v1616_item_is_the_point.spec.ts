@@ -63,7 +63,7 @@ const EXPECTED_FN = BOARD_HAS_OPEN_ITEM ? 'd2rOpenItem' : 'setActiveItem';
 /** two art files that genuinely exist, resolved at runtime so a renamed sprite cannot rot the spec */
 const REAL_ART: string[] = fs
   .readdirSync(path.join(REPO, 'art'))
-  .filter((f) => /^hd_.+\.png$/.test(f))
+  .filter((f) => /^hd_.+\.png(?:\?|$)/.test(f))
   .sort()
   .slice(0, 2)
   .map((f) => '/art/' + f);

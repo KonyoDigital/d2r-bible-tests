@@ -24,7 +24,7 @@ test.describe('v71 d2art artwork layer', () => {
         type: typeof m,
         len: names.length,
         allDiablo2io: names.every((n) => /^art\//.test(m[n])),
-        allImageExt: names.every((n) => /\.(png|gif|jpe?g)$/i.test(m[n])),
+        allImageExt: names.every((n) => /\.(png|gif|jpe?g)(?:\?|$)/i.test(m[n])),
         encoded: names.every((n) => !/ /.test(m[n])),           // spaces URL-encoded, no raw spaces
         hasItem: !!m['Arachnid Mesh'],
         hasRune: !!m['Ist'],
@@ -45,7 +45,7 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.hasBoss).toBe(true);
     expect(r.fns.every((t) => t === 'function')).toBe(true);
     expect(r.unknownNull).toBe(true);
-    expect(r.knownUrl).toMatch(/(hd_ist_rune|runeIst_icon)\.png$/);
+    expect(r.knownUrl).toMatch(/(hd_ist_rune|runeIst_icon)\.png(?:\?|$)/);
   });
 
   test('artOr emits an <img> with onerror fallback for mapped names, raw fallback for unmapped', async ({ page }) => {
@@ -134,9 +134,9 @@ test.describe('v71 d2art artwork layer', () => {
       };
     });
     expect(r.istImg).toBe(true);
-    expect(r.istSrc).toMatch(/(hd_ist_rune|runeIst_icon)\.png$/);
+    expect(r.istSrc).toMatch(/(hd_ist_rune|runeIst_icon)\.png(?:\?|$)/);
     expect(r.jahImg).toBe(true);
-    expect(r.jahSrc).toMatch(/(hd_jah_rune|runeJo_icon)\.png$/);
+    expect(r.jahSrc).toMatch(/(hd_jah_rune|runeJo_icon)\.png(?:\?|$)/);
   });
 
   test('the material detail card renders artwork for a mapped sunder (Bone Break)', async ({ page }) => {
@@ -159,7 +159,7 @@ test.describe('v71 d2art artwork layer', () => {
       return { hasImg: !!img, src: img?.getAttribute('src') || '' };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toMatch(/(hd_ist_rune|runeIst_icon)\.png$/);
+    expect(r.src).toMatch(/(hd_ist_rune|runeIst_icon)\.png(?:\?|$)/);
   });
 
   test('the calc grid tiles show art thumbnails for mapped items', async ({ page }) => {
@@ -212,8 +212,8 @@ test.describe('v71 d2art artwork layer', () => {
       }
       return out;
     });
-    expect(r.Baal).toMatch(/baal-opt_graphic\.png$/);
-    expect(r.Pindleskin).toMatch(/reanimatedhorde-opt_graphic\.png$/);
+    expect(r.Baal).toMatch(/baal-opt_graphic\.png(?:\?|$)/);
+    expect(r.Pindleskin).toMatch(/reanimatedhorde-opt_graphic\.png(?:\?|$)/);
   });
 
   test('the boss-nav chips show verified portrait art for every boss (incl. Andariel)', async ({ page }) => {
@@ -246,9 +246,9 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.mephLazy).toBe('lazy');
     expect(r.mephText).toContain('Mephisto');   // name still rendered alongside the art
     expect(r.baalImg).toBe(true);
-    expect(r.baalSrc).toMatch(/baal-opt_graphic\.png$/);
+    expect(r.baalSrc).toMatch(/baal-opt_graphic\.png(?:\?|$)/);
     expect(r.andaImg).toBe(true);
-    expect(r.andaSrc).toMatch(/Andariel_graphic\.png$/);
+    expect(r.andaSrc).toMatch(/Andariel_graphic\.png(?:\?|$)/);
     expect(r.andaText).toContain('Andariel');
   });
 
@@ -267,7 +267,7 @@ test.describe('v71 d2art artwork layer', () => {
     });
     expect(r.total).toBeGreaterThanOrEqual(18);
     expect(r.missing).toEqual([]);                       // EVERY super-unique has real art
-    expect(r.lister).toMatch(/lister01_graphic\.png$/);    // the MONSTER portrait, not the item
+    expect(r.lister).toMatch(/lister01_graphic\.png(?:\?|$)/);    // the MONSTER portrait, not the item
   });
 
   test('the new Lister super-unique card renders its verified portrait art', async ({ page }) => {
@@ -287,7 +287,7 @@ test.describe('v71 d2art artwork layer', () => {
     });
     expect(r.hasCard).toBe(true);
     expect(r.name).toMatch(/Lister the Tormentor/);
-    expect(r.src).toMatch(/lister01_graphic\.png$/);
+    expect(r.src).toMatch(/lister01_graphic\.png(?:\?|$)/);
     expect(r.lazy).toBe('lazy');
   });
 

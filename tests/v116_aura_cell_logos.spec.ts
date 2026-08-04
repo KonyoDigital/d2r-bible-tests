@@ -21,7 +21,7 @@ test.describe('v116 site-wide aura-cell logos', () => {
       const m = (window as any).AURA_ART || {};
       return {
         keys: Object.keys(m).sort(),
-        allHttps: Object.values(m).every((u: any) => /^art\/aura_[A-Za-z0-9_]+\.gif$/.test(u)),
+        allHttps: Object.values(m).every((u: any) => /^art\/aura_[A-Za-z0-9_]+\.gif(?:\?|$)/.test(u)),
         decoFn: typeof (window as any).decorateAuraLogos === 'function',
       };
     });
@@ -55,7 +55,7 @@ test.describe('v116 site-wide aura-cell logos', () => {
     expect(r.decorated).toBe(r.total);
     // all tagged auras exist in AURA_ART, so every cell has a real <img>, not just a glyph
     expect(r.withImg).toBe(r.total);
-    expect(r.firstSrc).toMatch(/^art\/aura_[A-Za-z0-9_]+\.gif$/);
+    expect(r.firstSrc).toMatch(/^art\/aura_[A-Za-z0-9_]+\.gif(?:\?|$)/);
     expect(r.firstLazy).toBe('lazy');
     // Desktop golden-merge: the aura pool table now shows the 7 Aura-Enchanted
     // auras + the bind tables tag Fanaticism/Meditation/Holy Fire. Concentration,

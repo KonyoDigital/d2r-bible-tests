@@ -12156,6 +12156,42 @@ const TZ_ZONES = [
 // the primary area's scene graphic). Every slug was HEAD-probed live (HTTP 200 + image)
 // before shipping — zero guessed paths. tzZoneCardHtml renders these as a banner, and a
 // hard onerror keeps a 404 from ever showing a broken-image box (the banner just hides).
+/* v1643 — A REPAIRED ASSET IS INVISIBLE UNTIL ITS URL CHANGES. This is why Konyo keeps
+   re-reporting pictures we have already fixed.
+   The page itself is served as bible.html?v=<build> (tv/control_app.py), so a version bump busts
+   the HTML and the JS — but every art URL was a bare 'art/<file>', so the IMAGES were never busted.
+   v269 clobbered ~230 art/*_graphic.png IN PLACE and v1636 repaired them IN PLACE: same filenames,
+   new bytes. Every browser that had ever loaded the old picture kept serving the old picture, and
+   the old art/diablo_graphic.png was a BOOK — a tan rectangle at 60px, exactly what he screenshotted
+   and reported as a "map tile" for a file that is already correct on disk.
+   ⚠ v1644 — WHAT THIS HELPER ACTUALLY COVERS, because v1643's comment here overstated it. It said
+   "called by EVERY art seam (_tzArtSrc, artUrl, _magicArtSrc, _runBossArt)". Only _runBossArt calls
+   it — 2 call sites (:35094 the portrait, :35116 the TZ level art). Measured live at v1643:
+   artUrl('Baal') = 'art/baal-opt_graphic.png', _tzArtSrc('act1-outdoors') and _magicArtSrc('Grand
+   Charm') likewise bare, no ?v=. Caught by LAW19, which is the whole reason that gate exists: a
+   comment describing a sweep is textually indistinguishable from the sweep.
+   THE CACHE-BUST STILL WORKS, VIA A SECOND LAYER — the DOM restamp + MutationObserver
+   (_restampEarlyArt / _artStampNode, ~38231) stamps EVERY <img> src as it mounts, whatever built it.
+   That is what makes a repaired asset visible, and it is proven: every rendered best-run thumbnail
+   measured as '...?v=v1643'. This helper is the belt; the observer is the braces.
+   NOT extended to the other three seams here, deliberately: they are called DIRECTLY by specs
+   (tests/v622_art_fidelity calls artUrl, tests/v345_magic_rare_art_tooltip calls _magicArtSrc) and
+   10 spec files anchor on /\.png$/ — the same anchoring that v1643's stamp broke in v71_d2art and
+   had to be migrated. Extending it is a real change with a spec migration attached, not a one-liner.
+   THE PREFIX TRAP, handled by design: D2IO_ART values already start with 'art/' while BOSS_PORTRAIT
+   values do NOT. This helper takes a FINISHED url and never adds a prefix of its own, so both
+   shapes go through it without double-prefixing. It also leaves data:, http(s):, protocol-relative
+   and already-queried urls untouched. */
+function _artV(u){
+  try {
+    if (!u) return u;
+    var s = String(u);
+    if (s.indexOf('data:') === 0 || s.indexOf('http') === 0 || s.indexOf('//') === 0 || s.indexOf('?') >= 0) return s;
+    if (s.indexOf('art/') !== 0 && s.indexOf('/art/') < 0) return s;   // not an art path — leave it alone
+    return s + '?v=' + ((window.D2R_BUILD && window.D2R_BUILD.id) || '0');
+  } catch(e){ return u; }
+}
+try { window._artV = _artV; } catch(e){}
 const TZ_ART_BASE = "art/";
 const TZ_ZONE_ART = {
   "Flayer Dungeon L3": "act3-flayerdungeon",
@@ -14500,6 +14536,10 @@ window.D2IO_ART = D2IO_ART;
 // Tiers: in-game HD extraction > maxroll HD > diablo2.io/specific > keyword slot-generic > corrupt base_.
 function _artTier(u){
   if (!u) return -1;
+  // v1643 — these tests are $-anchored on the extension, so a ?v=<build> cache-buster would sink
+  // every url to tier 2. _artTier is published on window, so strip the query defensively here
+  // rather than trusting every caller to hand over a bare path.
+  u = String(u).split('?')[0];
   if (/\/hd_[^/]+\.png$/.test(u)) return 4;
   if (/\/mr_[^/]+\.png$/.test(u)) return 3;
   if (/\/base_[^/]+\.png$/.test(u)) return 0;   // the v381 corrupt-batch class
@@ -15452,6 +15492,18 @@ try { window._aicRenderCompare=_aicRenderCompare; } catch(e){}
 // Pass the base type OR the full rolled name — the rolled name usually ENDS with its base
 // ("Flame Rift Grand Charm", "Sander's Riprap Heavy Boots", "Bone Visage"), so keyword-scanning the
 // name recovers a sprite even for finds recorded before the base field existed.
+// v1644 — THE WRAPPER THAT STAMPED NOTHING IS GONE. v1643 split this into
+// `_magicArtSrc(b){ return _magicArtSrcRaw(b); }` + `_magicArtSrcRaw`, with a comment claiming "ONE
+// wrapper stamps them all with the build id (see _artV)". It never called _artV. Measured at
+// runtime: _magicArtSrc('Grand Charm') === _magicArtSrcRaw('Grand Charm') === 'art/logo_charm.png',
+// identical — a pure no-op indirection whose only caller was itself, sitting under a comment that
+// described work it did not do. Collapsed back to one function.
+// WHY IT IS NOT STAMPED HERE INSTEAD: art urls ARE cache-busted, by the DOM restamp + MutationObserver
+// (_restampEarlyArt / _artStampNode, ~38231) which stamps every <img> src as it mounts — that is the
+// layer doing the real work, and it covers this seam already. Stamping at THIS return would also
+// change what `_magicArtSrc()` returns to its direct callers, and tests/v345_magic_rare_art_tooltip
+// calls it directly while 10 spec files anchor on /\.png$/. That migration is a deliberate separate
+// change, not a side effect of a comment fix.
 function _magicArtSrc(base){
   var b=String(base||'').toLowerCase();
   if(!b) return null;
@@ -34967,17 +35019,72 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      Coverage measured before writing this, not after: all 13 bosses resolve — 8 through the zone
      art the TZ panel already uses (loc's leading zone -> tzArtFor -> _tzArtSrc), 5 through their
      own portrait. Portrait first, because he asked for "the bosses themselves"; the level art is
-     the fallback, and the emoji only if a boss somehow has neither. */
-  /* v1629 — bossId -> its own portrait in art/. Verified present on disk; a boss with no entry
-     resolves through the level art instead of guessing. */
+     the fallback, and the emoji only if a boss somehow has neither.
+     v1643 — that 8/5 split is HISTORICAL (v1624). Re-measured against the live map today, not
+     re-stated: 13 bosses, 12 through their own portrait, 1 (pit) through the level art.
+     v1629 made it 10/3; v1642 added dclone; v1643 added pindle. Only `pit` is left on level art,
+     and that is a decision, not a gap — The Pit is an area farm with no boss in it. */
+  /* v1629 — bossId -> its own portrait in art/. A boss with no entry resolves through the level art
+     instead of guessing.
+     v1642 — "verified present on disk" is NOT verification and that phrase is deleted for it: a
+     path that resolves is how the soulstone served as Mephisto for seven weeks. Every file below
+     has been OPENED and what it depicts is written down in art/boss_portraits.manifest.json;
+     `python3 art/verify_boss_portraits.py` now checks the bytes AND re-parses this very map, so
+     the manifest and the app cannot drift apart, a quarantined file cannot be wired in, and the
+     two deliberate refusals cannot be quietly "fixed". */
   var BOSS_PORTRAIT = {
     andariel:  'Andariel_graphic.png',      mephisto:  'mephisto_graphic.png',
     duriel:    'duriel_graphic.png',        diablo:    'diablo_graphic.png',
     baal:      'baal-opt_graphic.png',      nihl:      'nihlathak-opt_graphic.png',
     cows:      'hellbovine_graphic.png',    summoner:  'summoner_graphic.png',
-    countess:  'countess01_graphic.png',    travincal: 'councilmember_graphic.png'
-    // dclone / pindle / pit: no portrait shipped -> level art
+    countess:  'countess01_graphic.png',    travincal: 'councilmember_graphic.png',
+    /* v1642 — Konyo: the Pindle thumb is "still showing here like maps plainly instead of the HD
+       art". Three ids had no entry. Each was decided on its own evidence, not swept in together:
+
+       dclone -> diablo_hell_graphic.png. SHIPPED. Two independent witnesses agreeing, which is the
+         bar here: (1) it was OPENED — a huge hulking demon in a wide stance, hooked claws, two
+         pairs of long horns swept up and back off a crested head, rendered near-black with teal
+         shading (a DARKENED Diablo, which is what a Diablo CLONE is); (2) the app's OWN name->art
+         map already reads "Uber Diablo (Diablo Clone)": "art/diablo_hell_graphic.png"
+         (bible.html:14336) and the standby-hero CSS calls it the "Diablo silhouette" (:36863).
+         BOSSES names this boss "Uber Diablo (Diablo Clone)", so label and picture agree.
+         NOT art/hdx_uberdiablo_icon.png — that file was opened too and is diagonal gold/purple
+         SCANLINE NOISE with no subject at all. It is quarantined in the manifest so the next agent
+         who greps "uberdiablo" does not reach for it.
+
+       pindle -> reanimatedhorde-opt_graphic.png. SHIPPED at v1643, and the v1642 note that used to
+         sit here was FLATLY WRONG, so it is deleted rather than softened. It claimed "there is no
+         Pindleskin picture: art/ has 17 super-unique GIFs and Pindleskin is not among them, and
+         D2IO_ART has no 'Pindleskin' key". D2IO_ART HAS HAD THAT KEY FOR WEEKS —
+         "Pindleskin": "art/reanimatedhorde-opt_graphic.png" (bible.html:14217) — and the file has
+         been on disk since 2026-06-14. ONE `grep -n Pindleskin bible.html` would have found it.
+         The picture was OPENED before wiring: a gaunt undead skeletal warrior on white, dark bone
+         limbs, a rectangular shield on the left arm and a long thin spear angled down-left. A
+         Reanimated Horde — which is Pindleskin's OWN monster class (he is the unique Defiled
+         Warrior of that pack). Same honest caveat as dclone: it is a dark, low-contrast render, a
+         strong silhouette rather than a lit portrait, but the subject is unambiguous.
+         THE LESSON, and it is the whole reason this paragraph is this long: the dclone answer was
+         found by consulting the app's OWN name->art map. The IDENTICAL technique answers pindle
+         and was simply not applied a second time. BEFORE CONCLUDING AN ASSET DOES NOT EXIST, ASK
+         THE APP WHAT IT ALREADY BELIEVES.
+         THE ONE REFUSAL THAT WAS RIGHT AND STAYS RIGHT: never borrow nihl's portrait for pindle.
+         _runBossArt returns { name: b.name } and BOSSES has {"id":"pindle","name":"Pindleskin"}
+         alongside a SEPARATE {"id":"nihl","name":"Nihlathak"} — so Nihlathak's hooded robed elder
+         would arrive labelled "Pindleskin". Two different monsters. That is the
+         soulstone-as-Mephisto defect with a new filename, and it is still refused.
+
+       pit -> NOT A BOSS, so level art is the CORRECT picture and this is closed, not pending. Its
+         own row reads why:'mlvl 85 · TC85 — best non-boss item ceiling' (bible.html:23894). The
+         Pit is an AREA farm; giving it a portrait would invent a monster that does not exist. */
+    dclone:    'diablo_hell_graphic.png', pindle: 'reanimatedhorde-opt_graphic.png'
+    // pit: no portrait BY DECISION (see above) -> level art. Not an oversight, and not pending.
   };
+  /* v1643 — PUBLISHED SO THE SPEC'S PROOF IS NOT VACUOUS. This map lives inside an IIFE, so the
+     run-thumbnail spec's `(0,eval)('BOSS_PORTRAIT')` was throwing and falling back to {} — which
+     made its "the row wears BOSS_PORTRAIT[id]" assertion skip every single row and pass over
+     anything. Measured before publishing: Object.keys read 0. A check that never fires is not a
+     check, and that is the same class of hole this whole arc has been closing. */
+  try { window.BOSS_PORTRAIT = BOSS_PORTRAIT; } catch(e){}
   function _runBossArt(bossId, bossLabel){
     try {
       var B = (typeof BOSSES !== 'undefined') ? BOSSES : (window.BOSSES || []);
@@ -34996,11 +35103,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          The portraits were in art/ the whole time; v1624 just never used them. This map is
          EXPLICIT on purpose. A prefix or fuzzy match is what caused the bug, and art/ contains
          durielsshell_graphic.png — Duriel's SHELL, an item — which any "starts with duriel" rule
-         grabs on its way past. Ten of thirteen have a portrait; the three without fall through to
-         the LEVEL art, which is what he asked for originally. */
+         grabs on its way past. TWELVE of thirteen have a portrait as of v1643; the one without
+         (pit) falls through to the LEVEL art — see the decision block on the map above, and
+         art/boss_portraits.manifest.json "_declined", which records WHY rather than leaving it
+         looking like an oversight. */
       var url = null;
       var pic = BOSS_PORTRAIT[bossId] || null;
-      if (pic) url = 'art/' + pic;
+      /* v1643 — BOSS_PORTRAIT values carry NO 'art/' prefix (D2IO_ART's do), so the prefix is added
+         here and _artV only stamps the finished url — no double-prefixing. Without the stamp a
+         repaired portrait stays invisible in every browser that cached the broken one. */
+      if (pic) url = _artV('art/' + pic);
       if (!url){
         /* the boss's LEVEL, via the same seam the terror-zone cards paint with.
            v1629 — TRY EVERY SEGMENT, not just the first. Pindleskin's loc reads
@@ -35022,7 +35134,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            nothing at all. The terror-zone cards have always used the tz_ form (bible.html:23782);
            this fallback simply never asked them how. Caught by the "must actually decode"
            assertion, which is the whole reason that assertion tests decoding rather than markup. */
-        if (slug){ url = TZ_ART_BASE + 'tz_' + slug + '.jpg'; }
+        if (slug){ url = _artV(TZ_ART_BASE + 'tz_' + slug + '.jpg'); }   // v1643 — cache-busted like every other art seam
       }
       return { url: url, name: b.name, emoji: b.emoji || '\ud83d\udcdc' };
     } catch(e){ return null; }
@@ -38136,7 +38248,67 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1641', name:'v1641 - tz-card-height', date:'2026-08-04', note:'the TZ cards stand level because prose no longer sets their height, and the gate that policed them can finally fail' };
+  window.D2R_BUILD = { id:'v1643', name:'v1643 - PINDLESKIN HAS A FACE PLUS ART CACHE BUST', date:'2026-08-04', note:'Pindleskin finally wears Pindleskin. The v1642 note claimed no Pindleskin render exists in the repo and that claim was FALSE: art/reanimatedhorde-opt_graphic.png has been on disk since 2026-06-14 and the app own name-to-art map D2IO_ART has read Pindleskin -> art/reanimatedhorde-opt_graphic.png at bible.html line 14217 for weeks. One grep would have found it. The picture was OPENED before wiring: a gaunt undead skeletal warrior on white with bare bone limbs, a rectangular shield on the left arm and a long thin spear angled down, a Reanimated Horde, which is Pindleskin own monster class. BOSS_PORTRAIT now covers 12 of 13 bosses. The lesson: before concluding an asset does not exist, ask the app what it already believes. The one refusal that was right is kept: never borrow the Nihlathak portrait for pindle, because _runBossArt returns the BOSSES name and a robed elder would arrive labelled Pindleskin. pit stays on level art by decision because The Pit is an area farm with no boss in it. Second fix: EVERY art url now carries the build id. Art was built as art/file with no version query while the page itself loads as ?v=build, so a version bump busted the HTML and the JS and never the IMAGES. v269 broke about 230 art files in place and v1636 repaired them in place under the same filenames, so every cached browser copy kept serving the old picture. That is why an already-correct Diablo render kept being re-reported as a book. One shared helper _artV stamps the two _runBossArt seams (the boss portrait and the TZ level art) and a DOM restamp plus MutationObserver stamps every other img src as it mounts, which is the layer that actually makes a repaired asset visible. The earlier claim that _artV also stamps _tzArtSrc, artUrl and _magicArtSrc was FALSE and is corrected here: those three were measured returning bare urls. Extending the stamp to them is a separate change because specs call them directly and 10 spec files anchor on a png end-of-string.' };
+  /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
+     are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
+     fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
+     AND the class does not stop there: plenty of art is a HARDCODED src="art/..." in the markup,
+     which never passes through _artV at all. MEASURED on this tree: 2656 rendered art urls, of
+     which the four helpers stamped 2489 and 167 were still bare (countess01_graphic, logo_scroll,
+     hd_perfect_skull, mr_annihilus, ...). Fixing only the helpers would have left one art url in
+     sixteen serving a stale picture forever — the same bug, shipped a second time under a
+     different seam. This sweep stamps BOTH shapes and is a no-op on anything already stamped. */
+  function _restampEarlyArt(){
+    var n = 0; try {
+      var imgs = document.images || [];
+      for (var i = 0; i < imgs.length; i++){
+        var s = imgs[i].getAttribute('src') || '';
+        if (s.indexOf('art/') !== 0) continue;
+        if (/[?&]v=0$/.test(s)){                       // painted before D2R_BUILD existed
+          imgs[i].setAttribute('src', s.replace(/([?&]v=)0$/, '$1' + window.D2R_BUILD.id)); n++;
+        } else if (s.indexOf('?') < 0){                // hardcoded src="art/..." in the markup
+          imgs[i].setAttribute('src', s + '?v=' + window.D2R_BUILD.id); n++;
+        }
+      }
+    } catch(e){}
+    window._artRestamped = (window._artRestamped || 0) + n; return n;
+  }
+  /* WHY THE STAMP LIVES HERE AND NOT IN artUrl(). Stamping inside artUrl was tried first and
+     REVERTED, measured rather than guessed: it turned every art url into 'art/x.png?v=v1643' and
+     broke 7 assertions in tests/v71_d2art.spec.ts, which are $-anchored on the extension
+     (/baal-opt_graphic\.png$/ and friends) — plus _artTier's own tier regexes. artUrl is a MAP
+     LOOKUP and callers are entitled to a bare path from it. Cache-busting is a DELIVERY concern,
+     so it belongs at the DOM, where it also catches the two things a helper never could:
+     hardcoded src="art/..." in the markup, and any future seam nobody remembers to route.
+     _runBossArt keeps its inline _artV so the run board is deterministically stamped the instant
+     it renders rather than one observer tick later.
+     The observer watches childList only — never attributes — so rewriting a src cannot re-trigger
+     it. That is what keeps this from being an infinite loop. */
+  function _artStampNode(node){
+    try {
+      if (!node || node.nodeType !== 1) return;
+      var list = (node.tagName === 'IMG') ? [node] : node.querySelectorAll ? node.querySelectorAll('img') : [];
+      for (var i = 0; i < list.length; i++){
+        var s = list[i].getAttribute('src') || '';
+        if (s.indexOf('art/') !== 0 || s.indexOf('?') >= 0) continue;
+        list[i].setAttribute('src', s + '?v=' + window.D2R_BUILD.id);
+      }
+    } catch(e){}
+  }
+  try {
+    window._restampEarlyArt = _restampEarlyArt; _restampEarlyArt();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ _restampEarlyArt(); });
+    else setTimeout(_restampEarlyArt, 0);
+    setTimeout(_restampEarlyArt, 1500);
+    if (typeof MutationObserver === 'function'){
+      new MutationObserver(function(muts){
+        for (var m = 0; m < muts.length; m++){
+          var added = muts[m].addedNodes || [];
+          for (var a = 0; a < added.length; a++) _artStampNode(added[a]);
+        }
+      }).observe(document.documentElement, { childList:true, subtree:true });
+    }
+  } catch(e){}
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

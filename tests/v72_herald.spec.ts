@@ -61,7 +61,7 @@ test.describe('v72 Herald of Terror ID card', () => {
       return {
         count: rows.length,
         names,
-        allImgs: imgs.every((s) => /^art\/.*_graphic\.png$/.test(s)),
+        allImgs: imgs.every((s) => /^art\/.*_graphic\.png(?:\?|$)/.test(s)),
         bonebreakImg: imgs[0],
         breaks,
         fnType: typeof (window as any).renderHeraldCard,
@@ -73,7 +73,7 @@ test.describe('v72 Herald of Terror ID card', () => {
       'Bone Break', 'Black Cleft', 'Crack of the Heavens', 'Cold Rupture', 'Flame Rift', 'Rotting Fissure',
     ]);
     expect(r.allImgs).toBe(true);                       // every charm shows real art
-    expect(r.bonebreakImg).toMatch(/bonebreakcharm_graphic\.png$/);
+    expect(r.bonebreakImg).toMatch(/bonebreakcharm_graphic\.png(?:\?|$)/);
     expect(r.breaks).toEqual(['Physical', 'Magic', 'Lightning', 'Cold', 'Fire', 'Poison']);
   });
 

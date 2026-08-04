@@ -109,6 +109,23 @@ if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE
 fi
 echo "pre-push: ✅ visual-lock intact."
 
+# v1643 — BOSS-PORTRAIT gate (instant, pure stdlib): the twelve boss thumbnails must still be the
+# BYTES A HUMAN OPENED (art/boss_portraits.manifest.json pins each sha256 next to a sentence saying
+# what that human saw), and bible.html's BOSS_PORTRAIT map must serve exactly those files. Mephisto
+# shipped as a blue soulstone and Diablo as a leather book for seven weeks (v269 → v1636) with every
+# automated check green — the path resolved, naturalWidth was > 0 — so this gate exists because "it
+# loads" was never evidence that it is the right picture.
+#
+# It is here because REG-130: the script had ZERO callers. It passed its own tests and guarded
+# nothing. A checker nobody has watched fail from its wired path is not known to be a gate.
+if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list to see what each depicts)" 120 -- \
+     python3 "$REPO/art/verify_boss_portraits.py"; then
+  echo "          ↑ a boss thumbnail is not the picture a human blessed, or bible.html and the"
+  echo "            manifest disagree. OPEN the image before re-blessing any hash."
+  exit 1
+fi
+echo "pre-push: ✅ boss portraits are the pictures a human opened, and bible.html serves them."
+
 # v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
 # no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
 if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then

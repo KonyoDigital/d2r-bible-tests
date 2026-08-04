@@ -168,7 +168,7 @@ test.describe('v1614 — game art, not emoji', () => {
     const shipped = fs.readdirSync(path.join(REPO, 'art')).filter((f) => f.startsWith('ui_'));
     expect(shipped.length, 'the console ships ui_* icons').toBeGreaterThanOrEqual(8);
     for (const f of shipped) {
-      const role = f.replace(/^ui_/, '').replace(/\.png$/, '');
+      const role = f.replace(/^ui_/, '').replace(/\.png(?:\?|$)/, '');
       expect(src, `art/${f} has no entry in extract_ui_icons.py — it cannot be re-pulled`)
         .toContain('"' + role + '"');
     }

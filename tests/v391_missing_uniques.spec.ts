@@ -44,7 +44,7 @@ test.describe('v391 missing uniques enriched into the codex', () => {
     }, NEW);
     for (const n of NEW) {
       expect(r[n].inExtra, `${n} in EXTRA_ITEMS (intake vocab)`).toBe(true);
-      expect(r[n].art, `${n} resolves real art`).toMatch(/^art\/.+\.(png|gif)$/);
+      expect(r[n].art, `${n} resolves real art`).toMatch(/^art\/.+\.(png|gif)(?:\?|$)/);
     }
   });
 

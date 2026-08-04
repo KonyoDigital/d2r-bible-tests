@@ -136,7 +136,7 @@ test.describe('v1615 — one concept, one picture', () => {
     expect(s.chip.forge, 'a craft chip must show its GEM, not the generic Forge medallion')
       .not.toBe(s.tab.forge);
     expect(s.chip.forge, 'and that picture must be one of the four craft gems')
-      .toMatch(/hd_perfect_(amethyst|ruby|emerald|sapphire)\.png$/);
+      .toMatch(/hd_perfect_(amethyst|ruby|emerald|sapphire)\.png(?:\?|$)/);
   });
 
   test('★★ RUNES and STASH agree across their surfaces too', async ({ page }) => {

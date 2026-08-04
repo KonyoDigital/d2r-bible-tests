@@ -110,11 +110,11 @@ test.describe('v47 event cards — pinnacle events expand inline like boss/TZ de
   test('themed event headers carry verified diablo2.io art logos with emoji fallback', async ({ page }) => {
     const r = await page.evaluate(() => {
       const want: Record<string, { art: RegExp; emoji: string }> = {
-        'event-uber-tristram':    { art: /hellfiretorch_graphic\.png$/, emoji: '🌀' },
-        'event-uber-id-cards':    { art: /baal-opt_graphic\.png$/,      emoji: '👹' },
-        'event-cow-level':        { art: /hellbovine_graphic\.png$/,    emoji: '🐄' },
-        'event-diablo-clone':     { art: /diablo_graphic\.png$/,        emoji: '🌑' },
-        'event-colossal-ancients':{ art: /talic-opt_graphic\.png$/,     emoji: '⚡' },
+        'event-uber-tristram':    { art: /hellfiretorch_graphic\.png(?:\?|$)/, emoji: '🌀' },
+        'event-uber-id-cards':    { art: /baal-opt_graphic\.png(?:\?|$)/,      emoji: '👹' },
+        'event-cow-level':        { art: /hellbovine_graphic\.png(?:\?|$)/,    emoji: '🐄' },
+        'event-diablo-clone':     { art: /diablo_graphic\.png(?:\?|$)/,        emoji: '🌑' },
+        'event-colossal-ancients':{ art: /talic-opt_graphic\.png(?:\?|$)/,     emoji: '⚡' },
       };
       return Object.entries(want).map(([id, w]) => {
         const head = document.querySelector(`#${id} .event-card-head`)!;
