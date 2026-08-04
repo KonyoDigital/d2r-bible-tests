@@ -12,6 +12,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 from __future__ import annotations
 
+import hashlib
 import bisect
 import collections
 import inspect
@@ -9783,7 +9784,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1636",
+        "ver": "v1639",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10518,10 +10519,29 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._json(500, {"ok": False, "msg": str(e)})
             return
+        # v1638 — A REPAIRED ASSET MUST NOT STAY INVISIBLE FOR A DAY. This sent
+        # `public, max-age=86400`, so the webview reused its cached copy for 24h WITHOUT ASKING.
+        # art/mephisto_graphic.png was repaired IN PLACE at v1636 (v269 had overwritten it with a
+        # soulstone by fuzzy name match) and Konyo still saw the soulstone: same URL, new bytes,
+        # and the browser never requested it. `?v=` on the URL was the alternative and it is worse
+        # — bible.html builds art URLs in ~60 places (static src= plus artUrl/tzArtFor/
+        # _itemArtImg/_runBossArt), so it means touching every site and remembering forever, on
+        # exactly the class that has already been one-off patched twice (v284, v287) and never
+        # generalised. `no-cache` does NOT mean "do not cache": it means "cache, but revalidate".
+        # With the ETag below the revalidation is a bodyless 304, and this server is loopback.
+        etag = '"%s"' % hashlib.md5(data).hexdigest()
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")
+            self._cors()
+            self.end_headers()
+            return
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "public, max-age=86400")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("ETag", etag)
         self._cors()
         self.end_headers()
         self.wfile.write(data)

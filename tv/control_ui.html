@@ -2564,15 +2564,6 @@
     filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
   .tf-row.tf-chron:hover .tf-i { filter: brightness(1.12) drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
   .hd-tz .hd-h .hd-sub { letter-spacing: .12em; }
-  /* full width means the two rows can sit side by side instead of stacking */
-  @media (min-width: 900px) {
-    .hd-tz .tz-body { flex-direction: row; align-items: stretch; }
-    .hd-tz .tz-slot { flex: 1 1 0; min-width: 0; }
-    /* v1596 — EQUAL WIDTH. LIVE used to take 1.35 of the row, so even once the two cards shared a
-       type scale their columns still could not line up. The rotation is one thing at two moments;
-       both moments get the same column. */
-    .hd-tz .tz-slot.now { flex: 1 1 0; }
-  }
   /* ── v1567 — the TERROR ZONE section, composed ─────────────────────────────────────────────
      Konyo: "TZ now and next should be upgraded... flagship style section, more design here not
      just text." It was two label:value rows. The rotation he is deciding about now leads at hero
@@ -2581,6 +2572,34 @@
      rotation clock runs underneath. Sizes are --fs-* tokens (13px console floor — it is watched
      on a TV) and every weight is a --fw-* token (visual-lock invariant). */
   .hd-tz .tz-body { display: flex; flex-direction: column; gap: 7px; }
+  /* ══ v1637 · THE TZ CARD'S SIDE-BY-SIDE LAYOUT HAD BEEN DEAD SINCE THE RULE ABOVE WAS WRITTEN ══
+     `full width means the two rows can sit side by side instead of stacking` was written as a
+     @media (min-width:900px) block, and it sat ABOVE the `.hd-tz .tz-body` base rule. Identical
+     specificity (two classes), so THE LATER RULE WINS at every viewport and `flex-direction: column`
+     silently beat it — a media query is not more specific, it only wraps.
+     MEASURED on a 1920px viewport with the CDP render gate (nothing about this was visible to a
+     selector read, which is why it survived v1567 → v1636): #hd-tz 1401px of a 1416px dash, and
+     inside it `getComputedStyle(.tz-body).flexDirection === "column"` with BOTH slots at 1371px,
+     stacked, 267px tall. LIVE NOW and UP NEXT each ran one short line across a 1371px card and left
+     the rest of the row empty — the "empty space in the middle" of the Sessions column that
+     v1636 tried to solve by widening a card that was ALREADY the full width.
+     The block is unchanged; it has only moved BELOW the declaration it was always meant to override. */
+  @media (min-width: 900px) {
+    .hd-tz .tz-body { flex-direction: row; align-items: stretch; }
+    .hd-tz .tz-slot { flex: 1 1 0; min-width: 0; }
+    /* v1596 — EQUAL WIDTH. LIVE used to take 1.35 of the row, so even once the two cards shared a
+       type scale their columns still could not line up. The rotation is one thing at two moments;
+       both moments get the same column. */
+    .hd-tz .tz-slot.now { flex: 1 1 0; }
+    /* v1637 — HALF A ROW IS NARROWER THAN A WHOLE ONE, so the zone name must be allowed to wrap.
+       Measured after the fix above: a 1401px card gives each slot 682px, and `.tz-zones`
+       (repeat(auto-fit, minmax(238px,1fr)), :2634) puts two zones side by side at ~315px each —
+       at which width `.tzz-txt b`'s nowrap+ellipsis truncated "Moo Moo Farm" to "Moo Moo …".
+       That ellipsis is right for a one-line chip and wrong for the hero name of a zone he is
+       deciding whether to farm. Two lines, then ellipsis — the name is never silently halved. */
+    .hd-tz .tz-slot .tzz-txt b { white-space: normal; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  }
   .act.b-mini .ic { color: var(--gold, #f0c060); }
   .act.b-mini.mini-live { border-color: rgba(240,192,96,.55); }
   .act.b-mini.mini-live .ic { animation: miniPulse 1s ease-in-out infinite; }
@@ -2616,12 +2635,19 @@
      name. auto-fit + minmax gives equal columns that reflow at the same breakpoint, and stretch
      makes them equal HEIGHT — so "Travincal / the Council" and "Blood Moor / 520 density" line up
      on the same baselines instead of floating at their own. */
+  /* ══ REG-104 · THE AUTO-FIT FALLBACK WAS IN THE WRONG MEDIA QUERY ═════════════════════════════
+     `repeat(var(--tz-cols), minmax(0,1fr))` obeys the zone COUNT and ignores the space. A four-zone
+     rotation ("Nihlathak's Temple, Halls of Anguish, Halls of Pain, and Halls of Vaught") therefore
+     cut a 658px LIVE slot into FOUR 157.75px columns and every label inside collapsed: measured by
+     CDP at 1920px, 13 text nodes with scrollWidth > clientWidth, the zone NAMES at 0px wide and
+     "act 5" / "700 density · alvl 84" clipped to 49.8px. The auto-fit fallback that would have
+     wrapped them 2×2 existed — under `@media (max-width: 900px)`, i.e. only where the grid was
+     never the problem. v1637's own comment already ASSUMED auto-fit was in force above 900px
+     ("two zones side by side at ~315px each"); it was not. Same defect class as v1637 itself:
+     the right rule, parked in a block that never runs.
+     minmax(min(238px, 100%), 1fr) so a slot narrower than one track wraps instead of overflowing. */
   .tz-zones { display: grid; gap: 9px; align-items: stretch;
-    grid-template-columns: repeat(var(--tz-cols, 2), minmax(0, 1fr)); }
-  /* below the fold of a narrow console the shared grid would squeeze; fall back to auto-fit */
-  @media (max-width: 900px) {
-    .tz-zones { grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); }
-  }
+    grid-template-columns: repeat(auto-fit, minmax(min(238px, 100%), 1fr)); }
 
   /* v1578 — FLAGSHIP. The zone card carries the game's own art as its FACE, at a size that can
      actually be read from the couch: the console is watched on a TV, and a 30px thumbnail of a
@@ -3168,7 +3194,20 @@
      ⚠ v1636 — #hd-taskforce IS wide now, so this list is HISTORY, not a current inventory: the
      DAILY TASK FORCE was still the ~half-width case Konyo called "dead space" ("using the space
      so its stretched"), measured at 532px inside a 1075px zone. It joined .hd-wide and now spans
-     the full 1075px; only #hd-forge and #hd-lastsession are still non-wide. The v1289 comment below still promised "Task Force ▸ Last Session, Forge ▸ Live
+     the full 1075px; only #hd-forge and #hd-lastsession are still non-wide.
+     ⚠ v1637 — "still non-wide" IS NOT "still half a column" FOR THE CARDS THAT WERE MEASURED.
+     CDP at 1920px (dash 1416px): #hd-tz/#hd-taskforce/#hd-forge/#hd-kpi/#hd-chron/#hd-vault 1401px.
+     #hd-forge is full width without .hd-wide because it is ALONE in zone Ⅱ and the v1507 rule
+     `.zone > .hd-col:nth-child(2):last-child { grid-column: 1 / -1 }` spans it — NOT because a
+     sibling's hd-wide "collapses the zone to one track". Zones keep their auto-fit tracks
+     (`459px 459px 459px` at 1401px); a 1/-1 card spans them, it does not delete them.
+     ⚠ v1638 — the v1637 claim that #hd-lastsession was already full width is FALSE. It was never
+     painted (stub had zero sessions → hidden → 0×0), so the class-list reading won by default.
+     Forced visible at the same 1920px viewport: #hd-lastsession measured **459px of 1401px**
+     (`grid-column: auto`), the exact dead-column shape v1464 described. It is not beside
+     #hd-taskforce (different zone) and it is not alone in zone Ⅲ, so neither the sibling-wide
+     myth nor the lone-card rule saved it. It now carries .hd-wide.
+     The v1289 comment below still promised "Task Force ▸ Last Session, Forge ▸ Live
      Intake" pairs; that stopped being true when v1424 inserted the banners and #hd-intake was
      hidden. auto-fit/minmax pairs cards again WHEN there is room for two real columns
      (>= ~2x360px) and gives one honest column when there is not — at 1105px the dash is 802px,
@@ -4418,16 +4457,7 @@
             </div>
             <div class="ct-out" id="ct-out"></div>
           </div>
-          <!-- v1537 — 🔍 THE READ CHAIN. Konyo's cousin did an ON AIR and his rune stash never got
-             read; "the readers aren't working" turned out to be five different possible failures
-             (REG-086). This says WHICH link broke on THIS machine, which is the machine whose
-             reading is in question — and it needs no terminal, because the person who needs it most
-             is on a Windows box he may never open one on. -->
-        <div class="hd-col hd-wide hd-readh" id="hd-readh" hidden>
-          <div class="hd-h">🔍 THE READ CHAIN <span class="hd-sub" id="readh-sub">which link broke, on this machine</span></div>
-          <div class="readh-body" id="readh-body"></div>
-        </div>
-        <!-- v1526 — WHAT HE OPENED IN GAME. The live agent records a Chronicle visit for free
+          <!-- v1526 — WHAT HE OPENED IN GAME. The live agent records a Chronicle visit for free
                (v1522); this is where that recording becomes an offer. It is deliberately above the
                sweep controls: the panels he actually opened are better evidence than a blind sweep
                of everything, and cheaper. -->
@@ -4436,6 +4466,15 @@
                without the evidence behind it: every grounded name carries the gate's own sentence,
                and every held name carries the reason it was held. -->
           <div class="chron-review" id="chron-review" hidden></div>
+        </div>
+        <!-- v1537 — 🔍 THE READ CHAIN.
+             v1639 — was accidentally nested INSIDE #hd-chron (an unclosed section let this card
+             become a child of the sweep panel). Measured parent was "hd-chron"; the card sat at
+             1371px of a 1401px peer and every selector walk for "did the collapse land on the
+             read chain or the sweep" had to dig into a foreign tree. Closed as its own .hd-col. -->
+        <div class="hd-col hd-wide hd-readh" id="hd-readh" hidden>
+          <div class="hd-h">🔍 THE READ CHAIN <span class="hd-sub" id="readh-sub">which link broke, on this machine</span></div>
+          <div class="readh-body" id="readh-body"></div>
         </div>
         <!-- v1596 — 🏦 THE VAULT ACCUMULATOR. Konyo: "the vault manager is synced to also slowly
              analyze and remember especially between and among sessions ... it should eventually in
@@ -4469,7 +4508,13 @@
           <div class="chron-review" id="vault-review" hidden></div>
         </div>
         <!-- v936 (STORY ARC R2b) — LAST SESSION digest -->
-        <div class="hd-col hd-lastsession" id="hd-lastsession" hidden>
+        <!-- v1638 — hd-wide. Measured with a forced-visible paint at 1920px: without it this card
+             sat at 459px of a 1401px zone (one auto-fit track of `459px 459px 459px`) with ~942px of
+             black beside it. v1637 claimed every Sessions card was full-width; that claim was true
+             for the cards its stub painted and FALSE for the one it never un-hid. Forge is full
+             width without this class only because it is alone in zone Ⅱ and hits the v1507
+             `:nth-child(2):last-child` span — lastsession is NOT alone in zone Ⅲ. -->
+        <div class="hd-col hd-wide hd-lastsession" id="hd-lastsession" hidden>
           <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
           <div class="hd-tf-rows" id="hd-ls-row"></div>
         </div>
@@ -12715,8 +12760,19 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var _tzKey = function (name) {
       var n = String(name || '').replace(/[\u2018\u2019\u02BC\u00B4`]/g, "'").trim();
       if (TZ_INFO[n]) return n;
+      /* v1639 — English "and the Forgotten Tower" survives the Oxford splitter as
+         "the Forgotten Tower" (the splitter only strips a leading "and "). Flat
+         "theforgottentower" then misses TZ_INFO's "Forgotten Tower". Try without a
+         leading article before giving up — "The Pit" / "The Chaos Sanctuary" still
+         hit on the first pass because they ARE the table keys. */
       var flat = n.toLowerCase().replace(/[^a-z0-9]/g, '');
       for (var k in TZ_INFO) { if (k.toLowerCase().replace(/[^a-z0-9]/g, '') === flat) return k; }
+      if (flat.indexOf('the') === 0 && flat.length > 3) {
+        var bare = flat.slice(3);
+        for (var k2 in TZ_INFO) {
+          if (k2.toLowerCase().replace(/[^a-z0-9]/g, '') === bare) return k2;
+        }
+      }
       return n;
     };
     var _tzTier = function (name) {
@@ -13300,10 +13356,8 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         if (g.details.length < 3 && f.detail) g.details.push(f.detail);
         if (!g.fix && f.fix) g.fix = f.fix;
       });
-      var broke = 0;
       var rows = order.map(function (k) {
         var g = byV[k], v = g.v, bad = v.indexOf('E ·') !== 0;
-        if (bad) broke += g.n;
         return '<div class="readh-row ' + (bad ? 'bad' : 'good') + '">'
           + '<b>' + escC(bad ? '🔴' : '🟢') + ' ' + escC(v) + '</b>'
           + '<span>' + escC(g.details.join(' · ')) + (g.n > g.details.length ? ' …' : '') + '</span>'

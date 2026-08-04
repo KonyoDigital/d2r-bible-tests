@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1636",
+  "ver": "v1639",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1636: two boss portraits stop being an item and a book after v269 overwrote them by fuzzy base-item name match, the Diablo Clone emblem is right with them, boss thumbs hover a BOSS card built from BOSSES instead of the item map, the Quick Wins trophy stops covering every icon, and the Sessions column spans its full width with the daily pick name carrying its own art",
+  "note": "v1639: Sessions render gate: TZ the-article lookup, read chain un-nested from chron, lastsession hd-wide, TZ side-by-side and auto-fit measured",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

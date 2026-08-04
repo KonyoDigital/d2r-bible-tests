@@ -133,7 +133,7 @@ test.describe('v1634 — sessions colour sweep: every quality surface computes t
     await console_(page);
     const t = await consoleTokens(page);
     /* gate BEFORE any comparison — a renamed token must throw by name, never compare null===null */
-    assertTokens(t, 'unique', 'set', 'runeword', 'orange');
+    assertTokens(t, 'unique', 'set', 'runeword', 'orange', 'rune');
 
     const got = await paint(page, PROBES);
     assertPainted(got, ...Object.keys(PROBES));
@@ -151,11 +151,15 @@ test.describe('v1634 — sessions colour sweep: every quality surface computes t
     expect(got.chronUni,  'a unique in the celebration toast is the unique-item token').toBe(t.unique);
     expect(got.chronSet,  'a set piece in the celebration toast is the set token').toBe(t.set);
 
-    /* the rest of the platform, pinned so the sweep cannot rot back */
+    /* the rest of the platform, pinned so the sweep cannot rot back.
+       v1636/v1639 — the RUNEWORDS task-force ROW is a ROOM label, not an item name. It wears
+       --rar-rune (Forge orange). A completed runeword NAME still wears --rar-runeword (unique
+       gold). See test 5's deliberate-doctrine block; this half of the pin was left on the old
+       claim and went red the moment the room was painted correctly. */
     expect(got.uniName,   'a unique NAME is the unique token').toBe(t.unique);
     expect(got.setName,   'a set piece NAME is the set token').toBe(t.set);
     expect(got.setRow,    'the SETS task row is the set token').toBe(t.set);
-    expect(got.rwRow,     'the RUNEWORDS task row is the runeword token').toBe(t.runeword);
+    expect(got.rwRow,     'the RUNEWORDS task row is the Forge-orange ROOM accent, not runeword gold').toBe(t.rune);
     expect(got.rwName,    'a completed runeword NAME is the runeword token').toBe(t.runeword);
     expect(got.craftName, 'a crafted item NAME is the crafted-orange token').toBe(t.orange);
 

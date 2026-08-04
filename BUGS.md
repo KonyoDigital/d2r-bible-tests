@@ -2435,7 +2435,7 @@ evidence is here rather than in a run log that will be gone.
   the picture, declared the bug closed, and shipped the wrong hover for another seven versions —
   when a fix makes a surface look right, check what that surface still DOES.
 
-## REG-103 — the daily pick rendered its item art TWICE
+## REG-106 — the daily pick rendered its item art TWICE
 
 **Symptom.** On the Sessions → DAILY TASK FORCE hero row, the AI Daily Pick showed the item icon,
 a 4px gap, then the same icon again.
@@ -2459,3 +2459,193 @@ symbol with no reader, so it was removed rather than left as a dead seam — LAW
 existing rendering of X BEFORE adding one. "Copy the sets hero pattern" means copy its shape — one
 art node — not just its ingredients. And a render gate that does not run is not a render gate that
 passed: this defect was live in the tree with a green-looking build for the length of one run.
+
+---
+
+## REG-104 — the TZ card's side-by-side layout had been dead since v1567 (a `@media` block written ABOVE the rule it was meant to override)
+
+**Symptom.** The TERROR ZONE card in the Sessions column rendered LIVE NOW and UP NEXT **stacked**,
+each one line of text across a 1401px card, at every viewport width. This is a large part of the
+"empty space here in the middle... needs to be structured and designed better... so its stretched"
+that started the v1636 work — and v1636 answered it by widening cards that were *already* full
+width, because nobody ever looked at the page.
+
+**Caught by.** A CDP render gate (`Page.captureScreenshot` — `page.screenshot()` hangs on this
+file), at a 1920px viewport. Measured `getComputedStyle('.tz-body').flexDirection === "column"`
+with both `.tz-slot`s at 1371px, card height 402.5px. Not caught by four earlier passes that read
+selectors, and not catchable that way: the CSS says `flex-direction: row` in plain text.
+
+**Root cause.** `.hd-tz .tz-body { flex-direction: row }` lived inside `@media (min-width: 900px)`
+at line 2568, and the base rule `.hd-tz .tz-body { display: flex; flex-direction: column }` sat at
+line 2583 — fifteen lines LATER, with identical specificity (two classes). A media query is not
+more specific; it only wraps. So the later rule won at every width and the responsive layout never
+applied once. The file already knew this trap: the comment at what is now :2769 warns about exactly
+it for `.tz-slot .tzz-txt b`.
+
+**Fix.** v1637 moved the `@media (min-width: 900px)` block BELOW the base declaration, unchanged.
+Measured after: `flexDirection: "row"`, slots 682px + 682px, `.tz-body` height 267px → 194.1px,
+card height 402.5px → 329.6px. A second one-line rule inside the same block lets the zone NAME wrap
+to two lines in a half-row slot — at 682px the `.tz-zones` auto-fit puts two zones at ~315px each
+and the old `nowrap` + ellipsis truncated "Moo Moo Farm" to "Moo Moo ...". Both states seen painted.
+
+**Prevention.** Two rules, both now provable by script:
+1. A `@media` block must come AFTER the base rule it overrides when the selectors are equal. A
+   repo-wide sweep of every media-query declaration against later same-selector top-level rules
+   found exactly TWO clashes in this file: this one, and `.head-tabs .ht { padding }` — which is
+   harmless, because the `!important` rule that beats it is itself shadowed at every width by the
+   higher-specificity `.topbar .head-tabs .ht` responsive rules. Left as-is, deliberately.
+2. A layout claim is a MEASUREMENT, never a class list. "#hd-forge has no .hd-wide, so it is half a
+   column" was asserted about this same panel and is FALSE for forge — measured 1401px of a 1416px
+   dash — but the *reason* recorded here in v1637 was also wrong (see REG-105). Forge is full width
+   because it is alone in zone Ⅱ and hits `.zone > .hd-col:nth-child(2):last-child { grid-column: 1 / -1 }`,
+   not because a sibling's `.hd-wide` collapses the zone's auto-fit track list. Zones keep their
+   tracks (`459px 459px 459px` at 1401px); a spanning card spans them, it does not delete them.
+   The same prevention rule, applied honestly, would have forced a paint of #hd-lastsession too.
+
+---
+
+## REG-105 — LAST SESSION was the half-column v1637 declared gone without ever painting it (2026-08-04, v1638)
+
+**Symptom.** `#hd-lastsession` in Sessions → Ⅲ THE RECORD rendered at **459px of a 1401px zone**
+(one auto-fit track of `459px 459px 459px`), leaving ~942px of black beside a short digest card.
+Same dead-column shape v1464 described for the pre-wide taskforce.
+
+**Caught by.** An adversarial re-run of the render gate that *forced the panel visible* with
+session-shaped content. v1637's own write-up admitted "NOT ESTABLISHED: the RENDERED WIDTH of
+#hd-lastsession" because its stub returned zero sessions and the panel stayed `hidden` / 0×0 —
+and then the prose still claimed every Sessions card was full width and that taskforce's
+`hd-wide` had "also widened #hd-forge and #hd-lastsession beside it".
+
+**Root cause.** Two independent mistakes:
+1. **#hd-lastsession never carried `.hd-wide`**, and it is not alone in zone Ⅲ (kpi / tally /
+   chron / vault / history are siblings), so neither the v1507 lone-card rule nor any sibling
+   span applies. `grid-column` stayed `auto` → one 459px track.
+2. **The v1637 mechanism story was false.** `#hd-forge` and `#hd-lastsession` are not beside
+   `#hd-taskforce` at all — forge is alone in zone Ⅱ, lastsession is in zone Ⅲ. Taskforce's
+   `hd-wide` cannot widen a card in a different `<section class="zone">`. A 0×0 measurement of a
+   hidden panel was treated as evidence the width was fine.
+
+**Fix.** v1638 adds `hd-wide` to `#hd-lastsession`. Re-measured at 1920px with the panel forced
+visible: **1401px**, `grid-column: 1 / -1`. `#hd-ls-row` stays `display: flex` (the v1636
+subgrid scoped to `#hd-tf-rows` still does not leak).
+
+**Prevention.** A layout claim about panel N is not established by measuring panels {1..N-1}
+and a class list for N. Hidden panels measure 0×0 — force the visible state before declaring
+width. And a mechanism that names the wrong parent (`#hd-taskforce` "beside" cards in other
+zones) is not a mechanism; check the DOM tree, not the class inventory.
+
+## REG-107 — the TZ card spanned the column and clipped every label inside it
+
+**Symptom.** The Sessions column's TERROR ZONE card measured full width (1401px of a 1416px dash),
+yet a four-zone rotation rendered as four 157.75px tiles crammed into the 658px LIVE slot: the zone
+NAMES measured 0px wide and "act 5" / "700 density · alvl 84" were clipped to 49.8px. 13 text nodes
+had scrollWidth > clientWidth. This is the same "empty space / not using the space" complaint the
+v1636 pass tried to answer by widening a card that was already full width.
+
+**Caught by.** The render gate that had never run — CDP screenshot + measured geometry at 1920px,
+not a selector read. Every prior pass on this card verified by reading CSS. Grok's third-eye note
+("#hd-tz already has hd-wide, so if it still looks sparse the cause is INTERNAL") was correct and
+had never been tested.
+
+**Root cause.** `.tz-zones` used `repeat(var(--tz-cols, 2), minmax(0, 1fr))`, which obeys the zone
+COUNT and ignores the available space. The auto-fit fallback that would have wrapped four zones 2x2
+existed but sat under `@media (max-width: 900px)` — only where the grid was never the problem.
+v1637's own comment already ASSUMED auto-fit was in force above 900px ("two zones side by side at
+~315px each"). It was not. Same defect class as the bug v1637 itself fixed: the right rule parked
+in a block that never runs.
+
+**Fix.** One rule at all widths: `grid-template-columns: repeat(auto-fit, minmax(min(238px, 100%), 1fr))`.
+`min(238px, 100%)` so a slot narrower than one track wraps instead of overflowing.
+Measured after: four tiles at 324.5px in a 2x2 grid, ZERO clipped text nodes (was 13), document
+scrollWidth still 1920 = innerWidth, no console errors.
+
+**Prevention.** A media query is a place a rule might never run. When a comment claims a fallback
+is active at the width you are looking at, MEASURE the computed `grid-template-columns` — it read
+"157.75px 157.75px 157.75px 157.75px" while the source said auto-fit. And a card that is full width
+is not a card that uses its width: measure the CHILDREN, not the panel.
+
+
+---
+
+## REG-108 — "the Forgotten Tower" lost its art because English kept the article (2026-08-04, v1639)
+
+**Symptom.** A three-zone UP NEXT of "Catacombs, Cathedral, and the Forgotten Tower" rendered the
+third tile with a rune-glyph placeholder, no act, no density, no level. The other two tiles were
+fine. Measured: nameW 216.5, art = linear-gradient placeholder, while Catacombs/Cathedral resolved
+to `/art/tz_act1-*.jpg`.
+
+**Caught by.** The render gate that had never run — CDP screenshot of the Sessions TZ card with a
+seeded four-zone LIVE + three-zone NEXT rotation. Selector-only passes never hit this string.
+
+**Root cause.** The Oxford-comma splitter strips a leading `and ` after splitting, so
+`"and the Forgotten Tower"` becomes `"the Forgotten Tower"`. `_tzKey` then flattens to
+`theforgottentower`, which does not match TZ_INFO's `"Forgotten Tower"` (`forgottentower`).
+Zones that truly begin with "The" (`The Pit`, `The Chaos Sanctuary`) are the TABLE KEYS and hit
+on the first pass; the article-leftover case is the one that silently failed.
+
+**Fix.** v1639: after the flat match fails, if the flat key starts with `the`, try again without
+that prefix and return the canonical table key. Display still shows what the feed said; art,
+density and tier now resolve.
+
+**Prevention.** Any splitter that peels English conjunctions must be paired with a lookup that
+tolerates a leftover article — or the display name must be re-canonicalised through the same
+table the art uses. A zone tile with a name and no numbers is a failed lookup, not "thin data".
+
+---
+
+## REG-109 — THE READ CHAIN was a child of CHRONICLE SWEEP (2026-08-04, v1639)
+
+**Symptom.** `#hd-readh` measured `parent = "hd-chron"`. The panel rendered inset (1371px of a
+1401px peer column) and every third-eye question of the form "did the A/D/E collapse land on the
+read chain or the sweep?" had to dig into a foreign tree. Grok concern (c) was right to demand a
+paint check of WHICH panel collapsed — the collapse code was on `#hd-readh`, but `#hd-readh`
+itself was inside `#hd-chron`.
+
+**Caught by.** CDP `element.parentElement.id` during the render gate. Not visible to a class-list
+read of either id alone.
+
+**Root cause.** When v1537 inserted the read-chain markup, the closing `</div>` of `#hd-chron`
+was left BELOW the new card. `#chron-visits` and `#chron-review` (chron children) sat after
+`#hd-readh` in source order, so the browser tree nested the read chain inside the sweep.
+
+**Fix.** v1639 moves `#hd-readh` to AFTER the chron section closes (visits + review stay inside
+chron). Re-measured: parent is the zone section, width 1401px matching its peers.
+
+**Prevention.** A new `.hd-col` sibling must be inserted at the SECTION level, not into the open
+body of the previous card. A render-gate parent check (`#hd-readh` must not be inside `#hd-chron`)
+is cheaper than re-litigating "which panel" from screenshots alone.
+
+## REG-110 — a repaired asset was invisible for 24 hours (art had no cache validation)
+
+**Symptom.** Konyo, at v1637, on thumbnails whose files had been fixed at v1636: "the mephisto and
+other bosses.. pindleskin diabo. .still NOT FIXED". The picture on screen was still the soulstone.
+
+**Caught by.** Him, looking at the running app — after three separate verifications had all said the
+bug was fixed. That is the important part: the FILE was right (opened by eye, identified
+independently by Grok against a known-good Andariel, and `art/verify_boss_portraits.py` green on all
+10) and the CODE was right (`_runBossArt` -> `BOSS_PORTRAIT[bossId]` -> `art/<file>`). Everything
+anyone measured was correct and the user still saw the wrong picture.
+
+**Root cause.** `tv/control_app.py` served every static file, art included, as
+`Cache-Control: public, max-age=86400` — which does not merely permit caching, it tells the browser
+it may reuse its copy for 24 hours WITHOUT ASKING THE SERVER. v269 broke those two portraits by
+overwriting them IN PLACE; v1636 repaired them the same way. Same filename, new bytes, and no
+request was ever made. **A repaired asset is invisible until the browser is told to look again.**
+
+**Fix.** Cache VALIDATION instead of cache duration: `Cache-Control: no-cache` (which means "cache,
+but revalidate", not "do not cache") plus an ETag over the file bytes, and a 304 for
+`If-None-Match`. Measured: first GET 200 + ETag + 154,022 bytes; second GET 304 with no body;
+replacing the file changes the ETag, so the browser is forced to re-fetch.
+
+**Why not `?v=` on the URL** (the obvious fix, deliberately rejected): `bible.html` builds art URLs
+in ~60 places — static `src="art/…"` plus `artUrl()`, `tzArtFor()`, `_itemArtImg()`, `_runBossArt()`
+— so a query-string bust means editing all of them AND every future one. This exact class has
+already failed that way twice: a54d5e6/v284 and fdd9849/v287 both one-off patched the v269 art
+overwrite and neither generalised. One line at the layer every image passes through cannot be
+forgotten by whoever adds the next `<img>`.
+
+**Prevention.** When a fix repairs a file IN PLACE rather than adding one, ask what is allowed to
+serve the old bytes — browser cache, CDN, a service worker, a packaged copy. "The file on disk is
+correct" is not the same claim as "the user sees the correct file", and only the second one matters.
+The live Cloudflare Pages deploy needs the same audit; a cached soulstone there is this bug on a
+different server.
