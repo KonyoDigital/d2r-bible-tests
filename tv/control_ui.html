@@ -3626,6 +3626,12 @@
   .tf-g { font-size: var(--fs-md); flex: 0 0 auto; }
   .tf-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tf-t b { color: #f0dfae; }
+  /* v1633 — each chronicle's name in its own in-game colour, from the tokens. A runeword's NAME is
+     gold in D2 (the game has no runeword colour of its own), so the Runewords row takes the same
+     gold as uniques — that is the game agreeing with itself, not a copy-paste. */
+  .tf-row.tf-q-runes   .tf-t b { color: var(--rar-runeword); }
+  .tf-row.tf-q-uniques .tf-t b { color: var(--rar-unique); }
+  .tf-row.tf-q-sets    .tf-t b { color: var(--rar-set); }
   .tf-tag { flex: 0 0 auto; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-wide); padding: 4px 8px;
     border-radius: 6px; border: 1px solid rgba(143,230,160,.5); color: var(--mint); }
   .tf-tag.dim { border-color: var(--edge); color: #9a8d73; }
@@ -5180,11 +5186,29 @@
      bridge was flattening it to a bare name. It now ships the gem, its colour and its art.
      `ck` may still arrive as a plain string from an older board build — that degrades to the
      medallion rather than to a broken chip. */
+  /* v1633 — THE GEM SURVIVES A STALE BRIDGE. Konyo: "same for caster... the color for each gem
+     should be replicated within the title logo... just like it is for crafts under the forge tab".
+     v1621 taught the BRIDGE to ship {craft, gem, color, art} and the Forge tab has shown the real
+     gems ever since — but Sessions reads whatever d2r_forgeSummary holds, and his was written
+     BEFORE that change, so craftTypes is still a plain string and every chip fell back to the
+     Hell's Forge medallion. Correct code, stale data, and it would have fixed itself only on the
+     next full board scan.
+     bible.html's CRAFTS stays authoritative: a rich entry is used verbatim. This map is the
+     FALLBACK for a string, and it is the same four pairs the workshop declares — Caster/Amethyst,
+     Blood/Ruby, Safety/Emerald, Hit Power/Sapphire. tests/v1621 asserts the board still owns that
+     truth, so a divergence reds there rather than hiding here. */
+  var _CRAFT_GEM = {
+    'caster':    { gem: 'Perfect Amethyst', color: '#b48ce0', art: '/art/hd_perfect_amethyst.png' },
+    'blood':     { gem: 'Perfect Ruby',     color: '#e0556a', art: '/art/hd_perfect_ruby.png' },
+    'safety':    { gem: 'Perfect Emerald',  color: '#5fd07a', art: '/art/hd_perfect_emerald.png' },
+    'hit power': { gem: 'Perfect Sapphire', color: '#5b8ff0', art: '/art/hd_perfect_sapphire.png' }
+  };
   function _forgeChip(ck){
     var name = (ck && typeof ck === 'object') ? (ck.craft || '') : String(ck || '');
-    var art = (ck && typeof ck === 'object' && ck.art) ? ck.art : null;
-    var col = (ck && typeof ck === 'object' && ck.color) ? ck.color : null;
-    var gem = (ck && typeof ck === 'object' && ck.gem) ? ck.gem : null;
+    var fb = _CRAFT_GEM[String(name || '').trim().toLowerCase()] || null;
+    var art = (ck && typeof ck === 'object' && ck.art) ? ck.art : (fb ? fb.art : null);
+    var col = (ck && typeof ck === 'object' && ck.color) ? ck.color : (fb ? fb.color : null);
+    var gem = (ck && typeof ck === 'object' && ck.gem) ? ck.gem : (fb ? fb.gem : null);
     var pic = art
       ? '<img class="hd-chip-art" src="' + escC(art) + '" alt="" loading="lazy" onerror="this.remove()">'
       : artImg('forge', 'hd-chip-art');
@@ -10938,7 +10962,12 @@
           + ' onclick="window._hubGo(&quot;' + tab + '&quot;)"'
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._hubGo(&quot;' + tab + '&quot;);}"') : '';
-        return '<div class="tf-row tf-chron' + (done ? ' tf-chron-done' : '') + (tab ? ' tf-go' : '') + '"'
+        /* v1633 — the ROW carries its quality, so its name can wear it. Konyo: "a full on sync to
+           colors.. sets for green. uniques for uniques color.. runewords for runewords color..
+           each their own relevant color". The three rows named three different chronicles and
+           printed all three in the same cream, which is the one thing the palette work exists to
+           stop. `key` is already the quality — nothing new is decided here. */
+        return '<div class="tf-row tf-chron tf-q-' + key + (done ? ' tf-chron-done' : '') + (tab ? ' tf-go' : '') + '"'
           + go + '><span class="tf-g">' + artImg(key, 'tf-i') + '</span>'
           + '<span class="tf-t"><b>' + name + '</b> · ' + found + ' / ' + total
           + ' <span class="tf-chron-note">— ' + (done ? 'complete ✓' : (left + ' ' + leftLabel)) + '</span></span>'

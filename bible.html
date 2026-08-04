@@ -7493,12 +7493,26 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-restore-top .f-undo-last:hover{filter:brightness(1.08)}
 @keyframes fUndoPulse{0%,100%{box-shadow:0 0 0 1px rgba(224,168,74,.55),0 2px 12px -2px rgba(224,168,74,.75)}50%{box-shadow:0 0 0 2px rgba(240,200,100,.9),0 2px 20px 2px rgba(240,200,100,.85)}}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-donetools{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-left:3px solid #6fbf6f;border-radius:8px;margin-bottom:6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-doneck{color:#6fbf6f;font-weight:var(--fw-bold);flex:none}
+/* v1633 — THE ROOM ACCENT. Konyo, on the Forge's Completed subtab: "needs to be color synced
+   this color for runewords right? it looks a litle off compared to the updated tab color we
+   picked". He is right that it looks foreign, and the cause is not the item names — those are
+   already correct (a completed runeword's NAME is FontColorGoldYellow #C7B377 in game, the same
+   gold as a unique; the game gives runewords no colour of their own, and six specs pin that).
+   The cause is that EVERY rule below is written `:is(#tab-forge,#tab-funi,#tab-fsets)` — ONE
+   declaration painting THREE rooms — with the rail and tick hardcoded to a green literal. So the
+   Completed panel rendered byte-identical in Forge, F·Uniques and F·Sets, and carried the accent
+   of none of them. v1631 gave each TAB its colour and this shared block never heard about it.
+   One token, declared per room, and the shared chrome follows the tab it is standing in.
+   Item NAMES are deliberately NOT driven from this: a name obeys the game, a room is a label. */
+#tab-forge{--room:var(--rune)}
+#tab-funi{--room:var(--q-unique)}
+#tab-fsets{--room:var(--q-set)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--room,#6fbf6f);border-radius:8px;margin-bottom:6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-doneck{color:var(--room,#6fbf6f);font-weight:var(--fw-bold);flex:none}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-donename{font-weight:var(--fw-semibold);font-size:13.5px;flex:none}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-donedate{font-size:10.5px;color:var(--text-dim,#7a6f58);font-family:var(--mono,monospace);flex:1}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn{font-size:10.5px;font-weight:var(--fw-semibold);color:#cdbf9f;background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn:hover{color:#fff;border-color:#8fe6a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn:hover{color:#fff;border-color:color-mix(in srgb,var(--room,#8fe6a0) 70%,transparent)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .ft-done.on{border-color:#6fbf6f;color:#8fe6a0}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftnow-lbl{font-size:12.5px;font-weight:var(--fw-semibold);color:var(--q-orange);margin:14px 0 8px;letter-spacing:.2px}
 /* Crafts filter — a COLUMN per craft type, slots stacked vertically under the type title */
@@ -7672,6 +7686,31 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 @keyframes fBreathe{0%,100%{box-shadow:0 0 0 0 rgba(255,205,100,0)}50%{box-shadow:0 0 22px -6px rgba(255,205,100,.55)}}
 @media (prefers-reduced-motion:reduce){.f-ring,.f-card.f-ascend,.forge-epic,.forge-epic .fe-rune,.tab-content.tab-in,#tab-forge .forge-sec-now .f-card:first-of-type{animation:none!important}}
 @keyframes ftIn{0%{transform:translateX(-50%) translateY(18px);opacity:0}100%{transform:translateX(-50%) translateY(0);opacity:1}}
+/* v1633 — CHRONICLE CELEBRATIONS. Each chronicle wears its own in-game quality colour through one
+   token, so the uniques moment is unique-gold, the sets moment is set-green and the craft bench is
+   crafted-orange — the same rule the tabs follow. Sizes/durations climb with the tier so 10 reads
+   as a milestone and 200 reads as an event; nothing here animates under reduced motion. */
+.chron-toast{--cec:var(--q-unique)}
+.chron-toast.ce-set{--cec:var(--q-set)}
+.chron-toast.ce-craft{--cec:var(--q-orange)}
+.chron-toast{background:linear-gradient(135deg,color-mix(in srgb,var(--cec) 16%,#0d1f12),#0b1710);border-color:color-mix(in srgb,var(--cec) 55%,transparent);color:color-mix(in srgb,var(--cec) 78%,#ffffff);box-shadow:0 6px 26px rgba(0,0,0,.55),0 0 18px -4px color-mix(in srgb,var(--cec) 55%,transparent)}
+.chron-toast b{color:var(--cec)}
+.chron-toast.ct-big{transform:scale(1.06);border-width:2px}
+.chron-toast .ct-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.10);margin:7px 0 2px;overflow:hidden}
+.chron-toast .ct-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,color-mix(in srgb,var(--cec) 55%,transparent),var(--cec));box-shadow:0 0 10px -1px var(--cec);animation:ctBar .55s cubic-bezier(.2,.9,.3,1)}
+@keyframes ctBar{0%{transform:scaleX(.55);transform-origin:left;opacity:.4}100%{transform:scaleX(1);transform-origin:left;opacity:1}}
+.chron-epic{--cec:var(--q-unique)}
+.chron-epic.ce-set{--cec:var(--q-set)}
+.chron-epic.ce-craft{--cec:var(--q-orange)}
+.chron-epic{background:radial-gradient(circle at 50% 46%,color-mix(in srgb,var(--cec) 16%,transparent),rgba(0,0,0,0) 55%)}
+.chron-epic .fe-txt{color:var(--cec);text-shadow:0 0 26px color-mix(in srgb,var(--cec) 75%,transparent),0 2px 0 rgba(0,0,0,.75)}
+.chron-epic .fe-sub{color:color-mix(in srgb,var(--cec) 65%,#ffffff)}
+.chron-epic .fe-rune{color:var(--cec);text-shadow:0 0 12px color-mix(in srgb,var(--cec) 70%,transparent)}
+.chron-epic.ce-t2 .fe-txt{font-size:52px}
+.chron-epic.ce-t3 .fe-txt,.chron-epic.ce-done .fe-txt{font-size:60px}
+.chron-epic.ce-t3,.chron-epic.ce-done{animation-duration:3.4s;background:radial-gradient(circle at 50% 46%,color-mix(in srgb,var(--cec) 24%,transparent),rgba(0,0,0,0) 62%)}
+.chron-epic.ce-done .fe-txt{animation-duration:3.4s}
+@media (prefers-reduced-motion:reduce){.chron-epic,.chron-epic .fe-rune,.chron-toast .ct-bar i{animation:none!important}}
 @keyframes ftOut{100%{transform:translateX(-50%) translateY(14px);opacity:0}}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*{animation:fRecIn .3s ease both}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(2){animation-delay:.05s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(3){animation-delay:.1s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(4){animation-delay:.15s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(5){animation-delay:.2s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(6){animation-delay:.25s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(7){animation-delay:.3s}
@@ -7748,10 +7787,16 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn:hover{background:rgba(240,192,96,.2);transform:translateY(-1px)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft{border-color:rgba(255,168,0,.55);background:linear-gradient(180deg,rgba(255,168,0,.13),rgba(255,168,0,.04));color:var(--q-orange)}   /* v1625 ITEM3a */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft:hover{background:rgba(255,168,0,.2)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{border-color:rgba(199,179,119,.6);background:linear-gradient(180deg,rgba(199,179,119,.13),rgba(199,179,119,.04));color:var(--q-unique)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni:hover{background:rgba(199,179,119,.2)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set{border-color:rgba(0,255,0,.45);background:linear-gradient(180deg,rgba(0,255,0,.11),rgba(0,255,0,.03));color:var(--q-set)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:rgba(0,255,0,.18)}
+/* v1633 — Konyo: "also color is synced here on the bottom too for the F-Uniques". The two routes
+   framed themselves in the right colours but printed their LABELS in the card's default cream, so
+   F·Sets read green and F·Uniques read as chrome — the same item, two answers. Both now take
+   their quality from the TOKEN, frame and text together, and the literals are gone with them. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{--fsq:var(--q-unique);border-color:color-mix(in srgb,var(--fsq) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 13%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni:hover{background:color-mix(in srgb,var(--fsq) 20%,transparent)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set{--fsq:var(--q-set);border-color:color-mix(in srgb,var(--fsq) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 11%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:color-mix(in srgb,var(--fsq) 18%,transparent)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni .fs-rt-t,
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set .fs-rt-t{color:var(--fsq)}
 #tab-funi .gf-piece .gf-nm{color:var(--q-unique)}   /* v1625 ITEM3b — a found unique reads unique, like the Calculator */
 #tab-fsets .gf-nm{color:var(--q-set)}               /* v1625 ITEM3c — a set piece reads set-green everywhere */
 :is(#tab-funi,#tab-fsets) .gs-set-h{line-height:var(--lh-snug);gap:10px;column-gap:12px}   /* v1625 ITEM3c typography */
@@ -7762,7 +7807,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-fsets .f-cardtitle .f-rwbig.fs-piece,#tab-fsets .fh-name .fs-piece{color:var(--q-set)}   /* v1625 ITEM5 — beats the (1,2,0) .f-cardtitle .f-rwbig rule that renders later in this sheet */
 #tab-fsets .fs-piece:hover{filter:brightness(1.18);text-decoration:underline}
 #tab-fsets .fs-piece:focus-visible{outline:2px solid var(--q-set);outline-offset:2px}
-#tab-funi .forge-title{color:var(--q-unique)}   /* v1625 ITEM6 — per-tab override; the plain Forge title stays chrome gold */
+#tab-funi .forge-title{color:var(--q-unique)}   /* v1625 ITEM6 — per-tab override */
+/* v1633 — Konyo: "the forge title here should also be color synced to the tab. for FORGE within
+   the tab color wise". The Forge TAB wears --rune (v1631); its page title was still the chrome
+   gold, so the tab and the page it opens disagreed about what colour the Forge is. Same rule the
+   other two already follow: the room's title matches the room's tab. */
+#tab-forge .forge-title{color:var(--rune)}
+#tab-fsets .forge-title{color:var(--q-set)}
 #tab-fsets .forge-title{color:var(--q-set)}
 #tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
@@ -7823,13 +7874,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{padding:24px 18px 0}
   :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{margin:22px -18px 0;padding:16px 18px}
 }
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll{margin:14px 0 8px;border:1px solid rgba(212,168,71,.24);border-radius:12px;background:linear-gradient(180deg,rgba(26,20,10,.4),rgba(14,11,6,.22));overflow:hidden}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary{cursor:pointer;list-style:none;padding:12px 16px;font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--gold-dim,#c8a24a);display:flex;align-items:center;gap:9px;user-select:none;transition:color .14s,background .14s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary:hover{color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.05)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll{margin:14px 0 8px;border:1px solid color-mix(in srgb,var(--room,#d4a847) 26%,transparent);border-radius:12px;background:linear-gradient(180deg,rgba(26,20,10,.4),rgba(14,11,6,.22));overflow:hidden}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary{cursor:pointer;list-style:none;padding:12px 16px;font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--room,#c8a24a);display:flex;align-items:center;gap:9px;user-select:none;transition:color .14s,background .14s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary:hover{color:var(--room,#f0c060);background:color-mix(in srgb,var(--room,#f0c060) 7%,transparent)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::-webkit-details-marker{display:none}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::before{content:'▸';font-size:11px;transition:transform .16s ease}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll[open]>summary::before{transform:rotate(90deg)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll .fsr-body{padding:2px 14px 12px;border-top:1px solid rgba(212,168,71,.14)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll .fsr-body{padding:2px 14px 12px;border-top:1px solid color-mix(in srgb,var(--room,#d4a847) 16%,transparent)}
 /* v686 ⚡ SESSION COCKPIT */
 #tab-session .sc-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:6px 0 14px}
 #tab-session .sc-title{font-family:var(--serif-display);font-variant-caps:small-caps;letter-spacing:var(--ls-label);font-size:26px;color:var(--gold-bright);text-shadow:0 0 18px rgba(240,192,96,.35)}
@@ -28508,7 +28559,10 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 /* set items route to a set card (not an aid-card) — colour its title set-green to match.
    Runeword/rune/gem cards keep their own gold/orange identity already. */
 .set-items-card .gic-name,.set-piece-card .gic-name{color:var(--q-set)}
-.runeword-card .gic-name{color:var(--q-orange)}
+/* v1633 — was var(--q-orange), i.e. CRAFTED quality, on a completed runeword's title. The
+   tiles and .arw-name rows have said --q-runeword since v1628; this one surface disagreed,
+   and tests/v294 pinned the disagreement rather than letting it be forgotten. */
+.runeword-card .gic-name{color:var(--q-runeword)}
 /* v239: slow gold sheen sweep across the hero "Best Grail Picks" card */
 .hero{position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;top:0;left:-45%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(240,192,96,.08),transparent);transform:skewX(-18deg);animation:heroSheen 8s ease-in-out infinite;pointer-events:none;z-index:0}
@@ -34661,6 +34715,92 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       (function(el){var st=document.getElementById('forge-toasts');if(!st){st=document.createElement('div');st.id='forge-toasts';document.body.appendChild(st);}st.appendChild(el);})(t); setTimeout(function(){ t.classList.add('out'); setTimeout(function(){ t.remove(); },450); },2400); } catch(e){}
   }
   window._grailToast=_grailToast;   // v615 — the consume sync narrates vault exits through the same toast
+
+  /* ── v1633 — THE CHRONICLE CELEBRATION LADDER ─────────────────────────────────────────────────
+     Konyo: "i want it to do a special features like it does already for FORGE when doing the first
+     tally and also on 10... and 20... and the end", then: "on each manually added i still want a
+     celebration progress bar when adding another one in between the bigger celbrations… 100 should
+     be more emphasized.. 200 even more emphasized. like scaling it up but still each 1 tally gets a
+     celebration feature".
+
+     The Forge has had this since v558/v606/v618 and the two GRAIL chronicles never got it — they
+     had the small toast and nothing else, so finding your 100th unique looked exactly like finding
+     your 3rd. This is that machinery, generalised, so all three chronicles speak one language.
+
+     THE LADDER (never demotes as n grows — that is the whole point of "scaling it up"):
+       every tally   toast + a live progress bar, the count and the % you are at
+       n === 1       FIRST — the rainbow moment, once per chronicle per world
+       n % 10        milestone
+       n === 100     grand
+       n >= 200 …    grandest (every hundred from 200 up stays at the top tier)
+       n === total   COMPLETE
+
+     Reduced-motion and automation get NOTHING — the same motionOK() gate the Forge uses, so a
+     headless run is never racing an overlay. Returns the tier name so a spec can assert the ladder
+     without watching pixels; returns null when it deliberately stayed silent. */
+  var _CHRON_LOOK = {
+    uni:  { cls:'ce-uni',  glyphs:'✦✧★✶✷✸', sub:'the unique chronicle grows',  done:'EVERY UNIQUE — THE GRAIL IS WHOLE' },
+    set:  { cls:'ce-set',  glyphs:'🧩◆◇❖✦✧', sub:'the set chronicle grows',     done:'EVERY SET PIECE — ALL ASSEMBLED' },
+    craft:{ cls:'ce-craft',glyphs:'✦✧⚗❉✶✷',  sub:'crafted by your hand',        done:'EVERY CRAFT — THE BENCH IS DONE' }
+  };
+  function _chronTier(n, tot){
+    if (tot && n >= tot)              return 'done';
+    if (n >= 200 && n % 100 === 0)    return 't3';
+    if (n === 100)                    return 't2';
+    if (n === 1)                      return 'first';
+    if (n % 10 === 0)                 return 't1';
+    return 'tick';
+  }
+  function _chronCelebrate(o){
+    if (!motionOK()) return null;
+    var look = _CHRON_LOOK[o.chron] || _CHRON_LOOK.uni;
+    var n = o.n|0, tot = o.tot|0, tier = _chronTier(n, tot);
+    var pct = tot ? Math.max(0, Math.min(100, Math.round(n / tot * 100))) : 0;
+
+    /* ALWAYS — the per-tally bar. This is the "in between" celebration he asked for. */
+    try {
+      var t = document.createElement('div');
+      t.className = 'forge-toast chron-toast ' + look.cls + (tier !== 'tick' ? ' ct-big' : '');
+      t.innerHTML = o.icon + ' <b>' + n + '</b> / ' + tot + ' ' + esc(o.noun)
+        + '<div class="ct-bar"><i style="width:' + pct + '%"></i></div>'
+        + '<span class="ft-sub">' + esc(look.sub) + ' · ' + pct + '%</span>';
+      (function(el){ var st=document.getElementById('forge-toasts');
+        if(!st){ st=document.createElement('div'); st.id='forge-toasts'; document.body.appendChild(st); }
+        st.appendChild(el); })(t);
+      setTimeout(function(){ t.classList.add('out'); setTimeout(function(){ try{t.remove();}catch(e){} }, 500); }, 2600);
+    } catch(e){}
+
+    if (tier === 'tick') return 'tick';
+
+    /* …and the overlay, scaled by tier. Particle count and duration climb with it. */
+    try {
+      var grand = (tier === 'done' || tier === 't3'), heads = {
+        first: ['✦ YOUR FIRST ' + (o.chron === 'set' ? 'SET PIECE' : o.chron === 'craft' ? 'CRAFT' : 'UNIQUE') + ' ✦',
+                'the chronicle remembers every one from here'],
+        t1:    ['✦ ' + n + ' CHRONICLED ✦', 'milestone — the grail grows'],
+        t2:    ['✦ ' + n + ' CHRONICLED ✦', 'one hundred — a serious hunter'],
+        t3:    ['✦ ' + n + ' CHRONICLED ✦', n + ' found — this is the deep end of the hunt'],
+        done:  ['✦ CHRONICLE COMPLETE ✦', look.done]
+      }[tier];
+      var ep = document.createElement('div');
+      ep.className = 'forge-epic chron-epic ' + look.cls + ' ce-' + tier + (tier === 'first' ? ' forge-epic-first' : '');
+      var parts = tier === 'first' ? 18 : grand ? 26 : 14, html = '';
+      for (var i = 0; i < parts; i++){
+        html += '<span class="fe-rune" style="left:' + (3 + Math.random()*94).toFixed(1) + '%'
+             +  ';animation-delay:' + Math.round(Math.random()*650) + 'ms'
+             +  ';font-size:' + (14 + Math.round(Math.random()*(grand?26:18))) + 'px'
+             +  (tier === 'first' ? ';color:hsl(' + Math.round(Math.random()*360) + ',85%,72%)' : '')
+             +  '">' + look.glyphs[i % look.glyphs.length] + '</span>';
+      }
+      html += '<div class="fe-txt">' + heads[0] + '<div class="fe-sub">' + heads[1] + '</div></div>';
+      ep.innerHTML = html;
+      document.body.appendChild(ep);
+      setTimeout(function(){ try{ep.remove();}catch(e){} }, grand ? 3400 : tier === 'first' ? 2900 : 2350);
+    } catch(e){}
+    return tier;
+  }
+  window._chronCelebrate = _chronCelebrate;   // the craft bench and any future chronicle call the same one
+  window._chronTier = _chronTier;             // exported so the ladder is assertable without pixels
   function _meter(found,total,color){
     var pct=total?Math.round(found/total*100):0;
     return '<div class="forge-progress" title="'+found+' of '+total+'"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%'+(color?';background:linear-gradient(90deg,'+color+')':'')+'"></div></div>'
@@ -34976,6 +35116,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if(!s.found) H.push('<div class="forge-empty">Nothing marked found yet — tick uniques here or in the Calculator (they sync).</div>');
     }
     box.innerHTML=H.join('');
+
+    /* v1633 — EVERY TALLY IS A MOMENT (Konyo: "each 1 tally gets a celebration feature for adding
+       or finding one", with 10s bigger, 100 bigger still, 200 biggest). Mirrors the Forge's
+       rising-count hook exactly: the celebration fires off a RISE, so it covers the manual ✓,
+       the chat discovery and the bulk import alike, and un-marking never celebrates.
+       THE MEMORY IS KEYED BY LSR.key() — the fully-routed store this very count was read from.
+       That is what makes it right "all round": the SET chronicle is machine-shared, so its key is
+       identical on MAIN and LADDER and the count simply keeps climbing across both; a cousin PC
+       resolves a different key and keeps its own. And because the key follows the data, a profile
+       whose store IS forked can never see another profile's number as a sudden gain. */
+    try {
+      window.__chronPrevN = window.__chronPrevN || {};
+      var _ck = window.LSR.key('d2r_owned'), _cn = s.found, _ct = (s.chronTotal||s.total);
+      if (typeof window.__chronPrevN[_ck] === 'number' && _cn > window.__chronPrevN[_ck]) {
+        _chronCelebrate({ chron:'uni', icon:'🏆', noun:'uniques', n:_cn, tot:_ct });
+      }
+      window.__chronPrevN[_ck] = _cn;
+    } catch(e){}
   };
 
   /* ── SETS ────────────────────────────────────────────── */
@@ -35712,6 +35870,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if(F==='all') H.push('<div class="forge-note">full per-set checklists live in 🧰 Tools → Item Set Tracker (same tally, always in sync)</div>');
     box.innerHTML=H.join('');
+
+    /* v1633 — EVERY TALLY IS A MOMENT (Konyo: "each 1 tally gets a celebration feature for adding
+       or finding one", with 10s bigger, 100 bigger still, 200 biggest). Mirrors the Forge's
+       rising-count hook exactly: the celebration fires off a RISE, so it covers the manual ✓,
+       the chat discovery and the bulk import alike, and un-marking never celebrates.
+       THE MEMORY IS KEYED BY LSR.key() — the fully-routed store this very count was read from.
+       That is what makes it right "all round": the SET chronicle is machine-shared, so its key is
+       identical on MAIN and LADDER and the count simply keeps climbing across both; a cousin PC
+       resolves a different key and keeps its own. And because the key follows the data, a profile
+       whose store IS forked can never see another profile's number as a sudden gain. */
+    try {
+      window.__chronPrevN = window.__chronPrevN || {};
+      var _ck = window.LSR.key('d2r_setPieces'), _cn = s.havePieces, _ct = s.totalPieces;
+      if (typeof window.__chronPrevN[_ck] === 'number' && _cn > window.__chronPrevN[_ck]) {
+        _chronCelebrate({ chron:'set', icon:'🧩', noun:'set pieces', n:_cn, tot:_ct });
+      }
+      window.__chronPrevN[_ck] = _cn;
+    } catch(e){}
   };
 
   /* ── v561 — GRAIL BULK IMPORT: photograph the in-game grail/collection tracker → Sonnet vision reads every
@@ -37806,7 +37982,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1632', name:'v1632 - assertions that can fail', date:'2026-08-04', note:'test-quality audit: killed duplicated palette literals across 6 specs, replaced existence checks with relationship + distinctness assertions, and the new tip probe caught a real defect — a dead #ffc070 literal was overriding the runeword and rune tokens on the floating tip' };
+  window.D2R_BUILD = { id:'v1633', name:'v1633 - room accent + craft gems', date:'2026-08-04', note:'Completed subtab wears its own room colour; craft chips keep their gem through a stale bridge; runeword card title off crafted-orange' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

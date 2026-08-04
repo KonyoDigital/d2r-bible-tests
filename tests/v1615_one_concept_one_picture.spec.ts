@@ -117,12 +117,26 @@ test.describe('v1615 — one concept, one picture', () => {
       `showed the medallion — got ${JSON.stringify(seen)}`).toBe(1);
   });
 
-  test('★★★ the FORGE agrees across tab, panel header and chip', async ({ page }) => {
+  test('★★★ the FORGE agrees across tab and panel header — and a CRAFT chip shows its GEM', async ({ page }) => {
     await console_(page);
     const s = await survey(page);
-    const seen = [s.tab.forge, s.panel.forge, s.chip.forge];
+
+    // The Forge CONCEPT still has exactly one picture wherever the Forge itself is named.
+    const seen = [s.tab.forge, s.panel.forge];
     expect(seen.every(Boolean), `missing: ${JSON.stringify(seen)}`).toBe(true);
     expect(new Set(seen).size, `got ${JSON.stringify(seen)}`).toBe(1);
+
+    // The chip is deliberately NOT in that set any more. v1621 gave each craft its real gem
+    // (Konyo: "they should be gems extracted from the game… they are gems relevant and colored")
+    // and v1633 made that survive a stale bridge, so a Caster chip shows a Perfect Amethyst, not
+    // the Forge medallion. That does not break "one concept, one picture" — it applies it: the
+    // chip's concept is the CRAFT, and a craft's picture is its gem. What must never happen is a
+    // chip falling back to the generic medallion, which is exactly what the stale bridge caused.
+    expect(s.chip.forge, 'a craft chip must carry a picture').toBeTruthy();
+    expect(s.chip.forge, 'a craft chip must show its GEM, not the generic Forge medallion')
+      .not.toBe(s.tab.forge);
+    expect(s.chip.forge, 'and that picture must be one of the four craft gems')
+      .toMatch(/hd_perfect_(amethyst|ruby|emerald|sapphire)\.png$/);
   });
 
   test('★★ RUNES and STASH agree across their surfaces too', async ({ page }) => {

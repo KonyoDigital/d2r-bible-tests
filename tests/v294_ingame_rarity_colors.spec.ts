@@ -25,13 +25,10 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 //   per-surface   — each rendered surface EQUALS its own resolved token AND DIFFERS from
 //                   every other quality (its nearest confusable neighbours included).
 //
-// ⚠ REPORTED, NOT FIXED (bible.html is owned by another item this round): v1628 made a
-// completed RUNEWORD name gold — `--q-runeword: var(--q-unique)` — for item tiles and
-// arw-rows, but the runeword CARD TITLE rule still reads `--q-orange` (crafted orange).
-// Two surfaces, two answers for the same quality. This spec asserts each surface against
-// the token its own rule names, and `runeword card title uses the crafted-orange token,
-// not the runeword token` below PINS that divergence so it cannot be forgotten: when the
-// card is corrected to the runeword token, that one test flips and this note comes out.
+// ✅ CLOSED at v1633. The divergence this block described — tiles and .arw-name on
+// `--q-runeword` since v1628 while the runeword CARD TITLE still read `--q-orange`
+// (crafted orange) — is fixed in bible.html, and the test below flipped with it, exactly
+// as the pin instructed. Kept as a record of why that test asserts what it asserts.
 
 // The five mutually-distinct board qualities, by _palette key (NOT by hex).
 const QUALITIES = ['unique', 'set', 'magic', 'rare', 'orange'] as const;
@@ -112,16 +109,25 @@ test.describe('v294 in-game rarity colours', () => {
     expectQuality(c, t, 'set', 'set card title');
   });
 
-  test('a runeword card title uses the crafted-orange token, not the runeword token', async ({ page }) => {
+  test('a runeword card title uses the runeword token, NOT crafted orange', async ({ page }) => {
     const t = await readTokens(page);
     const c = await colorOf(page, 'Spirit', '.runeword-card .gic-name');
-    // Asserted against the token this surface's own CSS rule names. See the ⚠ note in the
-    // header: v1628 moved the runeword QUALITY to --q-runeword (= unique gold) on tiles and
-    // arw-rows but left this card title on --q-orange. Pinned so the disagreement stays
-    // visible; flip to 'runeword' when bible.html makes the two surfaces agree.
-    expectQuality(c, t, 'orange', 'runeword card title');
-    expect(t.runeword, 'divergence still present: runeword card title vs the runeword token')
+    // v1633 flipped this, as the header pin instructed. A completed runeword is not a crafted
+    // item and must never borrow crafted orange: the game paints its name FontColorGoldYellow,
+    // the same gold as a unique, which is what --q-runeword resolves to.
+    // NOT expectQuality(): that helper asserts the surface differs from every OTHER quality,
+    // and a runeword's gold is legitimately identical to the unique token. Asserted directly.
+    expect(c, 'the runeword card title must equal the --q-runeword token').toBe(t.runeword);
+    // The claim is only meaningful while the two tokens are actually different colours — if
+    // --q-orange were ever aliased onto the runeword gold, the line above would pass on a
+    // surface still painting crafted orange and prove nothing.
+    expect(t.runeword, 'runeword and crafted-orange tokens must stay distinguishable')
       .not.toBe(t.orange);
+    // The remaining qualities it must never be confused with. `unique` is excluded on purpose
+    // and only on purpose: the game paints both the same gold.
+    for (const other of ['set', 'magic', 'rare', 'orange'] as const) {
+      expect(c, `the runeword card title must NOT be the ${other} token`).not.toBe(t[other]);
+    }
   });
 
   test('every grail item carries a rarity → none would fall back to default gold', async ({ page }) => {
