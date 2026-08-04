@@ -3537,6 +3537,16 @@ window._isCousinShell = !window._D2R_OWNER;
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
+// v1634 — WHY d2r_owned / d2r_copies STAY FORKED WHILE THE GRAIL IS ONE BOOK (do not "fix" this).
+// d2r_owned is the PHYSICAL VAULT — items on a specific account's mules — plus a legacy residue of
+// pre-v677 ticks. It is not the found-truth. The found-truth is d2r_foundLog, which is machine-shared
+// (in _WP_FORKED, NOT here), and toggleOwned() on a grail item writes the LEDGER only (v677). funiScan
+// reads found = foundLog ∪ owned (see _ownedNames), so both profiles already report the SAME found set.
+// MEASURED 2026-08-04 on a real board: MAIN found 243 → mark one → 244; LADDER read 244 off the same
+// d2r_foundLog key (its own key is L·d2r_owned, length 0); marked one on LADDER → 245; MAIN read 245.
+// Both directions, across reloads. Moving d2r_owned into the shared set is therefore a NO-OP — it was
+// built in v1633 with a union migration and REVERTED because the merge could not survive a reload
+// (the board re-derives from the ledger). Nobody try it a fourth time.
 window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
@@ -3546,7 +3556,12 @@ window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r
 // v949 — CHRONICLE SYNC: d2r_foundLog/d2r_setPieces/d2r_grailImportReport left _LP_FORKED so Konyo's
 // MAC main↔ladder read the SAME shared grail/set chronicle; they are re-added to the _WP concat here
 // so the WINDOWS cousin still keeps its OWN isolated chronicle (W·) — nothing bleeds across machines.
-window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied']));   /* v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
+// v1634 — d2r_craftMade joins the chronicle family. A craft RECORD is the same class of fact as a
+// made runeword: proof of something your hands built, not of something sitting in a stash. So MAIN
+// and LADDER on this Mac write ONE bench book (the key resolves bare on both), while the Windows
+// cousin keeps its own. The COUNT of crafted items on hand stays in d2r_craftStash, which is in
+// _LP_FORKED, because that is INVENTORY. Inventory forks; the book does not.
+window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied','d2r_craftMade']));   /* v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
 try { window.localStorage.setItem('d2r_profile', window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'); } catch(e){}   // v911.1 — the console reads the ACTIVE profile
 window.LSR = (function(){
   var RAW = window.localStorage;
@@ -22446,7 +22461,9 @@ function renderCraftWorkshop(){
     + '<button type="button" class="hcr-toggle' + (_craftReadyOnly ? ' on' : '') + '" aria-pressed="' + (_craftReadyOnly ? 'true' : 'false') + '" onclick="window.toggleCraftReady()" title="show only the slots you can cube right now from your Gem + Rune Stash">🎒 Cubeable now <span class="hcr-toggle-n">' + readyCount + '</span></button></div>'
     + guaranteed
     + '<div class="cw-recipes">' + recipesHtml + '</div>'
-    + '<div class="cw-foot"><span class="cw-summary"><b>' + totalReady + '</b> of 36 recipes cubeable now · <b>' + totalOwned + '</b> crafted item' + (totalOwned === 1 ? '' : 's') + ' logged</span>'
+    /* v1634 — was a hardcoded 36; derived now so this surface and the Forge chronicle line can never disagree once a recipe is added */
+    + '<div class="cw-foot"><span class="cw-summary"><b>' + totalReady
+      + '</b> of ' + (window.CRAFTS||[]).reduce(function(a,c){ return a + Object.keys(c.slots||{}).length; }, 0) + ' recipes cubeable now · <b>' + totalOwned + '</b> crafted item' + (totalOwned === 1 ? '' : 's') + ' logged</span>'
     + (totalOwned ? '<button class="rs-clear-btn" onclick="window.clearCraftStash()">clear owned</button>' : '') + '</div>'
     + '<div class="cw-quality">⚒ <strong>Roll quality:</strong> craft on a Hell base at high clvl — <code>crafted ilvl = ½ clvl + ½ base ilvl</code> (cap 99). An ilvl-71+ result can roll all <strong>4 random affixes</strong> on top of the 3 guaranteed. The jewel can be magic or rare; reroll the same recipe until the random mods land. <span style="opacity:.8">Source: maxroll.gg · Crafted Items (base-game recipes; Reign of the Warlock may retune the random-affix pool — verify in-game).</span></div>';
 }
@@ -33565,14 +33582,69 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     rows.sort(function(a,b){ return (b.ready?1:0)-(a.ready?1:0) || (b.top?1:0)-(a.top?1:0) || a.slot.localeCompare(b.slot); });
     return { c:c, rows:rows, readyN:rows.filter(function(r){return r.ready;}).length, total:rows.length, hasGem:hasGem, gemCube:gemCube };
   }
+  // v1634 — THE CRAFT CHRONICLE. d2r_craftMade = the distinct RECIPES ("Caster|Amulet") this bench
+  // has ever produced. Read/written only through window.LSR so the fork routing at the top of the
+  // file is what decides the key — that is what makes it machine-shared (see the note on the
+  // _WP_FORKED concat). Every touch is defensive: a storage failure must never break renderForge.
+  // The ladder total is the number of recipes the workshop DEFINES — derived, never hardcoded, so
+  // adding a craft type or a slot moves the finish line by itself.
+  function _craftRecipeTot(){ try { return (window.CRAFTS||[]).reduce(function(a,c){ return a + Object.keys(c.slots||{}).length; }, 0); } catch(e){ return 0; } }
+  function _craftMadeSet(){ try { var a=JSON.parse(window.LSR.getItem('d2r_craftMade')||'[]'); return new Set(Array.isArray(a)?a:[]); } catch(e){ return new Set(); } }
+  function _craftMadeSave(s){ try { window.LSR.setItem('d2r_craftMade', JSON.stringify(Array.from(s))); } catch(e){} }
+  window._craftChronCount = function(){ return { n:_craftMadeSet().size, tot:_craftRecipeTot() }; };   // read-only seam, exported for the same reason _chronTier is: the ladder must be assertable without pixels
+  window._craftMadeHas = function(ck, slot){ try { return _craftMadeSet().has(ck+'|'+slot); } catch(e){ return false; } };
+
   // v1409 — log a finished craft from the Forge (same ledger as the Workshop stepper).
   window.forgeCrafted=function(ck, slot){
     try {
       if (typeof adjustCraftStash==='function') adjustCraftStash(ck, slot, 1);
       else if (typeof window.adjustCraftStash==='function') window.adjustCraftStash(ck, slot, 1);
     } catch(e){}
+    /* v1634 — CRAFTS JOIN THE CELEBRATION LADDER (Konyo: "just when created in general and made one
+       a celebration trigger for it"). The bench had no chronicle because the section is a PLANNER;
+       this is the smallest honest event that exists — the ✓ crafted button he already presses. All
+       three of those buttons (accordion row, do-now card, one-step row) funnel through here, so one
+       hook covers every one of them. RISE ONLY, exactly like the uniques hook at ~:35131 and the
+       sets hook at ~:35887: the count is a SET of distinct recipes, so logging a second copy of a
+       recipe already in the book raises nothing and celebrates nothing. Honest about the rungs: tot
+       is 36 today, so _chronTier's n===100 and n>=200 steps are structurally unreachable here — the
+       rungs that can actually fire are 'first', every 10th, and 'done'. */
+    try {
+      var _id = ck + '|' + slot, _s = _craftMadeSet();
+      if (!_s.has(_id)) {
+        _s.add(_id); _craftMadeSave(_s);
+        window.__chronPrevN = window.__chronPrevN || {};
+        var _ck = window.LSR.key('d2r_craftMade'), _cn = _s.size, _ct = _craftRecipeTot();
+        var _prev = (typeof window.__chronPrevN[_ck] === 'number') ? window.__chronPrevN[_ck] : (_cn - 1);
+        if (_cn > _prev && typeof window._chronCelebrate === 'function') {
+          window._chronCelebrate({ chron:'craft', icon:'⚗️', noun:'crafts', n:_cn, tot:_ct });
+        }
+        window.__chronPrevN[_ck] = _cn;
+      }
+    } catch(e){}
     try { if (typeof renderForge==='function') renderForge(); } catch(e){}
     try { if (typeof _writeCraftReady==='function') _writeCraftReady(); } catch(e){}
+  };
+
+  /* v1634 — UN-CHRONICLE a recipe, and v559.1 holds: un-marking NEVER celebrates. Arm-then-confirm,
+     the same two-tap shape as the found chips' _armUnmark (whose signature only routes uni/set, so
+     this mirrors it rather than widening it), because a dense recipe row is easy to mis-tap. It
+     touches the BOOK only — d2r_craftStash (how many you own) is deliberately left alone. Tying the
+     chronicle to the owned count reaching 0 would re-couple a machine-shared book to per-profile
+     inventory, which is exactly the doctrine the store note rejects. */
+  window.forgeUncraft = function(btn, ck, slot){
+    try {
+      if (btn && btn.dataset.armed !== '1'){
+        btn.dataset.armed='1'; btn.classList.add('gp-rm-armed'); btn.textContent='remove?';
+        setTimeout(function(){ try{ btn.dataset.armed=''; btn.classList.remove('gp-rm-armed'); btn.textContent='✕'; }catch(e){} }, 4000);
+        return;
+      }
+      if (btn) btn.dataset.armed='';
+      var _s=_craftMadeSet(); _s['delete'](ck+'|'+slot); _craftMadeSave(_s);
+      window.__chronPrevN = window.__chronPrevN || {};
+      window.__chronPrevN[window.LSR.key('d2r_craftMade')] = _s.size;   // lower the memory, so re-logging it later still reads as a rise of one and never as a jump
+    } catch(e){}
+    try { if (typeof renderForge==='function') renderForge(); } catch(e){}
   };
   // v510 — HD item art per craft slot (Konyo: "HD art like in-game for Amulet/Belt/Gloves/Ring + all").
   // Representative HD sprite per slot type + a tooltip name that resolves to that art. Map the jewelry
@@ -33626,13 +33698,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       h+='<div class="f-craftacc-body">';
       d.rows.forEach(function(r){
         var ownN = (typeof _craftCount==='function') ? _craftCount(ck, r.slot) : 0;
-        h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
+        var _chr = window._craftMadeHas(ck, r.slot);   // v1634 — is this RECIPE in the bench book? (book ≠ stash count)
+        h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+(_chr?' chronicled':'')+'">'
           +_slotArtImg(r.slot, cc)
           +'<span class="f-craftrow-slot" style="color:var(--q-orange)">'+_fEsc(r.slot)+(r.top?' <span class="f-ideal" title="recommended / jackpot slot">★</span>':'')+'</span>'
           +'<span class="f-craftrow-rec">'+_cingRune(r.rune)+'<span class="f-cplus">+</span>magic '+_cingBase(r.base, r.slot)+'<span class="f-cplus">+</span>'+_cingJewel()+'</span>'
           +'<span class="f-craftrow-st">'+(r.ready?('✓ make now'+(r.gemCube?' <span style="opacity:.72;font-weight:var(--fw-normal)">· cube 3→1 '+_fEsc(c.gem)+'</span>':'')):(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))
           +(ownN?' · <b>'+ownN+'</b> owned':'')+'</span>'
           +'<button class="f-btn f-btn-go f-craft-made" type="button" title="I cubed this — log one owned '+_fEsc(ck)+' '+_fEsc(r.slot)+'" onclick="event.stopPropagation();window.forgeCrafted(\''+_fJs(ck)+'\',\''+_fJs(r.slot)+'\')">✓ crafted</button>'
+          +(_chr?'<button class="f-btn f-craft-unchron" type="button" title="un-chronicle this recipe from the bench book — your owned count is untouched" onclick="event.stopPropagation();window.forgeUncraft(this,\''+_fJs(ck)+'\',\''+_fJs(r.slot)+'\')">✕</button>':'')
           +'</div>';
       });
       h+='</div>';
@@ -34138,7 +34212,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } else { window.__forgeCraftsAutoOpen=false; }
       if (order.length){
         var _readyCraftN = s.crafts.length;
-        H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+order.length+'</span><span class="forge-sec-sub">all 4 types · all 9 slots · ✓ crafted logs owned · '+_readyCraftN+' recipe'+( _readyCraftN===1?'':'s')+' cubeable now</span></div>');
+        var _cChron = window._craftChronCount ? window._craftChronCount() : {n:0,tot:0};   // v1634 — the craft chronicle standing, same seam the celebration ladder counts from
+        H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+order.length+'</span><span class="forge-sec-sub">all 4 types · all 9 slots · ✓ crafted logs owned · '+_readyCraftN+' recipe'+( _readyCraftN===1?'':'s')+' cubeable now · <b>'+_cChron.n+'</b> / '+_cChron.tot+' recipes chronicled</span></div>');   /* v1634 — the ladder number gets a home on the page: assertable without pixels, and it is the BOOK (distinct recipes ever crafted), not the stash count */
         H.push('<div class="forge-craftacc">');
         order.forEach(function(ck){
           var c0=null; CRAFTS.forEach(function(x){ if(x.key===ck && !c0) c0=x; });
@@ -37982,7 +38057,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1633', name:'v1633 - room accent + craft gems', date:'2026-08-04', note:'Completed subtab wears its own room colour; craft chips keep their gem through a stale bridge; runeword card title off crafted-orange' };
+  window.D2R_BUILD = { id:'v1634', name:'v1634 - the bench keeps a book', date:'2026-08-04', note:'crafts join the celebration ladder, the grail parity question answered by measurement, and the sessions colour sweep finished' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

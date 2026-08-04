@@ -2252,3 +2252,35 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   log would have been a one-line diagnosis instead of a night. Regression suite:
   `tv/test_reel_index_durability.py`, **observed RED on the pre-fix code first** (LAW19) and registered
   in `tv/run_gates.py` per REG-079 — an unregistered suite rots.
+
+## REG-100 — the grail that was never split: a migration built, reverted, and finally disproved (2026-08-04)
+
+- **Symptom (reported as a defect, and it was not one):** `d2r_owned` and `d2r_copies` sit in
+  `window._LP_FORKED`, so they fork per PROFILE (`main` vs `ladder`) while `d2r_foundLog`,
+  `d2r_setPieces` and `d2r_rwMade` are machine-shared. Read from the store list alone that looks like
+  "his uniques count differently on MAIN than on LADDER", and Konyo asked for uniques to behave
+  *"like runeword and sets.. same logic"*.
+- **Caught by:** the v1633 store-fork audit — from the SHAPE of the code, not from a measurement.
+- **What v1633 did, and why it had to be reverted:** it moved both keys into the machine-shared set
+  plus a one-shot union migration with a backup key. Seeded names kept vanishing after a reload, so it
+  was reverted before shipping. The reason is the v677 doctrine: `d2r_owned` is not the found-truth,
+  it is the PHYSICAL VAULT (items on a given account's mules) plus pre-v677 residue. `toggleOwned()`
+  on a grail item writes the LEDGER (`d2r_foundLog`), and `funiScan` computes
+  `found = foundLog ∪ owned`. The board therefore re-derives from the shared ledger on every load and
+  the union merge had nothing lasting to do.
+- **Root cause of the false alarm:** a store-list audit answers *where does this key live*, never
+  *what does the user see*. Two keys can be forked and still produce one number.
+- **Fix — deliberately NO code change to the stores. Measured instead, on the real board:** MAIN read
+  **243** found; ticking one unique took it to **244**; LADDER, switched the way the app switches
+  (`d2r_activeProfile` + reload), read **244** off the same `d2r_foundLog` — its own fork
+  `L·d2r_owned` had **length 0**. Marking on LADDER took it to **245**, and MAIN then read **245**.
+  Both directions, across reloads. The fork is inert. Shipped: the measurement pinned as
+  `tests/v1634_profile_grail_parity.spec.ts` (a name found on either account shows on the other, and
+  the ladder namespace holds no chronicle of its own), plus a comment at the `_LP_FORKED` definition
+  recording the numbers so the fourth person to read that list does not rebuild the migration.
+- **Prevention — the transferable law: A STORE-SHAPE FINDING IS A HYPOTHESIS, NOT A BUG. DRIVE THE
+  REAL SURFACE AND READ THE NUMBER BEFORE MIGRATING ANYONE'S DATA.** A migration is the most
+  destructive change a single-file app can make; this one would have rewritten his grail to fix a
+  divergence that does not exist. And the tell that it was wrong was available for free — the merge
+  could not survive a reload, which is precisely what "the board derives this from somewhere else"
+  looks like from the outside. NEVER ship a migration that cannot be shown to hold after a reload.

@@ -902,7 +902,9 @@
      more specific, so it wins); the accent color is derived from the thought's real words — never
      fabricated. A grail thought glows gold, a good read mint, a failure amber, the rest stay dim so
      the money-moments pop out of the stream at a glance. */
-  .brain .line.mind-grail { color: #f4cd6a; text-shadow: 0 0 10px rgba(226,183,92,.4); }
+  /* v1634 — this class exists for exactly one reason: the line is about a GRAIL (uniques). A
+     per-quality tint has to be the quality's token, not a hand-mixed gold. */
+  .brain .line.mind-grail { color: var(--rar-unique); text-shadow: 0 0 10px color-mix(in srgb, var(--rar-unique) 40%, transparent); }
   .brain .line.mind-grail .k { filter: drop-shadow(0 0 7px rgba(244,205,106,.9)); }
   .brain .line.mind-good  { color: #a9e6ba; }
   .brain .line.mind-good .k { filter: drop-shadow(0 0 5px rgba(102,255,136,.55)); }
@@ -1940,7 +1942,10 @@
     box-shadow: 0 6px 22px rgba(0,0,0,.5); }
   .stage-pulse[hidden] { display: none; }
   .stage-pulse.sp-keep { color: #0e1a12; background: linear-gradient(90deg, var(--mint), #7fe0a0); }
-  .stage-pulse.sp-grail { color: #1c1607; background: linear-gradient(90deg, var(--gold-hi), var(--gold)); box-shadow: 0 6px 26px rgba(240,192,96,.4); }
+  /* v1634 — the GRAIL pulse announces a unique find; it wore the chrome gold ramp, which made the
+     one banner that means "unique" look like every gold surface it flashes over. Dark #1c1607 on
+     --rar-unique #c7b377 measures ~10:1, far above the 4.5:1 floor v1614 set. */
+  .stage-pulse.sp-grail { color: #1c1607; background: linear-gradient(90deg, color-mix(in srgb, var(--rar-unique) 88%, #fff), var(--rar-unique)); box-shadow: 0 6px 26px color-mix(in srgb, var(--rar-unique) 40%, transparent); }
   .stage-pulse.sp-in { animation: stagePulseIn .4s cubic-bezier(.2,.9,.25,1) both; }
   @keyframes stagePulseIn { 0% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.9); } 60% { transform: translateX(-50%) translateY(2px) scale(1.03); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
   @media (prefers-reduced-motion: reduce){ .eye-live.reading .ex { animation: none; } .stage-pulse.sp-in { animation: none; } }
@@ -2018,7 +2023,9 @@
   .find-card .fc-loc { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); color: #7d7358; flex: none; }
   .find-card.fc-grail { border-color: rgba(240,192,96,.5);
     background: linear-gradient(180deg, rgba(240,192,96,.09), rgba(0,0,0,.34)); box-shadow: inset 0 0 12px rgba(240,192,96,.08); }
-  .find-card.fc-grail .fc-name { color: #ffdf9a; }
+  /* v1634 — .fc-name on a grail card IS the item's name (fc-keep already paints its own mint,
+     so the family always meant "colour the name by what it is"). #ffdf9a was --gold-hi chrome. */
+  .find-card.fc-grail .fc-name { color: var(--rar-unique); }
   .find-card.fc-grail:hover { border-color: var(--gold); box-shadow: inset 0 0 14px rgba(240,192,96,.16), 0 4px 14px rgba(0,0,0,.4); }
   .find-card.fc-keep { border-color: rgba(143,230,160,.3); } .find-card.fc-keep .fc-name { color: #9df0bd; }
   .find-card.fc-border .fc-name { color: #d8c69a; }
@@ -2168,7 +2175,11 @@
   .bt.bt-farm { border-color: rgba(143,230,160,.35); color: #9df0bd; }
   .bt.bt-town { border-color: rgba(111,168,220,.4); color: #a8ccef; }
   .bt.bt-intake { border-color: rgba(185,165,255,.45); color: #cbbcff; }
-  .bt.bt-grail { border-color: rgba(240,192,96,.5); color: var(--gold-hi); background: rgba(240,192,96,.08); }
+  /* v1634 SESSIONS COLOUR SWEEP — a bt-grail chip carries an ITEM NAME (_dossierBeats pushes
+     esc(g.name) for every grail find), so it is a name surface, not chrome. It was --gold-hi
+     #ffdf9a, this console's own chrome highlight: the exact v1622 mistake, a unique painted the
+     same colour as every gold border around it. Now --rar-unique, the quality token. */
+  .bt.bt-grail { border-color: color-mix(in srgb, var(--rar-unique) 55%, transparent); color: var(--rar-unique); background: color-mix(in srgb, var(--rar-unique) 9%, transparent); }
   .bt.bt-keep { border-color: rgba(143,230,160,.4); color: #bfead0; }
   .bt.bt-regret { border-color: rgba(255,120,80,.4); color: #ff9a8a; }
   .bt.bt-seal { border-color: rgba(240,192,96,.35); color: var(--gold-dim); }
@@ -2373,6 +2384,23 @@
   .chron-c.throw { opacity: .9; }
   .chron-c.throw .chron-c-h { color: var(--st-warn, #d8a657); border-bottom-style: dashed; }
   .chron-c.throw .chron-n b { color: #cbb894; font-weight: var(--fw-medium); }
+  /* ══ v1634 · THE REVIEW LANES WEAR THEIR CHRONICLE'S QUALITY ══════════════════════════════════
+     Konyo: "sets for green. uniques for uniques color... each their own relevant color and synced
+     to the rest of the platform." The sweep review's two WOULD-ADD lanes are each single-quality
+     by construction — the Holy Grail lane is fed the uniques bucket, the Set pieces lane the set
+     bucket (see the .chron-c markup near the sweep renderer) — so both the lane HEADING and every
+     item NAME inside it can name their quality honestly. They were --st-good (mint) and #e8d9a8
+     (parchment cream): mint is the "good/live" STATE colour, and a set piece painted the same
+     mint as a healthy engine light is the "grail chip looked like every other gold label" bug
+     (v1622) wearing a different hue.
+       .chron-c.q-uni -> --rar-unique      .chron-c.q-set -> --rar-set
+     The lane carries the modifier (not the heading) so heading and names cannot drift apart.
+     The HELD and THROW-OUT lanes deliberately get no modifier: they are mixed-quality by design
+     and their colour reports a STATE (held / proposed-destroy, v1596), not a rarity. */
+  .chron-c.q-uni .chron-c-h,
+  .chron-c.q-uni .chron-n b { color: var(--rar-unique); }
+  .chron-c.q-set .chron-c-h,
+  .chron-c.q-set .chron-n b { color: var(--rar-set); }
   .vault-lane-note { margin-top: 6px; font: var(--fw-medium) var(--fs-2xs)/1.45 var(--mono);
     letter-spacing: var(--ls-label); color: var(--text-dim); }
   .hd-vault .vault-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
@@ -2819,7 +2847,9 @@
   .hh-when { font: var(--fw-medium) var(--fs-2xs)/var(--lh-tight) var(--mono); color: #8a7e68; margin-top: 2px; }
   .hh-meta { font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #b7a884; margin-top: 4px; }
   .hh-found { color: var(--gold); }
-  .hh-grail { font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono); color: #ffdf9a; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* v1634 — .hh-grail prints esc(topGrail.name): an ITEM NAME, so it takes --rar-unique like its
+     neighbour .hh-name.r-uni does. Was #ffdf9a, console chrome. */
+  .hh-grail { font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono); color: var(--rar-unique); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hd-hist-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 18px 16px 20px; width: 100%; }
   .hh-emoji { font-size: 34px; opacity: .55; }
   .hh-lead { font: var(--fw-bold) var(--fs-sm)/var(--lh-tight) var(--serif); color: #e8cf96; letter-spacing: var(--ls-snug); }
@@ -2968,14 +2998,18 @@
     background: rgba(0,0,0,.3); color: #c9b88a; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal);
     cursor: pointer; text-transform: uppercase; }
   .ch-pill.on { color: #0c100e; background: #f0d89a; border-color: #f0d89a; }
-  .ch-pill.grail.on { background: #f0c060; border-color: #f0c060; }
+  /* v1634 — the GRAIL filter pill names the grail chronicle, i.e. UNIQUES. It was #f0c060 =
+     --gold, the console's own chrome, so "Grail" lit up the same colour as the panel around it.
+     Surface: .ch-pill.grail.on -> --rar-unique. (.ch-pill.on keeps its near-black #0c100e text;
+     #0c100e on #c7b377 measures ~11:1, well clear of the 4.5:1 floor v1614 set.) */
+  .ch-pill.grail.on { background: var(--rar-unique); border-color: var(--rar-unique); }
   .ch-body { flex: 1; overflow: auto; padding: 12px 16px 8px; min-height: 120px; }
   .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
   .ch-card-item { position: relative; border-radius: 12px; border: 1px solid rgba(200,180,120,.2);
     background: rgba(0,0,0,.35); padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 6px;
     transition: border-color .15s, box-shadow .15s; }
   .ch-card-item.sel { border-color: rgba(143,208,160,.65); box-shadow: 0 0 0 1px rgba(143,208,160,.25); }
-  .ch-card-item.tier-grail { border-color: rgba(240,192,96,.45); }
+  .ch-card-item.tier-grail { border-color: color-mix(in srgb, var(--rar-unique) 45%, transparent); }   /* v1634 — the card's tier IS "grail" = unique; was chrome-gold rgba(240,192,96,.45) */
   .ch-card-item.st-in-chronicle { opacity: .88; border-color: rgba(143,208,160,.35); }
   .ch-card-item.st-accepted { opacity: .9; border-color: rgba(157,240,189,.4); }
   .ch-card-item.st-dismissed { opacity: .55; filter: grayscale(.35); }
@@ -2997,7 +3031,11 @@
   .ch-card-item .ch-tier { align-self: center; font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-wide);
     text-transform: uppercase; padding: 3px 7px; border-radius: 5px;
     border: 1px solid rgba(200,180,120,.3); color: #c9b88a; }
-  .ch-card-item .ch-tier.t-grail { color: #f0c060; border-color: rgba(240,192,96,.55); background: rgba(80,50,10,.35); }
+  /* v1634 — the GRAIL tier badge names uniques; #f0c060 was --gold (console chrome), same defect
+     as the pill above. Foreground+border now read --rar-unique; the dark plate behind stays a
+     plain dark tint (chrome carrying no meaning) so the token is the only thing that says
+     "unique". */
+  .ch-card-item .ch-tier.t-grail { color: var(--rar-unique); border-color: color-mix(in srgb, var(--rar-unique) 55%, transparent); background: rgba(80,50,10,.35); }
   .ch-card-item .ch-tier.t-keep { color: #9df0bd; border-color: rgba(143,208,160,.45); background: rgba(20,50,30,.35); }
   .ch-card-item .ch-meta { font: var(--fw-normal) var(--fs-2xs)/var(--lh-tight) var(--mono); color: #7a7260; text-align: center; }
   .ch-card-item .ch-row-acts { display: flex; gap: 6px; margin-top: auto; }
@@ -3735,7 +3773,24 @@
   .hd-chip.hd-chip-gem:hover { border-color: var(--gemc);
     box-shadow: 0 0 10px color-mix(in srgb, var(--gemc) 26%, transparent); }
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
-  .hd-chip.nm { color: #e6cf90; border-color: rgba(240,192,96,.4); }   /* v945.4 — GRAIL/SETS are ACHIEVEMENT progress (gold), not a live lane; mint now means live-only */
+  /* v945.4 — GRAIL/SETS are ACHIEVEMENT progress, not a live lane; mint means live-only. That
+     half of the rule still stands and is why these chips are not mint.
+     v1634 ADJUDICATES THE OTHER HALF AS DRIFT, NOT DOCTRINE. "achievement progress (gold)" was
+     written in v945.4, ~680 versions before the rarity palette existed (v1621) — at the time gold
+     only had to mean "not a live lane", and the console had no token for "unique". It does now,
+     and a chip that reads "GRAIL · 229 / 403" NAMES a chronicle of uniques, exactly like the
+     F·Uniques tab does. Leaving it #e6cf90 is the v1622 defect: the chip announcing uniques
+     painted the same gold as the chrome around it.
+     .hd-chip.nm keeps the neutral achievement gold as the BASE (any future .nm chip that names no
+     quality still lands somewhere sane); the two chips that DO name a quality claim their token:
+       .nm-grail -> --rar-unique      .nm-sets -> --rar-set
+     and the FORGE chip -> --rar-rune, matching `.head-tabs .ht[data-tab="forge"]` exactly: it is
+     the same ROOM label as the tab, and per the v1631 doctrine below a room wears the rune accent
+     while runeword NAMES stay gold. The two Forge surfaces now agree by construction. */
+  .hd-chip.nm { color: #e6cf90; border-color: rgba(240,192,96,.4); }
+  .hd-chip.nm.nm-grail { color: var(--rar-unique); border-color: color-mix(in srgb, var(--rar-unique) 45%, transparent); }
+  .hd-chip.nm.nm-sets  { color: var(--rar-set);    border-color: color-mix(in srgb, var(--rar-set) 40%, transparent); }
+  .hd-chip.nm-forge    { color: var(--rar-rune);   border-color: color-mix(in srgb, var(--rar-rune) 45%, transparent); }
   /* v889 (Konyo: 'no dead space · breathing room · stretched · symmetric') */
   aside.rail { display: flex; flex-direction: column; gap: 10px; }
   aside.rail > * { margin-top: 0 !important; flex: 0 0 auto; }
@@ -3793,7 +3848,31 @@
      CONTRAST: the unlit tabs paint the token at FULL strength (never mixed toward white, which
      would drift the tan back into the chrome-gold family); the lit tab keeps the near-black
      #1a1206 foreground of .shell-on and moves the QUALITY into the gradient, whose darker stop is
-     held at 90% quality / 10% black so black-on-quality clears 4.5:1 for all three. */
+     held at 90% quality / 10% black so black-on-quality clears 4.5:1 for all three.
+
+     ── v1634 · WHAT THE SESSIONS COLOUR SWEEP DELIBERATELY LEFT ALONE ──────────────────────────
+     Konyo: "same for sessions page. a full on sync to colors." Every surface in this document that
+     NAMES a quality or a chronicle now reads a --rar-* token (grail pill, grail tier badge, grail
+     card border, GRAIL/SETS/FORGE home chips, bt-grail beat chip, fc-grail find name, hh-grail
+     hero line, mind-grail brain line, sp-grail pulse, and the sweep-review WOULD-ADD lanes).
+     These were CHECKED AND FOUND CORRECT AS CHROME — do not "sync" them, they name no quality:
+       .chron-run b / .chron-v b / .chron-fig b / .chron-reels .cr b — session STATISTICS (runs,
+         visits, minutes, reel filenames). A number about a session is not an item.
+       .chron-verdict .cv-say, .tf-chron-note, .chron-btn.chron-arm — PROSE and a button state.
+       .ch-status.s-* , .chron-c.held/.throw, .find-card.fc-keep/.fc-border, .hd-chip.now/.step/
+         .dim/.warn/.intk — the v1503 FOUR STATES. Mint/amber/red here mean live, needs-attention,
+         bad. Repainting a state with a rarity would destroy both legends at once.
+       .chron-c.throw .chron-n b (#cbb894, dimmed) — v1596 ON PURPOSE: the destroy lane must never
+         carry the same visual weight as OWNED, and it is mixed-quality anyway.
+       .bt.bt-keep / .bt.bt-farm / .bt.bt-portal … — beat chips for EVENTS, not items; only
+         bt-grail carries an item name, which is why only bt-grail moved.
+       .hd-chip.nm base #e6cf90 — kept as the fallback for a .nm chip that names no quality; the
+         two that do (GRAIL, SETS) now carry .nm-grail / .nm-sets.
+     AND THE TWO RULES ABOVE STAND UNCHANGED: a NAME obeys the game (runeword name = unique gold,
+     --rar-runeword deliberately equals --rar-unique — never "de-duplicate" them), and a TAB or
+     ROOM label wears its chosen accent (Forge = --rar-rune, never --rar-orange, which is CRAFTED
+     quality). The FORGE home chip was moved to --rar-rune for exactly that reason: it labels the
+     same room as the Forge tab, so the two now agree by construction. */
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
   /* v1631 — the Forge TAB wears the RUNE colour, not the runeword-name gold. See the token block:
@@ -10846,7 +10925,7 @@
         (function(){ var c9 = fs && fs.chron;
           var _n9 = (fs && fs.now && fs.now.length) || (fs && fs.counts && fs.counts.now) || 0,
               _o9 = (fs && fs.onestep && fs.onestep.length) || (fs && fs.counts && fs.counts.onestep) || 0;
-          return '<span class="hd-chip step">🔥 FORGE' + (c9 && c9.total ? ' · ' + c9.made + ' / ' + c9.total : '') + ' · ' + _n9 + ' ready · ' + _o9 + ' one-step</span>'; })(),   /* v923 (Konyo) — the runeword chronicle reads like its siblings: ALL THREE chronicles found/total */
+          return '<span class="hd-chip step nm-forge">🔥 FORGE' + (c9 && c9.total ? ' · ' + c9.made + ' / ' + c9.total : '') + ' · ' + _n9 + ' ready · ' + _o9 + ' one-step</span>'; })(),   /* v923 (Konyo) — the runeword chronicle reads like its siblings: ALL THREE chronicles found/total */
         '',   /* v1374 — TALLIES launcher relocated OUT of this (hidden) ENGINES card to the visible RECORD-zone #hd-tallybar (rendered below) so it stays reachable + the J3 demo can click one visible launcher. */
         (function(){   /* v935.11 — watchdog verdict surfaces on home when it has something to say */
           var wd = st.watchdog;
@@ -10865,8 +10944,8 @@
           else { lab = (localStorage.getItem('d2r_tvdOn') === '1' ? 'stamp only' : 'not armed'); cls = 'warn'; }
           return '<span class="hd-chip ' + cls + '" title="auto-tally engine (control-driven since v929.2)">🔌 ENGINE · ' + lab + '</span>';
         })(),
-        (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm">' + artImg('uniques', 'hd-chip-art') + 'GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
-        (function(){ var sp = fs && fs.sets; return sp && sp.total ? '<span class="hd-chip nm">' + artImg('sets', 'hd-chip-art') + 'SETS · ' + sp.found + ' / ' + sp.total + (sp.done ? ' · ' + sp.done + ' complete' : '') + '</span>' : ''; })(),   /* v922 (Konyo) — F·Sets is a chronicle too */
+        (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm nm-grail">' + artImg('uniques', 'hd-chip-art') + 'GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
+        (function(){ var sp = fs && fs.sets; return sp && sp.total ? '<span class="hd-chip nm nm-sets">' + artImg('sets', 'hd-chip-art') + 'SETS · ' + sp.found + ' / ' + sp.total + (sp.done ? ' · ' + sp.done + ' complete' : '') + '</span>' : ''; })(),   /* v922 (Konyo) — F·Sets is a chronicle too */
         '<span class="hd-chip ' + (H.freeGB != null && H.freeGB < (H.minFreeGB || 8) ? 'warn' : '') + '">💾 ' + (H.freeGB != null ? H.freeGB + 'GB free' : 'disk —') + '</span>'
       ];
       $('hd-engine-chips').innerHTML = chips.join('');
@@ -12897,9 +12976,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     rev.hidden = false;
     rev.innerHTML = _chronRunRow(st, res)
       + '<div class="chron-cols">'
-      + '<div class="chron-c add"><div class="chron-c-h">🏆 WOULD ADD · Holy Grail (' + u.length + ')</div>'
+      /* v1634 — q-uni / q-set are COLOUR HOOKS ONLY (see the .chron-c.q-* rules): this lane holds
+         nothing but uniques, that one nothing but set pieces, so heading and names paint the real
+         quality. The existing .chron-c / .add classes are untouched, so every selector that
+         already targets these lanes still matches. */
+      + '<div class="chron-c add q-uni"><div class="chron-c-h">🏆 WOULD ADD · Holy Grail (' + u.length + ')</div>'
       +   '<div class="chron-list">' + _chronNames(u, false) + '</div></div>'
-      + '<div class="chron-c add"><div class="chron-c-h">🧩 WOULD ADD · Set pieces (' + sset.length + ')</div>'
+      + '<div class="chron-c add q-set"><div class="chron-c-h">🧩 WOULD ADD · Set pieces (' + sset.length + ')</div>'
       +   '<div class="chron-list">' + _chronNames(sset, false) + '</div></div>'
       + '<div class="chron-c held"><div class="chron-c-h">⚖ HELD (' + held.length + ')</div>'
       +   '<div class="chron-list">' + _chronNames(held, true) + '</div></div>'
