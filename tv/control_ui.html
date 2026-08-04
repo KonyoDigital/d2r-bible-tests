@@ -2438,6 +2438,46 @@
     color: #e9d3a8; }
   .readh-none { font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono);
     letter-spacing: var(--ls-label); color: var(--text-dim); }
+  /* ══ v1636 · THE READ CHAIN SPEAKS THE CONSOLE'S LANGUAGE ═════════════════════════════════════
+     Folded by default, one row per distinct link with its ×N count, and a legend that names the
+     letters. Type comes from the same tokens every other panel here uses (--mono runs, --ls-label
+     tracking, the gold/mint/needs state palette) — no new colours are introduced. ══ */
+  .readh-det > summary { list-style: none; cursor: pointer; }
+  .readh-det > summary::-webkit-details-marker { display: none; }
+  .readh-sum { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    padding: 7px 9px; border-radius: 7px; border: 1px solid rgba(233,185,110,.20);
+    background: rgba(233,185,110,.05);
+    font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label); }
+  .readh-det[open] > .readh-sum { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .readh-sum:hover { border-color: rgba(233,185,110,.42); background: rgba(233,185,110,.09); }
+  .readh-sum-v { color: #e9d3a8; font-weight: var(--fw-semibold); text-transform: uppercase;
+    letter-spacing: var(--ls-wide); }
+  .readh-sum-n { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .readh-sum-go { margin-left: auto; color: var(--gold-dim); }
+  .readh-det[open] .readh-sum-go::after { content: ' ▴'; }
+  .readh-det:not([open]) .readh-sum-go::after { content: ' ▾'; }
+  .readh-det-b { padding: 8px 9px 2px; border: 1px solid rgba(233,185,110,.14); border-top: 0;
+    border-radius: 0 0 7px 7px; }
+  /* the ×N that replaced N identical rows — it IS the evidence the fold hides, so it is legible */
+  .readh-n { margin-left: auto; flex: 0 0 auto; font-style: normal; font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums; letter-spacing: var(--ls-label); color: var(--gold-dim); }
+  .readh-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 4px 12px; margin: 0 0 9px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(198,166,100,.14); }
+  .readh-lg-h { grid-column: 1 / -1; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--gold); margin-bottom: 3px; }
+  .readh-lg { display: flex; align-items: baseline; gap: 7px; min-width: 0; opacity: .45;
+    font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label);
+    color: var(--text-dim); }
+  .readh-lg > i { flex: 0 0 auto; font-style: normal; font-weight: var(--fw-bold);
+    width: 17px; height: 17px; line-height: 15px; text-align: center; border-radius: 4px;
+    border: 1px solid rgba(198,166,100,.3); color: var(--gold-dim); }
+  /* a link this run actually hit is lit; only "E · worked" is a good outcome */
+  .readh-lg.on { opacity: 1; color: #d9c9a0; }
+  .readh-lg.on > i { border-color: rgba(233,185,110,.55); color: var(--st-needs); }
+  .readh-lg.on.ok > i { border-color: rgba(143,230,160,.55); color: var(--st-good); }
+  .readh-lg > u { text-decoration: none; margin-left: auto; flex: 0 0 auto;
+    font-variant-numeric: tabular-nums; color: var(--gold-dim); }
 
   /* v1526 — the in-game visits strip. Reads as a RECEIPT of what he did, not a control panel. */
   .chron-visits { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; }
@@ -3121,10 +3161,14 @@
   /* v903 — THE MOTHERBOARD: sessions-home dashboard (left column, row 2 — the rail spans) */
   /* ══ v1464 (SESSIONS R5 · the dash actually columns) — was `1fr 1fr`, but EVERY .zone-banner
      and every .hd-wide card is `grid-column: 1 / -1`, so a spanning element sat between each
-     pair and forced a new row. The only three cards that are NOT wide (#hd-taskforce, #hd-forge,
+     pair and forced a new row. The cards that were NOT wide (then #hd-taskforce, #hd-forge and
      #hd-lastsession) therefore each landed ALONE in column 1, leaving ~395px of dead column
      beside them, three times over — that ragged right edge is exactly why the surface read as
-     unaligned. The v1289 comment below still promised "Task Force ▸ Last Session, Forge ▸ Live
+     unaligned.
+     ⚠ v1636 — #hd-taskforce IS wide now, so this list is HISTORY, not a current inventory: the
+     DAILY TASK FORCE was still the ~half-width case Konyo called "dead space" ("using the space
+     so its stretched"), measured at 532px inside a 1075px zone. It joined .hd-wide and now spans
+     the full 1075px; only #hd-forge and #hd-lastsession are still non-wide. The v1289 comment below still promised "Task Force ▸ Last Session, Forge ▸ Live
      Intake" pairs; that stopped being true when v1424 inserted the banners and #hd-intake was
      hidden. auto-fit/minmax pairs cards again WHEN there is room for two real columns
      (>= ~2x360px) and gives one honest column when there is not — at 1105px the dash is 802px,
@@ -3318,12 +3362,20 @@
      qualities; .ch-nm had none at all and painted every named item a flat cream. Specificity note:
      `.ch-card-item .ch-nm` (0,2,0) sets the plain base further up, and every selector here is
      (0,3,0) or (0,2,0)+class, so the quality always wins regardless of source order. */
-  .hh-name.r-set,    .ch-card-item .ch-nm.r-set      { color: var(--rar-set); }
-  .hh-name.r-unique, .ch-card-item .ch-nm.r-unique   { color: var(--rar-unique); }
-  .hh-name.r-rare,   .ch-card-item .ch-nm.r-rare     { color: var(--rar-rare); }
-  .hh-name.r-magic,  .ch-card-item .ch-nm.r-magic    { color: var(--rar-magic); }
-  .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted  { color: var(--rar-orange); }
-  .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword { color: var(--rar-runeword); }
+  /* v1636 — .tf-nm (the DAILY PICK's item name, now an affordance inside the sentence) joins the
+     same r-* vocabulary rather than growing a seventh half-palette. It is an ITEM NAME, so it
+     obeys the game's quality colours — unlike .tf-q-runes above, which labels a ROOM. */
+  .hh-name.r-set,    .ch-card-item .ch-nm.r-set,     .tf-t b.tf-nm.r-set      { color: var(--rar-set); }
+  .hh-name.r-unique, .ch-card-item .ch-nm.r-unique,  .tf-t b.tf-nm.r-unique   { color: var(--rar-unique); }
+  .hh-name.r-rare,   .ch-card-item .ch-nm.r-rare,    .tf-t b.tf-nm.r-rare     { color: var(--rar-rare); }
+  .hh-name.r-magic,  .ch-card-item .ch-nm.r-magic,   .tf-t b.tf-nm.r-magic    { color: var(--rar-magic); }
+  .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted,  .tf-t b.tf-nm.r-crafted  { color: var(--rar-orange); }
+  .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword, .tf-t b.tf-nm.r-runeword { color: var(--rar-runeword); }
+  /* the name reads as a door: its own hover/focus, its art inline, and the row's click never
+     double-fires because the handler stops propagation. */
+  .tf-t b.tf-nm { cursor: pointer; border-bottom: 1px dotted currentColor; padding-bottom: 1px; }
+  .tf-t b.tf-nm:hover { filter: brightness(1.18); border-bottom-style: solid; }
+  .tf-t b.tf-nm .tf-i { margin-right: 4px; }
   @keyframes hhBreathe { 0%,100%{ text-shadow: 0 0 22px color-mix(in srgb, currentColor 28%, transparent), 0 2px 0 rgba(0,0,0,.4);} 50%{ text-shadow: 0 0 38px color-mix(in srgb, currentColor 50%, transparent), 0 2px 0 rgba(0,0,0,.4);} }
   .hh-src { font: var(--fw-medium) var(--fs-xs)/1 var(--mono); color: var(--parch-dim); letter-spacing: .02em; }
   .hh-src b { color: var(--mint); font-weight: var(--fw-semibold); }
@@ -3381,6 +3433,18 @@
     border-bottom: 1px solid rgba(200,180,120,.12); }
   .hd-sub { font-weight: var(--fw-normal); opacity: .55; letter-spacing: var(--ls-normal); margin-left: 8px; font-size: var(--fs-xs); }
   .hd-chips { display: flex; flex-wrap: wrap; gap: var(--hd-gap-in); }
+  /* ══ v1636 · THE FORGE QUESTS SIT ON A GRID ═══════════════════════════════════════════════════
+     Measured at v1635: four quest chips came out 127 / 108 / 137 / 237px wide, because .hd-chips
+     is flex-wrap and a chip is exactly as wide as its sentence. A quest whose runeword happens to
+     have a long name orphans onto its own row and the group reads ragged.
+     SCOPED TO THE ID ON PURPOSE. #hd-tallybar-chips, #hd-engine-chips and #hd-intake-chips share
+     .hd-chips, carry a VARIABLE number of short chips, and must keep wrapping — a grid would
+     stretch two engine lights across half a screen. Only the forge queue is a fixed-shape roster,
+     so only the forge queue gets columns. ══ */
+  #hd-forge-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  #hd-forge-chips .hd-chip { display: flex; align-items: center; gap: 7px; }
+  /* the empty-state sentence is prose, not a chip — it takes the whole row rather than one track */
+  #hd-forge-chips .hd-empty { grid-column: 1 / -1; }
   .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: var(--hd-radius-in); padding: var(--hd-pad-row-y) var(--hd-pad-row-x); font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
   /* v945.4 — ENGINE-CHIP STATE LANGUAGE (Konyo needs to read liveness at a glance):
      mint = LIVE/driving · gold = booting/transitional · amber = achievement progress ·
@@ -3669,6 +3733,57 @@
   /* v945 CONSOLE PARITY C8 — the LAST SESSION digest is the newest sealed reel: a mint reel-accent */
   .hd-lastsession { border-color: rgba(143,230,160,.28); box-shadow: inset 3px 0 0 rgba(143,230,160,.5); }
   .hd-tf-rows { display: flex; flex-direction: column; gap: var(--hd-gap-row); }
+  /* ══ v1636 · THE ROSTER IS A TABLE, NOT FIVE INDEPENDENT FLEX ROWS ════════════════════════════
+     Once #hd-taskforce spans the column (375px → full), stretching the rows alone just makes long
+     ragged lines. Each row flexed on its OWN content, so "41 / 99", "243 / 403" and "71 / 136"
+     landed at three different x-positions and the % badges floated wherever the text ended.
+     SUBGRID makes the five rows share ONE set of tracks — glyph · name · count · progress · badge —
+     so the numbers stack in real columns and every badge lands on the same right edge.
+     Subgrid (not one flat grid) because each row must keep its own border, background, hover and
+     the ready/ai/chron state rails at .tf-ready/.tf-ai/.tf-chron — those live on the ROW box.
+     The flex declaration above stays as the fallback: on an engine without subgrid the panel is
+     exactly what it was in v1635, never a broken grid.
+     ⚠ SCOPED TO THE ID #hd-tf-rows, NOT THE CLASS. The class .hd-tf-rows has TWO hosts — the
+     roster (#hd-tf-rows) and the LAST SESSION digest (#hd-ls-row) — and hdLastSession() appends
+     direct children that are NOT .tf-row: the v1265 scene fingerprint (.tf-fp) and the v1267
+     _findsStrip cards. Only "> .tf-row" carries grid-column:1/-1, so under a class-scoped rule
+     those two would be auto-placed into the roster's tracks and land in the max-content glyph
+     column. #hd-ls-row therefore keeps the flex column above, untouched. ══ */
+  @supports (grid-template-columns: subgrid) {
+    #hd-tf-rows { display: grid;
+      /* glyph · name+note · count · progress · badge */
+      grid-template-columns: max-content minmax(0, 1fr) max-content 132px max-content;
+      column-gap: 12px; row-gap: var(--hd-gap-row); }
+    #hd-tf-rows > .tf-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid;
+      align-items: center; }
+    #hd-tf-rows > .tf-row > .tf-g   { grid-column: 1; }
+    #hd-tf-rows > .tf-row > .tf-t   { grid-column: 2; }
+    #hd-tf-rows > .tf-row > .tf-n   { grid-column: 3; }
+    #hd-tf-rows > .tf-row > .tf-p   { grid-column: 4; }
+    #hd-tf-rows > .tf-row > .tf-tag { grid-column: 5; justify-self: end; }
+    /* anything the roster ever emits that is NOT a .tf-row (an .hd-empty resting line, a note)
+       spans the whole width instead of being auto-placed into the glyph track. */
+    #hd-tf-rows > :not(.tf-row) { grid-column: 1 / -1; }
+    /* a row that counts nothing (hero · ready · one-step · daily pick · today) hands its text the
+       count and progress tracks instead of leaving two holes — the badge column is untouched, so
+       the right edge still lines up. The hero is the row that needed this most: measured at 7
+       wrapped lines in a 375px panel. */
+    #hd-tf-rows > .tf-row:not(:has(> .tf-n)) > .tf-t { grid-column: 2 / 5; }
+  }
+  /* the count, in tabular figures so 41/99 and 243/403 line up digit-for-digit down the column */
+  .tf-n { flex: 0 0 auto; font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-label);
+    font-variant-numeric: tabular-nums; color: #e8d9a8; white-space: nowrap; text-align: right; }
+  .tf-n i { font-style: normal; opacity: .42; margin: 0 3px; }
+  .tf-n u { text-decoration: none; opacity: .62; font-weight: var(--fw-medium); }
+  /* the progress the % badge only ever asserted — same number, now visible as a length */
+  .tf-p { flex: 0 0 132px; display: block; height: 5px; border-radius: 3px; overflow: hidden;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(240,192,96,.16); }
+  .tf-p > i { display: block; height: 100%; background: var(--gold-antique); transition: width .3s; }
+  /* the bar wears its chronicle's colour, same tokens as the name beside it — one row, one hue */
+  .tf-row.tf-q-runes   .tf-p > i { background: var(--rar-rune); }
+  .tf-row.tf-q-uniques .tf-p > i { background: var(--rar-unique); }
+  .tf-row.tf-q-sets    .tf-p > i { background: var(--rar-set); }
+  .tf-row.tf-chron-done .tf-p > i { opacity: .45; }
   /* v945 CONSOLE PARITY C5 — task-force + digest rows read as app list-cards: warm surface, hover */
   .tf-row { display: flex; align-items: center; gap: 10px; padding: var(--hd-pad-row-y) var(--hd-pad-row-x); border: 1px solid rgba(240,192,96,.13);
     border-radius: var(--hd-radius-in); background: rgba(255,255,255,.022); font: var(--fw-normal) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0;
@@ -3680,14 +3795,28 @@
   .tf-g { font-size: var(--fs-md); flex: 0 0 auto; }
   .tf-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tf-t b { color: #f0dfae; }
-  /* v1633 — each chronicle's name in its own in-game colour, from the tokens. A runeword's NAME is
-     gold in D2 (the game has no runeword colour of its own), so the Runewords row takes the same
-     gold as uniques — that is the game agreeing with itself, not a copy-paste. */
-  .tf-row.tf-q-runes   .tf-t b { color: var(--rar-runeword); }
+  /* ══ v1636 · A TASK-FORCE ROW IS A ROOM, NOT AN ITEM NAME ═════════════════════════════════════
+     v1633 painted these three rows with the ITEM-NAME tokens and, because --rar-runeword is
+     deliberately the same #c7b377 as --rar-unique (see the token block at the top — that equality
+     is the game agreeing with itself and must NEVER be "de-duplicated"), "Runewords" and "Grail
+     Uniques" came out the identical gold. Measured on the live panel: both computed
+     rgb(199,179,119), so only "Sets" read as coloured and the sync looked half-done.
+     These rows do not print an item name. "Runewords" is the label of a ROOM — the same room the
+     Forge tab names — and v1631 already settled that a room wears --rar-rune (#ff7d3c, the Forge
+     orange, matching .hd-chip.nm-forge and .head-tabs .ht[data-tab="forge"]). So this row joins
+     them, and the Uniques/Sets rows are untouched because their room and their quality agree.
+     The fix is in the ROW RULE. The TOKEN is correct and is not touched. ══ */
+  .tf-row.tf-q-runes   .tf-t b { color: var(--rar-rune); }
   .tf-row.tf-q-uniques .tf-t b { color: var(--rar-unique); }
   .tf-row.tf-q-sets    .tf-t b { color: var(--rar-set); }
   .tf-tag { flex: 0 0 auto; font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-wide); padding: 4px 8px;
     border-radius: 6px; border: 1px solid rgba(143,230,160,.5); color: var(--mint); }
+  /* v1636 — one width for every badge IN THE ROSTER, so the column's right edge is a straight line.
+     Scoped to the ID #hd-tf-rows, NOT the class: #hd-ls-row also carries .hd-tf-rows and emits a
+     lone .tf-tag (🛡 CLEAN / 🚨 N) that has no column to line up with — padding that one out to
+     96px would only make a single badge look stranded. The ID is what makes that true; a comment
+     saying "scoped" over a class selector does not. */
+  #hd-tf-rows .tf-tag { min-width: 96px; text-align: center; }
   .tf-tag.dim { border-color: var(--edge); color: #9a8d73; }
   .tf-tag.ai { border-color: rgba(185,165,255,.5); color: #cbbcff; }
   /* v1256 — multi-chronicle rows: a gold accent for a chronicle still being hunted; muted when complete */
@@ -3840,7 +3969,11 @@
      matched and synced to green sets like it is ingame. F-UNIQUES it can be matched and synced to
      the uniques color... FORGE tab can match the runewords color ingame."
      Only three tabs get a tint, because only three of them NAME a D2 quality:
-       F·Uniques -> --rar-unique   F·Sets -> --rar-set   Forge -> --rar-runeword (runewords)
+       F·Uniques -> --rar-unique   F·Sets -> --rar-set   Forge -> --rar-rune (the runeword room)
+     v1636 CORRECTS THIS LINE, which had outlived its value: it still read "Forge -> --rar-runeword
+     (runewords)" long after v1631 moved the Forge TAB to --rar-rune, and the selector 60 lines
+     below already said --rar-rune. A stale sentence beside a right rule is how the wrong token
+     gets retyped from memory next session — the same trap the token block calls out.
      Sessions / Tools / TV·D stay chrome gold and are deliberately absent from every selector
      below: the game has no quality concept for a session log, a toolbox or a TV channel, and the
      v1615 rule is art-and-colour ONLY where the game has the concept. Tinting them would make the
@@ -3866,13 +3999,15 @@
      #1a1206 foreground of .shell-on and moves the QUALITY into the gradient, whose darker stop is
      held at 90% quality / 10% black so black-on-quality clears 4.5:1 for all three.
 
-     ── v1634 · WHAT THE SESSIONS COLOUR SWEEP DELIBERATELY LEFT ALONE ──────────────────────────
+*/
+  /* ── v1634 · WHAT THE SESSIONS COLOUR SWEEP DELIBERATELY LEFT ALONE ──────────────────────────
      Konyo: "same for sessions page. a full on sync to colors." Every surface in this document that
      NAMES a quality or a chronicle now reads a --rar-* token (grail pill, grail tier badge, grail
      card border, GRAIL/SETS/FORGE home chips, bt-grail beat chip, fc-grail find name, hh-grail
      hero line, mind-grail brain line, sp-grail pulse, and the sweep-review WOULD-ADD lanes).
 
-     ── v1635 · THE ADVERSARIAL RE-GATE CORRECTS THAT CLAIM ─────────────────────────────────────
+*/
+  /* ── v1635 · THE ADVERSARIAL RE-GATE CORRECTS THAT CLAIM ─────────────────────────────────────
      v1634 shipped through a skeptic panel that was arithmetically unable to refuse anything, so
      "EVERY surface" above went unchecked. Re-grepped adversarially: FOUR text surfaces naming the
      grail chronicle were still on chrome gold and are now on the token —
@@ -3886,7 +4021,8 @@
      (a sparkline mark, not text). ONE known outlier: v1634 moved .ch-card-item.tier-grail's BORDER
      to the token; left as shipped rather than churned, but it is the only grail frame on a token.
 
-     These were CHECKED AND FOUND CORRECT AS CHROME — do not "sync" them, they name no quality:
+*/
+  /* These were CHECKED AND FOUND CORRECT AS CHROME — do not "sync" them, they name no quality:
        .chron-run b / .chron-v b / .chron-fig b / .chron-reels .cr b — session STATISTICS (runs,
          visits, minutes, reel filenames). A number about a session is not an item.
        .chron-verdict .cv-say, .tf-chron-note, .chron-btn.chron-arm — PROSE and a button state.
@@ -3903,7 +4039,11 @@
      --rar-runeword deliberately equals --rar-unique — never "de-duplicate" them), and a TAB or
      ROOM label wears its chosen accent (Forge = --rar-rune, never --rar-orange, which is CRAFTED
      quality). The FORGE home chip was moved to --rar-rune for exactly that reason: it labels the
-     same room as the Forge tab, so the two now agree by construction. */
+     same room as the Forge tab, so the two now agree by construction.
+     v1636 — the DAILY TASK FORCE's "Runewords" row joined them (.tf-row.tf-q-runes .tf-t b). It
+     was the last surface still painting a ROOM with the item-name gold, which made it read as the
+     identical colour to the "Grail Uniques" row directly beneath it. Three surfaces name the
+     runeword room — the tab, the home chip, the task-force row — and all three now say --rar-rune. */
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
   /* v1631 — the Forge TAB wears the RUNE colour, not the runeword-name gold. See the token block:
@@ -4210,7 +4350,12 @@
         <!-- v1516 — 📜 THE CHRONICLE SWEEP. The free pass, in the RECORD zone because that is where
              the chronicle of his runs already lives. It reports a PRICE, never a tally: nothing here
              reads a page, spends a call, or touches a ledger. -->
-        <div class="hd-col hd-taskforce" id="hd-taskforce" hidden>
+        <!-- v1636 — hd-wide, LIKE EVERY OTHER PANEL IN THIS ZONE. Measured on a 1164px dash:
+             #hd-tz 1149px, #hd-kpi/#hd-tallybar/#hd-chron 1149px — and DAILY TASK FORCE 375px,
+             because it was the only card here without the modifier, so it sat in one auto-fit
+             track and left 774px of void beside it. Konyo: "using the space so its stretched..
+             so the console itself is better viewed". -->
+        <div class="hd-col hd-wide hd-taskforce" id="hd-taskforce" hidden>
           <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
           <div class="hd-tf-rows" id="hd-tf-rows"></div>
         </div>
@@ -11004,20 +11149,61 @@
       var aiArt = null;
       try { aiArt = JSON.parse(lsFork('d2r_createNowAiArt') || 'null'); } catch(e){}
       if (!aiArt || !aiArt.name) aiArt = null;
+      /* v1636 — A SET PIECE GOES TO THE SETS CHRONICLE. The bridge already publishes the pick's
+         rarity and v1617 already built the set-piece door (_hubGoSetPiece lands on the PIECE in
+         F·Sets, where its set and its siblings are); this row was the last one still sending
+         everything through _hubGoItem, which lands a set piece on the uniques calculator. The
+         rarity decides the room — nothing is hardcoded, exactly as the sets hero does it. */
+      var _aiIsSet = !!(aiArt && String(aiArt.rarity || '').toLowerCase() === 'set');
+      var _aiFn = _aiIsSet ? '_hubGoSetPiece' : '_hubGoItem';
+      var _aiRoom = _aiIsSet ? 'sets' : 'uniques';
+      var _aiArg = aiArt ? JSON.stringify(aiArt.name).replace(/"/g, '&quot;') : '';
       // one description of the pick, so the hero form and the row form cannot say different things
       var _aiTip = aiArt ? _itipAttr({
         name: aiArt.name, art: aiArt.art || '', rarity: aiArt.rarity || 'unique',
         tip: aiArt.tip || null,          // v1617 — the same in-game block the heroes show
         facts: [['today’s pick', String(ai).slice(0, 90)]],
-        go: 'click to open it in the uniques chronicle'
+        go: 'click to open it in the ' + _aiRoom + ' chronicle'
       }) : '';
       var _aiGo = aiArt ? (' role="button" tabindex="0"'
-        + ' aria-label="daily pick: ' + esc(aiArt.name) + ' — open it in the uniques chronicle"'
+        + ' aria-label="daily pick: ' + esc(aiArt.name) + ' — open it in the ' + _aiRoom + ' chronicle"'
         + _aiTip
-        + ' onclick="window._hubGoItem(' + JSON.stringify(aiArt.name).replace(/"/g, '&quot;') + ')"'
+        + ' onclick="window.' + _aiFn + '(' + _aiArg + ')"'
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
-        + 'window._hubGoItem(' + JSON.stringify(aiArt.name).replace(/"/g, '&quot;') + ');}"') : '';
-      var _aiIcon = aiArt ? _itemArtImg(aiArt.art, 'tf-i tf-i-item', aiArt.name) : '';
+        + 'window.' + _aiFn + '(' + _aiArg + ');}"') : '';
+      // v1636 — _aiIcon removed with its last reader: the daily pick's art now lives on the NAME
+      // (see _aiSay), and a built-but-unread symbol is exactly the dead seam LAW19 exists to catch.
+      /* ══ v1636 · THE PICK'S NAME IS THE AFFORDANCE, NOT JUST THE ROW ═══════════════════════════
+         The plumbing above landed in v1616/v1617, but the sentence itself was still flat escaped
+         text — `esc(String(ai).slice(0,84))` — so the one word he actually looks for ("Tancred's
+         Weird") carried no art, no card and no colour, and the only thing that read as clickable
+         was the whole 84-character row. Konyo: "the item tancred here should also have the same
+         logic".
+         This is the SETS HERO's pattern (hub-hero-sets, ~11560), not a fourth invention: HD art
+         from the bridge + the _itipAttr floating card + the rarity's own class + keyboard routing.
+         The name comes from d2r_createNowAiArt.name — never parsed out of the prose and never
+         hardcoded. stopPropagation because the row is already a button and one click must fire
+         one navigation.
+         WHEN THE BRIDGE DOES NOT RESOLVE the sentence stays exactly what it is today: plain
+         escaped text, no cursor, no dead affordance (the v1616 rule directly above). Likewise if
+         the 84/90-char slice cuts the name in half — half a name is not a thing to click. */
+      var _aiSay = function(txt, max){
+        var s = String(txt).slice(0, max);
+        if (!aiArt) return esc(s);
+        var nm = String(aiArt.name);
+        var i = s.toLowerCase().indexOf(nm.toLowerCase());
+        if (i < 0) return esc(s);                       // name absent or truncated away — stay plain
+        var shown = s.substr(i, nm.length);             // print what the SENTENCE says, not the key
+        return esc(s.slice(0, i))
+          + '<b class="tf-nm hh-go' + _rarCls(aiArt.rarity || 'unique') + '" role="button" tabindex="0"'
+          + ' aria-label="' + esc(shown) + ' — open it in the ' + _aiRoom + ' chronicle"'
+          + _aiTip
+          + ' onclick="event.stopPropagation();window.' + _aiFn + '(' + _aiArg + ')"'
+          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();'
+          + 'event.preventDefault();window.' + _aiFn + '(' + _aiArg + ');}">'
+          + _itemArtImg(aiArt.art, 'tf-i tf-i-item', aiArt.name) + esc(shown) + '</b>'
+          + esc(s.slice(i + nm.length));
+      };
       try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
       var rows = [];
       var nowList = (fs && fs.now) || [], oneList = (fs && fs.onestep) || [];
@@ -11036,7 +11222,13 @@
         hero = { g: '🎯', t: 'Hunt <b>' + esc(String(on0)) + '</b> — ' + (o0.sub === 'runes' ? 'one rune away' : o0.sub === 'base' ? 'one base away' : 'one step away'), tag: 'ONE STEP', cls: 'step' };
       } else if (ai){
         heroAi = true;
-        hero = { g: '✶', icon: _aiIcon, go: _aiGo, t: esc(String(ai).slice(0, 84)), tag: 'DAILY PICK', cls: 'ai' };
+        // v1636 — ONE ART NODE PER ROW. v1636 gave the NAME its own art (the ask: "the item
+        // tancred here should also have the same logic"), but the row glyph slot had carried that
+        // same _itemArtImg since v1616 — so the success path rendered the icon, a 4px gap, then
+        // the same icon again. The sets hero this was told to copy has exactly ONE art node per
+        // row. The art belongs on the NAME, because the name is the thing being made clickable;
+        // the glyph goes back to being a glyph.
+        hero = { g: '✶', go: _aiGo, t: _aiSay(ai, 84), tag: 'DAILY PICK', cls: 'ai' };
       } else if (fs && fs.grail && fs.grail.total && (fs.grail.total - (fs.grail.found || 0)) > 0){
         var gl = fs.grail.total - (fs.grail.found || 0);
         hero = { art: 'uniques', g: '🏆', t: 'Chase the Grail — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'GRAIL', cls: 'grail' };
@@ -11054,7 +11246,7 @@
         rows.push('<div class="tf-row"><span class="tf-g">◈</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
       });
       if (ai && !heroAi) rows.push('<div class="tf-row tf-ai' + (_aiGo ? ' tf-go' : '') + '"' + _aiGo
-        + '><span class="tf-g">' + (_aiIcon || '✶') + '</span><span class="tf-t">' + esc(String(ai).slice(0, 90)) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');
+        + '><span class="tf-g">✶</span><span class="tf-t">' + _aiSay(ai, 90) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');
       // v1256 (Konyo: "what about my OTHER chronicles?") — MULTI-CHRONICLE PROGRESS context: runewords AND
       // grail uniques AND sets, steering the focus at the INCOMPLETE ones (where the hunt still is). Truthful
       // — a chronicle with no data (absent) omits its row.
@@ -11077,10 +11269,16 @@
            each their own relevant color". The three rows named three different chronicles and
            printed all three in the same cream, which is the one thing the palette work exists to
            stop. `key` is already the quality — nothing new is decided here. */
+        /* v1636 — the count and the progress leave the sentence and become their OWN cells, so the
+           three chronicles line up as columns (see the #hd-tf-rows subgrid). Same numbers, same order,
+           nothing new asserted: `found / total` was already inside .tf-t and `pct` was already the
+           badge — the bar is that same pct drawn as a length instead of only claimed as a word. */
         return '<div class="tf-row tf-chron tf-q-' + key + (done ? ' tf-chron-done' : '') + (tab ? ' tf-go' : '') + '"'
           + go + '><span class="tf-g">' + artImg(key, 'tf-i') + '</span>'
-          + '<span class="tf-t"><b>' + name + '</b> · ' + found + ' / ' + total
+          + '<span class="tf-t"><b>' + name + '</b>'
           + ' <span class="tf-chron-note">— ' + (done ? 'complete ✓' : (left + ' ' + leftLabel)) + '</span></span>'
+          + '<span class="tf-n">' + found + '<i>/</i><u>' + total + '</u></span>'
+          + '<span class="tf-p" aria-hidden="true"><i style="width:' + pct + '%"></i></span>'
           + '<span class="tf-tag ' + (done ? 'dim' : 'hunt') + '">' + (done ? 'DONE' : pct + '%') + '</span></div>';
       };
       if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('runes', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build', 'runes'));
@@ -13079,20 +13277,87 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
           + (j.crop.size ? ' · reader got ' + escC(String(j.crop.size[0])) + '×' + escC(String(j.crop.size[1])) + 'px' : '')
           + ' — ' + escC(j.crop.says) + '</span></div>';
       }
-      var rows = j.findings.map(function (f) {
-        var bad = f.verdict.indexOf('E ·') !== 0;
-        return '<div class="readh-row ' + (bad ? 'bad' : 'good') + '">'
-          + '<b>' + escC(bad ? '🔴' : '🟢') + ' ' + escC(f.verdict) + '</b>'
-          + '<span>' + escC(f.detail) + '</span></div>';
-      }).join('');
-      // one fix line per DISTINCT broken link — five copies of the same advice is noise
-      var seenFix = {}, fixes = '';
+      /* ══ v1636 · GROUP THE LINKS, NAME THE LETTERS, FOLD IT AWAY ══════════════════════════════
+         The audit emits ONE finding per session per broken link, so six watched sessions printed
+         24 near-identical rows — "A · never saw the panel" twelve times over — and v1537's
+         one-fix-per-distinct-verdict rule was already the admission that the repetition is noise.
+         The same de-duplication now applies to the ROWS: one row per distinct link, an ×N count,
+         and up to three example details behind it. The evidence is not thrown away, it is folded.
+         Konyo, on this panel: "diablo language is here?" — so it wears the console's own type:
+         --mono label runs, --ls-label tracking, and the gold / mint / needs state palette. ══ */
+      /* THE KEY IS verdict + TAB, NOT verdict ALONE. The 48-row wall is the SAME link failing on the
+         SAME tab across many sessions ("A · never saw the panel" once per reel) — that is the
+         repetition worth folding. Two different tabs failing the same way are two different
+         problems and keep their own rows; v1537's spec at tests/v1537_read_chain_panel.spec.ts:111
+         is exactly that contract (three findings, three tabs, one verdict → 3 rows, 1 fix), and
+         it stays green. The FIX text is still de-duplicated per distinct VERDICT below. */
+      var order = [], byV = {};
       j.findings.forEach(function (f) {
-        if (!f.fix || seenFix[f.verdict]) return;
-        seenFix[f.verdict] = 1;
-        fixes += '<div class="readh-fix"><b>' + escC(f.verdict) + '</b> → ' + escC(f.fix) + '</div>';
+        var v = String(f.verdict || ''), k = v + ' ' + String(f.tab || '');
+        if (!byV[k]) { byV[k] = { v: v, n: 0, details: [], fix: f.fix || '' }; order.push(k); }
+        var g = byV[k];
+        g.n++;
+        if (g.details.length < 3 && f.detail) g.details.push(f.detail);
+        if (!g.fix && f.fix) g.fix = f.fix;
       });
-      body.innerHTML = cropRow + rows + fixes;
+      var broke = 0;
+      var rows = order.map(function (k) {
+        var g = byV[k], v = g.v, bad = v.indexOf('E ·') !== 0;
+        if (bad) broke += g.n;
+        return '<div class="readh-row ' + (bad ? 'bad' : 'good') + '">'
+          + '<b>' + escC(bad ? '🔴' : '🟢') + ' ' + escC(v) + '</b>'
+          + '<span>' + escC(g.details.join(' · ')) + (g.n > g.details.length ? ' …' : '') + '</span>'
+          + '<em class="readh-n">×' + g.n + '</em></div>';
+      }).join('');
+      /* THE LEGEND. A / D / E were bare letters on this panel with nothing anywhere saying what
+         they meant. The phrase for a letter is taken from the audit's OWN verdict string whenever
+         this run emitted that letter — never relabelled here. The five fallbacks below are the
+         links this run did NOT hit, and they mirror tv/live_miss_audit.py (A_NO_PANEL … E_OK)
+         verbatim; if that file ever renames a link, the letters it DID emit still speak for
+         themselves and only an unhit link can read stale. */
+      var CHAIN = ['A', 'B', 'C', 'D', 'E'];
+      var CHAIN_SAYS = { A: 'never saw the panel', B: 'saw it, never named the tab',
+                         C: 'named it, never fired an intake', D: 'fired, came back empty',
+                         E: 'worked' };
+      /* read the VERDICT off the group, never the group key — the key carries the tab too, and
+         parsing that would put "…, came back empty gems" in the legend. */
+      var said = {}, seenN = {};
+      order.forEach(function (k) {
+        var mm = /^([A-E])\s*[·.\-]\s*(.+)$/.exec(byV[k].v);
+        if (!mm) return;
+        said[mm[1]] = mm[2];
+        seenN[mm[1]] = (seenN[mm[1]] || 0) + byV[k].n;
+      });
+      var legend = '<div class="readh-legend"><b class="readh-lg-h">THE CHAIN</b>'
+        + CHAIN.map(function (L) {
+            var here = !!said[L];
+            return '<span class="readh-lg' + (here ? ' on' : '') + (L === 'E' ? ' ok' : '') + '">'
+              + '<i>' + L + '</i>' + escC(said[L] || CHAIN_SAYS[L])
+              + (here ? '<u>×' + seenN[L] + '</u>' : '') + '</span>';
+          }).join('')
+        + '</div>';
+      // one fix line per DISTINCT broken link (the VERDICT, not the verdict×tab row) — five copies
+      // of the same advice is noise, and three tabs failing the same way share one remedy.
+      var fixes = '', byLink = {}, linkOrder = [];
+      order.forEach(function (k) {
+        var g = byV[k];
+        if (!(g.v in byLink)) { byLink[g.v] = ''; linkOrder.push(g.v); }
+        if (!byLink[g.v] && g.fix) byLink[g.v] = g.fix;   // first non-empty remedy for this link
+      });
+      var links = linkOrder.length;
+      linkOrder.forEach(function (v) {
+        if (!byLink[v]) return;
+        fixes += '<div class="readh-fix"><b>' + escC(v) + '</b> → ' + escC(byLink[v]) + '</div>';
+      });
+      /* FOLDED BY DEFAULT. This is a diagnosis he opens when something looks wrong, not a number
+         he watches; the summary carries the whole verdict so the fold costs him no information. */
+      body.innerHTML = '<details class="readh-det"><summary class="readh-sum">'
+        + '<span class="readh-sum-v">' + escC(j.verdict) + '</span>'
+        + '<span class="readh-sum-n">' + links + ' link' + (links === 1 ? '' : 's')
+        + ' · ' + j.findings.length + ' finding' + (j.findings.length === 1 ? '' : 's')
+        + ' · ' + j.sessions + ' session' + (j.sessions === 1 ? '' : 's') + '</span>'
+        + '<span class="readh-sum-go">open the chain</span></summary>'
+        + '<div class="readh-det-b">' + cropRow + legend + rows + fixes + '</div></details>';
     } catch (e) { /* console not up — the panel simply stays hidden */ }
   };
   window._chronVisits = async function () {

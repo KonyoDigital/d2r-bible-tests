@@ -23263,7 +23263,7 @@ window._jewelTipHtml = _jewelTipHtml;
       tip.style.left = x + 'px'; tip.style.top = y + 'px';
     }
     document.addEventListener('mouseover', function(e){
-      var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]'); if (!el) return;
+      var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-boss-tip],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]'); if (!el) return;
       // v654 — COMPACT ANCHORS ONLY (Konyo: "i dont want it opening when i hit the SECTION itself —
       // only over the specific item keyword; it feels random"): a whole card/row/section can never
       // open the floating card. Only chip/title/thumbnail-sized anchors qualify.
@@ -23338,6 +23338,41 @@ window._jewelTipHtml = _jewelTipHtml;
         move(e); tip.classList.add('on');
         return;
       }
+      /* v1636 — A BOSS THUMB HOVERS INTO THE BOSS, NEVER INTO THE ITEM MAP.
+         data-art-logo resolves through artUrl / D2IO_ART, which is an ITEM map. A Forge run
+         thumbnail carrying data-art-logo="Mephisto" therefore floated his SOULSTONE, and "Diablo"
+         floated a BOOK — under a title promising "open the boss card". v1629 fixed the IMAGE
+         (BOSS_PORTRAIT) and left the HOVER attribute pointing at the item map, so the picture was
+         right and the card that opened over it was still an item. Boss surfaces now carry
+         data-boss-tip="<bossId>" and the card is built from that BOSSES ROW ITSELF — an id lookup
+         into the boss data, never a name lookup into the item art map, so a boss whose name
+         collides with an item can no longer resolve to the item. */
+      var _bTip = el.getAttribute('data-boss-tip');
+      if (_bTip){
+        var _BT = (typeof BOSSES !== 'undefined') ? BOSSES : (window.BOSSES || []);
+        var _bRow = null;
+        for (var _bti = 0; _bti < _BT.length; _bti++){ if (_BT[_bti] && _BT[_bti].id === _bTip){ _bRow = _BT[_bti]; break; } }
+        if (!_bRow) return;                                  // unknown id → no card, never a guessed one
+        var _bEsc = function(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+        var _bArt = (typeof _runBossArt === 'function') ? _runBossArt(_bTip, _bRow.name) : null;
+        var _bUrl = (_bArt && _bArt.url) || '';
+        var _bDrops = (_bRow.dropTable && _bRow.dropTable.length) || 0;
+        cur = el;
+        img.src = _bUrl; img.style.display = _bUrl ? '' : 'none';
+        lab.textContent = _bRow.name; lab.style.color = '';
+        desc.innerHTML = '<div class="att-info">'
+          + (_bRow.subtitle ? '<div><strong>' + _bEsc(_bRow.subtitle) + '</strong></div>' : '')
+          + (_bRow.loc ? '<div>📍 ' + _bEsc(_bRow.loc) + '</div>' : '')
+          + '<div>' + (_bRow.kph ? '⚔️ ~' + _bEsc(_bRow.kph) + ' kills/hr' : '')
+          + (_bRow.kph && _bDrops ? ' · ' : '')
+          + (_bDrops ? '🎁 ' + _bDrops + ' in its drop pool' : '') + '</div>'
+          + '<div style="opacity:.75">click to open the boss card</div>'
+          + '</div>';
+        tip.classList.add('tip-rich');
+        setTipR('');
+        move(e); tip.classList.add('on');
+        return;
+      }
       var nm = nameOf(el); if (!nm) return;
       var r = (typeof _arttipResolve==='function') ? _arttipResolve(nm) : { artName:nm, desc:'', rich:false };
       // v622 (Konyo: the chips on a CLAW's card floated sword art) — a chip rendered on a specific
@@ -23360,7 +23395,7 @@ window._jewelTipHtml = _jewelTipHtml;
     // mouseover's (missing .colossal-tile/.top-drop-row/etc.), so hovering those never cleared it.
     // Now mousemove SELF-CORRECTS: if the cursor is no longer over the element that opened the
     // tip, hide it immediately. This is selector-agnostic and can't get stuck.
-    var ARTTIP_SEL = '.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]';
+    var ARTTIP_SEL = '.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-boss-tip],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]';
     document.addEventListener('mousemove', function(e){
       if (!cur) return;
       if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; }
@@ -34992,9 +35027,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { url: url, name: b.name, emoji: b.emoji || '\ud83d\udcdc' };
     } catch(e){ return null; }
   }
-  /* the thumbnail as a real control: the board's own hover card via data-art-logo, and a click
-     that opens the boss it is a picture OF. Anchor stays thumbnail-sized so the 430px hover guard
-     still lets the card open. */
+  /* the thumbnail as a real control: the board's own hover card via data-boss-tip (v1636 — it was
+     data-art-logo, which asks the ITEM map and answered with the soulstone), and a click that opens
+     the boss it is a picture OF. Both now key off the same boss ID. Anchor stays thumbnail-sized so
+     the 430px hover guard still lets the card open. */
   try { window._runBossArt = _runBossArt; } catch(e){}   // published so a spec can measure coverage
   /* v1625 — ITEM 6: the page title stops being text with an emoji next to it. The emblem slot is
      filled from the app's OWN artUrl seam (first name that resolves), and the emoji stays behind it
@@ -35033,7 +35069,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pic = b.url
       ? '<img class="f-art" src="' + esc(b.url) + '" alt="" loading="lazy" onerror="this.remove()">'
       : '<span class="f-artglyph">' + b.emoji + '</span>';
-    return '<span class="f-runart" data-art-logo="' + esc(b.name) + '" title="' + esc(b.name)
+    /* v1636 \u2014 the hover attribute follows the picture home. This span used to carry
+       data-art-logo="<boss name>", which the floating card resolves through artUrl / D2IO_ART \u2014
+       an ITEM map. So the thumbnail showed Mephisto's PORTRAIT (v1629) while hovering it opened
+       his SOULSTONE card, and Diablo's opened a BOOK: exactly the defect v1629 fixed one layer up
+       and left behind here. data-boss-tip carries the boss ID, and the tip builds its card from
+       the BOSSES row \u2014 the same id the click already routes with, so hover and click now agree.
+       A boss with no id keeps a plain title and no card rather than a wrong one. */
+    return '<span class="f-runart"' + (r.bossId ? ' data-boss-tip="' + esc(r.bossId) + '"' : '')
+      + ' title="' + esc(b.name)
       + ' \u2014 open the boss card"' + (r.bossId ? ' role="button" tabindex="0"'
         + ' onclick="event.stopPropagation();window.openBossDetail&&window.openBossDetail(\'' + jsq(r.bossId) + '\')"'
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
@@ -35067,7 +35111,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +' onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(x.n)+'\')"'
       +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
       +'window.navigateToItem&&window.navigateToItem(\''+jsq(x.n)+'\');}">'+art(x.n,'🏆')+'</span>'
-      +'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
+      /* v1636 — the 🏆 corner badge is GONE from Quick Wins. .f-cardart-badge is pinned
+         absolute at bottom:-5px right:-5px, so on this card it sat ON TOP of the item's own
+         artwork — a decoration obscuring the picture it decorated, and unlike every other user
+         of that badge (run order i+1, pieces-left/✅, ⚡) it carried NO information: every card
+         in this list is a grail unique, so the trophy said nothing the section title didn't.
+         The art(x.n,'🏆') call above keeps the trophy as the missing-image FALLBACK — a
+         different thing, and the only place the glyph still earns its space here. */
+      +'</div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
       +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')">✓ found it</button></div></div></div>';
   }
@@ -38085,7 +38136,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1635', name:'v1635 - the bench book finishes its affordances', date:'2026-08-04', note:'v1635: the craft undo gets a real armed danger colour and a findable resting one, the do-now card can undo where it logged, and the Workshop footer now speaks the book number the Forge header speaks' };
+  window.D2R_BUILD = { id:'v1636', name:'v1636 - the-thumbnails-tell-the-truth', date:'2026-08-04', note:'two boss portraits stop being an item and a book after v269 overwrote them by fuzzy base-item name match, the Diablo Clone emblem is right with them, boss thumbs hover a BOSS card built from BOSSES instead of the item map, the Quick Wins trophy stops covering every icon, and the Sessions column spans its full width with the daily pick name carrying its own art' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

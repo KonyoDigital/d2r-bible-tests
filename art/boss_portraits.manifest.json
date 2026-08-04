@@ -1,0 +1,101 @@
+{
+  "_what": "The ten boss portraits BOSS_PORTRAIT (bible.html) serves, each with a description of what a human ACTUALLY SAW when they opened the file. This manifest exists because v1629 'verified' these portraits without looking at any of them.",
+  "_why": "art/mephisto_graphic.png shipped for seven weeks as a blue soulstone gem and art/diablo_graphic.png as a leather-bound book. Every automated check passed the whole time: the paths resolved, naturalWidth was > 0, md5 across art/ found zero duplicates, and file size flagged Mephisto (10KB) while missing Diablo (46KB, a book). A filename, a hash, a byte count and a successful load all prove a file EXISTS. None of them proves it is the RIGHT PICTURE.",
+  "_root_cause": "commit ff2787e (v269, 'more D2R HD items ... via fuzzy base-item matching') rewrote 230 art/*_graphic.png files from item art. Two of its slugs collided with boss portraits that share a name with an ITEM: 'mephisto' -> Mephisto's Soulstone, 'diablo' -> a tome. The matcher had no notion that some *_graphic.png files are monsters, not items, so it silently clobbered them.",
+  "_restored": "v1636 restored both from ab079b8 (the commit before v269) and re-opened them to confirm the pixels depict the boss. Restoring beat re-extracting from CASC: the other eight are diablo2.io-style full-body renders on white, and a raw SpA1 sprite frame would not have matched them.",
+  "_how_to_use": [
+    "python3 art/verify_boss_portraits.py        # flags any portrait whose bytes changed since a human looked",
+    "A CHANGED result is not automatically a regression and a MATCH is not automatically correct art.",
+    "The hash only answers 'are these still the bytes someone opened?'. If it says CHANGED, OPEN THE",
+    "IMAGE, decide what it depicts, and rewrite the 'depicts' + 'sha256' fields below by hand."
+  ],
+  "_verified_by": "Claude Opus 5, 2026-08-04 (v1636) — every row below was written after opening that exact file",
+  "portraits": [
+    {
+      "bossId": "andariel",
+      "file": "Andariel_graphic.png",
+      "bytes": 160704,
+      "sha256": "5a989fe1b5ab4a20394bdcf52a39622029cbb6839787db8bc95ba8fcf3c2e231",
+      "depicts": "Pale humanoid demoness, arms outstretched, with a crown of red spines/hair and six dark chitinous spider legs fanning from her back. Andariel.",
+      "verdict": "correct"
+    },
+    {
+      "bossId": "mephisto",
+      "file": "mephisto_graphic.png",
+      "bytes": 154022,
+      "sha256": "23598fa1549553f2c13ff484080e0fd7c5ea011630216b30ed6ec8286590cec5",
+      "depicts": "Gaunt red-brown demon with an exposed ribcage, two long ribbed horns curving back over the skull, and four spindly clawed arms. Mephisto, Lord of Hatred.",
+      "verdict": "correct — RESTORED v1636; was a polished deep-blue teardrop gemstone (Mephisto's Soulstone) from v269 until then"
+    },
+    {
+      "bossId": "duriel",
+      "file": "duriel_graphic.png",
+      "bytes": 213280,
+      "sha256": "3e31c21b90f940a3bdf4ac5d3e66eb1a60c25a7eb5f85dc864ea7667610f243e",
+      "depicts": "Squat armoured brown maggot-demon, pale horns crowning its head, two large scythe-like pincer arms out to the sides and short clawed insect legs beneath. Duriel.",
+      "verdict": "correct"
+    },
+    {
+      "bossId": "diablo",
+      "file": "diablo_graphic.png",
+      "bytes": 149265,
+      "sha256": "8a493de7fb2473903a1ea88a04633b45f409c8db74e76955ed95855b507d06ee",
+      "depicts": "Huge muscular blood-red demon in a wide crouch, tan abdomen, hooked claws, and two pairs of long horns swept up and back from a crested red face. Diablo, Lord of Terror.",
+      "verdict": "correct — RESTORED v1636; was a brown-and-gold leather-bound book from v269 until then"
+    },
+    {
+      "bossId": "baal",
+      "file": "baal-opt_graphic.png",
+      "bytes": 191325,
+      "sha256": "2ff3479432708f2408c0ddef32362fb16ea45e7820678f24ea142c46fc0c857a",
+      "depicts": "Bone-white and grey hulk with five long tapering horns rising from a narrow skull, red eyes, heavy armoured shoulders and thin trailing tentacle-legs. Baal.",
+      "verdict": "correct"
+    },
+    {
+      "bossId": "nihl",
+      "file": "nihlathak-opt_graphic.png",
+      "bytes": 32743,
+      "sha256": "9e061c699402686c0a62fad3b260c5229f21519b054f7b0dedc99c00b4e078df",
+      "depicts": "Tall hooded figure in a long dark grey robe, face hidden, pale hands held out from the body. Nihlathak.",
+      "verdict": "correct"
+    },
+    {
+      "bossId": "cows",
+      "file": "hellbovine_graphic.png",
+      "bytes": 56684,
+      "sha256": "5ea3e014c2e22de96fa247e2c08f80fd92ba470d441c3f8c93ec72a1ca56da97",
+      "depicts": "Upright bipedal bull with pale curved horns and a gold nose-ring, shouldering a two-handed poleaxe. Hell Bovine.",
+      "verdict": "correct"
+    },
+    {
+      "bossId": "summoner",
+      "file": "summoner_graphic.png",
+      "bytes": 47656,
+      "sha256": "c2c62ea119d84715cd6e95f60fa782e55592b89ae1f35eb78a42e7205e0cce43",
+      "depicts": "Robed mage in blue and gold with a wide horned/bar headdress, holding a tall gold serpent-headed staff. The Summoner.",
+      "verdict": "correct"
+    },
+    {
+      "bossId": "countess",
+      "file": "countess01_graphic.png",
+      "bytes": 29194,
+      "sha256": "a161468e4c5fe44e546acf42155090af01d74dff8f231162370166e10f836473",
+      "depicts": "Green-and-black hooded corrupted rogue in a fighting stance, raising a long sword overhead. The Countess.",
+      "verdict": "correct"
+    },
+    {
+      "bossId": "travincal",
+      "file": "councilmember_graphic.png",
+      "bytes": 31561,
+      "sha256": "275349486e1b8290a2aba27775d1eb19c14b2e85c6deabdcc79e3eef5f420675",
+      "depicts": "Dark grey winged demon with tall pointed ears/horns and deep red robes about the legs, mid-stride. Travincal Council Member.",
+      "verdict": "correct"
+    }
+  ],
+  "_not_shipped": {
+    "dclone": "no portrait by design — resolves through level art",
+    "pindle": "no portrait by design — resolves through level art",
+    "pit": "no portrait by design — resolves through level art"
+  },
+  "_also_consumed_here": "art/diablo_graphic.png is served by a SECOND surface, the 'Diablo Clone -> Annihilus' branch emblem (bible.html ~15225). It was showing the book too. Both surfaces now show the same, correct Diablo — if this file is ever swapped again, both break together."
+}

@@ -2363,3 +2363,99 @@ evidence is here rather than in a run log that will be gone.
   that is scope, not a bug. And every `--rar-*` token used in `tv/control_ui.html` is defined there
   (7 used, 7 defined: unique/set/rare/magic/runeword/rune/orange) — no usage falls through to an
   inherited colour.
+
+## REG-102 — a boss portrait that was a gemstone for seven weeks, and every automated check passed (2026-08-04, v1636)
+
+- **Symptom:** the Forge run thumbnails served `art/mephisto_graphic.png` for Mephisto — **a polished
+  blue teardrop soulstone**, an ITEM — and `art/diablo_graphic.png` for Diablo, **a leather-bound
+  book**. Konyo, twice: *"mephisto image is not correct.. it needs a boss level image of mephisto not
+  annihilus charm"* and *"diablo same thing its not a book. its a boss"*.
+- **Caught by:** a human OPENING the two files and saying what they depicted — and independently by
+  Grok, a different model family, shown the file with no hint of what it was supposed to be, which
+  answered *"a polished, deep-blue teardrop gemstone"*. Two witnesses, per the multi-witness rule.
+  Nothing automated ever caught it, and v1629 "fixed" it without looking at a single pixel.
+- **Root cause — an art-pipeline write, not a rendering bug.** Commit `ff2787e` (v269, *"more D2R HD
+  items … via **fuzzy base-item matching**"*) rewrote **54** `art/*_graphic.png` files from ITEM art.
+  Two of its slugs collide with bosses that share a name with an item: `mephisto` → Mephisto's
+  Soulstone, `diablo` → a tome. The matcher had no notion that some `*_graphic.png` files are
+  MONSTERS rather than items, so it clobbered two boss portraits in passing and nothing noticed. The
+  code was innocent the whole time: `BOSS_PORTRAIT` (bible.html :34973) maps correctly, and
+  `_runArtThumb` measurably served the right FILENAMES. **The files themselves were mislabelled.**
+- **Measured, before and after:** before — `mephisto_graphic.png` **10KB** (a gem), `diablo_graphic.png`
+  **46KB** (a book). After restoring from `ab079b8`, the commit immediately before v269 — **154,022
+  bytes** and **149,265 bytes**, both re-opened and confirmed to depict the boss. 10 of the 13 boss
+  ids carry a portrait; the other 3 deliberately fall through to level art.
+- **Fix:** both portraits restored from `ab079b8` rather than re-extracted from CASC — the other
+  eight are diablo2.io-style full-body renders on white, and a raw SpA1 sprite frame would not have
+  matched them. Pinned with `art/boss_portraits.manifest.json` (what a human SAW in each of the ten)
+  and `art/verify_boss_portraits.py`.
+- **The whole class, swept — this bug shipped THREE times before anyone named it.** The same fuzzy
+  overwrite was patched one-off twice and never generalised: `a54d5e6` (v284, *"fix Deep shard art
+  (**was a helmet**)"*) and `fdd9849` (v287, *"sunder charms: **RESTORE** the real per-element art"*,
+  6 files). Each was treated as a one-item typo. Across the HD arc — `498241d` v268 (154 files),
+  `ff2787e` v269 (54), `92df081` v270 (83) — **291 distinct `*_graphic.png` files were bulk-rewritten
+  by name matching**, out of 356 in `art/`. Only the ones Konyo happened to look at were ever caught.
+- **Prevention — the transferable law: AN IMAGE IS UNVERIFIED UNTIL SOMEONE OPENS IT.**
+  `naturalWidth > 0`, a resolving path, a filename, an md5 and a byte count all prove a file EXISTS;
+  **not one of them proves it is the RIGHT PICTURE**, and all five passed for seven weeks here. Both
+  cheap proxies were tried and are recorded as PROVEN INSUFFICIENT — md5 across `art/` found zero
+  duplicates (catches nothing), and file size flagged Mephisto at 10KB but **missed Diablo at 46KB,
+  which is a book**. Second rule, aimed at the pipeline rather than the checker: **never bulk-write
+  `art/` by fuzzy name match without excluding the boss-portrait filenames** — a name is not a type,
+  and `art/` contains `durielsshell_graphic.png` (Duriel's SHELL, an item) waiting for the next
+  "starts with duriel" rule to grab it.
+
+## REG-103 — the picture was fixed and the card that opened over it was still the item (2026-08-04, v1636)
+
+- **Symptom:** independent of REG-102 and left behind by its v1629 predecessor — hovering a boss run
+  thumbnail floated an ITEM card. `#arttip` over Mephisto showed the soulstone's card, over Diablo a
+  book's, **under a title promising "open the boss card"**. Fixing the art alone did not fix this:
+  after v1629 the thumbnail was the right boss and the hover card was still the wrong thing.
+- **Caught by:** driving the painted board and reading the card that actually opened — not by reading
+  the emitter, which looks correct in isolation.
+- **Root cause:** `_runArtThumb` (bible.html :35032) emitted `data-art-logo="Mephisto"`, and
+  `data-art-logo` resolves through `artUrl` / `D2IO_ART` — **an ITEM art map**. A boss name was being
+  used as a lookup key into a table that contains no bosses, so every boss thumb resolved by
+  name-collision into whatever item shared its name, and bosses with no colliding item resolved to
+  nothing at all. This is REG-102's defect one layer up: **asking an item map for a boss.**
+- **Measured, before and after:** across the **13** boss ids, **0** produced a boss card before the
+  fix — the ones that resolved produced an item card, the rest produced a card with an empty desc.
+  After: all 13 resolve to their own `BOSSES` row and render a populated boss card. A non-vacuous
+  count in both directions — the "before" number is 0 out of a population that is genuinely 13, not
+  0 out of 0.
+- **Fix:** boss surfaces now carry `data-boss-tip="<bossId>"` and the card is built **from the
+  `BOSSES` row itself** (bible.html :23341) — an **id** lookup into boss data, never a **name** lookup
+  into item art. A boss whose name collides with an item can no longer resolve to the item, which
+  closes the collision class rather than the two instances of it.
+- **Prevention — the transferable law: A NAME IS NOT AN IDENTIFIER, AND THE MAP YOU ASK MUST BE THE
+  MAP THAT HOLDS THE THING.** Two entity types sharing a namespace of display names will collide the
+  moment one is looked up in the other's table, and the failure is silent and confident — a card
+  opens, it is populated, it is simply about the wrong entity. Route by id. Second law, the one that
+  cost the extra version: **a bug with an image and a behaviour half has TWO halves.** v1629 fixed
+  the picture, declared the bug closed, and shipped the wrong hover for another seven versions —
+  when a fix makes a surface look right, check what that surface still DOES.
+
+## REG-103 — the daily pick rendered its item art TWICE
+
+**Symptom.** On the Sessions → DAILY TASK FORCE hero row, the AI Daily Pick showed the item icon,
+a 4px gap, then the same icon again.
+
+**Caught by.** An adversarial skeptic reading the emitting source during the v1636 run — NOT by a
+screenshot, because the render gate never ran on that run (the agent ceiling was spent first). The
+one item whose ship gate was "an ACTUAL LOOK AT THE PICTURE" is the one item nobody looked at.
+
+**Root cause.** Two art nodes in one row, added a year apart and never reconciled. v1616/v1617 put
+the item art in the row's GLYPH slot (`icon: _aiIcon`, control_ui.html:11224, and `(_aiIcon || '✶')`
+on the fallback row :11242). v1636 then answered Konyo's ask — "the item tancred here should also
+have the same logic" — by giving the NAME its own art inside `_aiSay` (:11203). Neither knew about
+the other, and no CSS suppressed either copy (:3374 deliberately styles the inline one). The pattern
+the change was told to copy, hub-hero-sets, has exactly ONE art node per row.
+
+**Fix.** The art lives on the NAME, because the name is the thing being made clickable; the glyph
+went back to being a glyph (`✶`). Both the hero row and the fallback row. `_aiIcon` was then a
+symbol with no reader, so it was removed rather than left as a dead seam — LAW19's exact target.
+
+**Prevention.** When a change adds a rendering of X to a row, grep the row's other slots for an
+existing rendering of X BEFORE adding one. "Copy the sets hero pattern" means copy its shape — one
+art node — not just its ingredients. And a render gate that does not run is not a render gate that
+passed: this defect was live in the tree with a green-looking build for the length of one run.
