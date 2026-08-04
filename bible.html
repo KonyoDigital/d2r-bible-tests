@@ -7741,7 +7741,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 /* v1625 ITEM3 — the F·Uniques FOUND ledger names an in-game UNIQUE, so it wears the unique tan
    "like the calculator tab". Scoped to the name span (.gf-cname) so the ✓ tick and the qlvl pill
    keep their own colours, and to #tab-funi so the SET-piece chips (_pieceChip) stay set green. */
-#tab-funi .gf-chip .gf-cname{color:var(--q-unique)}
+#tab-funi .gf-chip .gf-cname{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}
 #tab-fsets .gf-chip .gf-cname{color:var(--q-set)}
 .gf-chip .gq{font-size:9.5px;font-weight:var(--fw-bold);color:#9a8c72;background:rgba(0,0,0,.3);border-radius:5px;padding:0 5px}
 .gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--fw-semibold);border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
@@ -7810,7 +7810,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:color-mix(in srgb,var(--fsq) 18%,transparent)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni .fs-rt-t,
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set .fs-rt-t{color:var(--fsq)}
-#tab-funi .gf-piece .gf-nm{color:var(--q-unique)}   /* v1625 ITEM3b — a found unique reads unique, like the Calculator */
+#tab-funi .gf-piece .gf-nm{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}   /* v1625 ITEM3b — a found unique reads unique, like the Calculator */
 #tab-fsets .gf-nm{color:var(--q-set)}               /* v1625 ITEM3c — a set piece reads set-green everywhere */
 :is(#tab-funi,#tab-fsets) .gs-set-h{line-height:var(--lh-snug);gap:10px;column-gap:12px}   /* v1625 ITEM3c typography */
 :is(#tab-funi,#tab-fsets) .gs-set-n{min-width:215px;line-height:var(--lh-snug)}
@@ -7829,7 +7829,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--best,#66ff88);cursor:pointer;text-decoration:none;border-radius:5px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:hover{filter:brightness(1.18);text-decoration:underline}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--best);outline-offset:2px}
-#tab-funi .forge-title{color:var(--q-unique)}   /* v1625 ITEM6 — per-tab override */
+#tab-funi .forge-title{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}   /* v1625 ITEM6 — per-tab override */
 /* v1633 — Konyo: "the forge title here should also be color synced to the tab. for FORGE within
    the tab color wise". The Forge TAB wears --rune (v1631); its page title was still the chrome
    gold, so the tab and the page it opens disagreed about what colour the Forge is. Same rule the
@@ -7840,7 +7840,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
 .tvf-emblem .tvf-emblem-art{width:40px;height:40px;object-fit:contain;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7))}
-#tab-funi .gf-lastname{color:var(--q-unique)}
+#tab-funi .gf-lastname{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}
 /* v1625 ITEM6 fix — the twin. The #tab-funi rule alone made the UNIQUE pass green-light while a SET
    piece in the very same bar painted rgb(205,191,159) (plain gold), so the sets side needed its own.
 
@@ -38326,7 +38326,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1644', name:'v1644 - orphaned-siblings', date:'2026-08-04', note:'the electric stamp comes off the artwork, the boss hero name wears the same green as its own run row, and the daily pick states its own rarity instead of defaulting to gold' };
+  window.D2R_BUILD = { id:'v1645', name:'v1645 - unique-glow-sync', date:'2026-08-04', note:'plain q-unique surfaces gain the item-tile glow' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

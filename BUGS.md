@@ -3178,3 +3178,52 @@ meaning — is a change to every assertion that pattern-matches it. Before shipp
 rewrite, grep the test suite for the OLD shape (`grep -rE '\.(png|jpg|gif)\$/' tests/`) in the same
 change. This is the same failure as REG-129 one layer up: an app-side rename that nobody grepped
 `tests/` for.
+
+## REG-131 — plain `.q-unique` text surfaces had colour with no glow (v1645)
+
+**Symptom.** Konyo: unique-gold text reads as "just a regular picked theme colour" everywhere
+except item tiles, which already glow (`.item-tile.it-r-unique .item-tile-name` at bible.html:264
+— `text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px
+rgba(0,0,0,.55)`).
+
+**Root cause.** Two independent glow systems coexist in bible.html: (1) a proven per-surface
+hardcoded-rgba treatment (item tiles, arttip, aid cards, runeword-card, `.arw-name` names via the
+universal rule) and (2) a universal `currentColor`-based glow rule at bible.html:278-279 covering
+`.dtp-name,.top-drop-name[class*="q-"],table.drops td.item-name[class*="q-"],table.ref-tbl
+td.item-name[class*="q-"],.hvf-name,.set-card-name,.vm-cell-name,.vj-chip,.cw-out-name,
+.arw-rune-n,.arw-name,.mw-rune-chip,.rec-chip,.rs-name,.wishlist-item-name,.hero-pick-item,
+.gbc-grail-name,.gsearch-lab,.set-piece-name,.zd-hg-name strong,.vault-chip-name,.aid-name-txt`
+plus a dedicated `.gic-name` rule (line 279) and `#arttip .att-name` (line 1190). Four surfaces
+were bare `color:var(--q-unique)`/`var(--q-runeword)` with NEITHER: `#tab-funi .gf-chip .gf-cname`,
+`#tab-funi .gf-piece .gf-nm`, `#tab-funi .forge-title`, `#tab-funi .gf-lastname` (all in the F·Uniques
+Forge tab).
+
+**Fix.** Added the proven hardcoded-rgba touch (`text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px
+rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)`) to those 4 selectors only. `--q-unique`/`--rar-unique`
+hex value (#c7b377) is UNCHANGED — contrast measured 9.66:1 vs `--bg` and 8.82:1 vs `--surface`,
+both unaffected by adding a shadow (WCAG contrast is fill-vs-background, not shadow-dependent).
+
+**Deliberately left bare (already glowing via one of the two existing systems, confirmed by
+grep — adding a second glow would double up or silently override the currentColor one with a
+harder-coded one):** `table.drops td.item-name.q-unique`, `table.ref-tbl td.item-name.q-unique`,
+`.top-drop-row .top-drop-name.q-unique` (all match `[class*="q-"]` in the universal rule),
+`.arw-name` (named directly in the universal rule), `#arttip.tip-r-unique .att-name` /
+`#arttip.tip-r-rw .att-name` (base `#arttip .att-name` already glows via currentColor, line 1190),
+`.aid-card.aid-r-unique .aid-item-name` (its only rendered text is the child `.aid-name-txt` span,
+already covered), `.runeword-card .gic-name` (`.gic-name` has its own dedicated 12px currentColor
+glow at line 279), `.vault-chip.vc-r-unique > span:not(.d2art-wrap)` (selects `.vault-chip-name`,
+already covered). `--rar-runeword`/`--q-runeword` deliberately equals `--q-unique` per existing
+doctrine — a runeword surface that inherited the glow via `var(--q-runeword)` is correct, not a bug.
+
+**Pre-existing, NOT caused by this change (verified unrelated: colour values these tests check
+were never touched by this edit, and shadow-only diffs don't move a `getComputedStyle().color`
+read):** `v1625_board_quality_surfaces.spec.ts` ITEM 3 + ITEM 6 (REG-117, already red on a clean
+checkout), `v1628_board_quality_tokens.spec.ts:368` (stale F·Uniques thumbnail art-name lookup,
+tracked earlier in this file under the v1643 `?v=` URL fallout), `v1628_no_literal_quality_hex.spec.ts:212`
+(fails on the `console` file — tv/control_ui.html, which this change never touches),
+`v518_forge_craft_art_colors.spec.ts:19` + `:42` (jewel-tint and runeword/base white-colour checks,
+no `--q-unique` involved), `v775_tab_family.spec.ts` forge/funi/fsets GOLD-title checks (expects a
+single blanket `rgb(240,192,96)` on `.forge-title`, but `#tab-funi`/`#tab-fsets` already carry
+per-tab colour overrides — `var(--q-unique)`/`var(--q-set)` — unrelated to and unchanged by this
+edit; `#tab-forge`'s own failure with an untouched `--rune` colour proves the family is broken
+independent of this ship).

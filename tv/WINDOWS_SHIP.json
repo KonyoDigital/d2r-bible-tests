@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1644",
+  "ver": "v1645",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1644: the electric stamp comes off the artwork, the boss hero name wears the same green as its own run row, and the daily pick states its own rarity instead of defaulting to gold",
+  "note": "v1645: plain q-unique surfaces gain the item-tile glow",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
