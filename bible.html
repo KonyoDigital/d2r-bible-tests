@@ -14741,7 +14741,7 @@ window._itemCells = _itemCells;
 // to close every rarity-colour gap the section-by-section audit found.
 function _qHex(name){
   var r = (typeof _artRarity === 'function') ? _artRarity(name) : '';
-  var M = { unique:'var(--q-unique)', set:'var(--q-set)', magic:'var(--q-magic)', rare:'var(--q-rare)', rw:'var(--q-orange)', rune:'var(--q-orange)', crafted:'var(--q-orange)', basic:'var(--q-normal)' };
+  var M = { unique:'var(--q-unique)', set:'var(--q-set)', magic:'var(--q-magic)', rare:'var(--q-rare)', rw:'var(--q-runeword)', rune:'var(--rune)', crafted:'var(--q-orange)', basic:'var(--q-normal)' };
   return M[r] || '';
 }
 function _qStyle(name, fallback){
@@ -38509,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1662', name:'v1662 - boss-blue', date:'2026-08-05', note:'boss and run names stop wearing set green and take the intel blue, so green means only SET' };
+  window.D2R_BUILD = { id:'v1663', name:'v1663 - runeword-gold-resolver', date:'2026-08-05', note:'the last map calling a runeword crafted-orange now calls it gold, so wishlist, zone tables and the forge pipeline card agree with the tooltip' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

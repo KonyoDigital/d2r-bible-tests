@@ -3493,3 +3493,36 @@ NOT proven: computed colour inside the actual running console UI (needs `control
 websocket session, out of budget) — the CSS-cascade proof above is real (same `<style>` block,
 same selectors, same markup shape the builder emits) but is not a substitute for opening the live
 page. Anyone doubting it should load the console and pick each focus once.
+
+## REG-137 — `_qHex` was the last map still calling a RUNEWORD "crafted", and a stale spec held it there (v1663)
+**Symptom (caught by CI, not by eye):** `v518_forge_craft_art_colors` failed
+`expect(r.tipRW).toBe('#ffa800')` with `#c7b377`. Investigating that showed the two colour
+resolvers openly disagreeing about the same item:
+```
+_qHex('Breath of the Dying')    -> var(--q-orange)  #ffa800   CRAFTED
+_tipTint('Breath of the Dying') -> #c7b377                    unique gold  (correct)
+```
+**Root cause:** `bible.html:14744`, the `_qHex` rarity map, still read
+`rw:'var(--q-orange)', rune:'var(--q-orange)'`. THREE maps in this file assign a colour to `rw`
+and the other two were already correct — `_Q_HEX` at 16533 (`rw:_qTok('--q-runeword')`) and the
+map at 31963 (`rw:'var(--q-runeword)'`). The v1646 work fixed the CSS and those two maps and
+missed this one, so every surface routing through `_qStyle`/`_qHex` — wishlist item names, zone
+drop tables, the Forge pipeline card title — painted runeword names **crafted orange**.
+`--q-runeword` already existed and already equalled `--q-unique`; it simply was not being used.
+**The stale spec was PROTECTING the bug, which is the part worth remembering.** Line 43 asserted
+`expect(r.rwHex).toBe('var(--q-orange)')` and therefore **PASSED** for as long as the app was
+wrong. A stale assertion does not only fail noisily — it can agree with a defect and hold it in
+place. Only the *second* assertion in the same test (`tipRW`, added later against the corrected
+`_tipTint`) disagreed, and that internal contradiction is what exposed it.
+**Fix:** one line — `rw:'var(--q-runeword)', rune:'var(--rune)'`, leaving `crafted:'var(--q-orange)'`
+alone because crafted really is orange. `rune` was changed on the same evidence: both correct maps
+already say `rune -> --rune` (#ff7d3c), so this matches existing truth rather than asserting a new one.
+**Verification:** `_qHex` and `_tipTint` now agree on `Breath of the Dying`, `Insight` and
+`Windforce` (all resolve `#c7b377`), and the v522 pipeline-card test measures the rendered title at
+`rgb(199,179,119)` — a real surface, not a function return. 0 page errors.
+**Prevention:** the four stale assertions in `v518` were migrated with the reason written beside
+them, and the whole rarity-colour spec family (v311, v341, v309, v323, v294, v1621, v301, v130 —
+53 tests) was run to prove no other spec carried the same belief. All 53 pass.
+**Class:** a fact settled in one place and left wrong in another. Same shape as the CSS
+"LAST RULE WINS" trap — when a value lives in more than one map, fixing one is a half fix, and
+`grep` for *every* assignment before declaring it done.

@@ -24,12 +24,14 @@ test('jewel art + tooltip resolve to a magic-blue jewel (not the corrupt base_ p
   });
   expect(r.jewelArt).toContain('jewel');           // a real jewel sprite
   expect(r.jewelArt).not.toContain('/base_');      // NOT a corrupt blue-gem placeholder
-  expect(r.tipTint).toBe('#9fb0ff');               // magic-blue floating-card title
+  // v1628 settled the palette from Konyo's own _profilehd.json: magic is FontColorBlue
+  // #6e6eff. #9fb0ff was a pre-v1628 guess and never matched the game.
+  expect(r.tipTint).toBe('#6e6eff');               // magic-blue floating-card title
   expect(r.rich).toBe(true);
   expect(r.descLen).toBeGreaterThan(50);           // the rich jewel card body
 });
 
-test('in-game rarity colour: runeword → orange, white base → white, basic tooltip → white', async ({ page }) => {
+test('in-game rarity colour: runeword → GOLD, white base → white, basic tooltip → white', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window;
     return {
@@ -40,9 +42,13 @@ test('in-game rarity colour: runeword → orange, white base → white, basic to
       tipBow: w._tipTint('Shadow Bow'),
     };
   });
-  expect(r.rwHex).toBe('var(--q-orange)');   // runewords orange
+  // REG-137 — a RUNEWORD is gold #c7b377, the SAME as a unique (FontColorGoldYellow in
+  // _profilehd.json). #ffa800 is CRAFTED. This spec asserted crafted-orange and therefore
+  // PASSED while _qHex really was painting every runeword name as crafted — a stale spec
+  // does not only fail noisily, it can pass and hold the bug in place.
+  expect(r.rwHex).toBe('var(--q-runeword)'); // runewords gold, like uniques
   expect(r.baseHex).toBe('var(--q-normal)'); // white bases white
-  expect(r.tipRW).toBe('#ffa800');           // floating title orange for a runeword
+  expect(r.tipRW).toBe('#c7b377');           // floating title GOLD for a runeword
   expect(r.tipBase).toBe('#f4f4f4');         // floating title white for a base
   expect(r.tipBow).toBe('#f4f4f4');          // and for a base bow
 });
@@ -117,9 +123,9 @@ test('base option chips carry ideal / merc / endgame role badges (Insight → me
   expect(r.firstBadges.join(' ')).toContain('ideal');
 });
 
-test('pipeline card body colours the forged runeword orange and the base white (v522)', async ({ page }) => {
+test('pipeline card body colours the forged runeword GOLD and the base white (v522)', async ({ page }) => {
   // an unsocketed owned base + runes in hand → a PIPELINE card (socket-then-forge). Insight on a
-  // Larzuk-base Colossus Voulge: title + step text should colour the runeword orange, the base white.
+  // Larzuk-base Colossus Voulge: title + step text should colour the runeword GOLD, the base white.
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (Larzuk base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
@@ -135,7 +141,7 @@ test('pipeline card body colours the forged runeword orange and the base white (
     try { w.forgeSetFilter && w.forgeSetFilter('pipeline'); } catch (e) {}
     const card = document.querySelector('#tab-forge .f-pipe');
     if (!card) return { hasCard: false };
-    // the title's runeword <b> should be orange
+    // the title's runeword <b> should be GOLD (#c7b377) — a runeword is unique-gold, not crafted
     const titleRW = card.querySelector('.f-cardtitle b[data-arttip]') as HTMLElement;
     const titleColor = titleRW ? getComputedStyle(titleRW).color : '';
     // a base name in the step body should be white (q-normal)
@@ -144,6 +150,9 @@ test('pipeline card body colours the forged runeword orange and the base white (
     return { hasCard: true, titleRW: titleRW ? titleRW.textContent : '', titleColor, baseSpanText: baseSpan ? baseSpan.textContent : '', baseColor };
   });
   expect(r.hasCard).toBe(true);
-  expect(r.titleColor).toBe('rgb(255, 168, 0)');   // runeword orange
+  // REG-137 — was rgb(255,168,0) = #ffa800 = CRAFTED. A runeword is #c7b377, the same gold as a
+  // unique (FontColorGoldYellow). This assertion PASSED for as long as _qHex was wrong, which is
+  // how the bug survived: the spec and the defect agreed with each other.
+  expect(r.titleColor).toBe('rgb(199, 179, 119)'); // runeword GOLD
   expect(r.baseColor).toBe('rgb(244, 244, 244)');  // base white
 });
