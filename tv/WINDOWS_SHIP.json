@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1684",
+  "ver": "v1685",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1684: 17 of 34 set cards were falling back to the same generic shield",
+  "note": "v1685: the rule was written above the family rule at equal specificity so source order silently won",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

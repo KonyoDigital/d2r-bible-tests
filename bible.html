@@ -4736,11 +4736,13 @@ try {
    emoji it replaced. Every emblem host carries `.tvf-emblem`, so one rule now sizes all four.
    Grep before changing: `.tvf-emblem-i` has exactly ONE styling rule in this file — this one. */
 .tvf-emblem .tvf-emblem-i{width:1em;height:1em;vertical-align:-.12em;object-fit:contain}
-/* v1672 — the Forge title takes the RUNEWORD colour. v1664 removed --rune from it because a
-   page title should not wear an item colour BY ACCIDENT; this is the deliberate case — the
-   Forge page IS the runeword chronicle, and its two siblings already wear unique gold and set
-   green, so gold here completes the family rather than breaking the rule. */
-#tab-forge .forge-title{color:var(--q-runeword)}
+/* v1685 — MOVED `#tab-forge .forge-title{color:var(--q-runeword)}` OUT OF HERE, down beside its
+   two siblings at :7921. It sat at this line from v1672 and never once painted: the family rule
+   `:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{…color:#f0c060}` (:7422) has the SAME
+   specificity — :is() takes its most specific argument, an id, so both are (1,1,0) — and comes
+   LATER, so source order handed it the win. #tab-funi and #tab-fsets look right only because
+   their overrides happen to be written after :7422. Measured: the Forge title computed
+   rgb(240,192,96) chrome gold, not the #c7b377 v1672's own message claimed it had taken. */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-head.tvf-head .forge-headtxt{min-width:0;flex:1 1 auto}
 /* v775 — >1500 the container centers at 1500 but the sticky header band stayed full-width, so the nav
    row + search drifted off the content column. Cap them to the same 1472 content column (1500 − 28 pad). */
@@ -7919,6 +7921,15 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    other two already follow: the room's title matches the room's tab. */
 /* v1664 — REMOVED `#tab-forge .forge-title{color:var(--rune)}` (added v1633). The PLAIN Forge page has no in-game quality, so its title stays chrome gold; only F·Uniques and F·Sets get a per-tab override (v1625 ITEM6). A page title wearing the RUNE-ITEM colour is the exact title-vs-quality collision this palette work exists to stop. */
 #tab-fsets .forge-title{color:var(--q-set)}
+/* v1685 — the Forge title finally takes the RUNEWORD colour, from v1672's intent and v1672's
+   words: "the Forge page IS the runeword chronicle, and its two siblings already wear unique gold
+   and set green, so gold here completes the family". The rule itself is v1672's, unchanged; all
+   that moved is WHERE it sits, so it now wins against :7422 the same way the two lines above it do.
+   `--q-runeword`, not `--rune`: a runeword is unique-gold #c7b377, while --rune #ff7d3c is the rune
+   ITEM hue — the exact confusion REG-137 exists to stop. This does mean Forge and F·Uniques read
+   the same, which Konyo accepted explicitly when v1672 was written (tv/control_ui.html:45-54).
+   ⚠ ANY future colour for these three titles belongs HERE, below :7422, not above it. */
+#tab-forge .forge-title{color:var(--q-runeword)}
 /* v1664 — removed an exact duplicate of the line above (both added v1633). */
 #tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
@@ -38687,7 +38698,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1684', name:'v1684 - a set with no art wears one of its pieces', date:'2026-08-06', note:'17 of 34 set cards were falling back to the same generic shield' };
+  window.D2R_BUILD = { id:'v1685', name:'v1685 - the Forge title finally takes the colour v1672 gave it', date:'2026-08-06', note:'the rule was written above the family rule at equal specificity so source order silently won' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
