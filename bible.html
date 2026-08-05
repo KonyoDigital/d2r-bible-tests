@@ -2003,7 +2003,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
   .aid-focus-card{background:linear-gradient(135deg,rgba(102,255,136,.05),rgba(0,0,0,0));border:1px solid var(--best);border-radius:8px;padding:14px 16px}
   .aid-focus-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-  .aid-focus-boss{font-size:var(--fs-title);font-weight:var(--fw-semibold);color:var(--best);letter-spacing:.2px}
+  .aid-focus-boss{font-size:var(--fs-title);font-weight:var(--fw-semibold);color:var(--acc-intel);letter-spacing:.2px}
   .aid-focus-diff-pill{background:var(--bg-elev1);border:1px solid var(--gold-dim);color:var(--gold-bright);padding:3px 9px;border-radius:4px;font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:.6px;font-weight:var(--fw-medium)}
   .aid-focus-kph{color:var(--text-dim);font-size:var(--fs-meta);font-family:var(--mono)}
   .aid-focus-badge{font-size:var(--fs-micro);padding:2px 7px;border-radius:4px;font-family:var(--mono);letter-spacing:.3px;font-weight:var(--fw-medium)}
@@ -7849,7 +7849,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    would be a lie here; the token the run rows already use for a boss name is --best, so the heroes
    adopt THAT. Same hover/focus affordance as .fs-piece, routed to the boss card (openBossDetail),
    which is what the run row's own boss surface routes to — no item arttip, a boss has none. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--best,#66ff88);cursor:pointer;text-decoration:none;border-radius:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--acc-intel,#6fb8e8);cursor:pointer;text-decoration:none;border-radius:5px}
 /* v1656 — the hero's boss portrait sits ON the name, sized to the display type it lives in. The
    best-run rows use 19-23px for a body-sized line; this line is var(--fs-display), so it takes a
    larger glyph and a little more air, and vertical-align keeps it on the baseline instead of
@@ -7858,7 +7858,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .fh-artgo:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:6px}
 .fh-boss .fh-boss-i{width:26px;height:26px;vertical-align:-5px;margin-right:7px;border-radius:4px;object-fit:cover}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:hover{filter:brightness(1.18);text-decoration:underline}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--best);outline-offset:2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--acc-intel);outline-offset:2px}
 #tab-funi .forge-title{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}   /* v1625 ITEM6 — per-tab override */
 /* v1633 — Konyo: "the forge title here should also be color synced to the tab. for FORGE within
    the tab color wise". The Forge TAB wears --rune (v1631); its page title was still the chrome
@@ -8134,7 +8134,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-glyph{font-size:22px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardbody{flex:1;min-width:0}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle{font-size:var(--fs-title);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle b{color:var(--best,#e8c878)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle b{color:var(--acc-intel,#6fb8e8)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardmeta{font-size:12.5px;color:var(--text-dim,#a89a80);margin-top:3px;line-height:var(--lh-normal)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardmeta b{color:var(--text,#d8cba8)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtell{font-size:11.5px;color:var(--text-dim,#9a8c72);margin-top:3px;font-style:italic}
@@ -38509,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1661', name:'v1661 - revert-platinum', date:'2026-08-05', note:'the platinum theme is reverted; the gold theme is back exactly as it was at v1656' };
+  window.D2R_BUILD = { id:'v1662', name:'v1662 - boss-blue', date:'2026-08-05', note:'boss and run names stop wearing set green and take the intel blue, so green means only SET' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

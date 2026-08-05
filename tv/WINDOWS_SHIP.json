@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1661",
+  "ver": "v1662",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1661: the platinum theme is reverted; the gold theme is back exactly as it was at v1656",
+  "note": "v1662: boss and run names stop wearing set green and take the intel blue, so green means only SET",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
