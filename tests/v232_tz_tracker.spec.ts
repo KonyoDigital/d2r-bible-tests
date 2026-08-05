@@ -51,7 +51,11 @@ test.describe('v232 TZ tracker', () => {
         huntName: hunt?.querySelector('.tzt-z-name')?.textContent,
         huntId: hunt?.getAttribute('data-tz-hunt'),
         huntClickable: hunt?.getAttribute('role') === 'button',
-        fillerName: filler?.querySelector('.tzt-z-name')?.textContent,
+        /* the name cell now also holds v1588's padlock span for a THIN zone, so read the name
+           without it rather than string-matching the decoration. */
+        fillerName: (filler?.querySelector('.tzt-z-name')?.textContent || '')
+          .replace(/\u{1F512}/gu, '').replace(/\s+/g, ' ').trim(),
+        fillerCards: document.querySelectorAll('#tztracker-body .tzt-filler').length,
         fillerInert: filler?.getAttribute('role') !== 'button',
         updated: (document.getElementById('tzt-updated')?.textContent || '').startsWith('updated'),
       };
@@ -59,7 +63,12 @@ test.describe('v232 TZ tracker', () => {
     expect(r.huntName).toBe('Travincal');
     expect(r.huntId).toBe('travincal');
     expect(r.huntClickable).toBe(true);
-    expect(r.fillerName).toBe('Cold Plains and The Cave');
+    /* `tzSplitZones` splits a multi-zone terror zone on "," and " and ", so
+       "Cold Plains and The Cave" renders as TWO cards rather than one card with a joined name —
+       which is what the live tracker shows as "2 LIVE TOGETHER". Assert BOTH: the split happened,
+       and the first card carries the first zone's own name. */
+    expect(r.fillerCards, 'a two-zone terror zone must render two filler cards').toBe(2);
+    expect(r.fillerName).toBe('Cold Plains');
     expect(r.fillerInert).toBe(true);
     expect(r.updated).toBe(true);
   });

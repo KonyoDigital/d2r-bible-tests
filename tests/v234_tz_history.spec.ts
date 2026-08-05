@@ -43,7 +43,12 @@ test.describe('v234 TZ history', () => {
     expect(r.hunts).toBe(3);              // Travincal + River(Hephasto) + Durance(Meph); Cold Plains filler
     expect(r.days).toBe(2);               // today + yesterday
     expect(r.nowMarked).toBe(1);          // the current slot row flagged
-    expect(r.count).toContain('huntable');
+    /* v1584 replaced the word deliberately: the summary counts PRIME windows, not "huntable"
+       ones. "Huntable" only counted the fourteen hardcoded bosses, so two days full of
+       density-2200 tomb hours read "0 huntable" and looked like a dead log. It now reads
+       "<n> slots · <n> worth running". Assert the SHAPE, not just a word, so a summary that
+       silently stops counting still fails here. */
+    expect(r.count).toMatch(/^\d+ slots · \d+ worth running$/);
     expect(r.firstHuntId).toBe('button'); // hunt rows are clickable
     expect(errs).toEqual([]);
   });
