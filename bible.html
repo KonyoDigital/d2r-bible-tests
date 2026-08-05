@@ -624,7 +624,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .search-match-highlight{animation:flashHl 1.4s ease}
 @keyframes flashHl{0%{background:rgba(255,208,64,.4);box-shadow:0 0 0 3px var(--star)}100%{background:transparent;box-shadow:none}}
 .kbd{display:inline-block;background:var(--surface-3);border:1px solid var(--border-light);border-radius:3px;padding:1px 5px;font-family:ui-monospace,monospace;font-size:var(--fs-micro);color:var(--gold-bright)}
-.celebrate{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:linear-gradient(135deg,var(--best),var(--gold-bright));color:#0a0805;padding:18px 28px;border-radius:14px;font-size:18px;font-weight:var(--fw-semibold);box-shadow:0 8px 32px rgba(0,255,170,.4);z-index:500;animation:celebrate 2.4s ease forwards;pointer-events:none}
+.celebrate{position:fixed;left:50%;top:26%;transform:translateX(-50%);background:linear-gradient(135deg,var(--best),var(--gold-bright));color:#0a0805;padding:30px 46px;border-radius:18px;font-size:30px;font-weight:var(--fw-semibold);box-shadow:0 8px 32px rgba(0,255,170,.4);z-index:500;animation:celebrate 2.4s ease forwards;pointer-events:none}
 @keyframes celebrate{0%{opacity:0;transform:translate(-50%,-20px) scale(.8)}15%{opacity:1;transform:translate(-50%,0) scale(1.05)}30%{transform:translate(-50%,0) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-10px) scale(.95)}}
 .shortcut-hint{position:fixed;bottom:calc(var(--dock-h, 84px) + 80px);left:18px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:var(--fs-meta);color:var(--text-muted);z-index:150;display:none;align-items:center;gap:8px;pointer-events:none}   /* v678 (swarm) — was burying the TZ pill */
 .shortcut-hint.show{display:flex}
@@ -7743,8 +7743,24 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .chron-toast{background:linear-gradient(135deg,color-mix(in srgb,var(--cec) 16%,#0d1f12),#0b1710);border-color:color-mix(in srgb,var(--cec) 55%,transparent);color:color-mix(in srgb,var(--cec) 78%,#ffffff);box-shadow:0 6px 26px rgba(0,0,0,.55),0 0 18px -4px color-mix(in srgb,var(--cec) 55%,transparent)}
 .chron-toast b{color:var(--cec)}
 .chron-toast.ct-big{transform:scale(1.06);border-width:2px}
+/* v1676 — THE CELEBRATION IS THE POINT, SO MAKE IT ONE. Konyo: "the celebrations i want bigger for
+   every forge/chronicle manually discovered and tallied. i want it stretched big.. i just saw it and
+   its tiny." It was: the name rode the base toast's 13.5px, which is a NOTIFICATION size — right for
+   "saved", wrong for the moment a grail he has hunted for months finally lands.
+   Scoped to .chron-toast on purpose: ordinary toasts keep their quiet size, because making every
+   toast shout would just move the problem. The colour still comes from --cec, so a unique celebrates
+   in gold, a set in green and a craft in orange without a second rule. */
+.chron-toast{padding:20px 26px;min-width:min(420px,86vw);border-radius:16px}
+.chron-toast .ct-name{font-size:27px;line-height:1.15;letter-spacing:.4px;
+  text-shadow:0 0 18px currentColor,0 0 42px color-mix(in srgb,currentColor 55%,transparent)}
+.chron-toast .ct-sub{font-size:14.5px;margin-top:5px;letter-spacing:.2px}
+.chron-toast.ct-big{transform:scale(1.14);border-width:2px}
+@media (prefers-reduced-motion:reduce){ .chron-toast.ct-big{transform:none} }
 .chron-toast .ct-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.10);margin:7px 0 2px;overflow:hidden}
 .chron-toast .ct-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,color-mix(in srgb,var(--cec) 55%,transparent),var(--cec));box-shadow:0 0 10px -1px var(--cec);animation:ctBar .55s cubic-bezier(.2,.9,.3,1)}
+/* v1676 — the bar must come AFTER the 5px rule above it: same specificity, so SOURCE ORDER
+   decides. My first attempt sat before it, measured 5px, and looked applied in the diff. */
+.chron-toast .ct-bar{height:9px;border-radius:5px;margin:12px 0 3px}
 @keyframes ctBar{0%{transform:scaleX(.55);transform-origin:left;opacity:.4}100%{transform:scaleX(1);transform-origin:left;opacity:1}}
 .chron-epic{--cec:var(--q-unique)}
 .chron-epic.ce-set{--cec:var(--q-set)}
@@ -38570,7 +38586,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1675', name:'v1675 - fix-forge-blank', date:'2026-08-06', note:'the Forge tab renders again — a quote in my own emoji fallback had closed the JS string' };
+  window.D2R_BUILD = { id:'v1676', name:'v1676 - bigger-celebrations', date:'2026-08-06', note:'a grail landing celebrates at twice the size instead of whispering like a save confirmation' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
