@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1646",
+  "ver": "v1647",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1646: a chronicle row names a finished runeword so it wears gold not crafted orange, and the stale spec that demanded orange stops failing CI",
+  "note": "v1647: the daily task force pick resolves to the piece that has art instead of the set aggregate that has none, so the name can finally wear its rarity and its picture",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -11316,9 +11316,27 @@
          v1644 — the same treatment, now applied to EVERY name in the sentence we can stand behind
          (the piece AND its set), each with its own quality, picture, card and door. One chip
          builder, so a second dressed name can never drift into a fourth invention. */
+      /* v1647 — MATCH THE NAME THE SENTENCE ACTUALLY USES, ROUTE WITH THE CANONICAL ONE.
+         The board publishes the CANONICAL name so artUrl and the routers resolve the entry the rest
+         of the app knows — and for a set piece that name is SLOT-SUFFIXED:
+           payload  "Tancred's Hobnails (light plated boots)"
+           sentence "…(1 piece left: Tancred's Hobnails)"
+         `lo.indexOf(m.nm)` therefore found nothing, no mark was built, and the row stayed flat text
+         even once the bridge was publishing correctly. Two links in one chain, and fixing only the
+         board would have looked like it changed nothing.
+         So a mark now carries BOTH: `nm` is what to FIND in the prose, `arg`/art/tip stay keyed to
+         the canonical entry. Stripping is safe because the suffix is exactly what the board added —
+         the same `\s*\([^)]*\)\s*$` shape it strips when matching in the other direction. */
       var _aiMarks = [];
-      if (aiArt) _aiMarks.push({ nm: String(aiArt.name), art: aiArt.art || '', cls: _rarCls(_aiRar),
-                                 tip: _aiTip, fn: _aiFn, arg: _aiArg, room: _aiRoom });
+      if (aiArt) {
+        var _canon = String(aiArt.name);
+        var _plain = _canon.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        _aiMarks.push({ nm: _canon, art: aiArt.art || '', cls: _rarCls(_aiRar),
+                        tip: _aiTip, fn: _aiFn, arg: _aiArg, room: _aiRoom });
+        if (_plain && _plain !== _canon)
+          _aiMarks.push({ nm: _plain, art: aiArt.art || '', cls: _rarCls(_aiRar),
+                          tip: _aiTip, fn: _aiFn, arg: _aiArg, room: _aiRoom });
+      }
       if (_aiSetName) _aiMarks.push({ nm: _aiSetName, art: _aiRow.setArt || '', cls: _rarCls('set'),
                                  tip: _aiSetTip, fn: '_hubGoSetPiece', arg: _aiArg, room: 'sets' });
       var _aiChip = function(shown, m){

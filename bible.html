@@ -22184,7 +22184,29 @@ window._syncCreateNowAiArt = function(){
         v.forEach(function(st){ ((st && st.pieces) || []).forEach(function(pc){ if (pc && pc.name) names.push(pc.name); }); });
       });
     } catch(e){}
-    var hit = null, best = 0;
+    /* v1647 — LONGEST-MATCH PICKED THE ONE NAME WITH NO ART, AND THE WHOLE BRIDGE DIED ON IT.
+       Konyo, again ("ive said this before"): the DAILY TASK FORCE row renders its item names as flat
+       text — no set green, no HD art, no floating card, nothing to click. The console plumbing for
+       all of that has been correct since v1636/v1644; it just never had a payload to dress.
+       ROOT CAUSE, measured on his exact sentence
+         "Sets · 108/135 pieces — finish Tancred's Battlegear (1 piece left: Tancred's Hobnails)"
+       TWO known names appear in it, and this loop kept the LONGEST:
+         "Tancred's Battlegear" (20) — the SET AGGREGATE. artUrl() -> null.
+         "Tancred's Hobnails"   (18) — the PIECE.         artUrl() -> art/hd_leather_boots.png.
+       So `hit` became the aggregate, `art` came back null, and the `!art` guard 25 lines below threw
+       the ENTIRE payload away — removeItem, return. The console then found no aiArt, built no marks,
+       and fell back to plain escaped text. Every downstream surface was working perfectly on nothing.
+       The irony is that the block directly above this one added set PIECES to the pool for exactly
+       this sentence, noting "the aggregate has no art and the piece was not in the pool" — and then
+       longest-match handed the win straight back to the aggregate.
+       FIX: length is a tie-breaker, not the criterion. A candidate that RESOLVES ART always beats
+       one that does not, because art is what the consumer needs and what the `!art` guard demands.
+       Among candidates that resolve art, longest still wins (the specific piece over a substring).
+       Keeping the longest artless name only as a last resort preserves the old behaviour for the
+       genuinely-artless case, which still bails below — the bail is right, it was the CHOICE feeding
+       it that was wrong. */
+    var hit = null, best = 0, hitNoArt = null, bestNoArt = 0;
+    var _resolves = function(n){ try { return !!(typeof artUrl === 'function' && artUrl(n)); } catch(e){ return false; } };
     for (var i = 0; i < names.length; i++){
       var n = names[i];
       if (!n || n.length < 6) continue;                       // guards junk/1-word base collisions
@@ -22194,8 +22216,10 @@ window._syncCreateNowAiArt = function(){
       var alias = n.replace(/\s*\([^)]*\)\s*$/, '').trim();
       var probe = (txt.indexOf(n) >= 0) ? n : ((alias.length >= 6 && txt.indexOf(alias) >= 0) ? alias : null);
       if (!probe) continue;
-      if (probe.length > best){ best = probe.length; hit = n; }
+      if (_resolves(n)) { if (probe.length > best) { best = probe.length; hit = n; } }
+      else if (probe.length > bestNoArt) { bestNoArt = probe.length; hitNoArt = n; }
     }
+    if (!hit) hit = hitNoArt;                                  // nothing with art matched — old behaviour, still bails below
     if (!hit){ try { window.LSR.removeItem('d2r_createNowAiArt'); } catch(e){} return; }
     var art = null, rar = null;
     try { art = (typeof artUrl === 'function') ? (artUrl(hit) || null) : null; } catch(e){}
@@ -38333,7 +38357,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1646', name:'v1646 - runeword-gold', date:'2026-08-05', note:'a chronicle row names a finished runeword so it wears gold not crafted orange, and the stale spec that demanded orange stops failing CI' };
+  window.D2R_BUILD = { id:'v1647', name:'v1647 - daily-pick-bridge', date:'2026-08-05', note:'the daily task force pick resolves to the piece that has art instead of the set aggregate that has none, so the name can finally wear its rarity and its picture' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

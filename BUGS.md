@@ -152,6 +152,46 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-133 — longest-match picked the one name with no art, and the whole daily-pick bridge died on it
+
+**Symptom.** Konyo, repeatedly ("ive said this before"): the DAILY TASK FORCE pick renders its item
+names as flat text — no set green, no HD art, no floating card, nothing clickable.
+
+**Why it kept surviving "fixes".** The CONSUMER was never broken. tv/control_ui.html has built the
+full treatment since v1636/v1644 — `_aiMarks` + `_aiChip` give every name it can stand behind an
+`_itemArtImg`, an `_itipAttr` card, `_rarCls` colour and keyboard routing, for the piece AND its set.
+It was working perfectly on an empty payload, so every inspection of the console found correct code.
+
+**Root cause (board side).** `_syncCreateNowAiArt` collects every known item name appearing in the
+pick sentence and keeps the LONGEST. Measured on his exact sentence:
+`"Sets · 108/135 pieces — finish Tancred's Battlegear (1 piece left: Tancred's Hobnails)"`
+- `Tancred's Battlegear` (20 chars) — the SET AGGREGATE. `artUrl()` -> **null**
+- `Tancred's Hobnails` (18 chars) — the PIECE. `artUrl()` -> `art/hd_leather_boots.png`
+
+Longest won, so `hit` was the aggregate, `art` came back null, and the `!art` guard threw the ENTIRE
+payload away (`removeItem`). **Measured before the fix: the published payload was `null`.** The block
+immediately above had added set PIECES to the pool for this very sentence, noting "the aggregate has
+no art and the piece was not in the pool" — and then longest-match handed the win back to it.
+
+**Fix.** Length is a TIE-BREAKER, not the criterion: a candidate that resolves art always beats one
+that does not; among those, longest still wins. A wholly artless match is kept only as a last resort
+and still bails — the bail was right, the CHOICE feeding it was wrong.
+Measured after: `{"name":"Tancred's Hobnails (light plated boots)","art":"art/hd_leather_boots.png","rarity":"set"}`.
+
+**Second link in the same chain (console side).** The board publishes the CANONICAL name so `artUrl`
+and the routers resolve the entry the app knows — and a set piece's canonical name is SLOT-SUFFIXED.
+The console matched that literal against prose that says only `Tancred's Hobnails`, so `indexOf`
+failed and no mark was built. A mark now carries both: `nm` is what to FIND in the sentence, while
+art/tip/routing stay keyed to the canonical entry. **Fixing only the board would have looked like it
+changed nothing** — which is likely why this survived several passes.
+
+**Prevention.** When a display is inert, ask whether the CONSUMER is broken or whether it is being
+handed nothing. Both look identical on screen, and only one is visible in the code.
+
+**Not proven.** The board half is red-then-green (payload `null` -> populated). The console half is
+NOT visually confirmed: a seeded harness renders the DAILY PICK row but never produced a `.tf-nm`
+node, so the dressed name has not been SEEN painted. Confirm on the live console with one hard reload.
+
 ## REG-132 — the Forge chronicle painted a runeword name in CRAFTED orange, and a stale spec demanded it
 
 **Symptom.** Konyo, on the Forge tab: "forge color needs fixing". Every row of the Sealed Chronicle
