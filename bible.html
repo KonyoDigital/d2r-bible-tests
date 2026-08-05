@@ -24557,11 +24557,38 @@ document.querySelectorAll(".tab").forEach(t => { t.onclick = () => navClean(t.da
 // v551 — HD-ART NAV ICONS. Shiny in-game sprites replace the flat emoji on BOTH the main tabs AND the compass
 // navigator (Konyo: "fancy HD art replicating the title name"). Centralised map → swap any single icon in one place.
 // Each <img> keeps its original emoji in data-emoji and falls back to it if the art 404s, so the nav never breaks.
+/* ══ v1683 · THE WORKSHOP SIX STOP BORROWING A UNIQUE'S PORTRAIT ════════════════════════════════
+   The icon arc so far — v1671 the console strip, v1672 the Forge-family page headers, v1677 the
+   emblem, v1678 the headers that were still emoji — never reached the BOARD's own tab row, because
+   inside the console it is display:none (`body.app-ctx.engine-driven .tabs`, :4795). It is the row
+   bull-4-u.com serves, and it was NOT emoji: v551 has been swapping in HD art here all along, from
+   this map. The art it swapped in is the problem.
+     · funi  → crownofages_graphic.png          — Crown of Ages, one specific unique
+     · fsets → talrashasguardianship_graphic.png — Tal Rasha's Guardianship, one specific set piece
+     · forge → hd_war_hammer.png · tools → horadric_cube_graphic.png
+   That is the SAME defect v1677 fixed on the emblem (which was rendering Harlequin Crest as a logo)
+   and v1678 fixed on the page headers: chrome wearing an item's identity. Worse here, because the
+   console shows a gold ring for F·Uniques while the website showed the Crown of Ages — one tab, two
+   pictures, depending on where he opened it.
+   So the six tabs the console strip carries now name the SAME six files it uses. Only those six:
+   the LORE/data tabs are a different family and keep their in-game sprites, which is not the same
+   mistake — `tz → essenceterror_graphic.png` is a picture OF terror zones, not a unique standing in
+   for a concept.
+   ⚠ FIXED IN THE MAP, NOT THE MARKUP. My first attempt put <img> tags straight into the six
+   buttons; applyTabIcons() (below) parses `t.textContent` into [emoji, ...label] and only skips a
+   tab that already has an `img.tab-hdico`, so hand-written markup would have been overwritten AND
+   would have fed the compass widget an empty label. One map, six values, every consumer downstream
+   unchanged — including the emoji fallback each entry still carries via data-emoji.
+   rotw KEEPS harlequincrest_graphic.png: the Shako IS the RotW-special exhibit, so there the item
+   art is the subject rather than a stand-in. Named so the next sweep does not "fix" it. */
 var TAB_ICON = {
   main:'logo_scroll.png', bosses:'hd_perfect_skull.png', calc:'hd_perfect_diamond.png',
   tz:'essenceterror_graphic.png', tztracker:'mr_hellfiretorch.png', runes:'hd_ber_rune.png',
-  rotw:'harlequincrest_graphic.png', funi:'crownofages_graphic.png', fsets:'talrashasguardianship_graphic.png', ancients:'flamerift_graphic.png', endgame:'mr_hellfiretorch.png',
-  binds:'mr_annihilus.png', ref:'hd_grimoire.png', tools:'horadric_cube_graphic.png', forge:'hd_war_hammer.png'
+  rotw:'harlequincrest_graphic.png', ancients:'flamerift_graphic.png', endgame:'mr_hellfiretorch.png',
+  binds:'mr_annihilus.png', ref:'hd_grimoire.png',
+  // the WORKSHOP six — the same files the console header strip renders (art/ui_tab_*.png)
+  session:'ui_tab_session.png', tools:'ui_tab_tools.png', forge:'ui_tab_forge.png',
+  funi:'ui_tab_funi.png', fsets:'ui_tab_fsets.png', tvd:'ui_tab_tvd.png'
 };
 window._tabIcoFail = function(img){ try { var e=img.getAttribute('data-emoji')||'•'; var s=document.createElement('span'); s.className=(img.className||'').replace(/\btab-hdico\b/,'').trim(); s.textContent=e; img.replaceWith(s); } catch(err){} };
 function _tabIcoImg(tab, emoji, cls){
@@ -38635,7 +38662,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1682', name:'v1682 - zone names stop breaking mid-word', date:'2026-08-06', note:'the name column is floored at its longest word so the badge cannot squeeze it' };
+  window.D2R_BUILD = { id:'v1683', name:'v1683 - the website tab row joins the icon arc', date:'2026-08-06', note:'the six workshop tabs render the console chrome icons instead of a specific unique portrait' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

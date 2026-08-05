@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1682",
+  "ver": "v1683",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1682: the name column is floored at its longest word so the badge cannot squeeze it",
+  "note": "v1683: the six workshop tabs render the console chrome icons instead of a specific unique portrait",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
