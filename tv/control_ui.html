@@ -3317,6 +3317,16 @@
      different accent. One token now names a ZONE HEADING, so a heading can never be mistaken for
      a quality colour — which is the whole point of the palette work. */
   .zone-hunt { color: var(--panel-head); } .zone-mission { color: var(--panel-head); } .zone-record { color: var(--panel-head); }
+  /* v1674 — Ⅲ THE RECORD BELONGS TO TV·D, NOT TO SESSIONS. Konyo: "everything here and to the
+     bottom is duplicated on the TV-D tab.. i want it only on the TV-D tab.. i dont need it on
+     SESSIONS TAB". The same nodes render on both views, so Sessions was showing a second copy of
+     PRODUCTIVITY, TALLIES, CHRONICLE SWEEP, THE READ CHAIN and VAULT ACCUMULATOR.
+     Scoped by the GENERAL SIBLING combinator on purpose: `.zone-record ~ .hd-col` reaches only the
+     columns that FOLLOW the banner, so the Ⅰ TZ TRACKER and Ⅱ THE MISSIONS columns above it — which
+     Sessions does own — cannot be caught by it. Hidden rather than removed from the DOM: TV·D
+     renders the same nodes, so deleting them would break the tab that is supposed to have them. */
+  body[data-view="sessions"] .zone-banner.zone-record,
+  body[data-view="sessions"] .zone-banner.zone-record ~ .hd-col { display: none; }
   /* v1424 — DOM is already Ⅰ HUNT → taskforce → Ⅱ MISSIONS → forge → Ⅲ RECORD → kpi…
      CSS order kept as belt-and-suspenders (matches document order; crest/hero still lead). */
   .hub-bible { order: -1; }
