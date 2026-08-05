@@ -3510,7 +3510,17 @@
      stretch two engine lights across half a screen. Only the forge queue is a fixed-shape roster,
      so only the forge queue gets columns. ══ */
   #hd-forge-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-  #hd-forge-chips .hd-chip { display: flex; align-items: center; gap: 7px; }
+  /* v1650 — ALIGN THE FIRST LINES, NOT THE BOXES. Konyo: "Blood open forge under the missions you
+     see how its the only one not aligned with the other 3". The grid already gives every chip an
+     equal-width track and stretches them to a common height — but `align-items:center` centres each
+     chip's CONTENT inside that height, and "Blood · open Forge" is the only one of the four short
+     enough to fit on ONE line. Its single line therefore floats to the middle of a two-line-tall box
+     while the other three start at the top: four boxes in perfect alignment, four texts that are not.
+     Aligning to the start makes the first line the shared baseline whatever each chip wraps to.
+     The icon gets a hair of top margin so it still reads as centred ON that first line rather than
+     hanging from it. */
+  #hd-forge-chips .hd-chip { display: flex; align-items: flex-start; gap: 7px; }
+  #hd-forge-chips .hd-chip img, #hd-forge-chips .hd-chip .hd-chip-ic { margin-top: 1px; flex: 0 0 auto; }
   /* the empty-state sentence is prose, not a chip — it takes the whole row rather than one track */
   #hd-forge-chips .hd-empty { grid-column: 1 / -1; }
   .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: var(--hd-radius-in); padding: var(--hd-pad-row-y) var(--hd-pad-row-x); font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }

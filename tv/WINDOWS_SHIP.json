@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1649",
+  "ver": "v1650",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1649: the set the piece belongs to now wears its own green and its own picture instead of depending on a second source that may not be there",
+  "note": "v1650: the forge quest chips align on their first line so a short one stops floating below the others",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
