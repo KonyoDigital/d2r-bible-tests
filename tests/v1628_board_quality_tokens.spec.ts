@@ -375,7 +375,13 @@ test.describe('v1628 · 6 — a thumbnail names something in its own group', () 
         const img: any = a?.querySelector('img');
         return {
           kind: c.classList.contains('f-pipe') ? 'best-run' : (c.classList.contains('f-step') ? 'quick-win' : 'other'),
-          logo: a?.getAttribute('data-art-logo') || null,
+          /* v1636 moved the BOSS thumbnail from `data-art-logo` to `data-boss-tip`, which carries
+             the boss ID ("mephisto", "pindle"). Reading only data-art-logo made every run card
+             look like it had NO resolvable subject while showing a perfectly correct portrait —
+             so this fired the v1624 arbitrary-picture alarm at art that was never arbitrary.
+             The identity check below still holds for either: a run card titled "Run Hell
+             Mephisto" contains "mephisto", so an arbitrary picture would still be caught. */
+          logo: a?.getAttribute('data-art-logo') || a?.getAttribute('data-boss-tip') || null,
           hasImg: !!img,
           decoded: img ? img.naturalWidth > 0 : false,
           /* the group's own text: title + every item name the card lists */
