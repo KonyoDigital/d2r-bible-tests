@@ -3319,6 +3319,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tools-index .ti-chip{font:inherit;font-size:var(--fs-meta);color:var(--text-muted);background:rgba(0,0,0,.28);border:1px solid rgba(240,192,96,.16);border-radius:999px;padding:4px 11px;cursor:pointer;white-space:nowrap;transition:border-color .13s,background .13s,color .13s,transform .1s}
 .tools-index .ti-chip:hover{border-color:var(--gold-dim);color:var(--gold-bright);background:rgba(240,192,96,.09);transform:translateY(-1px)}
 .tools-index .ti-chip.ti-hot{border-color:rgba(240,192,96,.5);color:var(--gold-bright);background:rgba(240,192,96,.08);font-weight:var(--fw-medium)}
+.tools-index .ti-chip.ti-q-rune{color:var(--rune)}
+.tools-index .ti-chip.ti-q-runeword{color:var(--q-runeword)}
+.tools-index .ti-chip.ti-q-set{color:var(--q-set)}
+.tools-index .ti-chip.ti-q-crafted{color:var(--q-orange)}
+/* v1655 — THE STORAGE CATEGORIES GET THEIR COLOURS TOO, and my reason for excluding them was wrong.
+   v1654's brief asserted "there is no token for gems/materials/stash/vault, and that is not an
+   oversight" — a claim about the whole codebase made after checking ONE namespace (the --q- and --rar- families).
+   This file has carried them for ages: the Quick-upload row (~4826) sets them as inline `--a` values
+   read by `.tqu-txt b{color:var(--a)}`, and _SC_KINDS (~37439) maps the same four kinds. So this
+   REUSES the app's own vocabulary instead of inventing one, which is the opposite of what I argued.
+   Konyo: "anything with those keywords can be title color synced. so it pops out at me and we know
+   thats what its for". A quality colour says WHAT AN ITEM IS; these say WHAT A STORE HOLDS — two
+   vocabularies, both legitimate, and the chips read at a glance either way. */
+.tools-index .ti-chip.ti-q-gem{color:#6fd3e6}
+.tools-index .ti-chip.ti-q-mat{color:#b79cf0}
+.tools-index .ti-chip.ti-q-vault{color:#f0c060}
 #tab-tools .tool-premium:not(.tool-primary){border-color:color-mix(in srgb,var(--tc,#f0c060) 16%,var(--border));box-shadow:0 5px 18px -16px color-mix(in srgb,var(--tc,#f0c060) 40%,transparent)}
 #tab-tools .tool-premium:not(.tool-primary) .boss-header .boss-emoji{opacity:.72;transform:scale(.88)}
 #tab-tools .tool-primary{border-color:color-mix(in srgb,var(--tc,#f0c060) 45%,var(--border));box-shadow:0 10px 30px -14px color-mix(in srgb,var(--tc,#f0c060) 85%,transparent),inset 0 1px 0 rgba(255,255,255,.04)}
@@ -4902,10 +4918,10 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
        maps the room — grouped by JOB, each chip jumps to (and pulses) its card. No card moved,
        no card hidden: every id keeps its place, the index is pure wayfinding on top. -->
   <div class="tools-index" id="tools-index">
-    <span class="ti-g"><span class="ti-gl">⚡ do now</span><button class="ti-chip ti-hot" onclick="window._toolJump('autoroute-sweep-card')">🔄 sweep</button><button class="ti-chip ti-hot" onclick="window._toolJump('mule-vault-card')">🏦 vault</button><button class="ti-chip ti-hot" onclick="window._toolJump('rune-stash-card')">🪨 runes</button><button class="ti-chip ti-hot" onclick="window._toolJump('rw-chronicle-card')">📜 chronicle</button><button class="ti-chip ti-hot" onclick="window._toolJump('smart-insights-card')">🧠 insights</button></span>
-    <span class="ti-g"><span class="ti-gl">📦 stashes</span><button class="ti-chip" onclick="window._toolJump('gem-stash-card')">💎 gems</button><button class="ti-chip" onclick="window._toolJump('material-stash-card')">🜍 materials</button></span>
-    <span class="ti-g"><span class="ti-gl">⚗️ craft &amp; cube</span><button class="ti-chip" onclick="window._toolJump('craft-workshop-card')">⚗️ crafts</button><button class="ti-chip" onclick="window._toolJump('horadric-recipe-card')">🧪 recipes</button><button class="ti-chip" onclick="window._toolJump('sunder-recipe-card')">🌀 sunders</button></span>
-    <span class="ti-g"><span class="ti-gl">🗺 planners</span><button class="ti-chip" onclick="window._toolJump('ai-item-checker-card')">🔬 AI checker</button><button class="ti-chip" onclick="window._toolJump('all-runewords-card')">📖 runewords</button><button class="ti-chip" onclick="window._toolJump('rw-bases-card')">🛡 bases</button><button class="ti-chip" onclick="window._toolJump('loot-filters-card')">🎯 loot filter</button><button class="ti-chip" onclick="window._toolJump('set-tracker-card')">🧩 sets</button></span>
+    <span class="ti-g"><span class="ti-gl">⚡ do now</span><button class="ti-chip ti-hot" onclick="window._toolJump('autoroute-sweep-card')">🔄 sweep</button><button class="ti-chip ti-hot ti-q-vault" onclick="window._toolJump('mule-vault-card')">🏦 vault</button><button class="ti-chip ti-hot ti-q-rune" onclick="window._toolJump('rune-stash-card')">🪨 runes</button><button class="ti-chip ti-hot" onclick="window._toolJump('rw-chronicle-card')">📜 chronicle</button><button class="ti-chip ti-hot" onclick="window._toolJump('smart-insights-card')">🧠 insights</button></span>
+    <span class="ti-g"><span class="ti-gl">📦 stashes</span><button class="ti-chip ti-q-gem" onclick="window._toolJump('gem-stash-card')">💎 gems</button><button class="ti-chip ti-q-mat" onclick="window._toolJump('material-stash-card')">🜍 materials</button></span>
+    <span class="ti-g"><span class="ti-gl">⚗️ craft &amp; cube</span><button class="ti-chip ti-q-crafted" onclick="window._toolJump('craft-workshop-card')">⚗️ crafts</button><button class="ti-chip ti-q-crafted" onclick="window._toolJump('horadric-recipe-card')">🧪 recipes</button><button class="ti-chip" onclick="window._toolJump('sunder-recipe-card')">🌀 sunders</button></span>
+    <span class="ti-g"><span class="ti-gl">🗺 planners</span><button class="ti-chip" onclick="window._toolJump('ai-item-checker-card')">🔬 AI checker</button><button class="ti-chip ti-q-runeword" onclick="window._toolJump('all-runewords-card')">📖 runewords</button><button class="ti-chip" onclick="window._toolJump('rw-bases-card')">🛡 bases</button><button class="ti-chip" onclick="window._toolJump('loot-filters-card')">🎯 loot filter</button><button class="ti-chip ti-q-set" onclick="window._toolJump('set-tracker-card')">🧩 sets</button></span>
     <span class="ti-g"><span class="ti-gl">💰 values</span><button class="ti-chip" onclick="window._toolJump('item-values-card')">💰 worth</button><button class="ti-chip" onclick="window._toolJump('item-rarity-card')">🏆 rarity</button><button class="ti-chip" onclick="window._toolJump('hvf-card')">⭐ HVF</button></span>
     <span class="ti-g"><span class="ti-gl">❓</span><button class="ti-chip" onclick="document.getElementById('tools-legend-modal').classList.add('show')" title="Field guide — what every planner does + where to start">🧰 field guide</button></span>
   </div>
@@ -38432,7 +38448,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1653', name:'v1653 - set-chip-token', date:'2026-08-05', note:'the MY HUNT source chip wears the real rarity token so a set stops reading as mint and a boss stops reading as a set' };
+  window.D2R_BUILD = { id:'v1655', name:'v1655 - category-colours-complete', date:'2026-08-05', note:'gems materials and vault get their colours too because the app already had them and I wrongly said it did not' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

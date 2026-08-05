@@ -2789,6 +2789,22 @@
   .mini-foc .mf[data-f="runes"], .mini-foc .mf[data-f="runes"]:hover { color: var(--rar-rune); }
   .mini-foc .mf[data-f="chronicle-uniques"], .mini-foc .mf[data-f="chronicle-uniques"]:hover { color: var(--rar-unique); }
   .mini-foc .mf[data-f="chronicle-sets"], .mini-foc .mf[data-f="chronicle-sets"]:hover { color: var(--rar-set); }
+  /* v1655 — STASH, GEMS AND MATERIALS GET THEIR COLOURS TOO, AND MY REASON FOR EXCLUDING THEM WAS
+     WRONG. The v1654 brief said "there is no token for gems/materials/stash/vault, and that is not
+     an oversight". That was a claim about the whole codebase made after looking in ONE namespace
+     (--rar-*). The app has defined these for ages — bible.html's Quick-upload row carries them as
+     inline `--a` values consumed by `.tqu-txt b{color:var(--a)}`, and mirrors them in _SC_KINDS:
+       vault #f0c060 · runes #ffb454 · gems #6fd3e6 · materials #b79cf0
+     So syncing here REUSES the app's own language rather than inventing a palette — the opposite of
+     what I argued. Konyo: "i wanted this though also colored and synced why cant it be touched? ...
+     anything with those keywords can be title color synced. so it pops out at me and we know thats
+     what its for".
+     Runes deliberately keep --rar-rune #ff7d3c rather than the quick-upload's #ffb454: a RUNE is an
+     item with a settled game colour, and that one wins over a UI accent. The three below are storage
+     and crafting inputs with no game quality, so the UI accent IS their vocabulary. */
+  .mini-foc .mf[data-f="gems"], .mini-foc .mf[data-f="gems"]:hover { color: #6fd3e6; }
+  .mini-foc .mf[data-f="materials"], .mini-foc .mf[data-f="materials"]:hover { color: #b79cf0; }
+  .mini-foc .mf[data-f="stash"], .mini-foc .mf[data-f="stash"]:hover { color: #f0c060; }
   /* v1614 — each focus wears the item MINI is about to read. Unselected focuses sit at .7 so the
      chosen one is the brightest thing in the row; the picture reinforces the pick, it does not
      compete with the gold border that carries it. */

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1654",
+  "ver": "v1655",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1654: colour-sync MINI focus chips runes uniques sets to rar tokens stash gems materials left neutral deliberately",
+  "note": "v1655: gems materials and vault get their colours too because the app already had them and I wrongly said it did not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
