@@ -22249,7 +22249,45 @@ window._syncCreateNowAiArt = function(){
     }
     if (!art){ try { window.LSR.removeItem('d2r_createNowAiArt'); } catch(e){} return; }   // no art > wrong art
     // v1617 — the daily pick gets the same in-game stat block as the two heroes
-    var payload = JSON.stringify({ name: hit, art: art, rarity: rar, tip: _bridgeTip(hit) });
+    /* v1649 — PUBLISH THE SET THE PIECE BELONGS TO, so the console does not need a SECOND source.
+       Konyo: "Tancred's Battlegear is also a set item and should have the same upgraded logic… it
+       was just missed also". The console DOES have a mark for the set name (v1644), but it reads it
+       from `d2r_setFarm` via `_setBy[aiArt.name]` — a different key, written by a different scan,
+       and looked up by the CANONICAL slot-suffixed name. When that row is missing or keyed even
+       slightly differently the set silently stays undressed, which is exactly what he screenshotted:
+       the PIECE went green while the SET beside it stayed flat.
+       The board already knows the answer at this moment — findSetPiece(hit) returns the set object —
+       so it states it in the payload instead of leaving the console to re-derive it. Same principle
+       that fixed the rarity at v1644: the bridge should carry the fact, not a hint that the fact can
+       be looked up elsewhere.
+       setArt may legitimately be null (an aggregate often has no art of its own — artUrl("Tancred's
+       Battlegear") is null); the name and its green are the point, and the chip renders fine without
+       a picture. */
+    var _sp = null; try { _sp = (typeof findSetPiece === 'function') ? findSetPiece(hit) : null; } catch(e){}
+    var _setNm = (_sp && _sp.set && _sp.set.name) ? String(_sp.set.name) : '';
+    /* SET ART: a set AGGREGATE has none of its own — measured, artUrl("Tancred's Battlegear") and
+       artUrl("Aldur's Watchtower") are both null, because only PIECES carry art. The F·Sets tab
+       already solves this (see _setArt): ask _setRepArtName for the set's REPRESENTATIVE piece, and
+       fall back to the first piece that resolves. Reusing that chain rather than inventing a third
+       one is the whole point — one answer per question. Strip the "(set)" disambiguator first; the
+       registry stores it and every lookup here wants the bare name. */
+    var _setBare = _setNm.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    var _setImg = null;
+    if (_setBare) {
+      try { _setImg = (typeof artUrl === 'function') ? (artUrl(_setBare) || null) : null; } catch(e){}
+      if (!_setImg) { try {
+        var _rep = (typeof window._setRepArtName === 'function') ? window._setRepArtName(_setBare) : '';
+        if (_rep && typeof artUrl === 'function') _setImg = artUrl(_rep) || null;
+      } catch(e){} }
+      if (!_setImg && _sp && _sp.set && Array.isArray(_sp.set.pieces)) { try {
+        for (var _pi = 0; _pi < _sp.set.pieces.length && !_setImg; _pi++){
+          var _pn = String(_sp.set.pieces[_pi].name || _sp.set.pieces[_pi]).replace(/\s*\([^)]*\)\s*$/, '');
+          if (_pn && typeof artUrl === 'function') _setImg = artUrl(_pn) || null;
+        }
+      } catch(e){} }
+    }
+    var payload = JSON.stringify({ name: hit, art: art, rarity: rar, tip: _bridgeTip(hit),
+                                   set: _setNm || null, setArt: _setImg });
     var old = null; try { old = window.LSR.getItem('d2r_createNowAiArt'); } catch(e){}
     if (payload !== old) window.LSR.setItem('d2r_createNowAiArt', payload);
   } catch(e){}
@@ -38357,7 +38395,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1648', name:'v1648 - pick-name-uncut', date:'2026-08-05', note:'the daily pick stops cutting the item name two characters short so it can wear its green and its picture' };
+  window.D2R_BUILD = { id:'v1649', name:'v1649 - set-name-dressed', date:'2026-08-05', note:'the set the piece belongs to now wears its own green and its own picture instead of depending on a second source that may not be there' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

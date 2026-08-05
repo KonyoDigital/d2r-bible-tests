@@ -11283,11 +11283,22 @@
          word stands alone, which is already _itemArtImg's own rule. The set name routes through
          _hubGoSetPiece(piece), the same door the sets hero uses: it lands on the piece INSIDE its
          set, which is where the siblings and the completion are. */
-      var _aiSetName = _aiRow ? String(_aiRow.set || '').replace(/\s*\([^)]+\)\s*$/, '').trim() : '';
+      /* v1649 — THE SET NAME NO LONGER DEPENDS ON A SECOND SOURCE. This read the set ONLY from
+         `_aiRow` (the d2r_setFarm row found via `_setBy[aiArt.name]`). That lookup is keyed on the
+         CANONICAL slot-suffixed name and written by a different scan, so whenever the row was absent
+         or keyed differently the set silently stayed flat — the PIECE went green and "Tancred's
+         Battlegear" right beside it did not, which is exactly what Konyo screenshotted.
+         The board now states `set` and `setArt` in the bridge payload itself (v1649), because it
+         knows them at publish time. _aiRow stays PREFERRED — it carries `left`, which the payload
+         does not — and the payload is the fallback, so this works whether or not the sets scan has
+         run. Same lesson as the rarity at v1644: carry the fact, do not point at where it lives. */
+      var _aiSetName = (_aiRow ? String(_aiRow.set || '') : '') || (aiArt ? String(aiArt.set || '') : '');
+      _aiSetName = _aiSetName.replace(/\s*\([^)]+\)\s*$/, '').trim();
+      var _aiSetArt = (_aiRow && _aiRow.setArt) || (aiArt && aiArt.setArt) || '';
       var _aiSetTip = _aiSetName ? _itipAttr({
-        name: _aiSetName, art: _aiRow.setArt || '', rarity: 'set',
+        name: _aiSetName, art: _aiSetArt, rarity: 'set',
         facts: [['next piece', String(aiArt.name)],
-                ['pieces left', _aiRow.left ? String(_aiRow.left) : ''],
+                ['pieces left', (_aiRow && _aiRow.left) ? String(_aiRow.left) : ''],
                 ['today’s pick', String(ai).slice(0, 90)]],
         go: 'click to open it in the sets chronicle'
       }) : '';
@@ -11337,7 +11348,7 @@
           _aiMarks.push({ nm: _plain, art: aiArt.art || '', cls: _rarCls(_aiRar),
                           tip: _aiTip, fn: _aiFn, arg: _aiArg, room: _aiRoom });
       }
-      if (_aiSetName) _aiMarks.push({ nm: _aiSetName, art: _aiRow.setArt || '', cls: _rarCls('set'),
+      if (_aiSetName) _aiMarks.push({ nm: _aiSetName, art: _aiSetArt, cls: _rarCls('set'),
                                  tip: _aiSetTip, fn: '_hubGoSetPiece', arg: _aiArg, room: 'sets' });
       var _aiChip = function(shown, m){
         return '<b class="tf-nm hh-go' + m.cls + '" role="button" tabindex="0"'

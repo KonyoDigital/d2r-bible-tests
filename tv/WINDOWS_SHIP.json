@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1648",
+  "ver": "v1649",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1648: the daily pick stops cutting the item name two characters short so it can wear its green and its picture",
+  "note": "v1649: the set the piece belongs to now wears its own green and its own picture instead of depending on a second source that may not be there",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
