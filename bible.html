@@ -1067,7 +1067,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .aura-rank-list{display:flex;flex-direction:column;gap:7px;margin:8px 0}
 .aura-rank-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:linear-gradient(160deg,rgba(28,22,40,.55),rgba(16,12,24,.35));cursor:pointer;transition:transform .14s ease,box-shadow .25s ease,border-color .25s ease}
 .aura-rank-row:hover{transform:translateY(-1px);border-color:var(--gold-dim);box-shadow:0 0 14px rgba(212,168,71,.22)}
-.aura-rank-top{border-color:var(--rec);box-shadow:0 0 16px rgba(120,220,140,.22)}
+.aura-rank-top{border-color:var(--rec);box-shadow:0 0 16px rgba(203,214,228,.22)}
 .aura-rank-badge{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-weight:var(--fw-semibold);font-size:14px;font-family:var(--mono)}
 .aura-rank-art{flex:0 0 auto;display:inline-flex}
 .aura-rank-art .aura-logo.d2art-wrap{width:32px;height:32px}
@@ -1088,9 +1088,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .at3-row{display:flex;align-items:center;gap:13px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;transition:background .18s ease,box-shadow .25s ease}
 .at3-row:last-child{border-bottom:none}
 .at3-row:hover{background:rgba(212,168,71,.08);box-shadow:inset 3px 0 0 var(--gold-dim)}
-.at3-rank-1{background:linear-gradient(100deg,rgba(120,220,140,.1),transparent 60%)}
+.at3-rank-1{background:linear-gradient(100deg,rgba(203,214,228,.1),transparent 60%)}
 .at3-rank{flex:0 0 auto;width:30px;text-align:center;font-family:var(--serif-display);font-weight:var(--fw-semibold);font-size:26px;line-height:var(--lh-none);color:var(--gold);text-shadow:0 0 12px rgba(240,192,96,.45)}
-.at3-rank-1 .at3-rank{color:var(--rec);text-shadow:0 0 14px rgba(120,220,140,.5)}
+.at3-rank-1 .at3-rank{color:var(--rec);text-shadow:0 0 14px rgba(203,214,228,.5)}
 .at3-art{flex:0 0 auto;display:inline-flex}
 .at3-art .aura-logo.d2art-wrap{width:38px;height:38px}
 .at3-art .aura-logo.d2art-wrap .d2art-img{max-width:38px;max-height:38px;border-radius:7px;filter:drop-shadow(0 0 7px rgba(240,192,96,.45))}
@@ -1450,7 +1450,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* v277: "What I can make" reuses the runeword-row style in a boxed scroll list */
 .rw-make-scroll{margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:2px 8px;background:var(--surface-2);max-height:340px}
 /* v311: keep the name in runeword-orange; show craftable/cubeable as a GLOW, not a colour swap */
-.arw-row.rw-ready .arw-name{color:var(--q-runeword);text-shadow:0 0 8px rgba(123,199,123,.6)}
+.arw-row.rw-ready .arw-name{color:var(--q-runeword);text-shadow:0 0 8px rgba(199,179,119,.6)}
 .arw-row.rw-cube .arw-name{color:var(--q-runeword);text-shadow:0 0 8px rgba(240,192,96,.55)}
 .rw-make-stick{position:sticky;top:0;background:var(--surface-2);padding:8px 0 5px;z-index:2}
 .rw-make-hint{font-size:10.5px;color:var(--text-dim);font-style:italic;padding:1px 2px 6px;line-height:var(--lh-normal)}
@@ -38509,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1657', name:'v1657 - rec-platinum', date:'2026-08-05', note:'recommendation chrome goes platinum so a title stops reading as a set item and a ready runeword goes back to gold' };
+  window.D2R_BUILD = { id:'v1658', name:'v1658 - rec-platinum-glows', date:'2026-08-05', note:'the halos behind the retinted titles were still green, so platinum text sat in a green glow' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

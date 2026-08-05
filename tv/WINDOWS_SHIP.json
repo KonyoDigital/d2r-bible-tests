@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1657",
+  "ver": "v1658",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1657: recommendation chrome goes platinum so a title stops reading as a set item and a ready runeword goes back to gold",
+  "note": "v1658: the halos behind the retinted titles were still green, so platinum text sat in a green glow",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
