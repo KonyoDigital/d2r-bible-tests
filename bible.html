@@ -122,6 +122,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .tool-premium:hover{border-color:color-mix(in srgb,var(--tc,#f0c060) 52%,var(--border))}
 .boss-title-block{flex:1;min-width:0}
 .boss-name{color:var(--gold-bright);font-family:var(--serif-display);font-size:22px;font-weight:var(--fw-medium);margin:0;letter-spacing:.3px}
+#set-tracker-card .boss-name{color:var(--q-set)}/* tiny — the Item Set Tracker title reads set green like #tab-fsets .forge-title and the tlg-chip set swatch */
 .boss-subtitle{color:var(--text-muted);font-family:var(--serif-text);font-size:13.5px;font-weight:var(--fw-normal);font-style:italic;margin:3px 0 4px}
 .boss-loc{color:var(--text-muted);font-size:var(--fs-meta);margin:0}
 .boss-tier-tag{background:var(--surface-3);border-radius:6px;padding:6px 10px;text-align:center;min-width:80px}
@@ -5955,7 +5956,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="boss-title-block">
         <p class="boss-name">Item Set Tracker</p>
         <p class="boss-subtitle">Click each piece you've collected → completed sets glow green</p>
-        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · the most useful D2 sets</p>
+        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · every set, all 34</p>
       </div>
       <span class="rs-chevron" aria-hidden="true">▾</span>
     </div>
@@ -19631,10 +19632,44 @@ function _setSlotGlyph(p){
   if (/sword|axe|mace|hammer|scepter|rod|staff|spear|polearm|club|wand|orb|blade|charge|guardian|crusher|sickle/.test(slot)) return '⚔️';
   return '🗡️';
 }
+/* v1633/tiny — EVERY TALLY IS A MOMENT, shared by F·Sets and the Item Set Tracker.
+   Konyo: "the tally manual should also share the same celebrations and tallies and chronicle
+   sync meaning auto both ways if registered here manually and celebrated." Extracted from
+   renderForgeSets() so a manual tick in Tools → Item Set Tracker celebrates identically to a
+   tick made from F·Sets, without ever double-firing (the memory update on the first call means
+   a second call in the same tick sees no further rise).
+   Fires only on a RISE (v559.1 — un-ticking never celebrates). THE MEMORY IS KEYED BY LSR.key() —
+   the fully-routed store this count was read from — so MAIN and LADDER share one climbing count
+   while a cousin PC keeps its own. */
+window._setChronBeat = function(){
+  try {
+    if (typeof window.fsetsScan !== 'function' || typeof window._chronCelebrate !== 'function') return;
+    var s = window.fsetsScan(); if (!s) return;
+    window.__chronPrevN = window.__chronPrevN || {};
+    var _ck = window.LSR.key('d2r_setPieces'), _cn = s.havePieces, _ct = s.totalPieces;
+    if (typeof window.__chronPrevN[_ck] === 'number' && _cn > window.__chronPrevN[_ck]) {
+      window._chronCelebrate({ chron:'set', icon:'🧩', noun:'set pieces', n:_cn, tot:_ct });
+    }
+    window.__chronPrevN[_ck] = _cn;
+  } catch(e){}
+};
+/* v1680 — PRIME THE RISE-MEMORY AT BOOT, OR THE FIRST TICK OF EVERY SESSION IS SILENT.
+   The detector only fires when it has a PREVIOUS number to rise from (`typeof ... === 'number'`),
+   and measured on a fresh load `window.__chronPrevN` is `{}` — zero keys. Until now that was
+   invisible because the only writer was renderForgeSets(), which primes itself the first time
+   F·Sets paints. Ticking from Tools → Item Set Tracker has no such warm-up: open the console,
+   tick your first piece of the night without ever visiting F·Sets, and it would prime instead of
+   celebrate. The very probe that verified this feature had to call _setChronBeat() by hand first
+   to make the celebration appear — that workaround WAS the bug, stated out loud.
+   ON `load`, NOT DOMContentLoaded OR INLINE: fsetsScan is defined ~16k lines below this point
+   (:35762), so a prime running here at parse time would hit the `typeof !== 'function'` guard,
+   return early and prime NOTHING — silently, which is the worst version of this. Priming with no
+   previous value can never celebrate, so this only ever arms the detector. */
+try { window.addEventListener('load', function(){ try { window._setChronBeat(); } catch(e){} }); } catch(e){}
 function renderSetTracker() {
   const el = document.getElementById('set-tracker');
   if (!el) return;
-  el.innerHTML = ITEM_SETS.map(set => {
+  el.innerHTML = __allSets().map(set => {
     const have = set.pieces.filter(p => setPieces.has(p)).length;
     const complete = have === set.pieces.length;
     const pieces = set.pieces.map(p => {
@@ -19651,9 +19686,20 @@ function renderSetTracker() {
     }).join('');
     const _routable = (typeof isSetAggregate === 'function') && isSetAggregate(set.name);
     const _setEsc = set.name.replace(/'/g, "\\'");
+    /* v1680 — THE "(set)" SUFFIX IS A KEY, NOT A TITLE. 20 of the 34 set names carry a literal
+       " (set)" disambiguator in the DATA — "Cow King's Leathers (set)", "Orphan's Call (set)" —
+       and while the tracker only rendered the 12 ITEM_SETS entries (which carry a class tag like
+       "(Sorc)" instead) it never showed. The moment v1680 exposed all 34, twenty card titles
+       started reading "Tancred's Battlegear (set)" on screen. Same class as v1630, which stripped
+       the "(slot)" suffix off PIECE names for exactly this reason.
+       DISPLAY ONLY. openDrop, isSetAggregate and artOr keep the RAW name, because that string is
+       the lookup key everywhere else in the file — measured: isSetAggregate resolves 32 of 34 on
+       the raw name, and rewriting the data instead would have to be chased through the codex, the
+       grail vocab and the intake. Strip where it is read, not where it is stored. */
+    const _setDisp = set.name.replace(/\s*\(set\)$/i, '');
     const nameHtml = _routable
-      ? `<div class="set-card-name set-card-open" role="button" tabindex="0" title="open the ${set.name} ID card" onclick="event.stopPropagation();window.openDrop('${_setEsc}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_setEsc}')}">${set.name}${complete?' ✓':''} <span class="set-open-caret">↗</span></div>`
-      : `<div class="set-card-name">${set.name}${complete?' ✓':''}</div>`;
+      ? `<div class="set-card-name set-card-open" role="button" tabindex="0" title="open the ${_setDisp} ID card" onclick="event.stopPropagation();window.openDrop('${_setEsc}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_setEsc}')}">${_setDisp}${complete?' ✓':''} <span class="set-open-caret">↗</span></div>`
+      : `<div class="set-card-name">${_setDisp}${complete?' ✓':''}</div>`;
     return `<div class="set-card ${complete?'complete':''}">
       <div class="set-card-header">
         <span class="sec-h-art set-card-emblem">${artOr(set.name, '🛡️', 'sm')}</span>
@@ -19684,6 +19730,9 @@ function toggleSetPiece(piece) {
   // v619 — found-sync both ways: a tick from the Tools checklist wall re-scans an open F·Sets tab
   // (and vice versa — fsets ticks already call renderSetTracker via toggleSetPiece).
   try { var _ts=document.getElementById('tab-fsets'); if(_ts&&_ts.classList.contains('active')&&typeof window.renderForgeSets==='function') window.renderForgeSets(); } catch(e){}
+  // tiny — one shared celebration path with F·Sets (see window._setChronBeat); safe to call
+  // even when renderForgeSets already fired it above, since the rise-memory is already updated.
+  try { if (typeof window._setChronBeat === 'function') window._setChronBeat(); } catch(e){}
 }
 window.toggleSetPiece = toggleSetPiece;
 
@@ -36480,14 +36529,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        identical on MAIN and LADDER and the count simply keeps climbing across both; a cousin PC
        resolves a different key and keeps its own. And because the key follows the data, a profile
        whose store IS forked can never see another profile's number as a sudden gain. */
-    try {
-      window.__chronPrevN = window.__chronPrevN || {};
-      var _ck = window.LSR.key('d2r_setPieces'), _cn = s.havePieces, _ct = s.totalPieces;
-      if (typeof window.__chronPrevN[_ck] === 'number' && _cn > window.__chronPrevN[_ck]) {
-        _chronCelebrate({ chron:'set', icon:'🧩', noun:'set pieces', n:_cn, tot:_ct });
-      }
-      window.__chronPrevN[_ck] = _cn;
-    } catch(e){}
+    window._setChronBeat();
   };
 
   /* ── v561 — GRAIL BULK IMPORT: photograph the in-game grail/collection tracker → Sonnet vision reads every
@@ -38593,7 +38635,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1679', name:'v1679 - the tz card rows line up', date:'2026-08-06', note:'the zone name and the density line reserve their second row so ACT sits at one offset in both slots' };
+  window.D2R_BUILD = { id:'v1680', name:'v1680 - the whole set roster', date:'2026-08-06', note:'all 34 sets are tickable, a manual tick celebrates like an F-Sets one, and the title reads set green' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
