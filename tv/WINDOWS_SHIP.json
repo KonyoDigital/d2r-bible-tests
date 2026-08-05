@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1645",
+  "ver": "v1646",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1645: plain q-unique surfaces gain the item-tile glow",
+  "note": "v1646: a chronicle row names a finished runeword so it wears gold not crafted orange, and the stale spec that demanded orange stops failing CI",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

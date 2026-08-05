@@ -1373,7 +1373,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rwc-head .d2art-wrap.sm{width:26px;height:26px;flex:0 0 auto}.rwc-head .d2art-wrap.sm .d2art-img{max-width:26px;max-height:26px}
 .rwc-glyph{font-size:18px;line-height:var(--lh-none);width:26px;text-align:center;flex:0 0 auto;opacity:.7}
 .rwc-title{display:flex;flex-direction:column;gap:1px;min-width:0}
-.rwc-name{font-weight:var(--fw-bold);color:var(--q-orange);font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* v1646 — A CHRONICLE ROW NAMES A FINISHED RUNEWORD, SO IT IS GOLD. This painted --q-orange, which
+   is CRAFTED quality. The board's own settled truth (tv/control_ui.html:28-46, verified in Konyo's
+   install at data/global/ui/layouts/_profilehd.json, not from a forum) keeps three concepts apart
+   that keep collapsing into each other: a completed RUNEWORD'S NAME is FontColorGoldYellow #c7b377,
+   the same gold as a unique · #ffa800 is CRAFTED, "never a runeword" · #ff7d3c is the RUNE ITEM hue
+   (El, Eld — the things you collect), which lives as --rune. This row is the first of those and was
+   wearing the second. --q-runeword resolves to --q-unique on purpose. */
+.rwc-name{font-weight:var(--fw-bold);color:var(--q-runeword);font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rwc-base{font-size:var(--fs-micro);color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rwc-recipe{font-family:ui-monospace,monospace;font-size:var(--fs-meta);color:var(--gold-bright);display:flex;align-items:center;gap:3px;flex-wrap:wrap;min-width:0}
 .rwc-recipe .d2art-wrap.sm{width:18px;height:18px}.rwc-recipe .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px}
@@ -38326,7 +38333,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1645', name:'v1645 - unique-glow-sync', date:'2026-08-04', note:'plain q-unique surfaces gain the item-tile glow' };
+  window.D2R_BUILD = { id:'v1646', name:'v1646 - runeword-gold', date:'2026-08-05', note:'a chronicle row names a finished runeword so it wears gold not crafted orange, and the stale spec that demanded orange stops failing CI' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

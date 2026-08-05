@@ -152,6 +152,48 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-132 — the Forge chronicle painted a runeword name in CRAFTED orange, and a stale spec demanded it
+
+**Symptom.** Konyo, on the Forge tab: "forge color needs fixing". Every row of the Sealed Chronicle
+(Wrath, Peace, Bramble, Unbending Will...) rendered ORANGE.
+
+**Caught by.** His eye. No spec asserted `.rwc-name`'s colour at all — the two specs that touch that
+class (v369, v434) only read its `textContent`.
+
+**Root cause.** `bible.html` `.rwc-name` used `color:var(--q-orange)` — #ffa800, which is CRAFTED
+quality. The board's settled truth keeps three concepts apart that keep collapsing into one another
+(tv/control_ui.html:28-46, verified by Konyo in his OWN install at
+`data/global/ui/layouts/_profilehd.json`, not from a forum):
+- a completed **RUNEWORD'S NAME** is FontColorGoldYellow **#c7b377** — the same gold as a unique
+- **#ffa800** is **CRAFTED**, "never a runeword"
+- **#ff7d3c** is the **RUNE ITEM** hue (El, Eld — the things you collect), living as `--rune`
+
+A chronicle row names a *finished runeword*, so it is the first of those and was wearing the second.
+
+**And the same mistake was ALSO frozen into a test, where it had been failing CI.**
+`tests/v311_unified_rarity.spec.ts` asserted `.arw-name` must compute `rgb(255,168,0)` — crafted
+orange — under the title "runeword names render in orange (their in-game colour)". v1627 moved the
+runeword hue to gold and the app followed; that spec did not. It has been red ever since, and it
+asserted the **opposite** of `tests/v1628_board_quality_tokens.spec.ts:205`, which requires
+`.arw-name` to use `--q-unique`. **Two specs demanding different colours for one surface means one is
+wrong, and the wrong one is whichever contradicts the game.**
+
+**Fix.** `.rwc-name` → `var(--q-runeword)` (which resolves to `--q-unique` on purpose). v311's
+assertion re-pointed at `rgb(199,179,119)` with the reasoning recorded inline. NOT a test relaxed to
+make a build pass — it still fails if the colour drifts anywhere else.
+
+**Prevention.** The durable lesson is that **a colour is a fact about the game, not a taste**, so the
+disagreement was always resolvable by looking rather than debating — and it stayed unresolved for
+19 versions because the two sources of truth were a CSS token and a test literal, neither of which
+reads the other. Note the remaining smell, deliberately NOT swept here: `.arw-rune-txt`,
+`.mw-rune-chip` and `.rn-name` name RUNE ITEMS but paint `--q-orange` instead of `--rune` #ff7d3c.
+That is the third concept above and it is a separate change with its own spec exposure.
+
+**Verified.** 18/19 passed across v311, v369, v1628 and v434. The single remaining failure
+(`v1628:368`, the F·Uniques thumbnail-name test) was proven pre-existing by stashing this change and
+re-running it: it fails identically without it. It is the Pindleskin `bossId:'nihl'` vs
+"Hell TZ Pindleskin" title mismatch already known from v1643.
+
 ## REG-015 — 2026-07-09 · LOCKDOWN sweep: 20+ audited desyncs across Forge/Tools (multi-agent army, v613-v621)
 
 - **Symptom (user-caught trio)**: sparkles fired on dead UI; creating Pattern left the Katar in the

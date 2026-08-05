@@ -61,11 +61,22 @@ test('the floating tip frame paints uniques gold (setTipR → _artRarity → tip
   expect(color.color).toBe('rgb(199, 179, 119)');   // #c7b377 — in-game unique gold
 });
 
-test('runeword names render in orange (their in-game colour) in the All-Runewords browser', async ({ page }) => {
+/* v1646 — THIS ASSERTION WAS STALE AND IT WAS THE CI RED. It demanded --q-orange #ffa800 for a
+   runeword name, and orange is CRAFTED quality. v1627 moved the runeword hue to gold after Konyo
+   verified it in his OWN install (data/global/ui/layouts/_profilehd.json): the game paints a
+   completed runeword's name FontColorGoldYellow, the same gold as a unique, and he accepted the
+   named cost — the Forge tab and F·Uniques now read alike, because in D2 they ARE alike.
+   The app followed; this spec did not, so it has been failing ever since and asserting the opposite
+   of tests/v1628_board_quality_tokens.spec.ts:205, which requires .arw-name to use --q-unique. Two
+   specs demanding different colours for one surface means one of them is wrong, and the one that
+   contradicts the game is the wrong one.
+   NOT a test relaxed to make a build pass: it is re-pointed at the value the game actually uses,
+   and it still fails if the colour drifts anywhere else. */
+test('runeword names render in GOLD (their in-game colour) in the All-Runewords browser', async ({ page }) => {
   const c = await page.evaluate(() => {
     const el = document.createElement('div'); el.className = 'arw-name'; el.textContent = 'Enigma';
     document.body.appendChild(el); const col = getComputedStyle(el).color; el.remove(); return col;
   });
-  // --q-orange #ffa800 → rgb(255, 168, 0)
-  expect(c).toBe('rgb(255, 168, 0)');
+  // --q-runeword → --q-unique #c7b377 → rgb(199, 179, 119). FontColorGoldYellow, not crafted orange.
+  expect(c).toBe('rgb(199, 179, 119)');
 });
