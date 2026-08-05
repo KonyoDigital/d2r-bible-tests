@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1647",
+  "ver": "v1648",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1647: the daily task force pick resolves to the piece that has art instead of the set aggregate that has none, so the name can finally wear its rarity and its picture",
+  "note": "v1648: the daily pick stops cutting the item name two characters short so it can wear its green and its picture",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

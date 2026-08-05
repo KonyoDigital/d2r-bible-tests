@@ -11348,8 +11348,35 @@
           + 'event.preventDefault();window.' + m.fn + '(' + m.arg + ');}">'
           + _itemArtImg(m.art, 'tf-i tf-i-item', m.nm) + esc(shown) + '</b>';
       };
+      /* v1647 — THE SLICE MUST NOT CUT THE ONE WORD HE IS LOOKING FOR. Measured on his live
+         sentence, which is 86 characters:
+           "Sets · 108/135 pieces — finish Tancred's Battlegear (1 piece left: Tancred's Hobnails)"
+         `slice(0, 84)` ends it at "…Tancred's Hobnail", so `indexOf("Tancred's Hobnails")` returns
+         67 against the FULL text and -1 against the slice. The piece therefore matched nothing, got
+         no chip, and the row rendered flat — the whole feature lost for TWO characters, and lost
+         precisely at the end of the sentence, which is where the pick names the thing to hunt.
+         The old comment above called this deliberate ("half a name is not a thing to click"), and
+         that instinct is right: what is wrong is CUTTING there at all. So the cap is now a floor,
+         not a wall — if the natural cut would land inside a name we intend to dress, the slice
+         extends to the end of that name (plus a trailing bracket if it is the next character).
+         Marks are matched against the FULL text so the decision is made on the truth, and the row
+         already wraps to two lines, so a few characters more costs nothing. A hard ceiling still
+         applies far above, because an unbounded sentence is its own bug. */
       var _aiSay = function(txt, max){
-        var s = String(txt).slice(0, max);
+        var full = String(txt), end = Math.min(max, full.length);
+        if (_aiMarks.length){
+          var flo = full.toLowerCase(), HARD = Math.min(full.length, max + 60);
+          _aiMarks.forEach(function(m){
+            var j = flo.indexOf(m.nm.toLowerCase());
+            if (j < 0 || j >= end) return;              // absent, or starts beyond the cut — leave it
+            var needs = j + m.nm.length;                // the cut lands INSIDE this name
+            if (needs > end && needs <= HARD){
+              if (full.charAt(needs) === ')') needs++;  // keep the bracket the sentence opened
+              end = needs;
+            }
+          });
+        }
+        var s = full.slice(0, end);
         if (!_aiMarks.length) return esc(s);            // bridge did not resolve — no dead affordance
         var lo = s.toLowerCase(), hits = [];
         _aiMarks.forEach(function(m){
