@@ -72,7 +72,20 @@ test.describe('v1612 — the hunt hub never shows a bare film stage', () => {
     const fn = src.slice(src.indexOf('async function thOpen()'), src.indexOf('async function thOpen()') + 1600);
     expect(fn, 'thOpen must leave Sessions before opening, or the reel opens on a view that has no stage')
       .toMatch(/data-view'\)\s*===\s*'sessions'/);
-    expect(fn).toContain('_shellHome');
+    /* v1627 REPLACED _shellHome() here, and asserting the old name was asserting the INCOMPLETE
+       fix. control_ui.html says it plainly: "REMOVING data-view IS THE WHOLE FIX, and it is why
+       v1612 did not finish the job ... _shellHome exists, so the guard fires — but shellHome()
+       never clears `data-view`, and the rule that reveals the stage is
+       `body.theatre-open:not([data-view="sessions"]) .stage`. The attribute survived the
+       navigation, the selector kept matching, the stage stayed hidden."
+       So this now checks BOTH halves and is strictly stronger than the line it replaces: thOpen
+       must route through _toTVD, AND _toTVD must be the thing that removes the attribute. Restoring
+       a router that navigates without clearing data-view fails here again. */
+    expect(fn, 'thOpen must route via _toTVD — _shellHome alone leaves data-view set and the stage hidden')
+      .toContain('_toTVD');
+    const toTvd = src.slice(src.indexOf('function _toTVD()'), src.indexOf('function _toTVD()') + 900);
+    expect(toTvd, '_toTVD must REMOVE data-view — that removal is the whole fix')
+      .toContain("removeAttribute('data-view')");
   });
 
   test('★ THE REGRESSION: no large stage may be visible while the film has no source', async ({ page }) => {
