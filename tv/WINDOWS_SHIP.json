@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1665",
+  "ver": "v1666",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1665: the Sessions hub finally decorates the item names it prints, and the no-source run bucket stops rendering a blank square",
+  "note": "v1666: every quality-coloured name glows the same way on the board and the console, instead of only the chips",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

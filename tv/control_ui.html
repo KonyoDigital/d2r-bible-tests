@@ -3476,6 +3476,24 @@
   .hh-name.r-magic,  .ch-card-item .ch-nm.r-magic,   .tf-t b.tf-nm.r-magic    , .hh-src b.r-magic { color: var(--rar-magic); }
   .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted,  .tf-t b.tf-nm.r-crafted  , .hh-src b.r-crafted { color: var(--rar-orange); }
   .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword, .tf-t b.tf-nm.r-runeword , .hh-src b.r-runeword { color: var(--rar-runeword); }
+  /* v1666 — THE GLOW, SYNCED TO THE BOARD. Konyo: "everywhere else on the console is DULL
+     compared to the effected glow ... make it synced across them all." The board gives every
+     quality-coloured NAME a 3-layer shadow (.item-tile-name, .gf-cname, .arw-name); the console
+     painted the colour and stopped, so the same item read bright on one surface and flat on the
+     other. ONE rule via currentColor covers set/unique/rare/magic/crafted/runeword — it cannot
+     drift from whatever colour the name already carries, and it spells no hex, so the
+     no-literal-quality-hex gate stays satisfied. */
+  .hh-name.r-set, .hh-name.r-unique, .hh-name.r-rare, .hh-name.r-magic, .hh-name.r-crafted, .hh-name.r-runeword,
+  .ch-card-item .ch-nm.r-set, .ch-card-item .ch-nm.r-unique, .ch-card-item .ch-nm.r-rare,
+  .ch-card-item .ch-nm.r-magic, .ch-card-item .ch-nm.r-crafted, .ch-card-item .ch-nm.r-runeword,
+  .tf-t b.tf-nm.r-set, .tf-t b.tf-nm.r-unique, .tf-t b.tf-nm.r-rare,
+  .tf-t b.tf-nm.r-magic, .tf-t b.tf-nm.r-crafted, .tf-t b.tf-nm.r-runeword,
+  .hh-src b.r-set, .hh-src b.r-unique, .hh-src b.r-rare,
+  .hh-src b.r-magic, .hh-src b.r-crafted, .hh-src b.r-runeword {
+    text-shadow: 0 0 4px color-mix(in srgb, currentColor 55%, transparent),
+                 0 0 10px color-mix(in srgb, currentColor 50%, transparent),
+                 0 1px 1px rgba(0,0,0,.55);
+  }
   /* the name reads as a door: its own hover/focus, its art inline, and the row's click never
      double-fires because the handler stops propagation. */
   .tf-t b.tf-nm { cursor: pointer; border-bottom: 1px dotted currentColor; padding-bottom: 1px; }

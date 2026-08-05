@@ -14744,11 +14744,24 @@ function _qHex(name){
   var M = { unique:'var(--q-unique)', set:'var(--q-set)', magic:'var(--q-magic)', rare:'var(--q-rare)', rw:'var(--q-runeword)', rune:'var(--rune)', crafted:'var(--q-orange)', basic:'var(--q-normal)' };
   return M[r] || '';
 }
+/* v1666 — THE GLOW TRAVELS WITH THE QUALITY. Konyo: "for every single keyword with unique that
+   needs to be color unique i want it the GLOWING more effect version ... everywhere else on the
+   console is DULL compared to the effected glow". The checkmark chips (.gf-cname), the calculator
+   tiles (.item-tile-name) and the runeword rows (.arw-name) each carried their own copy of the
+   multi-layer shadow, so anything painted through _qStyle — the BEST FARM hero line, wishlist
+   names, zone drop tables — sat FLAT beside them naming the very same items.
+   Derived with color-mix from `c` rather than a literal rgba, so the glow can never drift from
+   the token AND no settled hex is spelled outside its definition (v1628's gate). It is emitted
+   ONLY when a quality actually resolved, so plain chrome text can never pick it up. */
+function _qGlow(c){
+  return 'text-shadow:0 0 4px color-mix(in srgb,' + c + ' 55%,transparent),'
+       + '0 0 10px color-mix(in srgb,' + c + ' 50%,transparent),0 1px 1px rgba(0,0,0,.55)';
+}
 function _qStyle(name, fallback){
   var c = _qHex(name) || (fallback ? ('var(--q-' + fallback + ')') : '');
-  return c ? (' style="color:' + c + ' !important"') : '';
+  return c ? (' style="color:' + c + ' !important;' + _qGlow(c) + '"') : '';
 }
-window._qHex = _qHex; window._qStyle = _qStyle;
+window._qHex = _qHex; window._qStyle = _qStyle; window._qGlow = _qGlow;
 // v418 — strip a trailing slot/base parenthetical so a set piece stored with its disambiguator
 // ("Sander's Riprap (heavy boots)", "Gull (dagger)") still resolves its art. The set vocab keeps the
 // "(slot)" suffix on purpose, but D2IO_ART is keyed by the clean name, so artUrl missed → wrong/blank art.
@@ -32925,7 +32938,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!n) return '';
     var c=_qC(n), logo='';
     try { if (typeof window.nameLogo==='function') logo=window.nameLogo(n); } catch(e){}
-    var body = c ? '<span style="color:'+c+'">'+_fEsc(n)+'</span>' : _fEsc(n);
+    /* v1666 — the BEST FARM hero named the same items as the run-row chips below it and sat
+       FLAT beside their glow. _qGlow lives two IIFEs away, hence window._qGlow (published
+       alongside _qStyle); guarded so a load-order change degrades to no glow, never throws. */
+    var _g = ''; try { if (c && typeof window._qGlow === 'function') _g = ';' + window._qGlow(c); } catch(e){}
+    var body = c ? '<span style="color:'+c+_g+'">'+_fEsc(n)+'</span>' : _fEsc(n);
     return '<span class="f-artname" data-arttip="'+_fEsc(n)+'" style="cursor:help">'+logo+body+'</span>';
   }
   // art-ify a "A / B / C" base list (the 🏆 best-base hints) — each base gets its own logo + hover art
@@ -38526,7 +38543,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1665', name:'v1665 - sessions-art-decorate', date:'2026-08-05', note:'the Sessions hub finally decorates the item names it prints, and the no-source run bucket stops rendering a blank square' };
+  window.D2R_BUILD = { id:'v1666', name:'v1666 - rarity-glow-sync', date:'2026-08-05', note:'every quality-coloured name glows the same way on the board and the console, instead of only the chips' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
