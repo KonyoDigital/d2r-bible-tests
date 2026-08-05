@@ -71,6 +71,11 @@ async function freshChronicle(page: any) {
 async function asRealBrowser(page: any) {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+    /* v1518/REG-084 — spoofing navigator.webdriver unmasks this page as a GUEST (v1499),
+       so every bare key seeded below would land in an `I·<id>·` world the app never reads
+       and this spec would assert against a world that does not exist. Claim the owner
+       world in the SAME init script that does the spoof, so the pairing cannot drift. */
+    localStorage.setItem('d2r_ownerClaim', '*');
   });
 }
 

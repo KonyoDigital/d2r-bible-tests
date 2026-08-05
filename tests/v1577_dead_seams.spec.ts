@@ -46,9 +46,12 @@ const PARKED: Record<string, string> = {
     'renderAll — there are ~30 individual window.renderX functions. WHICH of them it should fan out ' +
     'to is a product call. Mitigating: every site already calls explicit renderers immediately ' +
     'before it, so this is likely dead weight rather than missing behaviour. Wire it or delete it.',
-  uiPrompt:
-    'bible.html:14962 — the styled-dialog upgrade was never built, so the intake-logger name prompt ' +
-    'always falls back to the native browser prompt(). It WORKS; it is just not the promised dialog.',
+  /* uiPrompt was REMOVED from PARKED — v1599 ("two guards that were promises nobody kept") actually
+     built it: `window.uiPrompt` at bible.html:15000 is a real Promise-based dialog riding the
+     .ui-confirm skin, so `typeof uiPrompt === 'function'` and the intake-logger ternary now takes
+     its FIRST branch. The entry outlived its reason by several versions, which is precisely the
+     drift this gate was written to catch — an allowlist nobody prunes is how a real bug becomes
+     permanent. It found the happy version of that: a promise that was kept and never ticked off. */
   escHtml:
     'bible.html:19590 — the SECOND escHtml ternary. Unlike the one fixed in v1576 (which fell ' +
     'through to a no-op and was an injection route), this fallback really does escape & < > ", so ' +
