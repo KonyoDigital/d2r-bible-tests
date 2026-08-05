@@ -19666,6 +19666,31 @@ window._setChronBeat = function(){
    return early and prime NOTHING — silently, which is the worst version of this. Priming with no
    previous value can never celebrate, so this only ever arms the detector. */
 try { window.addEventListener('load', function(){ try { window._setChronBeat(); } catch(e){} }); } catch(e){}
+/* v1684 — A SET WITH NO ART OF ITS OWN WEARS ONE OF ITS PIECES, NOT A SHIELD.
+   v1680 opened the tracker from 12 sets to all 34, and the render gate flagged what that exposed:
+   17 of the 34 cards fell back to an identical generic 🛡️, so half the wall was the same red
+   shield. Nothing was WRONG — artOr's fallback is honest, no card claimed art it did not have —
+   but "honest and useless" is still useless when the picture is what you scan the wall by.
+
+   MEASURED before writing this: of the 17 sets whose own NAME resolves no art, 17 have at least
+   one PIECE that does. Zero are truly artless. So the emblem falls through to the first piece that
+   resolves — Arctic Horn for Arctic Gear, Civerb's Ward for Civerb's Vestments, Hsarus' Iron Heel
+   for Hsarus' Defense. That is a real game-extracted picture of a real item IN that set, which is
+   a strictly better answer than a shield and still claims nothing false.
+
+   Also measured, and the reason this is a piece-lookup rather than a name fix: stripping the
+   " (set)" suffix recovers art for exactly 0 of the 17. The set-level art simply does not exist.
+   The 🛡️ stays as the last resort so a future set with no art anywhere still renders a frame. */
+function _setEmblemArt(set){
+  try {
+    if (typeof artUrl === 'function' && artUrl(set.name)) return artOr(set.name, '🛡️', 'sm');
+    for (const p of (set.pieces || [])){
+      const base = p.indexOf(' (') >= 0 ? p.slice(0, p.indexOf(' (')) : p;   // same "(slot)" strip the rows use
+      if (typeof artUrl === 'function' && (artUrl(p) || artUrl(base))) return artOr(base, '🛡️', 'sm');
+    }
+  } catch(e){}
+  return artOr(set.name, '🛡️', 'sm');
+}
 function renderSetTracker() {
   const el = document.getElementById('set-tracker');
   if (!el) return;
@@ -19702,7 +19727,7 @@ function renderSetTracker() {
       : `<div class="set-card-name">${_setDisp}${complete?' ✓':''}</div>`;
     return `<div class="set-card ${complete?'complete':''}">
       <div class="set-card-header">
-        <span class="sec-h-art set-card-emblem">${artOr(set.name, '🛡️', 'sm')}</span>
+        <span class="sec-h-art set-card-emblem">${_setEmblemArt(set)}</span>
         <div class="set-card-title-block">
           ${nameHtml}
           <div class="set-card-progress">${have} / ${set.pieces.length} pieces${complete?' · complete':''}</div>
@@ -38662,7 +38687,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1683', name:'v1683 - the website tab row joins the icon arc', date:'2026-08-06', note:'the six workshop tabs render the console chrome icons instead of a specific unique portrait' };
+  window.D2R_BUILD = { id:'v1684', name:'v1684 - a set with no art wears one of its pieces', date:'2026-08-06', note:'17 of 34 set cards were falling back to the same generic shield' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

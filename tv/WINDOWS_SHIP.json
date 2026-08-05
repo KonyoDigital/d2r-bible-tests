@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1683",
+  "ver": "v1684",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1683: the six workshop tabs render the console chrome icons instead of a specific unique portrait",
+  "note": "v1684: 17 of 34 set cards were falling back to the same generic shield",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

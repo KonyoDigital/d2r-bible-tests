@@ -145,6 +145,30 @@ test.describe('v1680 — the Item Set Tracker holds the whole roster', () => {
       .toBeGreaterThan(0);
   });
 
+  test('★★★ every set card wears a real picture, not a shared shield', async ({ page }) => {
+    /* v1684 — opening the roster to 34 exposed that 17 cards fell back to an identical generic
+       🛡️, because their SET name resolves no art. Measured: all 17 have at least one PIECE that
+       does, and stripping "(set)" recovers art for exactly 0 of them — so the emblem falls
+       through to the first piece with art. Asserted as "no card is left on the text fallback",
+       which is the thing he sees, rather than a filename list that rots as art is added. */
+    await openTracker(page);
+    const r = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#set-tracker .set-card')];
+      return {
+        cards: cards.length,
+        shields: cards.filter((c) => !c.querySelector('.set-card-emblem img'))
+          .map((c) => c.querySelector('.set-card-name')!.textContent!.trim()),
+        // decoding, not just present: a broken <img> is a worse shield than the shield
+        broken: cards.map((c) => c.querySelector('.set-card-emblem img') as HTMLImageElement | null)
+          .filter((i) => i && i.complete && i.naturalWidth === 0).length,
+      };
+    });
+    expect(r.cards).toBeGreaterThan(0);
+    expect(r.shields, `${r.shields.length} set card(s) still show the generic shield: `
+                    + r.shields.slice(0, 6).join(' · ')).toEqual([]);
+    expect(r.broken, 'a set emblem resolved to an image that does not decode').toBe(0);
+  });
+
   test('★★ the tracker title is set green, not chrome gold', async ({ page }) => {
     await openTracker(page);
     const r = await page.evaluate(() => {
