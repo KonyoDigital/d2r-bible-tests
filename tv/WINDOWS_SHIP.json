@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1670",
+  "ver": "v1671",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1670: the last gold headings join the token and the terror-zone columns finally start level",
+  "note": "v1671: the six main tab icons get their own art, one distinct colour each",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
