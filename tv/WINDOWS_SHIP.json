@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1674",
+  "ver": "v1675",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1674: THE RECORD stops rendering a second copy of itself on the Sessions tab",
+  "note": "v1675: the Forge tab renders again — a quote in my own emoji fallback had closed the JS string",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

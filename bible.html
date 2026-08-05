@@ -34095,7 +34095,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       _forgeFilter='now';
     }
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
-    H.push('<div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_forge.png" alt="" onerror="this.replaceWith(document.createTextNode('🔨'))"></span><div class="forge-headtxt"><div class="forge-title">Forge</div>'
+    H.push('<div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_forge.png" alt="" onerror="this.outerHTML=&#39;&#128296;&#39;"></span><div class="forge-headtxt"><div class="forge-title">Forge</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div></div>');
     // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
     try {
@@ -38570,7 +38570,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1674', name:'v1674 - record-tvd-only', date:'2026-08-06', note:'THE RECORD stops rendering a second copy of itself on the Sessions tab' };
+  window.D2R_BUILD = { id:'v1675', name:'v1675 - fix-forge-blank', date:'2026-08-06', note:'the Forge tab renders again — a quote in my own emoji fallback had closed the JS string' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
