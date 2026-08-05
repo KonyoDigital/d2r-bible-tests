@@ -4728,7 +4728,13 @@ try {
 /* v1672 — the three Forge-family page headers wear the SAME art as their tab in the strip
    (Konyo: "the subtab forge and image hd art you created to be synced"). Sized in em so it
    tracks the emblem's own font-size instead of pinning a pixel value that drifts. */
-.forge-head.tvf-head .tvf-emblem-i{width:1em;height:1em;vertical-align:-.12em;object-fit:contain}
+/* v1678 — widened from `.forge-head.tvf-head .tvf-emblem-i` to the emblem box itself, because
+   the Tools page header is a `.tvf-brand` spine, NOT a `.forge-head.tvf-head`, so it sat outside
+   the old selector and its new icon would have rendered at its natural 96px inside a 52px box.
+   This is the exact trap v1672 flagged: an unsized image in a page header is worse than the
+   emoji it replaced. Every emblem host carries `.tvf-emblem`, so one rule now sizes all four.
+   Grep before changing: `.tvf-emblem-i` has exactly ONE styling rule in this file — this one. */
+.tvf-emblem .tvf-emblem-i{width:1em;height:1em;vertical-align:-.12em;object-fit:contain}
 /* v1672 — the Forge title takes the RUNEWORD colour. v1664 removed --rune from it because a
    page title should not wear an item colour BY ACCIDENT; this is the deliberate case — the
    Forge page IS the runeword chronicle, and its two siblings already wear unique gold and set
@@ -4828,7 +4834,10 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 <div class="tab-content" id="tab-tools">
   <div class="tvf-spine" id="tools-spine">
     <div class="tvf-brand">
-      <span class="tvf-emblem">🧰</span>
+      <!-- v1678 — the Tools header wears the SAME file as the Tools tab in the strip, the last
+           header still on a bare emoji while its tab had art. onerror restores the ORIGINAL 🧰 so
+           a missing file degrades to what was here before, never to an empty box. -->
+      <span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_tools.png" alt="" onerror="this.replaceWith(document.createTextNode('🧰'))"></span>
       <div class="tvf-brand-txt">
         <div class="tvf-title">Tools</div>
         <div class="tvf-purpose">Your planners · tally what you own → see what you can make</div>
@@ -7912,7 +7921,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 /* v1664 — removed an exact duplicate of the line above (both added v1633). */
 #tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
-.tvf-emblem .tvf-emblem-art{width:40px;height:40px;object-fit:contain;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7))}
+/* v1678 — removed `.tvf-emblem .tvf-emblem-art` (v1625 ITEM6): its only writer was
+   _paintForgeEmblem, deleted with it. The emblem art is now sized by `.tvf-emblem .tvf-emblem-i`. */
 #tab-funi .gf-lastname{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}
 /* v1625 ITEM6 fix — the twin. The #tab-funi rule alone made the UNIQUE pass green-light while a SET
    piece in the very same bar painted rgb(205,191,159) (plain gold), so the sets side needed its own.
@@ -35374,29 +35384,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      the boss it is a picture OF. Both now key off the same boss ID. Anchor stays thumbnail-sized so
      the 430px hover guard still lets the card open. */
   try { window._runBossArt = _runBossArt; } catch(e){}   // published so a spec can measure coverage
-  /* v1625 — ITEM 6: the page title stops being text with an emoji next to it. The emblem slot is
-     filled from the app's OWN artUrl seam (first name that resolves), and the emoji stays behind it
-     as the fallback the <img> reveals if the file is missing. No hotlink, no new art path. */
-  function _paintForgeEmblem(sel, names, glyph){
-    try {
-      var host = document.querySelector(sel);
-      if (!host || host.getAttribute('data-art-painted')) return false;
-      var url = null;
-      for (var i=0;i<names.length && !url;i++){ try { url = (typeof artUrl==='function') ? (artUrl(names[i])||null) : null; } catch(e){} }
-      if (!url) return false;
-      host.setAttribute('data-art-painted','1');
-      host.innerHTML = '<img class="tvf-emblem-art" src="'+esc(url)+'" alt="" loading="lazy"'
-        + ' onerror="this.remove();var g=this.parentNode&&this.parentNode.querySelector(\'.tvf-gl\');if(g)g.style.display=\'block\'">'
-        + '<span class="tvf-gl" style="display:none">'+glyph+'</span>';
-      return true;
-    } catch(e){ return false; }
-  }
-  try { window._paintForgeEmblems = function(){
-    _paintForgeEmblem('#tab-funi .tvf-emblem', ['Harlequin Crest','Windforce','Griffon\'s Eye','Death\'s Fathom'], '\ud83c\udfc6');
-    _paintForgeEmblem('#tab-fsets .tvf-emblem', ["Tal Rasha's Lidless Eye","Cow King's Hooves","Aldur's Advance","Immortal King's Soul Cage"], '\ud83e\udde9');
-  }; } catch(e){}
-  try { if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ window._paintForgeEmblems(); });
-        else window._paintForgeEmblems(); } catch(e){}
+  /* v1678 — REMOVED `_paintForgeEmblem` / `window._paintForgeEmblems` (v1625 ITEM 6).
+     Konyo: "the main tabs and sub tabs need to have the same image HD_art0r that we synced just
+     like it is for forge."
+
+     v1625 filled the F·Uniques and F·Sets page-header emblems from the app's own artUrl seam —
+     the first name that resolved out of a hardcoded list — so the header wore Harlequin Crest's
+     hood and Tal Rasha's Lidless Eye's orb. That was the right answer in v1625, when the only
+     alternative was a bare emoji and the tab strip had no art of its own.
+
+     v1671 then gave the strip six real icons and v1672 put the SAME file into these two headers.
+     But v1672's <img> was written into the very host this painter overwrote via innerHTML on
+     DOMContentLoaded — so the static art was replaced before it was ever seen, and v1672 landed
+     DEAD on exactly the two pages Konyo screenshotted. The Forge header looks right for one
+     reason only: it was never in the painter's list.
+
+     Deleting the painter is what makes a tab and its header agree, and it is the same defect
+     class as v1677 (the console emblem borrowing Harlequin Crest as a logo): chrome must not
+     wear a specific unique's portrait. Removed rather than guarded because nothing else called
+     it — all three references to `_paintForgeEmblems` were this block calling itself. Its two
+     private CSS classes (.tvf-emblem-art, .tvf-gl) had no other user either and go with it. */
   function _runArtThumb(r){
     var b = _runBossArt(r.bossId, r.boss);
     /* v1625 — the SAME helper now serves F·Sets, whose pieces carry .name (with a '(Helm)' slot
@@ -38586,7 +38593,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1676', name:'v1676 - bigger-celebrations', date:'2026-08-06', note:'a grail landing celebrates at twice the size instead of whispering like a save confirmation' };
+  window.D2R_BUILD = { id:'v1678', name:'v1678 - tabs and headers agree', date:'2026-08-06', note:'the F-Uniques, F-Sets and Tools page headers wear the same icon as their tab' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
