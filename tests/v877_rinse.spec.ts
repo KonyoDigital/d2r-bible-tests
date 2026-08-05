@@ -183,15 +183,30 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     // v883 (#49) — deterministic visual floor (no pixel-diff flake): the console must LOOK alive
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
+    /* v1681 — MEASURE THE SURFACE THE HOMEPAGE ACTUALLY PAINTS, NOT #stage.
+       This asserted `#stage` is wider than 400px and had been red on CI shard 6 since v901 made
+       SESSIONS the console home: measured on a live console, body[data-view="sessions"] and
+       #stage computes `display:none`, so its rect is 0×0. The stage being hidden here is not a
+       regression — it is the design, and demo_console.mjs J8 gates it in the opposite direction
+       ("session→data-view=sessions, hunt shown, stage hidden"). Two gates asserting contradictory
+       things about the same element is how one of them stays red forever.
+       The INTENT of this test is the sentence above it — the console must LOOK alive, nothing
+       black — so it now measures whatever surface the current view owns: #home-dash on the
+       sessions home (measured 1046×677), #stage once a view that uses the stage is up. That keeps
+       the black-screen floor and stops pinning it to one element's 2019 role. */
     const vis = await page.evaluate(() => {
       const tabs = document.querySelectorAll('#head-tabs .ht').length;
-      const stage = document.getElementById('stage');
-      const r = stage ? stage.getBoundingClientRect() : { width: 0, height: 0 };
+      const view = document.body.getAttribute('data-view') || '';
+      const surface = document.getElementById('home-dash') || document.getElementById('stage');
+      const r = surface ? surface.getBoundingClientRect() : { width: 0, height: 0 };
       const phase = (document.getElementById('phase') || {}).textContent || '';
-      return { tabs, stageW: r.width, stageH: r.height, phase };
+      return { tabs, view, surface: surface ? surface.id : null,
+               stageW: r.width, stageH: r.height, phase };
     });
     expect(vis.tabs).toBe(6);   // v888 — TV·D joined the header nav
-    expect(vis.stageW).toBeGreaterThan(400);
+    expect(vis.surface, 'the console home paints no surface at all').not.toBeNull();
+    expect(vis.stageW, `${vis.surface} is 0-wide on view "${vis.view}" — the console is black`)
+      .toBeGreaterThan(400);
     expect(vis.stageH).toBeGreaterThan(200);   // v905 OFF-state law: stage capped at 250px — the dash owns the homepage
     expect(vis.phase.length).toBeGreaterThan(2);   // STANDBY/WATCHING — never empty
     await page.screenshot({ path: 'test-results/rinse-visual.png' });   // artifact for the humans

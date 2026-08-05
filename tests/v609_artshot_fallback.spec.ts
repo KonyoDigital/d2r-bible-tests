@@ -72,6 +72,15 @@ test('tagged placeholder: prompt → tap-to-load; gone → HD art fallback', asy
     return { tap, artSrc: art ? art.getAttribute('src') : null, deadBox: /no shot/.test(b.textContent || '') };
   });
   expect(r.tap).toBe(true);                              // restart → one-tap re-authorize, not "no shot"
-  expect(r.artSrc).toBe('art/hd_bone_visage.png');       // truly gone → THAT item's art
+  /* v1681 — SPLIT THE PATH FROM THE CACHE-BUSTER. This asserted exact string equality against
+     'art/hd_bone_visage.png' and had been failing on CI shard 6 since v1643 gave every art seam an
+     `_artV()` stamp — the src is now 'art/hd_bone_visage.png?v=v1680', so the assertion went red on
+     every version bump, forever, for a reason that has nothing to do with the fallback.
+     The product is RIGHT and the spec described an older shape. So it now checks the two things
+     that actually matter, separately: the resolved PATH is that item's own art, and the stamp is
+     PRESENT — because v1643 exists so a repaired art file is not left invisible behind a cached
+     copy, and silently accepting an unstamped src would let that regress unnoticed. */
+  expect(r.artSrc?.split('?')[0]).toBe('art/hd_bone_visage.png');   // truly gone → THAT item's art
+  expect(r.artSrc, 'the art fallback lost its v1643 cache-bust stamp').toMatch(/\?v=/);
   expect(r.deadBox).toBe(false);
 });
