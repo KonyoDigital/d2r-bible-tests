@@ -67,8 +67,13 @@
        change it all in one shot." Every ZONE/PANEL heading points here instead of naming an
        accent of its own — THE RECORD was --info, THE MISSIONS --mint, TZ TRACKER --gold, three
        headings wearing three colours for no reason anyone could state. Repointing this single
-       line restyles every heading that uses it; nothing else needs touching. */
-    --panel-head: var(--info);
+       line restyles every heading that uses it; nothing else needs touching.
+       v1668 — Konyo chose PLATINUM over blue. SCOPE, STATED HONESTLY because the v1667 wording above
+       overstated it and the render gate proved it: the token drives the three ZONE banners AND the
+       .hd-h PANEL heads. It does NOT yet drive TERROR ZONE, DAILY TASK FORCE, FORGE QUESTS, MY HUNT,
+       MINI, CHRONICLE SWEEP, the read chain or the vault accumulator — those still name their own
+       accent and are queued to join. Reverting the colour is this one line. */
+    --panel-head: #cbd6e4;
     --danger: #ff7a7a;
     --info: #7ec8ff;
     --sim: #c9a8ff;
@@ -3538,9 +3543,17 @@
      coloured banners. HUNT=gold · MISSIONS=mint · RECORD=info-blue. The LAST SESSION reel-digest joins
      the RECORD group (it was a lone mint accent stranded in the blue zone). ══ */
   #hd-taskforce { box-shadow: inset 3px 0 0 var(--gold-antique); }
-  #hd-forge .hd-h { color: var(--mint); border-left-color: rgba(143,230,160,.5); }
+  #hd-forge /* v1668 — this rule is OVERRIDDEN by the .hd-h rule below and has been dead; pointed at the
+     token anyway so whichever one wins is right, rather than leaving a live-looking landmine. */
+  .hd-h { color: var(--panel-head); border-left-color: color-mix(in srgb, var(--panel-head) 50%, transparent); }
   #hd-forge { box-shadow: inset 3px 0 0 rgba(143,230,160,.4); }
-  #hd-kpi .hd-h, #hd-lastsession .hd-h, #hd-history .hd-h { color: var(--info); border-left-color: rgba(126,200,255,.5); }
+  #hd-kpi /* v1668 — THE RENDER GATE CAUGHT THE HALF-DONE THEME. Repointing --panel-head moved only the
+     three ZONE banners; these PANEL heads (📊 PRODUCTIVITY, 🗂 HISTORY, 📼 LAST SESSION) stayed
+     var(--info) BLUE, and PRODUCTIVITY renders one row under the now-platinum Ⅲ THE RECORD —
+     the exact blue-beside-the-theme adjacency the change existed to remove. Same failure shape as
+     v1657, which shipped ~300 of 3521 sites and read half-done. The border is derived from the
+     token by color-mix so there is no second value to keep in sync. */
+  .hd-h, #hd-lastsession .hd-h, #hd-history .hd-h { color: var(--panel-head); border-left-color: color-mix(in srgb, var(--panel-head) 50%, transparent); }
   #hd-lastsession { border-color: rgba(126,200,255,.28); box-shadow: inset 3px 0 0 var(--info); }
   /* v1289 (SESSIONS FLAGSHIP D6 · structure/symmetry) — the half-width regions pair up on a shared grid
      row (Task Force ▸ Last Session, Forge ▸ Live Intake). Stretch them to the row's height so their

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1667",
+  "ver": "v1668",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1667: set names, boss names and headings stop each inventing their own colour — one token now names a heading",
+  "note": "v1668: the console headings go platinum through one token — zone banners and panel heads together, not three of them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
