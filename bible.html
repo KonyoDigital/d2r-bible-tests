@@ -9,7 +9,7 @@
 <meta name="d2r-build-date" content="2026-07-15">
 <meta name="d2r-build-note" content="📺 TV DIABLO v710.1 — receiver harden (read #s · Shako alias · no un-tick apply · safer chips) + agent port/offline · live scanner on YOUR Claude subscription">
 <style>
-:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
+:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--rec:#cbd6e4;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:var(--lh-normal);margin:0}
 html{scroll-behavior:smooth}
@@ -77,7 +77,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .tab-content{display:none}
 .tab-content.active{display:block}
 .hero{background:linear-gradient(135deg,rgba(212,168,71,.08) 0%,rgba(102,255,136,.04) 100%);border:1px solid var(--border-light);border-radius:12px;padding:18px 20px;margin-bottom:20px}
-.hero-title{color:var(--best);font-size:var(--fs-meta);text-transform:uppercase;letter-spacing:1.2px;font-weight:var(--fw-medium);margin-bottom:10px}
+.hero-title{color:var(--rec);font-size:var(--fs-meta);text-transform:uppercase;letter-spacing:1.2px;font-weight:var(--fw-medium);margin-bottom:10px}
 .hero-sub{color:var(--text);font-size:14px;margin-bottom:14px;line-height:var(--lh-normal)}
 .hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .hero-pick{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s}
@@ -293,7 +293,7 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 .tc-badge.tc-87{background:rgba(255,64,64,.18);color:var(--hell)}
 .tc-badge.tc-0{background:rgba(255,0,212,.18);color:var(--terror)}
 .best-source-box{background:linear-gradient(90deg,rgba(102,255,136,.1),rgba(102,255,136,.02));border-left:4px solid var(--best);border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:16px}
-.best-source-label{font-size:var(--fs-micro);color:var(--best);font-weight:var(--fw-medium);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.best-source-label{font-size:var(--fs-micro);color:var(--rec);font-weight:var(--fw-medium);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
 .best-source-name{font-size:16px;color:var(--text);font-weight:var(--fw-medium)}
 .best-source-stats{display:flex;gap:16px;margin-top:6px;font-size:12px;color:var(--text-muted);font-family:ui-monospace,monospace;flex-wrap:wrap}
 .best-source-stats strong{color:var(--gold-bright)}
@@ -1067,7 +1067,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .aura-rank-list{display:flex;flex-direction:column;gap:7px;margin:8px 0}
 .aura-rank-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:linear-gradient(160deg,rgba(28,22,40,.55),rgba(16,12,24,.35));cursor:pointer;transition:transform .14s ease,box-shadow .25s ease,border-color .25s ease}
 .aura-rank-row:hover{transform:translateY(-1px);border-color:var(--gold-dim);box-shadow:0 0 14px rgba(212,168,71,.22)}
-.aura-rank-top{border-color:var(--best);box-shadow:0 0 16px rgba(120,220,140,.22)}
+.aura-rank-top{border-color:var(--rec);box-shadow:0 0 16px rgba(120,220,140,.22)}
 .aura-rank-badge{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-weight:var(--fw-semibold);font-size:14px;font-family:var(--mono)}
 .aura-rank-art{flex:0 0 auto;display:inline-flex}
 .aura-rank-art .aura-logo.d2art-wrap{width:32px;height:32px}
@@ -1075,7 +1075,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .aura-rank-body{display:flex;flex-direction:column;gap:2px;min-width:0}
 .aura-rank-name{font-weight:var(--fw-medium);color:var(--gold-bright)}
 .aura-rank-why{font-size:12px;color:var(--text-dim);line-height:var(--lh-snug)}
-.aura-rank-top .aura-rank-name{color:var(--best)}
+.aura-rank-top .aura-rank-name{color:var(--rec)}
 /* super-unique card "best roll — top 3" picks */
 .su-aura-picks{display:flex;flex-direction:column;gap:6px}
 .su-aura-pick{display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;padding:3px 5px;transition:color .12s,box-shadow .12s}
@@ -1090,13 +1090,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .at3-row:hover{background:rgba(212,168,71,.08);box-shadow:inset 3px 0 0 var(--gold-dim)}
 .at3-rank-1{background:linear-gradient(100deg,rgba(120,220,140,.1),transparent 60%)}
 .at3-rank{flex:0 0 auto;width:30px;text-align:center;font-family:var(--serif-display);font-weight:var(--fw-semibold);font-size:26px;line-height:var(--lh-none);color:var(--gold);text-shadow:0 0 12px rgba(240,192,96,.45)}
-.at3-rank-1 .at3-rank{color:var(--best);text-shadow:0 0 14px rgba(120,220,140,.5)}
+.at3-rank-1 .at3-rank{color:var(--rec);text-shadow:0 0 14px rgba(120,220,140,.5)}
 .at3-art{flex:0 0 auto;display:inline-flex}
 .at3-art .aura-logo.d2art-wrap{width:38px;height:38px}
 .at3-art .aura-logo.d2art-wrap .d2art-img{max-width:38px;max-height:38px;border-radius:7px;filter:drop-shadow(0 0 7px rgba(240,192,96,.45))}
 .at3-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .at3-name{font-family:var(--serif-display);font-weight:var(--fw-semibold);font-size:17px;letter-spacing:var(--ls-snug);color:var(--gold-bright);text-transform:uppercase;line-height:var(--lh-tightest)}
-.at3-rank-1 .at3-name{color:var(--best)}
+.at3-rank-1 .at3-name{color:var(--rec)}
 .at3-why{font-family:var(--serif-text);font-size:11.5px;font-style:italic;color:var(--text-dim);line-height:var(--lh-snug)}
 .at3-tier{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-family:var(--serif-display);font-weight:var(--fw-semibold);font-size:var(--fs-title)}
 /* expandable full bind-affix pool (the whole Arreat Summit boss-modifier list) */
@@ -1300,7 +1300,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rw-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:4px 0;border-bottom:1px dotted var(--border)}
 .rw-row:last-child{border-bottom:none}
 .rw-name{font-weight:var(--fw-semibold);color:var(--text)}
-.rw-ready .rw-name{color:var(--best,#7bc77b)}
+.rw-ready .rw-name{color:var(--q-runeword)}   /* v1657 — a READY runeword is still a RUNEWORD: gold #c7b377 (REG-132), never the recommendation accent. It was green, 13deg from SET green, on a name that is not a set. */
 .rw-cube .rw-name{color:var(--gold-bright)}
 .rw-recipe{font-family:ui-monospace,monospace;font-size:var(--fs-meta);color:var(--text-muted)}
 .rw-base{font-size:var(--fs-meta);color:var(--text-dim)}
@@ -2003,11 +2003,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
   .aid-focus-card{background:linear-gradient(135deg,rgba(102,255,136,.05),rgba(0,0,0,0));border:1px solid var(--best);border-radius:8px;padding:14px 16px}
   .aid-focus-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-  .aid-focus-boss{font-size:var(--fs-title);font-weight:var(--fw-semibold);color:var(--best);letter-spacing:.2px}
+  .aid-focus-boss{font-size:var(--fs-title);font-weight:var(--fw-semibold);color:var(--rec);letter-spacing:.2px}
   .aid-focus-diff-pill{background:var(--bg-elev1);border:1px solid var(--gold-dim);color:var(--gold-bright);padding:3px 9px;border-radius:4px;font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:.6px;font-weight:var(--fw-medium)}
   .aid-focus-kph{color:var(--text-dim);font-size:var(--fs-meta);font-family:var(--mono)}
   .aid-focus-badge{font-size:var(--fs-micro);padding:2px 7px;border-radius:4px;font-family:var(--mono);letter-spacing:.3px;font-weight:var(--fw-medium)}
-  .aid-focus-fastest{background:rgba(102,255,136,.15);color:var(--best);border:1px solid var(--best-dim)}
+  .aid-focus-fastest{background:rgba(102,255,136,.15);color:var(--rec);border:1px solid var(--best-dim)}
   .aid-focus-verified{background:rgba(105,178,255,.12);color:var(--verified);border:1px solid var(--verified)}
 
   .aid-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -2140,13 +2140,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .gbc-guaranteed-card{background:linear-gradient(135deg,rgba(102,255,136,.10),rgba(255,212,128,.04));border:1px solid var(--best);border-radius:8px;padding:12px 16px}
   .gbc-guaranteed-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
   .gbc-guaranteed-icon{font-size:var(--fs-display)}
-  .gbc-guaranteed-name{font-size:14px;font-weight:var(--fw-semibold);color:var(--best);letter-spacing:.2px}
+  .gbc-guaranteed-name{font-size:14px;font-weight:var(--fw-semibold);color:var(--q-unique);letter-spacing:.2px}
   .gbc-guaranteed-what{font-size:var(--fs-body);color:var(--text);line-height:var(--lh-normal);margin-bottom:8px}
   .gbc-guaranteed-note{font-size:var(--fs-meta);color:var(--text-dim);font-style:italic;line-height:var(--lh-normal);background:rgba(0,0,0,.2);padding:7px 10px;border-radius:5px;border-left:2px solid var(--gold-dim)}
 
   /* === v23: Global guaranteed drops card (on bosses tab landing) === */
   .guaranteed-global{background:linear-gradient(135deg,rgba(102,255,136,.06),rgba(0,0,0,0));border:1px solid var(--best);border-radius:12px;padding:16px 20px;margin:14px 0}
-  .guaranteed-global-title{font-size:var(--fs-body);color:var(--best);text-transform:uppercase;letter-spacing:.7px;font-family:var(--mono);font-weight:var(--fw-medium);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .guaranteed-global-title{font-size:var(--fs-body);color:var(--rec);text-transform:uppercase;letter-spacing:.7px;font-family:var(--mono);font-weight:var(--fw-medium);margin-bottom:14px;display:flex;align-items:center;gap:8px}
   .guaranteed-global-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(310px,100%),1fr));gap:10px}
   .guaranteed-card{background:var(--bg-elev1);border:1px solid var(--border);border-radius:8px;padding:11px 14px;transition:all .15s}
   .guaranteed-card:hover{border-color:var(--best);transform:translateY(-1px)}
@@ -7849,7 +7849,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    would be a lie here; the token the run rows already use for a boss name is --best, so the heroes
    adopt THAT. Same hover/focus affordance as .fs-piece, routed to the boss card (openBossDetail),
    which is what the run row's own boss surface routes to — no item arttip, a boss has none. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--best,#66ff88);cursor:pointer;text-decoration:none;border-radius:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--rec,#cbd6e4);cursor:pointer;text-decoration:none;border-radius:5px}
 /* v1656 — the hero's boss portrait sits ON the name, sized to the display type it lives in. The
    best-run rows use 19-23px for a body-sized line; this line is var(--fs-display), so it takes a
    larger glyph and a little more air, and vertical-align keeps it on the baseline instead of
@@ -22386,7 +22386,7 @@ try { setTimeout(function(){ try { window._syncCreateNowAiArt(); } catch(e){} },
       +'.ask-toppicks{border-left-color:var(--best)!important;background:rgba(102,255,136,.06)!important;line-height:1.8}'
       +'.create-now{margin:2px 0 12px;border:1px solid rgba(102,255,136,.18);border-radius:12px;background:linear-gradient(180deg,rgba(102,255,136,.05),rgba(20,16,10,.25));padding:11px 13px}'
       +'.cn-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;flex-wrap:wrap}'
-      +'.cn-title{font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);font-size:var(--fs-title);color:var(--best,#66ff88)}'
+      +'.cn-title{font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);font-size:var(--fs-title);color:var(--rec,#cbff88)}'
       +'.cn-meta{font-size:var(--fs-micro);color:var(--text-dim);font-style:italic;display:inline-flex;align-items:center;gap:6px}'
       +'.cn-refresh{cursor:pointer;background:none;border:none;font-size:12px;padding:0;opacity:.7}.cn-refresh:hover{opacity:1}'
       +'.cn-ai{font-size:12px;color:var(--text);background:rgba(127,212,255,.07);border:1px solid rgba(127,212,255,.22);border-radius:8px;padding:7px 11px;margin-bottom:10px;line-height:1.5}.cn-ai b{color:#8fd0ff}'
@@ -38509,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1656', name:'v1656 - hero-full-works', date:'2026-08-05', note:'the best farm hero wears the boss face its item art routes and every named drop shows its own quality' };
+  window.D2R_BUILD = { id:'v1657', name:'v1657 - rec-platinum', date:'2026-08-05', note:'recommendation chrome goes platinum so a title stops reading as a set item and a ready runeword goes back to gold' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
