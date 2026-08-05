@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1659",
+  "ver": "v1660",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1659: the platform-wide title layer goes platinum: ink tokens, every section header, the wordmark, the nav strip, the dock and panel chrome",
+  "note": "v1660: scrollbars, text selection, hairlines and secondary text go cool to match the platinum chrome",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

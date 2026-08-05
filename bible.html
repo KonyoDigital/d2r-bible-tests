@@ -27139,7 +27139,7 @@ _v41_whenReady(() => {
 ::-moz-selection { background: rgba(240,192,96,.35); color: var(--text); }
 
 /* Themed thin gold scrollbars */
-* { scrollbar-color: var(--gold) var(--bg); scrollbar-width: thin; }
+* { scrollbar-color: var(--rec) var(--bg); scrollbar-width: thin; }
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: var(--bg); border-left: 1px solid rgba(58,47,30,.3); }
 ::-webkit-scrollbar-thumb {
@@ -27500,12 +27500,12 @@ h1, h2, h3, .h-title, .hero-title, .legend-title {
   --serif-text: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --rule-color: rgba(212,168,71,.28);
-  --rule-color-strong: rgba(212,168,71,.5);
+  --rule-color: rgba(203,214,228,.22);
+  --rule-color-strong: rgba(203,214,228,.40);
   --ink-h1: var(--rec, #cbd6e4);
   --ink-h2: var(--text, #f4e8d0);
   --ink-body: var(--text, #f4e8d0);
-  --ink-muted: var(--text-muted, #b5a48a);
+  --ink-muted: #93a0b0;
   --ink-kicker: var(--rec, #cbd6e4);
   --ease: cubic-bezier(0.2, 0, 0.13, 1);
 }
@@ -27520,13 +27520,13 @@ body {
 }
 
 /* ── Themed selection · scrollbar · focus ─────────────────────────────── */
-::selection { background: rgba(240,192,96,.32); color: var(--text); }
-::-moz-selection { background: rgba(240,192,96,.32); color: var(--text); }
-* { scrollbar-color: var(--gold) var(--bg); scrollbar-width: thin; }
+::selection { background: rgba(203,214,228,.32); color: var(--text); }
+::-moz-selection { background: rgba(203,214,228,.32); color: var(--text); }
+* { scrollbar-color: var(--rec) var(--bg); scrollbar-width: thin; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+::-webkit-scrollbar-thumb:hover { background: var(--rec); }
 *:focus { outline: none; }
 button:focus-visible, a:focus-visible, input:focus-visible {
   outline: 1px solid var(--gold-bright);
@@ -38509,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1659', name:'v1659 - platinum-chrome', date:'2026-08-05', note:'the platform-wide title layer goes platinum: ink tokens, every section header, the wordmark, the nav strip, the dock and panel chrome' };
+  window.D2R_BUILD = { id:'v1660', name:'v1660 - platinum-furniture', date:'2026-08-05', note:'scrollbars, text selection, hairlines and secondary text go cool to match the platinum chrome' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
