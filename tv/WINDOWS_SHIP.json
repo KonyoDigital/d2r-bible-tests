@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1663",
+  "ver": "v1664",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1663: the last map calling a runeword crafted-orange now calls it gold, so wishlist, zone tables and the forge pipeline card agree with the tooltip",
+  "note": "v1664: the sealed chronicle buttons, the plain Forge title and the console terror-zone line stop wearing colours that belong to something else",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

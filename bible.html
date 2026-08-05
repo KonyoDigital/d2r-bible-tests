@@ -7827,9 +7827,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    framed themselves in the right colours but printed their LABELS in the card's default cream, so
    F·Sets read green and F·Uniques read as chrome — the same item, two answers. Both now take
    their quality from the TOKEN, frame and text together, and the literals are gone with them. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{--fsq:var(--q-unique);border-color:color-mix(in srgb,var(--fsq) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 13%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{--fsq:var(--q-unique);color:var(--fsq);border-color:color-mix(in srgb,var(--fsq) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 13%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni:hover{background:color-mix(in srgb,var(--fsq) 20%,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set{--fsq:var(--q-set);border-color:color-mix(in srgb,var(--fsq) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 11%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set{--fsq:var(--q-set);color:var(--fsq);border-color:color-mix(in srgb,var(--fsq) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 11%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:color-mix(in srgb,var(--fsq) 18%,transparent)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni .fs-rt-t,
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set .fs-rt-t{color:var(--fsq)}
@@ -7864,9 +7864,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    the tab color wise". The Forge TAB wears --rune (v1631); its page title was still the chrome
    gold, so the tab and the page it opens disagreed about what colour the Forge is. Same rule the
    other two already follow: the room's title matches the room's tab. */
-#tab-forge .forge-title{color:var(--rune)}
+/* v1664 — REMOVED `#tab-forge .forge-title{color:var(--rune)}` (added v1633). The PLAIN Forge page has no in-game quality, so its title stays chrome gold; only F·Uniques and F·Sets get a per-tab override (v1625 ITEM6). A page title wearing the RUNE-ITEM colour is the exact title-vs-quality collision this palette work exists to stop. */
 #tab-fsets .forge-title{color:var(--q-set)}
-#tab-fsets .forge-title{color:var(--q-set)}
+/* v1664 — removed an exact duplicate of the line above (both added v1633). */
 #tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
 .tvf-emblem .tvf-emblem-art{width:40px;height:40px;object-fit:contain;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7))}
@@ -38509,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1663', name:'v1663 - runeword-gold-resolver', date:'2026-08-05', note:'the last map calling a runeword crafted-orange now calls it gold, so wishlist, zone tables and the forge pipeline card agree with the tooltip' };
+  window.D2R_BUILD = { id:'v1664', name:'v1664 - quality-colour-sweep', date:'2026-08-05', note:'the sealed chronicle buttons, the plain Forge title and the console terror-zone line stop wearing colours that belong to something else' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

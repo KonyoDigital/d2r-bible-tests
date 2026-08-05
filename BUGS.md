@@ -3526,3 +3526,29 @@ them, and the whole rarity-colour spec family (v311, v341, v309, v323, v294, v16
 **Class:** a fact settled in one place and left wrong in another. Same shape as the CSS
 "LAST RULE WINS" trap — when a value lives in more than one map, fixing one is a half fix, and
 `grep` for *every* assignment before declaring it done.
+
+## REG-138 — three quality-colour defects the red CI had been hiding (v1664)
+Found by working down the standing Routine I failures rather than by eye.
+**1. Console TZ "→ 96 terrorized" rendered a colour that exists nowhere else.**
+`tv/control_ui.html:2693` had `.tzz-terr{color:var(--q-orange,#d08a3c)}`. The console does not
+define `--q-orange` AT ALL — it uses the `--rar-*` family (`--rar-orange:#ffa800`). So the var
+never resolved and the fallback `#d08a3c` was what actually painted: a duller orange belonging to
+no palette. A board-family token had been written into the console where it can never resolve.
+Fixed to `var(--rar-orange)` with NO literal fallback — the token is defined in that same file, so
+the fallback was dead code, and a fallback that can never fire is precisely what drifts unnoticed.
+*(First attempt used `var(--rar-orange,#ffa800)` and the gate immediately failed it: spelling a
+settled hex outside its token definition is itself the violation. The gate caught my fix.)*
+**2. The Chronicle Sealed card's 🏆 F·Uniques and 🧩 F·Sets buttons wore CHROME gold.**
+`.fs-btn-uni` and `.fs-btn-set` set `--fsq`, `border-color` and `background` — but never `color`,
+so the text fell through to `.fs-btn{color:var(--gold-bright,#f0c060)}`. `.fs-btn-craft` DID set
+its colour, so the pattern existed and two of three were missed. Added `color:var(--fsq)` to both.
+Measured: 🏆 rgb(199,179,119) at 9.66:1, 🧩 rgb(0,252,0) at 14.22:1.
+**3. The plain Forge title wore the RUNE-ITEM colour.** `#tab-forge .forge-title{color:var(--rune)}`
+(#ff7d3c). `.forge-title` has FIVE colour rules; v1625 ITEM6 designed exactly TWO per-tab overrides
+(funi→unique, fsets→set) because a page with no in-game quality keeps chrome gold. v1633 added the
+rune override — its commit message is about the Completed subtab and says nothing about it — and in
+the same commit duplicated the `#tab-fsets` rule verbatim. Both hallmarks of copy-paste, not a
+decision. Removed both; plain Forge measured back at rgb(240,192,96).
+**Prevention / lesson:** `grep` for the removed rule still matched — because the comment recording
+its removal QUOTES it. A comment describing a bug is textually identical to the bug. Verified by
+rendering instead. Same trap as `feedback_comments_vs_code`.
