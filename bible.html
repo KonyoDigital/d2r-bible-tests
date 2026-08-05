@@ -35347,7 +35347,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        picture that means something. All 13 bosses resolve through _runBossArt, so this branch is
        currently unreachable \u2014 but if it is ever reached, the honest answer is a tidy label with no
        image at all, never a guess and never a placeholder. */
-    if (!b) return '';
+    /* v1665 — a row with no resolvable boss (the "No verified farm source yet" bucket) used to
+       return '' and leave the 44px .f-cardart box rendering as a BLANK SQUARE. The rule this file
+       already follows is "art if we have it, else a glyph" (see `pic` below) — the no-boss case
+       simply fell out of it. A neutral glyph is not the misleading-picture problem the comment
+       above warns about: it says "we do not know where this drops", which is exactly true. */
+    if (!b) return '<span class="f-runart" style="cursor:default">'
+      + '<span class="f-artglyph" title="no verified farm source yet">\u2753</span></span>';
     var pic = b.url
       ? '<img class="f-art" src="' + esc(b.url) + '" alt="" loading="lazy" onerror="this.remove()">'
       : '<span class="f-artglyph">' + b.emoji + '</span>';
@@ -38185,6 +38191,11 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
             + '<div class="sc-row-txt">'+op.txt+'</div>'
             + '<div style="display:flex;gap:4px">'+btns+'</div></div>';
         }).join('');
+        /* v1665 — op.txt carries item names tagged data-art-logo (Tancred's Battlegear,
+           Baranar's Star ...). decorateItemLogos() runs on load and after openBossDetail, never
+           after THIS render, so these names shipped with no inline art. Idempotent — it skips any
+           tag that already has a .d2art-wrap. */
+        try { if (typeof decorateItemLogos === 'function') decorateItemLogos(); } catch(e){}
         oB.querySelectorAll('[data-pin]').forEach(function(b){
           b.addEventListener('click', function(){
             var n = b.getAttribute('data-pin');
@@ -38284,6 +38295,12 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
             tzB.innerHTML = '<div class="sc-row"><span class="sc-tag now">now</span><div class="sc-row-txt">'+rowHtml+'</div></div>'
               + (nextHtml ? '<div class="sc-row"><span class="sc-tag">next</span><div class="sc-row-txt">'+nextHtml+'</div></div>' : '')
               + '<div class="sc-tz-verdict '+ver.cls+'"><b>ROE · </b>'+esc(ver.text)+'</div>' + weld;
+            /* v1665 — this render emits item names carrying data-art-logo (Tancred's Battlegear,
+               Baranar's Star ...), but decorateItemLogos() only runs on load and after
+               openBossDetail — so anything painted HERE stayed undecorated and the names rendered
+               with no inline art at all. Decorate what we just wrote; the function is idempotent
+               (it skips any tag that already has a .d2art-wrap), so calling it is free. */
+            try { if (typeof decorateItemLogos === 'function') decorateItemLogos(); } catch(e){}
           } else tzB.innerHTML = '<div class="sc-empty">couldn’t reach live tracker — <button type="button" class="sc-act" onclick="switchTab(\'tztracker\')">open 📡 TZ tracker →</button></div>';   /* v691 (🏓 R1) — route from the empty state */
         };
         tzB.innerHTML = '<div class="sc-empty">fetching battlefield…</div>';
@@ -38509,7 +38526,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1664', name:'v1664 - quality-colour-sweep', date:'2026-08-05', note:'the sealed chronicle buttons, the plain Forge title and the console terror-zone line stop wearing colours that belong to something else' };
+  window.D2R_BUILD = { id:'v1665', name:'v1665 - sessions-art-decorate', date:'2026-08-05', note:'the Sessions hub finally decorates the item names it prints, and the no-source run bucket stops rendering a blank square' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -66,7 +66,10 @@ function readRuns() {
     return {
       title, bossId,
       noRun: title === 'No verified farm source yet' || !bossId,
-      logo: a?.getAttribute('data-art-logo') ?? null,
+      // v1636 gave the BOSS run thumbnail `data-boss-tip` in place of `data-art-logo` (the item
+      // thumbnail at bible.html:35458 still uses data-art-logo). The assertion's intent is that
+      // SOMETHING binds the hover card — accept either, so this still fails when NEITHER is present.
+      logo: a?.getAttribute('data-art-logo') ?? a?.getAttribute('data-boss-tip') ?? null,
       hasRunart: !!a,
       role: a?.getAttribute('role') ?? null,
       tabIndex: a ? a.tabIndex : null,
@@ -99,8 +102,12 @@ test.describe('v1625 — F·Sets best runs wear the boss, through the ONE helper
     for (const r of real) {
       // it is a picture OF the boss the row is about
       expect(r.hasRunart, `${r.title}: no .f-runart wrapper — the thumbnail is still inert`).toBe(true);
-      expect(r.logo, `${r.title}: no data-art-logo, so the board's hover card cannot bind`).toBeTruthy();
-      expect(r.logo, `${r.title}: the logo names the boss`).toBe(r.expectName);
+      expect(r.logo, `${r.title}: no data-art-logo AND no data-boss-tip, so the board's hover card cannot bind`).toBeTruthy();
+      // v1636: `data-boss-tip` carries the bossId ("pindle"), where `data-art-logo` carried the
+      // display name ("Pindleskin"). Either one identifies the boss, so accept both — and this
+      // stays falsifiable: an unrelated value matches NEITHER, and the line below independently
+      // proves the identifier really belongs to THIS row's title.
+      expect([r.expectName, r.bossId], `${r.title}: the logo names the boss`).toContain(r.logo);
       expect(r.title.toLowerCase()).toContain(String(r.logo).toLowerCase());
 
       // ...and it is NOT the arbitrary first drop. `art(g.items[0].name)` gave art/hd_amulet.png

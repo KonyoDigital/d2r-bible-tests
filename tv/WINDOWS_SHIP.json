@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1664",
+  "ver": "v1665",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1664: the sealed chronicle buttons, the plain Forge title and the console terror-zone line stop wearing colours that belong to something else",
+  "note": "v1665: the Sessions hub finally decorates the item names it prints, and the no-source run bucket stops rendering a blank square",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

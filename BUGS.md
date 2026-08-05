@@ -3552,3 +3552,24 @@ decision. Removed both; plain Forge measured back at rgb(240,192,96).
 **Prevention / lesson:** `grep` for the removed rule still matched — because the comment recording
 its removal QUOTES it. A comment describing a bug is textually identical to the bug. Verified by
 rendering instead. Same trap as `feedback_comments_vs_code`.
+
+## REG-139 — the Sessions hub emitted item names it never decorated, so they shipped with no art (v1665)
+`decorateItemLogos()` runs once via `_v39_whenReady` and again after `openBossDetail`. The Sessions
+hub's TWO row renders (`bible.html` ~38191 ops rows, ~38290 TZ rows) emit item names carrying
+`data-art-logo` and called neither — so anything painted there stayed undecorated permanently.
+**Measured, not guessed:** a probe over `[data-art-logo]` after load found 59 tagged elements and
+**2 with no `.d2art-wrap`** — `Tancred's Battlegear` and `Baranar's Star`, both `.zd-item-click`
+inside `.sc-row-txt`. Those are the exact two names Konyo had been asking to see wearing HD art.
+Fixed by calling `decorateItemLogos()` after each render. It is idempotent (skips any tag that
+already has a wrap), so the call costs nothing on a second pass — which is also what the failing
+test asserted: `first` and `second` must both decorate ZERO.
+**Two renders, not one.** Fixing only the TZ render left the test still red; the ops render at
+38191 was the actual source. The class was swept only after the first fix failed to move the number.
+
+## REG-140 — the no-source run bucket rendered a blank 44px square (v1665)
+`_runArtThumb` returned `''` when `_runBossArt` resolved nothing, but `.f-cardart` is
+`flex:0 0 44px` — so the box still rendered, empty. The file's own rule is "art if we have it, else
+a glyph" (`.f-artglyph`, used one line below), and the no-boss case simply fell out of it. Now
+renders a neutral ❓ glyph titled "no verified farm source yet". This is NOT the misleading-picture
+problem the surrounding comment warns about — a neutral glyph says "we do not know where this
+drops", which is exactly true.
