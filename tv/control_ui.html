@@ -2635,7 +2635,18 @@
   .tz-together { font: var(--fw-bold) var(--fs-micro,var(--fs-2xs))/1.6 var(--mono);
     letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.5);
     border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 0 8px; margin-left: 4px; }
+  /* v1670 — THE LABEL RESERVES TWO ROWS, SO THE CARDS START LEVEL. Konyo, twice: "tz tracker
+     still not aligned and symmetric". v1587 put both zone ROWS in one grid and v1641 made the CARD
+     heights deterministic — but the LABEL above them was still free to wrap, and UP NEXT wraps
+     whenever its chip carries the cross-act note ("3 LIVE TOGETHER · ACTS 4+5"): the GOOD badge
+     drops to a second line, UP NEXT's label becomes one row taller, and every card under it starts
+     ~22px low. LIVE NOW, with a shorter chip, stays on one row.
+     The two labels sit in SEPARATE .tz-slot boxes, so — exactly as v1641 found for the cards — no
+     flex or grid rule can equalise one against the other. The height is therefore RESERVED rather
+     than negotiated: 2 rows always, wrapped or not. `nowrap` was rejected because these columns are
+     narrow and it would squash the chip instead of moving it. */
   .tz-lab { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap;
+    min-height: calc((var(--fs-2xs) * 1.6) * 2 + 4px); align-content: flex-start;
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .22em;
     text-transform: uppercase; opacity: .85; }
   .tz-slot.now .tz-lab { color: #8fe0a0; opacity: 1; }
@@ -3578,7 +3589,11 @@
   /* C2 — section headers match the theatre drawer h4: gold accent bar + hairline underline */
   /* v1252 (CONSOLE r4 · #4 typography + #2 no-scroll) — tighter, consistent card headers (less margin/pad) so the
      home reclaims vertical space and the heading hierarchy reads uniformly across every card. */
-  .hd-h { font: var(--fw-semibold) var(--hd-head-size)/var(--lh-tight) var(--mono); letter-spacing: var(--hd-head-ls); text-transform: uppercase; color: var(--gold);
+  /* v1670 — TERROR ZONE / DAILY TASK FORCE were painted gold by THIS rule, which is more
+     specific than the .hd-h rule v1668 pointed at the token — so they stayed gold while the
+     headings around them went platinum. Measured by render, not grep: `.hd-h` appeared on BOTH
+     the on-token and off-token lists in the same page scan, which is what exposed it. */
+  .hd-h { font: var(--fw-semibold) var(--hd-head-size)/var(--lh-tight) var(--mono); letter-spacing: var(--hd-head-ls); text-transform: uppercase; color: var(--panel-head);
     margin-bottom: var(--hd-head-mb); padding: 0 0 6px 10px; border-left: 2px solid var(--gold-antique);
     border-bottom: 1px solid rgba(200,180,120,.12); }
   .hd-sub { font-weight: var(--fw-normal); opacity: .55; letter-spacing: var(--ls-normal); margin-left: 8px; font-size: var(--fs-xs); }

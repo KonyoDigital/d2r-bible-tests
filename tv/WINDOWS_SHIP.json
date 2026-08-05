@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1669",
+  "ver": "v1670",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1669: nine terror zones stop sharing two pictures and get their own",
+  "note": "v1670: the last gold headings join the token and the terror-zone columns finally start level",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
