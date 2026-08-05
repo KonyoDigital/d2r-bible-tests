@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1652",
+  "ver": "v1653",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1652: the console art validator stops rejecting our own cache buster so boss portraits can finally paint",
+  "note": "v1653: the MY HUNT source chip wears the real rarity token so a set stops reading as mint and a boss stops reading as a set",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

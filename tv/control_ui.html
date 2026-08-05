@@ -3433,12 +3433,22 @@
   /* v1636 — .tf-nm (the DAILY PICK's item name, now an affordance inside the sentence) joins the
      same r-* vocabulary rather than growing a seventh half-palette. It is an ITEM NAME, so it
      obeys the game's quality colours — unlike .tf-q-runes above, which labels a ROOM. */
-  .hh-name.r-set,    .ch-card-item .ch-nm.r-set,     .tf-t b.tf-nm.r-set      { color: var(--rar-set); }
-  .hh-name.r-unique, .ch-card-item .ch-nm.r-unique,  .tf-t b.tf-nm.r-unique   { color: var(--rar-unique); }
-  .hh-name.r-rare,   .ch-card-item .ch-nm.r-rare,    .tf-t b.tf-nm.r-rare     { color: var(--rar-rare); }
-  .hh-name.r-magic,  .ch-card-item .ch-nm.r-magic,   .tf-t b.tf-nm.r-magic    { color: var(--rar-magic); }
-  .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted,  .tf-t b.tf-nm.r-crafted  { color: var(--rar-orange); }
-  .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword, .tf-t b.tf-nm.r-runeword { color: var(--rar-runeword); }
+  /* v1653 — THE MY HUNT SOURCE CHIP JOINS THE SAME VOCABULARY. `.hh-src b` paints --mint (0,1,1)
+     and out-specified the bare `.r-*` classes (0,1,0), so a SET name in that line computed
+     rgb(143,230,160) while the hero title right above it computed rgb(0,252,0) from the same token
+     — measured by the v1651 render gate. It READ green, so it never looked obviously wrong, which
+     is exactly why it survived: not a wrong-quality colour like REG-132, just not the token.
+     `.hh-src b.r-*` is (0,2,1) and follows the per-surface pattern this block already uses rather
+     than inventing a seventh palette. Fixes EVERY rarity on that surface, not only set.
+     SIDE EFFECT, and it is the wanted one: BOSS chips carry no r-* class on purpose (a boss has no
+     item quality), so they keep --mint — which now reads DIFFERENT from a set, resolving the gate's
+     other complaint that a boss and a set name were indistinguishable in one sentence. */
+  .hh-name.r-set,    .ch-card-item .ch-nm.r-set,     .tf-t b.tf-nm.r-set      , .hh-src b.r-set { color: var(--rar-set); }
+  .hh-name.r-unique, .ch-card-item .ch-nm.r-unique,  .tf-t b.tf-nm.r-unique   , .hh-src b.r-unique { color: var(--rar-unique); }
+  .hh-name.r-rare,   .ch-card-item .ch-nm.r-rare,    .tf-t b.tf-nm.r-rare     , .hh-src b.r-rare { color: var(--rar-rare); }
+  .hh-name.r-magic,  .ch-card-item .ch-nm.r-magic,   .tf-t b.tf-nm.r-magic    , .hh-src b.r-magic { color: var(--rar-magic); }
+  .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted,  .tf-t b.tf-nm.r-crafted  , .hh-src b.r-crafted { color: var(--rar-orange); }
+  .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword, .tf-t b.tf-nm.r-runeword , .hh-src b.r-runeword { color: var(--rar-runeword); }
   /* the name reads as a door: its own hover/focus, its art inline, and the row's click never
      double-fires because the handler stops propagation. */
   .tf-t b.tf-nm { cursor: pointer; border-bottom: 1px dotted currentColor; padding-bottom: 1px; }
