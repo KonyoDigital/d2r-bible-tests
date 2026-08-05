@@ -24,7 +24,7 @@ input[type=range]{flex:1;height:5px;background:var(--surface-2);border-radius:3p
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--gold);border-radius:50%;cursor:pointer}
 input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold);border-radius:50%;border:none;cursor:pointer}
 .eff-readout{background:var(--surface-2);border-radius:6px;padding:4px 10px;font-size:var(--fs-meta);color:var(--text-muted);font-family:ui-monospace,monospace}
-.eff-readout strong{color:var(--gold-bright);font-weight:var(--fw-medium)}
+.eff-readout strong{color:var(--rec);font-weight:var(--fw-medium)}
 .tabs{display:flex;gap:4px;margin:10px auto 0;max-width:1280px;flex-wrap:wrap;overflow-x:auto}
 /* === v61 sticky global search === */
 .gsearch-wrap{position:relative;max-width:1280px;margin:8px auto 2px;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.32);border:1px solid var(--border);border-radius:8px;padding:7px 12px}
@@ -321,17 +321,17 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:var(--fw-normal);margin:2
    Every collapsible .sec-h across every tab now shares ONE style: bordered bar,
    gold-dim left accent, serif-display title, right-aligned chevron, gold hover
    glow + pulse. Promoted verbatim from the old #tab-rotw .sec-h treatment. */
-@keyframes secHGlowPulse{0%,100%{text-shadow:0 0 7px rgba(240,192,96,.22)}50%{text-shadow:0 0 13px rgba(240,192,96,.45)}}
-.sec-h{display:flex;align-items:center;gap:11px;cursor:pointer;user-select:none;background:linear-gradient(135deg,rgba(201,161,74,.08),transparent);border:1px solid var(--border);border-left:3px solid var(--gold-dim);border-radius:9px;padding:11px 15px;margin:18px 0 0;font-family:var(--serif-display);font-weight:var(--fw-semibold);font-size:17px;letter-spacing:var(--ls-tight);color:var(--text);transition:color .2s,border-color .2s,background .2s,text-shadow .2s,font-size .2s,padding .2s}
-.sec-h:hover{color:var(--gold-bright);border-left-color:var(--gold-bright);background:linear-gradient(135deg,rgba(201,161,74,.14),transparent);text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
+@keyframes secHGlowPulse{0%,100%{text-shadow:0 0 7px rgba(203,214,228,.22)}50%{text-shadow:0 0 13px rgba(203,214,228,.45)}}
+.sec-h{display:flex;align-items:center;gap:11px;cursor:pointer;user-select:none;background:linear-gradient(135deg,rgba(203,214,228,.08),transparent);border:1px solid var(--border);border-left:3px solid var(--gold-dim);border-radius:9px;padding:11px 15px;margin:18px 0 0;font-family:var(--serif-display);font-weight:var(--fw-semibold);font-size:17px;letter-spacing:var(--ls-tight);color:var(--text);transition:color .2s,border-color .2s,background .2s,text-shadow .2s,font-size .2s,padding .2s}
+.sec-h:hover{color:var(--rec);border-left-color:var(--rec);background:linear-gradient(135deg,rgba(203,214,228,.14),transparent);text-shadow:0 0 10px rgba(203,214,228,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
 .sec-chev{flex:0 0 auto;margin-left:auto;font-size:var(--fs-body);color:var(--gold-dim);transition:transform .2s,color .2s,font-size .2s}
-.sec-h:hover .sec-chev{color:var(--gold-bright)}
+.sec-h:hover .sec-chev{color:var(--rec)}
 .sec-h.collapsed .sec-chev{transform:rotate(-90deg)}
 /* Herald-of-Terror reveal (Konyo): clicking a header "expands to a nice beautiful
    title big and enlarged". Open state only — title grows + turns gold, accent brightens. */
-.sec-h:not(.collapsed){font-size:20px;border-left-color:var(--gold-bright);background:linear-gradient(135deg,rgba(201,161,74,.13),transparent);color:var(--gold-bright);text-shadow:0 0 9px rgba(240,192,96,.22)}
-.sec-h:not(.collapsed) .sec-h-t{font-size:20px;color:var(--gold-bright)}
-.sec-h:not(.collapsed) .sec-chev{color:var(--gold-bright);font-size:var(--fs-title)}
+.sec-h:not(.collapsed){font-size:20px;border-left-color:var(--rec);background:linear-gradient(135deg,rgba(203,214,228,.13),transparent);color:var(--rec);text-shadow:0 0 9px rgba(203,214,228,.22)}
+.sec-h:not(.collapsed) .sec-h-t{font-size:20px;color:var(--rec)}
+.sec-h:not(.collapsed) .sec-chev{color:var(--rec);font-size:var(--fs-title)}
 /* structured headers (separate art slot + title span) — RotW + the main-tab "who drops what" keys/shards/essences/sunder + boss-detail Herald */
 .sec-h .sec-h-art,.sec-h #herald-sec-emblem{display:inline-flex;flex:0 0 auto;width:30px;height:30px;align-items:center;justify-content:center;font-size:20px}
 .sec-h .sec-h-art .d2art-wrap{width:30px;height:30px}
@@ -889,9 +889,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   padding:14px 20px;
   gap:14px;
 }
-.sec-h:not(.tier-header) .sec-h-t{font-size:19px;color:var(--gold-bright)}
+.sec-h:not(.tier-header) .sec-h-t{font-size:19px;color:var(--rec)}
 .sec-h:not(.tier-header):hover,
-.sec-h:not(.tier-header):not(.collapsed){background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
+.sec-h:not(.tier-header):not(.collapsed){background:linear-gradient(90deg,var(--surface-3),rgba(203,214,228,.06))}
 .sec-h:not(.tier-header):not(.collapsed) .sec-h-t{font-size:20px}
 /* v151 — RoTW section headers gain the Tools/Runes rich-header SUBTITLE (Konyo: replicate
    the Tools first glance). The title now stacks a one-line italic summary under it; each
@@ -2401,7 +2401,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .wishlist-card{margin:16px 0;background:linear-gradient(180deg,rgba(255,212,128,.06),rgba(255,212,128,.01));border:2px solid var(--gold-dim);border-radius:10px;padding:20px 24px;box-shadow:0 0 30px rgba(240,192,96,.1)}
   .wishlist-card.empty{border-style:dashed;opacity:.7}
   .wishlist-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
-  .wishlist-title{color:var(--gold-bright);font-size:18px;font-weight:var(--fw-semibold);margin:0;text-shadow:0 0 14px rgba(240,192,96,.3)}
+  .wishlist-title{color:var(--rec);font-size:18px;font-weight:var(--fw-semibold);margin:0;text-shadow:0 0 14px rgba(203,214,228,.3)}
   .wishlist-summary{font-size:12px;color:var(--text);font-family:var(--mono);opacity:.85;margin-left:auto}
   .wishlist-empty-msg{color:var(--gold-dim);font-size:14px;line-height:var(--lh-normal);padding:14px 0;text-align:center;font-style:italic}
   .wishlist-empty-msg .wishlist-empty-cta{color:var(--gold-bright);font-style:normal;font-family:var(--mono);font-size:12px;margin-top:8px;display:block}
@@ -2613,7 +2613,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   }
   input[type="range"]#mf::-webkit-slider-runnable-track {
     height: 6px;
-    background: linear-gradient(90deg, var(--surface-3), var(--gold-dim, #8a6f2e), var(--gold-bright));
+    background: linear-gradient(90deg, var(--surface-3), #6b737e, var(--rec));
     border-radius: 3px;
     border: 1px solid var(--border);
   }
@@ -2622,28 +2622,28 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     appearance: none;
     width: 18px;
     height: 18px;
-    background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold));
+    background: radial-gradient(circle at 30% 30%, #ffffff, var(--rec));
     border: 2px solid #1a1208;
     border-radius: 50%;
     margin-top: -7px;
     cursor: grab;
-    box-shadow: 0 2px 6px rgba(0,0,0,.5), 0 0 0 1px var(--gold);
+    box-shadow: 0 2px 6px rgba(0,0,0,.5), 0 0 0 1px var(--rec);
     transition: transform .12s ease, box-shadow .12s ease;
   }
   input[type="range"]#mf::-webkit-slider-thumb:hover {
     transform: scale(1.15);
-    box-shadow: 0 2px 10px rgba(240,192,96,.5), 0 0 0 1px var(--gold-bright);
+    box-shadow: 0 2px 10px rgba(203,214,228,.5), 0 0 0 1px var(--rec);
   }
   input[type="range"]#mf::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.08); }
   input[type="range"]#mf::-moz-range-track {
     height: 6px;
-    background: linear-gradient(90deg, var(--surface-3), var(--gold-bright));
+    background: linear-gradient(90deg, var(--surface-3), var(--rec));
     border-radius: 3px;
   }
   input[type="range"]#mf::-moz-range-thumb {
     width: 18px;
     height: 18px;
-    background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold));
+    background: radial-gradient(circle at 30% 30%, #ffffff, var(--rec));
     border: 2px solid #1a1208;
     border-radius: 50%;
     cursor: grab;
@@ -27502,11 +27502,11 @@ h1, h2, h3, .h-title, .hero-title, .legend-title {
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --rule-color: rgba(212,168,71,.28);
   --rule-color-strong: rgba(212,168,71,.5);
-  --ink-h1: var(--gold-bright, #f0c060);
+  --ink-h1: var(--rec, #cbd6e4);
   --ink-h2: var(--text, #f4e8d0);
   --ink-body: var(--text, #f4e8d0);
   --ink-muted: var(--text-muted, #b5a48a);
-  --ink-kicker: var(--gold, #d4a847);
+  --ink-kicker: var(--rec, #cbd6e4);
   --ease: cubic-bezier(0.2, 0, 0.13, 1);
 }
 
@@ -27773,7 +27773,7 @@ html { scroll-behavior: smooth; }
 .legend-box {
   background: transparent !important;
   border: none !important;
-  border-left: 2px solid var(--gold) !important;
+  border-left: 2px solid var(--rec) !important;
   border-radius: 0 !important;
   padding: 8px 0 8px 20px !important;
   margin-bottom: 28px !important;
@@ -27827,7 +27827,7 @@ html { scroll-behavior: smooth; }
 }
 .boss-chip[data-active="true"] {
   background: var(--surface) !important;
-  border-color: var(--gold) !important;
+  border-color: var(--rec) !important;
   color: var(--ink-h1) !important;
   font-weight:var(--fw-medium) !important;
   box-shadow: none !important;
@@ -27928,9 +27928,9 @@ html { scroll-behavior: smooth; }
   background: var(--surface) !important;
   transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
-#boss-cards .boss-card:hover { border-color: var(--gold) !important; box-shadow: 0 0 20px rgba(201,161,74,.16), inset 0 0 0 1px rgba(201,161,74,.34) !important; transform: translateY(-1px); }
+#boss-cards .boss-card:hover { border-color: var(--rec) !important; box-shadow: 0 0 20px rgba(203,214,228,.16), inset 0 0 0 1px rgba(203,214,228,.34) !important; transform: translateY(-1px); }
 #boss-cards .boss-header { cursor: pointer; padding: 14px 20px !important; transition: background .12s ease; }
-#boss-cards .boss-header:hover { background: rgba(255,212,128,.06) !important; }
+#boss-cards .boss-header:hover { background: rgba(203,214,228,.06) !important; }
 #boss-cards .boss-name { font-size: 19px !important; }
 
 .gbc-section h3, .gbc-section-title {
@@ -27971,7 +27971,7 @@ input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  background: var(--gold-bright);
+  background: var(--rec);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 0 0 3px var(--bg);
@@ -27983,7 +27983,7 @@ input[type=range]::-webkit-slider-thumb:hover {
 input[type=range]::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: var(--gold-bright);
+  background: var(--rec);
   border-radius: 50%;
   border: 3px solid var(--bg);
   cursor: pointer;
@@ -28523,14 +28523,14 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
 /* ── animated gold wordmark: "Konyo's D2R Farming Bible" ────────────────── */
 .masthead .h-title{
   background:linear-gradient(100deg,
-      var(--gold) 0%, var(--gold-bright) 22%, #fff4d2 50%,
-      var(--gold-bright) 78%, var(--gold) 100%) !important;
+      #8f9dae 0%, var(--rec) 22%, #ffffff 50%,
+      var(--rec) 78%, #8f9dae 100%) !important;
   background-size:220% auto !important;
   -webkit-background-clip:text !important;
   background-clip:text !important;
   -webkit-text-fill-color:transparent !important;
   color:transparent !important;
-  filter:drop-shadow(0 1px 12px rgba(240,192,96,.20)) !important;
+  filter:drop-shadow(0 1px 12px rgba(203,214,228,.20)) !important;
   animation: v159TitleSheen 7s linear infinite, v159TitleRise .85s var(--ease) both;
 }
 /* the inline emblem keeps its own colour (not clipped to the text gradient) */
@@ -28561,7 +28561,7 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
 .tabs::before{
   content:""; position:absolute; inset:0; border-radius:inherit;
   pointer-events:none;
-  background:linear-gradient(115deg, transparent 40%, rgba(240,192,96,.14) 50%, transparent 60%);
+  background:linear-gradient(115deg, transparent 40%, rgba(203,214,228,.14) 50%, transparent 60%);
   background-size:240% 100%;
   animation: v159TabsSheen 6.5s linear infinite;
 }
@@ -28570,14 +28570,14 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
 /* the active underline becomes a flowing, glowing gold ribbon */
 .tabs .tab.active::after{
   background:linear-gradient(90deg,
-      var(--gold) 0%, var(--gold-bright) 50%, var(--gold) 100%) !important;
+      #8f9dae 0%, var(--rec) 50%, #8f9dae 100%) !important;
   background-size:200% 100% !important;
-  box-shadow:0 0 8px rgba(240,192,96,.55);
+  box-shadow:0 0 8px rgba(203,214,228,.55);
   animation: v159TabUnderline 2.6s linear infinite;
 }
 @keyframes v159TabsGlow{
-  0%,100%{ box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 3px 14px rgba(0,0,0,.40), 0 0 0 rgba(240,192,96,0); }
-  50%{ box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 3px 16px rgba(0,0,0,.42), 0 0 18px rgba(240,192,96,.16); }
+  0%,100%{ box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 3px 14px rgba(0,0,0,.40), 0 0 0 rgba(203,214,228,0); }
+  50%{ box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 3px 16px rgba(0,0,0,.42), 0 0 18px rgba(203,214,228,.16); }
 }
 @keyframes v159TabsSheen{
   0%{ background-position:140% 0; }
@@ -28748,19 +28748,19 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 /* ── I. Section bars, stronger: double hairline + corner ticks ── */
 .sec-h{
   border:1px solid var(--border,#3a2f1e);
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(240,192,96,.06);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(203,214,228,.06);
 }
 .sec-h::after{
   content:""; position:absolute; right:42px; top:50%; width:90px; height:1px; pointer-events:none;
-  background:linear-gradient(90deg, transparent, rgba(212,168,71,.4));
+  background:linear-gradient(90deg, transparent, rgba(203,214,228,.4));
   opacity:0; transition:opacity .3s ease, width .3s var(--ease-out,ease);
 }
 .sec-h:hover::after{ opacity:1; width:150px; }
 
 /* ── J. Tab capsule: gilt frame + active tab ember underglow ── */
-.tabs{ box-shadow:inset 0 0 0 1px rgba(240,192,96,.07), 0 6px 22px rgba(0,0,0,.5); }
+.tabs{ box-shadow:inset 0 0 0 1px rgba(203,214,228,.07), 0 6px 22px rgba(0,0,0,.5); }
 .tab{ font-variant-caps:all-small-caps; letter-spacing:var(--ls-wide); }
-.tab.active{ text-shadow:0 0 12px rgba(240,192,96,.5); }
+.tab.active{ text-shadow:0 0 12px rgba(203,214,228,.5); }
 
 
 /* ── L. Rich hover card (#arttip): deeper gilt frame + halo ── */
@@ -36620,11 +36620,11 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tabs-data .tab{flex:1 1 auto;text-align:center}
 .tabs .tab{font-size:12.5px!important;padding:7px 6px!important;letter-spacing:var(--ls-tight)!important;white-space:nowrap}   /* v641.4 — NEVER truncate a label (Konyo: 'i dont want half a word'); tabs grow to fit their text */
 .tabs-data{flex:11 1 0}
-.tabs-workshop{display:flex;flex:4 1 0;gap:5px;align-items:stretch;padding:3px 5px;border:1px solid rgba(233,208,122,.5);border-radius:9px;background:linear-gradient(135deg,rgba(233,208,122,.10),rgba(233,208,122,.02) 70%);box-shadow:0 0 14px -6px rgba(233,208,122,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+.tabs-workshop{display:flex;flex:4 1 0;gap:5px;align-items:stretch;padding:3px 5px;border:1px solid rgba(203,214,228,.5);border-radius:9px;background:linear-gradient(135deg,rgba(203,214,228,.10),rgba(203,214,228,.02) 70%);box-shadow:0 0 14px -6px rgba(203,214,228,.45),inset 0 1px 0 rgba(255,255,255,.05)}
 .tabs-workshop .tab{flex:1 1 auto;text-align:center}   /* v641.3 — label removed (took space); all 15 tabs share the full row equally, frame marks the workshop */
-.tabs-workshop .tab{border-color:rgba(233,208,122,.4)!important;color:#e9d07a!important;font-weight:var(--fw-medium)!important;background:rgba(233,208,122,.05)!important}
-.tabs-workshop .tab:hover{background:rgba(233,208,122,.14)!important;color:#ffe08a!important}
-.tabs-workshop .tab.active{background:rgba(233,208,122,.2)!important;color:#fff4d2!important;border-color:#ffe08a!important}
+.tabs-workshop .tab{border-color:rgba(203,214,228,.4)!important;color:var(--rec)!important;font-weight:var(--fw-medium)!important;background:rgba(203,214,228,.05)!important}
+.tabs-workshop .tab:hover{background:rgba(203,214,228,.14)!important;color:#ffffff!important}
+.tabs-workshop .tab.active{background:rgba(203,214,228,.2)!important;color:#ffffff!important;border-color:var(--rec)!important}
 /* v703 — NAV CLUSTERS: HUNT + LORE quiet frames inside the data strip (the workshop frame's
    little cousins — same shape, a fraction of its voice). Micro-captions ride the top border
    (absolute — costs the row ZERO width, the v641.3 lesson). main stays a lone front door. */
@@ -37467,7 +37467,7 @@ html{overflow-x:clip}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-filter .f-ftile.on,.rwc-chip.on{animation:v639Breathe 2.6s ease-in-out infinite}
 @keyframes v639Breathe{0%,100%{box-shadow:0 0 0 0 rgba(255,224,138,.0),0 0 12px -4px rgba(255,224,138,.35)}50%{box-shadow:0 0 0 3px rgba(255,224,138,.12),0 0 18px -3px rgba(255,224,138,.55)}}
 .tabs .tab{transition:transform .16s ease,text-shadow .2s ease}
-.tabs .tab:hover{transform:translateY(-1.5px);text-shadow:0 0 10px rgba(255,224,138,.4)}
+.tabs .tab:hover{transform:translateY(-1.5px);text-shadow:0 0 10px rgba(203,214,228,.4)}
 .tabs .tab.active{position:relative}
 .tabs .tab.active::after{content:"";position:absolute;left:12%;right:12%;bottom:-4px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,#ffe08a,transparent);animation:v639Ember 2.8s ease-in-out infinite}
 @keyframes v639Ember{0%,100%{opacity:.55;filter:blur(.2px)}50%{opacity:1;filter:blur(0)}}
@@ -38509,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1658', name:'v1658 - rec-platinum-glows', date:'2026-08-05', note:'the halos behind the retinted titles were still green, so platinum text sat in a green glow' };
+  window.D2R_BUILD = { id:'v1659', name:'v1659 - platinum-chrome', date:'2026-08-05', note:'the platform-wide title layer goes platinum: ink tokens, every section header, the wordmark, the nav strip, the dock and panel chrome' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1658",
+  "ver": "v1659",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1658: the halos behind the retinted titles were still green, so platinum text sat in a green glow",
+  "note": "v1659: the platform-wide title layer goes platinum: ink tokens, every section header, the wordmark, the nav strip, the dock and panel chrome",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
