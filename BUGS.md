@@ -3357,3 +3357,74 @@ would otherwise have had to re-derive.
 `v1630_set_piece_slot_suffix` — 18 tests) unchanged and green; these specs seed synthetic bridge
 JSON for console-side assertions and pass the real writer functions with no shape assumptions
 that additive fields break.
+
+## REG-135 — the console side of REG-134: the facts were published, nothing consumed them yet (v1651)
+
+**Symptom.** REG-134 shipped `sourceArt`/`hellSourceArt`/`sourceBossId`/`hellSourceBossId` (grail
++ set bridges) and a real `setArt` fallback chain, but `tv/control_ui.html` still rendered
+`top.source` (`"hunt at <b>Hell Mephisto</b>"`) and the set aggregate name (`"completes
+<b>Griswold's Legacy</b>"`) as bare escaped text — the facts existed on the bridge and nothing on
+the console read them. Same gap on the daily-pick sentence: `_chronRotation` always opens the pick
+with `🧩 Sets · ` / `🏆 Grail · ` / `📜 Runewords · ` (bible.html:36000/36015/36041), and `_aiSay`
+dressed every NAME to the right of that prefix but left the prefix itself flat.
+
+**Fix (tv/control_ui.html only).** Added one shared `_bossChip(label, bossId, art)` builder — a
+bossId/art pair resolves to HD art + a floating `_itipAttr` card + a click that calls
+`window._hubGoBoss(id)` (→ `openBossDetail`, pre-existing since v1613); no bossId, the label stays
+exactly the plain text it was, same "no dead affordance" rule every other chip on this file
+follows. Wired into both `hubNextGrail`'s and `hubNextSet`'s `hh-src` line, keyed off the SAME
+hell-vs-global branch that picked `top.source` (so the label and the picture can never name two
+different bosses on a re-rank). Added a matching `_setChip` for the set-aggregate name using
+`meta.setArt` (REG-134's fallback chain) + the same `_hubGoSetPiece` door the piece above it
+already uses. Added `_aiHeadDress`/`_AI_HEAD_RE` to `_aiSay` so the sentence's own opening marker
+becomes an HD-art + coloured + clickable title (`artImg('sets'|'uniques'|'runes')` + `_rarCls('set'
+|'unique'|'rw')`), reusing the same CONSOLE_ART keys and `--rar-*` tokens `_tfChron` already paints
+correctly two rows below (proven live, v1615). Runewords is `_rarCls('rw')` → `--rar-runeword`
+(#c7b377, GOLD) on purpose, matching REG-132 — not `--rar-rune` (#ff7d3c, the FORGE ROOM accent
+used two rows below for a different reason and left untouched).
+
+**FROSTBURN, measured, not assumed.** `tests/v1621_rarity_and_craft_gems.spec.ts` (pre-existing,
+unmodified) seeds `d2r_grailFarm` with `rarity:'unique'` for Frostburn and asserts `#hub-hero
+.hh-name`'s computed colour — ran it: **8/8 passed**. A throwaway Playwright probe against the live
+render (seeded via the same harness as the v1616/v1617/v1620 spec suite) confirms the same node:
+`getComputedStyle` → `rgb(199, 179, 119)` = `--rar-unique` (#c7b377), class `hh-name hh-go
+r-unique`. It was ALREADY gold. Nothing changed for Frostburn's colour — REG-134's note that
+`_artRarity('Frostburn')` already read `'unique'` upstream holds, and the console class chain
+(`_rarCls(_meta.rarity || 'unique')` → `.hh-name.r-unique { color: var(--rar-unique) }`) already
+resolved it correctly. No fix applied because none was needed.
+
+**Measured, every dressed name, via the same throwaway probe (real `/art/*` files served from
+disk, real `getComputedStyle`, real `naturalWidth`):**
+| node | text | color | img src | naturalWidth | box |
+|---|---|---|---|---|---|
+| `#hub-hero .hh-src b.hh-go` | "Hell Mephisto" | rgb(143,230,160) mint (no rarity — a boss, not an item) | `art/mephisto_graphic.png` | **1400** | 134×16 |
+| `#hub-hero-sets .hh-name` | "Griswold's Honor" | rgb(0,252,0) green | `art/hd_crown_shield.png` | **185** | 720×33 |
+| `#hub-hero-sets .hh-src b.hh-go.r-set` | "Griswold's Legacy" | rgb(0,252,0) green | `art/hd_crown_shield.png` (fallback) | **185** | 169×16 |
+| `#hub-hero-sets .hh-src b.hh-go` (boss) | "Hell TZ Pindleskin" | rgb(143,230,160) mint | `art/reanimatedhorde-opt_graphic.png` | **600** | 178×16 |
+| `.tf-row.tf-ai b.tf-nm` | "Sets" | rgb(0,252,0) green | `art/ui_tab_fsets.png` | **96** | 64×20 |
+
+All five `onclick` handlers verified present and correctly targeted (`_hubGoBoss("mephisto")`,
+`_hubGoBoss("pindle")`, `_hubGoSetPiece(...)` ×2, `_hubGo("fsets")`). Every `naturalWidth` above is
+non-zero — a decoded picture, not markup that merely exists.
+
+**Class swept, not just this instance.** `_bossChip` is the ONE builder both heroes call — a third
+boss-bearing surface reuses it, not a fourth invention. Checked `_aiMarks`/`_aiChip` (the daily
+pick's item+set names) — already dressed since v1636/v1644/v1649, untouched here. Checked the
+`_tfChron` room rows (`Runewords`/`Grail Uniques`/`Sets` progress rows, two lines below the daily
+pick) — already HD-arted and coloured since v1615/v1636; deliberately left alone (`--rar-rune`
+orange there is the FORGE-ROOM accent, a different and intentional token, per the v1636 comment at
+control_ui.html:~3876).
+
+**Stale claims corrected.** REG-134's "out of scope for this file" note (listing the three
+labels/FROSTBURN check/routing as owed to control_ui.html) is now satisfied by this entry — no
+further console-side gap on this arc that I could find inside budget.
+
+**Tests.** Ran `v1616_item_is_the_point`, `v1617_ingame_item_card`, `v1620_set_pieces_and_the_alt`,
+`v1628_console_rarity_tokens`, `v1613_hub_routes`, `v1554_hero_typography` (47 tests) — 46 passed,
+1 pre-existing fail (`v1617_ingame_item_card.spec.ts:115`, "the NEXT PIECE card matches it", name
+assertion off by the `(Shield)` suffix) confirmed failing identically on clean HEAD via `git stash`
+— NOT caused by this change, not touched. `v1621_rarity_and_craft_gems` (the FROSTBURN colour
+proof, 8 tests) also green. No spec anywhere asserts the OLD flat-text shape of `.hh-src`/the daily
+pick's head marker (checked via grep across `tests/*.spec.ts` for `hh-src`/`tf-nm`/`_aiSay`
+usages) — the one spec that does inject `.hh-src` HTML (`v1554_hero_typography`) writes it as a
+hand-authored fixture, not through `hubNextGrail`, so it is unaffected by this change.

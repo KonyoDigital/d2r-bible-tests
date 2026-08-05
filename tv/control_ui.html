@@ -5386,6 +5386,27 @@
     try { return ' data-itip="' + esc(JSON.stringify(d)) + '"'; } catch(e){ return ''; }
   }
 
+  /* v1651 — A BOSS NAMED IN A SOURCE LINE ("hunt at Hell Mephisto") IS A DOOR, NOT A LABEL.
+     Konyo has said this exact thing about "Durance of Hate -> Mephisto" before (v1613) and the
+     lesson holds: a boss's OWN portrait must come from the bridge (bible.html's published
+     _runBossArt seam, v1629) and never from the item-art map, or a soulstone stands in for
+     Mephisto again. So this never resolves art from a name — only from the bossId/art the bridge
+     already sends (d2r_grailFarm.sourceArt/hellSourceArt, d2r_setFarm same fields, both v1651).
+     No bossId → the label stays exactly what it is today: plain escaped text, no cursor, no dead
+     link. _itemArtImg is called with name=null on purpose — a null name skips its own thArt()
+     item-name fallback, which is the same soulstone trap one layer down. */
+  function _bossChip(label, bossId, art){
+    var shown = esc(String(label || ''));
+    if (!bossId) return '<b>' + shown + '</b>';
+    var go = 'window._hubGoBoss(&quot;' + bossId + '&quot;)';
+    return '<b class="hh-go" role="button" tabindex="0" aria-label="' + shown + ' — open the boss run"'
+      + _itipAttr({ name: String(label || ''), art: art || '', rarity: '', go: 'click to open the boss run' })
+      + ' onclick="event.stopPropagation();' + go + '"'
+      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();'
+      + 'event.preventDefault();' + go + ';}">'
+      + _itemArtImg(art, 'hh-alt-i', null) + shown + '</b>';
+  }
+
   // route into the bible board — grounding is CLIENT-SIDE via the board iframe's helpers; never a fake dossier
   function _routeReceipt(rtype, rtarget){
     if (!rtype || !rtarget) return; _rcptArt.hide();
@@ -11383,7 +11404,41 @@
          Marks are matched against the FULL text so the decision is made on the truth, and the row
          already wraps to two lines, so a few characters more costs nothing. A hard ceiling still
          applies far above, because an unbounded sentence is its own bug. */
+      /* v1651 — THE SENTENCE'S OWN OPENING WORD BECOMES A TITLE. _chronRotation (bible.html:~36041)
+         always opens the pick with one of three fixed markers — '🧩 Sets · ', '🏆 Grail · ',
+         '📜 Runewords · ' (bible.html:36000/36015/36041) — and until now that marker rode through
+         _aiSay as flat escaped text: a bare emoji plus a cream word, while every NAME to its right
+         got HD art + colour + a card. Konyo screenshotted it flat. The room and its colour/art are
+         not derived from a second store — they are the same CONSOLE_ART keys and _rarCls tokens
+         _tfChron already renders correctly two rows below (sets/uniques/runes, proven live). Gold
+         for BOTH Grail and Runewords is deliberate, not a collision: --rar-runeword IS --rar-unique
+         (see the token block at the top of this file) — that equality is the game agreeing with
+         itself. Orange (--rar-rune) is the FORGE ROOM's own accent and must never stand in for a
+         runeword's own quality colour (REG-132). No match → nothing changes, same as every other
+         chip on this row when the bridge does not resolve. */
+      var _AI_HEAD_RE = /^([\u{1F9E9}\u{1F3C6}\u{1F4DC}])\s*(Sets|Grail|Runewords)(\s*·\s*)/u;
+      var _aiHeadDress = function(txt){
+        var m = _AI_HEAD_RE.exec(String(txt || ''));
+        if (!m) return null;
+        var info = { '\u{1F9E9}': { key: 'sets', word: 'Sets', rar: 'set', tab: 'fsets' },
+                     '\u{1F3C6}': { key: 'uniques', word: 'Grail', rar: 'unique', tab: 'funi' },
+                     '\u{1F4DC}': { key: 'runes', word: 'Runewords', rar: 'rw', tab: 'runes' } }[m[1]];
+        if (!info) return null;
+        var go = 'window._hubGo(&quot;' + info.tab + '&quot;)';
+        return {
+          html: '<b class="tf-nm' + _rarCls(info.rar) + '" role="button" tabindex="0"'
+            + ' aria-label="open the ' + info.word + ' chronicle"'
+            + ' onclick="event.stopPropagation();' + go + '"'
+            + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();'
+            + 'event.preventDefault();' + go + ';}">'
+            + artImg(info.key, 'tf-i') + esc(info.word) + '</b>' + esc(m[3]),
+          rest: String(txt).slice(m[0].length),
+          eaten: m[0].length
+        };
+      };
       var _aiSay = function(txt, max){
+        var _head = _aiHeadDress(txt), headHtml = '';
+        if (_head){ headHtml = _head.html; txt = _head.rest; max = Math.max(0, max - _head.eaten); }
         var full = String(txt), end = Math.min(max, full.length);
         if (_aiMarks.length){
           var flo = full.toLowerCase(), HARD = Math.min(full.length, max + 60);
@@ -11398,14 +11453,14 @@
           });
         }
         var s = full.slice(0, end);
-        if (!_aiMarks.length) return esc(s);            // bridge did not resolve — no dead affordance
+        if (!_aiMarks.length) return headHtml + esc(s); // bridge did not resolve — no dead affordance
         var lo = s.toLowerCase(), hits = [];
         _aiMarks.forEach(function(m){
           var i = lo.indexOf(m.nm.toLowerCase());
           if (i < 0) return;                            // name absent or truncated away — stay plain
           hits.push({ i: i, len: m.nm.length, m: m });
         });
-        if (!hits.length) return esc(s);
+        if (!hits.length) return headHtml + esc(s);
         // earliest first; at an equal start the LONGER name wins, so a set name that opens with its
         // piece's words ("Tancred's …") can never be half-wrapped by the shorter one
         hits.sort(function(a, b){ return a.i - b.i || b.len - a.len; });
@@ -11416,7 +11471,7 @@
                + _aiChip(s.substr(h.i, h.len), h.m);
           at = h.i + h.len;
         });
-        return out + esc(s.slice(at));
+        return headHtml + out + esc(s.slice(at));
       };
       try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
       var rows = [];
@@ -11833,6 +11888,12 @@
        hardcoded path would show Frostburn's gloves under Baranar's Star within one find. */
     var _byName = {}; farm.forEach(function(f){ if (f && f.name) _byName[f.name] = f; });
     var _meta = _byName[top.name] || {};
+    /* v1651 — WHICH BOSS-PORTRAIT FIELD MATCHES top.source. top came from the HELL bucket
+       (h0.hellSource) when one existed, else from the globally-ranked source — the same branch
+       that picked top.source above must pick the matching sourceBossId/sourceArt pair, or the
+       label and the picture could name two different bosses on a re-rank. */
+    var _srcBossId = _hell.length ? _meta.hellSourceBossId : _meta.sourceBossId;
+    var _srcArt = _hell.length ? _meta.hellSourceArt : _meta.sourceArt;
     var _fsum = null; try { _fsum = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
     var _gp = _fsum && _fsum.grail && _fsum.grail.total
       ? (_fsum.grail.found || 0) + ' / ' + _fsum.grail.total + ' claimed' : '';
@@ -11875,7 +11936,7 @@
            so this is a no-op on current data; it is here so the TWO HEROES CANNOT DRIFT if the
            uniques bridge ever starts qualifying a name the way the sets bridge does. */
         + _itemArtImg(_meta.art, 'hh-i', top.name) + esc(_pieceLabel(top.name) || '—') + '</div>'
-      + (top.source ? '<div class="hh-src">hunt at <b>' + esc(top.source) + '</b>'
+      + (top.source ? '<div class="hh-src">hunt at ' + _bossChip(top.source, _srcBossId, _srcArt)
           /* v1620 — THE ALTERNATIVE IS AN ITEM TOO. This line names a second real unique
              ("quicker below Hell: Umbral Disk") two pixels under a title that shows its art and
              opens a card, and offered neither — the same gap Konyo has now reported on four
@@ -11937,6 +11998,27 @@
     hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
     var meta = byName[top.name] || {};
     var setName = String(meta.set || '').replace(/\s*\([^)]+\)\s*$/, '');
+    /* v1651 — same branch discipline as the grail hero above: top came from the hell bucket when
+       one existed, so the boss id/art picked here must be the HELL pair, or the label and the
+       portrait can name two different bosses on a re-rank. */
+    var _sSrcBossId = hell.length ? meta.hellSourceBossId : meta.sourceBossId;
+    var _sSrcArt = hell.length ? meta.hellSourceArt : meta.sourceArt;
+    /* v1651 — Griswold's Legacy IS THE SET ABOVE, SO IT WEARS THE SET'S OWN ART.
+       artUrl("Griswold's Legacy") is null (measured — an aggregate has no sprite of its own, same
+       as "Tancred's Battlegear" at the daily pick, v1649); meta.setArt is the fallback chain the
+       BOARD already resolves for this exact reason (bible.html v1651, _setRepArtName -> first
+       missing piece). Routes through the same door as the piece above it (_hubGoSetPiece with the
+       piece's name) — clicking the SET's own name lands inside that same set, siblings and all. */
+    var _setChip = setName ? ('<b class="hh-go' + _rarCls('set') + '" role="button" tabindex="0"'
+      + ' aria-label="' + esc(setName) + ' — open it in the sets chronicle"'
+      + _itipAttr({ name: setName, art: meta.setArt || '', rarity: 'set',
+                    facts: [['next piece', top.name || ''],
+                            ['pieces left', meta.left ? String(meta.left) : '']],
+                    go: 'click to open it in the sets chronicle' })
+      + ' onclick="event.stopPropagation();window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ')"'
+      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();event.preventDefault();'
+      + 'window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ');}">'
+      + _itemArtImg(meta.setArt, 'hh-alt-i', null) + esc(setName) + '</b>') : '';
     host.className = 'hub-hero hub-hero-sets';
     host.innerHTML = '<div class="hh-main">'
       + '<div class="hh-eye"><span class="hh-dot"></span>the next piece · '
@@ -11967,9 +12049,9 @@
         + 'window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ');}">'
         + _itemArtImg(meta.art, 'hh-i', top.name) + esc(_pieceLabel(top.name) || '—') + '</div>'
       + '<div class="hh-src">'
-        + (setName ? 'completes <b>' + esc(setName) + '</b>'
+        + (setName ? 'completes ' + _setChip
             + (meta.left ? ' <span class="hh-alt">· ' + meta.left + ' piece' + (meta.left===1?'':'s') + ' left</span>' : '') : '')
-        + (top.source ? ' · hunt at <b>' + esc(top.source) + '</b>' : '')
+        + (top.source ? ' · hunt at ' + _bossChip(top.source, _sSrcBossId, _sSrcArt) : '')
         + '<span class="hh-alt"> · the clock is for ANY piece of this set</span></div>'
       + '</div>'
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to the next piece</span></div>' : '');
