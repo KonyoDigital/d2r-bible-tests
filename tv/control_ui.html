@@ -4879,7 +4879,22 @@
     var u = String(url || '');
     // bridge data, so it is treated as untrusted: same-origin relative art paths only — never a
     // remote URL, never a javascript:/data: payload smuggled through localStorage.
-    var ok = function(p){ return /^\/?art\/[\w.\-\/]+\.(png|jpg|jpeg|webp)$/i.test(p); };
+    /* v1652 — THE VALIDATOR REJECTED OUR OWN CACHE-BUSTER, SO BOSS ART COULD NEVER PAINT.
+       This regex was $-anchored immediately after the extension, so ANY query string failed it. That
+       was harmless until v1643 made `_artV` stamp art urls with the build id to stop a repaired
+       asset staying invisible — after which `_runBossArt` returns
+       `art/Andariel_graphic.png?v=v1651`, this returned false, `_itemArtImg` returned '', and NO
+       <img> was ever emitted. Two of my own fixes, each correct alone, silently cancelling.
+       MEASURED in the live console before the fix: the rendered chips for `Hell Mephisto`,
+       `Hell TZ Andariel` and `Hell TZ Pindleskin` all had imgs:0 (box ~114x16, ~140x16, ~158x16) —
+       the route and the hover card were there, the picture never was. Item art still painted because
+       `artUrl()` is deliberately NOT stamped (v1643 left those seams alone), which is exactly why
+       the gap was invisible unless you measured a BOSS chip specifically.
+       The query is now allowed, and only the query: still same-origin, still relative, still an
+       image extension, still no `javascript:`/`data:`/remote host. The character class is
+       deliberately narrow (word chars, `=`, `.`, `-`) so this widens the gate by a cache-buster and
+       nothing else. */
+    var ok = function(p){ return /^\/?art\/[\w.\-\/]+\.(png|jpg|jpeg|webp)(\?[\w=.\-]*)?$/i.test(p); };
     if (!ok(u)){
       // SECOND WITNESS, not a guess: the board's own name→art manifest (D2IO_ART, 639 HD entries)
       // is already mirrored into this document by thArtInit/thArt for the tally + card surfaces.
