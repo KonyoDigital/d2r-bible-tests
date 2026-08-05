@@ -11,12 +11,19 @@ const GOLD = 'rgb(240, 192, 96)';   // #f0c060 — the unified family title acce
 
 // spine + title selectors per tab: Session sc-hero-tf, Tools tvf-spine, and the three forge
 // siblings share .forge-head.tvf-head + .forge-title (all recolored gold in v775).
-const TAB: Record<string, { spine: string; title: string }> = {
+/* v1625 ITEM6 gave the two tabs that NAME an in-game quality their own title colour — F·Uniques
+   wears unique tan, F·Sets wears set green — while Sessions/Tools/Forge-plain keep the v775 family
+   gold because they have no quality to wear. v775 predates that and demanded gold everywhere, so
+   it failed on exactly the two tabs the newer rule was written for. The family check survives; the
+   two documented exceptions are now stated instead of asserted away. */
+const UNIQUE = 'rgb(199, 179, 119)';   // --q-unique #c7b377
+const SET    = 'rgb(0, 252, 0)';       // --q-set    #00fc00
+const TAB: Record<string, { spine: string; title: string; want?: string }> = {
   session: { spine: '#tab-session .sc-hero-tf',        title: '#tab-session .sc-title' },
   tools:   { spine: '#tools-spine.tvf-spine',          title: '#tools-spine .tvf-title' },
   forge:   { spine: '#tab-forge .forge-head.tvf-head', title: '#tab-forge .forge-title' },
-  funi:    { spine: '#tab-funi .forge-head.tvf-head',  title: '#tab-funi .forge-title' },
-  fsets:   { spine: '#tab-fsets .forge-head.tvf-head', title: '#tab-fsets .forge-title' },
+  funi:    { spine: '#tab-funi .forge-head.tvf-head',  title: '#tab-funi .forge-title', want: UNIQUE },
+  fsets:   { spine: '#tab-fsets .forge-head.tvf-head', title: '#tab-fsets .forge-title', want: SET },
 };
 
 test.describe('v775 — the five tabs are one console family', () => {
@@ -39,7 +46,7 @@ test.describe('v775 — the five tabs are one console family', () => {
         }, { n: name, s: sel.spine, t: sel.title });
         expect(r.spine, `${name} spine present @${vw}`).toBe(true);
         expect(r.title, `${name} title present @${vw}`).toBe(true);
-        expect(r.color, `${name} GOLD title @${vw}`).toBe(GOLD);
+        expect(r.color, `${name} title colour @${vw}`).toBe(sel.want || GOLD);
         expect(r.overflow, `${name} no h-overflow @${vw}`).toBeLessThanOrEqual(1);
       }
     });

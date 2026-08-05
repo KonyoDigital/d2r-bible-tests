@@ -192,7 +192,7 @@ test('v341.2 the preview picker is a custom ART-RICH menu (rune/gem HD icons, ba
 test('v341.3 dashboard tiles render with in-game rarity glow + icon-chip recipes + beats line', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w = window as any;
-    ['Tal','Thul','Ort','Amn'].forEach((n) => w.adjustRuneStash(n, 2));   // → Spirit (runeword, orange)
+    ['Tal','Thul','Ort','Amn'].forEach((n) => w.adjustRuneStash(n, 2));   // → Spirit (runeword, GOLD)
     w.adjustGemStash('Perfect Ruby', 1); w.adjustRuneStash('Nef', 1); w.toggleCraftBase('Gloves'); // → Blood Gloves
     w.renderCreateNow();
     const host = document.getElementById('create-now')!;
@@ -201,7 +201,11 @@ test('v341.3 dashboard tiles render with in-game rarity glow + icon-chip recipes
     const craft = tiles.find((t) => /Blood Gloves/.test(t.textContent || ''));
     const orange = (el: HTMLElement | undefined) => (el?.getAttribute('style') || '').includes('#ffa800');
     return {
-      runewordOrange: orange(rw),                                  // runewords = orange tier
+      /* REG-137 — a RUNEWORD is unique GOLD #c7b377 (FontColorGoldYellow), never crafted orange
+         #ffa800. _qHex was the last map still saying orange and was fixed in v1663; it now emits
+         `var(--q-runeword)`, so match the token OR the hex it resolves to. CRAFTED stays orange
+         below — that one was always right. */
+      runewordGold: /var\(--q-runeword\)|#c7b377/i.test(rw?.getAttribute('style') || ''),
       craftOrange: orange(craft),                                  // crafts = orange tier
       runewordRuneIcons: (rw?.querySelectorAll('.cn-rc-i img').length || 0) >= 3,  // Tal+Thul+Ort+Amn icons
       craftHasGemRuneIcons: (craft?.querySelectorAll('.cn-rc-i img').length || 0) >= 2,
@@ -209,7 +213,7 @@ test('v341.3 dashboard tiles render with in-game rarity glow + icon-chip recipes
       noTruncatedText: !/Sharkskin · Vam/.test(host.textContent || ''),  // recipe is icons, not cut-off text
     };
   });
-  expect(r.runewordOrange).toBe(true);
+  expect(r.runewordGold).toBe(true);
   expect(r.craftOrange).toBe(true);
   expect(r.runewordRuneIcons).toBe(true);     // rune sequence shown as HD icons
   expect(r.craftHasGemRuneIcons).toBe(true);
