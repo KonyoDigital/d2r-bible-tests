@@ -3428,3 +3428,68 @@ proof, 8 tests) also green. No spec anywhere asserts the OLD flat-text shape of 
 pick's head marker (checked via grep across `tests/*.spec.ts` for `hh-src`/`tf-nm`/`_aiSay`
 usages) — the one spec that does inject `.hh-src` HTML (`v1554_hero_typography`) writes it as a
 hand-authored fixture, not through `hubNextGrail`, so it is unaffected by this change.
+
+## v1654 — Tools index chip colour-sync (TINY build)
+Konyo: "also color sync all the keywords relevant here too on the tools page" — the Tools tab
+index chip rows (`.ti-chip` inside `.ti-g` groups). Synced ONLY the chips naming an item QUALITY,
+using the same tokens the board already uses elsewhere (`--rune`, `--q-runeword`, `--q-set`,
+`--q-orange`), added via new modifier classes `.ti-q-rune`/`.ti-q-runeword`/`.ti-q-set`/
+`.ti-q-crafted` at `.tools-index .ti-chip.ti-q-*` (3319-ish, specificity 0,3,0 — beats both the
+`:hover` and `.ti-hot` rules at 0,2,0 so the quality colour holds even on the hot "do now" runes
+chip and on hover).
+Touched (measured live via Playwright `getComputedStyle`, file:// load, no server):
+  - "runes" (rune-stash-card, do-now group, also `.ti-hot`) -> rgb(255,125,60) = `--rune` #ff7d3c
+  - "crafts" (craft-workshop-card) -> rgb(255,168,0) = `--q-orange` #ffa800
+  - "recipes" (horadric-recipe-card) -> rgb(255,168,0) = `--q-orange` #ffa800
+  - "runewords" (all-runewords-card) -> rgb(199,179,119) = `--q-runeword` (resolves to
+    `--q-unique` #c7b377, per REG-132 — runewords are gold, not crafted-orange)
+  - "sets" (set-tracker-card) -> rgb(0,252,0) = `--q-set` #00fc00
+Deliberately LEFT neutral (measured unchanged at rgb(181,164,138) = `--text-muted`): sweep, vault,
+chronicle, insights, gems, materials, sunders, AI checker, bases, loot filter, worth, rarity, HVF,
+field guide — every one of these names a TOOL or a PLACE, not an item quality; there is no token
+for gems/materials/stash (storage/crafting inputs, not qualities) and colouring a tool would make
+the vocabulary meaningless. No chip on this page names "uniques" or "grail" currently, so
+`--q-unique` direct (not via runeword) was not applied anywhere.
+Grepped `tests/v1628_board_quality_tokens.spec.ts`, `v311_unified_rarity.spec.ts`,
+`v518_forge_craft_art_colors.spec.ts`, `v1625_board_quality_surfaces.spec.ts` for `.ti-chip` —
+zero hits, none assert Tools-index chip colours, so none needed re-running.
+Companion piece (console MINI focus chips, item 1 of the same request) is a separate
+tv/control_ui.html owner/task, not touched by this bible.html-only edit.
+
+## REG-136 — v1654 MINI focus chips colour-sync (TINY build, item 1: tv/control_ui.html)
+Konyo, on the console: "under MINI where on air is. the stash materials runes sets uniques can
+also be color synced accordingly to their relevant coding color also." Sole owner of
+tv/control_ui.html for this task; the Tools-page half (item 2) above was a companion agent on
+bible.html and is untouched by this edit.
+Added `.mini-foc .mf[data-f="..."]` rules (~2789-2791, specificity 0,3,0 — ties `.mini-foc .mf.on`
+also 0,3,0, resolved by SOURCE ORDER placed after `.on` so category colour wins in both states) for
+the three focuses that name an item QUALITY: `runes` -> `var(--rar-rune)`, `chronicle-uniques` ->
+`var(--rar-unique)`, `chronicle-sets` -> `var(--rar-set)`. Deliberately left `stash`, `gems`,
+`materials` on the existing neutral cream/gold — they are storage/crafting inputs, not item
+qualities, and there is no `--rar-*` token for them on purpose (per this file's own console
+vocabulary at the top of `control_ui.html`).
+Design decision: the category owns the TEXT COLOUR in BOTH the unselected and selected state;
+selection is still carried by `.on`'s existing border/background/font-weight, so a synced chip
+still reads as visibly "on" without losing its category colour when picked.
+Measured live (Playwright, `getComputedStyle`, exact `<style>` block extracted from the file into
+a throwaway harness with the real `.mf`/`.mf.on` markup — the live app's `#mini-foc` needs a
+running `control_app.py` backend to populate and could not be reached inside budget, so this is
+the CSS-cascade truth, not the full app pipeline):
+  - `stash` off -> rgb(236,224,200) (`--text-dim`), on -> rgb(240,192,96) (gold) — UNCHANGED
+    (deliberately left, confirms no accidental match)
+  - `gems` off -> rgb(236,224,200), on -> rgb(240,192,96) — UNCHANGED (deliberately left)
+  - `materials` off -> rgb(236,224,200), on -> rgb(240,192,96) — UNCHANGED (deliberately left)
+  - `runes` off -> rgb(255,125,60), on -> rgb(255,125,60) = `--rar-rune` #ff7d3c, BOTH states
+  - `chronicle-uniques` off -> rgb(199,179,119), on -> rgb(199,179,119) = `--rar-unique` #c7b377,
+    BOTH states
+  - `chronicle-sets` off -> rgb(0,252,0), on -> rgb(0,252,0) = `--rar-set` #00fc00, BOTH states
+  - Selection is still legible: measured `runes` on vs off also differs in border-color
+    (rgba(198,166,100,.24) -> rgba(240,192,96,.7)) and background (rgba(0,0,0,.3) ->
+    rgba(240,192,96,.14)) — untouched by this change.
+Ran `tests/v1603_mini_focus.spec.ts`, `tests/v1614_game_art_icons.spec.ts`,
+`tests/v1615_one_concept_one_picture.spec.ts` (the three specs touching `#mini-foc`/`.mf`) —
+29/29 passed, none assert `.mf` text colour so none were changed, none needed updating.
+NOT proven: computed colour inside the actual running console UI (needs `control_app.py` + a
+websocket session, out of budget) — the CSS-cascade proof above is real (same `<style>` block,
+same selectors, same markup shape the builder emits) but is not a substitute for opening the live
+page. Anyone doubting it should load the console and pick each focus once.

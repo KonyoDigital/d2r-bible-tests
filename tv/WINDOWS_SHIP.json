@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1653",
+  "ver": "v1654",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1653: the MY HUNT source chip wears the real rarity token so a set stops reading as mint and a boss stops reading as a set",
+  "note": "v1654: colour-sync MINI focus chips runes uniques sets to rar tokens stash gems materials left neutral deliberately",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
