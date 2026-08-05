@@ -22,7 +22,10 @@ try {
   ({ chromium } = require('playwright'));
 }
 
-const URL = 'http://127.0.0.1:17772/';
+// v1679 — the port is overridable so a layout probe can run against a THROWAWAY console
+// (TV_CONTROL_PORT=17999 control_app.py --no-open) instead of the one Konyo has open. Default
+// unchanged; nothing that does not set the variable behaves differently.
+const URL = `http://127.0.0.1:${process.env.TV_CONTROL_PORT || 17772}/`;
 const PANE_TABS = ['forge', 'funi', 'fsets', 'tools'];  // v1377 — 'session' removed: Sessions is now console-native (data-view=sessions), no longer opens a bible pane
 
 const results = [];
@@ -402,6 +405,32 @@ async function j9_terrorZoneFlagship(page) {
         return true
       })(),
       cardBoxes: all.map((c) => c.w + 'x' + c.h + '@y' + c.y),
+      /* ══ v1679 · THE ROWS INSIDE THE CARD, WHICH NOTHING HERE HAS EVER MEASURED ═══════════════
+         Konyo: "tz tracker i want aligned the sections/acts within it they are like not syymetric".
+         Every assertion above is about the CARD — its width, its height, its y. All of them were
+         GREEN on the rotation he screenshotted, because the cards really were even; what was
+         crooked was the type INSIDE them. The zone name wraps to two lines for "Worldstone Keep"
+         and one for "Black Marsh", so ACT sat 28px lower in UP NEXT than in LIVE NOW, and the
+         density line's optional `→ 96 terrorized` moved it another 14px between UP NEXT's own two
+         rows. Measured before the v1679 fix at 1920px: three distinct offset sets — ACT at +40,
+         +68 and +83 from the card top on five cards in one panel.
+         So this measures each line's offset FROM ITS OWN CARD and demands one answer across every
+         card in BOTH slots. Offsets are fractional (grid tracks land on half pixels), so the
+         invariant is a 1px spread, not equality — rounding each side separately manufactured a
+         1px "failure" on a panel that was in fact aligned to 0.01px. */
+      rowSpread: (() => {
+        const rows = ['.tzz-art', '.tzz-txt i', '.tzz-why', '.tzz-den'];
+        const cards = [...document.querySelectorAll('#tz-body .tz-slot .tzz')];
+        const out = {};
+        for (const sel of rows) {
+          const offs = cards.map((c) => {
+            const e = c.querySelector(sel);
+            return e ? e.getBoundingClientRect().y - c.getBoundingClientRect().y : null;
+          }).filter((v) => v !== null);
+          out[sel] = offs.length ? +(Math.max(...offs) - Math.min(...offs)).toFixed(2) : null;
+        }
+        return out;
+      })(),
       clipped: [...document.querySelectorAll('#tz-body .tz-slot .tzz *')]
         .filter((n) => n.childElementCount === 0 && (n.textContent || '').trim())
         .filter((n) => n.scrollWidth > n.clientWidth + 1)
@@ -457,6 +486,70 @@ async function j9_terrorZoneFlagship(page) {
   if ((by('Blood Moor') || {}).t !== 'tzz-thin') fail.push('Blood Moor was not greyed');
   if (!((by('Blood Moor') || {}).grey || '').includes('grayscale')) fail.push('the THIN treatment is not visually distinct');
   if ((by('Stony Tomb') || {}).t !== 'tzz-prime') fail.push('Stony Tomb (density 2200) was not PRIME');
+
+  /* ══ v1679 · A SECOND ROTATION, BECAUSE THE ONE ABOVE CANNOT FAIL THIS ═══════════════════════
+     Konyo: "tz tracker i want aligned the sections/acts within it they are like not syymetric" —
+     the lines INSIDE the cards, not the cards. Every assertion above is about card geometry and
+     all of them were green on the panel he photographed.
+
+     I wrote the offset check against the fixture above first and it passed with the fix REMOVED —
+     measured, not assumed: 484x139 cards, spread 0px, gate green, defect fully present on his
+     screen. None of Stony Tomb / Travincal / Ancient's Way / Blood Moor / Cold Plains / Outer
+     Cloister wraps its name at 484px and all six carry the same density shape, so the fixture is
+     blind to this the same way the pre-v1641 one was blind to the `why` line. That is the exact
+     failure mode the two FIXTURE IS BLIND guards above exist to name, so the answer is a fixture
+     that CAN express it, not a softer assertion.
+
+     HIS ROTATION, verbatim from the 01:34 screenshot. It carries both triggers at once:
+       · "Worldstone Keep" wraps to two lines where "Black Marsh" does not — and the two slots are
+         sibling grids, so `grid-auto-rows:1fr` cannot equalise across them (:2664).
+       · "Worldstone Chamber" has density but no alvl, so it renders no `→ 96 terrorized` verdict
+         row while its neighbours do.
+     Before v1679 this produced ACT at +40 / +68 / +83 from the card top on five cards in one
+     panel; after, one offset for every line on every card in both slots.
+     Kept as a SEPARATE pass rather than by editing the rotation above, because that one is
+     load-bearing for the tier, art, oxford-comma and why/no-why assertions. */
+  await page.unroute('**/api/tz');
+  await page.route('**/api/tz', (r) => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ current: 'Black Marsh and The Hole',
+                           next: 'Worldstone Keep, Throne of Destruction, and Worldstone Chamber',
+                           ts: Date.now() }) }));
+  await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
+  await page.waitForFunction(() => [...document.querySelectorAll('#tz-body .tzz b')]
+    .some((b) => /Worldstone/.test(b.textContent)), null, { timeout: 9000 }).catch(() => {});
+  const rows = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('#tz-body .tz-slot .tzz')];
+    /* offset FROM ITS OWN CARD, subtracted before rounding: grid tracks land on half pixels, and
+       rounding each side separately manufactures a 1px "failure" on a panel aligned to 0.01px. */
+    const spread = (sel) => {
+      const offs = cards.map((c) => {
+        const e = c.querySelector(sel);
+        return e ? e.getBoundingClientRect().y - c.getBoundingClientRect().y : null;
+      }).filter((v) => v !== null);
+      return offs.length ? +(Math.max(...offs) - Math.min(...offs)).toFixed(2) : null;
+    };
+    return { n: cards.length,
+             wrapped: cards.some((c) => { const b = c.querySelector('.tzz-top b');
+               return b && b.getBoundingClientRect().height > parseFloat(getComputedStyle(b).lineHeight) * 1.5; }),
+             noVerdict: cards.some((c) => !c.querySelector('.tzz-terr')),
+             art: spread('.tzz-art'), act: spread('.tzz-txt i'),
+             why: spread('.tzz-why'), den: spread('.tzz-den') };
+  });
+  if (rows.n < 5) fail.push(`the second rotation rendered ${rows.n} zone cards, expected 5`);
+  /* NON-VACUITY, same discipline as whyNow/whyNext: this fixture is only worth running while it
+     still contains a wrapped name AND a card with no verdict row. Lose either and it goes blind. */
+  if (!rows.wrapped) fail.push('FIXTURE IS BLIND — no zone name wraps to two lines, so a cross-slot '
+                               + 'name-height mismatch cannot show; restore a long-named zone');
+  if (!rows.noVerdict) fail.push('FIXTURE IS BLIND — every card carries a `→ 96 terrorized` verdict, '
+                                 + 'so a missing-verdict height mismatch cannot show');
+  {
+    const crooked = ['art', 'act', 'why', 'den'].filter((k) => rows[k] !== null && rows[k] > 1);
+    if (crooked.length) {
+      fail.push('the lines inside the zone cards do not line up across the two slots — '
+                + crooked.map((k) => k + ' varies by ' + rows[k] + 'px').join(', '));
+    }
+  }
   await page.unroute('**/api/tz');
   record(name, fail.length === 0,
          fail.length ? fail.join(' · ')

@@ -2611,6 +2611,53 @@
        deciding whether to farm. Two lines, then ellipsis — the name is never silently halved. */
     .hd-tz .tz-slot .tzz-txt b { white-space: normal; overflow-wrap: anywhere;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    /* ══ v1679 · THE TWO WRAPPING LINES RESERVE THEIR SECOND ROW ══════════════════════════════
+       Konyo, on the live rotation: "tz tracker i want aligned the sections/acts within it they are
+       like not syymetric" — the ACT line, specifically.
+
+       MEASURED on his own rotation (Black Marsh + The Hole / Worldstone Keep, Throne of
+       Destruction, Worldstone Chamber) at 1920px: LIVE NOW cards 141px tall, UP NEXT cards 169px,
+       and `ACT` sitting at +40px from the card top on the left, +68px on the right, +83px in UP
+       NEXT's second row. Three different heights for the same line.
+
+       CAUSE — and it is the rule two lines above this one. v1637 let the name wrap to two lines so
+       "Moo Moo Farm" is not halved. That was right, but it made the name's line COUNT data-driven:
+       "Worldstone Keep" wraps at 217px and "Black Marsh" does not, so the name row is 28px taller
+       in one slot than the other and every line beneath it — ACT included — is pushed down by that
+       much. `.tzz-den` does the same thing one row lower ("700 density · alvl 85 → 96 terrorized"
+       wraps; "no density on record" does not), which is what moves ACT again between UP NEXT's own
+       two rows.
+
+       WHY NO EARLIER FIX CAUGHT IT: v1587 put the zones in one grid, v1641 gave the cards
+       deterministic heights via `grid-auto-rows:1fr`, v1670 reserved two rows for the LABEL. All
+       three are still correct and none of them can help here — 1fr equalises rows WITHIN a grid and
+       the two slots are sibling grids (:2664 says so), so a taller card in one slot has nothing to
+       negotiate against in the other. The height has to be RESERVED, which is exactly the reasoning
+       v1670 used for the label and v1641 used for the empty `why` line. This is the third and last
+       variable-height line in the card.
+
+       IN THIS BLOCK ON PURPOSE, per REG-104: below 900px the name is nowrap+ellipsis and the slots
+       stack, so neither line can wrap and reserving a second row there would be dead space. The
+       reserve belongs where the wrap it compensates for is enabled — the same mistake REG-104 and
+       v1637 were both about is putting the right rule in a block that never runs.
+       No clamp added: 2 lines is already the name's cap, and the density line stays free to grow.
+
+       ⚠ SCOPED TO `.tzz-top b`, NOT `.tzz-txt b`. The density line ends in a NESTED
+       `<b class="tzz-terr">→ 96 terrorized</b>` (:13273), so the broader selector the rule above
+       uses matches the verdict too — reserving 2.44em of --fs-md inside a --fs-2xs line and
+       inflating the density row by ~28px. Measured when I wrote it that way: card heights all
+       equalised at 197px and ACT still sat at +68 / +87, i.e. the number moved and the defect did
+       not. The name is the only <b> that is a NAME. */
+    .hd-tz .tz-slot .tzz-top b { min-height: 2.44em; }   /* 2 rows at the 1.22 line-height set :2859 */
+    /* …and the density line reserves its VERDICT row. `→ 96 terrorized` is emitted only when the
+       zone has an `alvl` (:13273), and it is a nested <b> at --fs-md, so a card that has one runs
+       ~48px there and a card that does not runs ~20px. Measured: Worldstone Chamber has density
+       but no alvl, so its text column stood 28px shorter than its neighbours' and `.tzz-txt`'s
+       `justify-content:center` (:2717) halved that into a 14px drop — ACT at +82 against +68 on
+       every other card. Reserving the row keeps the centring honest instead of removing it.
+       Written as its own line-height PLUS one verdict line-height rather than a pixel guess,
+       because both sides are clamp() tokens that change with the viewport. */
+    .hd-tz .tz-slot .tzz-den { min-height: calc(1.3em + 1.22 * var(--fs-md)); }
   }
   .act.b-mini .ic { color: var(--gold, #f0c060); }
   .act.b-mini.mini-live { border-color: rgba(240,192,96,.55); }

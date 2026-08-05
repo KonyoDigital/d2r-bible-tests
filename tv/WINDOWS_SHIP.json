@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1678",
+  "ver": "v1679",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1678: the F-Uniques, F-Sets and Tools page headers wear the same icon as their tab",
+  "note": "v1679: the zone name and the density line reserve their second row so ACT sits at one offset in both slots",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
