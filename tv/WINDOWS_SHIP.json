@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1655",
+  "ver": "v1656",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1655: gems materials and vault get their colours too because the app already had them and I wrongly said it did not",
+  "note": "v1656: the best farm hero wears the boss face its item art routes and every named drop shows its own quality",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

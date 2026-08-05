@@ -7850,6 +7850,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    adopt THAT. Same hover/focus affordance as .fs-piece, routed to the boss card (openBossDetail),
    which is what the run row's own boss surface routes to — no item arttip, a boss has none. */
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--best,#66ff88);cursor:pointer;text-decoration:none;border-radius:5px}
+/* v1656 — the hero's boss portrait sits ON the name, sized to the display type it lives in. The
+   best-run rows use 19-23px for a body-sized line; this line is var(--fs-display), so it takes a
+   larger glyph and a little more air, and vertical-align keeps it on the baseline instead of
+   pushing the line box taller. */
+.fh-artgo{cursor:pointer;display:inline-block;line-height:0}
+.fh-artgo:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:6px}
+.fh-boss .fh-boss-i{width:26px;height:26px;vertical-align:-5px;margin-right:7px;border-radius:4px;object-fit:cover}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:hover{filter:brightness(1.18);text-decoration:underline}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--best);outline-offset:2px}
 #tab-funi .forge-title{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}   /* v1625 ITEM6 — per-tab override */
@@ -32922,6 +32929,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return '<span class="f-artname" data-arttip="'+_fEsc(n)+'" style="cursor:help">'+logo+body+'</span>';
   }
   // art-ify a "A / B / C" base list (the 🏆 best-base hints) — each base gets its own logo + hover art
+  window._qArt=_qArt;   // v1656 — published: the F-Uniques hero lives in a DIFFERENT closure (2 IIFEs away)
   function _qArtList(s){ return String(s||'').split(/\s*\/\s*/).map(function(b){ b=b.trim(); return b?_qArt(b):''; }).filter(Boolean).join(' <span style="opacity:.5">/</span> '); }
   // v519 — role badges on a base option (Konyo: "say what's ideal, what's MERCenary gear, what's end-game"):
   //   ★ ideal (the top recommended pick) · 1H = your player weapon · merc = a 2H polearm/spear/bow (merc gear)
@@ -35371,12 +35379,57 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var nm = esc(r && r.boss || '');
     if (!nm) return '';
     if (!r || !r.bossId) return '<span class="fh-boss" style="cursor:default">'+nm+'</span>';
+    /* v1656 — THE BOSS HERO GETS ITS FACE AND ITS CARD, not just its colour. Konyo: "hell mephisto
+       needs to be upgrade here for the first row here the hd-art0r with image title also of the
+       mephisto itself for bosses and also whichever it rotates too next ... also tooltip image
+       cursor floating the whole works as the rest of the console just like it".
+       v1650 gave this helper the green and the click and stopped there. The two pieces it lacked
+       already exist in this file and are simply not called here:
+         · `_runBossArt(bossId, label)` — the SAME resolver the best-run thumbnails use, so the hero
+           and the row beneath it show ONE picture for one boss. It is `_artV`-stamped, so a repaired
+           portrait is not invisible (v1643), and v1652 taught the console validator to accept that
+           stamp.
+         · `data-boss-tip` — the floating card built from the BOSSES row itself (see ~23557), which
+           is what makes hover open the BOSS card rather than an ITEM lookalike. That distinction is
+           the v1636 fix: data-art-logo asked the ITEM map and answered with Mephisto's SOULSTONE.
+       ROTATION IS THE POINT, and it is free: every boss resolves through bossId, so whatever the
+       pick rotates to tomorrow is dressed by the same code. Nothing here is Mephisto-specific.
+       A boss with no portrait falls back to level art inside _runBossArt, and if that is empty too
+       the name simply renders without a picture — never a broken frame. */
     var go = 'window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')';
+    var _bh = null; try { _bh = (typeof _runBossArt === 'function') ? _runBossArt(r.bossId, r.boss) : null; } catch(e){}
+    var _bimg = (_bh && _bh.url)
+      ? '<img class="fh-boss-i" src="'+esc(_bh.url)+'" alt="" loading="lazy" onerror="this.remove()">'
+      : '';
     return '<span class="fh-boss" role="button" tabindex="0" aria-label="open the '+nm+' boss card"'
+      +' data-boss-tip="'+esc(r.bossId)+'"'
       +' title="open the '+nm+' boss card"'
       +' onclick="event.stopPropagation();'+go+'"'
-      +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'+go+';}">'+nm+'</span>';
+      +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'+go+';}">'
+      + _bimg + nm + '</span>';
   }
+  /* v1656 — THE HERO'S ITEM PICTURE BECOMES A DOOR, on every hero, not just the one he pointed at.
+     Konyo: "the item should be clickable and routable and tooltip image cursor floating of the
+     barnaes star ... but that also upgrades with the works".
+     The hero art slot rendered a bare `art(name)` — a picture of a real item that could not be
+     hovered, clicked or routed, while the NAME beside it and every row beneath it could. Two call
+     sites had the same gap (F·Uniques best-farm at ~35507, F·Sets quick-win at ~36216), so this is
+     one helper rather than two edits: the next hero added inherits it instead of being forgotten,
+     which is exactly how the boss heroes came to be missed in the first place.
+     `data-arttip` is the same delegated floating-card hook 171 other surfaces already use, and
+     navigateToItem is the board's own item router — no fourth invention. A hero with no item name
+     returns the plain art unchanged, so nothing becomes a dead affordance. */
+  function _heroItemArt(nm, glyph){
+    var a = art(nm || '', glyph);
+    if (!nm) return a;
+    var go = 'window.navigateToItem&&window.navigateToItem(\''+jsq(nm)+'\')';
+    return '<span class="fh-artgo" data-arttip="'+esc(nm)+'" role="button" tabindex="0"'
+      + ' title="'+esc(nm)+' — open its card"'
+      + ' onclick="event.stopPropagation();'+go+'"'
+      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'+go+';}">'
+      + a + '</span>';
+  }
+  window._heroItemArt=_heroItemArt;
   window._bossHeroName=_bossHeroName;
   function _runCard(r,i){
     // v647.1 — the '+N more from this run' dead-end becomes an in-card drawer: EVERY drop of the
@@ -35476,9 +35529,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var top=s.runs[0];
     if(top&&F!=='found'){
       H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
-        +'<div class="fh-artwrap"><div class="fh-art">'+art(top.items[0]?top.items[0].n:'','🎯')+'</div><div class="fh-icobadge">🎯</div></div>'
+        +'<div class="fh-artwrap"><div class="fh-art">'+_heroItemArt(top.items[0]?top.items[0].n:'','🎯')+'</div><div class="fh-icobadge">🎯</div></div>'
         +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+_bossHeroName(top)+'</div>'
-        +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+_fuRate(top.ev)+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
+        /* v1656 — THE THREE NAMED DROPS WEAR THEIR QUALITY, like every other item name on the board.
+           Konyo: "i see baranses start ormus robe(should be in green) then thunderstoke. so also sync
+           the color image cursor the whole works here too ormus robe if its a unique then obviously
+           gold my bad" — and he is right both times: the rule is the ITEM's own quality, whatever it
+           is, never a guess from the surrounding text. `_qArt` already resolves colour (_qC), art
+           (nameLogo), the floating card (data-arttip) and the cursor, and ~100 surfaces use it. This
+           line was building `esc(x.n)` by hand, so three real item names sat as flat prose inside a
+           hero whose title had just been given the full treatment. */
+        +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+_fuRate(top.ev)+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return (window._qArt?window._qArt(x.n):esc(x.n));}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
         +(F==='runs'
             ? '<button class="f-btn fh-cta" onclick="'+(top.bossId?'window.openBossDetail(\''+top.bossId+'\')':'window.switchTab(\'bosses\')')+'">Open boss card <span class="fh-cta-arw">→</span></button></div>'
             : '<button class="f-btn fh-cta" onclick="window.funiSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>'));   /* v695 🏓R7 — on the runs view the old CTA TOGGLED BACK to All (funiSetFilter re-click semantics): a lying arrow on the planning surface */
@@ -36185,7 +36246,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if(quick.length){
         var q0=quick[0], qClean=_pieceLabel(q0.name);   /* v1630 ITEM A(b) — same one stripper; qClean is BOTH the visible text and the art/navigateToItem key here, and those resolve paren-stripped (findSetPiece matches exact-then-stripped), so it stays the value passed to the lookups. */
         H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
-          +'<div class="fh-artwrap"><div class="fh-art">'+art(qClean,'🧩')+'</div><div class="fh-icobadge">⚡</div></div>'
+          +'<div class="fh-artwrap"><div class="fh-art">'+_heroItemArt(qClean,'🧩')+'</div><div class="fh-icobadge">⚡</div></div>'
           +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · quick win</div><div class="fh-name"><span class="fs-piece" data-arttip="'+esc(qClean)+'" role="button" tabindex="0" aria-label="open '+esc(qClean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\');}">'+esc(qClean)+'</span></div>'
           +'<div class="fh-body">the LAST piece of <b>'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b>'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(q0.src.chance)+'</span>':'')+'</div></div>'
           +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">Quick wins <span class="fh-cta-arw">→</span></button></div>');
@@ -38448,7 +38509,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1655', name:'v1655 - category-colours-complete', date:'2026-08-05', note:'gems materials and vault get their colours too because the app already had them and I wrongly said it did not' };
+  window.D2R_BUILD = { id:'v1656', name:'v1656 - hero-full-works', date:'2026-08-05', note:'the best farm hero wears the boss face its item art routes and every named drop shows its own quality' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
