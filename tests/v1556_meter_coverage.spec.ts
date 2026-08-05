@@ -78,7 +78,15 @@ async function chronRows(page: any) {
       const b = (r.querySelector('.tf-t b') as HTMLElement | null);
       const tag = (r.querySelector('.tf-tag') as HTMLElement | null);
       const txt = ((t && t.textContent) || '').replace(/\s+/g, ' ').trim();
-      const m = txt.match(/(\d+)\s*\/\s*(\d+)/);
+      // v1636 MOVED the count out of the sentence into its own cell so the three chronicles line
+      // up as columns: `<span class="tf-n">243<i>/</i><u>403</u></span>`. This parser still read
+      // `found / total` out of .tf-t, found no match, and returned null for BOTH numbers — so
+      // three tests failed on `Expected 243, Received null` while the app was rendering perfectly.
+      // Read the count where it now lives, and fall back to the sentence so an older render (or a
+      // regression that puts it back) is still parsed rather than silently reported as null.
+      const n = (r.querySelector('.tf-n') as HTMLElement | null);
+      const numTxt = ((n && n.textContent) || '').replace(/\s+/g, ' ').trim();
+      const m = numTxt.match(/(\d+)\s*\/\s*(\d+)/) || txt.match(/(\d+)\s*\/\s*(\d+)/);
       out.push({
         name: ((b && b.textContent) || '').trim(),
         found: m ? +m[1] : null,
@@ -180,7 +188,11 @@ test.describe('v1630 — the grail numbers live on the Task Force, once', () => 
     const regions = await page.evaluate((pair: string) => {
       const root = document.getElementById('home-dash');
       if (!root) return -1;                       // fail loudly rather than pass on a missing hub
-      const norm = (s: string) => (s || '').replace(/\s+/g, ' ');
+      // v1636 renders the pair as `243<i>/</i><u>403</u>`, whose textContent is "243/403" with NO
+      // spaces, while this guard searched for "243 / 403" and therefore found ZERO — reporting a
+      // missing meter as if it were a duplicate-free hub. Collapse the spacing around the slash on
+      // BOTH sides so either rendering is caught: the guard gets STRONGER, not looser.
+      const norm = (s: string) => (s || '').replace(/\s+/g, ' ').replace(/\s*\/\s*/g, '/');
       const hits: Element[] = [];
       root.querySelectorAll('*').forEach((el) => {
         if (norm(el.textContent || '').indexOf(pair) === -1) return;
@@ -190,7 +202,7 @@ test.describe('v1630 — the grail numbers live on the Task Force, once', () => 
         hits.push(el);
       });
       return hits.length;
-    }, `${P.grail.found} / ${P.grail.total}`);
+    }, `${P.grail.found}/${P.grail.total}`);
     expect(regions, 'the hub must not print the grail pair in two places').toBe(1);
   });
 
