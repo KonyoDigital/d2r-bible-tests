@@ -80,15 +80,17 @@ test.describe('v134 tools cards art-hover + routing coverage', () => {
         allTip: names.every(n => (n.getAttribute('data-arttip') || '').length > 0),
         // data-arttip strips the "(slot)" suffix -> no parens in the tip value
         tipNoSlot: names.every(n => !/\(/.test(n.getAttribute('data-arttip') || '')),
-        // text label keeps the full "(slot)" piece string
-        labelKeepsSlot: names.some(n => /\(/.test((n.textContent || ''))),
+        // v1630 ("the slot suffix goes") added _pieceLabel, which strips a KNOWN slot suffix
+        // from the visible label as well as the tip. A parenthetical that is NOT a slot
+        // ("Gull (dagger)") still survives verbatim, so this stays a real check.
+        labelHasSlotParens: names.some(n => /\((?:helm|armor|shield|gloves|belt|boots|weapon|amulet|ring)\)/i.test((n.textContent || ''))),
         withArt: names.filter(n => n.querySelector('.d2art-img')).length,
       };
     });
     expect(r.count).toBeGreaterThan(0);
     expect(r.allTip).toBe(true);
     expect(r.tipNoSlot).toBe(true);
-    expect(r.labelKeepsSlot).toBe(true);
+    expect(r.labelHasSlotParens, 'v1630 strips a known slot suffix from the LABEL too, not just the tip').toBe(false);
     expect(r.withArt).toBeGreaterThan(0);
   });
 

@@ -116,7 +116,11 @@ test.describe('v1617 — the in-game card, everywhere an item is named', () => {
     await console_(page);
     const c = await card(page, '#hub-hero-sets .hh-name');
     expect(c.missing, 'v1616 left this inert; it must render a card now').toBe(false);
-    expect(c.name).toBe("Griswold's Honor (Shield)");
+    // v1630 ("the slot suffix goes") strips a KNOWN slot parenthetical from the displayed
+    // label. The fixture still SEEDS the full "Griswold's Honor (Shield)" — which is the point:
+    // the card must resolve the seeded name and print the human one. A non-slot parenthetical
+    // ("Gull (dagger)") is left verbatim by _pieceLabel, so this is not a blanket strip.
+    expect(c.name).toBe("Griswold's Honor");
     expect(c.art).toBe(true);
     expect(c.type).toBe('Set · Crown Shield');
     expect(c.meta).toBe('Req level: 69 · Quality level: 74');
