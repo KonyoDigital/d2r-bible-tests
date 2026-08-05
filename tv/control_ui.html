@@ -61,7 +61,14 @@
     --rar-rune:       #ff7d3c;
     --rar-orange: #ffa800;
     --gold-dim: #a07830;
-    --mint: #8fe6a0;
+    --mint: #8fe6a0; --acc-intel: #6fb8e8;
+    /* v1667 — ONE SWITCH FOR THE WHOLE HEADING THEME. Konyo: "maybe all these im mentioning
+       now should be linked and synced to a one unit shell for a theme so when wanted we can
+       change it all in one shot." Every ZONE/PANEL heading points here instead of naming an
+       accent of its own — THE RECORD was --info, THE MISSIONS --mint, TZ TRACKER --gold, three
+       headings wearing three colours for no reason anyone could state. Repointing this single
+       line restyles every heading that uses it; nothing else needs touching. */
+    --panel-head: var(--info);
     --danger: #ff7a7a;
     --info: #7ec8ff;
     --sim: #c9a8ff;
@@ -3288,7 +3295,12 @@
   body[data-view="sessions"] .zone-banner .zb-ico { display: none; }
   .zone-banner .zb-sub { margin-left: auto; align-self: center; font: var(--fw-medium) var(--fs-2xs)/1 var(--mono);
     letter-spacing: var(--ls-normal); text-transform: none; color: var(--muted); }
-  .zone-hunt { color: var(--gold); } .zone-mission { color: var(--mint); } .zone-record { color: var(--info); }
+  /* v1667 — Konyo: "the missions and chronicle sweeps also make blue like the record ... also
+     for daily task force blue like the record also tz tracker also next grail also next piece".
+     THE RECORD already used --info; the other two zone banners were the odd ones out, each on a
+     different accent. One token now names a ZONE HEADING, so a heading can never be mistaken for
+     a quality colour — which is the whole point of the palette work. */
+  .zone-hunt { color: var(--panel-head); } .zone-mission { color: var(--panel-head); } .zone-record { color: var(--panel-head); }
   /* v1424 — DOM is already Ⅰ HUNT → taskforce → Ⅱ MISSIONS → forge → Ⅲ RECORD → kpi…
      CSS order kept as belt-and-suspenders (matches document order; crest/hero still lead). */
   .hub-bible { order: -1; }
@@ -3476,6 +3488,7 @@
   .hh-name.r-magic,  .ch-card-item .ch-nm.r-magic,   .tf-t b.tf-nm.r-magic    , .hh-src b.r-magic { color: var(--rar-magic); }
   .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted,  .tf-t b.tf-nm.r-crafted  , .hh-src b.r-crafted { color: var(--rar-orange); }
   .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword, .tf-t b.tf-nm.r-runeword , .hh-src b.r-runeword { color: var(--rar-runeword); }
+  .hh-src b.hh-boss, .tf-t b.hh-boss, .ch-card-item .ch-nm.hh-boss { color: var(--acc-intel); }
   /* v1666 — THE GLOW, SYNCED TO THE BOARD. Konyo: "everywhere else on the console is DULL
      compared to the effected glow ... make it synced across them all." The board gives every
      quality-coloured NAME a 3-layer shadow (.item-tile-name, .gf-cname, .arw-name); the console
@@ -3489,7 +3502,8 @@
   .tf-t b.tf-nm.r-set, .tf-t b.tf-nm.r-unique, .tf-t b.tf-nm.r-rare,
   .tf-t b.tf-nm.r-magic, .tf-t b.tf-nm.r-crafted, .tf-t b.tf-nm.r-runeword,
   .hh-src b.r-set, .hh-src b.r-unique, .hh-src b.r-rare,
-  .hh-src b.r-magic, .hh-src b.r-crafted, .hh-src b.r-runeword {
+  .hh-src b.r-magic, .hh-src b.r-crafted, .hh-src b.r-runeword,
+  .hh-src b.hh-boss, .tf-t b.hh-boss {
     text-shadow: 0 0 4px color-mix(in srgb, currentColor 55%, transparent),
                  0 0 10px color-mix(in srgb, currentColor 50%, transparent),
                  0 1px 1px rgba(0,0,0,.55);
@@ -3514,7 +3528,7 @@
   .hh-altgo:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6);
     border-radius: 4px; }
   .hh-eta { position: relative; flex: none; text-align: right; }
-  .hh-eta b { display: block; font: var(--fw-bold) clamp(17px,1.65vw,21px)/1 var(--serif); color: var(--gold); letter-spacing: .02em; }
+  .hh-eta b { display: block; font: var(--fw-bold) clamp(17px,1.65vw,21px)/1 var(--serif); color: var(--acc-intel); letter-spacing: .02em; }
   .hh-eta span { display: block; font: var(--fw-medium) var(--fs-2xs)/1.2 var(--mono); letter-spacing: .10em; text-transform: uppercase; color: var(--muted); margin-top: 3px; max-width: 13ch; margin-left: auto; }
   @media (prefers-reduced-motion: reduce){ .hh-name { animation: none; } }
   @media (max-width: 640px){ .hub-hero { flex-direction: column; align-items: flex-start; } .hh-eta { text-align: left; } }
@@ -5467,9 +5481,14 @@
      item-name fallback, which is the same soulstone trap one layer down. */
   function _bossChip(label, bossId, art){
     var shown = esc(String(label || ''));
-    if (!bossId) return '<b>' + shown + '</b>';
+    /* v1667 — a BOSS is blue everywhere now (Konyo: "the boss names the theme blue we have for
+       the rest of the console now for named bosses titles"). v1653 deliberately left boss chips
+       on --mint so they would read differently from a set; that separation still holds, it is
+       just blue now instead of a second green. Both return paths carry the class — a boss with
+       no bossId is still a boss. */
+    if (!bossId) return '<b class="hh-boss">' + shown + '</b>';
     var go = 'window._hubGoBoss(&quot;' + bossId + '&quot;)';
-    return '<b class="hh-go" role="button" tabindex="0" aria-label="' + shown + ' — open the boss run"'
+    return '<b class="hh-go hh-boss" role="button" tabindex="0" aria-label="' + shown + ' — open the boss run"'
       + _itipAttr({ name: String(label || ''), art: art || '', rarity: '', go: 'click to open the boss run' })
       + ' onclick="event.stopPropagation();' + go + '"'
       + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();'

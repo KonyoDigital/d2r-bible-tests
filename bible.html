@@ -7840,7 +7840,25 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-funi,#tab-fsets) .gs-head,:is(#tab-funi,#tab-fsets) .gs-set{padding-left:12px}
 :is(#tab-funi,#tab-fsets) .gs-set{padding-right:12px}
 #tab-fsets .fs-piece{color:var(--q-set);cursor:pointer;text-decoration:none;border-radius:5px}   /* v1625 ITEM5 */
-#tab-fsets .f-cardtitle .f-rwbig.fs-piece,#tab-fsets .fh-name .fs-piece{color:var(--q-set)}   /* v1625 ITEM5 — beats the (1,2,0) .f-cardtitle .f-rwbig rule that renders later in this sheet */
+#tab-fsets .f-cardtitle .f-rwbig.fs-piece,#tab-fsets .fh-name .fs-piece{color:var(--q-set)}
+/* v1667 — THE WORKS, FOR SETS AND BOSSES. Konyo: "every keyword thats a set needs an update /
+   upgrade of the full works ... and bosses/levels BLUE like the color theme decided ... for item
+   names also color sync."
+   Three name kinds sat in plain --text cream while the chips beside them wore their quality:
+   the SET a piece completes ("completes Cow King's Leathers"), the BOSS on the best-run line
+   ("best run: Normal Andariel"), and the set PIECE itself, which had the colour but never the glow.
+   The glow uses currentColor so it can never drift from whatever quality the name carries — one
+   rule, every rarity, no second palette. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .fs-setname{color:var(--q-set);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .gf-boss{color:var(--acc-intel);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fs-piece,
+:is(#tab-forge,#tab-funi,#tab-fsets) .fs-setname,
+:is(#tab-forge,#tab-funi,#tab-fsets) .gf-boss{
+  text-shadow:0 0 4px color-mix(in srgb,currentColor 55%,transparent),
+              0 0 10px color-mix(in srgb,currentColor 50%,transparent),
+              0 1px 1px rgba(0,0,0,.55);
+}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fs-setname:hover{filter:brightness(1.18)}   /* v1625 ITEM5 — beats the (1,2,0) .f-cardtitle .f-rwbig rule that renders later in this sheet */
 #tab-fsets .fs-piece:hover{filter:brightness(1.18);text-decoration:underline}
 #tab-fsets .fs-piece:focus-visible{outline:2px solid var(--q-set);outline-offset:2px}
 /* v1644 ITEM1 — the two BEST-FARM heroes named a boss in bare cream (measured rgb(244,232,208))
@@ -35473,7 +35491,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bb=_bestSrc(x); var b=bb&&bb.s;
     var _bc=bb?bb.chance:null;                                  // v1616 — his MF/players odds, not the baseline
     var _t=b?_ttf(_bc,b.kph):'';
-    var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(_bc)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
+    var src=b?('<div class="gf-src">📍 best run: <b class="gf-boss">'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(_bc)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
              :'<div class="gf-note">no verified source — drops broadly</div>';
     /* v1624 — QUICK WINS still shows the ITEM (his call: "for quick wins we dont touch and leave
        it as is which is the item as the main") — it just stops being an inert picture. */
@@ -35495,7 +35513,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          The art(x.n,'🏆') call above keeps the trophy as the missing-image FALLBACK — a
          different thing, and the only place the glyph still earns its space here. */
       +'</div><div class="f-cardbody">'
-      +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
+      +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'"'+_qStyle(x.n,'unique')+'>'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
       +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')">✓ found it</button></div></div></div>';
   }
   // v709 (Grok forge wave B2, honesty-bounded) — the cross-mode courtesy strip: while grail-running,
@@ -36271,7 +36289,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
           +'<div class="fh-artwrap"><div class="fh-art">'+_heroItemArt(qClean,'🧩')+'</div><div class="fh-icobadge">⚡</div></div>'
           +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · quick win</div><div class="fh-name"><span class="fs-piece" data-arttip="'+esc(qClean)+'" role="button" tabindex="0" aria-label="open '+esc(qClean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\');}">'+esc(qClean)+'</span></div>'
-          +'<div class="fh-body">the LAST piece of <b>'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b>'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(q0.src.chance)+'</span>':'')+'</div></div>'
+          +'<div class="fh-body">the LAST piece of <b class="fs-setname" data-arttip="'+esc(q0.set.replace(/\s*\(set\)$/,''))+'" style="cursor:help">'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b class="gf-boss">'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(q0.src.chance)+'</span>':'')+'</div></div>'
           +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">Quick wins <span class="fh-cta-arw">→</span></button></div>');
       } else if(runs.length){
         var t0=runs[0];
@@ -36332,7 +36350,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            there; this is the same removal reaching the sibling tab. */
         _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig fs-piece" data-arttip="'+esc(clean)+'" role="button" tabindex="0" aria-label="open '+esc(clean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\');}">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
-          +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
+          +'<div class="f-atomsubrow">completes <b class="fs-setname" data-arttip="'+esc(mp.set.replace(/\s*\(set\)$/,''))+'" style="cursor:help">'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
           +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailTogglePiece(this,\''+jsq(mp.name)+'\')">✓ found it</button></div></div></div>');
       });
       H.push(_moreWrap(_qCards, F==='near'?12:6, 'quick wins'));   // v647
@@ -38543,7 +38561,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1666', name:'v1666 - rarity-glow-sync', date:'2026-08-05', note:'every quality-coloured name glows the same way on the board and the console, instead of only the chips' };
+  window.D2R_BUILD = { id:'v1667', name:'v1667 - blue-theme-and-the-works', date:'2026-08-05', note:'set names, boss names and headings stop each inventing their own colour — one token now names a heading' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
