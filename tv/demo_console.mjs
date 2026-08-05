@@ -515,6 +515,14 @@ async function j9_terrorZoneFlagship(page) {
     body: JSON.stringify({ current: 'Black Marsh and The Hole',
                            next: 'Worldstone Keep, Throne of Destruction, and Worldstone Chamber',
                            ts: Date.now() }) }));
+  /* v1682 — WIDEN THE WINDOW, OR THE SQUEEZE CANNOT HAPPEN. The suite runs at 1470px, where the
+     TZ slot fits ONE 484px column and every zone name has room to spare. The mid-word break needs
+     the TWO-column layout: at 1920px the slot is 682px, `.tz-zones` auto-fit puts two ~325px cards
+     side by side, and the name column drops to 134px against a 139px "Worldstone". I wrote this
+     assertion at 1470 first and it passed with the fix REMOVED — measured, not assumed. A wider
+     window is the fixture, exactly as the second rotation is. Restored below so nothing after this
+     inherits it. */
+  await page.setViewportSize({ width: 1920, height: 1200 });
   await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
   await page.waitForFunction(() => [...document.querySelectorAll('#tz-body .tzz b')]
     .some((b) => /Worldstone/.test(b.textContent)), null, { timeout: 9000 }).catch(() => {});
@@ -529,7 +537,25 @@ async function j9_terrorZoneFlagship(page) {
       }).filter((v) => v !== null);
       return offs.length ? +(Math.max(...offs) - Math.min(...offs)).toFixed(2) : null;
     };
-    return { n: cards.length,
+    /* v1682 — NO NAME MAY BE FORCED TO BREAK INSIDE A WORD. `.tzz-top` is a flex row shared with
+       the PRIME/GOOD badge, and `.tzz-top b { min-width: 0 }` licensed the name to shrink below
+       its own longest word — measured at 1920px, a 134px box against a 139px "Worldstone", which
+       rendered "Worldston / e Keep" on three of five cards. Compared against the CANVAS-measured
+       width of the longest word in the name's own computed font, so this asks whether a break is
+       FORCED rather than trying to read the rendered line boxes. */
+    const midWord = cards.map((c) => {
+      const nm = c.querySelector('.tzz-top b');
+      if (!nm) return null;
+      const cs = getComputedStyle(nm);
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const words = (nm.textContent || '').trim().split(/\s+/);
+      const need = Math.max(...words.map((w) => ctx.measureText(w).width));
+      return nm.getBoundingClientRect().width + 1 < need
+        ? (nm.textContent || '').trim() + ' (' + Math.round(nm.getBoundingClientRect().width)
+          + 'px box vs ' + Math.ceil(need) + 'px word)' : null;
+    }).filter(Boolean);
+    return { n: cards.length, midWord,
              wrapped: cards.some((c) => { const b = c.querySelector('.tzz-top b');
                return b && b.getBoundingClientRect().height > parseFloat(getComputedStyle(b).lineHeight) * 1.5; }),
              noVerdict: cards.some((c) => !c.querySelector('.tzz-terr')),
@@ -537,6 +563,10 @@ async function j9_terrorZoneFlagship(page) {
              why: spread('.tzz-why'), den: spread('.tzz-den') };
   });
   if (rows.n < 5) fail.push(`the second rotation rendered ${rows.n} zone cards, expected 5`);
+  if (rows.midWord && rows.midWord.length) {
+    fail.push('a zone name is squeezed narrower than its own longest word, so it breaks mid-word — '
+              + rows.midWord.join(' · '));
+  }
   /* NON-VACUITY, same discipline as whyNow/whyNext: this fixture is only worth running while it
      still contains a wrapped name AND a card with no verdict row. Lose either and it goes blind. */
   if (!rows.wrapped) fail.push('FIXTURE IS BLIND — no zone name wraps to two lines, so a cross-slot '
@@ -551,6 +581,7 @@ async function j9_terrorZoneFlagship(page) {
     }
   }
   await page.unroute('**/api/tz');
+  await page.setViewportSize({ width: 1470, height: 920 });   // v1682 — hand the suite back its window
   record(name, fail.length === 0,
          fail.length ? fail.join(' · ')
                      : `${out.length} zones · all faces game-extracted · PRIME/THIN separated (Travincal kept by boss override)`

@@ -2609,8 +2609,29 @@
        at which width `.tzz-txt b`'s nowrap+ellipsis truncated "Moo Moo Farm" to "Moo Moo …".
        That ellipsis is right for a one-line chip and wrong for the hero name of a zone he is
        deciding whether to farm. Two lines, then ellipsis — the name is never silently halved. */
-    .hd-tz .tz-slot .tzz-txt b { white-space: normal; overflow-wrap: anywhere;
+    /* v1682 — `break-word`, NOT `anywhere`, or the name breaks INSIDE the word.
+       Measured at 1920px on the live rotation: the name box is 134px while "Worldstone" needs
+       139px, so three of five cards rendered "Worldston / e Keep", "Worldston / e Chamber" and a
+       clipped "Throne of Destruct…". The two values differ in exactly the way that matters here:
+       `anywhere` lets soft-wrap opportunities INSIDE a word count toward min-content, so
+       `.tzz-top`'s flex row is free to shrink the name below its own longest word and hand the
+       space to the PRIME/GOOD badge sitting beside it; `break-word` keeps min-content at the
+       longest word, so flex must give the name that much and it wraps at the SPACE instead.
+       Both still break a genuinely unbreakable word rather than overflowing, which is the property
+       v1637 wanted — it just asked for the stronger value than the problem needed.
+       This is the same complaint v1637 was answering ("the name is never silently halved"); an
+       ellipsis and a mid-word break are the same defect wearing different punctuation. */
+    .hd-tz .tz-slot .tzz-txt b { white-space: normal; overflow-wrap: break-word;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    /* …AND `break-word` ALONE CHANGES NOTHING HERE, which is why this second rule exists.
+       Measured: after switching to break-word the box was still 134px against a 139px word, byte
+       for byte the same as before. The binding constraint is `.tzz-top b { min-width: 0 }` (:2801)
+       — min-width:0 is an EXPLICIT licence for a flex item to shrink below its own min-content, so
+       the badge beside it wins the row no matter what overflow-wrap says. That rule is right where
+       it came from (a one-line chip that must ellipsis rather than push its row wide) and wrong
+       inside a two-line zone card. Floor it at the longest word instead; the badge is `flex:none`
+       and keeps its size, and the two together fit the column. */
+    .hd-tz .tz-slot .tzz-top b { min-width: min-content; }
     /* ══ v1679 · THE TWO WRAPPING LINES RESERVE THEIR SECOND ROW ══════════════════════════════
        Konyo, on the live rotation: "tz tracker i want aligned the sections/acts within it they are
        like not syymetric" — the ACT line, specifically.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1681",
+  "ver": "v1682",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1681: v609 and v877 were asserting an art path without its cache-buster and a stage the homepage stopped using",
+  "note": "v1682: the name column is floored at its longest word so the badge cannot squeeze it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
