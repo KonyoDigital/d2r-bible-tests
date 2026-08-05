@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1672",
+  "ver": "v1673",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1672: the three forge page headers wear their own tab art, the forge title takes runeword gold, and three console chrome icons land",
+  "note": "v1673: the alternative unique in MY HUNT finally wears its own quality colour",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

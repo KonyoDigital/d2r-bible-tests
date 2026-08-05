@@ -3505,6 +3505,19 @@
   .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted,  .tf-t b.tf-nm.r-crafted  , .hh-src b.r-crafted { color: var(--rar-orange); }
   .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword, .tf-t b.tf-nm.r-runeword , .hh-src b.r-runeword { color: var(--rar-runeword); }
   .hh-src b.hh-boss, .tf-t b.hh-boss, .ch-card-item .ch-nm.hh-boss { color: var(--acc-intel); }
+  /* v1673 — the alternative unique in MY HUNT joins the same r-* vocabulary as every other
+     item name on this surface, rather than growing a rule of its own. */
+  .hh-alt .hh-altgo.r-unique   { color: var(--rar-unique); }
+  .hh-alt .hh-altgo.r-set      { color: var(--rar-set); }
+  .hh-alt .hh-altgo.r-runeword { color: var(--rar-runeword); }
+  .hh-alt .hh-altgo.r-rare     { color: var(--rar-rare); }
+  .hh-alt .hh-altgo.r-magic    { color: var(--rar-magic); }
+  .hh-alt .hh-altgo.r-crafted  { color: var(--rar-orange); }
+  .hh-alt .hh-altgo {
+    text-shadow: 0 0 4px color-mix(in srgb, currentColor 55%, transparent),
+                 0 0 10px color-mix(in srgb, currentColor 50%, transparent),
+                 0 1px 1px rgba(0,0,0,.55);
+  }
   /* v1666 — THE GLOW, SYNCED TO THE BOARD. Konyo: "everywhere else on the console is DULL
      compared to the effected glow ... make it synced across them all." The board gives every
      quality-coloured NAME a 3-layer shadow (.item-tile-name, .gf-cname, .arw-name); the console
@@ -12062,7 +12075,13 @@
           + (_alt ? '<span class="hh-alt"> · quicker below Hell: '
               + (function(){
                   var am = _byName[_alt.name] || {};
-                  return '<span class="hh-altgo" role="button" tabindex="0"'
+                  /* v1673 — THE ALT ITEM WEARS ITS QUALITY. v1620 gave this name art, a tooltip and
+                     a route but never its COLOUR, so "quicker below Hell: Umbral Disk" sat in plain
+                     cream two pixels under a title already painted unique gold — the same item kind,
+                     two answers, which is exactly the confusion the palette work exists to remove.
+                     The rarity was already resolved right here for the tooltip; it just never reached
+                     the element. */
+                  return '<span class="hh-altgo r-' + esc(am.rarity || 'unique') + '" role="button" tabindex="0"'
                     + ' aria-label="' + esc(_alt.name) + ' — open it in the uniques chronicle"'
                     + _itipAttr({ name: _alt.name || '', art: am.art || '',
                                   rarity: am.rarity || 'unique', tip: am.tip || null,
