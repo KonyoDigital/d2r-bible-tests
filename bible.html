@@ -15973,13 +15973,25 @@ function _writeGrailFarm(){
         var adj = effChance(s.chance, s.bossId, s.diffKey);
         var hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
-        if (!best || hrs < best.hours) best = { boss: s.boss, chance: adj, kph: s.kph || 100, hours: hrs };
+        if (!best || hrs < best.hours) best = { boss: s.boss, bossId: s.bossId, chance: adj, kph: s.kph || 100, hours: hrs };
         if (String(s.diffKey || '').indexOf('hell') === 0 && (!bestHell || hrs < bestHell.hours))
-          bestHell = { boss: s.boss, chance: adj, kph: s.kph || 100, hours: hrs };
+          bestHell = { boss: s.boss, bossId: s.bossId, chance: adj, kph: s.kph || 100, hours: hrs };
       });
-      if (best && best.chance > 0)
-        out.push({ name: item.n, source: best.boss, dropChance: 1 / best.chance, killsPerHr: best.kph,
+      /* v1651 — THE SOURCE IS A BOSS NAME, NOT AN ITEM. "Hell Mephisto"/"Hell TZ Pindleskin" were
+         shipped as bare strings the console had nowhere true to resolve art for — artUrl() is the
+         ITEM map and would repeat the exact soulstone-as-Mephisto defect _runBossArt was written to
+         refuse (v1629, bible.html:~35197). The bridge publishes the boss's OWN portrait via the
+         published _runBossArt seam instead of leaving the console to guess. */
+      function _srcArt(bossId){
+        try { return (typeof window._runBossArt === 'function') ? (window._runBossArt(bossId) || null) : null; }
+        catch(e){ return null; }
+      }
+      if (best && best.chance > 0) {
+        var _bArt = best.bossId ? _srcArt(best.bossId) : null;
+        var _hArt = (bestHell && bestHell.bossId) ? _srcArt(bestHell.bossId) : null;
+        out.push({ name: item.n, source: best.boss, sourceBossId: best.bossId || null, dropChance: 1 / best.chance, killsPerHr: best.kph,
                    hellSource: bestHell ? bestHell.boss : null,
+                   hellSourceBossId: bestHell ? (bestHell.bossId || null) : null,
                    hellDropChance: bestHell ? 1 / bestHell.chance : null,
                    hellKillsPerHr: bestHell ? bestHell.kph : null,
                    /* v1616 — THE ITEM IS THE POINT, SO SHIP THE ITEM'S FACE. The console is a
@@ -15989,7 +16001,13 @@ function _writeGrailFarm(){
                       corrupt placeholder, so a WRONG picture is worse than no picture. */
                    art: (typeof artUrl === 'function' ? (artUrl(item.n) || null) : null),
                    rarity: (typeof _artRarity === 'function' ? (_artRarity(item.n) || null) : null),
+                   /* v1651 — the boss's own portrait for the SOURCE label (Hell Mephisto etc),
+                      distinct from `art` above (the ITEM's own picture). null when _runBossArt
+                      has none, same honesty rule as item art. */
+                   sourceArt: (_bArt && _bArt.url) ? _bArt.url : null,
+                   hellSourceArt: (_hArt && _hArt.url) ? _hArt.url : null,
                    tip: _bridgeTip(item.n) });
+      }
     });
     var _new = JSON.stringify(out), _old = null;
     try { _old = LS.getItem('d2r_grailFarm'); } catch(e){}
@@ -16036,19 +16054,38 @@ function _writeSetFarm(){
           var a2 = effChance(z.chance, z.bossId, z.diffKey);
           var h2 = hoursFor(a2, 0.5, z.kph || 100);
           if (h2 === null) return;
-          if (!bestHell || h2 < bestHell.h) bestHell = { h: h2, boss: z.boss, chance: a2, kph: z.kph || 100 };
+          if (!bestHell || h2 < bestHell.h) bestHell = { h: h2, boss: z.boss, bossId: z.bossId, chance: a2, kph: z.kph || 100 };
         });
       } catch(e){}
+      /* v1651 — SET AGGREGATE ART, SAME FALLBACK CHAIN AS THE DAILY PICK (v1649,
+         bible.html:~22279). A set's collective name carries no sprite of its own — measured,
+         artUrl("Griswold's Legacy") is null exactly like artUrl("Tancred's Battlegear") was — so
+         a bare artUrl(st.name) here always shipped null and the MY HUNT panel had no picture for
+         it. _setRepArtName resolves the set's REPRESENTATIVE piece (the daily pick's own answer to
+         this exact question); falling back further to the first missing piece's own art keeps this
+         entry pictured even when the representative piece has none. */
+      var _setImgName = (typeof window._setRepArtName === 'function') ? window._setRepArtName(st.name) : null;
+      var _setArtUrl = null;
+      try { _setArtUrl = (typeof artUrl === 'function') ? (artUrl(st.name) || (_setImgName ? artUrl(_setImgName) : null)) : null; } catch(e){}
+      if (!_setArtUrl) { try { _setArtUrl = (typeof artUrl === 'function') ? (artUrl(miss[0].name) || null) : null; } catch(e){} }
+      /* v1651 — boss portrait for the source label, same seam as _writeGrailFarm above. */
+      var _sSrcArt = null;
+      try { _sSrcArt = (src.bossId && typeof window._runBossArt === 'function') ? (window._runBossArt(src.bossId) || null) : null; } catch(e){}
+      var _sHellArt = null;
+      try { _sHellArt = (bestHell && bestHell.bossId && typeof window._runBossArt === 'function') ? (window._runBossArt(bestHell.bossId) || null) : null; } catch(e){}
       out.push({ name: miss[0].name, set: st.name, left: st.left,
-                 source: src.boss, dropChance: 1 / adj, killsPerHr: src.kph || 100,
+                 source: src.boss, sourceBossId: src.bossId || null, dropChance: 1 / adj, killsPerHr: src.kph || 100,
                  hellSource: bestHell ? bestHell.boss : null,
+                 hellSourceBossId: bestHell ? (bestHell.bossId || null) : null,
                  hellDropChance: bestHell ? 1 / bestHell.chance : null,
                  hellKillsPerHr: bestHell ? bestHell.kph : null,
+                 sourceArt: (_sSrcArt && _sSrcArt.url) ? _sSrcArt.url : null,
+                 hellSourceArt: (_sHellArt && _sHellArt.url) ? _sHellArt.url : null,
                  /* v1616 — same art bridge as _writeGrailFarm. The PIECE's own art (that is the
                     thing he is hunting); setArt is the aggregate's, for the set-level headline. */
                  art: (typeof artUrl === 'function' ? (artUrl(miss[0].name) || null) : null),
                  rarity: (typeof _artRarity === 'function' ? (_artRarity(miss[0].name) || null) : null),
-                 setArt: (typeof artUrl === 'function' ? (artUrl(st.name) || null) : null),
+                 setArt: _setArtUrl,
                  /* v1617 — the piece's own in-game stat block, same bridge as the uniques hero.
                     Konyo asked for Griswold to read exactly like Frostburn. */
                  /* v1620 — uniques live in ITEM_TIP, set pieces in the codex's setMembers[].
@@ -38395,7 +38432,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1650', name:'v1650 - chips-first-line', date:'2026-08-05', note:'the forge quest chips align on their first line so a short one stops floating below the others' };
+  window.D2R_BUILD = { id:'v1651', name:'v1651 - MY HUNT bridge publishes boss portraits and the set-art fallback chain', date:'2026-08-05', note:'grail and set farm bridges now ship sourceArt/hellSourceArt via the published _runBossArt seam and setArt falls back through _setRepArtName exactly like the daily pick, so the console can dress boss names and set aggregates without re-deriving facts' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

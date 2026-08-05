@@ -3309,3 +3309,51 @@ single blanket `rgb(240,192,96)` on `.forge-title`, but `#tab-funi`/`#tab-fsets`
 per-tab colour overrides — `var(--q-unique)`/`var(--q-set)` — unrelated to and unchanged by this
 edit; `#tab-forge`'s own failure with an untouched `--rune` colour proves the family is broken
 independent of this ship).
+
+## REG-134 — MY HUNT bosses and set aggregates had no fact for the console to dress them with
+
+**Symptom (Konyo, screenshots 2026-08-04).** Three labels flat (`Sets · 🧩` / `🏆 Grail` /
+`📜 Runewords`) and the MY HUNT panel half-dressed: `Hell Mephisto` and `Hell TZ Pindleskin`
+(boss-name SOURCE labels on the grail/set hero) carried no art and no card, and `Griswold's
+Legacy` (a set aggregate) had green text but no picture.
+
+**Root cause.** `_writeGrailFarm`/`_writeSetFarm` (bible.html) publish the `d2r_grailFarm` /
+`d2r_setFarm` bridges the console reads. They already shipped `art`/`rarity` for the ITEM being
+hunted (v1616), but the `source`/`hellSource` fields — the BOSS the item drops from — were bare
+strings with no art fact at all, so a console trying to dress "Hell Mephisto" had nothing but a
+name and would have had to guess at an item-art lookup — exactly the soulstone-as-Mephisto class
+of bug `_runBossArt` (v1629) exists to refuse. Separately, `_writeSetFarm`'s `setArt` called
+`artUrl(st.name)` directly with no fallback; a set's collective name carries no sprite of its own
+(the daily-pick bridge learned this at v1649 and added a `_setRepArtName` fallback chain there),
+so any set whose bare aggregate name doesn't happen to resolve shipped `setArt: null` — measured,
+"Cow King's Leathers (set)" was one of his own 9 in-progress sets doing exactly this.
+
+**Fix.** `_writeGrailFarm`/`_writeSetFarm` now publish `sourceArt`/`hellSourceArt` (via the
+published `window._runBossArt(bossId)` seam, same one `openBossDetail` and the terror-zone cards
+use — no new lookup, no re-derivation) and `sourceBossId`/`hellSourceBossId` so a console-side
+click can route to `openBossDetail` instead of an item card. `_writeSetFarm`'s `setArt` now runs
+the same `_setRepArtName` → first-missing-piece fallback chain the daily-pick bridge uses, instead
+of a bare `artUrl(st.name)`.
+
+**Measured, before → after, via `_writeGrailFarm()`/`_writeSetFarm()` run live in bible.html:**
+- `sourceArt`/`hellSourceArt` did not exist before (field absent on every entry); after, e.g. the
+  grail hero's Hell source ships `hellSourceArt: "art/reanimatedhorde-opt_graphic.png?v=v1650"`
+  (Pindleskin's real portrait, via `_runBossArt`), not an item-art guess.
+- `d2r_setFarm[*].setArt` for `"Cow King's Leathers (set)"`: `null` before → 
+  `"art/hd_studded_leather.png"` after (the same 9-entry live working set, same run).
+- `_artRarity('Frostburn')` (the fact this bridge exports as `rarity`) already read `"unique"`
+  before this change — `ITEM_CODEX["Frostburn"].rarity === "unique"` — so the data layer this file
+  owns was already correct; if the console renders it as `--text` instead of `--rar-unique` that
+  is a control_ui.html class/CSS bug, outside this file, NOT re-derived or re-fixed here.
+
+**Out of scope for this file (bible.html only):** the three label titles (`Sets`/`Grail`/
+`Runewords` as coloured HD-art headers), the FROSTBURN computed-colour render check itself, and
+routing a click on a boss/set name to the right card — all console-side (tv/control_ui.html)
+rendering, owned elsewhere. This ship is the bridge only: publish the facts a console-side fix
+would otherwise have had to re-derive.
+
+**Tests.** Ran the 4 spec files that exercise `_writeGrailFarm`/`_writeSetFarm` directly
+(`v1554_hero_typography`, `v1616_2_fanout_is_real`, `v1620_set_pieces_and_the_alt`,
+`v1630_set_piece_slot_suffix` — 18 tests) unchanged and green; these specs seed synthetic bridge
+JSON for console-side assertions and pass the real writer functions with no shape assumptions
+that additive fields break.
