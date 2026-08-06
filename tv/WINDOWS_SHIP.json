@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1685",
+  "ver": "v1686",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1685: the rule was written above the family rule at equal specificity so source order silently won",
+  "note": "v1686: an id-scoped colour override that loses on source order alone is now caught by name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
