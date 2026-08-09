@@ -448,10 +448,27 @@ class TestDoctor(unittest.TestCase):
         self.addCleanup(lambda: os.environ.__setitem__("PATH", old))
 
     def test_doctor_ok_ignores_offline_agent(self):
+        """Agent OFF (no bridge / no frames) must NEVER flip ok to False.
+
+        ⚠ v1687 — THIS ASSERTED A PROXY. The property is "nothing the AGENT does blocks";
+        it asserted the WHOLE doctor verdict, which also carries machine facts about this
+        Mac. `screen_recording` (v1607, severity 'block') is granted per-binary by macOS
+        TCC and a headless launch does not inherit it — so on any Mac where the tests run
+        outside the granted app, this test failed for a reason that has nothing to do with
+        the agent, and kept the whole pre-push gate red. CI never saw it: the check sits
+        inside `if sys.platform == "darwin"` and CI is ubuntu.
+
+        The grant is stubbed rather than tolerated. Tolerating it (ignoring that check id)
+        would also swallow a real regression where the agent somehow caused it; stubbing
+        says exactly what is being held constant. The check itself is UNCHANGED and still
+        blocks on his console, which is the whole reason it was added.
+        """
         self._shim_claude_on_path()
-        """Agent OFF (no bridge / no frames) must NEVER flip ok to False."""
         old = ca._agent_mode
+        old_sr = getattr(ca, "_screen_recording_ok_quick", None)
         ca._agent_mode = "off"
+        if old_sr is not None:
+            ca._screen_recording_ok_quick = lambda: True
         try:
             d = ca.doctor_payload()
             self.assertTrue(d["ok"], "doctor blocked with the agent merely OFF: "
@@ -459,6 +476,8 @@ class TestDoctor(unittest.TestCase):
                                     if c["severity"] == "block" and not c["ok"]]))
         finally:
             ca._agent_mode = old
+            if old_sr is not None:
+                ca._screen_recording_ok_quick = old_sr
 
     def test_doctor_never_spawns_cli(self):
         import inspect
