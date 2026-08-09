@@ -25,17 +25,22 @@
  * be quietly wrong: one cousin on a phone and a laptop counts twice, and several people behind one
  * router with no login name collapse into one.
  *
- * ── SCOPE (added after the 2026-08-02 "the tracker is broken" report) ───────────────────────────
- * THIS PAGE COUNTS BROWSER PAGE-VIEWS OF /d2r/ ONLY. Nothing else. There are TWO trackers on this
- * site and they answer DIFFERENT questions:
- *   /visits  (this file)              ← browser page-views, written by recordVisit() in _middleware.js
- *   /console (functions/console.js)   ← TV DIABLO console APP presence, written by the beacon in
- *                                       tv/control_app.py, which POSTs to /api/console and NEVER
- *                                       loads the /d2r/ page.
- * So the console app CAN NEVER APPEAR HERE, BY DESIGN. Konyo went looking for his cousin's console
- * session on this page, correctly did not find it, and concluded the tracker was dead. Half the
- * root cause was not a code bug at all — it was that neither page said what it was. It says so now,
- * loudly, at the top, with a link through to /console carrying the same ?k=.
+ * ── SCOPE (2026-08-02, REWRITTEN v1687 — the old text below it was true and is no longer) ───────
+ * This page carries TWO kinds of record, measured in DIFFERENT UNITS and never added together:
+ *   PAGE-VIEWS      browser loads of /d2r/, from `visit:` keys written by recordVisit()
+ *                   in _middleware.js. Every count, card and chart on the page is these.
+ *   CONSOLE MACHINES machines running the TV DIABLO app, from `console:` (10-min presence) and
+ *                   `lastseen:` (durable) keys written by /api/console, beaconed by
+ *                   tv/control_app.py. Its own section, its own units, in NO total above it.
+ *
+ * WHY THEY ARE BOTH HERE NOW. The console app never loads /d2r/, so it cannot produce a page-view
+ * — true then, true now. Konyo went looking for his cousin's console session on this page twice
+ * (2026-08-02 and 2026-08-09), correctly did not find it, and both times concluded the tracker was
+ * dead. Both times the answer was a LINK to /console, and v1602 made that link the loudest element
+ * on the page. He read past it again. A POINTER IS NOT A TRACKER: a person hunting a machine opens
+ * the dashboard, not the signpost. So the machines are ON this page — while the page-view numbers
+ * stay exactly what they always measured, because merging them would fix the navigation by
+ * corrupting the data. /console remains the deep page: per-event history and beacon health.
  *
  * Two more honesty surfaces added at the same time, both for the same reason (an empty tracker and a
  * healthy-but-quiet tracker used to look identical):
@@ -79,6 +84,53 @@ export async function onRequestGet(context) {
   }
   const raw = await Promise.all(keys.map((k) => kv.get(k.name, 'json').catch(() => null)));
   const visits = raw.filter((v) => v && v.t).sort((a, b) => (a.t < b.t ? 1 : -1)); // newest first
+
+  // ── CONSOLE APP SESSIONS (v1687) ───────────────────────────────────────────────────────────────
+  // Konyo, TWICE — 2026-08-02 and 2026-08-09: "my cousin logged in to the console, i dont see it
+  // tracked here." Both times the data was on /console, correct and current, and both times the fix
+  // was a LINK from this page. v1602 made that link the loudest element under the title and he read
+  // past it again, because a person looking for a machine opens the tracker, not the signpost.
+  // A POINTER IS NOT A TRACKER. The third fix puts the machines on the page he actually opens.
+  //
+  // ⚠ AND THEY ARE NEVER FOLDED INTO A PAGE-VIEW COUNT. A beacon is "an app is running"; a
+  // page-view is "a browser loaded /d2r/". Adding them would make every number above a claim about
+  // something it does not measure — the failure this dashboard has already had once, in the
+  // opposite direction. Own section, own units, stated on the page.
+  //
+  // Reads ONLY `console:` (10-min presence) and `lastseen:` (durable, ONE key per machine, written
+  // on every beacon including heartbeats). It deliberately does NOT read `consolelog:`: that
+  // prefix carries the lexicographic-ordering trap documented in functions/console.js and pinned by
+  // tv/test_console_fleet.py, and a third copy of that helper is exactly how a fix lands in two
+  // files out of three. For per-event history and beacon health, /console remains the deep page.
+  // ('console:' cannot match a 'consolelog:' key — byte 8 is 'l' where the prefix demands ':'.
+  // REFUTED and pinned; see the same note in functions/console.js.)
+  const listPrefix = async (prefix) => {
+    let out = [];
+    let cur;
+    for (let i = 0; i < 5; i++) {                    // one key per machine; 5 pages is 5,000 of them
+      const page = await kv.list({ prefix, cursor: cur });
+      out = out.concat(page.keys || []);
+      if (page.list_complete || !page.cursor) break;
+      cur = page.cursor;
+    }
+    return out;
+  };
+  // CI runners used to beacon from every test job — the same filter /console applies, for the same
+  // reason: "who is here" must only ever contain machines that are his.
+  const isRunner = (m) => /^runnervm|^fv-az|^runner-/i.test(String((m && m.machine) || ''));
+  let machines = [];
+  try {
+    const [liveKeys, seenKeys] = await Promise.all([listPrefix('console:'), listPrefix('lastseen:')]);
+    const onlineNames = new Set(liveKeys.map((k) => k.name.slice('console:'.length)));
+    const seenRaw = await Promise.all(seenKeys.map((k) => kv.get(k.name, 'json').catch(() => null)));
+    machines = seenRaw
+      .filter((m) => m && m.t)
+      .filter((m) => !isRunner(m))
+      .map((m) => Object.assign({}, m, { online: onlineNames.has(m.machine) }))
+      .sort((a, b) => (a.t < b.t ? 1 : -1));         // newest beacon first
+  } catch (e) {
+    machines = [];                                    // the console block is additive: never let it
+  }                                                   // take down the page-view dashboard
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -189,6 +241,23 @@ export async function onRequestGet(context) {
       <td>${esc(device(v.ua))}</td>
     </tr>`).join('');
 
+  // ONE ROW PER MACHINE, newest beacon first. `online` is presence (a `console:` key alive inside
+  // its 10-minute TTL), not an inference from how recent the timestamp looks.
+  const nOnline = machines.filter((m) => m.online).length;
+  const machineRows = machines.map((m) => {
+    const place = [m.city, m.country].filter(Boolean).join(', ');
+    const beaconMs = Date.parse(m.t);
+    return `<tr>
+      <td>${esc(m.nickname || m.machine || 'unknown')}${
+        m.nickname && m.machine ? ` <span class="mono muted">${esc(m.machine)}</span>` : ''}</td>
+      <td>${m.online ? '<b class="on-now">● online now</b>' : '<span class="muted">○ offline</span>'}</td>
+      <td class="mono">${esc([m.platform, m.ver].filter(Boolean).join(' · ')) || '<span class="muted">—</span>'}</td>
+      <td>${flag(m.country)} ${esc(place) || '<span class="muted">—</span>'}</td>
+      <td>${isFinite(beaconMs) ? esc(rel(Date.now() - beaconMs)) : '—'}
+        <span class="t mono muted" data-t="${esc(m.t)}">${esc(m.t)}</span></td>
+    </tr>`;
+  }).join('');
+
   const html = `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
@@ -227,6 +296,9 @@ export async function onRequestGet(context) {
   .num{font-variant-numeric:tabular-nums;color:#f0c060;font-weight:700}
   .mono{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:#c8bb98}
   .muted{color:#6b6149;font-weight:400}
+  /* v1687 — presence green. STATUS-OK green, deliberately not an item-quality colour:
+     on this page it means "beaconing right now", nothing about rarity. */
+  .on-now{color:#66ff88}
   .empty{padding:44px;text-align:center;color:#9c8d6b}
   .t{font-variant-numeric:tabular-nums}
   /* v1602 — the crossover door to /console. Deliberately the loudest thing under the title:
@@ -256,7 +328,7 @@ export async function onRequestGet(context) {
   .fresh.warn .big{color:#f0a050}
 </style></head><body>
 <header>
-  <h1>👁 Visits &middot; browser page-views of /d2r/</h1>
+  <h1>👁 Visits &middot; page-views of /d2r/ + console-app machines</h1>
   <div class="sub">bull-4-u.com/d2r · private · times in your local zone · entries auto-expire after ${ttlDays} days</div>
   <!-- v1602 — A DOOR, NOT A FOOTNOTE. This used to be six words at the end of the subtitle
        ("...not the console app — that's here"), with the link text "that's here". Konyo went looking
@@ -266,9 +338,13 @@ export async function onRequestGet(context) {
        documentation, it is decoration. -->
   <a class="xover" href="${esc(consoleHref)}">
     <span class="xo-ic">📺</span>
-    <span class="xo-txt"><b>Looking for the TV DIABLO console app?</b>
-      Machines that RAN the app — your Windows PC, your cousin&rsquo;s — are not on this page.
-      They are tracked separately.</span>
+    <span class="xo-txt"><b>Console-app machines are on this page now &mdash; scroll to
+      &ldquo;Console app&rdquo;.</b>
+      ${machines.length
+        ? `${machines.length} machine${machines.length === 1 ? '' : 's'} tracked${
+            nOnline ? `, <b>${nOnline} online right now</b>` : ''}.`
+        : 'None have checked in yet.'}
+      /console has the per-event history and beacon health.</span>
     <span class="xo-go">open /console &rarr;</span>
   </a>
 </header>
@@ -279,13 +355,36 @@ export async function onRequestGet(context) {
     This page counts <b>browser page-views of the bible at /d2r/</b>, and nothing else. Every row here
     is somebody who opened the site in a web browser.
     <br><br>
-    It does <b>not</b> and <b>cannot</b> show the <b>📺 TV DIABLO console app</b>. The console talks
-    straight to its own endpoint and never loads the /d2r/ page, so it is invisible here <b>by
-    design</b> &mdash; that is not a fault in either tracker. <b>A machine missing from this page has
-    not necessarily been offline.</b> It may simply have used the console app instead of the website.
+    The <b>📺 TV DIABLO console app</b> is a different thing and is counted separately, in its own
+    section below. The console talks straight to its own endpoint and <b>never loads the /d2r/
+    page</b>, so it can never appear in the page-view numbers &mdash; that is not a fault in either
+    tracker, it is what the two are measuring. <b>A machine absent from the page-view tables has not
+    necessarily been offline:</b> it may have used the app instead of the website, and the machines
+    section below is where that shows.
     <br><br>
-    Console sessions live on their own tracker: <a href="${esc(consoleHref)}">📺 /console &rarr;</a>
+    Per-session history, boot events and beacon health stay on the deep page:
+    <a href="${esc(consoleHref)}">📺 /console &rarr;</a>
   </div>
+
+  <h2>📺 Console app &middot; machines running TV DIABLO${
+    machines.length ? ` &middot; ${nOnline} online now` : ''}</h2>
+${machines.length ? `
+  <div class="tblwrap"><table>
+    <thead><tr><th>Machine</th><th>State</th><th>Build</th><th>Where</th><th>Last beacon</th></tr></thead>
+    <tbody>${machineRows}</tbody>
+  </table></div>
+  <div class="note">These are <b>app sessions, not page-views</b>, and they are <b>not added to any
+    number above</b> &mdash; a beacon means the console app is running, a page-view means a browser
+    opened the site. One machine can do both, neither, or either. <b>&ldquo;Online now&rdquo;</b>
+    means it checked in within the last 10 minutes.
+    <br><br>
+    This is the summary. Boot events, ON AIR flips and beacon health &mdash; including a machine
+    whose beacon has been silently failing &mdash; are on
+    <a href="${esc(consoleHref)}" style="color:#f0c060">📺 /console</a>.</div>
+` : `  <div class="empty">No console-app machines have checked in. If someone is running TV DIABLO
+      right now, its beacon is not reaching the server &mdash;
+      <a href="${esc(consoleHref)}" style="color:#f0c060">📺 /console</a> shows the last attempt each
+      machine made.</div>`}
 
   <div class="fresh${stale ? ' warn' : ''}">
     ${newest
@@ -335,8 +434,7 @@ ${visits.length ? `
     <br><br>
     Each count above is <b>web page-views of /d2r/</b>. A row reading &ldquo;1 page-view&rdquo; means
     they opened the <b>website</b> once &mdash; it says <b>nothing</b> about how much they used the
-    📺 TV DIABLO console app, which is tracked separately at
-    <a href="${esc(consoleHref)}" style="color:#f0c060">/console</a>.</div>
+    📺 TV DIABLO console app. That is the separate section above, counted in its own units.</div>
 
   <h2>Raw log &middot; browser page-views${visits.length > 500 ? ' &middot; newest 500' : ''}</h2>
   <div class="tblwrap"><table>
@@ -344,8 +442,8 @@ ${visits.length ? `
     <tbody>${logRows}</tbody>
   </table></div>
 ` : `<div class="empty">No <b>browser page-views</b> recorded yet. Load the app in a web browser once
-      and refresh this page.<br><br>Remember: 📺 TV DIABLO console sessions never appear here &mdash;
-      see <a href="${esc(consoleHref)}" style="color:#f0c060">/console</a>.</div>`}
+      and refresh this page.<br><br>This says nothing about the 📺 console app &mdash; its machines are
+      in their own section above.</div>`}
 </div>
 <script>
   // stored timestamps are UTC ISO — show them in the viewer's own zone

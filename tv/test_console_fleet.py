@@ -44,6 +44,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 API_CONSOLE = os.path.join(ROOT, "functions", "api", "console.js")
 PAGE_CONSOLE = os.path.join(ROOT, "functions", "console.js")
+PAGE_VISITS = os.path.join(ROOT, "functions", "visits.js")
 
 sys.path.insert(0, HERE)
 
@@ -549,6 +550,89 @@ class TestBeaconHonesty(unittest.TestCase):
         self.assertTrue(c["ok"], "a deliberately suppressed beacon is not a fault")
         self.assertIn("TVD_NO_BEACON", str(c.get("detail") or ""),
                       "suppression must name the variable so Konyo knows WHY he sees nothing")
+
+
+@unittest.skipIf(NODE is None, "node is not on PATH — the Cloudflare-function harness needs it")
+class TestVisitsPageCarriesConsoleMachines(unittest.TestCase):
+    """12) v1687 — THE MACHINES ARE ON /visits NOW, AND THEY ARE STILL NOT PAGE-VIEWS.
+
+    Konyo asked twice, seven days apart, why a console session was not on /visits. Both times the
+    honest answer was "different tracker, here is the link", and both times he went back to
+    /visits. A pointer is not a tracker. So the machines are rendered here — and the danger of
+    that fix is the opposite failure: quietly folding beacons into the page-view counts, which
+    would make every number on the page describe something it does not measure.
+    """
+
+    def _visits(self, seed, **kw):
+        return run_handler(PAGE_VISITS, url="https://bull-4-u.com/visits?k=testkey",
+                           seed=seed, **kw)
+
+    def test_a_console_machine_appears_on_the_visits_page(self):
+        v = self._visits({
+            "lastseen:LAPTOP-COUSIN": rec("LAPTOP-COUSIN", "2026-08-09T17:03:06.347Z",
+                                          platform="windows", ver="v1686",
+                                          nickname="Dean", country="US", city="Monroe"),
+        })
+        self.assertEqual(v["status"], 200)
+        self.assertIn("Dean", v["text"], "the machine's nickname is not on /visits")
+        self.assertIn("LAPTOP-COUSIN", v["text"], "the machine's hostname is not on /visits")
+        self.assertIn("Monroe", v["text"], "the machine is listed without where it is")
+
+    def test_presence_key_marks_a_machine_online_and_its_absence_does_not(self):
+        """ONLINE is the live `console:` key, never an inference from a recent timestamp."""
+        stamp = "2026-08-09T17:03:06.347Z"
+        # ⚠ COUNT THE ROW MARKUP, NOT THE WORDS. The first version of this test asserted on the
+        # phrase "online now", which also appears in the section's own explanation of what the
+        # badge means — so it matched a page with zero online machines and measured nothing.
+        both = self._visits({"lastseen:box-a": rec("box-a", stamp),
+                             "console:box-a": rec("box-a", stamp)})
+        self.assertEqual(1, both["text"].count('class="on-now"'),
+                         "a live presence key did not render as an online row")
+        durable_only = self._visits({"lastseen:box-a": rec("box-a", stamp)})
+        self.assertEqual(0, durable_only["text"].count('class="on-now"'),
+                         "a machine with no live presence key was still rendered as online")
+        self.assertIn("box-a", durable_only["text"], "an offline machine must still be listed")
+
+    def test_machines_are_never_counted_as_page_views(self):
+        """THE FAILURE THIS FIX COULD CAUSE. One page-view and three machines is one page-view."""
+        seed = {"visit:1": {"t": "2026-08-09T10:00:00.000Z", "user": "konyo", "ip": "1.2.3.4",
+                            "country": "IL", "city": "Jerusalem", "ua": "", "ref": ""}}
+        for name in ("box-a", "box-b", "box-c"):
+            seed["lastseen:" + name] = rec(name, "2026-08-09T17:00:00.000Z")
+            seed["console:" + name] = rec(name, "2026-08-09T17:00:00.000Z")
+        v = self._visits(seed)
+        self.assertIn("<b>1</b><i>page-views logged</i>", v["text"].replace("\n", ""),
+                      "the page-view card moved when only console machines were added")
+        self.assertIn("box-c", v["text"], "the machines were not rendered at all")
+
+    def test_ci_runners_stay_off_the_visits_page_too(self):
+        v = self._visits({"lastseen:fv-az123-4": rec("fv-az123-4", "2026-08-09T17:00:00.000Z"),
+                          "lastseen:konyo-3": rec("konyo-3", "2026-08-09T17:00:00.000Z")})
+        self.assertNotIn("fv-az123-4", v["text"], "a GitHub CI runner is listed as one of his machines")
+        self.assertIn("konyo-3", v["text"])
+
+    def test_the_page_no_longer_claims_the_console_can_never_appear(self):
+        """Rule 3, applied to this change: the copy that was true until v1687 is now the lie.
+
+        Reads the RENDERED page, not the source — a stale sentence in a comment is a comment; a
+        stale sentence on screen is what sent him to the wrong page twice.
+        """
+        v = self._visits({"lastseen:box-a": rec("box-a", "2026-08-09T17:00:00.000Z")})
+        flat = " ".join(v["text"].split()).lower()
+        for dead in ("can never appear here",
+                     "console sessions never appear here",
+                     "are not on this page"):
+            self.assertNotIn(dead, flat, "stale scope copy still on the page: %r" % dead)
+
+    def test_the_visits_page_does_not_grow_a_third_consolelog_reader(self):
+        """The lexicographic trap lives in `consolelog:`. This page must not read it at all —
+        a third copy of that helper is how a fix lands in two files out of three."""
+        v = self._visits({"lastseen:box-a": rec("box-a", "2026-08-09T17:00:00.000Z")})
+        prefixes = {c["prefix"] for c in v["listCalls"]}
+        self.assertNotIn("consolelog:", prefixes,
+                         "/visits started reading the log prefix — use /console for events")
+        self.assertEqual({"visit:", "console:", "lastseen:"}, prefixes,
+                         "unexpected KV prefixes read by /visits: %r" % (prefixes,))
 
 
 if __name__ == "__main__":
