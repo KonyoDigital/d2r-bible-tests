@@ -257,6 +257,22 @@ else
       echo "pre-push: smoke was KILLED (SIGTERM), not failed — no spec went red."
       echo "          Something outside the hook terminated it (a reaped background job, a closed"
       echo "          terminal). Re-run the push in the foreground."
+    # v1688 — A MISSING BROWSER IS NOT A RED SPEC, and this hook said it was. On 2026-08-09
+    # `~/Library/Caches/ms-playwright/` was EMPTY: every spec died at browserType.launch
+    # before executing one line of the app, and the gate printed fifteen spec names under
+    # "Fix the failing spec(s)". Read literally it says the app is broken in fifteen places.
+    # Nothing was wrong with the app or the specs — the runner had no browser to launch.
+    # Same family as the SIGTERM branch above: a gate that cannot RUN must block, but it
+    # must never blame the subject for its own missing dependency.
+    elif grep -qE "Executable doesn.t exist|Looks like Playwright was just installed|npx playwright install" "$log" 2>/dev/null; then
+      echo "pre-push: smoke could NOT RUN — Playwright has no browser installed."
+      echo "          This is a MISSING DEPENDENCY, not a failing spec. Every test in the run"
+      echo "          died at browserType.launch before touching the app, so the spec names"
+      echo "          above say nothing about your code."
+      echo ""
+      echo "          Fix it, then push again:   npx playwright install chromium"
+      echo ""
+      echo "          Full log: ${log}"
     else
       echo "pre-push: smoke FAILED — push BLOCKED."
       echo "          Fix the failing spec(s), then push again. Full suite: npx playwright test"
