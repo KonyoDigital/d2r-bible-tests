@@ -22,6 +22,10 @@ Three laws, and they are the whole design:
      the tally is worth, and 140 of them are the same page held still. Frames are grouped into STILL
      RUNS, one frame per run is classified, and only runs that come back `chronicle` are read in full.
      A 153-frame reel with one Chronicle visit costs ~8 classifies + the pages, not 153 reads.
+     v1689 — AND FRAMES SOMEBODY ALREADY IDENTIFIED ARE NOT PAID FOR TWICE. `known_chronicle` lets a
+     caller hand in the frames its journal already marked scene='chronicle' (the live vision lane
+     writes exactly that, with the tab); those frames become candidates whatever their stillness and
+     cost ZERO classifies, because the classify stage's question is already answered for them.
 
 Everything here is pure: the caller injects the signature function and the reader. That is what lets
 the tests exercise the laws against fixtures without a vision model or a single JPEG.
@@ -29,11 +33,18 @@ the tests exercise the laws against fixtures without a vision model or a single 
 
 import json
 import os
+import re
 
 # A "still" pair — frames this similar are the same screen held. Calibrated against sig_diff()'s own
 # scale in tv_diablo.py, where ambient render noise stays under the tolerance and opening a panel
-# moves whole regions past it. Scrolling a list moves a band, so the threshold is deliberately loose
-# enough to keep a scrolling read in one run rather than shattering it into singletons.
+# moves whole regions past it.
+# v1689 — THE CLAIM THIS COMMENT USED TO MAKE WAS FALSE, and it is the whole reason the retro lane
+# never found his Chronicle. It said the threshold was "loose enough to keep a scrolling read in one
+# run rather than shattering it into singletons". Measured on reel_s_1786385768689_67392 (217
+# frames): the 8 frames the live lane read as Chronicle pages shattered into singleton runs and NOT
+# ONE became a candidate — reading a Chronicle means scrolling it, and a scrolled list moves enough
+# of the frame to blow past 0.22. The threshold is left alone (loosening it would weld unrelated
+# screens together); the fix is `known_chronicle`, which lets already-identified frames in regardless.
 STILL_MAX_DIFF = 0.22
 # Below this a run is somebody walking through town, not a screen being read.
 MIN_RUN_FRAMES = 3
@@ -265,7 +276,140 @@ def load_index(reel_dir):
     return reconstruct_index(reel_dir) or (idx if isinstance(idx, dict) else None)
 
 
-def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRAMES):
+def _known_kind(v):
+    """One journal answer → a chronicle intake kind, or None.
+
+    Accepts the three shapes a caller already has: the raw reader dict the journal stores
+    ({"scene": "chronicle", "chronicleTab": "uniques"}), the bare tab word, or the kind itself.
+    chronicle_kind()'s refusal is inherited whole — an unreadable tab is None, never a guess.
+    """
+    if isinstance(v, dict):
+        return chronicle_kind(v)
+    s = str(v or "").strip().lower()
+    if s in ("chronicle-uniques", "chronicle-sets"):
+        return s
+    if s in ("uniques", "sets"):
+        return "chronicle-" + s
+    return None
+
+
+def _known_chronicle_map(known):
+    """Normalize `known_chronicle` to {frameName: kind-or-None}. A bare iterable of names is
+    "these ARE Chronicle frames, tab unknown" — which is a real state and not the same as absent."""
+    if not known:
+        return {}
+    if isinstance(known, dict):
+        return {str(k): _known_kind(v) for k, v in known.items()}
+    return {str(n): None for n in known}
+
+
+# v1689 — HOW FAR A JOURNAL MARK MAY REACH FOR ITS FRAME. The deep lane names its captures
+# "<seq>_<captureMs>.jpg" and the reel names its own "f_<captureMs>.jpg" from a DIFFERENT grab, so
+# the two never match by string. Measured on his 217-frame reel against the 8 journal rows: the
+# nearest reel frame was 55-432ms away, every time, and the reel runs at 1-2fps. 1500ms is wide
+# enough for the worst of those and still narrower than the gap to any other session's footage.
+JOURNAL_MATCH_MS = 1500
+
+
+def _key_ms(key):
+    """The capture timestamp inside a frame key ('2_1786385782689' → 1786385782689), or None."""
+    digits = re.findall(r"\d{10,}", str(key))
+    return int(digits[-1]) if digits else None
+
+
+def _resolve_known(frames, known):
+    """Bind the journal's marks to THIS reel's frame names. Pure: reads the index rows it is given.
+
+    A mark arrives as a frame name when the caller already has one, and as a deep-lane frameId
+    otherwise — those are a different capture of the same moment, so they are matched by TIME, to the
+    nearest frame inside JOURNAL_MATCH_MS. Out of range is dropped rather than stretched: a mark that
+    cannot find its frame is worth nothing, and a mark welded onto the wrong frame is worth less.
+    """
+    if not known:
+        return {}
+    by_name = {}
+    for fr in (frames or []):
+        nm = (fr or {}).get("f")
+        if nm:
+            by_name[nm] = fr.get("ts") or 0
+    out = {}
+    for key, kind in known.items():
+        base = os.path.basename(str(key))
+        if base in by_name:
+            out[base] = kind
+            continue
+        if base + ".jpg" in by_name:
+            out[base + ".jpg"] = kind
+            continue
+        ms = _key_ms(base)
+        if ms is None:
+            continue
+        best, best_d = None, None
+        for nm, ts in by_name.items():
+            if not ts:
+                continue
+            d = abs(int(ts) - ms)
+            if best_d is None or d < best_d:
+                best, best_d = nm, d
+        if best is not None and best_d <= JOURNAL_MATCH_MS:
+            out[best] = kind
+    return out
+
+
+def _run_known_kind(run, known):
+    """The ledger the journal recorded for THIS run, or None.
+
+    Only a journal run answers. A still run that happens to contain a marked frame is NOT relabelled
+    by it — see _journal_runs(): one mark cannot speak for a run of 217 frames.
+    """
+    if not (run or {}).get("journal"):
+        return None
+    kind = run.get("kind")
+    if kind:
+        return kind
+    for n in (run.get("frames") or []):
+        k = known.get(n)
+        if k:
+            return k
+    return None
+
+
+def _journal_runs(frames, known, covered_runs=None):
+    """v1689 — the visits the STILLNESS test cannot see, taken from what somebody already read.
+
+    Consecutive journal-marked frames become ONE run (the same shape still_runs() produces, plus
+    `journal: True`), so `_distinct` still collapses a page photographed twice while a SCROLLED page
+    stays several. A run breaks on an unmarked frame and on a change of ledger — welding a uniques
+    page to a sets page would put set pieces in the wrong grail, which is the one mistake this
+    module refuses to make anywhere.
+
+    A mark gets its OWN run even when a still run already covers that frame, and this is the whole
+    point: measured on his 217-frame reel, the stillness pass produced ONE run spanning the entire
+    session, so lending that run the mark's ledger would have declared 217 frames of town and stash a
+    Chronicle page. A mark speaks for its own frame and for nothing next to it. `covered_runs` is
+    accepted and ignored so an older caller does not break.
+    """
+    if not known:
+        return []
+    runs, cur = [], None
+    for fr in (frames or []):
+        name = (fr or {}).get("f")
+        if not name or fr.get("blank") or name not in known:
+            cur = None
+            continue
+        kind = known.get(name)
+        ts = fr.get("ts") or 0
+        if cur is None or cur.get("kind") != kind:
+            cur = {"frames": [name], "start_ts": ts, "end_ts": ts, "journal": True, "kind": kind}
+            runs.append(cur)
+        else:
+            cur["frames"].append(name)
+            cur["end_ts"] = ts or cur["end_ts"]
+    return runs
+
+
+def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRAMES,
+              known_chronicle=None):
     """Sweep ONE sealed reel. Returns evidence — it writes nothing, anywhere.
 
     classify(frame_path) -> ("chronicle-uniques" | "chronicle-sets" | None)
@@ -300,11 +444,22 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     # into his grail — so an unreadable tab currently costs the whole page. If he has already SAID
     # which ledger he opened, that failure mode disappears.
     declared_kind = _declared_kind(idx)
+    # v1689 — WHAT THE JOURNAL ALREADY KNOWS. Passed in as data, never fetched: this module stays
+    # pure (no sessions.jsonl, no console import), which is the only reason the laws above can be
+    # tested against fixtures without a vision model.
     sig_of = sig_of or (lambda n: jpeg_sig(os.path.join(reel_dir, n)))
-    runs = still_runs(idx.get("frames") or [], sig_of)
+    idx_frames = idx.get("frames") or []
+    known = _resolve_known(idx_frames, _known_chronicle_map(known_chronicle))
+    runs = still_runs(idx_frames, sig_of)
     cands = candidate_runs(runs, min_frames=min_frames)
+    # a scrolled Chronicle is never still, so the journal's own marks are candidates in their own
+    # right — see _journal_runs() and the STILL_MAX_DIFF note.
+    jruns = _journal_runs(idx_frames, known, cands)
+    cands = cands + jruns
     pages, classified, blank_runs = [], 0, 0
     trusted = 0   # runs whose ledger came from HIS declared focus rather than a paid classify
+    journal_trusted = 0   # runs whose ledger came from a read somebody already paid for
+    read_seen = set()     # frames already read this reel — a page is never read (or witnessed) twice
     for run in cands:
         fr = run["frames"]
         # v1543 — never pay to classify a photo of nothing. A blank capture cannot be a Chronicle,
@@ -313,7 +468,11 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
         if probe is None:
             blank_runs += 1
             continue
-        if declared_kind:
+        jkind = _run_known_kind(run, known)
+        if jkind:
+            kind = jkind                  # already read once; the answer does not expire
+            journal_trusted += 1
+        elif declared_kind:
             kind = declared_kind          # he told us; do not pay to rediscover it
             trusted += 1
         else:
@@ -324,11 +483,18 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
         # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
         # page is a different page — so read the distinct-looking frames, which for a held page is one.
         for name in _distinct(fr, sig_of):
+            # v1689 — a frame is READ ONCE. A journal run and a still run can overlap, and the same
+            # page read twice is not corroboration: it would arrive at witnesses() as two sightings
+            # of one photograph and let a single frame pass a gate that asks for two.
+            if name in read_seen:
+                continue
+            read_seen.add(name)
             resp = read_page(os.path.join(reel_dir, name), kind) or {}
             pages.append({"reel": sid, "frame": name, "kind": kind, "resp": resp})
     return {"reel": sid, "runs": len(runs), "candidates": len(cands),
             "classified": classified, "blankRuns": blank_runs, "pages": pages,
-            "trustedFocus": trusted}
+            "trustedFocus": trusted, "journalRuns": len(jruns),
+            "journalTrusted": journal_trusted}
 
 
 def _distinct(names, sig_of, max_diff=0.06):
@@ -693,8 +859,19 @@ def reel_dirs(hist_dir, newest_first=True):
     return paths
 
 
+def _reel_known(known, reel):
+    """The journal marks that apply to ONE reel. Accepts a flat {frame: kind} map (frame ids are
+    unique across reels) or a {reelBasename: {frame: kind}} map, so the caller can hand in whichever
+    shape it already holds without reshaping it."""
+    if isinstance(known, dict):
+        sub = known.get(reel)
+        if isinstance(sub, (dict, list, tuple, set)):
+            return sub
+    return known
+
+
 def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=None,
-               skip_reels=None):
+               skip_reels=None, known_chronicle=None, priced_only=False):
     """v1524 — `skip_reels` is the sweep's MEMORY: reel basenames already read, which are not paid
     for twice. A sealed reel never changes, so re-reading one buys nothing and costs everything.
 
@@ -727,13 +904,15 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
                 except Exception:
                     pass
             continue
-        r = read_reel(reel_dir, classify, read_page, sig_of=sig_of)
+        r = read_reel(reel_dir, classify, read_page, sig_of=sig_of,
+                      known_chronicle=_reel_known(known_chronicle, os.path.basename(reel_dir)))
         # v1607 — same accessor as read_reel(), so the frame COUNT and the frames actually swept can
         # never disagree. Counting straight off index.json here would have reported 0 frames for a
         # reel the sweep had just read 98 of.
         frames_seen += len((load_index(reel_dir) or {}).get("frames") or [])
         pages.extend(r.get("pages") or [])
-        stat = {k: r.get(k) for k in ("reel", "runs", "candidates", "classified", "blankRuns", "note")}
+        stat = {k: r.get(k) for k in ("reel", "runs", "candidates", "classified", "blankRuns",
+                                      "journalRuns", "note")}
         stat["pages"] = len(r.get("pages") or [])
         stats.append(stat)
         if on_reel:
@@ -750,6 +929,7 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
         "classified": sum(s.get("classified") or 0 for s in stats),
         "trustedFocus": sum(s.get("trustedFocus") or 0 for s in stats),
         "blankRuns": sum(s.get("blankRuns") or 0 for s in stats),
+        "journalRuns": sum(s.get("journalRuns") or 0 for s in stats),
         "pagesRead": prop.get("pagesRead", 0),
         "refused": len(prop.get("refused") or []),
         "uniques": len(prop.get("uniques") or {}),
@@ -759,11 +939,11 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
         "reels": stats,
         "proposal": prop,
         "totals": totals,
-        "verdict": sweep_verdict(totals),
+        "verdict": sweep_verdict(totals, priced_only=priced_only),
     }
 
 
-def sweep_verdict(totals):
+def sweep_verdict(totals, priced_only=False):
     """v1541 — WHY AN EMPTY SWEEP IS EMPTY. There is more than one way to find nothing, and they
     need different things done about them.
 
@@ -785,7 +965,24 @@ def sweep_verdict(totals):
 
     Only the last means the reading is at fault. Collapsing the first three into it would send him
     debugging a prompt when what he needs is to open the Chronicle while the console is watching.
+
+    v1689 — AND A FIFTH, WHICH IS NOT A NOTHING AT ALL:
+
+      not-measured    ★ `priced_only`. No reader ran. The --cost pass installs a classify that
+                      always returns None and a read_page that returns {}, so pagesRead is 0 BY
+                      CONSTRUCTION and every genuine branch below is being fed a fiction. It printed
+                      "NONE was a Chronicle page … not a reader failure" over a reel that provably
+                      holds eight Chronicle pages. A stub reader may report COST; it may never
+                      report what the footage contains.
     """
+    if priced_only:
+        t = totals or {}
+        return {"state": "not-measured", "ok": True,
+                "say": ("No reader ran. This pass prices frames — %d reel(s) grouped into %d still "
+                        "screen(s) — and reads none of them, so what the footage holds is unmeasured."
+                        % (t.get("reels") or 0, t.get("candidates") or 0)),
+                "do": ("Run the real sweep (the console owns the Claude + Grok lanes) to find out "
+                       "whether these frames hold a Chronicle. Nothing is written either way.")}
     t = totals or {}
     reels = t.get("reels") or 0
     skipped = t.get("skippedReels") or 0
@@ -910,8 +1107,12 @@ if __name__ == "__main__":
             _COST_PICKED.append(path)     # remember WHICH frame, then refuse: free, and nothing read
             return None
 
+        # v1689 — priced_only says out loud what this pass is: _cost_classify NEVER returns a kind
+        # and read_page returns {}, so a verdict computed from these totals would be a stub reader's
+        # opinion of footage it never looked at. It said "NONE was a Chronicle page" about eight
+        # Chronicle pages.
         res = sweep_hist(args.hist, classify=_cost_classify, read_page=lambda p, k: {},
-                         limit=args.limit,
+                         limit=args.limit, priced_only=True,
                          on_reel=lambda s: print("  %-34s %3d runs → %2d classifies"
                                                  % (s["reel"][:34], s["runs"] or 0, s["classified"] or 0)))
         t = res["totals"]

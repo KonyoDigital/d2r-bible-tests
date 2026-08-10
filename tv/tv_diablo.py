@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1688"   # smoke-gate-names-a-missing-browser
+VERSION = "v1689"   # chronicle-lane-sees-the-chronicle
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3818,6 +3818,46 @@ def chron_visit_open():
             "since": _CHRON_VISIT["since"], "frames": len(_CHRON_VISIT["frames"])}
 
 
+def chron_visit_flush():
+    """v1689 — SEAL A STILL-OPEN CHRONICLE VISIT AT SESSION CLOSE, so it reaches the journal.
+
+    The state machine above only closes a visit on the way OUT — i.e. when a LATER deep read
+    returns a non-chronicle scene. That lost the most natural way to use the feature: looking at
+    the Chronicle LAST and then stopping. Measured on his session s_1786385768689_67392
+    (2026-08-10 21:16-21:19): 8 deep frames scene='chronicle' / chronicleTab='uniques', the visit
+    still {open:True, frames:8} at the end, and ZERO {lane:'chronicle', kind:'visit'} rows written
+    — so /api/chronicle_visits (which filters on exactly that row) stayed [] and the v1527 "read
+    this visit for ZERO classifies" offer could never appear.
+
+    Session close is the honest seam: the reel stops growing there, so the frame count is final.
+    Doctrine is unchanged — recording is FREE, reading is OFFERED. This journals the visit and says
+    so; it never calls claude_chronicle_read / g5_chronicle_read and never spends a classify.
+    Idempotent: closing leaves the visit shut, so a second call journals nothing.
+
+    Returns the closed visit dict when one was journalled, else None.
+    (The ev/_journal pair below is deliberately NOT shared with the live seam at the deep-read
+    call site: test_agent.py slices that seam's SOURCE TEXT to prove the live lane never fires a
+    read, and folding it into a helper would erase the text it reads.)"""
+    try:
+        _closed_visit = _chron_visit_step(None, None)
+    except Exception:
+        return None
+    if not (_closed_visit and _closed_visit.get("n")):
+        return None
+    _lg = _closed_visit.get("ledger") or ""
+    try:
+        ev("read", "📜 Chronicle visit captured — %d frames%s · ask the console to read it"
+           % (_closed_visit["n"], (" · " + ("Holy Grail" if _lg == "uniques" else "Set pieces"))
+              if _lg else " · ledger unread"))
+        _journal({"lane": "chronicle", "kind": "visit", "ts": int(time.time() * 1000),
+                 "ledger": _lg, "frames": _closed_visit["frames"][:120],
+                 "n": _closed_visit["n"], "since": _closed_visit["since"],
+                 "until": _closed_visit["until"]})
+    except Exception:
+        pass
+    return _closed_visit
+
+
 def _resolve_stash_tab(scene, model_tab, frame_path=None, ocr_rd=None, ts=None):
     """v946.1 — final stashTab for journal/driver: model + tab-strip OCR + sticky walk.
 
@@ -6378,6 +6418,13 @@ def close_session(reason="stop", farewell=True):
     reason = str(reason or "stop")[:60]
     print(f"\n  👋 closing session ({reason})" + (" — farewell read…" if farewell else " — sealing reel…"))
     ev("boot", "session close · " + reason + (" · farewell" if farewell else " · soft off"))
+    # v1689 — flush a Chronicle visit that is STILL OPEN. It goes BEFORE session_end so the visit
+    # row lands inside the session it belongs to; without it, looking at the Chronicle last (the
+    # natural way to register finds) journalled nothing at all. Free — no read is fired.
+    try:
+        chron_visit_flush()
+    except Exception:
+        pass
     # Seal the reel FIRST so a force-kill mid-farewell still leaves a complete session on disk
     try:
         _journal({

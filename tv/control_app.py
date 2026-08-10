@@ -7099,6 +7099,13 @@ def _kai_closer_loop():
                                 break
                             _histp = "/hist/reel_" + sid + "/" + _ff
                             _fid3 = "reel_" + sid + "/" + _ff.replace(".jpg", "")
+                            # v1689 🛑 CHRONICLE ROUTE GUARD — third and last stash/vault/tally
+                            # fire in this file (live driver + Stage-3 vault are the other two).
+                            # A Chronicle page is not a rune/gem/material tally either; refuse
+                            # this alt and let the loop try the next one.
+                            if _kai_route_guard_refuse("kai-funnel", _fid3,
+                                                       _capture_ts_from_frame_id(_fid3), sid, t3):
+                                continue
                             _js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                                    "if(W._stashShutter)return 2;var FN={runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}[%s];if(typeof W[FN]!=='function')return 0;"
                                    "var LSK={runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}[%s];"
@@ -7267,6 +7274,12 @@ def _kai_closer_loop():
                         _hpv = "/hist/reel_" + sid + "/" + _ffv
                         _fidv = "reel_" + sid + "/" + _ffv.replace(".jpg", "")
                         _tabv = "personal"  # vaultIntake is tab-agnostic; journal tab for receipt
+                        # v1689 🛑 CHRONICLE ROUTE GUARD — same law on the Stage-3 (post-seal)
+                        # vault fire as on the live driver: a frame the vision lane called
+                        # 'chronicle' is not vault footage. THIS is the fire that produced the
+                        # measured ok:false total:0 on reel_s_1786385768689_67392.
+                        if _kai_route_guard_refuse("kai-vault", _fidv, _vj.get("ts"), sid, _tabv):
+                            continue
                         _jsv = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                                 "if(typeof W.vaultIntake!=='function')return 0;"
                                 "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
@@ -7532,6 +7545,207 @@ def _kai_journal_rows():
     except Exception:
         pass
     return rows
+
+
+# ── v1689 🛑 CHRONICLE ROUTE GUARD — the two classifiers finally reconciled ──────────
+# _kai_frame_cls() (this file, ~4232) has NO 'chronicle' class at all: its whole vocabulary is
+# stash-runes|stash-gems|stash-materials|stash|inventory|tooltip|gameplay. An in-game Chronicle
+# page is a LIST OF ITEM NAMES, so it reads as 'itemish', so it returns 'tooltip'. The Claude
+# vision lane, looking at the SAME footage, called those frames scene='chronicle' — measured on
+# session s_1786385768689_67392: 8 deep rows, chronicleTab='uniques', conf 0.60→0.95, while the
+# close row's own classes read {stash:1, gameplay:53, tooltip:158}. NOTHING reconciled the two.
+# The consequence is not cosmetic: a kai-vault intake FIRED on a Chronicle frame
+# (reel_s_1786385768689_67392/f_1786385778600) and errored ok:false total:0 — a vault reader
+# pointed at a Chronicle page.
+# THE GUARD, deliberately narrow: when the vision read for a frame's MOMENT said
+# scene=='chronicle', that frame may not be routed into a stash / vault / tally intake. It is
+# REFUSED with a NAMED reason, journalled through the same intake-receipt channel every real
+# result uses (/intake_result's row shape, ok:false + err), and COUNTED — a silent skip would
+# turn a routing fault into a smaller invoice and nothing else (v1543's own lesson). What this
+# does NOT do: it does not touch _kai_frame_cls's vocabulary (a 'chronicle' class there is a
+# later ship), and it does not touch the grail / chronicle / board writes — the Chronicle's OWN
+# lane still receives the frame. Only the stash/vault/tally intake is refused.
+# WINDOW: ±12s, not the ±4s tooltip-association window used elsewhere. Measured reason — the
+# offending vault frame sat 4089 ms BEFORE the first chronicle read, so ±4000 misses the real
+# incident by 89 ms, and his chronicle reads were 4.6–9.7 s apart (a Chronicle is READ by
+# scrolling, so the vision lane samples it sparsely).
+# THE JOIN IS NOT NEAREST-READ — that was this guard's first shape and it MISSED the one
+# incident it was built for. Measured on his real journal, around f_1786385778600: the nearest
+# deep read is scene='gameplay' at −791 ms; the chronicle read is at +4089 ms. Nearest-wins
+# hands the frame to the vault reader, which is exactly the bug. Reading a Chronicle MEANS
+# scrolling it, so the frames between vision reads read as 'gameplay' — 'gameplay' is an
+# ABSENCE of a claim about what is on screen, not a rebuttal of one.
+# THE RULE: a chronicle read anywhere in the window refuses the frame, UNLESS a read that is
+# strictly NEARER positively NAMES A STASH TAB (he shut the Chronicle and opened the stash).
+# Only a positive stash claim rebuts a chronicle claim — this is a routing guard, never a
+# blanket block, and the live engine driver's own queueing read (stashTab set, delta ≈ 0)
+# rebuts by construction, so legitimate stash intakes are untouched.
+_CHRON_ROUTE_WIN_MS = 12000
+# Intake kinds that photograph a stash/vault GRID or tally a stash tab. Every kind string this
+# file POSTs to /intake_result from such a fire is listed here; grail/chronicle/board writes are
+# deliberately absent.
+_ROUTE_GUARD_INTAKE_KINDS = ("vault", "vault-count", "kai-vault", "gridcount",
+                             "tally", "kai-funnel")
+
+
+def _chronicle_tab_of_row(row):
+    """The read's own chronicleTab, from its raw JSON payload ('' when absent — never guessed)."""
+    raw = (row or {}).get("raw")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = None
+    if isinstance(raw, dict):
+        return str(raw.get("chronicleTab") or "")[:24]
+    return ""
+
+
+def _kai_deep_scene_near(ts, sid="", rows=None, window_ms=_CHRON_ROUTE_WIN_MS):
+    """v1689 — what did the VISION lane call this MOMENT? The NEAREST deep read carrying a
+    scene within ±window_ms (the frame an intake photographs is rarely the exact frame a read
+    consumed — same nearest-read join _kai_build_routing's _nearest_scene uses). Honest-absent:
+    no read in the window → None, never a guess. → {scene, tab, chronicleTab, ts, deltaMs}.
+    REPORTING ONLY — the route guard does NOT decide on this (nearest-wins missed the real
+    incident); it decides on _kai_chron_claim_near below."""
+    try:
+        ts = int(ts or 0)
+    except Exception:
+        ts = 0
+    if not ts:
+        return None
+    if rows is None:
+        rows = _kai_journal_rows()
+    best, best_d = None, None
+    for r in rows or []:
+        if not isinstance(r, dict) or r.get("lane") != "deep":
+            continue
+        sc = str(r.get("scene") or "").strip().lower()
+        if not sc:
+            continue
+        if sid and str(r.get("sessionId") or "") != str(sid):
+            continue
+        try:
+            rt = int(r.get("captureTs") or r.get("ts") or 0)
+        except Exception:
+            rt = 0
+        if not rt:
+            continue
+        d = abs(rt - ts)
+        if d > window_ms:
+            continue
+        if best_d is None or d < best_d:
+            best, best_d = {"scene": sc, "tab": str(r.get("stashTab") or ""),
+                            "chronicleTab": _chronicle_tab_of_row(r),
+                            "ts": rt, "deltaMs": d}, d
+    return best
+
+
+def _kai_chron_claim_near(ts, sid="", rows=None, window_ms=_CHRON_ROUTE_WIN_MS):
+    """v1689 — WHO CLAIMS THIS MOMENT? → (chron, stash): the NEAREST deep read within ±window_ms
+    that called the scene 'chronicle', and the NEAREST one that positively NAMES A STASH TAB.
+    Either may be None. Two separate scans on purpose: nearest-read-wins was the guard's first
+    shape and his own journal refutes it — around f_1786385778600 the nearest read is 'gameplay'
+    at −791 ms while the chronicle read is at +4089 ms, so nearest-wins routed a vault reader
+    onto a Chronicle page. A scroll-heavy read leaves 'gameplay' frames between vision reads;
+    'gameplay' is an absence of a claim, not a rebuttal. Only a stash tab rebuts."""
+    try:
+        ts = int(ts or 0)
+    except Exception:
+        ts = 0
+    if not ts:
+        return None, None
+    if rows is None:
+        rows = _kai_journal_rows()
+    chron = stash = None
+    for r in rows or []:
+        if not isinstance(r, dict) or r.get("lane") != "deep":
+            continue
+        sc = str(r.get("scene") or "").strip().lower()
+        if not sc:
+            continue
+        if sid and str(r.get("sessionId") or "") != str(sid):
+            continue
+        try:
+            rt = int(r.get("captureTs") or r.get("ts") or 0)
+        except Exception:
+            rt = 0
+        if not rt:
+            continue
+        d = abs(rt - ts)
+        if d > window_ms:
+            continue
+        tab = str(r.get("stashTab") or "").strip()
+        if sc == "chronicle" and (chron is None or d < chron["deltaMs"]):
+            chron = {"scene": sc, "tab": tab, "chronicleTab": _chronicle_tab_of_row(r),
+                     "ts": rt, "deltaMs": d}
+        if tab and (stash is None or d < stash["deltaMs"]):
+            stash = {"scene": sc, "tab": tab, "ts": rt, "deltaMs": d}
+    return chron, stash
+
+
+def _kai_route_guard_reason(kind, ts, sid="", rows=None):
+    """'' when this frame may be routed into `kind`; a NAMED, human-readable reason when it
+    may not. Only stash/vault/tally intake kinds are guarded — anything else routes untouched.
+    Refuses on ANY chronicle read in the window unless a strictly NEARER read names a stash tab
+    (see _kai_chron_claim_near for why nearest-read-wins was the wrong policy)."""
+    k = str(kind or "").strip().lower()
+    if k not in _ROUTE_GUARD_INTAKE_KINDS:
+        return ""
+    chron, stash = _kai_chron_claim_near(ts, sid, rows)
+    if not chron:
+        return ""
+    if stash and stash["deltaMs"] < chron["deltaMs"]:
+        return ""   # he shut the Chronicle and opened the stash — a positive rebuttal
+    tab = chron.get("chronicleTab") or ""
+    return ("chronicle-frame · the vision read %d ms away called this scene 'chronicle'%s — a "
+            "Chronicle page is a LIST OF ITEM NAMES, not a stash/vault grid, so the %s intake "
+            "would read the wrong thing (it did: ok:false, total:0). Refused. The Chronicle's "
+            "own lane still gets this frame."
+            % (int(chron.get("deltaMs") or 0), (" (tab '" + tab + "')") if tab else "", k))
+
+
+def _kai_route_guard_refuse(kind, fid, ts=None, sid="", tab="", rows=None):
+    """THE REFUSAL. '' → route normally. Otherwise: journal an honest receipt in the SAME shape
+    /intake_result writes (ok:false, refused:true, err=<the named reason>) so the operator sees
+    it on the very channel the real results land on, bump the refusal counter (exposed beside
+    fired/refire in /api/status — an in-process counter with exactly the lifetime fired/refire
+    have: it resets on restart, and the DURABLE record of a refusal is the journal row written
+    above, which is still countable afterwards), print it, and return the reason. Never silent —
+    a silent skip is just a smaller invoice."""
+    if ts in (None, 0, "", "0"):
+        ts = _capture_ts_from_frame_id(fid)
+    why = _kai_route_guard_reason(kind, ts, sid, rows)
+    if not why:
+        return ""
+    globals()["_DRV_CHRON_REFUSED"] = globals().get("_DRV_CHRON_REFUSED", 0) + 1
+    _sid = str(sid or "")
+    if not _sid:
+        _m = re.match(r"^reel_(.+?)/", str(fid or ""))
+        if _m:
+            _sid = _m.group(1)
+    try:
+        now_ms = int(time.time() * 1000)
+        _cap = _capture_ts_from_frame_id(fid)
+        if _cap is None:
+            try:
+                _cap = int(ts or now_ms)
+            except Exception:
+                _cap = now_ms
+        rec = {"ts": now_ms, "captureTs": _cap, "completedTs": now_ms,
+               "n": 0, "scene": "intake", "lane": "intake", "mode": "intake",
+               "names": [], "area": "", "sessionId": _sid,
+               "intake": {"tab": str(tab or "")[:24], "kind": str(kind or "")[:16],
+                          "counts": {}, "total": 0, "errors": 0, "items": [],
+                          "ok": False, "refused": True, "err": why[:300]},
+               "frameId": str(fid or "")[:48],
+               "note": ("⛔ intake refused · chronicle · " + str(kind or ""))[:80]}
+        with open(_journal_path(), "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception as _rge:
+        print(f"⚠ route guard: refusal journal failed: {_rge}", flush=True)
+    print(f"⛔ KAI route guard: {fid} — {why}", flush=True)
+    return why
 
 
 def _watchdog_check(sid, sess_rows):
@@ -7923,6 +8137,18 @@ def _engine_driver():
                     inflight = None
             if not inflight and fire_q:
                 job = fire_q.pop(0)
+                # v1689 🛑 CHRONICLE ROUTE GUARD — the ONE choke point every live vault /
+                # vault-count / tally fire passes through. Refuse (loudly, counted, journalled)
+                # before the lease is claimed, so a Chronicle page never burns a tab lease OR a
+                # vault read. Guarded ahead of the lease on purpose: a refused frame that had
+                # already claimed the lease would block the board from a real shot.
+                _gk = ("vault-count" if str(job.get("key") or "").startswith("vaultcount_")
+                       else "vault" if str(job.get("key") or "").startswith("vault_")
+                       else "tally")
+                if _kai_route_guard_refuse(_gk, job.get("fid") or "", job.get("ts"),
+                                           job.get("sid") or "", job.get("tab") or ""):
+                    visit_done[job["key"]] = True   # this visit is answered: refused, not pending
+                    continue
                 # v945.6 — claim the tab lease before firing so an open board can't dual-fire
                 _owner = "engine-driver"
                 # v945.7 (Fable review) — claim by KEY, not tab: the board claims vault as
@@ -9756,6 +9982,10 @@ def status_payload():
             _sess_tail = [r for r in _jtail if not _sid_now or r.get("sessionId") == _sid_now][-80:]
             _drv = {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
                     "fired": globals().get("_DRV_FIRED", 0), "refire": globals().get("_DRV_REFIRE", 0),
+                    # v1689 — stash/vault/tally intakes REFUSED because the vision lane called
+                    # that moment a Chronicle page. Beside fired/refire on purpose: a refusal is
+                    # a routing event, not an absence, and must be as visible as a fire.
+                    "chronRefused": globals().get("_DRV_CHRON_REFUSED", 0),
                     "err": globals().get("_DRV_ERR")}
             _sess_h = _session_health_from_rows(_sess_tail, leases=_intake_lease_status(), driver=_drv)
             _gc = _newest_gate_count()   # v948.12 — accuracy-gate proven/held for the FUNNELS organ
@@ -9784,11 +10014,14 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1688",
+        "ver": "v1689",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
                    "fired": _drv.get("fired", 0), "refire": _drv.get("refire", 0),
+                   # v1689 — same counter on the /api/status driver block (the two surfaces AGREE:
+                   # both read _DRV_CHRON_REFUSED, one via the cached _drv dict above).
+                   "chronRefused": _drv.get("chronRefused", globals().get("_DRV_CHRON_REFUSED", 0)),
                    "judgeQ": globals().get("_DRV_JUDGE_Q", 0),
                    "judgeFire": globals().get("_DRV_JUDGE_FIRE", 0),
                    "err": globals().get("_DRV_ERR"),

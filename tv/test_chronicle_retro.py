@@ -855,5 +855,208 @@ class TestV1577ClassifyIsolation(unittest.TestCase):
                          "the unguarded inline classify is back — one bad frame will abandon the sweep")
 
 
+@unittest.skipIf(_PILImage is None, "Pillow absent — the sweep cannot group frames without it")
+class TestV1689CostPassMeasuresNothing(unittest.TestCase):
+    """v1689 — A STUB READER MAY REPORT COST. IT MAY NOT REPORT WHAT THE FOOTAGE CONTAINS.
+
+    `--cost` installs a classify that always returns None and a read_page that returns {}, so
+    pagesRead is 0 BY CONSTRUCTION and sweep_verdict() always landed on `no-chronicle`: "…NONE was a
+    Chronicle page — so there was nothing to read. This is not a reader failure." It printed exactly
+    that over a reel that provably holds 8 Chronicle pages. The sentence outlived what it described,
+    and no test asserted on a word — which is how it survived four ships.
+    """
+
+    def _reel(self, root, n_frames=5):
+        d = os.path.join(root, "reel_s_1786385768689_67392")
+        os.makedirs(d, exist_ok=True)
+        rows = []
+        for f in range(n_frames):
+            nm = "f%03d.jpg" % f
+            _write_frame(os.path.join(d, nm))       # identical frames ⇒ ONE still run ⇒ 1 candidate
+            rows.append({"f": nm, "ts": 1786385768689 + f * 500})
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": "s_1786385768689_67392", "frames": rows}, fh)
+        return root
+
+    def _cost_run(self, hist):
+        import subprocess
+        return subprocess.run([sys.executable, cr.__file__, "--cost", "--hist", hist],
+                              cwd=os.path.dirname(os.path.abspath(cr.__file__)),
+                              capture_output=True, text=True, timeout=120)
+
+    def test_the_cost_pass_has_candidates_to_be_wrong_about(self):
+        """NON-VACUOUS FIRST: if the fixture produced 0 candidates the verdict below would be
+        `no-stills` and the real defect would go unmeasured."""
+        with tempfile.TemporaryDirectory() as td:
+            out = self._cost_run(self._reel(td))
+            self.assertEqual(out.returncode, 0, out.stderr)
+            self.assertIn("1 runs", out.stdout, "the fixture must group into a candidate run")
+
+    def test_cost_does_NOT_claim_the_footage_holds_no_chronicle(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = self._cost_run(self._reel(td))
+            self.assertNotIn("NONE was a Chronicle", out.stdout,
+                             "a stub reader read nothing — it cannot say what the frames were")
+            self.assertNotIn("not a reader failure", out.stdout,
+                             "no reader ran, so there is no reader verdict to give")
+
+    def test_cost_says_plainly_that_nothing_was_read(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = self._cost_run(self._reel(td))
+            self.assertIn("No reader ran", out.stdout)
+            self.assertIn("prices frames", out.stdout)
+
+    def test_the_not_measured_verdict_is_its_own_state(self):
+        v = cr.sweep_verdict({"reels": 1, "candidates": 11, "classified": 11, "pagesRead": 0,
+                              "uniques": 0, "sets": 0}, priced_only=True)
+        self.assertEqual(v["state"], "not-measured")
+        self.assertTrue(v["ok"], "pricing a pass is not a fault")
+        self.assertLess(len(v["say"]), 260)
+        self.assertNotIn("NONE was a Chronicle", v["say"])
+        self.assertTrue(v.get("do"))
+
+    def test_every_genuine_verdict_is_byte_identical(self):
+        """★ THE BLAST RADIUS. A real sweep's verdicts must not move by one character."""
+        for kw in ({"uniques": 3}, {"reels": 0, "candidates": 0, "pagesRead": 0},
+                   {"reels": 2, "skippedReels": 2, "candidates": 0, "pagesRead": 0},
+                   {"candidates": 0, "pagesRead": 0}, {"candidates": 9, "pagesRead": 0},
+                   {"pagesRead": 2}):
+            t = {"reels": 1, "skippedReels": 0, "candidates": 5, "classified": 5,
+                 "pagesRead": 1, "uniques": 0, "sets": 0}
+            t.update(kw)
+            self.assertEqual(cr.sweep_verdict(t), cr.sweep_verdict(t, priced_only=False))
+
+
+class TestV1689JournalMarkedChronicleFrames(unittest.TestCase):
+    """v1689 — READING A CHRONICLE MEANS SCROLLING IT, AND A SCROLL IS NEVER STILL.
+
+    Measured on reel_s_1786385768689_67392: 217 frames → 1 candidate run, and 0 of the 8 frames the
+    vision lane had already marked scene='chronicle' were among them (the single candidate sits 30s
+    after the scrolling stopped). The still-run selection cannot see the one screen the whole module
+    exists to find. The journal already answered the classify stage's question for those frames, so
+    they cost ZERO classifies here.
+    """
+
+    def setUp(self):
+        # 8 consecutive frames, each a full STILL_MAX_DIFF apart — a scrolled list, not a held page
+        self.d = tempfile.mkdtemp()
+        self.rows = [{"f": "f%d.jpg" % i, "ts": 1786385778600 + i * 1000} for i in range(8)]
+        with open(os.path.join(self.d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": "s_1786385768689_67392", "frames": self.rows}, fh)
+        self.sigs = {"f%d.jpg" % i: sig(10 + i * 30) for i in range(8)}   # |Δ|=30 > tol 28 ⇒ diff 1.0
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def _sweep(self, **kw):
+        return cr.read_reel(self.d, lambda p: "chronicle-uniques", lambda p, k: {"found": ["Windforce"]},
+                            sig_of=lambda n: self.sigs.get(n), **kw)
+
+    def test_a_scrolled_chronicle_is_INVISIBLE_to_the_still_selection(self):
+        """NON-VACUOUS BASELINE: this is the bug, pinned. 8 real Chronicle frames, 8 runs of one
+        frame each, ZERO candidates — nothing is classified and nothing is read."""
+        r = self._sweep()
+        self.assertEqual(r["runs"], 8)
+        self.assertEqual(r["candidates"], 0)
+        self.assertEqual(r["pages"], [])
+
+    def test_journal_marked_frames_become_candidates_anyway(self):
+        r = self._sweep(known_chronicle={row["f"]: "uniques" for row in self.rows})
+        # `candidates` counts RUNS, and 8 consecutive marked frames are ONE visit — 0 → 1
+        self.assertEqual(r["candidates"], 1, "the marked visit must become a candidate")
+        self.assertEqual(r["journalRuns"], 1)
+        self.assertEqual(len(r["pages"]), 8, "a scrolled page is a DIFFERENT page — read each one")
+
+    def test_they_cost_ZERO_classifies(self):
+        calls = []
+        r = cr.read_reel(self.d, lambda p: calls.append(p) or "chronicle-uniques",
+                         lambda p, k: {"found": []}, sig_of=lambda n: self.sigs.get(n),
+                         known_chronicle={row["f"]: "uniques" for row in self.rows})
+        self.assertEqual(calls, [], "the journal already answered 'is this a Chronicle'")
+        self.assertEqual(r["classified"], 0)
+
+    def test_the_tab_the_journal_recorded_is_the_ledger_that_is_read(self):
+        r = self._sweep(known_chronicle={row["f"]: {"scene": "chronicle", "chronicleTab": "sets"}
+                                         for row in self.rows})
+        self.assertTrue(r["pages"])
+        self.assertEqual({p["kind"] for p in r["pages"]}, {"chronicle-sets"})
+
+    def test_a_marked_frame_with_no_readable_tab_is_not_guessed(self):
+        """chronicle_kind()'s refusal stands: an unreadable tab must not become 'uniques', because a
+        wrong guess writes set pieces into his grail. It falls back to a paid classify."""
+        calls = []
+        cr.read_reel(self.d, lambda p: calls.append(p) or None, lambda p, k: {},
+                     sig_of=lambda n: self.sigs.get(n),
+                     known_chronicle={row["f"]: "" for row in self.rows})
+        self.assertEqual(len(calls), 1, "one unknown-tab visit costs one classify, not eight")
+
+    def test_sweep_hist_carries_the_journal_map_down(self):
+        with tempfile.TemporaryDirectory() as root:
+            shutil.copytree(self.d, os.path.join(root, "reel_s_1786385768689_67392"))
+            res = cr.sweep_hist(root, classify=lambda p: None, read_page=lambda p, k: {"found": ["Shako"]},
+                                sig_of=lambda n: self.sigs.get(n),
+                                known_chronicle={row["f"]: "uniques" for row in self.rows})
+            self.assertEqual(res["totals"]["journalRuns"], 1)
+            self.assertEqual(res["totals"]["pagesRead"], 8)
+            self.assertEqual(res["totals"]["classified"], 0)
+            self.assertEqual(res["verdict"]["state"], "found")
+
+    def test_a_deep_lane_frameId_finds_its_reel_frame_by_TIME(self):
+        """★ MEASURED ON HIS OWN FOOTAGE. The journal's frameIds are '2_1786385782689' — a DIFFERENT
+        capture of the same moment — and the reel names its frames 'f_<ms>.jpg' from its own grab.
+        String matching finds ZERO of the 8; the nearest reel frame was 55-432ms away every time."""
+        marks = {"%d_%d" % (i + 2, row["ts"] + 300): "uniques" for i, row in enumerate(self.rows)}
+        r = self._sweep(known_chronicle=marks)
+        self.assertEqual(len(r["pages"]), 8, "a mark must reach its frame across the capture gap")
+
+    def test_a_mark_too_far_from_any_frame_is_dropped_not_stretched(self):
+        far = {"2_%d" % (self.rows[0]["ts"] + 9000): "uniques"}
+        r = self._sweep(known_chronicle=far)
+        self.assertEqual(r["pages"], [], "a mark welded onto the wrong frame is worse than no mark")
+
+    def test_a_mark_does_not_relabel_the_still_run_that_covers_it(self):
+        """★ THE WELD THIS ALMOST SHIPPED. On his real reel the stillness pass produced ONE run
+        spanning all 217 frames; lending that run a mark's ledger would declare a whole session of
+        town and stash a Chronicle page. One frame speaks for itself and nothing beside it."""
+        d = tempfile.mkdtemp()
+        try:
+            rows = [{"f": "g%d.jpg" % i, "ts": 1000 + i * 500} for i in range(9)]
+            with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump({"sessionId": "s_weld", "frames": rows}, fh)
+            sigs = {row["f"]: sig(80) for row in rows}          # one held screen ⇒ ONE still run
+            reads = []
+            r = cr.read_reel(d, lambda p: None, lambda p, k: reads.append(os.path.basename(p)) or {},
+                             sig_of=lambda n: sigs.get(n), known_chronicle={"g4.jpg": "uniques"})
+            self.assertEqual(r["candidates"], 2, "the still run plus the marked frame's own run")
+            self.assertEqual(reads, ["g4.jpg"], "only the MARKED frame is read as a Chronicle")
+            self.assertEqual(r["classified"], 1, "the still run is still classified on its own merits")
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_a_frame_is_never_read_TWICE(self):
+        """Two sightings of one photograph is not corroboration — it would let a single frame pass a
+        gate that asks for two independent witnesses."""
+        d = tempfile.mkdtemp()
+        try:
+            rows = [{"f": "h%d.jpg" % i, "ts": 1000 + i * 500} for i in range(5)]
+            with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump({"sessionId": "s_dup", "frames": rows}, fh)
+            sigs = {row["f"]: sig(80) for row in rows}
+            reads = []
+            cr.read_reel(d, lambda p: "chronicle-uniques",
+                         lambda p, k: reads.append(os.path.basename(p)) or {},
+                         # h0 is the frame _distinct keeps for the still run too — the overlap the
+                         # guard exists for. Marking a frame the still run would NOT have read makes
+                         # this test pass with no guard at all, which is no test.
+                         sig_of=lambda n: sigs.get(n), known_chronicle={"h0.jpg": "uniques"})
+            self.assertEqual(reads, ["h0.jpg"], "same frame read twice: %r" % (reads,))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_an_unmarked_reel_sweeps_exactly_as_before(self):
+        """The blast radius: no journal map, no behaviour change."""
+        self.assertEqual(self._sweep(known_chronicle=None), self._sweep())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -88,6 +88,14 @@ GATES = [
              "through the index, and a reel of real frames without one plays BLACK"),
     Gate("test_chronicle_chain", [sys.executable, os.path.join(HERE, "test_chronicle_chain.py")], 300,
          why="the WHOLE chronicle chain in one pass — every other suite mocks its neighbours"),
+    Gate("test_chronicle_visit_flush", [sys.executable, os.path.join(HERE, "test_chronicle_visit_flush.py")], 120,
+         why="a Chronicle visit still OPEN when the session ends must still be journalled — "
+             "looking at the Chronicle LAST is the normal way to register finds, and before "
+             "v1689 that case wrote no visit row at all, so /api/chronicle_visits stayed []"),
+    Gate("test_chronicle_route_guard", [sys.executable, os.path.join(HERE, "test_chronicle_route_guard.py")], 120,
+         why="a frame the vision lane read as scene='chronicle' must never be routed into a "
+             "stash/vault/tally intake — a kai-vault intake fired on a Chronicle page and came "
+             "back ok:false total:0, and the refusal must be NAMED and COUNTED, not silent"),
     Gate("chronicle-doctor", [sys.executable, os.path.join(HERE, "chronicle_doctor.py")], 120,
          why="the arc is wired on THIS machine — lanes, footage, board build"),
     Gate("test_stash_eye_aspect", [sys.executable, os.path.join(HERE, "test_stash_eye_aspect.py")], 120,
