@@ -82,6 +82,10 @@ GATES = [
              "classify lane and structurally could not count a page read (v1596)"),
     Gate("test_chronicle_retro", [sys.executable, os.path.join(HERE, "test_chronicle_retro.py")], 300,
          why="the retro sweep's three laws: read-only until Apply, merge-max, pay-for-runs"),
+    Gate("test_chronicle_template", [sys.executable, os.path.join(HERE, "test_chronicle_template.py")], 300,
+         why="the Chronicle panel's own template is measured, not guessed — the page frame, its "
+             "NO TOOLTIP ITEM state, and the MINI-parameter geometry a live read leans on, so the "
+             "consumers due in v1691 have a locked shape to read instead of re-deriving it each time"),
     Gate("test_reel_index_durability", [sys.executable, os.path.join(HERE, "test_reel_index_durability.py")], 300,
          why="a sealed reel must always carry a parseable index.json — even when the seal is "
              "interrupted mid-way — because theatre, read_reel and the retro sweep all enter "
