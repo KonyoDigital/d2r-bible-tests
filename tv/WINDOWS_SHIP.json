@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1689",
+  "ver": "v1690",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1689: the Chronicle lane can finally see the Chronicle he actually read: an open visit is flushed at session close so /api/chronicle_visits stops being empty, --cost stops claiming footage holds no Chronicle when no reader ran, the retro sweep takes journal-marked chronicle frames as candidates, and a chronicle-scened frame is refused by the vault intake with a named, counted reason",
+  "note": "v1690: Locked, measured template for the Chronicle modal (title/tabs/rail/list geometry) with a pixel-path detect() that survives a found-item tooltip drawn over the panel; no consumers wired yet (v1691).",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
