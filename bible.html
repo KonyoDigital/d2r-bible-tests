@@ -38683,6 +38683,17 @@ try {
   font:10px/1.2 ui-monospace,Menlo,monospace;letter-spacing:var(--ls-tight);
   color:var(--text-muted,#b5a48a);background:rgba(10,8,5,.78);
   border:1px solid var(--border,#3a2f1e);border-radius:6px;padding:3px 7px;opacity:.9;
+  /* v1691.1 — THE BADGE IS A STAMP, NOT A HEADLINE. Its text is unbounded (id · date · ship name)
+     and it grew to 370.6px wide, while the masthead title is CENTRED: at 721-1100px the title's
+     left edge lands at 204.5-361.7px, i.e. UNDER the badge, and the user reads "o's D2R Farming
+     Bible" with "Kony" buried. Nothing about the badge's own box said "stop before the title", so
+     every longer ship name made it worse. Measured worst case is 721px (title/art left edge
+     204.5px, the badge is display:none below 720), so the box is capped at 180px border-box =>
+     right edge 188px, a 16.5px clearance that holds at EVERY width because the cap is absolute and
+     the title only moves right as the viewport widens. The full stamp stays in textContent (and in
+     document.title + meta[name=d2r-build*]); only the paint is clipped, name-last. */
+  box-sizing:border-box;max-width:180px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28px}  /* ribbons live left too */
 #v687-intake-modal{
@@ -38787,7 +38798,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     el.id = 'v687-build-badge';
     el.title = 'D2R Bible build — ' + (window.D2R_BUILD.note || '');
     // v707 — the badge READS D2R_BUILD (it was a hardcoded copy, frozen at v688 while the build object said v701)
-    el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.name + ' · ' + window.D2R_BUILD.date;
+    // v1691.1 — DATE BEFORE NAME. The badge is now width-capped (180px, ellipsis), and what gets
+    // clipped must be the decoration, not the answer to "is this tab stale?" — which is id + date.
+    el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.date + ' · ' + window.D2R_BUILD.name;
     document.body.appendChild(el);
     // v708.1 (Grok: 'identity hygiene') — ONE identity source: title + meta follow D2R_BUILD at
     // runtime, so the static tags can lag a ship without the DOM ever split-braining again.
