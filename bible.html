@@ -36746,10 +36746,21 @@ body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgb
   color: var(--gold-bright, #ffdf9a); font: inherit; }
 #claim-btn:hover { background: rgba(240,192,96,.26); }
 #claim-btn:disabled { opacity: .6; cursor: default; }
-/* v1466 — THE PROFILE SIGIL. Sits left of the machine pill, same absolute rail as the two world
-   switches, because it is read together with them: pills = which world, sigil = which install.
-   Colour comes from the generator via --bs-hue, so the crest is self-colouring. */
-.bd-sigil{position:absolute;top:14px;right:340px;z-index:60;display:inline-flex;align-items:center;gap:7px;
+/* v1466 — THE PROFILE SIGIL: pills = which world, sigil = which install.
+   Colour comes from the generator via --bs-hue, so the crest is self-colouring.
+   v1691 — OFF THE ABSOLUTE RAIL, ONTO ITS OWN ROW. It used to sit at `position:absolute;right:340px`,
+   i.e. a FIXED offset from the header's right edge, next to a title that is CENTRED text of fluid
+   width — so the two were laid out as if the other did not exist and at some widths they occupied the
+   same pixels. Measured on HEAD (chip text spans × h1.h-title, bounding-rect intersection):
+   901px 1447px², 1000px 1888px², 1100px 2210px², 1280px 1680px², 1366px 669px², 0 from 1440px up —
+   at 1280 the chip's name span sat over the word "Bible". A nudge would only move which widths lose,
+   so this is a LAYOUT relationship instead: the chip is a BLOCK-level box (not inline-flex), so it
+   gets its own line under the h1 and `margin:auto` centres it in the `text-align:center` masthead.
+   The h1 is `display:inline-flex` (:3849) — an inline sibling would join ITS line box and shove the
+   title sideways; a block one cannot, and the title's rect is unchanged at every width. The chip's
+   name is generated per install and varies in length, so nothing here may depend on its width.
+   `.machine-pill`/`.profile-pill` keep their own absolute rail — untouched. */
+.bd-sigil{display:flex;width:max-content;max-width:100%;margin:8px auto 0;align-items:center;gap:7px;
   padding:5px 11px 5px 6px;border-radius:999px;cursor:pointer;min-height:30px;
   border:1px solid var(--bs-edge,rgba(233,208,122,.4));background:rgba(0,0,0,.35);backdrop-filter:blur(3px)}
 .bd-sigil:hover{background:rgba(255,255,255,.06);border-color:var(--bs-hue,#e9d07a)}
@@ -36808,7 +36819,18 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
    (absolute — costs the row ZERO width, the v641.3 lesson). main stays a lone front door. */
 .tabs-data{align-items:stretch}
 .tabs-data > .tab[data-tab="main"]{flex:1 1 0}
-.tabs-cluster{position:relative;display:flex;flex:5 1 0;gap:5px;align-items:stretch;min-width:0;padding:3px 5px;border:1px solid rgba(233,208,122,.16);border-radius:9px;background:rgba(255,255,255,.012)}
+/* v1691 — the cluster may WRAP rather than let its tabs spill out of it. `flex:5 1 0` + `min-width:0`
+   lets the frame shrink below what its `white-space:nowrap` tabs need, and with nowrap on the cluster
+   the children simply overflowed the frame and printed over the next cluster: measured on HEAD, the
+   HUNT frame is 390px wide with 428px of content at 1361px (spill 39px), 392/428 at 1366 (37px),
+   408/428 at 1400 (21px), 426/428 at 1440 (3px), and the leaf sweep at 1366px caught tab-lbl "runes"
+   × the next tab's icon (203px²) and tab-lbl "reference" × icon (222px²) — Grok read exactly that off
+   the picture as RUNES printed on ROTW SPECIAL and REFERENCE truncated. The band is 1361-~1465px
+   (from 1470px up the frame is ≥437px and content fits: spill 0 at 1470/1500/1600/1920), because the
+   proven wrap fallback below stops at 1360px and `.tabs` is nowrap above it. Wrapping is INERT while
+   the content fits, so this changes nothing outside that band; ≤700px still forces nowrap for the
+   scroll strip (:37557) and ≤1360px already wrapped (:36821). Same fix as those, one band wider. */
+.tabs-cluster{position:relative;display:flex;flex-wrap:wrap;flex:5 1 0;gap:5px;align-items:stretch;min-width:0;padding:3px 5px;border:1px solid rgba(233,208,122,.16);border-radius:9px;background:rgba(255,255,255,.012)}
 .tabs-cluster .tab{flex:1 1 auto;text-align:center}
 .tabs-cluster::before{content:attr(data-cluster);position:absolute;top:-6px;left:10px;padding:0 5px;font-size:8px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-wider);line-height:var(--lh-none);color:rgba(233,208,122,.55);background:var(--bg);border-radius:3px;pointer-events:none}
 .tc-hunt{border-color:rgba(224,120,70,.22)}
