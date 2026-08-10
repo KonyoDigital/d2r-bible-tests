@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1690",
+  "ver": "v1691",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1690: Locked, measured template for the Chronicle modal (title/tabs/rail/list geometry) with a pixel-path detect() that survives a found-item tooltip drawn over the panel; no consumers wired yet (v1691).",
+  "note": "v1691: pure-geometry sweep of every visible text-bearing leaf in .header at 901/1100/1280/1920px; never names a class or id, so it cannot be blinded by the naming gap that let v1690s collision probe pass a live identity-chip-over-title overlap",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
