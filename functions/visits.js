@@ -365,10 +365,18 @@ export async function onRequestGet(context) {
       cells.push(nv.byDay.get(d) || 0);
     }
     const peakN = Math.max(1, ...cells);
-    return cells.map((n) => {
-      const h = n ? Math.max(15, Math.round((n / peakN) * 100)) : 4;
-      return `<i style="height:${h}%${n ? '' : ';background:#2f2818'}" title="${n} hit${n === 1 ? '' : 's'} in the last 30d window"></i>`;
+    // v1694 fix — EXPLICIT PIXEL heights, never percentages. The bars used to live directly in the
+    // `<td class="spark">` and carry `height:<pct>%`; a percentage height cannot resolve against a
+    // table cell (a td's height is a minimum, not a definite size), so every "full height" bar
+    // computed to 3-4px in a 22px track and the whole column read as a dim dash. The bars now sit
+    // in a plain <div class="sparkbox"> with a definite 22px height, and each bar states its own
+    // height in px, which is correct whatever the containing box turns out to be.
+    const TRACK = 22;
+    const bars = cells.map((n) => {
+      const h = n ? Math.max(5, Math.round((n / peakN) * TRACK)) : 2;
+      return `<i style="height:${h}px${n ? '' : ';background:#2f2818'}" title="${n} hit${n === 1 ? '' : 's'} in the last 30d window"></i>`;
     }).join('');
+    return `<div class="sparkbox">${bars}</div>`;
   };
   // When the `hhit:` scan itself failed, every day-shaped column is UNKNOWN, not zero — printing
   // "0 visits in the last 7 days" for a person who may well have visited daily is exactly the
@@ -472,8 +480,13 @@ export async function onRequestGet(context) {
   .chart-x{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:#6b6149}
   /* v1694 — per-person sparkline: 14 tiny bars inside one table cell, same colour language as the
      30-day chart above (gold = activity, dim = zero) so the two read as one visual system. */
-  .spark{display:flex;align-items:flex-end;gap:1px;height:22px;width:70px}
-  .spark i{display:block;flex:1 1 0;min-width:2px;border-radius:1px 1px 0 0;
+     The bars are NOT laid out by the <td> itself — a td is a table cell, its height is a minimum
+     rather than a definite size, so a child's percentage height has nothing to resolve against.
+     The flex track is a plain <div class="sparkbox"> with a real 22px height inside the cell, and
+     every bar states its height in px. */
+  .spark{width:110px}
+  .sparkbox{display:flex;align-items:flex-end;gap:1px;height:22px;width:84px}
+  .sparkbox i{display:block;flex:1 1 0;min-width:4px;border-radius:1px 1px 0 0;
            background:linear-gradient(180deg,#f0c060,#96702a)}
   .tblwrap{overflow-x:auto;border:1px solid #2a2418;border-radius:10px}
   table{border-collapse:collapse;width:100%;min-width:640px}

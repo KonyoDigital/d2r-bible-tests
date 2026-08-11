@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1693",
+  "ver": "v1694",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1693: his ruling on the nine, applied — the tally is finally the number he actually has",
+  "note": "v1694: the board now beacons its own stable identity (install id + sigil crest + machine) to /api/hello, fire-and-forget, once per page-load, after first paint — joining the half-tracker that could see every visit but not name who",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
