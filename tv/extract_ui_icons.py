@@ -88,6 +88,35 @@ ICONS = {
                   "Tome of Identify", "the book you read your own history out of — CHRONICLE SWEEP"),
 }
 
+# v1700 — ART THAT IS NOT FROM CASC STILL NEEDS ITS PROVENANCE RECORDED.
+#
+# art/ui_emblem.png shipped in v1677 and had no entry here, so tests/v1614_game_art_icons.spec.ts
+# has failed ever since — correctly. Its rule is "art with no recorded source cannot be re-pulled,
+# re-sized or replaced without redoing the archaeology", and that rule does not care whether the
+# source happens to be a .sprite.
+#
+# ⚠ THE OBVIOUS FIX WAS TO INVENT A CASC PATH, AND IT WOULD HAVE BEEN A LIE IN THE ONE FILE WHOSE
+# WHOLE JOB IS PROVENANCE. v1677's message says the emblem is "196x196 to match the original
+# exactly", which reads like it was derived from art/harlequincrest_graphic.png — the unique item
+# art the console had been borrowing as its logo. It was not: opened side by side, ui_emblem.png is
+# a symmetrical gold-and-white horned helm on transparency and harlequincrest_graphic.png is a
+# brown leather cap. They share nothing but their 196x196 dimensions, which is all "match the
+# original exactly" ever meant.
+#
+# So it is DESIGNED CHROME with no CASC ancestor, and that is recorded as the fact it is rather
+# than smuggled in as a sprite path nobody could ever re-pull from. Anything added here that was
+# drawn rather than extracted belongs in this dict, not the one above.
+DESIGNED_ICONS = {
+    "emblem": ("(not from CASC — designed chrome, no sprite ancestor)",
+               "TV DIABLO console emblem",
+               "v1677: the console emblem stopped borrowing Harlequin Crest's ITEM art "
+               "(harlequincrest_graphic.png, which has 4 legitimate callers on the board and was "
+               "deliberately left untouched). 196x196, ~63% transparent so it sits in its rounded "
+               "box the way item art did; rendered at 43px by #emblem-img in tv/control_ui.html, "
+               "which falls back to hd_ohm_rune.png if it 404s. To replace it, redraw at 196x196 "
+               "on transparency — there is nothing to re-extract."),
+}
+
 # v1621 — icons that must land under a NAME the rest of the app already uses, rather than ui_<role>.
 # The four craft gems are addressed as hd_perfect_<gem>.png by the v384 item pull; three were there
 # and Perfect Sapphire was not, so the Hit Power craft had no gem to show. Note the in-game spelling
@@ -193,10 +222,20 @@ def main():
         for role, fn in sorted(REUSED.items()):
             if not os.path.exists(os.path.join(ART, fn)):
                 bad.append("%s (reused by %s)" % (fn, role))
+        # v1700 — DESIGNED chrome is checked for PRESENCE but can never be re-pulled. Saying so
+        # here is the difference between "this script rebuilds every console icon" (false) and
+        # "this script rebuilds every EXTRACTABLE one, and names the ones it cannot" (true).
+        # Without this line a full rebuild silently omits ui_emblem.png and nothing says why.
+        for role in sorted(DESIGNED_ICONS):
+            if not os.path.exists(os.path.join(ART, "ui_%s.png" % role)):
+                bad.append("ui_%s.png (DESIGNED — not extractable, must be redrawn)" % role)
         if bad:
             print("MISSING: " + ", ".join(bad))
             return 1
         print("OK — all %d console icons present in art/" % len(names))
+        if DESIGNED_ICONS:
+            print("   (+%d designed, not extractable: %s)"
+                  % (len(DESIGNED_ICONS), ", ".join("ui_%s.png" % r for r in sorted(DESIGNED_ICONS))))
         return 0
 
     missing = _need_toolchain()

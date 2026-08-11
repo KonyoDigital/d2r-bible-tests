@@ -5045,7 +5045,15 @@
     // thing this version exists to stop.
     session:   '/art/ui_tab_session.png',            // Lam Esen's Tome — the session log
     tools:     '/art/ui_tab_tools.png',              // Tools of the Trade
-    tvd:       '/art/ui_tab_tvd.png'                 // Terror's End — Diablo himself
+    tvd:       '/art/ui_tab_tvd.png',                // Terror's End — Diablo himself
+    /* v1700 — THE EMBLEM WAS THE ONE ICON OUTSIDE THIS MAP, and it had been since v1677. That is
+       precisely what this map exists to prevent: the emblem's own origin story is that the console
+       spent versions rendering Harlequin Crest's ITEM art as its logo, and an icon chosen outside
+       the vocabulary is how a second picture for one concept gets in. It failed TWO standing gates
+       for the same single omission — v1615 (referenced but not declared here) and v1614 (shipped
+       with no provenance in tv/extract_ui_icons.py) — which is why fixing one root cause closes
+       both. Its <img> keeps its own onerror fallback to hd_ohm_rune.png at :4375. */
+    emblem:    '/art/ui_emblem.png'                  // designed chrome, not CASC — see DESIGNED_ICONS
   };
   /* one <img> builder, so every surface gets the same onerror contract: a missing file removes the
      picture and leaves the WORD, rather than leaving a torn placeholder beside a label */
