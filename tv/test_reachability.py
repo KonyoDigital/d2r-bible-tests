@@ -194,6 +194,13 @@ EXTERNAL_SYMBOLS = {
     # legitimate feature detection is a gate people learn to skip.
     ("bible.html", "AbortController"): "browser API — feature-detected, not ours to declare",
     ("bible.html", "ResizeObserver"): "browser API — feature-detected, not ours to declare",
+    # v1695 — the third of the same kind, and it had been failing this gate as a standing red.
+    # Verified at the source rather than waved through by category: bible.html:39053 guards
+    # `typeof MutationObserver === 'function'` and constructs `new MutationObserver(...)` on the
+    # line below to re-stamp art on nodes added later. That is feature detection doing its job.
+    # Leaving it red was the real cost — a gate with a permanent known failure stops being read,
+    # and this suite's whole value is that a NEW entry in it means something broke.
+    ("bible.html", "MutationObserver"): "browser API — feature-detected, not ours to declare",
 }
 
 

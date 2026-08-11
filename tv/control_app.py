@@ -9716,6 +9716,49 @@ def _chron_visit_run(visit_ts):
             _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
 
 
+def _chron_known_from_journal(limit=500):
+    """v1695 — THE FRAMES THE LIVE AGENT ALREADY IDENTIFIED, handed to the retro sweep as marks.
+
+    `sweep_hist(known_chronicle=)` has existed since v1689 and NOTHING HAS EVER PASSED IT. The two
+    halves were both built and never joined: the live lane journals a `chronicle/visit` row naming
+    the frames it saw, and the sweep's selector will let a named frame through regardless of what
+    the cheap classifier thinks of it — but the sweep was called without the argument, so every
+    retro run re-derived from scratch what the live agent already knew and paid the classifier to
+    disagree.
+
+    Why this had a DEADLINE rather than being ordinary debt: `tv/chronicle_swept.json` does not
+    exist on this machine, so no sweep has ever completed here. The first one writes every reel it
+    touches into that file, and `skip_reels` (:9758) then hides those reels from every future sweep.
+    A first sweep that selects nothing does not merely waste a run — it seals the footage. Wiring
+    this before the first sweep is strictly cheaper than wiring it after, because after costs a
+    `force` run to undo.
+
+    Shape: a FLAT {frameId: ledgerWord} map, which is what `_reel_known` (:862) and
+    `_known_kind` (:279) already accept — frame ids are unique across reels, and a bare "uniques" /
+    "sets" is normalised to a kind for us. A visit whose ledger was never read contributes "" ->
+    None, which means "this IS a Chronicle frame, tab unknown" — a real state the selector handles,
+    and deliberately not the same as being absent.
+
+    Never raises. A journal that cannot be read must degrade the sweep to its old
+    classifier-only behaviour, never abort it: these marks make the sweep cheaper and better, and
+    nothing downstream is entitled to depend on them.
+    """
+    known = {}
+    try:
+        for v in (chronicle_visits(limit=limit) or {}).get("visits") or []:
+            ledger = v.get("ledger") or ""
+            for fr in v.get("frames") or []:
+                if not fr:
+                    continue
+                # a frame named by two visits keeps the one that actually knew its tab; "" never
+                # overwrites a real ledger word.
+                if ledger or str(fr) not in known:
+                    known[str(fr)] = ledger
+    except Exception:
+        return {}
+    return known
+
+
 def _chron_sweep_run(hist_dir, limit, force=False):
     try:
         import chronicle_retro as _cr
@@ -9754,8 +9797,11 @@ def _chron_sweep_run(hist_dir, limit, force=False):
             lambda p, k: (_tick(pagesRead=1) or _tv.claude_chronicle_read(p, k)), grok_lane)
 
         swept = _chron_swept_load()
+        known = _chron_known_from_journal()
+        _tick(knownFrames=len(known))
         res = _cr.sweep_hist(hist, _classify, read_page, limit=limit,
                              skip_reels=set(swept.keys()) if not force else set(),
+                             known_chronicle=known,
                              on_reel=lambda st: _tick(reelsDone=1))
         # remember ONLY the reels this run actually read. A reel that errored or was skipped must
         # stay unread, or one bad run would permanently hide footage from every future sweep.

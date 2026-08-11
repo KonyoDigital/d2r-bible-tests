@@ -17,6 +17,13 @@ jobs:
         run: python3 tv/test_roundtrip_sim.py
       - name: Frozen-robot boot smoke (TV_ROBOT=1 lane must not rot — 20s stub, no model call)
         run: python3 tv/robot_smoke.py
+      # Pillow is installed ON PURPOSE: without it the RED/GREEN class skips, and a guard that
+      # skips is a guard that reports OK while measuring nothing. The reel fixture is generated,
+      # so no footage of his is ever committed.
+      - name: Install Pillow (so the chronicle RED/GREEN actually runs instead of skipping)
+        run: python3 -m pip install --quiet pillow
+      - name: Chronicle known-frame wire (retro sweep must receive the live agent's marks — 0 → 8)
+        run: python3 tv/test_chronicle_known_wire.py
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
           # body arrives as an escaped JSON string ({"status":400,"body":"{\"error\":\"missing image\"}"}) — grep escape-proof

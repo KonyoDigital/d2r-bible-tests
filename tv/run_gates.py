@@ -90,6 +90,12 @@ GATES = [
          why="a sealed reel must always carry a parseable index.json — even when the seal is "
              "interrupted mid-way — because theatre, read_reel and the retro sweep all enter "
              "through the index, and a reel of real frames without one plays BLACK"),
+    Gate("test_chronicle_known_wire", [sys.executable, os.path.join(HERE, "test_chronicle_known_wire.py")], 300,
+         why="sweep_hist(known_chronicle=) shipped in v1689 and NOTHING EVER PASSED IT, so every "
+             "retro sweep re-derived what the live agent had already identified and paid a "
+             "classifier to disagree with it. Measured on his own reel: a classifier that "
+             "recognises nothing reads 0 pages without the marks and 8 with them. This is the "
+             "v1576 defect class again — plumbing built on both ends and never joined"),
     Gate("test_chronicle_chain", [sys.executable, os.path.join(HERE, "test_chronicle_chain.py")], 300,
          why="the WHOLE chronicle chain in one pass — every other suite mocks its neighbours"),
     Gate("test_chronicle_visit_flush", [sys.executable, os.path.join(HERE, "test_chronicle_visit_flush.py")], 120,
