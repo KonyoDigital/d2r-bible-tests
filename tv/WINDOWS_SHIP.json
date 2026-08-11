@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1692",
+  "ver": "v1693",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1692: resolver-based tally counts his real 236-unique roster instead of the 322-item boss-drop shortlist; two verified finds auto-applied 236 to 238; the two user-truth conflicts are surfaced, never overruled",
+  "note": "v1693: his ruling on the nine, applied — the tally is finally the number he actually has",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

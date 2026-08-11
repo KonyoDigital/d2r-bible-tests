@@ -36090,7 +36090,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     (add.uniques || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
       if (_chronAlreadyUni(n)) { res.skipped.push(n); return; }   // ★ never un-find
-      try { if (typeof window.toggleOwned === 'function') window.toggleOwned(n); res.uniques.push(n); } catch(e){}
+      // v1693 — an optional per-row HONEST date. toggleOwned always stamps window._grailStamp()
+      // (i.e. now) for the ledger write; when the caller has a real in-game First Found date (read
+      // off his own Chronicle screenshots, not invented), it rides through here by swapping the
+      // stamp function for the one toggleOwned call, then restoring it — no second write path, no
+      // raw localStorage touch. Rows with no .date (an unreadable or partial read) fall through to
+      // the normal now-stamp exactly as an unannotated find always has.
+      var _d = row && row.date; var _savedStamp = window._grailStamp;
+      try {
+        if (_d) window._grailStamp = function(){ return _d; };
+        if (typeof window.toggleOwned === 'function') window.toggleOwned(n);
+        res.uniques.push(n);
+      } catch(e){} finally { window._grailStamp = _savedStamp; }
     });
     (add.sets || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
@@ -36197,6 +36208,84 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return Object.keys(un).filter(function(n){ return un[n]; });
     } catch(e){ return []; }
   };
+
+  /* v1693 — KONYO'S RULING ON THE NINE, APPLIED. This is HIS decision being executed, not the
+     system overruling him: v1692 deliberately surfaced these nine names (they print a "First
+     Found:" line in his own game but live un-ticked in d2r_grailUnfound, USER TRUTH at ~line 16830)
+     and applied none of them. On 2026-08-11 he read that evidence — the exact dates below, off his
+     own session film — and ruled: apply them. A future reader diffing this against v1692's restraint
+     should see a ruling recorded, not a reversal invented on our own authority.
+
+     ALL NINE carry a real date, independently corroborated: _GRAIL_SEED (the v659 transcription of
+     his own Chronicle, line ~15454) already holds the exact same minute for every one of them,
+     which is why they are passed through here rather than read fresh — two independent reads
+     agreeing is stronger than either alone. That also makes the date-injection a NO-OP rather than
+     a claim: the boot floor at ~line 16926 (`if (!_gfl[n]) _gfl[n] = _GRAIL_SEED[n]`) would write
+     these same strings by itself on the very next boot once the un-tick is cleared. What rides
+     through here is what the repo already believed, arriving one boot earlier.
+
+     CHANCE GUARDS is the weakest READ of the nine — its row on frame f_1786385827672 is clipped by
+     the panel edge and this ship's own pixel read recovered no First Found line from it, only
+     formatting (gold name + gold divider matching a known-found row). But the read is not the only
+     witness, and an earlier draft of this block wrongly said it was: _GRAIL_SEED holds
+     "Chance Guards":"Jun 8, 2026 · 23:22", one entry from "Gravepalm":"Jun 8, 2026 · 23:44" — the
+     same session, 22 minutes apart, which is exactly what the formatting inferred and what the
+     floor would have written anyway. Omitting the date here would NOT have been caution: it would
+     have stamped today's date under a line that says "First Found:", and the one-shot floor check
+     `!_gfl[n]` would then be false forever, so a now-stamp would have permanently displaced a date
+     the repo already knew. The seed date is passed. Unknown stays unknown; KNOWN stays known too.
+
+     Routed through chronicleApply — never a raw localStorage write — so it inherits merge-max
+     (skips anything already owned), the batch undo, and (via toggleOwned's own v659 guard at
+     ~line 18798) the d2r_grailUnfound clear: adding a seeded name to d2r_foundLog through
+     toggleOwned deletes that same name from d2r_grailUnfound in the same call, which is what lets
+     the floor at ~line 16915 stop re-suppressing it on the next boot — no second clear needed or
+     written here. Gated by a flag so this can only ever fire once, and safe even if he has since
+     found any of them by hand. 238 → 247 (the nine) → 248 with The Diggler if it also fires below. */
+  try {
+    var _flNow693 = {}; try { _flNow693 = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+    if (Object.keys(_flNow693).length && !window.LSR.getItem('d2r_v1693RulingApplied') && typeof window.chronicleApply === 'function') {
+      window.chronicleApply({ wouldAdd: { uniques: [
+          { name: "Blackbog's Sharp", date: 'Jul 12, 2026 · 20:46' },
+          { name: 'Islestrike',       date: 'Jul 12, 2026 · 19:33' },
+          { name: 'Lidless Wall',     date: 'Jul 13, 2026 · 22:12' },
+          { name: 'Sureshrill Frost', date: 'Jul 6, 2026 · 23:59' },
+          { name: 'Gravepalm',        date: 'Jun 8, 2026 · 23:44' },
+          { name: 'Hellslayer',       date: 'Jul 12, 2026 · 23:34' },
+          { name: 'Vampire Gaze',     date: 'Jul 7, 2026 · 00:44' },
+          { name: 'Pluckeye',         date: 'Jul 9, 2026 · 18:51' },
+          { name: 'Chance Guards',    date: 'Jun 8, 2026 · 23:22' }  // seed-corroborated, see above
+        ], sets: [] },
+        lanes: ['v1693-konyo-ruling-the-nine'] });
+      window.LSR.setItem('d2r_v1693RulingApplied', '1');
+    }
+  } catch(e){}
+
+  /* v1693 — THE DIGGLER: a genuine new find, absent from d2r_foundLog, _GRAIL_SEED and
+     d2r_grailUnfound alike (it was never seeded, so the un-tick floor never touches it). Confirmed
+     by eye on frame f_1786385949540.jpg, but the month digit sits under a "The Face of Horror"
+     hover tooltip — the readable remainder is "?/27/2026, ?:15 · Diablo". No sibling agent in this
+     run returned a frame with the tooltip moved, so the month (and hour) stay genuinely unknown —
+     and unlike the nine above there is NO second witness: The Diggler is in neither _GRAIL_SEED nor
+     any other seed, so nothing in this repo knows its date.
+
+     It is therefore stored AS THE PARTIAL READING, verbatim: "?/27/2026 · ?:15 · partial". Not
+     completed by inference (a neighbouring item's 07/27 is not evidence for this one's month), and
+     NOT replaced by a now-stamp either — a "First Found: Aug 11, 2026" would be a fabricated fact
+     wearing today's clothes, and because the floor/one-shot only ever writes when the key is
+     absent, that wrong date would be permanent. Both ledger date parsers degrade safely on it:
+     _forgeDate (~34089) and _flogTime (~34929) both Date.parse() → NaN → 0, i.e. it sorts as
+     UNKNOWN rather than crashing or landing in 1970 with a confident face. Own flag, own one-shot:
+     independent of whether the ruling block above ever fires again.
+     247 (or 238 if the ruling block was skipped) → 248. */
+  try {
+    var _flNow693b = {}; try { _flNow693b = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+    if (Object.keys(_flNow693b).length && !window.LSR.getItem('d2r_v1693DigglerApplied') && typeof window.chronicleApply === 'function') {
+      window.chronicleApply({ wouldAdd: { uniques: [ { name: 'The Diggler', date: '?/27/2026 · ?:15 · partial' } ], sets: [] },
+        lanes: ['v1693-the-diggler-partial-date'] });
+      window.LSR.setItem('d2r_v1693DigglerApplied', '1');
+    }
+  } catch(e){}
 
   /* ══════════════════════════════════════════════════════════════════════════════════════════════
      v1540 — CHRONICLE PHOTO INTAKE: the Chronicle path that works with NO CONSOLE RUNNING.
@@ -38909,7 +38998,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1692', name:'v1692 - real-uniques-tally', date:'2026-08-11', note:'resolver-based tally counts his real 236-unique roster instead of the 322-item boss-drop shortlist; two verified finds auto-applied 236 to 238; the two user-truth conflicts are surfaced, never overruled' };
+  window.D2R_BUILD = { id:'v1693', name:'v1693 - the-nine-applied', date:'2026-08-11', note:'his ruling on the nine, applied — the tally is finally the number he actually has' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
