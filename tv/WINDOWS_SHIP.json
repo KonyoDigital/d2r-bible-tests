@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1697",
+  "ver": "v1699",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1697: the sourceless uniques group keeps its chips but loses the run costume: no f-pipe, no rank, no boss button, muted rail; plus one-shot boot flags are now derived from bible.html so a seeded fixture cannot be mutated by a future apply",
+  "note": "v1699: the noSource/noSourceCount exports added in v1697 had zero consumers and the f-nosrc card already states the count on screen; a tiny run to wire them was REFUSED by its own gate because the target surface ellipsis-clips, so the honest close was deletion",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

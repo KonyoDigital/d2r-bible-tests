@@ -35407,11 +35407,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        33 missing uniques disappear from the runs view altogether — v645 caught it immediately
        (139 missing vs 106 chips). Hiding an item is a worse answer than labelling it honestly.
        So the group is published as a run, and _runCard() renders it WITHOUT the f-pipe class and
-       without a boss anchor, which is exactly the distinction v1624 is asserting. `noSource` stays
-       exported so a surface can say "N uniques have no known farm route" without re-deriving it. */
-    var _noSource = runs.filter(function(r){ return !(r && r.bossId); });
-    return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403,
-             noSource:_noSource, noSourceCount:_noSource.reduce(function(a,g){ return a+((g.items||[]).length); },0) };
+       without a boss anchor, which is exactly the distinction v1624 is asserting.
+
+       v1699 — AND THE `noSource` / `noSourceCount` EXPORTS ARE GONE, because they were mine and
+       they were redundant. I added them "so a surface can say N uniques have no known farm route"
+       — but the f-nosrc card at :35821 ALREADY says exactly that, in his words, on screen, and it
+       shipped in the same version. Nothing ever read the fields: 0 consumers, i.e. plumbing with
+       no tap, authored by the person who wrote the rule about it hours earlier.
+       A tiny run was launched to wire them up and its adversarial gate REFUSED, correctly. The
+       chosen surface (.gf-wall-sub, :37926) is `white-space:nowrap; overflow:hidden;
+       text-overflow:ellipsis` and already ~110 characters, so appending the clause would have put
+       it in the CLIP ZONE — present in textContent, invisible to him, which is the very defect the
+       change claimed to close. A DOM-reading test would have gone green over it.
+       The right answer to unused plumbing is not always a consumer. Here it is a delete: he is
+       already told, once, by the card. */
+    return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403 };
   };
   var _fuF='all';
   window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni();
@@ -39064,7 +39074,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1697', name:'v1697 - no-verified-source-is-a-label-not-a-run', date:'2026-08-12', note:'the sourceless uniques group keeps its chips but loses the run costume: no f-pipe, no rank, no boss button, muted rail; plus one-shot boot flags are now derived from bible.html so a seeded fixture cannot be mutated by a future apply' };
+  window.D2R_BUILD = { id:'v1699', name:'v1699 - unused-plumbing-deleted-not-consumed', date:'2026-08-12', note:'the noSource/noSourceCount exports added in v1697 had zero consumers and the f-nosrc card already states the count on screen; a tiny run to wire them was REFUSED by its own gate because the target surface ellipsis-clips, so the honest close was deletion' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
