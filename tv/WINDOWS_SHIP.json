@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1694",
+  "ver": "v1696",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1694: the board now beacons its own stable identity (install id + sigil crest + machine) to /api/hello, fire-and-forget, once per page-load, after first paint — joining the half-tracker that could see every visit but not name who",
+  "note": "v1696: toggleOwned routed on the OLD roster while funiScan counted the new one, so ticks on the ~17 widened-roster uniques fell into the profile-scoped vault instead of the shared ledger and did not cross to LADDER; a sourceless group is no longer offered as a boss-less BEST RUN",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

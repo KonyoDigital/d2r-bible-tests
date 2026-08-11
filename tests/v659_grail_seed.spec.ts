@@ -25,10 +25,20 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
     };
   });
   expect(r.seedN).toBe(243);   // v682 full reshoot: +13 gap finds (Djinn Slayer confirmed) · Nagelring real stamp
-  expect(r.extraN).toBe(66);   // v682 +Blackbog's Sharp/Radament's Sphere/Rakescar/Skull Collector
-  expect(r.total).toBe(368);            // 302 calculator uniques + 66 chronicle extras
-  expect(r.found).toBe(243);
-  expect(r.flN).toBe(351);   // v682: 243 uniques + 108 set-piece stamps share the ledger
+  // v1695 — THESE FOUR NUMBERS MOVED BECAUSE THE LEDGER GREW, WHICH IS THE WHOLE POINT OF THE ARC.
+  // Konyo's instruction was explicit: "from 236 it NEEDS TO GO UP". Three genuine finds were read
+  // off his own Chronicle screenshots and applied in v1693 -- Fleshrender (08/03 01:27 Diablo),
+  // Gloom's Trap (07/27 01:29 Mephisto), The Diggler (Diablo). Every delta below is that +3, and
+  // the numbers are only updated because each one is arithmetically accounted for:
+  //   found 243 -> 246   (+3 finds)          flN 351 -> 354   (the same 3 reach the ledger)
+  //   extraN 66 -> 67    (Fleshrender ONLY -- the other two already sit in the calculator DB)
+  // ⚠ total is the one that is NOT explained by the finds: 368 -> 385 is the v1692 roster fix,
+  // where the F-tally stopped looping a curated 83-item ITEMS list and counted the real roster.
+  // 385 was independently verified at v1692 before this spec ever saw it.
+  expect(r.extraN).toBe(67);   // v1695 +Fleshrender · v682 +Blackbog's Sharp/Radament's Sphere/Rakescar/Skull Collector
+  expect(r.total).toBe(385);            // v1692 real-roster tally (was 368 = 302 calculator + 66 extras)
+  expect(r.found).toBe(246);            // v1695: 243 + Fleshrender + Gloom's Trap + The Diggler
+  expect(r.flN).toBe(354);   // v1695: 246 uniques + 108 set-piece stamps share the ledger
   expect(r.wormskull).toBe('Jun 22, 2026 · 02:00');
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();
@@ -52,10 +62,15 @@ test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re
     gu: JSON.parse(localStorage.getItem('d2r_grailUnfound') || '{}')['Wormskull'],
   }));
   await page.evaluate(() => { localStorage.removeItem('d2r_grailUnfound'); });
+  // ⚠ THE CONTRACT THIS TEST EXISTS FOR IS UNCHANGED AND STILL PASSING: `owned` is false and the
+  // un-tick is recorded. Only the COUNT moved, by the same +3 as the test above (246 - 1 = 245).
+  // That distinction is the whole reason these numbers were updated rather than the code: if
+  // `owned` or `gu` had moved, d2r_grailUnfound would have stopped being user truth and the fix
+  // would belong in bible.html, not here.
   expect(after.owned).toBe(false);
   expect(after.gu).toBe(1);
-  expect(after.found).toBe(242);
-  expect(restored.found).toBe(243);
+  expect(after.found).toBe(245);        // v1695: 246 with Wormskull un-ticked
+  expect(restored.found).toBe(246);     // v1695: 243 + the three v1693 finds
   expect(restored.gu).toBeUndefined();
 });
 

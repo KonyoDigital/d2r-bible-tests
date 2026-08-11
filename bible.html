@@ -18775,7 +18775,33 @@ function toggleOwned(name) {
   // v677 — grail items live in the FOUND LEDGER (d2r_foundLog), never the vault: a chronicle tick
   // is knowledge, not possession (Konyo throws most finds away). Non-grail labels (socketed bases,
   // tagged keepers) keep the classic owned-set toggle — they ARE physical.
-  const _gi = ITEMS.find(i => i.n === name) || ((window._UNI_EXTRA && window._UNI_EXTRA[name]) ? { n: name } : null);
+  /* v1695 — THE WRITER MUST ROUTE ON THE SAME ROSTER THE SCAN COUNTS, or a tick lands in the wrong
+     store. v1692 widened the F-Uniques universe from (ITEMS ∪ _UNI_EXTRA) to the resolver's real
+     roster (_gUniqueRoster(), 385) and this line was not widened with it. So for the ~17 uniques
+     the new roster added, `_gi` came back null and the tick fell through to the PHYSICAL VAULT
+     (d2r_owned) instead of the shared chronicle ledger (d2r_foundLog).
+
+     WHY THAT IS WORSE THAN IT SOUNDS: d2r_owned is profile-scoped and legitimately forks per
+     account, while d2r_foundLog is ONE key shared by MAIN and LADDER. So ticking one of those
+     items on MAIN made it disappear from MAIN's missing list and stay missing on LADDER —
+     a silent breach of the ladder doctrine that a profile toggle must never change a count.
+     Caught by v1634 with Bul-Kathos' Wedding Band, which is in neither ITEMS nor _UNI_EXTRA.
+
+     The file already named this failure mode at :16045 — "a third tier filter in a third place is
+     how these two drifted apart to begin with". This was the third place. It now asks the same
+     published seam, with the resolver's canonical fallback for the apostrophe/quote-glyph case
+     that _ownedHas (:35160) already handles for reads. */
+  const _inUniRoster = (function(){
+    try {
+      if (typeof window._gUniqueRoster !== 'function') return false;
+      const roster = new Set(window._gUniqueRoster());
+      if (roster.has(name)) return true;
+      const r = (typeof window.d2rResolveItem === 'function') ? window.d2rResolveItem(name) : null;
+      return !!(r && r.canonical && roster.has(r.canonical));
+    } catch (e) { return false; }
+  })();
+  const _gi = ITEMS.find(i => i.n === name) || ((window._UNI_EXTRA && window._UNI_EXTRA[name]) ? { n: name } : null)
+              || (_inUniRoster ? { n: name } : null);
   let wasOwned;
   if (_gi){
     wasOwned = _gFound(name);
@@ -35361,7 +35387,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // 8 Rainbow Facet rows, quest uniques, RotW customs). The headline % must use the GAME's math:
     // found/403, or the site reads 63% while the game says 59%. The remaining drift is real missing
     // data — his 56-shot scroll had gaps (~8 found rows never on screen) — NOT a counting bug.
-    return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403 };
+    /* v1695 — A GROUP WITH NO BOSS IS NOT A RUN, AND MUST NOT BE OFFERED AS ONE.
+       The 'Anywhere — no verified source yet' bucket has always existed here, but before v1692 it
+       was always EMPTY: the universe was ITEMS filtered to tiers that all had tracked sources. The
+       widened roster admits uniques with no verified source — _uniItems' own contract says such a
+       name "still counts toward found/missing; it just carries no run to recommend" — and they all
+       land in that one bucket, which then rendered as a BEST RUN card with no boss, no art and no
+       place to go. Caught by v1624 ("has no boss anchor").
+
+       It is FILTERED, not deleted: the items keep counting toward found/missing (they are already
+       in `missing` above), and the bucket is still published as `noSource` so a surface that wants
+       to say "N uniques have no known farm route" can, honestly, instead of this being hidden.
+       [[unknown-stays-unknown]] — the answer is "no route known", never a route invented. */
+    var _runsReal = runs.filter(function(r){ return !!(r && r.bossId); });
+    var _noSource = runs.filter(function(r){ return !(r && r.bossId); });
+    return { total:items.length, found:found, missing:missing, runs:_runsReal, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403,
+             noSource:_noSource, noSourceCount:_noSource.reduce(function(a,g){ return a+((g.items||[]).length); },0) };
   };
   var _fuF='all';
   window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni();
@@ -38998,7 +39039,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1694', name:'v1694 - board-beacons-stable-identity', date:'2026-08-11', note:'the board now beacons its own stable identity (install id + sigil crest + machine) to /api/hello, fire-and-forget, once per page-load, after first paint — joining the half-tracker that could see every visit but not name who' };
+  window.D2R_BUILD = { id:'v1696', name:'v1696 - the-writer-shares-the-scans-roster', date:'2026-08-12', note:'toggleOwned routed on the OLD roster while funiScan counted the new one, so ticks on the ~17 widened-roster uniques fell into the profile-scoped vault instead of the shared ledger and did not cross to LADDER; a sourceless group is no longer offered as a boss-less BEST RUN' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

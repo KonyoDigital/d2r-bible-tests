@@ -48,8 +48,21 @@ const N_UNIQUES    = 236;   // 346 - 110: the bare unique names = the baseline t
 const N_ROSTER_V1691 = 368; // the boss-drop shortlist v1691 tallied against — the number that must NOT come back
 const N_PIECES_IN_LOG = 110;// foundLog keys the resolver calls 'set-piece' — 346 = 236 + 110, exactly
 const N_SETS_TOTAL = 135;   // fsetsScan().totalPieces
-const N_AFTER      = 238;   // 236 + Fleshrender + Gloom's Trap, applied once at boot
-const N_CONFLICTS  = 9;     // d2r_grailUnfound — his own un-ticks, surfaced and never overruled
+const N_AFTER      = 248;   // v1695: 236 + Fleshrender + Gloom's Trap (v1692) + the nine + The Diggler (v1693 ruling)
+/* v1695 — ONE NAME HAD COME TO MEAN TWO DIFFERENT QUANTITIES, which is the exact defect class this
+   arc keeps finding: N_CONFLICTS was used both for the nine un-ticks recorded in the FIXTURE
+   (history, permanently 9) and for the conflicts still LIVE on screen (0, since his v1693 ruling
+   resolved them). They were the same number until he ruled, and then they silently were not. */
+const N_CONFLICTS_SEEDED = 9;   // d2r_grailUnfound in his captured ledger — the history, never rewritten
+const N_CONFLICTS_LIVE   = 0;   // still-contested after his v1693 ruling
+/* the twelve a FIRST load applies, itemised so this is an inventory and not a magic number:
+   v1692 → Fleshrender, Gloom's Trap                                            (2)
+   v1693 → the nine he ruled on (Blackbog's Sharp · Islestrike · Lidless Wall ·
+           Sureshrill Frost · Gravepalm · Hellslayer · Vampire Gaze · Pluckeye ·
+           Chance Guards)                                                       (9)
+   v1693 → The Diggler                                                          (1) */
+const N_APPLIED_ON_FIRST_LOAD = 12;
+const N_BATCHES_ON_FIRST_LOAD = 3;   // one undoable batch per one-shot, never one merged write
 
 // REAL_SNAPSHOT — his real store, exported 2026-08-11 from the read-only copy above. Frozen, not
 // synthetic. Only the five keys this ship reads; nothing here is written back anywhere.
@@ -89,7 +102,20 @@ const LEDGER: Record<string, string> = REAL
 
 // SUPPRESS = the v1692 one-shot auto-apply flag pre-set, i.e. "the page as he will see it on every
 // load after the first". Its absence is the FIRST load, where the tally moves 236 → 238 by itself.
-const SUPPRESS = { d2r_v1692FleshrenderApplied: '1' };
+/* v1695 — SUPPRESS HAS TO NAME *EVERY* ONE-SHOT, OR "the app mutated his ledger" FIRES ON WORK
+   THAT WAS CORRECT. v1693 added two more one-shot applies (the nine grailUnfound rulings, and The
+   Diggler) with their own flags. This list still named only v1692's, so the two v1693 applies ran
+   during a test whose entire premise is "the page as he will see it on every load AFTER the first"
+   — and the ledger honestly grew 346 → 356 while the spec called it an app-side mutation.
+   ⚠ THIS LIST IS A LIABILITY BY DESIGN: every future one-shot must be added here on the same
+   commit that introduces it, or this test starts lying in whichever direction is least convenient.
+   The idempotency claim itself is unchanged and still the point — with every one-shot already
+   flagged, a repeat load must not write a single key. */
+const SUPPRESS = {
+  d2r_v1692FleshrenderApplied: '1',
+  d2r_v1693DigglerApplied: '1',
+  d2r_v1693RulingApplied: '1',
+};
 
 async function seed(page: any, overrides: Record<string, string> = {}) {
   const data = { ...LEDGER, ...overrides };
@@ -148,7 +174,7 @@ test('(0) SANITY — his real 346-key ledger is in the page, and nothing wrote t
   expect(s.seedFoundLogKeys, 'HIS LEDGER DID NOT LOAD — the seed itself did not carry ' + N_FOUNDLOG + ' foundLog keys, so every count in this file is fiction').toBe(N_FOUNDLOG);
   expect(s.bootFoundLogKeys, 'his ledger loaded but the app MUTATED it on a repeat load (auto-apply already flagged) — this is an app write, NOT a load failure').toBe(N_FOUNDLOG);
   expect(JSON.parse(LEDGER.d2r_setPieces).length, 'd2r_setPieces').toBe(N_SETPIECES);
-  expect(Object.keys(JSON.parse(LEDGER.d2r_grailUnfound)).length, 'd2r_grailUnfound').toBe(N_CONFLICTS);
+  expect(Object.keys(JSON.parse(LEDGER.d2r_grailUnfound)).length, 'd2r_grailUnfound (the fixture history)').toBe(N_CONFLICTS_SEEDED);
   // Both sources present? then they must be the same ledger, key for key.
   if (REAL) {
     const a = Object.keys(JSON.parse(REAL.d2r_foundLog)).sort().join('\u0000');
@@ -242,16 +268,32 @@ test('(3) UP — first load applies the two verified finds by itself, 236 → 23
   const txt = await openUniquesTab(page);
   expect(namedCards(txt).found, 'the screen after the boot auto-apply').toBe(N_AFTER);
   expect(before.found, 'funiScan().found after the boot auto-apply').toBe(N_AFTER);
-  expect(before.bootFoundLogKeys, 'his ledger grew by exactly the two applied names').toBe(N_FOUNDLOG + 2);
+  /* v1695 — a FIRST load now runs three one-shots, not one: v1692's two verified finds, then
+     v1693's nine-name ruling and The Diggler. 346 + 12 = 358, and every one of the twelve is
+     named below so this stays an inventory rather than a magic number that drifts. */
+  expect(before.bootFoundLogKeys, 'his ledger grew by exactly the twelve applied names').toBe(N_FOUNDLOG + N_APPLIED_ON_FIRST_LOAD);
   expect(before.hasFleshrender && before.hasGloomsTrap, 'both names landed in d2r_foundLog (the LEDGER), not in d2r_owned (the vault)').toBe(true);
-  expect(before.batches.length, 'the apply recorded exactly one undoable batch').toBe(1);
-  expect(before.batches[0].uniques, 'the batch records only what it actually flipped').toEqual(['Fleshrender', "Gloom's Trap"]);
+  expect(before.batches.length, 'each one-shot recorded its own undoable batch').toBe(N_BATCHES_ON_FIRST_LOAD);
+  expect(before.batches[0].uniques, 'the v1692 batch records only what it actually flipped').toEqual(['Fleshrender', "Gloom's Trap"]);
 
-  const undone = await page.evaluate(() => (window as any).chronicleUndoLast());
+  /* v1695 — UNDO THE WHOLE STACK, NOT "THE" BATCH. This asserted a single undo returned 2 names,
+     which was true when a first load ran exactly one one-shot. Three one-shots later, undoLast
+     correctly returns 1 (The Diggler, the most recent) and the old assertion read as a broken undo
+     while undo was working exactly as specified.
+     The property was never "one batch exists" — it is THE LEDGER IS FULLY RECOVERABLE. So this
+     unwinds every batch and checks the whole stack reverses, which also survives the next one-shot
+     without another edit here. */
+  let undoneTotal = 0;
+  for (let i = 0; i < N_BATCHES_ON_FIRST_LOAD + 2; i++) {
+    const r = await page.evaluate(() => (window as any).chronicleUndoLast());
+    if (!r || !r.undone) break;
+    undoneTotal += r.undone;
+  }
   await page.click('.tab[data-tab="funi"]');
   await page.waitForTimeout(400);
   const after = await scan(page);
-  expect(undone.undone, 'chronicleUndoLast un-ticked both').toBe(2);
+  expect(undoneTotal, 'every applied name came back off').toBe(N_APPLIED_ON_FIRST_LOAD);
+  expect(after.batches.length, 'no batch left behind').toBe(0);
   expect(after.found, 'funiScan().found back to the pre-apply baseline').toBe(N_UNIQUES);
   expect(after.bootFoundLogKeys, 'his ledger back to its original key count').toBe(N_FOUNDLOG);
   expect(namedCards((await page.textContent('#funi-body')) || '').found, 'the screen back to 236').toBe(N_UNIQUES);
@@ -263,7 +305,11 @@ test('(3) UP — first load applies the two verified finds by itself, 236 → 23
     return { applied: res.uniques, found: w.funiScan().found };
   });
   expect(manual.applied, 'chronicleApply applied both names').toEqual(['Fleshrender', "Gloom's Trap"]);
-  expect(manual.found, 'manual chronicleApply reaches the same 238').toBe(N_AFTER);
+  /* v1695 — this reaches 238, not N_AFTER. The stack was fully undone above, so the board is back
+     at his 236 baseline and this hand-apply adds exactly the TWO v1692 names. N_AFTER is the
+     twelve-name first-load state and stopped being the right constant here the moment v1693 added
+     its one-shots — the third time in this file one number quietly came to mean two things. */
+  expect(manual.found, 'a hand-apply of the two v1692 names reaches 236 + 2').toBe(N_UNIQUES + 2);
 });
 
 /* ── (4) ADDS ONLY — A CHRONICLE READ CAN NEVER COST HIM AN ITEM ──────────────────────────────
@@ -292,25 +338,43 @@ test('(4) NEVER REMOVES — re-applying names he already has skips them and the 
   expect(r.batches, 'an apply that flipped nothing records no undo batch').toBe(0);
 });
 
-/* ── (5) THE CONTESTED NAMES ARE SHOWN, NOT DECIDED ───────────────────────────────────────────
-   d2r_grailUnfound is HIS un-tick — user truth. Blackbog's Sharp and Islestrike print a "First
-   Found:" line in his own Chronicle screenshots, so the game and his un-tick disagree. The ship
-   SURFACES that disagreement at the top of the Uniques Forge and applies nothing: neither name may
-   appear in d2r_foundLog and neither may be counted. */
-test('(5) CONTESTED — the 9 un-ticked names are surfaced on screen and NONE of them is auto-applied', async ({ page }) => {
-  await seed(page);   // first load — the auto-apply path is live, so this proves it stayed off them
-  const txt = await openUniquesTab(page);
+/* ── (5) THE CONTESTED NAMES WERE DECIDED — BY HIM, AND REVERSIBLY ────────────────────────────
+   ⚠ THIS TEST INVERTED AT v1693, AND THE INVERSION IS THE POINT — it must not be read as the
+   safety property weakening.
+
+   At v1692 the nine `d2r_grailUnfound` names were SURFACED and applied to nothing, because
+   d2r_grailUnfound is user truth and nobody but Konyo may overrule his own un-tick. That was
+   correct, and it stayed correct right up until he ruled. He then ruled: all nine print a
+   "First Found:" line in his own Chronicle, his tally had to go UP, and v1693 applied them.
+
+   So the property under test was never "the nine are never applied" — it was "NOTHING overrules
+   his un-tick except him". That property is unchanged and is what is asserted here:
+     · the applying batch is LANE-TAGGED with his ruling (v1693-konyo-ruling-the-nine), so the
+       authority for the write is recorded in the data and not merely in a commit message;
+     · it is a chronicleApply batch, so chronicleUndoLast() can still take it back — a ruling that
+       cannot be un-ruled would be a worse violation than the original silent apply;
+     · d2r_grailUnfound is consequently EMPTY, which is what makes the boot floor stop
+       re-suppressing them.
+   If a future change applies a grailUnfound name WITHOUT a named ruling lane, this test is what
+   should catch it. */
+test('(5) RULED — the 9 un-ticked names are applied under HIS named ruling, and the ruling is undoable', async ({ page }) => {
+  await seed(page);   // first load — every one-shot is live, so this sees the full applied state
+  await openUniquesTab(page);
   const s = await scan(page);
   expect(s.conflicts, 'window._gUnfoundConflicts is not defined — this is v1691').not.toBeNull();
-  expect((s.conflicts as string[]).length, 'his 9 un-ticks').toBe(N_CONFLICTS);
-  expect(s.conflicts, 'the exact names, from his own d2r_grailUnfound').toEqual(Object.keys(JSON.parse(LEDGER.d2r_grailUnfound)));
-  expect(txt, 'the banner says how many, on screen').toContain(N_CONFLICTS + ' marked NOT found, by you');
-  expect(txt, "Blackbog's Sharp is on screen").toContain("Blackbog's Sharp");
-  expect(txt, 'Islestrike is on screen').toContain('Islestrike');
-  expect(s.hasBlackbog, "Blackbog's Sharp was WRITTEN to his ledger — his un-tick was overruled").toBe(false);
-  expect(s.hasIslestrike, 'Islestrike was WRITTEN to his ledger — his un-tick was overruled').toBe(false);
-  expect(s.bootFoundLogKeys, 'the auto-apply added the two verified names and NOTHING else').toBe(N_FOUNDLOG + 2);
-  expect((s.batches[0] || {}).uniques, 'no contested name rode along in the batch').toEqual(['Fleshrender', "Gloom's Trap"]);
+  // his ruling RESOLVED the disagreement, so nothing is left contested
+  expect((s.conflicts as string[]).length, 'after his ruling, no un-tick still contradicts the game').toBe(N_CONFLICTS_LIVE);
+  expect(Object.keys(JSON.parse(LEDGER.d2r_grailUnfound)).length,
+    'the FIXTURE still records the nine he originally un-ticked — that history is not rewritten').toBe(N_CONFLICTS_SEEDED);
+  // the nine are now his, by his own call
+  expect(s.hasBlackbog, "Blackbog's Sharp — ruled found").toBe(true);
+  expect(s.hasIslestrike, 'Islestrike — ruled found').toBe(true);
+  // THE AUTHORITY IS IN THE DATA: some batch must carry his ruling lane, and it must be undoable.
+  const lanes = (s.batches as any[]).flatMap(b => (b && b.lanes) || []);
+  expect(lanes.join(' '), 'the applying batch names HIS ruling as its authority')
+    .toContain('konyo-ruling');
+  const undoable = await page.evaluate(() => typeof (window as any).chronicleUndoLast === 'function');
+  expect(undoable, 'a ruling that cannot be undone is worse than one never made').toBe(true);
 });
 
 /* ── (6) THE TWO TOTALS ON THAT SCREEN MUST AGREE ─────────────────────────────────────────────

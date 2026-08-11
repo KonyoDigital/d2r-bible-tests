@@ -41,8 +41,17 @@ test('Forge·Uniques renders the full shell: meter, 4 KPI tiles, hero, run cards
   expect(r.heroLead).toMatch(/best farm/i);
   expect(r.runCards).toBeGreaterThan(3);
   expect(r.scan.total).toBeGreaterThan(250);      // grail+high+common uniques
-  expect(r.scan.found).toBe(r.scan.seedN);        // v659 — the owner's boot floors the in-game chronicle seed
-  expect(r.scan.missing).toBe(r.scan.total - r.scan.seedN);
+  /* v1695 — THE SEED IS A FLOOR, AND THIS ASSERTED IT WAS A CEILING. `found === seedN` held only
+     while the boot seed was the ONLY way an item could be found; v1693 applied three genuine finds
+     read off his own Chronicle (Fleshrender, Gloom's Trap, The Diggler), so found is now 246 against
+     a 243 seed and the equality broke on work that was the entire point of the arc — his words:
+     "from 236 it NEEDS TO GO UP".
+     The exact roster numbers are pinned once, in v659_grail_seed.spec.ts. This spec owns the FORGE
+     UI contract, so it states the contract instead of duplicating a constant that will move again
+     the next time he farms something: the seed floors the boot, and missing is the remainder. */
+  expect(r.scan.found, 'the seed is a FLOOR — found may exceed it, never fall below')
+    .toBeGreaterThanOrEqual(r.scan.seedN);
+  expect(r.scan.missing).toBe(r.scan.total - r.scan.found);
   expect(r.scan.runs).toBeGreaterThan(10);        // grouped by best source
 });
 
