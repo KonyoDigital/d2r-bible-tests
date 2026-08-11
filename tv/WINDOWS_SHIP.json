@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1691",
+  "ver": "v1692",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1691: pure-geometry sweep of every visible text-bearing leaf in .header at 901/1100/1280/1920px; never names a class or id, so it cannot be blinded by the naming gap that let v1690s collision probe pass a live identity-chip-over-title overlap",
+  "note": "v1692: resolver-based tally counts his real 236-unique roster instead of the 322-item boss-drop shortlist; two verified finds auto-applied 236 to 238; the two user-truth conflicts are surfaced, never overruled",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
