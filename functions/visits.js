@@ -33,6 +33,49 @@
  *                   `lastseen:` (durable) keys written by /api/console, beaconed by
  *                   tv/control_app.py. Its own section, its own units, in NO total above it.
  *
+ * ── NAMED VISITORS (v1694) — joining the two half-trackers ─────────────────────────────────────
+ * Before v1694, `visit:` rows can see every browser page-view but cannot name who (the "Who"
+ * table below falls back to IP, so one cousin on two devices counts twice and several people
+ * behind one router collapse into one), while the console's `lastseen:` scheme HAS real identity
+ * but never sees a browser. bible.html now beacons its own stable identity to POST /api/hello
+ * once per page-load (see that file for the exact contract), which writes it under a THIRD
+ * prefix so neither existing scheme is touched:
+ *   `hvisitor:<id>`      — DURABLE, ONE KEY PER PERSON (like `lastseen:`), read-modify-written on
+ *                          every beacon: { id, name, code, machine, ver, first_seen, last_seen,
+ *                          count, country, city }. `count`/`first_seen`/`last_seen` are already
+ *                          authoritative totals — this file does not recompute them.
+ *   `hhit:<ISO-ts>:<rand>:<id>`
+ *                        — per-hit log, TTL 30 days — the ONLY source for day-by-day shape
+ *                          (7d/30d/sparkline), because the durable record above is a single
+ *                          overwritten row and cannot carry history by itself. Read from the KEY
+ *                          NAME ALONE: the name already encodes both fields the value holds, so
+ *                          this file never fetches the value and spends ONE subrequest for the
+ *                          whole log instead of one per page-load ever recorded.
+ * If nothing has beaconed yet (old cached build, JS blocked, or /api/hello unreachable), both
+ * lists come back empty and this section says so honestly — it does not fall back to guessing
+ * identity from IP, and it does not hide itself. The two prefixes are read in SEPARATE try/catch
+ * blocks and a failed read is printed as UNKNOWN, never as an empty population.
+ *
+ * ⚠ THIS SECTION RENDERS OUTSIDE THE `visit:` GATE, DELIBERATELY. `visit:` rows expire after 90
+ * days (_middleware.js) while `hvisitor:` lives 400 (hello.js), so an empty page-view store is a
+ * perfectly ordinary state in which named identities still exist. Nesting the named table inside
+ * `visits.length ? …` would have hidden the new population behind the old one's count — the exact
+ * coupling this ship exists to break, inverted. Keep it ungated.
+ *
+ * ⚠ NO TRUE "ONLINE NOW" SIGNAL EXISTS FOR THIS SCHEME. Unlike `console:<machine>` (a short-TTL
+ * presence key refreshed by a running app's heartbeat), the browser beacon fires ONCE per
+ * page-load and then falls silent — there is no heartbeat to hold a presence key alive, so
+ * claiming "online now" here would be a guess dressed as a fact. This file shows relative
+ * "last seen" instead and says why, rather than inventing a second presence mechanism.
+ *
+ * ⚠ TWO POPULATIONS, NEVER ONE NUMBER. The named-visitor table below and the IP-inferred "Who"
+ * table measure DIFFERENT SETS of people: anyone on a stale cached build, or with JS blocked, or
+ * who never typed a name/code into the beacon (no identity ⇒ /api/hello silently skips the
+ * write), still lands in the IP-inferred numbers and never in the named table. Neither table is
+ * corrected by the other, both stay on the page, and the gap between their totals is printed
+ * rather than reconciled into a single "visitors" figure — that single-figure merge is exactly
+ * the defect class this project keeps finding.
+ *
  * WHY THEY ARE BOTH HERE NOW. The console app never loads /d2r/, so it cannot produce a page-view
  * — true then, true now. Konyo went looking for his cousin's console session on this page twice
  * (2026-08-02 and 2026-08-09), correctly did not find it, and both times concluded the tracker was
@@ -132,6 +175,68 @@ export async function onRequestGet(context) {
     machines = [];                                    // the console block is additive: never let it
   }                                                   // take down the page-view dashboard
 
+  // ── NAMED VISITORS (v1694) — real contract, see functions/api/hello.js ─────────────────────────
+  // `hvisitor:` is durable/one-per-person like `lastseen:`, so it reuses `listPrefix` above
+  // unmodified (the exact "reuse the idea, don't invent a second one" the brief asked for).
+  // `hhit:` is a growing per-hit log (30d TTL), so it gets the same paginated-cursor shape as the
+  // `visit:` loop at the top of this function. Additive only: any failure here must never take
+  // down the page-view or console sections above.
+  // ⚠ TWO INDEPENDENT try/catch BLOCKS, ON PURPOSE — do not merge them back into one. A single
+  // catch around both prefixes lets a failed `hhit:` scan zero out the perfectly readable
+  // `hvisitor:` records, and the page then prints "No beaconed visitor identity yet" over
+  // identities that exist and were readable: a false statement on the one dashboard whose entire
+  // job is being honest about what it cannot know. Each prefix now fails alone, and a failure is
+  // reported AS a failure rather than rendered as an empty population.
+  let namedRecords = [];
+  let namedFailed = false;
+  try {
+    const idKeys = await listPrefix('hvisitor:');
+    const idRaw = await Promise.all(idKeys.map((k) => kv.get(k.name, 'json').catch(() => null)));
+    // Read defensively — a record missing a field renders that field unknown, never guessed.
+    namedRecords = idRaw.filter((v) => v && v.id && v.last_seen);
+  } catch (e) {
+    namedRecords = [];                                  // additive: never breaks the rest of the page
+    namedFailed = true;                                 // but NEVER reported as "nobody has beaconed"
+  }
+
+  // The hit log is read from the KEY NAMES ALONE. `hhit:<ISO-ts>:<id>` already encodes both fields
+  // (`t`, `id`) that the JSON value carries, so fetching each value would spend one subrequest per
+  // page-load ever recorded (30 days × 20 loads/day ≈ 600) against a Pages Functions subrequest
+  // ceiling of 50 free / 1000 paid — and because each get was individually .catch(()=>null),
+  // tripping that ceiling would have surfaced as SILENTLY SMALLER numbers, not as an error.
+  // Listing is paginated and cheap; parsing a key is free. The id charset is fixed by hello.js
+  // (`[a-z0-9-]`, ≤40 chars, so it can contain no colon), which is what makes the split safe.
+  let hitRecords = [];
+  let hitTruncated = false;
+  let hitFailed = false;
+  let hitUnparsed = 0;
+  // v1694 fix: hello.js writes FOUR segments — `hhit:<ISO>:<rand>:<id>` — because a random
+  // segment is what stops two loads in the same millisecond from overwriting one another. The
+  // first cut of this regex only allowed THREE, so every key the real writer produced was
+  // rejected and every day column read 0. The middle group is optional so the 3-segment shape
+  // named in this file's header still parses; it can never swallow the id, because `<rand>` is
+  // base36 (`[a-z0-9]+`) and must be followed by a colon, and an id can contain no colon at all.
+  const HHIT_KEY = /^hhit:(\d{4}-\d{2}-\d{2}T[\d:.]+Z):(?:[a-z0-9]+:)?([a-z0-9-]+)$/;
+  try {
+    let hitKeys = [];
+    let hcursor;
+    for (let i = 0; i < 20; i++) {
+      const page = await kv.list({ prefix: 'hhit:', cursor: hcursor });
+      hitKeys = hitKeys.concat(page.keys || []);
+      if (page.list_complete || !page.cursor) break;
+      hcursor = page.cursor;
+      if (i === 19) hitTruncated = true;
+    }
+    for (const k of hitKeys) {
+      const m = HHIT_KEY.exec(k.name);
+      if (!m) { hitUnparsed++; continue; }               // counted and printed, never guessed at
+      hitRecords.push({ t: m[1], id: m[2] });
+    }
+  } catch (e) {
+    hitRecords = [];
+    hitFailed = true;                                    // day-by-day unknown ≠ day-by-day zero
+  }
+
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -222,6 +327,71 @@ export async function onRequestGet(context) {
     return `<div class="bar${x.n ? '' : ' zero'}${x.d === todayUTC ? ' today' : ''}" title="${esc(x.d)} — ${x.n} page-view${x.n === 1 ? '' : 's'}"><i style="height:${Math.max(x.n ? 4 : 1, h)}%"></i></div>`;
   }).join('');
 
+  // ── named visitors: join durable identity (hvisitor:) with day-by-day hits (hhit:) ────────────
+  const thirtyAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const namedVisitors = new Map();
+  for (const rec of namedRecords) {
+    namedVisitors.set(rec.id, {
+      id: rec.id,
+      sigil: (rec.code || rec.name || '').trim() || null,   // code preferred, matches hello.js
+      count: Number(rec.count) || 0,                        // authoritative total from the durable record
+      last: rec.last_seen,
+      first: rec.first_seen,
+      machine: rec.machine || null,
+      place: (flag(rec.country) + ' ' + [rec.city, rec.country].filter(Boolean).join(', ')).trim() || null,
+      byDay: new Map(),
+      days: new Set(),
+    });
+  }
+  // hhit: only carries 30 days — it can only ever refine the last-30-day shape of a record whose
+  // durable totals (count/first_seen/last_seen) already came from hvisitor: above. A hit for an id
+  // with no hvisitor: record (theoretically possible if one expired before the other) is dropped
+  // rather than fabricating a person around a bare id.
+  for (const h of hitRecords) {
+    const nv = namedVisitors.get(h.id);
+    if (!nv) continue;
+    const d = day(h.t);
+    nv.days.add(d);
+    nv.byDay.set(d, (nv.byDay.get(d) || 0) + 1);
+  }
+  const nVisits7 = (nv) => [...nv.byDay.entries()].filter(([d]) => d >= sevenAgo)
+    .reduce((s, [, n]) => s + n, 0);
+  const nVisits30 = (nv) => [...nv.byDay.entries()].filter(([d]) => d >= thirtyAgo)
+    .reduce((s, [, n]) => s + n, 0);
+  const sparkline = (nv) => {
+    const cells = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+      cells.push(nv.byDay.get(d) || 0);
+    }
+    const peakN = Math.max(1, ...cells);
+    return cells.map((n) => {
+      const h = n ? Math.max(15, Math.round((n / peakN) * 100)) : 4;
+      return `<i style="height:${h}%${n ? '' : ';background:#2f2818'}" title="${n} hit${n === 1 ? '' : 's'} in the last 30d window"></i>`;
+    }).join('');
+  };
+  // When the `hhit:` scan itself failed, every day-shaped column is UNKNOWN, not zero — printing
+  // "0 visits in the last 7 days" for a person who may well have visited daily is exactly the
+  // wrong-number-under-a-true-looking-label defect. The durable totals are unaffected and still show.
+  const unk = '<span class="muted" title="the 30-day hit log could not be read — unknown, not zero">?</span>';
+  const namedRows = [...namedVisitors.values()].sort((a, b) => (a.last < b.last ? 1 : -1)).map((nv) => {
+    const lastMs = Date.parse(nv.last);
+    return `<tr>
+      <td><b>${nv.sigil ? esc(nv.sigil) : '<span class="muted">UNKNOWN</span>'}</b>${
+        nv.id ? ` <span class="mono muted">${esc(nv.id)}</span>` : ''}${
+        nv.machine ? `<br><span class="mono muted">${esc(nv.machine)}</span>` : ''}</td>
+      <td>${isFinite(lastMs) ? esc(rel(Date.now() - lastMs)) : '<span class="muted">unknown</span>'}</td>
+      <td class="num">${nv.count} <span class="muted">visit${nv.count === 1 ? '' : 's'}</span></td>
+      <td class="num">${hitFailed ? unk : (nv.days.size ? nv.days.size : '<span class="muted">—</span>')}</td>
+      <td class="num">${hitFailed ? unk : nVisits7(nv)}</td>
+      <td class="num">${hitFailed ? unk : nVisits30(nv)}</td>
+      <td class="t" data-t="${esc(nv.last)}">${esc(nv.last)}</td>
+      <td class="t" data-t="${esc(nv.first)}">${esc(nv.first)}</td>
+      <td>${nv.place ? esc(nv.place) : '<span class="muted">?</span>'}</td>
+      <td class="spark">${hitFailed ? unk : sparkline(nv)}</td>
+    </tr>`;
+  }).join('');
+
   const peopleRows = [...people.values()].sort((a, b) => (a.last < b.last ? 1 : -1)).map((p) => `
     <tr>
       <td><b>${esc(p.who)}</b>${p.named ? '' : ' <span class="muted">(no login name — shown by IP)</span>'}</td>
@@ -258,6 +428,10 @@ export async function onRequestGet(context) {
     </tr>`;
   }).join('');
 
+  // v1694 — the two population sizes, named ONCE here so the heading badge and the prose under
+  // each table can never drift apart. They are deliberately NOT summed anywhere in this file.
+  const beaconTotal = [...namedVisitors.values()].reduce((s, nv) => s + nv.count, 0);
+
   const html = `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
@@ -272,6 +446,16 @@ export async function onRequestGet(context) {
   .sub{color:#9c8d6b;font-size:13px}
   h2{margin:26px 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.13em;
      color:#9c8d6b;font-weight:700}
+  /* v1694 — the two people-tables count DIFFERENT populations, and the prose saying so sat in
+     small grey text UNDER each table while the two headings were styled identically. A reader
+     who only skims the headings could add the two totals. Each population now carries a badge
+     ON its heading, in its own colour, with "never added" said in the badge itself. */
+  .pop{display:inline-block;vertical-align:middle;margin-left:9px;padding:3px 9px;border-radius:999px;
+       font-size:11px;letter-spacing:.04em;text-transform:none;font-weight:700;border:1px solid}
+  .pop.beacon{background:#16240f;border-color:#4d7a2e;color:#a8d47a}
+  .pop.ipinf{background:#101c26;border-color:#2e5c7a;color:#7ab6d4}
+  .pop .sep{opacity:.55;font-weight:400;padding:0 2px}
+  .pop .nadd{font-weight:400;opacity:.85}
   .wrap{padding:6px 20px 48px;max-width:1100px;margin:0 auto}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
   .card{background:#1c180f;border:1px solid #3a3122;border-radius:10px;padding:13px 15px}
@@ -286,6 +470,11 @@ export async function onRequestGet(context) {
   .bar.zero i{background:#2f2818}
   .bar.today i{background:linear-gradient(180deg,#8fe6a0,#3f8a56)}
   .chart-x{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:#6b6149}
+  /* v1694 — per-person sparkline: 14 tiny bars inside one table cell, same colour language as the
+     30-day chart above (gold = activity, dim = zero) so the two read as one visual system. */
+  .spark{display:flex;align-items:flex-end;gap:1px;height:22px;width:70px}
+  .spark i{display:block;flex:1 1 0;min-width:2px;border-radius:1px 1px 0 0;
+           background:linear-gradient(180deg,#f0c060,#96702a)}
   .tblwrap{overflow-x:auto;border:1px solid #2a2418;border-radius:10px}
   table{border-collapse:collapse;width:100%;min-width:640px}
   th,td{text-align:left;padding:9px 13px;border-bottom:1px solid #2a2418;white-space:nowrap}
@@ -362,6 +551,12 @@ export async function onRequestGet(context) {
     necessarily been offline:</b> it may have used the app instead of the website, and the machines
     section below is where that shows.
     <br><br>
+    <b>v1694 &mdash; a third source, also below:</b> when the board itself beacons a stable identity,
+    it lands in the <b>Named visitors</b> table with a real WHO, not a guess. That table and the
+    older IP-inferred <b>Who</b> table are <b>two different populations, kept as two numbers</b>
+    &mdash; a visitor with no beacon shows up only in the IP-inferred one, never merged into a named
+    row and never quietly dropped.
+    <br><br>
     Per-session history, boot events and beacon health stay on the deep page:
     <a href="${esc(consoleHref)}">📺 /console &rarr;</a>
   </div>
@@ -420,17 +615,75 @@ ${visits.length ? `
   <h2>Last 30 days</h2>
   <div class="chart">${bars}</div>
   <div class="chart-x"><span>30 days ago</span><span>today</span></div>
+` : ''}
 
-  <h2>Who</h2>
+  <h2>Named visitors &middot; identified by beacon${
+    namedFailed ? ' <span class="pop beacon" style="color:#f0a050;border-color:#8a5a20;background:#241a0f">POPULATION A &middot; size UNKNOWN &mdash; identity scan FAILED</span>'
+    : namedVisitors.size ? ` <span class="pop beacon">POPULATION A<span class="sep">&middot;</span>${
+        namedVisitors.size} identit${namedVisitors.size === 1 ? 'y' : 'ies'}<span class="sep">&middot;</span>${
+        beaconTotal} beaconed visit${beaconTotal === 1 ? '' : 's'}<span class="sep">&middot;</span><span class="nadd">never added to population B</span></span>`
+    : ''}</h2>
+${namedFailed ? `  <div class="empty"><b style="color:#f0a050">The identity scan failed &mdash; this is
+      not a statement that nobody has visited.</b> Reading the <span class="mono">hvisitor:</span>
+      keys threw, so how many named people there are is <b>UNKNOWN</b>, not zero. Refresh; if it
+      persists the KV binding is the thing to look at. The IP-inferred numbers below are read
+      separately and are unaffected.</div>`
+  : namedVisitors.size ? `
+  <div class="tblwrap"><table>
+    <thead><tr><th>Person</th><th>Last seen</th><th>Visits</th><th>Days active <span class="mono muted">(30d)</span></th>
+      <th>Last 7d</th><th>Last 30d</th><th>Last visit</th><th>First visit</th><th>Location</th>
+      <th>Last 14 days</th></tr></thead>
+    <tbody>${namedRows}</tbody>
+  </table></div>
+  <div class="note"><b>This table is built from the board's own identity beacon</b>
+    (<span class="mono">hvisitor:</span>/<span class="mono">hhit:</span>, written by
+    <span class="mono">/api/hello</span>), not from IP guessing &mdash; so the same person on a
+    phone and a laptop stays two rows under two self-typed names, never merged, and a record with
+    no name/code renders as <b>UNKNOWN</b> rather than being silently dropped.
+    <b>No true &ldquo;online now&rdquo; signal exists for this scheme</b> &mdash; the beacon fires
+    once per page-load and holds no heartbeat, unlike the console app's TTL'd presence key above
+    &mdash; so this column shows <b>last seen</b>, not presence. Visits/first/last come straight
+    from the durable record; days-active/7d/30d/sparkline can only see the last 30 days because
+    that is all <span class="mono">hhit:</span> retains.${hitFailed
+      ? ` <b style="color:#f0a050">The 30-day hit log could not be read on this request, so every
+        day-shaped column shows <span class="mono">?</span> &mdash; UNKNOWN, not zero. The visit
+        totals, first and last seen come from a separate read and still stand.</b>`
+      : ''}
+    <br><br>
+    <b>It is not the same population as the &ldquo;Who&rdquo; table below.</b> Anyone on a stale
+    cached build, with JS blocked, or who never typed a name/code, never beacons and so never
+    appears here &mdash; they still land in the IP-inferred numbers below. Named identities:
+    <b>${namedVisitors.size}</b>, totalling <b>${beaconTotal}</b>
+    beaconed visit${beaconTotal === 1 ? '' : 's'} (<b>population A</b>, green badge above).
+    IP-inferred page-views: <b>${visits.length}</b> across <b>${people.size}</b> IP/login bucket${
+      people.size === 1 ? '' : 's'} (<b>population B</b>, blue badge below). These two totals are <b>never added together</b> &mdash; they
+    measure different, overlapping-but-not-identical populations.${hitTruncated
+      ? ' <b style="color:#f0a050">The 30-day hit scan hit its 20,000-record ceiling and was TRUNCATED.</b>'
+      : ''}${hitUnparsed
+      ? ` <b style="color:#f0a050">${hitUnparsed} hit key${hitUnparsed === 1 ? '' : 's'} did not match
+          the expected <span class="mono">hhit:&lt;ISO&gt;:&lt;rand&gt;:&lt;id&gt;</span> shape and ${
+          hitUnparsed === 1 ? 'was' : 'were'} left out of the day columns rather than guessed at.</b>`
+      : ''}</div>
+` : `  <div class="empty">No beaconed visitor identity yet &mdash; and this really is a read that
+      succeeded and found nothing, not a failed read. Either nobody has loaded a build that beacons
+      it, or nobody has typed a name/code for the beacon to send &mdash; <span class="mono">
+      /api/hello</span> silently skips writing an anonymous beacon rather than fabricating an
+      identity. The IP-inferred section below still has what it has always had.</div>`}
+
+${visits.length ? `
+  <h2>Who &middot; IP-inferred (no beacon identity) <span class="pop ipinf">POPULATION B<span class="sep">&middot;</span>${
+    people.size} IP/login bucket${people.size === 1 ? '' : 's'}<span class="sep">&middot;</span>${
+    visits.length} page-view${visits.length === 1 ? '' : 's'}<span class="sep">&middot;</span><span class="nadd">never added to population A</span></span></h2>
   <div class="tblwrap"><table>
     <thead><tr><th>Person</th><th>Page-views</th><th>Days seen</th><th>Last page-view</th>
       <th>First page-view</th><th>Location</th><th>Device</th></tr></thead>
     <tbody>${peopleRows}</tbody>
   </table></div>
-  <div class="note">A &ldquo;person&rdquo; is the login name they typed, or their IP when they left it
-    blank. So the same cousin on a phone and a laptop counts twice, and several people behind one
-    router with no login name collapse into one. Tell each of them to log in with their own name and
-    this column becomes exact.
+  <div class="note">A &ldquo;person&rdquo; here is the login name they typed, or their IP when they
+    left it blank &mdash; <b>this table has no beacon identity, only IP-inference.</b> So the same
+    cousin on a phone and a laptop counts twice, and several people behind one router with no login
+    name collapse into one. This is a <b>different population</b> from the Named Visitors table
+    above: it is a floor for &ldquo;at least this many people&rdquo;, not a headcount.
     <br><br>
     Each count above is <b>web page-views of /d2r/</b>. A row reading &ldquo;1 page-view&rdquo; means
     they opened the <b>website</b> once &mdash; it says <b>nothing</b> about how much they used the
@@ -441,9 +694,13 @@ ${visits.length ? `
     <thead><tr><th>When</th><th>Login name</th><th>Location</th><th>IP</th><th>Device</th></tr></thead>
     <tbody>${logRows}</tbody>
   </table></div>
-` : `<div class="empty">No <b>browser page-views</b> recorded yet. Load the app in a web browser once
-      and refresh this page.<br><br>This says nothing about the 📺 console app &mdash; its machines are
-      in their own section above.</div>`}
+` : `<div class="empty">No <b>IP-inferred page-view records</b> (<span class="mono">visit:</span>,
+      written by functions/_middleware.js) are in the store right now. Load the app in a web browser
+      once and refresh this page.<br><br>This says nothing about the 📺 console app &mdash; its
+      machines are in their own section above &mdash; and <b>nothing about the Named visitors table
+      above either</b>: those records live 400 days while these expire after ${ttlDays}, so a quiet
+      stretch empties this section while named identities are still perfectly readable. Two
+      populations, two independent reads.</div>`}
 </div>
 <script>
   // stored timestamps are UTC ISO — show them in the viewer's own zone

@@ -631,7 +631,14 @@ class TestVisitsPageCarriesConsoleMachines(unittest.TestCase):
         prefixes = {c["prefix"] for c in v["listCalls"]}
         self.assertNotIn("consolelog:", prefixes,
                          "/visits started reading the log prefix — use /console for events")
-        self.assertEqual({"visit:", "console:", "lastseen:"}, prefixes,
+        # WIDENED DELIBERATELY IN v1694. The INVARIANT this test exists for is unchanged and is
+        # asserted above: /visits must never read 'consolelog:'. The set below is a roster of every
+        # prefix the page is ALLOWED to read, and v1694 added two of them — 'hvisitor:' (durable
+        # per-person identity) and 'hhit:' (30-day per-hit log), both written by the new
+        # functions/api/hello.js. Anything NOT in this roster is still a failure, so a third
+        # consolelog reader still trips the line above and an unannounced new prefix still trips
+        # this one. Widened by hand, never by loosening the comparison.
+        self.assertEqual({"visit:", "console:", "lastseen:", "hvisitor:", "hhit:"}, prefixes,
                          "unexpected KV prefixes read by /visits: %r" % (prefixes,))
 
 
