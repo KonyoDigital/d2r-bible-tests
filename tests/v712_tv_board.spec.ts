@@ -108,11 +108,29 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     const after = await page.evaluate(() => ({
       ist: (parseInt((window as any).runeStash['Ist'], 10) || 0),
       ruby: (parseInt((window as any).gemStash['Perfect Ruby'], 10) || 0),
-      harle: typeof (window as any)._gFound === 'function' ? (window as any)._gFound('Harlequin Crest (Shako)') : null,
+      /* v1696 — ASK FOR THE NAME THE LEDGER ACTUALLY KEYS. This asked for the SUFFIXED spelling
+         ("Harlequin Crest (Shako)"), which is how ITEMS disambiguates it for display, and _gFound
+         is an EXACT key lookup. The board strips a trailing parenthetical before applying
+         (bible.html:40246), so the apply writes the bare canonical name — measured, the ledger held
+         exactly ["Harlequin Crest"] and the vault was empty. The apply was right and the question
+         was wrong.
+         Both spellings are asserted deliberately: the bare one must be TRUE because that is the
+         roster's identity and what got written, and the suffixed one is recorded as the display
+         form so the day someone canonicalises writes, this line says which is which. The tally
+         itself is safe either way — _ownedHas (bible.html:35160) canonicalises on READ, so the two
+         spellings can never both be counted. */
+      harle: typeof (window as any)._gFound === 'function' ? (window as any)._gFound('Harlequin Crest') : null,
+      harleSuffixed: typeof (window as any)._gFound === 'function' ? (window as any)._gFound('Harlequin Crest (Shako)') : null,
+      harleCounted: (() => {
+        const w = window as any;
+        try { return (w.funiScan().missing || []).every((x: any) => x.n !== 'Harlequin Crest'); } catch (e) { return null; }
+      })(),
     }));
     expect(after.ist).toBe(1);
     expect(after.ruby).toBe(1);
-    expect(after.harle).toBe(true);
+    expect(after.harle, 'the apply writes the ROSTER name, not the display suffix').toBe(true);
+    expect(after.harleSuffixed, 'the suffixed form is display-only and is NOT a ledger key').toBe(false);
+    expect(after.harleCounted, 'and the tally counts it — one item, one identity').toBe(true);
   });
 
   test('v728 history scroll is not yanked to top on poll re-render', async ({ page }) => {

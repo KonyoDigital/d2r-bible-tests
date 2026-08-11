@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1696",
+  "ver": "v1697",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1696: toggleOwned routed on the OLD roster while funiScan counted the new one, so ticks on the ~17 widened-roster uniques fell into the profile-scoped vault instead of the shared ledger and did not cross to LADDER; a sourceless group is no longer offered as a boss-less BEST RUN",
+  "note": "v1697: the sourceless uniques group keeps its chips but loses the run costume: no f-pipe, no rank, no boss button, muted rail; plus one-shot boot flags are now derived from bible.html so a seeded fixture cannot be mutated by a future apply",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

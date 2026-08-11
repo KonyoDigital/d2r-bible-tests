@@ -1,5 +1,6 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { suppressOneShots } from './_oneshots';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v949 — CHRONICLE SYNC (Konyo: "ladder↔non-ladder the chronicles are the SAME and should be SYNCED
@@ -80,11 +81,18 @@ test('(c) one-time MERGE unions both accounts’ chronicles with NO loss, and is
   // seed ONCE (before the page migration runs) both a bare (main) and an L· (ladder) chronicle with
   // DIFFERENT progress + a collision that has different dates → the merge must union everything and
   // keep the EARLIEST date on the collision. The guard makes seeding happen only on the first load.
-  await page.addInitScript(() => {
+  /* v1696 — AND suppress the one-shot boot applies. `fresh` kills the grail-seed FLOOR but NOT the
+     v1692/v1693 one-shots: those fire whenever d2r_foundLog is non-empty, and this test deliberately
+     seeds it with two names. So twelve ruled/verified finds were applied into a fixture whose whole
+     assertion is "the union is EXACTLY these three", and the union assertion failed by exactly those
+     twelve. The flags are derived from bible.html (tests/_oneshots.ts), never hand-listed, so the
+     next one-shot cannot re-arm this. */
+  await page.addInitScript((flags: Record<string, string>) => {
     try {
       // fresh profile suppresses the owner grail-seed FLOOR (which would otherwise flood d2r_foundLog
       // with the full seed) so the union assertion sees exactly the two accounts' seeded finds.
       localStorage.setItem('d2r_rwProfile', 'fresh');
+      for (const k of Object.keys(flags)) localStorage.setItem(k, flags[k]);
       if (!localStorage.getItem('__v949_seeded')) {
         localStorage.setItem('d2r_foundLog', JSON.stringify({ 'Shako': 'Jan 1, 2026 · 10:00', 'Windforce': 'Mar 3, 2026 · 09:00' }));
         localStorage.setItem('L·d2r_foundLog', JSON.stringify({ 'Griffon’s Eye': 'Feb 2, 2026 · 08:00', 'Windforce': 'Jan 15, 2026 · 07:00' }));
@@ -93,7 +101,7 @@ test('(c) one-time MERGE unions both accounts’ chronicles with NO loss, and is
         localStorage.setItem('__v949_seeded', '1');
       }
     } catch (e) {}
-  });
+  }, suppressOneShots());
   await page.goto(URL); await page.waitForTimeout(1400);
   const merged = await page.evaluate(() => {
     const w: any = window;

@@ -8179,6 +8179,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(1){animation-delay:.01s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(2){animation-delay:.05s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(3){animation-delay:.09s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(4){animation-delay:.13s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(5){animation-delay:.17s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(6){animation-delay:.21s}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-now{border-left-color:#5fc97a}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-now:hover{border-color:rgba(95,201,122,.5)}
+/* v1696 — the "no verified source yet" group. Deliberately MUTED, not blue: a run card's blue rail
+   means "here is where to farm this", and this card's whole point is that no such place is known. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-nosrc{border-left-color:rgba(233,208,122,.28)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe{border-left-color:#5b9fd0}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe:hover{border-color:rgba(91,159,208,.5)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-step{border-left-color:#cdb157}
@@ -35399,9 +35402,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        in `missing` above), and the bucket is still published as `noSource` so a surface that wants
        to say "N uniques have no known farm route" can, honestly, instead of this being hidden.
        [[unknown-stays-unknown]] — the answer is "no route known", never a route invented. */
-    var _runsReal = runs.filter(function(r){ return !!(r && r.bossId); });
+    /* v1696 — THE SOURCELESS GROUP STAYS IN `runs`; IT IS THE CARD THAT CHANGES.
+       My first pass filtered it out here, which fixed the boss-less BEST RUN card (v1624) by making
+       33 missing uniques disappear from the runs view altogether — v645 caught it immediately
+       (139 missing vs 106 chips). Hiding an item is a worse answer than labelling it honestly.
+       So the group is published as a run, and _runCard() renders it WITHOUT the f-pipe class and
+       without a boss anchor, which is exactly the distinction v1624 is asserting. `noSource` stays
+       exported so a surface can say "N uniques have no known farm route" without re-deriving it. */
     var _noSource = runs.filter(function(r){ return !(r && r.bossId); });
-    return { total:items.length, found:found, missing:missing, runs:_runsReal, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403,
+    return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403,
              noSource:_noSource, noSourceCount:_noSource.reduce(function(a,g){ return a+((g.items||[]).length); },0) };
   };
   var _fuF='all';
@@ -35797,6 +35806,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* v1644 ITEM2 — the run rank moved OFF the boss portrait (it was a .f-cardart-badge pinned on
        the sprite corner) into the title line as a .f-rankpill: same information, nothing covering
        the artwork. */
+    /* v1696 — A GROUP WITH NO BOSS IS NOT A RUN, AND MUST NOT WEAR A RUN'S CLOTHES.
+       The 'Anywhere — no verified source yet' bucket was always here but always EMPTY until v1692
+       widened the roster to uniques with no tracked source. It then rendered as a numbered BEST RUN
+       card with a rank pill, a missing boss portrait and a "boss card" button that goes nowhere
+       (v1624: "has no boss anchor"). Its items still belong on screen — they are genuinely missing
+       and he can tick them here — so this labels the group for what it is instead of dropping it:
+       no f-pipe (the class the run assertions read), no rank, no art, no boss button, and a
+       subtitle that states the honest reason rather than implying a farm route exists.
+       [[unknown-stays-unknown]] — "no route known" is an answer; an invented route is not. */
+    if (!r.bossId) {
+      return '<div class="f-card f-nosrc"><div class="f-cardbody">'
+        +'<div class="f-cardtitle"><div class="f-atomact">No verified source <b class="f-rwbig">yet</b></div></div>'
+        +'<div class="f-atomsubrow"><b>'+r.items.length+'</b> of your missing uniques have no tracked drop location — '
+        +'tick them here when you find them</div>'
+        +'<div class="gf-chips">'+chips+'</div>'+more+'</div></div>';
+    }
     return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+_runArtThumb(r)+'</div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact"><span class="f-rankpill">'+(i+1)+'</span>Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
       +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+_fuRate(r.ev)+'</b> of running':'')+'</div>'
@@ -39039,7 +39064,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1696', name:'v1696 - the-writer-shares-the-scans-roster', date:'2026-08-12', note:'toggleOwned routed on the OLD roster while funiScan counted the new one, so ticks on the ~17 widened-roster uniques fell into the profile-scoped vault instead of the shared ledger and did not cross to LADDER; a sourceless group is no longer offered as a boss-less BEST RUN' };
+  window.D2R_BUILD = { id:'v1697', name:'v1697 - no-verified-source-is-a-label-not-a-run', date:'2026-08-12', note:'the sourceless uniques group keeps its chips but loses the run costume: no f-pipe, no rank, no boss button, muted rail; plus one-shot boot flags are now derived from bible.html so a seeded fixture cannot be mutated by a future apply' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

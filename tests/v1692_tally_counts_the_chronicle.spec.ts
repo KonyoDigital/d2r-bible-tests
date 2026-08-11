@@ -1,5 +1,6 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { suppressOneShots } from './_oneshots';
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    v1692 — THE TALLY COUNTS THE CHRONICLE HE ACTUALLY HAS, AND IT GOES UP ON ITS OWN.
@@ -111,11 +112,7 @@ const LEDGER: Record<string, string> = REAL
    commit that introduces it, or this test starts lying in whichever direction is least convenient.
    The idempotency claim itself is unchanged and still the point — with every one-shot already
    flagged, a repeat load must not write a single key. */
-const SUPPRESS = {
-  d2r_v1692FleshrenderApplied: '1',
-  d2r_v1693DigglerApplied: '1',
-  d2r_v1693RulingApplied: '1',
-};
+const SUPPRESS = suppressOneShots();   // derived from bible.html — see tests/_oneshots.ts
 
 async function seed(page: any, overrides: Record<string, string> = {}) {
   const data = { ...LEDGER, ...overrides };

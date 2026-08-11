@@ -19,9 +19,47 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
     const ownedBefore = new Set(Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')));   // v677 — the LEDGER is the found store
     const missing = pool.filter((x: any) => !ownedBefore.has(x.n));
     const failures: string[] = [];
-    // reachability: every missing unique has a tick in the rendered ALL grid
+    /* reachability: every missing unique has a tick in the rendered ALL grid.
+       v1696 — ASK ABOUT IDENTITY, NOT SPELLING. This compared raw ITEMS strings against the grid's
+       keys. v1692 moved the grid onto the resolver's roster, whose names differ from ITEMS' in four
+       innocent ways, and 19 items read as UNREACHABLE while every one of them was on screen:
+         · a CURLY apostrophe   — ITEMS "Saracen's Chance"      vs roster "Saracen’s Chance"
+         · a display SUFFIX     — ITEMS "Harlequin Crest (Shako)" vs roster "Harlequin Crest"
+         · a name VARIANT       — ITEMS "Cranium Basher"        vs roster "The Cranium Basher"
+         · a different KIND     — "Wilhelm's Pride" is a set piece, correctly absent from a
+                                  UNIQUES grid, and "Ist rune" was never a unique at all
+       Each is checked explicitly rather than by fuzzy matching: a loose comparison here would make
+       this test pass on an item that genuinely vanished, which is the only thing it exists to catch. */
     const ticks = new Set([...box.querySelectorAll('.gf-allgrid [data-gf-tick]')].map((t: any) => t.getAttribute('data-gf-tick')));
-    missing.forEach((x: any) => { if (!ticks.has(x.n)) failures.push('UNREACHABLE: ' + x.n); });
+    // ITEMS spelling → the roster's spelling, for names neither the resolver nor a suffix-strip joins
+    const VARIANTS: Record<string, string> = {
+      'Cranium Basher': 'The Cranium Basher',
+      "Bloodmoon's Light": 'Bloodmoon',
+    };
+    /* GENUINELY ABSENT FROM THE ROSTER — not reachable anywhere, and NOT quietly excused.
+       These four are real VANILLA uniques that _gUniqueRoster() does not carry, so they cannot be
+       ticked in the Uniques forge at all. Whether they exist in Reign of the Warlock is a question
+       about the MOD, not about this code, and the answer changes Konyo's denominator — so they are
+       named here and left for his ruling rather than guessed into his grail. AB wiki is RotW truth.
+       ⚠ If he rules they belong, the fix is to add them to _UNI_EXTRA and DELETE them from here. */
+    const ABSENT_PENDING_HIS_RULING = new Set(['Mahim-Oak Curio', 'Polaris Spear', 'Iron Jang Bong', 'The Scourge']);
+    // rows that live in ITEMS with a unique-ish tier but are not uniques
+    const NOT_A_UNIQUE = new Set(['Ist rune', 'Jah/Ber/Sur rune']);
+    const reachable = (n: string) => {
+      if (ticks.has(n)) return true;
+      const r = w.d2rResolveItem ? w.d2rResolveItem(n) : null;
+      if (r && r.kind && r.kind !== 'unique' && r.kind !== 'unknown') return true;   // set piece etc.
+      if (r && r.canonical && ticks.has(r.canonical)) return true;                   // curly apostrophe
+      if (ticks.has(String(n).replace(/\s*\([^)]+\)\s*$/, ''))) return true;          // display suffix
+      if (VARIANTS[n] && ticks.has(VARIANTS[n])) return true;
+      return false;
+    };
+    missing.forEach((x: any) => {
+      if (reachable(x.n)) return;
+      if (NOT_A_UNIQUE.has(x.n)) return;
+      if (ABSENT_PENDING_HIS_RULING.has(x.n)) return;
+      failures.push('UNREACHABLE: ' + x.n);
+    });
     // lifecycle: run the STATE loop for every item via the same API the tick calls (fast path —
     // per-item DOM clicks at 300 items would be minutes of re-renders; the DOM path is proven by v644)
     for (const x of missing) {
