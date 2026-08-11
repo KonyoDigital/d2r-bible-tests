@@ -15,7 +15,21 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const GROK = process.env.G5_GROK_BIN || process.env.TV_GROK_BIN || 'grok';
-const BUDGET_PATH = join(HERE, 'g5_subscription_budget.json');
+/* v1698 — ONE UNIT, DECLARED ONCE. This file and tv/g5_grok_eyes.py both write
+   g5_subscription_budget.json, and they used different clocks: Date.now() here (MILLISECONDS),
+   time.time() there (SECONDS). Neither knew about the other, and both halves were broken in
+   opposite directions -- Python could never prune a row written here (it computes as ~1.78 million
+   million seconds in the future, so `< 86400` is always true), and this file DELETED every row
+   Python wrote (they read as ~20,655 days old). The count therefore only ever climbed, and at 30
+   the second eye pins itself OFF reporting a legitimate-looking "hourly cap (30/30)" with a real
+   call rate of zero. It stood at 9 of 30.
+   Canonical is MILLISECONDS -- the unit already on disk, so no row of his is migrated or lost --
+   and a timestamp in the OTHER unit is still understood rather than dropped. Keep asMs() and
+   g5_grok_eyes._as_ms() identical; tv/test_g5_budget_units.py fails if they ever disagree. */
+const MS_FLOOR = 1e11;   // 1e11 ms = 1973; 1e11 s = year 5138. Nothing real lands between them.
+const asMs = (t) => (Number(t) < MS_FLOOR ? Number(t) * 1000 : Number(t));
+// overridable so a guard can run without touching his live budget file (v1493's lesson)
+const BUDGET_PATH = process.env.G5_BUDGET_PATH || join(HERE, 'g5_subscription_budget.json');
 const HOURLY_MAX = Math.max(0, parseInt(process.env.G5_GROK_HOURLY_MAX || '30', 10) || 30);
 const DAILY_MAX = Math.max(0, parseInt(process.env.G5_GROK_DAILY_MAX || '200', 10) || 200);
 
@@ -46,7 +60,7 @@ function budgetCheck() {
   }
   const now = Date.now();
   const state = _budgetLoad();
-  const calls = (state.calls || []).filter((t) => now - t < 24 * 3600 * 1000);
+  const calls = (state.calls || []).map(asMs).filter((t) => now - t >= 0 && now - t < 24 * 3600 * 1000);
   const hour = calls.filter((t) => now - t < 3600 * 1000);
   if (hour.length >= HOURLY_MAX) {
     return `grok-subscription hourly cap (${hour.length}/${HOURLY_MAX})`;
@@ -60,7 +74,7 @@ function budgetCheck() {
 function budgetRecord() {
   const now = Date.now();
   const state = _budgetLoad();
-  const calls = (state.calls || []).filter((t) => now - t < 24 * 3600 * 1000);
+  const calls = (state.calls || []).map(asMs).filter((t) => now - t >= 0 && now - t < 24 * 3600 * 1000);
   calls.push(now);
   _budgetSave({ calls, last: now });
 }

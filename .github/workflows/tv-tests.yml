@@ -24,6 +24,8 @@ jobs:
         run: python3 -m pip install --quiet pillow
       - name: Chronicle known-frame wire (retro sweep must receive the live agent's marks — 0 → 8)
         run: python3 tv/test_chronicle_known_wire.py
+      - name: G5 budget units (one clock — the second eye must not pin itself OFF at a false cap)
+        run: python3 tv/test_g5_budget_units.py
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
           # body arrives as an escaped JSON string ({"status":400,"body":"{\"error\":\"missing image\"}"}) — grep escape-proof

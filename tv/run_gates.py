@@ -90,6 +90,13 @@ GATES = [
          why="a sealed reel must always carry a parseable index.json — even when the seal is "
              "interrupted mid-way — because theatre, read_reel and the retro sweep all enter "
              "through the index, and a reel of real frames without one plays BLACK"),
+    Gate("test_g5_budget_units", [sys.executable, os.path.join(HERE, "test_g5_budget_units.py")], 120,
+         why="g5_subscription_budget.json had TWO writers on TWO clocks — Python seconds, Node "
+             "milliseconds — so Python could never prune a Node row (it reads as 1.78 million "
+             "million seconds in the FUTURE) and Node deleted every Python row. The count only "
+             "climbed, and at 30 the second eye pins itself OFF behind a legitimate-looking "
+             "'hourly cap (30/30)' while the real call rate is zero. It stood at 9. This is the "
+             "FIRST test that has ever existed on the G5 lane"),
     Gate("test_chronicle_known_wire", [sys.executable, os.path.join(HERE, "test_chronicle_known_wire.py")], 300,
          why="sweep_hist(known_chronicle=) shipped in v1689 and NOTHING EVER PASSED IT, so every "
              "retro sweep re-derived what the live agent had already identified and paid a "

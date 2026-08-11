@@ -468,28 +468,66 @@ def status():
 
 
 # ── budget (local counters, like intake_local) ────────────────────────────────
+# v1698 — TWO WRITERS, TWO CLOCKS, ONE FILE. g5_subscription_budget.json is written by BOTH this
+# module (time.time() -> SECONDS) and tv/intake_grok_sub.mjs (Date.now() -> MILLISECONDS), and
+# neither knew about the other. Both halves were broken, in opposite directions:
+#
+#   Python reading a Node row:  now(1786390330) - 1786385809525 = -1,784,599,419,194 -- hugely
+#     NEGATIVE, so `< 86400` is ALWAYS true. Every ms row sits ~1.78 MILLION MILLION seconds in the
+#     "future" and can never age out. hourlyUsed only ever CLIMBS.
+#   Node reading a Python row:  now_ms - t ~= 20,655 days -- outside 24h, so DROPPED. Node deletes
+#     every row Python writes and saves the pruned list back.
+#
+# At 30 accumulated rows _budget_ok() returns False forever and the second eye reports
+# "grok-subscription hourly cap (30/30)" while the real call rate is ZERO. Measured 2026-08-10:
+# 9 of 30, i.e. twenty-one Node calls from switching itself off. That is the exact failure this
+# lane exists to prevent -- the eye goes dark behind a LEGITIMATE-LOOKING reason, same shape as
+# v1501. The tell was on screen and walked past: hourlyUsed 9 alongside stats.calls 0.
+#
+# THE FIX IS ONE UNIT, DECLARED ONCE, NORMALISED ON READ -- never a conversion at a single call
+# site, which is just the second writer again. Canonical is MILLISECONDS: his file already holds
+# ms rows, so nothing has to be migrated and no real call is lost. A row in the other unit is
+# still understood rather than dropped, because a budget that silently forgets calls is as wrong
+# as one that never forgets them.
+_MS_FLOOR = 1e11   # 1e11 ms = 1973; 1e11 s = year 5138. Nothing real lands between the two.
+
+
+def _as_ms(t):
+    """One timestamp -> milliseconds, whichever unit it was written in."""
+    v = float(t)
+    return v * 1000.0 if v < _MS_FLOOR else v
+
+
+def _budget_path():
+    """v1698 — overridable so a guard can run without touching his live budget file.
+    Read per call, not frozen at import, so a test can point it somewhere after importing."""
+    return os.environ.get("G5_BUDGET_PATH") or _BUDGET_PATH
+
+
 def _budget_load():
     try:
-        if not os.path.isfile(_BUDGET_PATH):
+        p = _budget_path()
+        if not os.path.isfile(p):
             return {"calls": []}
-        return json.loads(open(_BUDGET_PATH, encoding="utf-8").read()) or {"calls": []}
+        return json.loads(open(p, encoding="utf-8").read()) or {"calls": []}
     except Exception:
         return {"calls": []}
 
 
 def _budget_save(state):
     try:
-        with open(_BUDGET_PATH, "w", encoding="utf-8") as fh:
+        with open(_budget_path(), "w", encoding="utf-8") as fh:
             json.dump(state, fh)
     except Exception:
         pass
 
 
 def _budget_counts(now=None):
-    now = now if now is not None else time.time()
+    now_ms = _as_ms(now) if now is not None else time.time() * 1000.0
     state = _budget_load()
-    calls = [float(t) for t in (state.get("calls") or []) if now - float(t) < 86400.0]
-    hour = [t for t in calls if now - t < 3600.0]
+    calls = [_as_ms(t) for t in (state.get("calls") or [])]
+    calls = [t for t in calls if 0 <= now_ms - t < 86400.0 * 1000.0]
+    hour = [t for t in calls if now_ms - t < 3600.0 * 1000.0]
     with _LOCK:
         _CALL_LOG[:] = calls
     return len(hour), len(calls)
@@ -503,11 +541,13 @@ def _budget_ok():
 
 
 def _budget_record():
-    now = time.time()
+    # v1698 — writes MILLISECONDS, the one canonical unit both writers now agree on.
+    now_ms = time.time() * 1000.0
     state = _budget_load()
-    calls = [float(t) for t in (state.get("calls") or []) if now - float(t) < 86400.0]
-    calls.append(now)
-    _budget_save({"calls": calls, "last": now})
+    calls = [_as_ms(t) for t in (state.get("calls") or [])]
+    calls = [t for t in calls if 0 <= now_ms - t < 86400.0 * 1000.0]
+    calls.append(now_ms)
+    _budget_save({"calls": calls, "last": now_ms})
     with _LOCK:
         _CALL_LOG[:] = calls
 
