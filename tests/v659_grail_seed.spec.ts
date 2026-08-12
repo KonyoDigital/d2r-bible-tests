@@ -35,10 +35,21 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
   // ⚠ total is the one that is NOT explained by the finds: 368 -> 385 is the v1692 roster fix,
   // where the F-tally stopped looping a curated 83-item ITEMS list and counted the real roster.
   // 385 was independently verified at v1692 before this spec ever saw it.
-  expect(r.extraN).toBe(67);   // v1695 +Fleshrender · v682 +Blackbog's Sharp/Radament's Sphere/Rakescar/Skull Collector
-  expect(r.total).toBe(385);            // v1692 real-roster tally (was 368 = 302 calculator + 66 extras)
-  expect(r.found).toBe(246);            // v1695: 243 + Fleshrender + Gloom's Trap + The Diggler
-  expect(r.flN).toBe(354);   // v1695: 246 uniques + 108 set-piece stamps share the ledger
+  /* v1703 — KONYO RULED that four "missing" uniques exist, and only TWO of them actually did.
+     "The Mahim-Oak Curio" and "The Iron Jang Bong" were already in ITEM_VALUE, already in
+     _UNI_EXTRA, and already SEEDED FOUND in _GRAIL_SEED (May 18 / May 19) — they were only ever
+     absent under their BARE spellings, and _norm() folds case and punctuation but not a leading
+     "The ". Adding those bare forms would have minted a second, permanently-unfound roster row for
+     an item he already owns. So they are name variants (tests/v645's VARIANTS map) and only
+     Polaris Spear + The Scourge joined the roster.
+     => extraN 67 -> 69 and total 385 -> 387. NOT +4. `found` and `flN` must NOT move: the two real
+     additions are unfound, and the two variants were already counted under their "The …" names —
+     if found moves, something double-counted an item he already owns, which is the exact ghost this
+     correction exists to prevent. */
+  expect(r.extraN).toBe(69);   // v1703 +Polaris Spear/The Scourge · v1695 +Fleshrender · v682 +4
+  expect(r.total).toBe(387);            // v1703: 385 + the two genuinely-absent uniques
+  expect(r.found).toBe(246);            // UNCHANGED — both additions are unfound
+  expect(r.flN).toBe(354);              // UNCHANGED — 246 uniques + 108 set-piece stamps
   expect(r.wormskull).toBe('Jun 22, 2026 · 02:00');
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();

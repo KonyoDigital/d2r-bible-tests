@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1702",
+  "ver": "v1703",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1702: v1701 removed a rule that a dedicated spec gates; four specs disagree two-a-side about this one line, so it is restored exactly as he last shipped it and the contradiction is surfaced for his ruling",
+  "note": "v1703: Konyo ruled the four absent uniques exist; only Polaris Spear and The Scourge actually were absent — The Mahim-Oak Curio and The Iron Jang Bong were already on the roster and already seeded FOUND, so their bare spellings became name variants instead of ghost roster rows",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

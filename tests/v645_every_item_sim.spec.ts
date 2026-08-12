@@ -35,14 +35,15 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
     const VARIANTS: Record<string, string> = {
       'Cranium Basher': 'The Cranium Basher',
       "Bloodmoon's Light": 'Bloodmoon',
+      /* v1703 — these two joined the list when Konyo ruled the four "missing" uniques DO exist. Two of
+         them already did, under their proper names: "The Mahim-Oak Curio" and "The Iron Jang Bong" are
+         in ITEM_VALUE, in _UNI_EXTRA, and SEEDED FOUND in _GRAIL_SEED (May 18 / May 19). Only Polaris
+         Spear and The Scourge were genuinely absent, and only those two were added to the roster.
+         Adding the bare spellings would have minted a second, permanently-unfound ghost row for an item
+         he already owns — so they are name variants, exactly like Cranium Basher above. */
+      'Mahim-Oak Curio': 'The Mahim-Oak Curio',
+      'Iron Jang Bong': 'The Iron Jang Bong',
     };
-    /* GENUINELY ABSENT FROM THE ROSTER — not reachable anywhere, and NOT quietly excused.
-       These four are real VANILLA uniques that _gUniqueRoster() does not carry, so they cannot be
-       ticked in the Uniques forge at all. Whether they exist in Reign of the Warlock is a question
-       about the MOD, not about this code, and the answer changes Konyo's denominator — so they are
-       named here and left for his ruling rather than guessed into his grail. AB wiki is RotW truth.
-       ⚠ If he rules they belong, the fix is to add them to _UNI_EXTRA and DELETE them from here. */
-    const ABSENT_PENDING_HIS_RULING = new Set(['Mahim-Oak Curio', 'Polaris Spear', 'Iron Jang Bong', 'The Scourge']);
     // rows that live in ITEMS with a unique-ish tier but are not uniques
     const NOT_A_UNIQUE = new Set(['Ist rune', 'Jah/Ber/Sur rune']);
     const reachable = (n: string) => {
@@ -57,7 +58,6 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
     missing.forEach((x: any) => {
       if (reachable(x.n)) return;
       if (NOT_A_UNIQUE.has(x.n)) return;
-      if (ABSENT_PENDING_HIS_RULING.has(x.n)) return;
       failures.push('UNREACHABLE: ' + x.n);
     });
     // lifecycle: run the STATE loop for every item via the same API the tick calls (fast path —
