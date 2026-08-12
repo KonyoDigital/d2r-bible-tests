@@ -145,10 +145,10 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
   14 super-uniques carry per-kill odds (su-odds-data).
 - **Fixed-rate mechanics (not silospen-modelable, community-verified):** Key of Hate 36%
   per Summoner kill · Annihilus per-DClone. Countess rune odds separately calibrated (1:850 Ist).
-- **Materials are NOT MF-scaled and NOT in the 312-item grail count** (sunders,
+- **Materials are NOT MF-scaled and NOT in the 322-item grail count** (sunders,
   shards, statues, jewels, keys, organs, essences). Their per-kill figures are
   community estimates (silospen / d2runewizard / diablo2.io / Maxroll), never invented.
-- **Integrity gate** = `baseline/integrity_baseline.json` probes (312 items, 11 bosses,
+- **Integrity gate** = `baseline/integrity_baseline.json` probes (322 items, 13 bosses,
   drop probes) checked by `routine-l-integrity.yml` — NOT a file md5 hash. UI-only
   edits that don't touch BOSSES data stay green. Baseline mirrors anchors (e.g.
   `probe_meph_shako.hell` = 836).

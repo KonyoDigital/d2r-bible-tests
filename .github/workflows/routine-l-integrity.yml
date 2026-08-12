@@ -8,6 +8,18 @@ on:
   schedule:
     - cron: '30 7 * * *'   # 10:30 IDT
   workflow_dispatch:
+  # 2026-08-12 — THIS GATE COULD NOT SEE THE PUSH IT EXISTS TO CHECK.
+  # It probes ITEMS.length / BOSSES.length out of bible.html and fails on drift from
+  # baseline/integrity_baseline.json — but it only ever fired on a timer, so a commit that changed
+  # ITEMS or BOSSES sailed through and the drift was not reported until the next morning's cron,
+  # by which point several more ships had landed on top of it. A gate that runs on a clock while
+  # the thing it guards changes on pushes is measuring yesterday.
+  # Found by a third-eye sweep (a different model family), which also caught GAME_RULES.md still
+  # documenting this gate as "312 items, 11 bosses" while the baseline it reads says 322 and 13.
+  push:
+    paths:
+      - 'bible.html'
+      - 'baseline/integrity_baseline.json'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"

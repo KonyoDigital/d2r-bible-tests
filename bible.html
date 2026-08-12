@@ -16603,10 +16603,10 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
 /* v1692 — THE RESOLVER. bible.html's 322-entry ITEMS array is boss-drop-table derived and the Forge
    tally was looping it as if it WERE the unique roster — a third of it. window.ITEM_VALUE (505 keys,
    maxroll.gg's own valuable-* lists, just published above) names every real unique with zero base
-   items mixed in — but it DOES carry set pieces in bare form; window._UNI_EXTRA (66 keys, defined
+   items mixed in — but it DOES carry set pieces in bare form; window._UNI_EXTRA (69 keys, defined
    ~line 15452) covers the RotW-only / non-boss uniques ITEM_VALUE never heard of (Latent charms, low
    vanilla drops). The roster is therefore (ITEM_VALUE ∪ _UNI_EXTRA) MINUS __allSets()'s own piece
-   names, bare or suffixed: 512 − 127 set pieces = 385 unique names, measured in a browser, not
+   names, bare or suffixed: 514 − 127 set pieces = 387 unique names, measured in a browser, not
    assumed. Verified against his real 346-key d2r_foundLog: it classifies all 236 real uniques as
    'unique', all 110 real set pieces (via __allSets()'s piece list, ~line 13641) as 'set-piece' in
    BOTH the ledger's suffixed form and the Chronicle's bare form, and window.BASE_DB (508 keys)
@@ -17082,7 +17082,9 @@ function renderGrailProgress() {
   let _fu = null; try { if (typeof window.funiScan === 'function') _fu = window.funiScan(); } catch (e) {}
   // v1692 — the pre-funiScan fallback used to loop `allGrails` (the boss-drop-table shortlist, 83
   // entries) instead of his real roster. window._gUniqueRoster() is the resolver's ITEM_VALUE ∪
-  // _UNI_EXTRA union (512 names) — same denominator the Forge Uniques tab now counts against.
+  // _UNI_EXTRA union (514 names). ⚠ THE UNION IS NOT THE DENOMINATOR: _gUniqueRoster() returns the
+  // FILTERED roster (514 − 127 set pieces = 387), which is what the Forge Uniques tab counts
+  // against. v659_grail_seed.spec.ts pins 387 — that spec, not this comment, is the authority.
   const _realRoster = (typeof window._gUniqueRoster === 'function') ? window._gUniqueRoster() : allGrails.map(i => i.n);
   const total = _fu ? (_fu.chronTotal || _fu.total) : _realRoster.length;
   const have = _fu ? _fu.found : _realRoster.filter(n => _gFound(n)).length;
@@ -35189,7 +35191,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // 346-key foundLog: everything he found that wasn't tracked to a boss (self-found, vendor, early
     // uniques with no verified source) had no row to match against. The universe is now the
     // resolver's real roster — window._gUniqueRoster(), i.e. (ITEM_VALUE ∪ _UNI_EXTRA) minus the 127
-    // set-piece names those lists carry in bare form = 385 uniques — with tier/sources pulled from
+    // set-piece names those lists carry in bare form = 387 uniques — with tier/sources pulled from
     // ITEM_REGISTRY where a tracked boss is known, so Best-runs/Quick-wins keep working for every item
     // that already had a farm route. A name with no tracked source still counts toward found/missing;
     // it just carries no run to recommend. ONE universe, published once by the resolver, so the grid,
