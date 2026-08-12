@@ -36,48 +36,36 @@ const PRICED = {
 async function open(page: any, payload: any, status = 200) {
   await page.route(ORIGIN + '/ui', (r: any) =>
     r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: UI_HTML }));
-  /* every OTHER console call goes silent. A url-predicate rather than a '**/api/**' glob, because a
-     glob that also matches chronicle_scan wins the match and aborts the very call under test.
-
-     ⚠ v1709 — DO NOT "FIX" THIS BY FULFILLING THEM. v1708 replaced this abort() with
-     `fulfill({status:200, body:'{}'})` on the theory that ~30 aborted boot endpoints were what left
-     #chron-scan non-interactive. CI REFUTED IT AND THE CHANGE MADE THINGS WORSE: failures went
-     21 -> 31, and tests that never click anything (e.g. "the panel lives in THE RECORD zone")
-     started failing too. An empty-but-valid JSON body lets the console's boot code proceed on
-     garbage; an aborted request at least leaves a known, consistently-failed state. Reverted.
-
-     FOUR OTHER THEORIES ARE ALSO DEAD, all checked against the source:
-       · body[data-view="sessions"] hides the panel — <body> carries NO data-view attribute at all
-       · data-state gates visibility — it only swaps theme accent colours
-       · boot JS hides the column — nothing assigns .hidden to these panels
-       · an infinite animation blocks "stable" — none sit on an ancestor of the button
-     The 21 failures are real and their cause is STILL UNKNOWN. Next step is NOT another guess:
-     make the spec dump the element's computed visibility, bounding box and any overlay at the
-     moment of failure, so the page answers instead of the reader. */
+  // Every OTHER console call goes silent. A URL-PREDICATE is used rather than a wildcard glob,
+  // because a glob broad enough to catch /api/ would also match chronicle_scan, win the match, and
+  // abort the very call under test.
+  //
+  // WARNING, LEARNED THE HARD WAY: do NOT write that glob literally in a block comment. Its
+  // characters close the comment early, everything after becomes code, and the file throws
+  // "ReferenceError: api is not defined" at load. That cost a whole debugging cycle today, and
+  // then cost a second one when the note explaining it repeated the same characters. This file
+  // uses line comments only.
+  //
+  // Do NOT "fix" these aborts by fulfilling them. v1708 replaced abort() with an empty 200 on the
+  // theory that ~30 aborted boot endpoints left #chron-scan non-interactive. CI refuted it and it
+  // made things WORSE: 21 failures -> 31, including tests that never click anything. An
+  // empty-but-valid body lets boot proceed on garbage; an abort leaves a known, failed state.
   await page.route((u: URL) => u.pathname.startsWith('/api/') && !u.pathname.includes('chronicle'),
     (r: any) => r.abort());
   await page.route((u: URL) => u.pathname === '/api/chronicle_scan', (r: any) =>
     r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) }));
   await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(400);
-  /* ⚠ LEAVE THE SESSIONS VIEW, OR EVERY CLICK IN THIS FILE WAITS 120s AND TIMES OUT.
-     THE CAUSE, measured rather than reasoned: showSessions() sets
-     `document.body.setAttribute('data-view','sessions')` (tv/control_ui.html:10487) and runs on
-     DOMContentLoaded, so by the time we click, the body carries data-view="sessions" even though
-     the STATIC markup is only `<body data-state="off">`. The CSS at control_ui.html:3396-3397 then
-     hides THE RECORD zone's columns:
-         body[data-view="sessions"] .zone-banner.zone-record ~ .hd-col { display: none }
-     `#hd-chron` is a following sibling of that banner (markup 4639 → 4656, zero </section>
-     between), so the whole panel is display:none and `#chron-scan` inherits ZERO client rects.
-     Playwright's "visible" means a non-empty bounding box — hence "waiting for element to be
-     visible, enabled and stable" forever, on a button that resolves perfectly in the DOM.
-
-     ⚠ READING THE STATIC <body> TAG IS THE WRONG EXPERIMENT and it cost five wrong theories: the
-     attribute does not exist in the file and does exist at click time. Ask the RUNTIME.
-
-     The reveal is the console's own affordance, not a forced attribute — v1596_vault_panel.spec.ts
-     proves both halves: :219 that the console opens on data-view="sessions", and :229 that clicking
-     the TV·D tab clears it to null. Using the real control keeps this a test of the real console. */
+  // LEAVE THE SESSIONS VIEW, or every click in this file waits 120s and times out.
+  // showSessions() sets body[data-view="sessions"] on DOMContentLoaded (tv/control_ui.html:10487).
+  // The CSS at control_ui.html:3396-3397 then hides THE RECORD zone's columns, and #hd-chron is a
+  // following sibling of that banner (markup 4639 -> 4656), so #chron-scan inherits ZERO client
+  // rects. Playwright's "visible" means a non-empty bounding box, which is why it waited forever
+  // on a button that resolves perfectly in the DOM.
+  // Reading the STATIC <body> tag is the wrong experiment: the attribute is absent from the file
+  // and present at click time. Ask the runtime.
+  // The reveal uses the console's own control — v1596_vault_panel.spec.ts:229 proves the TV-D tab
+  // clears data-view to null.
   await page.click('#head-tabs .ht[data-tab="tvd"]');
   await page.waitForTimeout(300);
 }
