@@ -1,3 +1,9 @@
+## Round v1710 — duration shard + TZ relay (2026-08-13)
+- **Shard 2:** 64 tests / 45m because `--shard` splits by file count. Slow sims
+  peeled into `slow` project (CI only). 6 fast shards + 2 slow. Merge wants 8 blobs.
+- **TZ relay:** empty `current` + history was painted as "could not reach the live
+  site". `/d2r/api/tz` was 401. History is a payload; both paths open; public URL first.
+
 ## Round v1421 — Windows deep frames real JPEG + film promote (2026-07-27)
 - **Bug A (this PC live proof):** hist `N_ts.jpg` was raw BMP (`42 4D…`, 3.6MB). Footage `f_*.jpg` was real JPEG. Vision/Theatre choked (70–180s reads).
 - **Root A:** `archive_read_frame` Mac-only `sips` → Windows fell through to `shutil.copy2(live.bmp → .jpg)`.

@@ -25,6 +25,7 @@ on:
       - 'playwright.config.ts'
       - 'package.json'
       - 'package-lock.json'
+      - '.github/workflows/routine-i-playwright.yml'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -57,12 +58,10 @@ jobs:
     # 65 leaves 20 minutes after the global stop, which uploaded 5.39GB comfortably when it
     # was given the room.
     #
-    # ⚠ THIS IS THE BANDAGE, NOT THE CURE. The real defect is that shard 2 finishes only
-    # 64 tests in 45 minutes while its siblings finish ~320: `--shard` splits by FILE COUNT,
-    # not by DURATION, and this shard carries the every-item simulations (v645 sets a 600s
-    # per-test timeout and walks ~300 uniques plus every set piece). Until that is rebalanced,
-    # shard 2 will keep hitting the global stop and reporting a PARTIAL result — which is
-    # honest, but it is not the whole suite.
+    # v1710 — THE CURE, not another bandage. Slow files (every-item sims, 600s
+    # audits) live in the `slow` project and a dedicated job below. This matrix
+    # only runs --project=chromium, so --shard splits ~375 fast files and a
+    # healthy shard stays near 15m. 65m remains the upload headroom.
     timeout-minutes: 65
     strategy:
       fail-fast: false
@@ -88,7 +87,7 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - name: Run shard
-        run: npx playwright test --shard=${{ matrix.shard }}/6 --reporter=blob
+        run: npx playwright test --project=chromium --shard=${{ matrix.shard }}/6 --reporter=blob
       - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v5
@@ -97,10 +96,50 @@ jobs:
           path: blob-report/
           retention-days: 7
 
+  slow:
+    name: slow ${{ matrix.shard }}/2
+    runs-on: ubuntu-latest
+    # The peeled sims (v645 600s × 2, v333/v566, the 600s audits) used to live
+    # inside shard 2 and ate its entire 45m globalTimeout. Two-way shard of
+    # ~7 files each, 70m cap so a 600s test + retry still reports.
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Chromium (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Run slow shard
+        run: npx playwright test --project=slow --shard=${{ matrix.shard }}/2 --reporter=blob
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: blob-slow-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 7
+
   merge-report:
     name: merge reports
     if: always()
-    needs: test
+    needs: [test, slow]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -120,9 +159,9 @@ jobs:
         # while hiding exactly the shard that failed. Missing blob = red merge, loudly.
         run: |
           n=$(ls all-blobs/*.zip 2>/dev/null | wc -l)
-          echo "shard blobs present: $n / 6"
-          if [ "$n" -lt 6 ]; then
-            echo "::error::only $n of 6 shard blob reports present — a shard died without reporting (check its job log)"
+          echo "shard blobs present: $n / 8 (6 fast + 2 slow)"
+          if [ "$n" -lt 8 ]; then
+            echo "::error::only $n of 8 shard blob reports present — a shard died without reporting (check its job log)"
             exit 1
           fi
       - name: Merge into HTML report

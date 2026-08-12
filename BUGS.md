@@ -3574,6 +3574,20 @@ renders a neutral ❓ glyph titled "no verified farm source yet". This is NOT th
 problem the surrounding comment warns about — a neutral glyph says "we do not know where this
 drops", which is exactly true.
 
+## REG-142 — the TZ relay blamed the network for an empty current (v1710)
+The console fallback is `the tracker relay could not reach the live site`. That
+string fired when `https://bull-4-u.com/api/tz` was 200 and returned
+`{current:'', next:'', history:[...]}` — d2runewizard briefly empty, KV still
+full. `_tzPaint` treated empty current as DOWN.
+
+Sibling: `/d2r/api/tz` 401. Middleware only ungated `pathname === '/api/tz'`.
+The app lives at `/d2r/`, so a relative fetch or a "fixed" upstream 401'd
+while the public function was fine.
+
+**Fix:** history-only is a live (stale) payload; both paths open; proxy tries
+public `/api/tz` first, gated cousin second; SSL last-resort so a missing CA
+bundle on Windows cannot invent an outage.
+
 ## REG-141 — a failure answered as health (v1709)
 Found by the `tvd-leftover-bugs` hunt (18 raw → 17 verified). Shipped the honesty class, not the
 whole list.

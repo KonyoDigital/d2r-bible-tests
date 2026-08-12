@@ -1,4 +1,25 @@
 
+## v1710 — 2026-08-13 — duration shard + TZ relay reaches a live payload
+
+Three leftovers from the honesty ship.
+
+1. **Routine I shard 2** finished 64 tests in 45m because `--shard` splits by
+   file count. The every-item simulations and 600s audits now live in a `slow`
+   Playwright project (CI / `PW_SLOW=1` only, so a bare local run cannot pick
+   them up). The 6-way matrix runs `--project=chromium`; a 2-way `slow` job
+   carries the peeled files. Merge expects 8 blobs.
+
+2. **TZ relay** painted "could not reach the live site" when the Pages
+   function WAS reachable and returned `{current:'', history:[...]}`. History
+   is a live payload. `/d2r/api/tz` was 401 (middleware only ungated the exact
+   root path); the board lives under `/d2r/`. Both paths are open, the cousin
+   re-exports the same function, and the proxy tries the public URL first.
+
+**Tests:** `tv/test_tz_relay.py` 6 OK · `tv/test_shard_balance.py` 3 OK.
+No Playwright on this Mac.
+
+---
+
 ## v1489 — 2026-07-31 — one place bumps the version, and a gate proves the four agree
 
 The version lives in four files: the board's `D2R_BUILD`, `control_app.py`'s `/api/status`,

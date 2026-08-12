@@ -1324,37 +1324,87 @@ _TZ_CACHE = {"ts": 0.0, "code": 0, "body": None}
 _TZ_LOCK = threading.Lock()
 _TZ_UPSTREAM = os.environ.get("TVD_TZ_UPSTREAM", "https://bull-4-u.com/api/tz")
 _TZ_AUTH = base64.b64encode(b"app:DeanDiablo").decode("ascii")
+# v1710 — the public function is /api/tz (ungated). /d2r/api/tz is the same
+# payload behind SITE_PASS, and a "fixed" upstream that pointed there 401'd
+# every relay. Try the public path first; keep the gated cousin as a fallback
+# for the day the function moves under /d2r/.
+_TZ_UPSTREAMS = []
+if _TZ_UPSTREAM:
+    _TZ_UPSTREAMS.append(_TZ_UPSTREAM)
+for _u in ("https://bull-4-u.com/api/tz", "https://bull-4-u.com/d2r/api/tz"):
+    if _u not in _TZ_UPSTREAMS:
+        _TZ_UPSTREAMS.append(_u)
+
+
+def _tz_ssl_context():
+    """Windows Python often has no CA bundle; a public TZ JSON is not a secret.
+
+    Prefer certifi, then the platform defaults, then unverified as last resort
+    so a missing cert store cannot paint 'could not reach the live site' over
+    a rotation that is actually up.
+    """
+    import ssl
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        try:
+            return ssl.create_default_context()
+        except Exception:
+            return ssl._create_unverified_context()
+
+
+def _tz_has_payload(body):
+    if not isinstance(body, dict):
+        return False
+    if body.get("current") or body.get("next"):
+        return True
+    hist = body.get("history")
+    return isinstance(hist, list) and len(hist) > 0
+
+
+def _tz_fetch_one(url, ctx):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) TVDiablo/1710",
+        "Accept": "application/json",
+    }
+    # the public /api/tz path is ungated; Basic on a WRONG password is how
+    # /d2r/api/tz used to 401 the whole relay. Only send it on the gated path.
+    if "/d2r/" in url:
+        headers["Authorization"] = "Basic " + _TZ_AUTH
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=12, context=ctx) as r:
+        raw = r.read().decode("utf-8", "replace")
+        body = json.loads(raw)
+        return getattr(r, "status", 200), body
 
 
 def _tz_proxy():
     # Terror Zone tracker relay: the board's /api/tz only exists as a Pages
     # function on the live deploy; the shell serves the board locally, so we
-    # fetch upstream (through the site's basic-auth gate) and cache 90s.
-    # Upstream dead → serve the last good rotation (stale flag) so the card
-    # degrades to old-but-honest instead of "tracker is down".
+    # fetch upstream and cache 90s. Upstream dead → last good rotation flagged
+    # stale. An empty `current` WITH history is a live payload, not DOWN.
     with _TZ_LOCK:
         now = time.time()
         if _TZ_CACHE["body"] is not None and now - _TZ_CACHE["ts"] < 90:
             return _TZ_CACHE["code"], _TZ_CACHE["body"]
-        try:
-            req = urllib.request.Request(
-                _TZ_UPSTREAM,
-                headers={
-                    "Authorization": "Basic " + _TZ_AUTH,
-                    # Cloudflare 403s the default Python-urllib UA
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) TVDiablo/944",
-                },
-            )
-            with urllib.request.urlopen(req, timeout=12) as r:
-                body = json.loads(r.read().decode("utf-8", "replace"))
-            _TZ_CACHE.update(ts=now, code=200, body=body)
-            return 200, body
-        except Exception as e:
-            if _TZ_CACHE["body"] is not None:
-                stale = dict(_TZ_CACHE["body"])
-                stale["stale"] = True
-                return 200, stale
-            return 502, {"error": f"tz upstream unreachable: {e}"}
+        last_err = None
+        ctx = _tz_ssl_context()
+        for url in _TZ_UPSTREAMS:
+            try:
+                code, body = _tz_fetch_one(url, ctx)
+                if code == 200 and _tz_has_payload(body):
+                    _TZ_CACHE.update(ts=now, code=200, body=body)
+                    return 200, body
+                last_err = "http %s no rotation" % code
+            except Exception as e:
+                last_err = e
+                continue
+        if _TZ_CACHE["body"] is not None:
+            stale = dict(_TZ_CACHE["body"])
+            stale["stale"] = True
+            return 200, stale
+        return 502, {"error": f"tz upstream unreachable: {last_err}"}
 
 
 def _port_listener_pid(port=None):
@@ -10086,7 +10136,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1709",
+        "ver": "v1710",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

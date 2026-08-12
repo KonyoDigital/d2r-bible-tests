@@ -13120,10 +13120,19 @@ function escC(s) {
     var upd = document.getElementById('tz-updated');
     if (!body) return;
     if (!d || (!d.current && !d.next)) {
-      body.innerHTML = '<div class="tz-down">⚠ no rotation available — '
-        + escC((d && d.error) || 'the tracker relay could not reach the live site') + '</div>';
-      if (upd) upd.textContent = '';
-      return;
+      /* v1710 — a live payload can arrive with current:'' and a full history
+         (d2runewizard briefly empty, KV still full). That is NOT unreachable.
+         Paint the last recorded zone as stale rather than blaming the network. */
+      var hist0 = d && Array.isArray(d.history) && d.history[0];
+      var histZone = hist0 && (hist0.zone || hist0.current);
+      if (histZone) {
+        d = { current: histZone, next: d.next || '', ts: d.ts, history: d.history, stale: true };
+      } else {
+        body.innerHTML = '<div class="tz-down">⚠ no rotation available — '
+          + escC((d && d.error) || 'the tracker relay could not reach the live site') + '</div>';
+        if (upd) upd.textContent = '';
+        return;
+      }
     }
     /* v1567 — a composition rather than two label:value rows. The zone he is deciding about gets
        hero weight; NEXT is plainly secondary; the multi-zone rotations that D2R actually serves

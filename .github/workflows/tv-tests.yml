@@ -13,6 +13,8 @@ jobs:
         run: python3 tv/test_agent.py
       - name: Run the control suite (lazy webview imports — headless-safe)
         run: python3 tv/test_control.py
+      - name: TZ relay honesty + Routine I duration split
+        run: python3 tv/test_tz_relay.py && python3 tv/test_shard_balance.py
       - name: Roundtrip acceptance (ON AIR → seal → SIM, stub mode)
         run: python3 tv/test_roundtrip_sim.py
       - name: Frozen-robot boot smoke (TV_ROBOT=1 lane must not rot — 20s stub, no model call)

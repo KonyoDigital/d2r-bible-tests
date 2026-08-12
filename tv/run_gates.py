@@ -63,6 +63,12 @@ GATES = [
     Gate("test_tz_art", [sys.executable, os.path.join(HERE, "test_tz_art.py")], 120,
          why="the Terror Zone panel's facts: 67 zones -> game-extracted art + the game's own "
              "density/level, and the tiering that decides which zones get greyed out"),
+    Gate("test_tz_relay", [sys.executable, os.path.join(HERE, "test_tz_relay.py")], 60,
+         why="the console TZ relay must treat a history-only payload as live, not as "
+             "unreachable, and /d2r/api/tz must stay as open as /api/tz"),
+    Gate("test_shard_balance", [sys.executable, os.path.join(HERE, "test_shard_balance.py")], 30,
+         why="Routine I must peel the every-item simulations into the slow project so "
+             "--shard cannot dump them all into one 45-minute file-count bucket"),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),

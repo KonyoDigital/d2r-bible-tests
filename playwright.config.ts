@@ -39,6 +39,12 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      // v1710 — --shard splits by FILE COUNT, not duration. The every-item
+      // simulations (v645 walks ~300 uniques; v333/v566 recipe+grail sims)
+      // plus the 600s audit files made shard 2 finish 64 tests in 45m while
+      // its siblings finished ~320 in 15. Peel them into `slow` so the
+      // 6-way shard only sees the fast files.
+      testIgnore: /(?:^|[\\/])(?:[^\\/]*(?:_sim|simulation)\.spec\.ts|v645_every_item_sim\.spec\.ts|v42_full_ux_audit\.spec\.ts|v43_editorial_audit\.spec\.ts|platform_routing_audit\.spec\.ts|golden_intake\.spec\.ts|v628_exact_fit_gate\.spec\.ts)$/,
       use: {
         ...devices['Desktop Chrome'],
         // v1491 — SAY WHICH WORLD THE SUITE IS TESTING. devices['Desktop Chrome'] ships a
@@ -58,5 +64,20 @@ export default defineConfig({
           '(KHTML, like Gecko) Chrome/148.0.7778.96 Safari/537.36',
       },
     },
+    // CI (and PW_SLOW=1) only — a bare local `npx playwright test` must not
+    // pick these up. The Mac is not a test runner (test-venue).
+    ...((process.env.CI || process.env.PW_SLOW)
+      ? [{
+          name: 'slow',
+          testMatch: /(?:^|[\\/])(?:[^\\/]*(?:_sim|simulation)\.spec\.ts|v645_every_item_sim\.spec\.ts|v42_full_ux_audit\.spec\.ts|v43_editorial_audit\.spec\.ts|platform_routing_audit\.spec\.ts|golden_intake\.spec\.ts|v628_exact_fit_gate\.spec\.ts)$/,
+          timeout: 600000,
+          use: {
+            ...devices['Desktop Chrome'],
+            userAgent:
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+              '(KHTML, like Gecko) Chrome/148.0.7778.96 Safari/537.36',
+          },
+        }]
+      : []),
   ],
 });

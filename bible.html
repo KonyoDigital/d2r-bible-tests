@@ -24671,9 +24671,25 @@ async function refreshTzTracker(manual){
   if (location.protocol === 'file:'){ renderTzTracker('offline'); renderTzHistory(_tzHistCache(true)); return; }
   _tzFetching = true;
   try {
-    const r = await fetch('/api/tz', { cache: 'no-store' });
-    if (!r.ok) throw new Error('http '+r.status);
-    const data = await r.json();
+    /* v1710 — /api/tz is public; /d2r/api/tz used to 401 (middleware only
+       ungated the exact root path). Try both so a board living under /d2r/
+       still reaches the rotation when a relative fetch or a host rewrite
+       sends us to the cousin. History-only is a live payload, not DOWN. */
+    const paths = ['/api/tz', '/d2r/api/tz'];
+    let data = null;
+    for (const p of paths){
+      try {
+        const r = await fetch(p, { cache: 'no-store' });
+        if (!r.ok) continue;
+        const d = await r.json();
+        if (d && (d.current || d.next || (Array.isArray(d.history) && d.history[0]))){
+          data = d; break;
+        }
+      } catch(e){}
+    }
+    if (data && !(data.current || data.next) && data.history && data.history[0]){
+      data = Object.assign({}, data, { current: data.history[0].zone || data.history[0].current || '', stale: true });
+    }
     if (data && (data.current || data.next)){ _tzLast = data; renderTzTracker(data); }
     else { renderTzTracker(_tzLast || 'error'); }
     if (data && Array.isArray(data.history)){ _tzHistCache(false, data.history); renderTzHistory(data.history); }
@@ -39112,7 +39128,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1709', name:'v1709 - unknown-stays-unknown', date:'2026-08-13', note:'a failed git count is not unified, a thrown journal is not idle, export and delete honour TV_SESSIONS, OCR err is not loot, convert-fail does not swap in another photo, missing footer ver is a dash not v927' };
+  window.D2R_BUILD = { id:'v1710', name:'v1710 - duration-shard-and-tz-relay', date:'2026-08-13', note:'Routine I peels slow sims off the file-count shard; TZ relay uses history when current is empty and /d2r/api/tz is open' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

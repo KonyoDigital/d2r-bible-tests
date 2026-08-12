@@ -27,8 +27,12 @@ export async function onRequest(context) {
     return Response.redirect(url.origin + '/d2r/', 308);
   }
 
-  // bot recorder + public TZ endpoint: always open
-  if (url.pathname === '/api/tz') return next();
+  // bot recorder + public TZ endpoint: always open.
+  // v1710 — /d2r/api/tz is the same function under the app prefix. The board
+  // lives at /d2r/, so a relative fetch (or a host rewrite) used to 401 here
+  // while /api/tz was 200. Leave both open; the Pages function for the
+  // cousin path lives at functions/d2r/api/tz.js.
+  if (url.pathname === '/api/tz' || url.pathname === '/d2r/api/tz') return next();
 
   // TV DIABLO one-shot installers: must be fetchable with zero credentials
   // (Windows irm|iex + Mac curl|bash). Scripts hold no secrets — public repo.
