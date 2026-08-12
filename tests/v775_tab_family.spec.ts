@@ -21,7 +21,16 @@ const SET    = 'rgb(0, 252, 0)';       // --q-set    #00fc00
 const TAB: Record<string, { spine: string; title: string; want?: string }> = {
   session: { spine: '#tab-session .sc-hero-tf',        title: '#tab-session .sc-title' },
   tools:   { spine: '#tools-spine.tvf-spine',          title: '#tools-spine .tvf-title' },
-  forge:   { spine: '#tab-forge .forge-head.tvf-head', title: '#tab-forge .forge-title' },
+  /* v1707 — KONYO RULED: the Forge title stays the SAME gold as F·Uniques.
+     This row carried no `want:`, so it fell through to the family accent GOLD (#f0c060) and had
+     been red since 2026-08-06 against the shipped `#tab-forge .forge-title{color:var(--q-runeword)}`.
+     Four specs disagreed two-a-side and both halves of the written record quoted him — v1627
+     accepted them reading the same for colour ACCURACY (D2R paints a runeword's name the same gold
+     as a unique), v1631 said the opposite. He has now ruled for v1627's reading, so the expectation
+     moves to UNIQUE and v1685_forge_family_identity.spec.ts remains the authority on this rule.
+     ⚠ Do NOT restore GOLD here without a new ruling from him — that is what made this red for a
+     week, and the code was never the thing that was wrong. */
+  forge:   { spine: '#tab-forge .forge-head.tvf-head', title: '#tab-forge .forge-title', want: UNIQUE },
   funi:    { spine: '#tab-funi .forge-head.tvf-head',  title: '#tab-funi .forge-title', want: UNIQUE },
   fsets:   { spine: '#tab-fsets .forge-head.tvf-head', title: '#tab-fsets .forge-title', want: SET },
 };

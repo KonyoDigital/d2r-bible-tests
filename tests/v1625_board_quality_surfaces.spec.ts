@@ -322,11 +322,18 @@ test.describe('v1625 · ITEM 6 — the titles wear their quality and their art',
     expect(r.missing, '#tab-forge has no .forge-title').toBe(false);
     console.log('ITEM 6 · plain Forge title "%s" color=%s want --gold-bright=%s', r.text, r.color, r.gold);
     expect(r.text).toBe('Forge');
-    /* Sessions/Tools/Forge-plain have no in-game quality — the v1615 rule. If the shared rule at
-       bible.html:7361 were repainted instead of the two per-page overrides, this is what catches it. */
-    expect(r.color, 'the plain Forge title must stay chrome gold').toBe(r.gold);
+    /* v1707 — KONYO RULED: the Forge title wears the RUNEWORD gold, which IS the unique gold.
+       This assertion demanded chrome gold and had been red since 2026-08-06 against the shipped
+       `#tab-forge .forge-title{color:var(--q-runeword)}`. His v1627 note is the one that stands:
+       D2R paints a completed runeword's NAME the same gold as a unique, so Forge and F·Uniques
+       reading alike is ACCURATE, not a leak.
+       What this test still guards is the thing it was actually written for — that the SHARED
+       .forge-title rule was not repainted globally: set green must never appear here, and the
+       title must still be the deliberate per-page override rather than the family accent. */
+    expect(r.color, 'the plain Forge title wears the runeword/unique gold (his v1707 ruling)').toBe(r.unique);
     expect(r.color, 'the plain Forge title leaked set green').not.toBe(r.set);
-    expect(r.color, 'the plain Forge title leaked unique tan').not.toBe(r.unique);
+    expect(r.color, 'the shared .forge-title rule was repainted globally — Forge fell back to the family accent')
+      .not.toBe(r.gold);
   });
 
   /* TWO PASSES ON PURPOSE. A last-found test that only ever seeds a unique would sail straight over
