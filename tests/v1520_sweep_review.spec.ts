@@ -55,6 +55,15 @@ async function open(page: any, sweepState: any, visits: any[] = []) {
                              savedPct: 97.2, wouldRead: 11, insteadOf: 394, reels: [] }) }));
   await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);
+  /* ⚠ LEAVE THE SESSIONS VIEW FIRST — every #chron-* click below is inside a panel that is
+     display:none until you do, and the click silently waits the full timeout instead of failing.
+     showSessions() sets body[data-view="sessions"] on DOMContentLoaded (tv/control_ui.html:10487);
+     the CSS at :3396-3397 then hides `.zone-banner.zone-record ~ .hd-col`, and #hd-chron is a
+     following sibling of that banner (markup 4639 -> 4656). The button resolves in the DOM with
+     ZERO client rects, which is exactly Playwright's "not visible".
+     The reveal uses the console's own control, proven by v1596_vault_panel.spec.ts:229. */
+  await page.click('#head-tabs .ht[data-tab="tvd"]');
+  await page.waitForTimeout(300);
 }
 
 test.describe('v1520 — the review he decides from', () => {
