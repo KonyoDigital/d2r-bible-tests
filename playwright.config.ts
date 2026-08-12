@@ -16,7 +16,24 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'file://' + __dirname + '/bible.html',
-    trace: 'retain-on-failure',
+    /* v1705 — SHARD 2 HAS NEVER REPORTED, AND THE TRACE SETTING IS WHY.
+       Measured on two consecutive runs of the same commit: shard 2/6 died in `Upload blob report`
+       at 9.2GB and then 8.7GB — "there will be 1 file uploaded", climbing until the runner sent a
+       shutdown signal. Not a flake: same shard, same step, same mechanism, twice. So the suite has
+       never once returned a COMPLETE verdict; shard 2's specs are unknown, not green.
+
+       `retain-on-failure` RECORDS a trace for every test and throws it away on pass — the recording
+       cost is paid by the whole shard, and the shard holding the every-item simulations (which walk
+       ~300 uniques and every set piece through a full tick/untick lifecycle) produces gigabytes.
+       `on-first-retry` records nothing on the first attempt and traces only the RETRY, which with
+       retries:1 is exactly the attempt worth debugging. Strictly lighter, same diagnostic value on
+       a real failure.
+
+       This is v684's lesson arriving through a different door: that comment reduced timeouts so a
+       red shard would "finish and REPORT" after SIGKILL left failing specs nameless for 40 runs.
+       Same principle — a report that cannot be delivered is a report nobody has. Local keeps
+       retain-on-failure, where volume costs nothing. */
+    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: [
