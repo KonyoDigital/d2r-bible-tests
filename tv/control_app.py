@@ -61,6 +61,19 @@ def _journal_path():
     his real farming nights. Every site resolves here now."""
     return os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")
 
+
+def _journal_ring():
+    """v1709 — live file + rotated generations, ALL honouring TV_SESSIONS.
+
+    Export and delete used to build `HERE/sessions.jsonl` (+ .1 … .5) even when
+    `_journal_path()` pointed at a harness file. The UI listed the isolated journal
+    and those two routes mutated the production one. The ring is derived from the
+    same resolver so a fixture cannot touch his nights.
+    """
+    live = _journal_path()
+    stem = live[:-6] if live.endswith(".jsonl") else live
+    return [stem + ".%d.jsonl" % g for g in range(5, 0, -1)] + [live]
+
 CONTROL_PORT = int(os.environ.get("TV_CONTROL_PORT", "17772"))
 AGENT_PORT = int(os.environ.get("TV_PORT", "17771"))
 LOG_PATH = os.path.join(HERE, "control_agent.log")
@@ -829,8 +842,16 @@ def fleet_origin_status(force_fetch=False):
             cwd=REPO, capture_output=True, text=True, timeout=10,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
-        if r.returncode == 0:
-            out["behind"] = int((r.stdout or "0").strip() or 0)
+        # v1709 — a failed count is NOT "0 behind". Leaving ok=True + behind=0
+        # made /api/status and doctor both say "unified with origin/main" when
+        # git never answered. Unknown stays unknown.
+        if r.returncode != 0:
+            out["ok"] = False
+            out["howTo"] = "could not count commits vs origin/main"
+            _FLEET_CACHE["t"] = now
+            _FLEET_CACHE["val"] = dict(out)
+            return dict(out)
+        out["behind"] = int((r.stdout or "0").strip() or 0)
         if out["behind"] > 0:
             r2 = subprocess.run(
                 ["git", "log", "origin/main", "-1", "--format=%s"],
@@ -10042,8 +10063,13 @@ def status_payload():
                 _sess_h["completeness"] = _cn
             globals()["_STATUS_JOURNAL_CACHE"] = {"t": _now_j, "h": _sess_h, "d": _drv}
     except Exception:
-        _sess_h = {"tabs": {}, "leases": {}, "verdict": "idle", "story": [], "tabSummary": {}}
-        _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
+        # v1709 — a thrown journal walk is NOT an idle night. idle + zeros is
+        # indistinguishable from "nothing happened" and that is how a dead
+        # reader looks healthy. Unknown stays unknown.
+        _sess_h = {"tabs": {}, "leases": {}, "verdict": "unknown", "story": [],
+                   "tabSummary": {}, "error": "journal unread"}
+        _drv = {"seen": None, "queued": None, "fired": None, "refire": None,
+                "err": "journal unread"}
     # 🔌 ENGINE-EXPOSURE — the eyes object gets a FRESH liveAgeMs (the primary eye's "now" age,
     # computed per-poll so it isn't frozen in _eyes_pulse's mtime cache). null when no read yet.
     _eyes = _eyes_pulse()
@@ -10060,7 +10086,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1703",
+        "ver": "v1709",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -10444,13 +10470,19 @@ def doctor_payload():
     try:
         fl = fleet_origin_status(force_fetch=False)
         bn = int(fl.get("behind") or 0)
+        counted = fl.get("ok") is not False
         checks.append(_chk(
-            "fleet_origin", bn == 0, "warn",
-            ("on origin/main · %s" % (fl.get("head") or "?")) if bn == 0
-            else ("%d commit(s) behind origin · %s" % (bn, (fl.get("latest") or "")[:50])),
+            "fleet_origin", counted and bn == 0, "warn",
+            ("could not ask origin") if not counted
+            else (("on origin/main · %s" % (fl.get("head") or "?")) if bn == 0
+                  else ("%d commit(s) behind origin · %s" % (bn, (fl.get("latest") or "")[:50]))),
             fl.get("howTo") or "relaunch TV DIABLO to auto-pull"))
     except Exception as _fe:
-        checks.append(_chk("fleet_origin", True, "warn", "fleet check skipped"))
+        # v1709 — skipping the check is not a pass. A doctor that stays green
+        # when git never ran is the same lie as behind=0 on a failed rev-list.
+        checks.append(_chk("fleet_origin", False, "warn",
+                           "fleet check failed: %s" % str(_fe)[:80],
+                           "git fetch origin && git rev-list HEAD..origin/main --count"))
 
     # 8) live frames — freshness only MATTERS (blocks) when we claim to be LIVE
     live = (_agent_mode == "live")
@@ -10527,9 +10559,10 @@ def doctor_payload():
 
     # v811 (Grok R8 #6) — journal generation truth: how many rotated nights exist
     try:
-        _jroot = os.path.join(HERE, "sessions")
-        _gens = [g for g in range(1, 6) if os.path.isfile(_jroot + ".%d.jsonl" % g)]
-        _live = os.path.isfile(_jroot + ".jsonl")
+        _live_p = _journal_path()
+        _stem = _live_p[:-6] if _live_p.endswith(".jsonl") else _live_p
+        _gens = [g for g in range(1, 6) if os.path.isfile(_stem + ".%d.jsonl" % g)]
+        _live = os.path.isfile(_live_p)
         checks.append(_chk("journal_gens", True, "warn",
                            "live=%s gens=%s" % ("yes" if _live else "no",
                                                 (",".join(str(g) for g in _gens) or "none"))))
@@ -11969,8 +12002,7 @@ class Handler(BaseHTTPRequestHandler):
                     want_sid = sess.get("sessionId") or ""
                     t0r = (sess.get("t0") or 0) - 5000
                     t1r = (sess.get("t1") or 0) + 5000
-                    _root = os.path.join(HERE, "sessions")
-                    _paths = [_root + ".%d.jsonl" % g for g in range(5, 0, -1)] + [_root + ".jsonl"]
+                    _paths = _journal_ring()
                     for _p in _paths:
                         if not os.path.isfile(_p):
                             continue
@@ -12102,9 +12134,17 @@ class Handler(BaseHTTPRequestHandler):
                     _G5.set_mode(body.get("mode"))
                 elif "on" in body:
                     _G5.set_on(bool(body.get("on")))
-            except Exception:
-                pass
-            self._json(200, _g5_status())
+            except Exception as e:
+                # v1709 — last-known status on a failed toggle is a 200 that
+                # looks like the switch took. Name the failure.
+                st = dict(_g5_status())
+                st["ok"] = False
+                st["error"] = str(e)[:160]
+                self._json(200, st)
+                return
+            st = dict(_g5_status())
+            st["ok"] = True
+            self._json(200, st)
             return
         if path == "/api/g5_login":
             # v1381.2 — ⚡ Authorize Grok: spawn `grok login --oauth` (browser once).
@@ -12453,10 +12493,9 @@ class Handler(BaseHTTPRequestHandler):
                 sid = sess.get("sessionId") or ""
                 t0d = (sess.get("t0") or 0) - 2000
                 t1d = (sess.get("t1") or 0) + 2000
-                _root = os.path.join(HERE, "sessions")
                 removed = 0
                 fids = set()
-                for _p in [_root + ".%d.jsonl" % g for g in range(5, 0, -1)] + [_root + ".jsonl"]:
+                for _p in _journal_ring():
                     if not os.path.isfile(_p):
                         continue
                     keep_lines = []

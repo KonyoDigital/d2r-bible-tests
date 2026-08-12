@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1703"   # his-ruling-two-were-already-his
+VERSION = "v1709"   # unknown-stays-unknown
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2076,10 +2076,9 @@ def _readable_frame(ap, out_jpg=None):
                 except Exception:
                     pass
             return jp
-        # Prefer capture_win eye.jpg (already JPEG) over multi-MB live.png when convert fails.
-        eye = os.path.join(FRAMES, "eye.jpg")
-        if _is_real_jpeg(eye):
-            return eye
+        # v1709 — do NOT substitute frames/eye.jpg. That is a DIFFERENT photo
+        # (the live eye, not this settle frame). A convert-fail returns the
+        # original path — honest BMP passthrough — never another file's pixels.
         png = os.path.join(os.path.dirname(ap), "live.png")   # Windows: saved by capture_win.ps1
         if os.path.isfile(png):
             return png
@@ -3424,6 +3423,10 @@ class OcrWorker:
                     except Exception:
                         continue
                     if isinstance(j, dict) and "lines" in j:
+                        # v1709 — mode=err with lines=[] is a FAILED read, not loot.
+                        # Returning it let ocr_fast stamp scene=loot / conf=0.45 / mode=ocr.
+                        if str(j.get("mode") or "") == "err":
+                            return None
                         return j
                 self.stop()
                 return None
@@ -3556,7 +3559,7 @@ def ocr_fast(path):
     t0 = time.time()
     raw = _OCR.read(path)
     wall = int((time.time() - t0) * 1000)
-    if not raw:
+    if not raw or str(raw.get("mode") or "") == "err":
         return None
     _raw_lines = [str(x)[:60] for x in (raw.get("lines") or [])][:40]
     lines = filter_ocr_lines(raw.get("lines") or [])

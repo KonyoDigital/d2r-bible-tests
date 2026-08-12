@@ -3366,6 +3366,51 @@ class TestFleetUnity(unittest.TestCase):
         self.assertIn("fleet", st)
         self.assertIn("behind", st["fleet"])
 
+    def test_rev_list_fail_is_not_unified(self):
+        """v1709 — git rev-list failing must not paint 'unified with origin/main'."""
+        real = ca.subprocess.run
+
+        def fake(args, **kw):
+            if isinstance(args, (list, tuple)) and len(args) >= 2 and args[0] == "git" and args[1] == "rev-list":
+                class R:
+                    returncode = 1
+                    stdout = ""
+                    stderr = "fail"
+                return R()
+            return real(args, **kw)
+
+        saved = dict(ca._FLEET_CACHE)
+        try:
+            ca._FLEET_CACHE["val"] = None
+            ca._FLEET_CACHE["t"] = 0
+            with mock.patch.object(ca.subprocess, "run", side_effect=fake):
+                fl = ca.fleet_origin_status(force_fetch=False)
+            self.assertFalse(fl["ok"], fl)
+            self.assertNotIn("unified", (fl.get("howTo") or "").lower())
+        finally:
+            ca._FLEET_CACHE.clear()
+            ca._FLEET_CACHE.update(saved)
+
+
+class TestV1704UnknownStaysUnknown(unittest.TestCase):
+    """v1709 — a thrown journal walk is not an idle night."""
+
+    def test_journal_throw_is_unknown_not_idle(self):
+        saved = ca.__dict__.get("_STATUS_JOURNAL_CACHE")
+        try:
+            ca._STATUS_JOURNAL_CACHE = None
+            with mock.patch.object(ca, "_kai_journal_rows", side_effect=RuntimeError("boom")):
+                st = ca.status_payload()
+            sh = st.get("sessionHealth") or {}
+            self.assertEqual(sh.get("verdict"), "unknown", sh)
+            self.assertNotEqual(sh.get("verdict"), "idle")
+            self.assertEqual(sh.get("error"), "journal unread")
+        finally:
+            if saved is None:
+                ca.__dict__.pop("_STATUS_JOURNAL_CACHE", None)
+            else:
+                ca._STATUS_JOURNAL_CACHE = saved
+
 
 class TestV1456HonestyDefaults(unittest.TestCase):
     """v1456 — the KAI-accuracy audit's honesty gaps in the top-level status defaults.
@@ -4573,6 +4618,15 @@ class TestV1493JournalIsolation(unittest.TestCase):
                          "found %d — every extra one is a hole in TV_SESSIONS isolation" % built)
         self.assertIn("def _journal_path():", src, "and that one site is the resolver")
         self.assertGreater(src.count("_journal_path()"), 5, "every reader/writer goes through it")
+        # v1709 — the generation ring used HERE/sessions (no .jsonl) and so
+        # escaped the v1493 count. Export + delete + doctor gens now derive
+        # from _journal_ring() / _journal_path().
+        # The ring hole was join(HERE, "sessions") + ".jsonl" — that is NOT a
+        # prefix of the resolver's join(HERE, "sessions.jsonl") (quote lands
+        # after .jsonl). Zero of the stem form is the gate.
+        self.assertEqual(src.count('os.path.join(HERE, "sessions")'), 0,
+                         "no site may build HERE/sessions — that is the ring hole")
+        self.assertIn("def _journal_ring():", src)
 
     def test_tv_sessions_redirects_reads_and_the_real_journal_is_untouched(self):
         real = os.path.join(os.path.dirname(ca.__file__), "sessions.jsonl")
@@ -4608,6 +4662,24 @@ class TestV1493JournalIsolation(unittest.TestCase):
             self.assertEqual((os.path.getsize(real), os.path.getmtime(real)), before,
                              "the REAL journal must not be read-stamped or appended to by a test")
 
+    def test_journal_ring_follows_tv_sessions(self):
+        tmp = tempfile.mkdtemp()
+        fixture = os.path.join(tmp, "sessions.jsonl")
+        old_env = os.environ.get("TV_SESSIONS")
+        try:
+            os.environ["TV_SESSIONS"] = fixture
+            ring = ca._journal_ring()
+            self.assertEqual(ring[-1], fixture)
+            self.assertTrue(all(p.startswith(tmp) for p in ring), ring)
+            self.assertFalse(any("/tv/sessions" in p.replace("\\", "/") and tmp not in p
+                                 for p in ring), ring)
+        finally:
+            if old_env is None:
+                os.environ.pop("TV_SESSIONS", None)
+            else:
+                os.environ["TV_SESSIONS"] = old_env
+            shutil.rmtree(tmp, ignore_errors=True)
+
 
 class TestV1496MachineNickname(unittest.TestCase):
     """v1496 — naming a machine, and the fleet answer. Konyo: "can it just be more nicknamed? like
@@ -4632,6 +4704,12 @@ class TestV1496MachineNickname(unittest.TestCase):
         finally:
             ca.IDENTITY_PATH = old_path
             shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_footer_fallback_is_not_a_stale_version(self):
+        """v1709 — missing st.ver must not paint v927 (776 versions behind)."""
+        ui = open(os.path.join(HERE, "control_ui.html"), encoding="utf-8", errors="surrogateescape").read()
+        self.assertNotIn("st.ver || 'v927'", ui)
+        self.assertIn("st.ver || '—'", ui)
 
     def test_fleet_presence_is_honest_when_it_cannot_reach_the_site(self):
         """Offline must read as UNREACHABLE, never as an empty fleet — an empty list would say

@@ -3573,3 +3573,28 @@ a glyph" (`.f-artglyph`, used one line below), and the no-boss case simply fell 
 renders a neutral ❓ glyph titled "no verified farm source yet". This is NOT the misleading-picture
 problem the surrounding comment warns about — a neutral glyph says "we do not know where this
 drops", which is exactly true.
+
+## REG-141 — a failure answered as health (v1709)
+Found by the `tvd-leftover-bugs` hunt (18 raw → 17 verified). Shipped the honesty class, not the
+whole list.
+
+1. **`fleet_origin_status`** left `ok=True, behind=0` when `git rev-list` failed, then said
+   "unified with origin/main". Doctor used `bn == 0` so a failed count was a green lamp.
+2. **`/api/status`** on a thrown journal walk painted `sessionHealth.verdict=idle` and zeroed
+   the driver — the same bytes as a real quiet night.
+3. **Export + delete + doctor gens** built `HERE/sessions.jsonl` and ignored `TV_SESSIONS` /
+   `_journal_path()`. The UI listed the harness file; those routes mutated the production journal.
+4. **OCR `mode=err`** with `lines=[]` was accepted as a loot read (`scene=loot`, `conf=0.45`,
+   `mode=ocr`).
+5. **`_readable_frame`** on JPEG convert-fail returned `frames/eye.jpg` — a different photo
+   than the settle frame.
+6. **Footer** `st.ver || 'v927'` invented a stamp 776 versions behind when `/api/status` omitted
+   `ver`. Now `—`.
+7. **`POST /api/g5_toggle`** swallowed `set_mode` and returned 200 last-known status.
+
+**Left for the next ship (confirmed, not this class):** force-kill always `sessionSaved:true`;
+TALLIES launcher hidden on Sessions homepage; RECORD/TZ writers painting `display:none` nodes;
+chronicle `|| 0` inventing zeros; window pin scoring any titled window; WATCH leftover
+`snap_*`/`read_*` frames; WATCH_MODE skipping the D2R pin.
+**Verification:** 11 cheap python tests (fleet fail-closed, journal unknown, ring follows
+TV_SESSIONS, footer not v927, OCR err is None, convert-fail ≠ eye.jpg). No Playwright on this Mac.

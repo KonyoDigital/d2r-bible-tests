@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1703",
+  "ver": "v1709",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1703: Konyo ruled the four absent uniques exist; only Polaris Spear and The Scourge actually were absent — The Mahim-Oak Curio and The Iron Jang Bong were already on the roster and already seeded FOUND, so their bare spellings became name variants instead of ghost roster rows",
+  "note": "v1709: a failed git count is not unified, a thrown journal is not idle, export and delete honour TV_SESSIONS, OCR err is not loot, convert-fail does not swap in another photo, missing footer ver is a dash not v927",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

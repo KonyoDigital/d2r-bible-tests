@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # 📺 TV DIABLO — agent TDD suite (v711). Zero deps, zero vision cost, synthetic frames.
 #   python3 tv/test_agent.py
-import io, json, os, struct, sys, tempfile, threading, time, unittest, urllib.request
+import io, json, os, shutil, struct, sys, tempfile, threading, time, unittest, urllib.request
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["TV_PORT"] = "17971"          # never collide with a live agent
@@ -252,6 +253,40 @@ class TestReadableFrame(unittest.TestCase):
             self.assertLess(os.path.getsize(out), os.path.getsize(bmp))
         else:
             self.assertEqual(out, bmp)   # no sips → honest passthrough
+
+    def test_convert_fail_does_not_swap_in_live_eye(self):
+        """v1709 — a failed JPEG convert must not return frames/eye.jpg (a different photo)."""
+        d = tempfile.mkdtemp()
+        bmp = os.path.join(d, "settle.bmp")
+        open(bmp, "wb").write(b"BM" + b"\x00" * 80)
+        eye = os.path.join(tv.FRAMES, "eye.jpg")
+        saved = None
+        if os.path.isfile(eye):
+            saved = open(eye, "rb").read()
+        try:
+            os.makedirs(tv.FRAMES, exist_ok=True)
+            open(eye, "wb").write(b"\xff\xd8\xff" + b"x" * 200)  # looks like a JPEG
+            with mock.patch.object(tv, "_to_jpeg", return_value=False):
+                out = tv._readable_frame(bmp)
+            self.assertNotEqual(os.path.abspath(out), os.path.abspath(eye), out)
+            self.assertEqual(os.path.abspath(out), os.path.abspath(bmp))
+        finally:
+            if saved is None:
+                try:
+                    if os.path.isfile(eye) and os.path.getsize(eye) < 400:
+                        os.remove(eye)
+                except Exception:
+                    pass
+            else:
+                open(eye, "wb").write(saved)
+            shutil.rmtree(d, ignore_errors=True)
+
+
+class TestOcrErrIsNotLoot(unittest.TestCase):
+    def test_ocr_fast_refuses_mode_err(self):
+        """v1709 — worker mode=err / lines=[] must not become scene=loot conf=0.45."""
+        with mock.patch.object(tv._OCR, "read", return_value={"mode": "err", "lines": [], "raw_n": 0}):
+            self.assertIsNone(tv.ocr_fast("/tmp/nope.jpg"))
 
 
 class TestEventContract(unittest.TestCase):
