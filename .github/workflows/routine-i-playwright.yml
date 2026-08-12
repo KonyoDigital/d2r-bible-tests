@@ -44,7 +44,26 @@ jobs:
     # A healthy shard finishes in ~15m; the config's CI globalTimeout (45m) bounds
     # the run itself, so this cap only catches a wedged runner. Playwright's
     # per-test timeouts still bound any genuine hang.
-    timeout-minutes: 50
+    #
+    # v1706 — 50 WAS TOO TIGHT AND SHARD 2 HAS NEVER ONCE REPORTED BECAUSE OF IT.
+    # Measured across three consecutive runs, the last with exact timings:
+    #     12:04:22   "64 passed (45.0m)"   <- tests consumed the ENTIRE globalTimeout
+    #     12:07:09   "Beginning upload"    <- ~49 min in, against a 50 min cap
+    # The blob is multi-GB, so the upload cannot finish in the remaining minute and the
+    # runner is cancelled every time. The 5-minute margin between globalTimeout (45) and this
+    # cap was sized for a SMALL report; it cannot deliver a large one. That is v684's own
+    # lesson — "a global stop reports 'did not run' counts; the runner's SIGKILL reports
+    # nothing" — failing at the delivery step instead of the run step.
+    # 65 leaves 20 minutes after the global stop, which uploaded 5.39GB comfortably when it
+    # was given the room.
+    #
+    # ⚠ THIS IS THE BANDAGE, NOT THE CURE. The real defect is that shard 2 finishes only
+    # 64 tests in 45 minutes while its siblings finish ~320: `--shard` splits by FILE COUNT,
+    # not by DURATION, and this shard carries the every-item simulations (v645 sets a 600s
+    # per-test timeout and walks ~300 uniques plus every set piece). Until that is rebalanced,
+    # shard 2 will keep hitting the global stop and reporting a PARTIAL result — which is
+    # honest, but it is not the whole suite.
+    timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
