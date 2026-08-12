@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1699",
+  "ver": "v1701",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1699: the noSource/noSourceCount exports added in v1697 had zero consumers and the f-nosrc card already states the count on screen; a tiny run to wire them was REFUSED by its own gate because the target surface ellipsis-clips, so the honest close was deletion",
+  "note": "v1701: two gates red since 2026-08-06 over one CSS line whose justification cited an acceptance v1631 had already reversed in his own words; Forge #f0c060 / F-Uniques #c7b377 / F-Sets #00fc00 are three rooms in three colours again",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

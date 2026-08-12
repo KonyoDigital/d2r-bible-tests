@@ -7921,15 +7921,29 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    other two already follow: the room's title matches the room's tab. */
 /* v1664 — REMOVED `#tab-forge .forge-title{color:var(--rune)}` (added v1633). The PLAIN Forge page has no in-game quality, so its title stays chrome gold; only F·Uniques and F·Sets get a per-tab override (v1625 ITEM6). A page title wearing the RUNE-ITEM colour is the exact title-vs-quality collision this palette work exists to stop. */
 #tab-fsets .forge-title{color:var(--q-set)}
-/* v1685 — the Forge title finally takes the RUNEWORD colour, from v1672's intent and v1672's
-   words: "the Forge page IS the runeword chronicle, and its two siblings already wear unique gold
-   and set green, so gold here completes the family". The rule itself is v1672's, unchanged; all
-   that moved is WHERE it sits, so it now wins against :7422 the same way the two lines above it do.
-   `--q-runeword`, not `--rune`: a runeword is unique-gold #c7b377, while --rune #ff7d3c is the rune
-   ITEM hue — the exact confusion REG-137 exists to stop. This does mean Forge and F·Uniques read
-   the same, which Konyo accepted explicitly when v1672 was written (tv/control_ui.html:45-54).
-   ⚠ ANY future colour for these three titles belongs HERE, below :7422, not above it. */
-#tab-forge .forge-title{color:var(--q-runeword)}
+/* v1701 — `#tab-forge .forge-title{color:var(--q-runeword)}` IS REMOVED, and the Forge title falls
+   back to the family gold #f0c060 at :7424. Two gates have been red since 2026-08-06 over this
+   single line — tests/v775_tab_family.spec.ts and tests/v1625_board_quality_surfaces.spec.ts, both
+   measuring rgb(199,179,119) where they expect rgb(240,192,96).
+
+   ⚠ IT WAS REMOVED BECAUSE ITS JUSTIFICATION CITED AN ACCEPTANCE THAT HAD ALREADY BEEN REVERSED.
+   The rule argued "Konyo accepted explicitly ... (tv/control_ui.html:45-54)". That passage is the
+   v1627 note, where he accepted Forge and F·Uniques reading the same for colour ACCURACY. Four
+   versions later, at tv/control_ui.html:48-49, v1631 records him saying the opposite in his own
+   words: "these two colors cant be the same... RUNEWORD is separate from the F-UNIQUES" — and
+   settles the reasoning: an item NAME obeys the game (--q-runeword stays gold everywhere, and is
+   untouched here), but A TAB IS A LABEL FOR A ROOM and must be readable as its own thing.
+
+   So three independent records agree and one disagreed: v775's own design (forge alone has no
+   `want:` override, so it takes the family accent), v1664's removal of an earlier override with
+   "the PLAIN Forge page has no in-game quality, so its title stays chrome gold", and v1631's
+   direct quote. The family stays coherent and distinct: Forge #f0c060 · F·Uniques #c7b377 ·
+   F·Sets #00fc00 — three rooms, three colours, which is what v1672 wanted and what collapsing
+   Forge onto F·Uniques actually prevented.
+
+   ⚠ ANY future colour for these three titles belongs HERE, below :7424, not above it — that part
+   of v1685's note was right and is why this comment sits where the rule used to. If Konyo rules
+   the other way, re-add exactly the line named at the top of this comment. */
 /* v1664 — removed an exact duplicate of the line above (both added v1633). */
 #tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
@@ -39074,7 +39088,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1699', name:'v1699 - unused-plumbing-deleted-not-consumed', date:'2026-08-12', note:'the noSource/noSourceCount exports added in v1697 had zero consumers and the f-nosrc card already states the count on screen; a tiny run to wire them was REFUSED by its own gate because the target surface ellipsis-clips, so the honest close was deletion' };
+  window.D2R_BUILD = { id:'v1701', name:'v1701 - the-forge-title-returns-to-the-family-gold', date:'2026-08-12', note:'two gates red since 2026-08-06 over one CSS line whose justification cited an acceptance v1631 had already reversed in his own words; Forge #f0c060 / F-Uniques #c7b377 / F-Sets #00fc00 are three rooms in three colours again' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
