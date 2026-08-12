@@ -60,6 +60,19 @@ async function open(page: any, opts: any = {}) {
   await page.route((u: URL) => u.pathname.startsWith('/api/') && !u.pathname.includes('vault'),
     (r: any) => r.abort());
   await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+  // LEAVE THE SESSIONS VIEW before any panel click. showSessions() sets body[data-view="sessions"]
+  // on DOMContentLoaded (tv/control_ui.html:10487) and the CSS at :3396-3397 hides THE RECORD
+  // zone's .hd-col columns — so #vault-scan resolves in the DOM with ZERO client rects and every
+  // click waits the full 120s instead of failing fast.
+  // This file already PROVED the mechanism at the test below (clicking the TV-D tab clears
+  // data-view to null) — it just never applied it in its own shared setup, so the knowledge sat in
+  // one assertion while three vault tests hung on the thing it explains.
+  // opts.keepSessions:true for the two tests that assert the DEFAULT view — revealing would
+  // destroy the very state they exist to check.
+  if (!opts.keepSessions) {
+    await page.click('#head-tabs .ht[data-tab="tvd"]');
+    await page.waitForTimeout(300);
+  }
   await page.waitForTimeout(500);
   return errs;
 }
@@ -209,7 +222,7 @@ test.describe('v1596 — the vault accumulator gets a tap, and the throw-out lan
 
 test.describe('v1596 — SESSIONS is the console homepage', () => {
   test('★ the console opens on Sessions, not the TV·D cockpit', async ({ page }) => {
-    await open(page);
+    await open(page, { keepSessions: true });
     await page.waitForTimeout(600);
     const view = await page.evaluate(() => ({
       dataView: document.body.getAttribute('data-view'),
@@ -222,7 +235,7 @@ test.describe('v1596 — SESSIONS is the console homepage', () => {
   });
 
   test('TV·D is still reachable — making Sessions the default must not strand the cockpit', async ({ page }) => {
-    await open(page);
+    await open(page, { keepSessions: true });
     await page.waitForTimeout(500);
     await page.click('#head-tabs .ht[data-tab="tvd"]');
     await page.waitForTimeout(400);
