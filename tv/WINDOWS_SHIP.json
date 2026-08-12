@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1701",
+  "ver": "v1702",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1701: two gates red since 2026-08-06 over one CSS line whose justification cited an acceptance v1631 had already reversed in his own words; Forge #f0c060 / F-Uniques #c7b377 / F-Sets #00fc00 are three rooms in three colours again",
+  "note": "v1702: v1701 removed a rule that a dedicated spec gates; four specs disagree two-a-side about this one line, so it is restored exactly as he last shipped it and the contradiction is surfaced for his ruling",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
