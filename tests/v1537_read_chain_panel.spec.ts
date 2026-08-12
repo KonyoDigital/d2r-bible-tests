@@ -39,6 +39,14 @@ async function open(page: any, payload: any) {
     payload === null ? r.abort()
       : r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) }));
   await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
+  // LEAVE THE SESSIONS VIEW. showSessions() sets body[data-view="sessions"] on DOMContentLoaded
+  // (tv/control_ui.html:10487) and the CSS at :3396-3397 hides every .hd-col in THE RECORD zone —
+  // hd-kpi, hd-tallybar, hd-chron, hd-readh, hd-vault, hd-lastsession, hd-history. A panel in there
+  // is display:none on load, so isHidden() answers true and any click waits the full 120s.
+  // The reveal uses the console's own control; v1596_vault_panel.spec.ts proves the TV-D tab clears
+  // data-view to null.
+  await page.click('#head-tabs .ht[data-tab="tvd"]');
+  await page.waitForTimeout(300);
   await page.waitForTimeout(600);
 }
 
