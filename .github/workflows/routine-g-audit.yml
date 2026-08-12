@@ -8,6 +8,14 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
+  # 2026-08-12 — SWEPT FROM ROUTINE L: this gate audits bible.html and only ever fired on a timer,
+  # so a commit that changed the page was not checked until the next day's cron, by which time more
+  # ships had landed on top of it. A gate that runs on a clock while the thing it guards changes on
+  # pushes is measuring yesterday. Routine L had exactly this and was fixed first; a sweep of the
+  # remaining routine-* workflows found four more, of which this is one.
+  push:
+    paths:
+      - 'bible.html'
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
