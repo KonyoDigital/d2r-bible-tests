@@ -60,6 +60,26 @@ async function open(page: any, payload: any, status = 200) {
     r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) }));
   await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(400);
+  /* ⚠ LEAVE THE SESSIONS VIEW, OR EVERY CLICK IN THIS FILE WAITS 120s AND TIMES OUT.
+     THE CAUSE, measured rather than reasoned: showSessions() sets
+     `document.body.setAttribute('data-view','sessions')` (tv/control_ui.html:10487) and runs on
+     DOMContentLoaded, so by the time we click, the body carries data-view="sessions" even though
+     the STATIC markup is only `<body data-state="off">`. The CSS at control_ui.html:3396-3397 then
+     hides THE RECORD zone's columns:
+         body[data-view="sessions"] .zone-banner.zone-record ~ .hd-col { display: none }
+     `#hd-chron` is a following sibling of that banner (markup 4639 → 4656, zero </section>
+     between), so the whole panel is display:none and `#chron-scan` inherits ZERO client rects.
+     Playwright's "visible" means a non-empty bounding box — hence "waiting for element to be
+     visible, enabled and stable" forever, on a button that resolves perfectly in the DOM.
+
+     ⚠ READING THE STATIC <body> TAG IS THE WRONG EXPERIMENT and it cost five wrong theories: the
+     attribute does not exist in the file and does exist at click time. Ask the RUNTIME.
+
+     The reveal is the console's own affordance, not a forced attribute — v1596_vault_panel.spec.ts
+     proves both halves: :219 that the console opens on data-view="sessions", and :229 that clicking
+     the TV·D tab clears it to null. Using the real control keeps this a test of the real console. */
+  await page.click('#head-tabs .ht[data-tab="tvd"]');
+  await page.waitForTimeout(300);
 }
 
 test.describe('v1516 — the Chronicle Sweep prices itself, honestly', () => {
