@@ -36,10 +36,29 @@ const PRICED = {
 async function open(page: any, payload: any, status = 200) {
   await page.route(ORIGIN + '/ui', (r: any) =>
     r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: UI_HTML }));
-  // every OTHER console call goes silent. A url-predicate rather than a '**/api/**' glob, because a
-  // glob that also matches chronicle_scan wins the match and aborts the very call under test.
+  /* every OTHER console call goes silent. A url-predicate rather than a '**/api/**' glob, because a
+     glob that also matches chronicle_scan wins the match and aborts the very call under test.
+
+     v1708 — SILENT NOW MEANS "EMPTY", NOT "NETWORK ERROR", and that distinction is the whole fix
+     under test. All 21 tests in this file were failing with `page.click: Test timeout of 120000ms
+     exceeded — waiting for locator('#chron-scan') ... waiting for element to be visible, enabled
+     and stable`: the button resolves, so the HTML is there, but the app never makes it interactive.
+     Nobody had seen these failures because shard 2/6 was CANCELLED on every run (21 × 120s = 42min
+     exhausts the CI globalTimeout, leaving no room to upload the blob) — v1706 raised the cap and
+     the shard finally reported.
+
+     `r.abort()` fails the request at the NETWORK layer, which surfaces as a rejected fetch. The
+     console makes ~30 distinct non-chronicle /api/ calls during boot — /api/status (10 references)
+     and /api/sessions (12) among them — so aborting them all is not "silence", it is thirty
+     simultaneous network failures during startup. An empty 200 is what silence actually looks like.
+
+     ⚠ THIS IS A HYPOTHESIS UNDER TEST, NOT A PROVEN FIX. I published a different root cause for
+     these 21 failures earlier today (that body[data-view="sessions"] hid the panel) and it was
+     WRONG — control_ui.html's <body> carries no data-view attribute at all. So this change is
+     shipped to be JUDGED BY CI, which is the only place the suite can run, and if shard 2 still
+     reports 21 failures then the cause is something else again and this comment should say so. */
   await page.route((u: URL) => u.pathname.startsWith('/api/') && !u.pathname.includes('chronicle'),
-    (r: any) => r.abort());
+    (r: any) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   await page.route((u: URL) => u.pathname === '/api/chronicle_scan', (r: any) =>
     r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) }));
   await page.goto(ORIGIN + '/ui', { waitUntil: 'domcontentloaded' });
