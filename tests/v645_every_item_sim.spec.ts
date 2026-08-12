@@ -17,7 +17,33 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
     const box = document.getElementById('tab-funi')!;
     const pool = (w.ITEMS || []).filter((x: any) => ['grail','high','common'].includes(x.tier));
     const ownedBefore = new Set(Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')));   // v677 — the LEDGER is the found store
-    const missing = pool.filter((x: any) => !ownedBefore.has(x.n));
+    /* ITEMS spelling → the roster/ledger spelling, for names neither the resolver nor a suffix-strip
+       joins. Declared HERE, above `missing`, because it decides what counts as missing at all. */
+    const VARIANTS: Record<string, string> = {
+      'Cranium Basher': 'The Cranium Basher',
+      "Bloodmoon's Light": 'Bloodmoon',
+      /* v1703 — added when Konyo ruled the four "missing" uniques exist. Two already did, under
+         their proper names: "The Mahim-Oak Curio" and "The Iron Jang Bong" are in ITEM_VALUE, in
+         _UNI_EXTRA, and SEEDED FOUND in _GRAIL_SEED (May 18 / May 19). Only Polaris Spear and The
+         Scourge were genuinely absent and only those two joined the roster. */
+      'Mahim-Oak Curio': 'The Mahim-Oak Curio',
+      'Iron Jang Bong': 'The Iron Jang Bong',
+    };
+    /* v1703 — AN ITEM HE ALREADY OWNS UNDER ANOTHER SPELLING IS NOT MISSING.
+       ITEMS carries "Mahim-Oak Curio"; the ledger and roster carry "The Mahim-Oak Curio", and
+       _norm() folds case and punctuation but NOT a leading "The ". So an exact-match miss put an
+       item he has owned since May into the missing list, and then the reachability check looked
+       for it in the ALL grid — which by construction contains ONLY missing items, so an already-
+       found canonical can never be there. That is the same wrong-denominator mistake twice in one
+       file: the first version of this fix asked the grid a question the grid cannot answer.
+       Resolve the spelling FIRST and ask the LEDGER, which is the store that knows about found. */
+    const ownedUnderAnyName = (n: string) => {
+      if (ownedBefore.has(n)) return true;
+      if (VARIANTS[n] && ownedBefore.has(VARIANTS[n])) return true;
+      const rr = w.d2rResolveItem ? w.d2rResolveItem(n) : null;
+      return !!(rr && rr.canonical && ownedBefore.has(rr.canonical));
+    };
+    const missing = pool.filter((x: any) => !ownedUnderAnyName(x.n));
     const failures: string[] = [];
     /* reachability: every missing unique has a tick in the rendered ALL grid.
        v1696 — ASK ABOUT IDENTITY, NOT SPELLING. This compared raw ITEMS strings against the grid's
@@ -31,19 +57,6 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
        Each is checked explicitly rather than by fuzzy matching: a loose comparison here would make
        this test pass on an item that genuinely vanished, which is the only thing it exists to catch. */
     const ticks = new Set([...box.querySelectorAll('.gf-allgrid [data-gf-tick]')].map((t: any) => t.getAttribute('data-gf-tick')));
-    // ITEMS spelling → the roster's spelling, for names neither the resolver nor a suffix-strip joins
-    const VARIANTS: Record<string, string> = {
-      'Cranium Basher': 'The Cranium Basher',
-      "Bloodmoon's Light": 'Bloodmoon',
-      /* v1703 — these two joined the list when Konyo ruled the four "missing" uniques DO exist. Two of
-         them already did, under their proper names: "The Mahim-Oak Curio" and "The Iron Jang Bong" are
-         in ITEM_VALUE, in _UNI_EXTRA, and SEEDED FOUND in _GRAIL_SEED (May 18 / May 19). Only Polaris
-         Spear and The Scourge were genuinely absent, and only those two were added to the roster.
-         Adding the bare spellings would have minted a second, permanently-unfound ghost row for an item
-         he already owns — so they are name variants, exactly like Cranium Basher above. */
-      'Mahim-Oak Curio': 'The Mahim-Oak Curio',
-      'Iron Jang Bong': 'The Iron Jang Bong',
-    };
     // rows that live in ITEMS with a unique-ish tier but are not uniques
     const NOT_A_UNIQUE = new Set(['Ist rune', 'Jah/Ber/Sur rune']);
     const reachable = (n: string) => {
