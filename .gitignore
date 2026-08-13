@@ -77,3 +77,6 @@ _worlds_probe.html
 # Machine-local by nature (his Mac and the Windows cousin have different footage) and worthless
 # to anyone else, so it never travels.
 tv/chronicle_swept.json
+
+# v1711 — the G5 stats ledger is per-machine runtime counters, like the budget file
+tv/g5_stats.json

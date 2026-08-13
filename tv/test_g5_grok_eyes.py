@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import tempfile
+import subprocess
 import unittest
 from unittest import mock
 
@@ -261,6 +262,72 @@ class TestG5ChronicleLane(unittest.TestCase):
         self.assertIn("unattended", g5.CHRONICLE_VISION_PROMPT)
         self.assertIn("{ledger}", g5.CHRONICLE_VISION_PROMPT)
         self.assertIn("wrongTab", g5.CHRONICLE_VISION_PROMPT)
+
+
+class TheCounterCrossesTheProcessBoundary(unittest.TestCase):
+    """v1711 — stats.calls read 0 forever, and the module's own budget note recorded the tell:
+    "hourlyUsed 9 alongside stats.calls 0". Two counters over the same events disagreed and the
+    contradiction was written down instead of chased.
+
+    The eye is called from the AGENT (tv_diablo.py), which control_app.py launches with
+    subprocess.Popen. /api/g5_status is served by CONTROL_APP. Each had its own module-level
+    _STATS dict, so the panel reported a process that had never made a call — not a quiet eye.
+    hourlyUsed was correct only because the budget goes through a FILE.
+
+    These run REAL subprocesses. An in-process test cannot see this defect at all: the bug IS the
+    process boundary, so a test that stays in one interpreter passes against the broken code."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.env = dict(os.environ,
+                        G5_STATS_PATH=os.path.join(self.d, "stats.json"),
+                        G5_BUDGET_PATH=os.path.join(self.d, "budget.json"))
+        self.here = os.path.dirname(os.path.abspath(__file__))
+
+    def _run(self, body):
+        r = subprocess.run([sys.executable, "-c",
+                            "import sys, json, os\n"
+                            "sys.path.insert(0, %r)\n"
+                            "import g5_grok_eyes as g\n" % self.here + body],
+                           env=self.env, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        return r.stdout.strip()
+
+    def _view(self):
+        return json.loads(self._run("print(json.dumps(g.stats_view()))"))
+
+    def test_a_call_recorded_in_one_process_is_VISIBLE_in_another(self):
+        self._run("g._STATS['calls'] = 3; g._STATS['ok'] = 2; g._stats_flush()")
+        v = self._view()
+        self.assertEqual(v["calls"], 3, "the reader process still cannot see the caller's calls")
+        self.assertEqual(v["ok"], 2)
+
+    def test_a_second_process_ADDS_and_never_erases_the_first(self):
+        # last-writer-wins would silently delete the agent's calls — the same class of defect,
+        # one layer down. control_app calls the eye too (intake), so both really do write.
+        self._run("g._STATS['calls'] = 3; g._stats_flush()")
+        self._run("g._STATS['calls'] = 5; g._stats_flush()")
+        self.assertEqual(self._view()["calls"], 8)
+
+    def test_flushed_deltas_are_banked_so_one_call_is_never_counted_twice(self):
+        self.assertEqual(self._run(
+            "g._STATS['calls'] = 4\n"
+            "g._stats_flush(); g._stats_flush(); g._stats_flush()\n"
+            "print(g.stats_view()['calls'])"), "4")
+
+    def test_status_serves_the_SHARED_total_not_this_process_dict(self):
+        # the actual user-visible surface: /api/g5_status -> status()["stats"]
+        self._run("g._STATS['calls'] = 7; g._stats_flush()")
+        self.assertEqual(json.loads(self._run(
+            "print(json.dumps(g.status().get('stats', {})))"))["calls"], 7)
+
+    def test_a_budget_refusal_SAYS_it_was_rationed_rather_than_going_silent(self):
+        # "the eye is quiet" and "the eye is rationed" are different facts he acts on differently;
+        # the skip path used to return None with last_error untouched.
+        src = open(os.path.join(self.here, "g5_grok_eyes.py"), encoding="utf-8").read()
+        skip = src.split('_STATS["skipped_budget"] += 1')[1][:400]
+        self.assertIn("last_error", skip, "a budget skip must record WHY it declined")
+        self.assertIn("budget", skip)
 
 
 if __name__ == "__main__":

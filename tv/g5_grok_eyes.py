@@ -460,7 +460,7 @@ def status():
             "hourlyUsed": hourly, "hourlyMax": _HOURLY_MAX,
             "dailyUsed": daily, "dailyMax": _DAILY_MAX,
         },
-        "stats": dict(_STATS),
+        "stats": stats_view(),
         "sidecar": {
             "hint": "python3 tv/g5_sidecar/server.py  (uses same subscription CLI)",
         },
@@ -522,6 +522,75 @@ def _budget_save(state):
         pass
 
 
+# ── stats, SHARED ACROSS PROCESSES ────────────────────────────────────────────
+# v1711 — stats.calls WAS PERMANENTLY 0 AND THE FILE ALREADY SAID SO.
+# The note at the budget block above records the tell verbatim: "hourlyUsed 9 alongside
+# stats.calls 0." Two counters over the same events disagreed, one was believed, and the
+# contradiction sat in a comment instead of being the finding.
+#
+# The cause is a process boundary. The eye is CALLED from the agent (tv_diablo.py:4855),
+# which control_app.py:1858 launches as a separate `subprocess.Popen`. Every _STATS["calls"] += 1
+# lands in the AGENT's memory. /api/g5_status is served by CONTROL_APP, which imported its own
+# copy of this module and reads its own dict — one that nothing ever increments. So the panel was
+# not reporting a quiet eye; it was reporting a different process's blank counter.
+#
+# hourlyUsed was right for exactly one reason: the budget goes through a FILE. So the stats do too.
+# Same shape, same override-per-call env hook, same swallow-on-failure — a stats write must never
+# be able to break a vision call.
+_STATS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "g5_stats.json")
+_COUNTERS = ("calls", "ok", "errors", "skipped_budget", "shadow", "primary")
+
+
+def _stats_path():
+    """Overridable per call so a guard never writes his live stats file (mirrors _budget_path)."""
+    return os.environ.get("G5_STATS_PATH") or _STATS_PATH
+
+
+def _stats_load():
+    try:
+        p = _stats_path()
+        if not os.path.isfile(p):
+            return {}
+        return json.loads(open(p, encoding="utf-8").read()) or {}
+    except Exception:
+        return {}
+
+
+def _stats_flush():
+    """Publish this process's counters into the shared file, ADDING deltas rather than
+    overwriting — control_app and the agent both call the eye, so a last-writer-wins save
+    would silently erase the other process's calls (the very defect this replaces)."""
+    try:
+        with _LOCK:
+            base = _stats_load()
+            merged = dict(base)
+            for k in _COUNTERS:
+                merged[k] = int(base.get(k) or 0) + int(_STATS.get(k) or 0)
+            for k in ("last", "last_error", "lane", "stripped_api_env"):
+                if _STATS.get(k) is not None:
+                    merged[k] = _STATS[k]
+            merged["ts"] = time.time()
+            with open(_stats_path(), "w", encoding="utf-8") as fh:
+                json.dump(merged, fh)
+            for k in _COUNTERS:          # deltas are banked; reset so they cannot double-count
+                _STATS[k] = 0
+    except Exception:
+        pass
+
+
+def stats_view():
+    """What /api/g5_status must show: the shared totals, plus anything this process holds
+    that has not been flushed yet."""
+    base = _stats_load()
+    out = dict(_STATS)
+    for k in _COUNTERS:
+        out[k] = int(base.get(k) or 0) + int(_STATS.get(k) or 0)
+    for k in ("last", "last_error"):
+        if out.get(k) is None and base.get(k) is not None:
+            out[k] = base[k]
+    return out
+
+
 def _budget_counts(now=None):
     now_ms = _as_ms(now) if now is not None else time.time() * 1000.0
     state = _budget_load()
@@ -564,7 +633,14 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     if not has_subscription():
         return None
     if not _budget_ok():
+        # v1711 — this returned None with last_error untouched, so a budget refusal was
+        # INDISTINGUISHABLE on the panel from an eye that was simply never asked. "The eye is
+        # quiet" and "the eye is rationed" are different facts and he acts on them differently.
         _STATS["skipped_budget"] += 1
+        h, d = _budget_counts()          # (this hour, today)
+        _STATS["last_error"] = ("budget: %s/%s this hour, %s/%s today — refused, not failed"
+                                % (h, _HOURLY_MAX, d, _DAILY_MAX))
+        _stats_flush()
         return None
 
     path = os.path.abspath(str(image_path or ""))
@@ -574,6 +650,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     bin_path = _grok_bin()
     if not bin_path:
         _STATS["last_error"] = "grok CLI not on PATH"
+        _stats_flush()
         return None
 
     text_prompt = (prompt or _DEFAULT_VISION_PROMPT)
@@ -622,12 +699,14 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         _STATS["errors"] += 1
         _STATS["calls"] += 1
         _STATS["last_error"] = f"grok -p timeout {_TIMEOUT_S:.0f}s"
+        _stats_flush()
         _cleanup(work)
         return None
     except Exception as e:
         _STATS["errors"] += 1
         _STATS["calls"] += 1
         _STATS["last_error"] = str(e)[:160]
+        _stats_flush()
         _cleanup(work)
         return None
 
@@ -640,12 +719,14 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         _STATS["errors"] += 1
         err = (r.stderr or "")[:200]
         _STATS["last_error"] = f"grok exit {r.returncode}: {err}"
+        _stats_flush()
         return None
 
     parsed = _loose_parse(out)
     if parsed is None:
         _STATS["errors"] += 1
         _STATS["last_error"] = "no-json from grok -p"
+        _stats_flush()
         return None
 
     _budget_record()
@@ -655,6 +736,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         _STATS["shadow"] += 1
     elif m == "primary":
         _STATS["primary"] += 1
+    _stats_flush()
     parsed["model"] = "grok-subscription-cli"
     parsed["mode"] = "g5-" + m
     parsed["escalated"] = False
