@@ -9876,8 +9876,30 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                              on_reel=lambda st: _tick(reelsDone=1))
         # remember ONLY the reels this run actually read. A reel that errored or was skipped must
         # stay unread, or one bad run would permanently hide footage from every future sweep.
+        #
+        # v1711 — THAT COMMENT DESCRIBED AN INTENT THE CODE DID NOT IMPLEMENT. The filter excluded
+        # exactly two cases (already-swept, no reel name) and sealed everything else, INCLUDING a
+        # reel that read nothing at all. `sweep_frames` returns {"classified": 0, "pages": [],
+        # "note": "no-index"} (chronicle_retro.py:433) for a reel whose index would not load — zero
+        # work done, and the old loop wrote it into the memory anyway. `skip_reels` (:9874) then
+        # hides it from EVERY future sweep, and the only way back is a `force` run over his whole
+        # history. Footage silently gone, at full price to recover.
+        #
+        # This is the trap `_chron_known_from_journal` was rushed in ahead of, in its own words:
+        # "A first sweep that selects nothing does not merely waste a run — it seals the footage."
+        # That half got fixed; this half was the actual sealing mechanism and stayed as written.
+        # It is a COUNTDOWN, not debt — chronicle_swept.json does not exist on this machine, so the
+        # damage lands on the FIRST press of the button and not before.
+        #
+        # A reel is sealed only if the run genuinely spent something on it. classified > 0 with
+        # pages == 0 IS a legitimate seal: the cheap classifier looked at every frame and correctly
+        # found no Chronicle page, and paying it again buys the same answer. Zero of both means
+        # nothing was ever looked at.
         for st in res["reels"]:
             if st.get("note") == "already-swept" or not st.get("reel"):
+                continue
+            did_read = (st.get("classified") or 0) > 0 or (st.get("pages") or 0) > 0
+            if not did_read or st.get("note") == "no-index":
                 continue
             swept["reel_" + str(st["reel"])] = {"ts": int(time.time() * 1000),
                                                 "classified": st.get("classified") or 0,

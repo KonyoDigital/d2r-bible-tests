@@ -138,6 +138,12 @@ GATES = [
              "tv/test_*.py, so TestNoOrphanSuite could never have caught the omission: that guard "
              "watches for suites missing from this list, and cannot see a runnable check that was "
              "never named as one"),
+    Gate("test_chronicle_seal", [sys.executable, os.path.join(HERE, "test_chronicle_seal.py")], 120,
+         why="the retro sweep must never seal a reel it did not read. chronicle_swept.json hides "
+             "every reel it names from all future sweeps, and the loop used to record even a "
+             "no-index reel that read NOTHING — footage lost until a full `force` re-run. The "
+             "tests EXECUTE the shipped loop out of control_app.py rather than copying it, so a "
+             "widened predicate turns them red instead of quietly passing"),
     Gate("test_button_matrix", [sys.executable, os.path.join(HERE, "test_button_matrix.py")], 300,
          # v1711 — needs_app was TRUE, so this gate was skipped before it could even try, on
          # every run where Konyo did not happen to have his console open. It now BOOTS ITS OWN

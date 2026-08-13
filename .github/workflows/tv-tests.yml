@@ -44,7 +44,7 @@ jobs:
       #     ⚠ It must never bind or kill :17772 — that is his LIVE console.
       # Both were proven RED before being trusted green (a gate nobody has seen fail is measuring
       # nothing), and both still report SKIP rather than a pass if their lane truly cannot come up.
-      - name: THE GATE SET (tv/run_gates.py — all 27, one verdict)
+      - name: THE GATE SET (tv/run_gates.py — all 28, one verdict)
         run: python3 tv/run_gates.py
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
