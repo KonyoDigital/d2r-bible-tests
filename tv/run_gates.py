@@ -138,6 +138,13 @@ GATES = [
              "tv/test_*.py, so TestNoOrphanSuite could never have caught the omission: that guard "
              "watches for suites missing from this list, and cannot see a runnable check that was "
              "never named as one"),
+    Gate("test_chronicle_still_threshold",
+         [sys.executable, os.path.join(HERE, "test_chronicle_still_threshold.py")], 120,
+         why="the chronicle sweep's still threshold must stay BELOW what jpeg_sig can produce. At "
+             "the shared 0.22 it was above the ceiling of the measurement (largest real diff: "
+             "0.133), so no frame pair ever broke a run, a whole 217-frame session became ONE run, "
+             "and 9 of his 10 reels read zero pages. Synthetic on purpose so it runs on CI, where "
+             "his footage cannot exist"),
     Gate("test_chronicle_seal", [sys.executable, os.path.join(HERE, "test_chronicle_seal.py")], 120,
          why="the retro sweep must never seal a reel it did not read. chronicle_swept.json hides "
              "every reel it names from all future sweeps, and the loop used to record even a "

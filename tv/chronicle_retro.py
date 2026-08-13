@@ -46,6 +46,45 @@ import re
 # of the frame to blow past 0.22. The threshold is left alone (loosening it would weld unrelated
 # screens together); the fix is `known_chronicle`, which lets already-identified frames in regardless.
 STILL_MAX_DIFF = 0.22
+
+# v1712 — THE CHRONICLE'S OWN STILL THRESHOLD, AND WHY IT IS 44× TIGHTER.
+#
+# THE DEFECT: at 0.22 the retro sweep read NOTHING from footage that provably holds Chronicle
+# pages. Measured on his reel_s_1786385768689_67392 — 217 frames, 220 seconds, a journalled visit
+# of 8 Chronicle frames — still_runs() returned **ONE run of all 217 frames**. Gameplay, town,
+# Chronicle: one run. candidate_runs() then passed that single run on, live_probe() picked ONE
+# frame to represent 220 seconds, the frame it picked was gameplay, and the whole session was
+# discarded as not-a-Chronicle. That is why 9 of his 10 reels contribute zero pages: only the one
+# reel with a journalled visit gets rescued, by known_chronicle= marks, through a different door.
+#
+# WHY THE THRESHOLD NEVER FIRED: jpeg_sig is a 16×16 grayscale fingerprint and sig_diff counts
+# cells differing by more than tol=28. Across the ENTIRE reel the largest frame-to-frame diff is
+# 0.133, and the median is 0.000 — at this resolution a D2R scene change simply does not move 22%
+# of 256 cells. 0.22 was above the ceiling of what the signal can produce, so no pair ever broke a
+# run. A threshold nothing can ever cross is not a loose threshold; it is an absent one.
+#
+# THE SIGNAL IS THERE. The Chronicle ENTRY boundary measures 0.113 — the largest jump in the reel,
+# and 14× the p90 of everything else (0.008). Inside the panel, consecutive frames measure
+# 0.000–0.012: he holds it, and scrolling a list moves few cells at 16×16.
+#
+# CALIBRATION, all 10 reels / 731 frames, cost = classifies, yield = pages read:
+#     max_diff   classified   pagesRead
+#       0.220        22           0        ← shipped behaviour: pays 22 reads, finds nothing
+#       0.010        35           4
+#       0.005        45           9        ← chosen
+#       0.002        44           8
+# 0.005 sits on a stable shelf (0.002 gives 8, 0.005 gives 9) and roughly doubles the classify
+# cost to turn a sweep that reads NOTHING into one that reads nine pages. The memory in
+# chronicle_swept.json means that cost is paid once per reel, ever.
+#
+# ⚠ HONESTLY STATED: this is calibrated against the ONE session in his journal that carries a
+# Chronicle visit, because that is the only ground truth that exists. It is a named constant
+# rather than a number inside a comparison precisely so the next measurement can move it.
+# ⚠ NOT SHARED WITH THE VAULT. vault_retro.py:452 deliberately borrows still_runs() and says so
+# ("chronicle_retro owns STILL_MAX_DIFF / MIN_RUN_FRAMES"). Retuning the shared constant would
+# silently change the vault sweep's cost and grouping on footage nobody measured here, so the
+# Chronicle passes its own value explicitly and STILL_MAX_DIFF keeps its meaning for that caller.
+CHRON_STILL_MAX_DIFF = 0.005
 # Below this a run is somebody walking through town, not a screen being read.
 MIN_RUN_FRAMES = 3
 
@@ -450,7 +489,7 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     sig_of = sig_of or (lambda n: jpeg_sig(os.path.join(reel_dir, n)))
     idx_frames = idx.get("frames") or []
     known = _resolve_known(idx_frames, _known_chronicle_map(known_chronicle))
-    runs = still_runs(idx_frames, sig_of)
+    runs = still_runs(idx_frames, sig_of, max_diff=CHRON_STILL_MAX_DIFF)
     cands = candidate_runs(runs, min_frames=min_frames)
     # a scrolled Chronicle is never still, so the journal's own marks are candidates in their own
     # right — see _journal_runs() and the STILL_MAX_DIFF note.
