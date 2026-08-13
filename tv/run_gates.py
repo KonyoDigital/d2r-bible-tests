@@ -138,6 +138,12 @@ GATES = [
              "tv/test_*.py, so TestNoOrphanSuite could never have caught the omission: that guard "
              "watches for suites missing from this list, and cannot see a runnable check that was "
              "never named as one"),
+    Gate("test_kai_missed_recoverable",
+         [sys.executable, os.path.join(HERE, "test_kai_missed_recoverable.py")], 120,
+         why="a session close that reports 'N frames held text no eye read' must NAME those "
+             "frames, not just count them. It journalled 20 verbose rows and nothing else, so on "
+             "his 108-frame session the headline was honest while 88 frames existed only inside a "
+             "number and no sweep could ever find them"),
     Gate("test_chronicle_still_threshold",
          [sys.executable, os.path.join(HERE, "test_chronicle_still_threshold.py")], 120,
          why="the chronicle sweep's still threshold must stay BELOW what jpeg_sig can produce. At "

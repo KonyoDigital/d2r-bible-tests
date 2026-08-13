@@ -7056,13 +7056,29 @@ def _kai_closer_loop():
                              "frameId": "reel_" + sid + "/" + str(g.get("f") or "").replace(".jpg", ""),
                              "kai": {"grounded": _gn},
                              "note": "🏷 grail grounded from garbled OCR: " + ", ".join(_gn[:3])})
+            # v1712 — THE HEADLINE SAID 108 AND THE EVIDENCE SAVED 20.
+            # `missed[:20]` above writes one verbose row per frame, carrying its texts for the UI.
+            # That cap is reasonable for rows; what was NOT reasonable is that the other 88 frames
+            # then existed only as a COUNT. Measured on s_1786385768689_67392: 217 scanned, 158
+            # with text, missedFrames=108, and exactly 20 'unread text' rows in sessions.jsonl.
+            # So a number that was perfectly honest sat next to evidence that had been thrown away,
+            # and nothing downstream — no retro sweep, no re-read, no audit — could ever name the
+            # 88 frames it referred to. A silent cap reads as "covered everything" when it did not.
+            # The ids are ~20 bytes each; carrying all of them costs ~2KB per session and makes the
+            # missed set RECOVERABLE. `missedShown` names the cap out loud so the two numbers can
+            # never drift apart again unnoticed.
+            _missed_ids = [str(m.get("f") or "") for m in missed if m.get("f")]
             rows.append({"ts": _sess_last + 1, "captureTs": _sess_last + 1, "completedTs": now_ms,
                          "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
                          "sessionId": sid, "frameId": "",
                          "kai": {**{k: report[k] for k in ("scanned", "textFrames", "missedFrames")},
-                                 "classes": classes},
+                                 "classes": classes,
+                                 "missedIds": _missed_ids,
+                                 "missedShown": min(len(missed), 20)},
                          "note": f"🧠 KAI closed the session — {scanned} frames swept · "
-                                 f"{len(missed)} frames held text no eye read"})
+                                 f"{len(missed)} frames held text no eye read"
+                                 + (f" ({20} detailed, all {len(missed)} named in missedIds)"
+                                    if len(missed) > 20 else "")})
             try:
                 with open(_journal_path(), "a", encoding="utf-8") as f:
                     for r in rows:
