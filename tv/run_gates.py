@@ -131,6 +131,13 @@ GATES = [
          why="the vision-eye contract"),
     Gate("test_roundtrip_sim", [sys.executable, os.path.join(HERE, "test_roundtrip_sim.py")], 900,
          why="a full simulated session round trip"),
+    Gate("robot_smoke", [sys.executable, os.path.join(HERE, "robot_smoke.py")], 120,
+         why="the TV_ROBOT=1 frozen-boot lane must not rot — a 20s stub boot, no model call. "
+             "⚠ It lived as a hand-listed CI step while the gate set knew nothing about it, so "
+             "consolidating CI onto run_gates.py would have DROPPED it silently. It is not a "
+             "tv/test_*.py, so TestNoOrphanSuite could never have caught the omission: that guard "
+             "watches for suites missing from this list, and cannot see a runnable check that was "
+             "never named as one"),
     Gate("test_button_matrix", [sys.executable, os.path.join(HERE, "test_button_matrix.py")], 300,
          needs_app=True,
          why="every app button, against the LIVE control API"),

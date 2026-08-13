@@ -6,28 +6,34 @@ on:
 jobs:
   agent-suite:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run the agent TDD suite (stdlib only — no deps, no vision cost)
-        run: python3 tv/test_agent.py
-      - name: Run the control suite (lazy webview imports — headless-safe)
-        run: python3 tv/test_control.py
-      - name: TZ relay honesty + Routine I duration split
-        run: python3 tv/test_tz_relay.py && python3 tv/test_shard_balance.py
-      - name: Roundtrip acceptance (ON AIR → seal → SIM, stub mode)
-        run: python3 tv/test_roundtrip_sim.py
-      - name: Frozen-robot boot smoke (TV_ROBOT=1 lane must not rot — 20s stub, no model call)
-        run: python3 tv/robot_smoke.py
-      # Pillow is installed ON PURPOSE: without it the RED/GREEN class skips, and a guard that
-      # skips is a guard that reports OK while measuring nothing. The reel fixture is generated,
-      # so no footage of his is ever committed.
+      # Pillow FIRST: without it the chronicle RED/GREEN class skips, and a guard that skips
+      # reports OK while measuring nothing. The reel fixture is generated, so none of his footage
+      # is ever committed.
       - name: Install Pillow (so the chronicle RED/GREEN actually runs instead of skipping)
         run: python3 -m pip install --quiet pillow
-      - name: Chronicle known-frame wire (retro sweep must receive the live agent's marks — 0 → 8)
-        run: python3 tv/test_chronicle_known_wire.py
-      - name: G5 budget units (one clock — the second eye must not pin itself OFF at a false cap)
-        run: python3 tv/test_g5_budget_units.py
+      # ONE GATE SET, ONE VERDICT.
+      #
+      # This step used to hand-list SEVEN suites while tv/run_gates.py knew about TWENTY-SIX, so
+      # nineteen gates only ever ran when a human typed the command — js-syntax, visual-lock,
+      # test_routes, test_reachability, ui_icons, the whole chronicle family, the vault laws, the
+      # G5 lane and more. All nineteen were measured GREEN when this was written, so nothing was
+      # hiding; the defect was structural, not a red.
+      #
+      # That is the exact decay run_gates.py was BUILT to stop. Its own docstring: "'The gate set'
+      # was a thing people carried in their heads and typed by hand, which means it was different
+      # for every person and every session, and a suite could fall out of it silently" — after
+      # tv/test_routes.py exited 1 for about a hundred versions and nobody knew (REG-079). The list
+      # moved into a file, TestNoOrphanSuite started failing on any unlisted tv/test_*.py — and then
+      # CI quietly kept its own shorter copy, which is the same defect one level up.
+      #
+      # run_gates.py reports a SKIP loudly and only exits non-zero on a real failure, so gates that
+      # cannot run headless (js-syntax needs a browser that answers --dump-dom; test_button_matrix
+      # needs the console live on :17772) degrade honestly instead of failing the job.
+      - name: THE GATE SET (tv/run_gates.py — all 26, one verdict)
+        run: python3 tv/run_gates.py
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
           # body arrives as an escaped JSON string ({"status":400,"body":"{\"error\":\"missing image\"}"}) — grep escape-proof
