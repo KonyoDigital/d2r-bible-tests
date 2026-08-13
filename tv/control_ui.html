@@ -2597,8 +2597,44 @@
      v1636 tried to solve by widening a card that was ALREADY the full width.
      The block is unchanged; it has only moved BELOW the declaration it was always meant to override. */
   @media (min-width: 900px) {
-    .hd-tz .tz-body { flex-direction: row; align-items: stretch; }
-    .hd-tz .tz-slot { flex: 1 1 0; min-width: 0; }
+    /* v1710 — SUBGRID: THE TWO LABELS NOW SHARE ONE ROW-TRACK, NEGOTIATED NOT GUESSED.
+       Konyo's 5th complaint on this panel: "this TZ TRACKER is not aligned and symmetric,
+       something looks off on the next". MEASURED with CDP on his live rotation: UP NEXT's
+       `.tz-lab` wraps to a 3-line label at 901px (73.30px vs LIVE's 45.59px, +27.70px), and even
+       where both wrap to 2 lines the v1670 reserve below undercounted the real chip height, so
+       every UP NEXT card still sat 7-8px low at 1440/1100.
+       `.hd-tz .tz-body` is now a 2-col/2-row grid and each `.tz-slot` spans both rows with
+       `grid-template-rows: subgrid` — its own row 1 (the label) IS the parent's row 1, shared by
+       both slots, so the track sizes to whichever label is taller and both start row 2 (the
+       zones) on the same line. This is exactly what the v1670 comment below said no rule could
+       do; subgrid is that rule, which is why the comment is corrected in place rather than left
+       to describe a problem this now solves. Chrome has shipped subgrid since 117 (his is 151);
+       the `@supports` fallback below keeps the old flex layout for anything older. */
+    .hd-tz .tz-body { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr;
+      align-items: stretch; }
+    .hd-tz .tz-slot { grid-row: span 2; display: grid; grid-template-rows: subgrid; min-width: 0; }
+    /* ⚠ SHARE THE LABEL ROW ONLY. THE ZONE ROW MUST STAY EACH SLOT'S OWN.
+       `grid-template-rows: subgrid` above spans BOTH parent rows, so row 2 — the zones — was
+       shared too. Combined with `.tz-zones{grid-auto-rows:1fr}` (:2790) and `.tzz{height:100%}`
+       (:2792), a slot with FEWER card-rows then stretched its cards to fill the taller slot's
+       zone track. That pair was safe for fourteen versions precisely BECAUSE the two slots were
+       sibling grids that could not reach each other (v1641 says so); making them subgrid the same
+       parent turned it load-bearing ACROSS slots overnight.
+       MEASURED on stubbed rotations at 1440/1100/901 (his live one is 2-vs-2, which is exactly
+       why the render gate saw 0.00 and passed it — the fixture, not the code, was symmetric):
+         2 vs 4 @1440 — LIVE cards 341.63px against NEXT's 166.31px, a 175.32px step
+         1 vs 3 @1440 — the single LIVE card ballooned to 516.94px against 166.31px, +350.63px
+       A four-zone rotation is ordinary here (REG-104 was written about one), so this was not a
+       corner case; it was one asymmetric rotation away from being his 6th complaint.
+       `align-self:start` keeps `.tz-zones` at its own content height at the TOP of the shared
+       row, so the label row still equalises (that is the whole point of the subgrid) while the
+       cards keep the deterministic heights v1641/v1679 gave them. The SLOT boxes still stretch
+       to equal height — that is the parent's `1fr` row, untouched. */
+    .hd-tz .tz-slot > .tz-zones { align-self: start; }
+    @supports not (grid-template-rows: subgrid) {
+      .hd-tz .tz-body { display: flex; flex-direction: row; }
+      .hd-tz .tz-slot { display: block; flex: 1 1 0; }
+    }
     /* v1596 — EQUAL WIDTH. LIVE used to take 1.35 of the row, so even once the two cards shared a
        type scale their columns still could not line up. The rotation is one thing at two moments;
        both moments get the same column. */
@@ -2709,14 +2745,30 @@
      whenever its chip carries the cross-act note ("3 LIVE TOGETHER · ACTS 4+5"): the GOOD badge
      drops to a second line, UP NEXT's label becomes one row taller, and every card under it starts
      ~22px low. LIVE NOW, with a shorter chip, stays on one row.
-     The two labels sit in SEPARATE .tz-slot boxes, so — exactly as v1641 found for the cards — no
-     flex or grid rule can equalise one against the other. The height is therefore RESERVED rather
-     than negotiated: 2 rows always, wrapped or not. `nowrap` was rejected because these columns are
-     narrow and it would squash the chip instead of moving it. */
+     The two labels sit in SEPARATE .tz-slot boxes. v1670 said "no flex or grid rule can equalise
+     one against the other" and reserved the height instead of negotiating it — true of flex and
+     of two SIBLING grids (v1641's own finding for the cards, unchanged), but NOT true of subgrid:
+     :2599 now makes both `.tz-slot`s subgrid the SAME parent row-track for this label, which is
+     negotiation, not a guess. `nowrap` was rejected because these columns are narrow and it would
+     squash the chip instead of moving it — that reasoning is unaffected and still applies to the
+     `@supports` fallback below. */
   .tz-lab { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap;
-    min-height: calc((var(--fs-2xs) * 1.6) * 2 + 4px); align-content: flex-start;
+    align-content: flex-start;
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: .22em;
     text-transform: uppercase; opacity: .85; }
+  /* v1710 — FALLBACK RESERVE ONLY, FOR ENGINES WITHOUT SUBGRID (:2599 handles it everywhere else).
+     The v1670 calc this replaces measured only `line-height * 2` — but a wrapped row here is a
+     CHIP (`.tz-together` / `.tz-verdict`), not bare text, and a chip's box is line-height PLUS its
+     own padding/border, not the line-height alone: `.tz-together` is `1.6*fs + 2px` (1px border,
+     no vertical padding, :2703) and `.tz-verdict` is `1.5*fs + 4px` (2px vertical padding, no
+     border, :2908). The old calc also never counted the 7px `gap` BETWEEN the two wrapped rows.
+     Measured on the live rotation at 1440px: the real two-row height is 57.66px — chip 25.05 +
+     gap 7 + verdict-chip 25.61 — against the old calc's ~50.08px, a 7.58px undershoot that is
+     exactly what pushed every UP NEXT card low. */
+  @supports not (grid-template-rows: subgrid) {
+    .tz-lab { min-height: calc((1.6 * var(--fs-micro, var(--fs-2xs)) + 2px) + 7px +
+      (1.5 * var(--fs-micro, var(--fs-2xs)) + 4px)); }
+  }
   .tz-slot.now .tz-lab { color: #8fe0a0; opacity: 1; }
   /* v1569 — each zone is a CARD with its own extracted act art, not a text pill. The face is a
      CASC graphic (v384 extraction) served from /art/; a zone with no art shows a rune derived from

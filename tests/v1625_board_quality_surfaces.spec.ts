@@ -310,28 +310,31 @@ test.describe('v1625 · ITEM 6 — the titles wear their quality and their art',
     });
   }
 
-  test('★★ the plain Forge title is STILL chrome gold — the shared .forge-title rule was not repainted globally', async ({ page }) => {
+  test('★★ the plain Forge title wears its TAB\'s rune colour (2026-08-13 ruling) — not repainted globally', async ({ page }) => {
     await board(page, 'forge');
     const r = await page.evaluate(() => {
       const Q: any = (window as any).__q;
       const t: any = document.querySelector('#tab-forge .forge-title');
       if (!t) return { missing: true };
       return { missing: false, text: (t.textContent || '').trim(), color: Q.colorOf(t),
-               gold: Q.paint('--gold-bright'), set: Q.paint('--q-set'), unique: Q.paint('--q-unique') };
+               gold: Q.paint('--gold-bright'), set: Q.paint('--q-set'), unique: Q.paint('--q-unique'),
+               rune: Q.paint('--rune') };
     });
     expect(r.missing, '#tab-forge has no .forge-title').toBe(false);
-    console.log('ITEM 6 · plain Forge title "%s" color=%s want --gold-bright=%s', r.text, r.color, r.gold);
+    console.log('ITEM 6 · plain Forge title "%s" color=%s want --rune=%s', r.text, r.color, r.rune);
     expect(r.text).toBe('Forge');
-    /* v1707 — KONYO RULED: the Forge title wears the RUNEWORD gold, which IS the unique gold.
-       This assertion demanded chrome gold and had been red since 2026-08-06 against the shipped
-       `#tab-forge .forge-title{color:var(--q-runeword)}`. His v1627 note is the one that stands:
-       D2R paints a completed runeword's NAME the same gold as a unique, so Forge and F·Uniques
-       reading alike is ACCURATE, not a leak.
-       What this test still guards is the thing it was actually written for — that the SHARED
-       .forge-title rule was not repainted globally: set green must never appear here, and the
-       title must still be the deliberate per-page override rather than the family accent. */
-    expect(r.color, 'the plain Forge title wears the runeword/unique gold (his v1707 ruling)').toBe(r.unique);
+    /* 2026-08-13 — KONYO RULED (bible.html:7924 ruling block): the Forge room wears its TAB'S RUNE
+       colour, not the runeword/unique gold. "these two colors cant be the same... RUNEWORD is
+       separate from the F-UNIQUES" (v1631) — an item NAME obeys the game, but A TAB IS A LABEL FOR
+       A ROOM. This assertion used to demand chrome gold, then the runeword/unique gold (v1707);
+       his 2026-08-13 ruling supersedes both. What this test still guards is the thing it was
+       actually written for — that the SHARED .forge-title rule was not repainted globally: set
+       green and unique gold must never appear here, and the title must still be the deliberate
+       per-page override rather than the family accent. */
+    expect(r.color, 'the plain Forge title is not wearing --rune (his 2026-08-13 ruling)').toBe(r.rune);
     expect(r.color, 'the plain Forge title leaked set green').not.toBe(r.set);
+    expect(r.color, 'the plain Forge title leaked unique gold — it should be RUNE, distinct from F·Uniques')
+      .not.toBe(r.unique);
     expect(r.color, 'the shared .forge-title rule was repainted globally — Forge fell back to the family accent')
       .not.toBe(r.gold);
   });

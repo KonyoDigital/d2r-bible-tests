@@ -24,14 +24,18 @@ import * as path from 'path';
 // to wear — never against a literal, so retuning a token moves the page and the test together —
 // and it asserts each header renders ITS OWN tab icon, decoded, which is the v1678 invariant.
 //
-// Forge and F·Uniques both resolving to #c7b377 is not a bug: --q-runeword IS --q-unique, and
-// Konyo accepted that explicitly when v1672 was written (tv/control_ui.html:45-54). What must
-// never happen is either of them falling back to chrome gold, which is what this catches.
+// Forge and F·Uniques resolving to the SAME colour was v1672's call, and it stood until v1702
+// surfaced that four specs disagreed. 2026-08-13 — KONYO RULED (bible.html:7924 ruling block):
+// "these two colors cant be the same... RUNEWORD is separate from the F-UNIQUES" — an item NAME
+// obeys the game, but A TAB IS A LABEL FOR A ROOM. The Forge room now wears its TAB's rune colour
+// (--rune), same as F·Uniques wears --q-unique and F·Sets wears --q-set: three distinct rooms,
+// three distinct identities. What must never happen is any of them falling back to chrome gold,
+// which is what this catches.
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 const FAMILY = [
-  { tab: 'forge', title: 'Forge', token: '--q-runeword', icon: 'ui_tab_forge.png' },
+  { tab: 'forge', title: 'Forge', token: '--rune', icon: 'ui_tab_forge.png' },
   { tab: 'funi', title: 'Forge · Uniques', token: '--q-unique', icon: 'ui_tab_funi.png' },
   { tab: 'fsets', title: 'Forge · Sets', token: '--q-set', icon: 'ui_tab_fsets.png' },
 ];
@@ -80,9 +84,9 @@ test.describe('v1685 — the Forge family identity', () => {
     });
   }
 
-  test('★★ the three titles are told apart — sets is not the gold pair', async ({ page }) => {
-    /* NON-VACUITY for the pair above: Forge and F·Uniques SHARE a colour by design, so "each wears
-       its token" would still pass if every token collapsed to one value. Sets must stay distinct. */
+  test('★★★ the three titles are told apart — each room its own colour (2026-08-13 ruling)', async ({ page }) => {
+    /* NON-VACUITY: after his ruling, Forge/F·Uniques/F·Sets each wear a DIFFERENT token
+       (--rune / --q-unique / --q-set), so all three should now resolve to distinct colours. */
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForFunction(() => typeof (window as any).switchTab === 'function', null, { timeout: 20000 });
     const seen: string[] = [];
@@ -94,7 +98,9 @@ test.describe('v1685 — the Forge family identity', () => {
     }
     expect(seen[2], 'Forge · Sets is not distinct from Forge — the set green is gone')
       .not.toBe(seen[0]);
-    expect(new Set(seen).size, `the three titles resolved ${new Set(seen).size} distinct colours, expected 2`)
-      .toBe(2);
+    expect(seen[1], 'Forge · Uniques is not distinct from Forge — the rune colour is gone')
+      .not.toBe(seen[0]);
+    expect(new Set(seen).size, `the three titles resolved ${new Set(seen).size} distinct colours, expected 3`)
+      .toBe(3);
   });
 });

@@ -7479,6 +7479,18 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-funi,#tab-fsets) .fu-basehunt:hover{border-color:rgba(224,185,106,.75);color:var(--gold-bright)}
 :is(#tab-funi,#tab-fsets) .fu-basehunt b{color:var(--rune,#ff7d3c)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty.on{opacity:.72}
+/* 2026-08-13 — Konyo: "the forge color should be like the tab color also for the sub tab and
+   related." Repaints the FORGE ROOM's own neutral/inactive chip chrome (border+label) and the
+   .ft-all "ALL" chip — which represents the room itself, not a filter — in --rune, scoped to
+   #tab-forge ONLY so F·Uniques/F·Sets keep their own accents. The SEMANTIC per-filter colours
+   (ft-now green, ft-pipe blue, ft-step yellow, ft-craft --q-orange) are untouched — they carry
+   meaning and must survive. Note: --rune (#ff7d3c) and --q-orange (#ffa800) are both orange but
+   measurably distinct (see report); they do not collide. Same specificity as the shared rules
+   above (id + 1-2 classes each) — placed AFTER them so source order wins per :3.4/cascade rule. */
+#tab-forge .forge-tab{border-color:rgba(255,125,60,.4);color:#d9a17e}
+#tab-forge .forge-tab:hover{color:var(--rune)}
+#tab-forge .forge-tab.ft-all .ft-ct{color:var(--rune);background:rgba(255,125,60,.14)}
+#tab-forge .forge-tab.ft-all.on{border-color:rgba(255,125,60,.65);background:rgba(255,125,60,.14);color:var(--rune)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:var(--q-orange)}
 /* v1409 — ✓ crafted action on every craft recipe row */
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid rgba(255,255,255,.05)}
@@ -7951,11 +7963,27 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    and better than a green suite that quietly overrode a gated decision.
    TO RULE — one line, no other edit needed:
      "keep them the same"  → nothing to do; retire v775's forge expectation and v1625's assertion.
-     "make them different" → delete the rule below; v1685's spec is the one to retire. */
-#tab-forge .forge-title{color:var(--q-runeword)}
+     "make them different" → delete the rule below; v1685's spec is the one to retire.
+
+   ══ 2026-08-13 — HE RULED. "the forge color should be like the tab color also for the sub tab
+   and related." That is the "make them different" branch, but sharper than v1631's own framing:
+   not "own gold distinct from F·Uniques" (the family accent at :7424 / v775's old expectation),
+   but the RUNE colour his TAB actually wears (console: `.head-tabs .ht[data-tab="forge"]{--ht-q:
+   var(--rar-rune)}`, tv/control_ui.html:4318). The Forge room now wears --rune, not the runeword/
+   unique gold and not the chrome-gold family accent — a THIRD identity, distinct from both.
+   v1685_forge_family_identity.spec.ts, v775_tab_family.spec.ts and v1625_board_quality_surfaces.
+   spec.ts were all updated the same day to assert --rune instead of arguing among themselves.
+   The sub-tab rail (.forge-tab chip row, :7444+) and the room's other gold chrome (.tvf-emblem
+   ring, the sealed-hero trophy/title/wax-stamp) were repainted the same way, scoped to #tab-forge
+   only — see the rules below this block and near :7444/:7957/:7997. */
+#tab-forge .forge-title{color:var(--rune)}
 /* v1664 — removed an exact duplicate of the line above (both added v1633). */
 #tab-funi .tvf-emblem{border-color:rgba(199,179,119,.55);background:radial-gradient(circle at 50% 30%,rgba(199,179,119,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(199,179,119,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #tab-fsets .tvf-emblem{border-color:rgba(0,255,0,.4);background:radial-gradient(circle at 50% 30%,rgba(0,255,0,.14),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(0,255,0,.16),inset 0 1px 0 rgba(255,255,255,.08)}
+/* 2026-08-13 — #tab-funi and #tab-fsets have had their own emblem ring since v1625 ITEM6; Forge
+   had none. His ruling above gives Forge its own room identity too — the same --rune the title
+   and tab now wear. */
+#tab-forge .tvf-emblem{border-color:rgba(255,125,60,.5);background:radial-gradient(circle at 50% 30%,rgba(255,125,60,.2),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(255,125,60,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 /* v1678 — removed `.tvf-emblem .tvf-emblem-art` (v1625 ITEM6): its only writer was
    _paintForgeEmblem, deleted with it. The emblem art is now sized by `.tvf-emblem .tvf-emblem-i`. */
 #tab-funi .gf-lastname{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}
@@ -8014,6 +8042,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{padding:24px 18px 0}
   :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{margin:22px -18px 0;padding:16px 18px}
 }
+/* 2026-08-13 — "and related": the Forge SEALED hero (trophy figure, "Chronicle Sealed" title,
+   wax stamp) is part of the room's own gold chrome, repainted in --rune same as the title/tvf-
+   emblem/sub-tab rail above. Scoped to #tab-forge only — F·Uniques/F·Sets sealed hero art and
+   their ROUTE CARDS inside stay untouched; those correctly wear the OTHER rooms' colours. */
+#tab-forge .forge-sealed-done .fs-fig-n{color:var(--rune);text-shadow:0 0 26px rgba(255,125,60,.45)}
+#tab-forge .forge-sealed-done .fs-title{color:var(--rune);text-shadow:0 0 22px rgba(255,125,60,.4)}
+#tab-forge .forge-sealed-done .fs-stamp{color:rgba(255,125,60,.14);border-color:rgba(255,125,60,.16)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll{margin:14px 0 8px;border:1px solid color-mix(in srgb,var(--room,#d4a847) 26%,transparent);border-radius:12px;background:linear-gradient(180deg,rgba(26,20,10,.4),rgba(14,11,6,.22));overflow:hidden}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary{cursor:pointer;list-style:none;padding:12px 16px;font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--room,#c8a24a);display:flex;align-items:center;gap:9px;user-select:none;transition:color .14s,background .14s}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary:hover{color:var(--room,#f0c060);background:color-mix(in srgb,var(--room,#f0c060) 7%,transparent)}
@@ -8287,8 +8322,17 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 <div class="tab-content" id="tab-fsets">
   <div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_fsets.png" alt="" onerror="this.replaceWith(document.createTextNode('🧩'))"></span><div class="forge-headtxt"><div class="forge-title">Forge · Sets</div>
   <div class="forge-sub">Your set-grail task plan — every missing <b>piece</b> mapped to its best farm run (same engine as Forge · Uniques), <b>⚡ last-piece sets first</b>. Tick a piece the moment it drops — it syncs to the Item Set Tracker.</div>
-  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your grail tracker — set pieces auto-tick here too (one import covers uniques + sets)">📸 Import my grail — AI reads screenshots</button>
-  <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff;margin-left:6px" onclick="window._chronShotPick('sets')" title="photograph the in-game Chronicle SETS page — read as evidence, nothing registers until you press register">📜 Read my Chronicle · SETS</button></div></div></div>
+  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your grail tracker — set pieces auto-tick here too (one import covers uniques + sets)">📸 Import my grail — AI reads screenshots</button></div></div></div>
+  <!-- 2026-08-13 — symmetry pass (Konyo: "F-uniqes and F-sets... i want these two areas also
+       aligned... additives not removing so just sync and align them both"). #tab-funi had a
+       two-row header (Import, then BOTH Chronicle buttons); #tab-fsets had one row missing the
+       UNIQUES chronicle button entirely. Mirrored here, same structure/order/margins as #tab-funi
+       (:8306-8317). Glyph mapping unified across both tabs: 📜 = UNIQUES, 🧩 = SETS (fsets'
+       SETS button used to wear 📜; funi's mapping is the one kept). -->
+  <div style="margin-top:8px">
+    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff" onclick="window._chronShotPick('uniques')" title="photograph the in-game Chronicle UNIQUES page — read as EVIDENCE, nothing is registered until you press register">📜 Read my Chronicle · UNIQUES</button>
+    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff;margin-left:6px" onclick="window._chronShotPick('sets')" title="photograph the in-game Chronicle SETS page — read as evidence, nothing registers until you press register">🧩 Read my Chronicle · SETS</button>
+  </div>
   <!-- the SETS read renders HERE when he is on this tab — the Uniques tab's report element is
        display:none with its whole tab, so a shared one would have shown him nothing. -->
   <div id="chron-shot-report-sets" class="chron-shot-report forge-note" style="display:none;margin:8px 0"></div>
@@ -36477,6 +36521,30 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     for (var i = 0; i < els.length; i++){ els[i].style.display = 'block'; els[i].innerHTML = html; }
   }
 
+  /* v1711 — AND SO DOES THE UNDO CONFIRMATION. The undo button's inline handler wrote straight to
+     `getElementById('chron-shot-report')` — the #tab-funi node — while every other write in this
+     flow already went through the fan-out above. That was survivable only while the UNIQUES read
+     could be started from the Uniques tab alone: the tab you press it on was the tab that owned
+     the one report node.
+     This version breaks that assumption on purpose. Making the two Forge headers symmetric puts a
+     "Read my Chronicle · UNIQUES" button on the SETS tab, so he can now register a uniques batch
+     while standing on #tab-fsets — and #tab-funi is display:none from there, which means the
+     rollback confirmation for a write against his own ledger rendered into a hidden div. He would
+     have pressed undo, seen nothing, and had no way to tell a no-op from a silent success.
+     It is the SAME defect the comment above says was already found once and fixed for the report
+     path; only the undo path was missed, because nothing reached it until now.
+     `undone: 0` is a REAL answer from chronicleUndoLast (:36334 returns it when the log is empty),
+     not a missing measurement — so it is stated in words rather than printed as a bare 0. */
+  window._chronShotUndo = function(){
+    var r = null;
+    try { r = window.chronicleUndoLast(); } catch(e){}
+    if (!r) { _chronShotReport('<span class="chron-shot-done">↩ undo failed — nothing was changed</span>'); return null; }
+    _chronShotReport('<span class="chron-shot-done">'
+      + (r.undone ? '↩ undone <b>' + r.undone + '</b>' : '↩ nothing to undo — no batch on record')
+      + '</span>');
+    return r;
+  };
+
   window.chronicleShotIntake = async function(files){
     if (!files || !files.length) return null;
     var ledger = window._chronShotLedger === 'sets' ? 'sets' : 'uniques';
@@ -36608,8 +36676,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       (res.skipped.length ? ' · ' + res.skipped.length + ' already yours' : '') +
       ((res.unknown && res.unknown.length)
         ? ' · <span style="color:#e0a860">' + res.unknown.length + ' set name(s) not recognised — nothing written for those</span>' : '') + '</span>' +
-      ' <button class="f-btn" id="chron-shot-undo" onclick="var r=window.chronicleUndoLast();' +
-      'document.getElementById(\'chron-shot-report\').innerHTML=\'↩ undone \'+r.undone;">↩ undo this batch</button>');
+      ' <button class="f-btn" id="chron-shot-undo" onclick="window._chronShotUndo()">↩ undo this batch</button>');
     return res;
   };
 
@@ -36762,6 +36829,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pct=s.totalPieces?Math.round(s.havePieces/s.totalPieces*100):0;
     H.push('<div class="forge-progress" title="'+s.havePieces+' of '+s.totalPieces+' pieces"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%;background:linear-gradient(90deg,#4ade80,#86efac)"></div></div>'
       +'<div class="fp-lbl">🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets<span class="fp-pct">'+pct+'%</span></div></div>');
+    // 2026-08-13 — symmetry pass: F·Uniques has a "named cards" line explaining its grid against the
+    // in-game chronicle total; F·Sets had no equivalent. SET truth only (pieces/sets from fsetsScan
+    // above) — never a uniques number. There is no separate "in-game total sets" count to reconcile
+    // against here (unlike uniques' chronTotal vs named-card subset), so this states what IS tracked
+    // rather than inventing a dark-row figure that was never measured.
+    H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="every set tracked here, from the mod\'s own set roster">🗂 sets: <b>'+s.done.length+' / '+s.sets.length+'</b> completed · <b>'+(s.totalPieces-s.havePieces)+'</b> piece'+((s.totalPieces-s.havePieces)===1?'':'s')+' still missing</div>');
     // group missing pieces by best run (same shape as Forge·Uniques)
     var bySrc={};
     /* v1564 — Konyo: "Run drops broadly? what level is this, is this a mistake?"
@@ -39128,7 +39201,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1710', name:'v1710 - duration-shard-and-tz-relay', date:'2026-08-13', note:'Routine I peels slow sims off the file-count shard; TZ relay uses history when current is empty and /d2r/api/tz is open' };
+  window.D2R_BUILD = { id:'v1711', name:'v1711 - console-symmetry-and-room-identity', date:'2026-08-13', note:'TZ TRACKER labels share one subgrid row so UP NEXT stops sitting low, and the zone row stays per-slot so an asymmetric rotation cannot stretch cards; the Forge room now wears the rune-orange of its own tab (his 2026-08-13 ruling, settling bible.html:7938); F.Uniques and F.Sets headers made symmetric additively; the chronicle undo confirmation now fans out to the visible tab instead of a hidden div' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
