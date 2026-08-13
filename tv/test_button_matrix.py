@@ -25,7 +25,53 @@ try:
 except Exception:
     pass
 
-CTRL = "http://127.0.0.1:17772"
+# v1711 — THIS GATE SKIPPED ON EVERY RUN WHERE THE CONSOLE WAS CLOSED, WHICH IS MOST OF THEM.
+# It hardcoded :17772 and told the operator to start the app by hand, so its verdict depended on
+# whether Konyo happened to have the console open — a gate whose coverage is a coincidence.
+#
+# It now boots its OWN control_app on a FREE EPHEMERAL PORT via TV_CONTROL_PORT (control_app.py:77)
+# and stops it on the way out.
+# ⚠ IT MUST NEVER TOUCH :17772. That port is his LIVE console; killing or rebinding it would take
+# the running app out from under him, and `pkill -f` is banned in this project for exactly that
+# class of mistake. This starts a separate process, on its own port, with --no-open so no window
+# appears, and terminates ONLY the pid it started.
+# If TV_CTRL_URL is set, that is honoured instead and nothing is started — for pointing the matrix
+# at an already-running instance deliberately.
+import atexit
+import socket
+
+_OWNED = None
+
+
+def _free_port():
+    with socket.socket() as sk:
+        sk.bind(("127.0.0.1", 0))
+        return sk.getsockname()[1]
+
+
+def _boot_control():
+    """Start a private control_app and return its base URL, or None if it will not come up."""
+    global _OWNED
+    port = _free_port()
+    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_ROBOT="1")
+    here = os.path.dirname(os.path.abspath(__file__))
+    proc = subprocess.Popen([sys.executable, os.path.join(here, "control_app.py"), "--no-open"],
+                            env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _OWNED = proc
+    atexit.register(lambda: (proc.terminate(), proc.wait(timeout=10)) if proc.poll() is None else None)
+    base = "http://127.0.0.1:%d" % port
+    for _ in range(60):                      # up to ~30s for first boot
+        if proc.poll() is not None:
+            return None                      # died on startup — report SKIP, never a false pass
+        try:
+            urllib.request.urlopen(base + "/api/status", timeout=1).read()
+            return base
+        except Exception:
+            time.sleep(0.5)
+    return None
+
+
+CTRL = os.environ.get("TV_CTRL_URL") or ""
 AGENT = "http://127.0.0.1:17771"
 FAILS = []
 
@@ -289,10 +335,19 @@ def main():
 
 
 if __name__ == "__main__":
+    # v1711 — boot our OWN console if none was handed to us. Never :17772 (his live app).
+    if not CTRL:
+        CTRL = _boot_control() or ""   # noqa: F811 — module-level rebind is intended
+    if not CTRL:
+        print("SKIPPED — could not start a private control_app to test against "
+              "(set TV_CTRL_URL to point at one deliberately). Reporting SKIP rather than a pass: "
+              "a matrix that never ran must not read as green.")
+        sys.exit(2)
     try:
         get(CTRL + "/api/status")
     except Exception as e:
-        print("Control not on :17772 — start: python3 tv/control_app.py --no-open")
+        print("SKIPPED — control_app started but never answered /api/status at %s" % CTRL)
         print(e)
         sys.exit(2)
+    print("button matrix running against %s (private instance, his :17772 untouched)" % CTRL)
     sys.exit(main())

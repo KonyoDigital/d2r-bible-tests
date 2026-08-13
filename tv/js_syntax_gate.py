@@ -30,6 +30,7 @@ Behaviour
 """
 from __future__ import annotations
 
+import io
 import os
 import re
 import shutil
@@ -143,17 +144,84 @@ NO_LOOPBACK = ("this browser never answers --dump-dom over http://127.0.0.1 on t
                "not run and this result proves NOTHING about the code")
 
 
+def _node_bin():
+    for c in ("node", "/usr/local/bin/node", "/opt/homebrew/bin/node"):
+        try:
+            subprocess.run([c, "--version"], capture_output=True, timeout=20, check=True)
+            return c
+        except Exception:
+            continue
+    return None
+
+
+def check_with_node(targets=None):
+    """PARSE every inline <script> with `node --check`. No browser, no loopback, no server.
+
+    v1711 — THE BROWSER PATH SKIPS ON HIS MAC AND HAS FOR ~220 VERSIONS. `--dump-dom` never answers
+    over http://127.0.0.1 here (measured v1490), so this gate reported SKIPPED every single local
+    run — and a gate that never runs is not protection, it is a line in a report. Its stated job is
+    "every surface must PARSE", and parsing does not need a DOM.
+
+    So the browser stays as the richer check (it also catches what a page throws while EXECUTING),
+    and this is what runs when the browser cannot. Between them the gate always has a verdict.
+
+    Returns (problems, None). Classic-script semantics: `type=module`/JSON blocks are skipped
+    because `node --check` parses them as scripts and would report false errors on import/export.
+    """
+    node = _node_bin()
+    if not node:
+        return [], "no node found — cannot parse JS without a browser either"
+    problems = []
+    for rel in (targets or TARGETS):
+        path = os.path.join(REPO, rel)
+        if not os.path.isfile(path):
+            problems.append(f"{rel}: missing")
+            continue
+        html = io.open(path, encoding="utf-8", errors="replace").read()
+        blocks = 0
+        for m in re.finditer(r"<script([^>]*)>(.*?)</script>", html, re.S | re.I):
+            attrs, body = m.group(1) or "", m.group(2)
+            if "src=" in attrs.lower():
+                continue                      # external file, nothing inline to parse
+            if re.search(r'type\s*=\s*["\']?(module|application/json|importmap)', attrs, re.I):
+                continue                      # not a classic script; node --check would lie
+            if not body.strip():
+                continue
+            blocks += 1
+            line0 = html[:m.start(2)].count("\n") + 1
+            with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False,
+                                             encoding="utf-8") as fh:
+                fh.write(body)
+                tmp = fh.name
+            try:
+                r = subprocess.run([node, "--check", tmp], capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", timeout=60)
+                if r.returncode != 0:
+                    first = (r.stderr or "").strip().splitlines()
+                    detail = next((l for l in first if "SyntaxError" in l), first[0] if first else "")
+                    problems.append(f"{rel}: <script> starting at line {line0} — {detail.strip()[:160]}")
+            finally:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+        if blocks == 0:
+            problems.append(f"{rel}: no inline <script> blocks found — the parser matched nothing, "
+                            f"which is an instrument failure, not a clean file")
+    return problems, None
+
+
 def check(targets=None, timeout=90):
     """Return (problems, skipped_reason). problems == [] and reason is None when clean."""
     targets = targets or TARGETS
     browser = find_browser()
     if not browser:
-        return [], "no Chromium/Edge found — cannot verify JS syntax"
+        return check_with_node(targets)          # v1711 — parse it without a browser
 
     # v1490 — a browser that cannot answer over loopback here can only produce a timeout, and a
     # timeout is not a syntax verdict. Say "did not run" instead of spending 90s per target first.
     if not browser_can_load_localhost(browser):
-        return [], NO_LOOPBACK
+        return check_with_node(targets)          # v1711 — his Mac never answers over loopback
 
     srv, port = _serve(REPO)
     problems = []

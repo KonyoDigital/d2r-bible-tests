@@ -139,7 +139,12 @@ GATES = [
              "watches for suites missing from this list, and cannot see a runnable check that was "
              "never named as one"),
     Gate("test_button_matrix", [sys.executable, os.path.join(HERE, "test_button_matrix.py")], 300,
-         needs_app=True,
+         # v1711 — needs_app was TRUE, so this gate was skipped before it could even try, on
+         # every run where Konyo did not happen to have his console open. It now BOOTS ITS OWN
+         # control_app on a free ephemeral port (never :17772, his live one) and stops it after,
+         # so it runs unattended and in CI. It still reports SKIP — never a pass — if that private
+         # instance cannot come up.
+         needs_app=False,
          why="every app button, against the LIVE control API"),
 ]
 

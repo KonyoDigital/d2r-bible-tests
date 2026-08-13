@@ -29,10 +29,22 @@ jobs:
       # moved into a file, TestNoOrphanSuite started failing on any unlisted tv/test_*.py — and then
       # CI quietly kept its own shorter copy, which is the same defect one level up.
       #
-      # run_gates.py reports a SKIP loudly and only exits non-zero on a real failure, so gates that
-      # cannot run headless (js-syntax needs a browser that answers --dump-dom; test_button_matrix
-      # needs the console live on :17772) degrade honestly instead of failing the job.
-      - name: THE GATE SET (tv/run_gates.py — all 26, one verdict)
+      # run_gates.py reports a SKIP loudly and only exits non-zero on a real failure, so a gate that
+      # genuinely cannot run degrades honestly instead of failing the job.
+      #
+      # v1711 — THE TWO GATES THAT USED THAT MERCY AS A HIDING PLACE NOW RUN. Both were written to
+      # skip when their environment was missing, and both then skipped ~always, so 2 of the 27 were
+      # decoration:
+      #   · js-syntax needed a browser answering --dump-dom over http://127.0.0.1. Chrome never does
+      #     on Konyo's Mac (measured v1490), so it skipped for ~220 versions. It now PARSES every
+      #     inline <script> with `node --check` — no browser, no loopback, no server.
+      #   · test_button_matrix hardcoded :17772 and told the operator to start the console by hand,
+      #     so its coverage depended on whether he happened to have the app open. It now boots its
+      #     OWN control_app on a free ephemeral port via TV_CONTROL_PORT and stops it after.
+      #     ⚠ It must never bind or kill :17772 — that is his LIVE console.
+      # Both were proven RED before being trusted green (a gate nobody has seen fail is measuring
+      # nothing), and both still report SKIP rather than a pass if their lane truly cannot come up.
+      - name: THE GATE SET (tv/run_gates.py — all 27, one verdict)
         run: python3 tv/run_gates.py
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
