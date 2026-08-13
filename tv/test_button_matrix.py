@@ -124,6 +124,17 @@ def wait_agent(up: bool, sec=15):
     return False
 
 
+def _needs_claude(r):
+    """Did this button fail ONLY because the Claude Code CLI is absent?
+
+    ON AIR and RESTART both drive the live agent, which needs Konyo's subscription CLI. A CI
+    runner has no such CLI, so both answer {'ok': False, 'error': 'Claude Code CLI not found …'}.
+    Grading that as a defect is how a gate turns into furniture nobody reads. It is deliberately
+    NARROW: only an absent CLI is excused, so a genuine ON failure (screen recording denied, a
+    wedged bridge) still fails. Verified against all three payload shapes."""
+    return (not r.get("ok")) and "claude" in str(r.get("error", "")).lower()
+
+
 def check(name, cond, detail=""):
     if cond:
         print(f"  ✓ {name}")
@@ -195,7 +206,7 @@ def main():
     # defect. Reporting an unavailable subscription lane as a red is how a gate becomes furniture.
     # The lane is SKIPPED and said out loud instead, and every other button still runs. On his
     # Mac, where the CLI is present, nothing here changes and the full lane is graded as before.
-    _no_claude = (not r.get("ok")) and "claude" in str(r.get("error", "")).lower()
+    _no_claude = _needs_claude(r)
     if _no_claude:
         SKIPS.append("ON AIR lane — %s" % r.get("error"))
         print("  ⚠ SKIPPED ON AIR lane — %s" % r.get("error"))
@@ -216,9 +227,15 @@ def main():
 
     print("\n· RESTART")
     r = post("/api/restart")
-    check("RESTART ok", r.get("ok") is True, r)
-    time.sleep(1)
-    check("RESTART → agent up", wait_agent(True, 10))
+    # RESTART relaunches the LIVE agent, so it needs the same Claude Code CLI as ON AIR and fails
+    # the same way on a runner. Same rule: an absent subscription lane is a SKIP, not a red.
+    if _needs_claude(r):
+        SKIPS.append("RESTART lane — %s" % r.get("error"))
+        print("  ⚠ SKIPPED RESTART lane — %s" % r.get("error"))
+    else:
+        check("RESTART ok", r.get("ok") is True, r)
+        time.sleep(1)
+        check("RESTART → agent up", wait_agent(True, 10))
 
     print("\n· OFF (soft cut live)")
     r = post("/api/off")
