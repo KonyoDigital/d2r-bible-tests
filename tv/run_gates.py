@@ -175,7 +175,7 @@ def run(only=None):
         if only and g.name not in only:
             continue
         if g.needs_app and not app_up:
-            results.append((g, "SKIP", 0.0, "control app is not running on :17772"))
+            results.append((g, "SKIP", 0.0, "control app is not running on :17772", ""))
             continue
         t0 = time.time()
         try:
@@ -192,12 +192,12 @@ def run(only=None):
                 status = "SKIP"
             else:
                 status = "PASS" if p.returncode == 0 else "FAIL"
-            results.append((g, status, dt, tail[0][:150]))
+            results.append((g, status, dt, tail[0][:150], blob if status == "FAIL" else ""))
         except subprocess.TimeoutExpired:
             results.append((g, "FAIL", time.time() - t0,
-                            "timed out after %ds — a hung gate is a failed gate" % g.timeout))
+                            "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
         except OSError as e:
-            results.append((g, "SKIP", time.time() - t0, "could not launch (%s)" % e))
+            results.append((g, "SKIP", time.time() - t0, "could not launch (%s)" % e, ""))
     return results
 
 
@@ -208,19 +208,36 @@ def main(argv):
 
     print("══ GATE SET ══")
     results = run(a.only)
-    for g, status, dt, detail in results:
+    for g, status, dt, detail, _blob in results:
         mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠"}[status]
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
 
-    failed = [g.name for g, s, _, _ in results if s == "FAIL"]
-    skipped = [(g.name, d) for g, s, _, d in results if s == "SKIP"]
+    failed = [g.name for g, s, _, _, _ in results if s == "FAIL"]
+    skipped = [(g.name, d) for g, s, _, d, _ in results if s == "SKIP"]
     print("\n── VERDICT ──")
     if skipped:
         # never silent: a check that did not happen is not a check that passed
         for n, d in skipped:
             print("⚠ SKIPPED %s — %s" % (n, d))
     if failed:
-        print("❌ %d gate(s) FAILED: %s" % (len(failed), ", ".join(failed)))
+        # v1711 — SAY WHICH TEST, NOT JUST WHICH GATE.
+        # The summary line was the gate's LAST output line, which for a unittest run is
+        # "FAILED (failures=1)" — a fact with no address. A CI log carrying that and nothing else
+        # cannot be diagnosed remotely, and these gates include browser lanes that SKIP on Konyo's
+        # Mac (Chrome never answers --dump-dom over loopback there) and therefore run ONLY on CI.
+        # So the one machine that can produce those failures was also the one that could not
+        # report them, and the answer was to guess. Now the log carries the addresses.
+        for g, st, _dt, _d, blob in results:
+            if st != "FAIL":
+                continue
+            names = [ln.strip() for ln in blob.split("\n")
+                     if ln.startswith(("FAIL:", "ERROR:")) or "AssertionError" in ln]
+            print("\n── %s — what actually broke ──" % g.name)
+            for ln in (names[:12] or [ln for ln in blob.strip().split("\n") if ln.strip()][-12:]):
+                print("   " + ln[:200])
+            if len(names) > 12:
+                print("   … and %d more" % (len(names) - 12))
+        print("\n❌ %d gate(s) FAILED: %s" % (len(failed), ", ".join(failed)))
         return 1
     print("✅ %d gate(s) passed%s."
           % (len(results) - len(skipped), (", %d skipped" % len(skipped)) if skipped else ""))

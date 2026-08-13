@@ -74,6 +74,27 @@ import chronicle_template as ct  # noqa: E402
 _FRAMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "frames", "hist", "reel_s_1786385768689_67392")
 
+# v1711 — THIS SUITE IS PINNED TO ONE REEL OF KONYO'S REAL FOOTAGE, and that footage is
+# gitignored (.gitignore:21 `tv/frames/`) — deliberately, because those are his screenshots and
+# they must never be committed or published. So the frames exist on his Mac and can never exist on
+# a CI runner.
+#
+# It went unnoticed because CI hand-listed 7 of the 26 gates and this was not among them. The
+# moment CI ran the whole set, it failed 6 tests + 1 error on the runner while passing on his Mac:
+# not a regression, an absent subject. Every filename below was HAND-READ against the real frames,
+# which is exactly why the suite is worth keeping and exactly why it cannot be synthesised — a
+# generated fixture would grade the generator, not his footage.
+#
+# So it SKIPS where its subject cannot exist, and says so. run_gates.py prints every skip loudly
+# and the CI job surfaces them, because a check that did not happen is not a check that passed.
+# ⚠ The skip is conditioned on the directory being ABSENT, never on CI or platform: on his Mac,
+# where the frames are, a real regression must still turn this red.
+_HAVE_FOOTAGE = os.path.isdir(_FRAMES_DIR)
+_NO_FOOTAGE_WHY = ("the pinned reel %s is not on this machine — this suite grades HAND-READ ground "
+                   "truth against Konyo's real frames, which are gitignored and never leave his "
+                   "Mac. Absent subject, not a passing test."
+                   % os.path.basename(_FRAMES_DIR))
+
 
 def _f(name):
     return os.path.join(_FRAMES_DIR, name)
@@ -171,6 +192,7 @@ def _fmt(counts, missed, false_alarms):
                false_alarms or "none", missed or "none"))
 
 
+@unittest.skipUnless(_HAVE_FOOTAGE, _NO_FOOTAGE_WHY)
 class TestTheGradedSetIsRealAndNonEmpty(unittest.TestCase):
     """A matrix over an empty or half-missing set proves nothing. Check the film first."""
 
@@ -195,6 +217,7 @@ class TestTheGradedSetIsRealAndNonEmpty(unittest.TestCase):
         self.assertEqual(len(gameplay) + len(esc_menu), len(NOT_CHRONICLE))
 
 
+@unittest.skipUnless(_HAVE_FOOTAGE, _NO_FOOTAGE_WHY)
 class TestConfusionMatrixOverRealFootage(unittest.TestCase):
     """The point of the ship: counts, printed, against pixels a human actually looked at."""
 
@@ -240,6 +263,7 @@ class TestConfusionMatrixOverRealFootage(unittest.TestCase):
                             name + " is a Chronicle page under a tooltip and was missed: " + r["why"])
 
 
+@unittest.skipUnless(_HAVE_FOOTAGE, _NO_FOOTAGE_WHY)
 class TestTabRefusalIsReachable(unittest.TestCase):
     """Round 1 shipped a tab=None branch nothing could reach. Both outcomes must occur on real
     film — a named tab when the strip reads clean, None when two marker windows are lit."""
@@ -268,6 +292,7 @@ class TestTabRefusalIsReachable(unittest.TestCase):
                              "lay in the runewords band. That inversion is back." % (n, t))
 
 
+@unittest.skipUnless(_HAVE_FOOTAGE, _NO_FOOTAGE_WHY)
 class TestPureLaw(unittest.TestCase):
     """No writes, no deletes, no network, no model calls — proven three ways, because each one on
     its own is a proxy: the source text, a runtime trap wider than builtins.open, and an inventory
