@@ -74,6 +74,7 @@ def _boot_control():
 CTRL = os.environ.get("TV_CTRL_URL") or ""
 AGENT = "http://127.0.0.1:17771"
 FAILS = []
+SKIPS = []
 
 
 def get(url, t=3):
@@ -187,10 +188,24 @@ def main():
 
     print("\n· ON (live agent — may need screen permission; bridge must still start)")
     r = post("/api/on", body={"test": True})   # v786 — matrix runs never become theatre reels
-    check("ON start ok", r.get("ok") is True, r)
-    s = wait_mode("live", 20, bridge=True)
+    # v1711 — ON AIR NEEDS THE CLAUDE CODE CLI, WHICH A CI RUNNER DOES NOT HAVE.
+    # When this gate started booting its own console it began running on GitHub too, where
+    # /api/on answers {'ok': False, 'error': 'Claude Code CLI not found — ON AIR needs Claude'}
+    # and every downstream ON assertion then fell over: 8 reported failures, none of them a
+    # defect. Reporting an unavailable subscription lane as a red is how a gate becomes furniture.
+    # The lane is SKIPPED and said out loud instead, and every other button still runs. On his
+    # Mac, where the CLI is present, nothing here changes and the full lane is graded as before.
+    _no_claude = (not r.get("ok")) and "claude" in str(r.get("error", "")).lower()
+    if _no_claude:
+        SKIPS.append("ON AIR lane — %s" % r.get("error"))
+        print("  ⚠ SKIPPED ON AIR lane — %s" % r.get("error"))
+    else:
+        check("ON start ok", r.get("ok") is True, r)
+    s = None if _no_claude else wait_mode("live", 20, bridge=True)
     # mode may be live even if capture fails
-    if not s:
+    if _no_claude:
+        pass                                   # the lane was skipped above; assert nothing about it
+    elif not s:
         # sometimes status shows mode live only when bridge; check agent
         check("ON → agent ping", wait_agent(True, 8))
         s = get(CTRL + "/api/status")
@@ -325,12 +340,16 @@ def main():
             browser.close()
 
     print("\n══ MATRIX RESULT ══")
+    for sk in SKIPS:
+        # loud, always — a check that did not happen must never read as one that passed
+        print("⚠ SKIPPED %s" % sk)
     if FAILS:
         print(f"FAILED {len(FAILS)}:")
         for f in FAILS:
             print(" -", f)
         return 1
-    print("ALL CHECKS PASSED — app APIs + site sync + hidden agent wired")
+    print("ALL CHECKS PASSED — app APIs + site sync + hidden agent wired%s"
+          % (" (%d lane(s) skipped, listed above)" % len(SKIPS) if SKIPS else ""))
     return 0
 
 

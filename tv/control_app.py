@@ -9644,6 +9644,29 @@ def _chron_lanes():
 
     A lane that is missing is REPORTED missing rather than silently skipped — "claude only" and
     "both lanes agreed" are different confidences, and the gate scores them differently."""
+    # v1711 — UNDER TV_STUB THE MANIFEST DECLARES THE LANES, NOT THIS MACHINE.
+    # has_subscription() asks whether a Grok CLI is logged in HERE. On Konyo's Mac it is, so the
+    # stubbed sweep tests saw a grok lane; on a CI runner it is not, so the same fixture produced
+    # no lane, no "cross-lane" witness, and test_the_lane_that_DISAGREED_shows_in_the_witness_list
+    # failed with 'cross-lane' not found — green on his machine, red on the runner, with the code
+    # innocent both times. A stubbed test whose verdict depends on live machine state is not
+    # testing the stub.
+    # The manifest already names its lanes explicitly ("*#chronicle" / "*#chronicle-grok"), so in
+    # stub mode it is the honest source. This CANNOT weaken the real path: it is fenced behind
+    # TV_STUB, and a silent grok lane still reads as silence — never as agreement — which
+    # test_a_SILENT_grok_lane_never_reads_as_agreement holds by dropping the key entirely.
+    if os.environ.get("TV_STUB") == "1":
+        man = {}
+        try:
+            with open(os.environ.get("TV_STUB_MANIFEST") or "", encoding="utf-8") as fh:
+                man = json.load(fh) or {}
+        except Exception:
+            man = {}
+        stub = ["claude"]                       # the primary is what the stub sweep is built on
+        if any(str(k).endswith("#chronicle-grok") for k in man):
+            stub.append("grok")
+        return stub
+
     lanes = []
     try:
         import tv_diablo as _tv
