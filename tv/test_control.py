@@ -3047,7 +3047,21 @@ class TestStashPanelOpenGuard(unittest.TestCase):
     _GEMS = os.path.join(HERE, "frames", "hist",
                          "reel_s_1784736270319_92862", "f_1784736381363.jpg")
 
-    @unittest.skipUnless(os.path.isfile(_WALL), "wallpaper fixture frame not present")
+    # v1712 — THESE TWO HAVE NOT RUN SINCE THE CORPUS WAS PRUNED, AND CANNOT RUN AGAIN.
+    # Both reels (s_1784734976651_81925, s_1784736270319_92862) are gone from frames/hist, and
+    # tv/frames/ is gitignored on purpose — they are his screenshots. So the skip is not "not on
+    # this machine today"; it is permanent, in both venues. A skip that reads like a passing
+    # environment check is the friendlier face of a gate that never runs.
+    # WHAT STILL COVERS THE BUG: the DECISION is `_panel_open_from_features(frac_dark, dark_cols)`,
+    # which is pure and takes the two already-computed features — and it is tested above at the
+    # real measured values, including the wallpaper case (0.01, 0) and the genuine open-panel case
+    # (0.3914, 19). Those run everywhere, with no footage. What is genuinely lost here is only the
+    # END-TO-END path (crop -> features -> label) on real pixels, which is why these are kept
+    # rather than deleted: if the footage ever returns they are immediately valuable again.
+    @unittest.skipUnless(os.path.isfile(_WALL),
+                         "wallpaper fixture reel s_1784734976651_81925 was pruned — PERMANENTLY "
+                         "skipped in both venues; the decision itself is covered by the "
+                         "_panel_open_from_features tests above")
     def test_wallpaper_frame_no_longer_classifies_stash(self):
         # THE bug frame: a colourful desktop wallpaper with a Mac menu bar and zero game
         # content must NOT classify as any stash-* label even though chroma/hue is high.
@@ -3056,7 +3070,28 @@ class TestStashPanelOpenGuard(unittest.TestCase):
                          "wallpaper must not be a stash panel, got %r (%r)" % (label, detail))
         self.assertEqual(detail.get("pick"), "not-d2r")
 
-    @unittest.skipUnless(os.path.isfile(_GEMS), "gems fixture frame not present")
+    def test_the_wallpaper_DECISION_is_still_covered_without_any_footage(self):
+        """v1712 — the two real-frame tests below are permanently skipped, so this is what
+        actually holds the wallpaper bug now. If someone deletes the pure-predicate tests, the
+        skipped pair would silently become the ONLY coverage — i.e. none at all."""
+        # the exact features the 69 sealed wallpaper frames produced: lit photo, no dark cells
+        panel_open, not_d2r = se._panel_open_from_features(0.01, 0)
+        self.assertTrue(not_d2r, "a lit photograph with no dark stash cells must be rejected as "
+                                 "not-D2R before it can reach ANY stash-* label")
+        self.assertFalse(panel_open)
+        # and the converse, so this proves DISCRIMINATION rather than a one-sided reject:
+        # a genuine open stash panel must survive the same guard
+        panel_open, not_d2r = se._panel_open_from_features(0.3914, 19)
+        self.assertFalse(not_d2r, "a real open stash panel must not be thrown out as not-D2R")
+        self.assertTrue(panel_open)
+        # the boundary is a named constant, not a literal buried in a comparison
+        self.assertLess(se._NOT_D2R_DARK_MAX, se._PANEL_DARK_MIN,
+                        "the not-D2R ceiling must sit below the open-panel floor, or the two "
+                        "bands overlap and a wallpaper can be read as a panel")
+
+    @unittest.skipUnless(os.path.isfile(_GEMS),
+                         "gems fixture reel s_1784736270319_92862 was pruned — PERMANENTLY "
+                         "skipped in both venues; see the note above")
     def test_real_gems_frame_still_classifies_stash_gems(self):
         # a genuine open Gems tab must STILL detect after the guard.
         label, detail = se.classify_stash_grid(self._GEMS)
