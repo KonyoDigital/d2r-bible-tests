@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1714",
+  "ver": "v1715",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1714: runeword routing reconciled against the game own tables extracted from the local CASC store: a necro shrunken head and a grimoire ARE shields in itemtypes.txt so Rhyme and Splendor gained the 30 bases each they were missing; War Fist and Battle Cestus corrected from 3 sockets to 2 (weapons.txt, and this file own BASE_DB already said 2); and a CLUB is not a MACE so Steel no longer offers a Truncheon it can never form in",
+  "note": "v1715: a new TOOLS panel that answers what is forged, what runes are still to buy and what bases are still to buy, derived from forgeScan and the rune stash so it cannot disagree with the Forge; and the class+socket filter is now ONE shared function because the new panel asked the meta engine raw and immediately reprinted Beast to Scourge, the exact illegal route v1713 removed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

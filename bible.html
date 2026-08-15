@@ -1645,6 +1645,50 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .mat-stash-cell.mat-slot:not(.rs-has) .rs-count{display:none}
 .mat-stash-cell.mat-slot .mat-minus{position:absolute;top:0;left:0;width:15px;height:15px;font-size:var(--fs-meta);line-height:var(--lh-none);padding:0;opacity:0;transition:opacity .1s;z-index:4}
 .mat-stash-cell.mat-slot:hover .mat-minus{opacity:.9}
+/* ══ v1715 — THE SHOPPING LIST ═══════════════════════════════════════════════════════════════
+   A procurement table, so it is built like one: every numeric column is a FIXED track on a grid
+   and every figure is tabular-nums, which is what makes a column of numbers read as a column
+   rather than as ragged text. One type scale throughout (--fs-title / body / meta / micro) and
+   one row rhythm; nothing here invents a size. Symmetry is structural — the same grid template
+   drives the header row and every data row, so a heading can never drift off its column.        */
+/* MEASURE. A table stretched to 1350px turns every row into a leader line — the eye travels a
+   thousand pixels from "Zod" to the 3 that belongs to it, and the alignment stops doing any work.
+   Capping the measure is what makes the numbers read AS the row rather than as a far column. */
+.shop-wrap{display:flex;flex-direction:column;gap:14px;padding:2px 0 4px;max-width:760px;margin:0 auto;width:100%}
+.shop-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.shop-stat{padding:10px 12px;border-radius:9px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));border:1px solid var(--border);text-align:center}
+.shop-stat-n{font-size:var(--fs-display);font-weight:var(--fw-bold);line-height:var(--lh-none);font-variant-numeric:tabular-nums;color:var(--gold-bright)}
+.shop-stat-l{margin-top:5px;font-size:var(--fs-micro);font-weight:var(--fw-medium);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--text-dim);line-height:var(--lh-tight)}
+.shop-stat.is-done .shop-stat-n{color:var(--best)}
+.shop-sec{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.18)}
+.shop-sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:9px 12px;background:linear-gradient(180deg,rgba(255,255,255,.05),transparent);border-bottom:1px solid var(--border)}
+.shop-sec-t{font-size:var(--fs-meta);font-weight:var(--fw-bold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--text-muted);line-height:var(--lh-tight)}
+.shop-sec-n{font-size:var(--fs-meta);font-weight:var(--fw-semibold);font-variant-numeric:tabular-nums;color:var(--text-dim);line-height:var(--lh-tight)}
+/* ONE grid template for the head row and every body row — this is the whole symmetry story */
+.shop-row{display:grid;grid-template-columns:1fr 4.5em 4.5em 5em;align-items:center;gap:10px;padding:5px 12px;border-top:1px solid rgba(255,255,255,.045);min-height:30px}
+.shop-row:first-of-type{border-top:0}
+.shop-row.is-head{padding-top:6px;padding-bottom:6px;min-height:0;border-top:0;background:rgba(0,0,0,.22)}
+.shop-row.is-head span{font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:var(--ls-normal);text-transform:uppercase;color:var(--text-dim);line-height:var(--lh-tight)}
+.shop-name{display:flex;align-items:center;gap:7px;font-size:var(--fs-body);font-weight:var(--fw-medium);color:var(--text);line-height:var(--lh-tight);min-width:0}
+.shop-name img{width:18px;height:18px;object-fit:contain;flex:0 0 auto}
+.shop-name b{font-weight:var(--fw-semibold)}
+.shop-sub{font-size:var(--fs-micro);color:var(--text-dim);line-height:var(--lh-tight);font-weight:var(--fw-regular)}
+.shop-num{text-align:right;font-size:var(--fs-body);font-variant-numeric:tabular-nums;font-weight:var(--fw-medium);color:var(--text-muted);line-height:var(--lh-tight)}
+/* SHORT is the only figure here he acts on — it is what goes on the trade list. Need and Have are
+   context. A second eye read all three as the same weight, so the actionable one is now carrying
+   the card's strongest treatment rather than merely a different hue. */
+.shop-num.is-short{color:var(--gold-bright);font-weight:var(--fw-bold);font-size:var(--fs-title)}
+.shop-num.is-ok{color:var(--best)}
+.shop-bases{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid rgba(255,255,255,.045);min-height:34px}
+.shop-bases:first-of-type{border-top:0}
+.shop-for{font-size:var(--fs-micro);color:var(--text-dim);text-align:right;line-height:var(--lh-tight);white-space:nowrap}
+.shop-empty{padding:14px 12px;text-align:center;font-size:var(--fs-meta);color:var(--text-dim);line-height:var(--lh-normal)}
+.shop-note{font-size:var(--fs-micro);color:var(--text-dim);line-height:var(--lh-normal);padding:0 2px}
+@media(max-width:560px){
+  .shop-row{grid-template-columns:1fr 3.6em 3.6em 4em;gap:6px;padding:7px 9px}
+  .shop-name{font-size:var(--fs-meta)}
+  .shop-num{font-size:var(--fs-meta)}
+}
 /* ══ v288: Crafted Items Workshop — the 4 crafts, every per-slot recipe, live cubeable
    from your Gem+Rune Stash, and a tally of finished crafted items you own (📸 AI intake) ══ */
 .cw-wrap{margin:14px 0}
@@ -5042,6 +5086,26 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div id="vault-keep" class="vault-keep" hidden></div>
       <div class="vault-detail" id="vault-detail" hidden></div>
       <details class="zd-note vd-howto" style="margin-top:10px"><summary style="cursor:pointer;list-style:none;font-weight:var(--fw-medium);color:var(--gold-dim,#b89b5e)">ℹ️ How auto-assign &amp; muling works <span style="opacity:.6;font-weight:var(--fw-regular)">(tap to expand)</span></summary><div style="margin-top:7px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div></details>
+    </div>
+  </div>
+
+  <!-- v1715 — THE SHOPPING LIST (Konyo: "based on what exactly runewords created already and what
+       runes i still need to buy and what base items i need to buy"). A procurement view: everything
+       still standing between the chronicle and 99/99, priced as a list you can take to trade.
+       It derives from forgeScan + RUNEWORD_TIP.rec + the rune stash — the same engines the Forge
+       reads — so it can never disagree with the tab next to it. -->
+  <div class="boss-card collapsible collapsed tool-premium" id="shopping-list-card" style="--tc:#e8b24a">
+    <div class="boss-header" onclick="window.toggleCardCollapse('shopping-list-card');window.renderShoppingList&&window.renderShoppingList()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/ui_tab_forge.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(232,178,74,.5))" decoding="async" onerror="this.outerHTML='&#128722;'"></span>
+      <div class="boss-title-block">
+        <p class="boss-name">The Shopping List</p>
+        <p class="boss-subtitle">What you've forged &middot; what runes are still to buy &middot; what bases are still to buy</p>
+        <p class="boss-loc">Reads the Chronicle, your 🧮 Rune Stash and the Vault &mdash; the same truth as the Forge tab</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div id="shopping-list-body" class="shop-wrap"></div>
     </div>
   </div>
 
@@ -14167,6 +14231,34 @@ function _rwOneStepView(){
         && window._FORGE_VIEW === 'onestep';
   } catch(e){ return false; }
 }
+// ══ v1715 — ONE filter, not one per consumer ════════════════════════════════════════════════
+// _forgeMetaBase returns the CURATED pick, which is not checked against the class rules — that is
+// the whole reason the v1713 filter below exists. The moment a SECOND surface asked the meta engine
+// directly (the Tools shopping list), it printed "Beast → Scourge" again: the identical illegal
+// route, from the identical unfiltered source, in a brand-new place. That is copy-drift arriving
+// the usual way — not by someone editing one copy, but by someone adding a consumer that never had
+// the rule. So the filter is a FUNCTION now, and both surfaces call it.
+// Returns the meta names that survive class-legality and the socket count, capped.
+function _rwLegalBases(rwName, limit){
+  try {
+    if (!rwName || typeof window._forgeMetaBase !== 'function') return [];
+    var names = ((window._forgeMetaBase(rwName) || {}).names || []).slice(0, limit || 4);
+    if (!names.length) return [];
+    var need = 0;
+    try { need = (typeof _rwSock === 'function') ? (_rwSock(rwName) || 0) : 0; } catch(e){}
+    if (!need) return names;
+    return names.filter(function(bn){
+      try {
+        var hosts = (typeof _baseRunewords === 'function') ? (_baseRunewords(bn) || []) : null;
+        if (hosts && !hosts.some(function(r){ return r.n === rwName; })) return false;   // wrong class
+      } catch(e){}
+      var mx = 0;
+      try { mx = parseInt(_socketMaxFor(bn), 10) || 0; } catch(e){}
+      return !mx || need <= mx;                                                          // socket count
+    });
+  } catch(e){ return []; }
+}
+window._rwLegalBases = _rwLegalBases;
 function _rwHostBaseTiles(rwName){
   try {
     if (!rwName || typeof window._forgeMetaBase !== 'function') return '';
@@ -14193,15 +14285,7 @@ function _rwHostBaseTiles(rwName){
     //     scar is repaired in the data, so the fail-open has become a blind spot rather than a
     //     safeguard. A base whose max is still unknown (0) fails OPEN, as it always did.
     if (need){
-      names = names.filter(function(bn){
-        try {
-          var hosts = (typeof _baseRunewords === 'function') ? (_baseRunewords(bn) || []) : null;
-          if (hosts && !hosts.some(function(r){ return r.n === rwName; })) return false;   // wrong class
-        } catch(e){}
-        var mx = 0;
-        try { mx = parseInt(_socketMaxFor(bn), 10) || 0; } catch(e){}
-        return !mx || need <= mx;
-      });
+      names = _rwLegalBases(rwName, 4);          // v1715 — the shared filter, so there is only one
       if (!names.length) return '';
     }
     // Owned index, keyed on the CLEAN base name. When several copies are owned, a copy already sitting
@@ -23251,6 +23335,129 @@ function renderCraftWorkshop(){
     + '<div class="cw-quality">⚒ <strong>Roll quality:</strong> craft on a Hell base at high clvl — <code>crafted ilvl = ½ clvl + ½ base ilvl</code> (cap 99). An ilvl-71+ result can roll all <strong>4 random affixes</strong> on top of the 3 guaranteed. The jewel can be magic or rare; reroll the same recipe until the random mods land. <span style="opacity:.8">Source: maxroll.gg · Crafted Items (base-game recipes; Reign of the Warlock may retune the random-affix pool — verify in-game).</span></div>';
 }
 window.renderCraftWorkshop = renderCraftWorkshop;
+
+// ══ v1715 — THE SHOPPING LIST ═══════════════════════════════════════════════════════════════
+// Konyo: "based on what exactly runewords created already and what runes i still need to buy and
+// what base items i need to buy."
+//
+// Everything here is DERIVED, never stored. The planned-but-unmade set comes from forgeScan, which
+// already applies the ladder gate and the endgame-gear rules, so this list cannot show a word the
+// Forge is not planning. Rune demand comes from RUNEWORD_TIP[].rec — the transcribed recipe, the
+// same array the Forge sockets in order. Supply comes from the rune stash he tallies. Bases come
+// from the words forgeScan itself says are missing one, named by _forgeMetaBase.
+//
+// Two honesty rules this thing lives by:
+//   * DEMAND minus SUPPLY, never a raw demand dressed up as a shopping figure. A rune he already
+//     holds is not something to buy.
+//   * Cubing is NOT counted as supply. Three Vex do not become a Lo on the trade screen, and a
+//     list that quietly assumed the cube would tell him to buy less than he needs.
+function renderShoppingList(){
+  var host = document.getElementById('shopping-list-body');
+  if (!host) return;
+  try {
+    var TIP = (typeof RUNEWORD_TIP !== 'undefined') ? RUNEWORD_TIP : {};
+    var sc  = (typeof window.forgeScan === 'function') ? window.forgeScan() : null;
+    if (!sc){ host.innerHTML = '<div class="shop-empty">The Forge has not scanned yet — open the Forge tab once.</div>'; return; }
+
+    var made = {}; try { made = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}'); } catch(e){}
+    var madeN = Object.keys(made).filter(function(n){ return TIP[n]; }).length;
+    var totalN = Object.keys(TIP).length;
+
+    // the PLANNED-but-unmade set, straight from the Forge's own buckets
+    var todo = {}, needBase = {};
+    ['now','pipeline','onestep','farm'].forEach(function(k){
+      (sc[k] || []).forEach(function(t){
+        var n = t.rw || t.name; if (!n || !TIP[n]) return;
+        todo[n] = 1;
+        if (k === 'farm' || (k === 'onestep' && t.sub === 'base') || t.baseOver) needBase[n] = 1;
+      });
+    });
+    var todoList = Object.keys(todo).sort();
+
+    // ── RUNES: demand across every unmade planned word, minus what he holds ──────────────────
+    var demand = {};
+    todoList.forEach(function(n){
+      ((TIP[n] || {}).rec || []).forEach(function(r){ demand[r] = (demand[r] || 0) + 1; });
+    });
+    var stash = {}; try { stash = JSON.parse(window.LSR.getItem('d2r_runeStash') || '{}'); } catch(e){}
+    var ORDER = (typeof RUNES !== 'undefined') ? RUNES.map(function(r){ return r.n; }) : Object.keys(demand);
+    var runeRows = ORDER.filter(function(r){ return demand[r]; }).map(function(r){
+      var have = parseInt(stash[r], 10) || 0, want = demand[r];
+      return { rune: r, want: want, have: have, short: Math.max(0, want - have) };
+    });
+    // highest rune first — that is the order a trade list is actually read in
+    runeRows.reverse();
+    var shortRunes = runeRows.filter(function(x){ return x.short > 0; });
+
+    // ── BASES: only the words the Forge says are missing one ────────────────────────────────
+    var baseRows = Object.keys(needBase).sort().map(function(n){
+      // v1715 — the SHARED filter, not the raw meta list. Calling _forgeMetaBase directly here
+      // printed "Beast → Scourge" on this very panel: a base that cannot host the word, in a list
+      // whose entire purpose is telling him what to go BUY.
+      var names = [];
+      try { names = (window._rwLegalBases ? window._rwLegalBases(n, 3) : []); } catch(e){}
+      var need = 0; try { need = (window._rwSock ? window._rwSock(n) : 0) || 0; } catch(e){}
+      return { rw: n, names: names, need: need };
+    }).filter(function(x){ return x.names.length; });
+
+    var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
+    var runeArt = function(r){
+      var u = (typeof artUrl === 'function') ? artUrl(r) : null;
+      return u ? '<img src="' + esc(u) + '" alt="" loading="lazy" onerror="this.style.display=&#39;none&#39;">' : '';
+    };
+
+    var H = [];
+    H.push('<div class="shop-summary">'
+      + '<div class="shop-stat is-done"><div class="shop-stat-n">' + madeN + '</div><div class="shop-stat-l">forged</div></div>'
+      + '<div class="shop-stat"><div class="shop-stat-n">' + todoList.length + '</div><div class="shop-stat-l">still to make</div></div>'
+      + '<div class="shop-stat"><div class="shop-stat-n">' + shortRunes.length + '</div><div class="shop-stat-l">runes to buy</div></div>'
+      + '<div class="shop-stat"><div class="shop-stat-n">' + baseRows.length + '</div><div class="shop-stat-l">bases to buy</div></div>'
+      + '</div>');
+
+    // RUNES
+    H.push('<div class="shop-sec"><div class="shop-sec-h"><span class="shop-sec-t">⛏ Runes to buy</span>'
+      + '<span class="shop-sec-n">' + shortRunes.length + ' of ' + runeRows.length + ' short</span></div>');
+    if (!runeRows.length){
+      H.push('<div class="shop-empty">Nothing planned needs a rune.</div>');
+    } else {
+      H.push('<div class="shop-row is-head"><span>Rune</span><span style="text-align:right">Need</span><span style="text-align:right">Have</span><span style="text-align:right">Short</span></div>');
+      runeRows.forEach(function(x){
+        H.push('<div class="shop-row">'
+          + '<span class="shop-name">' + runeArt(x.rune) + '<b>' + esc(x.rune) + '</b></span>'
+          + '<span class="shop-num">' + x.want + '</span>'
+          + '<span class="shop-num">' + x.have + '</span>'
+          + '<span class="shop-num ' + (x.short ? 'is-short' : 'is-ok') + '">' + (x.short || '✓') + '</span>'
+          + '</div>');
+      });
+    }
+    H.push('</div>');
+
+    // BASES
+    H.push('<div class="shop-sec"><div class="shop-sec-h"><span class="shop-sec-t">🛡 Bases to buy</span>'
+      + '<span class="shop-sec-n">' + baseRows.length + ' word' + (baseRows.length === 1 ? '' : 's') + ' need one</span></div>');
+    if (!baseRows.length){
+      H.push('<div class="shop-empty">Every planned word already has a base in the Vault.</div>');
+    } else {
+      baseRows.forEach(function(x){
+        H.push('<div class="shop-bases">'
+          + '<span class="shop-name"><b>' + esc(x.names[0]) + '</b>'
+          + (x.names.length > 1 ? '<span class="shop-sub">or ' + esc(x.names.slice(1).join(' / ')) + '</span>' : '')
+          + '</span>'
+          + '<span class="shop-for">' + (x.need ? x.need + 'os · ' : '') + 'for ' + esc(x.rw) + '</span>'
+          + '</div>');
+      });
+    }
+    H.push('</div>');
+
+    H.push('<div class="shop-note">Short = what to actually buy: demand across every planned word minus what your Rune Stash already holds. '
+      + 'Cubing up is <b>not</b> counted as supply — three Vex are not a Lo on a trade screen.</div>');
+
+    host.innerHTML = H.join('');
+  } catch(e){
+    host.innerHTML = '<div class="shop-empty">Could not build the list — ' + String(e).replace(/</g,'&lt;') + '</div>';
+  }
+}
+window.renderShoppingList = renderShoppingList;
 // Open the Crafted Items Workshop tool (Tools tab) — expand it, render it, scroll to it.
 // Shared by the global search command and the Reference-tab cross-link.
 function openCraftWorkshop(craftKey){
@@ -39403,7 +39610,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1714', name:'v1714 - game truth', date:'2026-08-15', note:'runeword routing reconciled against the game own tables extracted from the local CASC store: a necro shrunken head and a grimoire ARE shields in itemtypes.txt so Rhyme and Splendor gained the 30 bases each they were missing; War Fist and Battle Cestus corrected from 3 sockets to 2 (weapons.txt, and this file own BASE_DB already said 2); and a CLUB is not a MACE so Steel no longer offers a Truncheon it can never form in' };
+  window.D2R_BUILD = { id:'v1715', name:'v1715 - the shopping list', date:'2026-08-16', note:'a new TOOLS panel that answers what is forged, what runes are still to buy and what bases are still to buy, derived from forgeScan and the rune stash so it cannot disagree with the Forge; and the class+socket filter is now ONE shared function because the new panel asked the meta engine raw and immediately reprinted Beast to Scourge, the exact illegal route v1713 removed' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

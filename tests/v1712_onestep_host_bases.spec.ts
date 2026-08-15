@@ -276,6 +276,44 @@ test('(h) a necro base reaches MAKE NOW, and only when the runes are actually he
   expect(after).toContain('Bloodlord Skull');
 });
 
+// v1715 — ONE FILTER, NOT ONE PER CONSUMER. The Tools shopping list asked _forgeMetaBase directly
+// and instantly reprinted "Beast → Scourge" — the identical illegal route v1713 had removed, from
+// the identical unfiltered source, in a brand-new place. Copy-drift does not usually arrive by
+// someone editing one copy; it arrives by someone adding a CONSUMER that never had the rule.
+// So the filter is a shared function, and this asserts both surfaces agree.
+test('(i) every surface uses the shared legal-base filter', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    document.documentElement.setAttribute('data-active-tab', 'forge');
+    w._FORGE_VIEW = 'onestep';
+    const out: any = { drift: [], scourge: {} };
+    Object.keys(w.RUNEWORD_TIP).forEach((rw: string) => {
+      const shared = w._rwLegalBases(rw, 4);
+      const d = document.createElement('div');
+      d.innerHTML = String(w._rwHostBaseTiles(rw) || '');
+      const tiles = Array.from(d.querySelectorAll('.att-base-n')).map((e: any) => e.textContent);
+      if (tiles.length && JSON.stringify(tiles) !== JSON.stringify(shared)) {
+        out.drift.push(`${rw}: tiles ${JSON.stringify(tiles)} vs shared ${JSON.stringify(shared)}`);
+      }
+    });
+    // the four routes that started all of this must be gone from the SHARED filter,
+    // which means gone from every consumer of it
+    [['Beast', 'Scourge'], ['Doom', 'Scourge'],
+     ['Destruction', 'Berserker Axe'], ['Lawbringer', 'Tyrant Club']].forEach(([rw, base]) => {
+      out.scourge[`${rw}/${base}`] = w._rwLegalBases(rw, 4).includes(base);
+    });
+    // ...but Black legitimately lists Clubs in the game, so it must KEEP its club
+    out.blackKeepsClub = w._rwLegalBases('Black', 4).some((b: string) => /club|truncheon|devil star/i.test(b))
+      || w._baseRunewords('Tyrant Club').some((x: any) => x.n === 'Black');
+    return out;
+  });
+  expect(r.drift).toEqual([]);
+  for (const k of Object.keys(r.scourge)) expect(r.scourge[k], k).toBe(false);
+  expect(r.blackKeepsClub).toBe(true);
+});
+
 test('(d) an unknown word yields NO row — never an empty bordered box', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1500);
