@@ -226,6 +226,56 @@ test('(g) game-truth routing facts', async ({ page }) => {
   expect(r.truncheonStrength).toBe(true);
 });
 
+// v1714 — THE OTHER END OF THE WIRE. Teaching _baseRunewords that a shrunken head is a shield is
+// only half a feature: MAKE NOW is a different consumer, and between forgeScan's
+// `_baseRunewords(b.base)` and its `now` bucket sit a hand gate, an endgame-gear gate and the
+// socket rule — any of which can drop the base while both ends still look wired.
+// So this owns a 2-socket Bloodlord Skull and asserts Rhyme is TASKED, with the runes-absent
+// control asserted just as hard: a bucket that accepts everything proves nothing.
+test('(h) a necro base reaches MAKE NOW, and only when the runes are actually held', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1600);
+
+  const setup = await page.evaluate(() => {
+    const w: any = window;
+    w._ensureSocketBaseEntry && w._ensureSocketBaseEntry('Bloodlord Skull (2os)');
+    w.toggleOwned && w.toggleOwned('Bloodlord Skull (2os)');
+    return (w._ownedBases ? w._ownedBases() : []).length;
+  });
+  expect(setup).toBeGreaterThan(0);
+  await page.waitForTimeout(1200);
+
+  const pick = (sc: any, key: string) =>
+    (sc[key] || []).filter((t: any) => t.rw === 'Rhyme')
+      .map((t: any) => ({ base: t.base && t.base.base, sub: t.sub || null }));
+
+  // CONTROL — base in hand, runes absent: Rhyme must be ONE STEP (needs runes), never MAKE NOW.
+  const before = await page.evaluate(() => {
+    const w: any = window;
+    w.LSR.setItem('d2r_runeStash', JSON.stringify({}));
+    const sc = w.forgeScan();
+    return {
+      now: (sc.now || []).filter((t: any) => t.rw === 'Rhyme').length,
+      onestep: (sc.onestep || []).filter((t: any) => t.rw === 'Rhyme')
+        .map((t: any) => ({ base: t.base && t.base.base, sub: t.sub })),
+    };
+  });
+  expect(before.now).toBe(0);
+  expect(before.onestep.some((t: any) => t.base === 'Bloodlord Skull' && t.sub === 'runes')).toBe(true);
+
+  // now hold the runes — Rhyme must move to MAKE NOW, naming that base
+  const after = await page.evaluate(() => {
+    const w: any = window;
+    const s: any = {};
+    (w.RUNEWORD_TIP['Rhyme'].rec || []).forEach((r: string) => { s[r] = 3; });
+    w.LSR.setItem('d2r_runeStash', JSON.stringify(s));
+    const sc = w.forgeScan();
+    return (sc.now || []).filter((t: any) => t.rw === 'Rhyme')
+      .map((t: any) => (t.base && t.base.base) || null);
+  });
+  expect(after).toContain('Bloodlord Skull');
+});
+
 test('(d) an unknown word yields NO row — never an empty bordered box', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1500);
