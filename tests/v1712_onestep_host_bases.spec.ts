@@ -183,6 +183,49 @@ test('(f) the footnote counts only bases that can really hold the word', async (
   expect(r).toEqual([]);
 });
 
+// v1714 — reconciled against the GAME'S OWN tables (weapons/armor/runes/itemtypes.txt, pulled from
+// the local CASC store). Three routing facts that no website settles, each now pinned:
+//   * a necro shrunken head and a grimoire ARE shields (itemtypes: head/grim -> shld)
+//   * War Fist and Battle Cestus hold 2 sockets, not 3
+//   * a CLUB is not a MACE — club/mace/hamm are siblings under blun
+test('(g) game-truth routing facts', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const hosts = (b: string) => (w._baseRunewords(b) || []).map((x: any) => x.n);
+    return {
+      // necro bases host the 2-socket shield words
+      skullRhyme: hosts('Bloodlord Skull').includes('Rhyme'),
+      skullSplendor: hosts('Bloodlord Skull').includes('Splendor'),
+      grimRhyme: hosts('Blasphemous Grimoire').includes('Rhyme'),
+      // ...but Exile is auric-only and must never reach them
+      skullExile: hosts('Bloodlord Skull').includes('Exile'),
+      // socket maxima, as the game states them
+      warFist: parseInt(w._socketMaxFor('War Fist'), 10),
+      battleCestus: parseInt(w._socketMaxFor('Battle Cestus'), 10),
+      feralClaws: parseInt(w._socketMaxFor('Feral Claws'), 10),
+      // a club is not a mace: Steel names types, Black names Clubs explicitly
+      truncheonSteel: hosts('Truncheon').includes('Steel'),
+      tyrantSteel: hosts('Tyrant Club').includes('Steel'),
+      truncheonBlack: hosts('Truncheon').includes('Black'),
+      // and a generic weapon word still reaches a club (blun -> mele -> weap)
+      truncheonStrength: hosts('Truncheon').includes('Strength'),
+    };
+  });
+  expect(r.skullRhyme).toBe(true);
+  expect(r.skullSplendor).toBe(true);
+  expect(r.grimRhyme).toBe(true);
+  expect(r.skullExile).toBe(false);
+  expect(r.warFist).toBe(2);
+  expect(r.battleCestus).toBe(2);
+  expect(r.feralClaws).toBe(3);       // the rest of the claw family is unchanged
+  expect(r.truncheonSteel).toBe(false);
+  expect(r.tyrantSteel).toBe(false);
+  expect(r.truncheonBlack).toBe(true);
+  expect(r.truncheonStrength).toBe(true);
+});
+
 test('(d) an unknown word yields NO row — never an empty bordered box', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1500);

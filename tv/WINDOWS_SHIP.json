@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1713",
+  "ver": "v1714",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1713: the ONE STEP base row now filters by ITEM CLASS before sockets — a full audit of 99 runewords against 508 bases found four recommendations that could never host their word (Beast and Doom offered a Scourge, Destruction a Berserker Axe, Lawbringer a Tyrant Club), which would have wasted Ber/Um/Mal in the cube; and the footnote now counts only bases that can really hold the word, replacing a count that overstated on 88 of 99 words with 2585 options that do not exist",
+  "note": "v1714: runeword routing reconciled against the game own tables extracted from the local CASC store: a necro shrunken head and a grimoire ARE shields in itemtypes.txt so Rhyme and Splendor gained the 30 bases each they were missing; War Fist and Battle Cestus corrected from 3 sockets to 2 (weapons.txt, and this file own BASE_DB already said 2); and a CLUB is not a MACE so Steel no longer offers a Truncheon it can never form in",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

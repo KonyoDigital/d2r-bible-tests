@@ -9993,6 +9993,10 @@ function _baseCats(b){
 // normal Targe/Rondache/Heraldic/Aerin/Crown · exc Akaran Targe/Rondache, Protector/Gilded/Royal · elite
 // Sacred Targe/Rondache, Kurast/Zakarum/Vortex Shield. "targe"/"rondache" cover the tiered variants.
 var _AURIC_SHIELD = /\b(?:targe|rondache|heraldic shield|aerin shield|crown shield|protector shield|gilded shield|royal shield|kurast shield|zakarum shield|vortex shield)\b/i;
+// v1714 — the CLUB line, exactly as the game types it (weapons.txt type='club'): Club > Spiked Club >
+// Cudgel > Barbed Club > Truncheon > Tyrant Club. Wirt's Leg is a club too but is a quest item and
+// never a runeword host. These are classed 'mace' in this file, which is why they need naming.
+var _CLUB_BASE = /^\s*(?:club|spiked club|cudgel|barbed club|truncheon|tyrant club)\s*$/i;
 function _baseRunewords(name){
   if (typeof RUNEWORD_TIP === 'undefined') return [];
   // v585 — normalize FIRST: strip quality prefixes + any "(…)" label suffix, so "Tiara (Larzuk base)" /
@@ -10045,6 +10049,30 @@ function _baseRunewords(name){
       var toks = rest.split(/[^a-z]+/);
       for (var ti = 0; ti < toks.length; ti++){ var ck = _RW_TYPE[toks[ti]]; if (ck && cats[ck]){ hit = true; break; } }
     }
+    // v1714 — A NECRO HEAD AND A GRIMOIRE *ARE* SHIELDS. In the game's own itemtypes.txt both `head`
+    // (shrunken heads) and `grim` (grimoires) have `shld` as their equivalent parent, so a word whose
+    // type is simply "Shields" legally forms in them — a Rhyme shrunken head is a real necro item.
+    // This file only reached them when a phrase SPELLED THEM OUT (Vigilance: "Grimoires Shields
+    // Shrunken Heads Targes"), because their category sets are ['voodoo head'] and ['grimoire'] with
+    // no 'shield' in either. So "2 socket Shields" missed all 30 of them.
+    // Found by resolving every base through the game's type hierarchy and diffing against this
+    // matcher: 60 routes, all of them Rhyme and Splendor. Every head and grimoire caps at exactly 2
+    // sockets (verified in armor.txt), so no 3+ socket shield word can reach them and this cannot
+    // widen anything else. Auric-only words stay excluded by the v503 gate below, which tests the
+    // base NAME.
+    if (!hit && /\bshields?\b|\btarges?\b/.test(rest) && (cats['voodoo head'] || cats['grimoire'])) hit = true;
+    // v1714 — A CLUB IS NOT A MACE. In the game's itemtypes.txt `club`, `mace` and `hamm` are three
+    // SIBLINGS under `blun`; none is a parent of another. This file has no club category — clubs are
+    // classed 'mace' — so `_RW_TYPE`'s club:'mace' let every "Maces" word swallow the club line.
+    // Measured against the game's own runes.txt: of the 99 live words exactly ONE lists club
+    // (Black = ['club','hamm','mace']); Steel is ['swor','axe','mace'] and was recommending
+    // TRUNCHEON, a club, as a base for it. Third instance of the Beast-Scourge family, same cost —
+    // runes cubed into a base the word cannot form in.
+    // Gated by NAME because there is no club category to test, and only Black says "Clubs".
+    // Only when the phrase names TYPES. A club is `blun` -> `mele` -> `weap` in the game tree, so a
+    // generic "Weapons" or "Melee Weapons" word (Strength, Fury, Malice, Venom) legally forms in one;
+    // a first cut of this gate blocked those too and lost 18 real routes across 5 words.
+    if (hit && _CLUB_BASE.test(name) && !/\bclubs?\b/.test(bw) && !/\bweapons?\b/.test(bw)) hit = false;
     // v503 — PALADIN/AURIC-shield-only words (Exile, "4 socket Paladin Shields") require an AURIC shield
     // base, not just any shield. The tokenizer above sees "shields" and matches every shield; gate it so a
     // Monarch/Tower Shield/Bone Shield can NOT make Exile. Auric shields = the paladin class shields only.
@@ -10502,7 +10530,13 @@ const SOCKET_MAX = {
   // v614 — claw family (verified: every 3os-capable claw; corroborated by the app's own runeword data
   // 'Pattern/Chaos = 3 socket Katars'). Katar-class NORMALS deliberately absent — their RotW maxes are
   // unverified and an owned (Nos) read must stay proof, not a misread accusation.
-  'suwayyah':3,'wrist sword':3,'war fist':3,'battle cestus':3,'feral claws':3,'runic talons':3,
+  // v1714 — WAR FIST and BATTLE CESTUS are 2, not 3. v614 reasoned from a CLASS fact ("Pattern/Chaos
+  // need 3 socket Katars, so every elite claw reaches 3") to a per-base number, and those two are the
+  // members the generalisation does not fit. Read out of the game's own weapons.txt (codes 7xf and
+  // 7cs, gemsockets 2) and independently confirmed by this file's OWN BASE_DB, which already carried
+  // maxSockets:2 for both — so this curated list was overriding correct data with an inference.
+  // Every other entry here was swept against weapons.txt/armor.txt the same way: 40 of 42 agreed.
+  'suwayyah':3,'wrist sword':3,'war fist':2,'battle cestus':2,'feral claws':3,'runic talons':3,
   'scissors suwayyah':3,'greater talons':3,'greater claws':3,'scissors quhab':3,'scissors katar':3,'blade talons':3,'claws':3
 };
 // max sockets Larzuk/the cube can reach for a base — EXACT when known, else a SLOT ceiling. Weapons +
@@ -39369,7 +39403,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1713', name:'v1713 - honest routes', date:'2026-08-15', note:'the ONE STEP base row now filters by ITEM CLASS before sockets — a full audit of 99 runewords against 508 bases found four recommendations that could never host their word (Beast and Doom offered a Scourge, Destruction a Berserker Axe, Lawbringer a Tyrant Club), which would have wasted Ber/Um/Mal in the cube; and the footnote now counts only bases that can really hold the word, replacing a count that overstated on 88 of 99 words with 2585 options that do not exist' };
+  window.D2R_BUILD = { id:'v1714', name:'v1714 - game truth', date:'2026-08-15', note:'runeword routing reconciled against the game own tables extracted from the local CASC store: a necro shrunken head and a grimoire ARE shields in itemtypes.txt so Rhyme and Splendor gained the 30 bases each they were missing; War Fist and Battle Cestus corrected from 3 sockets to 2 (weapons.txt, and this file own BASE_DB already said 2); and a CLUB is not a MACE so Steel no longer offers a Truncheon it can never form in' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
