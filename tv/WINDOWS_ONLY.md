@@ -3,6 +3,27 @@
 This PC uses the **Windows** product path (your Windows QA box or cousin).  
 Same GitHub product as Mac — do **not** run Mac installers/launchers/capture **on this PC**.
 
+## What "Windows" does and does NOT decide
+
+**Windows decides how the app is INSTALLED, LAUNCHED and CAPTURED.** That is the whole of it,
+and it is the table below.
+
+**Windows does NOT decide whose DATA you see.** Since **v1499** the world is chosen by the
+INSTALL plus a human click, never by the operating system:
+
+- A fresh install — on Windows, on a Mac, anywhere — resolves **GUEST** and gets its own private
+  world `I·<id8>·` (ladder `IL·<id8>·`). Chronicle, vault and forge all read **0/0**. That is
+  correct, not a bug, and not something to "fix" by flipping a switch.
+- It becomes the owner world only when a person clicks **`✋ This browser is mine`**. Nothing
+  else grants it: not the platform string, not the hostname, not existing keys on disk.
+- Claiming **moves nothing and deletes nothing** — it writes one key. The previous world's data
+  stays on disk, so a wrong claim is reversible.
+- The old `mac|windows` → `W·` model is **RETIRED**. If you are reading a doc that says the
+  platform decides, or looking for a `W·` prefix, that doc predates v1499.
+
+So: your cousin's console starting empty is the product working. Konyo running this on a Windows
+PC and seeing all his data is *also* the product working — he clicked claim there.
+
 ## Install (Windows)
 
 ```powershell

@@ -6,6 +6,11 @@ Every step has a truth surface now — nothing should require guessing.
 1. **Install** finishes with no red text; Desktop has **TV DIABLO**.
 2. Double-click TV DIABLO → the native window opens (if nothing opens: run
    `tv\start_tvd_win.ps1` from a PowerShell to see the loud fail).
+2a. **Expect an EMPTY world.** A fresh install resolves GUEST (v1499): chronicle, vault and
+   forge read **0/0**, and a banner says *"This browser has its own empty world."* That is the
+   pass condition, not a failure — the numbers are supposed to be zero on a machine that is not
+   Konyo's. Only click **`✋ This browser is mine`** if this really is his own box; on the
+   cousin's PC, leave it alone and build his own profile from zero.
 3. Footer shows the version (click it → "✓ up to date with origin" — v817 update truth).
 4. **Doctor first**: open `http://127.0.0.1:17772/api/doctor` in a browser —
    `"ok": true` required. Any `"severity":"block"` failure prints its own `fix` command.

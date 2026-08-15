@@ -1214,6 +1214,25 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .att-rec-g{font-size:14px}.att-rec-i{display:inline-flex;align-items:center}.att-rec-p{color:var(--text-dim);margin:0 1px}
 .att-rec-j{color:#9fd0ff;opacity:.8;margin-left:2px}.att-rec-arrow{margin-left:5px;color:var(--gold-bright,#f0c060)}.att-rec-arrow b{color:var(--q-orange)}
 .att-result-h{font-size:9px;font-weight:var(--fw-bold);letter-spacing:var(--ls-normal);text-transform:uppercase;color:var(--text-dim);margin:5px 0 2px;border-top:1px solid rgba(255,255,255,.07);padding-top:5px}
+/* v1712 — ONE STEP host-base row inside the runeword hover card. The image rule must out-rank
+   `#arttip.tip-rich img` (52x78 portrait), which has the SAME specificity — so it lives AFTER it and
+   wins on order. Verified with getComputedStyle, not by reading the file (the v1470 cascade rule). */
+#arttip .att-bases{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:4px 0 1px}
+#arttip .att-base{width:64px;padding:4px 3px 3px;border-radius:7px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);text-align:center;display:flex;flex-direction:column;align-items:center}
+#arttip .att-base.is-own{border-color:rgba(102,255,136,.45);background:rgba(102,255,136,.07)}
+#arttip .att-base img{width:34px;height:34px;object-fit:contain;display:block;margin:0 auto 3px}
+#arttip .att-base-g{display:block;font-size:20px;line-height:var(--lh-none);margin-bottom:3px}
+/* v1712 — the name block GROWS and the status line is pushed to a shared baseline, so a
+   two-line name ("Colossus Blade") and a one-line name ("War Pike") put their status text on
+   the same row. Without this the strip reads as four cards that do not line up — the exact
+   asymmetry class REG-068/REG-107/REG-112 were each about. */
+#arttip .att-base-n{font-size:8.5px;line-height:var(--lh-tight);color:#d8d8d8;overflow-wrap:break-word;flex:1 0 auto;display:flex;align-items:center;justify-content:center;min-height:19px}
+/* the status halves each stay whole: without this the line broke between the socket count and
+   its unit — "✓ owned · 4" / "🔩 ready" — a number orphaned from what it measures. */
+#arttip .att-base-s{font-size:8px;line-height:var(--lh-tight);margin-top:1px;color:var(--text-dim);width:100%}
+#arttip .att-base-s span{white-space:nowrap}
+#arttip .att-base.is-own .att-base-s{color:#9effb9}
+#arttip .att-bases-more{font-size:8.5px;line-height:var(--lh-tight);color:var(--text-dim);margin-top:4px;opacity:.75}
 .att-bis{margin-top:6px;font-size:var(--fs-micro);line-height:var(--lh-normal);color:#cfe0ff;padding:5px 8px;border-radius:6px;background:rgba(95,143,240,.1);border:1px solid rgba(95,143,240,.32)}.att-bis b{color:#9fc0ff}
 .att-grailroll{margin-top:6px;font-size:9.5px;font-weight:var(--fw-bold);letter-spacing:var(--ls-tight);color:#1a1207;background:linear-gradient(180deg,#ffe08a,#f0b84a);border-radius:6px;padding:3px 8px;display:inline-block;box-shadow:0 0 10px -2px rgba(240,184,74,.7)}
 /* magic-base options card (picker hover) */
@@ -14059,13 +14078,125 @@ function _rwResolve(name){
   return null;
 }
 window._rwResolve = _rwResolve;
+// ══ v1712 — ONE STEP · THE BASES THAT CAN HOST THIS WORD ══════════════════════════════════════
+// Konyo, on the Forge → 🟡 ONE STEP list: "under this RUNEWORD specifically I want it to show me the
+// related base item that's an option to create that specific runeword… a row in the tooltip enriched
+// showing which base item is missing, with HD art."
+//
+// SOURCE OF TRUTH = window._forgeMetaBase (the Forge's own _metaBaseFor). The row therefore CANNOT
+// disagree with the "base:" label already printed on the task row beside it — same function, same
+// ranking, same auric/circlet/weapon-class guards. Deriving a second list here is exactly the defect
+// class this repo has already paid for twice (v524 "no mismatches"; REG-076, where the console kept a
+// hand-copied second copy of a routing rule and it went stale).
+//
+// Ownership comes from _ownedBases() — the Forge's own vault parse — so a base he already holds reads
+// ✓ owned in the same breath as the task asking for it. A base whose ownership cannot be established
+// reads MISSING, never owned: the cheap way to be wrong is telling him to go find something he has;
+// the expensive way is hiding a base he still needs from a list whose whole job is naming it.
+var _rwHostCountMap = null;
+function _rwHostCount(rw){
+  // How many base TYPES can REALLY host this word — the type match AND the socket ceiling, because a
+  // base that can never reach the count is not a home for it (v385/v665.3). _keepSocketCeil returns 0
+  // for weapons on purpose: their BASE_DB maxes are known-understated, so weapons fail OPEN here.
+  if (!_rwHostCountMap){
+    _rwHostCountMap = {};
+    try {
+      Object.keys(typeof BASE_DB !== 'undefined' ? BASE_DB : {}).forEach(function(bt){
+        var ceil = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(bt) : 0;
+        ((typeof _baseRunewords === 'function' ? _baseRunewords(bt) : []) || []).forEach(function(r){
+          if (ceil && r.s > ceil) return;
+          _rwHostCountMap[r.n] = (_rwHostCountMap[r.n] || 0) + 1;
+        });
+      });
+    } catch(e){}
+  }
+  return _rwHostCountMap[rw] || 0;
+}
+window._rwHostCount = _rwHostCount;
+// The card only grows this row inside Forge → ONE STEP. Both halves are required: the view stamp alone
+// is stale the moment he leaves the tab (renderForge does not run again on the way out), and the tab
+// attribute alone would put the row on every runeword everywhere.
+function _rwOneStepView(){
+  try {
+    return document.documentElement.getAttribute('data-active-tab') === 'forge'
+        && window._FORGE_VIEW === 'onestep';
+  } catch(e){ return false; }
+}
+function _rwHostBaseTiles(rwName){
+  try {
+    if (!rwName || typeof window._forgeMetaBase !== 'function') return '';
+    var names = ((window._forgeMetaBase(rwName) || {}).names || []).slice(0, 4);
+    if (!names.length) return '';
+    var need = (typeof _rwSock === 'function') ? _rwSock(rwName) : null;
+    // SOCKET FEASIBILITY (v665.3, applied here for the first time). The meta engine's CURATED
+    // path does not socket-filter, so it offered "Mage Plate · max 3" as an endgame home for
+    // Chains of Honor, which needs 4 — a base that can NEVER hold that word, sitting in a row
+    // whose entire job is telling him what to go farm. Caught by looking at the render at
+    // 375px; every DOM assertion was green.
+    // _keepSocketCeil is the gate, not _socketMaxFor, because it returns 0 for WEAPONS on
+    // purpose — their BASE_DB maxes are known understated (v553's real 2os Wand), so weapons
+    // fail OPEN and only gear with a trusted max is ever dropped (v575.2).
+    if (need){
+      names = names.filter(function(bn){
+        var ceil = 0;
+        try { ceil = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(bn) : 0; } catch(e){}
+        return !ceil || need <= ceil;
+      });
+      if (!names.length) return '';
+    }
+    // Owned index, keyed on the CLEAN base name. When several copies are owned, a copy already sitting
+    // at the exact socket count wins — that is the one that makes the word today.
+    var own = {};
+    try {
+      ((typeof window._ownedBases === 'function') ? window._ownedBases() : []).forEach(function(o){
+        var k = String(o.base || '').toLowerCase(); if (!k) return;
+        if (!own[k] || (need && o.sockets === need)) own[k] = o;
+      });
+    } catch(e){}
+    var tiles = names.map(function(bn){
+      var o  = own[String(bn).toLowerCase()] || null;
+      var mx = 0; try { mx = parseInt(_socketMaxFor(bn), 10) || 0; } catch(e){}
+      var path = '';
+      if (need){
+        var rule = (typeof window._socketRule === 'function') ? window._socketRule(o ? (o.sockets || 0) : 0, need, mx) : null;
+        path = (rule === 'have')   ? need + '🔩 ready'
+             : (rule === 'larzuk') ? 'Larzuk → ' + need
+             : mx                  ? need + '🔩 · max ' + mx
+             : need + '🔩';
+      }
+      var url = (typeof artUrl === 'function') ? artUrl(bn) : null;
+      var art = url ? '<img src="' + _d2artEsc(url) + '" alt="" loading="lazy" onerror="this.style.display=&#39;none&#39;">'
+                    : '<span class="att-base-g">⚒️</span>';
+      var esc = String(bn).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      return '<div class="att-base' + (o ? ' is-own' : '') + '">' + art
+        + '<div class="att-base-n">' + esc + '</div>'
+        + '<div class="att-base-s"><span>' + (o ? '✓ owned' : 'missing') + '</span>'
+        + (path ? ' · <span>' + path + '</span>' : '') + '</div>'
+        + '</div>';
+    }).join('');
+    var total = _rwHostCount(rwName);
+    // The footnote says what the number MEASURES — type-legal base types — not "can host it".
+    // For a weapon word _keepSocketCeil deliberately fails open (BASE_DB weapon maxes are known
+    // understated, v553), so the count includes bases whose real socket max is unproven. Calling
+    // 242 of those "can host it" would be a right number under a word that stopped being true.
+    var more  = (total > names.length)
+      ? '<div class="att-bases-more">' + names.length + ' endgame home' + (names.length === 1 ? '' : 's') + ' shown &middot; ' + (total - names.length) + ' more type-legal</div>'
+      : '';
+    return '<div class="att-result-h">🛡 bases that host this word</div>'
+      + '<div class="att-bases">' + tiles + '</div>' + more;
+  } catch(e){ return ''; }
+}
+window._rwHostBaseTiles = _rwHostBaseTiles;
 /* compact rich-hover card body: tier + base, recipe line, req, then verified stats  */
-function _rwTipHtml(o){
+function _rwTipHtml(o, name){
   var head = 'Runeword' + (o.b ? ' &middot; ' + o.b : '');
   var rec = (o.rec && o.rec.length) ? '<div class="att-meta att-rwrec">' + o.rec.join(' + ') + '</div>' : '';
   var meta = (o.r != null) ? 'Req level: ' + o.r : '';
   var rows = o.l.map(function(l){ return '<div class="att-aff">' + _sunMarkup(l) + '</div>'; }).join('');
-  return '<div class="att-type">' + head + '</div>' + rec + (meta ? '<div class="att-meta">' + meta + '</div>' : '') + rows;
+  // v1712 — the base row sits ABOVE the stat block, not below it. In ONE STEP the base IS the task and
+  // the stats are reference; a 12-line stat block between him and the answer buries it.
+  var bases = (name && _rwOneStepView()) ? _rwHostBaseTiles(name) : '';
+  return '<div class="att-type">' + head + '</div>' + rec + (meta ? '<div class="att-meta">' + meta + '</div>' : '') + bases + rows;
 }
 window._rwTipHtml = _rwTipHtml;
 /* full ID card routed via openDrop — clickable recipe runes, verified stat block.    */
@@ -23611,7 +23742,7 @@ function _arttipResolve(nm){
   var t = SUNDER_TIP[nm] || (_SUN_BASES[nm] ? SUNDER_TIP[_SUN_BASES[nm]] : null);
   if (t) return { artName: t.base, desc: _sunTipHtml(t), rich: true };
   if (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[nm]) return { artName: nm, desc: _itemTipHtml(ITEM_TIP[nm]), rich: true };
-  if (typeof RUNEWORD_TIP !== 'undefined' && typeof findRuneword === 'function'){ var _rwk = findRuneword(nm); if (_rwk) return { artName: (typeof _rwArtName==='function' ? _rwArtName(_rwk) : _rwk), desc: _rwTipHtml(RUNEWORD_TIP[_rwk]), rich: true }; }
+  if (typeof RUNEWORD_TIP !== 'undefined' && typeof findRuneword === 'function'){ var _rwk = findRuneword(nm); if (_rwk) return { artName: (typeof _rwArtName==='function' ? _rwArtName(_rwk) : _rwk), desc: _rwTipHtml(RUNEWORD_TIP[_rwk], _rwk), rich: true }; }   /* v1712 — pass the RESOLVED key so the card can name this word's host bases in ONE STEP */
   if (typeof findGem === 'function'){ var _gk = findGem(nm); if (_gk) return { artName: _gk, desc: _gemTipHtml(_GEM_INDEX[_gk.toLowerCase()]), rich: true }; }
   if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)){ return { artName: nm, desc: _runeTipHtml(RUNES[RUNE_INDEX[nm]]), rich: true }; }
   if (/^(any |magic |rare )?jewel$/i.test(nm)) return { artName: '', desc: _jewelTipHtml(/rare/i.test(nm)), rich: true };
@@ -34450,6 +34581,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       _forgeFilter='now';
     }
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
+    // v1712 — publish the RESOLVED view (not the raw _forgeFilter): three code paths above can rewrite
+    // the filter after it was set — the sealed-chronicle landing, the crafts auto-land, and the empty-all
+    // fallback. Stamping it here, at the single point where the render commits to a view, is the only
+    // place that cannot disagree with what is actually on screen. The runeword hover card reads this to
+    // decide whether to draw its base row (ONE STEP only, Konyo's ask).
+    try { window._FORGE_VIEW = F; } catch(e){}
     H.push('<div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_forge.png" alt="" onerror="this.outerHTML=&#39;&#128296;&#39;"></span><div class="forge-headtxt"><div class="forge-title">Forge</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div></div>');
     // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
@@ -35024,6 +35161,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   try { window._writeCraftReady = _writeCraftReady; } catch(e){}
   try { setTimeout(function(){ try { _writeCraftReady(); } catch(e){} }, 1600); } catch(e){}
   try { window._ownedBases=_ownedBases; } catch(e){}   // v545 — debug/spec hook for the tagged-base parser
+  // v1712 — the ONE STEP base row in the runeword hover card asks the SAME safeguard question the Forge
+  // asks ("can this base actually reach that socket count?"). Exposed rather than re-implemented: a second
+  // copy of this rule is precisely REG-076's defect, and the wrong answer here promises a Larzuk that
+  // overshoots and eats a real base.
+  try { window._socketRule=_socketRule; } catch(e){}
   try { window._baseHandClass=_baseHandClass; } catch(e){}  // v547 — so the Socketed/throw-out review can word 1H/2H-merc/caster IN SYNC with the Forge
   // v546.1 — do NOT re-expose _baseTier here: the canonical window._baseTier already exists (defined ~L8022; it
   // quality-strips + uses _baseRec, so it resolves Superior/unique bases correctly). An earlier v546 override
@@ -39201,7 +39343,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1711', name:'v1711 - console-symmetry-and-room-identity', date:'2026-08-13', note:'TZ TRACKER labels share one subgrid row so UP NEXT stops sitting low, and the zone row stays per-slot so an asymmetric rotation cannot stretch cards; the Forge room now wears the rune-orange of its own tab (his 2026-08-13 ruling, settling bible.html:7938); F.Uniques and F.Sets headers made symmetric additively; the chronicle undo confirmation now fans out to the visible tab instead of a hidden div' };
+  window.D2R_BUILD = { id:'v1712', name:'v1712 - ONE STEP host bases', date:'2026-08-15', note:'the ONE STEP runeword card now names the bases that can host the word — HD art, owned/missing, socket path — sourced from the Forge own meta-base engine so it cannot disagree with the row beside it; socket-infeasible bases are dropped (Mage Plate max 3 was offered for a 4-socket word); Windows lane docs corrected from the retired W-prefix platform model to the v1499 install-claim model' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

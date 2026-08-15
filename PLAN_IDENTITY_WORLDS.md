@@ -2,7 +2,7 @@
 
 A new machine starts empty because it is a new machine, not because of what OS it runs.
 
-STATUS: PLAN ONLY, nothing shipped. Repo /Users/konyo/d2r_bible_tests, branch main, HEAD a20b9e2 = v1498. Written 2026-07-31.
+STATUS: **SHIPPED at v1499** (this line said "PLAN ONLY, nothing shipped" until 2026-08-15 — it was written before the ship and never updated, so a reader could take the pre-v1499 behaviour described below as current). Everything below describes the state at HEAD a20b9e2 = v1498 and the plan to change it; the plan was carried out. For what actually ships today read `bible.html:3505-3640` and `tv/WINDOWS_ONLY.md`. Written 2026-07-31.
 
 ASSEMBLY NOTE: the nine section drafts this document was meant to assemble were not present on disk at assembly time. Every section below is therefore AUTHORED BY THE ASSEMBLER, written from the shared contract and from facts re-verified against the code at HEAD a20b9e2. Every claim about current behaviour cites file:line.
 

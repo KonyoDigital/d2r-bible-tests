@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1711",
+  "ver": "v1712",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1711: TZ TRACKER labels share one subgrid row so UP NEXT stops sitting low, and the zone row stays per-slot so an asymmetric rotation cannot stretch cards; the Forge room now wears the rune-orange of its own tab (his 2026-08-13 ruling, settling bible.html:7938); F.Uniques and F.Sets headers made symmetric additively; the chronicle undo confirmation now fans out to the visible tab instead of a hidden div",
+  "note": "v1712: the ONE STEP runeword card now names the bases that can host the word — HD art, owned/missing, socket path — sourced from the Forge own meta-base engine so it cannot disagree with the row beside it; socket-infeasible bases are dropped (Mage Plate max 3 was offered for a 4-socket word); Windows lane docs corrected from the retired W-prefix platform model to the v1499 install-claim model",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
