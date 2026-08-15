@@ -116,6 +116,73 @@ test('(c) the tiles are the Forge meta-base engine, not a second list of my own'
   for (const row of r) expect(row.shown, row.rw).toEqual(row.expected);
 });
 
+// v1713 — THE CLASS GATE. A full audit (99 words x 508 bases) caught the curated meta list
+// recommending four bases that cannot host their word AT ALL: Beast→Scourge and Doom→Scourge
+// (maces, for words wanting Axes/Scepters/Hammers), Destruction→Berserker Axe and
+// Lawbringer→Tyrant Club. Cubing Ber/Um/Mal into one of those destroys the runes. The socket
+// filter could never catch it — those bases have plenty of sockets, they are the wrong CLASS.
+test('(e) every tile is CLASS-LEGAL for its word — _baseRunewords is the authority', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    document.documentElement.setAttribute('data-active-tab', 'forge');
+    w._FORGE_VIEW = 'onestep';
+    const illegal: string[] = [];
+    let tiles = 0, words = 0, lostAll = 0;
+    Object.keys(w.RUNEWORD_TIP).forEach((rw: string) => {
+      const meta = ((w._forgeMetaBase(rw) || {}).names || []);
+      const html = String(w._rwHostBaseTiles(rw) || '');
+      if (meta.length && !html) { lostAll++; return; }
+      if (!html) return;
+      words++;
+      const d = document.createElement('div');
+      d.innerHTML = html;
+      Array.from(d.querySelectorAll('.att-base-n')).forEach((e: any) => {
+        tiles++;
+        const nm = e.textContent || '';
+        let hosts: any[] = [];
+        try { hosts = w._baseRunewords(nm) || []; } catch (x) { hosts = []; }
+        if (hosts.length && !hosts.some((h: any) => h.n === rw)) illegal.push(`${rw} → ${nm}`);
+      });
+    });
+    return { illegal, tiles, words, lostAll };
+  });
+  expect(r.words).toBeGreaterThan(40);
+  expect(r.tiles).toBeGreaterThan(80);
+  expect(r.illegal).toEqual([]);      // Beast→Scourge and its three siblings must never come back
+  expect(r.lostAll).toBe(0);          // and the filter must not empty a row that had names
+});
+
+// v1713 — THE FOOTNOTE MUST COUNT WHAT IT CLAIMS. It counted with _keepSocketCeil, which zeroes
+// every WEAPON, so it advertised bases that cannot hold the word: 88 of 99 words overstated, 2,585
+// phantom options in total. Unbending Will said "40 more" when six swords in the game reach 6os.
+test('(f) the footnote counts only bases that can really hold the word', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const wrong: string[] = [];
+    Object.keys(w.RUNEWORD_TIP).forEach((rw: string) => {
+      const need = w._rwSock ? w._rwSock(rw) : 0;
+      if (!need) return;
+      // recompute independently from the raw data, then compare with what the page reports
+      let truth = 0;
+      Object.keys(w.BASE_DB).forEach((bn: string) => {
+        let mx = 0;
+        try { mx = parseInt(w._socketMaxFor(bn), 10) || 0; } catch (x) { mx = 0; }
+        let hosts: any[] = [];
+        try { hosts = w._baseRunewords(bn) || []; } catch (x) { hosts = []; }
+        if (hosts.some((h: any) => h.n === rw) && (!mx || need <= mx)) truth++;
+      });
+      const got = w._rwHostCount(rw);
+      if (got !== truth) wrong.push(`${rw}: reports ${got}, truth ${truth}`);
+    });
+    return wrong;
+  });
+  expect(r).toEqual([]);
+});
+
 test('(d) an unknown word yields NO row — never an empty bordered box', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1500);

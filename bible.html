@@ -14095,16 +14095,27 @@ window._rwResolve = _rwResolve;
 // the expensive way is hiding a base he still needs from a list whose whole job is naming it.
 var _rwHostCountMap = null;
 function _rwHostCount(rw){
-  // How many base TYPES can REALLY host this word — the type match AND the socket ceiling, because a
-  // base that can never reach the count is not a home for it (v385/v665.3). _keepSocketCeil returns 0
-  // for weapons on purpose: their BASE_DB maxes are known-understated, so weapons fail OPEN here.
+  // How many bases can REALLY host this word: the class match AND a verified socket max that
+  // reaches the count.
+  //
+  // v1713 — this counted with _keepSocketCeil, which returns 0 for every WEAPON, so no weapon was
+  // ever excluded and the footnote counted bases that cannot hold the word. Measured across all
+  // 99 words: 88 of them overstated, advertising 2,585 options that do not exist. Unbending Will
+  // (6 socket Swords) said "40 more type-legal" when only SIX swords in the game reach 6 sockets.
+  // A right number under a word that stopped being true — [[label-outlived-referent]].
+  //
+  // _socketMaxFor merges the VERIFIED SOCKET_MAX list over BASE_DB; the audit found zero unknowns
+  // across all 508 bases, and wands read 2, so v553's understatement is repaired at the source.
+  // A base whose max is genuinely unknown (0) still counts — absence of a measurement is not
+  // evidence it cannot hold the word.
   if (!_rwHostCountMap){
     _rwHostCountMap = {};
     try {
       Object.keys(typeof BASE_DB !== 'undefined' ? BASE_DB : {}).forEach(function(bt){
-        var ceil = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(bt) : 0;
+        var mx = 0;
+        try { mx = parseInt(_socketMaxFor(bt), 10) || 0; } catch(e){}
         ((typeof _baseRunewords === 'function' ? _baseRunewords(bt) : []) || []).forEach(function(r){
-          if (ceil && r.s > ceil) return;
+          if (mx && r.s > mx) return;
           _rwHostCountMap[r.n] = (_rwHostCountMap[r.n] || 0) + 1;
         });
       });
@@ -14128,19 +14139,34 @@ function _rwHostBaseTiles(rwName){
     var names = ((window._forgeMetaBase(rwName) || {}).names || []).slice(0, 4);
     if (!names.length) return '';
     var need = (typeof _rwSock === 'function') ? _rwSock(rwName) : null;
-    // SOCKET FEASIBILITY (v665.3, applied here for the first time). The meta engine's CURATED
-    // path does not socket-filter, so it offered "Mage Plate · max 3" as an endgame home for
-    // Chains of Honor, which needs 4 — a base that can NEVER hold that word, sitting in a row
-    // whose entire job is telling him what to go farm. Caught by looking at the render at
-    // 375px; every DOM assertion was green.
-    // _keepSocketCeil is the gate, not _socketMaxFor, because it returns 0 for WEAPONS on
-    // purpose — their BASE_DB maxes are known understated (v553's real 2os Wand), so weapons
-    // fail OPEN and only gear with a trusted max is ever dropped (v575.2).
+    // ══ v1713 — TWO FILTERS, AND THE CLASS ONE COMES FIRST ══════════════════════════════════
+    // A full audit of all 99 runewords against all 508 bases (4,891 genuinely-capable routes)
+    // found the curated meta list recommending FOUR bases that cannot host their word AT ALL —
+    // not socket-short, wrong item class:
+    //     Beast → Scourge · Doom → Scourge (both maces; the words want Axes/Scepters/Hammers)
+    //     Destruction → Berserker Axe · Lawbringer → Tyrant Club
+    // Those come from _metaBaseFor's _BEST_1H / _MERC_BASE fallbacks, which pick by hand and are
+    // never checked against the class rules. Cubing Ber/Um/Mal into a Scourge for Beast destroys
+    // the runes — the exact loss _baseRunewords exists to prevent, and the same defect shape as
+    // v377 (a bow runeword offered on a Grand Scepter, which he actually socketed).
+    //
+    // (1) CLASS: keep a name only if _baseRunewords — the single authority on which words a base
+    //     can host — actually lists this word for it. A curated pick does not outrank the rules.
+    // (2) SOCKETS: then the count, via _socketMaxFor, which merges the VERIFIED SOCKET_MAX list
+    //     over BASE_DB. This now replaces _keepSocketCeil here: that helper zeroes every WEAPON
+    //     because BASE_DB weapon maxes were understated (v553's 2os Wand), but the audit shows
+    //     SOCKET_MAX now covers all 508 bases with ZERO unknowns and reports wands at 2 — the
+    //     scar is repaired in the data, so the fail-open has become a blind spot rather than a
+    //     safeguard. A base whose max is still unknown (0) fails OPEN, as it always did.
     if (need){
       names = names.filter(function(bn){
-        var ceil = 0;
-        try { ceil = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(bn) : 0; } catch(e){}
-        return !ceil || need <= ceil;
+        try {
+          var hosts = (typeof _baseRunewords === 'function') ? (_baseRunewords(bn) || []) : null;
+          if (hosts && !hosts.some(function(r){ return r.n === rwName; })) return false;   // wrong class
+        } catch(e){}
+        var mx = 0;
+        try { mx = parseInt(_socketMaxFor(bn), 10) || 0; } catch(e){}
+        return !mx || need <= mx;
       });
       if (!names.length) return '';
     }
@@ -14180,7 +14206,7 @@ function _rwHostBaseTiles(rwName){
     // understated, v553), so the count includes bases whose real socket max is unproven. Calling
     // 242 of those "can host it" would be a right number under a word that stopped being true.
     var more  = (total > names.length)
-      ? '<div class="att-bases-more">' + names.length + ' endgame home' + (names.length === 1 ? '' : 's') + ' shown &middot; ' + (total - names.length) + ' more type-legal</div>'
+      ? '<div class="att-bases-more">' + names.length + ' endgame home' + (names.length === 1 ? '' : 's') + ' shown &middot; ' + (total - names.length) + ' more base' + ((total - names.length) === 1 ? '' : 's') + ' can hold it</div>'
       : '';
     return '<div class="att-result-h">🛡 bases that host this word</div>'
       + '<div class="att-bases">' + tiles + '</div>' + more;
@@ -39343,7 +39369,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1712', name:'v1712 - ONE STEP host bases', date:'2026-08-15', note:'the ONE STEP runeword card now names the bases that can host the word — HD art, owned/missing, socket path — sourced from the Forge own meta-base engine so it cannot disagree with the row beside it; socket-infeasible bases are dropped (Mage Plate max 3 was offered for a 4-socket word); Windows lane docs corrected from the retired W-prefix platform model to the v1499 install-claim model' };
+  window.D2R_BUILD = { id:'v1713', name:'v1713 - honest routes', date:'2026-08-15', note:'the ONE STEP base row now filters by ITEM CLASS before sockets — a full audit of 99 runewords against 508 bases found four recommendations that could never host their word (Beast and Doom offered a Scourge, Destruction a Berserker Axe, Lawbringer a Tyrant Club), which would have wasted Ber/Um/Mal in the cube; and the footnote now counts only bases that can really hold the word, replacing a count that overstated on 88 of 99 words with 2585 options that do not exist' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1712",
+  "ver": "v1713",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1712: the ONE STEP runeword card now names the bases that can host the word — HD art, owned/missing, socket path — sourced from the Forge own meta-base engine so it cannot disagree with the row beside it; socket-infeasible bases are dropped (Mage Plate max 3 was offered for a 4-socket word); Windows lane docs corrected from the retired W-prefix platform model to the v1499 install-claim model",
+  "note": "v1713: the ONE STEP base row now filters by ITEM CLASS before sockets — a full audit of 99 runewords against 508 bases found four recommendations that could never host their word (Beast and Doom offered a Scourge, Destruction a Berserker Axe, Lawbringer a Tyrant Club), which would have wasted Ber/Um/Mal in the cube; and the footnote now counts only bases that can really hold the word, replacing a count that overstated on 88 of 99 words with 2585 options that do not exist",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
