@@ -14,6 +14,20 @@ const fs = require('fs');
   // WHICH file is missing (Linux CI checkout lacks gitignored dirs + is case-sensitive; the Mac hides both).
   const failedReqs = [];
   page.on('requestfailed', r => failedReqs.push(`${r.failure()?.errorText || 'failed'} ${r.resourceType()} ${r.url()}`));
+  /* 2026-08-17 (after v1741 went red on nothing) — AND NAME THE 404s TOO. The note above was written because an unnamed missing file cost
+     three blind rounds of guessing, and it hooks `requestfailed` — which an HTTP 404 never fires,
+     because a 404 is a SUCCESSFUL response carrying a failure status. So a 404 still reached the
+     log as the bare line "Failed to load resource: the server responded with a status of 404 ()",
+     with no URL, which is the exact defect that note closed for a different failure mode.
+     v1741 hit it: Routine G went red on three unnamed 404s and a Google-Fonts abort, and a rerun of
+     the SAME COMMIT came back 8/8 green with zero failed requests. */
+  const badResponses = [];
+  page.on('response', r => { if (r.status() >= 400) badResponses.push(`HTTP ${r.status()} ${r.request().resourceType()} ${r.url()}`); });
+  /* EXTERNAL hosts are recorded but do not gate the build. A missing file in THIS repo is a defect
+     and must stay red; fonts.gstatic.com having a bad minute is weather. Keeping them in one bucket
+     meant the gate cried wolf on network noise, and a gate that cries wolf gets ignored on the day
+     it is right. */
+  const isExternal = (u) => /^https?:\/\//i.test(u) && !/^https?:\/\/(127\.0\.0\.1|localhost)/i.test(u);
   
   console.log('═══════════════════════════════════════════════════════════════');
   console.log(' END-TO-END AUDIT — Konyo D2R Bible v36');
@@ -226,10 +240,24 @@ const fs = require('fs');
   console.log(' AUDIT SUMMARY');
   console.log('═══════════════════════════════════════════════════════════════');
   console.log(`Total time: ${((Date.now()-t0)/1000).toFixed(1)}s`);
-  console.log(`Page errors: ${errors.length}${errors.length ? '\n  ' + errors.slice(0,3).join('\n  ') : ''}`);
-  const uniqFailed = [...new Set(failedReqs)];
+  /* 2026-08-17 — a bare "Failed to load resource" console line is the SAME event the request tracking
+     above already recorded, and it is the copy that carries no URL. Counting both meant one missing
+     file scored twice and one EXTERNAL miss reddened the build with a line nobody could act on.
+     The resource story is told once, by `Failed requests`, with the URL attached. */
+  const resourceNoise = /Failed to load resource/i;
+  const realErrors = errors.filter((e) => !resourceNoise.test(e));
+  const droppedNoise = errors.length - realErrors.length;
+  console.log(`Page errors: ${realErrors.length}${realErrors.length ? '\n  ' + realErrors.slice(0,3).join('\n  ') : ''}`
+    + (droppedNoise ? `  (+${droppedNoise} resource-load line${droppedNoise===1?'':'s'} — see Failed requests, which names the URL)` : ''));
+  const allFailed = [...new Set(failedReqs.concat(badResponses))];
+  const uniqFailed = allFailed.filter(u => !isExternal(u.replace(/^\S+\s+\S+\s+/, '')));
+  const externalFailed = allFailed.filter(u => isExternal(u.replace(/^\S+\s+\S+\s+/, '')));
   console.log(`Failed requests: ${uniqFailed.length}${uniqFailed.length ? '\n  ' + uniqFailed.slice(0,20).map(u => 'REQ: ' + u).join('\n  ') : ''}`);
+  if (externalFailed.length) {
+    console.log(`External (recorded, not gated): ${externalFailed.length}\n  ` + externalFailed.slice(0,10).map(u => 'EXT: ' + u).join('\n  '));
+  }
   audit.failed_requests = uniqFailed;
+  audit.external_failed_requests = externalFailed;
   
   const tabsOk = Object.values(audit.tabs).filter(t => t.active && t.children > 10).length;
   const slidersOk = audit.sliders.mf_500 && audit.sliders.mf_1000 && audit.sliders.mf_preset_699 && audit.sliders.mf_preset_553;
@@ -259,7 +287,10 @@ const fs = require('fs');
     wishOk,
     audit.sim_heavy.ran_ok,
     tzOk,
-    errors.length === 0
+    /* 2026-08-17 — real page errors AND any LOCAL resource that failed to load. External hosts are
+       reported but never gate: a CDN having a bad minute is weather, and v1741 went red on exactly
+       that (three unnamed 404s + a Google-Fonts abort) while a rerun of the same commit was 8/8. */
+    realErrors.length === 0 && uniqFailed.length === 0
   ];
   const passed = checks.filter(Boolean).length;
   console.log(`\n${passed === 8 ? '🎯 ALL 8 GREEN' : passed >= 6 ? '⚠️  MOSTLY GREEN' : '❌ ISSUES'} · ${passed}/8 categories passed`);
