@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1715",
+  "ver": "v1716",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1715: a new TOOLS panel that answers what is forged, what runes are still to buy and what bases are still to buy, derived from forgeScan and the rune stash so it cannot disagree with the Forge; and the class+socket filter is now ONE shared function because the new panel asked the meta engine raw and immediately reprinted Beast to Scourge, the exact illegal route v1713 removed",
+  "note": "v1716: the drop tables are silospen RoW 3.0 truth again: 2,366 rows added (134 set PIECES with their own odds, 93 uniques the tables never had) and 9,820 cells re-synced; the roster binds to a drop row through one name fold, so Harlequin Crest stopped reading as untracked; and sets route by PIECE, hardest first, which ends Run Pindleskin for every set",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

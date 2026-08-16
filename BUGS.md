@@ -3612,3 +3612,43 @@ chronicle `|| 0` inventing zeros; window pin scoring any titled window; WATCH le
 `snap_*`/`read_*` frames; WATCH_MODE skipping the D2R pin.
 **Verification:** 11 cheap python tests (fleet fail-closed, journal unknown, ring follows
 TV_SESSIONS, footer not v927, OCR err is None, convert-fail ≠ eye.jpg). No Playwright on this Mac.
+
+## REG-143 — the farm board routed off data that did not cover the game (v1716)
+Konyo, reading his own board: *"for SETS i also see pindleskin as the runs... so thats definitely
+bugged.. + i see alot of UNVERIFIED boss hunts for farming which dont render anything at all."*
+Both true. Three defects, measured before anything was changed:
+
+1. **SETS had no per-piece drop data.** 14 `(any piece)` aggregate rows stood in for 34 sets.
+   `_pickSrc` maximises `kph/chance` and Pindleskin's kph (300-360) is 3-10x every other boss's,
+   so the aggregate handed him **two run cards, both Pindleskin** — and the recommended one was
+   *NM* Pindleskin, because the sets side never got v1542's hardest-first rule even though
+   `_setAggSrc`'s comment claimed it ranked "by the SAME rule as the uniques side". **21 of 34
+   sets resolved to no route at all.**
+2. **The roster and the drop tables spell items differently.** `reg[n]` was an exact lookup, so
+   `Harlequin Crest` could not see the row `Harlequin Crest (Shako)`. Same for `Gull` vs
+   `Gull (dagger)` and for four names the roster writes with a curly apostrophe. **33 uniques sat
+   in the "no verified source yet" bucket**, the most farmed unique in the game among them.
+3. **The tables were genuinely short.** silospen RoW 3.0 lists **348** uniques for Hell Mephisto;
+   the tree carried **277**. The v697 pull calibrated cells that already existed and never added
+   rows, so ~105 real uniques per boss had no cell to calibrate.
+
+**Fix.** A full silospen pull (D2R_ROW_3_0, MF=300, players=1, desecratedLevel 50/76/99 — the
+convention the stored cells were pulled under, re-verified first: **230 of 243** overlapping
+Hell-Mephisto rows matched exactly). 2,366 rows added (134 set PIECES with their own per-boss
+odds, 93 uniques), 9,820 cells re-synced. One name fold (`_regKey`) reconciles roster to table on
+the JS side, binding only when exactly one row answers. Sets route by PIECE, hardest-first.
+
+**Two traps the dry run caught before it wrote:**
+- **Never null on a name miss.** The first merge cleared any cell silospen did not list, which
+  would have deleted the routes of 18 rows it never mentions at all — the set aggregates, the two
+  rune rows, Polaris Spear, The Scourge, Bloodmoon's Light. "Absent from silospen" and "does not
+  drop" are different claims. Clearing is now gated on the name being in silospen's pool.
+- **Binding must not rename.** Returning the drop row itself renamed the item to the table's
+  spelling, and `x.n` is the ledger key: **3 found uniques flipped to missing** on the first pass.
+  The roster name stays; only the route is borrowed.
+
+**Result:** no-source uniques 33 → 8 (six Sunder charms, the Hellfire Torch, Crescent Moon — all
+genuinely not boss drops); sets with no route 21 → 0; the sets board went from 2 Pindleskin cards
+to 8 runs across 5 bosses, Hell first.
+**Verification:** `tests/v1716_silospen_sync_routes.spec.ts`, 30/30 gates, rendered and read at
+1440 and 375.
