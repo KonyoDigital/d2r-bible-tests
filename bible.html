@@ -15858,6 +15858,16 @@ BOSSES.forEach(boss => {
           o !== d && o[k] !== null && o[k] !== undefined && (o.qlvl || 0) > diff.mlvl);
         if (d.qlvl > 0 && d.qlvl > diff.mlvl && _qlvlSound) blocked = `qlvl ${d.qlvl} > ${label} mlvl ${diff.mlvl}`;
         else if (d.tc > 0 && d.tc > diff.tcMax) blocked = `TC ${d.tc} > ${label} ${boss.name} TC ${diff.tcMax}`;
+        /* v1723 — SUPPRESSING A FALSE REASON MUST NOT DELETE THE FACT.
+           v1722 stopped citing `qlvl > mlvl` in cells whose own data breaks that rule, and a row
+           with no reason gets NO source entry at all — so the "cannot drop here" marker vanished
+           with the bad explanation. Routine L caught it: probe_meph_shako lost its norm / normTz /
+           nm keys outright, where they had been present-and-null.
+           The item still does not drop in that cell; we simply cannot say WHY from these two
+           annotations. So the row keeps its entry with a reason that is true by construction —
+           silospen's pull for that cell does not list it. [[unknown-stays-unknown]]: "not in the
+           pool" is an answer; an invented rule is not, and silence is not either. */
+        else if (d.qlvl > 0 && d.qlvl > diff.mlvl) blocked = `not in ${label} ${boss.name}'s drop pool`;
         if (blocked) item.sources.push({boss:`${label} ${boss.name}`,chance:null,blocked,bossId:boss.id,diffKey:k});
       }
     });
@@ -39953,7 +39963,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1722', name:'v1722 - ceilings that agree', date:'2026-08-16', note:'the boss ceilings are raised to what their own drop rows prove and never lowered, so a blocked reason can no longer name a limit its own cell contradicts; the qlvl reason is suppressed where the cell disproves it rather than rewriting mlvl, because monster level is a game fact and not a ceiling; a published audit lets the gate always run and it was seen red first' };
+  window.D2R_BUILD = { id:'v1723', name:'v1723 - the fact survives the reason', date:'2026-08-16', note:'suppressing a false explanation must not delete the fact it explained: v1722 removed the qlvl reason in cells whose own data breaks that rule and the cannot-drop marker went with it, so the row now keeps its entry with a reason true by construction — not in that runs drop pool' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

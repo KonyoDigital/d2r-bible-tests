@@ -3869,3 +3869,17 @@ on an empty list. **Seen RED**: restoring Mephisto HELL TZ to its stale TC78 rep
 Mephisto's card now reads NORM 60 · NORM TZ 85 · NM 85 · NM TZ 85 · HELL 85 · HELL TZ 87, and its
 terror line "mlvl jumps to 99 (max TC 87)" is finally consistent with the Tyrael's / Griffon's /
 CoA rows v1716 added and the prose v1717 corrected.
+
+## REG-153 — suppressing a false reason deleted the fact it explained (v1723)
+v1722 stopped citing `qlvl > mlvl` in cells whose own data breaks that rule. But a row with no
+reason gets **no source entry at all** (the builder only pushes a null-chance row when it has a
+`blocked` string), so the "cannot drop here" marker vanished along with the bad explanation.
+**Routine L caught it within one push**: `probe_meph_shako` lost its `norm` / `normTz` / `nm` keys
+outright, where they had been present-and-null — the integrity gate doing precisely the job it
+exists for, one commit after two of its four probes were repaired (REG-144).
+The item still does not drop there; we simply cannot say WHY from those two annotations. So the row
+keeps its entry with a reason true by construction — `not in Normal Mephisto's drop pool`.
+[[unknown-stays-unknown]]: "not in the pool" is an answer, an invented rule is not, and **silence
+is not either**. Verified by the baseline matching again with NO baseline edit — the fix restored
+the invariant rather than moving the goalposts. Guarded: all six Mephisto cells for Shako are
+represented, three with odds and three with an honest reason.

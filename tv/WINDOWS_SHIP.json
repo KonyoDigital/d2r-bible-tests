@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1722",
+  "ver": "v1723",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1722: the boss ceilings are raised to what their own drop rows prove and never lowered, so a blocked reason can no longer name a limit its own cell contradicts; the qlvl reason is suppressed where the cell disproves it rather than rewriting mlvl, because monster level is a game fact and not a ceiling; a published audit lets the gate always run and it was seen red first",
+  "note": "v1723: suppressing a false explanation must not delete the fact it explained: v1722 removed the qlvl reason in cells whose own data breaks that rule and the cannot-drop marker went with it, so the row now keeps its entry with a reason true by construction — not in that runs drop pool",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

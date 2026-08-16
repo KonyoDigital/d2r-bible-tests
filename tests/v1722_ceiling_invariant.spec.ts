@@ -83,4 +83,30 @@ test.describe('v1722 — the ceiling agrees with what drops under it', () => {
     expect(r.reasons, 'no blocked reasons were produced — nothing was measured').toBeGreaterThan(100);
     expect(r.bad, `${r.badN} self-contradicting reasons: ` + r.bad.join(' | ')).toEqual([]);
   });
+
+  /* v1723 — AND THE FACT MUST SURVIVE THE REASON.
+     v1722's suppression deleted the source entry entirely when neither annotation could explain
+     an empty cell, so the "cannot drop here" marker vanished with the bad explanation. Routine L
+     caught it — probe_meph_shako lost its norm/normTz/nm keys, which had been present-and-null.
+     Every row that does not drop must still SAY so; only the false reason goes. */
+  test('★★ a cell that cannot drop an item still says so, even when no rule explains why',
+    async ({ page }) => {
+    await boot(page);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const reg = (w.ITEM_REGISTRY || {});
+      const shako = reg['Harlequin Crest (Shako)'];
+      const cells = (shako ? shako.sources : [])
+        .filter((s: any) => s.bossId === 'mephisto')
+        .map((s: any) => s.diffKey);
+      const reasons = (shako ? shako.sources : [])
+        .filter((s: any) => s.bossId === 'mephisto' && s.chance == null)
+        .map((s: any) => s.blocked);
+      return { cells, reasons, all: cells.length };
+    });
+    // Shako is TC60/qlvl69: it drops at Hell/HellTZ/NM-TZ and cannot at Normal/NormalTZ/NM.
+    // All six cells must be REPRESENTED — three with odds, three with an honest reason.
+    expect(r.all, 'Mephisto cells represented for Shako: ' + r.cells.join(',')).toBe(6);
+    expect(r.reasons.every((x: any) => !!x), 'a non-dropping cell carried no reason at all').toBe(true);
+  });
 });
