@@ -3807,3 +3807,32 @@ the restored rows carry `nc:1`). All 11 resolve as `kind:'unique'`, all 11 carry
 Also corrected here: the roster block's own comment still said "_UNI_EXTRA (69 keys) … 514 − 127 =
 387", 15 versions stale — under a line that warns *a count in a comment is a number nobody
 re-measures*. Now 80 / 525 − 127 = 398, re-measured in a browser.
+
+## REG-151 — his top uniques run rested on two columns nothing could reproduce (v1721)
+Konyo, on v1720's open item: *"why is this not reproduced though?"* — the right question, and the
+answer was not "silospen has no data".
+
+**The pull asked the wrong id.** silospen mints a separate terrorized `d`-suffix id ONLY where the
+terrorized variant differs. Its own desecrated SUPERUNIQUE list, read per difficulty, says so:
+`NORMAL → Pindleskin` · `NIGHTMARE → Pindleskin` · `HELL → Pindleskin (d)`. v1716 sent
+`Pindleskind` at all three, got an empty body at two (silospen's signature for a bad enum, HTTP
+always 200), and recorded "no data". The plain id with `desecrated=true` serves it fine: Normal
+156 → **184** rows terrorized, Nightmare 261 → **291**.
+
+**And the stored cells were not a pull at all.** Measured three ways before touching them:
+- vs silospen at EVERY character level (45/55/60/65/70/71/76): at most **1 exact match of 186**;
+- vs every other column of the same boss and the same column of every other boss: **no copy**;
+- vs their own base column: Pindle's `hell→hellTz` tracks tightly like every other boss
+  (376/536 within ±0.5% of the median ratio), while **`nm→nmTz` is 0 of 190** and
+  `norm→normTz` is 3 of 78, with a median ratio of 0.35 — i.e. the TZ column claimed odds ~3×
+  better than its own base, which no other TZ column in the file does.
+Those two are the only columns in the table that behave like nothing else in it.
+
+**Consequence, which is why this mattered.** `NM TZ Pindleskin` was his number-one uniques run at
+**43 items, ~7.9 per hour**. On the real data it is **10 items, ~1.3 per hour** — the yield was
+overstated roughly six-fold, and 33 uniques have moved to runs where they are genuinely better
+found. `Normal TZ Pindleskin` left the board entirely.
+
+402 `nmTz` and 281 `normTz` cells corrected under the same convention as every other cell
+(RoW 3.0, MF=300, players=1, saturation). Nothing added, nothing cleared, and the 36 app-authored
+rows silospen's pool never mentions were left exactly as they were — the v1716 out-of-pool rule.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1720",
+  "ver": "v1721",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1720: his ruling: the 11 RotW uniques the silospen pull found are in the grail roster now, with their drop rows restored so each one has a real farm run, art and a card; two of them completed the Latent sunder family the roster already carried four of; the calculator grid is untouched because he ruled on the roster",
+  "note": "v1721: his top uniques run rested on two columns nothing could reproduce: silospen only mints a terrorized d-suffix id in HELL, so the v1716 pull asked Pindleskind at Normal and Nightmare and got nothing, while the plain id with desecrated true serves the data perfectly well; the stored cells matched no character level and were the only TZ columns in the file that did not track their own base column, and correcting them moved 33 uniques off a run that was overstating its yield six times over",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
