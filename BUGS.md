@@ -3652,3 +3652,46 @@ genuinely not boss drops); sets with no route 21 → 0; the sets board went from
 to 8 runs across 5 bosses, Hell first.
 **Verification:** `tests/v1716_silospen_sync_routes.spec.ts`, 30/30 gates, rendered and read at
 1440 and 375.
+
+## REG-144 — the integrity gate had two probes that could never find their item (v1716)
+`L_integrity.js` probes four drop values and diffs them against `baseline/integrity_baseline.json`.
+Two of the four — `probe_anda_soj` and `probe_anda_bk` — matched on `i.n === name` with the names
+**"Stone of Jordan"** and **"Bul-Kathos' Wedding Band"**, while the rows are called *"The* Stone of
+Jordan" and "Bul-Kathos Wedding Band" (no apostrophe). Both returned `{}` on every run since the
+day they were written, and `{}` was then committed into the baseline as the expected value. **Half
+this gate has been guarding nothing, permanently, while reporting agreement.**
+Fixed: the names are corrected, a probe that cannot find its item now returns
+`{__NOT_FOUND: name}` so a miss can never read as a clean empty result again, and the baseline
+carries the real measurements (SoJ and BKWB at Andariel, six cells each).
+Same class as [[feedback-blind-fixture-green-gate]]: a gate that always skips is a gate that never
+runs, and baselining its silence makes the silence permanent.
+
+## REG-145 — `tcMax` disagrees with the rows underneath it, table-wide (OPEN, not v1716's doing)
+Measured while checking a contradiction the v1716 pull surfaced on the Mephisto card. Each boss
+difficulty declares a `tcMax`, and the drop rows in that same cell routinely exceed it: **39 of 66
+cells at v1715, before the pull touched anything** (e.g. Normal Mephisto declares TC40 and carries
+Bverrit Keep, TC60, at 1:289). The pull took it to 48/66 by adding rows silospen serves.
+So `tcMax` is a stale annotation rather than a rule the data obeys — and it is the field the
+"blocked" reason strings are built from, which means those strings can name a ceiling the table
+itself ignores. NOT rewritten here: 66 values, and correcting them changes what the calculator
+tells him is impossible. **His call.**
+One consequence WAS fixed, because it was a false sentence on a card whose own table refutes it:
+Mephisto's `why` said "BUT TC78 ceiling — can NEVER drop Tyrael's/CoA/Fathom/Griffon's even
+terrorized". silospen RoW 3.0 lists all four for terrorized Hell Mephisto in Durance of Hate Level
+3 (Tyrael's 1:20,975 · CoA 1:2,331 · Griffon's 1:2,331 · Fathom 1:3,543), and the June v185-B recon
+recorded the same Tyrael's figure. The prose now says what the data says.
+
+## REG-146 — the pull added 11 rows the app cannot open (v1717)
+`v645_every_item_sim` failed with 11 `UNREACHABLE:` names and it was RIGHT. silospen RoW 3.0 serves
+Entropy Locket, Hellwarden's Will, Latent Bone Break, Latent Flame Rift, Measured Wrath, Opalvein,
+Sling, Ars Al'Diabolos, Ars Dul'Mephistos, Ars Tor'Baalos and Gheed's Wager — RotW items this app
+carries no card for. v1716 wrote them into the boss tables, where each became a chip that opens
+nothing. **110 rows removed.** ITEMS 549 → 538, unrouted names back to 30, exactly the v1715 level.
+Giving them a card means adding them to the GRAIL ROSTER, which moves his chronicle denominator —
+his call, queued, not a side effect of a data pull.
+Also fixed here: my merge matched names PER BOSS, so where one boss lacked a row it added
+silospen's spelling — the tree briefly carried both `Cranium Basher` and `The Cranium Basher`.
+Renamed to the spelling the tree already used, and ONLY where the pre-merge tree was unambiguous:
+`Crescent Moon (amulet)`/`(sword)`, `Hellmouth`/`(gloves)` and `The Hand of Broc`/`(gloves)` are
+each two pre-existing spellings that may be two different items, so they were left alone. (My first
+pass collapsed the sword into the amulet — caught by reading its own output before committing.)

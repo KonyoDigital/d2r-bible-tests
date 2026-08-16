@@ -1,5 +1,5 @@
 {
-  "items_count": 322,
+  "items_count": 538,
   "bosses_count": 13,
   "probe_meph_shako": {
     "norm": null,
@@ -9,8 +9,22 @@
     "hell": 836,
     "hellTz": 899
   },
-  "probe_anda_soj": {},
-  "probe_anda_bk": {},
+  "probe_anda_soj": {
+    "norm": null,
+    "normTz": 2292,
+    "nm": 2286,
+    "nmTz": 4065,
+    "hell": 4080,
+    "hellTz": 4014
+  },
+  "probe_anda_bk": {
+    "norm": null,
+    "normTz": null,
+    "nm": null,
+    "nmTz": 4065,
+    "hell": 4080,
+    "hellTz": 4014
+  },
   "probe_countess_ist": {
     "norm": 850,
     "normTz": 850,

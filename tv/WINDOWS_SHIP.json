@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1716",
+  "ver": "v1717",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1716: the drop tables are silospen RoW 3.0 truth again: 2,366 rows added (134 set PIECES with their own odds, 93 uniques the tables never had) and 9,820 cells re-synced; the roster binds to a drop row through one name fold, so Harlequin Crest stopped reading as untracked; and sets route by PIECE, hardest first, which ends Run Pindleskin for every set",
+  "note": "v1717: the pull kept only what the app can open: 11 RotW names silospen serves have no card here, so they are out of the tables until they get one; the integrity gate had two probes that could never match their item, and both were baselined as empty; and Mephistos card no longer claims he can never drop Tyraels terrorized, because his own table now shows he can",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
