@@ -3681,6 +3681,30 @@ terrorized". silospen RoW 3.0 lists all four for terrorized Hell Mephisto in Dur
 3 (Tyrael's 1:20,975 · CoA 1:2,331 · Griffon's 1:2,331 · Fathom 1:3,543), and the June v185-B recon
 recorded the same Tyrael's figure. The prose now says what the data says.
 
+## REG-147 — the pull redecided the CALCULATOR, which nobody asked it to (v1717)
+Bigger than REG-146 and found the same way — by CI, not by me noticing. `ITEMS` is the
+calculator's database and `ITEM_REGISTRY` is built from the same loop, so writing 216 new names
+into the drop tables put all of them into the Calculator grid too: **322 tiles → 538**, and 66 of
+the 69 `_UNI_EXTRA` uniques landed in the one surface bible.html says in words they must never
+enter ("appended to the F·Uniques universe ONLY, never the calculator" — v659/v1692). He asked for
+the HUNT to route correctly. A data pull must not redecide a curated surface.
+Fixed by splitting the two: a row whose name did not exist before the pull carries `nc:1` and
+joins ITEM_REGISTRY only; every routing consumer (`_pieceSrc`, `_setAggSrc`, the console bridge,
+`funiScan`) reads `window._allDropItems()`, and the four boss-card/calculator render surfaces read
+`_calcDrops(boss)`. Calculator back to exactly 322 tiles, `_UNI_EXTRA` leakage back to its
+pre-existing 2, and the hunt keeps every route. Gates that moved with it:
+`DROP_INDEX_TOTAL = 538` is a NEW lock for the master drop index (the structure test was counting
+distinct dropTable names and borrowing the calculator's constant, so one of the two lists had to
+be wrong); `CALC_ITEMS_TOTAL` stays 322.
+Three more gates were red on their own instrument once the data finally exercised them —
+[[gate-blind-to-unexercised-input]] in three flavours: v41's duplicate-droptable signature compared
+item NAMES only, and complete tables legitimately converge on the same pool (now name+odds, which a
+real copy-paste still trips); v1625's thumbnail check read `naturalWidth` on LAZY images that were
+below the fold once the board grew from 2 run cards to 8; and it required the boss ID to appear in
+the run title, which `cows` → "Hell Bovines" never satisfies. v619 rebuilt the run grouping out of
+`ITEMS` and now asks the engine. 04_item_routing asserted Mephisto "can never" drop Tyrael's — the
+same vanilla-think REG-145 found on the card.
+
 ## REG-146 — the pull added 11 rows the app cannot open (v1717)
 `v645_every_item_sim` failed with 11 `UNREACHABLE:` names and it was RIGHT. silospen RoW 3.0 serves
 Entropy Locket, Hellwarden's Will, Latent Bone Break, Latent Flame Rift, Measured Wrath, Opalvein,

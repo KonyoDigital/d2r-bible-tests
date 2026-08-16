@@ -73,11 +73,19 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
     await page.locator('#item-detail .aid-tabbar-chips .source-chip').first().click();
     await page.waitForTimeout(400);
     await expect(page.locator('.tab[data-tab="bosses"]')).toHaveClass(/active/);
-    // Tyrael's drops from Diablo, Baal (TC87+). Mephisto/Countess can never reach it (TC78 ceiling).
+    // v1717 — THE "DIMS OTHERS" HALF NEEDED A BOSS THAT REALLY CANNOT DROP IT.
+    // This asserted Mephisto and Countess dim, on the reasoning "TC78 ceiling — can never reach
+    // Tyrael's". That is vanilla-think, and the same sentence was sitting on Mephisto's own card
+    // until v1717 removed it: silospen RoW 3.0 lists Tyrael's for TERRORIZED Hell Mephisto at
+    // 1:20,975 (identical to Diablo's) and for terrorized Countess at 1:193,933 — and the June
+    // v185-B recon recorded that same Mephisto figure. Terror lifts the ceiling; the four bosses
+    // below all light up because they all genuinely drop it.
+    // The Summoner is the honest dim case: his whole table is the Key of Hate.
     await expect(page.locator('#diablo')).toHaveClass(/has-item/);
     await expect(page.locator('#baal')).toHaveClass(/has-item/);
-    await expect(page.locator('#mephisto')).toHaveClass(/no-item/);
-    await expect(page.locator('#countess')).toHaveClass(/no-item/);
+    await expect(page.locator('#mephisto')).toHaveClass(/has-item/);
+    await expect(page.locator('#countess')).toHaveClass(/has-item/);
+    await expect(page.locator('#summoner')).toHaveClass(/no-item/);
   });
 
   test('Esc clears active item', async ({ page }) => {

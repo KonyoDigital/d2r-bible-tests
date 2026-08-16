@@ -12,17 +12,21 @@ test('sealed grounds: a run whose whole verified pool is found earns the band an
   await page.goto(URL); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
-    // find a boss with a small verified pool via the scan itself, then own all its items
-    const items = (w.ITEMS || []).filter((x: any) => x.tier === 'grail' || x.tier === 'high' || x.tier === 'common');
-    const byBoss: any = {};
-    items.forEach((x: any) => {
-      let best: any = null, bestR = -1;
-      (x.sources || []).forEach((s: any) => { if (!s || s.blocked || s.chance == null) return; const rate = (s.kph || 30) / s.chance; if (rate > bestR) { bestR = rate; best = s; } });
-      if (best) (byBoss[best.boss] = byBoss[best.boss] || []).push(x.n);
-    });
-    const target = Object.keys(byBoss).sort((a, b) => byBoss[a].length - byBoss[b].length).find((k) => byBoss[k].length >= 2)!;
-    localStorage.setItem('d2r_owned', JSON.stringify(byBoss[target]));
-    return { target, n: byBoss[target].length };
+    // v1717 — ASK THE ENGINE, NOT A LIST THAT NO LONGER MATCHES IT.
+    // This rebuilt the run grouping itself out of `ITEMS`, then owned that pool and expected
+    // funiScan to seal the run. After the silospen pull ITEMS is the CALCULATOR's curated 322
+    // while funiScan groups the 387-name roster through ITEM_REGISTRY — so the pool computed
+    // here could miss items the engine counts, and a run that was "fully owned" by this test's
+    // arithmetic was still missing one by the engine's. Sealing is the engine's own verdict, so
+    // the setup now reads the engine's own runs: own every MISSING item of its smallest run, and
+    // everything else in that run's pool is already found by definition.
+    const fu = w.funiScan();
+    const run = (fu.runs || [])
+      .filter((g: any) => g.bossId && (g.items || []).length >= 2)
+      .sort((a: any, b: any) => a.items.length - b.items.length)[0];
+    const target = run.boss;
+    localStorage.setItem('d2r_owned', JSON.stringify(run.items.map((x: any) => x.n)));
+    return { target, n: run.items.length };
   });
   await page.reload(); await page.waitForTimeout(1800);
   const r2 = await page.evaluate((target: string) => {

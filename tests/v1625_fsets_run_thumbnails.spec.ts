@@ -45,6 +45,19 @@ async function fsets(page: any) {
   await page.waitForTimeout(2800);
   await page.evaluate(() => { try { (window as any).switchTab('fsets'); } catch (e) {} });
   await page.waitForTimeout(1800);
+  /* v1717 — WAIT FOR THE PICTURES BEFORE JUDGING THE PICTURES.
+     `imgLoaded` is read as naturalWidth>0 at the instant readRuns() runs, and the run-card
+     thumbnails are lazy: a card below the fold has not decoded yet and reports 0 through no
+     fault of the app. That never surfaced while the sets board had TWO run cards; the v1716
+     per-piece routing gave it EIGHT, and the ones off-screen started failing — the gate going
+     red on its own instrument the moment his data finally exercised it.
+     [[gate-blind-to-unexercised-input]] Forcing eager load + decode measures the app instead. */
+  await page.evaluate(async () => {
+    const imgs = Array.from(document.querySelectorAll('#tab-fsets .f-card.f-pipe img')) as any[];
+    imgs.forEach((i) => { try { i.loading = 'eager'; } catch (e) {} });
+    await Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => {}) : Promise.resolve())));
+  });
+  await page.waitForTimeout(300);
 }
 
 /* every run card on the sets board, with the boss id read from the card's OWN "📜 boss card"
@@ -108,7 +121,16 @@ test.describe('v1625 — F·Sets best runs wear the boss, through the ONE helper
       // stays falsifiable: an unrelated value matches NEITHER, and the line below independently
       // proves the identifier really belongs to THIS row's title.
       expect([r.expectName, r.bossId], `${r.title}: the logo names the boss`).toContain(r.logo);
-      expect(r.title.toLowerCase()).toContain(String(r.logo).toLowerCase());
+      /* v1717 — the row's title carries the boss's DISPLAY NAME, which is not always its id.
+         `cows` renders as "Hell Bovines", so requiring the id to appear inside the title failed
+         on a run that is perfectly correct. The point of this line is that the identifier belongs
+         to THIS row rather than a neighbour, so it accepts either the id or the display name —
+         and an unrelated boss still matches neither. The sets board only started producing a
+         Hell Bovines run at v1716 (per-piece routing), which is why this never fired before. */
+      const idOrName = [String(r.logo).toLowerCase(), String(r.expectName || '').toLowerCase()]
+        .filter(Boolean);
+      expect(idOrName.some((v) => r.title.toLowerCase().includes(v)),
+        `${r.title}: names neither the boss id nor its display name (${idOrName.join(' / ')})`).toBe(true);
 
       // ...and it is NOT the arbitrary first drop. `art(g.items[0].name)` gave art/hd_amulet.png
       // here; _runBossArt gives art/reanimatedhorde-opt_graphic.png. This is the line that goes red.

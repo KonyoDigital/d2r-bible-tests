@@ -47,7 +47,14 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
     await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     const report = await page.evaluate(() => {
-      const I = eval('typeof ITEMS !== "undefined" ? ITEMS : []');
+      // v1717 — the MASTER index is ITEM_REGISTRY, which is what this test's own title says.
+      // ITEMS is the CALCULATOR's curated subset; after the silospen pull a droppable item can
+      // legitimately be in the registry and out of the calculator (that separation is the whole
+      // point of `nc:1`). Checking against ITEMS would report 216 real drops as "fabricated".
+      const w: any = window;
+      const I = (typeof w._allDropItems === 'function')
+        ? w._allDropItems()
+        : eval('typeof ITEMS !== "undefined" ? ITEMS : []');
       const masterNames = new Set<string>(I.map((i: any) => i.n));
       const orphans: { boss: string; item: string }[] = [];
       for (const bossCard of Array.from(document.querySelectorAll('#boss-cards .boss-card'))) {
@@ -174,16 +181,26 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
     await page.goto(BIBLE_URL);
     await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
+    // v1716 — THE SIGNATURE HAD TO GET STRONGER, NOT WEAKER.
+    // This compared the sorted set of item NAMES rendered per boss. That was a fine proxy for
+    // "nobody copy-pasted a droptable" while the tables were incomplete — but after the silospen
+    // RoW 3.0 pull filled them in, several bosses legitimately reach the SAME 395-item pool at
+    // saturation (andariel/duriel and diablo/pindle were the first two), and the guard fired on
+    // the truth. Their ODDS are all different, which is exactly what a copy-paste would not be.
+    // So the signature is now name + all six per-difficulty chances, read from ITEMS[].sources —
+    // a real duplicated table still fails, a shared pool no longer does.
     const result = await page.evaluate(() => {
+      const w: any = window;
       const sigByBoss: Record<string, string> = {};
-      for (const bossCard of Array.from(document.querySelectorAll('#boss-cards .boss-card'))) {
-        const bossId = (bossCard as HTMLElement).id;
-        const items = Array.from(bossCard.querySelectorAll('table.drops tbody tr')).map(r => {
-          return (r as HTMLElement).getAttribute('data-item') ||
-                 (r.querySelector('td') as HTMLElement)?.innerText?.trim() || '';
-        }).filter(Boolean).sort().join('|');
-        sigByBoss[bossId] = items;
+      const per: Record<string, string[]> = {};
+      for (const it of (w.ITEMS || [])) {
+        for (const s of (it.sources || [])) {
+          if (!s || !s.bossId) continue;
+          (per[s.bossId] = per[s.bossId] || []).push(
+            it.n + '@' + s.diffKey + '=' + (s.chance == null ? 'x' : s.chance));
+        }
       }
+      for (const bossId of Object.keys(per)) sigByBoss[bossId] = per[bossId].sort().join('|');
       const dupes: any[] = [];
       const sigs = Object.entries(sigByBoss);
       for (let i = 0; i < sigs.length; i++) {

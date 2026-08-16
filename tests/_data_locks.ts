@@ -10,15 +10,20 @@
 export const BOSS_CHIPS_TOTAL = 13;
 
 // The calculator grid's full grail item count.
-// v1716 — 322 → 538. The silospen RoW 3.0 pull added 2,366 drop rows, and 216 of them were
-// items the tables had never carried (134 set PIECES with their own odds, ~82 uniques). This is
-// the deliberate content change the header describes, so the ONE constant moves.
-// (11 further names silospen serves — Entropy Locket, Hellwarden's Will, the two Latent sunders,
-// Measured Wrath, Opalvein, Sling, the three Ars charms and Gheed's Wager — were NOT kept: the
-// app has no card for them, so v645's reachability gate failed them correctly. Giving them one
-// means adding them to his GRAIL ROSTER, which moves his chronicle denominator, and that is his
-// call rather than a side effect of a data pull.)
-export const CALC_ITEMS_TOTAL = 538;
+// v1717 — STAYS 322. The v1716 silospen pull added 216 item names to the drop tables, and for a
+// few hours they landed in ITEMS too, which tripled the Calculator grid to 538 and put 66 of the
+// 69 _UNI_EXTRA uniques inside the one surface bible.html says in words they must never enter.
+// The routing now reads window.ITEM_REGISTRY (every droppable item) while ITEMS stays the curated
+// calculator DB — so this tripwire keeps doing its job and the number it guards did not move.
+export const CALC_ITEMS_TOTAL = 322;
+
+// Distinct item names across every boss dropTable — the MASTER drop index that
+// ITEM_REGISTRY is built from, and what the farm routing reads. This is a different
+// number from CALC_ITEMS_TOTAL by design since v1717: the silospen RoW 3.0 pull put 216
+// more real drops into the tables, and rows the calculator has no card for carry `nc:1`
+// so they join the registry WITHOUT joining the curated calculator grid.
+// Same tripwire rule as its sibling: exact, and bumped deliberately.
+export const DROP_INDEX_TOTAL = 538;
 
 // Collapsible .sec-h sections on the binds tab — bump in LOCKSTEP when adding
 // a binds section (the v109 memory rule).

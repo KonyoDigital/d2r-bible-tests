@@ -494,7 +494,16 @@ test.describe('v1625 · ITEM 5 — "Find Cow King\'s Hooves" is a real, green, o
     });
     expect(before, 'the hover card was already up before we hovered — the measurement would be vacuous').toBe(false);
     await page.locator(SEL).first().hover();
-    await page.waitForTimeout(900);
+    /* v1717 — WAIT FOR THE CARD, DO NOT SNAPSHOT AT A FIXED 900ms.
+       The card is raised by a delegated hover handler and `.on` is a transition class; a single
+       read at 900ms passed in one run and failed in the next with the card's own name already
+       rendered inside it ("Aldur's Deception"), which is the signature of a race rather than a
+       dead control. Polling keeps the assertion exactly as strict — if the card never comes up,
+       this still goes red. */
+    await page.waitForFunction(() => {
+      const t: any = document.getElementById('arttip');
+      return !!t && t.classList.contains('on');
+    }, null, { timeout: 4000 }).catch(() => {});
     const after = await page.evaluate(() => {
       const t: any = document.getElementById('arttip');
       if (!t) return { exists: false };

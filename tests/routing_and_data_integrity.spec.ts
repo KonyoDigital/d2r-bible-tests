@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
-import { BOSS_CHIPS_TOTAL, CALC_ITEMS_TOTAL } from './_data_locks';
+import { BOSS_CHIPS_TOTAL, CALC_ITEMS_TOTAL, DROP_INDEX_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -252,7 +252,10 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
       }));
       return { items: Object.keys(reg).length, badTier, vCount, vIssues, cross };
     });
-    expect(r.items).toBe(CALC_ITEMS_TOTAL);
+    // v1717 — this counts DISTINCT NAMES ACROSS EVERY dropTable, which is the master drop
+    // index, not the calculator's curated grid. The two were the same number until the silospen
+    // pull; borrowing CALC_ITEMS_TOTAL here would now force one of the two lists to be wrong.
+    expect(r.items).toBe(DROP_INDEX_TOTAL);
     expect(r.badTier).toBe(0);
     expect(r.vIssues).toBe(0);
     expect(r.cross).toBe(0);
