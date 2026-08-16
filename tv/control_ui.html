@@ -11195,42 +11195,40 @@
   function lsFork(bare){
     // THE CONSOLE READS THE ACTIVE WORLD, off the board's PUBLISHED route.
     //
-    // What this used to be, and why it was wrong: a hand-copied second implementation of the
-    // board's fork rule, whose comment read "machine fork (W./WL.) never applies on this Mac
-    // console". That stopped being true the moment a Windows PC got its own world. The board wrote
-    // W., this function read BARE, and the disagreement surfaced as a fresh machine showing the
-    // OWNER's chronicle — "HOLY GRAIL 243 / 403 · 60% claimed" on a console that should read 0/403.
-    // Konyo: "the sessions feels still like its attached to my macbook profile."
-    // The defect was never arithmetic; it was TWO sources of truth for one rule.
-    // v1478 \u2014 the rule now arrives as DATA (d2r_lsrRoute, published by bible.html right after it
-    // builds LSR), so there is no hand-copied second copy left to drift. Full 2x2, identical to the
-    // board by construction:
-    //   OWNER main = bare | OWNER ladder = L. | THIS PC main = W. | THIS PC ladder = WL.
+    // v1736 — SPEAK v:2, OR SAY NOTHING. v1478 replaced a hand-copied fork rule with a published
+    // route, and v1499 changed that route's vocabulary: `m` stopped being 'mac'/'windows' and
+    // became 'owner'/'guest', and the route began carrying the LITERAL prefixes so no other
+    // surface ever constructs one. The board shipped v:2. THIS FUNCTION WAS NEVER TOLD.
     //
-    // Two deliberate choices, both on the safe side of the leak:
-    //   * NO BARE FALLBACK on THIS PC. An absent W. key is a TRUE empty, and zero is the correct
-    //     answer for a machine that has farmed nothing. Falling back to the bare key is precisely
-    //     how the owner's chronicle bled in, so absence must stay absence.
-    //   * If the route is missing (the board has not loaded in this origin yet), assume EVERY key
-    //     is forked rather than none. Worst case that reads an empty world and the crest honestly
-    //     says so; the opposite guess shows one person another person's progress.
+    // What that cost, measured by executing this function against a real v:2 guest route: `machine`
+    // was set to 'guest', the `machine === 'windows'` branch could no longer fire, and the guest
+    // fell through to `return localStorage.getItem(bare)` — the OWNER's key. The same
+    // "HOLY GRAIL 243 / 403" leak REG-076 was written to close, reopened by a vocabulary change
+    // three versions later. And in the ordinary case it was simply blind: the board writes a guest
+    // world at I<id8>, this read bare, so a guest console could not see its own data at all.
+    //
+    // The rule below is the board's `key()` (bible.html:3655), mirrored — not re-derived. Prefixes
+    // come from the payload; there is no prefix literal in this file.
+    //   OWNER: main = bare, ladder = L·      GUEST: main = I·<id8>·, ladder = IL·<id8>·
+    //
+    // NO ROUTE, OR A ROUTE THIS DOES NOT UNDERSTAND, READS NOTHING. That is bible.html's own
+    // v1499 instruction, in its words: "A reader that finds no route, a v:1 route, or an id it
+    // does not recognise must resolve UNKNOWN and read nothing. Guessing bare is how the harm
+    // happened." If the console ever renders empty where it used to render data, the board has
+    // not loaded in this origin yet — open it once. The answer is never to restore the guess.
     try {
       var r = null;
       try { r = JSON.parse(localStorage.getItem('d2r_lsrRoute') || 'null'); } catch(eR){ r = null; }
-      var machine, prof, lp = null, wp = null;
-      if (r && r.m) {
-        machine = r.m; prof = r.p; lp = r.lp || null; wp = r.wp || null;
+      if (!r || r.v !== 2 || !r.id) return null;
+      var lp = r.lp || [], wp = r.wp || [];
+      var ladder = (r.p === 'ladder');
+      var k;
+      if (!r.owner) {
+        if (ladder && lp.indexOf(bare) >= 0) k = r.lpfx + bare;
+        else if (wp.indexOf(bare) >= 0) k = r.pfx + bare;
+        else k = bare;
       } else {
-        // no route yet \u2014 read the same two pointers the board writes, and fork everything
-        machine = localStorage.getItem('d2r_activeMachine') === 'windows' ? 'windows' : 'mac';
-        prof = localStorage.getItem(machine === 'windows' ? 'd2r_activeProfileWin' : 'd2r_activeProfile') === 'ladder' ? 'ladder' : 'main';
-      }
-      var k = bare;
-      if (machine === 'windows') {
-        if (prof === 'ladder' && (!lp || lp.indexOf(bare) >= 0)) k = 'WL\u00b7' + bare;
-        else if (!wp || wp.indexOf(bare) >= 0) k = 'W\u00b7' + bare;
-      } else if (prof === 'ladder' && (!lp || lp.indexOf(bare) >= 0)) {
-        k = 'L\u00b7' + bare;
+        k = (ladder && lp.indexOf(bare) >= 0) ? r.lpfx + bare : bare;
       }
       return localStorage.getItem(k);
     } catch(e){ return null; }

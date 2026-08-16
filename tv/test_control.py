@@ -3679,15 +3679,39 @@ class TestConsoleReadsTheActiveWorld(unittest.TestCase):
     Absence must stay absence; zero is the correct answer for a machine that has farmed nothing.
     """
 
+    # v1736 — REWRITTEN TO THE v:2 VOCABULARY, because the function under test had moved and
+    # this test had not. It seeded `{v:1, m:'windows'|'mac'}` and asserted W·/WL·/bare/L· — the
+    # PRE-v1499 protocol. v1499 replaced `m` with 'owner'/'guest' and began publishing the literal
+    # prefixes, so every case here was feeding the console an input the board had stopped writing
+    # three versions earlier. The test stayed green the whole time and the console stayed broken:
+    # a real gate, on real data, that never once fed the input that breaks it.
+    # [[gate-blind-to-unexercised-input]]
+    ID = "abcd1234efgh"
+    PFX, LPFX = "I·abcd1234·", "IL·abcd1234·"
+
+    @classmethod
+    def _route(cls, owner, prof):
+        return {"v": 2, "owner": owner, "id": cls.ID,
+                "m": "owner" if owner else "guest", "p": prof,
+                "pfx": "" if owner else cls.PFX,
+                "lpfx": "L·" if owner else cls.LPFX,
+                "lp": ["K"], "wp": ["K"]}
+
+    # (label, route | None, seeded keys, expected return)
     CASES = [
-        # (label, machine, profile, seeded keys, expected return)
-        ("this-pc main reads W",       "windows", "main",   {"W·K": "mine"},            "mine"),
-        ("this-pc ladder reads WL",    "windows", "ladder", {"WL·K": "mine-l"},         "mine-l"),
-        ("owner main reads bare",      "mac",     "main",   {"K": "owner"},             "owner"),
-        ("owner ladder reads L",       "mac",     "ladder", {"L·K": "owner-l"},         "owner-l"),
-        # THE LEAK: this PC has farmed nothing, the owner has. Must NOT fall back to bare.
-        ("this-pc empty stays empty",  "windows", "main",   {"K": "owner"},             None),
-        ("this-pc ladder no fallback", "windows", "ladder", {"K": "owner", "L·K": "x"}, None),
+        ("owner main reads bare",       {"owner": True,  "p": "main"},   {"K": "owner"},              "owner"),
+        ("owner ladder reads L",        {"owner": True,  "p": "ladder"}, {"L·K": "owner-l"},          "owner-l"),
+        ("guest main reads I<id8>",     {"owner": False, "p": "main"},   {"I·abcd1234·K": "mine"},     "mine"),
+        ("guest ladder reads IL<id8>",  {"owner": False, "p": "ladder"}, {"IL·abcd1234·K": "mine-l"}, "mine-l"),
+        # THE LEAK: this world has farmed nothing, the owner has. Must NOT fall back to bare.
+        # Executed against the SHIPPED pre-fix function this returned "owner" — the
+        # "HOLY GRAIL 243 / 403" bleed REG-076 closed, reopened by v1499's vocabulary change.
+        ("guest empty stays empty",     {"owner": False, "p": "main"},   {"K": "owner"},              None),
+        ("guest ladder no fallback",    {"owner": False, "p": "ladder"}, {"K": "owner", "L·K": "x"},   None),
+        # A reader that cannot identify the world must read NOTHING. bible.html:3690 in its own
+        # words: "Guessing bare is how the harm happened."
+        ("no route reads nothing",      None,                            {"K": "owner"},              None),
+        ("v:1 route reads nothing",     "v1",                            {"K": "owner"},              None),
     ]
 
     def _extract_lsfork(self):
@@ -3718,8 +3742,15 @@ class TestConsoleReadsTheActiveWorld(unittest.TestCase):
         fn = self._extract_lsfork()
 
         # The board publishes the route; mirror a realistic payload where 'K' IS a forked key.
+        def _route_for(c):
+            if c[1] is None:
+                return None
+            if c[1] == "v1":
+                return {"v": 1, "m": "mac", "p": "main", "lp": ["K"], "wp": ["K"]}
+            return self._route(c[1]["owner"], c[1]["p"])
+
         cases_js = json.dumps([
-            {"label": c[0], "m": c[1], "p": c[2], "seed": c[3], "want": c[4]}
+            {"label": c[0], "route": _route_for(c), "seed": c[2], "want": c[3]}
             for c in self.CASES
         ])
         html = (
@@ -3729,8 +3760,7 @@ class TestConsoleReadsTheActiveWorld(unittest.TestCase):
             "var res = [];\n"
             "CASES.forEach(function(c){\n"
             "  localStorage.clear();\n"
-            "  localStorage.setItem('d2r_lsrRoute', JSON.stringify(\n"
-            "    {v:1, m:c.m, p:c.p, lp:['K'], wp:['K']}));\n"
+            "  if (c.route) localStorage.setItem('d2r_lsrRoute', JSON.stringify(c.route));\n"
             "  for (var k in c.seed) localStorage.setItem(k, c.seed[k]);\n"
             "  var got = lsFork('K');\n"
             "  res.push({label:c.label, want:c.want, got:got});\n"

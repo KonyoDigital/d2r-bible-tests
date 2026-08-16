@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1735",
+  "ver": "v1736",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1735: 19 codex bases named something BASE_DB does not know while ITEM_TIP named one it does so 19 item cards showed no requirements no tier and no icon; twelve were misspellings one a mangled Windows-1252 escape and seven were not D2 bases at all",
+  "note": "v1736: v1499 changed the published route from machine names to ownership plus literal prefixes and the console lsFork still spoke the old vocabulary so a guest read the owner chronicle and could not see its own world; the test that should have caught it seeded the retired protocol and skipped on this machine",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

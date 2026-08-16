@@ -4387,3 +4387,61 @@ An edit-distance first draft was written and thrown away: it called `Ring` a mis
 
 v1726's residue pin tightened **62 → 43**. A pin left 19 above the true count stops catching
 anything. `levelGap` is unchanged at 1 (`Ironward/Caduceus`) and case-only mismatches remain 0.
+
+---
+
+## REG-169 — the board changed the protocol; the console was never told (v1736)
+
+`bible.html` publishes `d2r_lsrRoute` so the console never re-derives the fork rule. v1478 built
+that. **v1499 then changed the route's vocabulary**: `m` stopped being `'mac'`/`'windows'` and became
+`'owner'`/`'guest'`, and the route began carrying the LITERAL prefixes (`pfx`, `lpfx`) so that no
+other surface would ever construct one. The board shipped `v:2`.
+
+`tv/control_ui.html`'s `lsFork()` was never told. It still read `r.m` expecting a machine name and
+still branched on `machine === 'windows'` — a value the board had stopped writing three versions
+earlier. **[[the-unjoined-end]]** — both ends built correctly, the joint never made, silent by
+construction.
+
+### Measured, by executing the shipped function against a real v:2 route
+
+With `m: 'guest'`, the `machine === 'windows'` branch cannot fire, so control falls through to
+`return localStorage.getItem(bare)`. Two failures in one:
+
+| case | pre-fix result |
+|---|---|
+| guest world empty, owner's key present | **returned the OWNER's data** |
+| guest ladder, owner's `L·` key present | **returned the owner's ladder data** |
+| guest main, its own `I·<id8>·` key present | `null` — could not see its own world |
+| guest ladder, its own `IL·<id8>·` key present | `null` — same |
+| no route at all | returned the owner's data |
+| a `v:1` route | returned the owner's data |
+
+The first is the **"HOLY GRAIL 243 / 403 · 60% claimed"** bleed that REG-076 was written to close,
+reopened by a vocabulary change rather than by any change to the logic. The third and fourth are
+plain blindness: the board writes a guest world at `I·<id8>·` and the console looked at bare.
+
+`lsFork` now mirrors the board's `key()` (bible.html:3655) rather than re-deriving it, takes every
+prefix from the payload — **there is no prefix literal left in the file** — and reads NOTHING when
+the route is absent or not `v:2`, which is bible.html's own instruction in its own words:
+*"A reader that finds no route, a v:1 route, or an id it does not recognise must resolve UNKNOWN and
+read nothing. Guessing bare is how the harm happened."*
+
+⚠ If the console ever renders empty where it used to render data, the board has not loaded in that
+origin yet — open it once. The answer is never to restore the guess.
+
+### The test that should have caught it had never run
+
+`TestConsoleReadsTheActiveWorld` does the right thing: it EXECUTES the shipped `lsFork` rather than
+grepping it, and it was written for exactly this defect class. Two things had gone wrong with it:
+
+1. **It seeded `{v:1, m:'windows'}`** and asserted `W·`/`WL·`/bare/`L·` — the pre-v1499 protocol.
+   Every case fed the console an input the board had stopped writing. A real gate, on real data,
+   that never once fed the input that breaks it. **[[gate-blind-to-unexercised-input]]**
+2. **On this machine it SKIPS.** It drives Chrome with `--dump-dom` over `http://127.0.0.1`, which
+   Chrome here never answers — and the skip message says so honestly, even noting *"Playwright
+   drives the same binary fine"*. A gate that always skips is the same defect as one that cannot
+   fail. **[[feedback-blind-fixture-green-gate]]**
+
+Both fixed: the python cases rewritten to the v:2 vocabulary (8 cases, was 6), and a Playwright
+gate added that runs the same cases through a driver that works on this machine. Verified RED
+against the pre-fix console — six failures, naming the leak — and green after.
