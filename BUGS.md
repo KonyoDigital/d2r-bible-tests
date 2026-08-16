@@ -4146,3 +4146,82 @@ props). **Same removal, two standards** — `Bloodmoon's Light` was taken out of
 same night. The codex entry is now gone; the item is unreachable (`inItems:false`,
 `d2rResolveItem → unknown`) and `_artRarity` classifies it `rw`. Its three remaining references are
 genuine RUNEWORD data (affix list, art, note) under a legacy key and are deliberately kept.
+
+---
+
+## REG-165 — a terror zone frozen at pre-terror levels, and prose that outlived it (v1732)
+
+`Catacombs L4` stored `mlvl:75, tcMax:75`. Every other Hell terror zone in the file read `mlvl:96`.
+Terror saturation lifts all Hell TZ areas to 96, so the stored figures were the PRE-terror numbers
+for Andariel, sitting in a field describing the terrorized zone. **[[label-outlived-referent]]**
+
+The cost was not cosmetic. `zoneGrailDrops()` filters by `tcMax`, so the card offered **7** grail
+items where the zone really drops **79** — 72 items hidden from a farm-planning surface, including
+the entire TC85 elite set. Measured, not argued: forcing the ceiling to TC60 in a fixture shrank
+the pool to 4, confirming the pool is a pure function of the ceiling.
+
+Six further zones read `tcMax:85` against a live silospen pull in which all seven dwellers sharing
+that `hellTz` block independently returned **Tyrael's Might at 1:19,827,272** — a TC87 item. Those
+six were raised to 87. **Arcane Sanctuary was deliberately left at 85**, because its dweller tops
+out at TC78; it is the control proving the raise was measured per zone rather than applied blanket,
+and a gate now pins it as the single zone below the top ceiling.
+
+### The second defect, which the first one hid
+
+Raising the numbers left the hand-written prose on the same card saying the opposite, two lines
+apart:
+
+> 🎯 Andariel (same monster, **no mlvl boost**) … terror doesn't help Andy much, she's **already
+> mlvl 75 Hell**. **Same NM SoJ rate. Skip vs Pindle/Pit.**
+
+directly above the card's own generated line, *"Terror lifts this zone to mlvl 96 / TC87 — the
+highest ceiling in the game."* All three claims were refuted **by the bible's own data**:
+
+| claim | what the file says |
+|---|---|
+| "no mlvl boost" / "already mlvl 75" | `BOSSES` has Andariel **HELL TZ = mlvl 87 / TC87** |
+| "Same NM SoJ rate" | The Stone of Jordan: **1:2,286 in NM** vs **1:4,014 in Hell TZ** |
+| "Skip vs Pindle/Pit" | rested entirely on the TC75 cap just disproved |
+
+The SoJ correction is the interesting one: the truth is STRONGER than the note. NM Andariel really
+is the better SoJ kill — by 1.8× — but because the Hell pool is wider, not because terror does
+nothing. The card now says that.
+
+### Two copies, as always
+
+Every string existed twice: the `TZ_ZONES` literal and a static pre-rendered card that is what a
+no-JS reader is served. The first repair pass fixed the literal and left **five static twins** still
+reading `TC 85 max`. **[[copy-drift]]** A `assert count == 1` fired on the sixth string and stopped
+a half-applied edit before it was written.
+
+### Gates, and one gate deleted for being unable to fail
+
+* `v1732` — no zone's prose may claim an `mlvl` the zone contradicts, or a `TC` above its ceiling.
+  RED on a fixture holding the raised numbers with the stale prose.
+* `v1732` — the static pre-rendered card must carry the same figures as the live data. Its FIRST
+  version read `document.documentElement.outerHTML` and found **seen=0 on every fixture**, because
+  `renderTzZones()` replaces the static cards before a test can look. It was a green gate measuring
+  nothing, caught only by its own non-vacuity assertion; it now reads the file. **[[feedback-blind-fixture-green-gate]]**
+* `v49` — the old `Catacombs L4 (tc75) reaches NO TC85 elite pool` located its subject as
+  `ZS.find(z => z.tcMax < 85)`. Catacombs was the only zone under 85, so that was a de-facto name
+  lookup, and the fix made it return `undefined` — the test silently lost its subject. Replaced by
+  the saturation invariant (every Hell TZ at mlvl 96, ceilings only 85 or 87, exactly one zone
+  below 87), which goes RED on the pre-fix file.
+* **DELETED, and recorded rather than quietly dropped:** "no zone pool contains an item above that
+  zone's tcMax." It cannot fail — the pool is BUILT by filtering on `tcMax`, so a violating item is
+  unconstructible. It would have shipped as a green ★★★ gate protecting nothing.
+
+### Verification
+
+Rendered at 1440 and 375 via CDP. The first three capture attempts were all HARNESS FAULTS and none
+of them looked like one: a clip that photographed **Burial Grounds + Crypt + Mausoleum** while the
+logged `textContent` said Catacombs (the page re-renders between the scroll and the rect read);
+byte-identical 375 captures whose crop missed the changed line; and an `elementFromPoint` calibration
+returning NONE at 375 because a fixed bottom bar overlays the card. The harness now proves its own
+aim before any capture is trusted, and **refuses a verdict** when it misses. Grok, given the two
+renders cold with no hint of the expected values, transcribed `mlvl 96 terror · TC 87 max`,
+confirmed the two widths agree, and found no clipping or overlap.
+
+⚠ The before/after fixture lives in `/tmp`, away from the art directory, so **its images cannot
+load and it falls back to emoji**. Any art difference between those two shots is the fixture, not
+the change.
