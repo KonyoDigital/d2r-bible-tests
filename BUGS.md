@@ -3926,3 +3926,30 @@ level with item level. It remains flagged, not invented.
 - `tc`/`qlvl`/`tier` are properties of the ITEM, and new Pit rows carrying `0/0` produced **82
   cross-boss contradictions**. All 82 reconciled; the assertion now names its offenders instead of
   reporting a bare count.
+
+## REG-155 — a RUNEWORD was listed as a farmable unique in eleven boss drop tables (v1725)
+Found by the 13-agent read-only sweep Konyo authorised, and it is the sharpest thing the sweep
+returned. The file classified one key three incompatible ways:
+
+- **`ITEM_TIP['Crescent Moon (sword)']`** (`bible.html:24164`) carries `"t":"Runeword"` and the
+  exact affixes of Shael+Um+Tir — *10% CtC Chain Lightning, Ignore Target's Defense, -35% enemy
+  lightning resist, Summon Spirit Wolf charges*.
+- **`ITEM_CODEX['Crescent Moon (sword)']`** calls it `rarity:'unique'` with `base:'Amulet'`, and its
+  props are **byte-identical, same order**, to `Crescent Moon (amulet)`. Its key says sword, its
+  base says amulet, its props are the amulet's.
+- **Eleven of thirteen bosses carried a drop row for it** — every farmable boss in the app.
+
+**A runeword cannot drop.** He could farm every boss in the game forever for an item that is
+forged, not found. 11 rows removed; ITEMS 321 → 320, drop index 548 → 547.
+
+**And it was the cause of an "honest unknown" I had shipped.** v1716 left `Crescent Moon` unrouted
+on the reasoning that two different uniques share the name, and v1720's spec pinned that as correct
+behaviour. There was only ever ONE Crescent Moon unique. With the runeword row gone the amulet
+resolves to a single row and **routes for the first time** — no-source uniques 8 → 7, and the seven
+that remain are the six Sunder charms and the Hellfire Torch, all genuinely not boss drops.
+The spec now pins the truth and keeps the principle, witnessed by the real duplicate pairs that do
+remain (`Hellmouth` / `Hellmouth (gloves)`, `The Hand of Broc` / `(gloves)`).
+
+⚠ **The refutation pass corrected the finder's own argument**: identical odds across rows with
+different tc/qlvl is NORMAL here (nine unique amulets share countess-hell 1:13,532 across tc
+15/42/60/78), so "identical odds" proves nothing. The tip-table contradiction is the evidence.

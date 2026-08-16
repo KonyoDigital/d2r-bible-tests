@@ -110,29 +110,42 @@ test.describe('v1716 — every hunt on the board resolves to a real run', () => 
     expect(r.nosrc.length, 'uniques with no tracked drop location: ' + r.nosrc.join(', ')).toBeLessThanOrEqual(10);
   });
 
-  test('★ an ambiguous name stays unrouted rather than borrowing one', async ({ page }) => {
+  /* v1725 — THE EXAMPLE MOVED, THE PRINCIPLE DID NOT.
+     This used to pin "Crescent Moon", on the belief that two different uniques carry that name.
+     A fleet sweep proved otherwise: `Crescent Moon (sword)` was the RUNEWORD (ITEM_TIP carries
+     `"t":"Runeword"` and the Shael+Um+Tir affix list — Ignore Target's Defense, -35% enemy
+     lightning resist, Summon Spirit Wolf charges) sitting in ELEVEN boss drop tables as a
+     farmable unique, with an ITEM_CODEX entry that called it a unique whose base is "Amulet" and
+     whose props are byte-identical to the real amulet's. A runeword cannot drop. Removing it left
+     ONE Crescent Moon, and it routes.
+     The rule it was written for still holds and still needs a witness, so this now pins the real
+     ambiguous pairs — an item and its redundant parenthetical twin. */
+  test('★ a name with two rows does not borrow one row\'s route', async ({ page }) => {
     await boot(page);
     const r = await page.evaluate(() => {
       const w: any = window;
-      const items = (w.ITEMS || []).filter((x: any) => /^Crescent Moon/.test(x.n)).map((x: any) => x.n);
-      const fu = w.funiScan();
-      const cm = fu.missing.find((x: any) => x.n === 'Crescent Moon');
-      return { rows: items, unrouted: cm ? !w._pickSrc(cm.sources, cm.n) : null };
+      const byKey: Record<string, string[]> = {};
+      (w.ITEMS || []).forEach((x: any) => {
+        const k = w._regKey(x.n); (byKey[k] = byKey[k] || []).push(x.n);
+      });
+      const dupes = Object.entries(byKey).filter(([, v]) => (v as string[]).length > 1);
+      const cm = (w.ITEMS || []).filter((x: any) => /^Crescent Moon/.test(x.n)).map((x: any) => x.n);
+      const miss = w.funiScan().missing.find((x: any) => x.n === 'Crescent Moon');
+      return {
+        dupeKeys: dupes.map(([k, v]) => k + ': ' + (v as string[]).join(' | ')),
+        crescentRows: cm,
+        crescentRouted: miss ? !!w._pickSrc(miss.sources, miss.n) : null,
+      };
     });
-    expect(r.rows.length, 'two different uniques are called Crescent Moon').toBeGreaterThan(1);
-    if (r.unrouted !== null) {
-      expect(r.unrouted, 'one roster row cannot speak for two items').toBe(true);
+    // the runeword is gone from the unique tables, so exactly one Crescent Moon remains
+    expect(r.crescentRows, 'a runeword must not sit in the unique drop tables').toEqual(['Crescent Moon (amulet)']);
+    if (r.crescentRouted !== null) {
+      expect(r.crescentRouted, 'with one row it can finally be routed').toBe(true);
     }
+    // the binding rule still has a subject: an item and its redundant twin
+    expect(r.dupeKeys.length, 'no duplicate-key pair left to exercise the rule').toBeGreaterThan(0);
   });
 
-  /* v1717, and it exists because a DIFFERENT model family went looking for it.
-     Grok, handed the two-list split and asked to refute "every consumer reads the right list",
-     pointed at the seam rather than the call sites: `nc` is a per-ROW flag while ITEMS membership
-     is decided ONCE, by the first row for that name. If a name were `nc:1` on its first boss and
-     plain on a later one, it would never enter ITEMS while _calcDrops still rendered the later
-     row — a click that opens "item not found". It does not fire today (measured: zero split
-     names, because the merge flagged by NAME), which is exactly why it needs a guard: the next
-     pull is where it would start. */
   test('★ no item name is nc on one boss and not on another', async ({ page }) => {
     await boot(page);
     const r = await page.evaluate(() => (window as any)._ncAudit());

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1724",
+  "ver": "v1725",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1724: his five: the vacuous gates now establish their subject, a garbled row that named the mod as its own base item is gone, ceilings need two witnesses so one mis-tagged item cannot set them, and The Pit is finally on current data via a representative dweller with three of four agreeing exactly",
+  "note": "v1725: the sweep found Crescent Moon sword listed as a farmable unique in eleven boss tables when its own tip table calls it a runeword and its codex entry copies the amulet props: a runeword cannot drop, so eleven rows are gone and the real Crescent Moon amulet is routable for the first time",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
