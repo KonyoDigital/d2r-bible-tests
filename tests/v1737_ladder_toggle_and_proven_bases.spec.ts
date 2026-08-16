@@ -18,11 +18,16 @@ import * as path from 'path';
 // ladder-only words sat in MAKE NOW with the toggle unset; after, they sit in the read-only
 // `ladder` strip and appear in MAKE NOW only once the toggle is explicitly on.
 //
-// ⚠ The set holds EIGHT words (Bulwark, Cure, Ground, Hearth, Hysteria, Mania, Metamorphosis,
-// Temper) while three comments and Konyo both say "9". Seven other 2.4-era words (Pattern, Plague,
-// Obsession, Mist, Flickering Flame, Unbending Will, Wisdom) exist in the file and are NOT marked.
-// Nothing in the repo says which — if any — is the ninth, so the set is pinned at 8 rather than
-// guessed at, and a change to it has to be deliberate. [[unknown-stays-unknown]]
+// ⚠ RESOLVED IN v1738 — THE SET IS EIGHT. It was pinned at 8 here while three comments and Konyo
+// both said "9"; he asked for it to be looked up, and it was. The Season 15 ladder-only list names
+// exactly these eight (Bulwark, Cure, Ground, Hearth, Temper, Metamorphosis on helms, Mania on
+// weapons, Hysteria on body armor). Mosaic WAS ladder-only and moved to non-ladder in patch 3.1,
+// so leaving it unmarked is correct. RotW's five new runewords — Void, Ritual, Coven, Authority,
+// Vigilance — are all present in RUNEWORD_TIP and none is ladder-restricted. And HUSTLE, the one
+// real runeword absent from all 99 and therefore the best candidate for a ninth, is absent
+// CORRECTLY: RotW renamed it to Mania on weapons and Hysteria on body armor, which is exactly why
+// those two share one rune set (Shael+Ko+Eld) and why his own rwVerify seed recorded both failing
+// off-ladder. The "9" existed only in this file's prose, never in its data.
 //
 // ── 2. A BASE THE FORGE NAMED, THAT ATE HIS RUNES ─────────────────────────────────────────────
 // Konyo: "voice of reason runeword i created a runword for it in it and it didnt work... i wasted
@@ -142,6 +147,49 @@ test.describe('v1737 — the ladder toggle turns things ON, and a proven-bad bas
     // the word itself must remain plannable — the BASE was disproved, not the runeword
     expect(r.legalBases.length, 'Voice of Reason lost every base, not just the bad one')
       .toBeGreaterThan(0);
+  });
+
+  /* v1738 — THE SET IS EIGHT, AND NO PROSE MAY SAY OTHERWISE.
+     Konyo was "pretty sure there are 9" and asked me to research it. He was right to ask and the
+     data was right all along: the Season 15 ladder-only list names exactly these eight; Mosaic was
+     ladder-only and moved to non-ladder in patch 3.1, so leaving it unmarked is correct; RotW's
+     five new runewords (Void, Ritual, Coven, Authority, Vigilance) are all present and none is
+     ladder-restricted; and HUSTLE, which looked like a missing ninth because it is absent from all
+     99, is absent CORRECTLY — RotW renamed it to Mania on weapons and Hysteria on body armor,
+     which is exactly why those two share one rune set.
+
+     Where the 9 came from: three claims in this file's PROSE and none in its data. That is the
+     likeliest source of the belief, so this pins the two together — if the set ever changes, the
+     comments have to change with it. [[label-outlived-referent]] */
+  test('★★ the ladder set is eight, and the file never claims a different number', async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(1500);
+    const r = await page.evaluate(() => {
+      const set = Object.keys(_RW_LADDER_ONLY);
+      const total = Object.keys(RUNEWORD_TIP).length;
+      // Mania and Hysteria are the renamed Hustle: one rune set, two bases. If that ever stops
+      // being true, the rename has been undone and the count is genuinely in question.
+      const shaelKoEld = Object.entries(RUNEWORD_TIP)
+        .filter(([, e]: any) => (e.rec || []).join('+') === 'Shael+Ko+Eld').map(([n]) => n).sort();
+      return { n: set.length, set: set.sort(), total, shaelKoEld,
+               hustlePresent: !!(RUNEWORD_TIP as any)['Hustle'] };
+    });
+    expect(r.total, 'the runeword registry is empty — nothing was measured').toBeGreaterThan(90);
+    expect(r.set).toEqual(['Bulwark', 'Cure', 'Ground', 'Hearth', 'Hysteria', 'Mania',
+                           'Metamorphosis', 'Temper']);
+    expect(r.shaelKoEld, 'Mania/Hysteria are the renamed Hustle — one rune set, two bases')
+      .toEqual(['Hysteria', 'Mania']);
+    expect(r.hustlePresent, 'Hustle reappeared — RotW renamed it, so it should not exist').toBe(false);
+  });
+
+  test('★★ no prose in the file claims a ladder count the data contradicts', async () => {
+    const fs = require('fs');
+    const src: string = fs.readFileSync(path.resolve(__dirname, '..', 'bible.html'), 'utf8');
+    /* Only ASSERTIONS are policed. Konyo's own quoted words say "9" and stay verbatim — a record
+       of what he said is not a claim by this file about how many there are. */
+    const claims = [...src.matchAll(/(?:all|the|those)\s+(\d+)\s+ladder\s+(?:words|runewords)|(?:all|the)\s+(\d+)\s+words\s+unlocked/gi)]
+      .map((m) => m[1] || m[2]).filter((n) => n !== '8');
+    expect(claims, 'file prose claims a ladder count that is not 8: ' + claims.join(', ')).toEqual([]);
   });
 
   test('★★ the impossible base×runeword pairs are counted, not silently tolerated', async ({ page }) => {

@@ -4552,3 +4552,42 @@ Nothing here can rule on RotW legality. `RUNEWORD_TIP.b` is diablo2.io v3.2 (van
 is a curated meta list; neither is the AB wiki. The Voice of Reason case proves the two can diverge
 and that his game is the only authority available. Per-pair failures he measures in-game go in
 `_RW_BASE_FAILED`. **[[unknown-stays-unknown]]**
+
+---
+
+## RESOLVED — "I'm pretty sure there are 9": there are 8, and the data was right (v1738)
+
+Konyo, on the ladder-only runeword set: *"im pretty sure there are 9... look it up and research it."*
+
+He was right to ask and the file was right all along. **The set is EIGHT**, and every surface had
+been saying so: `_RW_LADDER_ONLY` holds 8, the Chronicle group header renders `8`, the Forge strip
+lists 8, and 91 non-ladder + 8 = the 99 in `RUNEWORD_TIP`.
+
+### What was checked, and what each candidate turned out to be
+
+| candidate | verdict |
+|---|---|
+| The eight marked | Confirmed by the Season 15 ladder-only list, name for name: Bulwark, Cure, Ground, Hearth, Temper, Metamorphosis (helms), Mania (weapons), Hysteria (body armor) |
+| **Mosaic** | WAS ladder-only; moved to non-ladder in **patch 3.1**. Leaving it unmarked is correct, not an omission |
+| Void, Ritual, Coven, Authority, Vigilance | RotW's five NEW runewords. All present in `RUNEWORD_TIP`; none ladder-restricted |
+| Pattern, Plague, Obsession, Mist, Flickering Flame, Unbending Will, Wisdom | 2.4-era, since released to non-ladder. Correctly unmarked |
+| **Hustle** | The best candidate — a real runeword, absent from all 99. **Absent CORRECTLY:** RotW *renamed* it, to **Mania** on weapons and **Hysteria** on body armor. That is why those two share one rune set (`Shael+Ko+Eld`), and why his own `rwVerify` seed recorded both as failing off-ladder |
+
+### Where the 9 came from
+
+**Three claims of "9" lived in this file's prose and none in its data** — `bible.html:16351`
+("the 9 ladder words"), `:16416` ("all 9 words unlocked"), and the v1475 note quoting him as
+"those 8-9 runewords". That is very likely the origin of the belief: a number under a word,
+repeated until it read as a fact. **[[label-outlived-referent]]**
+
+The two that were ASSERTIONS are corrected to 8. His own quoted words stay verbatim — a record of
+what he said is not a claim by the file about how many there are — with the research recorded
+beside them.
+
+A gate now pins the set to the exact eight names, asserts `Shael+Ko+Eld` resolves to exactly
+Mania + Hysteria (if that ever stops being true, the rename has been undone and the count is
+genuinely back in question), asserts `Hustle` does NOT reappear, and fails on any file prose
+claiming a ladder count that is not 8 — so the number and the data can never drift apart again.
+
+⚠ A stale claim of the same shape was found and fixed next door: the `rwVerify` seed comment says
+"the **three** Shael+Ko+Eld combos Konyo proved don't work", and there are two.

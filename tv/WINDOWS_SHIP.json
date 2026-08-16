@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1737",
+  "ver": "v1738",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1737: the forge ladder toggle defaulted to include so ladder-only runewords sat in MAKE NOW and ONE-STEP on a non-ladder character until it was switched off; and Voice of Reason in a Broad Sword is recorded as a pairing his own game disproved after it ate his runes",
+  "note": "v1738: researched the ladder-only runeword set after he asked me to look it up; the data was right at eight and the nine lived only in prose, with Hustle absent correctly because RotW renamed it to Mania and Hysteria",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
