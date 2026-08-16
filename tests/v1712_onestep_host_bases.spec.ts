@@ -469,3 +469,43 @@ test('★ v1719 — the shopping list never tells him to buy a base he owns', as
   expect(r.ownedN).toBeGreaterThan(0);
   expect(r.offenders, 'bases to BUY that are already in his stash: ' + r.offenders.join(', ')).toEqual([]);
 });
+
+/* The general form of his rule, across the whole roster rather than the one word that exposed it.
+   "Names bases I own" is only half a promise: the other half is that the Forge must never send him
+   shopping for something already in his stash, and never call a base "ready" that he does not
+   hold. Both directions, all 99 words, four owned bases planted across item classes. */
+test('★ v1719 — no word says GET A BASE while a legal one is in his stash, and no "ready" base is unowned', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const w: any = window;
+    w.LSR.setItem('d2r_rwProfile', 'fresh');   // an empty chronicle, or there is nothing to plan
+    w.LSR.setItem('d2r_rwMade', '{}');
+    w.LSR.setItem('d2r_rwUnmade', '{}');
+    w.LSR.setItem('d2r_runeStash', '{}');
+  });
+  await page.reload();
+  await page.waitForTimeout(1800);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    ['Bloodlord Skull (2os)', 'Monarch (4os)', 'Colossus Blade (6os)', 'Archon Plate (4os)'].forEach((t) => {
+      try { w._ensureSocketBaseEntry && w._ensureSocketBaseEntry(t); w.toggleOwned && w.toggleOwned(t); } catch (e) {}
+    });
+    const ownedClean = new Set((w._ownedBases ? w._ownedBases() : []).map((o: any) => String(o.base)));
+    const sc = w.forgeScan();
+    const bad: string[] = [];
+    ([] as any[]).concat(sc.onestep || [], sc.pipeline || [], sc.farm || []).forEach((t: any) => {
+      if (!t || !t.rw) return;
+      const ownedLegal = w._rwLegalBases(t.rw, 99, { ownedOnly: true }) || [];
+      const readyBase = t.base && t.base.base;
+      if (ownedLegal.length && t.sub === 'base') bad.push(t.rw + ': sent shopping while owning ' + ownedLegal.join('/'));
+      if (readyBase && !ownedClean.has(readyBase)) bad.push(t.rw + ': calls "' + readyBase + '" ready, but it is not owned');
+    });
+    const planned = (sc.onestep || []).length + (sc.pipeline || []).length + (sc.farm || []).length;
+    return { ownedN: ownedClean.size, planned, bad: bad.slice(0, 10) };
+  });
+  expect(r.ownedN, 'the planted bases did not register').toBeGreaterThan(2);
+  // the sweep must have had something to sweep — a green run over an empty plan proves nothing
+  expect(r.planned, 'the Forge planned nothing, so this assertion would be vacuous').toBeGreaterThan(50);
+  expect(r.bad, 'Forge contradictions: ' + r.bad.join(' | ')).toEqual([]);
+});
