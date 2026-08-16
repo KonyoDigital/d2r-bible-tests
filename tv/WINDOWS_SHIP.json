@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1725",
+  "ver": "v1726",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1725: the sweep found Crescent Moon sword listed as a farmable unique in eleven boss tables when its own tip table calls it a runeword and its codex entry copies the amulet props: a runeword cannot drop, so eleven rows are gone and the real Crescent Moon amulet is routable for the first time",
+  "note": "v1726: the grail total is no longer typed into 103 card descriptions and a dozen notes where it had gone stale three times over, and two uniques that named the elite tier of their base while storing the exceptional tiers requirements now name the base they actually drop on, with 67 more whose base differed from the database only by case and so resolved to nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

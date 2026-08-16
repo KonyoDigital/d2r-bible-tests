@@ -121,7 +121,8 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
 > odds cell traces to a source below; un-sourced numbers are marked qualitative.
 
 - `BOSSES[].dropTable` (JSON, ~line 2638) holds the FULL TC-reachable grail pool
-  per boss (~300 items, NOT a curated top-N). The calc grid reads it live.
+  per boss (every reachable row, NOT a curated top-N). The calc grid reads it live, and so
+  should you — the per-boss row count varies by boss and moves with every data pull.
 - **RoW, not vanilla.** Konyo plays Reign of the Warlock. All unique/set rows were
   repulled from silospen's live JSON API (`dropcalc.silospen.com/dropcalc.php`,
   `version=D2R_ROW_3_0`, query `monsterProbabilities`, **MF=300, players=1** — that
@@ -145,13 +146,16 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
   14 super-uniques carry per-kill odds (su-odds-data).
 - **Fixed-rate mechanics (not silospen-modelable, community-verified):** Key of Hate 36%
   per Summoner kill · Annihilus per-DClone. Countess rune odds separately calibrated (1:850 Ist).
-- **Materials are NOT MF-scaled and NOT in the 322-item grail count** (sunders,
+- **Materials are NOT MF-scaled and NOT in the tracked grail count** (sunders,
   shards, statues, jewels, keys, organs, essences). Their per-kill figures are
   community estimates (silospen / d2runewizard / diablo2.io / Maxroll), never invented.
-- **Integrity gate** = `baseline/integrity_baseline.json` probes (322 items, 13 bosses,
+- **Integrity gate** = `baseline/integrity_baseline.json` probes (item count, 13 bosses,
   drop probes) checked by `routine-l-integrity.yml` — NOT a file md5 hash. UI-only
-  edits that don't touch BOSSES data stay green. Baseline mirrors anchors (e.g.
-  `probe_meph_shako.hell` = 836).
+  edits that don't touch BOSSES data stay green.
+  ⚠ **Do not restate the item count in this file.** It has drifted three times (312 → 322 → 320)
+  and this sentence carried the stale value every time. `tests/_data_locks.ts` is the ONE
+  definition; every spec imports it and the baseline is generated, never typed.
+  Baseline mirrors anchors (e.g. `probe_meph_shako.hell` = 836).
 
 ## Live deploy + CI (cost-free; no AWS/Achilles)
 - Live: `https://bull-4-u.com/d2r/` — Cloudflare **Pages** project `d2r-bible`

@@ -3953,3 +3953,49 @@ remain (`Hellmouth` / `Hellmouth (gloves)`, `The Hand of Broc` / `(gloves)`).
 ⚠ **The refutation pass corrected the finder's own argument**: identical odds across rows with
 different tc/qlvl is NORMAL here (nine unique amulets share countess-hell 1:13,532 across tc
 15/42/60/78), so "identical odds" proves nothing. The tip-table contradiction is the evidence.
+
+## REG-156 — a total typed into 116 strings, stale three times over (v1726)
+Konyo: *"do the 312/322 sweep"*. The grail total has been **312, then 322, then 320**, and each time
+prose carried the old value:
+- **103 off-grail item cards** in `EXTRA_ITEMS[*].desc` read *"Not in the tracked 312/322 grail"* —
+  user-visible on every off-grail card. (The sweep attributed these to `ITEM_CODEX`; they are in
+  `EXTRA_ITEMS`. Verified before acting: `ITEM_CODEX` contains zero.)
+- ~10 zone notes said *"322-item grail count"*, plus *"312-item boss-drop grail"* ×3 and a routine
+  description calling itself a *"312-item click sweep"* while its own script reads `ITEMS.length`.
+- `GAME_RULES.md` twice, and a *"~300 items"* per-boss figure for tables that now reach 540.
+
+**Fixed by DELETING the numbers, not refreshing them.** None of those sentences needed a total —
+"Not in the tracked grail" says everything the reader needs. A count baked into a static string
+cannot self-update, which is precisely how it drifted three times.
+Guard: `tests/v1726_no_baked_counts.spec.ts` fails on any `NNN-item grail` / `NNN/NNN grail` string
+in bible.html or a restated count in GAME_RULES.md. **Seen RED** — reinserting one occurrence names
+`bible.html:16961`. It immediately caught a fourth I had not spotted (the `~300 items` line).
+
+## REG-157 — item cards naming the wrong tier of their own base (v1726)
+Konyo: *"and the elite/exceptional base audit"*. Audited all 321 codex entries against `BASE_DB`
+(the sweep could resolve 189; normalising case first raised it to 259). **Three classes, kept apart:**
+
+**1 · TIER SUBSTITUTION — the card sends him after the wrong item.** Proven without outside
+authority, since a unique cannot require a LOWER level than the base it sits on:
+- `Jalal's Mane` named **Dream Spirit** (elite, reqLvl 66) while storing reqLvl 42 / reqStr 65. Its
+  own note says *"druid grail pelt"*, and of the seven bases at reqStr 65 only **Totemic Mask**
+  (exceptional, reqLvl 41) is a pelt — and 41 feeds a unique reqLvl of 42 exactly.
+- `Bartuc's Cut-Throat` named **Runic Talons** (elite, reqLvl 60) while storing reqLvl 42 / 79 / 79.
+  Exactly one candidate: **Greater Talons** (exceptional, reqLvl 37).
+
+**2 · A BASE THAT IS NOT AN ITEM.** `Andariel's Visage` gave `'demonhead'` — lowercase, matching no
+key — while its reqStr 102 matches `Demonhead` (elite) alone. And `Polaris Spear` + `The Scourge`
+gave **"Reign of the Warlock"**, the MOD'S NAME, as their base item: the same signature that
+identified `Bloodmoon's Light` as a garbled row in v1725. These two are REAL RotW customs, so the
+FIELD was nulled rather than the item deleted — unknown beats wrong.
+
+**3 · CASE-ONLY MISMATCHES — 67 of them.** `'bone visage'`, `'armet'`, `'corona'`, `'diadem'`,
+`'spired helm'`… none resolved in `BASE_DB`, so 67 item cards could show no base requirements at
+all. Normalised to the database's own spelling.
+
+**Counted, not guessed:** three entries name the right base but disagree with its reqLvl by 1–6
+(`Darkforce Spawn`/Bloodlord Skull, `Astreon's Iron Ward`/Caduceus, `Ghostflame`/Legend Spike).
+Nothing in this repo says which side is wrong, so they are pinned at 3 rather than invented.
+**And one candidate was DISMISSED**: `Skystrike` (reqStr 25 on an 18-str Edge Bow) is legal — a
+unique may require more than its base. Recorded because a sweep that only reports hits says nothing
+about its own precision.
