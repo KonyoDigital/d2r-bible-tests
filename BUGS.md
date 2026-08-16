@@ -4290,3 +4290,47 @@ way. **The evidence here is the DOM measurement** (`0px none` → `1px solid rgb
 
 Gate `v1733`: no bare `var()` may name a token nothing ever defines, in either file; plus the
 elevation ladder must stay ordered. RED on both pre-fix files, naming exactly the right tokens.
+
+---
+
+## REG-167 — one token, several colours at once (v1734)
+
+The v1733 audit left a second half. A token that is UNDEFINED still renders, via its fallbacks —
+and if those fallbacks disagree, the same design token draws different colours in different places.
+
+`tv/control_ui.html` referenced `--gold-bright` twice and defined it nowhere, so both fallbacks were
+live and they disagreed: `#itip`'s border drew **#d4a849** while `.hh-go:hover` drew **#f0c060**.
+The comment directly above `#itip` states its intent — *"is the board's, so it is the same card at a
+legible size rather than a different one"* — and it was not the board's colour. Measured before and
+after: `rgb(212,168,73)` → `rgb(240,192,96)`. The console now defines the token at the value
+bible.html uses for that name.
+
+**This also corrects the v1733 record.** `--gold-dim` was not merely absent. Across its fallback
+sites it was rendering as **six colours at once** — #6a5a38, #8a6f2e, #9a7426, #a07830, #c8a24a,
+#caa24a — on top of the 192 bare uses that rendered as nothing. One of those six was already
+**#a07830**, the console's value, which is a second independent witness that v1733 chose right.
+**[[d2r-multiwitness-corroboration]]**
+
+### A gate written, measured, and thrown away
+
+The first version demanded every fallback EQUAL the definition it backs up. **The count was the
+tell**: it flagged 28 sites, including `--text-dim` with twelve different fallbacks and `--text`
+with eight. Approximate fallbacks are this file's house style, and while a token IS defined the
+token wins — those fallbacks are dead code that never renders. A gate ordering ~28 edits with no
+visual effect is a style opinion wearing a gate's clothes.
+
+Worse, I nearly acted on a TRUNCATED view of it: an earlier run printed only the first five and I
+was about to "fix three and pin two" on that basis. The five were not the set.
+**[[feedback-suspect-the-instrument]]**
+
+For the same reason the 11 `--gold-bright` fallback edits I had already made to `bible.html` were
+**reverted**. They were dead code, they changed nothing on screen, and keeping them would have
+contradicted the rationale of the gate shipped beside them.
+
+Two sites are recorded and NOT touched: `.aura-tag-target` (`var(--best,#c9a14a)`) and
+`.forge-donow-h` (`var(--best,#e8c878)`) put a GOLD fallback on a GREEN token. They render green
+today and always have. Either the variable is wrong at those sites or the fallback is a leftover,
+and nothing in this repo says which. **[[unknown-stays-unknown]]**
+
+Gate `v1734`: an undefined token may not render as two different values. RED on both pre-fix files,
+naming `--gold-bright` in the console and the six-colour `--gold-dim` in the board.

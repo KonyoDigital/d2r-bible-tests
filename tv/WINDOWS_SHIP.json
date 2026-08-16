@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1733",
+  "ver": "v1734",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1733: gold-dim was referenced 192 times and defined zero times so 160 borders never drew and 243 colours silently inherited; four more undefined tokens resolved from their own witnesses and a gate added so a bare var can never again name nothing",
+  "note": "v1734: an undefined token still renders through its fallbacks so gold-bright drew two different colours on the console and gold-dim had been drawing six on the board; the console now defines it and a gate pins the rule",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

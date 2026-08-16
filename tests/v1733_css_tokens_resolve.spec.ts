@@ -84,6 +84,50 @@ test.describe('v1733 — every CSS token resolves to something', () => {
     });
   }
 
+
+  /* v1734 — AN UNDEFINED TOKEN MAY NOT RENDER AS TWO DIFFERENT COLOURS.
+     The first version of this gate demanded that every fallback EQUAL the definition it backs up.
+     It was wrong, and the count said so: it flagged 28 sites, including --text-dim with twelve
+     different fallbacks and --text with eight. Approximate fallbacks are this file's house style,
+     not a defect — and while a token is defined the token wins, so those fallbacks are dead code
+     that renders nothing. A gate demanding ~28 edits with no visual effect is a style opinion
+     wearing a gate's clothes. [[feedback-suspect-the-instrument]]
+
+     The invariant that IS real: when a token is NOT defined, its fallbacks are LIVE, and if they
+     disagree the same design token renders as different colours in different places.
+
+     Both files were red on exactly this. tv/control_ui.html referenced --gold-bright twice with no
+     definition, so #itip's border drew #d4a849 while .hh-go:hover drew #f0c060 — one token, two
+     colours, on screen together. And bible.html's --gold-dim was worse than "undefined": across
+     its fallback sites it rendered as SIX colours at once (#6a5a38, #8a6f2e, #9a7426, #a07830,
+     #c8a24a, #caa24a) on top of the 192 bare uses that rendered as nothing.
+
+     One of those six was already #a07830 — the value tv/control_ui.html defines — which is a
+     second, independent witness that the value chosen in v1733 was the right one.
+     [[d2r-multiwitness-corroboration]] */
+  for (const file of FILES) {
+    test(`★★★ ${file}: an undefined token does not render as two different values`, async () => {
+      const raw = fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8');
+      const s = raw.replace(/\/\*[\s\S]*?\*\//g, ' ');
+      const fb = new Map<string, Set<string>>();
+      for (const m of s.matchAll(/var\(\s*(--[a-zA-Z0-9-]+)\s*,\s*([^)]+?)\s*\)/g)) {
+        if (!fb.has(m[1])) fb.set(m[1], new Set());
+        fb.get(m[1])!.add(m[2].toLowerCase());
+      }
+      const bad: string[] = [];
+      let checked = 0;
+      for (const [token, vals] of fb) {
+        // a DEFINED token always wins, so its fallbacks are dead and may drift harmlessly
+        if (new RegExp(String.raw`${token}\s*:`).test(s)) continue;
+        checked++;
+        if (vals.size > 1) bad.push(`${token} renders as ${[...vals].sort().join(' AND ')}`);
+      }
+      expect(checked, `${file}: no undefined-with-fallback tokens were found to judge`)
+        .toBeGreaterThan(3);
+      expect(bad, `${file}: one token, several colours: ` + bad.join(' | ')).toEqual([]);
+    });
+  }
+
   test('★★ the elevation aliases stay ordered — a raised surface must not be darker', async () => {
     const s = fs.readFileSync(path.resolve(__dirname, '..', 'bible.html'), 'utf8');
     const hex = (t: string) => {
