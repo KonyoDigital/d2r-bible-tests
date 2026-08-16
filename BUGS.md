@@ -4729,3 +4729,47 @@ the card does — `_adjC` for the odds, `_ttf` for the time — and both surface
 
 Verified RED against the pre-fix file (*"the sets ops row still has no time-to-find"*) and green
 after.
+
+---
+
+## REG-173 — his #1 farming target was published under a name that is not an item (v1743)
+
+The unique roster carried **`bloodcrescent`** — no space, no capitals — where every drop table in the
+file says **`Blood Crescent`**. It looked cosmetic and was not:
+
+* `funiScan` folds names with `_regKey` to borrow a ROUTE, so the item found its **65 sources** and
+  computed **1.04h — the fastest time on the board**;
+* but v1716's rule *"THE NAME HE TICKS MUST NOT CHANGE"* deliberately keeps the ROSTER spelling for
+  display and for every ledger read;
+* so the grail bridge published his **#1 farming target under a name that is not an item**, and
+  F·Uniques — which resolves by the real name — **never showed it at all**.
+
+That is the missing half of REG-171: the Sessions bridge and F·Uniques disagreed about the fastest
+grail because one of them was ranking something the other could not see.
+**[[label-outlived-referent]]**
+
+Fixed at the source — the two map keys — plus a **one-time ledger migration**, because the same
+v1716 comment records the scar for renaming without one: *"3 found uniques flipped to missing the
+moment the object came back under the other name."* If he ever ticked it under the old spelling, the
+tick moves with the name rather than vanishing.
+
+After: the bridge's top three read **Blood Crescent 1.04h · Umbral Disk 1.2h · Frostburn 1.5h**,
+F·Uniques renders Blood Crescent, and the item keeps all 65 sources. Zero page errors.
+
+### The gate is narrow on purpose
+
+The roster has **twelve** names that differ from their registry match, and every one is legitimate —
+curly apostrophes (Atma’s, Seraph’s, The Cat’s Eye, Saracen’s), disambiguating qualifiers
+(`Harlequin Crest (Shako)`, `Gull (dagger)`, `Crescent Moon (amulet)`, `Athena's Wrath (set piece)`)
+and a leading article (The Cranium Basher, The Iron Jang Bong, The Mahim-Oak Curio). `_regKey` was
+written for exactly those and they must not be flagged.
+
+`bloodcrescent` was different in kind: not a rendering of the name, but a name that had lost its
+capitals and its spaces. **A name that reaches a screen starts with a capital** — that line separates
+the one defect from the twelve non-defects cleanly, and the twelve are pinned so a thirteenth is
+noticed.
+
+⚠ Found next door and NOT chased: `"Djinn Slayer": "art/bloodcrescent_graphic.png"` in a legacy
+graphic map points one unique at another's picture. It is dormant — `artUrl('Djinn Slayer')` resolves
+through the HD map to `hd_scimitar.png` (correct: Ataghan is the elite Scimitar) — but it is the
+v1629 wrong-picture-under-a-right-name shape, and `art/mr_djinnslayer.png` exists.

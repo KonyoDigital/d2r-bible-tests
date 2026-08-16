@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1741",
+  "ver": "v1743",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1741: the sessions sets row printed the raw source chance while the F-Sets card printed the MF-adjusted one so the same piece read 1:2.1k in one place and 1:1.9k with a 14h estimate in another; the row now uses the same seam and carries the time too",
+  "note": "v1743: the roster spelled Blood Crescent as bloodcrescent so the grail bridge ranked his fastest target under a name that is not an item while F-Uniques could not see it at all; fixed at the two map keys with a ledger migration so a tick under the old spelling moves with the name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
