@@ -8021,7 +8021,19 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .fh-boss .fh-boss-i{width:26px;height:26px;vertical-align:-5px;margin-right:7px;border-radius:4px;object-fit:cover}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:hover{filter:brightness(1.18);text-decoration:underline}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--acc-intel);outline-offset:2px}
-#tab-funi .forge-title{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}   /* v1625 ITEM6 — per-tab override */
+/* v1729 — A GLOW THE SAME COLOUR AS ITS BASE IS NOT A GLOW.
+   Konyo: "even the F-Uniques tab looks dull and matt colored compared to other sections".
+   Measured: Forge's title paints #ff7d3c and F·Sets' #00fc00 — both inherently vivid and neither
+   needs a glow. F·Uniques paints #c7b377, the game's own unique tan, which is the RIGHT hue (his
+   v1625 ruling: "F-UNIQUES it can be matched and synced to the uniques color") but the only one
+   of the three that is muted — and its text-shadow was rgba(199,179,119,…), the SAME tan as the
+   base, so it lit nothing. The title was flat by construction.
+   The base colour does NOT move: it is his ruling, it is the in-game FontColorGoldYellow, three
+   specs pin it, and v1625:214 explicitly forbids it collapsing into the console chrome gold
+   #f0c060 — which is exactly what "just make it brighter" would have done.
+   Only the GLOW changes, to the brighter end of the same unique-gold family (#ffd97a, already
+   used 29× here), so the title reads luminous while still reading UNIQUE. */
+#tab-funi .forge-title{color:var(--q-unique);text-shadow:0 0 4px rgba(255,217,122,.5),0 0 14px rgba(255,217,122,.38),0 0 28px rgba(240,192,96,.22),0 1px 1px rgba(0,0,0,.55)}
 /* v1633 — Konyo: "the forge title here should also be color synced to the tab. for FORGE within
    the tab color wise". The Forge TAB wears --rune (v1631); its page title was still the chrome
    gold, so the tab and the page it opens disagreed about what colour the Forge is. Same rule the
@@ -39975,7 +39987,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1728', name:'v1728 - the limit explains itself', date:'2026-08-16', note:'six of seven places that detect the AI usage limit raised the flag and never set the banner, so a capped key looked exactly like the AI failing to read his screenshots — the one message that exists to say the screenshots are fine; all seven now share one helper, and the last live spec with no assertions in it is skipped like its two siblings were' };
+  window.D2R_BUILD = { id:'v1729', name:'v1729 - a glow that glows', date:'2026-08-16', note:'the F Uniques title kept the in game unique tan he ruled for but its glow was painted in that same tan so it lit nothing and read matt beside a vivid orange Forge and a vivid green F Sets; only the glow moved, to the bright end of the same unique gold family, because raising the base would have collapsed it into the console chrome gold that v1625 forbids' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

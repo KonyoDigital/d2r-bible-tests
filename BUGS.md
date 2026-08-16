@@ -4059,3 +4059,35 @@ It is the **last survivor of a class the 2026-06-12 audit swept**, which applied
 `diag2.spec.ts` and `picks_count_diag.spec.ts` with that exact reasoning and missed this one.
 Skipped, not deleted — the diagnostic is useful run deliberately. Verified after: **no live spec
 file in the repo now has zero assertions.**
+
+## REG-161 — the F·Uniques title was matt because its glow was its own colour (v1729)
+Konyo, from three screenshots: *"even the F-Uniques tab looks dull and matt colored compared to
+other sections"* and *"make it the unique that resembles the ingame diablo ii .. matching and
+symmetric throughout the console"*.
+
+**Measured, not judged.** The three sibling titles paint:
+`Forge #ff7d3c` (vivid orange) · `F·Sets #00fc00` (vivid green) · `F·Uniques #c7b377` (the game's
+own unique tan). Two are inherently saturated and carry no glow; F·Uniques is the only muted one —
+**and it was the only one WITH a glow, painted `rgba(199,179,119,…)`: the exact same tan as its
+base.** A glow the colour of its base lights nothing, so the title was flat by construction.
+
+**The base colour did not move, and that was the important part.** `#c7b377` is his own v1625
+ruling (*"F-UNIQUES it can be matched and synced to the uniques color"*), it is D2's
+FontColorGoldYellow, three specs pin it, and `v1625_tab_quality_tints.spec.ts:214` explicitly
+forbids it collapsing into the console chrome gold `#f0c060` — which is precisely what "just make
+it brighter" would have done. Only the glow moved, to the bright end of the same unique-gold family.
+
+**On "symmetric throughout the console": the unique colour already is.** Both surfaces define it
+once and identically (`--q-unique` / `--rar-unique` = `#c7b377`), and the rendered audit finds it
+painted correctly on both. What is NOT symmetric is the surrounding gold family — **145 distinct
+gold/amber hexes in bible.html and 81 in tv/control_ui.html**, several doing the same job (labels,
+chips, chrome). That is the real cause of "slightly different between pictures", and it is a
+census-scale job, not a hand edit.
+
+## REG-162 — a gate whose verdict depends on what ran before it (OPEN)
+`test_chronicle_retro` failed **twice** inside the full 30-gate run tonight with
+`AssertionError: 2 != 1 : six identical frames of one page = ONE read`, and passes **3 of 3 alone
+in 0.3s**. It is order-dependent: something earlier in the run leaves frames or journal rows that
+make its dedup count read 2. Not caused by tonight's changes — it first appeared before most of
+them. Recorded rather than dismissed as a flake, because a gate that can be wrong about the tree
+depending on its neighbours is the same class as a gate that cannot fail.

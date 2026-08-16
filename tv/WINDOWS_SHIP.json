@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1728",
+  "ver": "v1729",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1728: six of seven places that detect the AI usage limit raised the flag and never set the banner, so a capped key looked exactly like the AI failing to read his screenshots — the one message that exists to say the screenshots are fine; all seven now share one helper, and the last live spec with no assertions in it is skipped like its two siblings were",
+  "note": "v1729: the F Uniques title kept the in game unique tan he ruled for but its glow was painted in that same tan so it lit nothing and read matt beside a vivid orange Forge and a vivid green F Sets; only the glow moved, to the bright end of the same unique gold family, because raising the base would have collapsed it into the console chrome gold that v1625 forbids",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
