@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # 📺 TV DIABLO — agent TDD suite (v711). Zero deps, zero vision cost, synthetic frames.
 #   python3 tv/test_agent.py
-import io, json, os, shutil, struct, sys, tempfile, threading, time, unittest, urllib.request
+import io, json, os, re, shutil, struct, sys, tempfile, threading, time, unittest, urllib.request
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -255,30 +255,36 @@ class TestReadableFrame(unittest.TestCase):
             self.assertEqual(out, bmp)   # no sips → honest passthrough
 
     def test_convert_fail_does_not_swap_in_live_eye(self):
-        """v1709 — a failed JPEG convert must not return frames/eye.jpg (a different photo)."""
+        """v1709 — a failed JPEG convert must not return frames/eye.jpg (a different photo).
+
+        2026-08-17 — THIS TEST USED TO WRITE INTO tv.FRAMES ITSELF. `FRAMES` resolves to the LIVE
+        capture directory unless TV_FRAMES_DIR is set, so the test planted a fake eye.jpg among his
+        real frames and put it back afterwards by hand — reading the old bytes, and deleting its own
+        file only if it was still under 400 bytes. Careful, and still the wrong shape: while it ran,
+        a live reader could see the fake, and the recovery depended on the test's own cleanup being
+        reached. Every OTHER test in this file already does it properly — save FRAMES, point it at a
+        temp dir, restore in tearDown. This one is now the same, which also deletes the save/restore
+        dance entirely: there is nothing of his to preserve if we never touch his directory.
+        Guard the FIXTURE, not the call site. [[feedback-fixtures-never-touch-live-data]]
+        """
         d = tempfile.mkdtemp()
-        bmp = os.path.join(d, "settle.bmp")
-        open(bmp, "wb").write(b"BM" + b"\x00" * 80)
-        eye = os.path.join(tv.FRAMES, "eye.jpg")
-        saved = None
-        if os.path.isfile(eye):
-            saved = open(eye, "rb").read()
+        old_frames = tv.FRAMES
+        tv.FRAMES = os.path.join(d, "frames")
         try:
             os.makedirs(tv.FRAMES, exist_ok=True)
+            bmp = os.path.join(d, "settle.bmp")
+            open(bmp, "wb").write(b"BM" + b"\x00" * 80)
+            eye = os.path.join(tv.FRAMES, "eye.jpg")
             open(eye, "wb").write(b"\xff\xd8\xff" + b"x" * 200)  # looks like a JPEG
+            # non-vacuity: the file the bug would swap in must actually BE there, or "did not
+            # return eye.jpg" is true because there was no eye.jpg to return
+            self.assertTrue(os.path.isfile(eye), "the decoy eye.jpg was never created")
             with mock.patch.object(tv, "_to_jpeg", return_value=False):
                 out = tv._readable_frame(bmp)
             self.assertNotEqual(os.path.abspath(out), os.path.abspath(eye), out)
             self.assertEqual(os.path.abspath(out), os.path.abspath(bmp))
         finally:
-            if saved is None:
-                try:
-                    if os.path.isfile(eye) and os.path.getsize(eye) < 400:
-                        os.remove(eye)
-                except Exception:
-                    pass
-            else:
-                open(eye, "wb").write(saved)
+            tv.FRAMES = old_frames
             shutil.rmtree(d, ignore_errors=True)
 
 
@@ -3365,5 +3371,48 @@ class TestWarmUpGate(unittest.TestCase):
                          "real footage goes missing")
 
 
+
+class TestNoTestWritesIntoHisLiveCaptureDir(unittest.TestCase):
+    """2026-08-17 — NO TEST MAY WRITE INTO THE LIVE FRAMES / STATE.
+
+    `tv.FRAMES` resolves to his real capture directory unless TV_FRAMES_DIR is set, and `tv.STATE`
+    to the live state.json. Nearly every test here already redirects both at a temp dir and restores
+    them; ONE did not — it planted a fake eye.jpg among his frames and put it back by hand, deleting
+    its own file only if it was still under 400 bytes. While it ran, a live reader could have seen
+    the decoy, and recovery depended on the test's own cleanup being reached.
+
+    This is the static form of the rule that fix followed: a test body that WRITES to tv.FRAMES or
+    tv.STATE must first REBIND them. Reading is fine; creating a directory or opening a file for
+    write is not. Guard the FIXTURE, not the call site.
+    """
+
+    WRITE = re.compile(r"os\.makedirs\(\s*tv\.(FRAMES|HIST_DIR)|open\(\s*tv\.(FRAMES|STATE)[^)]*['\"][wa]")
+    REBIND = re.compile(r"tv\.(FRAMES|STATE|HIST_DIR)\s*=")
+
+    def test_every_writer_rebinds_first(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_agent.py")
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        # split into test bodies: "    def test_..." up to the next def at the same indent
+        bodies = re.split(r"\n(?=    def )", src)
+        offenders = []
+        for b in bodies:
+            name = (re.match(r"\s*def (\w+)", b) or [None, "?"])[1] if re.match(r"\s*def ", b) else None
+            if not name:
+                continue
+            w = self.WRITE.search(b)
+            if not w:
+                continue
+            r = self.REBIND.search(b)
+            if not r or r.start() > w.start():
+                offenders.append("%s writes to the live capture path without rebinding it first" % name)
+        # non-vacuity: the scan must have found test bodies AND at least one legitimate rebinding,
+        # or a regex that matches nothing would pass silently
+        self.assertGreater(len(bodies), 50, "the test file did not split into test bodies")
+        self.assertTrue(any(self.REBIND.search(b) for b in bodies),
+                        "no test rebinds tv.FRAMES/STATE at all — the pattern must be wrong")
+        self.assertEqual(offenders, [], "; ".join(offenders))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

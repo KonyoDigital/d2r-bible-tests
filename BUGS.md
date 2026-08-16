@@ -4814,3 +4814,42 @@ failure. The exercised assertions now live in their own test; the sealed-state o
 Four non-vacuity guards sit directly above the assertions they protect. Verified by removing the
 seeding: the guard fails with *"the wanted-base set is empty, so nothing below judges anything —
 Expected: > 10, Received: 0."*
+
+---
+
+## A test that wrote into his live capture directory (2026-08-17, test-only)
+
+`tv.FRAMES` resolves to his **real** capture directory unless `TV_FRAMES_DIR` is set, and `tv.STATE`
+to the live `state.json`. Of 42 references in `tv/test_agent.py`, nearly every one already does the
+right thing — save the global, point it at a temp dir, restore in `tearDown`. **One did not.**
+
+`test_convert_fail_does_not_swap_in_live_eye` planted a fake `eye.jpg` **among his real frames** and
+put it back by hand: read the old bytes first, and afterwards delete its own file *only if it was
+still under 400 bytes*. Careful, and the wrong shape twice over — while it ran, a live reader could
+have picked up the decoy, and recovery depended on the test's own cleanup being reached.
+
+It now rebinds `tv.FRAMES` to a temp dir like its neighbours, which **deletes the save/restore dance
+entirely**: there is nothing of his to preserve if his directory is never touched. Guard the FIXTURE,
+not the call site. **[[feedback-fixtures-never-touch-live-data]]**
+
+A non-vacuity guard went in with it — the decoy `eye.jpg` must actually exist before the assertion
+runs, or *"did not return eye.jpg"* is true merely because there was no `eye.jpg` to return.
+
+### And the static form of the rule
+
+`TestNoTestWritesIntoHisLiveCaptureDir` scans this file's own test bodies: a body that WRITES to
+`tv.FRAMES` / `tv.STATE` / `tv.HIST_DIR` (creating the directory, or opening for write/append) must
+REBIND it first. Reading is fine. It carries two non-vacuity checks of its own — the file must split
+into test bodies, and at least one body must legitimately rebind, or a regex matching nothing would
+pass in silence.
+
+Verified by injecting the exact shape the old test had; the guard names the offender:
+*"test_writes_into_live_frames_without_rebinding writes to the live capture path without rebinding
+it first."* Full agent suite: **225 passed**.
+
+⚠ **And the repo caught ME making the same class of error.** I appended the new guard class to the
+END of the file — below `if __name__ == "__main__": unittest.main()`. `TestNoOrphanSuite` failed the
+push and said exactly why: *"these suites define a test class AFTER unittest.main(), which exits the
+interpreter — every class below it is NEVER DEFINED and the suite still reports OK."* A gate written
+to prevent a silently-absent gate, catching a silently-absent gate, in the same commit that adds one.
+Moved above the guard; both suites green.
