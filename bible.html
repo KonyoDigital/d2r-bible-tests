@@ -14303,6 +14303,9 @@ function _rwLegalBases(rwName, limit, opts){
     } catch(e){}
 
     var isLegal = function(bn){
+      // v1737 — his game outranks every derived clause. A pairing he has PROVED does not form is
+      // not legal here either, however well it type-checks. See _RW_BASE_FAILED.
+      try { if (window._rwBaseFailed && window._rwBaseFailed(rwName, bn)) return false; } catch(e){}
       try {
         var hosts = (typeof _baseRunewords === 'function') ? (_baseRunewords(bn) || []) : null;
         if (hosts && !hosts.some(function(r){ return r.n === rwName; })) return false;   // wrong class
@@ -16362,12 +16365,44 @@ try { window._rwLadderBlocked = function(rw){ try { if (window.D2R_PROFILE==='la
 // Stored through LSR so it forks per world: the cousin's console can answer this differently from
 // the owner's without either one being able to change the other.
 window._forgeIncludeLadder = function(){
-  try { var v = window.LSR.getItem('d2r_forgeIncludeLadder'); return v === null || v === undefined ? true : v !== '0'; }
-  catch(e){ return true; }
+  // v1737 — DEFAULT OFF. Konyo: "its showing ladder runewords when it shouldnt be when im in
+  // non ladder. only when i toggle it on it should show those 9 runewords."
+  // This defaulted to TRUE, so a user who had never touched the toggle got the ladder words in
+  // the Forge lane on a non-ladder character — the toggle only ever did anything once it had
+  // been switched OFF, which is the opposite of a toggle that turns a thing ON. An unset
+  // preference is now EXCLUDE, matching every other surface: the runeword table and the
+  // Chronicle have always hidden them off-ladder (the v577 rule, "Konyo plays NON-ladder, it
+  // should not be giving me these"). Only an explicit '1' includes them.
+  try { return window.LSR.getItem('d2r_forgeIncludeLadder') === '1'; }
+  catch(e){ return false; }
 };
 window._forgeSetIncludeLadder = function(on){
   try { window.LSR.setItem('d2r_forgeIncludeLadder', on ? '1' : '0'); } catch(e){}
   try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
+};
+// v1737 — A PAIRING HE PROVED DOES NOT WORK, IN HIS GAME.
+//
+// Konyo, 2026-08-16: "voice of reason runeword i created a runword for it in it and it didnt
+// work... i wasted runewords" — the Forge's MAKE NOW named a 4os Broad Sword, he socketed
+// Lem-Ko-El-Eld in order, and the runes just sat there. No transform.
+//
+// By every source this file HAS, that pairing is legal: Broad Sword is a sword, its maxSockets is
+// 4, and Voice of Reason reads "4 socket Swords Maces". That clause comes from diablo2.io v3.2 —
+// VANILLA data. He plays Reign of the Warlock, where the AB wiki is the authority and a correct
+// vanilla fact can simply be wrong. So the repo cannot rule on this pairing, and his game can.
+// His measured result outranks a derived clause, exactly as rwVerify's seeded Mania / Hysteria
+// 'fail' verdicts already do. [[d2r-multiwitness-corroboration]]
+//
+// Keyed by RUNEWORD + BASE, not by runeword: Voice of Reason is not broken, this HOME for it is.
+// The word stays fully plannable on every other base.
+const _RW_BASE_FAILED = { 'Voice of Reason': ['Broad Sword'] };
+window._rwBaseFailed = function(rw, base){
+  try {
+    const list = _RW_BASE_FAILED[rw]; if (!list) return false;
+    const clean = String(base||'').replace(/\s*\([^)]*\)\s*$/,'')
+      .replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim().toLowerCase();
+    return list.some(function(b){ return String(b).toLowerCase() === clean; });
+  } catch(e){ return false; }
 };
 window._rwLadderBlockedForge = function(rw){
   try { if (window._forgeIncludeLadder()) return false; } catch(e){}
@@ -34425,6 +34460,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       rws.forEach(function(rw){
         var name=rw.n, need=rw.s;
         if (_rwBlocked(name)) return;
+        // v1737 — a pairing his own game has DISPROVED never becomes a task again. Type-legal and
+        // socket-legal is not the same as forms-in-RotW, and he pays for the difference in runes.
+        try { if (window._rwBaseFailed && window._rwBaseFailed(name, b.base)) return; } catch(e){}
         // HAND GATE. Fresh-base recommendations stay strict (1H player / 2H merc, via _metaBaseFor). But a base
         // you ALREADY OWN that type-matches the word CAN host it — a 2H/merc owned base just makes it a MERCENARY
         // weapon (Konyo's "2H = merc" rule), so surface it tagged instead of dropping it. Genuinely-wrong hands
@@ -40010,7 +40048,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1736', name:'v1736 - the console was never told', date:'2026-08-16', note:'v1499 changed the published route from machine names to ownership plus literal prefixes and the console lsFork still spoke the old vocabulary so a guest read the owner chronicle and could not see its own world; the test that should have caught it seeded the retired protocol and skipped on this machine' };
+  window.D2R_BUILD = { id:'v1737', name:'v1737 - the toggle that only turned things off', date:'2026-08-16', note:'the forge ladder toggle defaulted to include so ladder-only runewords sat in MAKE NOW and ONE-STEP on a non-ladder character until it was switched off; and Voice of Reason in a Broad Sword is recorded as a pairing his own game disproved after it ate his runes' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

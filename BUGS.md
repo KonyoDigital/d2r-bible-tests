@@ -4445,3 +4445,61 @@ grepping it, and it was written for exactly this defect class. Two things had go
 Both fixed: the python cases rewritten to the v:2 vocabulary (8 cases, was 6), and a Playwright
 gate added that runs the same cases through a driver that works on this machine. Verified RED
 against the pre-fix console — six failures, naming the leak — and green after.
+
+---
+
+## REG-170 — a toggle that only turned things OFF, and a base that ate his runes (v1737)
+
+### The ladder toggle was inverted
+
+Konyo: *"its showing ladder runewords when it shouldnt be when im in non ladder. only when i toggle
+it on it should show those 9 runewords."*
+
+`_forgeIncludeLadder()` defaulted to **TRUE**. An unset preference meant INCLUDE, so anyone who had
+never touched the control got the ladder-only words in the Forge lanes on a non-ladder character.
+The toggle only did anything once switched OFF — the opposite of a control that turns a thing on.
+Every other surface had always hidden them off-ladder (the v577 rule), so the Forge was the outlier.
+
+Measured through `forgeScan()` with an empty chronicle and a stocked stash: **before**, all eight
+ladder-only words sat in MAKE NOW with the toggle unset; **after**, they sit in the read-only
+`ladder` strip and enter MAKE NOW only when the toggle is explicitly on. His other ask — that
+ONE-STEP and MAKE NOW follow the same rule — needed no separate fix: both lanes were already gated
+by `_rwBlocked`, which consults this predicate. One default, three lanes.
+
+⚠ The set holds **EIGHT** words while three comments and Konyo both say "9". Seven other 2.4-era
+words (Pattern, Plague, Obsession, Mist, Flickering Flame, Unbending Will, Wisdom) exist in the file
+unmarked. Nothing here says which — if any — is the ninth, so the set is pinned at 8 rather than
+guessed at. **[[unknown-stays-unknown]]**
+
+### A base the Forge named, that cost him runes
+
+Konyo: *"voice of reason runeword i created a runword for it in it and it didnt work... i wasted
+runewords"* — a 4os Broad Sword, socketed in order, no transform.
+
+**Reproduced exactly.** With a 4os Broad Sword owned and Lem/Ko/El/Eld in the stash, `forgeScan()`
+returned `MAKE NOW · Voice of Reason · Broad Sword (4os)`.
+
+By every source this file HAS, that pairing is legal: Broad Sword is a sword, `maxSockets` 4, and
+the word reads `"4 socket Swords Maces"`. **That clause is diablo2.io v3.2 data — vanilla.** He
+plays Reign of the Warlock, where the AB wiki is the authority and a correct vanilla fact can be
+wrong. The repo cannot rule on this pairing; his game can, and did. Recorded per RUNEWORD+BASE in
+`_RW_BASE_FAILED`, because Voice of Reason is not broken — that home for it is — and honoured by
+both `forgeScan` and `_rwLegalBases`, which had been disagreeing with each other about it.
+
+### Found, measured, and deliberately NOT "fixed"
+
+**2,763 of 7,692** base×runeword pairs (36%, across 281 of 508 bases) need MORE sockets than the
+base can ever hold: `_baseRunewords('Broad Sword')` offers Breath of the Dying (6) and Call to Arms
+(5) against a cap of 4. **None reached a Forge lane in testing** — forgeScan's per-branch guards
+catch them, and its v553 note explains why the cap is deliberately not applied at the cross: an
+owned base that ALREADY has N sockets proves it can hold them even where the estimate is low (a 2os
+Wand is real though Wand reports max 1). Pinned at 2,763 so it cannot grow unnoticed, rather than
+filtered by a rule that would suppress real bases. **[[unknown-stays-unknown]]**
+
+### Fixture note, paid for by v1712 and re-paid here
+
+A default profile has **all 99 runewords marked MADE** (`_RWC_SEED`), so `forgeScan()` returns zero
+tiles in every bucket and any assertion about the lanes passes vacuously. Testing PLANNING needs
+`d2r_rwProfile='fresh'` with an empty `d2r_rwMade` — and the rune stash is read AT BOOT, so it needs
+a reload before the scan. Three of my own probe runs reported "no ladder words in the lanes" while
+measuring nothing at all before I found this.

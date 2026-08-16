@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1736",
+  "ver": "v1737",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1736: v1499 changed the published route from machine names to ownership plus literal prefixes and the console lsFork still spoke the old vocabulary so a guest read the owner chronicle and could not see its own world; the test that should have caught it seeded the retired protocol and skipped on this machine",
+  "note": "v1737: the forge ladder toggle defaulted to include so ladder-only runewords sat in MAKE NOW and ONE-STEP on a non-ladder character until it was switched off; and Voice of Reason in a Broad Sword is recorded as a pairing his own game disproved after it ate his runes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
