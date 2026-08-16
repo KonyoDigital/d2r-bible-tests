@@ -4503,3 +4503,52 @@ tiles in every bucket and any assertion about the lanes passes vacuously. Testin
 `d2r_rwProfile='fresh'` with an empty `d2r_rwMade` — and the rune stash is read AT BOOT, so it needs
 a reload before the scan. Three of my own probe runs reported "no ladder words in the lanes" while
 measuring nothing at all before I found this.
+
+---
+
+## AUDIT (not a defect) — the base↔runeword relation, checked end to end (2026-08-17)
+
+Konyo, after losing runes to a Voice of Reason / Broad Sword pairing: *"make sure you fully audit
+the runewords base items we recently added to the database... i dont want random sockets numbers
+matching, i need the base item related to the specific and relevant runeword also matched."*
+
+**7,692 base×runeword pairs were checked on two axes.** One finding is real and pinned (REG-170);
+the other two were MY instrument, and both are recorded because a sweep that only reports hits
+teaches nothing about its own precision.
+
+### 1. Socket reachability — REAL, pinned at 2,763 (see REG-170)
+
+### 2. Type compatibility — 255 flagged, 0 defects. Two separate instrument errors
+
+**First pass** flagged 255 pairs, including `Vigilance` on `Preserved Head`. That was my parser:
+it split the multiword category "Shrunken Heads" into "shrunken" + "heads" and matched neither.
+Vigilance's clause names shrunken heads *explicitly*. Fixed the parser; the count stayed 255 with a
+different composition, which is the tell that a second error was underneath.
+
+**Second pass** flagged 240 pairs — eight shield runewords offered on sorceress orbs (`grimoire`)
+and necro shrunken heads (`voodoo head`), whose clauses say only "Shields". I reasoned that since
+Vigilance's clause enumerates "Grimoires Shields Shrunken Heads Targes", the enumeration would be
+redundant if "Shields" already covered them — so the plain-"Shields" words must be wrong. **That
+argument was clean, and the conclusion was false.** I put it to Konyo, he ruled "shields only,
+stop offering them", and I measured before implementing:
+
+* `bible.html:10141` records a deliberate v386 decision with better evidence than my inference —
+  in D2's ItemTypes.txt, `head` (shrunken heads) and `grim` (grimoires) have **`shld` as their
+  equivalent parent**, which is exactly why Rhyme and Splendor really can be made in them.
+* And the arithmetic kills it anyway: **all 15 heads and all 15 grimoires cap at exactly 2
+  sockets.** Of the eight words, only Rhyme (2) and Splendor (2) can physically fit — 60 pairs.
+  The other 180 (Spirit 4, Phoenix 4, Sanctuary 3, Dragon 3, Dream 3, Ancients' Pledge 3) were
+  **already counted in the 2,763 impossible set**. I double-counted them and re-presented them as
+  a different kind of defect.
+
+Implementing the ruling would have deleted 60 legitimate budget options — Rhyme in a shrunken head
+is real and cheap — to fix nothing that was not already blocked. **Not implemented, and the ruling
+was returned with the correction rather than executed.** A user answering a question I framed wrong
+has not approved the thing I would have built. [[feedback-suspect-the-instrument]]
+
+### What the audit did NOT establish
+
+Nothing here can rule on RotW legality. `RUNEWORD_TIP.b` is diablo2.io v3.2 (vanilla) and `RW_BIS`
+is a curated meta list; neither is the AB wiki. The Voice of Reason case proves the two can diverge
+and that his game is the only authority available. Per-pair failures he measures in-game go in
+`_RW_BASE_FAILED`. **[[unknown-stays-unknown]]**
