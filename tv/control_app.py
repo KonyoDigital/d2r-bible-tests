@@ -9087,6 +9087,24 @@ def _mini_focus(v):
 MINI_MIN_SECONDS = 10
 MINI_MAX_SECONDS = 40
 MINI_DEFAULT_SECONDS = 25
+# v1744 — A CHRONICLE IS READ BY SCROLLING, SO IT NEEDS LONGER THAN A STASH TAB.
+# Konyo: "maybe longer then 25 seconds for it." A stash tab is ONE screen — 25s photographs it
+# several times over. A Chronicle is a LIST he scrolls, so the capture has to last as long as the
+# scrolling does, and the vision lane samples it sparsely on top of that (the v1689 guard measured
+# his chronicle reads 4.6–9.7s apart). Measured on session s_1786922954749_12579: a pass over his
+# uniques Chronicle produced five reads and got from "Amulet" to "Jewel" — A→J of ~400 names.
+# At 25s the cap was the binding constraint, not his scrolling.
+MINI_CHRONICLE_FOCUSES = ("chronicle-uniques", "chronicle-sets")
+MINI_CHRONICLE_MAX_SECONDS = 120
+MINI_CHRONICLE_DEFAULT_SECONDS = 75
+
+
+def _mini_bounds(focus):
+    """(default, max) for a focus. One place, because the console prints these numbers and the
+    clamp enforces them, and two copies of a bound is how a button starts lying about itself."""
+    if str(focus or "") in MINI_CHRONICLE_FOCUSES:
+        return MINI_CHRONICLE_DEFAULT_SECONDS, MINI_CHRONICLE_MAX_SECONDS
+    return MINI_DEFAULT_SECONDS, MINI_MAX_SECONDS
 
 _MINI_LOCK = threading.Lock()
 _MINI = {"running": False, "seconds": 0, "startedTs": 0, "endsTs": 0,
@@ -9095,14 +9113,16 @@ _MINI = {"running": False, "seconds": 0, "startedTs": 0, "endsTs": 0,
          "arming": False}
 
 
-def _mini_clamp(seconds):
-    """Clamp to [10,40] and report the ASKED value beside it. 5 and 999 come back honest —
-    a button that silently rewrites what he typed is a button he stops trusting."""
+def _mini_clamp(seconds, focus=None):
+    """Clamp to [10, max-for-this-focus] and report the ASKED value beside it. 5 and 999 come back
+    honest — a button that silently rewrites what he typed is a button he stops trusting.
+    v1744 — the ceiling now depends on the focus: a Chronicle is scrolled, a stash tab is not."""
+    dflt, mx = _mini_bounds(focus)
     try:
         asked = int(seconds)
     except (TypeError, ValueError):
-        return MINI_DEFAULT_SECONDS, None
-    return max(MINI_MIN_SECONDS, min(MINI_MAX_SECONDS, asked)), asked
+        return dflt, None
+    return max(MINI_MIN_SECONDS, min(mx, asked)), asked
 
 
 def _mini_sid():
@@ -9233,7 +9253,7 @@ def mini_start(seconds=None, test=False, focus=None):
     v1603 — `focus` names WHAT he is parked on, and it is not decoration: the retro sweep trusts it
     in place of a classify call, so it is validated here rather than passed through raw."""
     focus = _mini_focus(focus)
-    secs, asked = _mini_clamp(MINI_DEFAULT_SECONDS if seconds is None else seconds)
+    secs, asked = _mini_clamp(seconds, focus)   # v1744 — focus decides the default AND the ceiling
     # v891 (Grok C3) — DISK PREFLIGHT, copied verbatim from /api/on: below the floor the reaper
     # can't keep a reel alive; refuse loudly with the exact ask instead of recording a doomed
     # session. A mini that records a doomed reel is worse than one that refuses — the whole
@@ -9309,7 +9329,7 @@ def mini_start(seconds=None, test=False, focus=None):
                 # he got, never silently altered.
                 msg=("mini capture — %ds%s" % (secs, "" if asked in (None, secs)
                                                else " (asked %s, bound is %d–%ds)"
-                                               % (asked, MINI_MIN_SECONDS, MINI_MAX_SECONDS))))
+                                               % (asked, MINI_MIN_SECONDS, _mini_bounds(focus)[1]))))
 
 
 # ── 🗄 VAULT ACCUMULATOR — the retro half, and the priority half ────────────────────────
@@ -10197,7 +10217,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1743",
+        "ver": "v1744",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -89,7 +89,20 @@ test('(b) no tile ever names a base whose TRUSTED socket max is below what the w
   expect(r.bad).toEqual([]);
 });
 
-test('(c) the tiles are the Forge meta-base engine, not a second list of my own', async ({ page }) => {
+/* v1744 — RESTATED, NOT RELAXED. This asserted the tiles EQUAL the curated meta list. Konyo:
+   "crescent moon shows a 1 item picture runeword, it only shows mythical sword as a base item...
+   but there are other base items." He was right and the gap was not small: Crescent Moon is
+   "3 socket Polearms Axes Swords" and SEVENTY-FIVE bases can host it, while the card showed ONE —
+   because the meta list for that word has a single entry. A curated shortlist is the right default
+   (listing 195 bases for Strength would be noise), but a shortlist of ONE stops reading as a
+   recommendation and starts reading as a rule.
+
+   _rwLegalBases now tops up from the remaining bases that pass its OWN isLegal test — class via
+   _baseRunewords, socket ceiling via _socketMaxFor, and his disproved pairings — elite tier first.
+   So the old equality is the wrong shape now. What this test protects is unchanged and is stated
+   more strongly: every tile must be a base the ENGINE sanctions (never a second invented list), and
+   the curated picks must still LEAD. That forbids exactly what the original title forbids. */
+test('(c) every tile is engine-sanctioned, and the meta picks still lead', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
@@ -109,11 +122,28 @@ test('(c) the tiles are the Forge meta-base engine, not a second list of my own'
       const d = document.createElement('div');
       d.innerHTML = String(w._rwHostBaseTiles(rw) || '');
       const shown = Array.from(d.querySelectorAll('.att-base-n')).map((e: any) => e.textContent);
-      out.push({ rw, expected, shown });
+      // is each shown tile one the ENGINE sanctions for this word?
+      const illegal = shown.filter((bn: any) => {
+        let hosts: any[] = [];
+        try { hosts = w._baseRunewords(bn) || []; } catch (x) { return false; }
+        if (hosts.length && !hosts.some((h: any) => h.n === rw)) return true;      // wrong class
+        let ceil = 0;
+        try { ceil = parseInt(w._socketMaxFor(bn), 10) || 0; } catch (x) { ceil = 0; }
+        return !!(need && ceil && need > ceil);                                     // cannot hold them
+      });
+      out.push({ rw, expected, shown, illegal });
     });
     return out;
   });
-  for (const row of r) expect(row.shown, row.rw).toEqual(row.expected);
+  for (const row of r) {
+    // 1) never a base the engine would refuse — this is the "not a second list of my own" rule
+    expect(row.illegal, row.rw + ': tiles the engine does not sanction').toEqual([]);
+    // 2) the curated picks still come FIRST, in order — a top-up may extend, never reorder
+    expect(row.shown.slice(0, row.expected.length), row.rw + ': meta picks no longer lead')
+      .toEqual(row.expected);
+    // 3) non-vacuity — a word with no tiles would satisfy both of the above
+    expect(row.shown.length, row.rw + ': no tiles rendered at all').toBeGreaterThan(0);
+  }
 });
 
 // v1713 — THE CLASS GATE. A full audit (99 words x 508 bases) caught the curated meta list

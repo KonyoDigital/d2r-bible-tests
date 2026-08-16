@@ -4853,3 +4853,54 @@ push and said exactly why: *"these suites define a test class AFTER unittest.mai
 interpreter — every class below it is NEVER DEFINED and the suite still reports OK."* A gate written
 to prevent a silently-absent gate, catching a silently-absent gate, in the same commit that adds one.
 Moved above the guard; both suites green.
+
+---
+
+## REG-174 — a shortlist of ONE reads as a rule, and MINI was too short for a Chronicle (v1744)
+
+### Crescent Moon offered one base out of seventy-five
+
+Konyo: *"crescent moon shows a 1 item picture runeword, it only shows mythical sword as a base item
+for creating a runeword.. but there are other base items."*
+
+He is right and the gap is not small. Crescent Moon is **`3 socket Polearms Axes Swords`** and
+**75 bases can host it**; the card showed **one**. The cause is a name that outlived its meaning:
+`_rwLegalBases` returns `_forgeMetaBase(rw).names` — the CURATED pick list — despite being called
+*legal bases*, and Crescent Moon's curated list has a single entry.
+**[[label-outlived-referent]]**
+
+A curated shortlist is the right default — listing 195 bases for `Strength` would be noise, and the
+median word shows 3. **A shortlist of ONE is different in kind**: it stops reading as a
+recommendation and starts reading as a rule. Measured across all 99 words, four show ≤1 while more
+than three bases fit.
+
+`_rwLegalBases` now tops up from the remaining bases that pass its OWN `isLegal` test — class via
+`_baseRunewords`, socket ceiling via `_socketMaxFor`, and his disproved pairings from v1737 — **elite
+tier first**, and only when owned+curated falls short of the caller's limit. Owned bases still lead,
+the curated picks keep their position, nothing is demoted. Crescent Moon's card now renders **4
+tiles with 4 HD sprites loaded**, up from one.
+
+**The v1712 guard was restated, not relaxed.** It asserted the tiles EQUAL the meta list ("not a
+second list of my own"). That equality is the wrong shape now, so it asserts the stronger thing:
+every tile must be a base the ENGINE sanctions (never an invented name), the curated picks must
+still LEAD in order, and a word must render at least one tile. That forbids exactly what the
+original title forbids.
+
+### MINI could not last long enough to read a Chronicle
+
+Konyo: *"a click option under MINI that knows maybe to read chronicles... and maybe longer then 25
+seconds for it."*
+
+The **buttons already existed** — `MINI_FOCUSES` has carried `chronicle-uniques` and
+`chronicle-sets` since v1603, with their own board-medallion art. What did not exist was enough
+TIME: one bound, `[10, 40]`, default 25, for every focus.
+
+A stash tab is ONE screen — 25s photographs it several times. **A Chronicle is a list he scrolls**,
+and the vision lane samples it sparsely on top of that (the v1689 guard measured his chronicle reads
+**4.6–9.7s apart**). Measured on session `s_1786922954749_12579`: one pass over his uniques
+Chronicle produced five reads and got from "Amulet" to "Jewel" — **A→J of ~400 names**. The cap was
+the binding constraint, not his scrolling.
+
+The bound is now per-focus via `_mini_bounds()`: stash/runes/gems/materials unchanged at
+**25s default / 40s max**; the two chronicle focuses get **75s / 120s**. The console's sub-line reads
+the same table, so a button can never advertise a duration it will not get.

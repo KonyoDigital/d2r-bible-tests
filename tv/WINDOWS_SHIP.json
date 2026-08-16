@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1743",
+  "ver": "v1744",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1743: the roster spelled Blood Crescent as bloodcrescent so the grail bridge ranked his fastest target under a name that is not an item while F-Uniques could not see it at all; fixed at the two map keys with a ledger migration so a tick under the old spelling moves with the name",
+  "note": "v1744: Crescent Moon offered 1 base of the 75 that can host it because the legal-base helper returned the curated pick list; it now tops up from engine-sanctioned bases elite-first. And MINI got per-focus durations so a chronicle focus can run 75s instead of 25 — one pass only reached A to J",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

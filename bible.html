@@ -14382,9 +14382,44 @@ function _rwLegalBases(rwName, limit, opts){
       seen[k] = 1; metaNames.push(bn);
     });
 
+    /* v1744 — TOP UP FROM THE REST OF THE LEGAL BASES, SO ONE PICK NEVER READS AS THE ONLY ONE.
+       Konyo: "crescent moon shows a 1 item picture runeword, it only shows mythical sword as a base
+       item for creating a runeword.. but there are other base items."
+       He is right, and the number is not close: Crescent Moon is "3 socket Polearms Axes Swords"
+       and SEVENTY-FIVE bases can host it, while the card showed ONE — because this function starts
+       from _forgeMetaBase().names, the CURATED pick list, and Crescent Moon's has a single entry.
+       A curated shortlist is the right default (listing 195 bases for Strength would be noise), but
+       a shortlist of ONE stops reading as a recommendation and starts reading as a rule.
+       So: owned first, then the curated picks, then — only if we are still short — the remaining
+       bases that pass the SAME isLegal test (class via _baseRunewords, socket ceiling via
+       _socketMaxFor, and his own disproved pairings). Elite tier first, so a top-up is a base worth
+       wearing rather than the first name in the map. The meta picks keep their position at the
+       front; nothing is demoted. */
     var out = opts.notOwned ? metaNames
             : opts.ownedOnly ? ownedNames
             : ownedNames.concat(metaNames);
+    if (!opts.ownedOnly){
+      var want = limit || 6;
+      if (out.length < want){
+        var tierRank = { elite: 3, exceptional: 2, normal: 1 };
+        var more = [];
+        try {
+          Object.keys(BASE_DB).forEach(function(bn){
+            var k = String(bn).toLowerCase();
+            if (seen[k] || !isLegal(bn)) return;
+            more.push(bn);
+          });
+        } catch(e){}
+        more.sort(function(a, b){
+          var ta = tierRank[(BASE_DB[a] || {}).tier] || 0, tb = tierRank[(BASE_DB[b] || {}).tier] || 0;
+          return (tb - ta) || (a < b ? -1 : a > b ? 1 : 0);   // elite first, then stable by name
+        });
+        for (var i = 0; i < more.length && out.length < want; i++){
+          seen[String(more[i]).toLowerCase()] = 1;
+          out = out.concat([more[i]]);
+        }
+      }
+    }
     return limit ? out.slice(0, limit) : out;   // cut LAST, never before the filter
   } catch(e){ return []; }
 }
@@ -40158,7 +40193,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1743', name:'v1743 - a name that reaches a screen is a name', date:'2026-08-17', note:'the roster spelled Blood Crescent as bloodcrescent so the grail bridge ranked his fastest target under a name that is not an item while F-Uniques could not see it at all; fixed at the two map keys with a ledger migration so a tick under the old spelling moves with the name' };
+  window.D2R_BUILD = { id:'v1744', name:'v1744 - a shortlist of one reads as a rule', date:'2026-08-17', note:'Crescent Moon offered 1 base of the 75 that can host it because the legal-base helper returned the curated pick list; it now tops up from engine-sanctioned bases elite-first. And MINI got per-focus durations so a chronicle focus can run 75s instead of 25 — one pass only reached A to J' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

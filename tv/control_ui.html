@@ -4844,7 +4844,7 @@
              which is what lets the vault accumulator find this footage first. A parked stash reel
              is the densest evidence in the archive: the panel is held still and every frame is a
              clean look at what he owns. -->
-        <button class="act b-mini" id="btn-mini" type="button"><span class="ic">⏱</span><span class="lab"><b>Mini</b><span id="mini-sub">stash · 25s, stops itself</span></span></button>
+        <button class="act b-mini" id="btn-mini" type="button"><span class="ic">⏱</span><span class="lab"><b>Mini</b><span id="mini-sub">stash &middot; 25s, stops itself</span></span></button>
         <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
              fact that it is reading stash/runes/gems/materials and to look out specifically for
              this" — and then "for chronicles too.. a button for it so its focused specifically for
@@ -10043,6 +10043,12 @@
     'stash': 'stash', 'runes': 'runes', 'gems': 'gems', 'materials': 'materials',
     'chronicle-uniques': 'uniques', 'chronicle-sets': 'sets'
   };
+  /* v1744 — the sub-line must say the seconds THIS focus actually gets. The engine made the
+     duration focus-aware (a Chronicle is scrolled, a stash tab is one screen), so a hardcoded
+     "25s" under a chronicle button would be the button lying about itself. Mirrors
+     control_app._mini_bounds; the engine still clamps, this only labels. */
+  var MINI_FOCUS_SECS = { 'chronicle-uniques': 75, 'chronicle-sets': 75 };
+  function _miniSecsFor(f){ return MINI_FOCUS_SECS[f] || 25; }
   var MINI_FOCUS_ART = {
     'stash': CONSOLE_ART.stash, 'runes': CONSOLE_ART.runes,
     'gems': CONSOLE_ART.gems, 'materials': CONSOLE_ART.materials,
@@ -10072,7 +10078,7 @@
       });
       var sub = document.getElementById('mini-sub');
       if (sub) sub.textContent = (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus)
-        + ' · 25s, stops itself';
+        + ' · ' + _miniSecsFor(_miniFocus) + 's, stops itself';
     });
   })();
   $('btn-mini').onclick = async function(e){
@@ -10149,7 +10155,7 @@
             sub.textContent = emptyMini
               ? '⚠ sealed with 0 frames — nothing was captured'
               : (MINI_FOCUS_LABEL[_miniFocus] || _miniFocus)
-                + ' · 25s, stops itself';
+                + ' · ' + _miniSecsFor(_miniFocus) + 's, stops itself';
           }
           if (_miniTimer) { clearInterval(_miniTimer); _miniTimer = null; }
         }
