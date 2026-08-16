@@ -4119,3 +4119,30 @@ come from qlvl-gated jewelry (v187's rule), and measured it to be equipment thro
 `v311_unified_rarity` probed `_artRarity("Bloodmoon's Light")` — deleted in v1725 as a garbled row,
 so `''` is now the correct answer. Replaced with `Polaris Spear`, which exercises the same path: a
 real RotW unique carried by `_UNI_EXTRA` with no `ITEM_VALUE` entry.
+
+## REG-164 — two tables stored one required level, and drifted (v1731)
+Found by the round-two fleet. I had filed this as unresolvable — *"three items name the right base
+but disagree with its level by 1-6, and nothing in the repo says which side is wrong."* **The repo
+did say. I had not read `ITEM_TIP`.**
+
+| item | ITEM_CODEX | ITEM_TIP | its base's own reqLvl |
+|---|---|---|---|
+| Darkforce Spawn | 64 | **65** | Bloodlord Skull **65** |
+| Astreon's Iron Ward | 60 | **66** | Caduceus **66** |
+| Ghostflame | 62 | **66** | Legend Spike **66** |
+
+Two independent in-file witnesses agree on the higher number; the codex stands alone on the lower
+one. And the effective requirement is `max(base, unique)` regardless — no character equips a
+Bloodlord Skull below 65. **Both numbers reached a screen**: `renderCodexCard` printed one and the
+hover card printed the other, inches apart.
+
+Fixed three ways: the values raised; **the card now DERIVES `max(base, codex)`** so the two
+surfaces cannot disagree again (ONE CONCEPT, ONE IMPLEMENTATION); and a gate keeps the
+codex-vs-ITEM_TIP disagreement set EMPTY.
+
+That set had a fourth member — `Crescent Moon (sword)`, the runeword. v1725 pulled its drop rows
+but left its ITEM_CODEX entry (still claiming `rarity:unique`, `base:'Amulet'`, the amulet's exact
+props). **Same removal, two standards** — `Bloodmoon's Light` was taken out of every surface the
+same night. The codex entry is now gone; the item is unreachable (`inItems:false`,
+`d2rResolveItem → unknown`) and `_artRarity` classifies it `rw`. Its three remaining references are
+genuine RUNEWORD data (affix list, art, note) under a legacy key and are deliberately kept.
