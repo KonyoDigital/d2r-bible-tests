@@ -4091,3 +4091,31 @@ in 0.3s**. It is order-dependent: something earlier in the run leaves frames or 
 make its dedup count read 2. Not caused by tonight's changes — it first appeared before most of
 them. Recorded rather than dismissed as a flake, because a gate that can be wrong about the tree
 depending on its neighbours is the same class as a gate that cannot fail.
+
+## REG-163 — two copies of "why is this cell empty", and only one got fixed (v1730)
+**CI caught four regressions the 30 local gates cannot see**, all from one root cause. `deriveBlocked()`
+(the CELL renderer's rule, `bible.html:~17500`) is a SECOND implementation of the logic in the
+ITEM_REGISTRY builder (`~15850`). v1722 (suppress a qlvl reason the cell's own data disproves) and
+v1723 (the honest "not in the drop pool" fallback) corrected the builder — and this copy got
+neither. One concept, two hand-copies: the same shape as the runeword, the `nc` flag, and
+`_aiReadJson`.
+
+**What he would have seen:** a cell that used to read `TC 60 > NORM TZ Mephisto TC 57` now rendered
+an em-dash with an **empty tooltip** — "no data" where it used to say "cannot drop here".
+
+Both callers now share one rule, the boss table is passed in so the qlvl branch is suppressed on
+the same evidence, and **the final state carries a tooltip too** (`not in the NORM TZ drop pool`).
+
+**Three specs pinned an explanation that was never true.** `Vampire Gaze` at Meph Norm-TZ was
+asserted TC-BLOCKED because the declared ceiling was TC57 — but v1722 measured equipment of tc 78
+AND tc 85 dropping in that very cell (`Stormchaser`, `The Grim Reaper`, `Ginther's Rift`), so 57
+was never the cap. The item is tc60 / qlvl41 in a cell of mlvl 45: **neither stored number blocks
+it, and it still cannot drop.** The FACT was right and the REASON was wrong; the specs now pin the
+fact, and a new assertion requires every non-dropping cell to explain itself somehow.
+
+⚠ My jewelry hypothesis was **wrong** and is recorded as such: I expected the inflated ceiling to
+come from qlvl-gated jewelry (v187's rule), and measured it to be equipment throughout.
+
+`v311_unified_rarity` probed `_artRarity("Bloodmoon's Light")` — deleted in v1725 as a garbled row,
+so `''` is now the correct answer. Replaced with `Polaris Spear`, which exercises the same path: a
+real RotW unique carried by `_UNI_EXTRA` with no `ITEM_VALUE` entry.

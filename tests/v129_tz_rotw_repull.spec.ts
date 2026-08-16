@@ -39,9 +39,22 @@ test.describe('v129 TZ columns repulled from silospen RotW desecrated data', () 
     // TC-block for the helm.
     const soj = await cell(page, 'mephisto', 'The Stone of Jordan', NORM_TZ);
     await expect(soj).toContainText('1:4,472');
+    /* v1729 — THE FACT SURVIVES; THE REASON DID NOT.
+       This asserted that Vampire Gaze at Meph Norm-TZ is TC-BLOCKED, and that label came from a
+       declared ceiling of TC57. v1722 measured that same cell and found equipment of tc 78 AND
+       tc 85 demonstrably dropping in it (Stormchaser, The Grim Reaper, Ginther's Rift), so 57 was
+       never the real cap — the app was attaching a discredited REASON to a true FACT.
+       Vampire Gaze is tc60 / qlvl41 in a cell of mlvl 45 and a corroborated ceiling of 78: NEITHER
+       annotation blocks it, and it still cannot drop (silospen does not list it). The two numbers
+       this app stores simply do not explain that cell, so it now says so — `cannot`, with the
+       honest reason "not in this run's drop pool".
+       The assertion keeps what was verified empirically in v187 — the ring HAS odds, the helm does
+       NOT — and drops the claim about WHICH annotation explains the helm, because that claim is
+       the part that was wrong. */
     const gaze = await cell(page, 'mephisto', 'Vampire Gaze', NORM_TZ);
-    await expect(gaze).toHaveClass(/blocked-tc/);
-    await expect(gaze).toHaveAttribute('title', /TC \d+/);
+    await expect(gaze).toHaveClass(/blocked-tc|cannot/);
+    await expect(gaze).not.toContainText('1:');
+    await expect(gaze).toHaveAttribute('title', /TC \d+|not in .*drop pool/);
   });
 
   test('TZ odds are now per-boss real, not flat Meph-scaled — Countess Hell-TZ SoJ is far rarer than Mephisto', async ({ page }) => {

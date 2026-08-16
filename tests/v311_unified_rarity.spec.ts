@@ -14,7 +14,7 @@ test('_artRarity resolves uniques AND sets AND runes (the unified resolver)', as
     const f = (window as any)._artRarity;
     return {
       metalgrid: f('Metalgrid'), razor: f("Razor's Edge"), stormlash: f('Stormlash'),
-      soj: f('The Stone of Jordan'), bloodmoon: f("Bloodmoon's Light"),
+      soj: f('The Stone of Jordan'), rotw: f('Polaris Spear'),
       hwanin: f("Hwanin's Majesty (set)"), talAgg: f('Tal Rasha set (any piece)'),
       cowAgg: f("Cow King's Leathers (set)"),
     };
@@ -24,7 +24,13 @@ test('_artRarity resolves uniques AND sets AND runes (the unified resolver)', as
   expect(r.razor).toBe('unique');
   expect(r.stormlash).toBe('unique');
   expect(r.soj).toBe('unique');
-  expect(r.bloodmoon).toBe('unique');
+  /* v1729 — this probed "Bloodmoon's Light" until v1725 proved it was not an item at all: its
+     ITEM_CODEX entry gave its base as "Reign of the Warlock" (the MOD'S NAME), its note described
+     a sin claw, its numbers were cloned from Jade Talon, and it was absent from ITEM_VALUE, the
+     roster, his ledger and silospen's pool. The resolver returning '' for it is now CORRECT.
+     Polaris Spear takes its place and exercises the same path — a real RotW unique carried by
+     _UNI_EXTRA with no ITEM_VALUE entry, which is exactly the case that used to fall through. */
+  expect(r.rotw).toBe('unique');
   // sets still resolve green
   expect(r.hwanin).toBe('set');
   expect(r.talAgg).toBe('set');

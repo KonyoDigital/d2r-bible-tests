@@ -11,10 +11,23 @@ test.describe('Each cell renders the correct state', () => {
     // (Was SoJ, but SoJ is a RING — jewelry is qlvl-gated, not TC-gated; the v187
     // silospen RoW pull gives Norm-TZ Meph real SoJ odds (1:4472), so the old pin
     // was asserting a vanilla-think wrong state. Vampire Gaze is true TC60 equipment.)
+    /* v1729 — THE FACT SURVIVES; THE REASON DID NOT.
+       This asserted that Vampire Gaze at Meph Norm-TZ is TC-BLOCKED, and that label came from a
+       declared ceiling of TC57. v1722 measured that same cell and found equipment of tc 78 AND
+       tc 85 demonstrably dropping in it (Stormchaser, The Grim Reaper, Ginther's Rift), so 57 was
+       never the real cap — the app was attaching a discredited REASON to a true FACT.
+       Vampire Gaze is tc60 / qlvl41 in a cell of mlvl 45 and a corroborated ceiling of 78: NEITHER
+       annotation blocks it, and it still cannot drop (silospen does not list it). The two numbers
+       this app stores simply do not explain that cell, so it now says so — `cannot`, with the
+       honest reason "not in this run's drop pool".
+       The assertion keeps what was verified empirically in v187 — the ring HAS odds, the helm does
+       NOT — and drops the claim about WHICH annotation explains the helm, because that claim is
+       the part that was wrong. */
     const row = page.locator('#mephisto tr[data-item="Vampire Gaze"]');
     const normTzCell = row.locator('td.diff-col').nth(1);
-    await expect(normTzCell).toHaveClass(/blocked-tc/);
-    await expect(normTzCell).toHaveAttribute('title', /TC \d+/);
+    await expect(normTzCell).toHaveClass(/blocked-tc|cannot/);
+    await expect(normTzCell).not.toContainText('1:');
+    await expect(normTzCell).toHaveAttribute('title', /TC \d+|not in .*drop pool/);
   });
 
   test('qlvl blocked cells show orange (block-mlvl) class', async ({ page }) => {
@@ -23,8 +36,15 @@ test.describe('Each cell renders the correct state', () => {
     // Andariel NM can't drop Mara's (qlvl 67 > NM Andy mlvl 49)
     const row = page.locator('#andariel tr[data-item="Mara\'s Kaleidoscope"]');
     const nmCell = row.locator('td.diff-col').nth(2);
+    /* v1729 — a qlvl reason is now SUPPRESSED in any cell whose own data breaks that rule: if
+       items of that qlvl demonstrably drop there, "qlvl X > mlvl Y" is not why this one does not.
+       Such a cell falls through to the TC reason if one is true, and otherwise to the honest
+       "not in the … drop pool". All three are correct states; a cell with NO explanation is not,
+       which is what this now guards. */
     const cls = await nmCell.getAttribute('class') || '';
-    expect(cls).toMatch(/blocked-mlvl/);
+    const title = await nmCell.getAttribute('title') || '';
+    expect(cls).toMatch(/blocked-mlvl|blocked-tc|cannot/);
+    expect(title, 'every non-dropping cell must explain itself').toMatch(/qlvl \d+|TC \d+|drop pool/);
   });
 
   test('best cells in each row are highlighted gold', async ({ page }) => {

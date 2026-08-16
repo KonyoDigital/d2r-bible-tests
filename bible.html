@@ -17554,9 +17554,24 @@ function tierPill(tier) {
   if (tier === "grail") return '<span class="pill pill-grail">grail</span>';
   return '';
 }
-function deriveBlocked(item, diff) {
-  if (item.qlvl > 0 && item.qlvl > diff.mlvl) return {type:"mlvl",reason:`qlvl ${item.qlvl} > ${diff.label} mlvl ${diff.mlvl}`};
-  if (item.tc > 0 && item.tc > diff.tcMax) return {type:"tc",reason:`TC ${item.tc} > ${diff.label} TC ${diff.tcMax}`};
+/* v1729 — ONE ANSWER TO "WHY IS THIS CELL EMPTY", NOT TWO.
+   This is the CELL renderer's copy of the rule; the ITEM_REGISTRY builder (~:15850) has its own.
+   v1722 and v1723 corrected the builder — suppressing a qlvl reason its own cell disproves, and
+   adding the honest "not in this run's drop pool" fallback — and this copy never got either. The
+   result was a cell that rendered `cannot` with an EMPTY title: the explanation existed in the
+   data and never reached the tooltip. Caught by CI, not by the local gates.
+   Both callers now go through the same logic, and the boss table is passed in so the qlvl branch
+   can be suppressed on the same evidence the builder uses: if items of that qlvl demonstrably drop
+   in this very cell, "qlvl X > mlvl Y" is not why this one does not. */
+function deriveBlocked(item, diff, dropTable, col) {
+  const qlvlSound = !(dropTable || []).some(o =>
+    o !== item && col && o[col] !== null && o[col] !== undefined && (o.qlvl || 0) > diff.mlvl);
+  if (item.qlvl > 0 && item.qlvl > diff.mlvl && qlvlSound)
+    return {type:"mlvl",reason:`qlvl ${item.qlvl} > ${diff.label} mlvl ${diff.mlvl}`};
+  if (item.tc > 0 && item.tc > diff.tcMax)
+    return {type:"tc",reason:`TC ${item.tc} > ${diff.label} TC ${diff.tcMax}`};
+  if (item.qlvl > 0 && item.qlvl > diff.mlvl)
+    return {type:"pool",reason:`not in the ${diff.label} drop pool`};
   return null;
 }
 
@@ -19108,13 +19123,17 @@ function _bossDropRowsHtml(bossId){
         const verTitle = isVerified ? ' title="🔒 silospen-verified anchor"' : '';
         return `<td class="diff-col ${dcol} ${cls} ${bestCls} ${verCls}"${verTitle}>${fmt(val)}</td>`;
       }
-      const blocked = deriveBlocked(d, diff);
+      const blocked = deriveBlocked(d, diff, boss.dropTable, k);   /* k = this cell's difficulty key */
       if (blocked) {
         const cls = blocked.type === "mlvl" ? "blocked-mlvl" : "blocked-tc";
         const short = blocked.reason.length > 22 ? blocked.reason.substring(0,22)+'…' : blocked.reason;
         return `<td class="diff-col ${dcol} ${cls}" title="${blocked.reason}">${short}</td>`;
       }
-      return `<td class="diff-col ${dcol} cannot">—</td>`;
+      /* v1729 — even the state with NO annotation to offer must say something. Vampire Gaze at
+         Meph Norm-TZ is qlvl 41 under mlvl 45 and tc 60 under a corroborated ceiling of 78:
+         neither stored number blocks it, and it still cannot drop. The cell used to render an
+         em-dash with an EMPTY title, which reads as "no data" rather than "cannot drop here". */
+      return `<td class="diff-col ${dcol} cannot" title="not in the ${diff.label} drop pool">—</td>`;
     }).join("");
     const itemNameClass = "q-" + ((typeof _artRarity === 'function' && _artRarity(d.n)) || itemQuality(d));
     const starred = wishlist.has(d.n);
@@ -39987,7 +40006,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1729', name:'v1729 - a glow that glows', date:'2026-08-16', note:'the F Uniques title kept the in game unique tan he ruled for but its glow was painted in that same tan so it lit nothing and read matt beside a vivid orange Forge and a vivid green F Sets; only the glow moved, to the bright end of the same unique gold family, because raising the base would have collapsed it into the console chrome gold that v1625 forbids' };
+  window.D2R_BUILD = { id:'v1730', name:'v1730 - the cell explains itself again', date:'2026-08-16', note:'CI caught four regressions my local gates could not: the cell renderer had its own second copy of the why-is-this-empty rule and never got the v1722 and v1723 corrections, so a cell rendered an em-dash with an empty tooltip where it used to explain itself; both callers now share one rule and every non-dropping cell must say something' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

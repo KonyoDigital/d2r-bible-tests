@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1729",
+  "ver": "v1730",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1729: the F Uniques title kept the in game unique tan he ruled for but its glow was painted in that same tan so it lit nothing and read matt beside a vivid orange Forge and a vivid green F Sets; only the glow moved, to the bright end of the same unique gold family, because raising the base would have collapsed it into the console chrome gold that v1625 forbids",
+  "note": "v1730: CI caught four regressions my local gates could not: the cell renderer had its own second copy of the why-is-this-empty rule and never got the v1722 and v1723 corrections, so a cell rendered an em-dash with an empty tooltip where it used to explain itself; both callers now share one rule and every non-dropping cell must say something",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
