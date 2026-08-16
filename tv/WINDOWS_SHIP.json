@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1740",
+  "ver": "v1741",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1740: the sessions grail row ranked RUNS but printed one ITEM odds so it advertised 3.9h for a pick made on a run that yields a missing unique every 33 minutes; both numbers now show with what each measures and the item time comes from the same helper F-Uniques prints with",
+  "note": "v1741: the sessions sets row printed the raw source chance while the F-Sets card printed the MF-adjusted one so the same piece read 1:2.1k in one place and 1:1.9k with a 14h estimate in another; the row now uses the same seam and carries the time too",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

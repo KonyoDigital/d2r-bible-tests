@@ -4696,3 +4696,36 @@ how two fixes break each other. **[[two-fixes-broke-each-other]]**
 ⚠ Noted, not chased: `bloodcrescent` is `tier:'common'` and lower-cased, sits in the bridge at
 1.04h, and is invisible on F·Uniques (whose display excludes that tier). One of the two surfaces is
 wrong about whether it belongs; nothing here says which.
+
+---
+
+## REG-172 — the sets half: one piece, two sets of odds (v1741)
+
+Konyo named both tabs — *"f-uniques and f-sets are showing diffrent number"* — and v1740 fixed only
+the uniques half. The sets row was wrong in a plainer way: it printed the **raw** `src.chance` while
+the F·Sets card printed `_adjC(...)`, his MF/players-adjusted figure.
+
+Measured on the rendered surfaces, same piece, same boss:
+
+| surface | Tancred's Hobnails @ Normal TZ Mephisto |
+|---|---|
+| Sessions ops row | **1:2.1k**, and no time at all |
+| F·Sets card | **1:1.9k · ~14h to find** |
+
+Two numbers for one farm, exactly as he described. The row now runs the piece through the same seam
+the card does — `_adjC` for the odds, `_ttf` for the time — and both surfaces read
+**`1:1.9k ~14h to find`**.
+
+### Three instrument errors, and the last one changed the test
+
+1. `w._adjC` is **not on window** — module/closure-scoped. An early probe called it through `window`
+   and reported *"adjResolved: 0 of 22 pieces"*, which read like a data fact and was nothing but an
+   undefined function. The real fix was confirmed on rendered output instead.
+2. `eval('_adjC')` inside `page.evaluate` also fails — unlike `effChance`/`hoursFor`, which are
+   module-level, `_adjC` sits inside a closure and is unreachable from a test at all.
+3. So the gate stopped reaching for internals and **compares the two rendered surfaces directly** —
+   scrape the ops row, scrape the F·Sets card, assert the odds and the time match. That is the
+   comparison he actually made, between two things on screen. **[[feedback-verify-not-proxy]]**
+
+Verified RED against the pre-fix file (*"the sets ops row still has no time-to-find"*) and green
+after.

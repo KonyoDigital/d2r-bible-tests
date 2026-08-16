@@ -37635,7 +37635,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           /* v1717 — the task force names ONE piece, so it must quote THAT piece's run, not the
              set's aggregate. Same fallback order as the F·Sets board. */
           var src=null; try { src=(next&&_pieceSrc(next.name))||_setAggSrc(w.name); } catch(e){}
-          var sBoss=src?src.boss:'', sOdds=src?fmtOdds(src.chance):'';
+          /* v1741 — THE SAME PIECE MUST NOT CARRY TWO SETS OF ODDS. This printed the RAW
+             src.chance while the F·Sets card printed _adjC(...) — his MF/players-adjusted figure —
+             so Tancred's Hobnails read "Normal TZ Mephisto 1:2.1k" here and "Normal TZ Mephisto
+             1:1.9k ~14h to find" three tabs away. Same piece, same boss, two numbers, and this row
+             had no time at all. Konyo: "cant have two diffrent numbers for farming."
+             Now it runs the piece through the same seam the F·Sets card does — _adjC for the odds,
+             _ttf for the time — so the two surfaces cannot disagree. v1740 did this for uniques;
+             this is the sets half of the same defect. */
+          var sBoss=src?src.boss:'';
+          var sAdj=null; try { if (src) sAdj=_adjC(src, (next&&next.name)||w.name); } catch(e){}
+          var sChance = src ? (sAdj!=null ? sAdj : src.chance) : null;
+          var sOdds = src ? fmtOdds(sChance) : '';
+          var sTtf=''; try { if (src) sTtf=_ttf(sChance, src.kph); } catch(e){}
           /* v1557 — SAY WHEN THERE IS NO RUN TO SEND HIM ON.
              Seven of his sixteen in-progress sets have no aggregate drop entry at all — Tancred's
              Battlegear among them, which is the one his DAILY TASK FORCE is currently telling him
@@ -37646,7 +37658,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
              direction the app was never going to give. */
           var noRun = ' — no verified farm source for this set yet';
           c.op={ set:setClean, pieceClean:nextClean, boss:sBoss, oddsStr:sOdds, noSource:!sBoss,
-                 detail:(w.left===1?('LAST piece: '+nextClean):(w.left+' pieces left, next '+nextClean))+(sBoss?(' — '+sBoss+(sOdds?' '+sOdds:'')):noRun) };
+                 ttf:sTtf,
+                 detail:(w.left===1?('LAST piece: '+nextClean):(w.left+' pieces left, next '+nextClean))+(sBoss?(' — '+sBoss+(sOdds?' '+sOdds:'')+(sTtf?' ~'+sTtf+' to find':'')):noRun) };
           c.pick='🧩 Sets · '+c.done+'/'+c.total+' pieces — finish '+setClean+' ('+(w.left===1?('1 piece left: '+nextClean):(w.left+' left, next '+nextClean))+(sBoss?(' at '+sBoss+(sOdds?' '+sOdds:'')):noRun)+')';
         }
       }
@@ -40114,7 +40127,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1740', name:'v1740 - one number per farm', date:'2026-08-17', note:'the sessions grail row ranked RUNS but printed one ITEM odds so it advertised 3.9h for a pick made on a run that yields a missing unique every 33 minutes; both numbers now show with what each measures and the item time comes from the same helper F-Uniques prints with' };
+  window.D2R_BUILD = { id:'v1741', name:'v1741 - one piece two sets of odds', date:'2026-08-17', note:'the sessions sets row printed the raw source chance while the F-Sets card printed the MF-adjusted one so the same piece read 1:2.1k in one place and 1:1.9k with a 14h estimate in another; the row now uses the same seam and carries the time too' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

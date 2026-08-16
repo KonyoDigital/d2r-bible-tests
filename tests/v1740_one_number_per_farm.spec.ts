@@ -85,6 +85,68 @@ test.describe('v1740 — the ops queue and F·Uniques agree about the same item'
     expect(txt, 'the row lost its remaining count: ' + txt).toMatch(/uniques left/);
   });
 
+  /* v1741 — AND THE SETS HALF OF THE SAME DEFECT.
+     He named both tabs ("f-uniques and f-sets"), and the sets row was wrong in a plainer way than
+     the uniques one: it printed the RAW `src.chance` while the F·Sets card printed `_adjC(...)`,
+     his MF/players-adjusted figure. Measured on the rendered surfaces, same piece, same boss:
+       SESSIONS ops row : Tancred's Hobnails — Normal TZ Mephisto 1:2.1k   (and no time at all)
+       F·SETS card      : Tancred's Hobnails — Normal TZ Mephisto 1:1.9k ~14h to find
+     Two numbers for one farm, exactly as he said. The row now runs the piece through the same seam
+     the card does — _adjC for the odds, _ttf for the time. */
+  test('★★★ the sets ops row prints the same odds and time as the F·Sets card', async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(2600);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const rot = w._chronRotation ? w._chronRotation() : null;
+      const s = rot && rot.incomplete ? rot.incomplete.find((c: any) => c.key === 'sets') : null;
+      if (!s || !s.op) return { err: 'no sets op to compare' };
+      if (s.op.noSource) return { skip: true };
+      return { piece: s.op.pieceClean, boss: s.op.boss, odds: s.op.oddsStr, ttf: s.op.ttf,
+               detail: s.op.detail };
+    });
+    if ((r as any).skip) return;                       // a set with no verified source says so
+    expect((r as any).err, (r as any).err || '').toBeUndefined();
+    // the row must carry a time now — its absence was half the complaint
+    expect(r.ttf, 'the sets ops row still has no time-to-find').toBeTruthy();
+    expect(r.detail, 'the rendered detail does not state the time: ' + r.detail)
+      .toMatch(/~[\d.]+\s*(h|m)\s*to find/);
+
+    /* And the odds must MATCH THE F·SETS CARD. Compared surface-to-surface rather than through
+       `_adjC`, which lives inside a closure and is unreachable from a test — and which is the
+       better test anyway: this is the comparison he actually made, between two things on screen.
+       [[feedback-verify-not-proxy]] */
+    const card = await page.evaluate(async (piece: string) => {
+      const w: any = window;
+      try { w.switchTab && w.switchTab('fsets'); } catch (e) {}
+      await new Promise((r) => setTimeout(r, 1800));
+      const host = document.getElementById('tab-fsets') || document.body;
+      const texts: string[] = [];
+      host.querySelectorAll('[class*=card]').forEach((c) => {
+        const t = (c.textContent || '').replace(/\s+/g, ' ').trim();
+        if (/best run:/.test(t) && t.length < 220) texts.push(t);
+      });
+      const hit = texts.find((t) => t.includes(piece));
+      if (!hit) return { notFound: true, sampled: texts.length };
+      const odds = (/1:[\d.,]+k?/.exec(hit) || [])[0] || null;
+      const ttf = (/~[\d.]+\s*(?:h|m)\s*to find/.exec(hit) || [])[0] || null;
+      return { odds, ttf, hit: hit.slice(0, 120) };
+    }, r.piece);
+
+    if ((card as any).notFound) {
+      // the piece may sit outside the rendered quick-wins slice — say so rather than pass silently
+      expect((card as any).sampled, 'no F·Sets cards rendered at all, so nothing was compared')
+        .toBeGreaterThan(0);
+      return;
+    }
+    expect((card as any).odds, `F·Sets card carries no odds: ${(card as any).hit}`).toBeTruthy();
+    expect(r.odds, `ops row says ${r.odds}, the F·Sets card says ${(card as any).odds} for ${r.piece}`)
+      .toBe((card as any).odds);
+    expect('~' + String(r.ttf) + ' to find',
+      `ops row time ${r.ttf} vs F·Sets ${(card as any).ttf} for ${r.piece}`)
+      .toBe(((card as any).ttf || '').replace(/\s+/g, ' '));
+  });
+
   test('★★ the console formula and the board formula still agree on every bridge item',
     async ({ page }) => {
     await page.goto(URL);
