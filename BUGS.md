@@ -4225,3 +4225,68 @@ confirmed the two widths agree, and found no clipping or overlap.
 ⚠ The before/after fixture lives in `/tmp`, away from the art directory, so **its images cannot
 load and it falls back to emoji**. Any art difference between those two shots is the fixture, not
 the change.
+
+---
+
+## REG-166 — 192 references to a colour that was never defined (v1733)
+
+`--gold-dim` was referenced **192 times** in `bible.html` and defined **zero** times. It resolved to
+the empty string, and CSS handles that silently and destructively:
+
+* `border:1px solid var(--gold-dim)` — the shorthand is invalid at computed-value time, so the
+  border becomes `none`. **160 elements carried a border that never drew.**
+* `color:var(--gold-dim)` — the declaration is dropped and the element inherits instead. **243
+  elements silently took their parent's colour.**
+
+Defining it changed **403 rendered elements across 11 tabs**. Nothing errored, nothing logged, every
+gate stayed green — the page simply rendered a design nobody had authored. **[[plumbing-with-no-tap]]**
+
+The worst instance: `.glossary-card`, a modal, measured `background: rgba(0,0,0,0)` and
+`border: 0px none` — a floating panel with no surface and no edge, over live page content. It is now
+`rgb(36,28,18)` with a `1px solid` gold border.
+
+The value was not invented. `tv/control_ui.html` — the other surface of the same product — has
+defined `--gold-dim: #a07830` all along. **[[copy-drift]]**
+
+### The audit that followed, and the four it found
+
+| file | token | uses | resolved to | why that value |
+|---|---|---|---|---|
+| bible | `--bg-elev1` | 17 | `var(--surface-2)` | the file's own elevation ladder |
+| bible | `--bg-elev0` | 12 | `var(--surface)` | ditto; ordering **verified** (luminance 21.0 < 29.3) |
+| bible | `--best-dim` | 4 | `color-mix` from `--best` | the idiom this file already uses 72× |
+| console | `--text-dim` | 17 | `#756657` | the value bible.html defines for that exact name |
+
+Aliases rather than new hexes, so each colour keeps one source.
+
+`--body` in the console was different in kind: a **font family inside a `font:` shorthand**, which
+invalidated the whole declaration and took `--fw-semibold`, `--fs-xs` and the 1.35 line-height down
+with it — one missing token killing four properties. The console defines only `--mono` and `--serif`,
+so rather than invent a third family the shorthand became longhands: the three intended properties
+now apply and the family stays inherited, which is what the element was getting anyway.
+**[[unknown-stays-unknown]]**
+
+### Two instrument errors, both caught
+
+1. A **runtime** probe over `getComputedStyle` reported nine bible tokens as undefined that are
+   nothing of the kind — they are assigned inline on elements built later. It also reported `--q-`
+   with 2,489 uses, which is not a token at all but the literal prefix of `var(--q-${quality})` in a
+   template string. The gate is **static** for exactly this reason. **[[feedback-suspect-the-instrument]]**
+2. `--rar-rune` looked like a fifth case and is not one. Its only occurrence sits **inside a
+   comment** documenting a past state ("the Forge room now wears `--rune`"). I had already defined
+   it before stripping comments revealed the reference was prose; the definition was removed. A
+   guard that reads comments invents defects, the mirror of a guard blinded BY one.
+   **[[feedback-comments-vs-code]]** The same strip cleared a phantom `--a` in the console.
+
+### On the second eye
+
+Given the two full-page renders, Grok reported **"no meaningful difference; no element gained a
+border"** — wrong. Given the same change as a crop, it reported "a clear improvement" but described
+overlay heights and obscured buttons, which is not what changed. Two mutually inconsistent readings
+of one diff. The full-page ask was my error as operator — the skill says the crop is what catches
+collisions, and a 1px border is exactly that class — but on this change it added no signal either
+way. **The evidence here is the DOM measurement** (`0px none` → `1px solid rgb(160,120,48)`,
+`rgba(0,0,0,0)` → `rgb(36,28,18)`), not a vision verdict.
+
+Gate `v1733`: no bare `var()` may name a token nothing ever defines, in either file; plus the
+elevation ladder must stay ordered. RED on both pre-fix files, naming exactly the right tokens.

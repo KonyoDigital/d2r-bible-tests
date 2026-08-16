@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1732",
+  "ver": "v1733",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1732: Catacombs L4 stored pre-terror levels, hiding 72 of its 79 grail items; six more zones raised to TC87 with Arcane Sanctuary held at 85 as the control; the card prose that contradicted its own numbers rewritten from the file own data",
+  "note": "v1733: gold-dim was referenced 192 times and defined zero times so 160 borders never drew and 243 colours silently inherited; four more undefined tokens resolved from their own witnesses and a gate added so a bare var can never again name nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -101,6 +101,7 @@
     --panel: rgba(10,9,6,.55);
     --serif: "Cinzel", "Palatino Linotype", Palatino, "Times New Roman", serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-dim: #756657;
     /* state accent — retinted by [data-state] */
     --accent: var(--gold);
     --accent-soft: rgba(240,192,96,.5);
@@ -2431,7 +2432,7 @@
   .hd-vault .vault-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
   .chron-list { max-height: 190px; overflow-y: auto; }
   .chron-n { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
-  .chron-n b { display: block; font: var(--fw-semibold) var(--fs-xs)/1.35 var(--body);
+  .chron-n b { display: block; font-weight: var(--fw-semibold); font-size: var(--fs-xs); line-height: 1.35;
     color: #e8d9a8; }
   .chron-n i { display: block; font-style: normal; font: var(--fw-medium) var(--fs-2xs)/1.45 var(--mono);
     letter-spacing: var(--ls-label); color: var(--text-dim); }
