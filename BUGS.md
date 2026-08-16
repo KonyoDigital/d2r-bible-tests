@@ -3836,3 +3836,36 @@ found. `Normal TZ Pindleskin` left the board entirely.
 402 `nmTz` and 281 `normTz` cells corrected under the same convention as every other cell
 (RoW 3.0, MF=300, players=1, saturation). Nothing added, nothing cleared, and the 36 app-authored
 rows silospen's pool never mentions were left exactly as they were — the v1716 out-of-pool rule.
+
+## REG-152 — a ceiling lower than what it lets through (v1722)
+Konyo: *"derive it from the rows and gate it"* — the last of the four open decisions.
+
+Each boss difficulty declares `tcMax` (top item tier that kill can produce) and `mlvl`. Both are
+hand-authored vanilla-era annotations; the odds beside them have been re-pulled five times (v129,
+v187, v697, v1716, v1721) and the annotations never moved. Measured before the fix:
+
+- **50 of 66 cells declared a tcMax BELOW what their own rows prove droppable.** Pindle NORM
+  declared TC30 while dropping Ginther's Rift (TC85) at 1:45,761 — silospen's own figure, and
+  real: Pindle is an **Act 5** monster, so Normal there is nothing like Act 3 Normal.
+- **735 of 737 TC reasons** named a ceiling the same cell contradicts.
+- **51 of 66 cells** have rows that drop despite `qlvl > mlvl` — 715 rows — and the engine checks
+  THAT branch first, so a wrong mlvl produced a wrong reason before tcMax was ever consulted.
+
+**Fix.** `tcMax` is raised to what its rows prove and **never lowered** — lowering would invent a
+ceiling nothing disproves, which is how these went stale in the first place. **`mlvl` is
+deliberately NOT derived**: monster level is a game fact, not a ceiling, and rewriting it to "the
+highest qlvl seen dropping" would be a right number under a word that stopped being true
+([[label-outlived-referent]]). Instead the qlvl reason is SUPPRESSED in any cell whose own data
+breaks that rule — no reason beats a false reason. Result: 1,732 blocked reasons, all TC-based,
+**zero** citing a rule their own cell disproves.
+
+**The gate.** `tests/v1722_ceiling_invariant.spec.ts` asserts (a) no cell declares a tcMax below
+the TC of an item it drops, and (b) no blocked reason cites a rule its own cell disproves. It reads
+`window._ceilingAudit()`, published from inside the BOSSES scope — its first draft read
+`window.BOSSES`, got `undefined`, and its own non-vacuity assertion caught that rather than passing
+on an empty list. **Seen RED**: restoring Mephisto HELL TZ to its stale TC78 reports
+`mephisto HELL TZ: declares 78 drops 87`.
+
+Mephisto's card now reads NORM 60 · NORM TZ 85 · NM 85 · NM TZ 85 · HELL 85 · HELL TZ 87, and its
+terror line "mlvl jumps to 99 (max TC 87)" is finally consistent with the Tyrael's / Griffon's /
+CoA rows v1716 added and the prose v1717 corrected.
