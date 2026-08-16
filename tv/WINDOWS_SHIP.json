@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1726",
+  "ver": "v1727",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1726: the grail total is no longer typed into 103 card descriptions and a dozen notes where it had gone stale three times over, and two uniques that named the elite tier of their base while storing the exceptional tiers requirements now name the base they actually drop on, with 67 more whose base differed from the database only by case and so resolved to nothing",
+  "note": "v1727: the terror zone odds were audited against the live source on four axes and came back clean at 528 of 528 cells, with the seven zones that share one block confirmed to share it for a real reason; the lasting change is that no drop list anywhere may now carry a runeword name, not just the boss tables v1725 fixed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

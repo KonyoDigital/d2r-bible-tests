@@ -3999,3 +3999,31 @@ Nothing in this repo says which side is wrong, so they are pinned at 3 rather th
 **And one candidate was DISMISSED**: `Skystrike` (reqStr 25 on an 18-str Edge Bow) is legal — a
 unique may require more than its base. Recorded because a sweep that only reports hits says nothing
 about its own precision.
+
+## REG-158 — the TZ zone odds audited end to end, and found CLEAN (v1727)
+Konyo: *"do the tz zones diff too"* — the surface the fleet sweep named as its own biggest blind
+spot, *"exactly the shape that could be hiding another Crescent Moon"*. It is not. Four axes, all
+verified against the live silospen API rather than by reading:
+
+- **Zone → dweller → location wiring: 11 of 11 correct.** Every zone's declared `dweller`
+  (`fetish3`, `cr_lancer8`, `bloodlord2` …) really does spawn in its declared `loc`.
+- **The duplication is REAL, not a copy-paste.** Seven zones share one identical `hellTz` block,
+  which is exactly the signature that unmasked Crescent Moon. Queried independently, **all seven
+  dwellers return the identical stored figures** (Tyrael's 1:19,827,272 · Knell Striker
+  1:13,616,751 · Entropy Locket 1:8,512,237) — terror saturation puts every one of those areas at
+  the same level, so one pool is the truth.
+- **528 of 528 stored cells match a live pull exactly.**
+- **97 distinct item names, none unknown** to the item universe.
+
+⚠ **My first pass reported 24 mismatches and every one was my instrument.** I queried
+`itemQuality=UNIQUE` only, so 24 SET items (Griswold's Honor, Sander's Paragon, Tal Rasha's
+Adjudication …) came back absent and read as drift. Merging both qualities: zero.
+
+The single runeword-shaped name in the TZ data, **"Crescent Moon"**, is the real unique AMULET —
+and it resolves to exactly one row ONLY because v1725 removed the sword. Before that it was
+ambiguous, which is why this looked dangerous and was not.
+
+**The durable artifact is the generalisation.** v1725 removed the runeword from BOSSES only;
+`tests/v1727_no_runeword_in_drop_lists.spec.ts` now forbids a runeword-only name in ANY drop list,
+requires every TZ odds name to exist in the item universe, and pins the zone wiring. Seen RED:
+adding `Enigma` to Mephisto reports `mephisto: Enigma`.
