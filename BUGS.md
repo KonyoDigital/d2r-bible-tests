@@ -4769,7 +4769,48 @@ capitals and its spaces. **A name that reaches a screen starts with a capital** 
 the one defect from the twelve non-defects cleanly, and the twelve are pinned so a thirteenth is
 noticed.
 
-⚠ Found next door and NOT chased: `"Djinn Slayer": "art/bloodcrescent_graphic.png"` in a legacy
-graphic map points one unique at another's picture. It is dormant — `artUrl('Djinn Slayer')` resolves
-through the HD map to `hd_scimitar.png` (correct: Ataghan is the elite Scimitar) — but it is the
-v1629 wrong-picture-under-a-right-name shape, and `art/mr_djinnslayer.png` exists.
+⚠ Flagged next door, then CHECKED AND CLEARED: `"Djinn Slayer": "art/bloodcrescent_graphic.png"`
+looked like the v1629 wrong-picture-under-a-right-name shape. It is not. `D2IO_ART` names its files
+after whichever unique first needed a given BASE sprite and shares them across that family — its
+neighbours say so plainly (`"Demonhorn's Edge": "art/hornedhelm_graphic.png"`, the base's own
+graphic). Blood Crescent is a Scimitar and Djinn Slayer is an Ataghan, the ELITE Scimitar, so they
+share a sprite by design — and `artUrl('Djinn Slayer')` independently resolves to `hd_scimitar.png`,
+the same family. **Both images were opened**, because that is the only check v1629 accepts: each is a
+curved crescent-bladed sword, correct for either item. `art/mr_djinnslayer.png` exists but is the
+small `mr_` sprite for a different map; substituting it would trade a full graphic for a thumbnail.
+**No change made.** Recorded because a flag raised and then silently dropped is indistinguishable
+from one nobody looked at.
+
+---
+
+## Two assertions that were judging an empty set (2026-08-17, test-only)
+
+`tests/v562_chronicle_sync_filter_throwout.spec.ts` carried two assertions that could not fail:
+
+```js
+expect(r.wantedInTrash).toEqual([]);        // filtering an EMPTY list
+expect(r.commonPlainHidden).toBe(true);     // .every() over an EMPTY array is true by definition
+```
+
+`_endgameFilterBases()` shrinks to match the Chronicle, and its own comment says so — *"Empty = show
+no bases, consistent with the count + the shrinks-to-match-your-Chronicle promise."* A **default
+profile has all 99 runewords marked MADE** (`_RWC_SEED`), so nothing needs farming and the function
+returns **zero codes**. Correct behaviour, and fatal to a test built on it. Measured on the default
+profile: `eb.codes 0`, `plainCodes 0`.
+
+With an empty Chronicle the same numbers read **77 codes / 47 plain**, and the `.every()` judges
+**30** real ones — and **both still pass**. That distinction is the point: this found a blind gate,
+not a broken filter. **[[gate-blind-to-unexercised-input]]**
+
+### Why it became a second test rather than a fixture change
+
+The obvious fix — seed a fresh Chronicle in the existing test — was tried and **reverted**. Two of
+that test's other assertions are written FOR the sealed state and say so: `uitMagicHidden` is
+documented *"at the sealed stage (sock universe empty)"*. Emptying the Chronicle flips `gts` and
+`uit` to magic-hidden and fails them — the state moving under the assertion, not a defect found.
+One fixture cannot serve both states, and forcing it would have traded a vacuous pass for a false
+failure. The exercised assertions now live in their own test; the sealed-state ones stay put.
+
+Four non-vacuity guards sit directly above the assertions they protect. Verified by removing the
+seeding: the guard fails with *"the wanted-base set is empty, so nothing below judges anything —
+Expected: > 10, Received: 0."*

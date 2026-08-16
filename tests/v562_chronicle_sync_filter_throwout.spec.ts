@@ -12,6 +12,12 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test('loot filter: no blue-magic leak — every real base code is hidden at magic rarity', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
+  /* v1744 — THIS TEST STAYS ON THE DEFAULT (SEALED) PROFILE ON PURPOSE. Two of its assertions are
+     written for that state and say so — `uitMagicHidden` is documented "at the sealed stage (sock
+     universe empty)". Seeding a fresh Chronicle here flips gts and uit to magic-hidden and fails
+     them, which is the state changing under the assertion, not a defect. The two assertions that
+     were VACUOUS on this profile have moved to their own test below, where the Chronicle is empty
+     and there is actually something to judge. */
   const r = await page.evaluate(() => {
     const w: any = window;
     const CODE = JSON.parse(document.getElementById('lf-base-codes')!.textContent!);
@@ -45,21 +51,84 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
     const ethShow = out.rules.find((x: any) => x.name === '3. Show ETH and Socket bases');
     return {
       leaks, wantedInTrash, commonPlainHidden, rareCircHidden, ethRarity: ethShow.equipmentRarity,
+      // v1744 — the sizes the two assertions depend on, so they can never judge nothing again
+      _ebCodes: eb.length,
+      _plainCodes: (ebAll.plainCodes as string[]).length,
+      _commonJudged: eb.filter((c) => !ebAll.plainCodes.includes(c)).length,
+      _codeNames: Object.keys(CODE).length,
       ci1MagicHidden: magicHidden.has('ci1'),           // Konyo's blue Coronet
       ci3MagicShown: !magicHidden.has('ci3'),           // v599 — blue Diadem = chase item, must SHOW
       gtsMagicHidden: magicHidden.has('gts'),           // Konyo's blue Gothic Shield — a HitPower craft shield since v690
       uitMagicHidden: magicHidden.has('uit'),           // stale-draft Monarch, previously in NO rule
     };
   });
+  // the leak check DOES have candidates on this profile — 526 base codes — so it is guarded and kept here
+  expect(r._codeNames, 'the base-code map was empty, so the leak check judged nothing').toBeGreaterThan(100);
   expect(r.leaks).toEqual([]);                          // every non-quest base code hides its magic version
-  expect(r.wantedInTrash).toEqual([]);                  // premium plains NOT swallowed by the trash hide
-  expect(r.commonPlainHidden).toBe(true);               // v592: every common wanted base hides its PLAIN drop
   expect(r.rareCircHidden).toBe(false);                 // rare circlets still show
   expect(r.ethRarity).toEqual(['normal', 'hiQuality']); // socketed MAGIC can't ride the eth/socket show rule
   expect(r.ci1MagicHidden).toBe(true);
   expect(r.ci3MagicShown).toBe(true);                   // v599 — blue Diadems surface (default-show, no rule matches)
   expect(r.gtsMagicHidden).toBe(false);   // v693.3 — Gothic Shield joined the v690 craft inbox (HitPower shield slot): its BLUES are fuel now, deliberately default-shown
   expect(r.uitMagicHidden).toBe(false);   // v696 — Monarch is a Safety-craft shield: at the sealed stage (sock universe empty) its BLUES are craft fuel like Gothic Shield; mid-chronicle the sock overlap re-hides them
+});
+
+/* v1744 — THE TWO ASSERTIONS THAT WERE JUDGING NOTHING.
+   `_endgameFilterBases()` shrinks to match the Chronicle, and its own comment says so plainly:
+   "Empty = show no bases, consistent with the count + the shrinks-to-match-your-Chronicle promise."
+   A DEFAULT profile has ALL 99 runewords marked MADE (_RWC_SEED), so nothing needs farming and the
+   function returns ZERO codes. Correct behaviour — and fatal to a test built on it. Measured on the
+   default profile: eb.codes 0, plainCodes 0, which made
+
+       expect(r.wantedInTrash).toEqual([])       // filtering an EMPTY list
+       expect(r.commonPlainHidden).toBe(true)    // .every() over an EMPTY array is true by definition
+
+   pass regardless of what the filter did. With an empty Chronicle the same numbers read 77 codes /
+   47 plain, and the `.every()` judges 30 real ones — and BOTH STILL PASS, so the logic was always
+   right; the gate was never exercising it. That is the distinction worth keeping: this found a blind
+   gate, not a broken filter. [[gate-blind-to-unexercised-input]]
+
+   It lives in its own test because the sealed-profile assertions above (gts / uit magic-hidden) are
+   written FOR the sealed state and flip when the Chronicle is emptied. One fixture cannot serve
+   both, and forcing one would have traded a vacuous pass for a false failure. */
+test('loot filter: the wanted-base rules judge a real base set, not an empty one', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const w: any = window;
+    w.LSR.setItem('d2r_rwProfile', 'fresh');
+    w.LSR.setItem('d2r_rwMade', '{}');
+    w.LSR.setItem('d2r_rwUnmade', '{}');
+  });
+  await page.reload(); await page.waitForTimeout(1800);
+
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const out = JSON.parse(w.buildEndgameFilter().text);
+    const ebAll = w._endgameFilterBases();
+    const eb = ebAll.codes as string[];
+    const plain = ebAll.plainCodes as string[];
+    const trash = out.rules.find((x: any) => x.name === '1. Hide Trash Gear');
+    const common = eb.filter((c) => !plain.includes(c));
+    return {
+      ebN: eb.length, plainN: plain.length, commonN: common.length,
+      trashN: trash ? (trash.equipmentItemCode || []).length : 0,
+      // premium plains must NEVER be swallowed by the trash hide
+      wantedInTrash: plain.filter((c) => trash.equipmentItemCode.includes(c)),
+      // v592: every COMMON wanted base hides its plain drop (it shows eth/socketed only)
+      commonPlainHidden: common.every((c) => trash.equipmentItemCode.includes(c)),
+      commonNotHidden: common.filter((c) => !trash.equipmentItemCode.includes(c)),
+    };
+  });
+
+  // NON-VACUITY FIRST — each guard sits directly above the assertion it protects
+  expect(r.ebN, 'the wanted-base set is empty, so nothing below judges anything').toBeGreaterThan(10);
+  expect(r.trashN, 'the trash-hide rule carries no codes').toBeGreaterThan(50);
+  expect(r.plainN, 'no premium plain codes — wantedInTrash would be trivially empty').toBeGreaterThan(0);
+  expect(r.commonN, 'no common wanted bases — commonPlainHidden would be a vacuous .every()').toBeGreaterThan(0);
+
+  expect(r.wantedInTrash, 'premium plains swallowed by the trash hide: ' + r.wantedInTrash.join(', ')).toEqual([]);
+  expect(r.commonNotHidden, 'common wanted bases whose PLAIN drop is not hidden: ' + r.commonNotHidden.join(', ')).toEqual([]);
+  expect(r.commonPlainHidden).toBe(true);
 });
 
 test('vault: keep-or-throw reads the Chronicle — all words forged → __throwout, unmade → kept + named', async ({ page }) => {
