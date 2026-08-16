@@ -4591,3 +4591,49 @@ claiming a ladder count that is not 8 — so the number and the data can never d
 
 ⚠ A stale claim of the same shape was found and fixed next door: the `rwVerify` seed comment says
 "the **three** Shael+Ko+Eld combos Konyo proved don't work", and there are two.
+
+---
+
+## v1739 — HD art on the shopping list, and the anchor is the keyword
+
+Konyo: *"for shopping list i want it more upgraded with HD art / image cursor floating for the items
+its rendering and the keyword items also."*
+
+**Nothing new was built.** The board has carried a cursor-following art card since v283 — `arttip`,
+with the v441 nav-orb that mirrors the hovered sprite — and it fires on any `[data-arttip]`. The
+shopping list was simply not wired to it: runes carried an 18px icon and no hover, **bases carried
+no art at all**, and the runeword each base is FOR was inert text. All are now anchors — 363 of
+them: 33 rune keywords, 91 base keywords, 91 runeword links, 148 alternate bases, plus the
+thumbnails. A second floating-preview component would have been `copy-drift` with extra steps.
+
+### The anchor is the keyword, never the cell — and that is v654
+
+The obvious wiring is `data-arttip` on the `.shop-name` grid cell. It was done that way first and
+fired **nothing**, because v654 refuses any anchor wider than 430px:
+
+```js
+if (_rr.width > 430 || _rr.height > 120) return;
+```
+
+Konyo asked for that rule in those words — *"i dont want it opening when i hit the SECTION itself,
+only over the specific item keyword; it feels random"* — and measured here, the cells are **480px**
+on a rune row and **600px** on a base row. **The rule was working.** His request this time says the
+same thing again ("the keyword items also"), so the attribute moved onto the `<b>` name and the
+thumbnail: 25px and 18px, comfortably inside the rule that rejected the first attempt.
+
+### Three harness faults on the way, none of which looked like one
+
+1. **Every anchor measured 0x0.** The card lives on `tab-tools` and ships `collapsed` — nothing has
+   a box until the tab is switched AND the card opened. Two probes reported "passes" against zeros.
+2. **`imgsLoaded: 0`.** `loading="lazy"` with the card off-screen. Forced eager: **124/124 load, 0
+   broken.**
+3. **Hand-computed hover coordinates landed under the fixed dock** — `elementFromPoint` returned
+   `DIV.dock-inner`, so the cursor never reached the anchor and the card "didn't fire". Playwright's
+   `hover()` resolves actionability properly, and all six anchor types then opened the card with
+   the right art: Zod → `hd_zod_rune.png`, Troll Nest → `hd_bone_shield.png`, Ancients' Pledge →
+   `hd_kite_shield.png`, Dusk Shroud → `hd_quilted_armor.png`. **[[feedback-suspect-the-instrument]]**
+
+Verified at 1440 and 375 — no overflow at either. Grok, given the 1440 render cold, described the
+floating card's picture as a shield matching Troll Nest, found no clipping or contrast problems,
+read the row icons as distinct rather than placeholders, and called the interactive styling
+consistent.

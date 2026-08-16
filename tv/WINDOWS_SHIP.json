@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1738",
+  "ver": "v1739",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1738: researched the ladder-only runeword set after he asked me to look it up; the data was right at eight and the nine lived only in prose, with Hustle absent correctly because RotW renamed it to Mania and Hysteria",
+  "note": "v1739: wired the shopping list into the arttip card the board has had since v283 so runes bases alternates and the runeword each base is for all float their HD art on hover; the anchor is the keyword not the grid cell because v654 refuses anything wider than 430px and the cells measure 480 and 600",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1682,6 +1682,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .shop-bases{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid rgba(255,255,255,.045);min-height:34px}
 .shop-bases:first-of-type{border-top:0}
 .shop-for{font-size:var(--fs-micro);color:var(--text-dim);text-align:right;line-height:var(--lh-tight);white-space:nowrap}
+/* v1739 — HD ART, ON THE CARD THIS ALREADY HAD. Konyo: "i want it more upgraded with HD art /
+   image cursor floating for the items its rendering and the keyword items also."
+   Nothing new was built: the board has carried a cursor-following art card since v283 (`arttip`,
+   with the v441 nav-orb that mirrors the hovered sprite), and it fires on any [data-arttip]. The
+   shopping list simply was not wired to it — runes carried an 18px icon and no hover, bases
+   carried NEITHER, and the runeword each base is FOR was inert text. All three are now anchors.
+   Inline icons stay 18px because this card's whole design argument is one row rhythm; the HD
+   image is what the hover is for. [[copy-drift]]
+
+   THE ANCHOR IS THE KEYWORD, NEVER THE CELL — and that is v654, not a detail. Wiring the whole
+   `.shop-name` grid cell looked right and fired nothing: the cell measures 480px on a rune row and
+   600px on a base row, and v654 refuses any anchor wider than 430px, because Konyo asked for
+   exactly that — "i dont want it opening when i hit the SECTION itself, only over the specific
+   item keyword; it feels random". His request here says the same thing in the same words: "the
+   keyword items also". So the attribute sits on the <b> and on the thumbnail (25px and 18px),
+   and the rule that rejected the first attempt is the rule that shaped the second. */
+.shop-name b[data-arttip],.shop-name img[data-arttip],.shop-rw,.shop-alt{cursor:help}
+.shop-rw{color:var(--text-muted);font-weight:var(--fw-medium);border-bottom:1px dotted var(--gold-dim);transition:color .12s}
+.shop-rw:hover{color:var(--gold-bright)}
+.shop-alt{border-bottom:1px dotted rgba(255,255,255,.14);transition:color .12s}
+.shop-alt:hover{color:var(--text-muted)}
+.shop-bases .shop-name img{width:18px;height:18px;object-fit:contain;flex:0 0 auto}
+.shop-bases .shop-name{display:flex;align-items:center;gap:7px;font-size:var(--fs-body);font-weight:var(--fw-medium);color:var(--text);line-height:var(--lh-tight);min-width:0}
 .shop-empty{padding:14px 12px;text-align:center;font-size:var(--fs-meta);color:var(--text-dim);line-height:var(--lh-normal)}
 .shop-note{font-size:var(--fs-micro);color:var(--text-dim);line-height:var(--lh-normal);padding:0 2px}
 @media(max-width:560px){
@@ -23703,9 +23726,12 @@ function renderShoppingList(){
     }).filter(function(x){ return x.names.length; });
 
     var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
-    var runeArt = function(r){
-      var u = (typeof artUrl === 'function') ? artUrl(r) : null;
-      return u ? '<img src="' + esc(u) + '" alt="" loading="lazy" onerror="this.style.display=&#39;none&#39;">' : '';
+    /* v1739 — artUrl() resolves runes, bases AND runewords, so this was never rune-specific;
+       it was called runeArt only because runes were the first row type to use it. */
+    var artImg = function(n){
+      var u = (typeof artUrl === 'function') ? artUrl(n) : null;
+      return u ? '<img src="' + esc(u) + '" alt="" loading="lazy" data-arttip="' + esc(n)
+               + '" onerror="this.style.display=&#39;none&#39;">' : '';
     };
 
     var H = [];
@@ -23725,7 +23751,7 @@ function renderShoppingList(){
       H.push('<div class="shop-row is-head"><span>Rune</span><span style="text-align:right">Need</span><span style="text-align:right">Have</span><span style="text-align:right">Short</span></div>');
       runeRows.forEach(function(x){
         H.push('<div class="shop-row">'
-          + '<span class="shop-name">' + runeArt(x.rune) + '<b>' + esc(x.rune) + '</b></span>'
+          + '<span class="shop-name">' + artImg(x.rune) + '<b data-arttip="' + esc(x.rune) + '">' + esc(x.rune) + '</b></span>'
           + '<span class="shop-num">' + x.want + '</span>'
           + '<span class="shop-num">' + x.have + '</span>'
           + '<span class="shop-num ' + (x.short ? 'is-short' : 'is-ok') + '">' + (x.short || '✓') + '</span>'
@@ -23742,10 +23768,12 @@ function renderShoppingList(){
     } else {
       baseRows.forEach(function(x){
         H.push('<div class="shop-bases">'
-          + '<span class="shop-name"><b>' + esc(x.names[0]) + '</b>'
-          + (x.names.length > 1 ? '<span class="shop-sub">or ' + esc(x.names.slice(1).join(' / ')) + '</span>' : '')
+          + '<span class="shop-name">' + artImg(x.names[0]) + '<b data-arttip="' + esc(x.names[0]) + '">' + esc(x.names[0]) + '</b>'
+          + (x.names.length > 1 ? '<span class="shop-sub">or ' + x.names.slice(1).map(function(n){
+              return '<span class="shop-alt" data-arttip="' + esc(n) + '">' + esc(n) + '</span>'; }).join(' / ') + '</span>' : '')
           + '</span>'
-          + '<span class="shop-for">' + (x.need ? x.need + 'os · ' : '') + 'for ' + esc(x.rw) + '</span>'
+          + '<span class="shop-for">' + (x.need ? x.need + 'os · ' : '') + 'for '
+          + '<span class="shop-rw" data-arttip="' + esc(x.rw) + '">' + esc(x.rw) + '</span></span>'
           + '</div>');
       });
     }
@@ -40067,7 +40095,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1738', name:'v1738 - the count is eight', date:'2026-08-17', note:'researched the ladder-only runeword set after he asked me to look it up; the data was right at eight and the nine lived only in prose, with Hustle absent correctly because RotW renamed it to Mania and Hysteria' };
+  window.D2R_BUILD = { id:'v1739', name:'v1739 - the shopping list carries its art', date:'2026-08-17', note:'wired the shopping list into the arttip card the board has had since v283 so runes bases alternates and the runeword each base is for all float their HD art on hover; the anchor is the keyword not the grid cell because v654 refuses anything wider than 430px and the cells measure 480 and 600' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
