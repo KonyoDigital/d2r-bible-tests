@@ -3739,3 +3739,39 @@ rendered the later row — a click that opens "item not found". Measured: **zero
 because the merge flags by NAME. `window._ncAudit()` is published from inside the BOSSES scope so
 the gate can prove it every run instead of skipping, and the gate was **seen RED** for its own
 reason first: doctoring one `Axe of Fechmar` row reported `split: ["Axe of Fechmar"]`.
+
+## REG-149 — the Forge could not name a base he owns, and the tab scrolled sideways on his phone (v1719)
+Konyo: *"fix the forge so it names bases i own.. only in one step it can show the ones i dont own"*
+
+**The base bug was an ORDERING bug, which is why it looked like a missing feature.**
+`_rwLegalBases(rw, limit)` ran `.slice(0, limit || 4)` on the curated meta list and applied the
+class/socket filter AFTER, so the answer was always "of these four picks, the legal ones" — never
+"the legal ones". A base outside the four could not appear no matter what was in his stash. And
+the function never consulted his stash at all: `_forgeMetaBase` is a curated endgame shortlist
+with no idea what he owns, so the Forge could only ever recommend shopping.
+Measured before: `_rwLegalBases('Rhyme',4)` → Luna / Monarch / Troll Nest / Aegis with a
+**Bloodlord Skull (2os) in the stash**, while `_baseRunewords('Bloodlord Skull')` lists Rhyme and
+its socket max is 2 — legal, owned, and unreachable.
+Fixed: filter first and cut LAST; owned bases enter the same filter and come FIRST, because a base
+in hand outranks a better one he would have to find. `opts.ownedOnly` / `opts.notOwned` let one
+definition answer two questions — the ONE STEP card keeps showing the ones he does NOT own (his
+explicit instruction), and the v1715 shopping list now asks `notOwned` so "bases to buy" can never
+list something already in his stash. Seen red first: with the pre-v1719 order restored in a
+doctored copy, the owned base is absent and the guard fails.
+The footnote stopped calling his own stash a curated pick — "4 endgame homes shown" became
+"1 in your stash + 3 endgame homes" ([[label-outlived-referent]]).
+
+**And the phone defect this surfaced.** `.fp-lbl` is `flex:0 0 auto` + `white-space:nowrap`, so the
+Forge progress label can neither shrink nor wrap. On his REAL profile it reads "📜 99 / 99
+runewords forged · all 99 planned here (8 ladder-only included)" plus a 100% coin and forces the
+document to **537px at 375, 390 AND 414** — every phone width, on the tab he reads mid-game. Older
+than this change and unrelated to it (identical with and without an owned base). Now wraps below
+520px; desktop `white-space`/`flex` verified unchanged by `getComputedStyle`.
+
+**Closed with it: `tests/v1712_onestep_host_bases.spec.ts` (h), red since `fe185ea`.** Two FIXTURE
+facts, both measured: a default profile has all 99 runewords MADE so `forgeScan()` returns zero
+tiles in every bucket (and a seeded word is un-mark-proof by design — the durable floor purges the
+un-mark), and the rune stash is read AT BOOT so writing it and scanning in the same page measures
+the old stash. With an empty chronicle and a reload, the whole lane is now provable end to end:
+no runes → `ONE STEP: Bloodlord Skull [runes]`; runes in hand → `MAKE NOW: Bloodlord Skull`, and it
+leaves ONE STEP. It only passes because v1719 made the owned base reachable at all.

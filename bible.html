@@ -7522,6 +7522,18 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
    where both are read. Dim on purpose — it is a footnote to the number, not a second number. */
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-note{font-size:var(--fs-meta,11.5px);font-weight:var(--fw-regular);color:var(--text-dim,#8d8068);letter-spacing:var(--ls-normal);cursor:help}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:11.5px;font-weight:var(--fw-semibold);color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a);border:1px solid rgba(210,255,222,.7);padding:1px 9px;border-radius:9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(20,70,35,.45),0 1px 3px rgba(0,0,0,.55)}   /* v620 — forged-coin percent */
+/* v1719 — THE FORGE TAB SCROLLED SIDEWAYS ON HIS PHONE, AND IT WAS THIS LINE.
+   `.fp-lbl` is `flex:0 0 auto` + `white-space:nowrap`, so the progress label can neither shrink
+   nor wrap. On his REAL profile it reads "📜 99 / 99 runewords forged · all 99 planned here
+   (8 ladder-only included)" + a 100% coin, which forces the document to 537px at EVERY phone
+   width — measured identical at 375, 390 and 414, so every phone, and he reads this tab mid-game.
+   Found while verifying the v1719 base fix at 375; it is older than that change and unrelated to
+   it (measured the same with and without an owned base).
+   Desktop is untouched: this only wraps below 520px, where the row has no space to be a row. */
+@media (max-width:520px){
+  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-progress{flex-wrap:wrap}
+  :is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl{flex:1 1 100%;white-space:normal}
+}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:var(--lh-normal)}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:8px;margin:14px 0 18px;width:100%;flex-wrap:wrap}   /* v709 (Grok forge wave A2) — the 80px towers competed with the tasks; one ~38px chip rail */
@@ -14239,23 +14251,73 @@ function _rwOneStepView(){
 // the usual way — not by someone editing one copy, but by someone adding a consumer that never had
 // the rule. So the filter is a FUNCTION now, and both surfaces call it.
 // Returns the meta names that survive class-legality and the socket count, capped.
-function _rwLegalBases(rwName, limit){
+/* ══ v1719 — THE FORGE NAMES THE BASES HE OWNS ═══════════════════════════════════════════════
+   Konyo: "fix the forge so it names bases i own.. only in one step it can show the ones i dont own"
+
+   Two things were wrong, and the first one made the second unfixable:
+
+   (1) IT TRUNCATED BEFORE IT FILTERED. `.slice(0, limit || 4)` ran on the RAW meta list and the
+       class/socket filter ran after, so the answer was "of the four curated picks, the legal
+       ones" — never "the legal ones". A base outside those four could not appear no matter what,
+       which is why a Bloodlord Skull he OWNS was invisible to Rhyme while `_baseRunewords`
+       lists Rhyme for it and its socket max is 2. Filter first, cut last.
+
+   (2) IT ONLY EVER LOOKED AT THE META LIST. `_forgeMetaBase` is a curated endgame shortlist; it
+       has no idea what is in his stash. So the Forge could only ever recommend shopping. What he
+       already owns now enters the same class+socket filter and comes FIRST, because a base in
+       hand outranks a better base he would have to go and find.
+
+   opts.ownedOnly  — only bases he holds (a surface that must never send him shopping).
+   opts.notOwned   — only bases he does NOT hold; this is the "bases to buy" question, and it is
+                     the SAME filter being asked a different question, not a second copy of it.
+   Default (both)  — owned first, then the legal meta picks: the ONE STEP view, where he said
+                     showing the ones he does not own is exactly right. */
+function _rwLegalBases(rwName, limit, opts){
   try {
     if (!rwName || typeof window._forgeMetaBase !== 'function') return [];
-    var names = ((window._forgeMetaBase(rwName) || {}).names || []).slice(0, limit || 4);
-    if (!names.length) return [];
+    opts = opts || {};
+    var meta = ((window._forgeMetaBase(rwName) || {}).names || []);
     var need = 0;
     try { need = (typeof _rwSock === 'function') ? (_rwSock(rwName) || 0) : 0; } catch(e){}
-    if (!need) return names;
-    return names.filter(function(bn){
+
+    // his stash, keyed on the CLEAN base name. When several copies are owned, one already sitting
+    // at the exact socket count wins — that is the copy that makes the word today.
+    var own = {}, ownOrder = [];
+    try {
+      ((typeof window._ownedBases === 'function') ? window._ownedBases() : []).forEach(function(o){
+        var k = String(o.base || '').toLowerCase(); if (!k) return;
+        if (!own[k]) { own[k] = o; ownOrder.push(o.base); }
+        else if (need && o.sockets === need) own[k] = o;
+      });
+    } catch(e){}
+
+    var isLegal = function(bn){
       try {
         var hosts = (typeof _baseRunewords === 'function') ? (_baseRunewords(bn) || []) : null;
         if (hosts && !hosts.some(function(r){ return r.n === rwName; })) return false;   // wrong class
       } catch(e){}
+      if (!need) return true;
       var mx = 0;
       try { mx = parseInt(_socketMaxFor(bn), 10) || 0; } catch(e){}
       return !mx || need <= mx;                                                          // socket count
+    };
+
+    var seen = {}, ownedNames = [], metaNames = [];
+    ownOrder.forEach(function(bn){
+      var k = String(bn).toLowerCase();
+      if (!k || seen[k] || !isLegal(bn)) return;
+      seen[k] = 1; ownedNames.push(bn);
     });
+    meta.forEach(function(bn){
+      var k = String(bn).toLowerCase();
+      if (!k || seen[k] || !isLegal(bn)) return;
+      seen[k] = 1; metaNames.push(bn);
+    });
+
+    var out = opts.notOwned ? metaNames
+            : opts.ownedOnly ? ownedNames
+            : ownedNames.concat(metaNames);
+    return limit ? out.slice(0, limit) : out;   // cut LAST, never before the filter
   } catch(e){ return []; }
 }
 window._rwLegalBases = _rwLegalBases;
@@ -14323,8 +14385,17 @@ function _rwHostBaseTiles(rwName){
     // For a weapon word _keepSocketCeil deliberately fails open (BASE_DB weapon maxes are known
     // understated, v553), so the count includes bases whose real socket max is unproven. Calling
     // 242 of those "can host it" would be a right number under a word that stopped being true.
+    /* v1719 — THE FOOTNOTE HAD TO STOP CALLING HIS OWN STASH AN "ENDGAME HOME".
+       The list is no longer four curated picks: bases he OWNS come first now, and they are not
+       from that curated list at all. "4 endgame homes shown" was a right number under a word that
+       had stopped being true. Counted, not assumed. [[label-outlived-referent]] */
+    var _ownShown = names.filter(function(bn){ return !!own[String(bn).toLowerCase()]; }).length;
+    var _metaShown = names.length - _ownShown;
+    var _shownTxt = _ownShown
+      ? (_ownShown + ' in your stash' + (_metaShown ? ' + ' + _metaShown + ' endgame home' + (_metaShown === 1 ? '' : 's') : ''))
+      : (names.length + ' endgame home' + (names.length === 1 ? '' : 's') + ' shown');
     var more  = (total > names.length)
-      ? '<div class="att-bases-more">' + names.length + ' endgame home' + (names.length === 1 ? '' : 's') + ' shown &middot; ' + (total - names.length) + ' more base' + ((total - names.length) === 1 ? '' : 's') + ' can hold it</div>'
+      ? '<div class="att-bases-more">' + _shownTxt + ' &middot; ' + (total - names.length) + ' more base' + ((total - names.length) === 1 ? '' : 's') + ' can hold it</div>'
       : '';
     return '<div class="att-result-h">🛡 bases that host this word</div>'
       + '<div class="att-bases">' + tiles + '</div>' + more;
@@ -23465,8 +23536,10 @@ function renderShoppingList(){
       // v1715 — the SHARED filter, not the raw meta list. Calling _forgeMetaBase directly here
       // printed "Beast → Scourge" on this very panel: a base that cannot host the word, in a list
       // whose entire purpose is telling him what to go BUY.
+      // v1719 — "bases to BUY" must not list what is already in his stash. Same shared filter,
+      // opposite question (opts.notOwned) — one definition, two audiences, no second copy.
       var names = [];
-      try { names = (window._rwLegalBases ? window._rwLegalBases(n, 3) : []); } catch(e){}
+      try { names = (window._rwLegalBases ? window._rwLegalBases(n, 3, { notOwned: true }) : []); } catch(e){}
       var need = 0; try { need = (window._rwSock ? window._rwSock(n) : 0) || 0; } catch(e){}
       return { rw: n, names: names, need: need };
     }).filter(function(x){ return x.names.length; });
@@ -39824,7 +39897,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1718', name:'v1718 - third eye sweep', date:'2026-08-16', note:'four surfaces still read the unfiltered drop table after the v1717 split, so a boss chip glowed for a row its own table hides and two counters disagreed with the rows under them; and the nc flag is per-row while membership is per-name, which is now audited from inside the BOSSES scope and proven red' };
+  window.D2R_BUILD = { id:'v1719', name:'v1719 - bases he owns', date:'2026-08-16', note:'the forge names the base in his stash instead of only the four curated meta picks: the legal filter used to cut to the top four BEFORE filtering so an owned base could never appear, and owned bases were never consulted at all; ONE STEP still shows the ones he does not own, the shopping list no longer offers a base he already holds, and the forge tab stopped scrolling sideways on his phone' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -251,26 +251,45 @@ test('(g) game-truth routing facts', async ({ page }) => {
    (it should name a base he holds) or correct behaviour (it plans endgame gear only, and his
    chronicle is complete) is Konyo's call — see BUGS.md REG-145's neighbours and the queue. */
 test('(h) a necro base reaches MAKE NOW, and only when the runes are actually held', async ({ page }) => {
+  /* FIXED v1719 (was red since fe185ea, before v1715 shipped). Two FIXTURE facts, not app bugs —
+     both measured rather than guessed:
+       1. A default profile has ALL 99 runewords marked MADE (_RWC_SEED, rwMade 99 of
+          RUNEWORD_TIP 99), so forgeScan() returns zero tiles in every bucket and no word can
+          reach any lane. `d2r_rwUnmade` cannot lift it either: the durable floor purges an
+          un-mark of a SEEDED word on every load, by design — those are his forged fact. The only
+          honest way to test PLANNING is an empty chronicle: d2r_rwProfile='fresh' AND an empty
+          d2r_rwMade, because the fresh flag suppresses re-seeding but does not erase what a
+          previous boot already persisted.
+       2. The rune stash is read into memory AT BOOT. Writing d2r_runeStash and calling
+          forgeScan() in the same page scans the OLD stash, so the "now hold the runes" half was
+          measuring the empty one. It needs a reload.
+     What the test asserts about the APP is unchanged, and it now passes because v1719 made the
+     Forge name a base he owns — before that, Bloodlord Skull could not appear at all. */
   await page.goto(URL);
-  await page.waitForTimeout(1600);
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const w: any = window;
+    w.LSR.setItem('d2r_rwProfile', 'fresh');
+    w.LSR.setItem('d2r_rwMade', '{}');
+    w.LSR.setItem('d2r_rwUnmade', '{}');
+    w.LSR.setItem('d2r_runeStash', '{}');
+  });
+  await page.reload();
+  await page.waitForTimeout(1800);
 
   const setup = await page.evaluate(() => {
     const w: any = window;
     w._ensureSocketBaseEntry && w._ensureSocketBaseEntry('Bloodlord Skull (2os)');
     w.toggleOwned && w.toggleOwned('Bloodlord Skull (2os)');
-    return (w._ownedBases ? w._ownedBases() : []).length;
+    return { owned: (w._ownedBases ? w._ownedBases() : []).length,
+             made: Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}')).length };
   });
-  expect(setup).toBeGreaterThan(0);
-  await page.waitForTimeout(1200);
-
-  const pick = (sc: any, key: string) =>
-    (sc[key] || []).filter((t: any) => t.rw === 'Rhyme')
-      .map((t: any) => ({ base: t.base && t.base.base, sub: t.sub || null }));
+  expect(setup.owned, 'the planted base did not register as owned').toBeGreaterThan(0);
+  expect(setup.made, 'the chronicle must be empty or there is nothing left to plan').toBe(0);
 
   // CONTROL — base in hand, runes absent: Rhyme must be ONE STEP (needs runes), never MAKE NOW.
   const before = await page.evaluate(() => {
     const w: any = window;
-    w.LSR.setItem('d2r_runeStash', JSON.stringify({}));
     const sc = w.forgeScan();
     return {
       now: (sc.now || []).filter((t: any) => t.rw === 'Rhyme').length,
@@ -281,17 +300,26 @@ test('(h) a necro base reaches MAKE NOW, and only when the runes are actually he
   expect(before.now).toBe(0);
   expect(before.onestep.some((t: any) => t.base === 'Bloodlord Skull' && t.sub === 'runes')).toBe(true);
 
-  // now hold the runes — Rhyme must move to MAKE NOW, naming that base
-  const after = await page.evaluate(() => {
+  // now hold the runes — Rhyme must move to MAKE NOW, naming that base.
+  // The stash is boot-read, so this reloads instead of scanning the stash it just replaced.
+  await page.evaluate(() => {
     const w: any = window;
     const s: any = {};
     (w.RUNEWORD_TIP['Rhyme'].rec || []).forEach((r: string) => { s[r] = 3; });
     w.LSR.setItem('d2r_runeStash', JSON.stringify(s));
-    const sc = w.forgeScan();
-    return (sc.now || []).filter((t: any) => t.rw === 'Rhyme')
-      .map((t: any) => (t.base && t.base.base) || null);
   });
-  expect(after).toContain('Bloodlord Skull');
+  await page.reload();
+  await page.waitForTimeout(1800);
+  const after = await page.evaluate(() => {
+    const w: any = window;
+    const sc = w.forgeScan();
+    return {
+      now: (sc.now || []).filter((t: any) => t.rw === 'Rhyme').map((t: any) => (t.base && t.base.base) || null),
+      onestep: (sc.onestep || []).filter((t: any) => t.rw === 'Rhyme').length,
+    };
+  });
+  expect(after.now, 'with the runes in hand the word must name the base he owns').toContain('Bloodlord Skull');
+  expect(after.onestep, 'and it must leave ONE STEP').toBe(0);
 });
 
 // v1715 — ONE FILTER, NOT ONE PER CONSUMER. The Tools shopping list asked _forgeMetaBase directly
@@ -348,4 +376,96 @@ test('(d) an unknown word yields NO row — never an empty bordered box', async 
   expect(r.bogus).toBe('');
   expect(r.empty).toBe('');
   expect(r.nul).toBe('');
+});
+
+// ══ v1719 — THE FORGE NAMES THE BASES HE OWNS ═══════════════════════════════════════════════
+// Konyo: "fix the forge so it names bases i own.. only in one step it can show the ones i dont own"
+//
+// It could not, and the reason was an ordering bug rather than a missing feature: _rwLegalBases
+// sliced the curated meta list to its top 4 BEFORE applying the class/socket filter, so the answer
+// was always "of these four picks, the legal ones" — never "the legal ones". A base outside the
+// four could not appear no matter what he owned. Measured before the fix: Rhyme returned
+// Luna / Monarch / Troll Nest / Aegis with a Bloodlord Skull (2os) sitting in the stash, while
+// _baseRunewords('Bloodlord Skull') lists Rhyme and its socket max is 2.
+//
+// These tests are written against a PLANTED base so they hold on any profile, including CI's.
+
+const OWN_BASE = 'Bloodlord Skull (2os)';   // necro head, 2os, legal for Rhyme (needs 2)
+
+async function withOwnedBase(page: any) {
+  await page.goto(URL);
+  await page.waitForTimeout(1600);
+  return page.evaluate((tag: string) => {
+    const w: any = window;
+    const before = w._rwLegalBases('Rhyme', 4);
+    w._ensureSocketBaseEntry && w._ensureSocketBaseEntry(tag);
+    w.toggleOwned && w.toggleOwned(tag);
+    return { before, ownedN: (w._ownedBases ? w._ownedBases() : []).length };
+  }, OWN_BASE);
+}
+
+test('★ v1719 — a base he OWNS is named, and named FIRST', async ({ page }) => {
+  const setup = await withOwnedBase(page);
+  expect(setup.ownedN, 'the planted base did not register as owned').toBeGreaterThan(0);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    return {
+      after: w._rwLegalBases('Rhyme', 4),
+      ownedOnly: w._rwLegalBases('Rhyme', 4, { ownedOnly: true }),
+      notOwned: w._rwLegalBases('Rhyme', 4, { notOwned: true }),
+      legalForIt: (w._baseRunewords('Bloodlord Skull') || []).some((x: any) => x.n === 'Rhyme'),
+      sockMax: parseInt(w._socketMaxFor('Bloodlord Skull'), 10) || 0,
+      need: w._rwSock ? w._rwSock('Rhyme') : null,
+    };
+  });
+  // the base is genuinely legal — this is not the test bending the rules to suit itself
+  expect(r.legalForIt, 'Bloodlord Skull must really host Rhyme').toBe(true);
+  expect(r.sockMax).toBeGreaterThanOrEqual(r.need as number);
+  // ...and it was invisible before, which is the defect
+  expect(setup.before).not.toContain('Bloodlord Skull');
+  expect(r.after[0], 'a base in hand outranks one he would have to go and find').toBe('Bloodlord Skull');
+  expect(r.ownedOnly).toEqual(['Bloodlord Skull']);
+  expect(r.notOwned, 'the buy list must not contain what he already holds').not.toContain('Bloodlord Skull');
+});
+
+test('★ v1719 — ONE STEP still shows the ones he does NOT own, marked as such', async ({ page }) => {
+  await withOwnedBase(page);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    w._FORGE_VIEW = 'onestep';
+    const d = document.createElement('div');
+    d.innerHTML = String(w._rwHostBaseTiles('Rhyme') || '');
+    return {
+      tiles: Array.from(d.querySelectorAll('.att-base')).map((e: any) => ({
+        name: (e.querySelector('.att-base-n') || {}).textContent,
+        own: e.classList.contains('is-own'),
+        state: ((e.querySelector('.att-base-s') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
+      })),
+      footnote: ((d.querySelector('.att-bases-more') || {}).textContent || '').trim(),
+    };
+  });
+  // his explicit allowance: ONE STEP is the one place the not-owned ones belong
+  expect(r.tiles.length, 'the ONE STEP card rendered no host bases at all').toBeGreaterThan(1);
+  expect(r.tiles[0].own, 'the owned base leads the card').toBe(true);
+  expect(r.tiles[0].state, 'an owned base at the right socket count reads ready').toContain('owned');
+  expect(r.tiles.some((t: any) => !t.own), 'ONE STEP may still show bases he does not own').toBe(true);
+  // and the footnote must not call his own stash a curated "endgame home"
+  expect(r.footnote).toContain('in your stash');
+});
+
+test('★ v1719 — the shopping list never tells him to buy a base he owns', async ({ page }) => {
+  await withOwnedBase(page);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const ownedClean = new Set((w._ownedBases ? w._ownedBases() : []).map((o: any) => String(o.base)));
+    const offenders: string[] = [];
+    Object.keys(w.RUNEWORD_TIP).forEach((rw: string) => {
+      (w._rwLegalBases(rw, 3, { notOwned: true }) || []).forEach((bn: string) => {
+        if (ownedClean.has(bn)) offenders.push(rw + ' → ' + bn);
+      });
+    });
+    return { offenders, ownedN: ownedClean.size };
+  });
+  expect(r.ownedN).toBeGreaterThan(0);
+  expect(r.offenders, 'bases to BUY that are already in his stash: ' + r.offenders.join(', ')).toEqual([]);
 });
