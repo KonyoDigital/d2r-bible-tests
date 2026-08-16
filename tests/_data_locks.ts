@@ -22,8 +22,12 @@ export const CALC_ITEMS_TOTAL = 322;
 // number from CALC_ITEMS_TOTAL by design since v1717: the silospen RoW 3.0 pull put 216
 // more real drops into the tables, and rows the calculator has no card for carry `nc:1`
 // so they join the registry WITHOUT joining the curated calculator grid.
+// v1720 — 538 → 549: Konyo ruled the 11 RotW uniques the pull found (Entropy Locket,
+// Hellwarden's Will, the two missing Latent sunders, Measured Wrath, Opalvein, Sling, the three
+// Ars charms, Gheed's Wager) into the GRAIL ROSTER, so their drop rows came back. They carry
+// `nc:1` and stay out of CALC_ITEMS_TOTAL, which is why only this number moves.
 // Same tripwire rule as its sibling: exact, and bumped deliberately.
-export const DROP_INDEX_TOTAL = 538;
+export const DROP_INDEX_TOTAL = 549;
 
 // Collapsible .sec-h sections on the binds tab — bump in LOCKSTEP when adding
 // a binds section (the v109 memory rule).

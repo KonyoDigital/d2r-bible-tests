@@ -3775,3 +3775,35 @@ un-mark), and the rune stash is read AT BOOT so writing it and scanning in the s
 the old stash. With an empty chronicle and a reload, the whole lane is now provable end to end:
 no runes → `ONE STEP: Bloodlord Skull [runes]`; runes in hand → `MAKE NOW: Bloodlord Skull`, and it
 leaves ONE STEP. It only passes because v1719 made the owned base reachable at all.
+
+## REG-150 — the eleven, ruled into the roster (v1720)
+Konyo: *"add the 11 rotw items to the roster"* — closing the decision v1717 left open.
+
+v1716's silospen pull found 11 uniques RoW 3.0 serves for bosses he farms that this app had no
+card for; v1717 removed their drop rows rather than ship chips that open nothing, and said the fix
+was his because it moves his chronicle denominator. It is now taken.
+
+**Two of the eleven were never new territory.** `_UNI_EXTRA` already carried Latent Black Cleft,
+Latent Cold Rupture, Latent Crack of the Heavens and Latent Rotting Fissure — **four of the six**
+Latent sunders. Latent Bone Break and Latent Flame Rift were the missing siblings of a family
+already in the roster.
+
+**Measured, before and after:** roster 387 → 398 · `_UNI_EXTRA` 69 → 80 · missing 141 → 152 ·
+chronicle rows still dark 16 → **5** · found **246, unchanged** · `d2r_foundLog` **354, unchanged**
+· calculator grid **322, unchanged** (he ruled on the roster, so the v1717 separation stands and
+the restored rows carry `nc:1`). All 11 resolve as `kind:'unique'`, all 11 carry a farm route, all
+11 have art. 246 found + 157 not found = the game's own 403.
+
+**Two hazards checked rather than assumed, both raised by the third eye:**
+- **`Sling` is also a vanilla base-item name**, and `d2rResolveItem` tries set-piece → unique →
+  base, so a new unique could have hijacked a base name — routing a found base into the grail
+  LEDGER instead of the physical vault. Refuted by measurement: `Sling` is not in this app's
+  `BASE_DB`, and its resolution went **unknown → unique**, never base → unique. `Bone Break` and
+  `Flame Rift` resolved as uniques before and after, unchanged by their new `Latent` siblings.
+- **`bible.html:16180` DELETES from `d2r_setPieces` any name found in `_UNI_EXTRA`, and writes.**
+  A set-piece collision would have silently edited his set ledger. Checked against all 270 piece
+  names in both bare and suffixed form: zero collisions, and none of the eleven is in his ledger.
+
+Also corrected here: the roster block's own comment still said "_UNI_EXTRA (69 keys) … 514 − 127 =
+387", 15 versions stale — under a line that warns *a count in a comment is a number nobody
+re-measures*. Now 80 / 525 − 127 = 398, re-measured in a browser.

@@ -46,9 +46,19 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
      additions are unfound, and the two variants were already counted under their "The …" names —
      if found moves, something double-counted an item he already owns, which is the exact ghost this
      correction exists to prevent. */
-  expect(r.extraN).toBe(69);   // v1703 +Polaris Spear/The Scourge · v1695 +Fleshrender · v682 +4
-  expect(r.total).toBe(387);            // v1703: 385 + the two genuinely-absent uniques
-  expect(r.found).toBe(246);            // UNCHANGED — both additions are unfound
+  /* v1720 — KONYO'S RULING: "add the 11 rotw items to the roster". The v1716 silospen pull found
+     11 uniques RoW 3.0 serves for bosses he farms that this app had no card for; v1717 removed
+     their drop rows rather than ship chips that open nothing, and he then ruled them IN. Two were
+     not new territory — _UNI_EXTRA already held four of the six Latent sunders, and Latent Bone
+     Break / Latent Flame Rift were the missing siblings.
+       extraN 69 -> 80   (+11, the ruling)
+       total  387 -> 398 (the same +11 reaching the roster)
+     The two numbers BELOW do not move, and that is the point: every one of the eleven is UNFOUND,
+     so his ledger is untouched. If found or flN ever moves on a roster change, something wrote to
+     his testimony. */
+  expect(r.extraN).toBe(80);   // v1720 +11 RotW · v1703 +Polaris Spear/The Scourge · v1695 +Fleshrender · v682 +4
+  expect(r.total).toBe(398);            // v1720: 387 + the eleven he ruled in
+  expect(r.found).toBe(246);            // UNCHANGED — every addition is unfound
   expect(r.flN).toBe(354);              // UNCHANGED — 246 uniques + 108 set-piece stamps
   expect(r.wormskull).toBe('Jun 22, 2026 · 02:00');
   expect(r.hoz).toBe(true);

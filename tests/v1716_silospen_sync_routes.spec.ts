@@ -157,4 +157,36 @@ test.describe('v1716 — every hunt on the board resolves to a real run', () => 
     });
     expect(r.orphans, 'rendered rows with no calculator card: ' + r.orphans.join(', ')).toEqual([]);
   });
+
+  /* v1720 — KONYO'S RULING: "add the 11 rotw items to the roster".
+     v1716 found these in the RoW 3.0 tables; v1717 pulled their rows back out because the app had
+     no card for them and a chip that opens nothing is worse than a drop he never sees. He then
+     ruled them in. Each must now clear the whole bar v645 checks generically — in the roster,
+     resolvable as a unique, carrying a real farm route and a picture — because a roster entry that
+     cannot be opened or hunted is the defect this arc removed, not a new one to add. */
+  test('★ the eleven he ruled in are real roster entries, not just names', async ({ page }) => {
+    await boot(page);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const N = ['Entropy Locket', "Hellwarden's Will", 'Latent Bone Break', 'Latent Flame Rift',
+                 'Measured Wrath', 'Opalvein', 'Sling', "Ars Al'Diabolos", "Ars Dul'Mephistos",
+                 "Ars Tor'Baalos", "Gheed's Wager"];
+      const roster = new Set(w._gUniqueRoster());
+      const fu = w.funiScan();
+      const fail: string[] = [];
+      N.forEach((n) => {
+        if (!roster.has(n)) return fail.push(n + ': not in the roster');
+        if (w.d2rResolveItem(n).kind !== 'unique') return fail.push(n + ': does not resolve as a unique');
+        const it = fu.missing.find((x: any) => x.n === n);
+        if (!it) return fail.push(n + ': not in the missing list (is it seeded found?)');
+        if (!w._pickSrc(it.sources, n)) return fail.push(n + ': no farm route');
+        if (!w.artUrl(n)) return fail.push(n + ': no art');
+      });
+      return { fail, rosterN: roster.size, found: fu.found, calcItems: (w.ITEMS || []).length };
+    });
+    expect(r.fail, 'roster entries that cannot be opened or hunted: ' + r.fail.join(' | ')).toEqual([]);
+    expect(r.rosterN, 'the roster must have grown by exactly the eleven').toBe(398);
+    // he ruled on the ROSTER. The curated calculator grid is a different surface and stays put.
+    expect(r.calcItems, 'the calculator is not what he ruled on').toBe(322);
+  });
 });
