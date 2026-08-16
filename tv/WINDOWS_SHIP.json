@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1734",
+  "ver": "v1735",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1734: an undefined token still renders through its fallbacks so gold-bright drew two different colours on the console and gold-dim had been drawing six on the board; the console now defines it and a gate pins the rule",
+  "note": "v1735: 19 codex bases named something BASE_DB does not know while ITEM_TIP named one it does so 19 item cards showed no requirements no tier and no icon; twelve were misspellings one a mangled Windows-1252 escape and seven were not D2 bases at all",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

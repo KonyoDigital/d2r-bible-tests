@@ -4334,3 +4334,56 @@ and nothing in this repo says which. **[[unknown-stays-unknown]]**
 
 Gate `v1734`: an undefined token may not render as two different values. RED on both pre-fix files,
 naming `--gold-bright` in the console and the six-colour `--gold-dim` in the board.
+
+---
+
+## REG-168 — 19 item cards missing their requirements, over a spelling (v1735)
+
+19 of the 62 "unresolved" codex bases were not unresolvable. Every one had a second witness in the
+same file — `ITEM_TIP[item].b` — naming a base `BASE_DB` knows perfectly well. Two independent
+sources agreed and the codex disagreed with both. **[[d2r-multiwitness-corroboration]]**
+
+**Twelve were misspellings** of real D2 items: `AncientArmor`, `succubae skull`,
+`Light Plate Boots`, `Battle Guantlets`, `Espadon`, `CedarBow`, `Long Siege Bow`, `Balista`,
+`Heirophant Trophy`, `Stilleto`, `Jo Stalf` — and one **mangled escape**: the file held the literal
+characters `Hunter\92s Bow`, a Windows-1252 right single quote that had been escaped into the source
+as text.
+
+**Seven named something the game has no base for.** `Girdle`, `Leather Boots` and `Plate Boots` are
+not Diablo II items; `Gloves` and `Bracers` are slots, not bases:
+
+| item | codex said | truth |
+|---|---|---|
+| Corpsemourn | Ornate Armor | Ornate Plate |
+| Bladebuckle | Girdle | Plated Belt |
+| Hotspur | Leather Boots | Boots |
+| Tearhaunch | Plate Boots | Greaves |
+| Chance Guards | Bracers | Chain Gloves |
+| The Hand of Broc (×2) | Gloves | Leather Gloves |
+
+### What it cost
+
+`renderCodexCard` derives `max(BASE_DB[base].reqLvl, codex.reqLvl)` (v1731), so a base that does not
+resolve means **no base data at all**. Measured on Chance Guards, the card gained three things:
+the correct base name, a **NORMAL** tier label, and its **item icon** — the art lookup keys off the
+base too. Nineteen cards had been quietly missing the requirements they exist to show.
+
+### Every occurrence had to move together
+
+The misspellings were not confined to `ITEM_CODEX` — `Stilleto` appeared **7** times,
+`Long Siege Bow` 4, `Heirophant Trophy` 3 — and **`_TIER_CHAIN` carried two of them**. Fixing the
+codex alone would have broken the chain against the codex instead of against `BASE_DB`: moving the
+defect, not removing it. **[[copy-drift]]** `_TIER_CHAIN` carries a v526 note that it deliberately
+uses DISPLAY names so it matches `_baseCats`/`_baseRunewords`; the rename moves it **toward** that
+intent, and all twelve corrected names were verified present in the built chain afterwards.
+
+### The gate needed no fuzzy matching
+
+An edit-distance first draft was written and thrown away: it called `Ring` a misspelling of `Kris`
+(3 edits apart, and a generic slot rather than a typo), and a length-relative variant then hid
+`Balista` because the name was too short. The second witness settles it with no threshold at all —
+*if `ITEM_TIP` names a base the DB knows and the codex names one it doesn't, the codex is wrong.*
+**[[feedback-suspect-the-instrument]]**
+
+v1726's residue pin tightened **62 → 43**. A pin left 19 above the true count stops catching
+anything. `levelGap` is unchanged at 1 (`Ironward/Caduceus`) and case-only mismatches remain 0.

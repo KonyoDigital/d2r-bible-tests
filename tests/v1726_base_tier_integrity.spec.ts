@@ -87,9 +87,11 @@ test.describe('v1726 — the base an item names is the base it drops on', () => 
       const b = e.base && BASES[e.base];
       return b && e.reqLvl != null && b.reqLvl != null && b.reqLvl > e.reqLvl;
     }).map(([n, e]) => `${n}/${e.base}`);
-    // unresolved bases are generic slots the BASE_DB does not model (Amulet, Ring, Gloves,
-    // Pandemonium Event Key). Pinned so a NEW unresolvable name is noticed.
-    expect(unresolved.length, 'codex bases not in BASE_DB').toBeLessThanOrEqual(62);
+    /* v1735 tightened this from 62 to 43. Nineteen of the sixty-two were not "generic slots the
+       BASE_DB does not model" at all — twelve were misspellings (Stilleto, Balista, CedarBow,
+       Jo Stalf, Heirophant Trophy, ...) and seven named something D2 has no base for (Girdle,
+       Leather Boots, Plate Boots). A pin left 19 above the true count stops catching anything. */
+    expect(unresolved.length, 'codex bases not in BASE_DB').toBeLessThanOrEqual(43);
     // three entries name the right base but disagree with it by 1-6 levels. Nothing in this repo
     // says which side is wrong, so they stay reported rather than invented.
     expect(levelGap.length, 'base-vs-item level disagreements: ' + levelGap.join(', ')).toBeLessThanOrEqual(3);
