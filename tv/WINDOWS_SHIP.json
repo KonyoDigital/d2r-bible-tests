@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1739",
+  "ver": "v1740",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1739: wired the shopping list into the arttip card the board has had since v283 so runes bases alternates and the runeword each base is for all float their HD art on hover; the anchor is the keyword not the grid cell because v654 refuses anything wider than 430px and the cells measure 480 and 600",
+  "note": "v1740: the sessions grail row ranked RUNS but printed one ITEM odds so it advertised 3.9h for a pick made on a run that yields a missing unique every 33 minutes; both numbers now show with what each measures and the item time comes from the same helper F-Uniques prints with",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -4637,3 +4637,62 @@ Verified at 1440 and 375 — no overflow at either. Grok, given the 1440 render 
 floating card's picture as a shield matching Troll Nest, found no clipping or contrast problems,
 read the row icons as distinct rather than placeholders, and called the interactive styling
 consistent.
+
+---
+
+## REG-171 — two numbers for one farm, and the better one was never shown (v1740)
+
+Konyo: *"the next grail time find is different saying from the sessions like the f-uniques and
+f-sets are showing diffrent number for time farming those specific items... cant have two diffrent
+numbers for farming.. and its obivously not the quickets either cuz i see in the tabs f-unqies and
+f-sets faster ones."*
+
+He was reading **two answers to two different questions** as one contradiction, and the app gave him
+no way to tell them apart:
+
+* **F·Uniques ranks ITEMS.** Its card prints `~1.2h to find` — the fastest single item.
+* **The Sessions ops queue ranks RUNS.** It takes `funiScan().runs[0]` — the route that yields a
+  missing unique fastest — then named ONE item from that run and printed **that item's** odds:
+  `Hell TZ Mephisto 1:449`, which is 3.9h.
+
+So the row advertised **3.9h for a decision made on a different number entirely**, and 3.9h loses to
+F·Uniques' 1.2h — which is exactly why it read as "not the quickest".
+
+**The rate that justified the pick was computed into `c.op.route` and thrown away before
+rendering.** Measured: that run yields a missing unique **every 33 minutes**, which beats every
+single-item time on the board. The best number in the app was the one number it never showed.
+**[[the-unjoined-end]]**
+
+The row now reads:
+
+> 🏆 Shadow Killer — Hell TZ Mephisto 1:449 **~3.9h to find** · *this run yields ~1 missing unique
+> every 33m* · 157 uniques left
+
+The item's time-to-find goes through **`_ttf`**, the exact helper the F·Uniques card prints with, so
+the same item now shows the same number on both surfaces — verified equal, boss included.
+
+### Three suspects checked and found innocent, so the fix stayed narrow
+
+| suspect | measured |
+|---|---|
+| console `_ev_hours` vs board `hoursFor` | **144/144 identical**, 0 mismatches. No formula drift |
+| bridge item set vs `funiScan().missing` | identical top 10, nothing dropped, 144 vs 144 |
+| two source-pickers | **real, and nearly harmless**: `_pickSrc` maximises `kph/chance` (kph fallback **30**, skips `blocked`) while the bridge minimises `hoursFor` (fallback **100**, skips `chance <= 50`). Across 144 items they disagree on the boss for **zero** and on hours for **one** — Gheed's Fortune, 12% |
+
+That last one is a genuine two-implementations-of-one-rule and it is **recorded, not fixed on the
+way past**: it is not what he was seeing, and changing a picker while chasing a different defect is
+how two fixes break each other. **[[two-fixes-broke-each-other]]**
+
+### Instrument errors on the way
+
+* `document.getElementById('tab-sessions')` does not exist — the tab is **`tab-session`**, singular.
+  My first scrape fell back to `document.body`, so "Sessions shows 3.9h" was measured **on the whole
+  page**, not on that tab. The conclusion happened to survive; the method did not.
+* `window.effChance` / `window.hoursFor` are `undefined` — both are MODULE-scoped and reachable only
+  as bare identifiers inside `evaluate()`. Reading them off `window` leaves every comparison null,
+  and the first version of the v1740 gate passed over an **empty set** until its own non-vacuity
+  assertion failed it. **[[feedback-blind-fixture-green-gate]]**
+
+⚠ Noted, not chased: `bloodcrescent` is `tier:'common'` and lower-cased, sits in the bridge at
+1.04h, and is invisible on F·Uniques (whose display excludes that tier). One of the two surfaces is
+wrong about whether it belongs; nothing here says which.

@@ -37613,7 +37613,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
         if (it){
           var bs=it._bs, boss=bs?bs.s.boss:(run&&run.boss)||'', oddsStr=bs?fmtOdds(bs.chance!=null?bs.chance:bs.s.chance):'';   /* v1616 — his odds */
+          /* v1740 — the item's OWN time-to-find, through _ttf, which is the exact helper the
+             F·Uniques card prints with. Same item, same number, both surfaces. */
+          var _bh=''; try { if (bs && bs.s) _bh = _ttf(bs.chance!=null?bs.chance:bs.s.chance, bs.s.kph||30); } catch(e){}
           c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:(run&&run.bossId)||''),
+                 bestHours:_bh,
                  route:(run&&run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
           c.pick='🏆 Grail · '+c.done+'/'+c.total+' — hunt '+it.n+(boss?(' (best at '+boss+(oddsStr?', '+oddsStr:'')+')'):'')+'; '+c.left+' uniques left';
         }
@@ -39703,8 +39707,23 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
         if (c.key==='rw') return;   // runewords already surfaced above via liveNow / onestep / pipeline
         if (c.key==='grail' && c.op){
           if (mission && mission.name===c.op.item) return;   // don't duplicate the pinned/auto mission
+          /* v1740 — SAY WHICH NUMBER THE PICK WAS MADE ON. Konyo: "the next grail time find is
+             different saying from the sessions like the f-uniques and f-sets... cant have two
+             diffrent numbers for farming.. and its obivously not the quickets either."
+             He was reading two answers to two different questions as one contradiction:
+               * F·Uniques ranks ITEMS — "~1.2h to find" is the fastest single item;
+               * this row ranks RUNS — it takes funiScan().runs[0], the route that yields a missing
+                 unique fastest (measured: Hell TZ Mephisto, one every 1.82h across 38 items), then
+                 named ONE item from it and printed THAT item's odds, 1:449 ≈ 3.9h.
+             So the line advertised 3.9h for a choice made on 1.8h, and 3.9h loses to F·Uniques'
+             1.2h — which is exactly how it reads as "not the quickest". The rate that justifies
+             the pick was already computed into c.op.route and thrown away before rendering.
+             [[the-unjoined-end]] Both numbers now appear, each labelled with what it measures. */
+          var _gTtf = '';
+          try { var _gb = c.op.bestHours; if (_gb) _gTtf = ' <span style="opacity:.72">~' + esc(_gb) + ' to find</span>'; } catch(e){}
+          var _gRate = c.op.route ? ' <span style="opacity:.62">· ' + esc(c.op.route) + '</span>' : '';
           rest.push({ tag:'grail', cls:'want', item:c.op.item, act:'Open',
-            txt:_opsMark(c.op.item,'🏆')+' — '+esc(c.op.boss||'best run')+(c.op.oddsStr?' <span style="opacity:.72">'+esc(c.op.oddsStr)+'</span>':'')+' · '+c.left+' uniques left' });
+            txt:_opsMark(c.op.item,'🏆')+' — '+esc(c.op.boss||'best run')+(c.op.oddsStr?' <span style="opacity:.72">'+esc(c.op.oddsStr)+'</span>':'')+_gTtf+_gRate+' · '+c.left+' uniques left' });
         } else if (c.key==='sets' && c.op){
           // v1273 — set pieces aren't in ITEMS; route the OPS row to F·Sets (quick-wins), not openItemDetail.
           rest.push({ tag:'set', cls:'want', goTab:'fsets', setNear:true, act:'Open',
@@ -40095,7 +40114,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1739', name:'v1739 - the shopping list carries its art', date:'2026-08-17', note:'wired the shopping list into the arttip card the board has had since v283 so runes bases alternates and the runeword each base is for all float their HD art on hover; the anchor is the keyword not the grid cell because v654 refuses anything wider than 430px and the cells measure 480 and 600' };
+  window.D2R_BUILD = { id:'v1740', name:'v1740 - one number per farm', date:'2026-08-17', note:'the sessions grail row ranked RUNS but printed one ITEM odds so it advertised 3.9h for a pick made on a run that yields a missing unique every 33 minutes; both numbers now show with what each measures and the item time comes from the same helper F-Uniques prints with' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
