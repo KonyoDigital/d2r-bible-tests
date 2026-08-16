@@ -382,6 +382,19 @@ test.describe('v1628 · 6 — a thumbnail names something in its own group', () 
              The identity check below still holds for either: a run card titled "Run Hell
              Mephisto" contains "mephisto", so an arbitrary picture would still be caught. */
           logo: a?.getAttribute('data-art-logo') || a?.getAttribute('data-boss-tip') || null,
+          /* v1721 — the BOSSES roster's own display name for that id, so the identity check can
+             accept "Uber Diablo (Diablo Clone)" for `dclone` and "Hell Bovines" for `cows`. */
+          displayName: (() => {
+            const id = a?.getAttribute('data-boss-tip') || '';
+            try {
+              const w: any = window;
+              const b = (w._allDropItems ? null : null);
+              const hit = (w.BOSSES || []).find((x: any) => x.id === id);
+              if (hit) return hit.name || '';
+              const t = a?.getAttribute('title') || '';
+              return t.split('—')[0].trim();          // "Mephisto — open the boss card"
+            } catch (e) { return ''; }
+          })(),
           hasImg: !!img,
           decoded: img ? img.naturalWidth > 0 : false,
           /* the group's own text: title + every item name the card lists */
@@ -398,9 +411,20 @@ test.describe('v1628 · 6 — a thumbnail names something in its own group', () 
           'arbitrary picture v1624 removed; render nothing instead').toBe(false);
         continue;
       }
-      expect(c.text.includes(String(c.logo).toLowerCase()),
-        `thumbnail names "${c.logo}" but that name appears NOWHERE in its own card — an arbitrary ` +
-        `picture (the v1624 art(items[0].name) shape)`).toBe(true);
+      /* v1721 — THE ID IS NOT ALWAYS THE NAME ON THE CARD, and this is the third boss to prove it.
+         v1717 already hit it on the sets board, where `cows` renders as "Hell Bovines"; here it is
+         `dclone`, whose card reads "Run Normal Uber Diablo (Diablo Clone)". The picture is
+         perfectly correct — the card simply never prints the internal id.
+         It surfaced only now because v1721's Pindle correction re-ranked the runs and moved that
+         card into the measured set for the first time: the gate was blind to input his own data
+         had never produced. [[gate-blind-to-unexercised-input]]
+         The check keeps its teeth — an arbitrary picture matches NEITHER the id nor the boss's
+         display name, so "Run Hell Mephisto" wearing a Countess portrait still fails. */
+      const idOrName = [String(c.logo).toLowerCase(), String(c.displayName || '').toLowerCase()]
+        .filter(Boolean);
+      expect(idOrName.some((v) => c.text.includes(v)),
+        `thumbnail names "${c.logo}" (display "${c.displayName}") but neither appears in its own ` +
+        `card — an arbitrary picture (the v1624 art(items[0].name) shape)`).toBe(true);
       expect(c.decoded, `"${c.logo}" thumbnail does not decode`).toBe(true);
     }
     /* non-vacuity: at least one card actually carried a thumbnail */
