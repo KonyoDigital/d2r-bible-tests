@@ -232,6 +232,24 @@ test('(g) game-truth routing facts', async ({ page }) => {
 // socket rule — any of which can drop the base while both ends still look wired.
 // So this owns a 2-socket Bloodlord Skull and asserts Rhyme is TASKED, with the runes-absent
 // control asserted just as hard: a bucket that accepts everything proves nothing.
+/* ⚠ RED SINCE fe185ea (2026-08-15), BEFORE v1715 SHIPPED — AND NOT FOR THE REASON IT LOOKS.
+   Diagnosed 2026-08-16 (v1718) without fixing it, because the fix is a product decision:
+
+     * `forgeScan()` returns ZERO tiles in every bucket on a default profile — not zero RHYME
+       tiles, zero of everything — because `_RWC_SEED` marks ALL 99 runewords as already MADE
+       (measured: rwMade 99 of RUNEWORD_TIP 99). There is nothing left for the Forge to plan.
+     * It cannot be un-made either. `d2r_rwUnmade` exists, but the durable floor "purges any
+       stale un-mark of a SEEDED runeword" on every load, by design — those are his forged fact.
+       Setting `d2r_rwProfile='fresh'` (which suppresses the seed) still yields zero tiles, so
+       something further gates the scan as well.
+     * Independently: `_rwLegalBases(rw, limit)` slices the meta list to the top 4 BEFORE
+       filtering, so a base he OWNS can never appear unless it is already a meta pick. For Rhyme
+       the four are Luna / Monarch / Troll Nest / Aegis, while `_baseRunewords('Bloodlord Skull')`
+       lists Rhyme and its socket max is 2 — the necro head is legal and unreachable.
+
+   So this test asserts something the app cannot currently produce. Whether that is a Forge bug
+   (it should name a base he holds) or correct behaviour (it plans endgame gear only, and his
+   chronicle is complete) is Konyo's call — see BUGS.md REG-145's neighbours and the queue. */
 test('(h) a necro base reaches MAKE NOW, and only when the runes are actually held', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);
