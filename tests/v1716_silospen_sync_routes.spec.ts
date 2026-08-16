@@ -123,4 +123,38 @@ test.describe('v1716 — every hunt on the board resolves to a real run', () => 
       expect(r.unrouted, 'one roster row cannot speak for two items').toBe(true);
     }
   });
+
+  /* v1717, and it exists because a DIFFERENT model family went looking for it.
+     Grok, handed the two-list split and asked to refute "every consumer reads the right list",
+     pointed at the seam rather than the call sites: `nc` is a per-ROW flag while ITEMS membership
+     is decided ONCE, by the first row for that name. If a name were `nc:1` on its first boss and
+     plain on a later one, it would never enter ITEMS while _calcDrops still rendered the later
+     row — a click that opens "item not found". It does not fire today (measured: zero split
+     names, because the merge flagged by NAME), which is exactly why it needs a guard: the next
+     pull is where it would start. */
+  test('★ no item name is nc on one boss and not on another', async ({ page }) => {
+    await boot(page);
+    const r = await page.evaluate(() => (window as any)._ncAudit());
+    // BOSSES is a module const, so the audit is published from inside its scope. A gate that
+    // skips is a gate that does not run — this one must always have something to check.
+    expect(r.checked, 'the nc audit could not read the drop tables: ' + (r.error || '')).toBeGreaterThan(300);
+    expect(r.split, 'names flagged inconsistently: ' + r.split.join(', ')).toEqual([]);
+  });
+
+  /* The other half of the same seam: whatever a boss card RENDERS must be openable. This is the
+     dead-click class v69 guards from the top-drops side; this one walks every rendered row. */
+  test('★ every rendered boss drop row resolves in the calculator', async ({ page }) => {
+    await boot(page);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const names = new Set((w.ITEMS || []).map((x: any) => x.n));
+      const orphans: string[] = [];
+      document.querySelectorAll('#boss-cards .boss-card table.drops tbody tr').forEach((tr: any) => {
+        const n = tr.getAttribute('data-item') || '';
+        if (n && !names.has(n)) orphans.push(n);
+      });
+      return { orphans: [...new Set(orphans)].slice(0, 20) };
+    });
+    expect(r.orphans, 'rendered rows with no calculator card: ' + r.orphans.join(', ')).toEqual([]);
+  });
 });

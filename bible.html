@@ -15781,6 +15781,20 @@ BOSSES.forEach(boss => {
    keeps its curated ITEMS. One accessor, so a consumer cannot quietly pick the wrong list. */
 window.ITEM_REGISTRY = ITEM_REGISTRY;
 window._allDropItems = function(){ try { return Object.keys(ITEM_REGISTRY).map(function(k){ return ITEM_REGISTRY[k]; }); } catch(e){ return (window.ITEMS||[]); } };
+/* v1717 — `nc` is a per-ROW flag while ITEMS membership is decided ONCE, by the first row for a
+   name. A name that were nc:1 on one boss and plain on another would never join ITEMS while
+   _calcDrops still rendered the plain row — a click that opens "item not found". It does not
+   happen today because the merge flags by NAME; this accessor exists so a gate can PROVE that
+   every time instead of skipping for want of BOSSES, which is a module const. */
+window._ncAudit = function(){
+  try {
+    var by = {};
+    BOSSES.forEach(function(b){ (b.dropTable||[]).forEach(function(d){
+      (by[d.n] = by[d.n] || {})[d.nc ? 'nc' : 'plain'] = 1; }); });
+    var names = Object.keys(by);
+    return { checked: names.length, split: names.filter(function(n){ return by[n].nc && by[n].plain; }) };
+  } catch(e){ return { checked: 0, split: [], error: String(e) }; }
+};
 
 const $ = id => document.getElementById(id);
 const LS = window.LSR;   // v635 — profile-routed storage (main = bare keys, ladder = L· prefix)
@@ -18966,7 +18980,7 @@ function _bossDropRowsHtml(bossId){
         ${cells}
       </tr>`;
   }).join("");
-  return rows || `<tr><td colspan="8" class="drops-empty-cell" style="text-align:center;padding:18px;opacity:.72;color:var(--text)">No items match the <strong>${filter === 'grail' ? 'grail / uber' : filter === 'achievable' ? 'achievable' : filter === 'starred' ? '⭐ wishlist' : filter === 'hideowned' ? 'hide ✓ owned' : filter}</strong> filter &mdash; <button class="boss-filter-pill" style="display:inline-block;margin-left:6px" onclick="setBossFilter('${bossId}','all')">show all ${boss.dropTable.length}</button></td></tr>`;
+  return rows || `<tr><td colspan="8" class="drops-empty-cell" style="text-align:center;padding:18px;opacity:.72;color:var(--text)">No items match the <strong>${filter === 'grail' ? 'grail / uber' : filter === 'achievable' ? 'achievable' : filter === 'starred' ? '⭐ wishlist' : filter === 'hideowned' ? 'hide ✓ owned' : filter}</strong> filter &mdash; <button class="boss-filter-pill" style="display:inline-block;margin-left:6px" onclick="setBossFilter('${bossId}','all')">show all ${_calcDrops(boss).length}</button></td></tr>`;
 }
 window._bossDropRowsHtml = _bossDropRowsHtml;
 // build a boss's drop <tbody> if it hasn't been filled yet (on <details> open + post-re-render for open ones)
@@ -19056,7 +19070,7 @@ function renderBossCards() {
         <summary class="all-drops-summary">&#9656; Show all ${dropTable.length} droppable items &mdash; full table (filter &amp; sort)</summary>
         <div class="boss-filter-bar">
           <span class="boss-filter-label">show:</span>
-          <button class="boss-filter-pill ${filter==='all'?'active':''}" onclick="setBossFilter('${boss.id}','all')">all (${boss.dropTable.length})</button>
+          <button class="boss-filter-pill ${filter==='all'?'active':''}" onclick="setBossFilter('${boss.id}','all')">all (${_calcDrops(boss).length})</button>
           <button class="boss-filter-pill ${filter==='grail'?'active':''}" onclick="setBossFilter('${boss.id}','grail')">grail only</button>
           <button class="boss-filter-pill ${filter==='achievable'?'active':''}" onclick="setBossFilter('${boss.id}','achievable')">achievable only</button>
           <button class="boss-filter-pill ${filter==='starred'?'active':''}" onclick="setBossFilter('${boss.id}','starred')">⭐ wishlist</button>
@@ -19686,7 +19700,10 @@ function setActiveItem(name, sourceBossId, sourceDiffKey) {
     const id = card.id;
     const boss = BOSSES.find(b => b.id === id);
     if (!boss) return;
-    const has = boss.dropTable.some(d => d.n === name && ["norm","normTz","nm","nmTz","hell","hellTz"].some(k => d[k] !== null));
+    /* v1717 (Grok third eye) — THE GLOW MUST AGREE WITH THE TABLE UNDER IT.
+       Read unfiltered, a boss chip lit up for an item whose row _calcDrops hides, and the
+       scroll-to-row that follows then hunts a tr[data-item] that was never built. */
+    const has = _calcDrops(boss).some(d => d.n === name && ["norm","normTz","nm","nmTz","hell","hellTz"].some(k => d[k] !== null));
     if (has) { card.classList.add("has-item"); card.classList.remove("no-item"); }
     else { card.classList.add("no-item"); card.classList.remove("has-item"); }
   });
@@ -24377,7 +24394,7 @@ window._jewelTipHtml = _jewelTipHtml;
         var _bEsc = function(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
         var _bArt = (typeof _runBossArt === 'function') ? _runBossArt(_bTip, _bRow.name) : null;
         var _bUrl = (_bArt && _bArt.url) || '';
-        var _bDrops = (_bRow.dropTable && _bRow.dropTable.length) || 0;
+        var _bDrops = (_bRow.dropTable && ((window._calcDrops?window._calcDrops(_bRow):_bRow.dropTable).length)) || 0;
         cur = el;
         img.src = _bUrl; img.style.display = _bUrl ? '' : 'none';
         lab.textContent = _bRow.name; lab.style.color = '';
@@ -39807,7 +39824,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1717', name:'v1717 - reachable rows', date:'2026-08-16', note:'the pull kept only what the app can open: 11 RotW names silospen serves have no card here, so they are out of the tables until they get one; the integrity gate had two probes that could never match their item, and both were baselined as empty; and Mephistos card no longer claims he can never drop Tyraels terrorized, because his own table now shows he can' };
+  window.D2R_BUILD = { id:'v1718', name:'v1718 - third eye sweep', date:'2026-08-16', note:'four surfaces still read the unfiltered drop table after the v1717 split, so a boss chip glowed for a row its own table hides and two counters disagreed with the rows under them; and the nc flag is per-row while membership is per-name, which is now audited from inside the BOSSES scope and proven red' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

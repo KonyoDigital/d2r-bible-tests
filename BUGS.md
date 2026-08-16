@@ -3719,3 +3719,23 @@ Renamed to the spelling the tree already used, and ONLY where the pre-merge tree
 `Crescent Moon (amulet)`/`(sword)`, `Hellmouth`/`(gloves)` and `The Hand of Broc`/`(gloves)` are
 each two pre-existing spellings that may be two different items, so they were left alone. (My first
 pass collapsed the sword into the amulet — caught by reading its own output before committing.)
+
+## REG-148 — four surfaces still read the unfiltered table after the split (v1718, found by the third eye)
+Grok, handed the v1717 two-list split and asked to REFUTE "every consumer reads the right list",
+did not argue with the call sites — it went at the seam and found four reads of raw
+`boss.dropTable` that `_calcDrops` had not been applied to:
+- **the boss chip GLOW** (`const has = boss.dropTable.some(...)`) lit a boss for an item whose row
+  the table below it hides, and the scroll-to-row that follows then hunts a `tr[data-item]` that
+  was never built;
+- **two COUNT surfaces** — `show all ${boss.dropTable.length}` and the `all (N)` filter pill —
+  disagreed with the filtered rows under them by every `nc` row;
+- **the machine-shell boss summary** (`_bRow.dropTable.length`).
+All four now read `_calcDrops`.
+
+It also found the sharper thing, which was NOT reachable and is now guarded: **`nc` is a per-ROW
+flag while ITEMS membership is decided ONCE, by the first row for that name.** A name that were
+`nc:1` on its first boss and plain on a later one would never join ITEMS while `_calcDrops` still
+rendered the later row — a click that opens "item not found". Measured: **zero split names**,
+because the merge flags by NAME. `window._ncAudit()` is published from inside the BOSSES scope so
+the gate can prove it every run instead of skipping, and the gate was **seen RED** for its own
+reason first: doctoring one `Axe of Fechmar` row reported `split: ["Axe of Fechmar"]`.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1717",
+  "ver": "v1718",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1717: the pull kept only what the app can open: 11 RotW names silospen serves have no card here, so they are out of the tables until they get one; the integrity gate had two probes that could never match their item, and both were baselined as empty; and Mephistos card no longer claims he can never drop Tyraels terrorized, because his own table now shows he can",
+  "note": "v1718: four surfaces still read the unfiltered drop table after the v1717 split, so a boss chip glowed for a row its own table hides and two counters disagreed with the rows under them; and the nc flag is per-row while membership is per-name, which is now audited from inside the BOSSES scope and proven red",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
