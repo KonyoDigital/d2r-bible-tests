@@ -3883,3 +3883,46 @@ keeps its entry with a reason true by construction — `not in Normal Mephisto's
 is not either**. Verified by the baseline matching again with NO baseline edit — the fix restored
 the invariant rather than moving the goalposts. Guarded: all six Mephisto cells for Shako are
 represented, three with odds and three with an honest reason.
+
+## REG-154 — the five he queued (v1724)
+Konyo: *"fix those first"* — the five items I had listed as worth queueing.
+
+**1 · A gate that reported it established nothing, and passed.** `v1628`'s boss-anchor check queried
+`.f-runart[data-art-logo]`, but **v1636 replaced that attribute with `data-boss-tip`** (its sibling
+spec v1625 documents the swap). It found nothing, printed `NOT ESTABLISHED` and RETURNED, so five
+assertions were unreached for ~90 versions. Two neighbours did the same: `#tab-forge` art (his
+chronicle is complete, so a bare `switchTab` draws nothing — now driven with an empty chronicle:
+**0 → 106 images checked**) and boss-card art (**0 → 13**, now opens Mephisto first). All three fail
+if they cannot establish their subject.
+
+**4 · `Bloodmoon's Light` is not an item.** Its `ITEM_CODEX` entry gave its base as
+**`"Reign of the Warlock"` — the MOD'S NAME** — with empty props, a note describing a sin claw, and
+drop numbers cloning Jade Talon (tc85/qlvl71). Absent from ITEM_VALUE, the roster, his ledger and
+silospen's pool: six independent signals. Removed from the drop tables, the codex, the tip map and
+a placeholder art mapping that pointed at **Skewer of Krintiz's picture**.
+
+**3 · One mis-tagged row was setting ceilings.** `Ginther's Rift` carries tc 85 / qlvl 80 with
+reqLvl 37 — internally contradictory, and silospen lists it dropping from NORMAL monsters, which
+qlvl 80 forbids. **It alone set the ceiling in 24 of the 29 single-witness cells v1722 raised.**
+Ceilings now require **two witnesses** ([[d2r-multiwitness-corroboration]]): 25 cells corrected,
+every one still above its pre-v1722 value. Single-witness rows above a ceiling are counted and
+pinned, not silently laundered.
+
+**5 · The Pit was the last boss on vanilla-era data.** Modelled per the app's own zone precedent —
+one representative dweller. Evidence for the pick: scanning all 341 regular monsters found 28 in a
+"Pit" area, of which four are the real Tamoe Highland Pit; **all four share the same 381-item pool
+and three of the four give IDENTICAL odds** (`cr_archer3`, an archer, is the outlier), and **Pit
+Level 1 ≡ Level 2 across all 381 items**, so it is one run. 1,639 cells updated, 225 rows added,
+**384 Hell cells match the pull exactly**.
+
+**2 · `mlvl` — deliberately still open.** v1723 stopped it lying; deriving it would conflate monster
+level with item level. It remains flagged, not invented.
+
+**Three of my own defects, each caught by a guard built earlier the same night:**
+- the `nc` audit (v1720) caught the Pit merge flagging 200+ names inconsistently — the flag is a
+  property of the NAME, so it must be copied from the tree, not inferred per boss;
+- restoring `pit` from HEAD silently reintroduced the `Bloodmoon's Light` row I had just deleted,
+  and two auxiliary maps still referenced it;
+- `tc`/`qlvl`/`tier` are properties of the ITEM, and new Pit rows carrying `0/0` produced **82
+  cross-boss contradictions**. All 82 reconciled; the assertion now names its offenders instead of
+  reporting a bare count.

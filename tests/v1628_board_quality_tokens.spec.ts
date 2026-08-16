@@ -326,8 +326,28 @@ test.describe('v1628 · 5 — markup does not count, decoding does', () => {
     });
   }
 
-  test('★★ #tab-forge art decodes IF it renders any — reported, not assumed', async ({ page }) => {
+  test('★★ #tab-forge art decodes — the view is DRIVEN so this cannot skip', async ({ page }) => {
     await board(page, 'forge');
+    /* v1723 — WAS "IF it renders any", AND IT NEVER RENDERED ANY. His chronicle is complete
+       (all 99 runewords seeded made), so forgeScan returns zero tiles and a bare switchTab draws
+       no art at all — the check printed NOT ESTABLISHED and asserted nothing, in either
+       direction, on every run. Drive an EMPTY chronicle so the Forge actually has cards to draw,
+       which is the only state where "does the art decode" is a question with an answer. */
+    await page.evaluate(() => {
+      const w: any = window;
+      w.LSR.setItem('d2r_rwProfile', 'fresh');
+      w.LSR.setItem('d2r_rwMade', '{}');
+      w.LSR.setItem('d2r_rwUnmade', '{}');
+    });
+    await page.reload();
+    await page.waitForTimeout(1800);
+    await page.evaluate(() => {
+      const w: any = window;
+      w.switchTab && w.switchTab('forge');
+      w._FORGE_VIEW = 'onestep';
+      try { w.renderForge && w.renderForge(); } catch (e) {}
+    });
+    await page.waitForTimeout(600);
     await eagerLoadArt(page, '#tab-forge');
     const r = await page.evaluate(() => {
       const host = document.getElementById('tab-forge');
@@ -337,16 +357,22 @@ test.describe('v1628 · 5 — markup does not count, decoding does', () => {
         bad: imgs.filter((i: any) => !(i.naturalWidth > 0)).slice(0, 12).map((i: any) => i.getAttribute('src')) };
     });
     console.log('5 · #tab-forge: %d visible imgs, %d broken %s', r.total, r.bad.length, JSON.stringify(r.bad));
-    if (!r.total) {
-      console.log('5 · NOT ESTABLISHED — #tab-forge renders no <img> from a bare switchTab; a ' +
-                  'sub-view has to be driven first. Not asserted in either direction.');
-      return;
-    }
+    expect(r.total, 'the Forge drew no art even with an empty chronicle — the view was not driven, ' +
+      'so this check would be asserting nothing').toBeGreaterThan(0);
     expect(r.bad, 'broken art on #tab-forge').toEqual([]);
   });
 
   test('★★ boss-card art on the calculator decodes too', async ({ page }) => {
     await board(page);
+    /* v1723 — a boss card is not on screen from a bare load, so this printed NOT ESTABLISHED and
+       asserted nothing. Open one; then the question has an answer. */
+    await page.evaluate(() => {
+      const w: any = window;
+      w.switchTab && w.switchTab('bosses');
+      try { w.openBossDetail && w.openBossDetail('mephisto'); } catch (e) {}
+    });
+    await page.waitForTimeout(800);
+    await eagerLoadArt(page, 'body');
     const r = await page.evaluate(() => {
       const imgs = Array.from(document.querySelectorAll<any>('.boss-card img, .boss-art img, [data-art-logo] > img'))
         .filter((i: any) => i.getClientRects().length > 0);
@@ -355,7 +381,8 @@ test.describe('v1628 · 5 — markup does not count, decoding does', () => {
                  .map((i: any) => i.getAttribute('src')) };
     });
     console.log('5 · boss/anchor art: %d visible, %d broken %s', r.total, r.bad.length, JSON.stringify(r.bad));
-    if (!r.total) { console.log('5 · NOT ESTABLISHED — no boss-card <img> is visible on load'); return; }
+    expect(r.total, 'no boss-card art visible even after opening Mephisto — subject not established')
+      .toBeGreaterThan(0);
     expect(r.bad, 'boss art that does not decode').toEqual([]);
   });
 });
@@ -517,11 +544,18 @@ test.describe('v1628 · 7 — hovering a name raises its real card', () => {
     await board(page, 'funi');
     const r = await page.evaluate(() => {
       const W: any = window;
-      const a: any = document.querySelector('#tab-funi .f-card.f-pipe .f-runart[data-art-logo]');
+      /* v1723 — THIS SELECTOR WENT STALE AT v1636 AND THE TEST HAS BEEN VACUOUS EVER SINCE.
+         v1636 gave the run thumbnail `data-boss-tip` (the boss id) in place of `data-art-logo`
+         (the display name) — the sibling spec v1625 documents exactly that swap. This one kept
+         querying the old attribute, found nothing, printed "NOT ESTABLISHED" and RETURNED, so
+         every assertion below it has been unreached for ~90 versions. A gate that always skips is
+         a gate that never runs. Accept either attribute, and make absence a FAILURE. */
+      const a: any = document.querySelector(
+        '#tab-funi .f-card.f-pipe .f-runart[data-art-logo], #tab-funi .f-card.f-pipe .f-runart[data-boss-tip]');
       if (!a) return { found: false };
       const img: any = a.querySelector('img');
       const rect = a.getBoundingClientRect();
-      const name = a.getAttribute('data-art-logo');
+      const name = a.getAttribute('data-art-logo') || a.getAttribute('data-boss-tip');
       /* the resolver must answer for this boss honestly, not fall back to a glyph-for-anything */
       let resolved: any = null;
       try { resolved = W._runBossArt ? W._runBossArt(null, name) : null; } catch (e) {}
@@ -532,7 +566,11 @@ test.describe('v1628 · 7 — hovering a name raises its real card', () => {
                resolvedUrl: resolved ? (resolved.url || '') : '' };
     });
     console.log('7 · boss anchor: %s', JSON.stringify(r));
-    if (!r.found) { console.log('7 · NOT ESTABLISHED — no best-run boss anchor rendered'); return; }
+    /* v1723 — was `return` (a silent pass). The board always renders best-run cards on his data,
+       so an absent anchor means the selector has drifted again, which is the very thing that hid
+       this check for ~90 versions. Fail, and say what to look at. */
+    expect(r.found, 'no best-run boss anchor rendered — has the thumbnail attribute changed again? ' +
+      '(v1636 moved data-art-logo -> data-boss-tip; this test read the old one until v1723)').toBe(true);
     expect(r.hasImg, `boss "${r.name}" renders no art`).toBe(true);
     expect(r.decoded, `boss "${r.name}" art does not decode — onerror hid it as a tidy label`).toBe(true);
     expect(r.w, 'the boss anchor is over the 430px hover gate').toBeLessThanOrEqual(430);

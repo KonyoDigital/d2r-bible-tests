@@ -243,14 +243,17 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
       const allowed = new Set(['common', 'high', 'grail', 'set', 'uber', 'special']);
       const diffKeys = ['norm', 'normTz', 'nm', 'nmTz', 'hell', 'hellTz'];
       const reg: Record<string, any> = {};
-      let badTier = 0, vCount = 0, vIssues = 0, cross = 0;
+      let badTier = 0, vCount = 0, vIssues = 0, cross = 0; const crossEx: any[] = [];
       (BOSSES as any[]).forEach(b => b.dropTable.forEach((d: any) => {
         if (!allowed.has(d.tier)) badTier++;
         (d.v || []).forEach((k: string) => { vCount++; if (!diffKeys.includes(k) || d[k] == null) vIssues++; });
         if (!reg[d.n]) reg[d.n] = { tc: d.tc, qlvl: d.qlvl, tier: d.tier };
-        else { const x = reg[d.n]; if (x.tc !== d.tc || x.qlvl !== d.qlvl || x.tier !== d.tier) cross++; }
+        else { const x = reg[d.n];
+          if (x.tc !== d.tc || x.qlvl !== d.qlvl || x.tier !== d.tier) {
+            cross++; if (crossEx.length < 6) crossEx.push([d.n, b.id, [x.tc, x.qlvl, x.tier], [d.tc, d.qlvl, d.tier]]);
+          } }
       }));
-      return { items: Object.keys(reg).length, badTier, vCount, vIssues, cross };
+      return { items: Object.keys(reg).length, badTier, vCount, vIssues, cross, crossEx };
     });
     // v1717 — this counts DISTINCT NAMES ACROSS EVERY dropTable, which is the master drop
     // index, not the calculator's curated grid. The two were the same number until the silospen
@@ -258,7 +261,10 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
     expect(r.items).toBe(DROP_INDEX_TOTAL);
     expect(r.badTier).toBe(0);
     expect(r.vIssues).toBe(0);
-    expect(r.cross).toBe(0);
+    /* v1724 — name the offenders. tc/qlvl/tier are properties of the ITEM, so two bosses
+       disagreeing about the same name is a data defect, and "82" alone does not say which. */
+    expect(r.cross, 'items whose tc/qlvl/tier differ between bosses: ' +
+      JSON.stringify((r as any).crossEx)).toBe(0);
     expect(r.vCount).toBeLessThanOrEqual(3);
   });
 

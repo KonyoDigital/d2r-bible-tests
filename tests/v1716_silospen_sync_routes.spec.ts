@@ -1,5 +1,6 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { CALC_ITEMS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -186,7 +187,10 @@ test.describe('v1716 — every hunt on the board resolves to a real run', () => 
     });
     expect(r.fail, 'roster entries that cannot be opened or hunted: ' + r.fail.join(' | ')).toEqual([]);
     expect(r.rosterN, 'the roster must have grown by exactly the eleven').toBe(398);
-    // he ruled on the ROSTER. The curated calculator grid is a different surface and stays put.
-    expect(r.calcItems, 'the calculator is not what he ruled on').toBe(322);
+    /* he ruled on the ROSTER. The curated calculator grid is a different surface and stays put.
+       v1724 — this used to hard-code 322, so removing one garbled row (Bloodmoon's Light) made a
+       guard about the ROSTER fail over the CALCULATOR's count. Read the single definition instead
+       of keeping a second copy of the number. */
+    expect(r.calcItems, 'the calculator is not what he ruled on').toBe(CALC_ITEMS_TOTAL);
   });
 });

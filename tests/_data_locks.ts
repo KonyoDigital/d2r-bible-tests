@@ -15,7 +15,7 @@ export const BOSS_CHIPS_TOTAL = 13;
 // 69 _UNI_EXTRA uniques inside the one surface bible.html says in words they must never enter.
 // The routing now reads window.ITEM_REGISTRY (every droppable item) while ITEMS stays the curated
 // calculator DB — so this tripwire keeps doing its job and the number it guards did not move.
-export const CALC_ITEMS_TOTAL = 322;
+export const CALC_ITEMS_TOTAL = 321;
 
 // Distinct item names across every boss dropTable — the MASTER drop index that
 // ITEM_REGISTRY is built from, and what the farm routing reads. This is a different
@@ -26,8 +26,12 @@ export const CALC_ITEMS_TOTAL = 322;
 // Hellwarden's Will, the two missing Latent sunders, Measured Wrath, Opalvein, Sling, the three
 // Ars charms, Gheed's Wager) into the GRAIL ROSTER, so their drop rows came back. They carry
 // `nc:1` and stay out of CALC_ITEMS_TOTAL, which is why only this number moves.
+// v1724 — 549 → 548 and the calculator 322 → 321: "Bloodmoon's Light" was removed. Its ITEM_CODEX
+// entry gave its base item as "Reign of the Warlock" — the MOD'S NAME — with a note describing a
+// sin claw and drop numbers cloning Jade Talon (tc85/qlvl71). Absent from ITEM_VALUE, the roster,
+// his ledger and silospen's pool. A garbled ingest row, not an item.
 // Same tripwire rule as its sibling: exact, and bumped deliberately.
-export const DROP_INDEX_TOTAL = 549;
+export const DROP_INDEX_TOTAL = 548;
 
 // Collapsible .sec-h sections on the binds tab — bump in LOCKSTEP when adding
 // a binds section (the v109 memory rule).
