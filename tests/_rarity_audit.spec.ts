@@ -2,7 +2,14 @@ import { test } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
-test('rarity audit', async ({ page }) => {
+/* SKIPPED (v1728, matching the audit 2026-06-12 convention applied to diag2.spec.ts and
+   picks_count_diag.spec.ts): dev diagnostic with zero expect()s — it writes /tmp/rarity_audit.json
+   and asserts nothing, so it can only ever fail by timing out under full-suite load, or on the
+   Windows half of the dual-machine setup where /tmp does not exist. Both are false reds about
+   nothing. It is the last survivor of the class that audit swept: it ran in the live 6-way shard
+   because the leading underscore filters nothing — testDir is ./tests and no config excludes it.
+   Kept rather than deleted: the diagnostic itself is useful when run deliberately. */
+test.skip('rarity audit', async ({ page }) => {
   await page.goto(BIBLE);
   await page.waitForTimeout(600);
   const data = await page.evaluate(() => {

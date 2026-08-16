@@ -4027,3 +4027,35 @@ ambiguous, which is why this looked dangerous and was not.
 `tests/v1727_no_runeword_in_drop_lists.spec.ts` now forbids a runeword-only name in ANY drop list,
 requires every TZ odds name to exist in the item universe, and pins the zone wiring. Seen RED:
 adding `Enigma` to Mephisto reports `mephisto: Enigma`.
+
+## REG-159 — a feature that disabled itself without saying why (v1728)
+The photo intake detects the Anthropic key's monthly usage limit in **seven** places. Exactly ONE
+(`bible.html:33172`, the first read) set both `_aiLimitHit` and the banner text `_aiErr`. The six
+retry/fallback paths set only the flag, so hitting the cap on a fallback suppressed the read with
+**nothing on screen**.
+
+That matters more than a usual missing error: the message exists to say *"⚠ AI usage limit reached
+— the Anthropic API key hit its monthly cap … **This is NOT your screenshots — they are fine.**"*
+Without it, a capped key is indistinguishable from the AI failing to read his photos, and the
+natural response is to go re-shoot screenshots that were never the problem.
+
+**Why they diverged:** `_aiReadJson` was the named wrapper that did both — and it had **zero
+callers** anywhere in the repo. Every site hand-rolled the guard, so they drifted apart one by one.
+Replaced by `_aiLimitSeen(d)`, called by all seven. Guard: `tests/v1728_ai_limit_says_why.spec.ts`
+allows exactly ONE assignment to `_aiLimitHit` (inside the helper) and requires every
+`_aiIsLimit(x)` to lead to `_aiLimitSeen(x)`. **Seen RED** — reverting one site reports
+`bible.html:33205 — detects the limit but does not explain it`.
+
+⚠ Konyo's correction is recorded, because I had repeated the fleet's framing without checking it:
+this is not about him being billed. The cost is a **wrong diagnosis**, not money.
+
+## REG-160 — the last zero-assertion spec in the live suite (v1728)
+`tests/_rarity_audit.spec.ts` imports `test` but **not `expect`**, writes `/tmp/rarity_audit.json`
+and asserts nothing — yet ran in the live 6-way shard, because the leading underscore filters
+nothing (`testDir` is `./tests`, no config excludes it). It could only ever fail by timing out
+under full-suite load, or on the Windows half of the dual-machine setup where `/tmp` does not
+exist: false reds about nothing.
+It is the **last survivor of a class the 2026-06-12 audit swept**, which applied `test.skip(` to
+`diag2.spec.ts` and `picks_count_diag.spec.ts` with that exact reasoning and missed this one.
+Skipped, not deleted — the diagnostic is useful run deliberately. Verified after: **no live spec
+file in the repo now has zero assertions.**

@@ -33085,7 +33085,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _aiLimitHit = false;
     function _aiIsLimit(d){ return !!(d && d.error && (+d.status === 402 || /usage limit|credit balance|regain access|billing|insufficient|quota|reached your specified/i.test(String(d.detail || d.message || '')))); }
     function _aiLimitMsg(d){ var det = String((d && (d.detail || d.message)) || ''); var m = /regain access on ([0-9A-Za-z :\-]+?)(?:\.|"|$)/i.exec(det); return '⚠ AI usage limit reached — the Anthropic API key hit its monthly cap' + (m ? ' (regains access ' + m[1].trim() + ')' : '') + '. Raise the limit / add credit in the Anthropic console to read now. This is NOT your screenshots — they are fine.'; }
-    function _aiReadJson(resp){ if (!resp || !resp.ok) return Promise.resolve(null); return resp.json().then(function(d){ if (_aiIsLimit(d)){ _aiLimitHit = true; if (!_aiErr) _aiErr = _aiLimitMsg(d); } return d; }).catch(function(){ return null; }); }
+    /* v1728 — RAISING THE FLAG AND EXPLAINING IT MUST BE ONE ACT.
+       Seven places detect the AI usage limit. ONE of them (the first read, :33172) set both
+       _aiLimitHit and _aiErr; the six retry/fallback paths set only the flag, so the feature went
+       quiet with no reason on screen — and the reason matters more here than usual, because the
+       message exists to say "This is NOT your screenshots — they are fine." Hitting the cap on a
+       fallback looked exactly like the AI failing to read his photos.
+       _aiReadJson was the named wrapper that did both, and it had ZERO callers anywhere in the
+       repo — every site hand-rolled the guard, which is how they diverged. It is replaced by
+       _aiLimitSeen, which every site now calls. */
+    function _aiLimitSeen(d){ _aiLimitHit = true; if (!_aiErr) _aiErr = _aiLimitMsg(d); return true; }
     function _sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
     var _QTY_CAP = 3;   // v403 — mule AT MOST 3 of the same base; a 4th+ physical copy is thrown out
     // v310: track results PER screenshot FILE — so the report names the exact file each
@@ -33169,7 +33178,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // failures (429 / 5xx / 529) with backoff, and on a hard failure surface the REAL reason in the report.
         if (data && data.error) {
           var _st = +(data.status || 0);
-          if (_aiIsLimit(data)) { _aiLimitHit = true; errors++; fRec.err = true; if (!_aiErr) _aiErr = _aiLimitMsg(data); try { console.error('[vault-intake] AI USAGE LIMIT for ' + fname, data); } catch(e){} doneCount++; report.innerHTML = _scanUI(doneCount, files.length, logged.length); return; }
+          if (_aiIsLimit(data)) { _aiLimitSeen(data); errors++; fRec.err = true; try { console.error('[vault-intake] AI USAGE LIMIT for ' + fname, data); } catch(e){} doneCount++; report.innerHTML = _scanUI(doneCount, files.length, logged.length); return; }
           var _transient = (_st === 429 || _st === 529 || _st >= 500 || _st === 0);
           if (_transient && _retry < 2) { _retry++; await _sleep(1500 * _retry); return await processFile(i, _retry); }
           errors++; fRec.err = true;
@@ -33193,7 +33202,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             // pull background-grid items too, re-inflating the count past the screenshot total.
             var _r2 = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_full, media_type:'image/jpeg', names:vocab, file:fname, cropped:true }) }, 75000);
-            if (_r2.ok){ var _d2 = await _r2.json(); if (_aiIsLimit(_d2)) _aiLimitHit = true; else if (!_isEmpty(_d2)){ data = _d2;
+            if (_r2.ok){ var _d2 = await _r2.json(); if (_aiIsLimit(_d2)) _aiLimitSeen(_d2); else if (!_isEmpty(_d2)){ data = _d2;
               try { console.log('[vault-intake] ' + fname + ' → empty crop → full-image retry recovered', _d2.items || _d2.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -33207,7 +33216,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             var _full3 = _vEnlarge(_imRef, null);
             var _r3 = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_full3, media_type:'image/jpeg', names:vocab, file:fname, cropped:false }) }, 75000);
-            if (_r3.ok){ var _d3 = await _r3.json(); if (_aiIsLimit(_d3)) _aiLimitHit = true; else if (!_isEmpty(_d3)){ data = _d3;
+            if (_r3.ok){ var _d3 = await _r3.json(); if (_aiIsLimit(_d3)) _aiLimitSeen(_d3); else if (!_isEmpty(_d3)){ data = _d3;
               try { console.log('[vault-intake] ' + fname + ' → still empty → wide-net (cropped:false) retry recovered', _d3.items || _d3.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -33219,7 +33228,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             var _fullB = _vEnlarge(_imRef, null, 1568, 0.95, true);   // boost = true
             var _rB = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_fullB, media_type:'image/jpeg', names:vocab, file:fname, cropped:false }) }, 75000);
-            if (_rB.ok){ var _dB = await _rB.json(); if (_aiIsLimit(_dB)) _aiLimitHit = true; else if (!_isEmpty(_dB)){ data = _dB;
+            if (_rB.ok){ var _dB = await _rB.json(); if (_aiIsLimit(_dB)) _aiLimitSeen(_dB); else if (!_isEmpty(_dB)){ data = _dB;
               try { console.log('[vault-intake] ' + fname + ' → still empty → CONTRAST-BOOST retry recovered', _dB.items || _dB.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -33237,7 +33246,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               var _iso = _vTextIso(_imRef, _box || null, 1568, _isoFloors[_fi]);
               var _rI = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
                 body: JSON.stringify({ image:_iso, media_type:'image/jpeg', names:vocab, file:fname, cropped: !!_box }) }, 75000);
-              if (_rI.ok){ var _dI = await _rI.json(); if (_aiIsLimit(_dI)) _aiLimitHit = true; else if (!_isEmpty(_dI)){ data = _dI;
+              if (_rI.ok){ var _dI = await _rI.json(); if (_aiIsLimit(_dI)) _aiLimitSeen(_dI); else if (!_isEmpty(_dI)){ data = _dI;
                 try { console.log('[vault-intake] ' + fname + ' → still empty → TEXT-ISOLATION (floor ' + _isoFloors[_fi] + ') recovered', _dI.items || _dI.unrecognized); } catch(e){} } }
             } catch(e){}
           }
@@ -33256,7 +33265,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             var _rawImg = _vEnlarge(_imRef, _box || null);
             var _rN = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_rawImg, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
-            if (_rN.ok){ var _dN = await _rN.json(); if (_aiIsLimit(_dN)) _aiLimitHit = true; else if (!_isEmpty(_dN)){ data = _dN;
+            if (_rN.ok){ var _dN = await _rN.json(); if (_aiIsLimit(_dN)) _aiLimitSeen(_dN); else if (!_isEmpty(_dN)){ data = _dN;
               try { console.log('[vault-intake] ' + fname + ' → still empty → RAW-NAME recovered', _dN.items || _dN.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -33277,7 +33286,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               var _tl = _vEnlarge(_imRef, _bands[_bi]);
               var _rT = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
                 body: JSON.stringify({ image:_tl, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
-              if (_rT.ok){ var _dT = await _rT.json(); if (_aiIsLimit(_dT)) _aiLimitHit = true; else if (!_isEmpty(_dT)){ data = _dT;
+              if (_rT.ok){ var _dT = await _rT.json(); if (_aiIsLimit(_dT)) _aiLimitSeen(_dT); else if (!_isEmpty(_dT)){ data = _dT;
                 try { console.log('[vault-intake] ' + fname + ' → still empty → BAND ' + _bi + ' raw-name recovered', _dT.items || _dT.unrecognized); } catch(e){} } }
             } catch(e){}
           }
@@ -39966,7 +39975,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1727', name:'v1727 - the tz diff, and the rule generalised', date:'2026-08-16', note:'the terror zone odds were audited against the live source on four axes and came back clean at 528 of 528 cells, with the seven zones that share one block confirmed to share it for a real reason; the lasting change is that no drop list anywhere may now carry a runeword name, not just the boss tables v1725 fixed' };
+  window.D2R_BUILD = { id:'v1728', name:'v1728 - the limit explains itself', date:'2026-08-16', note:'six of seven places that detect the AI usage limit raised the flag and never set the banner, so a capped key looked exactly like the AI failing to read his screenshots — the one message that exists to say the screenshots are fine; all seven now share one helper, and the last live spec with no assertions in it is skipped like its two siblings were' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
