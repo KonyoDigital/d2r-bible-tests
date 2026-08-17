@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1757",
+  "ver": "v1758",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1757: the 2026-08-17 Chronicle capture shows two uniques gold and found that the seed did not carry - added with the exact stamp where the frame had one and an honest unknown where it did not",
+  "note": "v1758: two thresholds both sat above the signal they measured - a hardcoded 0.06 in sweep_frames and sig_diff tol=28 - so a scrolled Chronicle collapsed into one page and the visit reported nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

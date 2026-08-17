@@ -84,7 +84,37 @@ STILL_MAX_DIFF = 0.22
 # ("chronicle_retro owns STILL_MAX_DIFF / MIN_RUN_FRAMES"). Retuning the shared constant would
 # silently change the vault sweep's cost and grouping on footage nobody measured here, so the
 # Chronicle passes its own value explicitly and STILL_MAX_DIFF keeps its meaning for that caller.
-CHRON_STILL_MAX_DIFF = 0.005
+CHRON_STILL_MAX_DIFF = 0.002
+# v1758 — 0.005 WAS ABOVE THE SIGNAL IT WAS MEANT TO MEASURE, which is the same defect v1712 fixed
+# one order of magnitude up (0.22 against a signal whose max was 0.133). Measured on his own
+# 08-11 visit, the eight frames the console recorded as ONE chronicle visit:
+#
+#     2_ -> 3_   0.00000   the same page, genuinely held
+#     3_ -> 4_   0.00000   the same page
+#     4_ -> 5_   0.00391   A DIFFERENT PAGE  <- merged at 0.005
+#     5_ -> 6_   0.00391   A DIFFERENT PAGE  <- merged
+#     6_ -> 8_   0.00391   A DIFFERENT PAGE  <- merged
+#     8_ -> 9_   0.00000   the same page
+#     9_ -> 7_   0.00781   a different page
+#
+# So SCROLLING the Chronicle moves this fingerprint by 0.00391 and the threshold sat at 0.005: all
+# eight frames collapsed into one run, the sweep read the FIRST page only, that page was the top of
+# the list showing unfound silhouettes, it refused with "no-found-state", and the visit reported
+# nothing found. Seven pages carrying real "First Found" lines - Bartuc's Cut-Throat at 05/20/2026
+# 02:19 among them - were never read. That is why his Chronicle never synced: not a missing
+# watchdog, a reader that could not see a scroll.
+#
+# WHY 0.002 AND NOT SOMETHING TUNED-LOOKING: the signal is bimodal with a clean gap. A held page is
+# EXACTLY 0.00000 (the fingerprint is identical) and the smallest real page change is 0.00391, so
+# every threshold in that gap gives the same answer - measured at 0.003, 0.002, 0.001 and 0.0005,
+# all five runs. 0.002 sits in the middle of the gap rather than at either edge.
+#
+# Why the signal is so small at all: jpeg_sig is a 16x16 grayscale fingerprint of the WHOLE frame,
+# and the Chronicle panel's chrome dominates it. The rows of text that actually change are a small
+# fraction of those 256 cells, so a full page of different items moves less than 0.4%.
+#
+# COST: this multiplies reads for a scrolled visit - 5 pages instead of 1 on the frames above. That
+# is the point. A sweep that costs one read and finds nothing is not the cheap option.
 # Below this a run is somebody walking through town, not a screen being read.
 MIN_RUN_FRAMES = 3
 
@@ -170,6 +200,28 @@ def live_probe(frames, path_of, threshold=DEAD_FLATNESS):
             return frames[i], dead
         dead += 1
     return None, dead
+
+
+# v1758 — THE CHRONICLE NEEDS A FINER TOLERANCE THAN "DID THE SCREEN CHANGE".
+#
+# sig_diff's default tol=28 asks a coarse question on purpose: it is shared with tv_diablo so both
+# halves reason about "same screen" on one scale, and 28/255 is right for town-vs-boss.
+#
+# It is the wrong question for a Chronicle page. jpeg_sig averages a 1440x936 frame into 16x16, so
+# ONE cell is a ~90x58 block and the rows of text that change are a sliver of it. Measured on his
+# own frames, two COMPLETELY different Chronicle pages — unfound silhouettes vs the A-section with
+# Andariel's Visage and Atma's Wail — differ by at most ONE gray level in ONE of the 256 cells:
+#
+#     3_1786922965432  [35, 33, 25, 46, 59, 58, 40, 33, 32, 33, 31, 29, ...]
+#     4_1786922970122  [35, 33, 25, 46, 59, 58, 40, 33, 32, 33, 31, 30, ...]
+#
+# Nothing clears 28, so sig_diff returns 0.00000 and the two pages read as one held screen. At
+# tol=4 the same pairs separate cleanly (0.027 to 0.19 of cells differing).
+#
+# This is why every threshold above it looked wrong in turn: 0.06 in sweep_frames, then 0.005 in
+# CHRON_STILL_MAX_DIFF. Neither was the cause. A threshold cannot rescue a comparison that has
+# already thrown the signal away. [[feedback_threshold_above_the_ceiling]]
+CHRON_SIG_TOL = 4
 
 
 def sig_diff(a, b, tol=28):
@@ -857,6 +909,21 @@ def sweep_frames(paths, kind, read_page, sig_of=None, reel_of=None):
 
     Frames are still de-duplicated by appearance: he holds the panel still for seconds at 2fps, and
     reading the same pixels forty times would cost forty reads for one page.
+
+    v1758 — THE DEDUPE THRESHOLD WAS 0.06, FIFTEEN TIMES THE SIGNAL IT HAD TO SEE, and that single
+    number is why his Chronicle never synced. Measured on his own 08-11 visit: SCROLLING the panel
+    moves jpeg_sig by 0.00391, while a genuinely held page moves it by exactly 0.00000. At 0.06
+    every page of a scrolled panel collapsed into the first frame, so an 8-frame visit read ONE
+    page — the top of the list, all unfound silhouettes — refused it with "no-found-state", and
+    reported the visit as holding nothing. Seven pages carrying real First Found lines, including
+    Bartuc's Cut-Throat at 05/20/2026 02:19, were never looked at.
+
+    The old docstring sold that as the cheap path: "typically one or two reads for a whole panel he
+    scrolled through". One read of a scrolled panel is not thrift, it is a miss — and it cost the
+    same as a read that works.
+
+    It now uses CHRON_STILL_MAX_DIFF, the constant that already exists for exactly this question,
+    so there is ONE number to reason about instead of two that disagreed.
     """
     sig_of = sig_of or jpeg_sig
     reel_of = reel_of or (lambda p: os.path.basename(os.path.dirname(p)))
@@ -867,7 +934,7 @@ def sweep_frames(paths, kind, read_page, sig_of=None, reel_of=None):
         if sg is None:
             keep.append(p)          # unreadable to US is not unreadable to the model — let it try
             continue
-        if last is None or sig_diff(last, sg) > 0.06:
+        if last is None or sig_diff(last, sg, tol=CHRON_SIG_TOL) > CHRON_STILL_MAX_DIFF:
             keep.append(p)
             last = sg
     pages = []
