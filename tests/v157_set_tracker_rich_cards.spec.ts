@@ -121,8 +121,32 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
     expect(r.nameColor, 'set names must NOT fall back to default body text').not.toBe(t.normal);
     // the header is a real, painted gradient bar — not a flat fill and not a 0px-tall nothing
     expect(r.headerBg, 'set-card-header must be a gradient bar').toContain('linear-gradient');
-    expect(r.headerH, 'the gradient bar must actually occupy space — state at failure: '
-      + JSON.stringify((r as any)._why)).toBeGreaterThan(0);
+    /* v1755 — POLLED, because CI finally said what was wrong and it was none of my guesses.
+       The instrumentation added in v1754 captured this at the moment of failure:
+
+         tabDisplay "block" · cardCollapsed false · cardRect [1252,1282] · setCards 34 ·
+         firstCardRect [233,146] · headerDisplay "flex" · headerChildren 2 · docReady "complete"
+
+       Every precondition I had been adding was already satisfied — the tab was painted, the card
+       was open, all 34 cards had rendered, and the FIRST CARD measured 233x146. The header still
+       read 0. Those two numbers are collected microseconds apart in one evaluate, headerH first,
+       so the header measured 0 and then 146 an instant later: the page was MID-LAYOUT, not
+       misconfigured. No amount of waiting on state could have fixed it, which is exactly why two
+       state fixes did not.
+
+       So this one assertion re-reads until the layout settles. The CLAIM is unchanged and still
+       falsifiable — a bar that is genuinely flat never becomes non-zero and this fails on timeout
+       with the same diagnosis attached. What it no longer does is sample a number that was still
+       being computed. */
+    await expect.poll(async () => page.evaluate(() => {
+      const c = document.querySelector('#set-tracker .set-card');
+      const h = c ? c.querySelector('.set-card-header') : null;
+      return h ? h.getBoundingClientRect().height : 0;
+    }), {
+      message: 'the gradient bar must actually occupy space — state at first read: '
+        + JSON.stringify((r as any)._why),
+      timeout: 8000,
+    }).toBeGreaterThan(0);
     // the v145 gateway resolver must EXIST — asserted on its own so its absence can never be
     // mistaken for a passing answer …
     expect(r.isAggType, 'window.isSetAggregate (v145 titleName gateway) must exist').toBe('function');
