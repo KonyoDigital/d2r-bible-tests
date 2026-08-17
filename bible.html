@@ -6124,6 +6124,13 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         <p class="boss-subtitle">Everything the readers did — auto-ticked, auto-ignored, and the few they could not call</p>
         <p class="boss-loc">Automatic by default · only a genuinely doubtful read waits for you</p>
       </div>
+      <!-- v1760 — THE NOTIFICATION HALF. Konyo asked for "an inbox that like has a NOTIFICATION of
+           this a log or ledger", and v1756 built the ledger and no notification: the card ships
+           COLLAPSED inside Tools, so a name waiting on him was invisible until he went looking for
+           a panel he had already asked about five times. A queue you must remember to check is not
+           a queue, it is a filing cabinet. This badge renders ONLY when something is genuinely
+           waiting, so it can never become chrome he learns to ignore. -->
+      <span id="inbox-badge" class="ibx-badge" hidden></span>
       <span class="rs-chevron" aria-hidden="true">▾</span>
     </div>
     <div class="boss-body">
@@ -8074,6 +8081,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 /* the empty state is a SENTENCE, never a bordered void — it names which silence this is */
 .ibx-empty{border:1px dashed var(--border,#3a2f1e);border-radius:8px;padding:12px 14px;
   color:var(--text-dim,#8a7d64);font-size:var(--fs-meta);line-height:1.5}
+.ibx-badge{margin-left:auto;font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:.04em;
+  color:#1a1207;background:var(--gold-bright);border-radius:999px;padding:2px 10px;white-space:nowrap;
+  box-shadow:0 0 10px rgba(240,192,96,.45)}
 .ibx-more{margin-top:8px;font-size:var(--fs-micro);color:var(--text-dim,#8a7d64);font-style:italic}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomic-ic{font-size:22px;line-height:var(--lh-none)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:var(--fw-regular)}
@@ -40537,7 +40547,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1759', name:'v1759 - the held names had nowhere to go', date:'2026-08-17', note:'a sweep that grounds nothing was discarding every held name on the server so the inbox it was built for was fed nothing - and once they arrived the board auto-ticked them past the gate that had just refused them' };
+  window.D2R_BUILD = { id:'v1760', name:'v1760 - the inbox tells you it has something', date:'2026-08-17', note:'the ledger shipped with no notification so a name waiting on him stayed invisible inside a collapsed card - a badge now shows the count while the card is shut and vanishes entirely when nothing waits' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -41247,13 +41257,42 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (auto.length > 60) H.push('<div class="ibx-more">+ ' + (auto.length - 60) + ' older</div>');
     }
     host.innerHTML = H.join('');
+    try { window.renderInboxBadge(); } catch(e){}
   };
+  /* v1760 — the badge is refreshed on its own, NOT only inside renderInbox(), because renderInbox
+     runs when the card is OPENED and the whole point of a badge is to be right while it is shut. */
+  window.renderInboxBadge = function(){
+    var el = document.getElementById('inbox-badge');
+    if (!el) return 0;
+    var n = 0;
+    try { n = (window.kaiChronicleInbox({ sync: false }) || []).length; } catch(e){ n = 0; }
+    if (n > 0){
+      el.textContent = n + ' waiting';
+      el.title = n + (n === 1 ? ' read the system could not call' : ' reads the system could not call')
+               + ' — open to rule on ' + (n === 1 ? 'it' : 'them');
+      el.hidden = false;
+    } else {
+      el.textContent = '';
+      el.hidden = true;          // nothing waiting = nothing shown, so it never becomes wallpaper
+    }
+    return n;
+  };
+  /* ON `load`, not inline: kaiChronicleInbox and the card markup are both defined further down
+     this file, so an inline call here would run before either exists and paint nothing — the same
+     trap v1712 records for _setChronBeat one screen away. A badge that silently no-ops at boot is
+     worse than no badge: it looks installed. */
+  try {
+    window.addEventListener('load', function(){
+      try { window.renderInboxBadge(); } catch(e){}
+    });
+  } catch(e){}
   window._inboxAct = function(kind, name){
     try {
       if (kind === 'accept') window.kaiChronicleAccept(name);
       else window.kaiChronicleDismiss(name);
     } catch(e){}
     try { window.renderInbox(); } catch(e){}
+    try { window.renderInboxBadge(); } catch(e){}
     try { window.renderGrailMeters && window.renderGrailMeters(); } catch(e){}
   };
 

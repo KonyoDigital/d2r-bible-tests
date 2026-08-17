@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1759",
+  "ver": "v1760",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1759: a sweep that grounds nothing was discarding every held name on the server so the inbox it was built for was fed nothing - and once they arrived the board auto-ticked them past the gate that had just refused them",
+  "note": "v1760: the ledger shipped with no notification so a name waiting on him stayed invisible inside a collapsed card - a badge now shows the count while the card is shut and vanishes entirely when nothing waits",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

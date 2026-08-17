@@ -112,4 +112,49 @@ test.describe('v1756 — the inbox is a place, not a function', () => {
     expect(r.names, 'Spirit is not rendered anywhere, so this proves nothing').toContain('Spirit');
     expect(r.spirit, 'the same item is listed in BOTH sections: ' + JSON.stringify(r.names)).toBe(1);
   });
+
+  /* v1760 — THE NOTIFICATION HALF. Konyo asked for "an inbox that like has a NOTIFICATION of this a
+     log or ledger". v1756 shipped the ledger and no notification: the card lives COLLAPSED inside
+     Tools, so a name waiting on him stayed invisible until he went looking for the panel he had
+     already asked about five times. A queue you must remember to check is a filing cabinet. */
+  test('★★★ a waiting name shows a badge while the card is still SHUT', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('d2r_chronicleInbox', JSON.stringify([
+        { name: 'Annihilus', triageWhy: 'only 0 independent witnesses (none) — needs 2' },
+        { name: 'Gorefoot', triageWhy: 'the second eye disagreed with this read' },
+      ]));
+    });
+    await page.goto(URL);
+    await page.waitForTimeout(2600);
+    const r = await page.evaluate(() => {
+      const el = document.getElementById('inbox-badge');
+      const card = document.getElementById('inbox-card');
+      return {
+        exists: !!el,
+        hidden: el ? el.hidden : null,
+        text: el ? (el.textContent || '').trim() : null,
+        title: el ? (el.getAttribute('title') || '') : '',
+        // the whole point: it must be right while the card is CLOSED
+        collapsed: card ? card.classList.contains('collapsed') : null,
+      };
+    });
+    expect(r.exists, 'there is no badge element at all').toBe(true);
+    expect(r.collapsed, 'the card was already open, so this proves nothing about a shut card').toBe(true);
+    expect(r.hidden, 'two names are waiting and the badge is hidden').toBe(false);
+    expect(r.text, 'the badge does not say how many are waiting: ' + r.text).toMatch(/2\s*waiting/i);
+    expect(r.title, 'the badge gives no explanation on hover').toMatch(/could not call/i);
+  });
+
+  test('★★★ nothing waiting shows NO badge — it never becomes wallpaper', async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(2600);
+    const r = await page.evaluate(() => {
+      const el = document.getElementById('inbox-badge');
+      return { hidden: el ? el.hidden : null, text: el ? (el.textContent || '').trim() : null };
+    });
+    // a badge that is always there is a badge nobody reads
+    expect(r.hidden, 'the badge is showing with an empty queue').toBe(true);
+    expect(r.text, 'the badge still carries text with nothing waiting').toBe('');
+  });
+
 });
