@@ -4977,3 +4977,37 @@ be mistaken for one nobody looked at.
 state and `setUp` reset `done` and `skipped` but not `tries`, so one test's refusal count carried
 into the next and retired it a tick early. Shared mutable state between tests is its own defect
 class — the fixture now resets all three.
+
+---
+
+## v1747 — the tally search bar, in both grail forges
+
+Konyo: *"for a tally version SEARCHBAR within each F-Uniques and F-Sets separately their own
+individual search bar to tally off... a search bar that i can sometimes casually while i farm one by
+one search for it and tally without needing to visually look for it. just a easy type it in style...
+with the colors sync and keyword items image floating HD cursor art same as the platform."*
+
+**ONE implementation, two callers** — `window._tallySearch('uni'|'sets')`, rendered at the same seam
+in both tabs (directly under the four filter tiles, above the wall it tallies into). A second copy is
+exactly how two lists start disagreeing about one collection, which is the defect this pair of tabs
+has been fixing all week. **[[copy-drift]]**
+
+**It writes through the same functions his manual ✓ uses** — `grailFoundUni` for uniques,
+`grailTogglePiece` for pieces — so there is no second write path to drift, and an un-tick behaves
+like a tick. Measured end to end: **found 246 → 247**, `_gFound('Harlequin Crest')` false → true, and
+the typed query survives the re-render so he can tick three things in a row without retyping.
+
+**The name is the hover anchor, never the row.** v654 refuses any arttip anchor wider than 430px —
+he asked for that rule in those words — and a result row is far wider. Measured: the name anchor is
+**63×16**, and the floating card opens on it with the item's own HD art (Ravenlore →
+`hd_falcon_mask.png`, "Elite Unique · Sky Spirit"). Same rule that shaped the shopping list in v1739.
+
+**Colours are the platform's own tokens**, verified by computed style rather than by eye:
+F·Uniques renders `rgb(199,179,119)` = `--q-unique`, F·Sets `rgb(0,252,0)` = `--q-set`. Ordering is
+starts-with before contains, so "vex" lands on Vex before Vexed Ring. An unknown name says so in
+words rather than leaving an empty bordered box.
+
+⚠ The second eye read the uniques name as GREEN and called the rarity cue deliberate. Half right:
+the cue is deliberate, the hue was not green — the computed value is the unique tan-gold. Recorded
+because a vision verdict that is right about the intent and wrong about the fact is the kind that
+gets quoted later as if it were a measurement.

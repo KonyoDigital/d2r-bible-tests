@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1746",
+  "ver": "v1747",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1746: a refused chronicle visit was re-attempted every 20 seconds forever because only successful reads were marked; two tries now retire it with the reason kept and a retired visit stays distinguishable from one never tried",
+  "note": "v1747: one search component in both grail forges so he can type an item name while farming and tick it off without hunting for it; it writes through the same functions his manual tick uses and the keyword is the hover anchor so the floating HD card opens on it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

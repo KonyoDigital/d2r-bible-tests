@@ -7590,7 +7590,34 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 }
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:var(--lh-normal)}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:8px;margin:14px 0 18px;width:100%;flex-wrap:wrap}   /* v709 (Grok forge wave A2) — the 80px towers competed with the tasks; one ~38px chip rail */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:8px;margin:14px 0 18px;width:100%;flex-wrap:wrap}
+/* ══ v1747 — THE TALLY SEARCH BAR ═══════════════════════════════════════════════════════════════
+   Konyo: "a search bar that i can sometimes casually while i farm one by one search for it and
+   tally without needing to visually look for it. just a easy type it in style."
+   ONE component, rendered into BOTH grail forges — a second copy is how two lists start disagreeing
+   about the same collection, which is the defect this whole tab has been fixing all week.
+   [[copy-drift]] It borrows the page's own tokens (no new colours), and the NAME is the hover
+   anchor rather than the row: v654 refuses any arttip anchor wider than 430px, and a result row is
+   far wider than that — the same rule that shaped the shopping list's anchors in v1739. */
+:is(#tab-funi,#tab-fsets) .tsrch{margin:0 0 14px;border:1px solid var(--border);border-radius:10px;background:rgba(0,0,0,.22);overflow:hidden}
+:is(#tab-funi,#tab-fsets) .tsrch-h{display:flex;align-items:center;gap:8px;padding:8px 11px;background:linear-gradient(180deg,rgba(255,255,255,.05),transparent);border-bottom:1px solid rgba(255,255,255,.05)}
+:is(#tab-funi,#tab-fsets) .tsrch-i{flex:1 1 auto;min-width:0;appearance:none;background:transparent;border:0;outline:0;color:var(--text);font-family:inherit;font-size:var(--fs-body);letter-spacing:var(--ls-tight)}
+:is(#tab-funi,#tab-fsets) .tsrch-i::placeholder{color:var(--text-dim)}
+:is(#tab-funi,#tab-fsets) .tsrch-ico{font-size:var(--fs-meta);opacity:.8;flex:0 0 auto}
+:is(#tab-funi,#tab-fsets) .tsrch-n{font-size:var(--fs-micro);font-variant-numeric:tabular-nums;color:var(--text-dim);flex:0 0 auto}
+:is(#tab-funi,#tab-fsets) .tsrch-list{max-height:280px;overflow-y:auto}
+:is(#tab-funi,#tab-fsets) .tsrch-row{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:9px;padding:6px 11px;border-top:1px solid rgba(255,255,255,.045);min-height:34px}
+:is(#tab-funi,#tab-fsets) .tsrch-row:first-child{border-top:0}
+:is(#tab-funi,#tab-fsets) .tsrch-row.is-on{background:rgba(240,192,96,.09)}
+:is(#tab-funi,#tab-fsets) .tsrch-row img{width:20px;height:20px;object-fit:contain}
+:is(#tab-funi,#tab-fsets) .tsrch-nm{font-size:var(--fs-body);font-weight:var(--fw-medium);line-height:var(--lh-tight);cursor:help;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tab-funi .tsrch-nm{color:var(--q-unique)}
+#tab-fsets .tsrch-nm{color:var(--q-set)}
+:is(#tab-funi,#tab-fsets) .tsrch-sub{font-size:var(--fs-micro);color:var(--text-dim);font-weight:var(--fw-regular)}
+:is(#tab-funi,#tab-fsets) .tsrch-go{appearance:none;cursor:pointer;border-radius:7px;padding:4px 10px;font-family:inherit;font-size:var(--fs-micro);font-weight:var(--fw-semibold);letter-spacing:var(--ls-snug);border:1px solid var(--border-light);background:rgba(255,255,255,.05);color:var(--text-muted);transition:all .13s}
+:is(#tab-funi,#tab-fsets) .tsrch-go:hover{border-color:var(--gold-bright);color:var(--gold-bright)}
+:is(#tab-funi,#tab-fsets) .tsrch-go.on{border-color:var(--best);color:var(--best);background:rgba(102,255,136,.10)}
+:is(#tab-funi,#tab-fsets) .tsrch-none{padding:9px 11px;font-size:var(--fs-micro);color:var(--text-dim)}   /* v709 (Grok forge wave A2) — the 80px towers competed with the tasks; one ~38px chip rail */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 auto;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:6px 14px;border-radius:999px;border:1px solid rgba(122,101,66,.55);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));color:#b7a888;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}  /* v685 — inactive tiles one step brighter (label + border): ONE STEP/MAKE NOW/PIPELINE/CRAFTS dissolved into the background next to the framed ALL */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:active{transform:translateY(0)}
@@ -36387,6 +36414,114 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v695 🏓R7 — on 🎯 Best runs the dock YIELDS (same R6 mechanism as the item card, own class):
     // the ranked farm list IS this view's job and the bar was eating run #1. Hover peeks it back.
     try { window._fuRunsActive = (_fuF==='runs'); document.documentElement.classList.toggle('runs-open', window._fuRunsActive); } catch(e){} };
+  /* ══ v1747 — THE TALLY SEARCH BAR ═════════════════════════════════════════════════════════════
+     Konyo: "for a tally version SEARCHBAR within each F-Uniques and F-Sets separately their own
+     individual search bar to tally off... a search bar that i can sometimes casually while i farm
+     one by one search for it and tally without needing to visually look for it."
+
+     ONE implementation, two callers. A second copy is exactly how two lists start disagreeing about
+     one collection, which is the defect this pair of tabs has been fixing all week. [[copy-drift]]
+
+     It writes through the SAME functions his manual ✓ uses — grailFoundUni for uniques,
+     grailTogglePiece for set pieces — so there is no second write path to drift, and an un-tick
+     works the same way as a tick.
+
+     The NAME is the hover anchor, never the row: v654 refuses any arttip anchor wider than 430px
+     ("only over the specific item keyword; it feels random"), and a result row is far wider. Same
+     rule that shaped the shopping list in v1739. */
+  window._tallySearch = function(kind){
+    var isUni = (kind !== 'sets');
+    return '<div class="tsrch" data-tsk="' + (isUni ? 'uni' : 'sets') + '">'
+      + '<div class="tsrch-h"><span class="tsrch-ico">🔎</span>'
+      + '<input class="tsrch-i" type="search" autocomplete="off" spellcheck="false"'
+      + ' placeholder="' + (isUni ? 'type a unique — tick it off without hunting for it'
+                                  : 'type a set piece — tick it off without hunting for it') + '"'
+      + ' oninput="window._tallySearchRun(this)" onkeydown="window._tallySearchKey(event,this)">'
+      + '<span class="tsrch-n"></span></div>'
+      + '<div class="tsrch-list"></div></div>';
+  };
+  /* The candidate pool, built from the SAME seams the tab itself renders from — never a third list.
+     Uniques: the roster the wall uses. Sets: every piece of every set, labelled by its set. */
+  function _tallyPool(isUni){
+    var out = [];
+    try {
+      if (isUni){
+        var own = _ownedNames();
+        (_uniItems() || []).forEach(function(x){
+          out.push({ n: x.n, sub: (x.qlvl > 0 ? 'q' + x.qlvl : ''), have: _ownedHas(own, x.n) });
+        });
+      } else {
+        var fs = window.fsetsScan ? window.fsetsScan() : null;
+        ((fs && fs.sets) || []).forEach(function(st){
+          (st.pieces || []).forEach(function(p){
+            out.push({ n: p.name, sub: st.name, have: !!p.have });
+          });
+        });
+      }
+    } catch(e){}
+    return out;
+  }
+  window._tallySearchRun = function(input){
+    try {
+      var box = input.closest('.tsrch'); if (!box) return;
+      var isUni = box.getAttribute('data-tsk') !== 'sets';
+      var q = String(input.value || '').trim().toLowerCase();
+      var list = box.querySelector('.tsrch-list'), nEl = box.querySelector('.tsrch-n');
+      if (!q){ list.innerHTML = ''; if (nEl) nEl.textContent = ''; return; }
+      var pool = _tallyPool(isUni);
+      /* starts-with before contains, so typing "vex" lands on Vex before Vexed Ring. Nothing
+         clever — the ordering he would expect from any search box. */
+      var starts = [], has = [];
+      pool.forEach(function(it){
+        var l = String(it.n || '').toLowerCase();
+        if (!l) return;
+        if (l.indexOf(q) === 0) starts.push(it); else if (l.indexOf(q) >= 0) has.push(it);
+      });
+      var hits = starts.concat(has).slice(0, 10);
+      if (nEl) nEl.textContent = (starts.length + has.length) + ' match' + ((starts.length + has.length) === 1 ? '' : 'es');
+      if (!hits.length){ list.innerHTML = '<div class="tsrch-none">nothing by that name in this chronicle</div>'; return; }
+      var esc2 = function(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
+      list.innerHTML = hits.map(function(it){
+        var u = ''; try { u = (typeof artUrl === 'function' && artUrl(it.n)) || ''; } catch(e){}
+        return '<div class="tsrch-row' + (it.have ? ' is-on' : '') + '">'
+          + (u ? '<img src="' + esc2(u) + '" alt="" loading="lazy" data-arttip="' + esc2(it.n) + '" onerror="this.style.visibility=&#39;hidden&#39;">' : '<span></span>')
+          + '<span style="min-width:0"><span class="tsrch-nm" data-arttip="' + esc2(it.n) + '">' + esc2(it.n) + '</span>'
+          + (it.sub ? ' <span class="tsrch-sub">' + esc2(it.sub) + '</span>' : '') + '</span>'
+          + '<button type="button" class="tsrch-go' + (it.have ? ' on' : '') + '"'
+          + ' onclick="window._tallySearchTick(this,\'' + esc2(String(it.n).replace(/'/g, "\\'")) + '\')">'
+          + (it.have ? '✓ found' : 'tally ✓') + '</button></div>';
+      }).join('');
+    } catch(e){}
+  };
+  window._tallySearchKey = function(ev, input){
+    try {
+      if (ev.key !== 'Enter') return;
+      ev.preventDefault();
+      var box = input.closest('.tsrch');
+      var first = box && box.querySelector('.tsrch-go');
+      if (first) first.click();          // Enter tallies the top hit — the one-handed path
+    } catch(e){}
+  };
+  window._tallySearchTick = function(btn, name){
+    try {
+      var box = btn.closest('.tsrch'); if (!box) return;
+      var isUni = box.getAttribute('data-tsk') !== 'sets';
+      var input = box.querySelector('.tsrch-i');
+      var q = input ? input.value : '';
+      // the SAME write his manual ✓ uses — never a second path
+      if (isUni){ if (typeof window.grailFoundUni === 'function') window.grailFoundUni(btn, name); }
+      else { if (typeof window.grailTogglePiece === 'function') window.grailTogglePiece(btn, name); }
+      /* the tab re-renders under us, so the box is gone — put the query back and re-run it, so he
+         can tick three things in a row without retyping. */
+      setTimeout(function(){
+        try {
+          var again = document.querySelector((isUni ? '#tab-funi' : '#tab-fsets') + ' .tsrch .tsrch-i');
+          if (again){ again.value = q; again.focus(); window._tallySearchRun(again); }
+        } catch(e){}
+      }, 480);
+    } catch(e){}
+  };
+
   window.grailFoundUni=function(el,name){
     var wasOwned=_ownedNames().has(name);   // v559.1 — un-marking must not celebrate
     var act=function(){ try { if(typeof window.toggleOwned==='function') window.toggleOwned(name); } catch(e){} window.renderForgeUni(); if(!wasOwned) _grailToast('🏆','<b>'+esc(name)+'</b> found!','the unique grail grows'); };
@@ -36924,6 +37059,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +_tile('low','⚡','Quick wins','ft-step',s.low.length,F,'window.funiSetFilter')
       +_tile('found','✅','Found','ft-done',s.found,F,'window.funiSetFilter')
       +'</div>');
+
+    // v1747 — the tally search bar, directly above the wall it tallies into
+    H.push(window._tallySearch('uni'));
 
     // v646 — THE GRAIL WALL: identical drawer, identical position on BOTH grail forges
     if(F==='all'){
@@ -37842,6 +37980,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +_tile('near','⚡','Quick wins','ft-step',quick.length,F,'window.fsetsSetFilter')
       +_tile('done','✅','Found','ft-done',s.havePieces,F,'window.fsetsSetFilter')
       +'</div>');
+
+    // v1747 — the same component, same position. One implementation, two callers.
+    H.push(window._tallySearch('sets'));
 
     // v646 — THE GRAIL WALL: identical drawer, identical position on BOTH grail forges
     if(F==='all'){
@@ -40193,7 +40334,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1746', name:'v1746 - two tries then retire', date:'2026-08-17', note:'a refused chronicle visit was re-attempted every 20 seconds forever because only successful reads were marked; two tries now retire it with the reason kept and a retired visit stays distinguishable from one never tried' };
+  window.D2R_BUILD = { id:'v1747', name:'v1747 - the tally search bar', date:'2026-08-17', note:'one search component in both grail forges so he can type an item name while farming and tick it off without hunting for it; it writes through the same functions his manual tick uses and the keyword is the hover anchor so the floating HD card opens on it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
