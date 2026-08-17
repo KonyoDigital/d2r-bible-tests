@@ -1,0 +1,25 @@
+{
+ "source": "human-read audit of reel_s_1786999742937_35523 (483 frames, 2026-08-17 23:49)",
+ "method": "list-region crops read directly, every 8th frame, full A-Z coverage",
+ "readByEye": 140,
+ "resolvedReal": 140,
+ "alreadyOnBoard": 129,
+ "boardAtAudit": 248,
+ "targetFound": 259,
+ "targetPct": 64.3,
+ "inGamePanelPct": 64,
+ "missing": [
+  "Bloodmoon",
+  "Bloodtree Stump",
+  "Goblin Toe",
+  "Mara's Kaleidoscope",
+  "Saracen\u2019s Chance",
+  "Stormrider",
+  "Swordback Hold",
+  "The Gnasher",
+  "The Impaler",
+  "The Stone of Jordan",
+  "Waterwalk"
+ ],
+ "note": "THE READERS MUST REACH THIS ON THEIR OWN. A name the sweep proposes that is NOT in this list is a fabrication until proven; a name here the sweep never finds is coverage lost. Do not tune a threshold to make the count match - diagnose which of the 11 was missed."
+}

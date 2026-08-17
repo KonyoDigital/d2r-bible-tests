@@ -80,3 +80,9 @@ tv/chronicle_swept.json
 
 # v1711 — the G5 stats ledger is per-machine runtime counters, like the budget file
 tv/g5_stats.json
+
+# v1777 — the accumulated sighting ledger is LIVE MACHINE STATE, not source. It is rewritten
+# every ten pages during a sweep; tracking it would make every run a noisy diff and would put one
+# machine.s reading history into a public repo.
+tv/chron_evidence.json
+tv/chron_evidence.json.tmp

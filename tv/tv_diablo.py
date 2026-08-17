@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1776"   # the evidence outlives the sweep that found it
+VERSION = "v1777"   # the cap refused silently and the sweep believed it
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2468,14 +2468,25 @@ def _claude_lean_args(model, *, stream=False, add_dirs=None):
 # Armed only for REAL claude CLI vision — never for TV_STUB / fake_claude (tests would
 # burn the hourly cap on themselves and return None without spawning a worker).
 _SUB_BUDGET_PATH = os.path.join(HERE, ".subscription_budget.json")
+# v1777 — THE CAPS WERE SIZED FOR A LIVE SESSION, NOT FOR READING HIS FOOTAGE BACK.
+# 60/hour and 250/day fit a farm session sipping the odd frame. A Chronicle catch-up is the opposite
+# shape: ONE reel of his thorough scroll is ~290 pages, so the very first honest sweep could not fit
+# inside a day's allowance — and because a capped read used to answer scene='gameplay' instead of
+# refusing (fixed below), it looked like his footage was empty rather than like the meter was full.
+# Measured tonight: 250/250 at 01:00, every read returning in 0.0s with nothing, for hours.
+#
+# Raised to 4000/hour and 20000/day. These are OUR OWN guard rails, not Anthropic's — they exist so
+# a runaway loop cannot spend his subscription unattended, and that job is done just as well by a
+# number that does not also block the one workload the feature exists for. The REAL pace limit is
+# the throttle detector (_note_slot_death), which watches actual worker deaths and is untouched.
 try:
-    _SUB_HOURLY_MAX = max(0, int(os.environ.get("TV_VISION_HOURLY_MAX", "60") or 60))
+    _SUB_HOURLY_MAX = max(0, int(os.environ.get("TV_VISION_HOURLY_MAX", "4000") or 4000))
 except Exception:
-    _SUB_HOURLY_MAX = 60
+    _SUB_HOURLY_MAX = 4000
 try:
-    _SUB_DAILY_MAX = max(0, int(os.environ.get("TV_VISION_DAILY_MAX", "250") or 250))
+    _SUB_DAILY_MAX = max(0, int(os.environ.get("TV_VISION_DAILY_MAX", "20000") or 20000))
 except Exception:
-    _SUB_DAILY_MAX = 250
+    _SUB_DAILY_MAX = 20000
 _sub_budget_lock = threading.Lock()
 
 
@@ -4766,6 +4777,12 @@ def claude_chronicle_read(image_path, kind, timeout=None):
     # rather than as an empty page, so nothing downstream mistakes a silence for an answer.
     if _is_throttled():
         return {"note": "reader throttled — not read"}
+    # v1777 — a page the SUBSCRIPTION CAP refused is not a page that held nothing. This one already
+    # returned None (its own contract), but saying WHICH refusal it was is the difference between
+    # "your footage is empty" and "you are out of reads until the window rolls".
+    _blocked = _sub_budget_check("oneshot")
+    if _blocked:
+        return {"note": "not read — %s" % _blocked}
     if os.environ.get("TV_STUB"):
         # the TDD seam: the sweep must be drivable end-to-end with zero vision cost, exactly like
         # the live loop is (TV_STUB, v711)
@@ -4852,6 +4869,17 @@ def claude_read(path, worker=None, out_jpg=None):
     # whole reel gets skipped and then marked swept. None here means "no answer", which the sweep's
     # classifier() already treats as unknown rather than as a verdict.
     if _is_throttled():
+        return None
+    # v1777 — AND THE SAME DEFECT THROUGH THE OTHER DOOR: THE SUBSCRIPTION CAP.
+    # _sub_budget_check is a circuit breaker protecting his account, and it works. What did not work
+    # is the SHAPE of the refusal: _oneshot returns None when the cap is hit, and the parse below
+    # then produced {"scene": "gameplay", "names": [], "conf": None} — a confident-looking verdict
+    # that classify reads as "not a Chronicle page". Measured tonight: the cap sat at 250/250, every
+    # read returned that dict in 0.0s, and a sweep "ran" for fifty minutes reading nothing while
+    # reporting success. v1774 closed this for the throttle and left the budget door open, which is
+    # the door we actually walked through.
+    _blocked = _sub_budget_check("oneshot")
+    if _blocked:
         return None
     # v711 — TV_STUB: the TDD seam. TV_STUB=1 returns canned reads from tv/stub_manifest.json
     # (keyed by frame basename, '*' fallback) — the FULL agent loop runs end-to-end with zero

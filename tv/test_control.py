@@ -5681,6 +5681,72 @@ class TestTheSuiteNeverWritesHisConsoleState(unittest.TestCase):
                                 "console's state: %s" % (attr, p))
 
 
+class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
+    """v1777 — THE SUBSCRIPTION CAP ANSWERED LIKE DATA, AND THE WHOLE NIGHT WENT INTO IT.
+
+    v1774 closed this for the throttle. The SAME defect had a second door: _sub_budget_check is a
+    circuit breaker on his own subscription (60/hour, 250/day at the time), and when it fired
+    _oneshot returned None — which the parse turned into {"scene": "gameplay", "names": [],
+    "conf": None}. classify reads that as a confident "not a Chronicle page" and skips the run.
+
+    MEASURED: the cap sat at 250/250, every read returned that dict in 0.0s, and a sweep "ran" for
+    fifty minutes reading nothing while reporting success. One reel of his thorough scroll is ~290
+    pages, so the first honest sweep could never have fitted inside a day's allowance anyway.
+
+    The caps were sized for a live farm session sipping the odd frame, not for reading his footage
+    back. Raised to 4000/hour and 20000/day - our own guard rails, not Anthropic's, and the real
+    pace limit is the throttle detector, untouched.
+
+    This pins the SHAPE of every refusal, because the shape is the bug: a blocker that answers like
+    an empty page is indistinguishable from footage that holds nothing."""
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import tv_diablo
+        self.tv = tv_diablo
+        self._keep = (tv_diablo._SUB_DAILY_MAX, tv_diablo._SUB_HOURLY_MAX,
+                      list(tv_diablo._THROTTLED_UNTIL))
+
+    def tearDown(self):
+        self.tv._SUB_DAILY_MAX, self.tv._SUB_HOURLY_MAX = self._keep[0], self._keep[1]
+        self.tv._THROTTLED_UNTIL[0] = self._keep[2][0]
+
+    def _img(self):
+        return os.path.join(HERE, "frames", "hist")   # any path; the guards fire before file access
+
+    def test_the_caps_are_big_enough_to_read_one_reel(self):
+        """His thorough reel is ~290 pages. A cap below that cannot express "read my footage back",
+        and the failure looked like empty footage rather than a full meter."""
+        self.assertGreaterEqual(self.tv._SUB_DAILY_MAX, 1000,
+                                "the daily cap cannot fit a single reel: %d" % self.tv._SUB_DAILY_MAX)
+        self.assertGreaterEqual(self.tv._SUB_HOURLY_MAX, 300,
+                                "the hourly cap throttles a catch-up sweep to a crawl")
+
+    def test_a_capped_classify_says_NOTHING_not_gameplay(self):
+        self.tv._SUB_DAILY_MAX = 1        # force the circuit open
+        r = self.tv.claude_read(self._img())
+        self.assertIsNone(r, "a capped classify answered like a real read: %r" % (r,))
+
+    def test_a_capped_page_read_names_the_refusal(self):
+        self.tv._SUB_HOURLY_MAX = 1
+        r = self.tv.claude_chronicle_read(self._img(), "chronicle-uniques")
+        self.assertIsInstance(r, dict)
+        self.assertIn("note", r, "a capped page read answered like an empty page: %r" % (r,))
+        self.assertIn("cap", str(r["note"]).lower(),
+                      "the refusal does not say it was the cap: %r" % r["note"])
+
+    def test_both_doors_are_actually_wired(self):
+        """The defect was a guard nobody downstream consulted. Assert the wiring, not just the
+        behaviour - the tests above would also pass against a reader that fails on a bad path."""
+        import inspect
+        for fn in (self.tv.claude_read, self.tv.claude_chronicle_read):
+            src = inspect.getsource(fn)
+            self.assertIn("_sub_budget_check", src,
+                          "%s does not consult the subscription cap" % fn.__name__)
+            self.assertIn("_is_throttled", src,
+                          "%s does not consult the throttle" % fn.__name__)
+
+
 class TestV1774AThrottledSweepSealsNothing(unittest.TestCase):
     """v1774 — A THROTTLED READER ANSWERED EMPTY AND EVERY LAYER BELIEVED IT.
 
