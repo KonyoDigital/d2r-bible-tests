@@ -10345,7 +10345,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1760",
+        "ver": "v1761",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -13330,6 +13330,25 @@ def main():
         os._exit(0)
 
     # headless server mode (tests / --no-open)
+    # v1761 — THE WATCHDOG LIVES HERE TOO, OR HEADLESS HAS NO WATCHDOG AT ALL.
+    #
+    # v1745 started tvd-chron-autoread inside open_control_window(), beside the engine driver and
+    # the closer. Those two genuinely need the window — they drive the board tab. The chronicle
+    # watchdog does not: it reads recorded frames and starts sweeps, and never touches a window.
+    #
+    # Measured, and it is why "why is it not automatically synced" stayed true even with a console
+    # running: started with --no-open, the console served every API correctly for 2h45m, reported
+    # three unread visits, answered _agent_alive() False and "no sweep running" — and
+    # tv/chron_autoread.json never appeared, because the thread that writes it was never started.
+    # Every lamp green, the job simply absent. A background job attached to a WINDOW is a background
+    # job that vanishes the moment you run without one. [[the-unjoined-end]]
+    if not globals().get("_WINDOW_ONLY"):
+        try:
+            threading.Thread(target=_chron_autoread_loop, daemon=True,
+                             name="tvd-chron-autoread").start()
+            print("   chronicle watchdog armed (headless) — unread visits sweep themselves")
+        except Exception as _ae:
+            print("⚠ chronicle watchdog failed to start (%s) — visits will need the read button" % _ae)
     try:
         while True:
             time.sleep(1)
