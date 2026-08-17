@@ -577,8 +577,7 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
                 continue
             # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
             # page is a different page — so read the distinct-looking frames, which for a held page is one.
-            for name in _distinct(fr, sig_of, max_diff=CHRON_STILL_MAX_DIFF,
-                              tol=CHRON_SIG_TOL):
+            for name in _distinct(fr, sig_of):
                 # v1689 — a frame is READ ONCE. A journal run and a still run can overlap, and the same
                 # page read twice is not corroboration: it would arrive at witnesses() as two sightings
                 # of one photograph and let a single frame pass a gate that asks for two.
@@ -645,7 +644,21 @@ def _distinct(names, sig_of, max_diff=0.06, tol=28):
     pair of eyes had quietly become load-bearing: "why is grok a mandatory thing? we made it that i
     can toggle grok for extra pair of eyes... the default should be claude."
 
-    The chronicle caller passes tol=CHRON_SIG_TOL. The signal is bimodal exactly as v1758 found:
+    v1772 — THE FIX ABOVE IS REVERTED AND THIS NOTE IS THE REASON. Passing tol=CHRON_SIG_TOL here
+    is NOT sufficient, because jpeg_sig fingerprints the WHOLE frame and the Chronicle is not the
+    only thing on it. His cursor rests on a row and the game paints a large item tooltip over the
+    list; moving the mouse changes the frame as much as scrolling does. At tol=4 that reads as a new
+    page, so one 44-frame run selected 38 "distinct" frames that are largely the same list under a
+    moving overlay — and the first real sweep after the change returned 0 names where the previous
+    code returned 22. Whether that drop is the over-selection or an unrelated lane failure is NOT
+    established, and shipping a change to his live tally on an unproven guess is the thing this file
+    keeps teaching against.
+
+    WHAT THE REAL FIX NEEDS: a signature of the LIST REGION rather than the whole frame, so a
+    tooltip and a scroll stop being the same event. Until that exists the collapse is left in place,
+    because a wrong page-selection is worse than a slow one.
+
+    The signal itself is bimodal exactly as v1758 found:
     measured over 219 consecutive pairs in his long scrolls, 39 are EXACTLY 0.00000 (a held page)
     and the smallest real page change is 0.00391, so CHRON_STILL_MAX_DIFF (0.002) sits mid-gap.
     [[feedback_threshold_above_the_ceiling]]"""

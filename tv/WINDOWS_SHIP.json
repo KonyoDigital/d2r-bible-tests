@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1771",
+  "ver": "v1772",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1771: one function still compared chronicle pages at a tolerance that cannot see them",
+  "note": "v1772: a tooltip is not a scroll and I could not prove which caused the drop",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
