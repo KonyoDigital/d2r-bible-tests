@@ -82,11 +82,35 @@ test('⚒ Forged stamp only when EVERY word the base can ever hold is created', 
   await page.reload(); await page.waitForTimeout(1500);   // rwMade global re-inits from localStorage
   const partial = await page.evaluate(() => {
     const w: any = window;
-    return { ks: String(w._baseRWLine('Monarch', 4) || ''), noKs: String(w._baseRWLine('Monarch', 0) || '') };
+    return {
+      ks: String(w._baseRWLine('Monarch', 4) || ''), noKs: String(w._baseRWLine('Monarch', 0) || ''),
+      /* v1755 — SAY WHY WHEN THIS FLAKES. CI reported it flaky with the verdict "🔨 Keep for
+         runewords — makeable in your 4os now" where "NOT fully forged" was expected, and the bare
+         diff cannot distinguish the possibilities: the hold-out was re-marked made, the profile pin
+         did not survive the reload, the seed floor re-applied, or the write landed in a different
+         localStorage world than the board reads (d2r_rwMade is in _LP_FORKED, so it is world-keyed).
+         Each has a different fix, so guessing between them is how a flake survives three attempts —
+         which is exactly what v157 cost before it was instrumented instead. Collected on every run,
+         read only on failure. */
+      _why: (() => {
+        const made = (() => { try { return JSON.parse(localStorage.getItem('d2r_rwMade') || '{}'); }
+                              catch (e) { return {}; } })();
+        return {
+          profile: localStorage.getItem('d2r_rwProfile'),
+          madeKeys: Object.keys(made).length,
+          tipKeys: Object.keys(w.RUNEWORD_TIP || {}).length,
+          monarchWords: (w._baseRunewords('Monarch') || []).length,
+          lsKeysWithRwMade: Object.keys(localStorage).filter((k) => k.indexOf('d2r_rwMade') >= 0),
+          ladderMode: localStorage.getItem('d2r_ladderMode'),
+        };
+      })(),
+    };
   });
   // all 4os words made but one 2/3os word open → NO stamp, plain ✓ + amber note naming the hold-out
   expect(partial.ks).not.toContain('⚒ Forged');   // NOT 'rw-stamp' — the '✓ already created' mini-tag's class contains that substring
-  expect(partial.ks).toContain('NOT fully forged');
+  expect(partial.ks, 'expected the hold-out note; state: ' + JSON.stringify((partial as any)._why)
+    + ' | target: ' + JSON.stringify(target) + ' | ks starts: ' + partial.ks.slice(0, 120))
+    .toContain('NOT fully forged');
   expect(partial.ks).toContain(target!.n);
   expect(partial.noKs).not.toContain('⚒ Forged');
   expect(partial.noKs).toContain('still unmade below max');

@@ -378,7 +378,28 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
             // detail must be on screen, so a genuinely dead tile can't hide behind a name collision.
             const b4 = JSON.parse(before);
             const alreadyOpen = b4.detailShown === true && (b4.sel === label || b4.act === label);
-            if (!alreadyOpen) {
+            /* v1755 — THE SAME EXEMPTION, ON THE BOSS AXIS. v1494 above exempted a click that lands
+               on the ITEM you are already looking at, and its evidence was a tile labelled "Key of
+               Hate". CI has now produced the identical shape one axis over, and the signature it
+               printed says so exactly:
+
+                   before: boss="dclone" sel="Key of Hate" act="Key of Hate" detailShown:true
+
+               A .tz-zone-card takes its label from data-boss-id, so label was "dclone" while sel/act
+               held the ITEM name — the v1494 test could never match, and a click onto the boss
+               already open was reported as a click into the void.
+
+               It is not dead. Measured directly: openBossDetail('dclone') goes from 0 visible panels
+               to 2, rendering "🔱 Uber Diablo (Diablo Clone)". The route works; the sweep was blind
+               to its own state, which is the failure this class is famous for — a sweep of the Kai
+               console once reported 27 dead links and all 27 worked.
+
+               Narrow on purpose: the card must name the boss that is ALREADY the active one. A
+               genuinely dead card routes somewhere else, so it still cannot hide here. And it only
+               ever surfaces on CI because the TZ rotation is time-based — the zones that route to
+               dclone are simply not in rotation on this machine right now. */
+            const alreadyOnBoss = !!b4.boss && b4.boss === label;
+            if (!alreadyOpen && !alreadyOnBoss) {
               dead.push(`[${tab}] ${sel} #${i} ("${label}") → no state change\n      before: ${before}\n      after:  ${after}`);
             }
           }
