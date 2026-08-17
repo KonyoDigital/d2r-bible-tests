@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1745",
+  "ver": "v1746",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1745: nothing read a Chronicle visit after a session closed because reading was opt-in by design; it is now automatic for visits whose ledger is known which cost zero classifies, never for ones that would need a guess. And the MINI chronicle focuses were labelled uniques and sets so they read as item categories rather than chronicle modes",
+  "note": "v1746: a refused chronicle visit was re-attempted every 20 seconds forever because only successful reads were marked; two tries now retire it with the reason kept and a retired visit stays distinguishable from one never tried",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

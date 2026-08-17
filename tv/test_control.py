@@ -5377,6 +5377,8 @@ class TestChronicleAutoReadWatchdog(unittest.TestCase):
         ca._CHRON_AUTOREAD_PATH = os.path.join(self.d, "autoread.json")
         ca._CHRON_AUTOREAD["done"] = None
         ca._CHRON_AUTOREAD["skipped"] = {}
+        ca._CHRON_AUTOREAD["tries"] = {}      # shared module state — a leak here made one test's
+                                              # refusal count carry into the next and retire early
         self._old = (ca.chronicle_sweep_start, ca._agent_alive, ca.chronicle_sweep_state, ca.chronicle_visits)
         self.calls = []
         ca.chronicle_sweep_start = lambda **kw: (self.calls.append(kw) or dict({"ok": True}, **kw))
@@ -5418,6 +5420,22 @@ class TestChronicleAutoReadWatchdog(unittest.TestCase):
         r = ca.chronicle_autoread_tick()
         self.assertFalse(r.get("ok"), r)
         self.assertEqual(self.calls, [])
+
+    def test_a_refused_visit_is_retired_after_two_tries_not_retried_forever(self):
+        """v1745.1 — Konyo: "i dont want it looping though the same video over and over.. it might
+        loop and waste?" He was right about the one path that was open. A SUCCESSFUL read is already
+        read-once (the ts is persisted). A REFUSED sweep marked nothing, so the same visit would be
+        retried every 20s for as long as the console ran. Two tries, then retired WITH the reason —
+        a third identical refusal teaches nothing and costs what the first did."""
+        ca.chronicle_sweep_start = lambda **kw: {"ok": False, "why": "busy"}
+        a = ca.chronicle_autoread_tick()
+        b = ca.chronicle_autoread_tick()
+        c = ca.chronicle_autoread_tick()
+        self.assertFalse(a.get("ok"), a)
+        self.assertEqual(b.get("retired"), 2000, b)          # retired on the second try
+        self.assertIsNone(c.get("read"), c)                  # and never attempted again
+        self.assertIn("2000", ca._CHRON_AUTOREAD["skipped"])
+        self.assertIn("gave up", ca._CHRON_AUTOREAD["skipped"]["2000"])
 
     def test_a_refused_sweep_does_not_burn_the_visit(self):
         """Marking BEFORE the sweep took the job meant a refusal still spent the visit. Measured

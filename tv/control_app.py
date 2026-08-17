@@ -8953,7 +8953,13 @@ def chronicle_visits(limit=8):
 # where v947 put it. Automatic reading, human-gated writing.
 _CHRON_AUTOREAD_PATH = os.environ.get("TV_CHRON_AUTOREAD") or os.path.join(HERE, "chron_autoread.json")
 _CHRON_AUTOREAD_EVERY_S = 20
-_CHRON_AUTOREAD = {"done": None, "lastTs": 0, "reads": 0, "skipped": {}}
+_CHRON_AUTOREAD = {"done": None, "lastTs": 0, "reads": 0, "skipped": {}, "tries": {}}
+# v1745.1 — Konyo: "i dont want it looping though the same video over and over.. it might loop and
+# waste?" He is right, and about the one path that was open. A SUCCESSFUL read is already read-once:
+# the visit ts is persisted and never revisited. But a REFUSED sweep marked nothing, so the same
+# visit would be retried every 20s for as long as the console ran. Two attempts, then it is retired
+# with the reason kept — a third identical refusal teaches nothing and costs the same as the first.
+_CHRON_AUTOREAD_MAX_TRIES = 2
 
 
 def _chron_autoread_done():
@@ -9010,7 +9016,17 @@ def chronicle_autoread_tick():
         # a throwaway process started a sweep, the process exited, and the visit was left flagged
         # read with nothing to show for it. A visit is precious; a repeat read of a free visit is not.
         if not (isinstance(r, dict) and r.get("ok")):
-            return {"ok": False, "why": "sweep refused the visit: %s" % (isinstance(r, dict) and r.get("why") or r)}
+            why = (isinstance(r, dict) and r.get("why")) or str(r)
+            tries = _CHRON_AUTOREAD["tries"].get(str(ts), 0) + 1
+            _CHRON_AUTOREAD["tries"][str(ts)] = tries
+            if tries >= _CHRON_AUTOREAD_MAX_TRIES:
+                # RETIRE it, with the reason kept. Not silently: a visit that stopped being tried
+                # must be distinguishable from one that was never tried.
+                _chron_autoread_mark(ts)
+                _CHRON_AUTOREAD["skipped"][str(ts)] = "gave up after %d tries — %s" % (tries, why)
+                return {"ok": False, "retired": ts, "tries": tries, "why": why}
+            return {"ok": False, "why": "sweep refused the visit (try %d/%d): %s"
+                                        % (tries, _CHRON_AUTOREAD_MAX_TRIES, why)}
         _chron_autoread_mark(ts)
         _CHRON_AUTOREAD["reads"] += 1
         _CHRON_AUTOREAD["lastTs"] = ts
@@ -10321,7 +10337,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1745",
+        "ver": "v1746",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -4954,3 +4954,26 @@ as ITEM CATEGORIES, not as read-my-Chronicle modes, and their art is the board's
 medallion, which says the same wrong thing a second time. The button existed; its name did not say
 what it does. Now **"📜 chronicle · uniques"** / **"📜 chronicle · sets"**, each with a title that
 says to scroll the Chronicle while it runs. **[[label-outlived-referent]]**
+
+---
+
+## v1746 — the watchdog could retry a refused visit forever
+
+Konyo, on the 20-second tick: *"i dont want it looping though the same video over and over.. needs
+logic coding and like a stamped verification after its first and second swap or more.. it might loop
+and waste?"*
+
+He was right, and about the one path that was open. A **successful** read was already read-once —
+the visit timestamp is persisted and never revisited, so the tick only ever notices a NEW sealed
+visit. But a **refused** sweep marked nothing, so that same visit would be re-attempted every 20
+seconds for as long as the console ran.
+
+Two tries, then the visit is **retired with its reason kept** — a third identical refusal teaches
+nothing and costs what the first did. Retired is deliberately distinguishable from never-tried:
+`skipped[ts] = "gave up after 2 tries — <why>"`, so a visit that stopped being attempted can never
+be mistaken for one nobody looked at.
+
+⚠ The test for it failed first, and for a reason worth keeping: `_CHRON_AUTOREAD["tries"]` is module
+state and `setUp` reset `done` and `skipped` but not `tries`, so one test's refusal count carried
+into the next and retired it a tick early. Shared mutable state between tests is its own defect
+class — the fixture now resets all three.
