@@ -113,6 +113,64 @@ test.describe('v1756 — the inbox is a place, not a function', () => {
     expect(r.spirit, 'the same item is listed in BOTH sections: ' + JSON.stringify(r.names)).toBe(1);
   });
 
+  /* v1769 — THE TWO BUTTONS ARE THE ONLY WAY OUT, and nothing guarded them. This file covered
+     rendering, the three empty states and the badge — every part except whether pressing anything
+     does something. That gap matters more than it looks: the gate needs two independent witnesses
+     and the second eye is a Grok lane that is currently answering 402 on every call, so ANY doubtful
+     name now lands here rather than being ticked. If "tick it" were decorative, the whole pending
+     queue would be a place where his finds go to be forgotten — and it would look perfectly healthy,
+     because a row that renders and a row that works are indistinguishable on screen.
+
+     Measured before writing this: accept moved the row into foundLog and the grail count 248 -> 249;
+     ignore wrote a dismissed row and emptied the queue. This pins that, and it pins that each button
+     acts on ITS OWN row — the first draft of this check assumed seed order and read the alphabetical
+     sort as a wrong-row bug. */
+  test('★★★ tick it actually ticks THAT row, and ignore actually dismisses it', async ({ page }) => {
+    const now = Date.now();
+    await withLedger(page, [], [
+      { name: "Griffon's Eye", triageWhy: 'only 1 independent witness (claude) — needs 2', proposedAt: now },
+      { name: 'Bul-Kathos Wedding Band', triageWhy: 'the second eye disagreed with this read', proposedAt: now },
+    ]);
+    const r = await page.evaluate(async () => {
+      const w: any = window;
+      const nameOf = (row: Element) => ((row.querySelector('.ibx-nm') || {}) as any).textContent.trim();
+      const rows = [...document.querySelectorAll('#inbox-panel .ibx-row')];
+      const grail0 = w.funiScan().found;
+      const first = nameOf(rows[0]);
+      (rows[0].querySelector('.ibx-ok') as HTMLElement).click();
+      await new Promise((x) => setTimeout(x, 500));
+      const found = JSON.parse(w.LSR.getItem('d2r_foundLog') || '{}');
+
+      w.renderInbox && w.renderInbox();
+      const left = [...document.querySelectorAll('#inbox-panel .ibx-row')]
+        .find((x) => x.querySelector('.ibx-b:not(.ibx-ok)'));
+      const second = left ? nameOf(left) : null;
+      if (left) (left.querySelector('.ibx-b:not(.ibx-ok)') as HTMLElement).click();
+      await new Promise((x) => setTimeout(x, 500));
+
+      return {
+        first, second, grail0, grail1: w.funiScan().found,
+        firstTicked: !!found[first],
+        secondTicked: second ? !!found[second] : null,
+        queue: (w.kaiChronicleInbox({ sync: false }) || []).map((x: any) => x.name),
+        ledger: (w.kaiChronicleLedger({ sync: false }) || []).map((x: any) => x.name + ':' + x.status),
+      };
+    });
+    expect(r.first, 'no pending row rendered, so nothing was tested').toBeTruthy();
+    // ACCEPT: the row he pressed is the row that moved
+    expect(r.firstTicked, `"tick it" did not put ${r.first} in the grail`).toBe(true);
+    expect(r.grail1, 'the grail count did not move').toBe(r.grail0 + 1);
+    expect(r.ledger, 'the ledger does not record the acceptance')
+      .toContain(r.first + ':accepted');
+    // IGNORE: dismissed, recorded, and NOT quietly ticked as well
+    expect(r.second, 'the second name vanished from the queue without being ruled on').toBeTruthy();
+    expect(r.secondTicked, `"ignore" put ${r.second} in the grail anyway`).toBe(false);
+    expect(r.ledger, 'a dismissal left no trace in the ledger')
+      .toContain(r.second + ':dismissed');
+    // and the queue is empty, so a ruled item never comes back to be ruled again
+    expect(r.queue, 'a resolved item is still waiting on him: ' + JSON.stringify(r.queue)).toEqual([]);
+  });
+
   /* v1760 — THE NOTIFICATION HALF. Konyo asked for "an inbox that like has a NOTIFICATION of this a
      log or ledger". v1756 shipped the ledger and no notification: the card lives COLLAPSED inside
      Tools, so a name waiting on him stayed invisible until he went looking for the panel he had
