@@ -3232,6 +3232,10 @@ def open_control_window():
         try:
             threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
             threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
+            # v1745 — the Chronicle auto-read watchdog. Reads only visits whose LEDGER is known,
+            # only when no session is live and no sweep is running, and never applies. See
+            # chronicle_autoread_tick.
+            threading.Thread(target=_chron_autoread_loop, daemon=True, name="tvd-chron-autoread").start()
         except Exception as _ee:
             print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
@@ -8923,6 +8927,106 @@ def chronicle_visits(limit=8):
     return {"ok": True, "visits": out, "spent": 0}
 
 
+# ── v1745 📜🐕 CHRONICLE AUTO-READ — the watchdog, scoped to where reading is FREE ──────────
+# Konyo: "where is the coded AI reader that retro analyzes this within the console like a
+# watchdog.. i want it automatically synced."
+#
+# There was none, and that was deliberate: chron_visit_flush's own docstring sets the doctrine —
+# "recording is FREE, reading is OFFERED. This journals the visit and says so; it never calls
+# claude_chronicle_read / g5_chronicle_read and never spends a classify." chronicle_sweep_start was
+# reachable only from the HTTP endpoint, so a session could end with a perfectly good Chronicle
+# recording sitting there and nothing would ever look at it.
+#
+# THE HOLE IN THAT REASONING, AND THE ONLY PLACE THIS FIRES. "Offered, not automatic" is a COST
+# argument. It stops being one when the read is free — and v1528 says exactly when that is: a visit
+# whose LEDGER is already known is "the cheapest read in the system: he already told us these frames
+# are the Chronicle and which ledger was open, so there is no classify stage to pay for." So this
+# reads ONLY visits that carry a ledger. A visit without one is left alone, untouched and still
+# offered, because sweeping it would have to GUESS which ledger — and a wrong guess writes set
+# pieces into his grail (v1528's own words).
+#
+# Measured on session s_1786922954749_12579: the visit was journalled with ledger='uniques' and 4
+# frames, its five deep reads named 13 discovered uniques, and nothing read it. His count sat at
+# 249/403 while the evidence to move it was on disk.
+#
+# WHAT IT DOES NOT DO: it does not APPLY. The sweep produces a PROPOSAL, and the review gate stays
+# where v947 put it. Automatic reading, human-gated writing.
+_CHRON_AUTOREAD_PATH = os.environ.get("TV_CHRON_AUTOREAD") or os.path.join(HERE, "chron_autoread.json")
+_CHRON_AUTOREAD_EVERY_S = 20
+_CHRON_AUTOREAD = {"done": None, "lastTs": 0, "reads": 0, "skipped": {}}
+
+
+def _chron_autoread_done():
+    """The visit timestamps already auto-read. Persisted, so a console restart does not re-read a
+    visit it has already spent time on. Missing file = nothing read yet, never an error."""
+    if _CHRON_AUTOREAD["done"] is None:
+        seen = set()
+        try:
+            with open(_CHRON_AUTOREAD_PATH, encoding="utf-8") as fh:
+                seen = set(int(x) for x in (json.load(fh) or {}).get("done") or [])
+        except Exception:
+            seen = set()
+        _CHRON_AUTOREAD["done"] = seen
+    return _CHRON_AUTOREAD["done"]
+
+
+def _chron_autoread_mark(ts):
+    done = _chron_autoread_done()
+    done.add(int(ts))
+    try:
+        with open(_CHRON_AUTOREAD_PATH, "w", encoding="utf-8") as fh:
+            json.dump({"done": sorted(done)}, fh)
+    except Exception:
+        pass
+
+
+def chronicle_autoread_tick():
+    """One pass. Returns what it did, so a silent skip is impossible to mistake for a clean run —
+    every refusal carries a NAMED reason (v1543's lesson: a silent skip turns a fault into a smaller
+    invoice and nothing else)."""
+    if _agent_alive():
+        return {"ok": False, "why": "a session is live — a visit is only final once the reel stops growing"}
+    try:
+        if chronicle_sweep_state().get("running"):
+            return {"ok": False, "why": "a sweep is already running"}
+    except Exception:
+        pass
+    try:
+        visits = (chronicle_visits(limit=12) or {}).get("visits") or []
+    except Exception as e:
+        return {"ok": False, "why": "could not read visits: %s" % e}
+    done = _chron_autoread_done()
+    for v in visits:                      # newest first
+        ts = int(v.get("ts") or 0)
+        if not ts or ts in done:
+            continue
+        if not v.get("ledger"):
+            # NEVER guess a ledger. Counted so "nothing happened" and "we refused" stay different.
+            _CHRON_AUTOREAD["skipped"][str(ts)] = "no ledger — offered, never guessed"
+            continue
+        r = chronicle_sweep_start(visit=ts)
+        # Mark ONLY when the sweep actually took the job. Marking first meant a refused or
+        # never-started sweep still burned the visit — measured while building this: a tick run from
+        # a throwaway process started a sweep, the process exited, and the visit was left flagged
+        # read with nothing to show for it. A visit is precious; a repeat read of a free visit is not.
+        if not (isinstance(r, dict) and r.get("ok")):
+            return {"ok": False, "why": "sweep refused the visit: %s" % (isinstance(r, dict) and r.get("why") or r)}
+        _chron_autoread_mark(ts)
+        _CHRON_AUTOREAD["reads"] += 1
+        _CHRON_AUTOREAD["lastTs"] = ts
+        return {"ok": True, "read": ts, "ledger": v.get("ledger"), "frames": v.get("n"), "start": r}
+    return {"ok": True, "read": None, "why": "no unread visit with a known ledger"}
+
+
+def _chron_autoread_loop():
+    while True:
+        try:
+            time.sleep(_CHRON_AUTOREAD_EVERY_S)
+            chronicle_autoread_tick()
+        except Exception:
+            pass
+
+
 def chronicle_scan_cost(hist_dir=None, limit=None):
     """v1516 — what a Chronicle retro sweep would cost, computed on HIS film. No model calls.
 
@@ -10217,7 +10321,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1744",
+        "ver": "v1745",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

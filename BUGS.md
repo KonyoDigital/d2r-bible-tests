@@ -4904,3 +4904,53 @@ the binding constraint, not his scrolling.
 The bound is now per-focus via `_mini_bounds()`: stash/runes/gems/materials unchanged at
 **25s default / 40s max**; the two chronicle focuses get **75s / 120s**. The console's sub-line reads
 the same table, so a button can never advertise a duration it will not get.
+
+---
+
+## REG-175 — no watchdog read the Chronicle, and the button that does was named wrong (v1745)
+
+### "where is the coded AI reader that retro analyzes this... like a watchdog"
+
+There was none, and that was deliberate. `chron_visit_flush`'s own docstring sets the doctrine:
+*"recording is FREE, reading is OFFERED. This journals the visit and says so; it never calls
+`claude_chronicle_read` / `g5_chronicle_read` and never spends a classify."* And
+`chronicle_sweep_start` was reachable **only** from the HTTP endpoint — nothing called it when a
+session ended. So a session could close with a perfectly good Chronicle recording on disk and
+nothing would ever look at it.
+
+Measured on session `s_1786922954749_12579`: the visit was journalled with **`ledger:'uniques'`, 4
+frames**, its five deep reads named **13 discovered uniques**, and his count sat at **249/403** with
+the evidence sitting right there.
+
+**The hole in that reasoning.** "Offered, not automatic" is a COST argument, and it stops applying
+when the read is free — which v1528 names exactly: a visit whose LEDGER is already known is *"the
+cheapest read in the system: he already told us these frames are the Chronicle and which ledger was
+open, so there is no classify stage to pay for."*
+
+So `chronicle_autoread_tick()` fires **only** on visits that carry a ledger. A visit without one is
+refused with a NAMED reason and left offered — sweeping it would have to GUESS which ledger, and a
+wrong guess writes set pieces into his grail. It also refuses while a session is live (a visit is
+only final once the reel stops growing) or while a sweep is running. **It never applies**: the sweep
+produces a proposal and the review gate stays where v947 put it. Automatic reading, human-gated
+writing.
+
+⚠ **A mistake worth recording.** The first live test ran `chronicle_autoread_tick()` from a throwaway
+python process. It really did start a sweep on his visit — then the process exited, the sweep died
+with it, and because the code marked the visit read BEFORE checking the sweep took the job, the
+visit was left flagged as read with nothing to show for it. The stale marker was deleted, the order
+was fixed (mark only on a successful start), a test now pins it, and every later test used
+`TV_CHRON_AUTOREAD` to point the state file at a temp dir. **Fixtures never touch live data** — I
+broke that rule and then applied it. **[[feedback-fixtures-never-touch-live-data]]**
+
+### The chronicle MINI buttons existed; their labels did not say so
+
+Konyo, looking straight at the row: *"where is the button for it? there are other buttons there
+representing other focused hunts for stash/gems/runes.. so for chronicle should also be a focused
+run for it."*
+
+Both were there — `MINI_FOCUSES` has carried `chronicle-uniques` / `chronicle-sets` since v1603 —
+labelled **"uniques"** and **"sets"**. In a row beside stash / runes / gems / materials, those read
+as ITEM CATEGORIES, not as read-my-Chronicle modes, and their art is the board's own uniques/sets
+medallion, which says the same wrong thing a second time. The button existed; its name did not say
+what it does. Now **"📜 chronicle · uniques"** / **"📜 chronicle · sets"**, each with a title that
+says to scroll the Chronicle while it runs. **[[label-outlived-referent]]**

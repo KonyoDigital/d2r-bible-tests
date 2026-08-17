@@ -10039,9 +10039,21 @@
      two CHRONICLE focuses take their own board tab's medallion, which both reads at 18px and says
      "this focus is that chronicle". All of it is CASC art from the local install —
      tv/extract_ui_icons.py, which records the exact game path each one came from. */
+  /* v1745 — SAY WHICH BUTTON READS THE CHRONICLE. Konyo, looking straight at this row: "where is
+     the button for it? there are other buttons there representing other focused hunts for
+     stash/gems/runes.. so for chronicle should also be a focused run for it."
+     Both chronicle focuses were already here — MINI_FOCUSES has carried them since v1603 — but they
+     were labelled "uniques" and "sets". Sitting in a row beside stash / runes / gems / materials,
+     those read as ITEM CATEGORIES, not as read-my-Chronicle modes, and their art is the board's own
+     uniques/sets medallion, which says the same wrong thing twice. The button existed; the name did
+     not say what it does. [[label-outlived-referent]] */
   var MINI_FOCUS_LABEL = {
     'stash': 'stash', 'runes': 'runes', 'gems': 'gems', 'materials': 'materials',
-    'chronicle-uniques': 'uniques', 'chronicle-sets': 'sets'
+    'chronicle-uniques': '📜 chronicle · uniques', 'chronicle-sets': '📜 chronicle · sets'
+  };
+  var MINI_FOCUS_TITLE = {
+    'chronicle-uniques': 'point MINI at the in-game Chronicle (uniques) — scroll it while this runs',
+    'chronicle-sets': 'point MINI at the in-game Chronicle (sets) — scroll it while this runs'
   };
   /* v1744 — the sub-line must say the seconds THIS focus actually gets. The engine made the
      duration focus-aware (a Chronicle is scrolled, a stash tab is one screen), so a hardcoded
@@ -10062,7 +10074,9 @@
       var art = MINI_FOCUS_ART[f];
       // the engine owns this vocabulary, so a focus can arrive that has no art yet — it must still
       // render as a working button, just without the picture
-      return '<button type="button" class="mf' + (f === _miniFocus ? ' on' : '') + '" data-f="' + escC(f) + '">'
+      var ttl = MINI_FOCUS_TITLE[f];
+      return '<button type="button" class="mf' + (f === _miniFocus ? ' on' : '') + '" data-f="' + escC(f) + '"'
+        + (ttl ? ' title="' + escC(ttl) + '"' : '') + '>'
         + (art ? '<img class="mf-i" src="' + art + '" alt="" onerror="this.remove()">' : '')
         + escC(MINI_FOCUS_LABEL[f] || f) + '</button>';
     }).join('');

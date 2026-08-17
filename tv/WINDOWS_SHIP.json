@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1744",
+  "ver": "v1745",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1744: Crescent Moon offered 1 base of the 75 that can host it because the legal-base helper returned the curated pick list; it now tops up from engine-sanctioned bases elite-first. And MINI got per-focus durations so a chronicle focus can run 75s instead of 25 — one pass only reached A to J",
+  "note": "v1745: nothing read a Chronicle visit after a session closed because reading was opt-in by design; it is now automatic for visits whose ledger is known which cost zero classifies, never for ones that would need a guess. And the MINI chronicle focuses were labelled uniques and sets so they read as item categories rather than chronicle modes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

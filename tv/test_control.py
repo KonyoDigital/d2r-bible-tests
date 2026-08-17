@@ -5351,5 +5351,84 @@ class TestBothLanesShareOneNormalizer(unittest.TestCase):
 # v1456 — THE RUNNER LIVES AT THE BOTTOM. It used to sit mid-file (before TestFleetUnity, added
 # v1418), and unittest.main() exits the interpreter — so every class defined below it was NEVER
 # DEFINED, let alone run: silent zero coverage that still reported "OK". Keep this block last.
+
+class TestChronicleAutoReadWatchdog(unittest.TestCase):
+    """v1745 — THE WATCHDOG KONYO ASKED FOR, AND THE ONE PLACE IT MAY FIRE.
+
+    Konyo: "where is the coded AI reader that retro analyzes this within the console like a
+    watchdog.. i want it automatically synced." There was none, deliberately: chron_visit_flush's
+    docstring sets the doctrine — "recording is FREE, reading is OFFERED... never spends a classify"
+    — and chronicle_sweep_start was reachable only from the HTTP endpoint. So a session could end
+    with a good Chronicle recording on disk and nothing would ever look at it. Measured on his
+    session s_1786922954749_12579: visit journalled with ledger='uniques' and 4 frames, five deep
+    reads naming 13 discovered uniques, and his count sat at 249/403 with the evidence right there.
+
+    "Offered, not automatic" is a COST argument, and it stops applying when the read is free. v1528
+    names exactly when that is: a visit whose LEDGER is known is "the cheapest read in the system...
+    there is no classify stage to pay for". So the watchdog fires ONLY on those, and a visit with no
+    ledger is refused with a NAMED reason rather than guessed at — guessing writes set pieces into
+    his grail (v1528). It never applies; the review gate stays where v947 put it.
+    """
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._old_path = ca._CHRON_AUTOREAD_PATH
+        # never his file — the state is redirected, not trusted to behave
+        ca._CHRON_AUTOREAD_PATH = os.path.join(self.d, "autoread.json")
+        ca._CHRON_AUTOREAD["done"] = None
+        ca._CHRON_AUTOREAD["skipped"] = {}
+        self._old = (ca.chronicle_sweep_start, ca._agent_alive, ca.chronicle_sweep_state, ca.chronicle_visits)
+        self.calls = []
+        ca.chronicle_sweep_start = lambda **kw: (self.calls.append(kw) or dict({"ok": True}, **kw))
+        ca._agent_alive = lambda: False
+        ca.chronicle_sweep_state = lambda: {"running": False}
+        ca.chronicle_visits = lambda *a, **k: {"visits": [
+            {"ts": 3000, "ledger": "", "n": 9},                # no ledger — must be REFUSED
+            {"ts": 2000, "ledger": "uniques", "n": 4},
+            {"ts": 1000, "ledger": "sets", "n": 6},
+        ]}
+
+    def tearDown(self):
+        ca._CHRON_AUTOREAD_PATH = self._old_path
+        ca._CHRON_AUTOREAD["done"] = None
+        (ca.chronicle_sweep_start, ca._agent_alive, ca.chronicle_sweep_state, ca.chronicle_visits) = self._old
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def test_reads_ledger_known_visits_once_each_and_never_guesses(self):
+        a = ca.chronicle_autoread_tick()
+        b = ca.chronicle_autoread_tick()
+        c = ca.chronicle_autoread_tick()
+        self.assertEqual(a.get("read"), 2000, a)          # newest ledger-known first
+        self.assertEqual(b.get("read"), 1000, b)
+        self.assertIsNone(c.get("read"), c)               # and then nothing left
+        self.assertEqual([x.get("visit") for x in self.calls], [2000, 1000])
+        # the ledger-less visit is REFUSED, and the refusal is recorded rather than silent
+        self.assertIn("3000", ca._CHRON_AUTOREAD["skipped"])
+        self.assertNotIn(3000, [x.get("visit") for x in self.calls])
+
+    def test_never_fires_while_a_session_is_live(self):
+        ca._agent_alive = lambda: True
+        r = ca.chronicle_autoread_tick()
+        self.assertFalse(r.get("ok"), r)
+        self.assertIn("session is live", r.get("why", ""))
+        self.assertEqual(self.calls, [])
+
+    def test_never_fires_while_a_sweep_is_running(self):
+        ca.chronicle_sweep_state = lambda: {"running": True}
+        r = ca.chronicle_autoread_tick()
+        self.assertFalse(r.get("ok"), r)
+        self.assertEqual(self.calls, [])
+
+    def test_a_refused_sweep_does_not_burn_the_visit(self):
+        """Marking BEFORE the sweep took the job meant a refusal still spent the visit. Measured
+        while building this: a tick from a throwaway process started a sweep, the process exited,
+        and the visit was left flagged read with nothing to show for it."""
+        ca.chronicle_sweep_start = lambda **kw: {"ok": False, "why": "busy"}
+        r = ca.chronicle_autoread_tick()
+        self.assertFalse(r.get("ok"), r)
+        # ...and the next tick can still try it
+        ca.chronicle_sweep_start = lambda **kw: (self.calls.append(kw) or dict({"ok": True}, **kw))
+        self.assertEqual(ca.chronicle_autoread_tick().get("read"), 2000)
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
