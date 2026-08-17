@@ -284,7 +284,10 @@ def _claim_the_tree():
 # moved. A future test that forgets cannot pass quietly - which is the only kind of guard worth
 # having, because the failure mode here is silent by construction.
 _LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "autoread.json",
-               "chronicle_autoread.json")
+               "chronicle_autoread.json",
+               # v1776 — the accumulated sighting ledger. Added the same day it was created,
+               # because the guard is only as wide as this tuple.
+               "chron_evidence.json")
 
 
 def _console_is_running(port=17772):

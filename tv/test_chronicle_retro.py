@@ -1025,6 +1025,63 @@ class TestV1770ASlowScrollIsNotWalkingThroughTown(unittest.TestCase):
                          "it classified more than the one candidate: %s" % self.classified)
 
 
+class TestV1776EvidenceOutlivesTheSweep(unittest.TestCase):
+    """v1776 — A SWEEP MUST ONLY EVER ADD. Konyo, after watching a five-reel run get wiped by the
+    watchdog's own tick: "we need a safegaurd to this.. this cant happen.. like why cant after it
+    reads .. it locks it somehow like the progress is going up and then reversing."
+
+    _CHRON_JOB["result"] was ONE slot, so every sweep REPLACED the last one's findings. Two costs,
+    and the second is the expensive one:
+
+      1. what a sweep found vanished the moment anything else swept - including the watchdog, which
+         is meant to be helping;
+      2. sightings could only corroborate INSIDE a single run, so `cross-reel` could not fire unless
+         both recordings happened to be in the SAME sweep. Read one reel tonight and another
+         tomorrow and the gate sees two lonely single sightings. That is most of why nothing could
+         ground without Grok - the witness Claude can supply alone was unreachable by construction.
+
+    The vault path has accumulated since v1533 ("merge-max only"); the chronicle path never did."""
+
+    def test_a_later_sweep_never_erases_an_earlier_one(self):
+        first = {"uniques": {"Gore Rider": [{"reel": "A", "frame": "f1", "lane": "claude"}]},
+                 "pagesRead": 4}
+        second = {"uniques": {"Bonesnap": [{"reel": "B", "frame": "f7", "lane": "claude"}]},
+                  "pagesRead": 6}
+        m = cr.merge_proposals(first, second)
+        self.assertIn("Gore Rider", m["uniques"], "the second sweep wiped the first one's finding")
+        self.assertIn("Bonesnap", m["uniques"])
+        self.assertEqual(m["pagesRead"], 10, "the page count reversed instead of adding")
+
+    def test_cross_reel_can_finally_fire_ACROSS_two_sweeps(self):
+        """The whole point. One name, two recordings, read on two different days — that is exactly
+        the corroboration his footage can supply without a second model lane."""
+        # conf matters: the gate has a confidence FLOOR as well as a witness count, and a fixture
+        # without it proves the floor rather than the merge
+        tonight = {"uniques": {"Gore Rider": [{"reel": "A", "frame": "f1", "lane": "claude", "conf": 0.9}]}}
+        tomorrow = {"uniques": {"Gore Rider": [{"reel": "B", "frame": "f9", "lane": "claude", "conf": 0.9}]}}
+        m = cr.merge_proposals(tonight, tomorrow)
+        tags = cr.witnesses(m["uniques"]["Gore Rider"])
+        self.assertIn("cross-reel", tags,
+                      "two recordings of the same name still do not corroborate: %s" % tags)
+        # and with a third recording it clears the gate on its own, no Grok anywhere
+        third = cr.merge_proposals(m, {"uniques": {"Gore Rider": [
+            {"reel": "C", "frame": "f3", "lane": "claude", "conf": 0.9}]}})
+        v = cr.gate_verdict("Gore Rider", third["uniques"]["Gore Rider"])
+        self.assertTrue(v["pass"],
+                        "three recordings by ONE lane still cannot ground a name: %s" % v.get("why"))
+        self.assertNotIn("cross-lane", v["witnesses"], "this must not depend on the second eye")
+
+    def test_the_same_photograph_twice_is_still_ONE_sighting(self):
+        """v1689's rule survives accumulation: re-reading a frame is not corroboration, and merging
+        must not turn a repeated sweep into a fake second witness."""
+        a = {"uniques": {"Gore Rider": [{"reel": "A", "frame": "f1", "lane": "claude"}]}}
+        m = cr.merge_proposals(a, a)
+        self.assertEqual(len(m["uniques"]["Gore Rider"]), 1,
+                         "sweeping the same reel twice invented a witness")
+        self.assertEqual(cr.witnesses(m["uniques"]["Gore Rider"]), [],
+                         "one photograph read twice must carry no witness tag")
+
+
 class TestV1775ARunIsNotOnePage(unittest.TestCase):
     """v1775 — A SCROLLED RUN MUST YIELD MORE THAN ONE PAGE, or Claude can never corroborate itself.
 

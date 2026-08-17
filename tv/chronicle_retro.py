@@ -983,6 +983,48 @@ CONF_FLOOR = 0.55        # below this the reader itself was unsure; unsure twice
 MIN_WITNESSES = 2
 
 
+def merge_proposals(base, incoming):
+    """Fold `incoming` into `base` and return a NEW proposal. Evidence only ever ACCUMULATES.
+
+    v1776 — WHY THIS EXISTS. The console kept one result slot, so every sweep REPLACED the last
+    one's findings. Konyo watched it happen twice in an hour: "the progress is going up and then
+    reversing". Two costs, and the second is the expensive one:
+
+      1. what a sweep found was gone the moment anything else swept — including the watchdog's own
+         tick, which is supposed to be helping;
+      2. sightings could only corroborate each other INSIDE one run, so `cross-reel` — a name seen
+         in two different recordings — could only ever fire if both reels happened to be in the same
+         sweep. Read reel A today and reel B tomorrow and the gate sees two lonely single sightings.
+         That is most of why nothing could ground without Grok.
+
+    A sighting is identified by (reel, frame, lane): the same photograph read twice is ONE sighting,
+    because two reads of one frame is not corroboration (v1689). Anything genuinely new is added.
+    The vault path has done exactly this since v1533 — "ACCUMULATE ACROSS SESSIONS, merge-max only";
+    the chronicle path never got it.
+    """
+    out = {"uniques": {}, "sets": {}, "setGroups": {}, "completeSets": {}, "refused": [],
+           "pagesRead": 0, "pagesRefused": 0}
+    for src in (base or {}, incoming or {}):
+        if not isinstance(src, dict):
+            continue
+        for ledger in ("uniques", "sets"):
+            for name, sightings in (src.get(ledger) or {}).items():
+                bucket = out[ledger].setdefault(name, [])
+                seen = {(x.get("reel"), x.get("frame"), x.get("lane")) for x in bucket}
+                for sg in (sightings or []):
+                    key = (sg.get("reel"), sg.get("frame"), sg.get("lane"))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    bucket.append(sg)
+        for k in ("setGroups", "completeSets"):
+            out[k].update(src.get(k) or {})
+        out["refused"].extend(src.get("refused") or [])
+        for k in ("pagesRead", "pagesRefused"):
+            out[k] += int(src.get(k) or 0)
+    return out
+
+
 def witnesses(sightings):
     """The distinct, independent signals behind one proposed name. Returns a sorted list of tags."""
     tags = set()

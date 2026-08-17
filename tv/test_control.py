@@ -130,7 +130,10 @@ def setUpModule():
     _MOD_PATHS = {}
     for attr, name in (("_CHRON_RESULT_PATH", "result.json"),
                        ("_CHRON_AUTOREAD_PATH", "autoread.json"),
-                       ("_CHRON_SWEPT_PATH", "swept.json")):
+                       ("_CHRON_SWEPT_PATH", "swept.json"),
+                       # v1776 — a NEW state file must join this list the day it is created, or the
+                       # suite starts writing his console again (REG-179, by me, twice)
+                       ("_CHRON_EVIDENCE_PATH", "evidence.json")):
         if hasattr(ca, attr):
             _MOD_PATHS[attr] = getattr(ca, attr)
             setattr(ca, attr, os.path.join(_MOD_TMP, name))
@@ -5102,6 +5105,13 @@ class TestChronicleSweepJob(unittest.TestCase):
     exercises is a second lane nobody trusts."""
 
     def setUp(self):
+        # v1776 — EVIDENCE ACCUMULATES NOW, so a test that asserts an exact result needs a clean
+        # ledger or it inherits the previous test's sightings and grounds names this run never saw.
+        # The module redirect gives one temp file for the whole file; this empties it per test.
+        try:
+            os.remove(ca._CHRON_EVIDENCE_PATH)
+        except Exception:
+            pass
         try:
             from PIL import Image  # noqa: F401
         except Exception:

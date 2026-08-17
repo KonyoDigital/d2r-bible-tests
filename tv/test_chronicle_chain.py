@@ -85,7 +85,8 @@ class TestTheWholeChain(unittest.TestCase):
         self._live_paths = {}
         for _attr, _name in (("_CHRON_RESULT_PATH", "result.json"),
                              ("_CHRON_AUTOREAD_PATH", "autoread.json"),
-                             ("_CHRON_SWEPT_PATH", "swept.json")):
+                             ("_CHRON_SWEPT_PATH", "swept.json"),
+                             ("_CHRON_EVIDENCE_PATH", "evidence.json")):
             if hasattr(_ca, _attr):
                 self._live_paths[_attr] = getattr(_ca, _attr)
                 setattr(_ca, _attr, os.path.join(self.d, _name))

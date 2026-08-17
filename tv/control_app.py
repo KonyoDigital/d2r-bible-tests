@@ -9993,6 +9993,52 @@ def _chron_lanes():
 #
 # The result now lands on disk the moment a sweep finishes and is reloaded on demand, so a restart —
 # or a console that was never open when the watchdog fired — still has something to apply.
+# v1776 — THE EVIDENCE OUTLIVES THE SWEEP THAT FOUND IT.
+# _CHRON_JOB["result"] is ONE slot, so every sweep replaced the last one's findings. Konyo watched
+# it twice in an hour — a five-reel run wiped by the watchdog's own tick — and named it exactly:
+# "the progress is going up and then reversing". The watchdog is not the fault; a single slot is.
+# Worse than the display: sightings could only corroborate INSIDE one run, so `cross-reel` (a name
+# in two recordings) could not fire unless both reels were in the same sweep. Read one reel tonight
+# and another tomorrow and the gate sees two lonely sightings. That is most of why nothing grounded
+# without Grok. The vault path has accumulated since v1533; the chronicle path never did.
+_CHRON_EVIDENCE_PATH = os.environ.get("TV_CHRON_EVIDENCE") or os.path.join(HERE, "chron_evidence.json")
+
+
+def _chron_evidence_load():
+    try:
+        with open(_CHRON_EVIDENCE_PATH, encoding="utf-8") as fh:
+            return json.load(fh) or {}
+    except Exception:
+        return {}
+
+
+def _chron_evidence_save(prop):
+    """Takes NO lock — callers hold _CHRON_LOCK and threading.Lock is not reentrant (v1763)."""
+    try:
+        tmp = _CHRON_EVIDENCE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(prop, fh)
+        os.replace(tmp, _CHRON_EVIDENCE_PATH)
+        return True
+    except Exception:
+        return False
+
+
+def _chron_evidence_merge(prop):
+    """Fold this sweep's proposal into everything read so far, persist, and return the MERGED view.
+
+    The gate then runs over every sighting ever collected rather than just this run's, which is what
+    makes a sweep additive instead of destructive.
+    """
+    try:
+        import chronicle_retro as _cr   # imported per-callsite in this module, not at import time
+        merged = _cr.merge_proposals(_chron_evidence_load(), prop or {})
+    except Exception:
+        return prop or {}
+    _chron_evidence_save(merged)
+    return merged
+
+
 _CHRON_RESULT_PATH = os.environ.get("TV_CHRON_RESULT") or os.path.join(HERE, "chron_last_result.json")
 
 
@@ -10125,6 +10171,10 @@ def _chron_visit_run(visit_ts):
         # This is the path that needs it MOST: one visit is one reel, often one lane, so it has the
         # fewest witnesses per name and is exactly where names get HELD — and re-gating at
         # minWitnesses=1 is the intended remedy. The one path where the remedy was unreachable.
+        # v1776 — GATE OVER EVERYTHING READ SO FAR, not just this run. Merging here is what makes a
+        # sweep additive: the next one can only ADD sightings, never wipe the last one's, and a name
+        # seen in a reel swept tonight can finally corroborate one seen in a reel swept tomorrow.
+        prop = _chron_evidence_merge(prop)
         globals()["_CHRON_LAST_PROPOSAL"] = prop
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
@@ -10362,6 +10412,10 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # v1531 — KEEP THE RAW EVIDENCE. Re-running the GATE is free; re-running the READS is not.
         # Without this the only way to ask "what would a stricter floor have held back?" was to pay
         # for the whole sweep again, which means the thresholds would never actually get tuned.
+        # v1776 — GATE OVER EVERYTHING READ SO FAR, not just this run. Merging here is what makes a
+        # sweep additive: the next one can only ADD sightings, never wipe the last one's, and a name
+        # seen in a reel swept tonight can finally corroborate one seen in a reel swept tomorrow.
+        prop = _chron_evidence_merge(prop)
         globals()["_CHRON_LAST_PROPOSAL"] = prop
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
@@ -10629,7 +10683,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1775",
+        "ver": "v1776",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

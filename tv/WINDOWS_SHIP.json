@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1775",
+  "ver": "v1776",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1775: restoring a fix whose revert rested on throttled evidence",
+  "note": "v1776: a sweep can only add now, never wipe the last one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
