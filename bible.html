@@ -14387,6 +14387,15 @@ function _rwOneStepView(){
    a runeword — so it resolves to nothing and renders nothing, which is correct and must stay that
    way. [[label-outlived-referent]]
 
+   ⚠ WHICH SURFACES NEED THIS, AND WHICH MUST BE LEFT ALONE. Only the RUNEWORDS ROSTER carries
+   display suffixes. `_baseRunewords()` yields 99 distinct names, NONE parenthesised, every one
+   present in RUNEWORD_TIP — measured across all 508 bases. So every filter fed from
+   _baseRunewords (the endgame gate at _baseRWLine, _egOk) is already canonical and needs nothing.
+   I went looking for a second victim there, convinced the v585 endgame gate was reading 0 for
+   Zod, and it was not: the names arriving at that filter had never been the roster's. Canonicalise
+   what reads the ROSTER; leave what reads _baseRunewords alone, because a no-op wrapped in a
+   comment that asserts a defect is worse than no change at all.
+
    AND THE PARENTHETICAL IS NOT NOISE FOR SPIRIT. RUNEWORD_TIP['Spirit'].b is "4 socket Swords or
    Shields", so the bare name yields the UNION — Monarch, Sacred Targe, Sacred Rondache and Aegis
    alongside Crystal Sword and Balrog Blade. Stripping and stopping there would offer him a SWORD
