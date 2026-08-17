@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1763",
+  "ver": "v1764",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1763: the result lived only in the memory of the process that ran it while the swept marker was durable so a sweep could spend find names lose them and never read that reel again",
+  "note": "v1764: a real sweep of his own footage applied to the board renders 17 rows each naming where it went and why - and the second eye read it cold with no clipping no overlap and no empty boxes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
