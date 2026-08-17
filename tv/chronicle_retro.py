@@ -577,7 +577,8 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
                 continue
             # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
             # page is a different page — so read the distinct-looking frames, which for a held page is one.
-            for name in _distinct(fr, sig_of):
+            for name in _distinct(fr, sig_of, max_diff=CHRON_STILL_MAX_DIFF,
+                              tol=CHRON_SIG_TOL):
                 # v1689 — a frame is READ ONCE. A journal run and a still run can overlap, and the same
                 # page read twice is not corroboration: it would arrive at witnesses() as two sightings
                 # of one photograph and let a single frame pass a gate that asks for two.
@@ -626,16 +627,34 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
             "journalTrusted": journal_trusted, "rescuedShortRuns": rescued}
 
 
-def _distinct(names, sig_of, max_diff=0.06):
+def _distinct(names, sig_of, max_diff=0.06, tol=28):
     """Within one run, keep only frames that actually LOOK different from the last kept one — a
-    scrolled list, not the same page re-photographed 40 times. Tighter than STILL_MAX_DIFF on
-    purpose: grouping asks "same screen?", this asks "same pixels?"."""
+    scrolled list, not the same page re-photographed 40 times.
+
+    v1771 — THE SAME DEFECT v1758 FIXED, ONE FUNCTION AWAY AND STILL LIVE. This compared with the
+    DEFAULT tol=28, and v1758 measured what that does to a Chronicle: two COMPLETELY different pages
+    differ by at most one gray level in one of jpeg_sig's 256 cells, so nothing clears 28 and
+    sig_diff returns 0.00000. Every frame in a run therefore looked identical to the first, and this
+    returned exactly ONE frame per run — measured on his 08-17 reel, runs of 43 and 44 distinct
+    scroll positions each yielded a single page read. 128 frames across eight runs: 8 read, 106
+    readable.
+
+    THAT IS WHAT MADE THE SECOND EYE LOOK MANDATORY. `cross-frame` — two frames within one reel — is
+    the witness Claude can supply alone, and it can never fire when a run is collapsed to one frame.
+    So the only witnesses left needed a second LANE or a second RECORDING, and Konyo's optional extra
+    pair of eyes had quietly become load-bearing: "why is grok a mandatory thing? we made it that i
+    can toggle grok for extra pair of eyes... the default should be claude."
+
+    The chronicle caller passes tol=CHRON_SIG_TOL. The signal is bimodal exactly as v1758 found:
+    measured over 219 consecutive pairs in his long scrolls, 39 are EXACTLY 0.00000 (a held page)
+    and the smallest real page change is 0.00391, so CHRON_STILL_MAX_DIFF (0.002) sits mid-gap.
+    [[feedback_threshold_above_the_ceiling]]"""
     out, last = [], None
     for n in names:
         s = sig_of(n)
         if s is None:
             continue
-        if last is None or sig_diff(last, s) > max_diff:
+        if last is None or sig_diff(last, s, tol=tol) > max_diff:
             out.append(n)
             last = s
     return out
