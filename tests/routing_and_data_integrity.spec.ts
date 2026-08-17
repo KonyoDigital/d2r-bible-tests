@@ -139,10 +139,21 @@ test.describe('TZ-zone routing — fidelity + correctness', () => {
       const entry = Object.entries(map).find(([name]) => name.includes(z.match));
       return entry && entry[1] === z.wrongProxy;
     });
-    // Awaiting Desktop's TZ_BOSS_MAP correction — until then this is the acceptance
-    // gate, not a CI failure. Once the fix lands these zones have empty data-boss-id.
-    test.skip(stillBroken.length > 0,
-      `TZ_BOSS_MAP fix not yet landed — still proxy-routed: ${stillBroken.map(z => z.match + '→' + z.wrongProxy).join(', ')}`);
+    /* v1754 — THE SKIP IS GONE, BECAUSE THE FIX IT WAS WAITING FOR LANDED.
+       This read `test.skip(stillBroken.length > 0, …)`: the gate went DARK precisely when the
+       defect was present and only ran once the defect was gone. That was honest while it was an
+       acceptance gate for Desktop's TZ_BOSS_MAP correction — the old comment said so — but the
+       correction has landed. Measured: stillBroken is empty and this test now PASSES rather than
+       skipping.
+
+       Left in place it is a trapdoor. Re-introduce the proxy routing tomorrow and this gate would
+       report SKIP, not RED, and the regression would come back in silence — which is the shape
+       Konyo has a standing rule about: a gate that always skips is the same defect as a gate that
+       cannot fail, and a check that did not happen is not a check that passed.
+
+       So the condition it used to skip on is now the thing it FAILS on, by name. */
+    expect(stillBroken.map(z => z.match + ' -> ' + z.wrongProxy),
+      'super-unique-only zones are proxy-routed again; TZ_BOSS_MAP has regressed').toEqual([]);
     for (const z of TZ_SUPERUNIQUE_ONLY) {
       const entry = Object.entries(map).find(([name]) => name.includes(z.match));
       if (entry) expect(entry[1], `zone "${entry[0]}" should NOT proxy to "${z.wrongProxy}"`).not.toBe(z.wrongProxy);
