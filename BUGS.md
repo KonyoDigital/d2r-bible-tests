@@ -5109,3 +5109,32 @@ and reading the spread as 11 anomalies would have been an easy wrong turn.
 Remaining open on this board: **REG-162** (with a first suspect — concurrent gate runs), and the two
 gold-on-green `--best` fallbacks (`.aura-tag-target`, `.forge-donow-h`) that need Konyo's call on
 whether the variable or the fallback is the mistake.
+
+---
+
+## Another gate comparing two zeros (2026-08-17, test-only)
+
+A sweep for the class found **79 specs** that assert emptiness with no numeric guard — too many to be
+all defects, and most are fine. Narrowing to the collections that are **empty on a default profile**
+(anything gated by the Chronicle, which ships with all 99 runewords MADE) left **six**, and reading
+them settled it:
+
+* `v559_grail_forges` asserts `Array.isArray(s[k])` — a SHAPE check, true on empty **legitimately**.
+  Not a defect, and worth saying so: the heuristic flagged it and the code was right.
+* `v617_smart_insights_flagship` was the real one. It asserts `_smartProgress()` agrees with
+  `forgeScan()` — a genuine invariant it **never exercised**. Measured on a default profile:
+  `makeNow 0 / scNow 0`, `deferred 0 / scDef 0`. `0 === 0` passes however wrong both derivations are,
+  and keeps passing if they drift **together**.
+
+**An empty Chronicle alone was not enough** — measured, still all zeros, because the Forge also needs
+something to plan ON. With a fresh chronicle, a stocked rune stash AND owned socketed bases the same
+assertions read **`makeNow 28 === scNow 28`** and **`deferred 29 === scDef 29`**, and they hold. The
+invariant was right; the gate was blind. **[[gate-blind-to-unexercised-input]]**
+
+Verified by removing the fixture again: *"the Forge planned nothing, so 'counts agree' compares two
+zeros."*
+
+⚠ **One half of it is still unexercised and is left honest rather than dressed up:** `farmMatches`
+compares `p.farm` against `sc.farm.length`, and both are **0 even with the full fixture**. I did not
+find an input that populates `farm`, so that sub-assertion remains `0 === 0`. It is named here rather
+than guarded, because a guard I cannot satisfy would just turn a blind assertion into a red build.

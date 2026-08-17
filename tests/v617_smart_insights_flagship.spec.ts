@@ -32,13 +32,46 @@ test('rows route: Make-now click lands on the Forge with the now filter', async 
   expect(r.onForge).toBe(true);
 });
 
+/* 2026-08-17 — THIS COMPARED TWO ZEROS. The assertions below check that _smartProgress() agrees
+   with forgeScan() — a real invariant, and one this test never exercised. A DEFAULT profile has all
+   99 runewords marked MADE (_RWC_SEED), so forgeScan returns nothing and every count on both sides
+   is 0; `0 === 0` passes however wrong both derivations might be, and would keep passing if they
+   drifted together. Measured: default profile makeNow 0 / scNow 0, deferred 0 / scDef 0.
+
+   An empty Chronicle alone is NOT enough — measured too: still all zeros, because the Forge also
+   needs something to plan ON. With a fresh chronicle, a stocked rune stash AND owned socketed bases
+   the same assertions read makeNow 28 === scNow 28 and deferred 29 === scDef 29, and they hold. The
+   invariant was right; the gate was blind. [[gate-blind-to-unexercised-input]] */
 test('counts agree with forgeScan and name deferred/farm; ladder note shows when words are blocked', async ({ page }) => {
-  await page.goto(URL); await page.waitForTimeout(1800);
+  await page.goto(URL); await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const w: any = window;
+    w.LSR.setItem('d2r_rwProfile', 'fresh');
+    w.LSR.setItem('d2r_rwMade', '{}');
+    w.LSR.setItem('d2r_rwUnmade', '{}');
+    const R = ['El','Eld','Tir','Nef','Eth','Ith','Tal','Ral','Ort','Thul','Amn','Sol','Shael','Dol',
+               'Hel','Io','Lum','Ko','Fal','Lem','Pul','Um','Mal','Ist','Gul','Vex','Ohm','Lo','Sur',
+               'Ber','Jah','Cham','Zod'];
+    const st: any = {}; R.forEach((x) => (st[x] = 20));
+    w.LSR.setItem('d2r_runeStash', JSON.stringify(st));   // the stash is read AT BOOT — reload below
+  });
+  await page.reload(); await page.waitForTimeout(1800);
+  await page.evaluate(() => {
+    const w: any = window;
+    ['Monarch', 'Crystal Sword', 'Flail', 'Colossus Blade', 'Archon Plate', 'Dusk Shroud', 'Berserker Axe']
+      .forEach((base) => [3, 4, 5, 6].forEach((n) => {
+        const k = base + ' (' + n + 'os)';
+        try { w._ensureSocketBaseEntry(k); w.toggleOwned(k); } catch (e) {}
+      }));
+  });
+  await page.waitForTimeout(900);
   const r = await page.evaluate(() => {
     const w: any = window;
     const p = w._smartProgress();
     const sc = w.forgeScan();
     return {
+      // the raw numbers, so the guards below can prove this compared something
+      _makeNow: p.makeNow, _deferred: p.deferred,
       makeNowMatches: p.makeNow === (sc.counts ? sc.counts.now : -1),
       deferredMatches: p.deferred === (sc.counts ? sc.counts.deferred : -1),
       farmMatches: p.farm === (sc.farm || []).length,
@@ -46,6 +79,10 @@ test('counts agree with forgeScan and name deferred/farm; ladder note shows when
       unlockSplit: typeof p.nextUnlockReady === 'number' && typeof p.nextUnlockAdvance === 'number',
     };
   });
+  // NON-VACUITY FIRST — these were 0 === 0 before the fixture above existed
+  expect(r._makeNow, 'the Forge planned nothing, so "counts agree" compares two zeros')
+    .toBeGreaterThan(0);
+  expect(r._deferred, 'nothing was deferred, so that half compares two zeros').toBeGreaterThan(0);
   expect(r.makeNowMatches).toBe(true);
   expect(r.deferredMatches).toBe(true);
   expect(r.farmMatches).toBe(true);
