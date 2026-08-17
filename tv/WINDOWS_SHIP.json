@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1762",
+  "ver": "v1763",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1762: a visit named four frames while the reel of the same session held fifty-five screens so the automatic half only ever read the smaller object - reels now sweep on the watchdog under a cap of one per tick newest first never while a session is live",
+  "note": "v1763: the result lived only in the memory of the process that ran it while the swept marker was durable so a sweep could spend find names lose them and never read that reel again",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

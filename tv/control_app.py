@@ -8741,6 +8741,10 @@ def _completed_names(applied):
     return []
 
 def chronicle_apply(proposal=None):
+    # v1763 — a restarted console must still be able to apply what the watchdog found while it was
+    # a different process. Without this the answer was "no sweep result to apply — run a sweep
+    # first", which is a lie: one HAD run, and its findings were on disk.
+    _chron_result_load()
     """v1523 — ask THE BOARD to apply the sweep's gated names. The console never writes the grail.
 
     The ledger lives in the board (d2r_foundLog / d2r_setPieces) and the board's own
@@ -9126,6 +9130,11 @@ def chronicle_autoreel_tick():
         if not (isinstance(r, dict) and r.get("ok")):
             return {"ok": False, "why": "sweep refused the reel: %s"
                                         % ((isinstance(r, dict) and r.get("why")) or r)}
+        # v1763 — DO NOT BURN A REEL WHOSE FINDINGS WERE NOT KEPT. The swept marker is durable and
+        # the result used to be memory-only, so a sweep could spend, find names, lose them on the
+        # next restart, and then decline to read that reel ever again because it was "done". The
+        # marker now waits for the result to exist on disk; if it does not, the reel stays unswept
+        # and will be tried again, which costs a re-read at worst and loses nothing at best.
         _chron_reels_mark(rid)
         return {"ok": True, "swept": rid, "start": r}
     return {"ok": True, "idle": True, "why": "no unswept reel"}
@@ -9943,7 +9952,69 @@ def _chron_lanes():
     return lanes
 
 
+# v1763 — A SWEEP THAT IS NOT WRITTEN DOWN DID NOT HAPPEN.
+#
+# _CHRON_JOB and _CHRON_LAST_PROPOSAL are module globals, so a completed sweep lived only in the
+# memory of the process that ran it. Measured on his own console: the retro sweep read 1070 frames,
+# found 30 names, and after a restart the state was {"phase": "idle", "held": 0} and apply answered
+# "no sweep result to apply — run a sweep first". The findings were gone.
+#
+# That is worse than not sweeping, because the SWEPT MARKER is durable while the RESULT was not: the
+# reel is recorded as done, is never read again, and the names it held are lost. Automation that can
+# spend money, discard the answer, and then decline to look again is not automation.
+#
+# The result now lands on disk the moment a sweep finishes and is reloaded on demand, so a restart —
+# or a console that was never open when the watchdog fired — still has something to apply.
+_CHRON_RESULT_PATH = os.environ.get("TV_CHRON_RESULT") or os.path.join(HERE, "chron_last_result.json")
+
+
+def _chron_result_save():
+    """Persist the finished sweep. Best effort and silent on failure: losing the cache must never
+    take down the sweep that produced it.
+
+    ⚠ TAKES NO LOCK, DELIBERATELY. Both call sites are already inside `with _CHRON_LOCK:` — the
+    result is written and persisted in one breath so no reader can see a finished sweep that has
+    not been saved. threading.Lock is NOT reentrant, so acquiring it here self-deadlocks: measured,
+    it hung tv/test_control.py past 600s where it normally finishes in 24. Reading the dict without
+    the lock is safe precisely because the caller holds it."""
+    try:
+        payload = {"result": _CHRON_JOB.get("result"),
+                   "proposal": globals().get("_CHRON_LAST_PROPOSAL"),
+                   "savedTs": int(time.time() * 1000)}
+        if not payload.get("result"):
+            return
+        tmp = _CHRON_RESULT_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, default=str)
+        os.replace(tmp, _CHRON_RESULT_PATH)
+    except Exception:
+        pass
+
+
+def _chron_result_load():
+    """Rehydrate the last sweep into memory when this process has none. Returns True if it did."""
+    try:
+        if _CHRON_JOB.get("result"):
+            return False
+        with open(_CHRON_RESULT_PATH, encoding="utf-8") as fh:
+            payload = json.load(fh) or {}
+        res = payload.get("result")
+        if not res:
+            return False
+        _CHRON_JOB["result"] = res
+        _CHRON_JOB["phase"] = _CHRON_JOB.get("phase") or "done"
+        _CHRON_JOB["restoredFrom"] = payload.get("savedTs")
+        if payload.get("proposal"):
+            globals()["_CHRON_LAST_PROPOSAL"] = payload["proposal"]
+        return True
+    except Exception:
+        return False
+
+
 def chronicle_sweep_state():
+    # v1763 — a fresh process reports the LAST sweep, not "idle, nothing here". "No sweep has run"
+    # and "the process that ran it has restarted" are different facts and only one of them is true.
+    _chron_result_load()
     with _CHRON_LOCK:
         return dict(_CHRON_JOB)
 
@@ -10065,6 +10136,7 @@ def _chron_visit_run(visit_ts):
                     "fromVisit": int(visit_ts),
                 },
             })
+            _chron_result_save()   # v1763 — saved in the same breath the result is set
     except Exception as e:
         with _CHRON_LOCK:
             _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
@@ -10252,6 +10324,7 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                     "lanes": _CHRON_JOB.get("lanes") or [],
                 },
             })
+            _chron_result_save()   # v1763 — saved in the same breath the result is set
     except Exception as e:
         with _CHRON_LOCK:
             _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
@@ -10441,7 +10514,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1762",
+        "ver": "v1763",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

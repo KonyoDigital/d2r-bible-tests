@@ -5591,6 +5591,52 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         self.assertEqual(sorted(payload.get("done") or []), [1111, 2222],
                          "a reel mark wiped the visit list: %s" % payload)
 
+    def test_a_finished_sweep_survives_a_restart(self):
+        """v1763 — A SWEEP THAT IS NOT WRITTEN DOWN DID NOT HAPPEN.
+
+        _CHRON_JOB is a module global, so a completed sweep lived only in the memory of the process
+        that ran it. Measured on his console: the retro sweep read 1070 frames and found 30 names;
+        after a restart the state was {"phase": "idle"} and apply answered "no sweep result to apply
+        — run a sweep first". Worse than not sweeping, because the SWEPT MARKER is durable while the
+        result was not — the reel is recorded done, never read again, and its names are gone."""
+        import json as _json
+        res_path = os.path.join(self.tmp, "result.json")
+        self.ca._CHRON_RESULT_PATH = res_path
+        with self.ca._CHRON_LOCK:
+            self.ca._CHRON_JOB["result"] = {"held": [{"name": "Bloodletter"}], "totals": {"reels": 1}}
+        self.ca._chron_result_save()
+        self.assertTrue(os.path.isfile(res_path), "the finished sweep was never written to disk")
+        # now simulate the restart: memory empty, disk intact
+        with self.ca._CHRON_LOCK:
+            self.ca._CHRON_JOB["result"] = None
+        self.assertTrue(self.ca._chron_result_load(), "the saved sweep did not reload")
+        # setUp stubs chronicle_sweep_state to {"running": False} for the reel tests, so asking IT
+        # here would measure the stub and not the reload — it answered {} and the first version of
+        # this assertion read that as "the findings were lost". Use the real one.
+        got = self._state0().get("result") or {}
+        self.assertEqual([h["name"] for h in (got.get("held") or [])], ["Bloodletter"],
+                         "the reloaded sweep lost its findings: %s" % _json.dumps(got)[:160])
+
+    def test_saving_the_result_does_not_deadlock_the_caller(self):
+        """Both call sites hold _CHRON_LOCK when they save, and threading.Lock is NOT reentrant, so
+        a save that acquires it self-deadlocks. It did: tv/test_control.py hung past 600s where it
+        normally finishes in 24. This calls save WHILE HOLDING the lock, which is exactly how the
+        sweep does it, and fails by hanging rather than by asserting — so the runner's own timeout
+        is the assertion."""
+        self.ca._CHRON_RESULT_PATH = os.path.join(self.tmp, "nodeadlock.json")
+        done = []
+
+        def _save_under_lock():
+            with self.ca._CHRON_LOCK:
+                self.ca._CHRON_JOB["result"] = {"totals": {"reels": 0}}
+                self.ca._chron_result_save()
+            done.append(True)
+
+        t = threading.Thread(target=_save_under_lock, daemon=True)
+        t.start()
+        t.join(timeout=10)
+        self.assertTrue(done, "_chron_result_save() deadlocked while the caller held _CHRON_LOCK")
+
     def test_the_off_switch_actually_stops_it(self):
         self.ca._CHRON_AUTOREEL_ON = False
         r = self.ca.chronicle_autoreel_tick()
