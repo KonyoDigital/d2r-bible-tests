@@ -22,6 +22,14 @@ on:
     paths:
       - 'bible.html'
       - 'tests/**'
+      # v1751 — THE CONSOLE UI IS AN INPUT TO THIS SUITE, SO IT MUST TRIGGER IT.
+      # 31 specs load tv/control_ui.html directly (v1614's "no emoji in the tab strip or the
+      # focus row" among them), and this filter did not list it. So a change to that file could
+      # break a gate that reads it and CI stayed silent until the NEXT push happened to touch
+      # bible.html or tests/ — which is exactly how v1745's focus-row emoji got in and only
+      # surfaced two ships later, wearing someone else's commit. A gate that cannot see the
+      # input it polices is not a gate. [[feedback_blind_fixture_green_gate]]
+      - 'tv/control_ui.html'
       - 'playwright.config.ts'
       - 'package.json'
       - 'package-lock.json'
