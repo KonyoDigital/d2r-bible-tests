@@ -1,4 +1,5 @@
 import { test, expect } from './_net_stub';
+import { ensureCardExpanded } from './_cards';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -47,12 +48,9 @@ const SET_TAIL = /\(set\)/i;
 async function openTracker(page) {
   await page.goto(BOARD, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof (window as any).__allSets === 'function', null, { timeout: 20000 });
-  await page.evaluate(() => {
-    try { (window as any).switchTab('tools'); } catch (e) { /* the tab may already be open */ }
-    try { (window as any).toggleCardCollapse('set-tracker-card'); } catch (e) { /* already expanded */ }
-  });
-  await page.waitForFunction(() => document.querySelectorAll('#set-tracker .set-card').length > 0,
-                             null, { timeout: 10000 });
+  /* v1751 — was a blind toggle wrapped in a catch commented "already expanded". The catch was
+     dead (toggleCardCollapse never throws) and the toggle CLOSED the card whenever it was open. */
+  await ensureCardExpanded(page, 'set-tracker-card', '#set-tracker .set-card');
 }
 
 test.describe('v1680 — the Item Set Tracker holds the whole roster', () => {

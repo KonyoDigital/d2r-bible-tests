@@ -1,6 +1,7 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
 import { boardTokens, assertTokens } from './_palette';
+import { ensureCardExpanded } from './_cards';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -31,21 +32,7 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
      [[feedback_suspect_the_instrument]] */
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
-    await page.evaluate(() => (window as any).switchTab && (window as any).switchTab('tools'));
-    await page.waitForFunction(
-      () => !!document.getElementById('set-tracker-card')
-        && !!document.querySelector('#set-tracker .set-card .set-card-header'),
-      null, { timeout: 20000 });
-    await page.evaluate(() => {
-      const c = document.getElementById('set-tracker-card');
-      if (c && c.classList.contains('collapsed')) (window as any).toggleCardCollapse('set-tracker-card');
-    });
-    await page.waitForFunction(
-      () => {
-        const c = document.getElementById('set-tracker-card');
-        return !!c && !c.classList.contains('collapsed');
-      }, null, { timeout: 20000 });
-    await page.waitForTimeout(250);   // one layout settle after the class flips
+    await ensureCardExpanded(page, 'set-tracker-card', '#set-tracker .set-card .set-card-header');
   });
 
   test('every set-card has the rich header (emblem + name block + progress)', async ({ page }) => {
@@ -140,10 +127,7 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(URL);
-    await page.waitForTimeout(1000);
-    await page.evaluate(() => (window as any).switchTab && (window as any).switchTab('tools'));
-    await page.evaluate(() => (window as any).toggleCardCollapse && (window as any).toggleCardCollapse('set-tracker-card'));
-    await page.waitForTimeout(300);
+    await ensureCardExpanded(page, 'set-tracker-card', '#set-tracker .set-card .set-card-header');
     expect(errors).toEqual([]);
   });
 });

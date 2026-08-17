@@ -1,4 +1,5 @@
 import { test, expect } from './_net_stub';
+import { ensureCardExpanded } from './_cards';
 import * as path from 'path';
 
 // v1739 — HD ART ON THE SHOPPING LIST, AND THE ANCHOR IS THE KEYWORD.
@@ -48,11 +49,12 @@ async function openShoppingList(page: any) {
   });
   await page.reload();
   await page.waitForTimeout(1800);
+  // the card is on tab-tools and ships collapsed — off-tab or collapsed, every rect is 0x0.
+  // v1751: opened through the shared helper, because the blind toggle this replaced CLOSED the
+  // card on any run where it was already open.
+  await ensureCardExpanded(page, 'shopping-list-card');
   await page.evaluate(() => {
     const w: any = window;
-    // the card is on tab-tools and ships collapsed — off-tab or collapsed, every rect is 0x0
-    try { w.switchTab && w.switchTab('tools'); } catch (e) {}
-    try { w.toggleCardCollapse && w.toggleCardCollapse('shopping-list-card'); } catch (e) {}
     w.renderShoppingList && w.renderShoppingList();
     document.querySelectorAll('.shop-wrap img').forEach((i: any) => (i.loading = 'eager'));
   });

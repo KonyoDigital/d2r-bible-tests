@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { ensureCardExpanded } from './_cards';
 import * as path from 'path';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
@@ -79,10 +80,10 @@ test.describe('v145 unified full-set ID card', () => {
   });
 
   test('the Item Set Tracker title is a clickable gateway for every codex-backed set', async ({ page }) => {
+    // v1751 — through the shared helper; the blind toggle here closed the card whenever a
+    // previous step had already opened it, and a closed card has no .set-card-open to find.
+    await ensureCardExpanded(page, 'set-tracker-card', '#set-tracker .set-card');
     const r = await page.evaluate(async () => {
-      (window as any).switchTab('tools');
-      (window as any).toggleCardCollapse('set-tracker-card');
-      await new Promise((res) => setTimeout(res, 500));
       const opens = [...document.querySelectorAll('#set-tracker .set-card-open')];
       const isAgg = (window as any).isSetAggregate as (n: string) => boolean;
       const titleName = (el: Element) => (el.textContent || '').replace(/[↗✓]/g, '').trim();
