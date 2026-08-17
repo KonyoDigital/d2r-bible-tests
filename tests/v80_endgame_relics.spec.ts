@@ -1,4 +1,9 @@
-import { test, expect } from '@playwright/test';
+// v1754 — through the shared net stub: this spec asserts `expect(errors).toEqual([])`, and a
+// console error array collects RESOURCE 404s as well as JS faults. bible.html pulls its
+// typeface from fonts.googleapis.com, so on a runner with slow or blocked outbound network
+// the spec goes red on the weather rather than on the code. The fixture fulfils fonts with an
+// empty stylesheet (never aborts — an abort is itself a failed request).
+import { test, expect } from './_net_stub';
 import * as path from 'path';
 import { ENDGAME_RELICS_TOTAL } from './_data_locks';
 

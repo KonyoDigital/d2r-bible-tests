@@ -1,4 +1,7 @@
-import { test, expect, ConsoleMessage } from '@playwright/test';
+// v1754 — test/expect through the shared net stub (see the other 43); ConsoleMessage is a TYPE
+// and still comes from playwright itself.
+import { test, expect } from './_net_stub';
+import type { ConsoleMessage } from '@playwright/test';
 import * as path from 'path';
 import { BOSS_CHIPS_TOTAL } from './_data_locks';
 
