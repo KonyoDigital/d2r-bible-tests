@@ -58,7 +58,18 @@ class TestStillRuns(unittest.TestCase):
 
 class TestReadReel(unittest.TestCase):
     def setUp(self):
-        self.d = tempfile.mkdtemp()
+        # v1751 — THE DIRECTORY NAME IS A DELIBERATE TRAP. It carries "f2", one of the frame
+        # tokens these tests classify on. That is not decoration: this class used to classify with
+        # `"f2" in p` against the FULL path, and tempfile.mkdtemp() hands out names like
+        # tmpf2i981c7 about 1.2% of the time — measured, and matching the 5/400 divergence the bug
+        # actually produced. A 1.2% failure that only ever appeared inside the 30-gate run got
+        # logged as ORDER-dependence for weeks.
+        #
+        # Naming the directory this way converts that coin flip into a certainty: revert any
+        # classifier here to substring-matching the path and this class fails EVERY time, on the
+        # first run, on any machine. A trap the fixture springs beats a comment asking people not
+        # to. [[feedback_blind_fixture_green_gate]]
+        self.d = tempfile.mkdtemp(prefix="f2trap_")
         frames = [{"f": "f%d.jpg" % i, "ts": 1000 + i} for i in range(12)]
         with open(os.path.join(self.d, "index.json"), "w", encoding="utf-8") as fh:
             json.dump({"sessionId": "s_test", "n": 12, "frames": frames}, fh)
@@ -92,7 +103,23 @@ class TestReadReel(unittest.TestCase):
         reads = []
 
         def classify(p):
-            return "chronicle-uniques" if "f0" in p or "f1.jpg" in p or "f2" in p or "f3" in p else None
+            # v1751 — MATCH THE FILENAME, NOT THE PATH. This read `"f2" in p` against the FULL
+            # path, and the fixture's directory comes from tempfile.mkdtemp(), whose names look
+            # like tmpf2i981c7. Measured: 1.2% of mkdtemp names contain f0, f2 or f3 — and when
+            # one does, EVERY frame classifies as a chronicle, the second run gets read too, and
+            # the test fails with "2 != 1". Measured divergence before the fix: 5/400 in a single
+            # process, matching that 1.2% almost exactly.
+            #
+            # It was logged in BUGS.md as ORDER-dependent — "something earlier in the run leaves
+            # frames or journal rows" — because it only ever showed up inside the 30-gate run and
+            # passed 3/3 alone. It is neither order- nor concurrency-dependent: a long run simply
+            # rolls the dice more times. read_reel is pure and takes no clock, which is what makes
+            # a 1% failure look like contamination from a neighbour.
+            #
+            # The set is explicit rather than a substring test, so f1 can never match f10 or f11
+            # either — the other trap in the original line. [[feedback_suspect_the_instrument]]
+            return "chronicle-uniques" if os.path.basename(p) in {
+                "f0.jpg", "f1.jpg", "f2.jpg", "f3.jpg"} else None
 
         r = self._sweep(classify, lambda p, k: reads.append(os.path.basename(p)) or {"found": []})
         self.assertGreaterEqual(len(r["pages"]), 1)

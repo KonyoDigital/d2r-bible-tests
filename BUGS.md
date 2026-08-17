@@ -4084,7 +4084,7 @@ gold/amber hexes in bible.html and 81 in tv/control_ui.html**, several doing the
 chips, chrome). That is the real cause of "slightly different between pictures", and it is a
 census-scale job, not a hand edit.
 
-## REG-162 — a gate whose verdict depends on what ran before it (CONCURRENCY HALF CLOSED v1751; ORDER half still OPEN)
+## REG-162 — a gate whose verdict depends on what ran before it (CLOSED v1751 — BOTH halves, and the second was never order-dependence at all)
 
 **CLOSED HERE: `test_chronicle_known_wire::AgainstHisRealFootage::test_real_journal_and_reel`.**
 Chasing REG-162 turned up a different failure in the same family, and this one was live and red:
@@ -4151,8 +4151,51 @@ green on every laptop**. The lock key now honours `D2R_GATE_LOCK_KEY`, the test 
 key of their own, and the fix is verified by holding the real tree lock and running the class anyway.
 [[feedback_blind_fixture_green_gate]]
 
-**The ORDER half stays open**: `test_chronicle_retro` still fails inside a full run and passes alone,
-which is shared state between gates in ONE run — a lock cannot help with that.
+### The "ORDER half" was a 1.2% coin flip on a random directory name (CLOSED v1751)
+
+`test_chronicle_retro` was logged here as order-dependent — *"something earlier in the run leaves
+frames or journal rows that make its dedup count read 2"*. **That diagnosis was wrong, and the way it
+was wrong is worth more than the fix.**
+
+`read_reel` is pure: it takes no clock, imports no console, and reads nothing it was not handed —
+its own docstring says so. Its fixture is a fresh `tempfile.mkdtemp()`. Nothing earlier in a run can
+reach it. So the reproduction went at it head-on:
+
+| how it was run | result |
+|---|---|
+| 30 sequential runs | **0 failures** |
+| 6 concurrent runs | **1 failure** |
+| 400 iterations in ONE process | **5 divergences (1.25%)** |
+
+One process, no concurrency, still diverging — so it was never about neighbours. The classifier was:
+
+```python
+return "chronicle-uniques" if "f0" in p or "f1.jpg" in p or "f2" in p or "f3" in p else None
+```
+
+`p` is the FULL PATH, and the fixture directory comes from `mkdtemp()`, which produces names like
+**`tmpf2i981c7`**. Measured: **7 of 600 mkdtemp names contain `f0`, `f2` or `f3` — 1.2%**, against an
+observed divergence of 1.25%. When one does, *every* frame classifies as a chronicle, the second run
+is read too, and the assertion fails `2 != 1`.
+
+Forced deterministically, both directions:
+
+```
+OK   dir=tmp_clean_dir  classifier=old -> 1 read
+RED  dir=tmpf2i981c7    classifier=old -> 2 reads ['f0.jpg', 'f6.jpg']
+OK   dir=tmpf2i981c7    classifier=new -> 1 read
+```
+
+**The lesson is the shape, not the line.** A ~1% failure that only ever appears inside a 30-gate run
+looks exactly like contamination from a neighbour, because a long run rolls the dice more times. The
+tell was that the module under test is pure and clockless — *there was no mechanism by which a
+neighbour could have reached it*, and that should have outranked the pattern in the timing.
+
+The classifier now matches `os.path.basename(p)` against an explicit set, which also closes the
+second trap in the original line: `"f1" in p` matched `f10.jpg` and `f11.jpg` too. **And the fixture
+is now named `f2trap_…` on purpose** — revert to substring-matching the path and the class fails
+every time, on the first run, on any machine, instead of 1.2% of the time. A trap the fixture springs
+beats a comment asking people not to. [[feedback_suspect_the_instrument]]
 
 
 `test_chronicle_retro` failed **twice** inside the full 30-gate run tonight with
