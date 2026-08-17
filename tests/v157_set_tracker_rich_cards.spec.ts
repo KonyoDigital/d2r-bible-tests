@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_net_stub';
 import * as path from 'path';
 import { boardTokens, assertTokens } from './_palette';
 
@@ -11,12 +11,41 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // PURE set name (no emblem text leaks in) so v145's titleName gateway resolver still works, and
 // the per-piece data-arttip hover (v134) is untouched. ZERO fabrication — ITEM_SETS unchanged.
 test.describe('v157 set-tracker cards mirror the rich gradient-header first-glance', () => {
+  /* v1751 — ENSURE EXPANDED, NEVER TOGGLE BLIND.
+     This used to `goto` -> wait 1000ms -> switchTab -> toggleCardCollapse -> wait 400ms, and it
+     went flaky on CI with `headerH: 0` while the gradient assertion one line above it PASSED.
+     That pairing is the whole tell: a COLLAPSED card still resolves getComputedStyle, so
+     `linear-gradient` reads back fine, and only getBoundingClientRect() reports the truth.
+
+     The mechanism is in the app, and it is not a bug there: toggleCardCollapse opens with
+     `if (!card) return;` — a SILENT no-op. Fired at a fixed 1000ms on a loaded shard, before the
+     board had rendered the Tools tab, the toggle did nothing, the card stayed collapsed, and the
+     suite measured a card that was never opened. A blind toggle is a coin flip against boot time;
+     it also means that if the card ever DEFAULTS to open, this same line closes it.
+
+     bible.html already uses the correct idiom twice of its own accord (`if (card &&
+     card.classList.contains('collapsed')) toggleCardCollapse(...)`, at :5868 and :21601). This
+     borrows it, and waits for the STATE it needs — card present, not collapsed, cards rendered —
+     instead of for a number of milliseconds. The height assertion stays a real assertion: we wait
+     for the card to be OPEN, never for it to be tall, so a card that opens flat still goes red.
+     [[feedback_suspect_the_instrument]] */
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
-    await page.waitForTimeout(1000);
     await page.evaluate(() => (window as any).switchTab && (window as any).switchTab('tools'));
-    await page.evaluate(() => (window as any).toggleCardCollapse && (window as any).toggleCardCollapse('set-tracker-card'));
-    await page.waitForTimeout(400);
+    await page.waitForFunction(
+      () => !!document.getElementById('set-tracker-card')
+        && !!document.querySelector('#set-tracker .set-card .set-card-header'),
+      null, { timeout: 20000 });
+    await page.evaluate(() => {
+      const c = document.getElementById('set-tracker-card');
+      if (c && c.classList.contains('collapsed')) (window as any).toggleCardCollapse('set-tracker-card');
+    });
+    await page.waitForFunction(
+      () => {
+        const c = document.getElementById('set-tracker-card');
+        return !!c && !c.classList.contains('collapsed');
+      }, null, { timeout: 20000 });
+    await page.waitForTimeout(250);   // one layout settle after the class flips
   });
 
   test('every set-card has the rich header (emblem + name block + progress)', async ({ page }) => {
