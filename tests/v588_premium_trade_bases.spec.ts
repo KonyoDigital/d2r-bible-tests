@@ -71,9 +71,27 @@ test('late stage: owned socket-correct premium leaves the CURATED list but its s
     const CODE = JSON.parse(document.getElementById('lf-base-codes')!.textContent!.trim());
     const spirit = [...(s.now || []), ...(s.pipeline || [])].find((t: any) => t.rw === 'Spirit');
     const eb = w._endgameFilterBases();
-    return { spiritHasBase: !!(spirit && spirit.base), names: eb.names, sockHasMonarch: eb.sockCodes.indexOf(CODE['Monarch']) >= 0 };
+    return { spiritHasBase: !!(spirit && spirit.base), names: eb.names, sockHasMonarch: eb.sockCodes.indexOf(CODE['Monarch']) >= 0,
+      /* v1760 — SAY WHY WHEN THIS FLAKES. CI reported it flaky with a bare "Expected true, Received
+         false" and three assertions that could each produce it, so the message named none of them.
+         It passes 3/3 locally, so the next CI failure is the only evidence there will be — it has
+         to arrive with the state instead of sending someone guessing, which is what v157 cost
+         before it was instrumented. Collected always, read only on failure. */
+      _why: {
+        rwSeen: [...new Set([...(s.now || []), ...(s.pipeline || []), ...(s.onestep || [])].map((t: any) => t.rw))].slice(0, 8),
+        counts: s.counts,
+        spiritTask: spirit ? { rw: spirit.rw, base: spirit.base && spirit.base.name, sub: spirit.sub } : null,
+        ownedRaw: localStorage.getItem('d2r_owned'),
+        madeN: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length,
+        profile: localStorage.getItem('d2r_rwProfile'),
+        ladder: localStorage.getItem('d2r_ladderMode'),
+        monarchCode: CODE['Monarch'],
+        sockCodesN: (eb.sockCodes || []).length,
+        namesN: (eb.names || []).length,
+      } };
   });
-  expect(r.spiritHasBase).toBe(true);            // the Forge plans Spirit on the owned Monarch
-  expect(r.names).not.toContain('Monarch');      // curated farm intel correctly drops it (owned + late stage)
-  expect(r.sockHasMonarch).toBe(true);           // a socketed Monarch on the ground still shows (engine-true honesty)
+  const why = ' | state: ' + JSON.stringify((r as any)._why);
+  expect(r.spiritHasBase, 'the Forge did not plan Spirit on the owned Monarch' + why).toBe(true);
+  expect(r.names, 'curated farm intel still lists Monarch' + why).not.toContain('Monarch');
+  expect(r.sockHasMonarch, 'a socketed Monarch stopped showing in the engine-true universe' + why).toBe(true);
 });
