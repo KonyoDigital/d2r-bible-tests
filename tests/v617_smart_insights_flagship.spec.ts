@@ -52,7 +52,15 @@ test('counts agree with forgeScan and name deferred/farm; ladder note shows when
     const R = ['El','Eld','Tir','Nef','Eth','Ith','Tal','Ral','Ort','Thul','Amn','Sol','Shael','Dol',
                'Hel','Io','Lum','Ko','Fal','Lem','Pul','Um','Mal','Ist','Gul','Vex','Ohm','Lo','Sur',
                'Ber','Jah','Cham','Zod'];
-    const st: any = {}; R.forEach((x) => (st[x] = 20));
+    /* v1751 — WITHHOLD THE TOP SIX, or the farm third of this gate is 0 === 0.
+       Measured: with every rune at 20 the board can make everything, so p.farm and sc.farm were
+       BOTH zero and `farmMatches` compared two empty lists on every run since the fixture landed.
+       The makeNow/deferred halves already carry non-vacuity guards; this one had none, which is
+       the same defect one column over. Zod/Cham/Jah/Ber/Sur/Lo held at zero pushes the high
+       runewords (Enigma, Infinity, Breath of the Dying...) into the farm bucket while leaving
+       plenty makeable, so all three thirds compare non-empty sets. [[gate-blind-to-unexercised-input]] */
+    const WITHHELD = ['Zod', 'Cham', 'Jah', 'Ber', 'Sur', 'Lo'];
+    const st: any = {}; R.forEach((x) => (st[x] = WITHHELD.indexOf(x) >= 0 ? 0 : 20));
     w.LSR.setItem('d2r_runeStash', JSON.stringify(st));   // the stash is read AT BOOT — reload below
   });
   await page.reload(); await page.waitForTimeout(1800);
@@ -74,6 +82,7 @@ test('counts agree with forgeScan and name deferred/farm; ladder note shows when
       _makeNow: p.makeNow, _deferred: p.deferred,
       makeNowMatches: p.makeNow === (sc.counts ? sc.counts.now : -1),
       deferredMatches: p.deferred === (sc.counts ? sc.counts.deferred : -1),
+      _farm: p.farm, _scFarm: (sc.farm || []).length,
       farmMatches: p.farm === (sc.farm || []).length,
       ladderCounted: typeof p.ladderExcluded === 'number',
       unlockSplit: typeof p.nextUnlockReady === 'number' && typeof p.nextUnlockAdvance === 'number',
@@ -85,6 +94,8 @@ test('counts agree with forgeScan and name deferred/farm; ladder note shows when
   expect(r._deferred, 'nothing was deferred, so that half compares two zeros').toBeGreaterThan(0);
   expect(r.makeNowMatches).toBe(true);
   expect(r.deferredMatches).toBe(true);
+  expect(r._farm, 'nothing needs farming, so "farm agrees" compares two empty lists')
+    .toBeGreaterThan(0);
   expect(r.farmMatches).toBe(true);
   expect(r.ladderCounted).toBe(true);
   expect(r.unlockSplit).toBe(true);
