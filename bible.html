@@ -40334,7 +40334,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1747', name:'v1747 - the tally search bar', date:'2026-08-17', note:'one search component in both grail forges so he can type an item name while farming and tick it off without hunting for it; it writes through the same functions his manual tick uses and the keyword is the hover anchor so the floating HD card opens on it' };
+  window.D2R_BUILD = { id:'v1748', name:'v1748 - the stamp says it once', date:'2026-08-17', note:'the build badge composed id plus date plus name while name already began with the id so the version printed twice and the ellipsis ate the ship name; stripped at display time in the badge and the tab title leaving the underlying field alone' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -40403,13 +40403,24 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     // v707 — the badge READS D2R_BUILD (it was a hardcoded copy, frozen at v688 while the build object said v701)
     // v1691.1 — DATE BEFORE NAME. The badge is now width-capped (180px, ellipsis), and what gets
     // clipped must be the decoration, not the answer to "is this tab stale?" — which is id + date.
-    el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.date + ' · ' + window.D2R_BUILD.name;
+    /* v1748 — DON'T SPEND THE VISIBLE WIDTH SAYING THE VERSION TWICE. D2R_BUILD.name already
+       BEGINS with the id ("v1747 - the tally search bar"), so this line rendered
+       "v1747 · 2026-08-17 · v1747 - the tally search bar" — 319px of text in a 180px box, and every
+       character that survived the ellipsis after the date was a repeat of the id. The cap and the
+       clip are v1691.1's and stay exactly as they are (id + date must survive; the name is the
+       decoration that clips) — what changes is that the clipped part now carries information
+       instead of an echo. Stripped at DISPLAY time only: D2R_BUILD.name is left alone because other
+       readers key on it. Found by the second eye, on the pixels. */
+    var _shipName = String(window.D2R_BUILD.name || '').replace(/^\s*v\d+(\.\d+)?\s*[-—·:]\s*/i, '');
+    el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.date + ' · ' + _shipName;
     document.body.appendChild(el);
     // v708.1 (Grok: 'identity hygiene') — ONE identity source: title + meta follow D2R_BUILD at
     // runtime, so the static tags can lag a ship without the DOM ever split-braining again.
     try {
       var B = window.D2R_BUILD;
-      document.title = "Konyo's D2R Farming Bible " + B.id + ' · ' + B.name;
+      // v1748 — same echo in the tab title ("… v1747 · v1747 - the tally search bar")
+      document.title = "Konyo's D2R Farming Bible " + B.id + ' · '
+        + String(B.name || '').replace(/^\s*v\d+(\.\d+)?\s*[-—·:]\s*/i, '');
       var mb = document.querySelector('meta[name="d2r-build"]'); if (mb) mb.setAttribute('content', B.id);
       var mn = document.querySelector('meta[name="d2r-build-note"]'); if (mn) mn.setAttribute('content', B.note || '');
       var md = document.querySelector('meta[name="d2r-build-date"]'); if (md) md.setAttribute('content', B.date || '');

@@ -5011,3 +5011,30 @@ words rather than leaving an empty bordered box.
 the cue is deliberate, the hue was not green — the computed value is the unique tan-gold. Recorded
 because a vision verdict that is right about the intent and wrong about the fact is the kind that
 gets quoted later as if it were a measurement.
+
+---
+
+## v1748 — the build stamp said the version twice
+
+Found by the second eye, on the pixels: it reported the stamp rendering as
+`v1747 · 2026-08-17 · v174…` and flagged the ellipsis.
+
+The truncation is **v1691.1's deliberate design** — the badge is capped at 180px so that "is this
+tab stale?" (id + date) always survives and the ship NAME is the decoration that clips. That part was
+working exactly as written.
+
+The waste was underneath it. `D2R_BUILD.name` already **begins** with the id
+(`"v1747 - the tally search bar"`), and the badge composed `id · date · name` — so it printed the
+version twice: **319px of content in a 180px box**, where every character surviving the ellipsis
+after the date was an echo of the id. The tab title did the same
+(`Konyo's D2R Farming Bible v1747 · v1747 - the tally search bar`).
+
+Now **269px**, and the visible remainder carries the ship name instead of a repeat.
+
+Stripped at **display time only**, in both places. `D2R_BUILD.name` is left exactly as it is because
+other readers key on it — the meta tags, the console footer stamp, the version gates. Fixing the
+field would have been a far wider blast radius for the same pixels.
+
+The gate carries a non-vacuity check that is worth naming: it asserts `D2R_BUILD.name` **still**
+starts with a version, because if the underlying field is ever cleaned up, this gate would start
+passing for the wrong reason — testing against a problem that no longer exists.

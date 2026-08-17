@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1747",
+  "ver": "v1748",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1747: one search component in both grail forges so he can type an item name while farming and tick it off without hunting for it; it writes through the same functions his manual tick uses and the keyword is the hover anchor so the floating HD card opens on it",
+  "note": "v1748: the build badge composed id plus date plus name while name already began with the id so the version printed twice and the ellipsis ate the ship name; stripped at display time in the badge and the tab title leaving the underlying field alone",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
