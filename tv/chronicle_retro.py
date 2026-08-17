@@ -552,9 +552,12 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     journal_trusted = 0   # runs whose ledger came from a read somebody already paid for
     read_seen = set()     # frames already read this reel — a page is never read (or witnessed) twice
     rescued = 0   # v1770 — short runs read because this reel PROVED it is a Chronicle recording
+    rescued_probes = 0   # v1773 — runs saved by a second opinion after a bad probe
+    refused_runs = []    # runs a probe rejected, kept in case this reel proves itself
+    classify_proved = []  # a PAID classify said chronicle here — a journal mark is not that
 
     def _sweep_runs(run_list):
-        nonlocal classified, blank_runs, trusted, journal_trusted
+        nonlocal classified, blank_runs, trusted, journal_trusted, rescued_probes
         for run in run_list:
             fr = run["frames"]
             # v1543 — never pay to classify a photo of nothing. A blank capture cannot be a Chronicle,
@@ -573,6 +576,25 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
             else:
                 classified += 1
                 kind = classify(os.path.join(reel_dir, probe))
+                if kind in ("chronicle-uniques", "chronicle-sets"):
+                    classify_proved.append(1)
+                # ── v1773 — ONE UNLUCKY PROBE MUST NOT DISCARD A WHOLE RUN ──────────────────────
+                # classify() runs ONCE per run, on its middle frame, and a "no" throws away every
+                # frame behind it. Measured on his 08-17 reel with the real reader: a frame where
+                # his cursor was resting on an item — so the game painted a large stat tooltip over
+                # the list — came back scene='transition', conf 0.85, names 0. Two clean frames from
+                # the same reel came back chronicle/uniques with 6 names each. The panel had not
+                # gone anywhere; a popup had covered it, and the run behind that probe was up to 44
+                # Chronicle pages thrown away on one frame's bad luck.
+                #
+                # v1577 fixed this shape when the probe THREW. A confident wrong answer is the same
+                # defect wearing better clothes, and it costs more because nothing looks broken.
+                #
+                # So a refusal gets a second and third opinion from frames far away in the same run,
+                # and only then is the run dropped. Bounded: at most two extra probes, and only for
+                # runs that were about to be discarded entirely.
+                if kind not in ("chronicle-uniques", "chronicle-sets") and len(fr) > 1:
+                    refused_runs.append((run, probe))
             if kind not in ("chronicle-uniques", "chronicle-sets"):
                 continue
             # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
@@ -619,11 +641,52 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
             rescued = len(short)
             _sweep_runs(short)
 
+    # ── v1773 — ONE UNLUCKY PROBE MUST NOT DISCARD A WHOLE RUN ──────────────────────────────────
+    # classify() runs ONCE per run, on its middle frame, and a "no" throws away every frame behind
+    # it. Measured on his 08-17 reel with the real reader: a frame where his cursor rested on an
+    # item — so the game painted a large stat tooltip over the list — came back scene='transition',
+    # conf 0.85, names 0, while two clean frames from the same reel came back chronicle/uniques with
+    # 6 names each. The panel had not gone anywhere; a popup had covered it, and the run behind that
+    # probe was up to 44 Chronicle pages discarded on one frame's bad luck.
+    #
+    # v1577 fixed this shape when the probe THREW. A confident wrong answer is the same defect in
+    # better clothes, and it costs more because nothing looks broken.
+    #
+    # THE BILL IS WHY THIS RUNS LAST AND ONLY HERE. "ONE classify per run, not per frame" is a real
+    # constraint with tests behind it, and a reel of gameplay must not become expensive to rule out.
+    # So a second opinion is only ever sought once this reel has ALREADY produced a Chronicle page —
+    # the same discriminator v1770 uses — and then at most twice per refused run, from frames as far
+    # from the first probe as the run allows.
+    # THE PROOF HAS TO COME FROM THE SAME JUDGE. `pages` can be non-empty purely because the journal
+    # marked a frame months ago, and a journal mark says "this FRAME was a Chronicle", never "this
+    # reel is a Chronicle recording" — v1689's weld test is exactly a session of town carrying one
+    # mark. Spending two extra probes on that is how a mark quietly relabels a whole session.
+    if classify_proved and refused_runs:
+        for run, probe in refused_runs:
+            fr = run["frames"]
+            # a run the journal already answered is not refused, it is covered — re-probing it would
+            # spend money to learn something known (the same exclusion v1770 needs)
+            if all(f in read_seen for f in fr):
+                continue
+            for alt in _second_opinions(fr, probe):
+                classified += 1
+                kind = classify(os.path.join(reel_dir, alt))
+                if kind in ("chronicle-uniques", "chronicle-sets"):
+                    rescued_probes += 1
+                    for name in _distinct(fr, sig_of):
+                        if name in read_seen:
+                            continue
+                        read_seen.add(name)
+                        pages.append({"reel": sid, "frame": name, "kind": kind,
+                                      "resp": read_page(os.path.join(reel_dir, name), kind) or {}})
+                    break
+
 
     return {"reel": sid, "runs": len(runs), "candidates": len(cands) + rescued,
             "classified": classified, "blankRuns": blank_runs, "pages": pages,
             "trustedFocus": trusted, "journalRuns": len(jruns),
-            "journalTrusted": journal_trusted, "rescuedShortRuns": rescued}
+            "journalTrusted": journal_trusted, "rescuedShortRuns": rescued,
+            "rescuedProbes": rescued_probes}
 
 
 def _distinct(names, sig_of, max_diff=0.06, tol=28):
@@ -671,6 +734,21 @@ def _distinct(names, sig_of, max_diff=0.06, tol=28):
             out.append(n)
             last = s
     return out
+
+
+def _second_opinions(frames, probe, limit=2):
+    """Frames to re-probe when the middle one said "not a Chronicle page".
+
+    Spread as far from the first probe as the run allows: a tooltip, a fade or a cursor artefact is
+    local in time, so the ends of the run are the least likely to share it. Bounded by `limit`
+    because a run that really is not a Chronicle must not become expensive to rule out.
+    """
+    others = [f for f in frames if f != probe]
+    if not others:
+        return []
+    if len(others) <= limit:
+        return others
+    return [others[0], others[-1]][:limit]
 
 
 def chronicle_kind(read):

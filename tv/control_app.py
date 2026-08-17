@@ -10261,13 +10261,30 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # inline: aborted, 0 reels; through classifier(): all 4 reels, 10 classifications.
         # The tick stays INSIDE the reader so "classified" keeps counting probes ATTEMPTED (a probe
         # that died is still money spent and still belongs in the count), matching read_page above.
-        _classify = _cr.classifier(lambda p: (_tick(classified=1) or _tv.claude_read(p)))
+        # v1774 — COUNT THE READS THAT NEVER HAPPENED. A throttled reader now refuses instead of
+        # answering empty (tv_diablo), but the seal rule below reasons "classified > 0 and pages == 0
+        # means the classifier looked and correctly found nothing" — which is exactly what a throttle
+        # counterfeits. So a run that touched the throttle seals nothing.
+        _throttled = [0]
+
+        def _classify_one(p):
+            if _tv._is_throttled():
+                _throttled[0] += 1
+            _tick(classified=1)
+            return _tv.claude_read(p)
+
+        _classify = _cr.classifier(_classify_one)
 
         grok_lane = None
         if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
             grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
-        read_page = _cr.two_lane_reader(
-            lambda p, k: (_tick(pagesRead=1) or _tv.claude_chronicle_read(p, k)), grok_lane)
+        def _read_one(p, k):
+            if _tv._is_throttled():
+                _throttled[0] += 1
+            _tick(pagesRead=1)
+            return _tv.claude_chronicle_read(p, k)
+
+        read_page = _cr.two_lane_reader(_read_one, grok_lane)
 
         swept = _chron_swept_load()
         known = _chron_known_from_journal()
@@ -10297,7 +10314,14 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # pages == 0 IS a legitimate seal: the cheap classifier looked at every frame and correctly
         # found no Chronicle page, and paying it again buys the same answer. Zero of both means
         # nothing was ever looked at.
+        # v1774 — a run that hit the throttle proves nothing about his footage, and sealing on it
+        # is how a reel is lost at full price. Said out loud, never silently skipped.
+        if _throttled[0]:
+            _tick(throttledReads=_throttled[0])
+            print("   🐢 %d read(s) refused by the throttle — NOTHING sealed this run" % _throttled[0])
         for st in res["reels"]:
+            if _throttled[0]:
+                break
             if st.get("note") == "already-swept" or not st.get("reel"):
                 continue
             did_read = (st.get("classified") or 0) > 0 or (st.get("pages") or 0) > 0
@@ -10578,7 +10602,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1772",
+        "ver": "v1774",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

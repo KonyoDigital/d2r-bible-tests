@@ -1025,6 +1025,73 @@ class TestV1770ASlowScrollIsNotWalkingThroughTown(unittest.TestCase):
                          "it classified more than the one candidate: %s" % self.classified)
 
 
+class TestV1773OneBadProbeMustNotDiscardARun(unittest.TestCase):
+    """v1773 — A CONFIDENT WRONG ANSWER IS THE SAME DEFECT v1577 FIXED, IN BETTER CLOTHES.
+
+    classify() runs ONCE per run, on its middle frame, and a "no" throws away every frame behind it.
+    Measured on his 08-17 reel with the REAL reader: a frame where his cursor rested on an item — so
+    the game painted a large stat tooltip over the list — came back scene='transition', conf 0.85,
+    names 0. Two clean frames from the same reel came back chronicle/uniques with 6 names each. The
+    panel had not gone anywhere; a popup had covered it, and the run behind that probe was up to 44
+    Chronicle pages discarded on one frame's bad luck. That is why his tally would not move.
+
+    v1577 fixed this when the probe THREW. Nothing looked broken here, which is why it lasted.
+
+    THE LIMIT, STATED RATHER THAN HIDDEN: the proof has to come from the same judge, so a reel whose
+    ONLY run gets a bad probe is still lost. That is deliberate — "ONE classify per run, not per
+    frame" is a real constraint with its own test, and a reel of town must not become expensive to
+    rule out. His 08-17 reel has 55 runs and the clean ones classify positive, which is what pays
+    for the rest."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        # TWO runs, which is what a real reel looks like: a clean stretch that classifies as a
+        # Chronicle, and a second stretch whose middle frame happens to carry his item tooltip.
+        rows = [{"f": "a%d.jpg" % i, "ts": 1000 + i} for i in range(4)]
+        rows += [{"f": "f%d.jpg" % i, "ts": 2000 + i} for i in range(6)]
+        with open(os.path.join(self.d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": "s_probe", "frames": rows}, fh)
+        self.sigs = {"a%d.jpg" % i: sig(20) for i in range(4)}
+        self.sigs.update({"f%d.jpg" % i: sig(90) for i in range(6)})   # |Δ|=70 > tol ⇒ two runs
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def test_a_tooltip_on_the_probe_frame_does_not_lose_the_run(self):
+        seen = []
+
+        def classify(path):
+            n = os.path.basename(path)
+            seen.append(n)
+            # the second run's middle frame is the one with his cursor on an item
+            return None if n == "f3.jpg" else "chronicle-uniques"
+
+        reads = []
+        r = cr.read_reel(self.d, classify,
+                         lambda p, k: reads.append(os.path.basename(p)) or {},
+                         sig_of=lambda n: self.sigs.get(os.path.basename(n)))
+        self.assertGreaterEqual(len(seen), 2, "it never asked a second frame: %s" % seen)
+        self.assertEqual(r.get("rescuedProbes"), 1,
+                         "the run was discarded on one bad probe: %s" % r.get("rescuedProbes"))
+        self.assertTrue(reads, "no page was read from a run that IS a Chronicle")
+
+    def test_a_reel_of_gameplay_still_costs_ONE_classify_per_run(self):
+        """The bill is the reason this runs last and behind a proof gate. "ONE classify per run, not
+        per frame" is a real constraint with its own test, and a reel of town must not become
+        expensive to rule out — so a second opinion is only sought once a PAID classify has already
+        said chronicle on THIS reel."""
+        seen = []
+
+        def classify(path):
+            seen.append(os.path.basename(path))
+            return None            # nothing here is a Chronicle, and nothing ever proves otherwise
+
+        r = cr.read_reel(self.d, classify, lambda p, k: {},
+                         sig_of=lambda n: self.sigs.get(os.path.basename(n)))
+        self.assertEqual(len(seen), 2, "it paid for extra probes on a reel of gameplay: %s" % seen)
+        self.assertEqual(r.get("rescuedProbes"), 0)
+
+
 class TestV1689JournalMarkedChronicleFrames(unittest.TestCase):
     """v1689 — READING A CHRONICLE MEANS SCROLLING IT, AND A SCROLL IS NEVER STILL.
 

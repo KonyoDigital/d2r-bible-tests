@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1772"   # reverting an unproven page-selection change
+VERSION = "v1774"   # a throttled reader answered empty and everything believed it
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -148,7 +148,20 @@ READ_PROMPT = (
     # to the model's judgement.
     "chronicle = the in-game HOLY GRAIL / CHRONICLE panel: a scrollable LIST of item names with "
     "found/unfound styling, opened from the menu. It is NOT the stash and NOT the inventory — there "
-    "is no grid of item icons to pick up, only rows of names.\n"
+    "is no grid of item icons to pick up, only rows of names. "
+    # v1773 — MEASURED, NOT IMAGINED. Called directly on his 08-17 frames: a page where his cursor
+    # rested on a row — so the game painted a large item stat tooltip over the list — came back
+    # scene='transition' at conf 0.85 with zero names, while two clean pages from the same reel came
+    # back chronicle/uniques with 6 names each. The tell for `transition` two paragraphs down is the
+    # ABSENT bottom HUD, and that frame showed the life orb, the mana orb and the belt row plainly;
+    # the popup simply dominated the picture. classify() runs once per RUN, so that one answer
+    # discarded up to 44 Chronicle pages behind it. v1773 gives a refused run a second opinion, but
+    # a workaround downstream is not a reason to leave the reader wrong here.
+    "A large ITEM TOOLTIP (a floating stat block: damage, requirements, blue affix lines) often "
+    "covers part of this panel when the cursor rests on a row. That is still scene=chronicle — the "
+    "CHRONICLE title bar, the Unique/Sets/Runewords tabs and the rows around the popup are the tell. "
+    "It is NEVER a transition: a transition has no bottom HUD, and this panel is drawn over a live "
+    "game with the life and mana orbs still on screen. Read whatever rows the popup leaves visible.\n"
     "chronicleTab = ONLY when scene=chronicle: which ledger is on screen. "
     "\"uniques\" = the unique-item list (single items: Shako, Windforce, Stormshield). "
     "\"sets\"    = the set list (rows grouped under set NAMES: Tal Rasha, Immortal King, Tancred). "
@@ -4739,6 +4752,20 @@ def claude_chronicle_read(image_path, kind, timeout=None):
 
     Returns None on any refusal/failure — never an empty page, for the same reason the Grok lane
     does: a dead lane must not read as "saw nothing"."""
+    # v1774 — A THROTTLED READER MUST REFUSE OUT LOUD, NOT ANSWER EMPTY.
+    # _note_slot_death() flips this when 2+ workers die inside 60s and its own docstring promises to
+    # "SAY SO instead of silent empties" — but only the live heartbeat cap and a status chip ever
+    # read the flag. The retro sweep did not, so during a throttle it kept calling, the readers
+    # degraded to scene='gameplay', conf=None, names=[], and every layer downstream treated that as
+    # a real answer: classify said "not a Chronicle page", the page read counted as read-with-no-
+    # names, the sweep finished "successfully" with zero findings — and since v1766 the reels were
+    # then MARKED SWEPT and never looked at again. Measured directly: three sweeps in a row returned
+    # 39, then 22, then 0 names as the throttle deepened, and a frame that read chronicle/uniques
+    # with 6 names came back gameplay/0 minutes later.
+    # A `note` is the shape chronicle_retro already understands as "not read" — it counts as refused
+    # rather than as an empty page, so nothing downstream mistakes a silence for an answer.
+    if _is_throttled():
+        return {"note": "reader throttled — not read"}
     if os.environ.get("TV_STUB"):
         # the TDD seam: the sweep must be drivable end-to-end with zero vision cost, exactly like
         # the live loop is (TV_STUB, v711)
@@ -4821,6 +4848,11 @@ def _maybe_genius(ap, parsed, t0, mode):
 
 def claude_read(path, worker=None, out_jpg=None):
     """One vision read on YOUR Claude subscription. Fast model first; genius escalate if needed."""
+    # v1774 — see claude_chronicle_read: a throttled classify that answers "gameplay" is how a
+    # whole reel gets skipped and then marked swept. None here means "no answer", which the sweep's
+    # classifier() already treats as unknown rather than as a verdict.
+    if _is_throttled():
+        return None
     # v711 — TV_STUB: the TDD seam. TV_STUB=1 returns canned reads from tv/stub_manifest.json
     # (keyed by frame basename, '*' fallback) — the FULL agent loop runs end-to-end with zero
     # vision cost, in tests and in CI. Never set in real play.

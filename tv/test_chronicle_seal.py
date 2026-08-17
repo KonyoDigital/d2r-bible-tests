@@ -53,9 +53,14 @@ def _seal_rule():
                          "nothing and must not report OK")
 
 
-def run_seal(stats, swept=None):
-    """Run the REAL loop over `stats` and return the memory it produced."""
-    ns = {"res": {"reels": list(stats)}, "swept": {} if swept is None else swept, "time": time}
+def run_seal(stats, swept=None, throttled=0):
+    """Run the REAL loop over `stats` and return the memory it produced.
+
+    v1774 — `throttled` is the count of reads the throttle refused during that sweep. The loop reads
+    it, so this harness has to supply it or the extraction stops compiling; passing it also lets the
+    throttle case be tested through the SHIPPED code rather than a copy of it."""
+    ns = {"res": {"reels": list(stats)}, "swept": {} if swept is None else swept, "time": time,
+          "_throttled": [int(throttled)], "_tick": lambda **kw: None, "print": lambda *a, **k: None}
     exec(compile(_seal_rule(), "<control_app seal loop>", "exec"), ns)
     return ns["swept"]
 
@@ -67,6 +72,22 @@ class TheSealOnlyRemembersWhatWasRead(unittest.TestCase):
     def _seal(self, st):
         """Did the SHIPPED loop seal this reel?"""
         return ("reel_" + str(st.get("reel"))) in run_seal([st])
+
+    def test_a_throttled_sweep_seals_NOTHING(self):
+        """v1774 — the seal rule reasons that "classified > 0 with pages == 0 IS a legitimate seal:
+        the cheap classifier looked at every frame and correctly found no Chronicle page". A throttle
+        counterfeits exactly that shape — the classifier was never asked, the reader answered
+        scene='gameplay' with no names, and the run finished clean. Measured on his console: a page
+        that had read chronicle/uniques with 6 names came back gameplay/0 while "throttle cascade
+        detected" printed, and a full sweep returned 105 classifies, 4 pages, 0 names.
+
+        Sealing on that is how footage is lost at full price, and his recordings cannot be re-made."""
+        st = {"reel": "s_throttled", "runs": 3, "candidates": 3, "classified": 3, "pages": 0,
+              "note": None}
+        self.assertIn("reel_s_throttled", run_seal([st], throttled=0),
+                      "a clean classifier-only run must still seal, or nothing ever gets cheaper")
+        self.assertEqual(run_seal([st], throttled=1), {},
+                         "a sweep that hit the throttle sealed a reel it never actually read")
 
     def test_the_shipped_loop_actually_checks_that_something_was_read(self):
         # guards the predicate above against drifting from the code it claims to mirror

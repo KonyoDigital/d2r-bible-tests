@@ -287,6 +287,26 @@ _LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "autoread.json"
                "chronicle_autoread.json")
 
 
+def _console_is_running(port=17772):
+    """v1774 — the guard below cannot tell a TEST writing his console state from the CONSOLE writing
+    it, and the console writes those files as its normal job. Accusing the suite because his app is
+    open would be a false red, and a gate that cries wolf gets ignored — so the check is SKIPPED and
+    said out loud, never quietly passed. [[feedback_silence_is_not_evidence]]"""
+    import socket
+    s = socket.socket()
+    s.settimeout(0.4)
+    try:
+        s.connect(("127.0.0.1", port))
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+
 def _live_fingerprint():
     import hashlib
     out = {}
@@ -324,6 +344,7 @@ def main(argv):
         return 2
 
     print("══ GATE SET ══")
+    _console_live = _console_is_running()
     _live_before = _live_fingerprint()
     results = run(a.only)
     _live_moved = _live_state_diff(_live_before, _live_fingerprint())
@@ -332,12 +353,16 @@ def main(argv):
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
 
     failed = [g.name for g, s, _, _, _ in results if s == "FAIL"]
-    if _live_moved:
+    if _live_moved and not _console_live:
         # not a warning: a suite that writes his console's state has already done the damage
         failed.append("live-state-untouched")
     skipped = [(g.name, d) for g, s, _, d, _ in results if s == "SKIP"]
     print("\n── VERDICT ──")
-    if _live_moved:
+    if _live_moved and _console_live:
+        print("⚠ SKIPPED live-state check — the console is running on :17772 and writes these files")
+        for m in _live_moved:
+            print("     %s" % m)
+    if _live_moved and not _console_live:
         print("❌ THE SUITE WROTE THE LIVE CONSOLE STATE — a fixture reached his data:")
         for m in _live_moved:
             print("     %s" % m)

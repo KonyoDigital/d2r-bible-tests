@@ -5671,6 +5671,66 @@ class TestTheSuiteNeverWritesHisConsoleState(unittest.TestCase):
                                 "console's state: %s" % (attr, p))
 
 
+class TestV1774AThrottledSweepSealsNothing(unittest.TestCase):
+    """v1774 — A THROTTLED READER ANSWERED EMPTY AND EVERY LAYER BELIEVED IT.
+
+    _note_slot_death() flips a throttle flag when 2+ readers die inside 60s, and its own docstring
+    promises to "SAY SO instead of silent empties". Only the live heartbeat cap and a status chip
+    ever read that flag. The retro sweep did not.
+
+    MEASURED, by calling the reader directly on his 08-17 frames while the console was throttled:
+    a page that had returned scene='chronicle', tab='uniques', 6 names came back scene='gameplay',
+    conf=None, names=[] — and the console printed "throttle cascade detected". Three sweeps in a row
+    returned 39, then 22, then 0 names as it deepened, and I spent that stretch blaming my own
+    threshold changes for the drop.
+
+    WHAT MADE IT EXPENSIVE RATHER THAN MERELY WRONG. The seal rule reasons that "classified > 0 with
+    pages == 0 IS a legitimate seal: the cheap classifier looked at every frame and correctly found
+    no Chronicle page". A throttle counterfeits exactly that shape — the classifier was never asked.
+    So a throttled sweep finished clean, found nothing, sealed the reels, and since v1766 those
+    reels are never read again. His footage is not re-creatable.
+
+    Two guards, because either alone leaves a hole: the readers refuse out loud while throttled
+    (tv_diablo returns a `note`, which chronicle_retro already counts as NOT read), and a run that
+    touched the throttle seals nothing at all."""
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app, tv_diablo
+        self.ca, self.tv = control_app, tv_diablo
+        self._until = list(self.tv._THROTTLED_UNTIL)
+
+    def tearDown(self):
+        self.tv._THROTTLED_UNTIL[0] = self._until[0]
+
+    def test_a_throttled_chronicle_read_refuses_instead_of_answering_empty(self):
+        import time as _t
+        self.tv._THROTTLED_UNTIL[0] = _t.time() + 60
+        r = self.tv.claude_chronicle_read("/nonexistent.jpg", "chronicle-uniques")
+        self.assertIsInstance(r, dict)
+        # a `note` is the shape chronicle_retro counts as refused rather than as an empty page
+        self.assertIn("note", r, "a throttled read answered like a real one: %s" % r)
+        self.assertIn("throttl", str(r.get("note")).lower())
+        self.assertFalse(r.get("found"), "a refusal must not carry findings")
+
+    def test_a_throttled_classify_says_NOTHING_not_gameplay(self):
+        import time as _t
+        self.tv._THROTTLED_UNTIL[0] = _t.time() + 60
+        # None is "no answer" to classifier(); a scene string would be a verdict, and a wrong
+        # verdict here skips the run and then seals the reel behind it
+        self.assertIsNone(self.tv.claude_read("/nonexistent.jpg"))
+
+    def test_the_flag_is_actually_consulted_by_the_retro_readers(self):
+        """The whole defect was a flag nobody downstream read. This asserts the wiring, because the
+        two tests above would also pass against a reader that happens to fail on a bad path."""
+        import inspect
+        for fn in (self.tv.claude_chronicle_read, self.tv.claude_read):
+            src = inspect.getsource(fn)
+            self.assertIn("_is_throttled", src,
+                          "%s does not consult the throttle — the v891 flag is unread again"
+                          % fn.__name__)
+
+
 class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
     """v1762 — the reels sweep themselves, under a cap that makes the bill predictable.
 
