@@ -5448,5 +5448,71 @@ class TestChronicleAutoReadWatchdog(unittest.TestCase):
         ca.chronicle_sweep_start = lambda **kw: (self.calls.append(kw) or dict({"ok": True}, **kw))
         self.assertEqual(ca.chronicle_autoread_tick().get("read"), 2000)
 
+class TestOneGateRunPerTree(unittest.TestCase):
+    """v1751 — REG-162: two gate runs in one tree make a THIRD, innocent gate fail.
+
+    Reproduced, not theorised: two runs started at once failed DIFFERENT gates (robot_smoke in one,
+    test_roundtrip_sim in the other) while a clean single run passed 30/30, and each of those gates
+    passes alone. They share ports, reel directories and the journal, so whichever gate needs an
+    exclusive one loses — and the verdict names the loser, never the collision. That is the worst
+    kind of red: it sends you to debug working code.
+
+    The lock is flock, so the kernel releases it when the holder dies. A pid file would need reaping
+    logic, and reaping logic is how a lock starts lying — a stale lock that refuses every future run
+    is a worse failure than the one being prevented. All three properties are asserted here, because
+    a lock that only ever gets tested in the happy direction is a lock nobody has actually seen work.
+    """
+
+    def setUp(self):
+        # A KEY OF THIS TEST'S OWN. test_control.py IS a gate, so under CI's `run_gates.py` the
+        # outer run already holds the real tree lock — child runs here would be refused by the very
+        # run they are testing, and this class would be red on CI and green on every laptop.
+        self.env = dict(os.environ)
+        self.env["D2R_GATE_LOCK_KEY"] = os.path.join(
+            tempfile.gettempdir(), "d2r_gatelock_test_%d" % os.getpid())
+
+    def _gates(self, *extra):
+        return subprocess.run([sys.executable, os.path.join(HERE, "run_gates.py"),
+                               "--only", "visual-lock"] + list(extra),
+                              capture_output=True, text=True, timeout=180, env=self.env)
+
+    def test_a_lone_run_is_never_blocked(self):
+        r = self._gates()
+        self.assertEqual(r.returncode, 0, "a single gate run was refused:\n%s" % r.stdout[-600:])
+
+    def test_a_second_run_in_the_same_tree_is_refused_and_says_who_holds_it(self):
+        holder = subprocess.Popen(
+            [sys.executable, "-c",
+             "import sys; sys.path.insert(0, %r); import run_gates as R; R._claim_the_tree();"
+             "import time; time.sleep(30)" % HERE],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
+        try:
+            time.sleep(1.5)
+            r = self._gates()
+            self.assertEqual(r.returncode, 2,
+                             "a concurrent gate run was ALLOWED — REG-162 can happen again")
+            self.assertIn("REFUSED", r.stdout)
+            # naming the holder is the point: "refused" with no address is a puzzle, not a message
+            self.assertIn("pid %d" % holder.pid, r.stdout,
+                          "the refusal does not say WHICH run holds the tree:\n%s" % r.stdout[:400])
+        finally:
+            holder.kill()
+            holder.wait()
+
+    def test_a_killed_run_does_not_leave_a_lock_that_refuses_everything_after_it(self):
+        holder = subprocess.Popen(
+            [sys.executable, "-c",
+             "import sys; sys.path.insert(0, %r); import run_gates as R; R._claim_the_tree();"
+             "import time; time.sleep(60)" % HERE],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
+        time.sleep(1.5)
+        holder.kill()          # SIGKILL — no chance to clean up after itself
+        holder.wait()
+        time.sleep(0.5)
+        r = self._gates()
+        self.assertEqual(r.returncode, 0,
+                         "a kill -9'd run left a stale lock; every gate run after it is refused")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

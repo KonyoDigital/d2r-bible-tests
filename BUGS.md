@@ -4084,7 +4084,7 @@ gold/amber hexes in bible.html and 81 in tv/control_ui.html**, several doing the
 chips, chrome). That is the real cause of "slightly different between pictures", and it is a
 census-scale job, not a hand edit.
 
-## REG-162 — a gate whose verdict depends on what ran before it (OPEN — and a NEIGHBOUR of it CLOSED 2026-08-17)
+## REG-162 — a gate whose verdict depends on what ran before it (CONCURRENCY HALF CLOSED v1751; ORDER half still OPEN)
 
 **CLOSED HERE: `test_chronicle_known_wire::AgainstHisRealFootage::test_real_journal_and_reel`.**
 Chasing REG-162 turned up a different failure in the same family, and this one was live and red:
@@ -4125,8 +4125,34 @@ the tree depending on what else is happening, and a different gate each time.
 This does not *prove* the original sighting was concurrent — I cannot know what else was running that
 night — but it is a reproducible cause of that exact symptom, and it matches the standing scar about
 running batches locally (his own: local runs made `test_control` take 565s instead of 19.5s and
-refused a legitimate push). **REG-162 stays open**, now with a first thing to check: was anything else
-running?
+refused a legitimate push). **The concurrency half is now CLOSED (v1751): a gate run takes an exclusive per-tree lock.**
+
+`tv/run_gates.py` refuses to start while another run holds the same tree, and says who has it:
+
+```
+⛔ REFUSED — another gate run already holds this tree (pid 81468, started 2026-08-17 07:17:24, ...).
+   Two runs share ports, reel dirs and the journal, so a gate that needs an exclusive one fails
+   and the verdict blames the gate. That is REG-162's signature.
+```
+
+`flock`, deliberately — the kernel drops it when the holder dies, so a crashed or `kill -9`'d run
+cannot leave a stale lock that refuses every run after it. A pid file would need reaping logic, and
+reaping logic is how a lock starts lying. Keyed on the RESOLVED tree, so his two worktrees still gate
+in parallel; the collision being prevented is within one tree.
+
+All three properties are asserted in `TestOneGateRunPerTree`, and proven red: delete the lock and it
+fails on *"a concurrent gate run was ALLOWED — REG-162 can happen again."*
+
+⚠ **A venue trap was caught before it shipped, and it is worth recording because it is the shape that
+keeps recurring.** `test_control.py` IS a gate, so under CI's `python3 tv/run_gates.py` the OUTER run
+holds the tree lock while this test spawns child gate runs to prove the lock works — the children
+would have been refused by the very run testing them, and the class would have been **red on CI and
+green on every laptop**. The lock key now honours `D2R_GATE_LOCK_KEY`, the test gives its children a
+key of their own, and the fix is verified by holding the real tree lock and running the class anyway.
+[[feedback_blind_fixture_green_gate]]
+
+**The ORDER half stays open**: `test_chronicle_retro` still fails inside a full run and passes alone,
+which is shared state between gates in ONE run — a lock cannot help with that.
 
 
 `test_chronicle_retro` failed **twice** inside the full 30-gate run tonight with

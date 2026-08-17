@@ -24,9 +24,11 @@ Reporting rules (learned the hard way)
 from __future__ import annotations
 
 import argparse
+import fcntl
 import glob
 import os
 import re
+import tempfile
 import subprocess
 import sys
 import time
@@ -214,10 +216,64 @@ def run(only=None):
     return results
 
 
+# v1751 — ONE GATE RUN PER TREE. This is REG-162's reproduced cause, not a theory: two runs were
+# started at once and each failed a DIFFERENT gate (robot_smoke in one, test_roundtrip_sim in the
+# other) while a clean single run passed 30/30. Every one of those gates passes alone. They share
+# ports, reel directories and the journal, so whichever gate happens to need an exclusive one loses
+# — and the verdict names the loser, never the collision. A gate that is wrong about the tree
+# because of what else is running is the worst kind of red: it sends you to debug working code.
+#
+# flock, deliberately: the kernel drops it when the process dies, so a crashed or kill -9'd run
+# cannot leave a stale lock that refuses every future run. A pid file would need reaping logic, and
+# reaping logic is how a lock starts lying.
+#
+# KEYED ON THE RESOLVED TREE, not on a fixed path, so his two worktrees can gate in parallel — they
+# have separate reel dirs and separate journals, and the collision this prevents is within ONE tree.
+# [[process-port-discipline]]
+_LOCK_FH = None
+
+
+def _claim_the_tree():
+    """Take the per-tree gate lock, or explain who has it. Returns None on success, else a message."""
+    global _LOCK_FH
+    # D2R_GATE_LOCK_KEY exists for ONE reason: test_control.py is itself a gate, so when CI runs
+    # `python3 tv/run_gates.py` the outer run holds this lock while TestOneGateRunPerTree spawns
+    # child gate runs to prove the lock works. Without an override those children are refused BY
+    # THE RUN TESTING THEM, and the test fails on CI while passing on every laptop — a gate blind
+    # to its own venue. The children get their own key; the mechanism under test is unchanged.
+    key = os.environ.get("D2R_GATE_LOCK_KEY") or os.path.realpath(REPO)
+    safe = re.sub(r"[^A-Za-z0-9]+", "_", key).strip("_")[-80:]
+    path = os.path.join(tempfile.gettempdir(), "d2r_gates_%s.lock" % safe)
+    fh = open(path, "a+")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.seek(0)
+        who = (fh.read() or "").strip() or "an unnamed run"
+        fh.close()
+        return ("another gate run already holds this tree (%s).\n"
+                "   Two runs share ports, reel dirs and the journal, so a gate that needs an "
+                "exclusive one fails and the verdict blames the gate.\n"
+                "   That is REG-162's signature. Wait for it, or run in a separate worktree."
+                % who)
+    fh.seek(0)
+    fh.truncate()
+    fh.write("pid %d, started %s, tree %s\n"
+             % (os.getpid(), time.strftime("%Y-%m-%d %H:%M:%S"), key))
+    fh.flush()
+    _LOCK_FH = fh   # held for the life of the process; the kernel releases it on exit
+    return None
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="run the gate set and return one verdict")
     ap.add_argument("--only", nargs="*", help="run only these gate names")
     a = ap.parse_args(argv[1:])
+
+    busy = _claim_the_tree()
+    if busy:
+        print("⛔ REFUSED — %s" % busy)
+        return 2
 
     print("══ GATE SET ══")
     results = run(a.only)
