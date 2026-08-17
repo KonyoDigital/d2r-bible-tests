@@ -9030,15 +9030,25 @@ def chronicle_autoread_tick():
             # NEVER guess a ledger. Counted so "nothing happened" and "we refused" stay different.
             _CHRON_AUTOREAD["skipped"][str(ts)] = "no ledger — offered, never guessed"
             continue
+        # v1766 — COUNT THE ATTEMPT BEFORE MAKING IT, and count EVERY attempt. v1745 fixed half of
+        # this: a sweep that REFUSED no longer burned the visit. The other half stayed open and its
+        # own note said so — "a tick run from a throwaway process started a sweep, the process
+        # exited, and the visit was left flagged read with nothing to show for it". That is a sweep
+        # that TOOK the job and died, and the mark below used to fire the moment it started, because
+        # chronicle_sweep_start spawns a thread and returns immediately. Same defect as the reel
+        # path, same fix: the runner marks the visit once its result is durable. The counter now
+        # covers deaths as well as refusals, so neither can retry without bound.
+        tries = _CHRON_AUTOREAD["tries"].get(str(ts), 0) + 1
+        if tries > _CHRON_AUTOREAD_MAX_TRIES:
+            _chron_autoread_mark(ts)
+            _CHRON_AUTOREAD["skipped"][str(ts)] = ("gave up after %d tries — the sweep started but "
+                                                   "never wrote a result" % (tries - 1))
+            return {"ok": False, "retired": ts, "tries": tries - 1,
+                    "why": "the sweep started but never wrote a result"}
+        _CHRON_AUTOREAD["tries"][str(ts)] = tries
         r = chronicle_sweep_start(visit=ts)
-        # Mark ONLY when the sweep actually took the job. Marking first meant a refused or
-        # never-started sweep still burned the visit — measured while building this: a tick run from
-        # a throwaway process started a sweep, the process exited, and the visit was left flagged
-        # read with nothing to show for it. A visit is precious; a repeat read of a free visit is not.
         if not (isinstance(r, dict) and r.get("ok")):
             why = (isinstance(r, dict) and r.get("why")) or str(r)
-            tries = _CHRON_AUTOREAD["tries"].get(str(ts), 0) + 1
-            _CHRON_AUTOREAD["tries"][str(ts)] = tries
             if tries >= _CHRON_AUTOREAD_MAX_TRIES:
                 # RETIRE it, with the reason kept. Not silently: a visit that stopped being tried
                 # must be distinguishable from one that was never tried.
@@ -9047,7 +9057,8 @@ def chronicle_autoread_tick():
                 return {"ok": False, "retired": ts, "tries": tries, "why": why}
             return {"ok": False, "why": "sweep refused the visit (try %d/%d): %s"
                                         % (tries, _CHRON_AUTOREAD_MAX_TRIES, why)}
-        _chron_autoread_mark(ts)
+        # the visit is marked by _chron_visit_run once its result is on disk — never here, where
+        # the sweep has only just been handed the job
         _CHRON_AUTOREAD["reads"] += 1
         _CHRON_AUTOREAD["lastTs"] = ts
         return {"ok": True, "read": ts, "ledger": v.get("ledger"), "frames": v.get("n"), "start": r}
@@ -10165,6 +10176,14 @@ def _chron_visit_run(visit_ts):
                 },
             })
             _chron_result_save()   # v1763 — saved in the same breath the result is set
+            # v1766 — and only now is the visit spent, for the same reason as the reel: the mark
+            # used to fire when the sweep STARTED, so a console that died mid-read left the visit
+            # flagged read with nothing written. Marking here is what its own comment always claimed.
+            try:
+                _chron_autoread_mark(int(visit_ts))
+                _CHRON_AUTOREAD["tries"].pop(str(int(visit_ts)), None)
+            except Exception:
+                pass
     except Exception as e:
         with _CHRON_LOCK:
             _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
@@ -10559,7 +10578,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1766",
+        "ver": "v1767",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

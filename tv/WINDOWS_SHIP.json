@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1766",
+  "ver": "v1767",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1766: the tick burned the reel at start, which its own comment denied",
+  "note": "v1767: same defect, other half of the class, closed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

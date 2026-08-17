@@ -5381,7 +5381,17 @@ class TestChronicleAutoReadWatchdog(unittest.TestCase):
                                               # refusal count carry into the next and retire early
         self._old = (ca.chronicle_sweep_start, ca._agent_alive, ca.chronicle_sweep_state, ca.chronicle_visits)
         self.calls = []
-        ca.chronicle_sweep_start = lambda **kw: (self.calls.append(kw) or dict({"ok": True}, **kw))
+        # v1766 — THE STUB HAS TO FINISH THE JOB, because the real one does. Marking moved out of
+        # the tick and into _chron_visit_run, which marks once the result is on disk; a stub that
+        # only says {"ok": True} models a sweep that STARTED and never wrote anything, and under the
+        # new rule that visit is correctly retried rather than spent. Tests that assert "once each"
+        # therefore need a stub that completes — otherwise they assert the failure mode.
+        def _start_and_finish(**kw):
+            self.calls.append(kw)
+            if kw.get("visit"):
+                ca._chron_autoread_mark(int(kw["visit"]))
+            return dict({"ok": True}, **kw)
+        ca.chronicle_sweep_start = _start_and_finish
         ca._agent_alive = lambda: False
         ca.chronicle_sweep_state = lambda: {"running": False}
         ca.chronicle_visits = lambda *a, **k: {"visits": [
@@ -5436,6 +5446,27 @@ class TestChronicleAutoReadWatchdog(unittest.TestCase):
         self.assertIsNone(c.get("read"), c)                  # and never attempted again
         self.assertIn("2000", ca._CHRON_AUTOREAD["skipped"])
         self.assertIn("gave up", ca._CHRON_AUTOREAD["skipped"]["2000"])
+
+    def test_a_visit_whose_sweep_DIED_is_retried_then_retired(self):
+        """v1766 — THE HALF v1745 LEFT OPEN, described in its own comment and never closed: "a tick
+        run from a throwaway process started a sweep, the process exited, and the visit was left
+        flagged read with nothing to show for it." v1745 fixed the sweep that REFUSED; a sweep that
+        TOOK the job and then died still burned the visit, because chronicle_sweep_start spawns a
+        thread and returns immediately, and the mark fired on that return.
+
+        The visit is now marked by the runner once its result is durable. This stub takes the job
+        and never finishes — so the visit must come back, and then stop coming back."""
+        ca.chronicle_sweep_start = lambda **kw: (self.calls.append(kw) or {"ok": True})
+        a = ca.chronicle_autoread_tick()
+        b = ca.chronicle_autoread_tick()
+        c = ca.chronicle_autoread_tick()
+        self.assertEqual(a.get("read"), 2000, a)
+        self.assertEqual(b.get("read"), 2000, "a visit whose sweep died was never tried again: %s" % b)
+        # ...and it does not retry forever - that would be the runaway on the other side
+        self.assertEqual(c.get("retired"), 2000, "a dead sweep is retried without bound: %s" % c)
+        self.assertIn("never wrote a result", ca._CHRON_AUTOREAD["skipped"].get("2000", ""))
+        self.assertEqual([x.get("visit") for x in self.calls], [2000, 2000],
+                         "it kept paying after giving up: %s" % self.calls)
 
     def test_a_refused_sweep_does_not_burn_the_visit(self):
         """Marking BEFORE the sweep took the job meant a refusal still spent the visit. Measured
