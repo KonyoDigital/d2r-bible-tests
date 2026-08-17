@@ -36407,6 +36407,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        change claimed to close. A DOM-reading test would have gone green over it.
        The right answer to unused plumbing is not always a consumer. Here it is a delete: he is
        already told, once, by the card. */
+    /* v1751 — chronTotal IS A PINNED CONSTANT, AND ONE LINE IN THIS FILE DISAGREES WITH IT.
+       403 drives the headline percentage (the meter at :37035 divides by chronTotal, not by the
+       roster) and the tooltip at :37039 states its provenance as "game-file truth:
+       uniqueitems.txt". That may well be how it was counted — but nothing records WHO counted it
+       or WHEN, and :17315 records an actual reading of the in-game panel as **404, printing 63%**.
+       One of the two is wrong by one entry, and neither can be re-derived on this machine right
+       now: the CASC extractor lives at /tmp/casc_extract and /tmp does not survive a reboot.
+       Stated rather than averaged, because a denominator quietly nudged to make a percentage look
+       right is the exact defect this board keeps finding. It does NOT move the answer he asked
+       about — 259 found is 64% either way. [[unknown-stays-unknown]] */
     return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403 };
   };
   var _fuF='all';

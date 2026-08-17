@@ -5154,6 +5154,40 @@ assertion non-vacuous can be exactly the thing that starves one of them, and it 
 that — it just keeps passing. When one branch of a gate refuses to light up under a generous
 fixture, suspect the generosity. [[gate-blind-to-unexercised-input]]
 
+
+---
+
+## REG-177 — his "I'm pretty sure I'm 64% uniques" was right, and nothing was miscalibrated (v1751)
+
+He asked twice: *"make sure the % ingame for the chronicle matches and syncs too it needs to be
+caliverated maybbe. im prety sure im 64% uniques so eaither didnt count correctly.. or its not
+calliberated correctly."*
+
+**Measured live in a browser:** `funiScan()` returns `total: 398`, `found: 246`, `chronTotal: 403`.
+The meter at `:37035` already divides by `chronTotal` — the GAME's denominator — not by the roster,
+so **the formula was never wrong**. The three numbers on his screen are three different true facts:
+403 is what the in-game Chronicle counts, 398 is what the site can put a NAME on, and the 5 dark
+rows he asked about are exactly `403 - 398` (`:37075`), silhouettes the game refuses to name until
+they drop.
+
+**The gap is arithmetic, not calibration.** 246/403 = 61.0%. Add the **13** finds sitting in the
+chronicle visit that was never read (`ts 1786923296176` = 2026-08-17 02:34:56 IDT, `ledger:
+uniques`, 4 frames) and it is **259/403 = 64.3%** — his number. Three independent signals agree: his
+memory of the in-game panel, last session's cross-reference of his own screenshots, and the board's
+own tally.
+
+**Stated as a falsifiable prediction:** once that visit is read the board should land on ~64%. If it
+lands anywhere else, the unread visit was not the whole story and this entry is what to re-open.
+
+### The loose end that came with it — 403 vs 404, left OPEN
+
+`chronTotal:403` is a hardcoded literal whose tooltip states its provenance as *"game-file truth:
+uniqueitems.txt"*, while `:17315` records an actual reading of the in-game panel as **404, printing
+63%**. Two numbers in one file, one entry apart, and neither is re-derivable on this machine: the
+CASC extractor lives at `/tmp/casc_extract` and `/tmp` does not survive a reboot. **Recorded at the
+definition site rather than averaged** — a denominator quietly nudged to make a percentage look
+right is precisely the defect this board keeps finding. It does not move his answer: 259 is 64%
+against either total.
 ---
 
 ## REG-176 — v1736 broke twelve console specs, and CI said so while local smoke did not (v1749)
