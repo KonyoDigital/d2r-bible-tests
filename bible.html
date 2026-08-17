@@ -14364,11 +14364,58 @@ function _rwOneStepView(){
                      the SAME filter being asked a different question, not a second copy of it.
    Default (both)  — owned first, then the legal meta picks: the ONE STEP view, where he said
                      showing the ones he does not own is exactly right. */
+/* v1751 — THE ROSTER SPELLS A RUNEWORD FOR A HUMAN; EVERY OTHER TABLE KEYS IT CANONICALLY.
+   RUNEWORDS carries 101 rows, RUNEWORD_TIP 99 keys, and NONE of the tip keys has a parenthesis.
+   Six roster rows therefore matched nothing:
+
+     Spirit (sword) · Spirit (shield) · Call to Arms (CTA) ·
+     Heart of the Oak (HotO) · Breath of the Dying (BotD) · Death's Web
+
+   The first five are among the most-made runewords in the game, and for every one of them
+   _forgeMetaBase returned [] — so the shopping list hit `if (!names.length) return ''` and rendered
+   NO base at all. _baseRunewords speaks canonical names too, so even a populated meta list would
+   have been rejected by the class filter one line later. Both ends were broken by the same cause,
+   which is why one resolution fixes both and they cannot fight each other.
+
+   Konyo, on exactly this class: "i dont want random sockets numvers matching i need the baseitem
+   releated to the specific and relvant runeword also matched! i wasted runewords." Worth noting
+   _rwSock never had the bug — it read 4/5/4/6 correctly for all five — so the socket count was
+   right on screen beside a base list that was empty. A half-answered card reads as a data gap.
+
+   IT NEVER STRIPS BLINDLY. A suffix is removed only when the BARE name is itself a known runeword.
+   "Death's Web" carries `runes: "(unique, not RW)"` — it is a unique item listed for reference, not
+   a runeword — so it resolves to nothing and renders nothing, which is correct and must stay that
+   way. [[label-outlived-referent]]
+
+   AND THE PARENTHETICAL IS NOT NOISE FOR SPIRIT. RUNEWORD_TIP['Spirit'].b is "4 socket Swords or
+   Shields", so the bare name yields the UNION — Monarch, Sacred Targe, Sacred Rondache and Aegis
+   alongside Crystal Sword and Balrog Blade. Stripping and stopping there would offer him a SWORD
+   for "Spirit (shield)": the precise defect he reported, arriving through the fix for it. The tag
+   is therefore kept and used to filter by item class. */
+function _rwCanon(rwName){
+  var raw = String(rwName == null ? '' : rwName).trim();
+  var TIP = (typeof RUNEWORD_TIP !== 'undefined') ? RUNEWORD_TIP : null;
+  var known = function(n){
+    return !!(TIP && n && Object.prototype.hasOwnProperty.call(TIP, n));
+  };
+  if (!raw || known(raw)) return { key: raw, cat: '' };
+  var m = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(raw);
+  if (!m) return { key: raw, cat: '' };
+  var bare = m[1].trim(), tag = m[2].trim().toLowerCase();
+  if (!known(bare)) return { key: raw, cat: '' };      // not a display suffix — leave it alone
+  // only a tag that names an ITEM CLASS filters; "CTA"/"HotO"/"BotD" are abbreviations, not classes
+  return { key: bare, cat: /^(sword|shield|weapon|staff|mace|axe|bow|polearm|armou?r|helm)$/.test(tag) ? tag : '' };
+}
+try { window._rwCanon = _rwCanon; } catch(e){}
+
 function _rwLegalBases(rwName, limit, opts){
   try {
     if (!rwName || typeof window._forgeMetaBase !== 'function') return [];
     opts = opts || {};
-    var meta = ((window._forgeMetaBase(rwName) || {}).names || []);
+    // v1751 — canonical key for every TABLE lookup; the display name stays the display name.
+    var _c = (typeof _rwCanon === 'function') ? _rwCanon(rwName) : { key: rwName, cat: '' };
+    var _canon = _c.key, _vcat = _c.cat;
+    var meta = ((window._forgeMetaBase(_canon) || {}).names || []);
     var need = 0;
     try { need = (typeof _rwSock === 'function') ? (_rwSock(rwName) || 0) : 0; } catch(e){}
 
@@ -14386,11 +14433,19 @@ function _rwLegalBases(rwName, limit, opts){
     var isLegal = function(bn){
       // v1737 — his game outranks every derived clause. A pairing he has PROVED does not form is
       // not legal here either, however well it type-checks. See _RW_BASE_FAILED.
-      try { if (window._rwBaseFailed && window._rwBaseFailed(rwName, bn)) return false; } catch(e){}
+      try { if (window._rwBaseFailed && window._rwBaseFailed(_canon, bn)) return false; } catch(e){}
       try {
         var hosts = (typeof _baseRunewords === 'function') ? (_baseRunewords(bn) || []) : null;
-        if (hosts && !hosts.some(function(r){ return r.n === rwName; })) return false;   // wrong class
+        if (hosts && !hosts.some(function(r){ return r.n === _canon; })) return false;   // wrong class
       } catch(e){}
+      // v1751 — the VARIANT filter. "Spirit (shield)" must never offer a sword: the tip covers both
+      // ("4 socket Swords or Shields"), so without this the split rows would show one union list.
+      if (_vcat){
+        try {
+          var _cats = (typeof _baseCats === 'function') ? (_baseCats(bn) || {}) : null;
+          if (_cats && !_cats[_vcat]) return false;
+        } catch(e){}
+      }
       if (!need) return true;
       var mx = 0;
       try { mx = parseInt(_socketMaxFor(bn), 10) || 0; } catch(e){}
@@ -14454,7 +14509,12 @@ window._rwLegalBases = _rwLegalBases;
 function _rwHostBaseTiles(rwName){
   try {
     if (!rwName || typeof window._forgeMetaBase !== 'function') return '';
-    var names = ((window._forgeMetaBase(rwName) || {}).names || []).slice(0, 4);
+    /* v1751 — PROBE WITH THE CANONICAL KEY. This early gate is what actually blanked the card: for
+       the five parenthesised roster names _forgeMetaBase returned [] and the function returned ''
+       before ever reaching _rwLegalBases below, which now resolves them correctly on its own. Two
+       lookups of the same name, one line apart, and only the second had been taught to resolve it. */
+    var _tileCanon = (typeof _rwCanon === 'function') ? _rwCanon(rwName).key : rwName;
+    var names = ((window._forgeMetaBase(_tileCanon) || {}).names || []).slice(0, 4);
     if (!names.length) return '';
     var need = (typeof _rwSock === 'function') ? _rwSock(rwName) : null;
     // ══ v1713 — TWO FILTERS, AND THE CLASS ONE COMES FIRST ══════════════════════════════════
@@ -40344,7 +40404,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1748', name:'v1748 - the stamp says it once', date:'2026-08-17', note:'the build badge composed id plus date plus name while name already began with the id so the version printed twice and the ellipsis ate the ship name; stripped at display time in the badge and the tab title leaving the underlying field alone' };
+  window.D2R_BUILD = { id:'v1751', name:'v1751 - the runewords that named no base', date:'2026-08-17', note:'Spirit CTA HotO and BotD rendered no base at all because their roster names carry a parenthetical and every lookup table keys them canonically - one resolver fixes both ends and the Spirit split stays split' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
