@@ -24,7 +24,17 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
       vaultClean: JSON.parse(localStorage.getItem('d2r_owned') || '[]').length,           // v677 — the seed must NEVER touch the vault
     };
   });
-  expect(r.seedN).toBe(243);   // v682 full reshoot: +13 gap finds (Djinn Slayer confirmed) · Nagelring real stamp
+  /* v1758 — 243 -> 245, and both are accounted for the way this spec has always demanded.
+     They were read off HIS OWN 2026-08-17 02:34 Chronicle capture and cross-referenced against the
+     board before being seeded; 21 named finds on those frames were checked, 19 were already ticked,
+     and exactly these two were not:
+       Baranar's Star — frame 2_1786922980617, "First Found: 08/10/2026, 02:25 · Dropped By: Baal"
+       Atma's Wail    — frame 3_1786385790213, "First Found: 08/10/2026, 00:52"
+     Neither sat in d2r_grailUnfound, so neither overrules a decision of his — a find is safe and
+     undoable, an un-tick is not, and none was touched. Independently corroborated afterwards: the
+     v1758 sweep, reading the same frames through the claude+grok lanes, surfaced Baranar's Star on
+     its own. His in-game panel reads 64% on those frames; the board read 61% at 246/403. */
+  expect(r.seedN).toBe(245);   // v682: 243 · v1758: +Baranar's Star +Atma's Wail, both from his own film
   // v1695 — THESE FOUR NUMBERS MOVED BECAUSE THE LEDGER GREW, WHICH IS THE WHOLE POINT OF THE ARC.
   // Konyo's instruction was explicit: "from 236 it NEEDS TO GO UP". Three genuine finds were read
   // off his own Chronicle screenshots and applied in v1693 -- Fleshrender (08/03 01:27 Diablo),
@@ -58,8 +68,8 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
      his testimony. */
   expect(r.extraN).toBe(80);   // v1720 +11 RotW · v1703 +Polaris Spear/The Scourge · v1695 +Fleshrender · v682 +4
   expect(r.total).toBe(398);            // v1720: 387 + the eleven he ruled in
-  expect(r.found).toBe(246);            // UNCHANGED — every addition is unfound
-  expect(r.flN).toBe(354);              // UNCHANGED — 246 uniques + 108 set-piece stamps
+  expect(r.found).toBe(248);            // UNCHANGED by that addition — v1758 seeded +2 found
+  expect(r.flN).toBe(356);              // UNCHANGED — 246 uniques + 108 set-piece stamps · v1758: +2 seeded finds reach the ledger
   expect(r.wormskull).toBe('Jun 22, 2026 · 02:00');
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();
@@ -90,8 +100,8 @@ test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re
   // would belong in bible.html, not here.
   expect(after.owned).toBe(false);
   expect(after.gu).toBe(1);
-  expect(after.found).toBe(245);        // v1695: 246 with Wormskull un-ticked
-  expect(restored.found).toBe(246);     // v1695: 243 + the three v1693 finds
+  expect(after.found).toBe(247);        // v1695: 246 with Wormskull un-ticked · v1758: +2 seeded finds
+  expect(restored.found).toBe(248);     // v1695: 243 + three v1693 finds · v1758: +2 from his film
   expect(restored.gu).toBeUndefined();
 });
 
