@@ -8961,7 +8961,7 @@ def chronicle_visits(limit=8):
 # where v947 put it. Automatic reading, human-gated writing.
 _CHRON_AUTOREAD_PATH = os.environ.get("TV_CHRON_AUTOREAD") or os.path.join(HERE, "chron_autoread.json")
 _CHRON_AUTOREAD_EVERY_S = 20
-_CHRON_AUTOREAD = {"done": None, "lastTs": 0, "reads": 0, "skipped": {}, "tries": {}}
+_CHRON_AUTOREAD = {"done": None, "reels": None, "lastTs": 0, "reads": 0, "skipped": {}, "tries": {}}
 # v1745.1 — Konyo: "i dont want it looping though the same video over and over.. it might loop and
 # waste?" He is right, and about the one path that was open. A SUCCESSFUL read is already read-once:
 # the visit ts is persisted and never revisited. But a REFUSED sweep marked nothing, so the same
@@ -8988,8 +8988,16 @@ def _chron_autoread_mark(ts):
     done = _chron_autoread_done()
     done.add(int(ts))
     try:
-        with open(_CHRON_AUTOREAD_PATH, "w", encoding="utf-8") as fh:
-            json.dump({"done": sorted(done)}, fh)
+        # v1762 — WRITE BOTH LISTS. This file gained a "reels" key when reel auto-sweep landed, and
+        # this writer knew only about "done". A visit mark would then rewrite the file WITHOUT the
+        # reels, silently un-marking every reel already swept — and the watchdog would re-walk the
+        # whole backlog on the next tick, paying for it again. Two writers, one file, one of them
+        # unaware of the other: the same shape as the whitelist that dropped gateHeld an hour ago.
+        payload = {"done": sorted(done), "reels": sorted(_chron_reels_seen())}
+        tmp = _CHRON_AUTOREAD_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh)
+        os.replace(tmp, _CHRON_AUTOREAD_PATH)
     except Exception:
         pass
 
@@ -9042,11 +9050,99 @@ def chronicle_autoread_tick():
     return {"ok": True, "read": None, "why": "no unread visit with a known ledger"}
 
 
+# v1762 — THE REELS SWEEP THEMSELVES TOO, and this is the half that hid his best footage.
+#
+# A VISIT is what the live agent journalled while it noticed him in the Chronicle. A REEL is the
+# whole recording of that session. Measured on his own film: the Aug 17 visit named FOUR frames,
+# while the reel of the same session holds FIFTY-FIVE distinct screens. Every sweep aimed at the
+# visit read the 4-frame slice and reported the session as holding nothing, and the 55 screens sat
+# unread because nothing swept a reel unless a human pressed a button. He asked the obvious
+# question — "i dont understand why the current session there cant be just like analyzed and swept"
+# — and the answer was that the automatic half only ever looked at the smaller object.
+#
+# SCOPED SO IT CANNOT SURPRISE HIM WITH A BILL, because a reel is 20-75 classifies where a visit is
+# a handful:
+#   * NEW reels only. Everything on disk today was swept once, deliberately, on his say-so; the
+#     watchdog starts from that line and never re-walks the backlog.
+#   * ONE reel per tick, newest first. A queue that drains slowly is auditable; one that drains at
+#     once is an invoice.
+#   * Never while a session is live or a sweep is running — the same two refusals the visit path
+#     already makes, for the same reason: a growing reel is not a finished one.
+#   * Off in one line: TV_CHRON_AUTOREEL=0.
+_CHRON_AUTOREEL_ON = os.environ.get("TV_CHRON_AUTOREEL", "1") != "0"
+
+
+def _chron_reels_seen():
+    """Reel ids already swept, persisted beside the visit marks in the same file."""
+    if _CHRON_AUTOREAD.get("reels") is None:
+        seen = set()
+        try:
+            with open(_CHRON_AUTOREAD_PATH, encoding="utf-8") as fh:
+                seen = set(str(x) for x in (json.load(fh) or {}).get("reels") or [])
+        except Exception:
+            seen = set()
+        _CHRON_AUTOREAD["reels"] = seen
+    return _CHRON_AUTOREAD["reels"]
+
+
+def _chron_reels_mark(reel_id):
+    seen = _chron_reels_seen()
+    seen.add(str(reel_id))
+    try:
+        payload = {"done": sorted(_chron_autoread_done()), "reels": sorted(seen)}
+        tmp = _CHRON_AUTOREAD_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh)
+        os.replace(tmp, _CHRON_AUTOREAD_PATH)
+    except Exception:
+        pass
+
+
+def chronicle_autoreel_tick():
+    """One pass over the REELS. Returns what it did, and every refusal carries a named reason."""
+    if not _CHRON_AUTOREEL_ON:
+        return {"ok": False, "why": "reel auto-sweep is off (TV_CHRON_AUTOREEL=0)"}
+    if _agent_alive():
+        return {"ok": False, "why": "a session is live — a reel is only final once it stops growing"}
+    try:
+        if chronicle_sweep_state().get("running"):
+            return {"ok": False, "why": "a sweep is already running"}
+    except Exception:
+        pass
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    try:
+        import chronicle_retro as _cr
+        dirs = _cr.reel_dirs(hist, newest_first=True) or []
+    except Exception as e:
+        return {"ok": False, "why": "could not list reels: %s" % e}
+    seen = _chron_reels_seen()
+    for d in dirs:
+        rid = os.path.basename(str(d))
+        if rid in seen:
+            continue
+        # MARK BEFORE READING is wrong here for the same reason it was wrong for visits (v1745):
+        # a refused sweep would burn the reel. Mark only once the sweep has taken the job.
+        r = chronicle_sweep_start(limit=1)
+        if not (isinstance(r, dict) and r.get("ok")):
+            return {"ok": False, "why": "sweep refused the reel: %s"
+                                        % ((isinstance(r, dict) and r.get("why")) or r)}
+        _chron_reels_mark(rid)
+        return {"ok": True, "swept": rid, "start": r}
+    return {"ok": True, "idle": True, "why": "no unswept reel"}
+
+
 def _chron_autoread_loop():
     while True:
         try:
             time.sleep(_CHRON_AUTOREAD_EVERY_S)
-            chronicle_autoread_tick()
+            v = chronicle_autoread_tick()
+            # v1762 — a VISIT is cheaper and more targeted, so it always wins the tick. Only when
+            # there is no visit left to read does the watchdog look at the bigger object.
+            if not (isinstance(v, dict) and v.get("ok") and v.get("read")):
+                try:
+                    chronicle_autoreel_tick()
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -10345,7 +10441,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1761",
+        "ver": "v1762",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

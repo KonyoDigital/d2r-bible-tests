@@ -5514,5 +5514,90 @@ class TestOneGateRunPerTree(unittest.TestCase):
                          "a kill -9'd run left a stale lock; every gate run after it is refused")
 
 
+class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
+    """v1762 — the reels sweep themselves, under a cap that makes the bill predictable.
+
+    A VISIT is what the agent journalled; a REEL is the whole recording. His Aug 17 visit named FOUR
+    frames while the reel of that same session holds FIFTY-FIVE screens, so every automatic sweep
+    read the slice and reported the session as empty. Reels are the bigger object AND the bigger
+    bill — 20-75 classifies against a visit's handful — so the automation has to be provably
+    incapable of running away, not merely intended not to.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.state = os.path.join(self.tmp, "autoread.json")
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._path0 = control_app._CHRON_AUTOREAD_PATH
+        self._on0 = control_app._CHRON_AUTOREEL_ON
+        self._alive0 = control_app._agent_alive
+        self._state0 = control_app.chronicle_sweep_state
+        self._start0 = control_app.chronicle_sweep_start
+        control_app._CHRON_AUTOREAD_PATH = self.state
+        control_app._CHRON_AUTOREAD["done"] = None
+        control_app._CHRON_AUTOREAD["reels"] = None
+        control_app._agent_alive = lambda *a, **k: False
+        control_app.chronicle_sweep_state = lambda *a, **k: {"running": False}
+        self.started = []
+        control_app.chronicle_sweep_start = lambda **kw: (self.started.append(kw) or {"ok": True})
+
+    def tearDown(self):
+        self.ca._CHRON_AUTOREAD_PATH = self._path0
+        self.ca._CHRON_AUTOREEL_ON = self._on0
+        self.ca._agent_alive = self._alive0
+        self.ca.chronicle_sweep_state = self._state0
+        self.ca.chronicle_sweep_start = self._start0
+        self.ca._CHRON_AUTOREAD["done"] = None
+        self.ca._CHRON_AUTOREAD["reels"] = None
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_a_live_session_is_never_swept(self):
+        """A reel that is still growing is not a finished reel."""
+        self.ca._agent_alive = lambda *a, **k: True
+        r = self.ca.chronicle_autoreel_tick()
+        self.assertFalse(r.get("ok"))
+        self.assertIn("session is live", r.get("why", ""))
+        self.assertEqual(self.started, [], "it started a sweep while a session was live")
+
+    def test_it_never_runs_two_sweeps_at_once(self):
+        self.ca.chronicle_sweep_state = lambda *a, **k: {"running": True}
+        r = self.ca.chronicle_autoreel_tick()
+        self.assertFalse(r.get("ok"))
+        self.assertEqual(self.started, [], "it started a second concurrent sweep")
+
+    def test_an_already_swept_reel_is_never_paid_for_twice(self):
+        """The whole backlog was swept once, deliberately. The watchdog starts from that line."""
+        self.ca._chron_reels_mark("reel_alpha")
+        self.ca._chron_reels_mark("reel_beta")
+        self.ca._CHRON_AUTOREAD["reels"] = None          # force a reload from disk
+        seen = self.ca._chron_reels_seen()
+        self.assertEqual(seen, {"reel_alpha", "reel_beta"},
+                         "the reel marks did not survive a reload: %s" % seen)
+
+    def test_a_visit_mark_does_not_wipe_the_reel_marks(self):
+        """TWO WRITERS, ONE FILE. _chron_autoread_mark knew only about "done"; if it rewrites the
+        file without "reels" every swept reel is silently un-marked and the whole backlog is paid
+        for again on the next tick. Same shape as the whitelist that dropped gateHeld."""
+        self.ca._chron_reels_mark("reel_alpha")
+        self.ca._chron_autoread_mark(1111)
+        self.ca._chron_reels_mark("reel_beta")
+        self.ca._chron_autoread_mark(2222)
+        with open(self.state, encoding="utf-8") as fh:
+            payload = json.load(fh)
+        self.assertEqual(sorted(payload.get("reels") or []), ["reel_alpha", "reel_beta"],
+                         "a visit mark wiped the reel list: %s" % payload)
+        self.assertEqual(sorted(payload.get("done") or []), [1111, 2222],
+                         "a reel mark wiped the visit list: %s" % payload)
+
+    def test_the_off_switch_actually_stops_it(self):
+        self.ca._CHRON_AUTOREEL_ON = False
+        r = self.ca.chronicle_autoreel_tick()
+        self.assertFalse(r.get("ok"))
+        self.assertIn("off", r.get("why", ""))
+        self.assertEqual(self.started, [], "it swept with the switch off")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

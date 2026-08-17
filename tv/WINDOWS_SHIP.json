@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1761",
+  "ver": "v1762",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1761: tvd-chron-autoread was started inside open_control_window so a headless console served every API correctly and never swept anything - it now arms in both modes and picked up his pending visit within 12 seconds",
+  "note": "v1762: a visit named four frames while the reel of the same session held fifty-five screens so the automatic half only ever read the smaller object - reels now sweep on the watchdog under a cap of one per tick newest first never while a session is live",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
