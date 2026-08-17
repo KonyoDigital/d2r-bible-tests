@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1767",
+  "ver": "v1768",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1767: same defect, other half of the class, closed",
+  "note": "v1768: 402 on every call, and the honesty field said nothing was wrong",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

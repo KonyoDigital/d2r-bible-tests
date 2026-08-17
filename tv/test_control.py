@@ -4874,11 +4874,65 @@ class TestV1501ThirdEyeFindsItsBinary(unittest.TestCase):
         st = g5.status()
         self.assertIn("intentBlocked", st)
         self.assertIn("blockedWhy", st)
-        if st.get("switch") != "off" and st.get("mode") == "off":
+        # v1767 — THREE states, not two. The third is a lane that starts fine and hard-stops on
+        # every call; it resolves mode() to primary, so the old `else` branch below asserted it was
+        # NOT blocked while it had been dark for a hundred calls.
+        hard = st.get("blockedWhy") if st.get("mode") != "off" else ""
+        if st.get("switch") != "off" and (st.get("mode") == "off" or hard):
             self.assertTrue(st["intentBlocked"], "a blocked lane must declare itself blocked")
             self.assertTrue(st["blockedWhy"].strip(), "and it must say WHY, in words")
         else:
             self.assertFalse(st["intentBlocked"])
+
+    def test_a_lane_that_hard_stops_every_call_is_not_reported_healthy(self):
+        """v1767 — MEASURED LIVE ON HIS CONSOLE: 165 calls, 107 errors, last_error "402 Payment
+        Required: Grok Build usage balance exhausted" — and intentBlocked False with an empty
+        blockedWhy. The field invented to publish intent-vs-reality said nothing was wrong while the
+        second eye had been dark for a hundred calls.
+
+        The two states it already knew are structural (no binary, not signed in) and both resolve
+        mode() to "off". This one resolves to PRIMARY, which is why it slipped through: the lane is
+        installed, authorised, and answering every request with a refusal from the far end.
+
+        A hard stop is not a flaky call. It is stated by the other side and will not clear by
+        retrying, so it belongs in the headline exactly like the other two - and only the LAST call
+        is consulted, so a lane that recovers stops announcing a blockage."""
+        g5 = self._g5()
+        self.assertTrue(g5._hard_stop_why("API error (status 402 Payment Required): balance exhausted"),
+                        "a 402 is not recognised as a hard stop")
+        self.assertIn("topped up",
+                      g5._hard_stop_why("Internal error: 402 Payment Required"),
+                      "the reason is not in words he can act on")
+        self.assertTrue(g5._hard_stop_why("HTTP 401 unauthorized"), "a credential refusal is not caught")
+        # ...and the things that are NOT hard stops must stay quiet, or the headline becomes wallpaper
+        self.assertEqual(g5._hard_stop_why("timed out after 240s"), "",
+                         "a timeout was reported as a permanent blockage")
+        self.assertEqual(g5._hard_stop_why(""), "", "an empty error was read as a blockage")
+        self.assertEqual(g5._hard_stop_why(None), "",
+                         "an explicit no-error was confused with 'go look it up'")
+
+        # AND THE WIRING, not just the helper. The assertion above this one goes red on HIS machine
+        # because his live stats hold the 402 — on CI those stats are clean, so removing the wiring
+        # from status() would sail through there. That is a gate blind to data CI never has, which
+        # is the same defect as a gate blind to data he never has. Stub the stats and the wiring
+        # becomes provable on any machine.
+        real = g5.stats_view
+        try:
+            g5.stats_view = lambda: {"calls": 9, "errors": 9,
+                                     "last_error": "API error (status 402 Payment Required)"}
+            st2 = g5.status()
+            if st2.get("switch") != "off" and st2.get("mode") != "off":
+                self.assertTrue(st2["intentBlocked"],
+                                "status() ignores a hard stop the stats are reporting")
+                self.assertIn("topped up", st2["blockedWhy"])
+            # a clean lane must come back quiet, or the headline is permanent and unreadable
+            g5.stats_view = lambda: {"calls": 9, "errors": 0, "last_error": None}
+            st3 = g5.status()
+            if st3.get("mode") != "off":
+                self.assertFalse(st3["intentBlocked"],
+                                 "a healthy lane is still announcing a blockage: %r" % st3.get("blockedWhy"))
+        finally:
+            g5.stats_view = real
 
 
 class TestV1503FourStatesOnly(unittest.TestCase):

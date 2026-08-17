@@ -441,12 +441,23 @@ def status():
         # the effective mode sat at off, and nothing said so: a lane that never attempts never
         # records an error, so calls/errors/last_error all read clean while the eye was dark. The
         # switch is a statement of intent; when the system cannot honour it, that is the headline.
-        "intentBlocked": bool(mode_intent() != "off" and mode() == "off"),
-        "blockedWhy": ("" if mode_intent() == "off" or mode() != "off"
-                       else ("the grok CLI is not installed where this app can see it"
+        # v1767 — AND THE THIRD STATE: STARTS FINE, FAILS EVERY CALL. The two above are structural
+        # (no binary, not signed in) and both resolve mode() to "off". A lane that is installed,
+        # authorised and answering every request with "402 Payment Required" resolves to primary and
+        # reported intentBlocked FALSE with an empty blockedWhy — measured live on his console at
+        # 165 calls, 107 errors, last_error the 402. So the honesty field invented precisely to
+        # publish intent-vs-reality said nothing was wrong while the eye had been dark for a hundred
+        # calls. The v1501 note above describes the mirror ("a lane that never attempts never records
+        # an error"); this is the case where it DOES attempt, DOES record, and the headline still
+        # reads clean. A hard stop is not a flaky call: it is stated by the far end and it will not
+        # clear by retrying, so it belongs in the headline exactly like the other two.
+        "intentBlocked": bool(mode_intent() != "off" and (mode() == "off" or _hard_stop_why())),
+        "blockedWhy": ("" if mode_intent() == "off"
+                       else (_hard_stop_why() if mode() != "off"
+                             else ("the grok CLI is not installed where this app can see it"
                              if not _grok_bin() else
                              ("not signed in to SuperGrok — click Authorize" if not _subscription_logged_in()
-                              else "the lane is switched on but the app could not start it"))),
+                              else "the lane is switched on but the app could not start it")))),
         "on": is_on(),
         "hasKey": can_run,       # UI compat: means "can run", not API key
         "hasSubscription": can_run,
@@ -577,6 +588,43 @@ def _stats_flush():
                 _STATS[k] = 0
     except Exception:
         pass
+
+
+_HARD_STOPS = (
+    # each pattern is a refusal the FAR END stated; retrying cannot clear any of them
+    ("402", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
+    ("payment required", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
+    ("balance exhausted", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
+    ("insufficient", "the Grok account has no credit left for this lane"),
+    ("401", "Grok rejected the credentials — sign in again"),
+    ("unauthorized", "Grok rejected the credentials — sign in again"),
+    ("invalid api key", "Grok rejected the credentials — sign in again"),
+)
+
+
+_LOOK_IT_UP = object()   # "consult the live stats" — distinct from an explicit None meaning "no error"
+
+
+def _hard_stop_why(last_error=_LOOK_IT_UP):
+    """A refusal the far end STATED, in his words rather than the CLI's.
+
+    v1767 — only the LAST call is consulted, deliberately. A tally of historic errors cannot tell a
+    lane that failed all morning and recovered from one that is dead right now, and a lane that has
+    recovered must stop announcing a blockage. Silence here means the last call did not hard-stop;
+    it never means the lane was checked and found healthy, which is what `calls`/`errors` are for.
+    """
+    try:
+        if last_error is _LOOK_IT_UP:
+            last_error = (stats_view() or {}).get("last_error")
+    except Exception:
+        return ""
+    blob = str(last_error or "").lower()
+    if not blob:
+        return ""
+    for needle, say in _HARD_STOPS:
+        if needle in blob:
+            return say
+    return ""
 
 
 def stats_view():
