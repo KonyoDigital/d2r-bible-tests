@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1753",
+  "ver": "v1755",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1753: the Theatre sub-label is 562px of text in a 208px box so 63 percent was invisible with no way to recover it - a title now carries the full sentence and morphs with the label",
+  "note": "v1755: test hardening arc - 51 specs exposed to a font 404 now stubbed, a gate that had never run once, a gate that went dark exactly when the defect was present, and the v157 flake traced to a mid-layout read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
