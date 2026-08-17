@@ -5179,3 +5179,32 @@ Fixed and verified locally: **v1615 8/8**, the nine bulk-wired specs **71/71**, 
 ⚠ Two of the twelve needed no change (`v766_tvd_console`, and v1554's other tests) — they never read
 through `lsFork`. The sweep listed them because they seed localStorage; only the ones whose surfaces
 read the board's world were affected.
+
+### v1749 continued — the rest of Routine I, and what was NOT mine
+
+The first fix cleared `v1615` but Routine I stayed red, on three more specs. Splitting them honestly:
+
+**MINE, same v1736 cause:** `v1556_meter_coverage` seeded `d2r_lsrRoute` as **`{ prefix: '' }`** — a
+shape from before the route carried a version. The old `lsFork` ignored it and fell through to the
+`d2r_activeMachine` fallback, landing on the bare key by accident; v1736 refuses a route it does not
+recognise, so this seeded nothing readable and *"the Daily Task Force must render chronicle rows at
+all"* went red. Now the real payload, from `OWNER_ROUTE`.
+
+**NOT MINE — pre-existing fragility to the outside world:** `v146_ref_header_unify` and
+`v157_set_tracker_rich_cards` assert *"no console errors"* and *"the gradient bar must actually
+occupy space"*. bible.html pulls its typeface from **fonts.googleapis.com / fonts.gstatic.com**, and
+on a runner whose outbound network is slow or blocked those requests fail.
+
+Reproduced locally by blocking external hosts: the reference tab logs `Failed to load resource` and
+`.set-card-header` measures **0px tall**, because the bar's height comes from text with no font to
+lay out. **The same collapse reproduces on v1735 — the last green Routine I** — so it predates this
+work. The specs were always one bad minute of weather away from red; my runs simply hit it, on the
+same night Routine G aborted on a `fonts.gstatic.com` woff2.
+
+Fixed where the other external stub already lived: `_net_stub` now fulfils both font hosts —
+**empty CSS, empty woff2**, never `abort()`, because an abort is itself a failed request and
+`page.screenshot` waits on fonts (`chrome-cdp-mac`). One place, every spec.
+
+⚠ Worth stating plainly: **two of the four failures were mine and two were not**, and it would have
+been easy to "fix" all four as one regression or dismiss all four as flake. They needed separating
+before either verdict was safe.

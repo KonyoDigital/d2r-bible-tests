@@ -18,6 +18,23 @@ export const test = base.extend({
     await page.route('**://diablo2.io/**', (r) =>
       r.fulfill({ status: 200, contentType: 'image/png', body: PNG_1X1 })
     );
+    /* v1749 — AND THE FONTS, for the same reason the line above exists. bible.html pulls its
+       typeface from fonts.googleapis.com / fonts.gstatic.com. On a runner whose outbound network is
+       slow or blocked those requests fail, and two board specs assert "no console errors" — so they
+       went red on the weather rather than on the code. Measured by blocking external hosts locally:
+       the reference tab logs "Failed to load resource" and `.set-card-header` measures 0px tall,
+       because the bar's height comes from text that has no font to lay out. The SAME collapse
+       reproduces on v1735, the last green Routine I — so it is fragility that predates this work,
+       not a regression in it.
+       Fulfilled with an empty stylesheet rather than aborted: an abort is itself a failed request,
+       and page.screenshot waits on fonts (chrome-cdp-mac). Empty CSS succeeds, logs nothing, and
+       lets the fallback face lay the text out. */
+    await page.route('**://fonts.googleapis.com/**', (r) =>
+      r.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* stubbed */' })
+    );
+    await page.route('**://fonts.gstatic.com/**', (r) =>
+      r.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.alloc(0) })
+    );
     await use(page);
   },
 });

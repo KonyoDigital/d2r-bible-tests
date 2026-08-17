@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, OWNER_ROUTE } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -58,11 +58,16 @@ async function hub(page: any, p: Payload) {
 }
 
 async function seed(page: any, p: Payload) {
-  await page.evaluate((q: Payload) => {
+  await page.evaluate(([q, route]: [Payload, any]) => {
     document.body.dataset.view = 'sessions';
-    localStorage.setItem('d2r_lsrRoute', JSON.stringify({ prefix: '' }));
+    /* v1749 — was `{ prefix: '' }`, a shape from before the route had a version. The old lsFork
+       ignored it and fell through to the d2r_activeMachine fallback, which landed on the bare key
+       by accident; v1736 made lsFork honour bible.html's v1499 rule and REFUSE a route it does not
+       recognise ("guessing bare is how the harm happened"), so this seeded nothing readable and the
+       Task Force rendered no rows at all. The real payload, from one definition. */
+    localStorage.setItem('d2r_lsrRoute', JSON.stringify(route));
     localStorage.setItem('d2r_forgeSummary', JSON.stringify(q));
-  }, p);
+  }, [p, OWNER_ROUTE] as any);
   // NO optional chaining: if the repaint seam is missing the test must FAIL loudly, not quietly
   // render nothing and let a zero-row scan pass.
   await page.evaluate(() => (window as any)._hubResync());
