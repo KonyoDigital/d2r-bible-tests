@@ -38054,9 +38054,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* ON `load`: chronicleApply, kaiChroniclePropose and the inbox card are all defined below this
      point, so an inline call would run before they exist and adopt nothing while looking wired —
      the same trap the badge hit one version ago. */
+  /* v1769 — AND IT KEEPS LOOKING, because adopting once per page load is not what he asked for.
+     His board lives in an app window that stays open; the console's watchdog ticks every 20s and a
+     sweep that finishes ten minutes after he opened the board would sit on disk until he happened
+     to reload. "I want it all automated" does not survive a step that says "and then refresh".
+
+     The poll is cheap and it is not a retry loop: the gate below still dedupes on the sweep stamp,
+     so an unchanged sweep costs one 304-ish fetch to a service on the same machine and writes
+     nothing. It only ever starts when the pre-gate passes, so the deployed site and any cousin
+     shell never create a timer at all — the public page must not poll a laptop that is not there.
+     It also skips while the tab is hidden, because a background window has nobody to show it to. */
   try {
     window.addEventListener('load', function(){
       setTimeout(function(){ try { window._chronAutoAdopt(); } catch(e){} }, 1200);
+      var pre = window._chronAdoptGate({ host: location.host, cousin: !!window._isCousinShell });
+      if (!pre || !pre.ok) return;                 // not the owner console — no timer, ever
+      window._chronAdoptTimer = setInterval(function(){
+        try {
+          if (document.hidden) return;
+          window._chronAutoAdopt();
+        } catch(e){}
+        // a pre-seeded value wins so a gate can run this in a second rather than a minute and a
+        // half — a rule that can only be proven by waiting 90s is a rule that stops being proven
+      }, (window._CHRON_ADOPT_EVERY_MS || 90000));
     });
   } catch(e){}
 
@@ -40619,7 +40639,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1768', name:'v1768 - a second eye that hard-stops is not a healthy one', date:'2026-08-17', note:'402 on every call, and the honesty field said nothing was wrong' };
+  window.D2R_BUILD = { id:'v1769', name:'v1769 - the open board keeps looking', date:'2026-08-17', note:'adopting once per page load is not automated' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

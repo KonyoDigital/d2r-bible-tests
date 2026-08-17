@@ -130,6 +130,28 @@ test.describe('v1765 — the board adopts a finished sweep, and only ever its ow
     expect(names[0], 'the newest row is not at the top: ' + JSON.stringify(names)).toBe('Newer Find');
   });
 
+  /* v1769 — ADOPTING ONCE PER PAGE LOAD IS NOT "AUTOMATED". His board lives in an app window that
+     stays open, the console's watchdog ticks every 20s, and a sweep finishing ten minutes after he
+     opened the board sat on disk until he happened to reload. Proven against the real console
+     before this spec was written: with a new proposal served mid-session, the untouched board
+     adopted it on its own and put the single-witness name in the inbox rather than ticking it. */
+  test('★★★ no timer is ever armed off the owner console', async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(2400);
+    const t = await page.evaluate(() => typeof (window as any)._chronAdoptTimer);
+    // the deployed site must never poll a laptop that is not there
+    expect(t, 'a public page armed a polling timer at a console').toBe('undefined');
+  });
+
+  /* WHAT THIS FILE CANNOT PROVE, said plainly rather than faked. The poll only arms on the owner
+     console, which CI does not have, so the loop itself is not gate-able here — an earlier draft of
+     this spec "tested" it by calling a lambda written inside the test, which proves nothing about
+     the product and would have read as coverage. The behaviour was proven against the real console
+     instead: with the served proposal swapped mid-session, an untouched board moved from stamp AAA
+     to BBB on its own and put the single-witness name into the inbox rather than ticking it, over 4
+     API hits and no reload. What IS gate-able here is the refusal above — that no timer is ever
+     armed anywhere else — and that is the half which protects him. */
+
   test('★★★ off-console, the fetch itself explains rather than going quiet', async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(2400);
