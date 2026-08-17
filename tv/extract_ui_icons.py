@@ -64,8 +64,11 @@ FRAMEWORK = os.environ.get("CASC_FRAMEWORK", "/tmp/CascLib/build")
 #
 # The six MINI focuses take ITEM sprites instead, because MINI's focuses ARE item categories —
 # what he is pointing the camera at. An item icon says "runes" more directly than any medallion.
+# ⚠ v1751 — the six tab_* entries below are PROVENANCE ONLY. v1671 replaced all six files by hand
+# and the names here still describe the quest medallions they superseded. See SUPERSEDED, further
+# down, for what each file actually depicts and why the write loop refuses them.
 ICONS = {
-    # ── header tabs ─────────────────────────────────────────────────────────────────────────
+    # ── header tabs (all six SUPERSEDED — see below; kept for provenance) ─────────────────────────────────────────────────────────────────────────
     "tab_session": (r"data\hd\global\ui\questicons\a3q4.sprite",
                     "Lam Esen's Tome", "a session log is a journal — the game's own book icon"),
     "tab_forge": (r"data\hd\global\ui\questicons\a4q2.sprite",
@@ -117,6 +120,35 @@ DESIGNED_ICONS = {
                "on transparency — there is nothing to re-extract."),
 }
 
+# v1751 — SIX ICONS THIS SCRIPT WOULD SILENTLY REVERT.
+#
+# v1671 ("the six main tab icons, one distinct colour each") replaced all six ui_tab_*.png BY HAND,
+# and said so in its own commit: "a PURE FILE SWAP — six 96x96 RGBA files replaced in place, zero
+# code touched." Zero code touched is exactly the problem. The ICONS table above still points every
+# tab_* role at the quest medallion it was ORIGINALLY pulled from, and the write loop ends in an
+# unconditional im.save(out) — so a full re-run of this script to add one new icon would overwrite
+# all six and quietly undo a shipped visual decision. Nothing would report it: `--check` only tests
+# PRESENCE, and a reverted file is present.
+#
+# It was found by asking a second model what the pictures DEPICT, cold. It answered "an off-white
+# circle/ring" and "a green square with a blocky pattern" for two icons whose comments here claim
+# The Seven Tombs and The Golden Bird. Opening the files settled it, and they match v1671's own
+# words rather than this table's: bronze journal (Sessions) · orange anvil (Forge) · GOLD RING with
+# an amber gem (F-Uniques) · four EMERALD PUZZLE PIECES (F-Sets) · steel-blue wrench and
+# screwdriver (Tools) · red CRT television (TV DIABLO). Not one is a quest medallion any more.
+#
+# The CASC paths are kept, because provenance is worth keeping — they record where these roles were
+# pulled from BEFORE v1671, and that history is real. What changes is that the write loop now
+# refuses them. [[label-outlived-referent]] [[d2r-boss-portrait-truth]]
+SUPERSEDED = {
+    "tab_session": "bronze journal",
+    "tab_forge":   "orange anvil over flame",
+    "tab_funi":    "gold ring set with an amber gem",
+    "tab_fsets":   "four emerald puzzle pieces",
+    "tab_tools":   "steel-blue wrench and screwdriver",
+    "tab_tvd":     "red CRT television",
+}
+
 # v1621 — icons that must land under a NAME the rest of the app already uses, rather than ui_<role>.
 # The four craft gems are addressed as hd_perfect_<gem>.png by the v384 item pull; three were there
 # and Perfect Sapphire was not, so the Hit Power craft had no gem to show. Note the in-game spelling
@@ -143,6 +175,17 @@ REUSED = {
 }
 
 OUT_PX = 96   # tabs render ~18px, MINI ~20px; 96 covers 3x retina with room to spare
+
+
+def roles_to_extract():
+    """The ICONS roles this script may still write, i.e. everything v1671 did not replace by hand.
+
+    A named function rather than an inline `continue`, so the refusal is a thing a test can call.
+    An inline skip is one deleted line away from an unannounced overwrite of six shipped icons,
+    and nothing downstream would notice: --check tests only that a file EXISTS, and a reverted
+    file exists.
+    """
+    return [r for r in sorted(ICONS) if r not in SUPERSEDED]
 
 
 def read_sprite(raw, label):
@@ -261,7 +304,12 @@ def main():
         im.save(out, optimize=True)
         print("%-14s %-22s %sx%s  <- %s" % (fname.replace(".png", ""), what, im.width, im.height, casc))
 
-    for role in sorted(ICONS):
+    for role in sorted(SUPERSEDED):
+        # v1751 — loudly, because a silent skip and a silent overwrite look identical in the output
+        print("%-14s SKIPPED — hand-replaced in v1671 (%s); re-pulling would revert it"
+              % (role, SUPERSEDED[role]))
+
+    for role in roles_to_extract():
         casc, what, why = ICONS[role]
         raw = pull(casc, role)
         im = best_frame(raw, role)
@@ -273,8 +321,9 @@ def main():
         out = os.path.join(ART, "ui_%s.png" % role)
         im.save(out, optimize=True)
         print("%-14s %-22s %sx%s  <- %s" % (role, what, im.width, im.height, casc))
-    print("\n%d icons written to art/ui_*.png; %d reused from the v384 item pull"
-          % (len(ICONS), len(REUSED)))
+    print("\n%d icons written to art/ui_*.png; %d reused from the v384 item pull; "
+          "%d left alone (hand-replaced in v1671)"
+          % (len(ICONS) - len(SUPERSEDED), len(REUSED), len(SUPERSEDED)))
     return 0
 
 

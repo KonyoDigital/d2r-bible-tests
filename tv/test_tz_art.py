@@ -530,5 +530,48 @@ class TestKnownBadArtStaysNamedAndSmall(unittest.TestCase):
                           "%s is excused but no zone uses that art key any more — delete the "
                           "exception" % k)
 
+class TestHandReplacedIconsAreNotReExtracted(unittest.TestCase):
+    """v1751 — the extractor must not overwrite the six icons v1671 replaced by hand.
+
+    v1671 swapped all six ui_tab_*.png in place and said so: "a PURE FILE SWAP... zero code
+    touched." Zero code touched left extract_ui_icons.py still pointing every tab_* role at the
+    quest medallion it was originally pulled from, ending in an unconditional im.save(out). A full
+    re-run to add ONE new icon would have reverted all six, and nothing would have said so: the
+    ui_icons gate runs `--check`, which tests only that a file EXISTS, and a reverted file exists.
+
+    Found by asking a different model family what the pictures DEPICT, with no hint. It said "an
+    off-white circle/ring" and "a green square with a blocky pattern" where the code claimed The
+    Seven Tombs and The Golden Bird. [[label-outlived-referent]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import extract_ui_icons
+        self.X = extract_ui_icons
+
+    def test_every_superseded_role_is_refused_by_the_extractor(self):
+        refused = set(self.X.ICONS) - set(self.X.roles_to_extract())
+        self.assertEqual(refused, set(self.X.SUPERSEDED),
+                         "the write loop no longer refuses exactly the hand-replaced icons")
+        # non-vacuity: a SUPERSEDED that named nothing would pass the line above trivially
+        self.assertEqual(len(self.X.SUPERSEDED), 6,
+                         "v1671 replaced six icons; SUPERSEDED names %d" % len(self.X.SUPERSEDED))
+
+    def test_a_superseded_name_that_is_not_an_icons_role_is_a_typo_not_a_guard(self):
+        """A role spelled wrong here refuses nothing and reads exactly like protection."""
+        stray = sorted(set(self.X.SUPERSEDED) - set(self.X.ICONS))
+        self.assertEqual(stray, [],
+                         "SUPERSEDED names roles ICONS does not have, so they guard nothing: %s"
+                         % ", ".join(stray))
+
+    def test_the_refused_icons_are_actually_on_disk(self):
+        """Refusing to re-pull a file only helps while the file is there to keep."""
+        art = os.path.join(os.path.dirname(HERE), "art")
+        for role in sorted(self.X.SUPERSEDED):
+            p = os.path.join(art, "ui_%s.png" % role)
+            self.assertTrue(os.path.exists(p) and os.path.getsize(p) > 200,
+                            "%s is refused by the extractor but is missing from art/" % role)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
