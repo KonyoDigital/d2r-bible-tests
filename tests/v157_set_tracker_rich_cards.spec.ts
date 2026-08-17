@@ -81,6 +81,32 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
         nameColor: getComputedStyle(name).color,
         headerBg: getComputedStyle(header).backgroundImage,
         headerH: header.getBoundingClientRect().height,
+        /* v1754 — WHEN THIS GOES 0 ON CI, SAY WHY. It has now flaked through two fixes of mine
+           (the blind toggle, then the hidden tab) and neither closed it, and I cannot reproduce it
+           locally: CPU throttled to 20x, four viewports including the configured 1280x720, and
+           offline all measure 78px. So the next failure has to carry its own diagnosis instead of
+           the bare "Received: 0" that sent me guessing twice. Cheap to collect, and only ever read
+           when the assertion below fails. */
+        _why: (() => {
+          const tab = document.getElementById('tab-tools');
+          const cardEl = document.getElementById('set-tracker-card');
+          const r = (e: Element | null) => {
+            if (!e) return null;
+            const b = e.getBoundingClientRect();
+            return [Math.round(b.width), Math.round(b.height)];
+          };
+          return {
+            tabDisplay: tab ? getComputedStyle(tab).display : 'NO #tab-tools',
+            cardCollapsed: cardEl ? cardEl.classList.contains('collapsed') : 'NO card',
+            cardRect: r(cardEl),
+            setCards: document.querySelectorAll('#set-tracker .set-card').length,
+            firstCardRect: r(card),
+            headerDisplay: getComputedStyle(header).display,
+            headerText: (header.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+            headerChildren: header.children.length,
+            docReady: document.readyState,
+          };
+        })(),
         titleName,
         // NO SILENT-TRUE FALLBACK: a missing resolver reports its own absence ('undefined'), it does
         // not answer `true` on the app's behalf. The two questions are asserted separately below.
@@ -95,7 +121,8 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
     expect(r.nameColor, 'set names must NOT fall back to default body text').not.toBe(t.normal);
     // the header is a real, painted gradient bar — not a flat fill and not a 0px-tall nothing
     expect(r.headerBg, 'set-card-header must be a gradient bar').toContain('linear-gradient');
-    expect(r.headerH, 'the gradient bar must actually occupy space').toBeGreaterThan(0);
+    expect(r.headerH, 'the gradient bar must actually occupy space — state at failure: '
+      + JSON.stringify((r as any)._why)).toBeGreaterThan(0);
     // the v145 gateway resolver must EXIST — asserted on its own so its absence can never be
     // mistaken for a passing answer …
     expect(r.isAggType, 'window.isSetAggregate (v145 titleName gateway) must exist').toBe('function');
