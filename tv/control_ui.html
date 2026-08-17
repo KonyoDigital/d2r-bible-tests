@@ -4955,7 +4955,15 @@
           <!-- ══ END GROK EYES (G5) ══ -->
         </details>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
-        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
+        <!-- v1753 — TITLE, because this sub-label lives in a CLIP ZONE. Measured: the closed-state
+     text is 562px inside a 208px box at 1440 and 508px inside 148px at 901 — 63% and 71% of
+     it invisible, with no way to recover it. "scrub ts + frames" is a feature nothing else
+     mentions. It is the only clipped .lab in the console; its two siblings fit, so this is an
+     outlier rather than a layout rule to change. Even "replay last session" alone overflows
+     at 901px, so shortening cannot fix it and a title is the honest answer. This repo already
+     carries the scar in bible.html: text in a nowrap/ellipsis surface is "present in
+     textContent, invisible to him", and a DOM-reading test goes green over it. -->
+        <button class="act b-sim" id="btn-sim" type="button" title="replay last session · scrub ts + frames · click again = off"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
       <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
            the header tabs are the one nav. The util row inherits the room. -->
@@ -8821,9 +8829,15 @@
         var b = sim.querySelector('.lab b');
         var s = sim.querySelector('.lab span');
         if (b) b.textContent = TH.open ? 'Close Theatre' : 'Theatre';
-        if (s) s.textContent = TH.open
+        var _sub = TH.open
           ? 'leave the reel · back to the console'
           : 'replay last session · scrub ts + frames · click again = off';
+        if (s) s.textContent = _sub;
+        // v1753 — the title MORPHS WITH THE LABEL. A title that keeps describing the closed state
+        // while the button says "Close Theatre" is worse than none: it is a confident wrong answer
+        // to the one question the hover is asked. Both states clip (343px vs 208px when open), so
+        // both need it.
+        sim.setAttribute('title', _sub);
       } catch (_e) {}
     }
   }

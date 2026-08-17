@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1752",
+  "ver": "v1753",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1752: a uniques hit now carries its BASE the way a sets hit carries its SET - Ravenlore reads Sky Spirit q85 - and no base is invented for the 100 uniques the curated codex does not cover",
+  "note": "v1753: the Theatre sub-label is 562px of text in a 208px box so 63 percent was invisible with no way to recover it - a title now carries the full sentence and morphs with the label",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
