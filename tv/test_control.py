@@ -112,6 +112,36 @@ def _screenish(size, seed, shade=None):
                 for _ in range(w * h)])
     return im
 
+# ── FIXTURES NEVER TOUCH LIVE DATA, FOR EVERY CLASS IN THIS FILE ──────────────────────────────
+# The console's state files live beside control_app.py and belong to the RUNNING console on his
+# Mac: the persisted sweep, the swept-reel marks, the visit marks. Individual classes here already
+# redirected _CHRON_RESULT_PATH when they happened to think of it, and two did not
+# (TestChronicleSweepJob, TestSweepOneVisit) — so running the gates overwrote tv/chron_last_result.json
+# with fixture findings. That stopped being cosmetic the day v1765 taught his board to ADOPT a
+# persisted sweep on its own.
+#
+# Per-class redirects are the wrong shape for this: the guarantee has to hold for classes nobody has
+# written yet, and the failure is silent. One module-level redirect covers the file, and
+# run_gates.py fingerprints the live files around the whole set so a miss anywhere fails the run.
+def setUpModule():
+    global _MOD_TMP, _MOD_PATHS
+    import tempfile as _tf
+    _MOD_TMP = _tf.mkdtemp(prefix="d2r_state_")
+    _MOD_PATHS = {}
+    for attr, name in (("_CHRON_RESULT_PATH", "result.json"),
+                       ("_CHRON_AUTOREAD_PATH", "autoread.json"),
+                       ("_CHRON_SWEPT_PATH", "swept.json")):
+        if hasattr(ca, attr):
+            _MOD_PATHS[attr] = getattr(ca, attr)
+            setattr(ca, attr, os.path.join(_MOD_TMP, name))
+
+
+def tearDownModule():
+    for attr, orig in (globals().get("_MOD_PATHS") or {}).items():
+        setattr(ca, attr, orig)
+    shutil.rmtree(globals().get("_MOD_TMP") or "", ignore_errors=True)
+
+
 class TestTheatre(unittest.TestCase):
     """v765 — Konyo: 'its not really simulated anymore… its own independent VIEW, eyes on
     history' — the theatre serves REAL journaled sessions + REAL archived frames."""
@@ -5597,6 +5627,48 @@ class TestOneGateRunPerTree(unittest.TestCase):
         r = self._gates()
         self.assertEqual(r.returncode, 0,
                          "a kill -9'd run left a stale lock; every gate run after it is refused")
+
+
+class TestTheSuiteNeverWritesHisConsoleState(unittest.TestCase):
+    """FIXTURES NEVER TOUCH LIVE DATA — and this file was breaking that rule for months.
+
+    The console's state lives beside control_app.py and belongs to the console RUNNING on his Mac.
+    Two classes here (TestChronicleSweepJob, TestSweepOneVisit) and test_chronicle_chain drove the
+    sweep with those paths still pointing at the real files, so every gate run overwrote
+    tv/chron_last_result.json — his persisted sweep — with the fixture pair Harlequin Crest and
+    Windforce, seen across reels s_100/200/300. Found by opening that file expecting his footage.
+
+    IT WENT FROM COSMETIC TO DANGEROUS IN ONE DAY. v1765 wired his board to ADOPT a persisted sweep
+    with no button press, and that fixture carries four witnesses, so it would have been applied
+    rather than queued. Neither name is in his grail: two finds he never made, written into the one
+    dataset that exists to be his own truth, by his own test suite.
+
+    The real enforcement is in run_gates.py, which fingerprints the live files around the whole set
+    so that a class nobody has written yet cannot quietly reintroduce this. These assertions cover
+    the fingerprint's logic, because a guard whose comparison is wrong is worse than none."""
+
+    def test_it_notices_every_shape_of_mutation(self):
+        import run_gates as rg
+        n = rg._LIVE_STATE[0]
+        self.assertEqual(rg._live_state_diff({n: "aaa"}, {n: "aaa"}), [],
+                         "an untouched file was reported as written")
+        for before, after, what in (("aaa", "bbb", "modified"),
+                                    (None, "bbb", "created"),
+                                    ("aaa", None, "deleted")):
+            d = rg._live_state_diff({n: before}, {n: after})
+            self.assertTrue(d, "a %s live file was not flagged" % what)
+            self.assertIn(n, d[0], "the report does not name the file: %s" % d)
+
+    def test_the_live_paths_are_redirected_for_this_whole_module(self):
+        """A per-class redirect is the wrong shape: the guarantee has to hold for classes nobody has
+        written yet, and forgetting is silent. setUpModule points them at a temp dir."""
+        for attr in ("_CHRON_RESULT_PATH", "_CHRON_AUTOREAD_PATH", "_CHRON_SWEPT_PATH"):
+            if not hasattr(ca, attr):
+                continue
+            p = str(getattr(ca, attr))
+            self.assertNotEqual(os.path.dirname(p), os.path.dirname(os.path.abspath(ca.__file__)),
+                                "%s still points beside control_app.py — a test can write his "
+                                "console's state: %s" % (attr, p))
 
 
 class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):

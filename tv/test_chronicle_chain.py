@@ -67,6 +67,29 @@ class TestTheWholeChain(unittest.TestCase):
         import tv_diablo as tv
         self.tv = tv
         self.d = tempfile.mkdtemp()
+        # ── FIXTURES NEVER TOUCH LIVE DATA ──────────────────────────────────────────────────────
+        # This setUp isolated the PORT and stopped there. The console's state files were left
+        # pointing at the real ones, and this class drives _chron_visit_run directly — so every run
+        # of the gates on his Mac overwrote tv/chron_last_result.json, the console's persisted
+        # sweep, with THIS fixture: "Harlequin Crest" and "Windforce" seen across reels s_100/200/300.
+        # Caught by reading that file expecting his footage and finding the fixture, timestamped to
+        # the last gate run.
+        #
+        # It became dangerous the same day: v1765 wired his board to ADOPT a persisted sweep
+        # automatically, and this fixture carries four witnesses, so it would have been applied
+        # rather than queued. Neither name is in his grail — both would have been ticked as finds he
+        # never made, into the one dataset that is supposed to be his own truth.
+        #
+        # Redirected here, and enforced by a gate that fails if any suite run mutates the live files.
+        import control_app as _ca
+        self._live_paths = {}
+        for _attr, _name in (("_CHRON_RESULT_PATH", "result.json"),
+                             ("_CHRON_AUTOREAD_PATH", "autoread.json"),
+                             ("_CHRON_SWEPT_PATH", "swept.json")):
+            if hasattr(_ca, _attr):
+                self._live_paths[_attr] = getattr(_ca, _attr)
+                setattr(_ca, _attr, os.path.join(self.d, _name))
+        self._ca = _ca
         self.reel = os.path.join(self.d, "reel_s_chain")
         os.makedirs(self.reel)
         from PIL import Image
@@ -91,6 +114,8 @@ class TestTheWholeChain(unittest.TestCase):
         tv._CHRON_VISIT.update({"open": False, "ledger": "", "since": 0, "last": 0, "frames": []})
 
     def tearDown(self):
+        for _attr, _orig in getattr(self, "_live_paths", {}).items():
+            setattr(self._ca, _attr, _orig)
         for k, v in self._env.items():
             if v is None:
                 os.environ.pop(k, None)

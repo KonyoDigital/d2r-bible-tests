@@ -265,6 +265,54 @@ def _claim_the_tree():
     return None
 
 
+# ── FIXTURES NEVER TOUCH LIVE DATA — enforced, not intended ────────────────────────────────────
+# The console keeps its state in files beside this script: the persisted sweep, the swept-reel
+# marks, the visit marks. Those belong to the RUNNING console on his Mac, and a test must never
+# write them.
+#
+# It did. test_chronicle_chain drove _chron_visit_run directly with the live paths still in place,
+# so every gate run on this machine overwrote tv/chron_last_result.json with the fixture "Harlequin
+# Crest"/"Windforce" from reels s_100/200/300. Found by opening that file expecting his footage.
+#
+# It turned dangerous the same day v1765 taught his board to ADOPT a persisted sweep automatically:
+# the fixture carries four witnesses, so it would have been applied rather than queued, and neither
+# name is in his grail. Two finds he never made, written into the dataset that is meant to be his
+# own truth, by his own test suite.
+#
+# Redirecting the paths in that one setUp fixes today. This makes it STRUCTURAL: the runner
+# fingerprints the live files before the set and again after, and fails the whole run if anything
+# moved. A future test that forgets cannot pass quietly - which is the only kind of guard worth
+# having, because the failure mode here is silent by construction.
+_LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "autoread.json",
+               "chronicle_autoread.json")
+
+
+def _live_fingerprint():
+    import hashlib
+    out = {}
+    for n in _LIVE_STATE:
+        p = os.path.join(HERE, n)
+        try:
+            with open(p, "rb") as fh:
+                out[n] = hashlib.sha256(fh.read()).hexdigest()[:16]
+        except FileNotFoundError:
+            out[n] = None          # absent is a state too, and creating one IS a mutation
+        except Exception as e:
+            out[n] = "unreadable:%s" % e
+    return out
+
+
+def _live_state_diff(before, after):
+    moved = []
+    for n in _LIVE_STATE:
+        b, a = before.get(n), after.get(n)
+        if b != a:
+            was = "absent" if b is None else b
+            now = "absent" if a is None else a
+            moved.append("%s (%s -> %s)" % (n, was, now))
+    return moved
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="run the gate set and return one verdict")
     ap.add_argument("--only", nargs="*", help="run only these gate names")
@@ -276,14 +324,24 @@ def main(argv):
         return 2
 
     print("══ GATE SET ══")
+    _live_before = _live_fingerprint()
     results = run(a.only)
+    _live_moved = _live_state_diff(_live_before, _live_fingerprint())
     for g, status, dt, detail, _blob in results:
         mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠"}[status]
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
 
     failed = [g.name for g, s, _, _, _ in results if s == "FAIL"]
+    if _live_moved:
+        # not a warning: a suite that writes his console's state has already done the damage
+        failed.append("live-state-untouched")
     skipped = [(g.name, d) for g, s, _, d, _ in results if s == "SKIP"]
     print("\n── VERDICT ──")
+    if _live_moved:
+        print("❌ THE SUITE WROTE THE LIVE CONSOLE STATE — a fixture reached his data:")
+        for m in _live_moved:
+            print("     %s" % m)
+        print("   Redirect the path in that test's setUp; never write files beside control_app.py.")
     if skipped:
         # never silent: a check that did not happen is not a check that passed
         for n, d in skipped:
