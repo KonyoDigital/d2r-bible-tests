@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1769",
+  "ver": "v1770",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1769: adopting once per page load is not automated",
+  "note": "v1770: the sweep discarded 56 percent of his chronicle screens",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

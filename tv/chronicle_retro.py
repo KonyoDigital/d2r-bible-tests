@@ -551,41 +551,79 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     trusted = 0   # runs whose ledger came from HIS declared focus rather than a paid classify
     journal_trusted = 0   # runs whose ledger came from a read somebody already paid for
     read_seen = set()     # frames already read this reel — a page is never read (or witnessed) twice
-    for run in cands:
-        fr = run["frames"]
-        # v1543 — never pay to classify a photo of nothing. A blank capture cannot be a Chronicle,
-        # and a run that is blank all the way through is a capture fault, not a screen he looked at.
-        probe, _dead = live_probe(fr, lambda n: os.path.join(reel_dir, n))
-        if probe is None:
-            blank_runs += 1
-            continue
-        jkind = _run_known_kind(run, known)
-        if jkind:
-            kind = jkind                  # already read once; the answer does not expire
-            journal_trusted += 1
-        elif declared_kind:
-            kind = declared_kind          # he told us; do not pay to rediscover it
-            trusted += 1
-        else:
-            classified += 1
-            kind = classify(os.path.join(reel_dir, probe))
-        if kind not in ("chronicle-uniques", "chronicle-sets"):
-            continue
-        # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
-        # page is a different page — so read the distinct-looking frames, which for a held page is one.
-        for name in _distinct(fr, sig_of):
-            # v1689 — a frame is READ ONCE. A journal run and a still run can overlap, and the same
-            # page read twice is not corroboration: it would arrive at witnesses() as two sightings
-            # of one photograph and let a single frame pass a gate that asks for two.
-            if name in read_seen:
+    rescued = 0   # v1770 — short runs read because this reel PROVED it is a Chronicle recording
+
+    def _sweep_runs(run_list):
+        nonlocal classified, blank_runs, trusted, journal_trusted
+        for run in run_list:
+            fr = run["frames"]
+            # v1543 — never pay to classify a photo of nothing. A blank capture cannot be a Chronicle,
+            # and a run that is blank all the way through is a capture fault, not a screen he looked at.
+            probe, _dead = live_probe(fr, lambda n: os.path.join(reel_dir, n))
+            if probe is None:
+                blank_runs += 1
                 continue
-            read_seen.add(name)
-            resp = read_page(os.path.join(reel_dir, name), kind) or {}
-            pages.append({"reel": sid, "frame": name, "kind": kind, "resp": resp})
-    return {"reel": sid, "runs": len(runs), "candidates": len(cands),
+            jkind = _run_known_kind(run, known)
+            if jkind:
+                kind = jkind                  # already read once; the answer does not expire
+                journal_trusted += 1
+            elif declared_kind:
+                kind = declared_kind          # he told us; do not pay to rediscover it
+                trusted += 1
+            else:
+                classified += 1
+                kind = classify(os.path.join(reel_dir, probe))
+            if kind not in ("chronicle-uniques", "chronicle-sets"):
+                continue
+            # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
+            # page is a different page — so read the distinct-looking frames, which for a held page is one.
+            for name in _distinct(fr, sig_of):
+                # v1689 — a frame is READ ONCE. A journal run and a still run can overlap, and the same
+                # page read twice is not corroboration: it would arrive at witnesses() as two sightings
+                # of one photograph and let a single frame pass a gate that asks for two.
+                if name in read_seen:
+                    continue
+                read_seen.add(name)
+                resp = read_page(os.path.join(reel_dir, name), kind) or {}
+                pages.append({"reel": sid, "frame": name, "kind": kind, "resp": resp})
+    _sweep_runs(cands)
+
+    # ── v1770 — MIN_RUN_FRAMES=3 WAS THROWING AWAY MOST OF A SLOW SCROLL ────────────────────────
+    # The floor exists so a sweep does not pay to classify somebody walking through town, and for
+    # that job 3 frames is right. It is the wrong judge of a DELIBERATE scroll: Konyo went through
+    # the Chronicle slowly, and each page still only held for a frame or two before he moved on.
+    # Measured on his 08-17 reel: 339 frames group into 55 distinct screens, and min_frames=3 keeps
+    # 24 of them. THIRTY-ONE SCREENS — 56% of what he filmed — were discarded before anything looked
+    # at them, which at ~6 found rows per screen is roughly 180 item rows the sweep never read. That
+    # is why his tally sat ~9 short of the game's 64% no matter how often he re-swept.
+    #
+    # _journal_runs already rescues short runs, and its comment names this exact defect ("a scrolled
+    # Chronicle is never still"). But it can only rescue frames the JOURNAL marked, and the journal
+    # had marked 13 — the fix was real and starved of input.
+    #
+    # THE DISCRIMINATOR IS THE REEL ITSELF. Once any run here has come back chronicle-*, the
+    # walking-through-town rationale cannot apply to this reel: it is a recording of the Chronicle.
+    # So the floor drops to 1 for the REST of that reel and nowhere else, which keeps the extra
+    # spend on reels that have already proved they carry the pages he wants read.
+    if pages and min_frames > 1:
+        seen_runs = {id(r) for r in cands}
+        # NEVER re-pay for a run the journal already answered. v1689 found this same defect from the
+        # other side and rescues journal-marked frames for ZERO classifies; a run whose frames were
+        # all read in the first pass is already covered, and classifying it again would spend money
+        # to learn something known and hand witnesses() a second sighting of one photograph.
+        short = [r for r in runs
+                 if id(r) not in seen_runs
+                 and (r.get("frames") or [])
+                 and not all(f in read_seen for f in r["frames"])]
+        if short:
+            rescued = len(short)
+            _sweep_runs(short)
+
+
+    return {"reel": sid, "runs": len(runs), "candidates": len(cands) + rescued,
             "classified": classified, "blankRuns": blank_runs, "pages": pages,
             "trustedFocus": trusted, "journalRuns": len(jruns),
-            "journalTrusted": journal_trusted}
+            "journalTrusted": journal_trusted, "rescuedShortRuns": rescued}
 
 
 def _distinct(names, sig_of, max_diff=0.06):

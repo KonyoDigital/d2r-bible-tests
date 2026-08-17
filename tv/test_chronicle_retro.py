@@ -954,6 +954,77 @@ class TestV1689CostPassMeasuresNothing(unittest.TestCase):
             self.assertEqual(cr.sweep_verdict(t), cr.sweep_verdict(t, priced_only=False))
 
 
+class TestV1770ASlowScrollIsNotWalkingThroughTown(unittest.TestCase):
+    """v1770 — MIN_RUN_FRAMES=3 DISCARDED MOST OF A DELIBERATE SCROLL.
+
+    The floor exists so a sweep does not pay to classify somebody walking through town, and for that
+    job 3 frames is right. It is the wrong judge of a Chronicle read: Konyo went through the list
+    slowly, and each page still only held for a frame or two before he moved on.
+
+    MEASURED ON HIS 08-17 REEL: 339 frames group into 55 distinct screens, and min_frames=3 keeps 24.
+    THIRTY-ONE SCREENS — 56% of what he filmed — were dropped before anything looked at them, which
+    at ~6 found rows per screen is roughly 180 item rows the sweep never read. That is why his tally
+    sat ~9 short of the game's own 64% however often he re-swept, and why he said "i literally did it
+    slow and went through the uniques and scrolled slowly".
+
+    v1689 found this defect from the other side and rescued journal-marked frames. That fix was real
+    and starved: it can only rescue frames the journal marked, and the journal had marked 13.
+
+    THE DISCRIMINATOR IS THE REEL ITSELF. Once a run here comes back chronicle-*, the
+    walking-through-town rationale cannot apply to this reel — it IS a recording of the Chronicle —
+    so the floor drops to 1 for the rest of that reel and nowhere else."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        # a 3-frame HELD page (clears the floor), then 10 single-frame screens: a scroll
+        rows = [{"f": "h%d.jpg" % i, "ts": 1000 + i} for i in range(3)]
+        rows += [{"f": "s%d.jpg" % i, "ts": 2000 + i * 10} for i in range(8)]
+        self.rows = rows
+        with open(os.path.join(self.d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": "s_scrolltest", "frames": rows}, fh)
+        self.sigs = {"h%d.jpg" % i: sig(250) for i in range(3)}
+        # a fake fingerprint is ONE byte, so the whole ladder has to fit in 0-255: 8 rungs of 29
+        # (> tol 28, so each is its own screen) is the most the range allows
+        for i in range(8):
+            self.sigs["s%d.jpg" % i] = sig(i * 29)
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def _run(self, kind="chronicle-uniques"):
+        self.classified = []
+
+        def classify(path):
+            self.classified.append(os.path.basename(path))
+            return kind
+
+        def read_page(path, k):
+            return {"found": [], "notFound": []}
+
+        return cr.read_reel(self.d, classify, read_page,
+                            sig_of=lambda n: self.sigs.get(os.path.basename(n)))
+
+    def test_the_short_screens_are_read_once_the_reel_proves_itself(self):
+        r = self._run()
+        self.assertEqual(r["runs"], 9, "fixture is not 1 held page + 8 scrolled screens")
+        self.assertEqual(r.get("rescuedShortRuns"), 8,
+                         "the scrolled screens were discarded: %s" % r.get("rescuedShortRuns"))
+        # every screen he filmed is read, not 1 of 9
+        self.assertEqual(len(r["pages"]), 9,
+                         "only %d of 9 screens were read" % len(r["pages"]))
+
+    def test_a_reel_that_is_NOT_a_chronicle_pays_nothing_extra(self):
+        """The floor still does its original job. A reel whose runs come back as anything else must
+        not have its short runs swept — that is the walking-through-town bill this constant exists
+        to refuse, and the fix must not quietly hand it back."""
+        r = self._run(kind=None)
+        self.assertEqual(r.get("rescuedShortRuns"), 0,
+                         "a non-chronicle reel paid for its short runs anyway")
+        self.assertEqual(len(r["pages"]), 0)
+        self.assertEqual(len(self.classified), 1,
+                         "it classified more than the one candidate: %s" % self.classified)
+
+
 class TestV1689JournalMarkedChronicleFrames(unittest.TestCase):
     """v1689 — READING A CHRONICLE MEANS SCROLLING IT, AND A SCROLL IS NEVER STILL.
 

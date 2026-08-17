@@ -5227,6 +5227,50 @@ fixture, suspect the generosity. [[gate-blind-to-unexercised-input]]
 
 ---
 
+## REG-179 — the sweep threw away 56% of a slow scroll, and the tally sat ~9 short of the game (v1770)
+
+Konyo, twice, after re-sweeping and seeing 249/403 unchanged: *"how come the percentage isnt 64% and
+matching like it is INGAME? like something is off"* and *"i literally did it slow and went through
+the uniques and scrolled slowly."* He was right on both counts.
+
+**The number.** His in-game panel reads **64%** (visible bottom-left of his own frame). 64% of 403 is
+~258. The board holds 249. So ~9 finds exist in-game that the board has never been told about — and
+the board's arithmetic is fine: 249/403 = 61.8%, which is the 62% on screen. The *input* was short,
+not the formula.
+
+**The cause.** `MIN_RUN_FRAMES = 3` — "below this a run is somebody walking through town, not a screen
+being read". Correct for gameplay, wrong for a Chronicle read. Measured on `reel_s_1786922954749_12579`:
+
+| | |
+|---|---|
+| frames in the reel | 339 |
+| distinct screens (`still_runs` @ `CHRON_STILL_MAX_DIFF`) | **55** |
+| screens kept by `min_frames=3` | **24** |
+| screens discarded before anything looked at them | **31 (56%)** |
+| of the discarded, runs only 1 frame long | 25 |
+
+At ~6 found rows per screen that is roughly **180 item rows the sweep never read**. A Chronicle page
+carries three lines per found item (name / First Found / Dropped By), so only ~7 rows fit a screen and
+403 uniques needs ~58 screens to scroll — the reel was never going to survive a 3-frame floor.
+
+**Why the existing fix did not cover it.** v1689 found this same defect from the other side and its
+docstring names it exactly — *"reading a Chronicle means scrolling it, and a scroll is never still"*.
+`_journal_runs()` rescues short runs the vision lane had already marked, at zero classify cost. Real
+fix, starved input: the journal had marked 13 frames. Half a joint. [[the-unjoined-end]]
+
+**The fix.** The discriminator is the reel itself. Once any run comes back `chronicle-*`, the
+walking-through-town rationale cannot apply to that reel — it IS a recording of the Chronicle — so the
+floor drops to 1 for the rest of that reel and nowhere else. Runs whose frames were already read in
+the first pass are excluded, so v1689's zero-classify guarantee is untouched.
+
+Measured after: his reel goes **24 → 55 screens read**, 31 rescued, 44% → 100% coverage of what he
+filmed. Red-proofed both ways — disarm the rescue and the new test fails `0 != 8`; a reel that is not
+a Chronicle still pays for exactly one classify.
+
+**Still open, and not this bug:** the second eye (Grok) answers 402 on every call, so a name read on
+one screen gets one witness and the gate needs two. Until that is topped up, recovered names land in
+the inbox as pending rather than ticking. See v1768.
+
 ## REG-178 — the two "gold-on-green" --best fallbacks: CLOSED on measurement, not on opinion (v1753)
 
 Two `var(--best, …)` fallbacks were parked as needing Konyo's ruling on contrast: `.aura-tag-target`
