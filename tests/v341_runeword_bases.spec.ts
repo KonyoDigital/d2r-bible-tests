@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test';
+// v1754 — through the shared net stub. This spec LISTENS for console errors, and a console
+// error array collects RESOURCE failures as well as JS faults. bible.html's only external
+// requests are five Google Fonts URLs; on a runner with slow or blocked egress they fail,
+// land in the array, and the spec goes red on the weather rather than on the code.
+import { test, expect } from './_net_stub';
 
 // v341.29/.30/.31 — Runeword Base Browser: grey (normal-quality) base names with a rich socket/
 // runeword floating tooltip + HD base art; runeword tooltips lead with their top-tier base image.

@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test';
+// v1754 — through the shared net stub. This spec LISTENS for console errors, and a console
+// error array collects RESOURCE failures as well as JS faults. bible.html's only external
+// requests are five Google Fonts URLs; on a runner with slow or blocked egress they fail,
+// land in the array, and the spec goes red on the weather rather than on the code.
+import { test, expect } from './_net_stub';
 
 // v350 — all off-grail base/exceptional/elite uniques are registered in EXTRA_ITEMS so the vault
 // MATCHES them (no more throw-out), renders them in the in-game unique gold colour, with real-stat

@@ -18,7 +18,11 @@
 // path, T1d interactive while the request hangs), fires exactly once per load (T2), and carries
 // identity only — no ledger data (T3). T4b proves the honest empty state, by asserting the literal
 // sentence visits.js renders when nothing has beaconed.
-import { test, expect } from '@playwright/test';
+// v1754 — through the shared net stub. This spec LISTENS for console errors, and a console
+// error array collects RESOURCE failures as well as JS faults. bible.html's only external
+// requests are five Google Fonts URLs; on a runner with slow or blocked egress they fail,
+// land in the array, and the spec goes red on the weather rather than on the code.
+import { test, expect } from './_net_stub';
 import * as http from 'http';
 import type { AddressInfo } from 'net';
 import * as fs from 'fs';
