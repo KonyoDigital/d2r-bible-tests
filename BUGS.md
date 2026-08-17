@@ -5224,6 +5224,42 @@ that — it just keeps passing. When one branch of a gate refuses to light up un
 fixture, suspect the generosity. [[gate-blind-to-unexercised-input]]
 
 
+
+---
+
+## REG-178 — the two "gold-on-green" --best fallbacks: CLOSED on measurement, not on opinion (v1753)
+
+Two `var(--best, …)` fallbacks were parked as needing Konyo's ruling on contrast: `.aura-tag-target`
+(#c9a14a) and `.forge-donow-h` (#e8c878). Measured instead of asked, and **neither is a contrast
+problem**:
+
+| element | foreground | background | contrast |
+|---|---|---|---|
+| `.aura-tag-target` | `rgb(26,18,7)` near-black | gold end `#ffd480` | **13.22** |
+| `.aura-tag-target` | same | green end `#66ff88` | **14.31** |
+| `.forge-donow-h` | `rgb(102,255,136)` | painted `rgb(10,8,5)` | **15.45** |
+
+WCAG AAA is 7.0. All three are roughly double it. **No ruling needed.**
+
+⚠ **The first measurement was WRONG and is worth recording, because the mistake is reusable.** I
+appended the probe elements to `document.body` and read `.forge-donow-h` as cream `rgb(244,232,208)`,
+which looked exactly like the "last declaration wins" scar — a second rule quietly beating the token.
+There is no second rule. The single rule is SCOPED, `:is(#tab-forge,#tab-funi,#tab-fsets)
+.forge-donow-h`, so outside those tabs it never applied and the element simply inherited body text.
+**A probe that renders an element outside the scope its CSS is written for measures the absence of
+the rule, and reports it as the presence of a different one.** [[feedback_suspect_the_instrument]]
+
+### What WAS wrong, one layer down
+
+Of the 33 `var(--best, …)` fallbacks, **ten named the wrong colour**: six gold (`#e8c878` ×5,
+`#c9a14a`) and four near-greens that are not the token (`#7ddc7d` ×2, `#7bc77b` ×2). The other 23
+already used `#66ff88`, so the convention was right and these were drift. Normalised to 33/33.
+
+**Nothing rendered differently, and that is the point.** `--best` is defined at `:root` and 415
+elements resolve it, so the fallback branch never runs — verified, not assumed. What was wrong is
+what the code SAYS: a fallback documents the token it stands in for, and in ten places it stated a
+colour the token has never had. Same shape as the extractor claiming *The Seven Tombs* for a picture
+of a ring. [[label-outlived-referent]]
 ---
 
 ## REG-177 — his "I'm pretty sure I'm 64% uniques" was right, and nothing was miscalibrated (v1751)
