@@ -36517,8 +36517,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       if (isUni){
         var own = _ownedNames();
+        /* v1752 — SAY WHAT THE ITEM IS, not just how deep it drops. Konyo asked for these two
+           search bars to behave alike: "how come its not matching and symmetrcic for F-SETS like
+           that area and row.. i want them similiar and matching logic". The sets row already
+           answers "what IS this" — every piece carries its SET name as the sub-label, which is the
+           fact that identifies it. The uniques row carried only 'q85', a number, so the two rows
+           were not doing the same job at all.
+
+           The matching fact for a unique is its BASE: "Ravenlore · Sky Spirit". That is also the
+           one he needs mid-farm, which is the whole reason he asked for this bar — "search for it
+           and tally without needing to visually look for it". A name alone does not confirm you
+           picked up the right thing; the base does. qlvl is kept, second, because it was already
+           there and he may be reading it. */
+        var _codex = (typeof ITEM_CODEX !== 'undefined') ? ITEM_CODEX : null;
         (_uniItems() || []).forEach(function(x){
-          out.push({ n: x.n, sub: (x.qlvl > 0 ? 'q' + x.qlvl : ''), have: _ownedHas(own, x.n) });
+          var base = '';
+          try { base = (_codex && _codex[x.n] && _codex[x.n].base) || ''; } catch(e){}
+          var q = (x.qlvl > 0) ? ('q' + x.qlvl) : '';
+          out.push({ n: x.n, sub: (base && q) ? (base + ' \u00b7 ' + q) : (base || q),
+                     have: _ownedHas(own, x.n) });
         });
       } else {
         var fs = window.fsetsScan ? window.fsetsScan() : null;
@@ -36563,6 +36580,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }).join('');
     } catch(e){}
   };
+  /* v1752 — exported beside its four _tallySearch* siblings so a gate can check the WHOLE pool
+     (398 uniques, 135 pieces) rather than the 10 rows a search happens to show. Without it the only
+     reachable evidence is whatever the UI caps at, and an invariant proven on 10 of 398 is not
+     proven. */
+  window._tallyPool = _tallyPool;
   window._tallySearchKey = function(ev, input){
     try {
       if (ev.key !== 'Enter') return;
@@ -40404,7 +40426,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1751', name:'v1751 - the runewords that named no base', date:'2026-08-17', note:'Spirit CTA HotO and BotD rendered no base at all because their roster names carry a parenthetical and every lookup table keys them canonically - one resolver fixes both ends and the Spirit split stays split' };
+  window.D2R_BUILD = { id:'v1752', name:'v1752 - the search row names the item', date:'2026-08-17', note:'a uniques hit now carries its BASE the way a sets hit carries its SET - Ravenlore reads Sky Spirit q85 - and no base is invented for the 100 uniques the curated codex does not cover' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
