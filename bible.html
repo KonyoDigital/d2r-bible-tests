@@ -6109,6 +6109,28 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
   </div>
 
+  <!-- v1756 — THE INBOX HE ASKED FOR FIVE TIMES. The data layer has existed for a long time:
+       kaiChronicleLedger() returns every row the register touched, kaiChronicleInbox() returns the
+       few it could not decide, and kaiChronicleTriage() already auto-accepts a grounded grail name
+       and auto-dismisses OCR junk without asking. What never existed was a SCREEN. Measured before
+       building this: zero elements in the DOM matched /inbox/i and there was no render function at
+       all, so every previous answer of mine described a data structure as if it were a surface.
+       [[plumbing-with-no-tap]] -->
+  <div class="boss-card collapsible collapsed tool-premium" id="inbox-card" style="--tc:#7fd4ff">
+    <div class="boss-header" onclick="window.toggleCardCollapse('inbox-card');window.renderInbox&&window.renderInbox()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="font-size:34px">📋</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Inbox &amp; Activity Ledger</p>
+        <p class="boss-subtitle">Everything the readers did — auto-ticked, auto-ignored, and the few they could not call</p>
+        <p class="boss-loc">Automatic by default · only a genuinely doubtful read waits for you</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div id="inbox-panel"></div>
+    </div>
+  </div>
+
   <div class="boss-card collapsible collapsed tool-premium" id="hvf-card" style="--tc:#f0c060">
     <div class="boss-header" onclick="window.toggleCardCollapse('hvf-card');window.renderHighValueFinds&&window.renderHighValueFinds()" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="font-size:34px">💰</span>
@@ -8029,6 +8051,30 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .rwn-chip:hover{filter:brightness(1.25)}
 .rwn-chip img{width:14px;height:14px;object-fit:contain}
 .rwn-more{font-size:var(--fs-meta);color:#8a7d64;font-style:italic}
+/* v1756 — the Inbox & Activity Ledger. Reads like the rest of the Tools cards: dim chrome, one
+   accent per status, the item NAME as the only hover anchor (v654 refuses anything wider). */
+.ibx-sum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:var(--fs-meta);color:var(--text-dim,#8a7d64)}
+.ibx-sum b{color:var(--text,#f4e8d0);font-weight:var(--fw-bold)}
+.ibx-h{font-size:var(--fs-meta);letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim,#8a7d64);margin:14px 0 6px}
+.ibx-list{border:1px solid var(--border,#3a2f1e);border-radius:8px;overflow:hidden}
+.ibx-row{display:grid;grid-template-columns:auto minmax(0,1.1fr) auto minmax(0,1.3fr) auto;gap:10px;align-items:center;
+  padding:7px 11px;border-top:1px solid rgba(255,255,255,.05);font-size:var(--fs-body)}
+.ibx-row:first-child{border-top:0}
+.ibx-pill{font-size:var(--fs-micro);border:1px solid;border-radius:999px;padding:1px 7px;white-space:nowrap}
+.ibx-nm{color:var(--q-unique,#c7b377);font-weight:var(--fw-medium);cursor:help;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ibx-why{color:var(--text-dim,#8a7d64);font-size:var(--fs-micro);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ibx-when{color:var(--text-dim,#8a7d64);font-size:var(--fs-micro);white-space:nowrap}
+.ibx-dest{color:var(--gold-dim,#a07830);font-size:var(--fs-micro);white-space:nowrap}
+.ibx-row:has(.ibx-act){grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto}
+.ibx-act{display:flex;gap:6px}
+.ibx-b{font-size:var(--fs-micro);padding:2px 9px;border-radius:6px;border:1px solid var(--border-light,#4a3f2a);
+  background:transparent;color:var(--text-dim,#8a7d64);cursor:pointer}
+.ibx-b:hover{color:var(--text,#f4e8d0);border-color:var(--gold-dim,#a07830)}
+.ibx-ok{color:var(--best,#66ff88);border-color:var(--best,#66ff88)}
+/* the empty state is a SENTENCE, never a bordered void — it names which silence this is */
+.ibx-empty{border:1px dashed var(--border,#3a2f1e);border-radius:8px;padding:12px 14px;
+  color:var(--text-dim,#8a7d64);font-size:var(--fs-meta);line-height:1.5}
+.ibx-more{margin-top:8px;font-size:var(--fs-micro);color:var(--text-dim,#8a7d64);font-style:italic}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomic-ic{font-size:22px;line-height:var(--lh-none)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:var(--fw-regular)}
 /* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
@@ -40435,7 +40481,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1755', name:'v1755 - the suite stops lying to itself', date:'2026-08-17', note:'test hardening arc - 51 specs exposed to a font 404 now stubbed, a gate that had never run once, a gate that went dark exactly when the defect was present, and the v157 flake traced to a mid-layout read' };
+  window.D2R_BUILD = { id:'v1756', name:'v1756 - the inbox finally has a screen', date:'2026-08-17', note:'the ledger and the pending queue existed as functions for versions with zero DOM elements and no render function - now a Tools card showing what each reader did, where it landed, and only genuinely doubtful reads waiting on him' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -41009,6 +41055,145 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
    * Visual backend — every KAI-read name with live status for debug.
    * status: pending | accepted | dismissed | in-chronicle | blocked-unfound
    */
+  /* v1756 — THE LEDGER, ON A SCREEN. Konyo, on the fifth ask: "the inbox visually where is it??
+     we said we had a ledger/log of the items getting added too so i know whats exactly is happening
+     within the system." Every answer before this one pointed at kaiChronicleLedger() — a function,
+     not a surface. Measured: zero DOM elements matched /inbox/i and no render function existed.
+
+     AUTOMATIC IS THE DEFAULT, and the panel is built to SHOW that rather than claim it. Konyo:
+     "i dont want it pending my decisions at all if its not needed only something its really not
+     sure about." kaiChronicleTriage already works that way — a name that grounds to a real grail
+     item is accepted outright, OCR junk and checker-tosses are dismissed outright, and only two
+     cases hold: Grok disagreed with the read (g4-disagreed), or the tier claims grail while the
+     name will not ground. So the auto-handled rows lead, and the "needs you" block only renders
+     when something is genuinely in it.
+
+     THE EMPTY STATE NAMES ITS OWN CAUSE. An empty bordered box is the first thing the second eye
+     is told to flag, and "no rows" here has three completely different meanings — nothing swept
+     yet, swept and everything auto-handled, or the ledger key missing. It says which. */
+  window.renderInbox = function(){
+    var host = document.getElementById('inbox-panel');
+    if (!host) return;
+    var esc = function(x){ return String(x == null ? '' : x)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    var when = function(ts){
+      ts = Number(ts || 0); if (!ts) return '';
+      var d = new Date(ts), now = Date.now(), mins = Math.round((now - ts) / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      if (mins < 60 * 24) return Math.round(mins / 60) + 'h ago';
+      return d.toLocaleDateString();
+    };
+    var rows = [], pend = [];
+    try { rows = window.kaiChronicleLedger({ sync: false }) || []; } catch(e){ rows = []; }
+    try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ pend = []; }
+
+    /* v1756.1 — PLAIN WORDS. The second eye also said the outcome labels "are terse and require
+       familiarity with the tool's internal vocabulary" — safe-auto-grail:name, tier-grail-ungrounded,
+       rwMade. That is the reader's own shorthand leaking onto a screen meant to explain itself. The
+       raw code is kept in the title attribute, because when something needs surgical fixing the
+       exact code is the thing worth having. */
+    var SAY = function(code){
+      var c = String(code || '');
+      if (/^safe-auto-grail/.test(c))      return 'the name matched a real unique';
+      if (/^safe-auto-junk:ocr/.test(c))   return 'unreadable text, not an item';
+      if (/^safe-auto-junk/.test(c))       return 'not a grail item';
+      if (/^tier-grail-ungrounded/.test(c))return 'looked like a grail item but the name did not match one';
+      if (/^g4-disagreed/.test(c))         return 'the second eye disagreed with this read';
+      if (/^item-checker-toss/.test(c))    return 'you had already marked this junk';
+      if (/^empty-name/.test(c))           return 'no name could be read';
+      if (/^human-review/.test(c))         return 'nothing matched — needs your eye';
+      return c;
+    };
+    var DEST = function(store, status){
+      if (store === 'foundLog')     return '\u2192 grail';
+      if (store === 'grailUnfound') return '\u2192 your un-tick';
+      if (store === 'rwMade')       return '\u2192 runewords';
+      if (store)                    return '\u2192 ' + store;
+      return status === 'dismissed' ? '\u2192 nowhere' : '';
+    };
+    var PILL = {
+      'accepted':        ['✓ ticked',    'var(--best,#66ff88)'],
+      'in-chronicle':    ['✓ in grail',  'var(--best,#66ff88)'],
+      'dismissed':       ['✕ ignored',   'var(--text-dim,#8a7d64)'],
+      'blocked-unfound': ['⛔ you un-ticked it', '#f0c060'],
+      'pending':         ['⏳ needs you', '#f0c060']
+    };
+    var auto = rows.filter(function(r){ return r && r.status !== 'pending'; });
+    /* v1756.1 — ONE ITEM, ONE SECTION. The second eye read this panel cold and caught the only
+       thing wrong with it: "Spirit appears in both sections, which is momentarily confusing...
+       highlighting an internal inconsistency the tool has not resolved." It was right. The pending
+       queue is written when a read is doubtful, but kaiChronicleLedger RE-ANNOTATES against live
+       state afterwards — so an item can be settled in the ledger and still sitting in the queue,
+       and the panel would then ask for a ruling it no longer needs. Settled wins. */
+    var settledLow = {};
+    auto.forEach(function(r){ if (r && r.name) settledLow[String(r.name).toLowerCase()] = 1; });
+    pend = pend.filter(function(x){ return x && !settledLow[String(x.name || '').toLowerCase()]; });
+
+    var H = [];
+    H.push('<div class="ibx-sum">'
+      + '<span class="ibx-n"><b>' + auto.length + '</b> handled automatically</span>'
+      + '<span class="ibx-n"><b>' + pend.length + '</b> waiting on you</span>'
+      + '</div>');
+
+    if (pend.length){
+      H.push('<div class="ibx-h">⏳ Could not call these — your ruling</div>');
+      H.push('<div class="ibx-list">' + pend.map(function(x){
+        var nm = esc(x.name);
+        return '<div class="ibx-row">'
+          + '<span class="ibx-nm" data-arttip="' + nm + '">' + nm + '</span>'
+          + '<span class="ibx-why" title="' + esc(x.triageWhy || '') + '">'
+          + esc(SAY(x.triageWhy) || 'unclear read') + '</span>'
+          + '<span class="ibx-act">'
+          + '<button type="button" class="ibx-b ibx-ok" onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">tick it</button>'
+          + '<button type="button" class="ibx-b" onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">ignore</button>'
+          + '</span></div>';
+      }).join('') + '</div>');
+    }
+
+    H.push('<div class="ibx-h">📜 What the readers did</div>');
+    if (!auto.length){
+      /* THREE different silences, told apart — never one blank box */
+      var swept = false;
+      try { swept = !!(window.LSR && window.LSR.getItem('d2r_chronicleInboxLog')); } catch(e){}
+      H.push('<div class="ibx-empty">' + (swept
+        ? 'The ledger exists and holds no rows yet — a sweep has run but registered nothing.'
+        : 'Nothing has been swept yet, so there is nothing to log. Open the Chronicle in game '
+          + 'while TV DIABLO is recording, then read that visit from the console — every item it '
+          + 'ticks or ignores lands here, with the reason.') + '</div>');
+    } else {
+      H.push('<div class="ibx-list">' + auto.slice(0, 60).map(function(r){
+        var p = PILL[r.status] || [esc(r.status || '?'), 'var(--text-dim,#8a7d64)'];
+        var nm = esc(r.name);
+        /* WHERE IT LANDED, not just what happened to it. Konyo: "showing in history what exactly
+           went where? so we can see it properly routed and if needed we can then surgically fix
+           whats not." The row already carried `store`, which is the actual destination the
+           register wrote to — foundLog is the grail tick, grailUnfound is his own un-tick, and a
+           dismissed row wrote nowhere. Saying "ticked" without saying WHERE is half an answer,
+           and half an answer is what you cannot surgically fix. */
+        var dest = esc(DEST(r.store, r.status));
+        return '<div class="ibx-row">'
+          + '<span class="ibx-pill" style="color:' + p[1] + ';border-color:' + p[1] + '">' + p[0] + '</span>'
+          + '<span class="ibx-nm" data-arttip="' + nm + '">' + nm + '</span>'
+          + '<span class="ibx-dest">' + dest + '</span>'
+          + '<span class="ibx-why" title="' + esc(r.why || r.triageWhy || '') + '">'
+          + esc(SAY(r.why || r.triageWhy)) + '</span>'
+          + '<span class="ibx-when">' + esc(when(r.lastTs || r.proposedAt)) + '</span>'
+          + '</div>';
+      }).join('') + '</div>');
+      if (auto.length > 60) H.push('<div class="ibx-more">+ ' + (auto.length - 60) + ' older</div>');
+    }
+    host.innerHTML = H.join('');
+  };
+  window._inboxAct = function(kind, name){
+    try {
+      if (kind === 'accept') window.kaiChronicleAccept(name);
+      else window.kaiChronicleDismiss(name);
+    } catch(e){}
+    try { window.renderInbox(); } catch(e){}
+    try { window.renderGrailMeters && window.renderGrailMeters(); } catch(e){}
+  };
+
   window.kaiChronicleLedger = function(opts){
     opts = opts || {};
     if (opts.sync !== false){
