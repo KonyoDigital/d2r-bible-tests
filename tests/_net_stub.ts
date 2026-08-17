@@ -26,6 +26,26 @@ export const test = base.extend({
        because the bar's height comes from text that has no font to lay out. The SAME collapse
        reproduces on v1735, the last green Routine I — so it is fragility that predates this work,
        not a regression in it.
+
+       ⚠ v1754 — THE FONT HALF OF THAT DIAGNOSIS DID NOT REPRODUCE, and the contradiction is recorded
+       rather than resolved. Re-measured with context.setOffline(true), which fails every external
+       request: `.set-card-header` is **78px online, 78px offline, and 78px stubbed**. The bar keeps
+       its height with no font at all.
+
+       The flake this paragraph was written about had a different cause, found later and proven
+       deterministically: v157's setup called toggleCardCollapse BLIND, that function opens with
+       `if (!card) return;` — a silent no-op — so on a slow shard the card stayed COLLAPSED, and a
+       collapsed card resolves every colour you ask getComputedStyle for while
+       getBoundingClientRect reports 0. Forcing `.collapsed` reproduces `headerH: 0` every time;
+       going offline reproduces it never. (v1751 fixed the toggle; v1753's fixture is named
+       `f2trap_` for an unrelated trap in the same file.)
+
+       Two possibilities remain open and neither is worth guessing between: the original measurement
+       saw a SLOW font (a hanging request leaves text in a blocking state, which offline — failing
+       instantly — cannot imitate), or it attributed the collapsed-card symptom to the font. What is
+       certain is that the CONSOLE-ERROR reason for this fixture is real and re-proven: bare spec
+       offline logs `net::ERR_INTERNET_DISCONNECTED`, stubbed spec offline logs nothing.
+       [[feedback_contradiction_is_the_finding]]
        Fulfilled with an empty stylesheet rather than aborted: an abort is itself a failed request,
        and page.screenshot waits on fonts (chrome-cdp-mac). Empty CSS succeeds, logs nothing, and
        lets the fallback face lay the text out. */

@@ -38,7 +38,17 @@
 // WHAT THIS DOES NOT COVER: an overlay that is `absolute` inside a non-header stacking context, an
 // icon or background image lying over text (nothing here reads paint, only boxes), and truncated
 // nav labels. Those are separate gates.
-import { test, expect } from '@playwright/test';
+// v1754 — through the shared net stub, so this spec's measurements do not depend on the
+// runner reaching fonts.googleapis.com. bible.html makes exactly FIVE external requests and
+// all five are fonts; stubbing them removes the whole external surface.
+//
+// ⚠ NOT because a failed font collapses this layout — I checked, and it does not. Measured
+// three ways, .set-card-header is 78px ONLINE, 78px OFFLINE and 78px STUBBED. The v1749
+// note on _net_stub says a font failure makes that bar 0px; offline does not reproduce it,
+// and the flake it was written about turned out to be a blind toggleCardCollapse leaving
+// the card COLLAPSED (fixed in v1751, proven by forcing .collapsed). The honest reason to
+// stub here is determinism, not a defect anyone has shown. [[inherited_claim_is_not_evidence]]
+import { test, expect } from './_net_stub';
 import * as path from 'path';
 
 const BIBLE = 'file://' + (process.env.BIBLE_PATH || path.resolve(__dirname, '..', 'bible.html'));
