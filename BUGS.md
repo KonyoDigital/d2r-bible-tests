@@ -5227,6 +5227,47 @@ fixture, suspect the generosity. [[gate-blind-to-unexercised-input]]
 
 ---
 
+## REG-180 — a throttled reader answered EMPTY and every layer believed it (v1774)
+
+Konyo, after re-sweeping and seeing 249/403 unchanged: *"something isnt calculated correctly.. either
+the perecentages caliiberation on your end.. or the items arent being read."* The second one, and not
+for the reason either of us was chasing.
+
+**The flag nobody downstream read.** `_note_slot_death()` (v891) flips a throttle when 2+ readers die
+inside 60s, and its docstring promises to *"SAY SO instead of silent empties"*. `_is_throttled()` had
+exactly two consumers: the live heartbeat cap and a status chip. The retro sweep had none.
+
+**Measured, by calling the reader directly on his 08-17 frames:**
+
+| frame | first read | minutes later, throttled |
+|---|---|---|
+| clean list page | `chronicle` / `uniques` / 6 names / conf 0.9 | `gameplay` / 0 names / conf `None` |
+| page with his item tooltip open | `transition` / 0 names / conf 0.85 | `gameplay` / 0 names / conf `None` |
+
+Three sweeps in a row returned **39, then 22, then 0** names as it deepened. I spent that stretch
+blaming my own threshold work and **reverted v1771 on evidence that was this**.
+
+**Why it cost footage rather than just time.** The seal rule reasons that *"classified > 0 with pages
+== 0 IS a legitimate seal: the cheap classifier looked at every frame and correctly found no
+Chronicle page"*. A throttle counterfeits that shape exactly — the classifier was never asked. So a
+throttled sweep finishes clean, finds nothing, and seals the reels; since v1766 a sealed reel is never
+read again. The v1773 run is the specimen: **105 classifies, 4 pages, 0 names**, and it would have
+burned his 08-17 reel. His recordings cannot be re-made.
+
+**Two guards, because either alone leaves the hole open.** The retro readers refuse out loud while
+throttled — `claude_chronicle_read` returns a `note` (which `chronicle_retro` already counts as NOT
+read, not as an empty page) and `claude_read` returns `None` ("no answer", not the verdict "not a
+Chronicle page"). And a run that touched the throttle **seals nothing**, saying how many reads were
+refused rather than skipping quietly.
+
+**Related, same session:** the reader called a tooltip-covered Chronicle a `transition` at conf 0.85,
+while the tell it already documents for `transition` (no bottom HUD) was plainly present. Prompt fixed
+(v1774) and the run-level workaround kept (v1773), because classify runs once per run and one bad
+probe discarded up to 44 pages behind it.
+
+**A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
+from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
+
 ## REG-179 — the sweep threw away 56% of a slow scroll, and the tally sat ~9 short of the game (v1770)
 
 Konyo, twice, after re-sweeping and seeing 249/403 unchanged: *"how come the percentage isnt 64% and

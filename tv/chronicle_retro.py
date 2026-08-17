@@ -599,7 +599,8 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
                 continue
             # The run IS the visit. Reading every frame of a held-still page buys nothing, but a SCROLLED
             # page is a different page — so read the distinct-looking frames, which for a held page is one.
-            for name in _distinct(fr, sig_of):
+            for name in _distinct(fr, sig_of, max_diff=CHRON_STILL_MAX_DIFF,
+                              tol=CHRON_SIG_TOL):
                 # v1689 — a frame is READ ONCE. A journal run and a still run can overlap, and the same
                 # page read twice is not corroboration: it would arrive at witnesses() as two sightings
                 # of one photograph and let a single frame pass a gate that asks for two.
@@ -707,19 +708,23 @@ def _distinct(names, sig_of, max_diff=0.06, tol=28):
     pair of eyes had quietly become load-bearing: "why is grok a mandatory thing? we made it that i
     can toggle grok for extra pair of eyes... the default should be claude."
 
-    v1772 — THE FIX ABOVE IS REVERTED AND THIS NOTE IS THE REASON. Passing tol=CHRON_SIG_TOL here
-    is NOT sufficient, because jpeg_sig fingerprints the WHOLE frame and the Chronicle is not the
-    only thing on it. His cursor rests on a row and the game paints a large item tooltip over the
-    list; moving the mouse changes the frame as much as scrolling does. At tol=4 that reads as a new
-    page, so one 44-frame run selected 38 "distinct" frames that are largely the same list under a
-    moving overlay — and the first real sweep after the change returned 0 names where the previous
-    code returned 22. Whether that drop is the over-selection or an unrelated lane failure is NOT
-    established, and shipping a change to his live tally on an unproven guess is the thing this file
-    keeps teaching against.
+    v1772 REVERTED THIS, AND v1775 PUTS IT BACK, because the evidence behind the revert was false.
+    The revert rested on the first real sweep afterwards returning 0 names where the previous code
+    returned 22 — and REG-180 traced that to the reader being THROTTLED and answering scene=gameplay
+    with no names rather than saying so. The same frames read chronicle/uniques with 6 names before
+    the throttle and empty during it. The change was never measured against a working lane.
 
-    WHAT THE REAL FIX NEEDS: a signature of the LIST REGION rather than the whole frame, so a
-    tooltip and a scroll stop being the same event. Until that exists the collapse is left in place,
-    because a wrong page-selection is worse than a slow one.
+    THE ONE REAL OBJECTION IN THE REVERT NOTE STANDS AND IS ANSWERED. jpeg_sig fingerprints the WHOLE
+    frame, so his item tooltip moves it as much as a scroll does and a 44-frame run selects ~38
+    frames. That is not over-selection any more: v1774 taught the reader that a tooltip-covered panel
+    is still scene=chronicle, so those frames are real pages carrying real rows, and reading the ones
+    the popup leaves visible is the point. A cleaner LIST-REGION signature is still the better
+    instrument and is measured in REG-180 — it selects ~240 pages against this one's ~291, so it is a
+    refinement, not the difference between working and not.
+
+    WHY IT MATTERS MORE THAN THE COST. With one frame per run there is no second frame, so
+    `cross-frame` — the witness Claude supplies WITHOUT a second lane — can never fire, and Konyo's
+    optional extra pair of eyes stays load-bearing: "why is grok a mandatory thing?" 
 
     The signal itself is bimodal exactly as v1758 found:
     measured over 219 consecutive pairs in his long scrolls, 39 are EXACTLY 0.00000 (a held page)

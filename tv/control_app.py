@@ -10266,8 +10266,32 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # means the classifier looked and correctly found nothing" — which is exactly what a throttle
         # counterfeits. So a run that touched the throttle seals nothing.
         _throttled = [0]
+        _waited = [0.0]
+
+        def _breathe():
+            """v1775 — A RETRO SWEEP SHOULD WAIT OUT A THROTTLE, NOT WALK PAST IT.
+
+            v1774 made the readers refuse while throttled, which stopped a silent empty being
+            mistaken for an answer — but a refusal is still a page not read, and a sweep of his
+            footage is a BATCH job with nobody waiting on the next frame. The live capture must never
+            block (a dropped frame is gone); this must never skip (the reel is right there on disk).
+            Same flag, opposite correct behaviour.
+
+            Bounded so a stuck throttle cannot hang the sweep forever: the window is 120s, this
+            waits at most 180s per call and then lets the reader refuse as v1774 does."""
+            import time as _t
+            deadline = _t.time() + 180.0
+            slept = 0.0
+            while _tv._is_throttled() and _t.time() < deadline:
+                _t.sleep(2.0)
+                slept += 2.0
+            if slept:
+                _waited[0] += slept
+                _tick(throttleWaitS=int(_waited[0]))
+            return slept
 
         def _classify_one(p):
+            _breathe()
             if _tv._is_throttled():
                 _throttled[0] += 1
             _tick(classified=1)
@@ -10279,6 +10303,7 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
             grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
         def _read_one(p, k):
+            _breathe()
             if _tv._is_throttled():
                 _throttled[0] += 1
             _tick(pagesRead=1)
@@ -10316,6 +10341,8 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # nothing was ever looked at.
         # v1774 — a run that hit the throttle proves nothing about his footage, and sealing on it
         # is how a reel is lost at full price. Said out loud, never silently skipped.
+        if _waited[0]:
+            print("   🐢 waited %ds for the throttle to pass — that is pace, not failure" % int(_waited[0]))
         if _throttled[0]:
             _tick(throttledReads=_throttled[0])
             print("   🐢 %d read(s) refused by the throttle — NOTHING sealed this run" % _throttled[0])
@@ -10602,7 +10629,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1774",
+        "ver": "v1775",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

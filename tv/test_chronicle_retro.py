@@ -1025,6 +1025,58 @@ class TestV1770ASlowScrollIsNotWalkingThroughTown(unittest.TestCase):
                          "it classified more than the one candidate: %s" % self.classified)
 
 
+class TestV1775ARunIsNotOnePage(unittest.TestCase):
+    """v1775 — A SCROLLED RUN MUST YIELD MORE THAN ONE PAGE, or Claude can never corroborate itself.
+
+    _distinct() compared frames at the DEFAULT tol=28, and v1758 had already measured what that does
+    to a Chronicle: two COMPLETELY different pages differ by at most one gray level in one of
+    jpeg_sig's 256 cells, so nothing clears 28 and every frame in a run looks identical to the first.
+    Measured on his 08-17 reel: runs of 43 and 44 distinct scroll positions each yielded ONE page.
+
+    THAT IS WHAT MADE THE SECOND EYE LOOK MANDATORY. The gate takes five witness kinds and only
+    cross-lane needs Grok; cross-frame — two frames within ONE reel — is the one Claude supplies
+    alone, and it cannot fire when a run is collapsed to a single frame. Konyo: "why is grok a
+    mandatory thing? we made it that i can toggle grok for extra pair of eyes."
+
+    v1772 reverted this on evidence that REG-180 later traced to a THROTTLED reader answering empty;
+    the same frames read chronicle/uniques with 6 names before the throttle and nothing during it."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        rows = [{"f": "f%d.jpg" % i, "ts": 1000 + i} for i in range(6)]
+        with open(os.path.join(self.d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": "s_scroll", "frames": rows}, fh)
+        # ONE still-run (they group together), but each frame is its own PAGE — a slow scroll.
+        # Steps of 5 are invisible at tol=28 and plain at tol=4, which is the whole defect.
+        self.sigs = {"f%d.jpg" % i: sig(100 + i * 5) for i in range(6)}
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def test_every_page_of_a_scroll_is_read_not_just_the_first(self):
+        reads = []
+        r = cr.read_reel(self.d, lambda p: "chronicle-uniques",
+                         lambda p, k: reads.append(os.path.basename(p)) or {},
+                         sig_of=lambda n: self.sigs.get(os.path.basename(n)))
+        self.assertEqual(r["runs"], 1, "fixture is not one still-run: %s" % r["runs"])
+        self.assertGreater(len(reads), 1,
+                           "the whole scrolled run collapsed to %d page(s) — cross-frame can never "
+                           "fire, so nothing grounds without a second lane" % len(reads))
+        self.assertEqual(len(reads), len(self.sigs),
+                         "some pages of the scroll were dropped: %s" % reads)
+
+    def test_a_genuinely_held_page_is_still_read_once(self):
+        """The other direction, and the reason the threshold sits mid-gap: a page he simply left on
+        screen is ONE page however many frames photographed it. Reading it forty times would be
+        money for nothing AND would hand witnesses() forty sightings of one photograph."""
+        held = {"f%d.jpg" % i: sig(100) for i in range(6)}
+        reads = []
+        cr.read_reel(self.d, lambda p: "chronicle-uniques",
+                     lambda p, k: reads.append(os.path.basename(p)) or {},
+                     sig_of=lambda n: held.get(os.path.basename(n)))
+        self.assertEqual(len(reads), 1, "a held page was read %d times" % len(reads))
+
+
 class TestV1773OneBadProbeMustNotDiscardARun(unittest.TestCase):
     """v1773 — A CONFIDENT WRONG ANSWER IS THE SAME DEFECT v1577 FIXED, IN BETTER CLOTHES.
 
