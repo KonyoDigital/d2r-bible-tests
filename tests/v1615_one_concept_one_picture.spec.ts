@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -36,6 +36,11 @@ const FORGE_SUMMARY = {
 };
 
 async function console_(page: any, seed: any = FORGE_SUMMARY) {
+  // v1749 — a console with data but no route is a state production cannot reach: the data exists
+  // only because the board ran, and the board writes the route as it does. v1736 made lsFork read
+  // NOTHING without one (bible.html's v1499 instruction), so seeding the world is what this always
+  // meant to do.
+  await seedOwnerRoute(page);
   await page.addInitScript((fsum: any) => {
     localStorage.setItem('d2r_forgeSummary', JSON.stringify(fsum));
   }, seed);

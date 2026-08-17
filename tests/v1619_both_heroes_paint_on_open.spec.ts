@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -32,6 +32,8 @@ const SETS = [{ name: "Griswold's Honor (Shield)", set: "Griswold's Legacy", lef
                 art: 'art/hd_crown_shield.png', rarity: 'set' }];
 
 async function coldOpen(page: any, seed: { grail?: any[]; sets?: any[] } = {}) {
+  // v1749 — the route a real console always has; without it lsFork reads NOTHING (v1736)
+  await seedOwnerRoute(page);
   await page.addInitScript(([g, s]: any) => {
     localStorage.setItem('d2r_grailFarm', JSON.stringify(g));
     localStorage.setItem('d2r_setFarm', JSON.stringify(s));

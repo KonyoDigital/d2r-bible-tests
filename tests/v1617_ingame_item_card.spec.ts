@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -38,6 +38,8 @@ const SETS = [{
 }];
 
 async function console_(page: any, opts: any = {}) {
+  // v1749 — the route a real console always has; without it lsFork reads NOTHING (v1736)
+  await seedOwnerRoute(page);
   await page.addInitScript(([g, s, ai]: any) => {
     localStorage.setItem('d2r_grailFarm', JSON.stringify(g));
     localStorage.setItem('d2r_setFarm', JSON.stringify(s));

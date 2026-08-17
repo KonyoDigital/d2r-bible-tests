@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -110,6 +110,8 @@ test.describe('v1613 — every name on the hunt hub goes where it says', () => {
        It is also the test that forced `body[data-shell-tab]` to exist: the console header carries
        six buttons for fifteen board tabs, so routing to `bosses` or `runes` lit nothing and left
        the destination unobservable — four of six routes confirmable and two taken on faith. */
+    // v1749 — the route a real console always has; without it lsFork reads NOTHING (v1736)
+    await seedOwnerRoute(page);
     await page.addInitScript(() => {
       localStorage.setItem('d2r_forgeSummary', JSON.stringify({
         craftTypes: ['Blood', 'Caster'], ts: Date.now(),

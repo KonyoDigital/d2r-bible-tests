@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -331,6 +331,8 @@ test.describe('v1630 — the slot leaves the name, not the data', () => {
       return out;
     }, READ_ALL);
 
+    // v1749 — the route a real console always has; without it lsFork reads NOTHING (v1736)
+    await seedOwnerRoute(page);
     await page.addInitScript((seed: any) => {
       localStorage.setItem('d2r_setFarm', JSON.stringify([{ name: seed.piece, set: seed.set, left: 1,
         source: 'Hell TZ Pindleskin', dropChance: 0.0003, killsPerHr: 90,

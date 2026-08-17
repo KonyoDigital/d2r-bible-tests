@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -74,6 +74,8 @@ test.describe('v1620 — the set piece and the runner-up', () => {
   });
 
   test('★★ the ALTERNATIVE item is a real anchor with its own card', async ({ page }) => {
+    // v1749 — the route a real console always has; without it lsFork reads NOTHING (v1736)
+    await seedOwnerRoute(page);
     await page.addInitScript(() => {
       // two uniques where the runner-up is materially quicker, so the alt line renders
       localStorage.setItem('d2r_grailFarm', JSON.stringify([

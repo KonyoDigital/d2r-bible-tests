@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -118,6 +118,8 @@ const BOARD_STUB = `
 </script>`;
 
 async function console_(page: any, seed: Record<string, string> = {}) {
+  // v1749 — the route a real console always has; without it lsFork reads NOTHING (v1736)
+  await seedOwnerRoute(page);
   await page.addInitScript((s: Record<string, string>) => {
     for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
   }, seed);

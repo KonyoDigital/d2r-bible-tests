@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -96,6 +96,10 @@ test.describe('v1554 — the lead outranks the room it is announced in', () => {
   });
 
   test('★ v1555 — the hero obeys the SAME difficulty rule as the Forge', async ({ page }) => {
+    // v1749 — the console reads its world through lsFork, which since v1736 reads NOTHING without a
+    // published route (bible.html's v1499 instruction). A console holding data but no route is a
+    // state production cannot reach, so the fixture supplies the one a real console always has.
+    await seedOwnerRoute(page);
     // two surfaces sending him to two difficulties is the same class of disagreement as the meter
     // and the hero counting different grails. On his data hardest-first costs nothing: Shadow
     // Killer 3.9h in Hell beats the 4.0h the grail-tier-only ranking was showing.

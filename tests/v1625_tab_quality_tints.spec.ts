@@ -1,4 +1,4 @@
-import { test, expect } from './_net_stub';
+import { test, expect, seedOwnerRoute } from './_net_stub';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -52,6 +52,8 @@ const CHROME = ['--gold', '--gold-hi', '--gold-antique', '--gold-dim'];
    (an abort surfaces as a console error the console's own specs would then red on). */
 async function console_(page: any, injectCss?: string) {
   const body = injectCss ? UI.replace('</head>', `<style id="v1625-mutation">${injectCss}</style></head>`) : UI;
+  // v1749 — the route a real console always has; without it lsFork reads NOTHING (v1736)
+  await seedOwnerRoute(page);
   await page.addInitScript(() => {
     localStorage.setItem('d2r_grailFarm', JSON.stringify([{ name: 'Frostburn', source: 'Hell Mephisto',
       dropChance: 0.0002, killsPerHr: 100, art: 'art/hd_gaunlets_h.png', rarity: 'unique' }]));

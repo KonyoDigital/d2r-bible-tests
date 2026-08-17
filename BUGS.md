@@ -5138,3 +5138,44 @@ zeros."*
 compares `p.farm` against `sc.farm.length`, and both are **0 even with the full fixture**. I did not
 find an input that populates `farm`, so that sub-assertion remains `0 === 0`. It is named here rather
 than guarded, because a guard I cannot satisfy would just turn a blind assertion into a red build.
+
+---
+
+## REG-176 — v1736 broke twelve console specs, and CI said so while local smoke did not (v1749)
+
+**Routine I — the full Playwright suite — went red**, and it was mine. The last green Routine I was
+**v1735**; everything between was CANCELLED by the next push, so the first run that got to finish
+already carried the break. That is worth naming on its own: pushing fast enough to cancel your own
+CI hides which commit did it.
+
+**The cause is v1736 working exactly as designed.** It made the console's `lsFork` honour
+bible.html's v1499 instruction — *"a reader that finds no route, a v:1 route, or an id it does not
+recognise must resolve UNKNOWN and read nothing. Guessing bare is how the harm happened."* Before
+that it fell back to the bare key.
+
+**Twelve console specs seed `d2r_forgeSummary` / `d2r_grailFarm` / `d2r_setFarm` and NO
+`d2r_lsrRoute`** — so they were leaning on the guess that was removed. `v1615` failed on exactly the
+surfaces that render from that data:
+
+```
+a surface is missing its sets icon: ["/art/ui_tab_fsets.png","/art/ui_tab_fsets.png",null]
+missing: ["/art/ui_tab_funi.png","/art/ui_tab_funi.png",null,null]
+```
+
+The tab strip and MINI focus row (which read their art directly) were fine; every **Task Force**
+surface, which reads through `lsFork`, was empty.
+
+**The fixture was modelling a state production cannot reach.** Console data exists only because the
+board ran, and the board writes the route as it does — so a console holding data with no route is
+impossible in the field. Seeding it makes these specs *more* faithful, not less.
+
+`seedOwnerRoute()` and `OWNER_ROUTE` now live in `tests/_net_stub.ts` — **one definition**, imported
+by the specs that need it, rather than twelve pasted copies of a payload shape that would drift from
+bible.html's. **[[copy-drift]]** OWNER / main profile, `pfx ''` and `lpfx 'L·'`, which is what makes
+`lsFork` land on the bare keys these specs seed.
+
+Fixed and verified locally: **v1615 8/8**, the nine bulk-wired specs **71/71**, **v1554 8/8**.
+
+⚠ Two of the twelve needed no change (`v766_tvd_console`, and v1554's other tests) — they never read
+through `lsFork`. The sweep listed them because they seed localStorage; only the ones whose surfaces
+read the board's world were affected.
