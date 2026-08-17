@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1756",
+  "ver": "v1757",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1756: the ledger and the pending queue existed as functions for versions with zero DOM elements and no render function - now a Tools card showing what each reader did, where it landed, and only genuinely doubtful reads waiting on him",
+  "note": "v1757: the 2026-08-17 Chronicle capture shows two uniques gold and found that the seed did not carry - added with the exact stamp where the frame had one and an honest unknown where it did not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
