@@ -5082,3 +5082,30 @@ field would have been a far wider blast radius for the same pixels.
 The gate carries a non-vacuity check that is worth naming: it asserts `D2R_BUILD.name` **still**
 starts with a version, because if the underlying field is ever cleaned up, this gate would start
 passing for the wrong reason — testing against a problem that no longer exists.
+
+---
+
+## CLOSED (not a defect) — the 713 qlvl-over-mlvl rows (2026-08-17)
+
+Carried since v1722 as an open worry: **713 rows across 51 of 66 boss cells** drop an item whose
+`qlvl` exceeds that cell's declared `mlvl` — e.g. `countess/NORM TZ: Stormchaser qlvl 53 > mlvl 45`.
+
+**Measured, and it is not a defect.** Those rows carry real odds from the silospen pulls, so the
+drops are real. In D2 the treasure class is picked by monster level but a TC spans a range, so an
+item qlvl above the monster's mlvl is legal — **`mlvl` is a game fact, not a drop ceiling**, which is
+exactly what v1722 concluded when it declined to derive it.
+
+The part that WAS a defect — a cell claiming `qlvl N > mlvl M` as the *reason* an item cannot drop,
+in a cell whose own data disproves it — was fixed in v1722 and is still gated: *"no blocked reason
+cites a rule its own cell disproves"* passes.
+
+**And the sibling check that caught Catacombs finds nothing here.** TZ_ZONES were all supposed to
+share one saturation value (96), so a single 75 stood out. Boss cells are the opposite: Andariel is
+75 in Hell, Baal 99, Diablo 94, and Hell-TZ values legitimately spread 86–99 because terror lifts
+each area from its own base. Every "loner" value belongs to exactly one boss **by design**, so the
+outlier test that worked on zones has no purchase on bosses — worth writing down, because running it
+and reading the spread as 11 anomalies would have been an easy wrong turn.
+
+Remaining open on this board: **REG-162** (with a first suspect — concurrent gate runs), and the two
+gold-on-green `--best` fallbacks (`.aura-tag-target`, `.forge-donow-h`) that need Konyo's call on
+whether the variable or the fallback is the mistake.
