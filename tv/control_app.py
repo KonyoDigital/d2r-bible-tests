@@ -8759,12 +8759,20 @@ def chronicle_apply(proposal=None):
     # v1566 — a proposal whose ONLY content is completeSets is not empty. The guard bounced it and
     # the board never saw the one row worth five.
     _wa = prop.get("wouldAdd") or {}
-    if not _wa.get("uniques") and not _wa.get("sets") and not _wa.get("completeSets"):
-        return {"ok": False, "why": "the sweep grounded nothing — there is nothing to apply"}
+    # v1759 — HELD NAMES TRAVEL TOO. This refused whenever the gate grounded nothing, which is the
+    # COMMON case on a single scrolled panel: one page cannot reach two witnesses (cross-lane alone
+    # is one), so a real sweep of his own film grounded 0 and held 5. Those five were then dropped
+    # on the floor here — never sent, never queued, never seen. The board's inbox exists for exactly
+    # these and was being fed nothing. Refuse only when there is genuinely NOTHING of either kind.
+    _held = prop.get("held") or []
+    if (not _wa.get("uniques") and not _wa.get("sets") and not _wa.get("completeSets")
+            and not _held):
+        return {"ok": False, "why": "the sweep found nothing at all — nothing to apply or queue"}
     w = globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
-    payload = json.dumps({"wouldAdd": prop.get("wouldAdd") or {}, "lanes": prop.get("lanes") or []})
+    payload = json.dumps({"wouldAdd": prop.get("wouldAdd") or {}, "held": _held,
+                          "lanes": prop.get("lanes") or []})
     js = ("(function(){try{if(typeof window.chronicleApply!=='function')return JSON.stringify("
           "{ok:false,why:'this board build has no chronicleApply (needs v1521+)'});"
           "var r=window.chronicleApply(%s);return JSON.stringify({ok:true,applied:r});}"
@@ -10337,7 +10345,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1758",
+        "ver": "v1759",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

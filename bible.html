@@ -32592,6 +32592,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var nm = String(item.name || '').trim();
     var tier = String(item.tier || '').toLowerCase();
     if (!nm) return { action: 'dismiss', why: 'empty-name' };
+    /* v1759 — A NAME THE GATE HELD IS NEVER AUTO-TICKED HERE. The sweep's gate demands two
+       independent witnesses before it grounds a name, and a single scrolled page can only ever
+       supply one (cross-lane alone). Those names now reach the board so they stop vanishing, but
+       arriving is not the same as being believed: if this triage re-judged them on the name alone
+       it would auto-accept the very reads the gate just refused, and the corroboration rule would
+       exist in one file and be undone in another. They go to the inbox with the gate's own words. */
+    if (item.gateHeld){
+      return { action: 'hold', why: item.gateWhy || 'the gate could not corroborate it' };
+    }
     // G3-LIVE delta 1 — G4 INTO THE GATE: if the Grok add-on disagreed with this chronicle
     // route (my touchpoint-1 flag, passed from the seal only when TV_G3_LIVE is on), a doubtful
     // read must NOT auto-tick the grail — HOLD it for the inbox. No-op when the flag is absent
@@ -37503,6 +37512,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.chronicleApply = function(proposal){
     var add = (proposal && proposal.wouldAdd) || {};
     var res = { uniques: [], sets: [], skipped: [], unknown: [], ts: Date.now() };
+    /* v1759 — THE HELD NAMES HAVE TO LAND SOMEWHERE, and until now they landed nowhere.
+       A sweep produces two piles: wouldAdd (the gate grounded it) and HELD (it could not, and says
+       why). This function only ever read wouldAdd, and control_app refused to call it at all when
+       wouldAdd was empty — "the sweep grounded nothing, there is nothing to apply". So on a real
+       sweep of his own film, five names the readers genuinely saw were held by the gate, and then
+       silently discarded on the server: they never reached the board, never reached the inbox, and
+       he never saw them. The inbox existed to show exactly these and was fed by nothing.
+
+       Held is not junk. It is the system saying "I saw this and could not prove it twice", which is
+       the definition of the pending queue Konyo asked for: "i dont want it pending my decisions at
+       all if its not needed only something its really not sure about." These ARE the ones it is not
+       sure about.
+
+       They go through kaiChroniclePropose, the same door every other proposal uses, so they inherit
+       the triage, the ledger row and the dedupe rather than getting a private path. [[the-unjoined-end]] */
+    try {
+      var _held = (proposal && proposal.held) || [];
+      if (_held.length && typeof window.kaiChroniclePropose === 'function'){
+        res.queued = window.kaiChroniclePropose(_held.map(function(h){
+          var seen0 = (h && h.seen && h.seen[0]) || {};
+          return { name: h && h.name, tier: (h && h.ledger === 'sets') ? 'set' : 'grail',
+                   frameId: seen0.frame || '', sessionId: seen0.reel || '',
+                   source: 'chronicle-sweep',
+                   /* gateHeld is the whole point of routing these here. Without it the board's
+                      triage sees a well-formed grail name and AUTO-TICKS it, which quietly undoes
+                      the gate that just refused to ground it — measured: Annihilus, a unique he
+                      does NOT own, auto-accepted from ONE uncorroborated sighting. A find is
+                      undoable, but a grail number inflated by single unverified reads is exactly
+                      the figure he checks against his game. Held means held. */
+                   gateHeld: true, gateWhy: (h && h.why) || 'the gate could not corroborate it' };
+        }));
+      }
+    } catch(e){ res.queuedError = String(e && e.message || e); }
     (add.uniques || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
       if (_chronAlreadyUni(n)) { res.skipped.push(n); return; }   // ★ never un-find
@@ -40495,7 +40537,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1758', name:'v1758 - the reader could not see a scroll', date:'2026-08-17', note:'two thresholds both sat above the signal they measured - a hardcoded 0.06 in sweep_frames and sig_diff tol=28 - so a scrolled Chronicle collapsed into one page and the visit reported nothing' };
+  window.D2R_BUILD = { id:'v1759', name:'v1759 - the held names had nowhere to go', date:'2026-08-17', note:'a sweep that grounds nothing was discarding every held name on the server so the inbox it was built for was fed nothing - and once they arrived the board auto-ticked them past the gate that had just refused them' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -40845,6 +40887,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           name: nm, firstSeenTs: it.firstSeenTs || 0, frameId: it.frameId || '',
           tier: it.tier || null, sessionId: it.sessionId || '', loc: it.loc || null,
           source: it.source || 'kai-register', proposedAt: Date.now(),
+          /* v1759 — this literal is a WHITELIST, so anything not named here is dropped before
+             triage ever sees it. gateHeld was added upstream to stop a name the sweep's gate had
+             refused from being auto-ticked here on the strength of its spelling — and it was
+             silently discarded at this line, so the guard read as installed and did nothing.
+             Measured while checking: Annihilus, which he does NOT own, still auto-accepted from one
+             uncorroborated sighting. Two halves built, never joined. [[the-unjoined-end]] */
+          gateHeld: !!it.gateHeld, gateWhy: it.gateWhy || null,
           _bump: true
         };
         var why = window.kaiChronicleSettledWhy(nm);

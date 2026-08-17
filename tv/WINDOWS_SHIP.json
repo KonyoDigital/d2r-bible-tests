@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1758",
+  "ver": "v1759",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1758: two thresholds both sat above the signal they measured - a hardcoded 0.06 in sweep_frames and sig_diff tol=28 - so a scrolled Chronicle collapsed into one page and the visit reported nothing",
+  "note": "v1759: a sweep that grounds nothing was discarding every held name on the server so the inbox it was built for was fed nothing - and once they arrived the board auto-ticked them past the gate that had just refused them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
