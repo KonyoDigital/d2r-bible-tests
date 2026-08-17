@@ -356,8 +356,26 @@ test.describe('v1625 · ITEM 6 — the titles wear their quality and their art',
       }, kind);
       expect(name, `could not read a real ${kind} name off the board`).toBeTruthy();
 
-      const seed: any = { d2r_foundLog: { [name]: '2026-08-03' } };
-      if (kind === 'set') seed.d2r_setPieces = { [name]: '2026-08-03' };
+      /* v1759 — SEED A DATE THAT IS NEWEST BY CONSTRUCTION, not a literal that any real find can
+         overtake. This pinned '2026-08-03', and it worked only for as long as nothing newer existed
+         in _GRAIL_SEED. v1757/v1758 added two finds read off his own Chronicle film — Baranar's
+         Star at Aug 10 02:25 and Atma's Wail at Aug 10 00:52 — and Baranar's Star is now genuinely
+         the most recent thing he owns, the next being Lidless Wall on Jul 13. So the "last found"
+         bar correctly showed Baranar's Star and this test failed for being right.
+         The claim here is "the bar paints the item's OWN rarity", which needs the seeded item to BE
+         the last found; it never needed a particular date. Derived from the seed's own maximum, so
+         the next real find cannot break it either. */
+      const newest = await page.evaluate(() => {
+        const seed: Record<string, string> = (window as any)._GRAIL_SEED || {};
+        let best = 0;
+        Object.values(seed).forEach((v) => {
+          const t = Date.parse(String(v).replace(' · ', ' '));
+          if (!isNaN(t) && t > best) best = t;
+        });
+        return new Date((best || Date.now()) + 86400000).toISOString().slice(0, 10);
+      });
+      const seed: any = { d2r_foundLog: { [name]: newest } };
+      if (kind === 'set') seed.d2r_setPieces = { [name]: newest };
       await seedAndReload(page, seed, tab);
 
       const r = await page.evaluate((n: string) => {

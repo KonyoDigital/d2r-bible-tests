@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import json
+import re as _re
 import os
 import shutil
 import subprocess
@@ -725,7 +726,25 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     parsed = _loose_parse(out)
     if parsed is None:
         _STATS["errors"] += 1
-        _STATS["last_error"] = "no-json from grok -p"
+        # v1759 — SAY WHAT THE CLI ACTUALLY SAID. The grok CLI reports an API refusal in its OUTPUT
+        # and still exits 0, so the returncode check above never fires and this branch was the one
+        # that ran — recording "no-json from grok -p", which points at a parser. Measured on his
+        # machine while diagnosing a permanently silent second eye:
+        #
+        #     Internal error: {"message": "API error (status 402 Payment Required):
+        #                      Grok Build usage balance exhausted", "http_status": 402}
+        #
+        # Every guard above was green (is_on, has_subscription, budget, binary found), so the lane
+        # reported ready and answered nothing, and the one field that could have said why said
+        # "no-json". A reader chasing that goes to the parser; the actual fix is a billing page.
+        # The real message is now carried through, and an HTTP status is named explicitly.
+        _err = (out or (r.stderr or ""))[:400].replace("\n", " ").strip()
+        _status = None
+        _m = _re.search(r"status (\d{3})", _err) or _re.search(r"http_status\"?\s*:\s*(\d{3})", _err)
+        if _m:
+            _status = _m.group(1)
+        _STATS["last_error"] = (("grok HTTP %s — %s" % (_status, _err[:220])) if _status
+                                else ("grok gave no JSON — said: %s" % (_err[:220] or "(nothing)")))
         _stats_flush()
         return None
 
