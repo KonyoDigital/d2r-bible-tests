@@ -5134,10 +5134,25 @@ invariant was right; the gate was blind. **[[gate-blind-to-unexercised-input]]**
 Verified by removing the fixture again: *"the Forge planned nothing, so 'counts agree' compares two
 zeros."*
 
-⚠ **One half of it is still unexercised and is left honest rather than dressed up:** `farmMatches`
+~~⚠ **One half of it is still unexercised and is left honest rather than dressed up:** `farmMatches`
 compares `p.farm` against `sc.farm.length`, and both are **0 even with the full fixture**. I did not
 find an input that populates `farm`, so that sub-assertion remains `0 === 0`. It is named here rather
-than guarded, because a guard I cannot satisfy would just turn a blind assertion into a red build.
+than guarded, because a guard I cannot satisfy would just turn a blind assertion into a red build.~~
+
+✅ **CLOSED (v1751).** The input existed; the fixture was hiding it. Handing every rune out at 20
+means the board can make everything, so nothing is ever left to farm — the fixture that made the
+other two thirds honest is precisely what kept this one blind. Withholding the top six runes
+(**Zod, Cham, Jah, Ber, Sur, Lo**) pushes the high runewords into the farm bucket: measured
+`farm 0 -> 10` on **both** sides, with makeNow and deferred still clearing their own guards. The
+non-vacuity guard its two siblings already had is now in place, and it has been seen red for its own
+reason — restore the six runes and it fails on *"nothing needs farming, so farm agrees compares two
+empty lists."*
+
+The lesson generalises past this line: **"I could not find an input that exercises it" was a
+statement about the fixture, not about the feature.** A fixture rich enough to make every other
+assertion non-vacuous can be exactly the thing that starves one of them, and it will never announce
+that — it just keeps passing. When one branch of a gate refuses to light up under a generous
+fixture, suspect the generosity. [[gate-blind-to-unexercised-input]]
 
 ---
 
