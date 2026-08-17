@@ -37522,6 +37522,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.chronicleApply = function(proposal){
     var add = (proposal && proposal.wouldAdd) || {};
     var res = { uniques: [], sets: [], skipped: [], unknown: [], ts: Date.now() };
+    // every row this apply writes shares one moment — see the writer's note on _chBatchTs
+    window._chBatchTs = res.ts;
+    try {
+    return window._chronicleApplyInner(proposal, add, res);
+    } finally { window._chBatchTs = 0; }
+  };
+  window._chronicleApplyInner = function(proposal, add, res){
     /* v1759 — THE HELD NAMES HAVE TO LAND SOMEWHERE, and until now they landed nowhere.
        A sweep produces two piles: wouldAdd (the gate grounded it) and HELD (it could not, and says
        why). This function only ever read wouldAdd, and control_app refused to call it at all when
@@ -37987,6 +37994,71 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, why: 'the console is not reachable from this page (open the board from the TV DIABLO app)' };
     }
   };
+
+  /* v1765 — AND SOMETHING FINALLY CALLS IT. chronicleFetchProposal has existed for versions with
+     ZERO callers: the board could ask the console for a finished sweep and never did. That is the
+     last link in the chain, and while it was missing "automatic" ended at the console's memory —
+     the watchdog swept, the result persisted (v1763), and the board it was meant for never asked.
+
+     ON LOAD, ONCE PER SWEEP. startedTs identifies the sweep, so a page refresh cannot re-apply the
+     same one and a NEW sweep is picked up the next time he opens the board. Nothing is re-read and
+     nothing is re-spent: this is a fetch of an answer already paid for.
+
+     IT CHANGES NO RULES. chronicleApply still routes everything through the same triage — a name
+     the gate HELD arrives with gateHeld and lands in the inbox for his ruling, a grounded name is
+     ticked, junk is dismissed. This only removes the step where he had to know to press a button
+     in a console that had already done the work. [[plumbing-with-no-tap]] */
+  /* THE DECISION IS A PURE FUNCTION so a gate can exercise it. Proving this by hand needed a live
+     console on his Mac, which CI does not have and must never need — a rule only checkable on one
+     machine is a rule that rots the day that machine changes. Both refusals below were MEASURED on
+     a running console before being frozen here. [[feedback-blind-fixture-green-gate]] */
+  window._chronAdoptGate = function(env){
+    env = env || {};
+    // same-origin only: the public site must never poke a service on his laptop
+    if (!/:(17772|17771)\b/.test(String(env.host || ''))) return { ok: false, why: 'not served by the console' };
+    /* OWNER ONLY. The console serves the board over http, and an unclaimed load there resolves
+       GUEST with the seeds suppressed — so a cousin's grail reads 0 and EVERY name in his sweep
+       looks like a fresh find. Measured on a clean profile against the real console: 17 rows, all
+       17 proposed as pending. That is a stranger's inbox filled with HIS footage, and it is the
+       whole reason seeds are owner-gated at all. A sweep of his recordings is his world's alone. */
+    if (env.cousin) return { ok: false, why: 'this load is not the owner world' };
+    // and never twice for the same sweep — a refresh must not re-propose what he already ruled on
+    if (env.stamp && env.stamp === env.seen) return { ok: false, why: 'this sweep was already adopted' };
+    return { ok: true };
+  };
+  window._chronAutoAdopt = async function(){
+    try {
+      var pre = window._chronAdoptGate({ host: location.host, cousin: !!window._isCousinShell });
+      if (!pre.ok) return pre;
+      var got = await window.chronicleFetchProposal();
+      if (!got || !got.ok) return got || { ok: false, why: 'no proposal' };
+      var stamp = String((got.proposal && got.proposal.startedTs) || '');
+      if (!stamp) {
+        try {
+          var st = await (await fetch('/api/chronicle_sweep', { cache: 'no-store' })).json();
+          stamp = String(st && (st.startedTs || st.restoredFrom) || '');
+        } catch(e){}
+      }
+      var seen = '';
+      try { seen = window.LSR.getItem('d2r_chronAdopted') || ''; } catch(e){}
+      var g = window._chronAdoptGate({ host: location.host, cousin: !!window._isCousinShell,
+                                       stamp: stamp, seen: seen });
+      if (!g.ok) return g;
+      var res = window.chronicleApply(got.proposal);
+      try { if (stamp) window.LSR.setItem('d2r_chronAdopted', stamp); } catch(e){}
+      try { window.renderInbox && window.renderInbox(); } catch(e){}
+      try { window.renderInboxBadge && window.renderInboxBadge(); } catch(e){}
+      return { ok: true, stamp: stamp, applied: res };
+    } catch(e){ return { ok: false, why: String(e && e.message || e) }; }
+  };
+  /* ON `load`: chronicleApply, kaiChroniclePropose and the inbox card are all defined below this
+     point, so an inline call would run before they exist and adopt nothing while looking wired —
+     the same trap the badge hit one version ago. */
+  try {
+    window.addEventListener('load', function(){
+      setTimeout(function(){ try { window._chronAutoAdopt(); } catch(e){} }, 1200);
+    });
+  } catch(e){}
 
   // ── v1270 (G2, Konyo: "descend and intelligently ROTATE to the next incomplete chronicle") ──
   // THE PRIORITY-ROTATION BRAIN. Reads EVERY chronicle's real completion (runewords · grail uniques ·
@@ -40547,7 +40619,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1764', name:'v1764 - the ledger shown with real data', date:'2026-08-17', note:'a real sweep of his own footage applied to the board renders 17 rows each naming where it went and why - and the second eye read it cold with no clipping no overlap and no empty boxes' };
+  window.D2R_BUILD = { id:'v1765', name:'v1765 - the board adopts its own sweep', date:'2026-08-17', note:'the last link of the chain, plus a ledger that holds still' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -40811,7 +40883,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     var prev = ix >= 0 ? log[ix] : null;
     var next = Object.assign({}, prev || {}, row, {
       name: String(row.name).trim(),
-      lastTs: Date.now(),
+      /* v1765 — ONE SWEEP, ONE STAMP. Stamping each row with its own Date.now() meant a 17-row
+         apply that straddled a millisecond split into two timestamp groups, and the panel (which
+         orders newest-first) then rendered those groups in an order that changed between loads.
+         Measured: the same 17 rows came back in a different sequence on every visit. They were all
+         found by ONE sweep, so they share its moment; where the millisecond boundary happened to
+         fall is not information about his items. */
+      lastTs: (window._chBatchTs || Date.now()),
       firstTs: (prev && prev.firstTs) || row.firstTs || row.proposedAt || row.firstSeenTs || Date.now(),
       seenCount: ((prev && prev.seenCount) || 0) + (row._bump ? 1 : 0)
     });
@@ -41192,7 +41270,19 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       'blocked-unfound': ['⛔ you un-ticked it', '#f0c060'],
       'pending':         ['⏳ needs you', '#f0c060']
     };
-    var auto = rows.filter(function(r){ return r && r.status !== 'pending'; });
+    /* v1765 — A LOG WITH NO ORDER IS NOT A LOG. Measured across two loads of the same 17 rows:
+       the sequence differed both times, and neither was alphabetical — the panel rendered whatever
+       order the store happened to hand back. He asked this panel for "history wise what happened...
+       so we can see it properly routed and if needed we can then surgically fix whats not", and a
+       list that reshuffles between visits cannot be read that way: you lose your place, and you
+       cannot tell a new row from a moved one. Newest first, because it is a log; ties broken by
+       name, because a tie must never be left to chance. localeCompare so O and Ó sort as one. */
+    var ORD = function(a, b){
+      var ta = Number((a && a.lastTs) || 0), tb = Number((b && b.lastTs) || 0);
+      if (ta !== tb) return tb - ta;
+      return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+    };
+    var auto = rows.filter(function(r){ return r && r.status !== 'pending'; }).sort(ORD);
     /* v1756.1 — ONE ITEM, ONE SECTION. The second eye read this panel cold and caught the only
        thing wrong with it: "Spirit appears in both sections, which is momentarily confusing...
        highlighting an internal inconsistency the tool has not resolved." It was right. The pending
@@ -41201,7 +41291,14 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
        and the panel would then ask for a ruling it no longer needs. Settled wins. */
     var settledLow = {};
     auto.forEach(function(r){ if (r && r.name) settledLow[String(r.name).toLowerCase()] = 1; });
-    pend = pend.filter(function(x){ return x && !settledLow[String(x.name || '').toLowerCase()]; });
+    pend = pend.filter(function(x){ return x && !settledLow[String(x.name || '').toLowerCase()]; })
+               .sort(function(a,b){
+                 // the queue orders by when it was raised, same rule, same reason
+                 var ta = Number((a && (a.proposedAt || a.lastTs)) || 0),
+                     tb = Number((b && (b.proposedAt || b.lastTs)) || 0);
+                 if (ta !== tb) return tb - ta;
+                 return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+               });
 
     var H = [];
     H.push('<div class="ibx-sum">'

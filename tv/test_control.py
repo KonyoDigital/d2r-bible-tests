@@ -5606,9 +5606,15 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
             self.ca._CHRON_JOB["result"] = {"held": [{"name": "Bloodletter"}], "totals": {"reels": 1}}
         self.ca._chron_result_save()
         self.assertTrue(os.path.isfile(res_path), "the finished sweep was never written to disk")
-        # now simulate the restart: memory empty, disk intact
+        # now simulate the restart: memory empty, disk intact. NULLING `result` ALONE IS NOT A
+        # RESTART — a new process starts from the module literal, with phase "idle" and startedTs 0,
+        # and this test used to leave whatever phase an earlier test in the class had left behind.
+        # v1765 scoped rehydration to processes that have never swept (so a REFUSED sweep can no
+        # longer inherit an older proposal), which made that difference load-bearing and turned this
+        # test red. The fix is a faithful restart, not a looser rule.
         with self.ca._CHRON_LOCK:
-            self.ca._CHRON_JOB["result"] = None
+            self.ca._CHRON_JOB.update({"running": False, "startedTs": 0, "phase": "idle",
+                                       "error": None, "result": None})
         self.assertTrue(self.ca._chron_result_load(), "the saved sweep did not reload")
         # setUp stubs chronicle_sweep_state to {"running": False} for the reel tests, so asking IT
         # here would measure the stub and not the reload — it answered {} and the first version of
@@ -5616,6 +5622,48 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         got = self._state0().get("result") or {}
         self.assertEqual([h["name"] for h in (got.get("held") or [])], ["Bloodletter"],
                          "the reloaded sweep lost its findings: %s" % _json.dumps(got)[:160])
+
+    def test_a_sweep_that_ran_HERE_owns_its_own_empty_result(self):
+        """v1765 — REHYDRATION IS FOR "THIS PROCESS NEVER SWEPT", NEVER "THIS SWEEP FOUND NOTHING".
+
+        Caught by test_chronicle_chain on CI, on the ship that wired the board to adopt a persisted
+        proposal automatically. _chron_result_load() refilled an empty result from disk whenever
+        memory had none — including immediately after a sweep the console had REFUSED out loud, so
+        a previous sweep's proposal was served under the current sweep's error. The gate's words:
+        "a refused sweep must leave NO proposal behind". Once the board adopts automatically, that
+        stale read stops being a confusing status and becomes a wrong write into his grail.
+
+        The trap is that the OPPOSITE property is also load-bearing and one line away: v1763 exists
+        so a restarted console still knows what it swept, and the auto-adopt depends on it. Fixing
+        either of these by breaking the other is the two-fixes-broke-each-other class, so this pins
+        BOTH directions in one test."""
+        import json as _json
+        res_path = os.path.join(self.tmp, "scoped.json")
+        self.ca._CHRON_RESULT_PATH = res_path
+        with open(res_path, "w", encoding="utf-8") as fh:
+            _json.dump({"savedTs": "999", "result": {"totals": {"uniques": 1}}}, fh)
+
+        def _job(**kw):
+            base = {"running": False, "startedTs": 0, "phase": "idle", "error": None, "result": None}
+            base.update(kw)
+            with self.ca._CHRON_LOCK:
+                self.ca._CHRON_JOB.update(base)
+
+        # 1) v1763 still holds: a process that has never swept DOES pick up the last one
+        _job()
+        self.assertTrue(self.ca._chron_result_load(),
+                        "a restarted console no longer recovers its last sweep — v1763 is undone")
+
+        # 2) a sweep that ran here and was refused keeps its own emptiness
+        _job(phase="error", error="the ledger was never read")
+        self.assertFalse(self.ca._chron_result_load(),
+                         "a REFUSED sweep inherited an older sweep's proposal")
+
+        # 3) and so does one that ran fine and legitimately found nothing — the case with no error
+        #    to give it away, where a stale proposal reads exactly like a real find
+        _job(startedTs=12345, phase="done")
+        self.assertFalse(self.ca._chron_result_load(),
+                         "a sweep that found nothing was handed an older sweep's findings")
 
     def test_saving_the_result_does_not_deadlock_the_caller(self):
         """Both call sites hold _CHRON_LOCK when they save, and threading.Lock is NOT reentrant, so

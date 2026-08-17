@@ -9996,6 +9996,17 @@ def _chron_result_load():
     try:
         if _CHRON_JOB.get("result"):
             return False
+        # v1765 — REHYDRATION IS FOR "THIS PROCESS NEVER SWEPT", NEVER "THIS SWEEP FOUND NOTHING".
+        # Caught by test_chronicle_chain on CI: a sweep the console REFUSED out loud (a visit whose
+        # ledger was never read) left phase=error with no result of its own, so this function
+        # helpfully filled it in from disk — handing back a PREVIOUS sweep's proposal under the
+        # current sweep's error. The gate's words for it are exact: "a refused sweep must leave NO
+        # proposal behind". v1765 wires the board to ADOPT a persisted proposal automatically, which
+        # turns that stale read from a confusing status into a wrong write. A job that has run in
+        # this process owns its own outcome, empty or not. [[stale-reading]]
+        if _CHRON_JOB.get("startedTs") or _CHRON_JOB.get("error") \
+           or _CHRON_JOB.get("phase") not in ("idle", "", None) or _CHRON_JOB.get("running"):
+            return False
         with open(_CHRON_RESULT_PATH, encoding="utf-8") as fh:
             payload = json.load(fh) or {}
         res = payload.get("result")
@@ -10514,7 +10525,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1764",
+        "ver": "v1765",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

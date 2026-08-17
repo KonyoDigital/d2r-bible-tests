@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1764",
+  "ver": "v1765",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1764: a real sweep of his own footage applied to the board renders 17 rows each naming where it went and why - and the second eye read it cold with no clipping no overlap and no empty boxes",
+  "note": "v1765: the last link of the chain, plus a ledger that holds still",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
