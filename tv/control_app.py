@@ -9808,14 +9808,29 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
         # remember ONLY the reels this run actually read — a reel that errored or was skipped stays
         # unread, or one bad run permanently hides footage from every future sweep.
-        for sess in (prop.get("sessionsRead") or []):
-            swept[str(sess)] = {"ts": int(time.time() * 1000)}
-        _vault_swept_save(swept)
+        # v1779 — DO NOT SEAL FOOTAGE A LANE CANNOT READ. An adversarial review proved the vault
+        # sweep is wired to the CHRONICLE reader: claude_chronicle_read returns
+        # {found, notFound, sets, stateVisible, printed, read, note} and vault_retro reads
+        # resp["items"], which is never present. `note` is None on a GOOD read, so it is not even
+        # treated as a refusal — the page counts as read, the reel is marked, and no row can ever
+        # be produced. There is no vault reader anywhere in tv/: the seam was never built.
+        # Until it is, a sweep that grounded NOTHING seals nothing, so his footage survives the gap.
+        _rows = len((prop.get("uniques") or {})) + len((prop.get("owned") or []))
+        if _rows:
+            for sess in (prop.get("sessionsRead") or []):
+                swept[str(sess)] = {"ts": int(time.time() * 1000)}
+            _vault_swept_save(swept)
+        else:
+            print("   ⚠ vault sweep produced no rows — sealing nothing (the vault reader seam is "
+                  "not built: vault_retro reads resp['items'], the chronicle reader never sets it)")
 
         # ACCUMULATE ACROSS SESSIONS — merge-max only, and the merge itself lives in vault_retro.
         # This ledger is what the readers have SEEN; it is never what he owns.
         led = _vr.merge_vault(vault_ledger_load(), prop)
-        vault_ledger_save(led)
+        if not vault_ledger_save(led):
+            # v1779 — the swept marker used to be written BEFORE this, and this return value was
+            # discarded: a failed ledger write left the reels marked and their paid reads gone.
+            print("   ⚠ vault ledger did not save — the reels stay unswept so nothing is lost")
         # The proposal he presses is the ACCUMULATED picture (every session so far), not just this
         # run's — that is the whole point of an accumulator. throwOut/unsure/held stay from this
         # run's gate, which is the only place they were reasoned about.
@@ -10005,10 +10020,18 @@ _CHRON_EVIDENCE_PATH = os.environ.get("TV_CHRON_EVIDENCE") or os.path.join(HERE,
 
 
 def _chron_evidence_load():
+    """v1779 — AN UNREADABLE LEDGER IS NOT AN EMPTY ONE. This returned {} on any exception, and
+    _chron_evidence_merge then merged the current run into {} and saved THAT as the whole
+    accumulated ledger — so one torn read silently deleted every sighting ever collected. His file
+    holds 106 names and is the only thing making cross-reel corroboration possible; the reels those
+    sightings came from are sealed, so the only way back is a forced re-read of his whole history.
+    Found by an adversarial review, reproduced on a truncated file: 2 names/670 pages -> 1 name/3.
+
+    A parse failure now RAISES, so the merge leaves the file alone rather than overwriting it."""
     try:
         with open(_CHRON_EVIDENCE_PATH, encoding="utf-8") as fh:
             return json.load(fh) or {}
-    except Exception:
+    except FileNotFoundError:
         return {}
 
 
@@ -10032,7 +10055,14 @@ def _chron_evidence_merge(prop):
     """
     try:
         import chronicle_retro as _cr   # imported per-callsite in this module, not at import time
-        merged = _cr.merge_proposals(_chron_evidence_load(), prop or {})
+        base = _chron_evidence_load()
+    except Exception as e:
+        # the ledger exists but will not parse: keep it, say so, and do NOT overwrite it with a
+        # single run's findings dressed up as the whole history
+        print("   ⚠ accumulated evidence unreadable (%s) — NOT overwriting it this run" % e)
+        return prop or {}
+    try:
+        merged = _cr.merge_proposals(base, prop or {})
     except Exception:
         return prop or {}
     _chron_evidence_save(merged)
@@ -10160,8 +10190,25 @@ def _chron_visit_run(visit_ts):
         grok_lane = None
         if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
             grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
-        read_page = _cr.two_lane_reader(lambda p, k: _tv.claude_chronicle_read(p, k), grok_lane)
+        # v1779 — THE VISIT PATH HAD NONE OF THE PROTECTION THE REEL PATH GOT. v1774/v1775/v1778
+        # gave _chron_sweep_run a breathe-then-refuse loop, a throttled/capped counter, and a rule
+        # that such a run seals nothing. This path — the CHEAPER one the watchdog fires every 20s —
+        # had none of it, and sweep_frames counts pagesRead as frames OFFERED, not read. Measured by
+        # an adversarial review with the throttle open: four refusals came back, the result said
+        # "4 pages read", phase done, error None, and _chron_autoread_mark retired the visit forever.
+        # A refusal wearing data's clothes, on the path most likely to hit one.
+        _v_refused = [0]
+
+        def _visit_read(p, k):
+            if _tv._is_throttled() or _tv._sub_budget_check("oneshot"):
+                _v_refused[0] += 1
+            return _tv.claude_chronicle_read(p, k)
+
+        read_page = _cr.two_lane_reader(_visit_read, grok_lane)
         res = _cr.sweep_frames(paths, kind, read_page)
+        if _v_refused[0]:
+            print("   🚦 %d visit read(s) refused (throttle/cap) — the visit is NOT retired"
+                  % _v_refused[0])
         with _CHRON_LOCK:
             _CHRON_JOB["pagesRead"] = res["pagesRead"]
         prop = _cr.proposal_from_pages(res["pages"])
@@ -10230,7 +10277,8 @@ def _chron_visit_run(visit_ts):
             # used to fire when the sweep STARTED, so a console that died mid-read left the visit
             # flagged read with nothing written. Marking here is what its own comment always claimed.
             try:
-                _chron_autoread_mark(int(visit_ts))
+                if not _v_refused[0]:
+                    _chron_autoread_mark(int(visit_ts))
                 _CHRON_AUTOREAD["tries"].pop(str(int(visit_ts)), None)
             except Exception:
                 pass
@@ -10338,7 +10386,11 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 slept += 2.0
             if slept:
                 _waited[0] += slept
-                _tick(throttleWaitS=int(_waited[0]))
+                # v1779 — _tick ACCUMULATES ints, so passing the already-cumulative total made this
+                # grow quadratically: his console reported throttleWaitS 27720 (7h42m) inside a
+                # sweep that lived 44 minutes — a number self-refuting on its own data. Pass the
+                # DELTA and let _tick do the summing it was written to do.
+                _tick(throttleWaitS=int(slept))
             return slept
 
         def _classify_one(p):
@@ -10353,7 +10405,19 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             if _tv._sub_budget_check("oneshot"):
                 _capped[0] += 1
             _tick(classified=1)
-            return _tv.claude_read(p)
+            _rd = _tv.claude_read(p)
+            # v1779 — A LABELLED MISS IS NOT A VERDICT ABOUT HIS FOOTAGE. claude_read returns
+            # EMPTY {"mode": "empty", "scene": "gameplay"} when the warm worker stalls and the
+            # one-shot cannot take the gate — the contention the semaphore exists for. That shape
+            # is deliberate on the LIVE lane (test_agent pins it: "an honest miss, not a hang and
+            # not invented data") and should_learn_dead rejects it, so it poisons nothing there.
+            # Here it is different: chronicle_kind reads scene='gameplay' as "not a Chronicle page",
+            # the run is skipped, and the reel can still be sealed. Counted as a refusal so the
+            # seal brakes apply. Found by an adversarial review of the intake lane.
+            if isinstance(_rd, dict) and _rd.get("mode") == "empty":
+                _capped[0] += 1
+                return None
+            return _rd
 
         _classify = _cr.classifier(_classify_one)
 
@@ -10374,8 +10438,19 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         swept = _chron_swept_load()
         known = _chron_known_from_journal()
         _tick(knownFrames=len(known))
+        # v1779 — READ THE REEL WE WERE HANDED. chronicle_autoreel_tick picks a specific reel and
+        # passes reel_id; without this the sweep just re-read reel_dirs[0] and the picked reel was
+        # marked anyway. Narrowing skip_reels to "everything except this one" makes sweep_hist land
+        # on it without teaching sweep_hist a new parameter.
+        _skip = set(swept.keys()) if not force else set()
+        if reel_id:
+            try:
+                _all = {os.path.basename(str(d)) for d in _cr.reel_dirs(hist)}
+                _skip = {r for r in _all if r != str(reel_id)}
+            except Exception:
+                pass
         res = _cr.sweep_hist(hist, _classify, read_page, limit=limit,
-                             skip_reels=set(swept.keys()) if not force else set(),
+                             skip_reels=_skip,
                              known_chronicle=known,
                              on_reel=lambda st: _tick(reelsDone=1))
         # remember ONLY the reels this run actually read. A reel that errored or was skipped must
@@ -10500,7 +10575,20 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             # not re-creatable, so a burned reel is a permanent loss of the thing this feature exists
             # to protect. The mark now happens HERE, after the result is durable, which is what the
             # comment always said. [[the-unjoined-end]] [[label-outlived-referent]]
-            if reel_id:
+            # v1779 — MARK ONLY WHAT WAS ACTUALLY READ. Two defects met here, both found by an
+            # adversarial review and both already fired on his disk:
+            #
+            #  (a) reel_id was used ONLY to mark. The sweep reads reel_dirs(hist)[:limit] and never
+            #      saw reel_id at all, so the watchdog targeted reel N while the sweep re-read the
+            #      newest reel — and reel N was retired having never been opened. SEVEN of his reels
+            #      were marked swept with no read record anywhere, including the 08-17 reel the
+            #      whole feature was built for. Fixed by reading the reel we were handed (below).
+            #  (b) this mark sat outside BOTH brakes — the throttle/cap break at the seal loop and
+            #      the did_read test — so a run that read nothing still burned the reel in the file
+            #      that decides whether it is ever auto-offered again.
+            _did_read = any((st.get("classified") or 0) > 0 or (st.get("pages") or 0) > 0
+                            for st in (res.get("reels") or []))
+            if reel_id and _did_read and not _throttled[0] and not _capped[0]:
                 try:
                     _chron_reels_mark(reel_id)
                     # a reel that finished owes nothing: clear its attempt count so an unrelated
@@ -10697,7 +10785,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1778",
+        "ver": "v1779",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

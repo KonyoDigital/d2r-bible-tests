@@ -16492,7 +16492,29 @@ function _gFound(n){
     // a stale 'found' flipped a tick into a DELETE.
     var _now = Date.now();
     if (!_gfCache || _now - _gfAt > 500){ _gfCache = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {}; _gfAt = _now; }
-    return _gfCache[n] != null;
+    if (_gfCache[n] != null) return true;
+    /* v1779 — FOUR ORACLES DECIDED "found" AND THEY DISAGREED BY ONE ON HIS LIVE DATA.
+       funiScan folds punctuation (via d2rResolveItem's canonical) and counted 248; this one used an
+       EXACT key and answered false for the same item, because his ledger holds "Atma's Scarab" with
+       a straight apostrophe while the roster canonical is curly. Measured: _gFound(curly)=false,
+       _gFound(straight)=true, meter=248. The consequences all flowed from here — the item rendered
+       on NO wall (excluded from missing as found, from the Found ledger as not-found), its card
+       offered "mark owned" for something already counted, toggleOwned could never un-tick it
+       (it wrote the curly key while the straight one survived), and clicking it in tally-search
+       fired the 🏆 "found!" celebration for an item he found months ago.
+       Found by an adversarial review. The ledger is NOT rewritten — his keys are his; the read
+       folds instead, which is the same seam funiScan already trusts. */
+    try {
+      var _r = (typeof window.d2rResolveItem === 'function') ? window.d2rResolveItem(n) : null;
+      var _c = _r && _r.canonical;
+      if (_c && _c !== n && _gfCache[_c] != null) return true;
+      // and the other direction: the roster name is canonical, the ledger key is not
+      var _alt = String(n).replace(/\u2019/g, "'");
+      if (_alt !== n && _gfCache[_alt] != null) return true;
+      var _alt2 = String(n).replace(/'/g, '\u2019');
+      if (_alt2 !== n && _gfCache[_alt2] != null) return true;
+    } catch(e){}
+    return false;
   } catch(e){ return owned.has(n); }
 }
 try { window._gFound=_gFound; window._gFoundDirty=_gFoundDirty; } catch(e){}
@@ -37216,7 +37238,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v663 — the IN-GAME line: the mod chronicle counts 403 entries, the game's % is found/403.
     // Keeping both numbers visible kills the '63% here, 59% in game' confusion at the source.
     // v682.1 — the headline meter above IS the in-game number now; this line explains the named-card grid
-    if (s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the remaining rows are still dark silhouettes in-game (bare base types), unknowable until they drop">🗂 named cards: <b>'+s.found+' / '+s.total+'</b> ticked · <b>'+(s.chronTotal-s.total)+'</b> chronicle rows still dark (names reveal on find)</div>');
+    if (s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the remaining rows are still dark silhouettes in-game (bare base types), unknowable until they drop">🗂 named cards: <b>'+s.found+' / '+s.total+'</b> ticked · <b>'+Math.max(0,(s.chronTotal-s.total))+'</b> chronicle rows still dark (names reveal on find)</div>');
     H.push(_undoBar('uni'));   // v644 — mis-ticks are one ↩ away, forge-style
     // v1692 — SURFACE, NEVER OVERRULE. d2r_grailUnfound is his own un-tick (~line 16830, USER TRUTH):
     // some of these show a "First Found:" line in his Chronicle screenshots — Blackbog's Sharp and
@@ -37252,7 +37274,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v682.2 — the still-dark remainder: these chronicle rows exist in-game as bare base-type
       // silhouettes; a dark row's unique NAME is hidden until it drops, so it can't be carded yet.
       // They count in the All-missing number so every meter tells the same 403-story.
+      /* v1779 — THE ROSTER CAN NOW OUTGROW THE PINNED GAME TOTAL, and nothing checked it.
+         chronTotal is the literal 403; s.total is the LIVE roster, which grew 387 -> 398 in one
+         edit last version. At 404 the subtraction goes negative and the screen prints
+         "248 / 404 ticked · -1 chronicle rows still dark", the All-missing tile disagrees with its
+         own grid, and the headline still divides by 403 while the subset claims more. Five names of
+         margin, found by an adversarial review of this file.
+         A negative here is not a display bug to clamp away — it means the pinned denominator is
+         stale and the DATA needs re-deriving, so it says that instead of hiding it. */
       var _darkN=(s.chronTotal||0)-s.total;
+      if(_darkN<0){
+        H.push('<div class="f-atomsub" style="margin:-4px 0 8px;color:#f0c060">⚠ the card roster ('
+          +s.total+') now exceeds the pinned in-game total ('+s.chronTotal+') — the denominator is '
+          +'stale and the percentage above is measured against it. Re-derive chronTotal from the '
+          +'game files before trusting the %.</div>');
+        _darkN=0;
+      }
       if(_darkN>0) H.push('<div class="rw-stamp-mini rw-band" style="margin:8px 0"><span class="rw-band-t">🌑 + '+_darkN+' still-dark chronicle rows</span><span class="rw-band-s">the game hides their names until they drop — they reveal (and card here) on find · counted in All missing</span></div>');
     }
     // HERO: the single best run
@@ -40639,7 +40676,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1778', name:'v1778 - the review found what I could not see in my own work', date:'2026-08-18', note:'a capped run still sealed reels and my guard watched filenames that never existed' };
+  window.D2R_BUILD = { id:'v1779', name:'v1779 - three reviews, twenty-one defects, the worst one burning his reels', date:'2026-08-18', note:'the watchdog marked reels the sweep never opened' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

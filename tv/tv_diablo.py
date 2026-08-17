@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1778"   # the review found what I could not see in my own work
+VERSION = "v1779"   # three reviews, twenty-one defects, the worst one burning his reels
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2563,8 +2563,21 @@ def _sub_budget_record():
         calls = [float(t) for t in (st.get("calls") or []) if now - float(t) < 86400]
         calls.append(now)
         try:
-            with open(_SUB_BUDGET_PATH, "w", encoding="utf-8") as _bf:
+            # v1779 — ATOMIC, because a torn write here silently DISARMS the circuit breaker.
+            # _sub_budget_load returns {} on any parse failure, so a half-written file makes the
+            # cap restart from zero with no message anywhere — the guard protecting his account
+            # fails OPEN. The file is rewritten on every vision read and holds up to _SUB_DAILY_MAX
+            # timestamps, so an interrupted sweep is a realistic way to get there. Every other state
+            # file in this lane already uses tmp+replace; this one was missed. Found by review.
+            _tmp = _SUB_BUDGET_PATH + ".tmp"
+            with open(_tmp, "w", encoding="utf-8") as _bf:
                 _bf.write(json.dumps({"calls": calls, "last": now}))
+                _bf.flush()
+                try:
+                    os.fsync(_bf.fileno())
+                except Exception:
+                    pass
+            os.replace(_tmp, _SUB_BUDGET_PATH)
         except Exception:
             pass
 

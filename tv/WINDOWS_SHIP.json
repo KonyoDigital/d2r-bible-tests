@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1778",
+  "ver": "v1779",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1778: a capped run still sealed reels and my guard watched filenames that never existed",
+  "note": "v1779: the watchdog marked reels the sweep never opened",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
