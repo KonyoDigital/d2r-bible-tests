@@ -203,8 +203,26 @@ class AgainstHisRealFootage(unittest.TestCase):
         self.assertEqual(len(pages), 0)
         pages.clear()
         cr.read_reel(reel, lambda _p: None, read_page, known_chronicle=known)
-        self.assertEqual(len(pages), len(known),
-                         "every frame the live agent marked should be read back")
+
+        # 2026-08-17 — SCOPE THE EXPECTATION TO THE REEL BEING READ.
+        # `known` is built from EVERY chronicle visit in his journal, across every session; this
+        # reads ONE reel. The assertion compared the two directly, so it held only while his journal
+        # happened to contain visits from that one session — and the moment he recorded another
+        # Chronicle visit it went 8 != 12, red on footage that had not changed. A test standing on
+        # live, growing data has to say which slice of it it is judging.
+        #
+        # ASK THE MODULE, DO NOT RE-DERIVE THE JOIN. A mark is a deep-lane frameId, "a different
+        # capture of the same moment", so _resolve_known binds it to the nearest frame within
+        # JOURNAL_MATCH_MS — NOT by equal timestamps. A first attempt here matched "<idx>_<ts>"
+        # against "f_<ts>.jpg" and found ZERO overlap while read_reel was happily binding eight,
+        # because the two captures are milliseconds apart, never identical. Re-implementing that
+        # rule in the test would have been a second copy of it to drift.
+        with open(os.path.join(reel, "index.json"), encoding="utf-8") as fh:
+            reel_frames = json.load(fh).get("frames") or []
+        mine = cr._resolve_known(reel_frames, cr._known_chronicle_map(known))
+        self.assertTrue(mine, "no mark in his journal binds to a frame in this reel")
+        self.assertEqual(len(pages), len(mine),
+                         "every frame the live agent marked IN THIS REEL should be read back")
 
 
 if __name__ == "__main__":

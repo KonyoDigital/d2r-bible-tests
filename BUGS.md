@@ -4084,7 +4084,51 @@ gold/amber hexes in bible.html and 81 in tv/control_ui.html**, several doing the
 chips, chrome). That is the real cause of "slightly different between pictures", and it is a
 census-scale job, not a hand edit.
 
-## REG-162 — a gate whose verdict depends on what ran before it (OPEN)
+## REG-162 — a gate whose verdict depends on what ran before it (OPEN — and a NEIGHBOUR of it CLOSED 2026-08-17)
+
+**CLOSED HERE: `test_chronicle_known_wire::AgainstHisRealFootage::test_real_journal_and_reel`.**
+Chasing REG-162 turned up a different failure in the same family, and this one was live and red:
+
+```
+AssertionError: 8 != 12 : every frame the live agent marked should be read back
+```
+
+The test builds `known` from **every** chronicle visit in his journal — all sessions — and then reads
+**one** reel, asserting `len(pages) == len(known)`. That held only while his journal happened to
+contain visits from that single session. **His Chronicle session tonight added a third visit row (4
+frames), `known` became 12, and the test went red on footage that had not changed.** A test standing
+on live, growing data has to say which slice of it it is judging.
+
+⚠ **And the obvious fix was wrong.** Scoping by timestamp — match the visit's `"<idx>_<ts>"` against
+the reel's `"f_<ts>.jpg"` — found **ZERO overlap**, while `read_reel` was happily binding eight. The
+reason is in `_resolve_known`'s own docstring: a mark is a deep-lane frameId, *"a different capture
+of the same moment"*, bound to the nearest frame within `JOURNAL_MATCH_MS`. The two captures are
+milliseconds apart and never identical. The test now calls **`cr._resolve_known`** — the module's own
+join — rather than carrying a second copy of a rule that would drift. **[[copy-drift]]**
+
+### The original REG-162 — a likely cause, with evidence (2026-08-17)
+
+Trying to reproduce it produced the same SHAPE twice, from a cause worth naming: **two gate runs at
+once**. I left `run_gates.py` running in the background and started a second one in the foreground.
+
+| run | verdict |
+|---|---|
+| background (concurrent) | ❌ `robot_smoke` — *"TV_ROBOT lane didn't engage · only 0 journal rows in 20s"* |
+| foreground (concurrent) | ❌ `test_roundtrip_sim` |
+| **clean single run** | ✅ **30 gates passed** |
+
+Each failing gate passes alone — `test_roundtrip_sim` on its own is 1 passed in 64s. Two runs share
+the same ports, the same reel directories and the same journal, so whichever gate happens to need an
+exclusive one loses. **That is exactly the signature REG-162 describes**: a gate that is wrong about
+the tree depending on what else is happening, and a different gate each time.
+
+This does not *prove* the original sighting was concurrent — I cannot know what else was running that
+night — but it is a reproducible cause of that exact symptom, and it matches the standing scar about
+running batches locally (his own: local runs made `test_control` take 565s instead of 19.5s and
+refused a legitimate push). **REG-162 stays open**, now with a first thing to check: was anything else
+running?
+
+
 `test_chronicle_retro` failed **twice** inside the full 30-gate run tonight with
 `AssertionError: 2 != 1 : six identical frames of one page = ONE read`, and passes **3 of 3 alone
 in 0.3s**. It is order-dependent: something earlier in the run leaves frames or journal rows that
