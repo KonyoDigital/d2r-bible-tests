@@ -10049,7 +10049,12 @@
      not say what it does. [[label-outlived-referent]] */
   var MINI_FOCUS_LABEL = {
     'stash': 'stash', 'runes': 'runes', 'gems': 'gems', 'materials': 'materials',
-    'chronicle-uniques': '📜 chronicle · uniques', 'chronicle-sets': '📜 chronicle · sets'
+    /* v1750 — WORDS ONLY. v1745 put a 📜 here to say "this reads the Chronicle", and v1614 exists
+       to keep EMOJI OUT of the tab strip and this focus row — its own test says so: "NO emoji
+       survives in the tab strip or the focus row". These buttons already wear the board's own
+       uniques/sets medallion, which is v1614's whole argument; the emoji was a second, worse
+       version of the same signal. The word "chronicle" does the naming, the art does the showing. */
+    'chronicle-uniques': 'chronicle · uniques', 'chronicle-sets': 'chronicle · sets'
   };
   var MINI_FOCUS_TITLE = {
     'chronicle-uniques': 'point MINI at the in-game Chronicle (uniques) — scroll it while this runs',
