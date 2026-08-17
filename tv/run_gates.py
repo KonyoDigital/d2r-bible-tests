@@ -283,11 +283,12 @@ def _claim_the_tree():
 # fingerprints the live files before the set and again after, and fails the whole run if anything
 # moved. A future test that forgets cannot pass quietly - which is the only kind of guard worth
 # having, because the failure mode here is silent by construction.
-_LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "autoread.json",
-               "chronicle_autoread.json",
-               # v1776 — the accumulated sighting ledger. Added the same day it was created,
-               # because the guard is only as wide as this tuple.
-               "chron_evidence.json")
+# v1778 — THESE NAMES ARE READ FROM control_app.py, NOT GUESSED. The first version of this tuple
+# listed "autoread.json" and "chronicle_autoread.json"; the real file is chron_autoread.json, so the
+# guard built to catch REG-179 was blind to the visit-mark file for its whole life. Caught by
+# review_lite.py, which compares this tuple against the _*_PATH constants themselves.
+_LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "chron_autoread.json",
+               "chron_evidence.json", "vault_swept.json")
 
 
 def _console_is_running(port=17772):

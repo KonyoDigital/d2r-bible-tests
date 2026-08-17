@@ -133,7 +133,12 @@ def setUpModule():
                        ("_CHRON_SWEPT_PATH", "swept.json"),
                        # v1776 — a NEW state file must join this list the day it is created, or the
                        # suite starts writing his console again (REG-179, by me, twice)
-                       ("_CHRON_EVIDENCE_PATH", "evidence.json")):
+                       ("_CHRON_EVIDENCE_PATH", "evidence.json"),
+                       # v1778 — the VAULT sweep keeps its own swept-memory beside the console, and
+                       # nothing here isolated it: the suite has been writing his live vault state
+                       # the whole time. Same class as REG-179, different feature. Found by
+                       # review_lite.py comparing this list against the _*_PATH constants.
+                       ("_VAULT_SWEPT_PATH", "vault_swept.json")):
         if hasattr(ca, attr):
             _MOD_PATHS[attr] = getattr(ca, attr)
             setattr(ca, attr, os.path.join(_MOD_TMP, name))
@@ -5704,6 +5709,8 @@ class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
         sys.path.insert(0, HERE)
         import tv_diablo
         self.tv = tv_diablo
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir, True)
         self._keep = (tv_diablo._SUB_DAILY_MAX, tv_diablo._SUB_HOURLY_MAX,
                       list(tv_diablo._THROTTLED_UNTIL))
 
@@ -5712,23 +5719,63 @@ class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
         self.tv._THROTTLED_UNTIL[0] = self._keep[2][0]
 
     def _img(self):
-        return os.path.join(HERE, "frames", "hist")   # any path; the guards fire before file access
+        """A REAL image, because the cap guard sits after the file check on the Claude path — a
+        directory returns early for the wrong reason and the test passes vacuously. Falls back to a
+        tiny generated jpg so this never depends on his footage existing."""
+        import glob
+        hits = glob.glob(os.path.join(HERE, "frames", "hist", "*", "*.jpg"))
+        if hits:
+            return hits[0]
+        p = os.path.join(self.tmpdir, "probe.jpg")
+        try:
+            from PIL import Image
+            Image.new("RGB", (8, 8), (0, 0, 0)).save(p)
+        except Exception:
+            with open(p, "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xd9")
+        return p
 
     def test_the_caps_are_big_enough_to_read_one_reel(self):
         """His thorough reel is ~290 pages. A cap below that cannot express "read my footage back",
         and the failure looked like empty footage rather than a full meter."""
-        self.assertGreaterEqual(self.tv._SUB_DAILY_MAX, 1000,
-                                "the daily cap cannot fit a single reel: %d" % self.tv._SUB_DAILY_MAX)
-        self.assertGreaterEqual(self.tv._SUB_HOURLY_MAX, 300,
-                                "the hourly cap throttles a catch-up sweep to a crawl")
+        # v1778 — assert the DEFAULTS in source, not the live constants: those are initialised from
+        # TV_VISION_*_MAX at import, so a legitimate operator override would fail this for a non-bug.
+        import re as _re
+        src = open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8").read()
+        d = _re.search(r'TV_VISION_DAILY_MAX",\s*"(\d+)"', src)
+        h = _re.search(r'TV_VISION_HOURLY_MAX",\s*"(\d+)"', src)
+        self.assertTrue(d and h, "could not find the cap defaults")
+        self.assertGreaterEqual(int(d.group(1)), 1000,
+                                "the DEFAULT daily cap cannot fit a single ~290-page reel: %s" % d.group(1))
+        self.assertGreaterEqual(int(h.group(1)), 300,
+                                "the DEFAULT hourly cap throttles a catch-up sweep to a crawl")
+
+    def _open_the_circuit(self, n=50):
+        """v1778 — LOWERING THE MAX IS NOT ENOUGH, and the first version of these tests only ever
+        passed on his Mac. The cap compares against .subscription_budget.json, which is GITIGNORED —
+        so on CI the call list is EMPTY, len([]) >= 1 is False, and nothing is blocked. The test then
+        fell through to a real read path and failed for the wrong reason. A fixture that depends on
+        one machine's live state is the blind-fixture defect. Caught by code review.
+
+        Patch the LOAD instead, so the circuit is genuinely open on any machine."""
+        import time as _t
+        now = _t.time()
+        self._real_load = self.tv._sub_budget_load
+        self.tv._sub_budget_load = lambda: {"calls": [now - 1] * n}
+        self.addCleanup(lambda: setattr(self.tv, "_sub_budget_load", self._real_load))
 
     def test_a_capped_classify_says_NOTHING_not_gameplay(self):
-        self.tv._SUB_DAILY_MAX = 1        # force the circuit open
+        self.tv._SUB_DAILY_MAX = 1
+        self._open_the_circuit()
+        self.assertTrue(self.tv._sub_budget_check("oneshot"),
+                        "the fixture did not actually open the circuit — the test would pass vacuously")
         r = self.tv.claude_read(self._img())
         self.assertIsNone(r, "a capped classify answered like a real read: %r" % (r,))
 
     def test_a_capped_page_read_names_the_refusal(self):
         self.tv._SUB_HOURLY_MAX = 1
+        self._open_the_circuit()
+        self.assertTrue(self.tv._sub_budget_check("oneshot"), "the circuit is not open")
         r = self.tv.claude_chronicle_read(self._img(), "chronicle-uniques")
         self.assertIsInstance(r, dict)
         self.assertIn("note", r, "a capped page read answered like an empty page: %r" % (r,))

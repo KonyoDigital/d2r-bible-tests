@@ -48,7 +48,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1777"   # the cap refused silently and the sweep believed it
+VERSION = "v1778"   # the review found what I could not see in my own work
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4878,9 +4878,7 @@ def claude_read(path, worker=None, out_jpg=None):
     # read returned that dict in 0.0s, and a sweep "ran" for fifty minutes reading nothing while
     # reporting success. v1774 closed this for the throttle and left the budget door open, which is
     # the door we actually walked through.
-    _blocked = _sub_budget_check("oneshot")
-    if _blocked:
-        return None
+    # v1778 — moved BELOW the G5 lane; see the guard just before the Claude worker call.
     # v711 — TV_STUB: the TDD seam. TV_STUB=1 returns canned reads from tv/stub_manifest.json
     # (keyed by frame basename, '*' fallback) — the FULL agent loop runs end-to-end with zero
     # vision cost, in tests and in CI. Never set in real play.
@@ -4947,6 +4945,24 @@ def claude_read(path, worker=None, out_jpg=None):
     # ══ END GROK EYES (G5) ════════════════════════════════════════════════════
 
     t0 = time.time()
+    # v1778 — THE CLAUDE CAP GATES THE CLAUDE PATH, AND ONLY IT. v1777 put this check at the top of
+    # the function, above the G5 block — and Grok runs on its OWN quota
+    # (g5_subscription_budget.json), so a full CLAUDE budget silently disabled the GROK primary eye.
+    # A per-lane circuit breaker that takes down the other lane is worse than no breaker: it removes
+    # the independent witness precisely when the main lane is struggling. Caught by code review.
+    #
+    # None (not EMPTY) is still the answer, because classifier() treats None as "no answer" while a
+    # dict is the verdict "not a Chronicle page" — that shape is REG-181 itself. And the cap is
+    # ANNOUNCED here, because returning early used to skip _oneshot_inner's ev()/journal_skip and
+    # made the classify door quieter after the fix than before it.
+    _blocked = _sub_budget_check("oneshot")
+    if _blocked:
+        try:
+            ev("cap", _blocked)
+            journal_skip("sub-budget", _blocked)
+        except Exception:
+            pass
+        return None
     w = worker or _WORKER
     out_w = w.ask(READ_PROMPT.format(path=ap), timeout=LIVE_READ_TIMEOUT_S)
     if out_w is not None:

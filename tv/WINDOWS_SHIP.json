@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1777",
+  "ver": "v1778",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1777: 250 calls a day could never read one reel",
+  "note": "v1778: a capped run still sealed reels and my guard watched filenames that never existed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

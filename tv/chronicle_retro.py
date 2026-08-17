@@ -235,7 +235,7 @@ def sig_diff(a, b, tol=28):
     return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
 
 
-def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF):
+def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF, tol=28):
     """Group consecutive frames into runs of "the same screen held still".
 
     frames: [{"f": name, "ts": ms}, ...] in capture order (a reel's index.json shape).
@@ -262,7 +262,7 @@ def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF):
         if sig is None:
             cur, prev_sig = None, None
             continue
-        if cur is not None and sig_diff(prev_sig, sig) <= max_diff:
+        if cur is not None and sig_diff(prev_sig, sig, tol=tol) <= max_diff:
             cur["frames"].append(name)
             cur["end_ts"] = (fr.get("ts") or cur["end_ts"])
         else:
@@ -541,6 +541,18 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     sig_of = sig_of or (lambda n: jpeg_sig(os.path.join(reel_dir, n)))
     idx_frames = idx.get("frames") or []
     known = _resolve_known(idx_frames, _known_chronicle_map(known_chronicle))
+    # v1778 — THE COARSE TOLERANCE HERE IS DELIBERATE, and a code review flagging it is a false
+    # positive worth recording so nobody "fixes" it twice. The two comparisons ask DIFFERENT
+    # questions, exactly as _distinct's docstring says: still_runs asks "am I still on the same
+    # SCREEN" (one classify per stretch of Chronicle), _distinct asks "is this a different PAGE"
+    # (one read per scroll position). Blindness to page changes is what makes the first question
+    # cheap to answer.
+    #
+    # MEASURED on his 08-17 reel before reverting an attempt to "fix" it:
+    #     coarse tol=28 : 55 runs -> 55 classifies + 291 pages = 346 calls
+    #     fine   tol=4  : 289 runs -> 289 classifies + 292 pages = 581 calls
+    # Identical coverage, 68% more spend. The fine tolerance belongs in _distinct (v1771/v1775),
+    # where it decides what to READ, and nowhere else.
     runs = still_runs(idx_frames, sig_of, max_diff=CHRON_STILL_MAX_DIFF)
     cands = candidate_runs(runs, min_frames=min_frames)
     # a scrolled Chronicle is never still, so the journal's own marks are candidates in their own

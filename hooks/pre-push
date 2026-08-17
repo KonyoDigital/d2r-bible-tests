@@ -102,6 +102,20 @@ gate_run() {
 # (font-weights + structure/spacing/line-height on bible.html + tv/control_ui.html) must
 # never regress to a raw literal instead of a var(--fw/--hd/--ls/--lh) token. Runs on every
 # push; catches drift BEFORE the remote. See LOCKED_TYPE_SYSTEM.md.  (bypass: git push --no-verify)
+# ── v1778 — REVIEW BEFORE PUSH, the deterministic half ───────────────────────────────────────────
+# Konyo: "yes wire it into pre-push". A git hook cannot invoke the /code-review skill (that is a
+# Claude Code command, not a shell tool) and a model review on every push would spend subscription
+# calls we now know are finite — so this is the half that IS enforceable: every check is a defect
+# class this repo has actually shipped, with a version behind it.
+#
+# It earned its place on its first run by catching three real things, one of them minutes old:
+# a live-state guard watching FILENAMES THAT DO NOT EXIST (chron_autoread.json was never watched),
+# the vault sweep's state file isolated by no test at all, and a cap default too small to read one
+# reel. The model half stays opt-in: TVD_REVIEW=1 prints an advisory read of the diff.
+if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
+  GATE_RC=1
+fi
+
 if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)" 120 -- \
      python3 "$REPO/visual_lock_invariant.py"; then
   echo "          ↑ a raw font-weight/spacing literal crept in (or a token went missing)."

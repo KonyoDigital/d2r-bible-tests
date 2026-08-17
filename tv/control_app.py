@@ -10316,6 +10316,7 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # means the classifier looked and correctly found nothing" — which is exactly what a throttle
         # counterfeits. So a run that touched the throttle seals nothing.
         _throttled = [0]
+        _capped = [0]     # v1778 — reads the SUBSCRIPTION CAP refused; a capped run seals nothing
         _waited = [0.0]
 
         def _breathe():
@@ -10344,6 +10345,13 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             _breathe()
             if _tv._is_throttled():
                 _throttled[0] += 1
+            # v1778 — A CAPPED CLASSIFY MUST NOT SEAL THE REEL. This ticks classified=1 whatever
+            # happens, and the seal rule reads "classified > 0 with pages == 0" as "the classifier
+            # looked and correctly found no Chronicle page". The throttle has had a guard since
+            # v1774; the cap had none, so a cap opening mid-sweep sealed every remaining reel at
+            # full price with nothing read. Same loss, other door. Caught by code review.
+            if _tv._sub_budget_check("oneshot"):
+                _capped[0] += 1
             _tick(classified=1)
             return _tv.claude_read(p)
 
@@ -10356,6 +10364,8 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             _breathe()
             if _tv._is_throttled():
                 _throttled[0] += 1
+            if _tv._sub_budget_check("oneshot"):
+                _capped[0] += 1
             _tick(pagesRead=1)
             return _tv.claude_chronicle_read(p, k)
 
@@ -10396,8 +10406,12 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         if _throttled[0]:
             _tick(throttledReads=_throttled[0])
             print("   🐢 %d read(s) refused by the throttle — NOTHING sealed this run" % _throttled[0])
+        if _capped[0]:
+            _tick(cappedReads=_capped[0])
+            print("   🚦 %d read(s) refused by the subscription cap — NOTHING sealed this run"
+                  % _capped[0])
         for st in res["reels"]:
-            if _throttled[0]:
+            if _throttled[0] or _capped[0]:
                 break
             if st.get("note") == "already-swept" or not st.get("reel"):
                 continue
@@ -10683,7 +10697,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1777",
+        "ver": "v1778",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

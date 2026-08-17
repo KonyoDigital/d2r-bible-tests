@@ -53,14 +53,15 @@ def _seal_rule():
                          "nothing and must not report OK")
 
 
-def run_seal(stats, swept=None, throttled=0):
+def run_seal(stats, swept=None, throttled=0, capped=0):
     """Run the REAL loop over `stats` and return the memory it produced.
 
     v1774 — `throttled` is the count of reads the throttle refused during that sweep. The loop reads
     it, so this harness has to supply it or the extraction stops compiling; passing it also lets the
     throttle case be tested through the SHIPPED code rather than a copy of it."""
     ns = {"res": {"reels": list(stats)}, "swept": {} if swept is None else swept, "time": time,
-          "_throttled": [int(throttled)], "_tick": lambda **kw: None, "print": lambda *a, **k: None}
+          "_throttled": [int(throttled)], "_capped": [int(capped)],
+          "_tick": lambda **kw: None, "print": lambda *a, **k: None}
     exec(compile(_seal_rule(), "<control_app seal loop>", "exec"), ns)
     return ns["swept"]
 
@@ -72,6 +73,21 @@ class TheSealOnlyRemembersWhatWasRead(unittest.TestCase):
     def _seal(self, st):
         """Did the SHIPPED loop seal this reel?"""
         return ("reel_" + str(st.get("reel"))) in run_seal([st])
+
+    def test_a_CAPPED_sweep_seals_NOTHING_either(self):
+        """v1778 — the same loss through the other door, found by code review of v1777.
+
+        _classify_one ticks classified=1 whatever happens, and this loop reads "classified > 0 with
+        pages == 0" as "the classifier looked and correctly found no Chronicle page". A subscription
+        cap counterfeits that shape exactly: the classifier was never asked. v1774 guarded the
+        throttle and the cap had nothing, so a cap opening mid-sweep sealed every remaining reel at
+        full price having read nothing - and a sealed reel is never looked at again."""
+        st = {"reel": "s_capped", "runs": 3, "candidates": 3, "classified": 3, "pages": 0,
+              "note": None}
+        self.assertIn("reel_s_capped", run_seal([st]),
+                      "a clean classifier-only run must still seal")
+        self.assertEqual(run_seal([st], capped=1), {},
+                         "a sweep the subscription cap refused sealed a reel it never read")
 
     def test_a_throttled_sweep_seals_NOTHING(self):
         """v1774 — the seal rule reasons that "classified > 0 with pages == 0 IS a legitimate seal:
