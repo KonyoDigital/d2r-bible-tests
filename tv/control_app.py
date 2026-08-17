@@ -9126,7 +9126,23 @@ def chronicle_autoreel_tick():
             continue
         # MARK BEFORE READING is wrong here for the same reason it was wrong for visits (v1745):
         # a refused sweep would burn the reel. Mark only once the sweep has taken the job.
-        r = chronicle_sweep_start(limit=1)
+        # v1766.1 — A RETRY MUST BE BOUNDED OR IT IS A RUNAWAY. Not marking the reel until its
+        # result is durable is right, but on its own it means a sweep that ALWAYS dies gets
+        # restarted on every single tick, spending a sweep each time and never finishing. This
+        # class is called TestReelAutoSweepCannotSurpriseHim and its charter is that the automation
+        # must be "provably incapable of running away, not merely intended not to" — an unbounded
+        # retry is exactly the runaway it forbids, arrived at while fixing the opposite fault.
+        # So: attempts are counted, and after _CHRON_AUTOREAD_MAX_TRIES the reel is RETIRED with
+        # its reason kept. Retired is not the same as swept — it is on the record, and it stops.
+        tries = _CHRON_AUTOREAD["tries"].get(rid, 0) + 1
+        if tries > _CHRON_AUTOREAD_MAX_TRIES:
+            _chron_reels_mark(rid)
+            _CHRON_AUTOREAD["skipped"][rid] = ("gave up after %d attempts — the sweep started but "
+                                               "never wrote a result" % (tries - 1))
+            return {"ok": False, "retired": rid, "tries": tries - 1,
+                    "why": "the sweep started but never wrote a result, %d times" % (tries - 1)}
+        _CHRON_AUTOREAD["tries"][rid] = tries
+        r = chronicle_sweep_start(limit=1, reel_id=rid)
         if not (isinstance(r, dict) and r.get("ok")):
             return {"ok": False, "why": "sweep refused the reel: %s"
                                         % ((isinstance(r, dict) and r.get("why")) or r)}
@@ -9135,7 +9151,8 @@ def chronicle_autoreel_tick():
         # next restart, and then decline to read that reel ever again because it was "done". The
         # marker now waits for the result to exist on disk; if it does not, the reel stays unswept
         # and will be tried again, which costs a re-read at worst and loses nothing at best.
-        _chron_reels_mark(rid)
+        # the sweep marks it once its result is on disk — see _chron_sweep_run. Marking here
+        # would burn the reel at START, which is what this comment used to describe and not do.
         return {"ok": True, "swept": rid, "start": r}
     return {"ok": True, "idle": True, "why": "no unswept reel"}
 
@@ -10030,7 +10047,7 @@ def chronicle_sweep_state():
         return dict(_CHRON_JOB)
 
 
-def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None):
+def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, reel_id=None):
     """Kick the background sweep. Refuses to start a second one — two sweeps over the same reels
     would double the spend and produce two proposals that each look like the whole truth."""
     with _CHRON_LOCK:
@@ -10047,7 +10064,7 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None):
         threading.Thread(target=_chron_visit_run, args=(int(visit),),
                          daemon=True, name="tvd-chronicle-visit").start()
         return {"ok": True, "started": True, "lanes": lanes, "visit": int(visit)}
-    threading.Thread(target=_chron_sweep_run, args=(hist_dir, limit, force),
+    threading.Thread(target=_chron_sweep_run, args=(hist_dir, limit, force, reel_id),
                      daemon=True, name="tvd-chronicle-sweep").start()
     return {"ok": True, "started": True, "lanes": lanes}
 
@@ -10196,7 +10213,7 @@ def _chron_known_from_journal(limit=500):
     return known
 
 
-def _chron_sweep_run(hist_dir, limit, force=False):
+def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
     try:
         import chronicle_retro as _cr
         import tv_diablo as _tv
@@ -10336,6 +10353,23 @@ def _chron_sweep_run(hist_dir, limit, force=False):
                 },
             })
             _chron_result_save()   # v1763 — saved in the same breath the result is set
+            # v1765 — AND ONLY NOW IS THE REEL SPENT. The tick used to mark the reel the instant
+            # chronicle_sweep_start RETURNED — but that call spawns a daemon thread and returns
+            # immediately, so the mark landed while the sweep had barely begun. The comment above it
+            # claimed the marker "waits for the result to exist on disk"; it did not, and the failure
+            # it described was live the whole time: a console killed mid-sweep, or a sweep that threw,
+            # left the reel marked done forever with its findings never written. His recordings are
+            # not re-creatable, so a burned reel is a permanent loss of the thing this feature exists
+            # to protect. The mark now happens HERE, after the result is durable, which is what the
+            # comment always said. [[the-unjoined-end]] [[label-outlived-referent]]
+            if reel_id:
+                try:
+                    _chron_reels_mark(reel_id)
+                    # a reel that finished owes nothing: clear its attempt count so an unrelated
+                    # failure months later starts from zero rather than inheriting old strikes
+                    _CHRON_AUTOREAD["tries"].pop(reel_id, None)
+                except Exception:
+                    pass
     except Exception as e:
         with _CHRON_LOCK:
             _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
@@ -10525,7 +10559,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1765",
+        "ver": "v1766",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

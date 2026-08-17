@@ -5538,6 +5538,10 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         control_app._CHRON_AUTOREAD_PATH = self.state
         control_app._CHRON_AUTOREAD["done"] = None
         control_app._CHRON_AUTOREAD["reels"] = None
+        # v1766.1 — these are module globals and the retry counter is new; leaving them dirty made
+        # one test retire a reel because an EARLIER test had already spent its attempts
+        control_app._CHRON_AUTOREAD["tries"] = {}
+        control_app._CHRON_AUTOREAD["skipped"] = {}
         control_app._agent_alive = lambda *a, **k: False
         control_app.chronicle_sweep_state = lambda *a, **k: {"running": False}
         self.started = []
@@ -5551,7 +5555,24 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         self.ca.chronicle_sweep_start = self._start0
         self.ca._CHRON_AUTOREAD["done"] = None
         self.ca._CHRON_AUTOREAD["reels"] = None
+        self.ca._CHRON_AUTOREAD["tries"] = {}
+        self.ca._CHRON_AUTOREAD["skipped"] = {}
         shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _make_reel(self, rid):
+        """A reel is only visible to reel_dirs when its index carries frames — a bare directory is
+        invisible, and a test built on one would pass for the wrong reason (it would assert nothing
+        was swept because there was nothing there)."""
+        import json as _json
+        hist = os.path.join(self.tmp, "hist")
+        d = os.path.join(hist, rid)
+        os.makedirs(d, exist_ok=True)
+        for n in ("f0.jpg", "f1.jpg"):
+            with open(os.path.join(d, n), "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xd9")
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            _json.dump({"frames": [{"f": "f0.jpg", "ts": 1}, {"f": "f1.jpg", "ts": 2}]}, fh)
+        return hist
 
     def test_a_live_session_is_never_swept(self):
         """A reel that is still growing is not a finished reel."""
@@ -5684,6 +5705,115 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         t.start()
         t.join(timeout=10)
         self.assertTrue(done, "_chron_result_save() deadlocked while the caller held _CHRON_LOCK")
+
+    def test_a_reel_is_spent_only_once_its_findings_ARE_ON_DISK(self):
+        """v1765 — THE COMMENT DESCRIBED A PROTECTION THAT WAS NOT THERE.
+
+        The tick marked the reel the instant chronicle_sweep_start RETURNED. That call spawns a
+        daemon thread and returns immediately, so the mark landed while the sweep had barely begun,
+        and the note sitting directly above it — "the marker now waits for the result to exist on
+        disk; if it does not, the reel stays unswept" — was false from the day it was written.
+
+        The failure it described was therefore live the whole time: a console killed mid-sweep, or a
+        sweep that threw, left the reel marked done FOREVER with its findings never written. His
+        recordings are not re-creatable. A burned reel is a permanent loss of exactly the thing the
+        automation exists to protect, and it is silent — the reel simply never comes up again.
+
+        So: the tick must hand the reel to the sweep and mark NOTHING. Marking is the runner's job,
+        after the result is durable."""
+        reels = self._make_reel("reel_newone")
+        self.ca._chron_reels_mark("reel_old")      # a reel already spent, to prove it is skipped
+        old_hist = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = reels
+        try:
+            r = self.ca.chronicle_autoreel_tick()
+        finally:
+            if old_hist is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old_hist
+
+        self.assertTrue(r.get("ok"), "the tick refused an unswept reel: %s" % r)
+        self.assertEqual(r.get("swept"), "reel_newone", "it did not pick up the new reel: %s" % r)
+        # the sweep was handed the reel by name, so the runner can mark it when the result lands
+        self.assertEqual([k.get("reel_id") for k in self.started], ["reel_newone"],
+                         "the sweep was not told which reel it is spending: %s" % self.started)
+        # ...and NOTHING is marked yet. self.started's stub never finishes, which is exactly the
+        # crash: if the mark had happened here, this reel would be gone for good.
+        self.assertNotIn("reel_newone", self.ca._chron_reels_seen(),
+                         "the reel was burned before its findings were ever written")
+
+    def test_a_sweep_that_dies_leaves_the_reel_RETRYABLE(self):
+        """The other half of the same rule, and the one that actually costs him film: if a dead
+        sweep leaves no mark, the next tick must come back for the same reel rather than moving on.
+        A retry costs one re-read; not retrying costs the recording."""
+        reels = self._make_reel("reel_newone")
+        old_hist = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = reels
+        try:
+            first = self.ca.chronicle_autoreel_tick()
+            # the sweep "died": no result was ever saved, so no mark was ever made
+            second = self.ca.chronicle_autoreel_tick()
+        finally:
+            if old_hist is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old_hist
+        self.assertEqual(first.get("swept"), "reel_newone")
+        self.assertEqual(second.get("swept"), "reel_newone",
+                         "a reel whose sweep died was never tried again: %s" % second)
+
+    def test_a_reel_that_never_finishes_is_RETIRED_not_retried_forever(self):
+        """v1766.1 — THE OTHER EDGE OF THE SAME FIX, and one I walked straight into. Not marking a
+        reel until its result is durable is right; on its own it also means a sweep that ALWAYS dies
+        gets restarted on every tick, spending a sweep each time and never finishing. This class is
+        named for the promise that the automation is "provably incapable of running away, not merely
+        intended not to" — an unbounded retry is precisely that runaway, arrived at while fixing its
+        opposite. Attempts are counted and the reel is retired with its reason kept, because a reel
+        that stopped being tried must never look like one that was never tried."""
+        self._make_reel("reel_cursed")
+        old_hist = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = os.path.join(self.tmp, "hist")
+        try:
+            ticks = [self.ca.chronicle_autoreel_tick() for _ in range(4)]
+        finally:
+            if old_hist is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old_hist
+        swept = [t.get("swept") for t in ticks]
+        # it retries up to the bound...
+        self.assertEqual(swept[:2], ["reel_cursed", "reel_cursed"],
+                         "it did not retry a reel whose sweep died: %s" % swept)
+        # ...and then stops, for good, with the reason on the record
+        self.assertEqual(ticks[2].get("retired"), "reel_cursed",
+                         "a reel that never finishes is retried forever: %s" % ticks[2])
+        self.assertIn("never wrote a result", self.ca._CHRON_AUTOREAD["skipped"].get("reel_cursed", ""))
+        self.assertEqual(len(self.started), 2,
+                         "it kept paying for a sweep after giving up: %d starts" % len(self.started))
+        # and the fourth tick is quiet — retired means retired
+        self.assertIsNone(ticks[3].get("swept"), "a retired reel came back: %s" % ticks[3])
+
+    def test_marking_a_reel_does_not_deadlock_the_sweep(self):
+        """v1765 moved the reel mark INTO _chron_sweep_run, one line after _chron_result_save() —
+        which runs while the caller holds _CHRON_LOCK. That is the precise shape of the bug that
+        once took this file from 24s to past 600s: threading.Lock is not reentrant, so anything
+        called from in there must not reach for it. _chron_reels_mark uses its own file and an
+        atomic replace, and this pins that. It fails by HANGING, so the runner timeout is the
+        assertion."""
+        self.ca._CHRON_AUTOREAD_PATH = os.path.join(self.tmp, "nodeadlock_reels.json")
+        done = []
+
+        def _mark_under_lock():
+            with self.ca._CHRON_LOCK:
+                self.ca._chron_reels_mark("reel_under_lock")
+            done.append(True)
+
+        t = threading.Thread(target=_mark_under_lock, daemon=True)
+        t.start()
+        t.join(timeout=10)
+        self.assertTrue(done, "_chron_reels_mark() deadlocked while the caller held _CHRON_LOCK")
+        self.assertIn("reel_under_lock", self.ca._chron_reels_seen())
 
     def test_the_off_switch_actually_stops_it(self):
         self.ca._CHRON_AUTOREEL_ON = False

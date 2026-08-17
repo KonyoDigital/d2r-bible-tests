@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1765",
+  "ver": "v1766",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1765: the last link of the chain, plus a ledger that holds still",
+  "note": "v1766: the tick burned the reel at start, which its own comment denied",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
