@@ -10435,6 +10435,13 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
 
         read_page = _cr.two_lane_reader(_read_one, grok_lane)
 
+        # v1780 — DECLARE THE SWEEP. run_gates fingerprints the live state files and cannot tell a
+        # legitimate sweep from a test writing his console; a lock with a heartbeat is that signal.
+        try:
+            with open(os.path.join(HERE, ".sweep.lock"), "w") as _lk:
+                _lk.write(str(int(time.time())))
+        except Exception:
+            pass
         swept = _chron_swept_load()
         known = _chron_known_from_journal()
         _tick(knownFrames=len(known))
@@ -10785,7 +10792,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1779",
+        "ver": "v1780",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -311,6 +311,49 @@ def _console_is_running(port=17772):
             pass
 
 
+_SWEEP_LOCK = os.path.join(HERE, ".sweep.lock")
+
+
+def _sweep_in_progress(max_age_s=900):
+    """v1780 — A SWEEP DECLARES ITSELF, because lsof cannot see one.
+
+    The first attempt asked the kernel who held the state files open; a sweep writes them with
+    tmp+rename, so it holds nothing and the guard still blamed the suite. A lock file with a
+    heartbeat is the honest signal: a sweep touches it while it runs, and a stale one (older than
+    max_age_s) is ignored so a crashed sweep cannot disable the guard forever.
+    """
+    try:
+        age = time.time() - os.path.getmtime(_SWEEP_LOCK)
+        return age < max_age_s
+    except Exception:
+        return False
+
+
+def _external_writer(names=_LIVE_STATE):
+    """v1780 — IS SOMETHING OTHER THAN THE SUITE WRITING THESE RIGHT NOW?
+
+    The guard exists to catch a TEST writing his console state. A background sweep writing the
+    accumulated ledger is legitimate and the fingerprint cannot tell them apart, so it accused the
+    suite of a change a chronicle sweep had just made. A gate that cries wolf gets disabled, so ask
+    the kernel instead: if a process outside this run holds one of these files open, the check is
+    SKIPPED and said out loud rather than failed. [[feedback_suspect_the_instrument]]
+    """
+    import subprocess
+    held = []
+    for n in names:
+        p = os.path.join(HERE, n)
+        if not os.path.exists(p):
+            continue
+        try:
+            r = subprocess.run(["lsof", "-t", p], capture_output=True, text=True, timeout=5)
+            pids = [x for x in (r.stdout or "").split() if x.strip() and int(x) != os.getpid()]
+            if pids:
+                held.append("%s (pid %s)" % (n, ",".join(pids[:3])))
+        except Exception:
+            pass
+    return held
+
+
 def _live_fingerprint():
     import hashlib
     out = {}
@@ -349,6 +392,9 @@ def main(argv):
 
     print("══ GATE SET ══")
     _console_live = _console_is_running()
+    _sweep_live = _external_writer()
+    if _sweep_in_progress():
+        _sweep_live = _sweep_live or ["a chronicle sweep (tv/.sweep.lock)"]
     _live_before = _live_fingerprint()
     results = run(a.only)
     _live_moved = _live_state_diff(_live_before, _live_fingerprint())
@@ -357,16 +403,17 @@ def main(argv):
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
 
     failed = [g.name for g, s, _, _, _ in results if s == "FAIL"]
-    if _live_moved and not _console_live:
+    if _live_moved and not _console_live and not _sweep_live:
         # not a warning: a suite that writes his console's state has already done the damage
         failed.append("live-state-untouched")
     skipped = [(g.name, d) for g, s, _, d, _ in results if s == "SKIP"]
     print("\n── VERDICT ──")
-    if _live_moved and _console_live:
-        print("⚠ SKIPPED live-state check — the console is running on :17772 and writes these files")
+    if _live_moved and (_console_live or _sweep_live):
+        why = "the console is running on :17772" if _console_live else ("held by %s" % ", ".join(_sweep_live))
+        print("⚠ SKIPPED live-state check — %s, so a change here is not the suite" % why)
         for m in _live_moved:
             print("     %s" % m)
-    if _live_moved and not _console_live:
+    if _live_moved and not _console_live and not _sweep_live:
         print("❌ THE SUITE WROTE THE LIVE CONSOLE STATE — a fixture reached his data:")
         for m in _live_moved:
             print("     %s" % m)

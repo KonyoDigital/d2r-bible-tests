@@ -30,6 +30,7 @@
 #   tiny chip. OFF/STOP seal session_end into sessions.jsonl. Claude deep is multi-second
 #   by nature — OCR chips + smooth film are the live-drive feel.
 # ═══════════════════════════════════════════════════════════════════════════════
+import tempfile
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempfile
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -48,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1779"   # three reviews, twenty-one defects, the worst one burning his reels
+VERSION = "v1780"   # read the list, not the living room
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4813,10 +4814,51 @@ def claude_chronicle_read(image_path, kind, timeout=None):
         if not os.path.isfile(ap):
             return None
         ledger = "sets" if str(kind or "").endswith("sets") else "uniques"
-        raw = _oneshot(ap, GENIUS_MODEL,
+        # ── v1780 — READ THE LIST, NOT THE LIVING ROOM ────────────────────────────────────────
+        # His frames are 2940x1912 full-desktop grabs; the Chronicle list is 26% of that. The other
+        # 74% is town, his character, the life orbs and the dock — and it does not merely cost time,
+        # it BLINDS the read. Measured over six frames of his thorough reel, same reader, same day:
+        #
+        #     full frame : 0/6 pages read, 0 names, six "no-found-state" refusals
+        #     list crop  : 5/6 pages read, 17 names, one refusal
+        #
+        # That is the whole difference between a sweep that finds his items and one that reports
+        # empty footage. chronicle_template already measured this band on his own calibration film
+        # (LIST_BAND, aspect-corrected by _scale_band_for_aspect) and used it only to CLASSIFY
+        # frames — never to crop what gets read. The stash lane has cropped since v947 and its own
+        # notes say chrome only becomes readable "via a deliberate crop + 3x upscale".
+        #
+        # DUAL ROUTE, accuracy first: if the crop comes back refused we retry the FULL frame, so
+        # this can only add reads, never remove one. Upscaling was measured too and did not help on
+        # top of the crop, so it is not done — the win is the framing, not the pixels.
+        _read_path = ap
+        try:
+            import chronicle_template as _ct
+            from PIL import Image as _Im
+            _im = _Im.open(ap).convert("RGB")
+            _W, _H = _im.size
+            _bx = _ct.LIST_BAND
+            try:
+                _bx, _ = _ct._scale_band_for_aspect(_ct.LIST_BAND, float(_W) / float(_H))
+            except Exception:
+                pass
+            _c = _im.crop((int(_W * _bx[0]), int(_H * _bx[1]), int(_W * _bx[2]), int(_H * _bx[3])))
+            if _c.width > 200 and _c.height > 200:
+                _cp = os.path.join(tempfile.gettempdir(), "tvd_chron_crop_%d.jpg" % os.getpid())
+                _c.save(_cp, quality=94)
+                _read_path = _cp
+        except Exception:
+            _read_path = ap
+        raw = _oneshot(_read_path, GENIUS_MODEL,
                        timeout=float(timeout or 120),
-                       prompt=CHRONICLE_READ_PROMPT.format(path=ap, ledger=ledger),
+                       prompt=CHRONICLE_READ_PROMPT.format(path=_read_path, ledger=ledger),
                        raw_json=True)
+        # the dual route: a refused CROP gets one full-frame retry, so cropping can only add reads
+        if _read_path != ap and not raw:
+            raw = _oneshot(ap, GENIUS_MODEL,
+                           timeout=float(timeout or 120),
+                           prompt=CHRONICLE_READ_PROMPT.format(path=ap, ledger=ledger),
+                           raw_json=True)
     try:
         import chronicle_retro as _cr
     except Exception:

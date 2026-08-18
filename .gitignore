@@ -86,3 +86,6 @@ tv/g5_stats.json
 # machine.s reading history into a public repo.
 tv/chron_evidence.json
 tv/chron_evidence.json.tmp
+
+# v1780 — a running sweep declares itself here; machine state, never source
+tv/.sweep.lock
