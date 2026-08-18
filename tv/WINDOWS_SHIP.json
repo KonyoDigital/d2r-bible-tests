@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1802",
+  "ver": "v1803",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1802: CI failed v1800 on two specs I did not run. v1630 pins the tooltip payload name as RAW because it is a lookup key, not a label - v1800 stripped it at the source and broke the key to fix a display that was already correct. And the TZ tiering he asked about lived in TWO files: v1801 dropped the meaningless level term from the console and left the board scoring a 650-density zone GOOD while the console called it THIN, from one shared table. Both surfaces now agree, both unlock thin zones as he chose, and the guards that pinned the old lock are swept rather than deleted.",
+  "note": "v1803: A push to main PUBLISHES, so the gate that matters stands in front of the deploy and not in front of the push. publish.yml runs the smoke set (read from hooks/pre-push, never restated, so the two cannot drift), the python suites, and a review of the bytes that actually landed - and publication is held if the review returns a HIGH finding. The local deploy stays in the hook until CI has deployed once: removing a working publisher before the new one is proven leaves two halves and no publication.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

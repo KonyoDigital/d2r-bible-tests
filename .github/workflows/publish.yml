@@ -1,0 +1,249 @@
+name: Publish — gates, review, then deploy
+
+# THE SHIP CHAIN, IN ONE FILE. Until now it lived in hooks/pre-push on his Mac: gates, a 60-spec
+# Playwright smoke, then deploy.sh straight to Cloudflare Pages. Three things were wrong with that
+# and only one of them is CPU:
+#
+#   1. THE MAC WAS IN THE DEPLOY PATH. Nothing reached bull-4-u.com unless his laptop was awake,
+#      unlocked and had CLOUDFLARE_API_TOKEN in ~/.zshenv.
+#   2. THE REVIEW WAS NOT IN THE CHAIN AT ALL. It ran after the push, on the working tree, in a
+#      terminal — so on 2026-08-19 it reviewed two ships that the pre-push gate had BLOCKED and
+#      which never reached origin. A review of bytes nobody shipped is not a gate.
+#   3. A PUSH TO MAIN PUBLISHES. That is the fact this repo is organised around, so the gate that
+#      matters is the one in front of the DEPLOY, not the one in front of the push.
+#
+# So: the push always lands (his workflow is unchanged, no PRs). What is gated is PUBLICATION.
+# A ship that fails a gate or draws a HIGH review finding sits in the repo and does NOT reach the
+# live site — which is the only irreversible half.
+#
+# ⚠ THE LOCAL DEPLOY IS STILL IN hooks/pre-push AND MUST STAY THERE UNTIL THIS FILE HAS DEPLOYED
+# SUCCESSFULLY AT LEAST ONCE. Removing the working half before the new half is proven is how you
+# end up with two halves and no publication ([[the-unjoined-end]]). Once a green run appears here,
+# delete the deploy call from the hook — not before.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # a newer ship supersedes an older one mid-flight; never two deploys racing to the same project
+  group: publish-main
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Smoke gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # The spec list is READ FROM hooks/pre-push, never restated here. Two copies of a gate list
+      # is [[copy-drift]] with a publication attached: the hook would gain a spec, this would not,
+      # and the CI gate would quietly be weaker than the local one it replaced.
+      - name: Run the same smoke set the hook runs
+        run: |
+          # `while read` rather than `mapfile`: mapfile is bash 4+, and this Mac runs bash 3.2,
+          # so a mapfile version could not be tested anywhere but on CI itself. A gate whose
+          # extraction step you cannot exercise locally is a gate you find out about in prod.
+          SPECS=()
+          while IFS= read -r spec; do SPECS+=("$spec"); done < <(
+            sed -n '/^SMOKE_SPECS=(/,/^)/p' hooks/pre-push \
+              | grep -oE 'tests/[^[:space:]#]+\.spec\.ts')
+          if [ "${#SPECS[@]}" -lt 8 ]; then
+            echo "::error::could not read SMOKE_SPECS out of hooks/pre-push (found ${#SPECS[@]})."
+            echo "::error::Refusing to run a gate weaker than the one it stands in for."
+            exit 1
+          fi
+          # and every named spec must EXIST — a typo the hook silently tolerated would otherwise
+          # shrink the CI gate without saying so.
+          for spec in "${SPECS[@]}"; do
+            [ -f "$spec" ] || { echo "::error::smoke spec named in hooks/pre-push does not exist: $spec"; exit 1; }
+          done
+          echo "running ${#SPECS[@]} smoke specs"
+          npx playwright test "${SPECS[@]}" --workers=2 --reporter=line
+
+  suites:
+    name: Python suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: cd tv && python3 -m unittest test_control test_tz_art
+
+  review:
+    name: Review the pushed bytes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      high: ${{ steps.publish.outputs.high }}
+      ran: ${{ steps.key.outputs.have }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+
+      # THE SKIP IS LOUD. A gate that quietly does nothing when a secret is missing reports success
+      # it never earned — the same defect as a gate that is always green.
+      - name: Check for the review key
+        id: key
+        env:
+          HAVE_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        run: |
+          echo "have=$HAVE_KEY" >> "$GITHUB_OUTPUT"
+          if [ "$HAVE_KEY" != "true" ]; then
+            {
+              echo "## ⚠ No review ran"
+              echo
+              echo "\`ANTHROPIC_API_KEY\` is not set on this repo, so **nothing reviewed this push**."
+              echo "That is not the same as a clean review, and the deploy below did NOT wait on one."
+              echo
+              echo "Enable with: \`gh secret set ANTHROPIC_API_KEY\`"
+              echo "(billed to the API, not to the Claude subscription — the one real cost of"
+              echo "moving the review off the Mac.)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Work out what actually landed
+        if: steps.key.outputs.have == 'true'
+        id: diff
+        run: |
+          BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="$(git rev-parse HEAD~1)"
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          git diff "$BASE"..HEAD > /tmp/pushed.diff
+          BYTES=$(wc -c < /tmp/pushed.diff)
+          echo "bytes=$BYTES" >> "$GITHUB_OUTPUT"
+          # bible.html is 5.6MB; an unbounded diff silently degrades the review. Truncate LOUDLY.
+          if [ "$BYTES" -gt 400000 ]; then
+            head -c 400000 /tmp/pushed.diff > /tmp/t && mv /tmp/t /tmp/pushed.diff
+            echo "truncated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "truncated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v5
+        if: steps.key.outputs.have == 'true'
+        with: { node-version: 20 }
+      - run: npm install -g @anthropic-ai/claude-code
+        if: steps.key.outputs.have == 'true'
+
+      - name: Review
+        if: steps.key.outputs.have == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          {
+            echo "Review this diff — it is what was just pushed to main of a D2R farming board,"
+            echo "and a push to main PUBLISHES to a live site."
+            echo
+            echo "Report only defects you can point at with file:line and a concrete failure"
+            echo "scenario. No style opinions. Begin each finding with HIGH, MEDIUM or LOW."
+            echo "If you cannot prove a finding from the diff alone, begin it with UNVERIFIED and"
+            echo "say what would settle it. If nothing is wrong, reply exactly: NO FINDINGS."
+            echo
+            echo "House rules this codebase is graded against:"
+            echo "- a fix applied to one member of a class, siblings left running, is a defect"
+            echo "- a guard that greps a string which also appears in a nearby COMMENT is blind"
+            echo "- a number reaching a screen without being measured must not look measured"
+            echo "- a value published and read by nothing is not wired"
+            echo "- CSS: a later or more specific rule silently undoing an earlier verdict"
+            echo "- a comment that contradicts the code beneath it"
+            echo
+            echo "=== DIFF ==="
+            cat /tmp/pushed.diff
+          } > /tmp/prompt.txt
+          claude -p "$(cat /tmp/prompt.txt)" --output-format text > /tmp/review.txt 2>/tmp/review.err || {
+            { echo "## Review FAILED to run"; head -20 /tmp/review.err; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
+
+      - name: Publish the findings
+        if: steps.key.outputs.have == 'true'
+        id: publish
+        run: |
+          {
+            echo "## Review of \`${{ github.sha }}\`"
+            echo
+            echo "_diff \`${{ steps.diff.outputs.base }}\`..HEAD · ${{ steps.diff.outputs.bytes }} bytes_"
+            if [ "${{ steps.diff.outputs.truncated }}" = "true" ]; then
+              echo
+              echo "> ⚠ **Diff truncated at 400KB** — the rest of this push was NOT reviewed."
+            fi
+            echo
+            cat /tmp/review.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -qiE "^\s*NO FINDINGS" /tmp/review.txt; then
+            echo "high=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "high=$(grep -ciE '^\s*HIGH' /tmp/review.txt || true)" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: [smoke, suites, review]
+    # `needs` already requires smoke+suites to have SUCCEEDED. The extra condition is about the
+    # review specifically: a HIGH finding holds publication. A missing key does NOT hold it — that
+    # would let an unset secret quietly stop his site updating, which is a worse failure than an
+    # unreviewed ship, and the review job says so loudly in its own summary either way.
+    if: needs.review.outputs.high == '0' || needs.review.outputs.ran != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - name: Publish
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            # NOT an error, and this distinction is the whole point. While hooks/pre-push still
+            # calls deploy.sh, THE MAC IS THE PUBLISHER and this job is standing by, not failing.
+            # Going red here would put a permanent X on every ship for a deploy that is happening
+            # correctly ten seconds earlier on his laptop — crying wolf, which is how a red signal
+            # becomes furniture. It is still stated loudly, because a silent skip would be the
+            # opposite defect: reporting success this job never earned.
+            echo "::warning::CI deploy is not armed — CLOUDFLARE_API_TOKEN is not set."
+            {
+              echo "## Deploy: standing by (not armed)"
+              echo
+              echo "\`CLOUDFLARE_API_TOKEN\` is not set, so **this job published nothing**."
+              echo "That is expected right now: \`hooks/pre-push\` still runs \`deploy.sh\` from"
+              echo "the Mac, so the live site is already up to date for this ship."
+              echo
+              echo "### To move publication off the Mac"
+              echo "1. \`gh secret set CLOUDFLARE_API_TOKEN\` (Cloudflare token, scope Pages:Edit)"
+              echo "2. push once and confirm THIS job goes green and the site updates"
+              echo "3. only then delete the \`deploy.sh\` call from \`hooks/pre-push\`"
+              echo
+              echo "Do not do 3 before 2 — removing the working publisher before the new one is"
+              echo "proven leaves two halves and no publication."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          bash deploy.sh
+
+  held:
+    name: Publication HELD
+    needs: [review]
+    if: needs.review.outputs.ran == 'true' && needs.review.outputs.high != '0'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::The review found HIGH findings, so this ship was NOT published."
+          echo "::error::It is in the repo; bull-4-u.com still serves the previous version."
+          echo "::error::Read the review job summary, fix, and push again."
+          exit 1
