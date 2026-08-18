@@ -111,7 +111,16 @@ test.describe('v1747 — the tally search bar', () => {
 
     // and the card must actually open, with the item's own art
     await page.locator('#tab-funi .tsrch .tsrch-nm[data-arttip]').first().hover({ timeout: 4000 });
-    await page.waitForTimeout(450);
+    /* v1787 — POLL, DO NOT SNAPSHOT AT A FIXED DELAY. v1717 diagnosed this exact race in
+       v1625 and fixed it THERE only: the card is raised by a delegated hover handler and
+       `.on` is a transition class, so a single read at a fixed delay passes in one run and
+       fails in the next. It cost two consecutive red Routine I runs on shard 3/6, on commits
+       that changed no page code at all. Same defect, same remedy, applied to the class. The
+       assertion below stays exactly as strict: if the card never comes up, this still goes red. */
+    await page.waitForFunction(() => {
+          const t = document.getElementById('arttip');
+          return !!t && t.classList.contains('on');
+        }, null, { timeout: 4000 }).catch(() => {});
     const tip = await page.evaluate(() => {
       const t = document.getElementById('arttip');
       if (!t) return { on: false, art: null as string | null, label: '' };
