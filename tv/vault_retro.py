@@ -278,7 +278,15 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES)
 
 def _witness_rows(evidence):
     """The provenance the board shows when he asks WHY it thinks he owns this. Sorted = stable."""
-    rows = [{"session": e.get("session"), "frame": e.get("frame"), "lane": e.get("lane")}
+    # v1786 — CARRY conf. These rows are not only what the board shows: control_app re-gates a
+    # caller-supplied proposal by feeding them straight back into gate(), and gate() reads conf.
+    # Without it bestConf was 0.0, so a GENUINE proposal — two sessions at 0.97 and 0.95 — was
+    # refused with "the reader itself was unsure (0.00 < 0.55)", blaming the reader for a field the
+    # provenance never carried. It was fail-CLOSED only because the console posts an empty body
+    # today; the moment anything posted the engine's own proposal back, apply would refuse
+    # everything. Found by an adversarial review of this lane.
+    rows = [{"session": e.get("session"), "frame": e.get("frame"), "lane": e.get("lane"),
+             "conf": e.get("conf")}
             for e in evidence]
     return sorted(rows, key=lambda r: (str(r["session"]), str(r["frame"]), str(r["lane"])))
 

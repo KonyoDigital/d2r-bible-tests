@@ -53,6 +53,37 @@ def count_of(res, name):
     return None
 
 
+class TestV1786TheReGateCanActuallyGate(unittest.TestCase):
+    """v1786 — THE RE-GATE REFUSED EVERY GENUINE PROPOSAL AND BLAMED THE READER.
+
+    control_app re-checks a caller-supplied proposal at the WRITE, feeding each row's provenance
+    back into gate(). gate() reads conf; _witness_rows emitted {session, frame, lane} and nothing
+    else. So bestConf was 0.0 and a real proposal — two sessions at 0.97 and 0.95 — came back "the
+    reader itself was unsure (0.00 < 0.55)": refused on a field the provenance never carried.
+
+    It was fail-CLOSED only by accident (the console posts an empty body today). The moment anything
+    posted the engine's own proposal back, apply would refuse everything — and a HAND-MADE body
+    carrying conf would sail through, which is the wrong way round. Found by an adversarial review."""
+
+    def test_a_genuine_proposal_clears_its_own_re_gate(self):
+        ev = [{"session": "s_1", "frame": "f1", "lane": "stash", "conf": 0.97},
+              {"session": "s_2", "frame": "f9", "lane": "stash", "conf": 0.95}]
+        row = v._owned_row(("Ist Rune", "stash"), ev)
+        wit = row.get("witnesses") or row.get("evidence") or []
+        self.assertTrue(wit, "the row carries no provenance at all")
+        self.assertIsNotNone(wit[0].get("conf"),
+                             "witness rows still carry no conf — the re-gate cannot judge them")
+        # NB: this file imports vault_retro as `v`, so the verdict cannot also be called v
+        verdict = v.gate(wit, v.KEEP_CONF_FLOOR, v.KEEP_MIN_WITNESSES)
+        self.assertTrue(verdict.get("pass"),
+                        "the engine's own proposal fails its own gate: %s" % verdict.get("why"))
+
+    def test_a_weak_single_sighting_is_still_refused(self):
+        """Non-vacuity: the fix must not turn the gate into a rubber stamp."""
+        weak = [{"session": "s_1", "frame": "f1", "lane": "stash", "conf": 0.20}]
+        self.assertFalse(v.gate(weak, v.KEEP_CONF_FLOOR, v.KEEP_MIN_WITNESSES).get("pass"))
+
+
 class TestMergeMax(unittest.TestCase):
     """Law 1, and the one that can silently destroy his ledger."""
 
