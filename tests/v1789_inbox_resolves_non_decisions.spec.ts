@@ -27,8 +27,18 @@ import * as path from 'path';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
+/* Seed the queue AND clear everything the resolver reads, because these specs share a `file://`
+   origin with every other spec in the shard — including their own earlier tests.
+
+   Measured twice, the hard way. First: other specs write the grail, so held names arrived already
+   `found: true` and were retired as "already in your grail". Then v1790 added a KEEP-LIST for rows
+   he puts back, and the put-back test wrote "Templar Coat" into it — after which every earlier test
+   in the file stopped retiring that row and five assertions went red at once. A fixture that seeds
+   only what it wants and inherits the rest is not testing the code, it is testing the run order. */
 async function seedInbox(page: any, names: string[]) {
   await page.addInitScript((ns: string[]) => {
+    localStorage.removeItem('d2r_chronicleAutoRetired');
+    localStorage.removeItem('d2r_chronicleKeepPending');
     localStorage.setItem('d2r_chronicleInbox', JSON.stringify(ns.map((n) => ({ name: n }))));
   }, names);
 }
@@ -143,7 +153,11 @@ test('a roster unique he does NOT have is never dismissed', async ({ page }) => 
 test('the panel shows a receipt for the rows it cleared on its own', async ({ page }) => {
   await seedInbox(page, ['Templar Coat', 'Toothrow']);
   await page.goto(URL);
-  await page.evaluate(() => (window as any).inboxPopTog());
+  await page.evaluate(() => {
+    (window as any).renderInboxFab();
+    const pop = document.getElementById('inbox-pop');
+    if (pop && !pop.classList.contains('open')) (window as any).inboxPopTog();
+  });
   const pop = page.locator('#inbox-pop');
   await expect(pop).toHaveClass(/open/);
   // a queue that silently got smaller is indistinguishable from a lost one
@@ -195,12 +209,7 @@ test('an auto-retired row can be put back, and it STAYS back', async ({ page }) 
   //
   // The second assertion is the one that matters. Without the keep-list, the next render retires
   // the row again and the button looks broken while behaving exactly as designed.
-  await page.addInitScript(() => {
-    localStorage.removeItem('d2r_chronicleAutoRetired');
-    localStorage.removeItem('d2r_chronicleKeepPending');
-    localStorage.setItem('d2r_chronicleInbox',
-      JSON.stringify([{ name: 'Templar Coat' }, { name: 'Toothrow' }]));
-  });
+  await seedInbox(page, ['Templar Coat', 'Toothrow']);
   await page.goto(URL);
 
   const retired = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
@@ -208,7 +217,10 @@ test('an auto-retired row can be put back, and it STAYS back', async ({ page }) 
   expect(retired[0].why).toContain('base item name');
   expect(retired[0].ts).toBeGreaterThan(0);
 
-  await page.evaluate(() => (window as any).inboxPopTog());
+  await page.evaluate(() => {
+    const pop = document.getElementById('inbox-pop');
+    if (pop && !pop.classList.contains('open')) (window as any).inboxPopTog();
+  });
   const back = page.locator('#inbox-pop .ibp-rr-b').first();
   await expect(back).toBeVisible();
   expect((await back.boundingBox())!.width).toBeGreaterThan(20);
@@ -228,6 +240,7 @@ test('an auto-retired row can be put back, and it STAYS back', async ({ page }) 
 test('a row retired longer ago than the grace window is no longer offered', async ({ page }) => {
   // the window has to actually bound something, or "kept for 7 days" is decoration
   await page.addInitScript(() => {
+    localStorage.removeItem('d2r_chronicleKeepPending');
     const old = Date.now() - 9 * 864e5;
     localStorage.setItem('d2r_chronicleAutoRetired',
       JSON.stringify([{ name: 'Templar Coat', why: 'a base item name', ts: old }]));
