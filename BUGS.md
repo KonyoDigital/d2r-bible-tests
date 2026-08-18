@@ -5268,6 +5268,64 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-184 — the re-gate changed the answer and kept the stamp, so the board would have refused all six (v1791)
+
+**Caught before it reached him, and only because the adoption path was read rather than assumed.**
+
+`_chronAutoAdopt` dedupes on the sweep stamp: it reads `proposal.startedTs`, falls back to the
+console's `startedTs`/`restoredFrom`, compares against `d2r_chronAdopted`, and returns
+**"this sweep was already adopted"** when they match. `_chron_result_save()` stamps `savedTs` with
+the current time on every write, so a sweep that runs normally always presents a new stamp.
+
+**A re-gate done by hand does not go through that function.** After the second lane grounded six held
+names, `chron_last_result.json` was rewritten in place — 255 grounded became 261 — and the file kept
+its ORIGINAL `savedTs`. Every number in it was correct.
+
+What would have happened: the console reports 261, the board shows 255, and the two disagree forever
+with **no error anywhere**. The refusal message even reads like success. Both halves right, the joint
+silent — the-unjoined-end in its purest form, and the second time this arc produced one.
+
+**Fixed** by making the re-gate a supported operation instead of hand surgery: `tv/chronicle_regate.py`
+re-judges the stored evidence, stamps `savedTs` exactly as the console does, prints what changed, and
+**refuses to write at all** if any grounded name is not a roster name — because a grounded name the
+board cannot match is a number that can never tick.
+
+**Guards:** `TestV1791ARegateThatKeepsItsStampIsInvisible` — the stamp advances; a second lane grounds
+a name one lane could not (one reel, two frames, plus a different model family); reader debris never
+reaches the board; and the CLI refuses rather than warns on an off-roster name.
+
+---
+
+## REG-185 — the vault lane has never run on real footage, and says so (v1791, no fix required)
+
+Recorded because "unmeasured" was being carried forward as an inherited claim rather than a measured
+one, and because the honest answer here is *don't change the code*.
+
+**Measured, not assumed:** every reel in `frames/hist` was checked against `vault_retro._declared_surface`.
+**Zero of 17 are ownership reels.** So the vault thresholds are not merely unmeasured — the whole lane
+is unexercised, which is `gate-blind-to-unexercised-input` at the level of an entire subsystem.
+
+**It behaves correctly in that state, which is the part worth keeping.** Run fully wired against his
+real history it returns `ok: true`, **0 owned, 0 throwOut, 11 held, 0 reader calls**, and says:
+*"11 reel(s) held no screen still long enough to be worth reading — that is footage of moving, not of
+looking at a stash."* An empty shelf and a sweep that never looked do not read alike, and it spends
+nothing to say so. The two bars already declare themselves REASONED rather than measured.
+
+**What would close it** — and this is the deliverable, since no code change can be:
+
+| requirement | value |
+|---|---|
+| declared surface | one of `stash` `inventory` `equipment` `runes` `gems` `materials`, chosen deliberately (a default is not a declaration, v1783) |
+| panel held still | ≥ 3 frames (`MIN_RUN_FRAMES`) |
+| to KEEP an item | conf ≥ 0.55 across **2 different sessions** |
+| to THROW OUT an item | conf ≥ 0.85 across **3 different sessions** |
+
+So: two separate recordings per surface to ground anything, three before it will ever suggest
+discarding. Until that footage exists the thresholds stay reasoned, and any number derived from them
+is `None`, not `0`.
+
+---
+
 ## REG-182 — the inbox retired rows instantly and one-way, and he had to ask how long he had (v1790)
 
 Konyo, immediately on being shown the auto-retire: *"how long after it retires when i dont click it?

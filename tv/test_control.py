@@ -6639,5 +6639,80 @@ class TestV1789TheHuntAimsWhereATagCanChange(unittest.TestCase):
         self.assertEqual(len(reads), 1, "it kept reading after it already had the answer")
 
 
+class TestV1791ARegateThatKeepsItsStampIsInvisible(unittest.TestCase):
+    """The board dedupes adoption on the sweep stamp, so a re-gate that changes the answer and keeps
+    the stamp is a silent no-op.
+
+    `_chronAutoAdopt` compares the sweep stamp against `d2r_chronAdopted` and returns "this sweep was
+    already adopted" when they match. `_chron_result_save()` stamps `savedTs` with the current time on
+    every write, so a normal sweep always presents a new stamp. A re-gate done by hand does not go
+    through that function.
+
+    On 2026-08-18 the ledger was re-gated in place after a second lane grounded six held names —
+    255 grounded became 261 — and the file kept its ORIGINAL savedTs. Every number in it was correct.
+    The console would have reported 261, the board would have shown 255, and the two would have
+    disagreed forever with no error anywhere: both halves right, the joint silent.
+    """
+
+    def _fixture(self, tmp):
+        import json as _json
+        import os as _os
+        ev = _os.path.join(tmp, "ev.json")
+        res = _os.path.join(tmp, "res.json")
+        with open(ev, "w", encoding="utf-8") as fh:
+            _json.dump({"uniques": {
+                "Toothrow": [{"reel": "r1", "frame": "f1", "conf": 0.85, "lane": "claude"},
+                             {"reel": "r1", "frame": "f2", "conf": 0.85, "lane": "claude"},
+                             {"reel": "r1", "frame": "f1", "conf": 0.9, "lane": "grok"}],
+                "Wrist Sword": [{"reel": "r1", "frame": "f3", "conf": 0.7, "lane": "claude"}],
+            }}, fh)
+        with open(res, "w", encoding="utf-8") as fh:
+            _json.dump({"savedTs": 1, "result": {"wouldAdd": {"uniques": []}, "held": []}}, fh)
+        return ev, res
+
+    def test_the_stamp_advances_so_the_board_sees_a_sweep_it_has_not_adopted(self):
+        import tempfile
+        import chronicle_regate as rg
+        ev, res = self._fixture(tempfile.mkdtemp())
+        payload, summary = rg.regate(ev, res)
+        self.assertGreater(payload["savedTs"], 1,
+                           "the re-gate kept the old stamp — the board will skip every new name")
+
+    def test_a_second_lane_grounds_a_name_one_lane_could_not(self):
+        """The exact shape that grounded his last six: one reel, two frames, plus a different model
+        family on the same pixels. cross-frame alone is one tag; cross-lane is what closes it."""
+        import tempfile
+        import chronicle_regate as rg
+        ev, res = self._fixture(tempfile.mkdtemp())
+        payload, _ = rg.regate(ev, res)
+        names = [x["name"] for x in payload["result"]["wouldAdd"]["uniques"]]
+        self.assertIn("Toothrow", names)
+        row = [x for x in payload["result"]["wouldAdd"]["uniques"] if x["name"] == "Toothrow"][0]
+        self.assertIn("cross-lane", row["witnesses"])
+        self.assertEqual(sorted(payload["result"]["lanes"]), ["claude", "grok"])
+
+    def test_reader_debris_never_reaches_the_board(self):
+        import tempfile
+        import chronicle_regate as rg
+        ev, res = self._fixture(tempfile.mkdtemp())
+        payload, summary = rg.regate(ev, res)
+        names = [x["name"] for x in payload["result"]["wouldAdd"]["uniques"]]
+        self.assertNotIn("Wrist Sword", names)
+        self.assertEqual(summary["retired"], 1)
+
+    def test_it_refuses_to_publish_a_name_that_is_not_on_the_roster(self):
+        """A grounded name the board cannot match is a number that will never tick. The CLI treats
+        that as a refusal rather than a warning, because publishing it produces a console and a board
+        that disagree with no error between them."""
+        import tempfile
+        import chronicle_regate as rg
+        ev, res = self._fixture(tempfile.mkdtemp())
+        _, summary = rg.regate(ev, res)
+        self.assertTrue(summary["allNamesOnRoster"])
+        import inspect
+        src = inspect.getsource(rg.main)
+        self.assertIn("REFUSING to write", src)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

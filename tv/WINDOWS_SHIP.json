@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1790",
+  "ver": "v1791",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1790: the inbox retired rows instantly and one way",
+  "note": "v1791: the console would say 261 and the board 255, forever, with no error",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
