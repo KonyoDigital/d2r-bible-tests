@@ -10139,7 +10139,19 @@ def _chron_fold(prop):
     try:
         import chronicle_resolve as _res
         roster = _res.load_roster()
-        folded, report = _res.fold_proposal(prop or {}, roster)
+        # v1795 — SETS FOLD TOO, against their OWN roster. Uniques got the fold in v1789 and sets got
+        # nothing, so a misread set piece stayed a separate name with one witness forever, exactly as
+        # "Battlecage" did before the uniques fold. Each ledger is asked of its own catalogue: folding
+        # a piece against the unique roster would resolve every one to nothing and silently retire the
+        # whole sets ledger as debris.
+        try:
+            set_roster = _res.load_set_roster()
+        except Exception as _se:
+            print("   \u26a0 set roster unavailable (%s) \u2014 folding uniques only" % _se)
+            set_roster = None
+        folded, report = _res.fold_proposal(prop or {}, roster,
+                                            ledgers=("uniques", "sets") if set_roster else ("uniques",),
+                                            set_roster=set_roster)
     except Exception as e:
         print("   \u26a0 roster fold unavailable (%s) \u2014 gating on raw reader names" % e)
         return prop or {}, {"folded": {}, "retired": [], "kept": 0, "error": str(e)}
@@ -10970,7 +10982,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1795",
+        "ver": "v1796",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

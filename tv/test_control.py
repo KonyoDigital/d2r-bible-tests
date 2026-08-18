@@ -5768,6 +5768,26 @@ class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
         self._real_load = self.tv._sub_budget_load
         self.tv._sub_budget_load = lambda: {"calls": [now - 1] * n}
         self.addCleanup(lambda: setattr(self.tv, "_sub_budget_load", self._real_load))
+        # v1796 — AND STAND THE GROK LANE DOWN, or this asserts nothing.
+        #
+        # The CLAUDE cap gates the CLAUDE path and only it — v1778 moved it BELOW the G5 block on
+        # purpose: "a per-lane circuit breaker that takes down the other lane is worse than no
+        # breaker: it removes the independent witness precisely when the main lane is struggling."
+        # That is right, and it means claude_read with G5 primary answers from GROK, on Grok's own
+        # quota, no matter what the Claude budget says.
+        #
+        # So this test passed only while Grok happened to be unreachable. It went red the hour his
+        # Grok balance came back — returning a real chronicle read stamped
+        # model='grok-subscription-cli', mode='g5-primary' — and the failure was the FIXTURE finally
+        # being exercised, not a regression. Blind-fixture, the exact class this class was written
+        # about: the guard below checked the Claude circuit while the read came from another lane.
+        try:
+            import g5_grok_eyes as _g5mod
+            self._real_is_primary = _g5mod.is_primary
+            _g5mod.is_primary = lambda: False
+            self.addCleanup(lambda: setattr(_g5mod, "is_primary", self._real_is_primary))
+        except Exception:
+            pass   # module absent on this machine — the lane cannot answer anyway
 
     def test_a_capped_classify_says_NOTHING_not_gameplay(self):
         self.tv._SUB_DAILY_MAX = 1
@@ -6781,6 +6801,113 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
         ev = [{"session": "s0", "conf": 0.9}, {"session": "s1", "conf": 0.9}]
         v = vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)
         self.assertTrue(v["pass"], v["why"])
+
+
+class TestV1795SetsFoldAgainstTheirOwnRoster(unittest.TestCase):
+    """Uniques got the fold in v1789 and sets got nothing, so a misread set piece stayed a separate
+    name with one witness forever — exactly as "Battlecage" did before the uniques fold.
+
+    Pieces are stored SUFFIXED ("Tal Rasha's Adjudication (amulet)") because that is the ledger form
+    d2r_setPieces holds, while the in-game Chronicle row prints the BARE name. `_norm` strips the
+    parenthetical so both collapse to one key, and the canonical stays the suffixed form.
+    """
+
+    def _rosters(self):
+        import chronicle_resolve as res
+        return res.load_roster(), res.load_set_roster()
+
+    def test_the_bare_chronicle_row_folds_to_the_suffixed_ledger_name(self):
+        import chronicle_resolve as res
+        _, sr = self._rosters()
+        self.assertEqual(res.canonical("Tal Rasha's Adjudication", sr),
+                         "Tal Rasha's Adjudication (amulet)")
+        self.assertEqual(res.canonical("Tal Rasha's Adjudication (amulet)", sr),
+                         "Tal Rasha's Adjudication (amulet)")
+
+    def test_a_misread_piece_is_repaired(self):
+        import chronicle_resolve as res
+        _, sr = self._rosters()
+        self.assertEqual(res.canonical("Tal Rashas Adjudicaton", sr),
+                         "Tal Rasha's Adjudication (amulet)")
+
+    def test_a_unique_never_folds_onto_a_set_piece_or_the_reverse(self):
+        """The cross-ledger guard. Measured on the real catalogues: 135 piece keys, ZERO of which also
+        match a unique roster name — so a name cannot be both. If that ever became false, a set piece
+        could land in his grail tally, which is the exact harm the uniques fold exists to prevent."""
+        import chronicle_resolve as res
+        ur, sr = self._rosters()
+        self.assertIsNone(res.canonical("Windforce", sr), "a unique resolved against the SET roster")
+        self.assertIsNone(res.canonical("Tal Rasha's Adjudication (amulet)", ur),
+                          "a set piece resolved against the UNIQUE roster")
+        overlap = set(sr) & set(ur)
+        self.assertEqual(overlap, set(), "a name is now both a unique and a set piece: %s" % overlap)
+
+    def test_the_set_roster_refuses_to_collapse_two_distinct_pieces(self):
+        import chronicle_resolve as res
+        import json as _json
+        import tempfile
+        import os as _os
+        fd, path = tempfile.mkstemp(suffix=".json")
+        _os.close(fd)
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump({"pieces": ["Angelic Halo (ring)", "angelic  halo!"]}, fh)
+            with self.assertRaises(ValueError) as ctx:
+                res.load_set_roster(path)
+            self.assertIn("collapses distinct set pieces", str(ctx.exception))
+        finally:
+            _os.unlink(path)
+
+    def test_an_empty_set_roster_is_refused(self):
+        import chronicle_resolve as res
+        import json as _json
+        import tempfile
+        import os as _os
+        fd, path = tempfile.mkstemp(suffix=".json")
+        _os.close(fd)
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump({"pieces": []}, fh)
+            with self.assertRaises(ValueError):
+                res.load_set_roster(path)
+        finally:
+            _os.unlink(path)
+
+    def test_folding_sets_against_the_UNIQUE_roster_would_retire_them_all(self):
+        """Why each ledger asks its OWN catalogue, stated as a test rather than a comment: hand the
+        sets ledger the unique roster and every piece resolves to nothing and is retired as debris —
+        the whole ledger silently emptied, with a tidy receipt saying so."""
+        import chronicle_resolve as res
+        ur, sr = self._rosters()
+        prop = {"sets": {"Tal Rasha's Adjudication": [{"conf": 0.9}],
+                         "Immortal King's Will": [{"conf": 0.9}]}}
+        wrong, wrep = res.fold_proposal(prop, ur, ledgers=("sets",))
+        self.assertEqual(wrong["sets"], {})
+        self.assertEqual(len(wrep["retired"]), 2)
+        right, rrep = res.fold_proposal(prop, ur, ledgers=("sets",), set_roster=sr)
+        self.assertEqual(sorted(right["sets"]),
+                         ["Immortal King's Will (helm)", "Tal Rasha's Adjudication (amulet)"])
+        self.assertEqual(rrep["retired"], [])
+
+    def test_the_control_app_folds_BOTH_ledgers(self):
+        """The wiring, not the intent — and matching the call form, never the bare name, because the
+        def line contains it too (the lesson from v1789's blind guard)."""
+        import re
+        src = _read_control_source()
+        body = re.sub(r"#.*", "", src)
+        self.assertIn("load_set_roster()", body, "the sets fold is never given a set roster")
+        self.assertIn('"sets"', body)
+
+    def test_a_missing_set_roster_degrades_to_uniques_only(self):
+        """It must not take the uniques fold down with it: a sets ledger that cannot be folded is
+        worth less than one folded wrongly, but a uniques ledger that stops folding is a regression."""
+        import chronicle_resolve as res
+        ur, _ = self._rosters()
+        prop = {"uniques": {"Battlecage": [{"conf": 0.8}]}, "sets": {"Whatever": [{"conf": 0.8}]}}
+        folded, _rep = res.fold_proposal(prop, ur, ledgers=("uniques",))
+        self.assertIn("Rattlecage", folded["uniques"])
+        self.assertEqual(folded.get("sets"), {"Whatever": [{"conf": 0.8}]},
+                         "the sets ledger was touched despite not being in `ledgers`")
 
 
 if __name__ == "__main__":

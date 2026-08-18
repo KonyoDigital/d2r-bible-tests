@@ -5268,6 +5268,67 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-192 — a cap test passed only while Grok was DOWN, and cost 100s of real vision on every run (v1796)
+
+`test_a_capped_classify_says_NOTHING_not_gameplay` caps the CLAUDE subscription budget and asserts
+`claude_read` returns None. It went red the hour his Grok balance came back, returning a real chronicle
+read stamped `model='grok-subscription-cli'`, `mode='g5-primary'`, `conf 0.91`, with real item names.
+
+**The product code is right, and deliberately so.** v1778 moved the Claude cap BELOW the G5 block on
+purpose: *"a per-lane circuit breaker that takes down the other lane is worse than no breaker: it
+removes the independent witness precisely when the main lane is struggling."* So with G5 primary, the
+read comes from GROK on GROK's quota, and the Claude budget has nothing to say about it.
+
+**The test was asserting something it never tested.** Its own fixture guard checked the CLAUDE circuit
+while the answer arrived from another lane, so it only ever passed when Grok happened to be
+unreachable — which, that afternoon, it was: the peer session had just recorded `HTTP 402 usage balance
+exhausted` from the Grok CLI. The suite was green for the same reason the second eye was empty.
+
+That is blind-fixture, and it is the class the test's OWN docstring was written about — it already
+carried a note about a gitignored budget file making the cap vacuous on CI. The same defect had simply
+moved lanes.
+
+**Two costs, and the second was invisible.** Beyond asserting nothing, the fall-through made a REAL
+vision call on every suite run: `test_control` took **141s**, of which this one test was **100.8s**,
+spending real subscription budget to fail an assertion about not spending it. With the Grok lane stood
+down in the fixture the same test runs in **0.022s** and the suite in **24.9s**.
+
+**Fixed in the fixture, never the product:** `_open_the_circuit` now also patches
+`g5_grok_eyes.is_primary` to False (with cleanup, and tolerating the module's absence), so the test
+isolates the lane it claims to be testing.
+
+---
+
+## REG-193 — sets had no fold, so a misread piece stayed one witness forever (v1796)
+
+Uniques got the roster fold in v1789; sets got nothing. A misread piece — the set-ledger twin of
+"Battlecage" — stayed its own name with one witness and could never corroborate the real one.
+
+`chronicle_resolve.load_set_roster()` reads a GENERATED `set_roster.json` (34 sets, 135 pieces, from
+bible.html's own `__allSets()`, sharing the unique roster's sourceHash), and `fold_proposal` now takes
+a `set_roster` so **each ledger is asked of its own catalogue**. Pieces are stored SUFFIXED
+("Tal Rasha's Adjudication (amulet)") because that is the `d2r_setPieces` form, while the Chronicle row
+prints the BARE name; `_norm` strips the parenthetical so both collapse to one key and the canonical
+stays suffixed.
+
+    "Tal Rasha's Adjudication"      -> "Tal Rasha's Adjudication (amulet)"    bare row -> ledger form
+    "Tal Rashas Adjudicaton"        -> "Tal Rasha's Adjudication (amulet)"    misread repaired
+    "Windforce"                     -> None                                   a unique, refused
+
+**Measured before relying on any of it:** 135 pieces produce 135 DISTINCT keys, and ZERO of them also
+match a unique roster name — so a name cannot be both, and the two ledgers fold independently without
+leaking. Both facts are pinned, because either becoming false would let a set piece land in his grail
+tally.
+
+**The wrong-catalogue case is a test, not a comment:** hand the sets ledger the UNIQUE roster and every
+piece resolves to nothing and is retired as debris — the whole ledger silently emptied, with a tidy
+receipt saying so.
+
+**Still unexercised on real data.** His sets ledger is empty and no reel is `chronicle-sets`, so this is
+proven on fixtures only (REG-185's shape). One ~4-minute sets scroll makes it real.
+
+---
+
 ## REG-189 — a pixel gate calls his CHRONICLE page a stash panel, and agrees it is open (v1795)
 
 **Found by opening a frame the detector had classified, rather than trusting the label.**

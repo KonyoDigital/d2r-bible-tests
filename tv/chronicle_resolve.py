@@ -42,6 +42,7 @@ import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROSTER_PATH = os.path.join(HERE, "unique_roster.json")
+SET_ROSTER_PATH = os.path.join(HERE, "set_roster.json")
 
 # NO QUALITY-PREFIX STRIPPING, and the reason is the whole lesson of this module.
 #
@@ -108,6 +109,38 @@ def load_roster(path=None):
     return out
 
 
+def load_set_roster(path=None):
+    """The SET-PIECE roster as {normalised: canonical}, canonical being the SUFFIXED ledger form.
+
+    v1795 — sets get the same treatment as uniques, which is the whole point: one architecture, two
+    ledgers. Pieces are stored suffixed ("Tal Rasha's Adjudication (amulet)") because that is what
+    d2r_setPieces holds, while the in-game Chronicle row prints the BARE name. `_norm` already strips
+    the parenthetical, so both collapse to one key and the canonical stays the suffixed form.
+
+    Measured on the real catalogue before this was relied on (2026-08-18): 135 pieces produce 135
+    DISTINCT keys, and ZERO of those keys also match a unique roster name. So a name cannot be both a
+    unique and a set piece, and the two ledgers can be folded independently without leaking into each
+    other. Both facts are pinned by tests — either one silently becoming false would let a set piece
+    land in his grail tally, which is the exact harm the uniques fold was built to prevent.
+    """
+    p = path or SET_ROSTER_PATH
+    with open(p, "r", encoding="utf-8") as fh:
+        doc = json.load(fh)
+    pieces = doc.get("pieces") or []
+    if not pieces:
+        raise ValueError("set_roster.json holds no pieces — refusing to fold against an empty roster")
+    out = {}
+    collisions = {}
+    for n in pieces:
+        k = _norm(n)
+        if k in out and out[k] != n:
+            collisions.setdefault(k, [out[k]]).append(n)
+        out.setdefault(k, n)
+    if collisions:
+        raise ValueError("fold rule collapses distinct set pieces: %s" % collisions)
+    return out
+
+
 def canonical(name, roster):
     """Roster name for `name`, or None. Exact fold first, then ONE near match above NEAR_CUTOFF."""
     k = _norm(name)
@@ -141,7 +174,7 @@ def classify(name, roster, grounded=()):
     return "real", c
 
 
-def fold_proposal(proposal, roster, grounded=(), ledgers=("uniques",)):
+def fold_proposal(proposal, roster, grounded=(), ledgers=("uniques",), set_roster=None):
     """Fold a proposal's sightings onto canonical roster names before the gate sees them.
 
     Only `uniques` is folded by default: the roster IS the unique roster, and folding a set piece
@@ -153,11 +186,16 @@ def fold_proposal(proposal, roster, grounded=(), ledgers=("uniques",)):
     folded = dict(proposal or {})
     report = {"folded": {}, "retired": [], "kept": 0}
     grounded = set(grounded or ())
+    # v1795 — SETS FOLD AGAINST THEIR OWN ROSTER. Folding a set piece against the UNIQUE roster would
+    # be asking the wrong catalogue a question it cannot answer: every piece would resolve to nothing
+    # and be retired as debris, silently emptying the sets ledger. Which roster answers is chosen by
+    # the ledger being folded, never shared.
     for ledger in ledgers:
+        active = set_roster if (ledger == "sets" and set_roster is not None) else roster
         src = (proposal or {}).get(ledger) or {}
         merged = {}
         for raw, sightings in src.items():
-            verdict, c = classify(raw, roster, grounded)
+            verdict, c = classify(raw, active, grounded)
             if verdict != "real":
                 report["retired"].append({"name": raw, "why": verdict, "resolvesTo": c})
                 continue
