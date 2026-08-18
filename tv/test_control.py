@@ -5320,7 +5320,12 @@ class TestRegateIsFree(unittest.TestCase):
         ca._CHRON_LAST_PROPOSAL = {
             "uniques": {
                 "Windforce": [s(frame="a.jpg"), s(frame="b.jpg", lane="grok")],
-                "Shako": [s(witness="agree")],
+                # v1789 — was "Shako", which is a BASE name, not a roster unique. Once the gate began
+                # folding onto the roster, the tuner folded too (it must preview the same input the
+                # live gate judges) and retired it as reader debris — correctly: the Chronicle prints
+                # a base name for a row he has NOT found. The fixture needed a real grail item, which
+                # is what it was always standing in for.
+                "Goldwrap": [s(witness="agree")],
             },
             "sets": {}, "completeSets": {},
         }
@@ -5336,7 +5341,7 @@ class TestRegateIsFree(unittest.TestCase):
     def test_LOOSENING_names_exactly_what_it_would_let_in(self):
         # ★ named, not counted — a count cannot be argued with
         r = ca.chronicle_regate(min_witnesses=1)
-        self.assertIn("Shako", r["wouldGainNames"])
+        self.assertIn("Goldwrap", r["wouldGainNames"])
         self.assertEqual(r["wouldLoseNames"], [])
 
     def test_TIGHTENING_names_exactly_what_it_would_keep_out(self):
@@ -6295,6 +6300,343 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         self.assertFalse(r.get("ok"))
         self.assertIn("off", r.get("why", ""))
         self.assertEqual(self.started, [], "it swept with the switch off")
+
+
+class TestV1789TheRosterIsTheAuthorityOnWhatIsOneItem(unittest.TestCase):
+    """The fold that emptied 30 of 36 rows out of his inbox — and the crash that keeps it honest.
+
+    His queue held 36 chronicle names awaiting a hand-tick. Six were unresolved uniques. Six were
+    OCR slips of items ALREADY grounded ("Battlecage" for Rattlecage, "Naglring" for Nagelring),
+    which asked him to adjudicate something the ledger had already answered. Twenty-four were
+    reader debris: base names the Chronicle prints for an UNFOUND row, and tooltip truncations.
+
+    The near-miss that shaped the design: "Latent Cold Rupture" looks like a quality prefix on
+    "Cold Rupture", and the first cut stripped it. The roster carries BOTH forms as separate grail
+    entries — six such pairs, twelve slots. Stripping would have credited him with items he had not
+    found. So the roster, not a rule that reads plausibly, decides what is one item and what is two.
+    """
+
+    def _mod(self):
+        import chronicle_resolve
+        return chronicle_resolve
+
+    def test_the_six_twin_pairs_stay_two_items(self):
+        r = self._mod()
+        roster = r.load_roster()
+        pairs = [("Latent Black Cleft", "Black Cleft"), ("Latent Bone Break", "Bone Break"),
+                 ("Latent Cold Rupture", "Cold Rupture"), ("Latent Flame Rift", "Flame Rift"),
+                 ("Latent Rotting Fissure", "Rotting Fissure"),
+                 ("Latent Crack of the Heavens", "Crack of the Heavens")]
+        for latent, bare in pairs:
+            self.assertEqual(r.canonical(latent, roster), latent,
+                             "%s was folded away — that merges two of his grail slots" % latent)
+            self.assertEqual(r.canonical(bare, roster), bare)
+
+    def test_a_fold_rule_that_merges_two_roster_items_CRASHES(self):
+        """The guard, seen RED for its own reason. A rule that collapses distinct items must never
+        quietly pick a winner — picking one credits him with a find he never made."""
+        r = self._mod()
+        import json as _json
+        import tempfile
+        import os as _os
+        fd, path = tempfile.mkstemp(suffix=".json")
+        _os.close(fd)
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump({"names": ["Cold Rupture", "cold  rupture!"]}, fh)
+            with self.assertRaises(ValueError) as ctx:
+                r.load_roster(path)
+            self.assertIn("collapses distinct roster items", str(ctx.exception))
+        finally:
+            _os.unlink(path)
+
+    def test_an_empty_roster_is_refused_rather_than_retiring_his_whole_queue(self):
+        r = self._mod()
+        import json as _json
+        import tempfile
+        import os as _os
+        fd, path = tempfile.mkstemp(suffix=".json")
+        _os.close(fd)
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump({"names": []}, fh)
+            with self.assertRaises(ValueError):
+                r.load_roster(path)
+        finally:
+            _os.unlink(path)
+
+    def test_the_real_ocr_slips_fold_and_the_debris_is_retired_with_a_reason(self):
+        r = self._mod()
+        roster = r.load_roster()
+        prop = {"uniques": {
+            "Battlecage": [{"reel": "a", "frame": "1", "conf": 0.75}],
+            "Rattlecage": [{"reel": "a", "frame": "2", "conf": 0.75}],
+            "Wrist Sword": [{"reel": "a", "frame": "3", "conf": 0.75}],
+            "Firel...": [{"reel": "a", "frame": "4", "conf": 0.75}],
+        }}
+        folded, report = r.fold_proposal(prop, roster)
+        self.assertIn("Rattlecage", folded["uniques"])
+        self.assertNotIn("Battlecage", folded["uniques"])
+        self.assertEqual(len(folded["uniques"]["Rattlecage"]), 2,
+                         "the slip's sighting did not join the real item's — the whole point")
+        retired = {x["name"]: x["why"] for x in report["retired"]}
+        self.assertEqual(retired.get("Wrist Sword"), "debris")
+        self.assertEqual(retired.get("Firel..."), "debris")
+
+    def test_a_retired_name_is_recorded_never_silently_dropped(self):
+        """'We looked and it was not a grail item' must not read the same as 'nobody looked'."""
+        r = self._mod()
+        roster = r.load_roster()
+        _, report = r.fold_proposal({"uniques": {"Templar Coat": [{"conf": 0.9}]}}, roster)
+        self.assertEqual([x["name"] for x in report["retired"]], ["Templar Coat"])
+
+    def test_folding_never_invents_a_name_that_is_not_on_the_roster(self):
+        r = self._mod()
+        roster = r.load_roster()
+        names = set(roster.values())
+        prop = {"uniques": {n: [{"conf": 0.9}] for n in
+                            ["Battlecage", "Naglring", "Heart Garver", "Twitchthrow",
+                             "Gravepalms", "The Dragon Chang(?)", "Bloodfist Shard"]}}
+        folded, _ = r.fold_proposal(prop, roster)
+        for n in folded["uniques"]:
+            self.assertIn(n, names, "%r reached the gate and is not a roster item" % n)
+
+    def test_an_ambiguous_near_match_stays_unfolded(self):
+        """A coin flip between two of his items is not a fold."""
+        r = self._mod()
+        roster = {"aaaaaaaaab": "Aaaaaaaaab", "aaaaaaaaac": "Aaaaaaaaac"}
+        self.assertIsNone(r.canonical("aaaaaaaaad", roster))
+
+    def test_the_generated_roster_is_in_sync_with_bible_html(self):
+        """Cheap staleness guard — no browser. bible.html is the ONE source of the roster; this
+        fails the moment its roster blocks move, instead of the fold quietly answering from a stale
+        artifact. Regenerate with: python3 tv/roster_sync.py --write"""
+        import roster_sync
+        stale, why = roster_sync.is_stale()
+        self.assertFalse(stale, why)
+
+
+class TestV1789TheGateReadsTheBoardsNames(unittest.TestCase):
+    """The gate counted witnesses on RAW strings, so two spellings of one item never combined."""
+
+    def test_two_spellings_of_one_item_corroborate_each_other(self):
+        import chronicle_resolve as res
+        import chronicle_retro as cr
+        roster = res.load_roster()
+        # Two tags are needed to ground, and neither spelling reaches two ALONE: the straight-quote
+        # reading has cross-frame (two frames in one reel) and the curly one has nothing. Folded,
+        # they share cross-frame AND cross-reel. This is the exact shape that grounded Atma\u2019s
+        # Scarab and Saracen\u2019s Chance on his real ledger.
+        prop = {"uniques": {
+            "Atma's Scarab": [{"reel": "r1", "frame": "f1", "conf": 0.8, "lane": "claude"},
+                              {"reel": "r1", "frame": "f2", "conf": 0.8, "lane": "claude"}],
+            "Atma\u2019s Scarab": [{"reel": "r2", "frame": "f9", "conf": 0.8, "lane": "claude"}],
+        }}
+        raw = cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=cr.strict_gate())
+        self.assertEqual(raw["uniques"]["added"], [],
+                         "raw gating grounded a one-witness name — this test's premise is wrong")
+        folded, _ = res.fold_proposal(prop, roster)
+        out = cr.apply_proposal(folded, {"uniques": [], "sets": []}, gate=cr.strict_gate())
+        self.assertEqual(out["uniques"]["added"], ["Atma\u2019s Scarab"])
+
+    def test_the_control_app_folds_before_it_gates(self):
+        """The wiring, not the intent. A fold that exists and is never called is the unjoined end."""
+        import re
+        src = _read_control_source()
+        body = re.sub(r"#.*", "", src)
+        # match the CALL form, never the bare name: "def _chron_fold(prop):" contains
+        # "_chron_fold(prop)" too, so the obvious assertion cannot go red (learned the hard way on
+        # the hunt's twin of this test the same afternoon)
+        self.assertIn("= _chron_fold(prop)", body,
+                      "control_app gates raw reader names — the fold is not wired in")
+        self.assertGreaterEqual(body.count("= _chron_fold("), 3,
+                                "not every gate site folds; the tuner would preview a different "
+                                "answer from the one the live gate gives")
+
+
+def _read_control_source():
+    import os as _os
+    p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "control_app.py")
+    with open(p, "r", encoding="utf-8") as fh:
+        return fh.read()
+
+
+class TestV1789TheHuntAimsWhereATagCanChange(unittest.TestCase):
+    """The focused hunt, and the arithmetic that condemned its first design.
+
+    The first cut re-read the frames NEIGHBOURING a known sighting. Then the six names his gate was
+    actually holding were measured:
+
+        Latent Cold Rupture 2 sightings / 1 reel / ['cross-frame']   Toothrow 4 / 1 / ['cross-frame']
+        Latent Crack of the Heavens 3 / 1 / ['cross-frame']          Witherstring 3 / 1 / ['cross-frame']
+        Latent Rotting Fissure 3 / 1 / ['cross-frame']               Thundergod's Vigor 2 / 1 / ['cross-frame']
+
+    Every one ALREADY had cross-frame — one on four sightings. witnesses() returns a SET, so another
+    frame in the same reel re-adds a tag that is already there and the name stays held forever. The
+    hunt was not under-powered, it was aimed at pixels that could not change the answer: its best
+    possible outcome was the current outcome. It ran for 325s against three names and returned
+    nothing, and nothing was the only thing it could return.
+
+    A hunt that cannot change a verdict must not be able to spend his subscription pretending to.
+    """
+
+    def _reel(self, root, name, frames):
+        import json as _json
+        import os as _os
+        d = _os.path.join(root, name)
+        _os.makedirs(d)
+        with open(_os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            _json.dump({"frames": [{"f": f} for f in frames]}, fh)
+        return d
+
+    def test_it_never_targets_the_reel_the_name_was_already_seen_in(self):
+        import tempfile
+        import chronicle_hunt as ch
+        root = tempfile.mkdtemp()
+        self._reel(root, "reel_a", ["f%02d.jpg" % i for i in range(20)])
+        self._reel(root, "reel_b", ["g%02d.jpg" % i for i in range(20)])
+        ev = {"uniques": {
+            "Toothrow": [{"reel": "a", "frame": "f05.jpg"}],
+            "Tooth Row Anchor Below": [{"reel": "b", "frame": "g04.jpg"}],
+            "Zzz Anchor Above": [{"reel": "b", "frame": "g09.jpg"}],
+        }}
+        targets = ch.targets_for("Toothrow", ev, root)
+        self.assertTrue(targets, "it found nowhere to look — the bracket logic is not working")
+        self.assertEqual({t[0] for t in targets}, {"b"},
+                         "it aimed at the reel the name was already seen in, where a hit adds "
+                         "cross-frame — a tag every held name already has")
+
+    def test_the_bracket_is_between_the_alphabetical_neighbours(self):
+        """The Chronicle is sorted, so the row must lie between the names either side of it."""
+        import tempfile
+        import chronicle_hunt as ch
+        root = tempfile.mkdtemp()
+        self._reel(root, "reel_a", ["f%02d.jpg" % i for i in range(4)])
+        self._reel(root, "reel_b", ["g%02d.jpg" % i for i in range(30)])
+        ev = {"uniques": {
+            "Mid Name": [{"reel": "a", "frame": "f00.jpg"}],
+            "Aaa Before": [{"reel": "b", "frame": "g10.jpg"}],
+            "Zzz After": [{"reel": "b", "frame": "g14.jpg"}],
+        }}
+        got = sorted(t[2] for t in ch.targets_for("Mid Name", ev, root))
+        self.assertTrue(got, "no bracket was produced")
+        idx = [int(f[1:3]) for f in got]
+        self.assertGreaterEqual(min(idx), 8, "it reached far below the lower anchor")
+        self.assertLessEqual(max(idx), 16, "it reached far above the upper anchor")
+
+    def test_a_name_with_no_anchors_in_another_reel_is_left_alone(self):
+        """No bracket means no informed place to look, and a blind sweep of a 400-frame reel is not
+        a focused hunt — it is the ordinary sweep with a smaller budget and a better name."""
+        import tempfile
+        import chronicle_hunt as ch
+        root = tempfile.mkdtemp()
+        self._reel(root, "reel_a", ["f00.jpg", "f01.jpg"])
+        ev = {"uniques": {"Lonely": [{"reel": "a", "frame": "f00.jpg"}]}}
+        self.assertEqual(ch.targets_for("Lonely", ev, root), [])
+
+    def test_a_reel_that_scrolled_out_of_order_still_gets_aimed_correctly(self):
+        """The unit is the FRAME, not the reel — and this is the scar that forced it.
+
+        The first design bracketed between the target's alphabetical neighbours using their POSITION
+        IN THE REEL, which assumes the whole reel is one monotonic scroll. One of his reels is not:
+        63 names across 39 frames, with "War Traveler" at position 2 and "Pelta Lunata" at position
+        8, because he scrolled back up partway through. Bracketing between those positions aimed the
+        hunt for Thundergod's Vigor at the W section (Winged Harpoon, Wire Fleece, Witchwild String).
+        Every read there was a guaranteed miss delivered as a clean negative — and the code reads
+        correctly either way. It was caught by rendering one target frame and LOOKING at it.
+
+        A frame is always a contiguous alphabetical page — it is one screenshot of a sorted list — so
+        scoring frames by alphabetical distance needs no assumption about the reel's order at all."""
+        import tempfile
+        import chronicle_hunt as ch
+        root = tempfile.mkdtemp()
+        self._reel(root, "reel_a", ["f00.jpg"])
+        self._reel(root, "reel_b", ["g%02d.jpg" % i for i in range(12)])
+        ev = {"uniques": {
+            "Mid Name": [{"reel": "a", "frame": "f00.jpg"}],
+            # the page that BRACKETS the target sits at g07, while the reel's alphabet runs
+            # backwards across the reel as a whole — exactly his jumpy reel
+            "Mica Thing": [{"reel": "b", "frame": "g07.jpg"}],
+            "Mist Thing": [{"reel": "b", "frame": "g07.jpg"}],
+            "Zzz After": [{"reel": "b", "frame": "g01.jpg"}],
+            "Aaa Before": [{"reel": "b", "frame": "g11.jpg"}],
+        }}
+        got = sorted(t[2] for t in ch.targets_for("Mid Name", ev, root))
+        self.assertIn("g07.jpg", got, "it did not read the page that brackets the name")
+        self.assertNotIn("g01.jpg", got, "it read a page alphabetically far from the name")
+        self.assertNotIn("g11.jpg", got, "it read a page alphabetically far from the name")
+
+    def test_a_hit_is_recorded_with_its_reel_so_it_earns_cross_reel(self):
+        import tempfile
+        import chronicle_hunt as ch
+        import chronicle_retro as cr
+        root = tempfile.mkdtemp()
+        self._reel(root, "reel_a", ["f00.jpg"])
+        self._reel(root, "reel_b", ["g%02d.jpg" % i for i in range(12)])
+        ev = {"uniques": {
+            "Mid Name": [{"reel": "a", "frame": "f00.jpg", "conf": 0.8},
+                         {"reel": "a", "frame": "f00.jpg", "conf": 0.8}],
+            "Aaa Before": [{"reel": "b", "frame": "g04.jpg"}],
+            "Zzz After": [{"reel": "b", "frame": "g06.jpg"}],
+        }}
+        seen = []
+
+        def read_page(path, kind):
+            seen.append(path)
+            return {"items": [{"name": "Mid Name"}], "conf": 0.8}
+
+        found = ch.hunt(["Mid Name"], ev, root, read_page)
+        self.assertIn("Mid Name", found)
+        self.assertEqual(found["Mid Name"][0]["reel"], "b")
+        merged = ev["uniques"]["Mid Name"] + found["Mid Name"]
+        self.assertIn("cross-reel", cr.witnesses(merged),
+                      "the hit did not earn the tag the hunt exists to earn")
+
+    def test_the_sweep_actually_CALLS_the_hunt(self):
+        """THE JOIN. chronicle_hunt can target and read perfectly and change nothing at all while
+        nothing calls it — built on both ends, never wired, and silent by construction. That failure
+        has cost more time on this project than any other, so the wiring gets its own assertion and
+        the comments are stripped first: a mention inside a comment must never satisfy it."""
+        import re
+        src = _read_control_source()
+        body = re.sub(r"#.*", "", src)
+        # v1789 — the FIRST version of this assertion looked for "_chron_hunt_held(prop", which the
+        # DEFINITION line also contains ("def _chron_hunt_held(prop, applied, ...)"). Unwiring the
+        # call left the test green, and a guard that cannot go red is not a guard. Matching the
+        # assignment form is what separates "it is called" from "it exists".
+        self.assertIn("= _chron_hunt_held(", body,
+                      "the sweep never calls the hunt — held names will sit in his inbox forever")
+        self.assertIn("def _chron_hunt_held", body)
+
+    def test_a_broken_hunt_can_never_unground_what_the_sweep_earned(self):
+        import control_app as ca
+        prop = {"uniques": {"Windforce": [{"reel": "r", "frame": "f", "conf": 0.9}]}}
+        applied = {"uniques": {"added": ["Windforce"]}, "sets": {"added": []},
+                   "held": [{"ledger": "uniques", "name": "Toothrow", "sightings": []}]}
+        p2, a2, rep = ca._chron_hunt_held(prop, applied, "/nonexistent/hist/dir", None)
+        self.assertEqual(a2["uniques"]["added"], ["Windforce"])
+        self.assertIs(p2, prop)
+
+    def test_it_stops_reading_a_name_once_it_has_its_hit(self):
+        """One other-reel hit IS the tag. A second costs his subscription and adds nothing."""
+        import tempfile
+        import chronicle_hunt as ch
+        root = tempfile.mkdtemp()
+        self._reel(root, "reel_a", ["f00.jpg"])
+        self._reel(root, "reel_b", ["g%02d.jpg" % i for i in range(12)])
+        ev = {"uniques": {
+            "Mid Name": [{"reel": "a", "frame": "f00.jpg"}],
+            "Aaa Before": [{"reel": "b", "frame": "g02.jpg"}],
+            "Zzz After": [{"reel": "b", "frame": "g09.jpg"}],
+        }}
+        reads = []
+
+        def read_page(path, kind):
+            reads.append(path)
+            return {"items": [{"name": "Mid Name"}], "conf": 0.8}
+
+        ch.hunt(["Mid Name"], ev, root, read_page)
+        self.assertEqual(len(reads), 1, "it kept reading after it already had the answer")
 
 
 if __name__ == "__main__":

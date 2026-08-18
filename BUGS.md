@@ -5268,6 +5268,105 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-180 — the gate counted witnesses on RAW reader strings, so two spellings of one item never corroborated each other (v1789)
+
+**His inbox held 36 names waiting for a hand-tick, and six of them were decisions.**
+
+The queue was read by hand, name by name, against the board's own 398-name roster:
+
+| what it was | how many | examples |
+|---|---|---|
+| an unresolved unique — a real decision | 6 | Toothrow · Witherstring · Thundergod's Vigor |
+| an OCR slip of an item ALREADY grounded | 6 | "Battlecage"→Rattlecage · "Naglring"→Nagelring · "Heart Garver"→Heart Carver · "Twitchthrow"→Twitchthroe · "Gravepalms"→Gravepalm |
+| reader debris | 24 | base names (Bone Visage · Templar Coat · Wrist Sword) and truncations (Firel... · Natalya's... · "Heavas (partially obscured)") |
+
+**The debris has a specific cause worth naming, because it makes the rule obvious: THE CHRONICLE
+PRINTS THE BASE ITEM NAME FOR A ROW HE HAS NOT FOUND.** "Templar Coat" is not a near-miss on a
+unique; it is the game stating the OPPOSITE of a find, written down faithfully by the reader and
+then handed to him as though it were a question.
+
+**The defect underneath.** `witnesses()` keys on the string the reader produced. Two readings of one
+row that differ by an apostrophe or a letter are two names, each with one witness, each held forever
+— the gate is asked to corroborate and is handed the evidence pre-split. Folding onto the roster
+BEFORE gating merged them: `Atma's Scarab` and `Atma’s Scarab` became one name with cross-frame AND
+cross-reel, and grounded. Grounded count went 255 → 255 — **nothing was invented; two names were
+corrected to the roster's own spelling** — and held went 36 → 6.
+
+**The near-miss that shaped the fix, and the false diagnosis it produced on the way past.**
+"Latent Cold Rupture" reads exactly like a quality prefix on "Cold Rupture", and the first cut of
+the resolver stripped it. Then the roster was asked instead of assumed: it carries BOTH forms as
+separate grail entries, and there are six such pairs — Black Cleft, Bone Break, Cold Rupture, Crack
+of the Heavens, Flame Rift, Rotting Fissure. **Twelve slots, not six.** Stripping would have credited
+him with items he had not found and deleted the twins from his hunt list. It also produced a wrong
+finding I had already written down: that a grounded "Latent Black Cleft" could never tick. It ticks
+fine; it is a roster name in good standing. `load_roster()` now RAISES when a fold rule collapses two
+distinct roster items, so the next plausible-looking rule fails loudly instead of picking a winner.
+
+**Fixed in** `tv/chronicle_resolve.py` (new) · `tv/roster_sync.py` (new — regenerates
+`tv/unique_roster.json` from bible.html's own `_gUniqueRoster()`, so the roster rule is not written a
+second time in Python) · `tv/control_app.py` `_chron_fold` wired at all three gate sites, including
+the tuner, so its preview judges the same input the live gate does · board-side
+`kaiChronicleResolvePending()` retires the same three classes from his localStorage queue and prints
+a receipt, because a queue that silently got smaller is indistinguishable from a lost one.
+
+**Guards:** `TestV1789TheRosterIsTheAuthorityOnWhatIsOneItem` (the six twin pairs stay two items; a
+collapsing rule crashes; an empty roster is refused rather than retiring his whole queue; a stale
+artifact fails in milliseconds with no browser) · `TestV1789TheGateReadsTheBoardsNames` (two
+spellings corroborate; the fold is actually CALLED at ≥3 sites — proven red by unwiring it) ·
+`tests/v1789_inbox_resolves_non_decisions.spec.ts`.
+
+---
+
+## REG-181 — the focused hunt was aimed at pixels that could not change the answer (v1789, caught before it shipped)
+
+**It ran 325 seconds against three names and returned nothing, and nothing was the only thing it
+could return.**
+
+Built to earn a second witness for held names, its first design re-read the frames NEIGHBOURING a
+known sighting. Then the arithmetic was checked against the six names actually being held:
+
+    Latent Cold Rupture 2 sightings / 1 reel / ['cross-frame']    Toothrow           4 / 1 / ['cross-frame']
+    Latent Crack of the Heavens 3 / 1 / ['cross-frame']           Witherstring       3 / 1 / ['cross-frame']
+    Latent Rotting Fissure 3 / 1 / ['cross-frame']                Thundergod's Vigor 2 / 1 / ['cross-frame']
+
+**Every one already had `cross-frame`** — one on four sightings. `witnesses()` returns a SET, so
+another frame in the same reel re-adds a tag that is already there. The hunt was not under-powered;
+its best possible outcome was the current outcome.
+
+Worse, the first run *looked* like a clean negative. It reported "36 frames read, 0 new sightings"
+for `Battlecage`, `Bloodfist Shard` and `Bloodthirst` — which was true, and was ALSO true of a
+misread that names no real item. **A negative result from an instrument that cannot return a positive
+is not evidence** (founding rule 5), and it read like one.
+
+**Fixed** by aiming at OTHER reels, where a hit earns `cross-reel` — the tag these names need. The
+Chronicle is sorted alphabetically, so a held name's row lies BETWEEN its alphabetical neighbours,
+and those neighbours are already in the ledger with their frames. That turns "somewhere in another
+400-frame reel" into a bracket of a few frames. A name with no anchors in another reel gets no
+targets at all, because a blind sweep of a whole reel is the ordinary sweep with a smaller budget and
+a better name.
+
+**And then the corrected hunt was aimed wrong too, and only a picture showed it.** With the bracket
+logic in place it ran 72 reads across four names and returned zero — a tidy, plausible negative. One
+target frame was opened and looked at: the hunt for **Thundergod's Vigor** was reading the **W**
+section — Winged Harpoon, Winged Helm, Wire Fleece, Witchwild String. One of his reels indexes **63
+names against 39 frames**, so position stopped tracking the alphabet there and the nearest anchors
+came back as "War Traveler" at position 2 and "Pelta Lunata" at position 8. Bracketing between them
+is arithmetic on two numbers that were never comparable.
+
+Every read in that reel was a guaranteed miss, and it arrived labelled as evidence of absence. The
+code reads correctly in either state — **the only thing that separated them was rendering one target
+frame and looking at the list on it.** A reel that fails the ordering check is now SKIPPED rather
+than reordered, because swapping lo/hi would fabricate a range instead of admitting the index is
+unusable. The well-formed reels bracket exactly as intended: `The Ward` (420) → `Tiamat's Rebuke`
+(425), which is precisely where Thundergod's Vigor sorts.
+
+**Guards:** `TestV1789TheHuntAimsWhereATagCanChange` — it never targets the reel the name was already
+seen in, the bracket sits between the anchors, a reel whose frame order does not track the alphabet is
+skipped, a hit is recorded with its reel so it earns cross-reel, and it stops reading a name the
+moment it has its hit.
+
+---
+
 ## REG-179 — the sweep threw away 56% of a slow scroll, and the tally sat ~9 short of the game (v1770)
 
 Konyo, twice, after re-sweeping and seeing 249/403 unchanged: *"how come the percentage isnt 64% and

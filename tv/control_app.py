@@ -8828,9 +8828,14 @@ def chronicle_regate(conf_floor=None, min_witnesses=None):
     floor = max(0.0, min(1.0, floor))
     wits = max(1, min(4, wits))
 
+    # v1789 — tune against the SAME input the live gate sees. Re-gating raw names while the
+    # real path gates folded ones would answer a question he never asked, and the preview
+    # would disagree with what actually happens when he lowers the threshold.
+    _tune_prop, _ = _chron_fold(prop)
+
     def run(f, w):
         g = _cr.strict_gate(conf_floor=f, min_witnesses=w)
-        out = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=g)
+        out = _cr.apply_proposal(_tune_prop, {"uniques": [], "sets": []}, gate=g)
         return {"uniques": out["uniques"]["added"], "sets": out["sets"]["added"],
                 "held": len(out["held"])}
     now = run(_cr.CONF_FLOOR, _cr.MIN_WITNESSES)
@@ -10105,6 +10110,95 @@ def _chron_evidence_merge(prop):
     return merged
 
 
+def _chron_fold(prop):
+    """Fold a proposal's unique names onto the board's own roster BEFORE the gate counts witnesses.
+
+    v1789. Measured on his live ledger the day this shipped: the gate counted witnesses on RAW
+    strings, so two spellings of one item never combined and 36 names sat in his inbox awaiting a
+    hand-tick. Only SIX were unresolved uniques. Six were OCR slips of items ALREADY grounded
+    ("Battlecage" for Rattlecage, "Naglring" for Nagelring, "Heart Garver" for Heart Carver,
+    "Twitchthrow" for Twitchthroe, "Gravepalms" for Gravepalm) — the same row read twice, asking him
+    to adjudicate a question the ledger had already answered. The other 24 were reader debris: base
+    names the Chronicle prints for an UNFOUND row (Bone Visage, Templar Coat, Wrist Sword) and
+    tooltip-truncated fragments (Firel..., Natalya's..., "Heavas (partially obscured)").
+
+    Folding is applied HERE, at gate time, and never to the stored evidence. The raw sighting is the
+    receipt — what the reader actually said, in the frame it said it — and rewriting it would destroy
+    the only record that can be re-judged when the roster or the fold rule changes. So the ledger
+    keeps the reader's words and the gate reads the roster's.
+
+    It also repairs a silent miss: a grounded name that is not a ROSTER name can never tick. The
+    ledger held "Latent Black Cleft"; the roster holds "Black Cleft"; bible.html's own
+    d2rResolveItem returns "Latent Black Cleft" UNCHANGED (verified live over CDP on 2026-08-18).
+    The reel found the item, the ledger grounded it, and the board could not count it.
+
+    On any failure this returns the proposal UNTOUCHED. A roster that will not load must degrade to
+    the old raw-name behaviour, never to an empty roster — folding against {} would classify every
+    name as debris and silently empty his queue, which is the worst outcome wearing the tidiest face.
+    """
+    try:
+        import chronicle_resolve as _res
+        roster = _res.load_roster()
+        folded, report = _res.fold_proposal(prop or {}, roster)
+    except Exception as e:
+        print("   \u26a0 roster fold unavailable (%s) \u2014 gating on raw reader names" % e)
+        return prop or {}, {"folded": {}, "retired": [], "kept": 0, "error": str(e)}
+    return folded, report
+
+
+# v1789 — how many held names one sweep may hunt. Bounded on purpose: each name costs up to
+# chronicle_hunt.MAX_PER_NAME reads, so an unbounded hunt over a bad sweep could spend hours of his
+# subscription chasing reader debris. The fold already retires the debris; this budget is what stops
+# the remainder from becoming open-ended.
+_CHRON_HUNT_MAX_NAMES = int(os.environ.get("TV_CHRON_HUNT_NAMES") or 8)
+
+
+def _chron_hunt_held(prop, applied, hist_dir, read_page):
+    """Go back and look again for the names the gate held, then re-gate with whatever came back.
+
+    Konyo: "cant like an extra AI take care of it and cross reference it with specific and focused
+    hunts for it to cross reference it here and automatically grail it.. and if it still cant then
+    leave it for me to tick off."
+
+    THIS IS THE JOIN. chronicle_hunt could target and read perfectly and still change nothing while
+    nothing called it — a module built on both ends and never wired is the failure mode that has cost
+    the most time on this project, and it is silent by construction.
+
+    Returns (prop, applied, report). On any failure the ORIGINAL verdict is returned untouched: a
+    hunt that breaks must never be able to un-ground a name the sweep already earned.
+    """
+    report = {"hunted": [], "found": {}, "reads": 0, "skipped": ""}
+    try:
+        import chronicle_hunt as _ch
+        import chronicle_retro as _cr
+    except Exception as e:
+        report["skipped"] = "chronicle_hunt unavailable: %s" % e
+        return prop, applied, report
+    held = [h["name"] for h in (applied.get("held") or []) if h.get("ledger") == "uniques"]
+    if not held:
+        report["skipped"] = "nothing was held"
+        return prop, applied, report
+    held = held[:_CHRON_HUNT_MAX_NAMES]
+    report["hunted"] = held
+    try:
+        with _CHRON_LOCK:
+            _CHRON_JOB["phase"] = "hunting"
+        found = _ch.hunt(held, prop, hist_dir, read_page, log=lambda m: print("   \U0001f50e %s" % m))
+    except Exception as e:
+        report["skipped"] = "hunt failed: %s" % e
+        return prop, applied, report
+    if not found:
+        return prop, applied, report
+    # merge_proposals is what makes the new sightings ACCUMULATE rather than replace, and it is the
+    # same path a second sweep takes — the hunt earns evidence, it does not get a private door.
+    merged = _cr.merge_proposals(prop, {"uniques": found})
+    _chron_evidence_save(merged)
+    merged, _ = _chron_fold(merged)
+    regated = _cr.apply_proposal(merged, {"uniques": [], "sets": []}, gate=_cr.strict_gate())
+    report["found"] = {k: len(v) for k, v in found.items()}
+    return merged, regated, report
+
+
 _CHRON_RESULT_PATH = os.environ.get("TV_CHRON_RESULT") or os.path.join(HERE, "chron_last_result.json")
 
 
@@ -10273,6 +10367,11 @@ def _chron_visit_run(visit_ts):
         # seen in a reel swept tonight can finally corroborate one seen in a reel swept tomorrow.
         prop = _chron_evidence_merge(prop)
         globals()["_CHRON_LAST_PROPOSAL"] = prop
+        # v1789 — FOLD ONTO THE ROSTER BEFORE THE GATE COUNTS. _CHRON_LAST_PROPOSAL above keeps
+        # the reader's RAW words (the receipt); the gate reads the board's canonical names, so
+        # two spellings of one item finally corroborate each other instead of each sitting at
+        # one witness in his inbox. See _chron_fold.
+        prop, _fold_report = _chron_fold(prop)
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -10317,6 +10416,11 @@ def _chron_visit_run(visit_ts):
                                        for sg in (h["sightings"] or [])[:6]]}
                              for h in applied["held"]],
                     "refused": prop.get("refused") or [],
+                    # v1789 — the RECEIPT for a queue that got smaller. A name folded onto an
+                    # item he already has, or retired as reader debris, must not simply vanish:
+                    # "we looked and it was not a grail item" and "nobody looked" have to read
+                    # differently, or a tidy inbox becomes indistinguishable from a lost one.
+                    "fold": _fold_report,
                     "setGroups": prop.get("setGroups") or {},
                     "lanes": _CHRON_JOB.get("lanes") or [],
                     "fromVisit": int(visit_ts),
@@ -10563,6 +10667,23 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # seen in a reel swept tonight can finally corroborate one seen in a reel swept tomorrow.
         prop = _chron_evidence_merge(prop)
         globals()["_CHRON_LAST_PROPOSAL"] = prop
+        # v1789 — FOLD ONTO THE ROSTER BEFORE THE GATE COUNTS. _CHRON_LAST_PROPOSAL above keeps
+        # the reader's RAW words (the receipt); the gate reads the board's canonical names, so
+        # two spellings of one item finally corroborate each other instead of each sitting at
+        # one witness in his inbox. See _chron_fold.
+        prop, _fold_report = _chron_fold(prop)
+        gate = _cr.strict_gate()
+        applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
+        # v1789 — THE FOCUSED HUNT, WIRED. Konyo: "cant like an extra AI take care of it and cross
+        # reference it with specific and focused hunts for it to cross reference it here and
+        # automatically grail it.. and if it still cant then leave it for me to tick off."
+        #
+        # A held name has ONE independent signal and needs two. The hunt goes and looks for the
+        # second in OTHER reels, where a hit earns cross-reel — the tag these names actually need;
+        # another frame in the same reel only re-earns cross-frame, which every held name already
+        # has. Whatever it finds is merged through merge_proposals and RE-GATED by the same rule as
+        # everything else, so nothing reaches his grail on a private path.
+        prop, applied, _hunt_report = _chron_hunt_held(prop, applied, hist, read_page)
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -10618,6 +10739,13 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                                        for sg in (h["sightings"] or [])[:6]]}
                              for h in applied["held"]],
                     "refused": prop.get("refused") or [],
+                    # v1789 — the RECEIPT for a queue that got smaller. A name folded onto an
+                    # item he already has, or retired as reader debris, must not simply vanish:
+                    # "we looked and it was not a grail item" and "nobody looked" have to read
+                    # differently, or a tidy inbox becomes indistinguishable from a lost one.
+                    "fold": _fold_report,
+                    # v1789 — what the focused hunt went looking for, and what came back
+                    "hunt": _hunt_report,
                     "setGroups": prop.get("setGroups") or {},
                     "lanes": _CHRON_JOB.get("lanes") or [],
                 },
@@ -10842,7 +10970,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1786",
+        "ver": "v1789",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

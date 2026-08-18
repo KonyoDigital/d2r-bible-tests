@@ -7704,6 +7704,40 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-step{border-left:3px solid rgba(255,168,0,.55)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
 /* v511 — Forge legend: floating hammer FAB + key popup (above the toolbox FABs) */
+/* ── v1788 — THE INBOX FAB. Konyo: "where is the INBOX i want like a floating little box maybe that
+   i can click on the right corner. with the inbox notifications like a cool widget just like the
+   tools and forge tooltips."
+   Built on the SAME pattern as those two (fab + pop, 52px circle, right rail) rather than a new
+   idiom — but with one deliberate difference: theirs are tab-scoped via body:has(#tab-x.active),
+   and this one is GLOBAL. A queue you only see on the tab you were already looking at is the
+   filing cabinet v1760 was written to end. It sits above them at bottom:236px so the three never
+   collide, and it HIDES ITSELF when nothing is waiting — a badge that is always there is a badge
+   nobody reads. */
+.inbox-fab{position:fixed;bottom:236px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;
+  border:2px solid #f0c060;background:radial-gradient(circle at 32% 28%,rgba(60,48,26,.98),rgba(20,16,10,.98));
+  display:none;align-items:center;justify-content:center;cursor:pointer;font-size:23px;line-height:1;
+  box-shadow:0 6px 22px rgba(0,0,0,.6);transition:transform .12s ease,border-color .12s ease}
+.inbox-fab.has{display:flex}
+.inbox-fab:hover{transform:scale(1.08);border-color:#fff}
+.inbox-fab .ibf-n{position:absolute;top:-5px;right:-5px;min-width:21px;height:21px;padding:0 5px;border-radius:11px;
+  background:#f0c060;color:#1a1208;font-size:12px;font-weight:var(--fw-bold);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 7px rgba(0,0,0,.55)}
+.inbox-pop{position:fixed;bottom:236px;right:88px;z-index:9001;width:360px;max-height:70vh;overflow:auto;
+  background:rgba(16,13,9,.985);border:1px solid #f0c060;border-radius:12px;padding:13px 15px;display:none;
+  box-shadow:0 10px 34px rgba(0,0,0,.66);font-size:12.5px}
+.inbox-pop.open{display:block}
+.inbox-pop .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:#f0c060;margin-bottom:3px}
+.inbox-pop .ibp-sub{color:#9a8c72;margin-bottom:9px;font-size:11.5px;line-height:1.45}
+.inbox-pop .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}/* v1789 — flex-wrap IS LOAD-BEARING: .ibp-why is flex:0 0 100%, and in a non-wrapping row it takes the whole line and squeezes the item NAME and both buttons to zero width. The panel rendered three rows reading 'unclear read' with nothing to act on — the one thing he needs is the name. Every functional assertion passed; only the screenshot showed it. */
+.inbox-pop .ibp-row:last-child{border-bottom:0}
+.inbox-pop .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox-pop .ibp-why{color:#8a7d64;font-size:11px;flex:0 0 100%;margin:-3px 0 2px}
+.inbox-pop .ibp-b{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#e8dcc0;
+  border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
+.inbox-pop .ibp-b:hover{border-color:#f0c060;color:#fff}
+.inbox-pop .ibp-ok{border-color:rgba(102,255,136,.45);color:#66ff88}
+.inbox-pop .ibp-auto{font-size:11px;line-height:1.5;color:#7fd18b;background:rgba(60,140,80,.10);border:1px solid rgba(90,180,110,.25);border-radius:6px;padding:6px 8px;margin:0 0 8px}
+.inbox-pop .ibp-empty{color:#8a7d64}
 .forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
 body:has(#tab-forge.active) .forge-legend-fab{display:flex}
 .forge-legend-fab:hover{transform:scale(1.08);border-color:#fff}
@@ -40724,7 +40758,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1786', name:'v1786 - the re-gate refused every genuine proposal', date:'2026-08-18', note:'it judged confidence on a field the provenance never carried' };
+  window.D2R_BUILD = { id:'v1789', name:'v1789 - the roster decides what is one item', date:'2026-08-18', note:'two spellings of one item never corroborated each other' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -41463,6 +41497,149 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   };
   /* v1760 — the badge is refreshed on its own, NOT only inside renderInbox(), because renderInbox
      runs when the card is OPENED and the whole point of a badge is to be right while it is shut. */
+  /* ── v1788 — THE INBOX WIDGET ────────────────────────────────────────────────────────────────
+     A floating button that appears ONLY when something is waiting on him, with the count on it,
+     and pops the queue with its two rulings on each row. Same fab+pop idiom as the Forge and Tools
+     legends so it reads as part of the furniture, but GLOBAL rather than tab-scoped: the inbox is
+     the one surface that must find him wherever he is, which is the whole reason v1760 added a
+     badge in the first place. Ruling from here goes through window._inboxAct — the same door the
+     panel uses — so there is one write path, not two. */
+  /* v1789 — CLEAR THE QUEUE OF THINGS THAT WERE NEVER HIS DECISION TO MAKE.
+
+     Konyo, looking at 49 pending rows: "these 49 items.. what exactly do they do they are like
+     pending items that were chornicle read? and they want my approval? why? cant like an extra AI
+     take care of it and cross reference it with specific and focused hunts for it to cross
+     reference it here and automatically grail it.. and if it still cant then leave it for me to
+     tick off."
+
+     He was right that most of them are not decisions. The server-side ledger was read by hand the
+     day this shipped: of 36 held names, SIX were unresolved uniques. Six were OCR slips of items
+     ALREADY in his grail. Twenty-four were reader debris — and the debris has a specific, boring
+     cause worth naming, because it makes the rule obvious: THE CHRONICLE PRINTS THE BASE ITEM NAME
+     FOR A ROW HE HAS NOT FOUND. "Bone Visage", "Templar Coat", "Wrist Sword" are not near-misses
+     at all; they are the game telling him the opposite of a find, and the reader dutifully typed
+     them down.
+
+     So three kinds of row are retired here, and only these three:
+       - it resolves to something already in his ledger  -> he has it; there is nothing to rule on
+       - it resolves to a BASE item                      -> that row is UNFOUND by definition
+       - the read is visibly truncated ("Firel...")      -> the reader is quoting its own damage
+
+     Everything else stays pending. A name that might be a real find is never dismissed by this
+     function, because a wrong dismissal is a find deleted silently and that is worse than a queue.
+
+     NO NEW MATCHING ALGORITHM LIVES HERE. It asks d2rResolveItem, this file's own authority on what
+     a name is. The fuzzy fold that repairs OCR slips runs server-side against the roster; writing a
+     second, differently-behaved matcher on the board is how two answers to one question start
+     disagreeing quietly. */
+  window.kaiChronicleResolvePending = function(opts){
+    opts = opts || {};
+    var dry = !!opts.dryRun;
+    var out = { dismissed: [], kept: [], errors: 0 };
+    var pend = [];
+    try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ return out; }
+    pend.slice().forEach(function(it){
+      var name = it && it.name;
+      if (!name) return;
+      var why = null;
+      try {
+        var r = window.d2rResolveItem(name) || {};
+        var canon = r.canonical || name;
+        if ((r.kind === 'unique' || r.kind === 'set-piece') && window._gFound(canon)){
+          why = 'already in your grail';
+        } else if (r.kind === 'base'){
+          why = 'a base item name — the Chronicle prints that for a row you have NOT found';
+        } else if (r.kind === 'unknown' && /\.\.\.$|\(partially|\(\?\)/.test(String(name))){
+          why = 'the read was truncated — the reader was quoting its own damage';
+        }
+      } catch(e){ out.errors++; return; }
+      if (!why){ out.kept.push(name); return; }
+      out.dismissed.push({ name: name, why: why });
+      if (!dry){ try { window.kaiChronicleDismiss(name); } catch(e){ out.errors++; } }
+    });
+    return out;
+  };
+
+  window.renderInboxFab = function(){
+    // v1788 — a LOCAL escaper: `esc` is not a global at this scope, and referencing it threw inside
+    // the try below, which silently produced a fab with the right count and an empty panel. The
+    // swallow is what made it look like a render bug rather than a ReferenceError.
+    var _e = function(t){ return String(t == null ? '' : t)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    try {
+      // v1789 — RETIRE THE NON-DECISIONS FIRST. "i dont want it pending my decisions at all if
+      // its not needed only something its really not sure about." Runs before the count is taken,
+      // so the badge never advertises rows that were never his to rule on. The receipt is kept and
+      // shown below: a queue that silently got smaller is indistinguishable from a lost one.
+      var _res = null;
+      try { _res = window.kaiChronicleResolvePending(); } catch(e){ _res = null; }
+      if (_res && _res.dismissed && _res.dismissed.length) window._inboxLastResolve = _res;
+      var pend = [];
+      try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ pend = []; }
+      var fab = document.getElementById('inbox-fab');
+      var pop = document.getElementById('inbox-pop');
+      if (!fab){
+        var w = document.createElement('div');
+        w.innerHTML = '<button class="inbox-fab" id="inbox-fab" type="button" '
+          + 'title="Inbox — names the readers could not call on their own" '
+          + 'onclick="window.inboxPopTog()">📥<span class="ibf-n" id="inbox-fab-n"></span></button>'
+          + '<div class="inbox-pop" id="inbox-pop"></div>';
+        while (w.firstChild) document.body.appendChild(w.firstChild);
+        fab = document.getElementById('inbox-fab');
+        pop = document.getElementById('inbox-pop');
+      }
+      var n = pend.length;
+      // HIDDEN WHEN EMPTY. A badge that is always there is a badge nobody reads (v1760's rule).
+      fab.classList.toggle('has', n > 0);
+      var nEl = document.getElementById('inbox-fab-n');
+      if (nEl) nEl.textContent = n > 99 ? '99+' : String(n);
+      if (!n && pop) pop.classList.remove('open');
+      if (pop){
+        var H = ['<div class="ibp-h">📥 Waiting on you</div>'
+          + '<div class="ibp-sub">' + (n
+            ? 'The readers saw ' + n + ' name' + (n===1?'':'s') + ' they could not call on their own '
+              + '— two independent witnesses are needed and these have one.'
+            : 'Nothing is waiting. Everything the readers saw was either grounded or dismissed on its own.')
+          + '</div>'];
+        // the receipt for a queue that shrank on its own
+        var _lr = window._inboxLastResolve;
+        if (_lr && _lr.dismissed && _lr.dismissed.length){
+          var _by = {};
+          _lr.dismissed.forEach(function(d){ _by[d.why] = (_by[d.why] || 0) + 1; });
+          H.push('<div class="ibp-auto">✓ ' + _lr.dismissed.length + ' row'
+            + (_lr.dismissed.length === 1 ? '' : 's') + ' cleared automatically — '
+            + Object.keys(_by).map(function(k){ return _by[k] + ' ' + _e(k); }).join(' · ')
+            + '</div>');
+        }
+        if (!n) H.push('<div class="ibp-empty">Nothing to rule on.</div>');
+        pend.forEach(function(x){
+          var nm = _e(String(x.name || ''));
+          var why = _e(String(x.triageWhy || 'unclear read'));
+          H.push('<div class="ibp-row"><span class="ibp-why">' + why + '</span>'
+            + '<span class="ibp-nm" data-arttip="' + nm + '">' + nm + '</span>'
+            + '<button type="button" class="ibp-b ibp-ok" '
+            + 'onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
+            + 'data-n="' + nm + '">tick it</button>'
+            + '<button type="button" class="ibp-b" '
+            + 'onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
+            + 'data-n="' + nm + '">ignore</button></div>');
+        });
+        pop.innerHTML = H.join('');
+      }
+    } catch(e){}
+  };
+  window.inboxPopTog = function(){
+    try {
+      var pop = document.getElementById('inbox-pop');
+      if (pop) pop.classList.toggle('open');
+    } catch(e){}
+  };
+  try {
+    window.addEventListener('load', function(){ setTimeout(function(){
+      try { window.renderInboxFab(); } catch(e){}
+    }, 900); });
+  } catch(e){}
+
   window.renderInboxBadge = function(){
     var el = document.getElementById('inbox-badge');
     if (!el) return 0;

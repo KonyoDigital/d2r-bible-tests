@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1786",
+  "ver": "v1789",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1786: it judged confidence on a field the provenance never carried",
+  "note": "v1789: two spellings of one item never corroborated each other",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
