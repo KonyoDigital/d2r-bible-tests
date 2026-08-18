@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1782"   # three numbers that answered a different question
+VERSION = "v1783"   # a default is not a declaration
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -109,6 +109,9 @@ try:
 except Exception:
     MINI_SECONDS = 25 if MINI_MODE else 0        # a garbled number is still a mini run
 MINI_FOCUS  = (_argv_val("--mini-focus") or "stash") if MINI_MODE else ""
+# v1783 — the FLAG BEING PRESENT is the choice. "stash" also arrives as the fallback above and as
+# the console's pre-selected button, so the value alone cannot say whether he picked it.
+MINI_FOCUS_CHOSEN = bool(_argv_val("--mini-focus")) if MINI_MODE else False
 if MINI_MODE:
     print(f"⏱ MINI CAPTURE — {MINI_SECONDS}s, focus={MINI_FOCUS}", flush=True)
 MOTION_PEAK  = 0.10
@@ -6691,6 +6694,14 @@ def close_session(reason="stop", farewell=True):
                 if MINI_MODE:
                     _ixdoc["mini"] = True
                     _ixdoc["focus"] = MINI_FOCUS
+                    # v1783 — RECORD WHETHER HE CHOSE THIS. The retro sweep skips the classifier
+                    # for a declared focus on the v1603 premise that pressing MINI TELLS the app
+                    # what he is parked on. That holds for a focus he picked and fails for one he
+                    # never touched: "stash" is the default here, the console pre-selects it, and
+                    # an untouched default then labels town, a fight and a Chronicle page as a
+                    # stash panel without any of them being looked at. An untouched default is not
+                    # a statement, so the sweep is told which kind of stamp this is.
+                    _ixdoc["focusChosen"] = MINI_FOCUS_CHOSEN
                     _ixdoc["miniSeconds"] = MINI_SECONDS
                 _indexed = False
                 for _attempt in (1, 2):     # one retry, then say so out loud

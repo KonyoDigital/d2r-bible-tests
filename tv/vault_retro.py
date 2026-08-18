@@ -103,6 +103,14 @@ def _declared_surface(idx):
     """
     idx = idx if isinstance(idx, dict) else {}
     f = str(idx.get("focus") or "").strip().lower()
+    # v1783 — A DEFAULT IS NOT A DECLARATION. Trusting this stamp replaces a paid classify for
+    # EVERY run in the reel, so an untouched default ("stash", which the console pre-selects) would
+    # label town, a fight and a Chronicle page as a stash panel without one of them being looked at
+    # — and any name read off them lands in the stash lane, where merge-max makes it permanent.
+    # Reels stamped before v1783 carry no focusChosen key; those keep the old behaviour rather than
+    # having their history reinterpreted, and only NEW reels are held to the stricter rule.
+    if "focusChosen" in idx and not idx.get("focusChosen"):
+        return None
     return f if f in OWNERSHIP_SURFACES else None
 
 
@@ -573,9 +581,19 @@ def _verdict(totals, owned, unsure):
                                              len(unsure)))
     if not totals["sessionsSeen"]:
         return "There is no sealed footage to sweep yet — record a mini stash session first."
-    if not totals["classified"]:
+    # v1783 — THIS BRANCH ACCUSED HIS CAMERA FOR THE READER'S FAILURE. classified counts PAID
+    # classifier calls, and the v1603 trusted-focus path never increments it: when he presses MINI
+    # the focus is taken as a declaration and the classifier is skipped entirely. So for any mini
+    # reel with a declared focus this is STRUCTURALLY 0, and the sweep answered "footage of moving,
+    # not of looking at a stash" for a reel it had read pages from — sending him to steady the
+    # camera when the reader is the thing to look at. Found by an adversarial review of this lane.
+    if not totals["classified"] and not totals.get("trustedFocus"):
         return ("%d reel(s) held no screen still long enough to be worth reading — that is footage of "
                 "moving, not of looking at a stash." % totals["sessionsSeen"])
+    if not totals["classified"] and totals.get("trustedFocus") and not totals["pagesRead"]:
+        return ("%d reel(s) carried a declared focus so no screen was classified, and no page was "
+                "read from them — the reader, not the footage, is what to check."
+                % totals["sessionsSeen"])
     if not totals["pagesRead"]:
         return ("%d still screen(s) were examined across %d reel(s) and NONE was a stash, inventory "
                 "or equipment panel — there was nothing to read. This is not a reader failure."

@@ -1832,7 +1832,15 @@ def start_agent(sim=False, test=False, mini=None, focus=None):
         if mini:
             try:
                 cmd.append("%s=%d" % (MINI_FLAG, int(mini)))
-                cmd.append("%s=%s" % (MINI_FOCUS_FLAG, str(focus or MINI_FOCUS)))
+                # v1783 — PASS THE FLAG ONLY WHEN HE ACTUALLY CHOSE A FOCUS. It used to be sent
+                # every time, filled in with the default, which made "the flag is present" mean
+                # nothing — and the reel then carried a declaration he never made. The sweep skips
+                # the classifier for a declared focus, so an untouched default labelled town, a
+                # fight and a Chronicle page as a stash panel without looking at any of them.
+                # tv_diablo still falls back to MINI_FOCUS for its own capture behaviour; what
+                # changes is that the reel is no longer stamped as CHOSEN when it was not.
+                if focus and str(focus).strip().lower() in MINI_FOCUSES:
+                    cmd.append("%s=%s" % (MINI_FOCUS_FLAG, str(focus).strip().lower()))
             except (TypeError, ValueError):
                 pass
         _log_fp.write("spawn: %s\n" % " ".join(cmd))
@@ -9345,6 +9353,23 @@ def _mini_focus(v):
     and later TRUSTED by the sweep in place of a classify call, so an unknown value must not travel."""
     v = str(v or "").strip().lower()
     return v if v in MINI_FOCUSES else MINI_FOCUS
+
+
+def _focus_was_chosen(v):
+    """v1783 — DID HE ACTUALLY PICK THIS, or is it just the default?
+
+    The sweep skips the classifier entirely for a declared focus, on the premise (v1603) that "when
+    he presses MINI he TELLS the app what he is parked on". That premise holds for a focus he chose
+    and fails for one he never touched: MINI_FOCUS is "stash", _mini_focus coerces anything unknown
+    to it, and the console's own UI pre-selects it — so a MINI started without touching the buttons
+    stamps focus:"stash" and every still run in that reel is labelled a stash panel without being
+    looked at. Town, a fight and a Chronicle page all become "stash", and any name read off them
+    lands in the stash lane where merge-max makes it permanent.
+
+    An untouched default is not a statement. Only an explicit, recognised choice counts as one.
+    Found by an adversarial review of the intake lane.
+    """
+    return str(v or "").strip().lower() in MINI_FOCUSES
 MINI_MIN_SECONDS = 10
 MINI_MAX_SECONDS = 40
 MINI_DEFAULT_SECONDS = 25
@@ -10792,7 +10817,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1782",
+        "ver": "v1783",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
