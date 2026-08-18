@@ -121,6 +121,13 @@ GATES = [
          why="a frame the vision lane read as scene='chronicle' must never be routed into a "
              "stash/vault/tally intake — a kai-vault intake fired on a Chronicle page and came "
              "back ok:false total:0, and the refusal must be NAMED and COUNTED, not silent"),
+    Gate("test_inbox_engine", [sys.executable, os.path.join(HERE, "test_inbox_engine.py")], 300,
+         why="v1794 — bible.html's inbox fold and chronicle_resolve.py's fold must answer "
+             "identically. The board cannot call the Python (it is a file:// page and a phone he "
+             "opens mid-game), so the second implementation is forced; a second BEHAVIOUR is not. "
+             "This extracts the SHIPPED block out of bible.html, runs it in node, and fails on the "
+             "first name where the two disagree — a drifted cutoff folds 'Gul' onto 'Gull' and "
+             "writes a find he never made"),
     Gate("chronicle-doctor", [sys.executable, os.path.join(HERE, "chronicle_doctor.py")], 120,
          why="the arc is wired on THIS machine — lanes, footage, board build"),
     Gate("test_stash_eye_aspect", [sys.executable, os.path.join(HERE, "test_stash_eye_aspect.py")], 120,

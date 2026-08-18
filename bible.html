@@ -17628,6 +17628,383 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
   };
 })();
 
+/* ══ v1794 — THE INBOX ENGINE ═══════════════════════════════════════════════════════════════════
+   Konyo: "make sure the inbox is now calibrated to the new coding and architecure. so it doesnt
+   tell me to do something inaccurate and unrelated to the game."
+
+   HE IS DESCRIBING A REAL, MEASURED CLASS OF ROW, and it has a specific cause. The console side
+   learned to repair OCR slips on 2026-08-18 — `tv/chronicle_resolve.py` folds a reader's raw name
+   onto this file's own unique roster before the gate counts witnesses, so "Battlecage" becomes
+   `Rattlecage` and "Naglring" becomes `Nagelring`. Of the 36 names read off his ledger by hand that
+   day, SIX were exactly this: the same row read twice, once right and once wrong.
+
+   THE BOARD NEVER LEARNED IT. `d2rResolveItem` is EXACT-match only, so on this side "Battlecage"
+   resolves `unknown`, falls through every rule, and lands on `hold: human-review` — a row on his
+   screen asking him to tick an item that DOES NOT EXIST IN THIS GAME. That is the complaint, word
+   for word. Two halves built, the joint never made: [[the-unjoined-end]].
+
+   Worse, the queue in his browser is a LEGACY store. Rows queued before the fold shipped are still
+   sitting there raw; no amount of correctness on the console side reaches them, because nothing
+   re-judges what is already in localStorage.
+
+   SO THE BOARD GETS THE SAME ENGINE, and it is one engine rather than a second opinion:
+   `kaiChronicleTriage` and `kaiChronicleResolvePending` both ask THIS, instead of each deriving
+   their own answer from `d2rResolveItem` and a pile of regexes.
+
+   WHY THIS IS A SECOND IMPLEMENTATION AND WHY THAT IS ALLOWED HERE. v1789's note said it plainly:
+   "writing a second, differently-behaved matcher on the board is how two answers to one question
+   start disagreeing quietly." That warning stands, and the word that carries it is DIFFERENTLY. The
+   board must work with no network — it is a `file://` page and a phone he opens mid-game — so it
+   cannot call the Python. The answer is not to skip the fold, it is to make the two provably the
+   same thing: this block reproduces `difflib.SequenceMatcher.ratio()` (Ratcliff-Obershelp) and
+   `get_close_matches` EXACTLY, carries the same two constants, and `tv/test_inbox_engine.py`
+   extracts the marked source below, runs it in node, and fails the gate on the first name where the
+   two disagree. Untested agreement is what drifts; a tested one is a single authority with two
+   runtimes. [[copy-drift]]
+
+   THE FOUR NEW OUTCOMES, and what each stops him being asked:
+     misread-settled  a slip of an item he ALREADY has       -> retired; there was never a decision
+     misread-open     a slip of a real item he does NOT have -> shown as the REAL item, raw read kept
+     ambiguous        two roster items within AMBIGUITY_GAP  -> held, BOTH named, never guessed
+     not-in-game      folds onto nothing in the roster       -> leaves his queue, goes to the reader
+
+   `not-in-game` is the one he actually asked about, and it is the one that must not be swallowed.
+   A name nobody can place is NOT a name that has been judged — retiring it silently would turn "we
+   looked and it is not an item" and "nobody looked" into the same tidy empty queue, which is the
+   exact fabrication `chronicle_resolve.py`'s docstring refuses. So it is quarantined WITH its frame
+   and session and handed to the reader lane: see `window.inboxReaderQueue` below.
+   [[unknown-stays-unknown]] */
+/* INBOX_ENGINE_BEGIN — tv/test_inbox_engine.py extracts everything between these two markers and
+   runs it in node against tv/chronicle_resolve.py. Keep the markers, and keep this block dependency
+   free: it may not read the DOM, localStorage, or any other function in this file. */
+var D2R_INBOX_FOLD = (function(){
+  /* Both constants are calibrated in tv/chronicle_resolve.py against HIS OWN ledger, and the gate
+     asserts these two literals equal that file's. 0.86 folds all five real OCR slips
+     ("battlecage"->"rattlecage" .90, "naglring"->"nagelring" .94) and pulls no debris onto a roster
+     item; 0.80 pulls "the dragon" onto "the dragon chang", which is a GUESS about which item he saw.
+     A wrong fold writes a find he never made, so an unfoldable name stays unknown. */
+  var NEAR_CUTOFF = 0.86;
+  var AMBIGUITY_GAP = 0.04;
+
+  /* Mirrors chronicle_resolve._norm, including the parenthetical strip: the reader parenthesises
+     its OWN uncertainty ("The Dragon Chang(?)"), which is a note about the read and never part of
+     the name. Digits go too — that file keeps [a-z] only, and a fold key that disagreed about a "7"
+     would put the two implementations on different strings before either had matched anything. */
+  function norm(s){
+    s = String(s == null ? '' : s).replace(/[‘’ʼ]/g, "'").toLowerCase();
+    s = s.replace(/\s*\([^)]*\)\s*/g, ' ');
+    return s.replace(/[^a-z]/g, '');
+  }
+
+  /* difflib.SequenceMatcher.find_longest_match, with the junk machinery deliberately absent.
+     `isjunk` is None at every call site in chronicle_resolve.py, and `autojunk` only engages at
+     len(b) >= 200 — the longest roster name normalises to well under 40 characters, so the junk
+     branches are unreachable rather than unimplemented. With no junk the inner loop already returns
+     a maximal block, which is why Python's two extension loops are not reproduced: they would
+     extend by a character that would have made `k` larger one iteration earlier. */
+  function longest(a, b, alo, ahi, blo, bhi, b2j){
+    var besti = alo, bestj = blo, bestsize = 0, j2len = {}, i, j, k, idx, arr, newj2len;
+    for (i = alo; i < ahi; i++){
+      newj2len = {};
+      arr = b2j[a.charAt(i)] || [];
+      for (idx = 0; idx < arr.length; idx++){
+        j = arr[idx];
+        if (j < blo) continue;
+        if (j >= bhi) break;
+        k = newj2len[j] = (j2len[j - 1] || 0) + 1;
+        if (k > bestsize){ besti = i - k + 1; bestj = j - k + 1; bestsize = k; }
+      }
+      j2len = newj2len;
+    }
+    return [besti, bestj, bestsize];
+  }
+
+  /* 2*M/T over difflib's matching blocks. Only the TOTAL matched size is needed, so the blocks are
+     summed as they are found rather than sorted and merged — merging adjacent blocks preserves the
+     sum, and the (la, lb, 0) terminator difflib appends adds nothing to it. */
+  function ratio(a, b){
+    var la = a.length, lb = b.length;
+    if (!la && !lb) return 1;
+    if (!la || !lb) return 0;
+    var b2j = {}, i, c;
+    for (i = 0; i < lb; i++){
+      c = b.charAt(i);
+      if (!Object.prototype.hasOwnProperty.call(b2j, c)) b2j[c] = [];
+      b2j[c].push(i);
+    }
+    var m = 0, queue = [[0, la, 0, lb]], q, r, bi, bj, k;
+    while (queue.length){
+      q = queue.pop();
+      r = longest(a, b, q[0], q[1], q[2], q[3], b2j);
+      bi = r[0]; bj = r[1]; k = r[2];
+      if (!k) continue;
+      m += k;
+      if (q[0] < bi && q[2] < bj) queue.push([q[0], bi, q[2], bj]);
+      if (bi + k < q[1] && bj + k < q[3]) queue.push([bi + k, q[1], bj + k, q[3]]);
+    }
+    return 2 * m / (la + lb);
+  }
+
+  /* difflib.get_close_matches(word, possibilities, n=2, cutoff=NEAR_CUTOFF).
+
+     TWO ARGUMENT ORDERS LIVE HERE AND THEY ARE NOT A SLIP. get_close_matches sets seq2 to the WORD
+     and seq1 to each candidate, so the score below is ratio(candidate, word); the ambiguity check in
+     `fold` then re-scores as ratio(word, candidate), because that is literally what
+     chronicle_resolve.canonical() does. Ratcliff-Obershelp is not guaranteed symmetric, so both are
+     reproduced rather than tidied into one — tidying either is how the two implementations would
+     first disagree, on precisely the near-twin pairs the roster deliberately holds.
+
+     real_quick_ratio/quick_ratio are omitted: they are guaranteed UPPER bounds used only to skip
+     work, so they can never change which names clear the cutoff. */
+  function close(word, keys){
+    var scored = [], i, r;
+    for (i = 0; i < keys.length; i++){
+      r = ratio(keys[i], word);
+      if (r >= NEAR_CUTOFF) scored.push([r, keys[i]]);
+    }
+    /* heapq.nlargest on (score, name) == sorted(reverse=True): score descending, then name
+       descending. The tie-break is load-bearing — without it two equally-scored candidates could
+       swap places between the two runtimes and only ONE of them would report ambiguity. Both sides
+       compare plain [a-z] strings after norm(), so JS code units and Python code points agree. */
+    scored.sort(function(x, y){
+      if (y[0] !== x[0]) return y[0] - x[0];
+      return x[1] < y[1] ? 1 : (x[1] > y[1] ? -1 : 0);
+    });
+    return scored.slice(0, 2).map(function(p){ return p[1]; });
+  }
+
+  /* -> {canonical, ratio, why, rivals}. canonical is null whenever the answer is not certain, and
+     `why` always says which kind of uncertainty it was: nothing near, or two things equally near. */
+  function fold(name, roster){
+    var k = norm(name);
+    if (!k) return { canonical: null, ratio: 0, why: 'empty' };
+    if (Object.prototype.hasOwnProperty.call(roster, k)){
+      if (roster[k] === null) return { canonical: null, ratio: 1, why: 'roster-collision' };
+      return { canonical: roster[k], ratio: 1, why: 'exact' };
+    }
+    var keys = Object.keys(roster), m = close(k, keys);
+    if (!m.length) return { canonical: null, ratio: 0, why: 'no-near-match' };
+    var best = ratio(k, m[0]), runner;
+    if (m.length > 1){
+      runner = ratio(k, m[1]);
+      if (best - runner < AMBIGUITY_GAP){
+        return { canonical: null, ratio: best, why: 'ambiguous',
+                 rivals: [roster[m[0]], roster[m[1]]] };
+      }
+    }
+    if (roster[m[0]] === null) return { canonical: null, ratio: best, why: 'roster-collision' };
+    return { canonical: roster[m[0]], ratio: best, why: 'near' };
+  }
+
+  /* {normalised: canonical} from a list of canonical names.
+
+     A key two DISTINCT roster names collapse onto is poisoned to null rather than handed to whichever
+     arrived first. chronicle_resolve.load_roster RAISES on that case, for the reason its comment
+     gives: silently picking a winner credits him with an item he never found. A browser may not take
+     the whole board down over one bad key, so this refuses to fold that key and keeps working — the
+     same verdict for the name in question (no fold), without the crash. */
+  function index(names){
+    var out = {}, i, k;
+    for (i = 0; i < (names || []).length; i++){
+      if (!names[i]) continue;
+      k = norm(names[i]);
+      if (!k) continue;
+      if (!Object.prototype.hasOwnProperty.call(out, k)) out[k] = names[i];
+      else if (out[k] !== names[i]) out[k] = null;
+    }
+    return out;
+  }
+
+  return { NEAR_CUTOFF: NEAR_CUTOFF, AMBIGUITY_GAP: AMBIGUITY_GAP,
+           norm: norm, ratio: ratio, close: close, fold: fold, index: index };
+})();
+/* INBOX_ENGINE_END */
+try { window.D2R_INBOX_FOLD = D2R_INBOX_FOLD; } catch(e){}
+
+/* v1794 — THE ENGINE PROPER: one verdict per row, and every caller asks THIS.
+
+   Before this existed the same question was answered in three places — `kaiChronicleTriage` decided
+   what to do with an incoming name, `kaiChronicleResolvePending` decided what to do with a name
+   already in the queue, and the panel decided what to print about it — each from its own reading of
+   `d2rResolveItem` plus its own regexes. Three answers to one question is how the queue ended up
+   holding rows two of them would have retired.
+
+   It returns a VERDICT and an ACTION, never a mutation. Nothing here writes: the callers own the
+   ledger, this owns the judgement. That separation is what lets the gate test it as a pure function
+   over a corpus of names instead of over his localStorage.
+
+     verdict           action    meaning
+     ─────────────────────────────────────────────────────────────────────────────────────────────
+     empty             dismiss   nothing readable
+     settled           retire    already in his ledger — there was never a decision here
+     truncated         retire    the reader is quoting its own damage ("Firel...")
+     base              retire    the game prints a BASE name for a row he has NOT found (v1793)
+     base-conflict     hold      the game says unfound, his ledger says found — the contradiction
+     find              hold      a real roster item he does not have — genuinely his call
+     misread-settled   retire    a slip of an item he ALREADY has: "Battlecage" -> Rattlecage
+     misread-open      hold      a slip of a real item he does NOT have — shown as the REAL item
+     ambiguous         hold      two roster items within AMBIGUITY_GAP — both named, never guessed
+     not-in-game       reader    folds onto nothing this game has — off his queue, to the reader
+
+   ORDER IS THE DESIGN. Truncation is tested BEFORE the fold on purpose: a damaged read is not a
+   misspelling, and letting "Natalya's..." shop around the roster for its nearest neighbour is how a
+   fold turns a torn label into a find. The fold only ever sees names that resolved to nothing and
+   are not visibly damaged. */
+window.d2rInboxEngine = function(row){
+  row = (typeof row === 'string') ? { name: row } : (row || {});
+  var raw = String(row.name == null ? '' : row.name).trim();
+  /* `code` stays null by default ON PURPOSE. Callers read `code || why`, so a default code would
+     override the specific `why` of every branch that does not set one — and the branch that would
+     have been broken first is base-conflict, whose whole job is to carry "game-says-unfound:<items>"
+     to the panel. Caught before it shipped; it is the same shape as a default that outranks a
+     measurement. [[unknown-stays-unknown]] */
+  var out = { verdict: 'find', action: 'hold', raw: raw, name: raw, show: raw,
+              canonical: null, why: 'human-review', code: null, uni: [] };
+  if (!raw){ out.verdict = 'empty'; out.action = 'dismiss'; out.why = 'no name could be read'; return out; }
+
+  var r = null;
+  try { r = window.d2rResolveItem(raw) || null; } catch(e){ r = null; }
+  var kind = (r && r.kind) || 'unknown';
+  var canon = (r && r.canonical) || raw;
+
+  if (kind === 'unique' || kind === 'set-piece'){
+    var have = false;
+    try { have = !!window._gFound(canon); } catch(e){}
+    out.name = canon; out.show = canon; out.canonical = canon;
+    if (have){ out.verdict = 'settled'; out.action = 'retire'; out.why = 'already in your grail'; return out; }
+    /* v1794 — A REAL GRAIL ITEM WAITING ON HIM IS NOT "nothing matched". The panel printed "the
+       readers could not call this one" over `Toothrow` — a roster unique, correctly spelled, that the
+       gate simply could not corroborate from one witness. Seen on the screenshot: the row said the
+       system had failed to identify it when identification was the one thing that had gone right.
+       The uncertainty is about the SIGHTING, not the name, and the row now says which. */
+    out.code = 'roster-unconfirmed';
+    return out;
+  }
+
+  if (kind === 'base'){
+    /* v1793's rule, moved here rather than copied: the in-game Chronicle prints the BASE name for a
+       row he has NOT found — grey, no date, no dropper — so the row is the game stating the opposite
+       of a find. ITEM_CODEX knows the base per unique, so it resolves back to what he is missing. */
+    var u = { missing: [], owned: [], known: false };
+    try { u = window._chUniquesOnBase(canon) || u; } catch(e){}
+    out.name = canon; out.canonical = canon;
+    if (u.known && !u.missing.length && u.owned.length){
+      /* THE ONE CASE THAT MUST NOT BE SWALLOWED. The panel called this base unfound and the board
+         says he owns every unique built on it; both cannot be true, and dismissing it destroys the
+         only evidence the disagreement exists. The contradiction IS the finding. */
+      out.verdict = 'base-conflict'; out.action = 'hold';
+      out.why = 'game-says-unfound:' + u.owned.join(', ');
+      out.owned = u.owned;
+      return out;
+    }
+    out.verdict = 'base'; out.action = 'retire'; out.uni = u.missing;
+    out.show = u.missing.length ? u.missing.join(' · ') : canon;
+    out.why = u.missing.length
+      ? 'the Chronicle shows this base for a unique you have NOT found'
+      : 'a base item name — the Chronicle prints that for a row you have NOT found';
+    out.code = u.missing.length ? ('base-name-still-to-find:' + u.missing.join(', '))
+                                : 'base-name-not-a-find';
+    return out;
+  }
+
+  // kind === 'unknown' from here down: nothing in this file's own catalogues matched the string.
+  if (/\.\.\.$|…$|\(partially|\(\?\)/.test(raw)){
+    out.verdict = 'truncated'; out.action = 'retire';
+    out.why = 'the read was truncated — the reader was quoting its own damage';
+    out.code = 'read-truncated';
+    return out;
+  }
+
+  var fold = null;
+  try {
+    var F = window.D2R_INBOX_FOLD;
+    if (F){
+      /* The roster index is rebuilt per call rather than cached, and that is deliberate: `_roster()`
+         behind `_gUniqueRoster()` already caches, this loop is 398 short strings, and a cache here
+         would be a second thing to invalidate when _UNI_EXTRA loads late. Measured cost is under a
+         millisecond, and only names that resolved to nothing ever reach it. */
+      fold = F.fold(raw, F.index(window._gUniqueRoster ? window._gUniqueRoster() : []));
+    }
+  } catch(e){ fold = null; }
+
+  if (fold && fold.why === 'ambiguous'){
+    /* Two roster items within AMBIGUITY_GAP of each other is a coin flip between two of HIS grail
+       items, and the roster deliberately holds near-twin pairs ("Bone Break" / "Latent Bone Break").
+       Guessing here writes a find he never made, so it reaches him as an open question with both
+       candidates named — which is more use to him than the raw string ever was. */
+    out.verdict = 'ambiguous'; out.action = 'hold';
+    out.rivals = fold.rivals || [];
+    out.why = 'reads-as-two:' + (fold.rivals || []).join(' or ');
+    out.code = out.why;
+    return out;
+  }
+
+  if (fold && fold.canonical){
+    var found = false;
+    try { found = !!window._gFound(fold.canonical); } catch(e){}
+    out.canonical = fold.canonical;
+    out.name = fold.canonical;      // the tick must write the ROSTER name, never the reader's slip
+    out.show = fold.canonical;
+    out.ratio = fold.ratio;
+    if (found){
+      /* The same row read twice, once right and once wrong, carrying zero new information. Six of
+         the 36 names on his ledger were exactly this. There is nothing to rule on. */
+      out.verdict = 'misread-settled'; out.action = 'retire';
+      out.why = 'a misread of ' + fold.canonical + ' — already in your grail';
+      out.code = 'misread-settled:' + fold.canonical;
+      return out;
+    }
+    out.verdict = 'misread-open'; out.action = 'hold';
+    out.why = 'misread-of:' + fold.canonical;
+    out.code = out.why;
+    return out;
+  }
+
+  /* NOT AN ITEM IN THIS GAME. This is the row he was complaining about, and it is the one that must
+     not be quietly deleted: "we looked and it is not an item" and "nobody looked" must never produce
+     the same tidy empty queue. It leaves his decision queue and goes to the reader lane WITH its
+     frame and session, so something that can actually re-read pixels gets the next word.
+     [[unknown-stays-unknown]] */
+  out.verdict = 'not-in-game'; out.action = 'reader';
+  out.why = 'not an item in this game — nothing in the roster is close enough to call';
+  out.code = 'not-in-game';
+  return out;
+};
+
+/* v1794 — THE READER LANE, and why it is a queue rather than a delete.
+
+   Konyo asked for "an AI reader task for it to automate it too". The console already has one:
+   `tv/chronicle_hunt.py` goes back to OTHER reels, brackets the alphabetical neighbours of a held
+   name, and re-reads those few frames — a genuinely independent observation rather than the same
+   frame asked twice. The board cannot run that; it can hand it the work.
+
+   So a `not-in-game` row is quarantined here with its frameId and sessionId — the two facts a hunt
+   needs to find the pixels again — and never with a verdict about what it was. When the board is
+   served BY the console (`:17772/board`, which is where sweeps happen and where these rows are
+   created) it posts them to /api/inbox_reader and takes the answers back. On the live site there is
+   no console to ask, so the queue holds and the panel says so: a lane that cannot run must look
+   different from one that ran and found nothing. [[the-unjoined-end]] */
+window.inboxReaderQueue = function(){
+  try {
+    var q = (window.LSR && window.LSR.getItem) ? JSON.parse(window.LSR.getItem('d2r_inboxReader') || '[]') : [];
+    return Array.isArray(q) ? q : [];
+  } catch(e){ return []; }
+};
+window.inboxReaderHandoff = function(row, why){
+  try {
+    var q = window.inboxReaderQueue();
+    var nm = String((row && row.name) || row || '').trim();
+    if (!nm) return { ok: false };
+    if (q.some(function(x){ return x && x.name === nm; })) return { ok: true, dup: true };
+    q.push({ name: nm, why: why || 'not an item in this game',
+             frameId: (row && row.frameId) || '', sessionId: (row && row.sessionId) || '',
+             loc: (row && row.loc) || null, ts: Date.now(), status: 'queued' });
+    if (window.LSR && window.LSR.setItem)
+      window.LSR.setItem('d2r_inboxReader', JSON.stringify(q.slice(-200)));
+    return { ok: true, name: nm };
+  } catch(e){ return { ok: false }; }
+};
+
 // v351 — trade-value lookup: exact, then suffix-stripped ('Harlequin Crest (Shako)'→'Harlequin Crest'),
 // then normalised. Returns 'high'|'med'|'low'|'none'|'trash' or '' (unrated).
 var _IV_NORM=null;
@@ -32730,39 +33107,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if (tier === 'toss') return { action: 'dismiss', why: 'item-checker-toss' };
     if (_chIsJunkName(nm)) return { action: 'dismiss', why: 'safe-auto-junk' };
-    /* v1793 — A BASE NAME IS NOT A FIND, AND THAT IS CERTAIN RATHER THAN LIKELY.
+    /* v1794 — EVERYTHING BELOW THIS LINE IS ONE QUESTION, AND `d2rInboxEngine` ANSWERS IT.
 
-       Konyo, looking at Ancient Sword / Basinet / Battle Hammer sitting in his queue awaiting a
-       decision: "the PUTBACK shouldnt even tell me anything in this case ... its accidentally
-       tallying or MAYBE tallying and is unsure of if it a chorincle.. but it cant be because it
-       greyed out."
+       v1793's base-name rule used to be written out here in full — resolve the name, ask
+       _chUniquesOnBase, dismiss or hold on the conflict. It was ALSO written out, differently, in
+       kaiChronicleResolvePending, which is how a name could be a decision on the way in and a
+       non-decision once it had landed. The rule and its evidence now live in the engine (see the
+       block beside d2rResolveItem); this function keeps only the part that is genuinely triage's —
+       the ruling about the READ (gateHeld, g4, checker toss), decided above.
 
-       He is right on both counts. The in-game Chronicle prints the BASE name for a row he has NOT
-       found — grey, no date, no dropper — so such a row is the game stating the opposite of a find.
-       It reached this queue because the register hands triage a bare NAME with no found-state
-       attached, so the one fact that settles it was thrown away before this function ever saw it.
-       Everything downstream then treated it as an open question.
-
-       Dismissed here, at the top of the pipe, rather than retired later: a name that cannot be a
-       find should never occupy a row that asks him to decide.
-
-       ONE EXCEPTION, and it is the whole reason this is not a bare dismiss. If he already owns every
-       unique built on that base, the game and his ledger disagree — the panel called it unfound and
-       the board says found. That cannot be resolved by guessing, and dismissing it would destroy the
-       only evidence the disagreement exists, so it HOLDS with the conflict spelled out. */
-    try {
-      var _rb = (typeof window.d2rResolveItem === 'function') ? window.d2rResolveItem(nm) : null;
-      if (_rb && _rb.kind === 'base'){
-        var _ub = { missing: [], owned: [], known: false };
-        try { _ub = window._chUniquesOnBase(_rb.canonical || nm) || _ub; } catch(e){}
-        if (_ub.known && !_ub.missing.length && _ub.owned.length){
-          return { action: 'hold', why: 'game-says-unfound:' + _ub.owned.join(', ') };
-        }
-        return { action: 'dismiss', why: _ub.missing.length
-          ? 'base-name-still-to-find:' + _ub.missing.join(', ')
-          : 'base-name-not-a-find' };
-      }
-    } catch(e){}
+       WHAT IS NEW HERE AND WHY HE ASKED FOR IT. The engine also folds OCR slips onto the roster the
+       way tv/chronicle_resolve.py does on the console side, so "Battlecage" is recognised as a
+       misread of Rattlecage instead of arriving on his screen as an item that does not exist in this
+       game — his words: "so it doesnt tell me to do something inaccurate and unrelated to the game."
+       A slip of something he already owns is not a decision; a slip of something he does not own is
+       a decision about the REAL item; a string that folds onto nothing leaves the queue for the
+       reader lane rather than being deleted or shown. */
+    var _eng = null;
+    try { _eng = window.d2rInboxEngine({ name: nm, tier: tier }); } catch(e){ _eng = null; }
+    if (_eng){
+      /* `hold` and `dismiss` are triage's only two outcomes for a name that did not ground — a fold
+         is a REPAIR of a spelling, never a second witness, so `misread-open` holds rather than
+         auto-ticking. That is the same rule gateHeld enforces twelve lines up: a corroboration rule
+         undone one function later is not a rule. */
+      if (_eng.action === 'retire' || _eng.action === 'dismiss' || _eng.action === 'reader')
+        return { action: 'dismiss', why: _eng.code || _eng.why, canonical: _eng.canonical || null };
+      return { action: 'hold', why: _eng.code || _eng.why, canonical: _eng.canonical || null };
+    }
     return { action: 'hold', why: 'human-review' };
   };
 
@@ -40839,7 +41210,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1793', name:'v1793 - a grey row is the game saying not found', date:'2026-08-18', note:'it told him the base when the unique was knowable' };
+  window.D2R_BUILD = { id:'v1794', name:'v1794 - the inbox asked him about things that are not in the game', date:'2026-08-18', note:'the board now folds a misread onto the roster the way the console does, and a non-item goes to the reader' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -41463,6 +41834,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (/^game-says-unfound:/.test(c))
         return 'the game lists this base as NOT found, but your ledger has '
                + c.replace(/^game-says-unfound:/, '') + ' — those disagree';
+      /* v1794 — the engine's four new outcomes, in his words rather than the reader's.
+         `misread-of` is the one that changes what he SEES: the row now carries the roster item the
+         slip folded onto, and this line is where he is told the raw string it came from — because a
+         repaired name with no receipt is a name he cannot check. */
+      if (/^misread-of:/.test(c))
+        return 'read as a misspelling of ' + c.replace(/^misread-of:/, '') + ' — tick it and that is what gets recorded';
+      if (/^misread-settled:/.test(c))
+        return 'a misread of ' + c.replace(/^misread-settled:/, '') + ', which you already have';
+      if (/^reads-as-two:/.test(c))
+        return 'this could be either of two of your grail items (' + c.replace(/^reads-as-two:/, '')
+               + ') and guessing would write a find you never made';
+      if (/^not-in-game/.test(c))
+        return 'not an item in this game — nothing in the roster is close enough to call, so the reader has it';
+      if (/^read-truncated/.test(c))       return 'the read was truncated — the reader was quoting its own damage';
+      if (/^roster-unconfirmed/.test(c))
+        return 'a real grail item you do not have — read once, and one sighting is not two, so it needs your eye';
       if (/^human-review/.test(c))         return 'nothing matched — needs your eye';
       return c;
     };
@@ -41725,7 +42112,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   window.kaiChronicleResolvePending = function(opts){
     opts = opts || {};
     var dry = !!opts.dryRun;
-    var out = { dismissed: [], kept: [], conflicts: [], errors: 0 };
+    var out = { dismissed: [], kept: [], conflicts: [], reader: [], errors: 0 };
     var pend = [];
     try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ return out; }
     var keep = [];
@@ -41735,45 +42122,53 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (!name) return;
       // v1790 — a row he put back is his decision, and this function does not get to re-make it
       if (keep.indexOf(name) >= 0){ out.kept.push(name); return; }
-      var why = null, _uniNames = [];
+      /* v1794 — ONE ENGINE, ASKED ONCE. Everything this function used to derive by hand — resolve
+         the name, check the found-state, expand a base back to the uniques still to hunt, spot a
+         truncated read — is now d2rInboxEngine's job, and kaiChronicleTriage asks the SAME function
+         with the SAME name. Two implementations of "is this his decision" is how a row could be
+         retired on the way in and pending once it had landed.
+
+         The engine also adds the case he actually complained about: a name that folds onto nothing
+         in the roster is not an item in this game, so it stops being a row that asks him to rule and
+         becomes a row the reader lane owns. */
+      var why = null, _uniNames = [], _eng = null, _reader = false;
       try {
-        var r = window.d2rResolveItem(name) || {};
-        var canon = r.canonical || name;
-        if ((r.kind === 'unique' || r.kind === 'set-piece') && window._gFound(canon)){
-          why = 'already in your grail';
-        } else if (r.kind === 'base'){
-          /* v1793 — AN UNFOUND BASE ROW IS THE GAME'S OWN HUNT LIST, and a second opinion on the
-             board's. Konyo: "the HAVENT FOUND is actually pretty cool for like a reverse enginnering
-             of WHATS STILL LEFT TO FIND ... also good.. like it can be two options for the same base
-             item sometimes."
-
-             Two options is the normal case, not an edge one: the two grey "Thunder Maul" rows in his
-             footage are Cranium Basher AND Earth Shifter, which is exactly why a base can appear
-             twice and look like a duplicate.
-
-             THE CASE THAT MUST NOT BE SWALLOWED: the game printed this base as NOT FOUND, and the
-             board says he owns every unique built on it. Those two cannot both be true. Retiring it
-             would delete the only evidence of the disagreement, so it goes to him instead — the
-             contradiction IS the finding. */
-          _uniNames = [];
-          var _u = { missing: [], owned: [], known: false };
-          try { _u = window._chUniquesOnBase(canon) || _u; } catch(e){}
-          if (_u.known && !_u.missing.length && _u.owned.length){
-            why = null;   // hand it back — see the note above
-            out.conflicts.push({ name: name, owned: _u.owned,
-                                 why: 'the game lists this base as NOT found, but your ledger has '
-                                      + _u.owned.join(', ') });
-            out.kept.push(name);
-            return;
-          }
-          _uniNames = _u.missing;
-          why = _u.missing.length
-            ? 'the Chronicle shows this base for a unique you have NOT found'
-            : 'a base item name — the Chronicle prints that for a row you have NOT found';
-        } else if (r.kind === 'unknown' && /\.\.\.$|\(partially|\(\?\)/.test(String(name))){
-          why = 'the read was truncated — the reader was quoting its own damage';
+        _eng = window.d2rInboxEngine({ name: name, frameId: it.frameId, sessionId: it.sessionId,
+                                       loc: it.loc, tier: it.tier });
+        if (_eng.verdict === 'base-conflict'){
+          out.conflicts.push({ name: name, owned: _eng.owned || [],
+                               why: 'the game lists this base as NOT found, but your ledger has '
+                                    + (_eng.owned || []).join(', ') });
+          out.kept.push(name);
+          return;
+        }
+        if (_eng.action === 'retire' || _eng.action === 'reader' || _eng.action === 'dismiss'){
+          why = _eng.why;
+          _uniNames = _eng.uni || [];
+          _reader = (_eng.action === 'reader');
         }
       } catch(e){ out.errors++; return; }
+      if (_reader){
+        /* HANDED OVER, NOT DELETED — and it belongs to exactly ONE list.
+
+           The first cut pushed these into `dismissed` as well, which put them in the "cleared
+           automatically" receipt WITH A PUT-BACK BUTTON beside them. Caught on the screenshot, not by
+           any assertion: the panel offered to put "Chronicle of Items" and "Sort by" back in front of
+           him, which is precisely the thing he asked this version to stop. A row that is not an item
+           in this game is not a decision he can be handed back.
+
+           So a reader row is reported on its own line, is NOT written to the retire list, and gets no
+           undo. Nothing is lost: it is in the reader queue with its frame, and in the ledger.
+
+           The handoff obeys `dryRun` like every other write here. A preview that quietly enqueued
+           work would make the dry run the one call with a side effect. */
+        if (!dry){
+          try { window.inboxReaderHandoff(it, why); } catch(e){ out.errors++; }
+          try { window.kaiChronicleDismiss(name); } catch(e){ out.errors++; }
+        }
+        out.reader.push({ name: name, why: why });
+        return;
+      }
       if (!why){ out.kept.push(name); return; }
       out.dismissed.push({ name: name, why: why, uni: _uniNames });
       if (!dry){
@@ -41803,7 +42198,10 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       // shown below: a queue that silently got smaller is indistinguishable from a lost one.
       var _res = null;
       try { _res = window.kaiChronicleResolvePending(); } catch(e){ _res = null; }
-      if (_res && _res.dismissed && _res.dismissed.length) window._inboxLastResolve = _res;
+      // v1794 — a run that only handed rows to the reader still changed the queue, so it is still a
+      // receipt. Keying this on `dismissed` alone made the reader lane the one action with no record.
+      if (_res && ((_res.dismissed && _res.dismissed.length) || (_res.reader && _res.reader.length)))
+        window._inboxLastResolve = _res;
       var pend = [];
       try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ pend = []; }
       var fab = document.getElementById('inbox-fab');
@@ -41826,9 +42224,14 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (!n && pop) pop.classList.remove('open');
       if (pop){
         var H = ['<div class="ibp-h">📥 Waiting on you</div>'
+          /* v1794 — the sub-line used to give ONE reason for every row: "two independent witnesses
+             are needed and these have one." That was true when the only way to be held was a thin
+             sighting. It is not true of a name that reads as two different grail items, and stating
+             a cause that does not apply is the same defect as stating a name that is not in the game.
+             Each row now carries its own reason, so this line says how many and points at them. */
           + '<div class="ibp-sub">' + (n
-            ? 'The readers saw ' + n + ' name' + (n===1?'':'s') + ' they could not call on their own '
-              + '— two independent witnesses are needed and these have one.'
+            ? n + ' name' + (n===1?'':'s') + ' the readers could not settle on their own. '
+              + 'Each row says why.'
             : 'Nothing is waiting. Everything the readers saw was either grounded or dismissed on its own.')
           + '</div>'];
         // v1790 — the receipt, and the way back out of it. Shows every row retired in the last
@@ -41839,10 +42242,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         if (_rr.length){
           var _by = {};
           _rr.forEach(function(d){ _by[d.why] = (_by[d.why] || 0) + 1; });
+          /* v1794 — two things this line used to say that were not true, both caught on the
+             screenshot rather than by any assertion:
+             (1) "1 row cleared automatically — 1 the Chronicle shows..." — the per-reason tally was
+                 printed even when there was one reason and one row, so the count appeared twice in
+                 one sentence. A count is only information when it is counting more than one thing.
+             (2) "kept for 7 days — put any of them back" was printed unconditionally, including when
+                 every row shown was a CERTAIN retire with no put-back button. The panel was offering
+                 a control that was not on screen. */
+          var _undoable = _rr.slice(0, 12).filter(function(d){
+            return !(!!(d.uni && d.uni.length) || /base item name/.test(String(d.why || '')));
+          }).length;
           H.push('<div class="ibp-auto">✓ ' + _rr.length + ' row' + (_rr.length === 1 ? '' : 's')
             + ' cleared automatically — '
-            + Object.keys(_by).map(function(k){ return _by[k] + ' ' + _e(k); }).join(' · ')
-            + '<div class="ibp-auto-sub">kept for 7 days — put any of them back</div>'
+            + Object.keys(_by).map(function(k){
+                return (_by[k] > 1 ? _by[k] + ' ' : '') + _e(k); }).join(' · ')
+            + (_undoable ? '<div class="ibp-auto-sub">kept for 7 days — put any of them back</div>' : '')
             + _rr.slice(0, 12).map(function(d){
                 // v1793 — the UNIQUE is the noun he cares about; the base is how the game happened
                 // to print it. "the base item is less relevant in this case" — his words.
@@ -41864,17 +42279,48 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             + (_rr.length > 12 ? '<div class="ibp-auto-sub">+ ' + (_rr.length - 12) + ' more in the ledger</div>' : '')
             + '</div>');
         }
+        /* v1794 — THE READER LANE, SAID OUT LOUD. Rows that fold onto nothing in the roster leave
+           his queue, and a queue that got smaller with no explanation is indistinguishable from one
+           that lost something. This names the count and where it went. It is deliberately NOT a
+           "put back" — putting a string that is not an item in this game back in front of him is
+           the exact thing he asked to stop; the ledger still holds every one of them. */
+        var _rq = [];
+        try { _rq = window.inboxReaderQueue() || []; } catch(e){ _rq = []; }
+        if (_rq.length){
+          H.push('<div class="ibp-auto">🔎 ' + _rq.length + ' read' + (_rq.length === 1 ? '' : 's')
+            + ' matched nothing in this game — handed to the reader, not to you'
+            + '<div class="ibp-auto-sub">'
+            + _rq.slice(-6).map(function(d){ return _e(d.name); }).join(' · ')
+            + (_rq.length > 6 ? ' · + ' + (_rq.length - 6) + ' more' : '')
+            + '</div></div>');
+        }
         if (!n) H.push('<div class="ibp-empty">Nothing to rule on.</div>');
         pend.forEach(function(x){
-          var nm = _e(String(x.name || ''));
-          // v1793 — plain words, from the file's own table; the raw code stays in the title for when
-          // something needs surgical fixing
-          var _raw = String(x.triageWhy || '');
+          var _key = String(x.name || '');          // the STORE key — every button still rules on this
+          var nm = _e(_key);
+          /* v1794 — THE ROW IS JUDGED NOW, NOT WHEN IT WAS QUEUED.
+
+             `triageWhy` is a stamp from the moment the name arrived, and the queue is full of rows
+             that predate every rule since. Those rendered as "the readers could not call this one",
+             which is the panel admitting it has nothing to say about a row it is nonetheless asking
+             him to rule on. Asking the engine per render costs a resolve on a handful of rows and
+             means the reason he reads is the reason that applies today.
+
+             AND THE NAME HE SEES IS THE REAL ITEM. A row the engine folded shows the ROSTER name
+             with the reader's actual string beneath it as the receipt — he is ruling on Rattlecage,
+             not on "Battlecage", and he can still see exactly what was read. */
+          var _live = null;
+          try { _live = window.d2rInboxEngine(x); } catch(e){ _live = null; }
+          var _raw = String((_live && _live.code) || x.triageWhy || '');
           var _say = _raw;
           try { if (typeof window._chSayWhy === 'function') _say = window._chSayWhy(_raw); } catch(e){}
           var why = _e(_say || 'the readers could not call this one');
+          var _shown = (_live && _live.canonical && _live.verdict === 'misread-open')
+                     ? _e(_live.canonical) : nm;
+          var _slip = (_shown !== nm)
+            ? ' <span class="ibp-rr-b2">read as “' + nm + '”</span>' : '';
           H.push('<div class="ibp-row"><span class="ibp-why" title="' + _e(_raw) + '">' + why + '</span>'
-            + '<span class="ibp-nm" data-arttip="' + nm + '">' + nm + '</span>'
+            + '<span class="ibp-nm" data-arttip="' + _shown + '">' + _shown + _slip + '</span>'
             + '<button type="button" class="ibp-b ibp-ok" '
             + 'onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
             + 'data-n="' + nm + '">tick it</button>'
@@ -41973,6 +42419,36 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   window.kaiChronicleAccept = function(name){
     try {
       var nm = String(name || '').trim(); if (!nm) return { ok:false, why:'no-name' };
+      /* v1794 — A TICK MUST WRITE A ROSTER NAME, and until now it wrote whatever the reader typed.
+
+         This is the defect tv/chronicle_resolve.py's docstring names on the console side: "A GROUNDED
+         NAME THAT IS NOT A ROSTER NAME CAN NEVER TICK. The ledger held `Latent Black Cleft`; the
+         roster holds `Black Cleft`; d2rResolveItem returns it UNCHANGED, so the reel found the item,
+         the ledger grounded it, and the board could not count it." The board had the same hole from
+         the other side: pressing "tick it" on a misread row wrote `d2r_foundLog['Battlecage']` — a
+         key nothing counts, nothing renders and nothing can ever un-tick. The row would leave his
+         queue, look accepted, and add ZERO to his total. Silent by construction.
+
+         ONLY a fold repair is rewritten (`misread-open` / `misread-settled`). A base row or a name
+         the engine could not place keeps the string he pressed the button on, because rewriting a
+         name we could not resolve would be a guess wearing a canonical name's clothes. The RAW
+         string is still what gets removed from the queue below — that is the key it is stored under.
+         [[unknown-stays-unknown]] */
+      var _raw = nm, _fold = null;
+      try {
+        _fold = window.d2rInboxEngine({ name: nm });
+        if (_fold && _fold.canonical &&
+            (_fold.verdict === 'misread-open' || _fold.verdict === 'misread-settled'))
+          nm = _fold.canonical;
+      } catch(e){}
+      if (nm !== _raw){
+        try {
+          var _q0 = (_chLsGet(_CH_INBOX_KEY, []) || [])
+            .filter(function(x){ return !(x && String(x.name) === _raw); });
+          _chLsSet(_CH_INBOX_KEY, _q0);
+          _chLogSetStatus(_raw, 'accepted', { store: 'foundLog', why: 'read as ' + nm, auto: false });
+        } catch(e){}
+      }
       var settled = window.kaiChronicleSettledWhy(nm);
       if (settled && settled.store !== 'grailUnfound'){
         var inbox0 = (_chLsGet(_CH_INBOX_KEY, []) || []).filter(function(x){ return !(x && String(x.name) === nm); });

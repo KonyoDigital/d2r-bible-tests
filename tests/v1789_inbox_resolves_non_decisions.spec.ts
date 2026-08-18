@@ -62,7 +62,23 @@ async function seedInbox(page: any, names: string[]) {
 // page agrees it is not already found. A test that depends on global cleanliness it does not own is
 // measuring the shard, not the code.
 
-async function receiptOf(page: any) {
+/* v1794 — POLL, DO NOT RACE. renderInboxFab's auto-run is on a 900ms timer after `load`, so reading
+   the receipt straight off `goto` is a coin flip that lands right only when the lines before it
+   happen to be slow. Measured on this tree at v1793 (before any v1794 code existed): four of these
+   tests failed with an EMPTY receipt on all three retries — not a wrong verdict, an unwritten one.
+   Waiting for the automatic path is also the more honest test, because the automatic path is the
+   feature: "i dont want it pending my decisions at all if its not needed." */
+/* `require: false` for the one caller that is asserting a receipt should be EMPTY. A receipt is only
+   written when the resolver actually retired something, so "no receipt" is the correct outcome of the
+   safety-boundary test and waiting for one there would fail on the code behaving perfectly — the
+   first version of this helper did exactly that. That caller drives renderInboxFab() by hand and has
+   no race to lose. */
+async function receiptOf(page: any, opts: { require?: boolean } = {}) {
+  if (opts.require !== false) {
+    await expect
+      .poll(() => page.evaluate(() => !!(window as any)._inboxLastResolve), { timeout: 15000 })
+      .toBe(true);
+  }
   return await page.evaluate(() => (window as any)._inboxLastResolve || { dismissed: [], kept: [] });
 }
 
@@ -86,17 +102,31 @@ test('a base item name is retired — the Chronicle prints it for a row he has N
   const receipt = await receiptOf(page);
   const by = new Map<string, any>(receipt.dismissed.map((d: any) => [d.name, d]));
   const ctx = JSON.stringify(receipt);
-  // v1793 — assert the MEANING, not the sentence. The wording moved from "a base item name" to
-  // naming the unique he is still missing, and three specs pinned to the old string went red on a
-  // change that was entirely intended. What must stay true is that the row is retired and says it is
-  // a not-found row; the exact prose is free to improve.
+  /* ASSERT THE MEANING, NOT THE SENTENCE — and then assert that the meaning is specific.
+
+     v1793 moved the wording from "a base item name" to naming the unique he is still missing, and
+     three specs pinned to the old string went red on a change that was entirely intended. So what
+     must stay true is that the row is retired and says it is a not-found row.
+
+     But "matches /NOT found/" alone would stay green if the panel stopped naming anything useful,
+     which is the one thing v1793 existed to add ("it needs to tell me the UNIQUE name of the item
+     itself not the BASE ITEM"). So the specific unique is pinned too. Two sessions arrived at this
+     fix independently, from opposite ends; this is the union of both. */
+  /* v1794 — ASSERTING THE v1793 BEHAVIOUR, which this line had never caught up with. v1793 made the
+     retire name the UNIQUE instead of the base ("the base item is less relevant in this case" — his
+     words), so a base the codex can resolve now retires as "the Chronicle shows this base for a
+     unique you have NOT found" and carries that unique in `uni`. The old assertion still demanded
+     the literal "base item name", which is now only the FALLBACK wording for a base the codex cannot
+     resolve — so the test failed on the tree that shipped the improvement. Both branches are pinned
+     below rather than one loose substring, because the fallback is the case that silently says less. */
   for (const n of ['Templar Coat', 'Bone Visage']) {
     const d = by.get(n);
     expect(d, ctx).toBeTruthy();
-    expect(String(d.why), ctx).toMatch(/NOT found/);
-    // and where the codex knows the mapping, it names the unique rather than the base
-    if (d.uni && d.uni.length) expect(d.uni.join(','), ctx).not.toContain(n);
+    expect(d.why, ctx).toContain('you have NOT found');
+    expect(d.uni.length, ctx).toBeGreaterThan(0);
   }
+  expect(by.get('Templar Coat').uni, ctx).toContain('Guardian Angel');
+  expect(by.get('Bone Visage').uni, ctx).toContain('Giant Skull');
 });
 
 test('a truncated read is retired — the reader was quoting its own damage', async ({ page }) => {
@@ -147,7 +177,10 @@ test('a roster unique he does NOT have is never dismissed', async ({ page }) => 
     found: !!(window as any)._gFound(n),
     kind: ((window as any).d2rResolveItem(n) || {}).kind,
   })), real);
-  const receipt = await receiptOf(page);
+  // require:false — this test's whole claim is that NOTHING was retired, and a receipt is only
+  // written when something was. renderInboxFab() above ran synchronously, so there is nothing to wait
+  // for; waiting anyway would fail on the code being right.
+  const receipt = await receiptOf(page, { require: false });
   const dismissed = new Set(receipt.dismissed.map((d: any) => d.name));
   const ctx = JSON.stringify({ state, receipt });
   const unfound = state.filter((s: any) => !s.found);
@@ -169,8 +202,16 @@ test('the panel shows a receipt for the rows it cleared on its own', async ({ pa
   const pop = page.locator('#inbox-pop');
   await expect(pop).toHaveClass(/open/);
   // a queue that silently got smaller is indistinguishable from a lost one
-  await expect(pop.locator('.ibp-auto')).toContainText('cleared automatically');
-  await expect(pop.locator('.ibp-auto')).toContainText('NOT found');
+  // The .filter() is LOAD-BEARING as of v1794: the panel now renders a second .ibp-auto block for
+  // the reader hand-off, so an unfiltered locator matches two elements and Playwright raises a
+  // strict-mode violation instead of asserting anything.
+  const cleared = pop.locator('.ibp-auto').filter({ hasText: 'cleared automatically' });
+  await expect(cleared).toContainText('cleared automatically');
+  // v1794 — and it names the UNIQUE, not the base. v1793 made that the point of the row: "it needs
+  // to tell me the UNIQUE name of the item itself not the BASE ITEM." Asserting the old "base item
+  // name" wording meant the panel could stop naming anything useful and this would stay green.
+  await expect(cleared).toContainText('Guardian Angel');
+  await expect(cleared).toContainText('shown as Templar Coat');
 });
 
 test('every pending row actually SHOWS its name and both buttons', async ({ page }) => {
@@ -217,11 +258,17 @@ test('an auto-retired row can be put back, and it STAYS back', async ({ page }) 
   //
   // The second assertion is the one that matters. Without the keep-list, the next render retires
   // the row again and the button looks broken while behaving exactly as designed.
-  // v1793 — a TRUNCATED read, not a base name. A base row's retire is CERTAIN (the game itself said
-  // not-found), so it deliberately has no put-back at all; offering an undo on a decision that does
-  // not exist is an invitation to make a mistake. The undo exists for the uncertain kind.
+  /* v1794 — THE ROW UNDER TEST IS A TRUNCATION NOW, and that is the fix, not a workaround. v1793
+     removed the "put back" button from BASE rows on purpose: a grey Chronicle row is the game saying
+     "not found", so the retire is CERTAIN and an undo would offer a decision that does not exist.
+     This test had been driving the v1790 grace window through 'Templar Coat' — precisely the row
+     v1793 made un-put-backable — so it was asserting a button the design had deliberately deleted.
+     A truncated read is the honest subject: the reader was quoting its own damage, that is a
+     JUDGEMENT rather than a certainty, and it is exactly the kind of retire he should be able to
+     reverse. */
   await seedInbox(page, ['Firel...', 'Toothrow']);
   await page.goto(URL);
+  await receiptOf(page);          // wait for the auto-run rather than racing its 900ms timer
 
   const retired = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
   expect(retired.map((r: any) => r.name)).toContain('Firel...');
