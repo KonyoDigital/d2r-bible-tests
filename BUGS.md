@@ -5268,6 +5268,40 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-194 — the FALLBACK lane calls a Chronicle page a "transition", and the primary lane never does (v1797)
+
+**A correction to my own earlier finding, which is why it is written down.** I reported that "the
+classifier misreads a textbook example" of a Chronicle panel. Re-measured, that is wrong in an
+important way: it is the FALLBACK lane that misreads it, and the primary lane is right every time.
+
+The frame — `cache1280/f_1786922977454.jpg`, the CHRONICLE panel with its title bar, the
+Unique/Sets/Runewords tabs, the 64% meter and the life and mana orbs plainly on screen:
+
+| when | lane | answer |
+|---|---|---|
+| Grok 402-exhausted | `model: sonnet` (Claude fallback) | `scene: transition`, `chronicleTab: ""` |
+| Grok restored, 3 consecutive reads | `model: grok-subscription-cli` | `scene: chronicle`, `chronicleTab: "uniques"`, conf 0.95 / 0.95 / 0.96 |
+
+The read prompt already states the rule the fallback broke, in its own words: *"It is NEVER a
+transition: a transition has no bottom HUD, and this panel is drawn over a live game with the life and
+mana orbs still on screen."* Both orbs are visible in the frame.
+
+**Why this is worse than a wrong label.** `classify()` runs ONCE PER RUN, and a run classified
+`transition` discards every Chronicle page behind it — the file already carries a note that one such
+answer "discarded up to 44 Chronicle pages". So the cost of the fallback being wrong here is not one
+bad row, it is a whole session silently dropped. And it happens precisely when the primary eye is
+DOWN, which is the moment nobody is watching.
+
+**No test added, deliberately.** A regression test for this needs a real vision call, and v1796 has
+just removed one such test for costing 100.8s and real subscription budget on every suite run
+(REG-192). Adding one back to catch this would trade a known cost for an occasional catch. The
+mitigation that already exists is v1773's second-opinion probe on a refused run; what is recorded here
+is the evidence, the frame path, and the fact that the two lanes disagree on it — so the next person to
+touch classify() knows which lane to trust on this frame class and has a fixture with a known-correct
+answer to hand.
+
+---
+
 ## REG-192 — a cap test passed only while Grok was DOWN, and cost 100s of real vision on every run (v1796)
 
 `test_a_capped_classify_says_NOTHING_not_gameplay` caps the CLAUDE subscription budget and asserts
