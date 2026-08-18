@@ -4759,6 +4759,12 @@ try {
     </div>
     <div class="sc-kpis" id="sc-kpis"></div>
   </div>
+  <!-- v1793 — THE INBOX, PINNED HERE TOO. Konyo: "att hthe inbox to the sessions tab as a sticky too."
+       The floating badge is a thing you have to notice; Sessions is where he is already looking after a
+       recording, which is exactly when the queue has just changed. Same renderer as the pop-up, never a
+       second copy of the markup — two panels built by two code paths is how one of them quietly stops
+       matching the other. Hidden entirely when there is nothing to rule on and nothing was cleared. -->
+  <div class="inbox-sticky" id="inbox-sticky" aria-label="Chronicle inbox"></div>
   <div class="sc-fresh" id="sc-fresh" aria-label="Stash intelligence"></div>
 
   <!-- v907 (Konyo: 'flagship SESSIONS as the main homepage dashboard for the ENTIRE website') —
@@ -7713,11 +7719,25 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
    filing cabinet v1760 was written to end. It sits above them at bottom:236px so the three never
    collide, and it HIDES ITSELF when nothing is waiting — a badge that is always there is a badge
    nobody reads. */
-.inbox-fab{position:fixed;bottom:236px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;
+/* v1793 — THE FAB STACK, MEASURED. The inbox sat at bottom:236px (52px tall, so 236-288) and the
+   Forge/Tools legend compass sits at bottom:250px (44px tall, so 250-294). A 38px overlap on both
+   of those tabs — his screenshot, then confirmed with getBoundingClientRect: inbox x1353-1405 vs
+   compass x1373-1417. Neither element is wrong on its own; they were placed by two different
+   versions that never measured each other. The stack from the bottom is now
+   help 146-190 / legend 250-294 / inbox 312-364, with a clear gap between each.
+   right:12px, not 24 — measured, the help button and the legend compass both COMPUTE to 12px
+   (their rules say 24, something later overrides it), so 24 left the inbox alone in a column
+   of three, inset 12px from the two beneath it. Matching what they render, not what they say. */
+.inbox-fab{position:fixed;bottom:312px;right:12px;z-index:9000;width:52px;height:52px;border-radius:50%;
   border:2px solid #f0c060;background:radial-gradient(circle at 32% 28%,rgba(60,48,26,.98),rgba(20,16,10,.98));
   display:none;align-items:center;justify-content:center;cursor:pointer;font-size:23px;line-height:1;
   box-shadow:0 6px 22px rgba(0,0,0,.6);transition:transform .12s ease,border-color .12s ease}
 .inbox-fab.has{display:flex}
+/* v1793 — ON SESSIONS THE STICKY IS THE INBOX, so the floating badge stands down. Caught on the
+   first render of the sticky: the FAB is position:fixed and the sticky is in flow, so the badge
+   landed on top of a row's "ignore" button — two copies of the same control, one covering the
+   other. Two ways to reach one queue is a feature; two of them stacked is a misclick. */
+body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-fab:hover{transform:scale(1.08);border-color:#fff}
 .inbox-fab .ibf-n{position:absolute;top:-5px;right:-5px;min-width:21px;height:21px;padding:0 5px;border-radius:11px;
   background:#f0c060;color:#1a1208;font-size:12px;font-weight:var(--fw-bold);display:flex;align-items:center;justify-content:center;
@@ -7736,10 +7756,34 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
   border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
 .inbox-pop .ibp-b:hover{border-color:#f0c060;color:#fff}
 .inbox-pop .ibp-ok{border-color:rgba(102,255,136,.45);color:#66ff88}
+.inbox-sticky{display:none}
+.inbox-sticky.has{display:block;position:sticky;top:8px;z-index:60;margin:0 0 14px;
+  background:rgba(16,13,9,.985);border:1px solid var(--rune,#e0b96a);border-radius:12px;
+  padding:14px 16px;font-size:12px;line-height:var(--lh-normal,1.5);
+  box-shadow:0 6px 26px rgba(0,0,0,.55)}
+.inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
+.inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
+.inbox-sticky .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.inbox-sticky .ibp-row:last-child{border-bottom:0}
+.inbox-sticky .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox-sticky .ibp-why{color:#8a7d64;font-size:11px;flex:0 0 100%;margin:-3px 0 2px}
+.inbox-sticky .ibp-b{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#e8dcc0;
+  border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
+.inbox-sticky .ibp-b:hover{border-color:#f0c060;color:#fff}
+.inbox-sticky .ibp-ok{border-color:rgba(102,255,136,.45);color:#66ff88}
+.inbox-sticky .ibp-auto{font-size:11px;line-height:1.5;color:#7fd18b;background:rgba(60,140,80,.10);
+  border:1px solid rgba(90,180,110,.25);border-radius:6px;padding:6px 8px;margin:0 0 8px}
+.inbox-sticky .ibp-auto-sub{color:#6f9a78;font-size:10.5px;margin:5px 0 2px;opacity:.9}
+.inbox-sticky .ibp-rr{display:flex;align-items:center;gap:8px;margin:3px 0}
+.inbox-sticky .ibp-rr-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9ec7a6}
+.inbox-sticky .ibp-rr-b{flex:0 0 auto;padding:2px 7px;font-size:10.5px}
+.inbox-sticky .ibp-empty{color:#8a7d64}
 .inbox-pop .ibp-auto-sub{color:#6f9a78;font-size:10.5px;margin:5px 0 2px;opacity:.9}
 .inbox-pop .ibp-rr{display:flex;align-items:center;gap:8px;margin:3px 0}
 .inbox-pop .ibp-rr-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9ec7a6}
 .inbox-pop .ibp-rr-b{flex:0 0 auto;padding:2px 7px;font-size:10.5px}
+.inbox-pop .ibp-rr-n b,.inbox-sticky .ibp-rr-n b{color:#cfe6d3;font-weight:var(--fw-semibold)}
+.inbox-pop .ibp-rr-b2,.inbox-sticky .ibp-rr-b2{color:#5f8468;font-size:10px;opacity:.85}
 .inbox-pop .ibp-auto{font-size:11px;line-height:1.5;color:#7fd18b;background:rgba(60,140,80,.10);border:1px solid rgba(90,180,110,.25);border-radius:6px;padding:6px 8px;margin:0 0 8px}
 .inbox-pop .ibp-empty{color:#8a7d64}
 .forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
@@ -32686,6 +32730,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if (tier === 'toss') return { action: 'dismiss', why: 'item-checker-toss' };
     if (_chIsJunkName(nm)) return { action: 'dismiss', why: 'safe-auto-junk' };
+    /* v1793 — A BASE NAME IS NOT A FIND, AND THAT IS CERTAIN RATHER THAN LIKELY.
+
+       Konyo, looking at Ancient Sword / Basinet / Battle Hammer sitting in his queue awaiting a
+       decision: "the PUTBACK shouldnt even tell me anything in this case ... its accidentally
+       tallying or MAYBE tallying and is unsure of if it a chorincle.. but it cant be because it
+       greyed out."
+
+       He is right on both counts. The in-game Chronicle prints the BASE name for a row he has NOT
+       found — grey, no date, no dropper — so such a row is the game stating the opposite of a find.
+       It reached this queue because the register hands triage a bare NAME with no found-state
+       attached, so the one fact that settles it was thrown away before this function ever saw it.
+       Everything downstream then treated it as an open question.
+
+       Dismissed here, at the top of the pipe, rather than retired later: a name that cannot be a
+       find should never occupy a row that asks him to decide.
+
+       ONE EXCEPTION, and it is the whole reason this is not a bare dismiss. If he already owns every
+       unique built on that base, the game and his ledger disagree — the panel called it unfound and
+       the board says found. That cannot be resolved by guessing, and dismissing it would destroy the
+       only evidence the disagreement exists, so it HOLDS with the conflict spelled out. */
+    try {
+      var _rb = (typeof window.d2rResolveItem === 'function') ? window.d2rResolveItem(nm) : null;
+      if (_rb && _rb.kind === 'base'){
+        var _ub = { missing: [], owned: [], known: false };
+        try { _ub = window._chUniquesOnBase(_rb.canonical || nm) || _ub; } catch(e){}
+        if (_ub.known && !_ub.missing.length && _ub.owned.length){
+          return { action: 'hold', why: 'game-says-unfound:' + _ub.owned.join(', ') };
+        }
+        return { action: 'dismiss', why: _ub.missing.length
+          ? 'base-name-still-to-find:' + _ub.missing.join(', ')
+          : 'base-name-not-a-find' };
+      }
+    } catch(e){}
     return { action: 'hold', why: 'human-review' };
   };
 
@@ -40762,7 +40839,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1792', name:'v1792 - a re-look is not a second opinion', date:'2026-08-18', note:'time buys independence of state never of judgement' };
+  window.D2R_BUILD = { id:'v1793', name:'v1793 - a grey row is the game saying not found', date:'2026-08-18', note:'it told him the base when the unique was knowable' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -41365,6 +41442,31 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
      THE EMPTY STATE NAMES ITS OWN CAUSE. An empty bordered box is the first thing the second eye
      is told to flag, and "no rows" here has three completely different meanings — nothing swept
      yet, swept and everything auto-handled, or the ledger key missing. It says which. */
+  /* v1793 — ONE HUMANISER, HOISTED. The inbox widget was printing RAW codes on his screen
+     ("human-review") while this table sat three thousand lines away doing the job properly, and
+     the first attempt to share it assigned window._chSayWhy INSIDE renderInbox — which had not
+     run, so the widget still showed the code. A shared thing defined inside a function nobody
+     called is not shared. */
+  window._chSayWhy = function(code){
+      var c = String(code || '');
+      if (/^safe-auto-grail/.test(c))      return 'the name matched a real unique';
+      if (/^safe-auto-junk:ocr/.test(c))   return 'unreadable text, not an item';
+      if (/^safe-auto-junk/.test(c))       return 'not a grail item';
+      if (/^tier-grail-ungrounded/.test(c))return 'looked like a grail item but the name did not match one';
+      if (/^g4-disagreed/.test(c))         return 'the second eye disagreed with this read';
+      if (/^item-checker-toss/.test(c))    return 'you had already marked this junk';
+      if (/^empty-name/.test(c))           return 'no name could be read';
+      if (/^base-name-still-to-find:/.test(c))
+        return 'not a find — the game prints this base for a unique you still have to hunt: '
+               + c.replace(/^base-name-still-to-find:/, '');
+      if (/^base-name-not-a-find/.test(c))  return 'a base item name — the game prints that for a row you have NOT found';
+      if (/^game-says-unfound:/.test(c))
+        return 'the game lists this base as NOT found, but your ledger has '
+               + c.replace(/^game-says-unfound:/, '') + ' — those disagree';
+      if (/^human-review/.test(c))         return 'nothing matched — needs your eye';
+      return c;
+    };
+
   window.renderInbox = function(){
     var host = document.getElementById('inbox-panel');
     if (!host) return;
@@ -41387,18 +41489,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
        rwMade. That is the reader's own shorthand leaking onto a screen meant to explain itself. The
        raw code is kept in the title attribute, because when something needs surgical fixing the
        exact code is the thing worth having. */
-    var SAY = function(code){
-      var c = String(code || '');
-      if (/^safe-auto-grail/.test(c))      return 'the name matched a real unique';
-      if (/^safe-auto-junk:ocr/.test(c))   return 'unreadable text, not an item';
-      if (/^safe-auto-junk/.test(c))       return 'not a grail item';
-      if (/^tier-grail-ungrounded/.test(c))return 'looked like a grail item but the name did not match one';
-      if (/^g4-disagreed/.test(c))         return 'the second eye disagreed with this read';
-      if (/^item-checker-toss/.test(c))    return 'you had already marked this junk';
-      if (/^empty-name/.test(c))           return 'no name could be read';
-      if (/^human-review/.test(c))         return 'nothing matched — needs your eye';
-      return c;
-    };
+    var SAY = window._chSayWhy;
+    /* v1793 — ONE HUMANISER, TWO SURFACES. The inbox widget was printing the RAW codes on his screen
+       ("human-review", and its own "unclear read" fallback) while this table sat three thousand lines
+       away doing the job properly. Exposed rather than copied: a second table of the same vocabulary
+       is two things that drift, and only one of them would ever get the next term added to it. */
+
     var DEST = function(store, status){
       if (store === 'foundLog')     return '\u2192 grail';
       if (store === 'grailUnfound') return '\u2192 your un-tick';
@@ -41586,10 +41682,50 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     } catch(e){ return { ok:false }; }
   };
 
+  /* v1793 — THE BASE NAME IS THE WRONG NOUN, AND THE RIGHT ONE IS KNOWABLE.
+
+     Konyo, seeing Ancient Sword / Basinet / Battle Hammer in his queue: "this is not properly coded..
+     its looking at the wrong thing.. it needs to tell me the UNIQUE name of the item itself not the
+     BASE ITEM.. the base item is less relevant in this case."
+
+     Half of that is the game, not the reader: an UNFOUND row in the in-game Chronicle prints the BASE
+     name and nothing else — verified on his own frames, where "Thunder Maul" appears TWICE in grey
+     between "The Ward" and "Thundergod's Vigor", and "Troll Belt"/"Troll Nest" sit between "Treads of
+     Cthon" and "Twitchthroe". The unique's name is simply not on screen to read.
+
+     But he is right that the base is the wrong thing to SHOW him, and the answer is already in this
+     file: ITEM_CODEX carries the specific base per unique, so the row resolves back. Ancient Sword is
+     The Atlantean. Basinet is Darksight Helm. Battle Hammer is Earthshaker. The two grey Thunder Maul
+     rows are Cranium Basher AND Earth Shifter — which is also why a base can legitimately appear
+     twice, something that reads like a duplicate until you know what it means.
+
+     Only uniques he has NOT found are named, because a base whose uniques he already owns is a row
+     about nothing. Coverage is partial (the codex knows 351 items, the roster is 398); where the
+     mapping is unknown this returns [] and the caller says less rather than guessing. */
+  window._chUniquesOnBase = function(baseName){
+    var b = String(baseName || '').trim();
+    var out = { missing: [], owned: [], known: false };
+    if (!b) return out;
+    try {
+      if (typeof ITEM_CODEX === 'undefined') return out;
+      Object.keys(ITEM_CODEX).forEach(function(k){
+        var v = ITEM_CODEX[k] || {};
+        if (String(v.rarity) !== 'unique') return;
+        if (String(v.base || '').toLowerCase() !== b.toLowerCase()) return;
+        out.known = true;
+        var have = false;
+        try { have = !!window._gFound(k); } catch(e){}
+        (have ? out.owned : out.missing).push(k);
+      });
+      out.missing.sort(); out.owned.sort();
+      return out;
+    } catch(e){ return out; }
+  };
+
   window.kaiChronicleResolvePending = function(opts){
     opts = opts || {};
     var dry = !!opts.dryRun;
-    var out = { dismissed: [], kept: [], errors: 0 };
+    var out = { dismissed: [], kept: [], conflicts: [], errors: 0 };
     var pend = [];
     try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ return out; }
     var keep = [];
@@ -41599,26 +41735,54 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (!name) return;
       // v1790 — a row he put back is his decision, and this function does not get to re-make it
       if (keep.indexOf(name) >= 0){ out.kept.push(name); return; }
-      var why = null;
+      var why = null, _uniNames = [];
       try {
         var r = window.d2rResolveItem(name) || {};
         var canon = r.canonical || name;
         if ((r.kind === 'unique' || r.kind === 'set-piece') && window._gFound(canon)){
           why = 'already in your grail';
         } else if (r.kind === 'base'){
-          why = 'a base item name — the Chronicle prints that for a row you have NOT found';
+          /* v1793 — AN UNFOUND BASE ROW IS THE GAME'S OWN HUNT LIST, and a second opinion on the
+             board's. Konyo: "the HAVENT FOUND is actually pretty cool for like a reverse enginnering
+             of WHATS STILL LEFT TO FIND ... also good.. like it can be two options for the same base
+             item sometimes."
+
+             Two options is the normal case, not an edge one: the two grey "Thunder Maul" rows in his
+             footage are Cranium Basher AND Earth Shifter, which is exactly why a base can appear
+             twice and look like a duplicate.
+
+             THE CASE THAT MUST NOT BE SWALLOWED: the game printed this base as NOT FOUND, and the
+             board says he owns every unique built on it. Those two cannot both be true. Retiring it
+             would delete the only evidence of the disagreement, so it goes to him instead — the
+             contradiction IS the finding. */
+          _uniNames = [];
+          var _u = { missing: [], owned: [], known: false };
+          try { _u = window._chUniquesOnBase(canon) || _u; } catch(e){}
+          if (_u.known && !_u.missing.length && _u.owned.length){
+            why = null;   // hand it back — see the note above
+            out.conflicts.push({ name: name, owned: _u.owned,
+                                 why: 'the game lists this base as NOT found, but your ledger has '
+                                      + _u.owned.join(', ') });
+            out.kept.push(name);
+            return;
+          }
+          _uniNames = _u.missing;
+          why = _u.missing.length
+            ? 'the Chronicle shows this base for a unique you have NOT found'
+            : 'a base item name — the Chronicle prints that for a row you have NOT found';
         } else if (r.kind === 'unknown' && /\.\.\.$|\(partially|\(\?\)/.test(String(name))){
           why = 'the read was truncated — the reader was quoting its own damage';
         }
       } catch(e){ out.errors++; return; }
       if (!why){ out.kept.push(name); return; }
-      out.dismissed.push({ name: name, why: why });
+      out.dismissed.push({ name: name, why: why, uni: _uniNames });
       if (!dry){
         try { window.kaiChronicleDismiss(name); } catch(e){ out.errors++; }
         // v1790 — recoverable for RETIRE_GRACE_DAYS, with the reason it went
         try {
           var rl = _chLsGet(_CH_RETIRED_KEY, []) || [];
-          if (!rl.some(function(x){ return x && x.name === name; })) rl.push({ name: name, why: why, ts: Date.now() });
+          if (!rl.some(function(x){ return x && x.name === name; }))
+            rl.push({ name: name, why: why, uni: _uniNames, ts: Date.now() });
           _chLsSet(_CH_RETIRED_KEY, rl);
         } catch(e){ out.errors++; }
       }
@@ -41680,10 +41844,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             + Object.keys(_by).map(function(k){ return _by[k] + ' ' + _e(k); }).join(' · ')
             + '<div class="ibp-auto-sub">kept for 7 days — put any of them back</div>'
             + _rr.slice(0, 12).map(function(d){
-                return '<div class="ibp-rr"><span class="ibp-rr-n">' + _e(d.name) + '</span>'
-                  + '<button type="button" class="ibp-b ibp-rr-b" data-n="' + _e(d.name) + '" '
-                  + 'onclick="window.kaiChronicleUndoRetire(this.getAttribute(&quot;data-n&quot;));'
-                  + 'window.renderInboxFab()">put back</button></div>';
+                // v1793 — the UNIQUE is the noun he cares about; the base is how the game happened
+                // to print it. "the base item is less relevant in this case" — his words.
+                // v1793 — NO PUT BACK ON A BASE ROW. The retire is CERTAIN there (a grey row is the
+                // game saying "not found"), so an undo button would offer a decision that does not
+                // exist. The row still shows, because what it names is worth knowing.
+                var _certain = !!(d.uni && d.uni.length) || /base item name/.test(String(d.why||''));
+                var _u = (d.uni && d.uni.length) ? d.uni.join(' · ') : '';
+                var _label = _u
+                  ? '<b>' + _e(_u) + '</b> <span class="ibp-rr-b2">shown as ' + _e(d.name) + '</span>'
+                  : _e(d.name);
+                return '<div class="ibp-rr"><span class="ibp-rr-n">' + _label + '</span>'
+                  + (_certain ? '<span class="ibp-rr-b2">still to hunt</span>'
+                              : '<button type="button" class="ibp-b ibp-rr-b" data-n="' + _e(d.name) + '" '
+                                + 'onclick="window.kaiChronicleUndoRetire(this.getAttribute(&quot;data-n&quot;));'
+                                + 'window.renderInboxFab()">put back</button>')
+                  + '</div>';
               }).join('')
             + (_rr.length > 12 ? '<div class="ibp-auto-sub">+ ' + (_rr.length - 12) + ' more in the ledger</div>' : '')
             + '</div>');
@@ -41691,8 +41867,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         if (!n) H.push('<div class="ibp-empty">Nothing to rule on.</div>');
         pend.forEach(function(x){
           var nm = _e(String(x.name || ''));
-          var why = _e(String(x.triageWhy || 'unclear read'));
-          H.push('<div class="ibp-row"><span class="ibp-why">' + why + '</span>'
+          // v1793 — plain words, from the file's own table; the raw code stays in the title for when
+          // something needs surgical fixing
+          var _raw = String(x.triageWhy || '');
+          var _say = _raw;
+          try { if (typeof window._chSayWhy === 'function') _say = window._chSayWhy(_raw); } catch(e){}
+          var why = _e(_say || 'the readers could not call this one');
+          H.push('<div class="ibp-row"><span class="ibp-why" title="' + _e(_raw) + '">' + why + '</span>'
             + '<span class="ibp-nm" data-arttip="' + nm + '">' + nm + '</span>'
             + '<button type="button" class="ibp-b ibp-ok" '
             + 'onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
@@ -41701,7 +41882,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             + 'onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
             + 'data-n="' + nm + '">ignore</button></div>');
         });
-        pop.innerHTML = H.join('');
+        var _html = H.join('');
+        pop.innerHTML = _html;
+        // v1793 — the Sessions sticky renders from the SAME string the pop-up does
+        try {
+          var _sticky = document.getElementById('inbox-sticky');
+          if (_sticky){
+            var _any = n > 0 || (_rr && _rr.length);
+            _sticky.classList.toggle('has', !!_any);
+            _sticky.innerHTML = _any ? _html : '';
+          }
+        } catch(e){}
       }
     } catch(e){}
   };

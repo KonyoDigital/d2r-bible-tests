@@ -5268,6 +5268,78 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-187 — a grey Chronicle row is the game saying NOT FOUND, and it was reaching him as a decision (v1793)
+
+Konyo, looking at Ancient Sword / Basinet / Battle Hammer sitting in his inbox: *"this is not properly
+coded.. its looking at the wrong thing.. it needs to tell me the UNIQUE name of the item itself not the
+BASE ITEM"*, and then: *"the PUTBACK shouldnt even tell me anything in this case ... its accidentally
+tallying or MAYBE tallying and is unsure of if it a chorincle.. but it cant be because it greyed out."*
+
+**Both halves right, and the second one names the defect exactly.**
+
+Half of it is the game, not the reader: an UNFOUND row in the in-game Chronicle prints the BASE name,
+grey, with no date and no dropper. Verified on his own frames — "Thunder Maul" appears TWICE in grey
+between "The Ward" and "Thundergod's Vigor", and "Troll Belt"/"Troll Nest" sit between "Treads of
+Cthon" and "Twitchthroe". The unique's name is not on screen to read, so the reader was not looking in
+the wrong place; the information genuinely is not there.
+
+**Why it reached the queue anyway.** The live register hands `kaiChronicleTriage` a bare NAME with no
+found-state attached — the one fact that settles the row is discarded before triage ever sees it. So a
+grey row fell through to `human-review` and arrived asking him to decide something the game had already
+decided. Fixed at the top of the pipe: a name that resolves to a BASE item is dismissed outright,
+because it cannot be a find. A certain retire also needs no undo, so those rows lost their "put back"
+button — an undo on a decision that does not exist is an invitation to make a mistake.
+
+**And the base is the wrong noun to show him, which is fixable from the other side.** ITEM_CODEX
+carries the specific base per unique, so the row resolves BACK: Ancient Sword is **The Atlantean**,
+Basinet is **Darksight Helm**, Battle Hammer is **Earthshaker**. The two grey Thunder Maul rows are
+**Cranium Basher** AND **Earth Shifter** — which is also why one base can legitimately appear twice and
+look like a duplicate until you know what it means. He saw the value immediately: *"the HAVENT FOUND is
+actually pretty cool for like a reverse enginnering of WHATS STILL LEFT TO FIND."*
+
+**THE CASE THAT MUST NOT BE SWALLOWED.** If he already owns every unique built on that base, the game
+called it unfound and the board says found. Both cannot be true, and dismissing it destroys the only
+evidence the disagreement exists — so it HOLDS, with the conflict spelled out. Contradiction is the
+finding.
+
+**Also fixed here:** the widget was printing RAW codes on his screen ("human-review") while a
+plain-words table sat three thousand lines away doing the job properly. The first attempt to share it
+assigned `window._chSayWhy` INSIDE `renderInbox`, which had not run — a shared thing defined inside a
+function nobody called is not shared. Now hoisted, one definition, two callers.
+
+**Guards:** `tests/v1789_inbox_resolves_non_decisions.spec.ts` — a base name is dismissed at triage and
+NAMES the unique still to hunt (including both uniques when a base has two); a real unique is untouched
+by the rule; the game-vs-ledger disagreement HOLDS rather than dismisses; and the humaniser is a real
+global rather than one trapped inside a render function.
+
+---
+
+## REG-188 — the inbox FAB and the legend compass overlapped by 38px (v1793)
+
+His screenshot, then measured: the inbox sat at `bottom:236px` (52px tall → 236-288) and the
+Forge/Tools legend compass at `bottom:250px` (44px tall → 250-294). `getBoundingClientRect` confirmed
+inbox x1353-1405 against compass x1373-1417 — a **32×38px** overlap on both of those tabs. Neither
+element was wrong on its own; they were placed by two different versions, neither of which measured the
+other.
+
+The stack from the bottom is now help 146-190 / legend 250-294 / inbox 312-364. The inbox also moved to
+`right:12px`, **not** the 24 its rule declared: measured, the help button and the compass both COMPUTE
+to 12px (their own rules say 24 and something later overrides it), so 24 left the inbox alone in a
+column of three, inset 12px from the two beneath it. Matching what they render, not what they say.
+
+**And the sticky created a second collision the moment it existed.** Konyo: *"att hthe inbox to the
+sessions tab as asticky too."* The FAB is `position:fixed` and the sticky is in flow, so the badge
+landed on top of a row's "ignore" button — two copies of the same control, one covering the other. On
+Sessions the sticky IS the inbox, so the FAB now stands down there. Verified per tab: Sessions
+FAB-hidden/sticky-shown, Tools and Forge FAB-shown/sticky-hidden, no overlaps anywhere.
+
+Two instrument errors on the way, both worth keeping: `getComputedStyle(e).display` says nothing about
+whether an ANCESTOR is hidden, and `offsetParent` is always `null` for `position:fixed` — so the first
+two visibility measurements were both wrong in opposite directions. `element.checkVisibility()` is the
+one that answers the question actually being asked.
+
+---
+
 ## REG-186 — a re-look inside one recording now counts for KEEP, and can never count for THROW (v1792)
 
 Not a defect — his idea, evaluated and built with a boundary.

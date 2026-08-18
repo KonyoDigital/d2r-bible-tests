@@ -250,3 +250,58 @@ test('a row retired longer ago than the grace window is no longer offered', asyn
   const recent = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
   expect(recent.map((r: any) => r.name)).not.toContain('Templar Coat');
 });
+
+test('a base name is dismissed at triage and NAMES the unique still to hunt', async ({ page }) => {
+  // v1793 — Konyo: "the PUTBACK shouldnt even tell me anything in this case ... its accidentally
+  // tallying or MAYBE tallying and is unsure of if it a chorincle.. but it cant be because it greyed
+  // out." Both halves right. The in-game Chronicle prints the BASE name for a row he has NOT found —
+  // grey, no date, no dropper — so the row is the game stating the OPPOSITE of a find. It reached the
+  // queue because the register hands triage a bare NAME with no found-state, throwing away the one
+  // fact that settles it.
+  //
+  // And the base is the wrong noun to show him: ITEM_CODEX knows the specific base per unique, so the
+  // row resolves back to what he is actually missing. Two options for one base is the normal case,
+  // not an edge one — the two grey "Thunder Maul" rows in his footage are Cranium Basher AND Earth
+  // Shifter, which is also why a base can appear twice and look like a duplicate.
+  await page.goto(URL);
+  const verdicts = await page.evaluate(() =>
+    ['Ancient Sword', 'Basinet', 'Thunder Maul', 'Toothrow'].map((n) => ({
+      name: n, v: (window as any).kaiChronicleTriage({ name: n }),
+    })));
+  const by: any = Object.fromEntries(verdicts.map((x: any) => [x.name, x.v]));
+  expect(by['Ancient Sword'].action).toBe('dismiss');
+  expect(by['Ancient Sword'].why).toContain('The Atlantean');
+  expect(by['Basinet'].why).toContain('Darksight Helm');
+  // two uniques on one base — both named
+  expect(by['Thunder Maul'].why).toContain('Cranium Basher');
+  expect(by['Thunder Maul'].why).toContain('Earth Shifter');
+  // a real unique is untouched by this rule
+  expect(by['Toothrow'].action).toBe('accept');
+});
+
+test('when the game and the ledger disagree the row is HELD, never dismissed', async ({ page }) => {
+  // The one case that must not be swallowed: the panel called this base unfound and the board says he
+  // owns every unique built on it. Both cannot be true, and dismissing it destroys the only evidence
+  // the disagreement exists. The contradiction IS the finding.
+  await page.goto(URL);
+  const before = await page.evaluate(() => (window as any).kaiChronicleTriage({ name: 'Ancient Sword' }));
+  expect(before.action).toBe('dismiss');
+  const after = await page.evaluate(() => {
+    (window as any).kaiChronicleAccept('The Atlantean');
+    return (window as any).kaiChronicleTriage({ name: 'Ancient Sword' });
+  });
+  expect(after.action).toBe('hold');
+  expect(after.why).toContain('The Atlantean');
+  const said = await page.evaluate((w: string) => (window as any)._chSayWhy(w), after.why);
+  expect(said).toContain('disagree');
+});
+
+test('the humaniser is a real global, not one trapped inside a render function', async ({ page }) => {
+  // v1793 — the first attempt to share it assigned window._chSayWhy INSIDE renderInbox, which had not
+  // run, so the widget still printed the raw code. A shared thing defined inside a function nobody
+  // called is not shared.
+  await page.goto(URL);
+  expect(await page.evaluate(() => typeof (window as any)._chSayWhy)).toBe('function');
+  expect(await page.evaluate(() => (window as any)._chSayWhy('human-review')))
+    .toContain('needs your eye');
+});
