@@ -33,53 +33,70 @@ async function seedInbox(page: any, names: string[]) {
   }, names);
 }
 
+// NOTE ON HOW THESE ASSERT. The first cut called kaiChronicleResolvePending({dryRun:true}) after
+// page load and checked its return. It came back EMPTY on CI, and correctly: renderInboxFab runs the
+// resolver AT LOAD — that is the whole point, "i dont want it pending my decisions at all if its not
+// needed" — so by the time the test asked, the non-decisions were already gone. The dry run was
+// reporting on an inbox that had nothing left to retire. These now assert the OUTCOME (what survived
+// in the queue) and the RECEIPT (window._inboxLastResolve), which is what he actually sees.
+
 test('a base item name is retired — the Chronicle prints it for a row he has NOT found', async ({ page }) => {
   await seedInbox(page, ['Templar Coat', 'Bone Visage', 'Toothrow']);
   await page.goto(URL);
-  const res = await page.evaluate(() => (window as any).kaiChronicleResolvePending({ dryRun: true }));
-  const dismissed = res.dismissed.map((d: any) => d.name).sort();
-  expect(dismissed).toEqual(['Bone Visage', 'Templar Coat']);
-  expect(res.kept).toContain('Toothrow');
+  const receipt = await page.evaluate(() => (window as any)._inboxLastResolve);
+  expect(receipt.dismissed.map((d: any) => d.name).sort()).toEqual(['Bone Visage', 'Templar Coat']);
+  for (const d of receipt.dismissed) expect(d.why).toContain('base item name');
+  const left = await page.evaluate(() => (window as any).kaiChronicleInbox({ sync: false }).map((x: any) => x.name));
+  expect(left).toEqual(['Toothrow']);
 });
 
 test('a truncated read is retired — the reader was quoting its own damage', async ({ page }) => {
   await seedInbox(page, ['Firel...', 'Heavas (partially obscured)', 'Toothrow']);
   await page.goto(URL);
-  const res = await page.evaluate(() => (window as any).kaiChronicleResolvePending({ dryRun: true }));
-  expect(res.dismissed.map((d: any) => d.name).sort()).toEqual(['Firel...', 'Heavas (partially obscured)']);
-  expect(res.kept).toEqual(['Toothrow']);
+  const receipt = await page.evaluate(() => (window as any)._inboxLastResolve);
+  expect(receipt.dismissed.map((d: any) => d.name).sort())
+    .toEqual(['Firel...', 'Heavas (partially obscured)']);
+  const left = await page.evaluate(() => (window as any).kaiChronicleInbox({ sync: false }).map((x: any) => x.name));
+  expect(left).toEqual(['Toothrow']);
 });
 
 test('a name he already has is retired — there is nothing to rule on', async ({ page }) => {
-  await seedInbox(page, ['Rattlecage', 'Toothrow']);
+  await seedInbox(page, ['Toothrow']);
   await page.goto(URL);
-  // record the find through the app's own writer, then re-queue the same name
+  // record the find with the app's OWN writer, then queue the same name again and re-render.
+  // Seeding d2r_foundLog directly does not work: the real key is install-scoped
+  // ("I·<installId>·d2r_foundLog"), so _gFound reads false and the branch never fires. Hardcoding
+  // that prefix here would put a second copy of the fork rule in the tree.
   await page.evaluate(() => {
     (window as any).kaiChronicleAccept('Rattlecage');
-    localStorage.setItem('d2r_chronicleInbox', JSON.stringify([{ name: 'Rattlecage' }, { name: 'Toothrow' }]));
+    localStorage.setItem('d2r_chronicleInbox',
+      JSON.stringify([{ name: 'Rattlecage' }, { name: 'Toothrow' }]));
+    (window as any).renderInboxFab();
   });
   expect(await page.evaluate(() => !!(window as any)._gFound('Rattlecage'))).toBe(true);
-  const res = await page.evaluate(() => (window as any).kaiChronicleResolvePending({ dryRun: true }));
-  expect(res.dismissed.map((d: any) => d.name)).toEqual(['Rattlecage']);
-  expect(res.dismissed[0].why).toContain('already in your grail');
-  expect(res.kept).toEqual(['Toothrow']);
+  const receipt = await page.evaluate(() => (window as any)._inboxLastResolve);
+  expect(receipt.dismissed.map((d: any) => d.name)).toEqual(['Rattlecage']);
+  expect(receipt.dismissed[0].why).toContain('already in your grail');
+  const left = await page.evaluate(() => (window as any).kaiChronicleInbox({ sync: false }).map((x: any) => x.name));
+  expect(left).toEqual(['Toothrow']);
 });
 
 test('a roster unique he does NOT have is never dismissed', async ({ page }) => {
-  // the whole safety boundary in one assertion: these are exactly the six his gate was holding
+  // the whole safety boundary in one assertion: these are exactly the six his gate was holding, and
+  // every one of them was later confirmed by eye to be a REAL find with a date and a source monster
   const real = ['Latent Cold Rupture', 'Latent Crack of the Heavens', 'Latent Rotting Fissure',
                 "Thundergod's Vigor", 'Toothrow', 'Witherstring'];
   await seedInbox(page, real);
   await page.goto(URL);
-  const res = await page.evaluate(() => (window as any).kaiChronicleResolvePending({ dryRun: true }));
-  expect(res.dismissed).toEqual([]);
-  expect(res.kept.sort()).toEqual(real.slice().sort());
+  const left = await page.evaluate(() => (window as any).kaiChronicleInbox({ sync: false }).map((x: any) => x.name));
+  expect(left.slice().sort()).toEqual(real.slice().sort());
+  const receipt = await page.evaluate(() => (window as any)._inboxLastResolve || { dismissed: [] });
+  expect(receipt.dismissed).toEqual([]);
 });
 
 test('the panel shows a receipt for the rows it cleared on its own', async ({ page }) => {
   await seedInbox(page, ['Templar Coat', 'Toothrow']);
   await page.goto(URL);
-  await page.evaluate(() => (window as any).renderInboxFab());
   await page.evaluate(() => (window as any).inboxPopTog());
   const pop = page.locator('#inbox-pop');
   await expect(pop).toHaveClass(/open/);
