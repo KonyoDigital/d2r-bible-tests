@@ -7793,8 +7793,16 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
    covered 'put back' at 640 (20x19) and 'ignore' at 1440 (25x22), because the panel runs to
    the right edge whatever its height. So both, and the reserve drops 72px -> 64px, which is
    what the orbs actually occupy (44px wide at right:12px = 12..56px from the edge). Taking
-   the review's fix wholesale would have swapped one visible defect for another. */
-.inbox-sticky.has{max-height:calc(100vh - 24px);overflow:auto;padding-right:64px}
+   the review's fix wholesale would have swapped one visible defect for another.
+   v1799 — AND THE CAP SUBTRACTS THE DOCK. `calc(100vh - 24px)` with top:8px put the panel's bottom
+   edge at 100vh-16px, i.e. UNDERNEATH the fixed dock — so on a queue long enough to hit the cap the
+   last rows and their buttons sat under it, unclickable, and scrolling the panel could not help
+   because the occlusion is at the panel's own bottom edge. --dock-h is 84px at :root, 118px at
+   <=700px, and MEASURED live at 132px (1440) and 178px (640). The earlier 'zero collisions at
+   375/640/901/1440' only held while the content was SHORTER than the cap, which is the condition
+   the cap exists for. The correct precedent was two rules away: .nav-widget.open .nav-panel already
+   uses calc(100vh - var(--dock-h,84px) - 130px). */
+.inbox-sticky.has{max-height:calc(100vh - var(--dock-h,84px) - 40px);overflow:auto;padding-right:64px}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
 .inbox-sticky .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
@@ -40083,8 +40091,16 @@ html{overflow-x:clip}
    carried bottom:236px, a static number tuned to the FAB's OLD bottom:312px. --dock-h is 84px at
    :root, 118px at the <=700px breakpoint, and MEASURED LIVE by a ResizeObserver — so on a taller
    dock the orb climbed and its own panel stayed put. A control and its panel that do not share an
-   anchor drift apart on exactly the screens nobody tests on. Found by code review. */
-.inbox-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important}
+   anchor drift apart on exactly the screens nobody tests on. Found by code review.
+   v1799 — AND THE HEIGHT BUDGET HAD TO FOLLOW THE MOVE. The base rule keeps max-height:70vh with no
+   `top`, so the box grows UPWARD from this bottom and overflows the top edge whenever
+   bottom + 0.7h > h — i.e. below about h = bottom/0.3. At the measured --dock-h:132px the bottom is
+   302px, so anything shorter than ~1006px clipped: at 1440x900 the header and first rows sat ~32px
+   ABOVE the viewport and were unreachable, because overflow:auto scrolls content inside a box whose
+   top is already off screen. Raising an anchor without re-budgeting the height moves the clipping
+   rather than removing it. */
+.inbox-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important;
+  max-height:min(70vh, calc(100vh - var(--dock-h,84px) - 190px))!important}
 /* routines bar shares the corner — parked LEFT of the tray column so they never overlap.
    v754 (item 7): the right offset now lives in the single clean base rule (no !important war). */
 /* v708.1 — backup-age nudge: one quiet toast above the dock, left side (tray owns the right) */
@@ -41268,7 +41284,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1798', name:'v1798 - the set claim could never earn a second witness', date:'2026-08-18', note:'merge replaced the evidence it was written to accumulate' };
+  window.D2R_BUILD = { id:'v1799', name:'v1799 - the ledger stopped being written and said nothing', date:'2026-08-19', note:'a write whose return nobody reads must be audible' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

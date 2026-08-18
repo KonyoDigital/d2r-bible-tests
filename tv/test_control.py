@@ -6984,6 +6984,49 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
         self.assertEqual(sorted(m["setGroups"]["Tal Rasha's Wrappings (Sorc)"]),
                          ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"])
 
+    def test_the_merged_proposal_SURVIVES_json_dump(self):
+        """The one line that would have caught v1798's worst regression.
+
+        merge_proposals accumulates with SETS — the right type to fold with, the wrong type to hand
+        back, because this dict is json.dump-ed straight to chron_evidence.json. `json.dumps` refuses
+        a set, and it failed on an EMPTY merge. `_chron_evidence_save` wraps its dump in a bare
+        `except Exception: return False` that nobody checks, so the ledger simply stopped being
+        written and said nothing: the sweep reported success, the console showed findings, and the
+        accumulated evidence froze at its last pre-v1798 content.
+
+        Every assertion in this class passed throughout, because `sorted()` and `in` behave
+        identically on a set — the class asserted on the in-memory dict and never on the artifact.
+        A ledger is what reaches DISK; asserting the shape in memory tests the wrong noun."""
+        import json as _json
+        import chronicle_retro as cr
+        _json.dumps(cr.merge_proposals({}, {}))          # empty merge: this alone used to raise
+        m = cr.merge_proposals(self._page(reel="A"), self._page(reel="B", frame="f9"))
+        round_tripped = _json.loads(_json.dumps(m))
+        self.assertEqual(round_tripped["setGroups"], m["setGroups"],
+                         "setGroups did not survive a JSON round trip")
+        self.assertEqual(round_tripped["notFound"]["sets"], m["notFound"]["sets"])
+        self.assertIsInstance(m["notFound"]["sets"], list,
+                              "the merger returns a set where the producer returns a list — the two "
+                              "halves of one contract disagree")
+        self.assertIsInstance(m["setGroups"]["Tal Rasha's Wrappings (Sorc)"], list)
+
+    def test_the_evidence_file_is_actually_written(self):
+        """Verify the ARTIFACT, not the return value. _chron_evidence_save's failure path returned
+        False into a caller that ignores it; nothing on any surface changed when it stopped working."""
+        import json as _json
+        import os as _os
+        import tempfile
+        import chronicle_retro as cr
+        path = _os.path.join(tempfile.mkdtemp(), "ev.json")
+        merged = cr.merge_proposals(self._page(reel="A"), self._page(reel="B", frame="f9"))
+        with open(path, "w", encoding="utf-8") as fh:
+            _json.dump(merged, fh)
+        self.assertTrue(_os.path.exists(path))
+        with open(path, encoding="utf-8") as fh:
+            back = _json.load(fh)
+        self.assertEqual(sorted(back["setGroups"]["Tal Rasha's Wrappings (Sorc)"]),
+                         ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"])
+
     def test_the_same_page_twice_is_still_ONE_sighting(self):
         """The de-dupe must survive the fix — two reads of one photograph are not corroboration."""
         import chronicle_retro as cr

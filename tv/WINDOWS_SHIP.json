@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1798",
+  "ver": "v1799",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1798: merge replaced the evidence it was written to accumulate",
+  "note": "v1799: a write whose return nobody reads must be audible",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

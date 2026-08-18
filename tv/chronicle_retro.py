@@ -1062,6 +1062,18 @@ def merge_proposals(base, incoming):
         out["refused"].extend(src.get("refused") or [])
         for k in ("pagesRead", "pagesRefused"):
             out[k] += int(src.get(k) or 0)
+    # v1799 — RETURN WHAT THE PRODUCER RETURNS. Sets are the right type to accumulate WITH and the
+    # wrong type to hand back: this dict is json.dump-ed straight to chron_evidence.json, and
+    # `json.dumps` refuses a set — it failed on an EMPTY merge. `_chron_evidence_save` wraps its dump
+    # in a bare `except Exception: return False` that nobody checks, so the ledger simply stopped
+    # being written and said nothing. v1798's fix for "evidence must ACCUMULATE" broke "evidence gets
+    # SAVED", which is the same "progress goes up and then reverses" it was written to kill — only
+    # globally this time, and silently.
+    #
+    # proposal_from_pages already sorts these to lists before returning; the merger must end in the
+    # same shape or the two halves of one contract disagree.
+    out["notFound"] = {k: sorted(v) for k, v in (out.get("notFound") or {}).items()}
+    out["setGroups"] = {k: sorted(v) for k, v in (out.get("setGroups") or {}).items()}
     return out
 
 

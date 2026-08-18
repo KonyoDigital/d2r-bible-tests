@@ -10084,7 +10084,13 @@ def _chron_evidence_save(prop):
             json.dump(prop, fh)
         os.replace(tmp, _CHRON_EVIDENCE_PATH)
         return True
-    except Exception:
+    except Exception as e:
+        # v1799 — SAY SO. This returned False into a caller that ignores it, so when v1798 made the
+        # merged proposal un-serializable the ledger stopped being written and NOTHING on any surface
+        # changed: the sweep reported success, the console showed its findings, and the accumulated
+        # evidence silently froze. A write that can fail must be audible even when its return value
+        # is dropped — silence is not evidence that it worked.
+        print("   \u26a0 chronicle evidence NOT saved (%s) \u2014 the ledger did not accumulate this run" % e)
         return False
 
 
@@ -10982,7 +10988,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1798",
+        "ver": "v1799",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

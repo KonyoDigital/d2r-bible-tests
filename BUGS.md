@@ -5268,6 +5268,74 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-198 — v1798's own fix made the evidence ledger un-writable, and CI was 7/7 GREEN on it (v1799)
+
+**The worst defect of the arc, shipped live, found by the review hook one hour after it was built.**
+
+v1798 taught `merge_proposals` to accumulate `setGroups`/`completeSets`/`notFound` — the right fix, and
+it used Python `set`s to do it. Sets are the correct type to fold WITH and the wrong type to hand back:
+the merged dict is `json.dump`-ed straight to `chron_evidence.json`, and **`json.dumps` refuses a set.**
+It failed on an EMPTY merge.
+
+Proven end to end before anything was changed:
+
+    merge_proposals({}, {})      -> TypeError: Object of type set is not JSON serializable
+    _chron_evidence_save(merged) -> False
+    file written                 -> NO
+
+`_chron_evidence_save` wraps its dump in a bare `except Exception: return False`, and **no caller reads
+that return.** So every sweep would have reported success, the console would have shown its findings,
+and the accumulated ledger would have silently frozen at its last pre-v1798 content — losing every
+sighting from then on. That is precisely the *"the progress is going up and then reversing"* defect
+v1776 was written to kill, reintroduced **globally** by the fix for it, and silent this time.
+
+**CI WAS 7/7 GREEN ON THIS.** So were 32 local gates and 425 tests. Nothing in the suite JSON-round-trips
+a proposal, and `TestV1798TheSetsLaneHasATapEndToEnd` — written an hour earlier, citing the blind-fixture
+rule in its own docstring — asserted only on the in-memory dict with `sorted()` and `in`, both of which
+behave identically on a set. **A ledger is what reaches DISK; asserting its shape in memory tests the
+wrong noun.**
+
+**Fixed three ways:** the merge now ends in the producer's shape (`proposal_from_pages` already sorts to
+lists — the two halves of one contract must agree); `_chron_evidence_save` now PRINTS when it fails,
+because a write whose return value is dropped must be audible; and two tests pin it — the one-line
+`json.dumps` that would have caught it, and one that verifies the artifact on disk. Proven red without
+the fix.
+
+**The process finding matters as much as the defect.** `/code-review` had been run exactly once across
+nine shipped versions, on a whim. It found this on the first ship after it was made mandatory. The
+`review_after_ship.py` hook exists so that is never a whim again.
+
+---
+
+## REG-199 — the height caps ignored the dock, and the earlier "zero collisions" only held for short queues (v1799)
+
+Two findings from the same review, both real, both mine.
+
+`.inbox-sticky.has{max-height:calc(100vh - 24px)}` with `top:8px` put the panel's bottom edge at
+`100vh - 16px` — **underneath the fixed dock**. `--dock-h` is 84px at `:root` and 118px at ≤700px, but
+renders at **132px (1440), 178px (640), 219px (375x700)**. On a queue long enough to hit the cap the last
+rows and their buttons sat under the dock, and scrolling the panel could not help because the occlusion
+is at the panel's own bottom edge. The correct precedent was two rules away:
+`.nav-widget.open .nav-panel` already uses `calc(100vh - var(--dock-h,84px) - 130px)`.
+
+`.inbox-pop` was rebased 66px higher onto the tray anchor and kept `max-height:70vh` with no `top`, so it
+grows UPWARD and overflows the top edge whenever `bottom + 0.7h > h` — below about 1006px at the measured
+dock height. At 1440x900 its header sat ~32px ABOVE the viewport, unreachable, because `overflow:auto`
+scrolls content inside a box whose top is already off screen. **Raising an anchor without re-budgeting
+the height moves the clipping rather than removing it.**
+
+**Why the earlier measurement missed both:** "zero collisions at 375/640/901/1440" was taken with a SHORT
+queue that never reached the cap — the condition the cap exists for. Re-measured with a 20-name queue:
+all 17 buttons reachable at some scroll position, at every size, and the panel clears the dock.
+
+**Seven instrument corrections were needed to get that measurement right**, and every wrong reading
+looked like a product defect: measuring an unpinned panel, scrolling the wrong element, scrolling and
+measuring inside one expression before layout settled, counting in-panel scrolled-out buttons as
+unreachable, and a fixed-overlay scan whose `width<120px` filter excluded the very compass causing the
+collision. Suspect the instrument first — it was the instrument six of seven times.
+
+---
+
 ## REG-195 — a complete-set claim could never earn cross-reel, because merge_proposals REPLACED its evidence (v1798)
 
 **The most valuable finding of the arc, and it came from `/code-review`, not from me.** Reproduced
