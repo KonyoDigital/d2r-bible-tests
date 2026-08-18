@@ -5268,6 +5268,48 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-186 — a re-look inside one recording now counts for KEEP, and can never count for THROW (v1792)
+
+Not a defect — his idea, evaluated and built with a boundary.
+
+Konyo: *"maybe though like it can be smarter then this if in the same session but theres a 3-4 min gap
+between timestamped reels then it can be considered another witness?"*
+
+**The reasoning holds, and better than it first looks.** Two candidate runs inside one reel are ALREADY
+separated by a signature change — `still_runs` only starts a new run when the screen moves past
+`STILL_MAX_DIFF` — so a second run is not the same frozen screen, it is the panel left and returned
+to. Add a multi-minute gap and it is him walking away and coming back: different scroll, different
+overlay, different mouse.
+
+**What it does not buy, which is where the boundary is.** The failure this rule guards against is a
+SYSTEMATIC misread — same model, same prompt, same font, same row. Coming back four minutes later and
+reading "Ral" as "Ort" a second time is exactly as likely as the first. **Elapsed time buys
+independence of STATE, never independence of JUDGEMENT.**
+
+So the keep bar counts LOOKS (separate recordings, or one recording re-opened after `REOPEN_GAP_MS`)
+and the throw bar counts RECORDINGS. Measured at maximum confidence with three re-looks in a single
+recording:
+
+    KEEP : True  — corroborated across 3 looks (s1#0, s1#1, s1#2) at conf 0.99
+    THROW: False — only 1 independent recording (s1) — needs 3
+
+The same evidence grounds what he owns and still refuses to suggest binning anything. Law 3 intact:
+there is no un-throw in Diablo.
+
+Buckets compare against the PREVIOUS RUN'S END rather than the reel's start, so three looks spread
+across an hour are three witnesses while three quick glances in one minute remain one.
+
+**Still unmeasured, and labelled so.** There is no ownership footage in the archive to calibrate
+`REOPEN_GAP_MS` against (REG-185); 3 minutes is his number, taken as given rather than tuned.
+
+**Guards:** `TestV1792ARelookCountsForKeepAndNeverForThrow` — two re-looks ground owned; two glances in
+one bucket do not (the rule can say no); a single recording at 0.99 with three re-looks can never
+reach the throw bar, and refuses for the RIGHT reason; three real recordings do; the sweep actually
+applies the gap and stamps the key; and pre-v1792 evidence with no `witness` field falls back to the
+session id rather than un-grounding what he already owns.
+
+---
+
 ## REG-184 — the re-gate changed the answer and kept the stamp, so the board would have refused all six (v1791)
 
 **Caught before it reached him, and only because the adoption path was read rather than assumed.**

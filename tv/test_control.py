@@ -6714,5 +6714,74 @@ class TestV1791ARegateThatKeepsItsStampIsInvisible(unittest.TestCase):
         self.assertIn("REFUSING to write", src)
 
 
+class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
+    """Konyo: "maybe though like it can be smarter then this if in the same session but theres a 3-4
+    min gap between timestamped reels then it can be considered another witness?"
+
+    He is right, and better supported than it first looks: two candidate runs inside one reel are
+    ALREADY separated by a signature change, because still_runs only starts a new run when the screen
+    moves past STILL_MAX_DIFF. So a second run is not the same frozen screen — it is the panel left
+    and returned to. Add a multi-minute gap and it is him walking away and coming back.
+
+    WHAT IT DOES NOT BUY is why it stops at the keep bar. The failure being guarded is a SYSTEMATIC
+    misread: same model, same prompt, same font, same row. Coming back four minutes later and reading
+    "Ral" as "Ort" a second time is exactly as likely as the first. Elapsed time buys independence of
+    STATE, never independence of JUDGEMENT — so a re-look can ground `owned` and can never on its own
+    justify suggesting he bin something. There is no un-throw in Diablo.
+    """
+
+    def _ev(self, sessions, conf=0.99):
+        return [{"session": sid, "witness": w, "conf": conf} for sid, w in sessions]
+
+    def test_two_relooks_in_one_recording_ground_owned(self):
+        import vault_retro as vr
+        ev = self._ev([("s1", "s1#0"), ("s1", "s1#1")], conf=0.8)
+        v = vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)
+        self.assertTrue(v["pass"], v["why"])
+        self.assertIn("look", v["why"])
+
+    def test_two_glances_without_a_gap_are_still_ONE_witness(self):
+        """The rule has to be able to say no, or it is not a rule. Same bucket = same look."""
+        import vault_retro as vr
+        ev = self._ev([("s1", "s1#0"), ("s1", "s1#0")])
+        self.assertFalse(vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)["pass"])
+
+    def test_a_single_recording_can_NEVER_suggest_throwing_something_out(self):
+        """Law 3, at maximum confidence and three re-looks — the strongest evidence one recording can
+        possibly produce. It must still refuse, and refuse for the RIGHT reason."""
+        import vault_retro as vr
+        ev = self._ev([("s1", "s1#0"), ("s1", "s1#1"), ("s1", "s1#2")])
+        v = vr.gate(ev, vr.THROWOUT_CONF_FLOOR, vr.THROWOUT_MIN_WITNESSES,
+                    witness_field="session", witness_noun="recording")
+        self.assertFalse(v["pass"])
+        self.assertIn("1 independent recording", v["why"])
+
+    def test_three_real_recordings_do_reach_the_throw_bar(self):
+        import vault_retro as vr
+        ev = self._ev([("s0", "s0#0"), ("s1", "s1#0"), ("s2", "s2#0")])
+        self.assertTrue(vr.gate(ev, vr.THROWOUT_CONF_FLOOR, vr.THROWOUT_MIN_WITNESSES,
+                                witness_field="session", witness_noun="recording")["pass"])
+
+    def test_the_sweep_opens_a_new_bucket_only_after_the_gap(self):
+        """Measured through the real sweep rather than asserted on the constant: two runs a minute
+        apart share a bucket, two runs an hour apart do not."""
+        import vault_retro as vr
+        gap = vr.REOPEN_GAP_MS
+        self.assertGreater(gap, 0)
+        import inspect
+        src = inspect.getsource(vr.sweep)
+        self.assertIn("REOPEN_GAP_MS", src, "the sweep never applies the gap it defines")
+        self.assertIn('"witness": _wkey', src, "sightings carry no re-look key, so the keep bar "
+                                               "silently falls back to counting recordings")
+
+    def test_evidence_written_before_this_rule_still_gates(self):
+        """Old rows have no `witness` field. They must fall back to the session id rather than
+        collapsing to a single unnamed witness and un-grounding what he already owns."""
+        import vault_retro as vr
+        ev = [{"session": "s0", "conf": 0.9}, {"session": "s1", "conf": 0.9}]
+        v = vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)
+        self.assertTrue(v["pass"], v["why"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -86,6 +86,29 @@ KINDS = ("rune", "gem", "material", "item")
 # CONF_FLOOR. The keep bar matches the chronicle's (an unsure reader is unsure twice over). The throw
 # bar is deliberately stricter on BOTH axes because the two mistakes are not symmetrical: a missed
 # keep costs one more look at the stash, a wrong throw costs an item that does not come back.
+# v1792 — A RE-LOOK INSIDE ONE RECORDING COUNTS FOR THE KEEP BAR, AND NEVER FOR THE THROW BAR.
+#
+# Konyo: "maybe though like it can be smarter then this if in the same session but theres a 3-4 min
+# gap between timestamped reels then it can be considered another witness?"
+#
+# The reasoning holds, and better than it first looks. Two candidate runs inside one reel are already
+# separated by a SIGNATURE CHANGE — still_runs only starts a new run when the screen moves past
+# STILL_MAX_DIFF — so a second run is not the same frozen screen, it is the panel left and returned
+# to. Add a multi-minute gap and it is him walking away and coming back, which is a genuinely
+# different look at the shelf: different scroll, different overlay, different mouse.
+#
+# WHAT IT DOES NOT BUY, which is why it stops at the keep bar. The failure this rule guards against
+# is a SYSTEMATIC misread — same model, same prompt, same font, same row. Coming back four minutes
+# later and reading "Ral" as "Ort" a second time is exactly as likely as the first time. Elapsed time
+# buys independence of STATE, never independence of JUDGEMENT. A separate recording does not buy the
+# latter either, strictly speaking, but it is the strongest signal available and law 3 spends it on
+# the only irreversible act in the app.
+#
+# So: a re-look can ground `owned`, and can never on its own justify suggesting he bin something.
+# UNMEASURED, and it must stay labelled that way — there is no ownership footage in the archive to
+# calibrate it against (REG-185), so this is a reasoned bar exactly like the two below it.
+REOPEN_GAP_MS = 180_000                   # 3 minutes — his number, taken as given rather than tuned
+
 KEEP_CONF_FLOOR = _cr.CONF_FLOOR          # 0.55 — one number, shared with the chronicle gate
 KEEP_MIN_WITNESSES = 2                    # two DIFFERENT sessions agreeing
 THROWOUT_CONF_FLOOR = 0.85                # strictly above KEEP_CONF_FLOOR
@@ -240,7 +263,8 @@ def normalize_item(raw, surface, lane_default, page_conf):
 
 # ── THE GATE (laws 2 and 3) ─────────────────────────────────────────────────────
 
-def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES):
+def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
+         witness_field="witness", witness_noun="look"):
     """Does this pile of sightings ground? Returns a verdict that EXPLAINS itself either way.
 
     evidence: [{"session","frame","lane","conf",...}, ...]
@@ -254,7 +278,11 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES)
     count is a count of sessions. The `why` is what the Vault manager shows him when it declines.
     """
     ev = [e for e in (evidence or []) if isinstance(e, dict)]
-    sessions = sorted({str(e.get("session")) for e in ev if e.get("session")})
+    # v1792 — the KEEP bar counts distinct LOOKS (separate recordings, or one recording re-opened
+    # after REOPEN_GAP_MS); the THROW bar is called with witness_field="session" so it can only ever
+    # count distinct recordings. Falls back to the session id for evidence written before v1792.
+    sessions = sorted({str(e.get(witness_field) or e.get("session"))
+                       for e in ev if (e.get(witness_field) or e.get("session"))})
     best = max([_conf_of(e.get("conf")) for e in ev] or [0.0])
     base = {"sessions": sessions, "witnesses": len(sessions), "sightings": len(ev), "bestConf": best}
     if not ev:
@@ -265,13 +293,14 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES)
                                     "still unsure" % (best, conf_floor)})
     if len(sessions) < min_witnesses:
         return dict(base, **{"pass": False,
-                             "why": "only %d independent session%s (%s) — needs %d; two looks inside "
-                                    "one reel are ONE witness"
-                                    % (len(sessions), "" if len(sessions) == 1 else "s",
+                             "why": "only %d independent %s%s (%s) — needs %d; two runs of the same "
+                                    "unbroken screen are ONE witness"
+                                    % (len(sessions), witness_noun,
+                                       "" if len(sessions) == 1 else "s",
                                        ", ".join(sessions) or "none", min_witnesses)})
     return dict(base, **{"pass": True,
-                         "why": "corroborated across %d sessions (%s) at conf %.2f"
-                                % (len(sessions), ", ".join(sessions), best)})
+                         "why": "corroborated across %d %ss (%s) at conf %.2f"
+                                % (len(sessions), witness_noun, ", ".join(sessions), best)})
 
 
 # ── THE FOLD (law 1) ────────────────────────────────────────────────────────────
@@ -468,7 +497,19 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
         runs = _cr.still_runs(frames, sig_of)
         cands = _cr.candidate_runs(runs, min_frames=MIN_RUN_FRAMES)
         read_this_reel = False
+        # v1792 — RE-LOOK BUCKETS. Candidate runs are already separated by a signature change, so a
+        # multi-minute gap between two of them is the panel left and returned to rather than one
+        # frozen screen. Each gap opens a new bucket, and the bucket is what the KEEP bar counts.
+        # Compared against the PREVIOUS RUN'S END, not the reel's start, so three looks spread over
+        # an hour are three buckets and three quick glances in one minute are still one.
+        _wbucket = 0
+        _prev_end = None
         for run in cands:
+            _st = run.get("start_ts") or 0
+            if _prev_end is not None and _st and (_st - _prev_end) >= REOPEN_GAP_MS:
+                _wbucket += 1
+            _prev_end = run.get("end_ts") or _st or _prev_end
+            _wkey = "%s#%d" % (sid, _wbucket)
             names = run.get("frames") or []
             probe, _dead = _cr.live_probe(names, lambda n, _d=reel_dir: os.path.join(_d, n))
             if probe is None:
@@ -533,7 +574,7 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
                                        "why": "the reader returned a row with no name on %s in %s — "
                                               "nothing was invented for it" % (name, sid)})
                         continue
-                    sight = {"session": sid, "frame": name, "lane": item["lane"],
+                    sight = {"session": sid, "witness": _wkey, "frame": name, "lane": item["lane"],
                              "conf": item["conf"], "count": item["count"], "kind": item["kind"],
                              "ts": ts}
                     key = (item["name"], item["lane"])
@@ -556,7 +597,10 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
     for key in sorted(throw_flags, key=lambda k: (k[1], k[0].lower(), k[0])):
         ev = throw_flags[key]
         # Law 3: the STRICTER bar, on both axes. Single-session evidence can never clear it.
-        v = gate(ev, THROWOUT_CONF_FLOOR, THROWOUT_MIN_WITNESSES)
+        # law 3 — the throw bar counts RECORDINGS, never re-looks. A single reel, however many times
+        # he re-opened the panel in it, can never suggest binning an item.
+        v = gate(ev, THROWOUT_CONF_FLOOR, THROWOUT_MIN_WITNESSES,
+                 witness_field="session", witness_noun="recording")
         if not v["pass"]:
             held.append({"name": key[0],
                          "why": "throw-out SUGGESTION withheld for %s in %s — %s. There is no "
