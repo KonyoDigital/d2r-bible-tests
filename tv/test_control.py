@@ -5794,6 +5794,93 @@ class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
                           "%s does not consult the throttle" % fn.__name__)
 
 
+class TestV1785TheVaultReaderSeam(unittest.TestCase):
+    """v1785 — THE SEAM THAT WAS NEVER BUILT, not one that was broken.
+
+    vault_retro.sweep() reads resp["items"]. The vault sweep was wired to claude_chronicle_read,
+    whose answer carries found/notFound/sets and no items key at all — and because `note` is None on
+    a GOOD chronicle read it was not even treated as a refusal: the page counted as read, the reel
+    was marked swept, and no row could ever be produced. `grep -rn "def claude_vault"` returned
+    nothing. Found by an adversarial review of this lane.
+
+    The guards are in it FROM BIRTH rather than retrofitted, because REG-180 and REG-181 were both
+    exactly this: a blocked lane answering in the shape of an empty shelf."""
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import tv_diablo
+        self.tv = tv_diablo
+        self._keep = (tv_diablo._SUB_DAILY_MAX, list(tv_diablo._THROTTLED_UNTIL))
+
+    def tearDown(self):
+        self.tv._SUB_DAILY_MAX = self._keep[0]
+        self.tv._THROTTLED_UNTIL[0] = self._keep[1][0]
+
+    def test_the_seam_exists_and_the_sweep_is_wired_to_it(self):
+        self.assertTrue(hasattr(self.tv, "claude_vault_read"),
+                        "the vault reader does not exist — vault_retro can never ground a row")
+        # there are TWO _vr.sweep( call sites — the free-pass COST QUOTE and the real sweep — so
+        # anchor on the reader definition itself, not on whichever sweep appears first
+        src = open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.find("def _reader(p, surface):")
+        self.assertGreater(i, 0, "the vault sweep's reader was renamed — this test is now blind")
+        body = src[i:i + 900]
+        self.assertIn("claude_vault_read", body,
+                      "the vault sweep is still wired to a reader whose answer has no items key")
+        # STRIP COMMENTS FIRST. The v1785 note inside this function explains the defect by naming
+        # claude_chronicle_read, and the first version of this assertion matched that prose — the
+        # documented scar of a comment blinding a grep-based guard, reproduced immediately.
+        code = "\n".join(l for l in body.split("\n") if not l.strip().startswith("#"))
+        self.assertNotIn("claude_chronicle_read", code,
+                         "the vault sweep still CALLS the chronicle reader")
+
+    def test_a_throttled_vault_read_refuses_instead_of_answering_an_empty_shelf(self):
+        import time as _t
+        self.tv._THROTTLED_UNTIL[0] = _t.time() + 60
+        r = self.tv.claude_vault_read("/nonexistent.jpg", "stash")
+        self.assertIsInstance(r, dict)
+        self.assertIn("note", r, "a throttled vault read answered like a real one: %r" % (r,))
+        self.assertFalse(r.get("items"), "a refusal must not carry rows")
+
+    def test_a_capped_vault_read_names_the_refusal(self):
+        import time as _t
+        real = self.tv._sub_budget_load
+        now = _t.time()
+        self.tv._sub_budget_load = lambda: {"calls": [now - 1] * 50}
+        self.tv._SUB_DAILY_MAX = 1
+        try:
+            r = self.tv.claude_vault_read("/nonexistent.jpg", "stash")
+            self.assertIn("note", r, "a capped vault read answered like an empty shelf: %r" % (r,))
+            self.assertIn("cap", str(r["note"]).lower())
+        finally:
+            self.tv._sub_budget_load = real
+
+    def test_it_returns_the_shape_vault_retro_actually_reads(self):
+        """The contract lives in vault_retro, not here: normalize_item refuses a nameless row, so an
+        invented row is impossible by construction. This asserts the CARRIER — items must be a list
+        the sweep can iterate, never a chronicle answer wearing the wrong keys."""
+        os.environ["TV_STUB"] = "1"
+        man = os.path.join(self.tmpdir(), "man.json")
+        with open(man, "w", encoding="utf-8") as fh:
+            json.dump({"*#vault": {"items": [{"name": "Ist Rune", "kind": "rune", "count": 2}],
+                                   "conf": 0.9}}, fh)
+        os.environ["TV_STUB_MANIFEST"] = man
+        try:
+            r = self.tv.claude_vault_read("whatever.jpg", "stash")
+            self.assertIsInstance(r, dict)
+            self.assertIsInstance(r.get("items"), list, "no items list — the old defect exactly")
+            self.assertEqual(r["items"][0]["name"], "Ist Rune")
+            self.assertNotIn("found", r, "this is the CHRONICLE shape, not the vault one")
+        finally:
+            os.environ.pop("TV_STUB", None)
+            os.environ.pop("TV_STUB_MANIFEST", None)
+
+    def tmpdir(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        return d
+
+
 class TestV1784TheWatchdogSaysWhyItSkipped(unittest.TestCase):
     """v1784 — SIX SITES WROTE A REASON AND NOTHING READ ONE.
 

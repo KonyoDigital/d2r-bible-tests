@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1784",
+  "ver": "v1785",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1784: six sites wrote a reason and nothing read one",
+  "note": "v1785: the sweep read pages into a shape nothing could use",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

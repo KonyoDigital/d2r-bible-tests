@@ -9832,7 +9832,11 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         def _reader(p, surface):
             _tick(pagesRead=1)
             try:
-                return _tv.claude_chronicle_read(p, surface)
+                # v1785 — THE VAULT READER, at last. This called claude_chronicle_read, whose answer
+                # has no `items` key, so vault_retro could never ground a row from it — and because
+                # `note` is None on a good chronicle read it did not even count as a refusal: the
+                # page counted as read and the reel was marked swept. The seam exists now.
+                return _tv.claude_vault_read(p, surface)
             except Exception:
                 return {"note": "the reader failed on this page — not read"}
 
@@ -10838,7 +10842,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1784",
+        "ver": "v1785",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

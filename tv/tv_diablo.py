@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1784"   # the watchdog says why it skipped
+VERSION = "v1785"   # the vault reader seam, built
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4742,6 +4742,41 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
 # this asks "which rows are marked FOUND", which is a different question with a different failure
 # mode, and folding it into the live prompt would make every farming read carry chronicle instructions
 # it can never use.
+# ── v1785 — THE VAULT READER SEAM, WHICH HAD NEVER BEEN BUILT ────────────────────────────────────
+# vault_retro.sweep() reads resp["items"] and the vault sweep was wired to claude_chronicle_read,
+# whose answer has keys found/notFound/sets and no `items` at all. `note` is None on a GOOD chronicle
+# read, so it was not even treated as a refusal: the page counted as read, the reel was marked swept,
+# and no row could ever be produced. `grep -rn "def claude_vault"` returned nothing — the seam was
+# missing, not broken. Found by an adversarial review of this lane.
+#
+# The contract is vault_retro's, not this file's: normalize_item() takes {name, lane, kind, count,
+# conf, throwOut, throwWhy} and REFUSES a row with no name, so an invented row is impossible by
+# construction. lane ∈ (stash, inventory, equipment); kind ∈ (rune, gem, material, item); both fall
+# back to the surface's own default when the reader does not say, and never invent an item.
+VAULT_READ_PROMPT = (
+    "Image {path} = a Diablo II Resurrected (RotW mod) {surface} panel: a grid of item icons, some "
+    "with a name label or a stack count.\n"
+    "Reply with STRICT JSON only, no markdown, no prose:\n"
+    '{{"surface":"{surface}","items":[],"conf":0.0}}\n'
+    'Each item = {{"name":"<exact text you can read>","kind":"rune|gem|material|item",'
+    '"count":<int or null>,"throwOut":false}}\n'
+    "NAME IS THE ONLY THING THAT MATTERS AND THE ONLY THING YOU MAY NOT GUESS. Return a row ONLY "
+    "when you can actually READ its name on this image. An icon you recognise but whose label you "
+    "cannot read is NOT a row — leave it out. This read runs unattended over old footage and writes "
+    "into the player's owned-item ledger, so a confident wrong name is permanent and an omission is "
+    "not: the next session re-reads the same shelf.\n"
+    "count = the stack number printed on the icon, or null when there is none. Never infer a count "
+    "from how full the grid looks.\n"
+    "kind: rune = a rune (El, Eth, Ist, Ber...). gem = a gem (chipped/flawed/perfect ruby, skull...). "
+    "material = a crafting/upgrade material. item = anything else (armour, weapon, charm, jewel).\n"
+    "conf = your own confidence 0.0-1.0 that the names you returned are what is on the image. Be "
+    "honest and low rather than generous: two sessions must agree before anything is kept, so an "
+    "unsure read costs nothing and a confidently wrong one costs the shelf.\n"
+    "If this is NOT a {surface} panel, or you cannot read any name on it, return items EMPTY. An "
+    "empty answer is recoverable; a wrong one is not."
+)
+
+
 CHRONICLE_READ_PROMPT = (
     "Image {path} = the in-game CHRONICLE (holy grail) panel of Diablo II Resurrected (RotW mod): a "
     "long scrollable list of item names where each row shows whether the player has FOUND it — "
@@ -4773,6 +4808,93 @@ CHRONICLE_READ_PROMPT = (
     "Read only rows you can actually see. Do not complete a set from memory or fill a page.\n"
     "conf = 0.0-1.0, your honest confidence in THIS page."
 )
+
+
+def claude_vault_read(image_path, surface, timeout=None):
+    """One ownership panel, read on Konyo's Claude subscription, in vault_retro's `items` shape.
+
+    v1785 — THE SEAM THAT WAS NEVER BUILT. vault_retro.sweep() reads resp["items"]; the vault sweep
+    was wired to claude_chronicle_read, which returns found/notFound/sets and no items key, so the
+    sweep spent real page reads, could never ground a single row, and then marked the reels swept.
+
+    Returns {"items": [...], "conf": float} on a read, or {"note": "..."} on a refusal — the shape
+    vault_retro already understands as NOT read, so a blocked lane can never be mistaken for an
+    empty shelf. That is REG-180/181's rule, applied at birth rather than retrofitted.
+    """
+    if _is_throttled():
+        return {"note": "reader throttled — not read"}
+    _blocked = _sub_budget_check("oneshot")
+    if _blocked:
+        return {"note": "not read — %s" % _blocked}
+
+    surface = str(surface or "stash").strip().lower()
+    if os.environ.get("TV_STUB"):
+        # the same TDD seam the other readers have: drivable end to end at zero vision cost
+        try:
+            man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
+            with open(man_path, encoding="utf-8") as f:
+                man = json.load(f)
+        except Exception:
+            man = {}
+        raw = man.get(os.path.basename(image_path) + "#vault") or man.get("*#vault")
+        if raw is None:
+            return None
+    else:
+        ap = os.path.abspath(str(image_path or ""))
+        if not os.path.isfile(ap):
+            return None
+        # CROP TO THE PANEL, for the reason v1780 measured on the chronicle lane: his frames are
+        # full-desktop grabs and the panel is a fraction of them, so the rest is noise that costs
+        # time AND blinds the read. stash_eye already owns this geometry, calibrated and locked on
+        # his Mac — borrowed rather than re-derived, and it returns None when no honest band exists.
+        _read_path = ap
+        try:
+            import stash_eye as _se
+            from PIL import Image as _Im
+            _im = _Im.open(ap).convert("RGB")
+            _W, _H = _im.size
+            _band = _se.crops_for_aspect(surface if surface in ("runes", "gems", "materials")
+                                         else "runes", float(_W) / float(_H))
+            if _band:
+                _c = _im.crop((int(_W * _band[0]), int(_H * _band[1]),
+                               int(_W * _band[2]), int(_H * _band[3])))
+                if _c.width > 200 and _c.height > 200:
+                    _cp = os.path.join(tempfile.gettempdir(), "tvd_vault_crop_%d.jpg" % os.getpid())
+                    _c.save(_cp, quality=94)
+                    _read_path = _cp
+        except Exception:
+            _read_path = ap
+        raw = _oneshot(_read_path, GENIUS_MODEL,
+                       timeout=float(timeout or 120),
+                       prompt=VAULT_READ_PROMPT.format(path=_read_path, surface=surface),
+                       raw_json=True)
+        # the dual route v1780 proved out: a refused CROP gets one full-frame retry, so cropping
+        # can only ever add reads
+        if _read_path != ap and not raw:
+            raw = _oneshot(ap, GENIUS_MODEL,
+                           timeout=float(timeout or 120),
+                           prompt=VAULT_READ_PROMPT.format(path=ap, surface=surface),
+                           raw_json=True)
+
+    if raw is None:
+        return None
+    try:
+        d = raw if isinstance(raw, dict) else json.loads(str(raw))
+    except Exception:
+        return {"note": "the reader did not return JSON — not read"}
+    if not isinstance(d, dict):
+        return {"note": "the reader did not return an object — not read"}
+    items = d.get("items")
+    if not isinstance(items, list):
+        items = []
+    # Pass rows through UNTOUCHED except for shape: normalize_item is vault_retro's job and it is
+    # the thing that refuses a nameless row. Typing them here would put the contract in two places.
+    out = [x for x in items if isinstance(x, dict)]
+    try:
+        conf = float(d.get("conf"))
+    except Exception:
+        conf = None
+    return {"items": out, "conf": conf, "surface": surface}
 
 
 def claude_chronicle_read(image_path, kind, timeout=None):
