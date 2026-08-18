@@ -56,6 +56,20 @@ async function receiptOf(page: any) {
   return await page.evaluate(() => (window as any)._inboxLastResolve || { dismissed: [], kept: [] });
 }
 
+/* Make these names NOT-FOUND on this page, whatever the shard left behind.
+   Measured on CI: all six of the held names came back `found: true`, because these specs share a
+   `file://` origin with every other spec in the shard and several of them write the grail. A test
+   that needs a name to be unfound has to establish that itself — asking nicely and hoping is how a
+   suite ends up measuring its neighbours. toggleOwned is the board's own writer, so this goes
+   through the same door a click does and needs no knowledge of the install-scoped key. */
+async function ensureUnfound(page: any, names: string[]) {
+  await page.evaluate((ns: string[]) => {
+    ns.forEach((n) => {
+      for (let i = 0; i < 3 && (window as any)._gFound(n); i++) (window as any).toggleOwned(n);
+    });
+  }, names);
+}
+
 test('a base item name is retired — the Chronicle prints it for a row he has NOT found', async ({ page }) => {
   await seedInbox(page, ['Templar Coat', 'Bone Visage', 'Toothrow']);
   await page.goto(URL);
@@ -104,6 +118,12 @@ test('a roster unique he does NOT have is never dismissed', async ({ page }) => 
                 "Thundergod's Vigor", 'Toothrow', 'Witherstring'];
   await seedInbox(page, real);
   await page.goto(URL);
+  await ensureUnfound(page, real);
+  await page.evaluate((ns: string[]) => {
+    localStorage.setItem('d2r_chronicleInbox', JSON.stringify(ns.map((n) => ({ name: n }))));
+    (window as any)._inboxLastResolve = null;
+    (window as any).renderInboxFab();
+  }, real);
   const state = await page.evaluate((ns: string[]) => ns.map((n) => ({
     name: n,
     found: !!(window as any)._gFound(n),
@@ -138,8 +158,16 @@ test('every pending row actually SHOWS its name and both buttons', async ({ page
   // DOM, correctly escaped, with working handlers — and the panel rendered three rows reading
   // "unclear read" with nothing on them to act on. The one thing he needs from this panel is the
   // name. Only a screenshot showed it.
-  await seedInbox(page, ['Toothrow', 'Witherstring', "Thundergod's Vigor"]);
+  const rowNames = ['Toothrow', 'Witherstring', "Thundergod's Vigor"];
+  await seedInbox(page, rowNames);
   await page.goto(URL);
+  // the shard may have marked these found, in which case the resolver retires them and there are no
+  // rows left to measure — establish the state this test needs instead of inheriting it
+  await ensureUnfound(page, rowNames);
+  await page.evaluate((ns: string[]) => {
+    localStorage.setItem('d2r_chronicleInbox', JSON.stringify(ns.map((n) => ({ name: n }))));
+    (window as any).renderInboxFab();
+  }, rowNames);
   await page.evaluate(() => (window as any).inboxPopTog());
   const rows = page.locator('#inbox-pop .ibp-row');
   await expect(rows).toHaveCount(3);
