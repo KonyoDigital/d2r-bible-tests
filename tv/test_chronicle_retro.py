@@ -1025,6 +1025,62 @@ class TestV1770ASlowScrollIsNotWalkingThroughTown(unittest.TestCase):
                          "it classified more than the one candidate: %s" % self.classified)
 
 
+class TestV1781LimitCountsReelsItCanRead(unittest.TestCase):
+    """v1781 — THE WATCHDOG COULD NOT READ ANYTHING ONCE THE NEWEST REEL WAS SWEPT.
+
+    sweep_hist sliced reel_dirs(hist)[:limit] BEFORE testing skip_reels. The reel watchdog passes
+    limit=1 on every tick, so as soon as the newest reel was in the swept memory the sweep took that
+    one reel, reported "already-swept", and stopped — never reaching the reel it had been asked for.
+    Every 20 seconds, for as long as the console ran.
+
+    Demonstrated in isolation before the fix: tick 1 targeted reel_s_2000_newest and read it; tick 2
+    targeted reel_s_1000_older and read_reel was called only for reel_s_2000_newest. It also hid
+    v1779's fix, which narrows skip_reels to the targeted reel and could not work while the slice
+    ran first.
+
+    Skipped reels are still REPORTED — "12 reels · 9 already swept" stays honest — they just do not
+    consume the budget."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        for rid, ts in (("reel_s_2000_newest", 2000), ("reel_s_1000_older", 1000)):
+            p = os.path.join(self.d, rid)
+            os.makedirs(p)
+            for i in range(3):
+                with open(os.path.join(p, "f%d.jpg" % i), "wb") as fh:
+                    fh.write(b"\xff\xd8\xff\xd9")
+            with open(os.path.join(p, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump({"frames": [{"f": "f%d.jpg" % i, "ts": ts + i} for i in range(3)]}, fh)
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def _read(self, skip, limit=1):
+        seen = []
+        real = cr.read_reel
+        cr.read_reel = lambda d, *a, **k: (seen.append(os.path.basename(d)) or
+            {"reel": os.path.basename(d), "runs": 0, "candidates": 0, "classified": 0, "pages": []})
+        try:
+            cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, limit=limit, skip_reels=skip)
+        finally:
+            cr.read_reel = real
+        return seen
+
+    def test_a_swept_newest_reel_does_not_consume_the_budget(self):
+        seen = self._read({"reel_s_2000_newest"})
+        self.assertEqual(seen, ["reel_s_1000_older"],
+                         "limit=1 was spent walking past a reel it could not read: %s" % seen)
+
+    def test_the_skipped_reel_is_still_REPORTED(self):
+        """Honesty is not the thing being traded away: '9 already swept' must still appear, or his
+        footage looks thinner than it is (v1524's rule)."""
+        res = cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, limit=1,
+                            skip_reels={"reel_s_2000_newest"})
+        notes = [st.get("note") for st in res["reels"]]
+        self.assertIn("already-swept", notes, "the skipped reel vanished from the report: %s" % notes)
+        self.assertEqual(res["totals"].get("skippedReels"), 1)
+
+
 class TestV1776EvidenceOutlivesTheSweep(unittest.TestCase):
     """v1776 — A SWEEP MUST ONLY EVER ADD. Konyo, after watching a five-reel run get wiped by the
     watchdog's own tick: "we need a safegaurd to this.. this cant happen.. like why cant after it

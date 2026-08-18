@@ -1205,7 +1205,23 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
     stats, pages = [], []
     frames_seen = 0
     skipped = 0
-    for reel_dir in reel_dirs(hist_dir)[:limit] if limit else reel_dirs(hist_dir):
+    # v1781 — LIMIT COUNTS REELS IT CAN ACTUALLY READ, NOT REELS IT WALKS PAST.
+    # The slice used to happen BEFORE the skip test: with limit=1 and the newest reel already swept,
+    # the sweep took that one reel, reported "already-swept", and stopped — never reaching the reel
+    # it was asked for. The reel watchdog passes limit=1 on every tick, so once the newest reel was
+    # swept the watchdog could never read anything again, whatever it targeted. Demonstrated in
+    # isolation: tick 2 targeted reel_s_1000_older and read_reel was called only for
+    # reel_s_2000_newest. It also hid v1779's fix, which narrows skip_reels to the targeted reel and
+    # could not work while the slice ran first.
+    #
+    # Skipped reels are STILL reported (the "12 reels · 9 already swept" headline stays honest);
+    # they just do not consume the budget.
+    _all = reel_dirs(hist_dir)
+    _ordered = [d for d in _all if os.path.basename(d) not in skip]
+    if limit:
+        _ordered = _ordered[:limit]
+    _report_skipped = [d for d in _all if os.path.basename(d) in skip]
+    for reel_dir in _report_skipped + _ordered:
         if os.path.basename(reel_dir) in skip:
             skipped += 1
             st = {"reel": os.path.basename(reel_dir), "runs": 0, "candidates": 0,
