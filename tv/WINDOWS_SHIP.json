@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1781",
+  "ver": "v1782",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1781: limit was spent walking past reels it had already read",
+  "note": "v1782: a set piece in the uniques banner, in this month, and lending its drop odds",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

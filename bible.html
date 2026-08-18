@@ -36315,6 +36315,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          (funiScan runs many times per render). */
       if(hit && hit.length===1 && reg[hit[0]]){
         var r=reg[hit[0]];
+        /* v1782 — THE FOLD GUARDED CARDINALITY BUT NOT KIND. v1716's rule is that two different
+           uniques under one roster name is a question, not a route — enforced by hit.length===1.
+           But a UNIQUE could still bind to a SET-PIECE registry row and inherit its tier, its
+           treasure class and its farm route wholesale. Measured by an adversarial review: with
+           "Athena's Wrath" un-ticked it entered BEST RUNS as "NM Mephisto · 1:666" carrying
+           tier:'set', tc:60 and _alias:"Athena's Wrath (set piece)" — drop odds lifted from a set
+           row, while __allSets() contains no Athena set at all. A number he would farm against.
+           A row of a different KIND is the same question v1716 refused to answer: it stays in the
+           honest no-source bucket rather than lending odds it cannot vouch for. */
+        if(String(r.tier||'') === 'set'){
+          return (xc[n]||(xc[n]={ n:n, tier:(iv[n]?'grail':'common'), sources:[] }));
+        }
         return (xc[n] && xc[n].sources===r.sources) ? xc[n]
              : (xc[n]={ n:n, tier:r.tier, tc:r.tc, qlvl:r.qlvl, sources:r.sources, _alias:r.n });
       }
@@ -37359,7 +37371,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _flTally = _flog();
       var _nowMon = (function(){ try { return new Date().toLocaleString('en-US',{month:'short'}) + ' ' + new Date().getFullYear(); } catch(e){ return ''; } })();
       var _thisMon = 0;
+      /* v1782 — THIS FIGURE SITS BESIDE TWO UNIQUES-ONLY NUMBERS AND WAS COUNTING SET PIECES.
+         _flog() is the SHARED found ledger: 356 keys on his data, 248 uniques and 108 set pieces
+         (v644 put set pieces in the same store deliberately). Iterating all of it made "this month"
+         answer a different question from the "found" and "still missing" either side of it — tick
+         one set piece today and the uniques ledger claims a unique he did not find. It stays green
+         on his own data because his current month happens to be all uniques, which is the
+         gate-blind-to-unexercised-input shape. Found by an adversarial review of this file.
+         Filtered to the roster, through the same fold funiScan trusts. */
+      var _uniRoster = null;
+      try { _uniRoster = new Set((window._gUniqueRoster && window._gUniqueRoster()) || []); } catch(e){}
+      var _isUni = function(n){
+        if (!_uniRoster) return true;
+        if (_uniRoster.has(n)) return true;
+        try { var r = window.d2rResolveItem(n); return !!(r && r.canonical && _uniRoster.has(r.canonical)); }
+        catch(e){ return false; }
+      };
       try { Object.keys(_flTally).forEach(function(k){
+        if (!_isUni(k)) return;
         var m = String(_flTally[k]||'').match(/^([A-Za-z]{3})\s+\d+,\s*(\d{4})/);
         if (m && (m[1] + ' ' + m[2]) === _nowMon) _thisMon++;
       }); } catch(e){}
@@ -37715,9 +37744,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      Sureshrill Frost) are the same class — unchecked, not acted on — and ride along in the same
      banner rather than getting six more copies of this comment. */
   window._gUnfoundConflicts = function(){
+    /* v1782 — THIS LIST FEEDS A UNIQUES PANEL AND HAD NO ROSTER FILTER.
+       d2r_grailUnfound is written by toggleSetPiece as well as by his unique un-ticks, so a SET
+       PIECE he un-ticked appeared in the F·Uniques "marked NOT found, by you" banner — a set piece
+       counted under a uniques label. Worse, the banner's only control routes through grailFoundUni
+       -> toggleOwned, and a set-piece name matches neither ITEMS nor _UNI_EXTRA nor the unique
+       roster, so it fell through to owned.add(name): tapping the fix button wrote a PHANTOM VAULT
+       ENTRY and left the piece un-ticked, the banner unchanged, and havePieces untouched. The one
+       control offered could not fix the thing it pointed at, and littered on every tap.
+       Found by an adversarial review of the tally surfaces.
+       Filtered to the unique roster, through the same fold funiScan trusts; a set piece he
+       un-ticked belongs to F·Sets, not here. */
     try {
       var un = JSON.parse(window.LSR.getItem('d2r_grailUnfound') || '{}') || {};
-      return Object.keys(un).filter(function(n){ return un[n]; });
+      var roster = null;
+      try { roster = new Set((window._gUniqueRoster && window._gUniqueRoster()) || []); } catch(e){}
+      return Object.keys(un).filter(function(n){
+        if (!un[n]) return false;
+        if (!roster || !roster.size) return true;
+        if (roster.has(n)) return true;
+        try { var r = window.d2rResolveItem(n); return !!(r && r.canonical && roster.has(r.canonical)); }
+        catch(e){ return false; }
+      });
     } catch(e){ return []; }
   };
 
@@ -40676,7 +40724,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1781', name:'v1781 - the watchdog could not read once the newest reel was swept', date:'2026-08-18', note:'limit was spent walking past reels it had already read' };
+  window.D2R_BUILD = { id:'v1782', name:'v1782 - three numbers that answered a different question', date:'2026-08-18', note:'a set piece in the uniques banner, in this month, and lending its drop odds' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
