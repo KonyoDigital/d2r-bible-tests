@@ -84,10 +84,18 @@ test('a base item name is retired — the Chronicle prints it for a row he has N
   await seedInbox(page, ['Templar Coat', 'Bone Visage', 'Toothrow']);
   await page.goto(URL);
   const receipt = await receiptOf(page);
-  const why = new Map<string, string>(receipt.dismissed.map((d: any) => [d.name, d.why]));
+  const by = new Map<string, any>(receipt.dismissed.map((d: any) => [d.name, d]));
   const ctx = JSON.stringify(receipt);
+  // v1793 — assert the MEANING, not the sentence. The wording moved from "a base item name" to
+  // naming the unique he is still missing, and three specs pinned to the old string went red on a
+  // change that was entirely intended. What must stay true is that the row is retired and says it is
+  // a not-found row; the exact prose is free to improve.
   for (const n of ['Templar Coat', 'Bone Visage']) {
-    expect(why.get(n), ctx).toContain('base item name');
+    const d = by.get(n);
+    expect(d, ctx).toBeTruthy();
+    expect(String(d.why), ctx).toMatch(/NOT found/);
+    // and where the codex knows the mapping, it names the unique rather than the base
+    if (d.uni && d.uni.length) expect(d.uni.join(','), ctx).not.toContain(n);
   }
 });
 
@@ -162,7 +170,7 @@ test('the panel shows a receipt for the rows it cleared on its own', async ({ pa
   await expect(pop).toHaveClass(/open/);
   // a queue that silently got smaller is indistinguishable from a lost one
   await expect(pop.locator('.ibp-auto')).toContainText('cleared automatically');
-  await expect(pop.locator('.ibp-auto')).toContainText('base item name');
+  await expect(pop.locator('.ibp-auto')).toContainText('NOT found');
 });
 
 test('every pending row actually SHOWS its name and both buttons', async ({ page }) => {
@@ -209,12 +217,15 @@ test('an auto-retired row can be put back, and it STAYS back', async ({ page }) 
   //
   // The second assertion is the one that matters. Without the keep-list, the next render retires
   // the row again and the button looks broken while behaving exactly as designed.
-  await seedInbox(page, ['Templar Coat', 'Toothrow']);
+  // v1793 — a TRUNCATED read, not a base name. A base row's retire is CERTAIN (the game itself said
+  // not-found), so it deliberately has no put-back at all; offering an undo on a decision that does
+  // not exist is an invitation to make a mistake. The undo exists for the uncertain kind.
+  await seedInbox(page, ['Firel...', 'Toothrow']);
   await page.goto(URL);
 
   const retired = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
-  expect(retired.map((r: any) => r.name)).toContain('Templar Coat');
-  expect(retired[0].why).toContain('base item name');
+  expect(retired.map((r: any) => r.name)).toContain('Firel...');
+  expect(retired[0].why).toContain('truncated');
   expect(retired[0].ts).toBeGreaterThan(0);
 
   await page.evaluate(() => {
@@ -228,13 +239,13 @@ test('an auto-retired row can be put back, and it STAYS back', async ({ page }) 
 
   const names = () => page.evaluate(() =>
     ((window as any).kaiChronicleInbox({ sync: false }) || []).map((x: any) => x.name));
-  expect(await names()).toContain('Templar Coat');
+  expect(await names()).toContain('Firel...');
 
   // it must survive re-renders — this is where a naive undo silently loses
   await page.evaluate(() => { (window as any).renderInboxFab(); (window as any).renderInboxFab(); });
-  expect(await names()).toContain('Templar Coat');
+  expect(await names()).toContain('Firel...');
   const after = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
-  expect(after.map((r: any) => r.name)).not.toContain('Templar Coat');
+  expect(after.map((r: any) => r.name)).not.toContain('Firel...');
 });
 
 test('a row retired longer ago than the grace window is no longer offered', async ({ page }) => {
@@ -304,4 +315,26 @@ test('the humaniser is a real global, not one trapped inside a render function',
   expect(await page.evaluate(() => typeof (window as any)._chSayWhy)).toBe('function');
   expect(await page.evaluate(() => (window as any)._chSayWhy('human-review')))
     .toContain('needs your eye');
+});
+
+test('a base row offers NO put back, because its retire is certain', async ({ page }) => {
+  // v1793 — Konyo: "the PUTBACK shouldnt even tell me anything in this case ... it cant be because it
+  // greyed out." A grey Chronicle row is the game stating the opposite of a find, so the retire can
+  // never be wrong and an undo would imply a decision that does not exist. The row still SHOWS —
+  // what it names is worth knowing — it just has nothing to press.
+  await seedInbox(page, ['Templar Coat', 'Firel...', 'Toothrow']);
+  await page.goto(URL);
+  await page.evaluate(() => {
+    (window as any).renderInboxFab();
+    const pop = document.getElementById('inbox-pop');
+    if (pop && !pop.classList.contains('open')) (window as any).inboxPopTog();
+  });
+  const rows = page.locator('#inbox-pop .ibp-rr');
+  const texts = await rows.allTextContents();
+  const baseRow = texts.find((t) => /Templar Coat/.test(t)) || '';
+  expect(baseRow).toContain('still to hunt');
+  expect(baseRow).not.toContain('put back');
+  // the uncertain one keeps its undo
+  const truncRow = texts.find((t) => /Firel/.test(t)) || '';
+  expect(truncRow).toContain('put back');
 });
