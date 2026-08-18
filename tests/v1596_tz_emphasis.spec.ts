@@ -107,38 +107,64 @@ test.describe('v1596 — the NEXT terror zone states its own worth', () => {
         .map((c) => ({
           name: (c.querySelector('b')?.textContent || '').trim(),
           tag: (c.querySelector('.tzz-tag')?.textContent || '').trim(),
-          lock: !!c.querySelector('.tzz-lock'),
         })));
     expect(verdicts.length).toBeGreaterThanOrEqual(4);
     for (const v of verdicts) {
-      expect(v.tag || (v.lock ? 'LOCKED' : ''),
+      // v1801 — the padlock is gone (see below), so the TAG is now the only verdict carrier and
+      // every card must have one. That is a STRONGER assertion than the original, which accepted
+      // a lock glyph in place of a badge.
+      expect(v.tag,
         `"${v.name}" rendered with no verdict at all — an absent badge cannot mean both "fine" ` +
         'and "unremarkable"').not.toBe('');
     }
   });
 
-  test('★ a THIN zone is still locked and unclickable — the new badge did not soften it', async ({ page }) => {
+  /* v1801 — THIS TEST WAS INVERTED ON PURPOSE, and the reason is recorded rather than the old
+     assertion quietly deleted.
+
+     v1588 made a thin zone inert — aria-disabled, no role, no handler, a padlock where the tag
+     goes — and this spec pinned it. That was defensible while 15 of 66 zones were thin. v1801
+     removes the level term from _tzTier (v1585 had already diagnosed it as meaningless: terror
+     lifts any TZ area to mlvl 96, so base level is precisely what the boost overrides), which
+     takes thin to 40 of 66. A lock over most of the map stops informing him of a ranking and
+     starts punishing him for one.
+
+     Konyo, asked directly, chose: greyed and cancelled, still clickable. So the VERDICT must
+     survive in full — the tag, the grey, the wording — and only the DEAD HANDLER goes. This test
+     now pins exactly that pair, because the easy way to get this wrong is to unlock the card and
+     let it stop looking thin. */
+  test('★ a THIN zone still reads as thin — but it is no longer a dead card', async ({ page }) => {
     await open(page, { ok: true, current: 'Blood Moor', next: 'Catacombs', ts: Date.now() });
     const c = await page.evaluate(() => {
       const el = Array.from(document.querySelectorAll('#hd-tz .tzz'))
         .find((x) => (x.querySelector('b')?.textContent || '').trim() === 'Blood Moor');
       if (!el) return null;
       return {
-        locked: el.classList.contains('tzz-locked'),
-        disabled: el.getAttribute('aria-disabled') === 'true',
+        tier: el.classList.contains('tzz-thin'),
+        opacity: getComputedStyle(el).opacity,
+        grayscale: getComputedStyle(el).filter.indexOf('grayscale') >= 0,
+        tag: (el.querySelector('.tzz-tag')?.textContent || '').trim(),
+        title: el.getAttribute('title') || '',
         role: el.getAttribute('role'),
         tabindex: el.getAttribute('tabindex'),
         onclick: el.getAttribute('onclick'),
+        disabled: el.getAttribute('aria-disabled'),
         hasLockGlyph: !!el.querySelector('.tzz-lock'),
       };
     });
     expect(c).toBeTruthy();
-    expect(c!.locked).toBe(true);
-    expect(c!.disabled).toBe(true);
-    expect(c!.role, 'a worthless zone must not be a button').not.toBe('button');
-    expect(c!.tabindex, 'nor keyboard-reachable as one').toBeNull();
-    expect(c!.onclick, 'nor routable').toBeNull();
-    expect(c!.hasLockGlyph).toBe(true);
+    // the verdict, undiminished
+    expect(c!.tier, 'Blood Moor (den 520) must still be thin').toBe(true);
+    expect(parseFloat(c!.opacity), 'a thin zone that is not greyed tells him nothing').toBeLessThanOrEqual(0.35);
+    expect(c!.grayscale, 'the grayscale half of the treatment is gone').toBe(true);
+    expect(c!.tag, 'the tag is now the ONLY verdict carrier — it cannot be empty').toBe('THIN');
+    expect(c!.title.toLowerCase(), 'the card must still say why it is thin').toContain('not worth the window');
+    // ...and the dead handler, gone
+    expect(c!.role, 'he chose clickable — this must route').toBe('button');
+    expect(c!.tabindex, 'and be keyboard reachable').not.toBeNull();
+    expect(c!.onclick, 'and actually carry a handler').not.toBeNull();
+    expect(c!.disabled, 'aria-disabled contradicts a card that routes').toBeNull();
+    expect(c!.hasLockGlyph, 'a padlock promises the click will not work, and now it does').toBe(false);
   });
 
   test('★ v1602 — a group that SPANS ACTS says so; a same-act group stays quiet', async ({ page }) => {

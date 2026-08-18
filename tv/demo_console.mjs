@@ -436,8 +436,17 @@ async function j9_terrorZoneFlagship(page) {
         .filter((n) => n.scrollWidth > n.clientWidth + 1)
         .map((n) => ((n.textContent || '').trim().slice(0, 24) + ' @' + Math.round(n.getBoundingClientRect().width) + 'px')),
       // v1588 — the prose legend was REMOVED on purpose; the treatment carries the verdict now.
-      locked: [...document.querySelectorAll('#tz-body .tzz-thin')]
-        .every((c) => c.classList.contains('tzz-locked') && c.getAttribute('role') !== 'button'),
+      // v1801 — and the LOCK was removed on purpose too. Dropping the meaningless level term from
+      // both tzTiers takes thin from 15 zones to 40, so Konyo chose greyed-and-cancelled but still
+      // clickable: a lock over most of the map punishes him for a ranking instead of reporting it.
+      // What this now checks is the pair that can go wrong — the verdict must survive undimmed AND
+      // the card must route. Checking only one half is how a card ends up bright and clickable, or
+      // grey and dead.
+      thinGrey: [...document.querySelectorAll('#tz-body .tzz-thin')]
+        .every((c) => parseFloat(getComputedStyle(c).opacity) <= 0.35
+                   && getComputedStyle(c).filter.includes('grayscale')),
+      thinRoutes: [...document.querySelectorAll('#tz-body .tzz-thin')]
+        .every((c) => c.getAttribute('role') === 'button' && !c.hasAttribute('aria-disabled')),
       thinSeen: document.querySelectorAll('#tz-body .tzz-thin').length,
       routes: [...document.querySelectorAll('#tz-body .tzz-prime, #tz-body .tzz-good')]
         .every((c) => c.getAttribute('role') === 'button'),
@@ -477,7 +486,8 @@ async function j9_terrorZoneFlagship(page) {
     // the stub rotation deliberately contains a thin zone, so seeing none means the tiering
     // stopped working rather than that this window happened to be all good
     if (!place.thinSeen) fail.push('no thin zone rendered — the tiering is not running');
-    if (!place.locked) fail.push('a thin zone is not locked (still a button, or no padlock class)');
+    if (!place.thinGrey) fail.push('a thin zone is not greyed out — the verdict stopped being visible');
+    if (!place.thinRoutes) fail.push('a thin zone does not route — he chose greyed-and-cancelled, still clickable');
     if (!place.routes) fail.push('a zone worth running does not route anywhere');
   }
   if (out.some((o) => /^and /i.test(o.n))) fail.push('a chip is labelled "and <Zone>" — the Oxford-comma split is back');

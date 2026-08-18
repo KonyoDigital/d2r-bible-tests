@@ -40,6 +40,17 @@ REPO = os.path.dirname(HERE)
 UI = os.path.join(HERE, "control_ui.html")
 
 
+def _strip_comments(src):
+    """v1801 — GUARDS MUST READ CODE, NOT PROSE. Three separate assertions in this ship matched
+    their own explanatory comments: a comment that says "the padlock was removed" contains the word
+    padlock, so a grep for it passes forever while the feature is gone — or fails forever while it
+    is. This repo has a carved scar for exactly that ([[feedback-comments-vs-code]]) and it still
+    caught me three times in one session, because writing a good comment about a removal is the
+    very act that plants the false match."""
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)      # css + js block comments
+    return re.sub(r"^\s*//.*$", "", src, flags=re.M)      # js line comments
+
+
 def _tz_info():
     src = open(UI, encoding="utf-8").read()
     m = re.search(r"var TZ_INFO = (\{.*?\});", src, re.S)
@@ -461,19 +472,57 @@ class TestLockedVsRoutable(unittest.TestCase):
         self.assertNotIn('class="tz-standfirst"', ui,
                          "the prose legend is back — the treatment should be carrying this")
 
-    def test_thin_is_inert_and_worth_running_routes(self):
+    def test_every_zone_routes_and_thin_still_reads_thin(self):
+        """v1801 — INVERTED, deliberately, and the old assertion is described rather than deleted.
+
+        v1588 made a thin zone inert (no handler, aria-disabled, a padlock) and this pinned it.
+        That held while 15 of 66 zones were thin. v1801 drops the level term from both tzTiers —
+        v1585 had already diagnosed it as meaningless, since terror lifts any TZ area to mlvl 96 —
+        which takes thin to 40 of 66. Konyo, asked directly, chose greyed-and-cancelled but still
+        clickable: a lock over most of the map punishes him for a ranking instead of reporting one.
+
+        So what must survive is the VERDICT (the grey, the tag, the wording) and what must go is
+        the DEAD HANDLER. Both halves are asserted, because the easy way to get this wrong is to
+        unlock the card and let it stop looking thin."""
         _, ui = _tz_info()
-        self.assertIn("var dead = (t.tier === 'thin')", ui)
-        self.assertIn("window._tzRoute()", ui, "a live card must route somewhere")
-        self.assertIn("aria-disabled=\"true\"", ui, "a locked card must say so to assistive tech")
-        self.assertIn(".tzz-locked { cursor: not-allowed", ui)
+        code = _strip_comments(ui)
+        self.assertFalse("var dead = (t.tier === 'thin')" in code,
+                         "the inert branch is back — thin zones stopped routing")
+        self.assertFalse(".tzz-locked { cursor: not-allowed" in code,
+                         "the lock styling returned with no emitter, or the lock itself did")
+        self.assertIn("window._tzRoute()", ui, "a card must route somewhere")
         self.assertIn("window._tzRoute = function", ui, "the router the cards call must EXIST — a "
                       "handler with no function behind it is the v1570 shape again")
+        # the verdict is untouched: thin is still greyed to .3 and fully desaturated
+        self.assertIn(".tzz-thin { opacity: .3", ui, "thin stopped being greyed")
+        self.assertIn("grayscale(1)", ui, "thin stopped being desaturated")
 
-    def test_the_board_locks_its_thin_zones_too(self):
-        board = open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
-        self.assertIn("tzt-locked", board)
-        self.assertIn(".tzt-locked{cursor:not-allowed", board)
+    def test_the_board_unlocks_its_thin_zones_the_same_way(self):
+        """The ranking is one fact; which file renders it is not a reason for two answers. The board
+        kept its padlock for a few minutes after the console lost one, which is [[copy-drift]]."""
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8") as fh:
+            board = _strip_comments(fh.read())
+        # assertFalse, not assertNotIn: assertNotIn prints the whole 5MB container on failure.
+        self.assertFalse("tzt-locked" in board, "the board still locks what the console now routes")
+        self.assertFalse(".tzt-lock{" in board, "the padlock styling outlived its emitter")
+
+    def test_both_surfaces_rank_a_zone_the_same_way(self):
+        """THE ONE THAT MATTERS. bible.html and tv/control_ui.html each carry their own tzTier over
+        one shared TZ_INFO. v1801 removed the level term from the console first, and for a few
+        minutes Ancient's Way (den 650, lvl 82) scored 0.376 GOOD on the board and 0.251 THIN in
+        the console — same rotation, two verdicts, two screens he reads. Pinned as: NEITHER
+        formula may consult the level."""
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        _, ui = _tz_info()
+        self.assertIn("const s = (den/2200)*0.85;", board,
+                      "the board's tier formula changed shape — re-check it against the console's")
+        self.assertIn("var s = (den / 2200) * 0.85;", ui,
+                      "the console's tier formula changed shape — re-check it against the board's")
+        for src, who in ((board, "board"), (ui, "console")):
+            i = src.find("(den/2200)*0.85;") if who == "board" else src.find("(den / 2200) * 0.85;")
+            self.assertNotIn("lvl - 67", src[i:i + 200], "%s reintroduced the level term" % who)
+            self.assertNotIn("lvl-67", src[i:i + 200], "%s reintroduced the level term" % who)
 
 class TestSessionsOnly(unittest.TestCase):
     """v1589 — the rotation card lives in ONE place. Konyo: "remove it completely from TV-D tab..

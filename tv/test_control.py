@@ -7121,7 +7121,24 @@ class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
                            "the thin override must come AFTER the column rule it corrects; equal "
                            "specificity means source order decides, and it now loses")
         self.assertIn(".tz-slot.next .tzz-thin:hover { opacity: .92; }", self.ui,
-                      "the hover half is missing — a locked zone he cannot read is hidden, not dim")
+                      "the hover half is missing — a zone he cannot read is hidden, not dim")
+        # v1801 — THE WHOLE CLASS, not the one member. v1800 guarded .tzz-thin alone and the two
+        # other opacity-bearing tiers stayed outranked, so the asymmetry simply moved. Each member
+        # is checked for BOTH the override and its source position, because equal specificity means
+        # order is the only thing deciding it.
+        for member, base in ((".tz-slot.next .tzz-good { opacity: .74; }", ".tzz-good { opacity: .74"),
+                             (".tz-slot.next .tzz-pending { opacity: .6; }", ".tzz-pending { opacity: .6")):
+            j = self.ui.find(member)
+            self.assertGreater(j, 0, "%s is missing — that tier is bright again in UP NEXT" % member)
+            self.assertGreater(j, i_col, "%s must come after the column rule it corrects" % member)
+            self.assertIn(base, self.ui, "the LIVE NOW side of the pair vanished")
+        self.assertIn(".tz-slot.next .tzz-good:hover { opacity: .95; }", self.ui,
+                      "a GOOD card in UP NEXT does not respond to the mouse")
+        # and the same trap one property over: the terror flag's colour
+        k = self.ui.find(".tz-slot.next .tzz-txt b.tzz-terr")
+        self.assertGreater(k, 0, "the terror flag is repainted by the column rule again")
+        self.assertGreater(k, self.ui.find(".tz-slot.next .tzz-txt b { color:"),
+                           "the terror-flag override must follow the rule that overrode it")
 
     def test_the_next_piece_row_has_exactly_one_hover_card(self):
         """The row printed TWO item cards — one on the piece, one on the set — that pictured the
@@ -7194,9 +7211,22 @@ class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
         ca._CHRON_EVIDENCE_WRITES = self._writes
 
     def test_a_later_success_does_not_erase_an_unshown_failure(self):
-        """The watchdog fires visit sweeps on a timer, and each one saves. v1800 cleared the error
-        slot on every success, so a retro sweep whose write failed — sightings lost for good, since
-        the merge rebuilds `base` from the file — was erased seconds later by an unrelated tick."""
+        """THE HEADLINE RECOVERS, THE HISTORY DOES NOT — and it took two wrong versions to land.
+
+        v1800 kept one error slot and cleared it on every success. The watchdog fires visit sweeps
+        on a timer, each of which saves, so a retro sweep whose write failed — its sightings lost
+        for good, since the merge rebuilds `base` from the file — was erased seconds later by an
+        unrelated tick that happened to succeed.
+
+        v1801's first attempt over-corrected to `evidenceSaved = not FAILS`, which can never return
+        to true inside a process. That turns one transient failure into a permanent red present-
+        tense alarm, and a permanent alarm is furniture — the same defect as a forever-red CI gate,
+        arrived at from the opposite direction. THIS TEST ITSELF PINNED THAT for one commit.
+
+        The contract now: evidenceSaved answers "did the LAST attempt succeed" (so it recovers and
+        the present tense stays true), evidenceFails answers "has anything been lost" (so it never
+        un-says a loss), and evidenceFailTs says when, because a failure with no age is a
+        [[stale-reading]] defect on the one surface whose job is reporting loss."""
         import shutil as _shutil, tempfile, os as _os
         d = tempfile.mkdtemp(); self.addCleanup(_shutil.rmtree, d, True)
         old = ca._CHRON_EVIDENCE_PATH
@@ -7205,11 +7235,21 @@ class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
             self.assertFalse(ca._chron_evidence_save({"uniques": {"x"}}))   # the failure
             self.assertTrue(ca._chron_evidence_save({"uniques": {}}))       # a later success
             st = ca.chronicle_sweep_state()
-            self.assertFalse(st.get("evidenceSaved"),
-                             "a later success erased a failure the board never showed him")
-            self.assertEqual(st.get("evidenceFails"), 1)
+            self.assertTrue(st.get("evidenceSaved"),
+                            "the headline is stuck: one transient failure pins a present-tense "
+                            "alarm for the life of the process, which is furniture, not a warning")
+            self.assertEqual(st.get("evidenceFails"), 1,
+                             "a later success erased a loss the board never showed him")
+            self.assertIsNotNone(st.get("evidenceFailTs"),
+                                 "the failure reached a screen with no age")
             self.assertEqual(st.get("evidenceWrites"), 1,
                              "0 writes and 0 failures must stay distinguishable from all-good")
+            # and the un-attempted state must not read as success
+            ca._CHRON_EVIDENCE_FAILS[:] = []
+            ca._CHRON_EVIDENCE_WRITES = 0
+            ca._CHRON_EVIDENCE_LAST_OK = None
+            self.assertIsNone(ca.chronicle_sweep_state().get("evidenceSaved"),
+                              "\"nothing was attempted\" must not report as \"it saved\"")
         finally:
             ca._CHRON_EVIDENCE_PATH = old
 

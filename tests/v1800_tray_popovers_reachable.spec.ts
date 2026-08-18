@@ -28,6 +28,18 @@ import * as path from 'path';
 
 const FILE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
+/* v1801 — THE POPOVERS ARE A LIST, because guarding one member is how this ship got here twice.
+   The v1800 header enumerated all three and the body only ever opened .tools-legend-pop, so when
+   the post-ship review found .inbox-pop rendering 28px tall at 640x400 — the HEADLINE defect of
+   v1801 — the entire suite stayed green, and moving the @media block back above .inbox-pop would
+   still leave it green. Its geometry is asserted nowhere else in the repo either. */
+const POPOVERS = [
+  { name: 'tools legend', tab: 'tools', fab: '.tools-legend-fab', pop: '.tools-legend-pop' },
+  { name: 'inbox',        tab: 'tools', fab: '.inbox-fab',        pop: '.inbox-pop',
+    // the inbox FAB only appears once the queue has something in it
+    seed: true },
+];
+
 const SIZES = [
   { w: 1440, h: 900 },
   { w: 1440, h: 800 },   // where .tools-legend-pop measured top:-42
@@ -36,9 +48,10 @@ const SIZES = [
   { w: 375,  h: 700 },
 ];
 
+for (const P of POPOVERS) {
 for (const claimBarUp of [false, true]) {
   for (const { w, h } of SIZES) {
-    test(`v1800 tools legend popover is reachable at ${w}x${h} (claim bar ${claimBarUp ? 'up' : 'dismissed'})`, async ({ page }) => {
+    test(`v1800 ${P.name} popover is reachable at ${w}x${h} (claim bar ${claimBarUp ? 'up' : 'dismissed'})`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: h });
       await page.goto(FILE);
       // v1801 — RAISE THE BAR DIRECTLY. The first version of this spec toggled
@@ -68,13 +81,25 @@ for (const claimBarUp of [false, true]) {
       } else {
         expect(parseFloat(barState.claimH) === 0, `--claim-h is ${barState.claimH} with no bar — the popovers are giving up space for nothing`).toBe(true);
       }
-      await page.click('[data-tab="tools"]');
+      if (P.seed) {
+        await page.evaluate(() => localStorage.setItem('d2r_chronicleInbox', JSON.stringify(
+          ['Battlecage', 'Templar Coat', 'Toothrow', 'Shaftstop'].map((name) => ({ name, ts: 1755600000000 })))));
+        await page.goto(FILE);
+        if (claimBarUp) {
+          await page.evaluate(() => {
+            const c = document.getElementById('claim-bar');
+            if (c) { (c as HTMLElement).hidden = false; document.body.classList.add('has-claim-bar'); }
+          });
+          await page.waitForTimeout(300);
+        }
+      }
+      await page.click(`[data-tab="${P.tab}"]`);
       await page.waitForTimeout(400);
-      await page.click('.tools-legend-fab');
+      await page.click(P.fab);
       await page.waitForTimeout(400);
 
-      const m = await page.evaluate(() => {
-        const p = document.querySelector('.tools-legend-pop') as HTMLElement;
+      const m = await page.evaluate((SEL) => {
+        const p = document.querySelector(SEL) as HTMLElement;
         if (!p) return null;
         const x = p.firstElementChild as HTMLElement;
         const r = x.getBoundingClientRect();
@@ -87,9 +112,9 @@ for (const claimBarUp of [false, true]) {
           hitWas: hit ? ((hit as HTMLElement).id || (hit as HTMLElement).className || hit.tagName).toString() : 'none',
           vh: window.innerHeight,
         };
-      });
+      }, P.pop);
 
-      expect(m, 'the tools legend popover did not open').not.toBeNull();
+      expect(m, `the ${P.name} popover did not open`).not.toBeNull();
       // (1) and (2): the panel's own top is on screen
       expect(m!.top, `popover top ${m!.top} is above the viewport — its heading is unreachable`).toBeGreaterThanOrEqual(0);
       expect(m!.bottom, `popover bottom ${m!.bottom} is below the ${m!.vh}px viewport`).toBeLessThanOrEqual(m!.vh);
@@ -100,4 +125,5 @@ for (const claimBarUp of [false, true]) {
         `the popover's close button is covered by ${m!.hitWas} — rendered, styled and unclickable`).toBe(true);
     });
   }
+}
 }

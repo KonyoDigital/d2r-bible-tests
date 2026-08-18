@@ -3330,9 +3330,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .tzt-zone.tzt-t-good{opacity:.72;filter:saturate(.5)}
   .tzt-zone.tzt-t-good:hover{opacity:.95;filter:saturate(.9)}
   .tzt-zone.tzt-t-thin{opacity:.3;filter:grayscale(1) brightness(.75)}
-  .tzt-locked{cursor:not-allowed;user-select:none}
-  .tzt-locked:hover{transform:none;box-shadow:none}
-  .tzt-lock{font-size:13px;opacity:.55;filter:grayscale(1)}
+  /* v1801 — .tzt-locked / .tzt-lock removed with the lock they styled: nothing emits either class
+     now that a thin zone routes like any other card, and a declaration with no reference is what
+     LAW19 exists to catch. Their v1588 job is recorded in the render function, in words. */
   .tzt-zone.tzt-t-thin:hover{opacity:.92;filter:grayscale(.1)}
   .tzt-zone.tzt-t-thin .tzt-z-art{box-shadow:inset 0 0 30px rgba(0,0,0,.8)}
   .tzt-foot{display:flex;align-items:center;gap:14px;margin-top:12px}
@@ -26009,7 +26009,16 @@ const TZ_HUNT = [
        Moor are both density 520, and only their base level (80 vs 67) separated them — the exact
        number a terror zone overrides. Under 600 is thin, whatever the level says. */
     if (den < 600) return { tier:'thin', den:den, lvl:lvl };
-    const s = (den/2200)*0.85 + Math.max(0,(lvl-67)/18)*0.15;
+    /* v1801 — THE LEVEL TERM IS GONE HERE TOO, AND IT HAD TO BE. The comment directly above has
+       said since v1585 that base level "is the exact number a terror zone overrides" — then kept
+       the term alive above the 600 floor. v1801 removed it in the console (tv/control_ui.html
+       _tzTier), and for a few minutes this file still carried it: Ancient's Way (den 650, lvl 82)
+       scored 0.376 GOOD on the board and 0.251 THIN in the console, from ONE shared TZ_INFO. Same
+       rotation, two verdicts, on two screens the same person reads — which is the defect the v1800
+       review had already caught once on the hover card, reappearing across surfaces instead of
+       within one. A ranking that lives in two files has to change in both in the same commit.
+       [[copy-drift]] */
+    const s = (den/2200)*0.85;
     return { tier: s>=0.5 ? 'prime' : (s>=0.28 ? 'good' : 'thin'), den:den, lvl:lvl };
   }
   function tzArtFor(name){ const i = TZ_INFO[tzKey(name)]; return i ? i[2] : null; }
@@ -26060,18 +26069,27 @@ function tzZoneRowHtml(zoneName){
      zone outside a hardcoded 14-entry list — including Stony Tomb at density 2200, the densest tier
      in the game. It now says what the game's numbers say, and only a genuinely thin zone is told to
      be skipped. */
+  /* v1801 — THE SENTENCE NAMED THE TERM THAT NO LONGER EXISTS. "a low base level" was doing real
+     work in this verdict until the line above stopped consulting base level at all; left as-is it
+     would explain the ranking by a number the ranker had just been told to ignore. And "sit this
+     one out" is now wrong twice over: it is advice the card can no longer enforce (thin zones
+     route again, below) and advice he did not ask for — the tier states the density, he decides
+     the run. [[label-outlived-referent]] */
   const skip = t.tier === 'thin'
-    ? 'thin — low density and a low base level. Sit this one out.'
+    ? 'thin — low density for the window. Worth a look only if you want the zone itself.'
     : (t.tier === 'prime' ? 'no named boss, but the density is there — worth a clear.'
                           : 'no named boss here — a fine filler clear.');
   /* v1588 — a thin zone is LOCKED, not merely dim. No hover response, a not-allowed cursor and a
      padlock beside the name, so the difference is something he meets with the mouse before he
      reads a word. A non-thin zone with no named boss stays a normal card: it is worth running, and
      inventing a click target that goes nowhere would be worse than having none. */
-  const locked = (t.tier === 'thin');
-  return '<div class="tzt-zone tzt-filler tzt-t-'+t.tier+(locked?' tzt-locked':'')+'"'
-    + (locked ? ' aria-disabled="true"' : '') + '>' + face
-    + '<span class="tzt-z-name">'+_tzEsc(zoneName)+(locked?' <span class="tzt-lock">&#128274;</span>':'')+'</span>'
+  /* v1801 — UNLOCKED, matching the console. Konyo was asked directly what should happen once the
+     level term goes and thin grows from 15 zones to 40, and chose: greyed and cancelled, still
+     clickable. That answer is about the RANKING, not about which file renders it, so the board
+     follows. The grey (.tzt-t-thin) is untouched and does all the telling; what goes is the
+     padlock and aria-disabled — a padlock promises the click will not work, and now it does. */
+  return '<div class="tzt-zone tzt-filler tzt-t-'+t.tier+'">' + face
+    + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
     + meta
     + '<span class="tzt-z-skip">'+skip+'</span></div>';
 }
@@ -41350,7 +41368,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1801', name:'v1801 - eight findings on the ship that fixed the blind gate', date:'2026-08-19', note:'The post-ship review found eight. Six were real and are fixed: the inbox popover was excluded from its own short-viewport fix and rendered 28px tall at 640x400; the tier sweep stopped at one member so GOOD and PENDING were still outranked in UP NEXT; evidenceSaved reached no reader at all despite the commit note saying it reached the board; a later successful write erased a failure the board had never shown; the base fact I added rendered the SLOT while the card already carried the real base; and meta.left went into an attribute unescaped. The claim-bar half of my own new gate was a no-op because _D2R_OWNER is true under automation on file://.' };
+  window.D2R_BUILD = { id:'v1802', name:'v1802 - one ranking, two files, and CI caught what I did not', date:'2026-08-19', note:'CI failed v1800 on two specs I did not run. v1630 pins the tooltip payload name as RAW because it is a lookup key, not a label - v1800 stripped it at the source and broke the key to fix a display that was already correct. And the TZ tiering he asked about lived in TWO files: v1801 dropped the meaningless level term from the console and left the board scoring a 650-density zone GOOD while the console called it THIN, from one shared table. Both surfaces now agree, both unlock thin zones as he chose, and the guards that pinned the old lock are swept rather than deleted.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

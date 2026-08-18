@@ -2877,8 +2877,10 @@
   .tzz-live:hover { transform: translateY(-2px); border-color: rgba(240,192,96,.66);
     box-shadow: 0 10px 26px rgba(0,0,0,.42); }
   .tzz-live:focus-visible { outline: 2px solid var(--fg-accent, #f0c060); outline-offset: 2px; }
-  .tzz-locked { cursor: not-allowed; user-select: none; }
-  .tzz-lock { font-size: var(--fs-2xs); opacity: .5; margin-left: auto; flex: none; filter: grayscale(1); }
+  /* v1801 — .tzz-locked and .tzz-lock are GONE with the lock they styled. Nothing emits either
+     class now that a thin zone routes like any other card, and a declaration with no reference is
+     what LAW19 exists to catch. The v1588 "kinda locked feeling" they served is history worth
+     keeping in words, not in two rules that can never match. */
   .tzz-thin { opacity: .3; filter: grayscale(1) brightness(.72); border-color: rgba(255,255,255,.05);
     background: rgba(255,255,255,.012); }
   .tzz-thin .tzz-art { box-shadow: inset 0 0 26px rgba(0,0,0,.85); }
@@ -3030,6 +3032,15 @@
   .tz-slot.next .tzz-good { opacity: .74; }
   .tz-slot.next .tzz-good:hover { opacity: .95; }
   .tz-slot.next .tzz-pending { opacity: .6; }
+  /* v1801 — AND THE TERROR FLAG'S COLOUR, which is the same trap one property over. `.tzz-terr`
+     is (0,1,0) and the flag is a <b> inside .tzz-txt, so BOTH `.tz-zones-hero .tzz-txt b` and
+     `.tz-slot.next .tzz-txt b` — (0,3,0), and later in the file — repainted it. The orange
+     "-> 96 terrorized" never rendered orange in EITHER column, which is the one number on the card
+     that corrects a base level he would otherwise read as low. This file already documents the
+     identical trap at :2704 ("SCOPED TO .tzz-top b, NOT .tzz-txt b") for min-height; the colour
+     rules never got the same scoping. Found by the post-ship review. */
+  .tz-zones-hero .tzz-txt b.tzz-terr,
+  .tz-slot.next .tzz-txt b.tzz-terr { color: var(--rar-orange, #ffa800); }
   /* v1801 — the ledger-write warning. --st-bad is the file's one colour for "this is broken",
      and it is a role=alert because it reports data LOSS he cannot see any other way. */
   .chron-evwarn { margin: 0 0 10px; padding: 9px 12px; border-radius: 9px;
@@ -3039,6 +3050,10 @@
     font: var(--fw-bold) var(--fs-2xs)/1.45 var(--mono); }
   .chron-evwarn-sub { display: block; margin-top: 4px; color: var(--fg-muted,#b5a48a);
     font-weight: var(--fw-medium); }
+  /* recovered: still worth saying, no longer an emergency — --st-warn, not --st-bad */
+  .chron-evwarn.is-recovered { border-color: color-mix(in srgb, var(--st-warn,#ffcc44) 50%, transparent);
+    background: color-mix(in srgb, var(--st-warn,#ffcc44) 9%, transparent);
+    color: var(--st-warn,#ffcc44); }
   /* ★ ALIVE. A slow breath on the live card and its art, so "this one is on right now" is legible
      from across the room and from peripheral vision — the thing a font size can never do. Gated on
      prefers-reduced-motion like every other animation here. */
@@ -12426,7 +12441,14 @@
            The base was never missing; it was already there, correct, from the bridge. Trying to
            surface it a second time from a name suffix could only ever restate or contradict it.
            Found by the post-ship review. [[label-outlived-referent]] */
-        + _itipAttr({ name: _pieceLabel(top.name) || top.name || '', art: meta.art || '',
+        /* v1801 — THE PAYLOAD NAME GOES BACK TO RAW, and v1630 is why. Its spec says it in one
+           line: "the tooltip PAYLOAD stays raw — it is a lookup key, not a label". _itipAttr's own
+           renderer already runs _pieceLabel on d.name at display time (:5582), which is precisely
+           why the card DISPLAYED "Telling of Beads" while the payload kept the full name. v1800
+           stripped it at the source too, breaking the key to fix a display that was never wrong.
+           The real mismatch he saw was the SET CHIP's fact row printing the raw name beside the
+           stripped headline, and that card is gone. Caught by CI, not by me. */
+        + _itipAttr({ name: top.name || '', art: meta.art || '',
                       rarity: meta.rarity || 'set',
                       tip: meta.tip || null,
                       facts: [['completes', setName || ''],
@@ -13441,7 +13463,22 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
          boost overrides — it was the least meaningful number in the row deciding the verdict.
          Under 600 density is thin, whatever the level says. */
       if (den < 600) return { tier: 'thin', score: 0, den: den, lvl: lvl, why: hint };
-      var s = (den / 2200) * 0.85 + Math.max(0, (lvl - 67) / 18) * 0.15;
+      /* v1801 — THE LEVEL TERM IS GONE, AND v1585 IS THE REASON IT SHOULD ALWAYS HAVE BEEN.
+         That note says it in as many words: "a terror zone lifts monster level to the player's
+         own, so that base level is exactly the thing the boost overrides — it was the least
+         meaningful number in the row deciding the verdict." It then fixed only the under-600
+         FLOOR and left the term running above it, so the diagnosis was right and the remedy was
+         half-applied. The card made the contradiction visible: it printed "-> 96 terrorized",
+         stating the base level is overridden, directly beside a verdict computed from that base
+         level.
+
+         Konyo, on Glacial Trail and Drifter Cavern reading GOOD: "density is low and its not a
+         terror zone worth farming". He is right and the arithmetic agrees — on density alone they
+         score 0.270 and 0.232 against a 0.28 threshold, and were lifted over it purely by the
+         term above. 30 of 66 non-notable zones move; TZ_NOTABLE is untouched, so The Pit,
+         Travincal and Ancient Tunnels keep their standing for the reasons density cannot see.
+         [[label-outlived-referent]] */
+      var s = (den / 2200) * 0.85;
       return { tier: s >= 0.5 ? 'prime' : (s >= 0.28 ? 'good' : 'thin'), score: s, den: den,
                lvl: lvl, why: hint };
     };
@@ -13542,24 +13579,49 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
            after the separator — a dangling "·" at the end of a line. Inside the name row the
            numbers get the column's full width and the tag still cannot cover the name. */
         /* v1588 — THE AFFORDANCE IS THE VERDICT. A zone worth running is a button: it lifts on
-           hover and opens the full tracker. A thin one is not a button at all — no handler, no
+           hover and opens the full tracker. A thin one was not a button at all — no handler, no
            pointer, aria-disabled, and a lock glyph where the tag would be. He should be able to
-           tell them apart with the mouse, not by reading. */
-        var dead = (t.tier === 'thin');
+           tell them apart with the mouse, not by reading.
+           v1801 — HALF OF THAT IS RETIRED, and the half is the point: the VERDICT stays (grey,
+           full grayscale, a THIN tag, and the title still says "not worth the window"), the
+           INERTNESS goes. v1588's reasoning held while 15 of 66 zones were thin; dropping the
+           meaningless level term makes it 40, and a lock over most of the map stops informing him
+           of a ranking and starts overruling him with one. He was asked and chose exactly this. */
+        /* v1801 — THIN IS A VERDICT, NOT A LOCK. v1588 made a thin zone inert on purpose ("no
+           handler, no pointer, aria-disabled, and a lock glyph where the tag would be"), and that
+           was defensible while 15 zones were thin. Dropping the meaningless level term above makes
+           it 40, so the lock would have taken click-through to the run page away from most of the
+           map — punishing him for a ranking rather than informing him of one. His call, asked and
+           answered: greyed and cancelled, still clickable.
+
+           The greying is unchanged and does all the telling: .tzz-thin is opacity .3 + full
+           grayscale, in BOTH columns since v1801 above. What goes is the padlock and the dead
+           handler — a padlock is a promise that clicking will not work, and now it does. The
+           `dead` flag is removed rather than pinned false, so no branch survives that cannot
+           run. */
         /* v1613 — ROUTE TO THE BOSS WHEN THERE IS ONE. A zone with a boss is a RUN, and the run
            page is what he actually wants ("for the run itself and farming"); the generic tracker
-           is the right destination only when there is no boss to open. Thin zones stay locked. */
+           is the right destination only when there is no boss to open.
+     v1801 — the trailing "Thin zones stay locked" is struck: they route like any other card
+     now (see below). Left standing it would be a comment asserting the opposite of the code
+     three lines under it, and a grep-based guard in this repo has already been blinded by
+     exactly that. [[feedback-comments-vs-code]] */
         var _boss = TZ_BOSS[_tzKey(x)] || '';
         var _go = _boss ? 'window._hubGoBoss(&quot;' + escC(_boss) + '&quot;)' : 'window._tzRoute()';
-        var attrs = dead
-          ? ' aria-disabled="true" title="' + escC(x) + ' — thin: low density, not worth the window"'
-          : ' role="button" tabindex="0" onclick="' + _go + '"'
+        /* Every card routes now, so the verdict rides in the TITLE instead of in a disabled
+           attribute — the sentence the padlock used to carry is not lost, it just no longer comes
+           with a dead handler attached. */
+        var _thin = (t.tier === 'thin');
+        var _title = escC(x)
+          + (_thin ? ' — thin: low density, not worth the window. Open it anyway'
+                   : (_boss ? ' — open the ' + escC(t.why || _boss) + ' run' : ' — open the full tracker'));
+        var attrs = ' role="button" tabindex="0" onclick="' + _go + '"'
             + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + _go + ';}"'
-            + ' title="' + escC(x) + (_boss ? ' — open the ' + escC(t.why || _boss) + ' run' : ' — open the full tracker') + '"';
-        return '<div class="tzz tzz-' + t.tier + (hero ? ' tzz-hero' : '') + (dead ? ' tzz-locked' : ' tzz-live')
+            + ' title="' + _title + '"';
+        return '<div class="tzz tzz-' + t.tier + (hero ? ' tzz-hero' : '') + ' tzz-live'
           + '"' + attrs + '>' + face
           + '<span class="tzz-txt"><span class="tzz-top"><b>' + escC(x) + '</b>'
-          + (dead ? '<span class="tzz-lock">&#128274;</span>' : tag) + '</span>'
+          + tag + '</span>'
           + '<i>' + (act ? 'act ' + act : '') + '</i>' + meta + '</span></div>';
       }).join('');
     };
@@ -13911,16 +13973,39 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
        It paints ABOVE the result and BEFORE the `if (!res) return` below, because the run most
        likely to have lost its evidence is the one with nothing to show for it.
        [[plumbing-with-no-tap]] */
+    /* v1801 — THREE STATES, NOT TWO. The first version showed a present-tense "did not save" that
+       could never clear, because it keyed off a failure list nothing resets: one transient failure
+       and the banner stays red for days while every write succeeds. It now reads the LAST attempt
+       for the headline and the history for the sub-line, and it dates the failure — "it failed"
+       and "it failed three weeks ago" are different facts. [[stale-reading]] */
     var evWarn = document.getElementById('chron-evwarn');
     if (evWarn) {
-      var _bad = (st.evidenceSaved === false);
-      evWarn.hidden = !_bad;
-      if (_bad) {
-        var _nf = st.evidenceFails || 1;
-        evWarn.innerHTML = '\u26a0 the evidence ledger did not save \u2014 '
-          + escC(String(st.evidenceError || 'no reason given'))
-          + '<span class="chron-evwarn-sub">' + escC(String(_nf)) + ' failed write'
-          + (_nf === 1 ? '' : 's') + ' this session \u00b7 ' + escC(String(st.evidenceWrites || 0))
+      var _nf = (st.evidenceFails == null) ? null : Number(st.evidenceFails);
+      var _broken   = (st.evidenceSaved === false);           // the last write FAILED — act now
+      var _recovered = (st.evidenceSaved === true) && !!_nf;  // failed earlier, writing again
+      evWarn.hidden = !(_broken || _recovered);
+      evWarn.classList.toggle('is-recovered', !_broken && _recovered);
+      if (_broken || _recovered) {
+        var _when = '';
+        if (st.evidenceFailTs) {
+          var _mins = Math.max(0, Math.round((Date.now() - Number(st.evidenceFailTs)) / 60000));
+          _when = _mins < 1 ? 'just now'
+                : _mins < 60 ? (_mins + 'm ago')
+                : _mins < 1440 ? (Math.round(_mins / 60) + 'h ago')
+                : (Math.round(_mins / 1440) + 'd ago');
+        }
+        /* `_nf == null ? '?' : _nf` — an absent count must not arrive on screen as a plausible
+           number. The old `|| 1` printed "1 failed write" when nothing had been measured.
+           [[unknown-stays-unknown]] */
+        var _cnt = (_nf == null) ? '?' : String(_nf);
+        evWarn.innerHTML = (_broken
+              ? '\u26a0 the evidence ledger did not save \u2014 '
+                + escC(String(st.evidenceError || 'no reason given'))
+              : '\u26a0 the evidence ledger failed earlier, and is writing again')
+          + '<span class="chron-evwarn-sub">' + escC(_cnt) + ' failed write'
+          + (_nf === 1 ? '' : 's') + ' this session'
+          + (_when ? ' \u00b7 last ' + escC(_when) : '')
+          + ' \u00b7 ' + escC(String(st.evidenceWrites == null ? '?' : st.evidenceWrites))
           + ' succeeded \u00b7 sightings from a failed write are NOT in the ledger and cannot '
           + 'corroborate anything</span>';
       }

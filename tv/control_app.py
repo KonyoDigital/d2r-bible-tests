@@ -10086,6 +10086,21 @@ def _chron_evidence_load():
 # failures and "not attempted" stay distinguishable via evidenceWrites. [[unknown-stays-unknown]]
 _CHRON_EVIDENCE_FAILS = []     # [{"ts": epoch_ms, "err": str}] — append-only within a process
 _CHRON_EVIDENCE_WRITES = 0     # successful writes, so 0/0 cannot read as "all good"
+_CHRON_EVIDENCE_LAST_OK = None # v1801 — did the MOST RECENT attempt succeed? None = none yet.
+#
+# v1801 — WHY THREE FIELDS AND NOT ONE FLAG. The first version published
+# `evidenceSaved = not FAILS`, which can never return to true inside a process because nothing
+# resets the list. One transient failure — a momentarily full disk, a .tmp clobbered by a backup,
+# an EINTR — would pin a red present-tense "the evidence ledger did not save" on his screen for
+# the rest of the daemon's uptime, days, while every subsequent write succeeded. A permanent alarm
+# is not a strict alarm; it is furniture, and it teaches him to ignore the next real one, which is
+# the same trap as a permanently-red CI gate.
+#
+# So the HEADLINE tracks the last attempt (present tense, and it can recover) while the HISTORY is
+# still append-only (a write that failed lost sightings for good, and that stays on the record).
+# The timestamp rides along because a failure with no age is a [[stale-reading]] defect on the one
+# surface whose whole job is reporting loss — "it failed" and "it failed three weeks ago" are
+# different facts and only one of them is worth acting on tonight.
 
 
 def _chron_evidence_save(prop):
@@ -10098,13 +10113,14 @@ def _chron_evidence_save(prop):
     strength of a guarantee nobody provides. The writes are atomic by tmp+os.replace, which is what
     actually makes concurrent saves safe here.
     """
-    global _CHRON_EVIDENCE_WRITES
+    global _CHRON_EVIDENCE_WRITES, _CHRON_EVIDENCE_LAST_OK
     try:
         tmp = _CHRON_EVIDENCE_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(prop, fh)
         os.replace(tmp, _CHRON_EVIDENCE_PATH)
         _CHRON_EVIDENCE_WRITES += 1
+        _CHRON_EVIDENCE_LAST_OK = True
         return True
     except Exception as e:
         # v1799 — SAY SO. This returned False into a caller that ignores it, so when v1798 made the
@@ -10120,6 +10136,12 @@ def _chron_evidence_save(prop):
         print("   \u26a0 chronicle evidence NOT saved (%s) \u2014 the ledger did not accumulate this run" % e)
         _CHRON_EVIDENCE_FAILS.append({"ts": int(time.time() * 1000),
                                       "err": str(e) or e.__class__.__name__})
+        # v1801 — BOUNDED. A systematic failure (v1798's set-in-the-proposal made EVERY dump raise)
+        # plus a 20s autoread tick is ~4,300 records a day, forever. Keep the first few — the ones
+        # that say when it started — and a sliding tail, which is every semantic the payload uses.
+        if len(_CHRON_EVIDENCE_FAILS) > 200:
+            del _CHRON_EVIDENCE_FAILS[5:len(_CHRON_EVIDENCE_FAILS) - 100]
+        _CHRON_EVIDENCE_LAST_OK = False
         return False
 
 
@@ -10332,8 +10354,11 @@ def chronicle_sweep_state():
     # joining it here covers both the sweep path and the hunt path without a second stamp site
     # that the next path can forget. evidenceSaved is False ONLY after a real failure — never
     # None-as-False, because "not saved" and "not attempted" are different facts.
-    st["evidenceSaved"] = not _CHRON_EVIDENCE_FAILS
+    # evidenceSaved is about the LAST attempt (so it can recover); evidenceFails is the history
+    # (so a loss is never erased). None means no write has been attempted — not "fine".
+    st["evidenceSaved"] = _CHRON_EVIDENCE_LAST_OK
     st["evidenceError"] = _CHRON_EVIDENCE_FAILS[-1]["err"] if _CHRON_EVIDENCE_FAILS else None
+    st["evidenceFailTs"] = _CHRON_EVIDENCE_FAILS[-1]["ts"] if _CHRON_EVIDENCE_FAILS else None
     st["evidenceFails"] = len(_CHRON_EVIDENCE_FAILS)
     st["evidenceWrites"] = _CHRON_EVIDENCE_WRITES
     return st
@@ -11031,7 +11056,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1801",
+        "ver": "v1802",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
