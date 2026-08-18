@@ -7088,5 +7088,68 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
                          "a real set piece was retired as debris by its own ledger's fold")
 
 
+class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
+    """Two defects Konyo found by hovering and by looking, both of the same family: a surface that
+    contradicts itself, where every individual value is correct."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            cls.ui = fh.read()
+
+    def test_thin_is_not_outranked_by_the_up_next_column(self):
+        """`.tz-slot.next .tzz {opacity:.9}` is specificity (0,3,0); `.tzz-thin {opacity:.3}` is
+        (0,1,0). The column rule won, so the SAME zone rendered 0.3 under LIVE NOW and 0.9 under
+        UP NEXT — and in that column a THIN card and a GOOD card were both 0.9, which erases the
+        verdict in the row whose whole job is saying what is coming.
+
+        Konyo: "the next should also be cancelled like out and also grey form ... symmetric".
+
+        Pinned as SOURCE ORDER + SPECIFICITY rather than a rendered opacity, because that is what
+        actually decides it: any future column-scoped rule added after this one takes the treatment
+        away again, silently, exactly as this one did."""
+        i_col = self.ui.find(".tz-slot.next .tzz { opacity: .9; }")
+        i_fix = self.ui.find(".tz-slot.next .tzz-thin { opacity: .3; }")
+        self.assertGreater(i_col, 0, "the UP NEXT column rule is gone — re-check this guard")
+        self.assertGreater(i_fix, 0,
+                           "the thin override is gone: every thin zone in UP NEXT is bright again")
+        self.assertGreater(i_fix, i_col,
+                           "the thin override must come AFTER the column rule it corrects; equal "
+                           "specificity means source order decides, and it now loses")
+        self.assertIn(".tz-slot.next .tzz-thin:hover { opacity: .92; }", self.ui,
+                      "the hover half is missing — a locked zone he cannot read is hidden, not dim")
+
+    def test_the_next_piece_row_has_exactly_one_hover_card(self):
+        """The row printed TWO item cards — one on the piece, one on the set — that pictured the
+        same sprite (an aggregate set has no art, so setArt falls back to the piece), described the
+        same hunt, and opened the SAME destination. They also disagreed on the item's name: the
+        headline ran it through _pieceLabel() and read "Telling of Beads" while the set card printed
+        the raw name and read "Telling of Beads (spired helm)".
+
+        Konyo: "telling of beads and the disciple there is a mismatch or unsynced .. should be one
+        item not two.. confusing"."""
+        i = self.ui.find("var _setChip = setName")
+        self.assertGreater(i, 0, "the set chip is gone — re-check this guard")
+        chip = self.ui[i:i + 1400]
+        self.assertNotIn("_itipAttr(", chip,
+                         "the set chip grew a second art card back: one row, one hunt, one card")
+        self.assertIn("aria-label=", chip, "the set chip lost its spoken label")
+        self.assertIn("_hubGoSetPiece(", chip, "the set chip lost its route")
+
+    def test_piece_label_and_piece_base_are_exact_inverses(self):
+        """They are defined touching each other for this reason. If they ever disagree, a name is
+        rendered two ways again — which is the defect above, returning by a different door."""
+        import re as _re
+        blk = self.ui
+        self.assertIn("function _pieceBase(name){", blk, "_pieceBase is gone")
+        self.assertIn("window._cPieceBase", blk, "_pieceBase is not published")
+        # the two must read the SAME token map, or they cannot be inverses
+        lab = blk[blk.find("function _pieceLabel(name){"):][:400]
+        bas = blk[blk.find("function _pieceBase(name){"):][:400]
+        for fn, name in ((lab, "_pieceLabel"), (bas, "_pieceBase")):
+            self.assertIn("_PIECE_SLOT_TOK[tok]", fn,
+                          "%s stopped consulting the shared slot vocabulary" % name)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

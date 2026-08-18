@@ -40093,9 +40093,9 @@ html{overflow-x:clip}
    viewport degrading to a small scrollable box instead of a negative calc, which clamps to zero
    and hides the panel entirely. */
 .forge-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important;
-  max-height:max(220px, min(72vh, calc(100vh - var(--dock-h,84px) - 140px)))!important}
+  max-height:max(180px, min(72vh, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 140px)))!important}
 .tools-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important;
-  max-height:max(220px, min(74vh, calc(100vh - var(--dock-h,84px) - 140px)))!important}
+  max-height:max(180px, min(74vh, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 140px)))!important}
 /* v1800 — AND ON A SHORT VIEWPORT THE ANCHOR ITSELF IS THE PROBLEM, not the height. The tray sits
    at dock+118px, so on a 400px-tall window the popover's top lands at -116px no matter how small
    its budget: a bottom-anchored box cannot fit above an anchor that is already near the top. Below
@@ -40103,8 +40103,13 @@ html{overflow-x:clip}
    heading on screen. Measured: 640x400 went from top:-116 to a fully visible box. */
 @media (max-height:620px){
   .tools-legend-pop,.forge-legend-pop,.inbox-pop{
-    top:8px!important;bottom:auto!important;
-    max-height:calc(100vh - var(--dock-h,84px) - 24px)!important}
+    top:calc(8px + var(--claim-h,0px))!important;bottom:auto!important;
+    /* v1800 — max(), because on a 400px-tall viewport carrying BOTH the claim bar (147px, wrapped)
+       and the dock (178px) the honest remainder is 51px, and a 51px scroll box is not a panel a
+       person can read. Below that floor the panel is allowed to overlay the dock: the dock is
+       reachable again the moment the popover closes, whereas an unreadable popover is simply a
+       dead control. Arithmetic that is correct and useless is still useless. */
+    max-height:max(180px, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 24px))!important}
 }
 /* v1798 — AND THE INBOX POPOVER, which was left behind when its FAB joined the tray. The two
    lines above rebase the legend popovers onto --dock-h for exactly this reason; .inbox-pop still
@@ -40120,7 +40125,7 @@ html{overflow-x:clip}
    top is already off screen. Raising an anchor without re-budgeting the height moves the clipping
    rather than removing it. */
 .inbox-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important;
-  max-height:max(220px, min(70vh, calc(100vh - var(--dock-h,84px) - 190px)))!important}
+  max-height:max(180px, min(70vh, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 190px)))!important}
 /* routines bar shares the corner — parked LEFT of the tray column so they never overlap.
    v754 (item 7): the right offset now lives in the single clean base rule (no !important war). */
 /* v708.1 — backup-age nudge: one quiet toast above the dock, left side (tray owns the right) */
@@ -41179,6 +41184,37 @@ try {
   if (_tabsEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_chromeSync).observe(_tabsEl); }
   window.addEventListener('resize', _chromeSync);
   _chromeSync();
+} catch(e){}
+
+// v1800 — AND MEASURE #claim-bar THE SAME WAY, for the same reason one step further up the page.
+// The tray popovers are bottom-anchored and grow UPWARD, so at 1440x800 .tools-legend-pop topped
+// out at y=22 while #claim-bar (position:sticky, z-index:9997) occupies 0..88. The popover is
+// z-index:9001, so the bar wins: document.elementFromPoint over the popover's OWN ✕ returned
+// #claim-bar, and the close control was unclickable — rendered, styled, pointer-events:auto, and
+// unreachable. That is the reachability class, not a paint-order nicety: nothing about the pixels
+// says the button is dead. Measured here rather than hardcoded because the bar wraps to two rows
+// on a narrow viewport, which is exactly how --chrome-top's 70px guess went wrong in v708.1.
+// Defaults to 0 so the popovers give up nothing when the bar is absent (its usual state).
+try {
+  var _claimEl = document.getElementById('claim-bar');
+  var _claimSync = function(){
+    try {
+      var h = 0;
+      if (_claimEl && !_claimEl.hidden){
+        var r = _claimEl.getBoundingClientRect();
+        if (r.height > 0) h = Math.ceil(r.height) + 8;   // +8 = the gap the popovers already use
+      }
+      if (h > 260) h = 260;
+      document.documentElement.style.setProperty('--claim-h', h + 'px');
+    } catch(e){}
+  };
+  if (_claimEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_claimSync).observe(_claimEl); }
+  if (_claimEl && typeof MutationObserver !== 'undefined'){
+    // the bar is revealed by clearing [hidden], which no ResizeObserver reports on its own
+    new MutationObserver(_claimSync).observe(_claimEl, {attributes:true, attributeFilter:['hidden','style','class']});
+  }
+  window.addEventListener('resize', _claimSync);
+  _claimSync();
 } catch(e){}
 
 // v708.1 (Grok: 'backup nudge') — this data lives in ONE browser only. If the grail moved

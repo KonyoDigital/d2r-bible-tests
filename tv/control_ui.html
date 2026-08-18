@@ -2997,6 +2997,24 @@
      glance, never enough to look like a different component. */
   .tz-slot.next .tzz { opacity: .9; }
   .tz-slot.next .tzz-txt b { color: #e6dcc2; }
+  /* v1800 — ...BUT NOT QUIETER THAN A DEAD ZONE IS DEAD. Konyo: "the TZ TRACKER the next should
+     also be cancelled like out and also grey form ... greyed out and cancelled like the NOW for
+     tz tracker. symmetric and matching typography".
+
+     `.tz-slot.next .tzz` is specificity (0,3,0) and `.tzz-thin` is (0,1,0), so the column rule
+     OUTRANKED the verdict rule and every thin zone in UP NEXT painted at .9 instead of .3.
+     Measured on this file's own CSS: the identical Stony Field card renders opacity 0.3 under
+     LIVE NOW and 0.9 under UP NEXT. Worse than the asymmetry — in the UP NEXT column a THIN card
+     and a GOOD card were BOTH 0.9, so the tier that decides whether a window is worth playing was
+     invisible in the row whose entire job is telling him what is coming. v1587 wrote "i want it
+     to be greyed out really.. so its known" and the treatment was landing in one column only.
+
+     This is the file's own recurring trap (a later, more specific rule silently undoing an earlier
+     verdict — the same shape as the v1596 note eight lines up, which caught the font-weight half
+     of exactly this and missed the opacity half). Matched specificity, stated intent.
+     [[d2r-css-last-rule-wins]] */
+  .tz-slot.next .tzz-thin { opacity: .3; }
+  .tz-slot.next .tzz-thin:hover { opacity: .92; }
   /* ★ ALIVE. A slow breath on the live card and its art, so "this one is on right now" is legible
      from across the room and from peripheral vision — the thing a font size can never do. Gated on
      prefers-reduced-motion like every other animation here. */
@@ -5276,7 +5294,21 @@
     var tok = m[2].trim().toLowerCase();
     return _PIECE_SLOT_TOK[tok] ? m[1] : n;
   }
+  /* v1800 — THE EXACT INVERSE, defined touching its twin so the two cannot drift apart. What
+     _pieceLabel strips, this returns; what it keeps, this reports as ''. The pair has to agree,
+     because the defect that produced them was precisely two renderings of one name disagreeing:
+     the hero headline read "Telling of Beads" and a hover card on the same row read "Telling of
+     Beads (spired helm)". The base is real and worth showing — it just belongs on its own line,
+     not welded into the item's name in one of the two places it appears. */
+  function _pieceBase(name){
+    var n = (name == null ? '' : String(name));
+    var m = /^(.*\S)\s*\(([^()]*)\)\s*$/.exec(n);
+    if (!m) return '';
+    var tok = m[2].trim().toLowerCase();
+    return _PIECE_SLOT_TOK[tok] ? m[2].trim() : '';
+  }
   window._cPieceLabel = _pieceLabel;   // published so the SECOND script block (and specs) can reach it
+  window._cPieceBase  = _pieceBase;
   // v1604 — `ms` is optional and defaults to the old 2400. A refusal he must ACT on ("free 5GB and
   // press MINI again") cannot share a dwell time with "saved" — 2.4s is not long enough to read a
   // sentence, and a message that vanishes before it is read is the same as no message.
@@ -12327,12 +12359,25 @@
        BOARD already resolves for this exact reason (bible.html v1651, _setRepArtName -> first
        missing piece). Routes through the same door as the piece above it (_hubGoSetPiece with the
        piece's name) — clicking the SET's own name lands inside that same set, siblings and all. */
+    /* v1800 — ONE HUNT, ONE HOVER CARD. Konyo, on this row: "telling of beads and the disciple
+       there is a mismatch or unsynced .. should be one item not two.. confusing".
+
+       He is looking at two defects that read as one. FIRST, the two cards NAMED THE SAME ITEM
+       DIFFERENTLY: the headline runs top.name through _pieceLabel(), which strips a recognised
+       base token, so it read "Telling of Beads" — while this chip printed the RAW top.name and
+       read "Telling of Beads (spired helm)". Same item, same row, two spellings, depending only
+       on which word he happened to hover. (The DATA is right: it genuinely is a spired helm.)
+
+       SECOND, and the reason he says "one item not two": both chips open _hubGoSetPiece(top.name)
+       — the exact same destination — and both cards drew the same sprite, because an aggregate
+       set has no art of its own and meta.setArt falls back to the representative piece. So the
+       row offered two hover cards that pictured one thing, described one hunt and went one place.
+       The set chip keeps its click and its spoken label; what it loses is a second art card
+       restating the first. [[label-outlived-referent]] */
     var _setChip = setName ? ('<b class="hh-go' + _rarCls('set') + '" role="button" tabindex="0"'
       + ' aria-label="' + esc(setName) + ' — open it in the sets chronicle"'
-      + _itipAttr({ name: setName, art: meta.setArt || '', rarity: 'set',
-                    facts: [['next piece', top.name || ''],
-                            ['pieces left', meta.left ? String(meta.left) : '']],
-                    go: 'click to open it in the sets chronicle' })
+      + ' title="' + esc(setName) + ' — ' + (meta.left ? meta.left + ' piece' + (meta.left===1?'':'s') + ' left · ' : '')
+      + 'open it in the sets chronicle"'
       + ' onclick="event.stopPropagation();window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ')"'
       + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();event.preventDefault();'
       + 'window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ');}">'
@@ -12355,9 +12400,13 @@
            top.name, because _hubGoSetPiece matches exact-name first. */
         + ' aria-label="' + esc(_pieceLabel(top.name) || '') + (setName ? ' — a piece of ' + esc(setName) : '')
         + ' — open it in the sets chronicle"'
-        + _itipAttr({ name: top.name || '', art: meta.art || '', rarity: meta.rarity || 'set',
+        /* v1800 — _pieceLabel, not the raw name, so the card's title matches the headline it is
+           attached to. The base survives on its own line below rather than inside the name. */
+        + _itipAttr({ name: _pieceLabel(top.name) || top.name || '', art: meta.art || '',
+                      rarity: meta.rarity || 'set',
                       tip: meta.tip || null,
-                      facts: [['completes', setName || ''],
+                      facts: [['base', _pieceBase(top.name) || ''],
+                              ['completes', setName || ''],
                               ['pieces left', meta.left ? String(meta.left) : ''],
                               ['hunt at', top.source || ''],
                               ['to the next piece', hrs ? '≈ ' + hrs : '']],
