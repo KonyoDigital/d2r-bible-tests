@@ -5268,6 +5268,87 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-195 — a complete-set claim could never earn cross-reel, because merge_proposals REPLACED its evidence (v1798)
+
+**The most valuable finding of the arc, and it came from `/code-review`, not from me.** Reproduced
+before it was believed and before it was fixed.
+
+v1776 made the chronicle evidence ACCUMULATE — the fix that let a name seen in reel A on Monday
+corroborate one seen in reel B on Tuesday. It de-dupes sightings by `(reel, frame, lane)` and appends.
+Two keys were left on `dict.update`:
+
+```python
+for k in ("setGroups", "completeSets"):
+    out[k].update(src.get(k) or {})      # REPLACES the value
+```
+
+Measured on exactly the scenario the accumulator exists for — the same set read in two reels:
+
+| key | before the fix |
+|---|---|
+| `uniques` | 2 sightings → `witnesses ['cross-reel']` ✓ |
+| `completeSets` | reel A's sighting **gone**, `witnesses []` |
+| `setGroups` | `Adjudication` **lost**, only `Guardianship` survives |
+| `notFound` | key **dropped entirely** |
+
+`apply_proposal` gates a complete-set claim by the same `MIN_WITNESSES = 2` rule, and `witnesses()`
+returned `[]` — so **a set worth five pieces could never ground on cross-reel evidence, forever**. The
+uniques lane was fixed and its set-shaped twin was left running with the identical defect.
+
+Fixed by giving both keys the rule the loop above already had: `completeSets` de-dupes sightings by
+`(reel, frame, lane)` and appends; `setGroups` UNIONS its piece names, because a half-scrolled page
+showing three of five pieces must never delete the other two; and `notFound` is carried, because "the
+game says he has NOT found this" surviving one sweep and then vanishing is an absence nobody can act
+on. Verified after: 2 sightings, `['cross-reel']`, both pieces present — **and the same page twice is
+still ONE sighting**, so the de-dupe that stops a photograph corroborating itself survived the change.
+
+**And the test I had just written did not catch it.** `TestV1798TheSetsLaneHasATapEndToEnd` cited
+REG-181 in its own docstring while stopping at `proposal_from_pages` — `merge_proposals` sits between
+that and the fold on every production path, and it was the one step where the lane actually broke. A
+fixture built on the near side of the joint it claims to test is the blind-fixture shape. The class now
+runs the full chain and pins the joint directly. Its fixture also named "Tal Rasha's Howling Wind",
+which is not a D2R item; it passed only because `notFound` was never folded.
+
+---
+
+## REG-196 — the FAB joined the system tray and left its own popover behind (v1798)
+
+`.inbox-fab` was rebased onto the dock-relative tray at `calc(var(--dock-h,84px) + 170px)`.
+`.inbox-pop` kept `bottom:236px` — a static number tuned to the FAB's OLD position. The two lines
+directly above the new rule rebase `.forge-legend-pop` and `.tools-legend-pop` for exactly this reason;
+the inbox was left out.
+
+Not theoretical: `--dock-h` is measured live by a ResizeObserver, and it renders at **132px at 1440 and
+178px at 640**, not the 84px default. So the orb sat at 302px while its panel sat at 236px — **66px
+adrift at the widest viewport and worse at the narrow one**. A control and its panel that do not share
+an anchor drift apart on exactly the screens nobody tests on.
+
+**Also retired here:** the v1793 base `.inbox-fab` rule is now entirely dead — every declaration is
+overridden with `!important` 32k lines later — and its comment still described the old stack
+("help 146-190 / legend 250-294 / inbox 312-364") as live geometry. Someone tuning `bottom:312px` would
+have watched nothing move. Marked SUPERSEDED with a pointer rather than left to mislead.
+
+---
+
+## REG-197 — the review's better fix was necessary and not sufficient, and the measurement said so (v1798)
+
+Worth keeping because taking a good review finding wholesale would have swapped one visible defect for
+another.
+
+The 72px reserve I had added was, correctly, called out as treating a symptom: a `position:sticky` box
+TALLER than its scrollport stops pinning altogether, so over-tallness caused both the occlusion and a
+header that scrolls away, and `max-height` fixes both without spending row width where width is
+scarcest. `.inbox-pop` has carried `max-height:70vh;overflow:auto` since it was written; the sticky twin
+never got it.
+
+So the cap went in and the reserve came out — and the measurement refused it: with the reserve removed,
+`help-btn` still covered "put back" at 640 (20x19) and "ignore" at 1440 (25x22), because the panel runs
+to the right edge whatever its height. **Both are needed.** The reserve is now 64px rather than 72,
+which is what the orbs actually occupy (44px wide at `right:12px` → 12..56px from the edge). Final
+state, measured at 375 / 640 / 901 / 1440: pinned at every width, zero collisions.
+
+---
+
 ## REG-194 — the FALLBACK lane calls a Chronicle page a "transition", and the primary lane never does (v1797)
 
 **A correction to my own earlier finding, which is why it is written down.** I reported that "the

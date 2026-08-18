@@ -6910,5 +6910,106 @@ class TestV1795SetsFoldAgainstTheirOwnRoster(unittest.TestCase):
                          "the sets ledger was touched despite not being in `ledgers`")
 
 
+class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
+    """v1796 added a fold for sets; this asks the question that matters about it — does anything ever
+    PUT anything in the sets ledger for it to fold?
+
+    A fold with nothing upstream is plumbing with no tap, and this arc has produced that shape before
+    (REG-181: the vault sweep called a reader whose answer had no `items` key, so pages counted as
+    read, nothing ever grounded, and the reel was marked swept). Traced here with the real functions
+    and zero vision calls, because the whole chain is pure.
+
+    Also a note on how the trace was done, since it cost three wrong readings today: the page dict is
+    keyed `resp`, not `read`. Passing the wrong key returns an empty proposal from every ledger, which
+    looks exactly like a broken lane. Suspect the instrument first.
+    """
+
+    def _page(self, complete=True, reel="r1", frame="f1", merge=True):
+        """One sets page, through the REAL chain — including merge_proposals.
+
+        v1798 — the first cut of this class stopped at proposal_from_pages and a code review caught
+        it: merge_proposals sits between that and the fold on EVERY production path
+        (control_app _chron_evidence_merge), and it was the one step where the lane actually broke.
+        A fixture built on the near side of the joint it claims to test is the blind-fixture shape,
+        and this class had it while citing REG-181 in its own docstring.
+
+        The fixture also named "Tal Rasha's Howling Wind", which is not a D2R item — the set is
+        Adjudication / Fine-Spun Cloth / Guardianship / Horadric Crest / Lidless Eye. It passed only
+        because notFound was never folded; a real name is used now so the test cannot be green for a
+        reason unrelated to what it pins."""
+        import chronicle_retro as cr
+        read = {"ledger": "sets",
+                "found": ["Tal Rasha's Adjudication"],
+                "notFound": ["Tal Rasha's Lidless Eye"],
+                "sets": [{"set": "Tal Rasha's Wrappings (Sorc)",
+                          "pieces": ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"],
+                          "complete": complete}],
+                "conf": 0.9, "stateVisible": True, "wrongTab": False}
+        norm = cr.normalize_page(read, "chronicle-sets", "claude")
+        prop = cr.proposal_from_pages([{"kind": "chronicle-sets", "reel": reel,
+                                        "frame": frame, "resp": norm}])
+        return cr.merge_proposals({}, prop) if merge else prop
+
+    def test_a_sets_page_populates_the_sets_ledger(self):
+        p = self._page()
+        self.assertEqual(list(p["sets"]), ["Tal Rasha's Adjudication"],
+                         "a chronicle-sets page read a found piece and the sets ledger stayed empty")
+        self.assertEqual(p["pagesRead"], 1)
+
+    def test_the_pieces_reach_setGroups_and_the_unfound_one_is_not_claimed(self):
+        p = self._page()
+        self.assertEqual(sorted(p["setGroups"]["Tal Rasha's Wrappings (Sorc)"]),
+                         ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"])
+        self.assertIn("Tal Rasha's Lidless Eye", p["notFound"]["sets"])
+        self.assertNotIn("Tal Rasha's Lidless Eye", p["sets"])
+
+    def test_complete_true_is_the_claim_and_complete_false_is_not(self):
+        self.assertEqual(list(self._page(complete=True)["completeSets"]),
+                         ["Tal Rasha's Wrappings (Sorc)"])
+        self.assertEqual(list(self._page(complete=False)["completeSets"]), [],
+                         "a set the game did NOT call complete was claimed complete")
+
+    def test_two_reels_corroborate_a_complete_set_claim(self):
+        """THE JOINT the first version of this class skipped. merge_proposals used dict.update on
+        setGroups/completeSets, so the second reel REPLACED the first's evidence: witnesses() came
+        back [] and apply_proposal gates a complete-set claim by the same MIN_WITNESSES = 2 rule, so
+        a set worth five pieces could never ground on cross-reel evidence. Reproduced, then fixed."""
+        import chronicle_retro as cr
+        a = self._page(reel="A", frame="f1")
+        b = self._page(reel="B", frame="f9")
+        m = cr.merge_proposals(a, b)
+        claim = m["completeSets"]["Tal Rasha's Wrappings (Sorc)"]
+        self.assertEqual(len(claim), 2, "the second reel replaced the first's evidence")
+        self.assertIn("cross-reel", cr.witnesses(claim))
+        self.assertEqual(sorted(m["setGroups"]["Tal Rasha's Wrappings (Sorc)"]),
+                         ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"])
+
+    def test_the_same_page_twice_is_still_ONE_sighting(self):
+        """The de-dupe must survive the fix — two reads of one photograph are not corroboration."""
+        import chronicle_retro as cr
+        a = self._page(reel="A", frame="f1")
+        m = cr.merge_proposals(a, a)
+        self.assertEqual(len(m["completeSets"]["Tal Rasha's Wrappings (Sorc)"]), 1)
+        self.assertEqual(cr.witnesses(m["completeSets"]["Tal Rasha's Wrappings (Sorc)"]), [])
+
+    def test_notFound_survives_the_merge(self):
+        """It was dropped entirely: "the game says he has NOT found this" lasted one sweep and
+        vanished. An absence that cannot be carried is an absence nobody can act on."""
+        import chronicle_retro as cr
+        m = cr.merge_proposals(self._page(reel="A"), self._page(reel="B", frame="f9"))
+        self.assertIn("Tal Rasha's Lidless Eye", m["notFound"]["sets"])
+
+    def test_the_fold_turns_the_bare_row_into_the_canonical_ledger_name(self):
+        """The join between the two halves: the Chronicle prints the BARE piece name, the board stores
+        the SUFFIXED one, and v1796's fold is what makes them the same item."""
+        import chronicle_resolve as res
+        p = self._page()
+        folded, rep = res.fold_proposal(p, res.load_roster(), ledgers=("sets",),
+                                        set_roster=res.load_set_roster())
+        self.assertEqual(list(folded["sets"]), ["Tal Rasha's Adjudication (amulet)"])
+        self.assertEqual(rep["retired"], [],
+                         "a real set piece was retired as debris by its own ledger's fold")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

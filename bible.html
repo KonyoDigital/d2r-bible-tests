@@ -7719,7 +7719,10 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
    filing cabinet v1760 was written to end. It sits above them at bottom:236px so the three never
    collide, and it HIDES ITSELF when nothing is waiting — a badge that is always there is a badge
    nobody reads. */
-/* v1793 — THE FAB STACK, MEASURED. The inbox sat at bottom:236px (52px tall, so 236-288) and the
+/* v1793 (SUPERSEDED by v1798 — see the system-tray block near the end of this file; every
+   declaration below is overridden there with !important, so tuning these numbers moves nothing).
+   Kept for the measurement it records, not as live geometry.
+   THE FAB STACK, MEASURED. The inbox sat at bottom:236px (52px tall, so 236-288) and the
    Forge/Tools legend compass sits at bottom:250px (44px tall, so 250-294). A 38px overlap on both
    of those tabs — his screenshot, then confirmed with getBoundingClientRect: inbox x1353-1405 vs
    compass x1373-1417. Neither element is wrong on its own; they were placed by two different
@@ -7757,10 +7760,41 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-pop .ibp-b:hover{border-color:#f0c060;color:#fff}
 .inbox-pop .ibp-ok{border-color:rgba(102,255,136,.45);color:#66ff88}
 .inbox-sticky{display:none}
+/* v1798 — KEEP THE ROWS OUT FROM UNDER THE FLOATING BUTTONS. The sticky is in FLOW and the help
+   button and legend compass are position:fixed on top of it, so on a narrow screen the right
+   end of every row ran underneath them: at 375px the compass covered the Bloodrist row's
+   'ignore', truncating it to 'ignc'. Reserving the FAB column costs a little width and makes
+   every button reachable.
+   FOUND BY THE SECOND EYE, and my own geometry check MISSED it — the collision scan filtered
+   fixed elements to width<120px and the compass with its glow is wider, so the one element
+   causing the defect was the one my filter excluded. A cross-family look caught what the
+   measurement was blind to. */
 .inbox-sticky.has{display:block;position:sticky;top:8px;z-index:60;margin:0 0 14px;
   background:rgba(16,13,9,.985);border:1px solid var(--rune,#e0b96a);border-radius:12px;
   padding:14px 16px;font-size:12px;line-height:var(--lh-normal,1.5);
   box-shadow:0 6px 26px rgba(0,0,0,.55)}
+
+/* v1798 — AFTER the base rule, not before it. Placed above, this lost to `.inbox-sticky.has`'s
+   own `padding:14px 16px` at equal specificity — last declaration wins — and computed back to
+   16px, so the reserve never existed. The screenshot that looked fixed was a scroll artifact,
+   not a fix. Same class as the .hero-title four-rule scar.
+   AND IT IS UNCONDITIONAL, not @media (max-width:900px). Scoping it to narrow screens was
+   guessing that crowding is a narrow-screen problem; measured, the fixed overlays sit on the
+   right at EVERY width — at 901 the nav-widget covered 'put back' (62x19) and at 1440 the
+   help button covered 'ignore' (25x22). The column has to be reserved everywhere. */
+/* v1798 — MAX-HEIGHT, NOT A RESERVED COLUMN. The 72px reserve treated a symptom: the panel only
+   reaches the bottom-right orbs when it is tall enough to span most of the viewport, and a
+   position:sticky box TALLER than its scrollport stops pinning altogether — so the same
+   over-tallness caused both the occlusion and a header that scrolls away. Capping the height
+   fixes both and costs no row width at 375px, where width is scarcest. .inbox-pop has carried
+   max-height:70vh;overflow:auto since it was written; the sticky twin never got it.
+   Proposed by the code review, then MEASURED at 375 / 640 / 901 / 1440 — and the measurement
+   said the cap is necessary but NOT sufficient: with the reserve removed, help-btn still
+   covered 'put back' at 640 (20x19) and 'ignore' at 1440 (25x22), because the panel runs to
+   the right edge whatever its height. So both, and the reserve drops 72px -> 64px, which is
+   what the orbs actually occupy (44px wide at right:12px = 12..56px from the edge). Taking
+   the review's fix wholesale would have swapped one visible defect for another. */
+.inbox-sticky.has{max-height:calc(100vh - 24px);overflow:auto;padding-right:64px}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
 .inbox-sticky .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
@@ -40031,9 +40065,26 @@ html{overflow-x:clip}
 .tools-legend-fab{bottom:calc(var(--dock-h,84px) + 170px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:21px!important;z-index:230!important}
 /* v708 — with the 🧰 orb retired, the 🧭 tools map takes the S2 context slot (3-orb cap) */
 .tools-legend-fab{bottom:calc(var(--dock-h,84px) + 118px)!important}
+/* v1798 — THE INBOX JOINS THE TRAY INSTEAD OF SITTING BESIDE IT. It was added at a hardcoded
+   bottom:312px / 52px, positioned by MEASURING pixels rather than by taking a slot — so it did not
+   move with the others when --dock-h changed, and it was a fourth orb in a column v708 capped at
+   three on Grok's own advice. That is why it collided with the S2 legend in the first place: the
+   fix for that was 'move it up 76px', which treats the symptom of not being in the system.
+   S3 is free — v708 moved the tools map DOWN to S2 — so the inbox takes S3 at the same right edge,
+   the same 44px, the same z-band, and the same dock-relative anchor. Found by sweeping the class
+   after fixing one member of it, which is the only reason the tray was read at all. */
+.inbox-fab{bottom:calc(var(--dock-h,84px) + 170px)!important;right:12px!important;
+  width:44px!important;height:44px!important;font-size:19px!important;z-index:230!important}
 /* their popovers open beside the column, not under it */
 .forge-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important}
 .tools-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important}
+/* v1798 — AND THE INBOX POPOVER, which was left behind when its FAB joined the tray. The two
+   lines above rebase the legend popovers onto --dock-h for exactly this reason; .inbox-pop still
+   carried bottom:236px, a static number tuned to the FAB's OLD bottom:312px. --dock-h is 84px at
+   :root, 118px at the <=700px breakpoint, and MEASURED LIVE by a ResizeObserver — so on a taller
+   dock the orb climbed and its own panel stayed put. A control and its panel that do not share an
+   anchor drift apart on exactly the screens nobody tests on. Found by code review. */
+.inbox-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important}
 /* routines bar shares the corner — parked LEFT of the tray column so they never overlap.
    v754 (item 7): the right offset now lives in the single clean base rule (no !important war). */
 /* v708.1 — backup-age nudge: one quiet toast above the dock, left side (tray owns the right) */
@@ -41217,7 +41268,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1797', name:'v1797 - the retired rows sat a pixel apart', date:'2026-08-18', note:'a button is taller than the text it stands in for' };
+  window.D2R_BUILD = { id:'v1798', name:'v1798 - the set claim could never earn a second witness', date:'2026-08-18', note:'merge replaced the evidence it was written to accumulate' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

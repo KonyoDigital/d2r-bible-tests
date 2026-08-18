@@ -1015,7 +1015,7 @@ def merge_proposals(base, incoming):
     the chronicle path never got it.
     """
     out = {"uniques": {}, "sets": {}, "setGroups": {}, "completeSets": {}, "refused": [],
-           "pagesRead": 0, "pagesRefused": 0}
+           "pagesRead": 0, "pagesRefused": 0, "notFound": {"uniques": set(), "sets": set()}}
     for src in (base or {}, incoming or {}):
         if not isinstance(src, dict):
             continue
@@ -1029,8 +1029,36 @@ def merge_proposals(base, incoming):
                         continue
                     seen.add(key)
                     bucket.append(sg)
-        for k in ("setGroups", "completeSets"):
-            out[k].update(src.get(k) or {})
+        # v1798 — AND THE SAME RULE FOR THE SET KEYS, which v1776 left on `.update`.
+        #
+        # `dict.update` REPLACES the value, so the second proposal's evidence overwrote the first's:
+        # a complete-set claim seen in reel A on Monday and reel B on Tuesday came out holding only
+        # reel B's sighting, `witnesses()` returned [] instead of ['cross-reel'], and apply_proposal
+        # gates that claim by the same MIN_WITNESSES = 2 rule — so a set worth FIVE pieces could never
+        # ground on cross-reel evidence, forever. Exactly the defect v1776 was written to kill, in the
+        # two keys the loop above did not cover. Found by a code review; reproduced before fixing.
+        #
+        # completeSets holds SIGHTINGS, so it de-dupes by (reel, frame, lane) like a name does.
+        # setGroups holds a set of PIECE NAMES seen under one set heading — a union, because a
+        # half-scrolled page showing three of five pieces must never delete the other two.
+        for name, sightings in (src.get("completeSets") or {}).items():
+            bucket = out["completeSets"].setdefault(name, [])
+            seen = {(x.get("reel"), x.get("frame"), x.get("lane")) for x in bucket}
+            for sg in (sightings or []):
+                key = (sg.get("reel"), sg.get("frame"), sg.get("lane"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                bucket.append(sg)
+        for name, pieces in (src.get("setGroups") or {}).items():
+            out["setGroups"].setdefault(name, set()).update(set(pieces or ()))
+        # notFound was dropped entirely by the old merge, so "the game says he has NOT found this"
+        # survived one sweep and then vanished — an absence that cannot be carried is an absence
+        # nobody can act on.
+        nf = src.get("notFound") or {}
+        if isinstance(nf, dict):
+            for ledger, names in nf.items():
+                out.setdefault("notFound", {}).setdefault(ledger, set()).update(set(names or ()))
         out["refused"].extend(src.get("refused") or [])
         for k in ("pagesRead", "pagesRefused"):
             out[k] += int(src.get(k) or 0)

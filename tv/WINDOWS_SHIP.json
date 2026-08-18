@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1797",
+  "ver": "v1798",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1797: a button is taller than the text it stands in for",
+  "note": "v1798: merge replaced the evidence it was written to accumulate",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
