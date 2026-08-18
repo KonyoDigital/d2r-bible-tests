@@ -40106,7 +40106,23 @@ html{overflow-x:clip}
 .forge-legend-fab{bottom:calc(var(--dock-h,84px) + 118px)!important;right:12px!important;width:44px!important;height:44px!important;z-index:230!important}
 .forge-legend-fab img{width:27px!important;height:27px!important}
 .tools-legend-fab{bottom:calc(var(--dock-h,84px) + 170px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:21px!important;z-index:230!important}
-/* v708 — with the 🧰 orb retired, the 🧭 tools map takes the S2 context slot (3-orb cap) */
+/* v708 — with the 🧰 orb retired, the 🧭 tools map takes the S2 context slot (3-orb cap).
+   ⚠ v1805 — THE CAP SAYS THREE AND THE TRAY SHOWS FOUR. v1798 gave the inbox orb slot S3, the
+   one v708 had just emptied, so on the Forge and Tools tabs the column is help(S0) · nav(S1) ·
+   context legend(S2) · inbox(S3). Everywhere else it is three, because the legend fabs are
+   tab-scoped and the inbox orb is hidden on Sessions (the sticky panel replaces it there).
+   Recording the real number rather than leaving a cap nobody is enforcing: a rule stated in a
+   comment and contradicted by the file under it stops being a rule and starts being furniture,
+   and the next person to add an orb reads "3" and assumes there is room. Whether four is one too
+   many is a LAYOUT question and gets measured, not asserted here. [[label-outlived-referent]]
+
+   ⚠ AND THE RULE ABOVE THIS ONE IS HALF DEAD. The .tools-legend-fab block two lines up still
+   declares bottom:+170px (slot S3); this line overrides it and, being later at equal specificity
+   with !important on both, wins — so the +170px is inert while the right/width/height/font-size/
+   z-index in that same block are live. Editing that 170 changes nothing, silently, which is the
+   trap this file has a carved scar for. It is left in place rather than merged because the block
+   is the fab's only home for those other five properties; this note is the warning.
+   [[d2r-css-last-rule-wins]] */
 .tools-legend-fab{bottom:calc(var(--dock-h,84px) + 118px)!important}
 /* v1798 — THE INBOX JOINS THE TRAY INSTEAD OF SITTING BESIDE IT. It was added at a hardcoded
    bottom:312px / 52px, positioned by MEASURING pixels rather than by taking a slot — so it did not
