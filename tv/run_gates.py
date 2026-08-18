@@ -128,6 +128,15 @@ GATES = [
              "This extracts the SHIPPED block out of bible.html, runs it in node, and fails on the "
              "first name where the two disagree — a drifted cutoff folds 'Gul' onto 'Gull' and "
              "writes a find he never made"),
+    Gate("test_vault_lane", [sys.executable, os.path.join(HERE, "test_vault_lane.py")], 420,
+         why="v1795 — the vault lane decides what he KEEPS and what it dares suggest he "
+             "bins, and it has never run on real footage (0 of 17 reels declare an "
+             "ownership surface, REG-185). These scenarios drive the REAL sweep over his "
+             "REAL reels with only the reader injected, and pin the asymmetry he asked "
+             "about: repetition makes an item more OWNED and must never make it closer to "
+             "being thrown away. Also pins the ONE KEY — at most one lane is ever "
+             "unlocked, and a frame claiming both a stash panel and a chronicle tab "
+             "unlocks nothing."),
     Gate("chronicle-doctor", [sys.executable, os.path.join(HERE, "chronicle_doctor.py")], 120,
          why="the arc is wired on THIS machine — lanes, footage, board build"),
     Gate("test_stash_eye_aspect", [sys.executable, os.path.join(HERE, "test_stash_eye_aspect.py")], 120,

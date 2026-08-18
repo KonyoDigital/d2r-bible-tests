@@ -5268,6 +5268,88 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-189 — a pixel gate calls his CHRONICLE page a stash panel, and agrees it is open (v1795)
+
+**Found by opening a frame the detector had classified, rather than trusting the label.**
+
+Sampling every reel through `stash_eye.classify_stash_grid` returned 87 recognised panels. Two were
+opened and looked at:
+
+| frame | classify | frac_dark | dark cols | `_panel_open_from_features` |
+|---|---|---|---|---|
+| gameplay, entering Nihlathak's Temple | `stash` | 0.7778 | 53 | False — caught |
+| **the in-game CHRONICLE panel** | `stash` | 0.5364 | 11 | **True — accepted** |
+
+The Chronicle page sits inside every stash threshold: dark cells in range, a visible column lattice,
+not-a-photograph. It is a grid of dark rows behind item icons, which is exactly what the fingerprint
+was built to recognise. **A cheap pixel gate cannot tell these apart, and nothing about the numbers
+hints that it failed** — the reading is confident and wrong.
+
+**Not exploitable today, and that is luck rather than design.** The live vault sweep classifies with
+`tv_diablo.claude_read`, and asked about those same two frames it answered `scene: transition` and
+`scene: gameplay`, both with `stashTab: ""` — so `_surface_of` returns None and neither page is read.
+The pixel path is used for cheaper purposes. But two lanes were each guarding themselves with
+different instruments and no shared answer, which is how one of them eventually reads a Chronicle row
+into the OWNERSHIP ledger.
+
+**Fixed by making it one decision.** `tv/lane_lock.py` is now the only function allowed to answer what
+a frame may write to: at most ONE lane is ever unlocked, and a frame that claims both a stash panel and
+a chronicle tab unlocks NOTHING. The asymmetry is why locking is right — a Chronicle row filed as
+ownership claims he owns an item he merely saw listed; a stash item filed as a chronicle find ticks a
+grail row he never earned. Locking costs one unread page.
+
+**Guards:** `TestLaneLock` — stash unlocks the vault and locks the chronicle; the tab he clicked is the
+only ledger unlocked; gameplay unlocks nothing; a frame claiming both unlocks nothing; and `may_write`
+refuses a SETS write on the uniques tab.
+
+---
+
+## REG-190 — the runewords tab cannot be seen by anything, at any layer (v1795)
+
+Konyo, describing the focus logic: *"so either UNIQUES or SETS or RUNEWORDS ... something should switch
+on and off some sort of engine or key like that unlocks or locks."*
+
+Measured across the whole path: the classifier prompt enumerates only `"uniques"` and `"sets"`;
+`_norm_chron_tab("runewords")` returns `""`; `chronicle_kind({"chronicleTab": "runewords"})` returns
+`None`. **Three layers, none of which can express the third tab**, while the tab is plainly visible in
+his own footage next to Unique and Sets.
+
+Deliberately NOT half-wired. Teaching the parser to accept the word without a reader lane, an intake
+kind and a fold would produce a tab that unlocks and then reads nothing — a dark lane that looks
+supported. `lane_lock` CAN return a runewords ledger the moment something upstream produces one, and a
+test pins all three refusals so the gap is a KNOWN dark path rather than a surprise.
+
+---
+
+## REG-191 — the vault lane had never been run, so "what it would do" was theory (v1795)
+
+His question, and it is the right one to ask of a lane nobody has exercised: *"lets say im playing
+ingame ... and it reads my inventory and sees the item two or three times lets say.. what exactly does
+it do? because based on the item it reads it doesnt necesarily have to discard all... it should tell me
+to mule it."*
+
+**Answered by running it, not by reading it.** `tv/vault_simulate.py` drives the REAL sweep over his
+REAL reels — real frame names, real timestamps, real still-run grouping — injecting only the reader's
+answer, since that is the one thing the archive lacks:
+
+    one look at a Shako            -> UNSURE, never owned
+    the Shako in TWO recordings    -> OWN, to the Vault manager for a mule and a cell
+    junk flagged, ONE recording    -> HELD, suggests nothing ("needs 3")
+    junk flagged, THREE recordings -> DISCARD, suggestion only
+    a Shako in THREE recordings    -> OWN, and NOTHING in discard
+    a later read of 2 after a 5    -> count stays 5
+
+The fifth line is the rule he was checking for, and it holds because `throwOut` reads the READER's junk
+flag (`raw.get("throwOut") is True`) and never the witness count. Repetition decides whether he OWNS a
+thing; only the reader's own flag can propose a discard, and then only across three recordings.
+
+**Still open and stated rather than implied:** `vault_retro.py` contains zero occurrences of
+mule/destination/route. It says WHAT he owns and never WHERE it goes — the mule and cell are computed
+board-side by the Vault manager's packer at render time. The chain looks complete (accept →
+`tvVaultRegister` → packer) but cannot be proven end to end until one stash session exists to run it on.
+
+---
+
 ## REG-187 — a grey Chronicle row is the game saying NOT FOUND, and it was reaching him as a decision (v1793)
 
 Konyo, looking at Ancient Sword / Basinet / Battle Hammer sitting in his inbox: *"this is not properly

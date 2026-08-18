@@ -27,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 BIBLE = os.path.join(REPO, "bible.html")
 OUT = os.path.join(HERE, "unique_roster.json")
+SET_OUT = os.path.join(HERE, "set_roster.json")
 
 # Each roster input is declared on ONE line in bible.html; hashing the declarations catches an item
 # added, renamed or removed without reading the whole 43k-line file.
@@ -61,7 +62,14 @@ def load(path=OUT):
 
 
 def is_stale(path=OUT, bible_path=BIBLE):
-    """-> (stale: bool, why: str). Missing artifact counts as stale, never as fine."""
+    """-> (stale: bool, why: str). Missing artifact counts as stale, never as fine.
+
+    v1795 — checks BOTH artifacts. They share one sourceHash because SOURCE_DECLS already covers the
+    set declarations (ITEM_SETS / SET_PIECES_EXTRA / SET_PIECES_EXTRA2) as well as the unique ones, so
+    a change to either side invalidates both. A set_roster.json that quietly went missing would make
+    the sets fold silently do nothing."""
+    if not os.path.exists(SET_OUT):
+        return True, "set_roster.json does not exist — run: python3 tv/roster_sync.py --write"
     if not os.path.exists(path):
         return True, "unique_roster.json does not exist"
     try:
@@ -75,11 +83,50 @@ def is_stale(path=OUT, bible_path=BIBLE):
     if got != want:
         return True, "bible.html roster sources changed (%s -> %s); run: python3 tv/roster_sync.py --write" % (
             str(got)[:12], want[:12])
-    return False, "in sync (%d names)" % len(doc["names"])
+    try:
+        with open(SET_OUT, "r", encoding="utf-8") as fh:
+            sdoc = json.load(fh)
+    except Exception as exc:
+        return True, "set_roster.json is unreadable: %s" % exc
+    if not (sdoc.get("pieces") or []):
+        return True, "set_roster.json holds no pieces"
+    if sdoc.get("sourceHash") != want:
+        return True, "bible.html set sources changed; run: python3 tv/roster_sync.py --write"
+    return False, "in sync (%d names, %d set pieces)" % (len(doc["names"]), len(sdoc["pieces"]))
+
+
+def fetch_sets_via_cdp(send, sleep_done=True):
+    """The set catalogue, from bible.html's own __allSets() — 34 sets / 135 pieces when this shipped.
+
+    v1795 — SETS GET THE SAME TREATMENT AS UNIQUES, which is the point: one architecture, two ledgers.
+    Pieces are stored SUFFIXED ("Tal Rasha's Adjudication (amulet)") because that is the LEDGER form,
+    while the in-game Chronicle row prints the BARE name. `_norm` already strips the parenthetical, so
+    both collapse to one key and the canonical stays the suffixed form — which is what d2r_setPieces
+    and the board store.
+
+    Measured before relying on any of it: 135 pieces produce 135 DISTINCT normalised keys (no two
+    pieces collide) and ZERO of those keys also match a unique roster name. So a name cannot be both a
+    unique and a set piece, and the two ledgers can be folded independently without leaking into each
+    other. Both facts are pinned by tests, because either one silently becoming false would let a set
+    piece land in the uniques tally."""
+    import json as _json
+    res = send("Runtime.evaluate",
+               expression="""(function(){try{
+                 return JSON.stringify((typeof __allSets==='function'?__allSets():[]).map(function(s){
+                   return {set:String(s.name||s.set||''), pieces:(s.pieces||[]).map(String)};}));
+               }catch(e){return ''}})()""",
+               returnByValue=True)
+    raw = (res.get("result", {}).get("result") or {}).get("value")
+    if not raw:
+        raise RuntimeError("the page returned no set catalogue — __allSets is gone or it did not load")
+    sets = _json.loads(raw)
+    if len(sets) < 20:
+        raise RuntimeError("only %d sets came back; refusing to write a short catalogue" % len(sets))
+    return sets
 
 
 def fetch_via_cdp(port=9224, timeout=180):
-    """Ask the real page. Returns the roster list."""
+    """Ask the real page. Returns (roster list, set catalogue)."""
     import time
     import urllib.request
     import websocket  # noqa: F401  — only needed on the --write path
@@ -112,7 +159,7 @@ def fetch_via_cdp(port=9224, timeout=180):
         # Never overwrite a good artifact with a half-loaded page. 398 measured 2026-08-18.
         raise RuntimeError("roster came back with only %d names; refusing to write a short roster"
                            % len(names))
-    return names
+    return names, fetch_sets_via_cdp(send)
 
 
 def main(argv):
@@ -124,7 +171,7 @@ def main(argv):
         for i, a in enumerate(argv):
             if a == "--port" and i + 1 < len(argv):
                 port = int(argv[i + 1])
-        names = fetch_via_cdp(port=port)
+        names, sets = fetch_via_cdp(port=port)
         doc = {
             "_comment": "GENERATED from bible.html window._gUniqueRoster(). Do not hand-edit — "
                         "run: python3 tv/roster_sync.py --write",
@@ -136,6 +183,20 @@ def main(argv):
             json.dump(doc, fh, ensure_ascii=False, indent=1)
             fh.write("\n")
         print("wrote %s — %d names, sourceHash %s" % (OUT, len(names), doc["sourceHash"][:12]))
+        pieces = sorted({p for s in sets for p in (s.get("pieces") or [])})
+        sdoc = {
+            "_comment": "GENERATED from bible.html __allSets(). Do not hand-edit — "
+                        "run: python3 tv/roster_sync.py --write",
+            "sourceHash": doc["sourceHash"],
+            "setCount": len(sets),
+            "pieceCount": len(pieces),
+            "sets": {str(s.get("set")): sorted(s.get("pieces") or []) for s in sets},
+            "pieces": pieces,
+        }
+        with open(SET_OUT, "w", encoding="utf-8") as fh:
+            json.dump(sdoc, fh, ensure_ascii=False, indent=1)
+            fh.write("\n")
+        print("wrote %s — %d sets, %d pieces" % (SET_OUT, len(sets), len(pieces)))
         return 0
     stale, why = is_stale()
     print(("STALE: " if stale else "OK: ") + why)

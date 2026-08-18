@@ -1,0 +1,348 @@
+{
+ "_comment": "GENERATED from bible.html __allSets(). Do not hand-edit — run: python3 tv/roster_sync.py --write",
+ "sourceHash": "a364e7b4f6114747d79bbcf9c2736d5269d57b8f6648d847a47de1da3c47ef7f",
+ "setCount": 34,
+ "pieceCount": 135,
+ "sets": {
+  "Tal Rasha's Wrappings (Sorc)": [
+   "Tal Rasha's Adjudication (amulet)",
+   "Tal Rasha's Fine-Spun Cloth (belt)",
+   "Tal Rasha's Guardianship (armor)",
+   "Tal Rasha's Horadric Crest (helm)",
+   "Tal Rasha's Lidless Eye (orb)"
+  ],
+  "Trang-Oul's Avatar (Necro)": [
+   "Trang-Oul's Claws (gloves)",
+   "Trang-Oul's Girth (belt)",
+   "Trang-Oul's Guise (helm)",
+   "Trang-Oul's Scales (armor)",
+   "Trang-Oul's Wing (shield)"
+  ],
+  "Immortal King (Barb)": [
+   "Immortal King's Detail (belt)",
+   "Immortal King's Forge (gloves)",
+   "Immortal King's Pillar (boots)",
+   "Immortal King's Soul Cage (armor)",
+   "Immortal King's Stone Crusher (hammer)",
+   "Immortal King's Will (helm)"
+  ],
+  "M'avina's Battle Hymn (Ama)": [
+   "M'avina's Caster (bow)",
+   "M'avina's Embrace (armor)",
+   "M'avina's Icy Clutch (gloves)",
+   "M'avina's Tenet (belt)",
+   "M'avina's True Sight (helm)"
+  ],
+  "Natalya's Odium (Sin)": [
+   "Natalya's Mark (boots)",
+   "Natalya's Shadow (armor)",
+   "Natalya's Soul (claws)",
+   "Natalya's Totem (helm)"
+  ],
+  "Griswold's Legacy (Pala)": [
+   "Griswold's Heart (armor)",
+   "Griswold's Honor (shield)",
+   "Griswold's Redemption (scepter)",
+   "Griswold's Valor (helm)"
+  ],
+  "Aldur's Watchtower (Druid)": [
+   "Aldur's Advance (boots)",
+   "Aldur's Deception (armor)",
+   "Aldur's Rhythm (mace)",
+   "Aldur's Stony Gaze (helm)"
+  ],
+  "Bul-Kathos' Children (Barb)": [
+   "Bul-Kathos' Sacred Charge (sword)",
+   "Bul-Kathos' Tribal Guardian (sword)"
+  ],
+  "Iratha's Finery": [
+   "Iratha's Coil (helm)",
+   "Iratha's Collar (amulet)",
+   "Iratha's Cord (belt)",
+   "Iratha's Cuff (gloves)"
+  ],
+  "Sigon's Complete Steel": [
+   "Sigon's Gage (gloves)",
+   "Sigon's Guard (shield)",
+   "Sigon's Sabot (boots)",
+   "Sigon's Shelter (armor)",
+   "Sigon's Visor (helm)",
+   "Sigon's Wrap (belt)"
+  ],
+  "Angelic Raiment": [
+   "Angelic Halo (ring)",
+   "Angelic Mantle (armor)",
+   "Angelic Sickle (sword)",
+   "Angelic Wings (amulet)"
+  ],
+  "Cathan's Traps": [
+   "Cathan's Mesh (chainmail)",
+   "Cathan's Rule (rod)",
+   "Cathan's Seal (ring)",
+   "Cathan's Sigil (amulet)",
+   "Cathan's Visage (mask)"
+  ],
+  "Cow King's Leathers (set)": [
+   "Cow King's Hide (studded leather)",
+   "Cow King's Hooves (heavy boots)",
+   "Cow King's Horns (war bonnet)"
+  ],
+  "Sazabi's Grand Tribute": [
+   "Sazabi's Cobalt Redeemer (cryptic sword)",
+   "Sazabi's Ghost Liberator (balrog skin)",
+   "Sazabi's Mental Sheath (basinet)"
+  ],
+  "Naj's Ancient Vestige": [
+   "Naj's Circlet (circlet)",
+   "Naj's Light Plate (hellforge plate)",
+   "Naj's Puzzler (elder staff)"
+  ],
+  "Orphan's Call (set)": [
+   "Guillaume's Face (winged helm)",
+   "Magnus' Skin (sharkskin gloves)",
+   "Whitstan's Guard (round shield)",
+   "Wilhelm's Pride (battle belt)"
+  ],
+  "Sander's Folly (set)": [
+   "Sander's Paragon (cap)",
+   "Sander's Riprap (heavy boots)",
+   "Sander's Superstition (bone wand)",
+   "Sander's Taboo (heavy gloves)"
+  ],
+  "Tancred's Battlegear (set)": [
+   "Tancred's Crowbill (military pick)",
+   "Tancred's Hobnails (light plated boots)",
+   "Tancred's Skull (bone helm)",
+   "Tancred's Spine (full plate mail)",
+   "Tancred's Weird (amulet)"
+  ],
+  "The Disciple (set)": [
+   "Credendum (mithril coil)",
+   "Dark Adherent (dusk shroud)",
+   "Laying of Hands (bramble mitts)",
+   "Rite of Passage (sharkskin boots)",
+   "Telling of Beads (spired helm)"
+  ],
+  "Heaven's Brethren (set)": [
+   "Dangoon's Teaching (reinforced mace)",
+   "Haemosu's Adamant (cuirass)",
+   "Ondal's Almighty (spired helm)",
+   "Taebaek's Glory (ward)"
+  ],
+  "Hwanin's Majesty (set)": [
+   "Hwanin's Blessing (belt)",
+   "Hwanin's Justice (bill)",
+   "Hwanin's Refuge (tigulated mail)",
+   "Hwanin's Splendor (grand crown)"
+  ],
+  "Arcanna's Tricks (set)": [
+   "Arcanna's Deathwand (staff)",
+   "Arcanna's Flesh (armor)",
+   "Arcanna's Head (helm)",
+   "Arcanna's Sign (amulet)"
+  ],
+  "Arctic Gear (set)": [
+   "Arctic Binding (belt)",
+   "Arctic Furs (armor)",
+   "Arctic Horn (bow)",
+   "Arctic Mitts (gloves)"
+  ],
+  "Berserker's Arsenal (set)": [
+   "Berserker's Hatchet (axe)",
+   "Berserker's Hauberk (armor)",
+   "Berserker's Headgear (helm)"
+  ],
+  "Civerb's Vestments (set)": [
+   "Civerb's Cudgel (scepter)",
+   "Civerb's Icon (amulet)",
+   "Civerb's Ward (shield)"
+  ],
+  "Cleglaw's Brace (set)": [
+   "Cleglaw's Claw (shield)",
+   "Cleglaw's Pincers (gloves)",
+   "Cleglaw's Tooth (sword)"
+  ],
+  "Death's Disguise (set)": [
+   "Death's Guard (belt)",
+   "Death's Hand (gloves)",
+   "Death's Touch (sword)"
+  ],
+  "Hsarus' Defense (set)": [
+   "Hsarus' Iron Fist (shield)",
+   "Hsarus' Iron Heel (boots)",
+   "Hsarus' Iron Stay (belt)"
+  ],
+  "Infernal Tools (set)": [
+   "Infernal Cranium (helm)",
+   "Infernal Sign (belt)",
+   "Infernal Torch (wand)"
+  ],
+  "Isenhart's Armory (set)": [
+   "Isenhart's Case (armor)",
+   "Isenhart's Horns (helm)",
+   "Isenhart's Lightbrand (sword)",
+   "Isenhart's Parry (shield)"
+  ],
+  "Milabrega's Regalia (set)": [
+   "Milabrega's Diadem (helm)",
+   "Milabrega's Orb (shield)",
+   "Milabrega's Robe (armor)",
+   "Milabrega's Rod (scepter)"
+  ],
+  "Vidala's Rig (set)": [
+   "Vidala's Ambush (armor)",
+   "Vidala's Barb (bow)",
+   "Vidala's Fetlock (boots)",
+   "Vidala's Snare (amulet)"
+  ],
+  "Bane's Garments (set)": [
+   "Bane's Authority (belt)",
+   "Bane's Oathmaker (sword)",
+   "Bane's Wraithskin (armor)"
+  ],
+  "Horazon's Splendor (set)": [
+   "Horazon's Countenance (helm)",
+   "Horazon's Dominion (armor)",
+   "Horazon's Hold (gloves)",
+   "Horazon's Legacy (boots)",
+   "Horazon's Secrets (grimoire)"
+  ]
+ },
+ "pieces": [
+  "Aldur's Advance (boots)",
+  "Aldur's Deception (armor)",
+  "Aldur's Rhythm (mace)",
+  "Aldur's Stony Gaze (helm)",
+  "Angelic Halo (ring)",
+  "Angelic Mantle (armor)",
+  "Angelic Sickle (sword)",
+  "Angelic Wings (amulet)",
+  "Arcanna's Deathwand (staff)",
+  "Arcanna's Flesh (armor)",
+  "Arcanna's Head (helm)",
+  "Arcanna's Sign (amulet)",
+  "Arctic Binding (belt)",
+  "Arctic Furs (armor)",
+  "Arctic Horn (bow)",
+  "Arctic Mitts (gloves)",
+  "Bane's Authority (belt)",
+  "Bane's Oathmaker (sword)",
+  "Bane's Wraithskin (armor)",
+  "Berserker's Hatchet (axe)",
+  "Berserker's Hauberk (armor)",
+  "Berserker's Headgear (helm)",
+  "Bul-Kathos' Sacred Charge (sword)",
+  "Bul-Kathos' Tribal Guardian (sword)",
+  "Cathan's Mesh (chainmail)",
+  "Cathan's Rule (rod)",
+  "Cathan's Seal (ring)",
+  "Cathan's Sigil (amulet)",
+  "Cathan's Visage (mask)",
+  "Civerb's Cudgel (scepter)",
+  "Civerb's Icon (amulet)",
+  "Civerb's Ward (shield)",
+  "Cleglaw's Claw (shield)",
+  "Cleglaw's Pincers (gloves)",
+  "Cleglaw's Tooth (sword)",
+  "Cow King's Hide (studded leather)",
+  "Cow King's Hooves (heavy boots)",
+  "Cow King's Horns (war bonnet)",
+  "Credendum (mithril coil)",
+  "Dangoon's Teaching (reinforced mace)",
+  "Dark Adherent (dusk shroud)",
+  "Death's Guard (belt)",
+  "Death's Hand (gloves)",
+  "Death's Touch (sword)",
+  "Griswold's Heart (armor)",
+  "Griswold's Honor (shield)",
+  "Griswold's Redemption (scepter)",
+  "Griswold's Valor (helm)",
+  "Guillaume's Face (winged helm)",
+  "Haemosu's Adamant (cuirass)",
+  "Horazon's Countenance (helm)",
+  "Horazon's Dominion (armor)",
+  "Horazon's Hold (gloves)",
+  "Horazon's Legacy (boots)",
+  "Horazon's Secrets (grimoire)",
+  "Hsarus' Iron Fist (shield)",
+  "Hsarus' Iron Heel (boots)",
+  "Hsarus' Iron Stay (belt)",
+  "Hwanin's Blessing (belt)",
+  "Hwanin's Justice (bill)",
+  "Hwanin's Refuge (tigulated mail)",
+  "Hwanin's Splendor (grand crown)",
+  "Immortal King's Detail (belt)",
+  "Immortal King's Forge (gloves)",
+  "Immortal King's Pillar (boots)",
+  "Immortal King's Soul Cage (armor)",
+  "Immortal King's Stone Crusher (hammer)",
+  "Immortal King's Will (helm)",
+  "Infernal Cranium (helm)",
+  "Infernal Sign (belt)",
+  "Infernal Torch (wand)",
+  "Iratha's Coil (helm)",
+  "Iratha's Collar (amulet)",
+  "Iratha's Cord (belt)",
+  "Iratha's Cuff (gloves)",
+  "Isenhart's Case (armor)",
+  "Isenhart's Horns (helm)",
+  "Isenhart's Lightbrand (sword)",
+  "Isenhart's Parry (shield)",
+  "Laying of Hands (bramble mitts)",
+  "M'avina's Caster (bow)",
+  "M'avina's Embrace (armor)",
+  "M'avina's Icy Clutch (gloves)",
+  "M'avina's Tenet (belt)",
+  "M'avina's True Sight (helm)",
+  "Magnus' Skin (sharkskin gloves)",
+  "Milabrega's Diadem (helm)",
+  "Milabrega's Orb (shield)",
+  "Milabrega's Robe (armor)",
+  "Milabrega's Rod (scepter)",
+  "Naj's Circlet (circlet)",
+  "Naj's Light Plate (hellforge plate)",
+  "Naj's Puzzler (elder staff)",
+  "Natalya's Mark (boots)",
+  "Natalya's Shadow (armor)",
+  "Natalya's Soul (claws)",
+  "Natalya's Totem (helm)",
+  "Ondal's Almighty (spired helm)",
+  "Rite of Passage (sharkskin boots)",
+  "Sander's Paragon (cap)",
+  "Sander's Riprap (heavy boots)",
+  "Sander's Superstition (bone wand)",
+  "Sander's Taboo (heavy gloves)",
+  "Sazabi's Cobalt Redeemer (cryptic sword)",
+  "Sazabi's Ghost Liberator (balrog skin)",
+  "Sazabi's Mental Sheath (basinet)",
+  "Sigon's Gage (gloves)",
+  "Sigon's Guard (shield)",
+  "Sigon's Sabot (boots)",
+  "Sigon's Shelter (armor)",
+  "Sigon's Visor (helm)",
+  "Sigon's Wrap (belt)",
+  "Taebaek's Glory (ward)",
+  "Tal Rasha's Adjudication (amulet)",
+  "Tal Rasha's Fine-Spun Cloth (belt)",
+  "Tal Rasha's Guardianship (armor)",
+  "Tal Rasha's Horadric Crest (helm)",
+  "Tal Rasha's Lidless Eye (orb)",
+  "Tancred's Crowbill (military pick)",
+  "Tancred's Hobnails (light plated boots)",
+  "Tancred's Skull (bone helm)",
+  "Tancred's Spine (full plate mail)",
+  "Tancred's Weird (amulet)",
+  "Telling of Beads (spired helm)",
+  "Trang-Oul's Claws (gloves)",
+  "Trang-Oul's Girth (belt)",
+  "Trang-Oul's Guise (helm)",
+  "Trang-Oul's Scales (armor)",
+  "Trang-Oul's Wing (shield)",
+  "Vidala's Ambush (armor)",
+  "Vidala's Barb (bow)",
+  "Vidala's Fetlock (boots)",
+  "Vidala's Snare (amulet)",
+  "Whitstan's Guard (round shield)",
+  "Wilhelm's Pride (battle belt)"
+ ]
+}

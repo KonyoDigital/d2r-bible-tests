@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1794",
+  "ver": "v1795",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1794: the board now folds a misread onto the roster the way the console does, and a non-item goes to the reader",
+  "note": "v1795: repetition makes an item more owned never closer to binned",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
