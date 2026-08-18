@@ -7736,6 +7736,10 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
   border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
 .inbox-pop .ibp-b:hover{border-color:#f0c060;color:#fff}
 .inbox-pop .ibp-ok{border-color:rgba(102,255,136,.45);color:#66ff88}
+.inbox-pop .ibp-auto-sub{color:#6f9a78;font-size:10.5px;margin:5px 0 2px;opacity:.9}
+.inbox-pop .ibp-rr{display:flex;align-items:center;gap:8px;margin:3px 0}
+.inbox-pop .ibp-rr-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9ec7a6}
+.inbox-pop .ibp-rr-b{flex:0 0 auto;padding:2px 7px;font-size:10.5px}
 .inbox-pop .ibp-auto{font-size:11px;line-height:1.5;color:#7fd18b;background:rgba(60,140,80,.10);border:1px solid rgba(90,180,110,.25);border-radius:6px;padding:6px 8px;margin:0 0 8px}
 .inbox-pop .ibp-empty{color:#8a7d64}
 .forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
@@ -40758,7 +40762,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1789', name:'v1789 - the roster decides what is one item', date:'2026-08-18', note:'two spellings of one item never corroborated each other' };
+  window.D2R_BUILD = { id:'v1790', name:'v1790 - put it back', date:'2026-08-18', note:'the inbox retired rows instantly and one way' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -41532,15 +41536,69 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
      a name is. The fuzzy fold that repairs OCR slips runs server-side against the roster; writing a
      second, differently-behaved matcher on the board is how two answers to one question start
      disagreeing quietly. */
+  /* v1790 — A GRACE WINDOW, BECAUSE "CLEARED" WAS INSTANT AND ONE-WAY.
+
+     Konyo, on seeing the auto-retire: "how long after it retires when i dont click it? maybe like
+     it should have a certain timelimit for this."
+
+     He was right to ask, and the honest answer was: no time at all. The resolver ran at page load
+     and the row was gone before he had opened the panel, with no way to put it back. The dismissal
+     was written to the inbox LEDGER, so nothing was destroyed — but a record he has to go find is
+     not the same as a control he can press, and that gap is exactly where a wrong retirement would
+     have lived unnoticed.
+
+     So retirement stays IMMEDIATE — that is the whole point, he does not want to be asked — but it
+     is now REVERSIBLE for RETIRE_GRACE_DAYS. Every auto-retired row is kept with its reason and a
+     timestamp, the panel shows them under the receipt, and each carries a "put back" button.
+
+     A timer that merely expires would have been the wrong shape: it would run out while he sleeps
+     and change nothing he could act on. What he needs is not a delay before acting, it is a way
+     back after it acted.
+
+     PUT BACK MEANS STAY BACK. A restored row is added to a KEEP list the resolver never touches
+     again — without that, the next render would retire it a second time and the button would look
+     broken while behaving exactly as designed. */
+  var _CH_RETIRED_KEY = 'd2r_chronicleAutoRetired';
+  var _CH_KEEP_KEY = 'd2r_chronicleKeepPending';
+  var RETIRE_GRACE_DAYS = 7;
+
+  window.kaiChronicleRetiredRecent = function(){
+    try {
+      var cut = Date.now() - RETIRE_GRACE_DAYS * 864e5;
+      var all = _chLsGet(_CH_RETIRED_KEY, []) || [];
+      return all.filter(function(x){ return x && x.ts && x.ts >= cut; });
+    } catch(e){ return []; }
+  };
+
+  window.kaiChronicleUndoRetire = function(name){
+    var n = String(name || '').trim();
+    if (!n) return { ok:false };
+    try {
+      var keep = _chLsGet(_CH_KEEP_KEY, []) || [];
+      if (keep.indexOf(n) < 0) keep.push(n);
+      _chLsSet(_CH_KEEP_KEY, keep);
+      var retired = (_chLsGet(_CH_RETIRED_KEY, []) || []).filter(function(x){ return !x || x.name !== n; });
+      _chLsSet(_CH_RETIRED_KEY, retired);
+      var inbox = _chLsGet(_CH_INBOX_KEY, []) || [];
+      if (!inbox.some(function(x){ return x && x.name === n; })) inbox.push({ name: n, triageWhy: 'you put this back' });
+      _chLsSet(_CH_INBOX_KEY, inbox);
+      return { ok:true, name:n };
+    } catch(e){ return { ok:false }; }
+  };
+
   window.kaiChronicleResolvePending = function(opts){
     opts = opts || {};
     var dry = !!opts.dryRun;
     var out = { dismissed: [], kept: [], errors: 0 };
     var pend = [];
     try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ return out; }
+    var keep = [];
+    try { keep = _chLsGet(_CH_KEEP_KEY, []) || []; } catch(e){}
     pend.slice().forEach(function(it){
       var name = it && it.name;
       if (!name) return;
+      // v1790 — a row he put back is his decision, and this function does not get to re-make it
+      if (keep.indexOf(name) >= 0){ out.kept.push(name); return; }
       var why = null;
       try {
         var r = window.d2rResolveItem(name) || {};
@@ -41555,7 +41613,15 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       } catch(e){ out.errors++; return; }
       if (!why){ out.kept.push(name); return; }
       out.dismissed.push({ name: name, why: why });
-      if (!dry){ try { window.kaiChronicleDismiss(name); } catch(e){ out.errors++; } }
+      if (!dry){
+        try { window.kaiChronicleDismiss(name); } catch(e){ out.errors++; }
+        // v1790 — recoverable for RETIRE_GRACE_DAYS, with the reason it went
+        try {
+          var rl = _chLsGet(_CH_RETIRED_KEY, []) || [];
+          if (!rl.some(function(x){ return x && x.name === name; })) rl.push({ name: name, why: why, ts: Date.now() });
+          _chLsSet(_CH_RETIRED_KEY, rl);
+        } catch(e){ out.errors++; }
+      }
     });
     return out;
   };
@@ -41601,14 +41667,25 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
               + '— two independent witnesses are needed and these have one.'
             : 'Nothing is waiting. Everything the readers saw was either grounded or dismissed on its own.')
           + '</div>'];
-        // the receipt for a queue that shrank on its own
-        var _lr = window._inboxLastResolve;
-        if (_lr && _lr.dismissed && _lr.dismissed.length){
+        // v1790 — the receipt, and the way back out of it. Shows every row retired in the last
+        // RETIRE_GRACE_DAYS with its reason and a "put back", so "cleared automatically" is a
+        // statement he can audit and reverse rather than one he has to take on trust.
+        var _rr = [];
+        try { _rr = window.kaiChronicleRetiredRecent() || []; } catch(e){ _rr = []; }
+        if (_rr.length){
           var _by = {};
-          _lr.dismissed.forEach(function(d){ _by[d.why] = (_by[d.why] || 0) + 1; });
-          H.push('<div class="ibp-auto">✓ ' + _lr.dismissed.length + ' row'
-            + (_lr.dismissed.length === 1 ? '' : 's') + ' cleared automatically — '
+          _rr.forEach(function(d){ _by[d.why] = (_by[d.why] || 0) + 1; });
+          H.push('<div class="ibp-auto">✓ ' + _rr.length + ' row' + (_rr.length === 1 ? '' : 's')
+            + ' cleared automatically — '
             + Object.keys(_by).map(function(k){ return _by[k] + ' ' + _e(k); }).join(' · ')
+            + '<div class="ibp-auto-sub">kept for 7 days — put any of them back</div>'
+            + _rr.slice(0, 12).map(function(d){
+                return '<div class="ibp-rr"><span class="ibp-rr-n">' + _e(d.name) + '</span>'
+                  + '<button type="button" class="ibp-b ibp-rr-b" data-n="' + _e(d.name) + '" '
+                  + 'onclick="window.kaiChronicleUndoRetire(this.getAttribute(&quot;data-n&quot;));'
+                  + 'window.renderInboxFab()">put back</button></div>';
+              }).join('')
+            + (_rr.length > 12 ? '<div class="ibp-auto-sub">+ ' + (_rr.length - 12) + ' more in the ledger</div>' : '')
             + '</div>');
         }
         if (!n) H.push('<div class="ibp-empty">Nothing to rule on.</div>');

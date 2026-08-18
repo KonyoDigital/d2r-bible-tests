@@ -183,3 +183,57 @@ test('every pending row actually SHOWS its name and both buttons', async ({ page
     }
   }
 });
+
+test('an auto-retired row can be put back, and it STAYS back', async ({ page }) => {
+  // v1790 — Konyo: "how long after it retires when i dont click it? maybe like it should have a
+  // certain timelimit for this." The honest answer was: no time at all. The resolver ran at page
+  // load and the row was gone before he had opened the panel, with no way to reverse it.
+  //
+  // Retirement stays immediate — being asked is the thing he does not want — but it is reversible
+  // for 7 days. A timer that merely expired would have been the wrong shape: it runs out while he
+  // sleeps and changes nothing he can act on. What he needs is a way back AFTER it acted.
+  //
+  // The second assertion is the one that matters. Without the keep-list, the next render retires
+  // the row again and the button looks broken while behaving exactly as designed.
+  await page.addInitScript(() => {
+    localStorage.removeItem('d2r_chronicleAutoRetired');
+    localStorage.removeItem('d2r_chronicleKeepPending');
+    localStorage.setItem('d2r_chronicleInbox',
+      JSON.stringify([{ name: 'Templar Coat' }, { name: 'Toothrow' }]));
+  });
+  await page.goto(URL);
+
+  const retired = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
+  expect(retired.map((r: any) => r.name)).toContain('Templar Coat');
+  expect(retired[0].why).toContain('base item name');
+  expect(retired[0].ts).toBeGreaterThan(0);
+
+  await page.evaluate(() => (window as any).inboxPopTog());
+  const back = page.locator('#inbox-pop .ibp-rr-b').first();
+  await expect(back).toBeVisible();
+  expect((await back.boundingBox())!.width).toBeGreaterThan(20);
+  await back.click();
+
+  const names = () => page.evaluate(() =>
+    ((window as any).kaiChronicleInbox({ sync: false }) || []).map((x: any) => x.name));
+  expect(await names()).toContain('Templar Coat');
+
+  // it must survive re-renders — this is where a naive undo silently loses
+  await page.evaluate(() => { (window as any).renderInboxFab(); (window as any).renderInboxFab(); });
+  expect(await names()).toContain('Templar Coat');
+  const after = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
+  expect(after.map((r: any) => r.name)).not.toContain('Templar Coat');
+});
+
+test('a row retired longer ago than the grace window is no longer offered', async ({ page }) => {
+  // the window has to actually bound something, or "kept for 7 days" is decoration
+  await page.addInitScript(() => {
+    const old = Date.now() - 9 * 864e5;
+    localStorage.setItem('d2r_chronicleAutoRetired',
+      JSON.stringify([{ name: 'Templar Coat', why: 'a base item name', ts: old }]));
+    localStorage.setItem('d2r_chronicleInbox', JSON.stringify([{ name: 'Toothrow' }]));
+  });
+  await page.goto(URL);
+  const recent = await page.evaluate(() => (window as any).kaiChronicleRetiredRecent());
+  expect(recent.map((r: any) => r.name)).not.toContain('Templar Coat');
+});

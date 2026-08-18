@@ -5268,6 +5268,60 @@ probe discarded up to 44 pages behind it.
 **A false red of my own:** the REG-179 live-state guard cannot tell a TEST writing his console state
 from the CONSOLE writing it. It now skips while `:17772` is listening, and says so. [[feedback_silence_is_not_evidence]]
 
+## REG-182 — the inbox retired rows instantly and one-way, and he had to ask how long he had (v1790)
+
+Konyo, immediately on being shown the auto-retire: *"how long after it retires when i dont click it?
+maybe like it should have a certain timelimit for this."*
+
+**The honest answer was: no time at all.** The resolver runs at page load, so a row was gone before he
+had opened the panel, and nothing in the UI could put it back. The dismissal WAS written to the inbox
+ledger, so nothing was destroyed — but a record he has to go find is not the same as a control he can
+press, and that gap is precisely where a wrong retirement would have lived unnoticed. The receipt said
+"3 rows cleared automatically" and gave him no way to disagree with it.
+
+**A timer would have been the wrong shape.** A delay before acting runs out while he sleeps and
+changes nothing he can act on. What he needs is not a pause, it is a way back AFTER it acted. So
+retirement stays immediate — being asked is the thing he explicitly does not want — and every retired
+row is now kept with its reason and a timestamp, listed under the receipt with a "put back" button,
+for 7 days. Past the window the row stops being OFFERED; it is never deleted.
+
+**The detail that would have made the button a lie:** a restored row goes onto a keep-list the
+resolver never touches again. Without it the very next render retires it a second time, and the
+control looks broken while behaving exactly as designed.
+
+**Guards:** `tests/v1789_inbox_resolves_non_decisions.spec.ts` — a retired row records its reason and
+timestamp, the put-back is visible with non-zero width, the row comes back, **and it survives two
+further renders**; a row retired 9 days ago is no longer offered while remaining in the store.
+
+---
+
+## REG-183 — six real finds sat un-counted because one reel can only ever be one witness (v1790)
+
+Not a bug in the gate — the gate was right — but the arc is worth keeping, because the fix is the
+whole argument for the second eye.
+
+After the v1789 fold, six names remained held: Thundergod's Vigor, Toothrow, Witherstring, Latent Cold
+Rupture, Latent Rotting Fissure, Latent Crack of the Heavens. **Every one is a real find.** Their
+frames were opened and read by hand: all gold, each with a First Found date and a source monster.
+
+They could not ground because each appears in **exactly one reel**, and one reel yields only
+`cross-frame` — a single tag. **216 focused reads across two different targeting strategies found no
+second sighting**, which is not a failure of the hunt: the footage does not contain one. No amount of
+re-reading his own reels could ever have closed this.
+
+**What closed it was a DIFFERENT MODEL FAMILY on the same pixels.** Each frame was handed to Grok
+cold — no hint of which name was being tested, phrased so the answer could come back negative ("list
+only the rows that are gold and have a First Found line"). It returned all six by name with dates
+matching exactly, and that read is `cross-lane`: a genuinely independent witness, recorded with its
+lane, model and the string it actually produced (`tv/g5_second_lane_v1789.json`).
+
+Ledger: **255 grounded / 6 held → 261 grounded / 0 held.** Nothing was hand-entered; the six passed
+the same gate as everything else, on evidence a machine produced. This is what "Grok is additive, not
+required" means in practice — its absence had cost coverage, exactly as designed, and never
+correctness.
+
+---
+
 ## REG-180 — the gate counted witnesses on RAW reader strings, so two spellings of one item never corroborated each other (v1789)
 
 **His inbox held 36 names waiting for a hand-tick, and six of them were decisions.**

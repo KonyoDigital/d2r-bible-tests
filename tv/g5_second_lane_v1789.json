@@ -1,0 +1,36 @@
+{
+ "ts": 1787052484363,
+ "lane": "grok",
+ "reads": {
+  "Thundergod's Vigor": [
+   "grok_3",
+   "THUNDERGØD'S VIGØR",
+   "05/20/2026, 02:19"
+  ],
+  "Toothrow": [
+   "grok_4",
+   "TOOTHROW",
+   "05/22/2026, 00:59"
+  ],
+  "Witherstring": [
+   "grok_5",
+   "WITHERSTRING",
+   "07/01/2026, 21:09"
+  ],
+  "Latent Cold Rupture": [
+   "grok_0",
+   "LATENT COLD RUPTURE",
+   "06/12/2026, 00:40"
+  ],
+  "Latent Crack of the Heavens": [
+   "grok_0",
+   "LATENT CRACK OF THE HEAVENS",
+   "06/25/2026, 00:47"
+  ],
+  "Latent Rotting Fissure": [
+   "grok_2",
+   "LATENT ROTTING FISSURE",
+   "06/18/2026, 02:24"
+  ]
+ }
+}

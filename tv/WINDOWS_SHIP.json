@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1789",
+  "ver": "v1790",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1789: two spellings of one item never corroborated each other",
+  "note": "v1790: the inbox retired rows instantly and one way",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
