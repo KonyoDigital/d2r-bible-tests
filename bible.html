@@ -7783,7 +7783,14 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-pop .ibp-rr-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9ec7a6}
 .inbox-pop .ibp-rr-b{flex:0 0 auto;padding:2px 7px;font-size:10.5px}
 .inbox-pop .ibp-rr-n b,.inbox-sticky .ibp-rr-n b{color:#cfe6d3;font-weight:var(--fw-semibold)}
-.inbox-pop .ibp-rr-b2,.inbox-sticky .ibp-rr-b2{color:#5f8468;font-size:10px;opacity:.85}
+/* v1797 — SAME HEIGHT AS THE BUTTON IT STANDS IN FOR. A retired row ends either in a `put back`
+   button or in this plain 'still to hunt' text, and a button carries padding and a 1px border
+   while bare text does not — so two rows of the same kind sat at different heights and the
+   column of right-hand elements stepped. Found by the second eye reading the shipped panel cold
+   ('minor vertical misalignment in lower rows'), then confirmed by measuring both rows. The
+   border is transparent rather than absent so the box model matches exactly. */
+.inbox-pop .ibp-rr-b2,.inbox-sticky .ibp-rr-b2{color:#5f8468;font-size:10.5px;opacity:.85;
+  display:inline-block;padding:2px 7px;border:1px solid transparent;line-height:normal}
 .inbox-pop .ibp-auto{font-size:11px;line-height:1.5;color:#7fd18b;background:rgba(60,140,80,.10);border:1px solid rgba(90,180,110,.25);border-radius:6px;padding:6px 8px;margin:0 0 8px}
 .inbox-pop .ibp-empty{color:#8a7d64}
 .forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
@@ -41210,7 +41217,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1796', name:'v1796 - sets fold against their own roster', date:'2026-08-18', note:'a cap test passed only while grok was down' };
+  window.D2R_BUILD = { id:'v1797', name:'v1797 - the retired rows sat a pixel apart', date:'2026-08-18', note:'a button is taller than the text it stands in for' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
