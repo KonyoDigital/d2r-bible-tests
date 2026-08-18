@@ -7011,21 +7011,55 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
         self.assertIsInstance(m["setGroups"]["Tal Rasha's Wrappings (Sorc)"], list)
 
     def test_the_evidence_file_is_actually_written(self):
-        """Verify the ARTIFACT, not the return value. _chron_evidence_save's failure path returned
-        False into a caller that ignores it; nothing on any surface changed when it stopped working."""
+        """v1800 — THIS TEST WAS ITSELF THE BLIND FIXTURE IT WAS WRITTEN TO PREVENT.
+
+        Its first version hand-rolled `json.dump(merged, fh)` into a temp path and asserted the
+        file came back. That exercises the json module. It never called `_chron_evidence_save`
+        at all, so it passed identically whether the writer worked, was broken, or was DELETED —
+        which is precisely the shape of REG-198 and of the v1798 defect it was meant to guard.
+        A gate whose subject never runs is not a weak gate, it is furniture.
+
+        It now drives the real function, and — the half that makes it a gate — proves the
+        function goes RED on the exact v1798 payload, so a future serializer that cannot fail
+        cannot pass here either. [[feedback-blind-fixture-green-gate]]"""
         import json as _json
         import os as _os
+        import shutil as _shutil
         import tempfile
         import chronicle_retro as cr
-        path = _os.path.join(tempfile.mkdtemp(), "ev.json")
+        d = tempfile.mkdtemp()
+        self.addCleanup(_shutil.rmtree, d, True)   # v1800 — mkdtemp leaked a dir per run
+        path = _os.path.join(d, "ev.json")
         merged = cr.merge_proposals(self._page(reel="A"), self._page(reel="B", frame="f9"))
-        with open(path, "w", encoding="utf-8") as fh:
-            _json.dump(merged, fh)
-        self.assertTrue(_os.path.exists(path))
-        with open(path, encoding="utf-8") as fh:
-            back = _json.load(fh)
-        self.assertEqual(sorted(back["setGroups"]["Tal Rasha's Wrappings (Sorc)"]),
-                         ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"])
+
+        old_path, old_err = ca._CHRON_EVIDENCE_PATH, ca._CHRON_EVIDENCE_ERROR
+        try:
+            ca._CHRON_EVIDENCE_PATH = path
+            ca._CHRON_EVIDENCE_ERROR = None
+            # GREEN: the real writer, on the real merged shape
+            self.assertTrue(ca._chron_evidence_save(merged),
+                            "_chron_evidence_save refused a well-formed merged proposal")
+            self.assertTrue(_os.path.exists(path), "the writer returned True and wrote nothing")
+            with open(path, encoding="utf-8") as fh:
+                back = _json.load(fh)
+            self.assertEqual(sorted(back["setGroups"]["Tal Rasha's Wrappings (Sorc)"]),
+                             ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"])
+            self.assertIsNone(ca._CHRON_EVIDENCE_ERROR)
+            self.assertTrue(ca.chronicle_sweep_state().get("evidenceSaved"))
+
+            # RED: the v1798 payload — a set where a list belongs. Must FAIL, must SAY SO, and the
+            # failure must reach the state the board reads. Without this half the test above only
+            # proves the happy path, which is what every green-forever gate proves.
+            self.assertFalse(ca._chron_evidence_save({"uniques": {"x"}}),
+                             "an unserializable proposal was reported as saved")
+            self.assertIsNotNone(ca._CHRON_EVIDENCE_ERROR)
+            st = ca.chronicle_sweep_state()
+            self.assertFalse(st.get("evidenceSaved"),
+                             "the ledger failed to write and the sweep state still said it saved")
+            self.assertIn("serializable", (st.get("evidenceError") or ""),
+                          "the failure reached the board without saying what went wrong")
+        finally:
+            ca._CHRON_EVIDENCE_PATH, ca._CHRON_EVIDENCE_ERROR = old_path, old_err
 
     def test_the_same_page_twice_is_still_ONE_sighting(self):
         """The de-dupe must survive the fix — two reads of one photograph are not corroboration."""

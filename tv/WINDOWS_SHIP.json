@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1799",
+  "ver": "v1800",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1799: a write whose return nobody reads must be audible",
+  "note": "v1800: The v1799 test for the ledger writer never called it - it hand-rolled its own json.dump and passed identically with the writer deleted. It now drives the real function and is proven RED by mutation. The save failure reaches the board through chronicle_sweep_state instead of a stdout nobody reads. default=str removed so a set can no longer be written as its repr. Both siblings of the .inbox-pop clip fixed - .tools-legend-pop measured at top:-42px on his own 1440x800, heading off screen. Popovers flip to top-anchored below 620px where the anchor itself was the defect.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

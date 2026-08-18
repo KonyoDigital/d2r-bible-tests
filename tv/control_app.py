@@ -10076,13 +10076,18 @@ def _chron_evidence_load():
         return {}
 
 
+_CHRON_EVIDENCE_ERROR = None   # v1800 — the last save failure, or None. See _chron_evidence_save.
+
+
 def _chron_evidence_save(prop):
     """Takes NO lock — callers hold _CHRON_LOCK and threading.Lock is not reentrant (v1763)."""
+    global _CHRON_EVIDENCE_ERROR
     try:
         tmp = _CHRON_EVIDENCE_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(prop, fh)
         os.replace(tmp, _CHRON_EVIDENCE_PATH)
+        _CHRON_EVIDENCE_ERROR = None
         return True
     except Exception as e:
         # v1799 — SAY SO. This returned False into a caller that ignores it, so when v1798 made the
@@ -10090,7 +10095,13 @@ def _chron_evidence_save(prop):
         # changed: the sweep reported success, the console showed its findings, and the accumulated
         # evidence silently froze. A write that can fail must be audible even when its return value
         # is dropped — silence is not evidence that it worked.
+        # v1800 — AND STDOUT IS NOT A SURFACE HE READS. v1799 made this audible only to a
+        # terminal nobody watches, while BOTH call sites still drop the boolean, so the ledger
+        # could still freeze with every screen reporting success. The failure now rides on a
+        # module global that the sweep result carries to the board, which is the only place the
+        # claim "this sweep accumulated" is actually made. [[the-unjoined-end]]
         print("   \u26a0 chronicle evidence NOT saved (%s) \u2014 the ledger did not accumulate this run" % e)
+        _CHRON_EVIDENCE_ERROR = str(e) or e.__class__.__name__
         return False
 
 
@@ -10236,11 +10247,15 @@ def _chron_result_save():
         if not payload.get("result"):
             return
         tmp = _CHRON_RESULT_PATH + ".tmp"
+        # v1800 — NO `default=str`. It turned an unserializable value into its REPR instead of
+        # raising: the exact v1798 defect (a set where a list belonged) would have been written as
+        # the string "{'Foo', 'Bar'}" and reloaded as a name, silently corrupting the ledger rather
+        # than failing loudly. A serializer that cannot fail cannot warn. [[unknown-stays-unknown]]
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, default=str)
+            json.dump(payload, fh)
         os.replace(tmp, _CHRON_RESULT_PATH)
-    except Exception:
-        pass
+    except Exception as e:
+        print("   \u26a0 chronicle result NOT persisted (%s) \u2014 this sweep will not survive a restart" % e)
 
 
 def _chron_result_load():
@@ -10293,6 +10308,14 @@ def chronicle_sweep_state():
         st["autoreadTries"] = dict(_CHRON_AUTOREAD.get("tries") or {})
     except Exception:
         pass
+    # v1800 — AND THE LEDGER-WRITE FAILURE RIDES HERE TOO, for exactly the reason above. Both
+    # callers of _chron_evidence_save drop its boolean, so a frozen ledger reported success on
+    # every screen for an hour (v1798). This is the ONE door the board reads a sweep through, so
+    # joining it here covers both the sweep path and the hunt path without a second stamp site
+    # that the next path can forget. evidenceSaved is False ONLY after a real failure — never
+    # None-as-False, because "not saved" and "not attempted" are different facts.
+    st["evidenceSaved"] = (_CHRON_EVIDENCE_ERROR is None)
+    st["evidenceError"] = _CHRON_EVIDENCE_ERROR
     return st
 
 
@@ -10988,7 +11011,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1799",
+        "ver": "v1800",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

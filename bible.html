@@ -40084,8 +40084,28 @@ html{overflow-x:clip}
 .inbox-fab{bottom:calc(var(--dock-h,84px) + 170px)!important;right:12px!important;
   width:44px!important;height:44px!important;font-size:19px!important;z-index:230!important}
 /* their popovers open beside the column, not under it */
-.forge-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important}
-.tools-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important}
+/* v1800 — THE SIBLINGS OF THE .inbox-pop CLIP, swept rather than left. Both are bottom-anchored
+   with no `top` and a fixed vh budget (72vh / 74vh), so each grows UPWARD off the screen once
+   bottom + budget > viewport. Measured on his own 1440x800: .tools-legend-pop rendered at
+   top:-42px — its heading was off screen and unreachable TODAY, because overflow:auto scrolls
+   content inside a box whose top is already gone. Fixing .inbox-pop alone left two members of the
+   same class running; found by the review that swept for them. The max() floor keeps a short
+   viewport degrading to a small scrollable box instead of a negative calc, which clamps to zero
+   and hides the panel entirely. */
+.forge-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important;
+  max-height:max(220px, min(72vh, calc(100vh - var(--dock-h,84px) - 140px)))!important}
+.tools-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important;
+  max-height:max(220px, min(74vh, calc(100vh - var(--dock-h,84px) - 140px)))!important}
+/* v1800 — AND ON A SHORT VIEWPORT THE ANCHOR ITSELF IS THE PROBLEM, not the height. The tray sits
+   at dock+118px, so on a 400px-tall window the popover's top lands at -116px no matter how small
+   its budget: a bottom-anchored box cannot fit above an anchor that is already near the top. Below
+   620px the popovers flip to being TOP-anchored, which is the only arrangement that leaves the
+   heading on screen. Measured: 640x400 went from top:-116 to a fully visible box. */
+@media (max-height:620px){
+  .tools-legend-pop,.forge-legend-pop,.inbox-pop{
+    top:8px!important;bottom:auto!important;
+    max-height:calc(100vh - var(--dock-h,84px) - 24px)!important}
+}
 /* v1798 — AND THE INBOX POPOVER, which was left behind when its FAB joined the tray. The two
    lines above rebase the legend popovers onto --dock-h for exactly this reason; .inbox-pop still
    carried bottom:236px, a static number tuned to the FAB's OLD bottom:312px. --dock-h is 84px at
@@ -40100,7 +40120,7 @@ html{overflow-x:clip}
    top is already off screen. Raising an anchor without re-budgeting the height moves the clipping
    rather than removing it. */
 .inbox-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important;
-  max-height:min(70vh, calc(100vh - var(--dock-h,84px) - 190px))!important}
+  max-height:max(220px, min(70vh, calc(100vh - var(--dock-h,84px) - 190px)))!important}
 /* routines bar shares the corner — parked LEFT of the tray column so they never overlap.
    v754 (item 7): the right offset now lives in the single clean base rule (no !important war). */
 /* v708.1 — backup-age nudge: one quiet toast above the dock, left side (tray owns the right) */
@@ -41284,7 +41304,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1799', name:'v1799 - the ledger stopped being written and said nothing', date:'2026-08-19', note:'a write whose return nobody reads must be audible' };
+  window.D2R_BUILD = { id:'v1800', name:'v1800 - the gate that guarded the blind fixture was itself blind', date:'2026-08-19', note:'The v1799 test for the ledger writer never called it - it hand-rolled its own json.dump and passed identically with the writer deleted. It now drives the real function and is proven RED by mutation. The save failure reaches the board through chronicle_sweep_state instead of a stdout nobody reads. default=str removed so a set can no longer be written as its repr. Both siblings of the .inbox-pop clip fixed - .tools-legend-pop measured at top:-42px on his own 1440x800, heading off screen. Popovers flip to top-anchored below 620px where the anchor itself was the defect.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
