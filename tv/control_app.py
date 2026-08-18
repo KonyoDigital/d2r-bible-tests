@@ -10084,7 +10084,8 @@ def _chron_evidence_load():
 # succeed. The board would then report evidenceSaved:true and the loss would be unrecorded. The
 # failures accumulate instead; only an explicit reset clears them, and nothing calls one. Zero
 # failures and "not attempted" stay distinguishable via evidenceWrites. [[unknown-stays-unknown]]
-_CHRON_EVIDENCE_FAILS = []     # [{"ts": epoch_ms, "err": str}] — append-only within a process
+_CHRON_EVIDENCE_FAILS = []     # bounded ring of recent failures: [{"ts": epoch_ms, "err": str}]
+_CHRON_EVIDENCE_FAILCOUNT = 0  # v1804 — MONOTONIC. len(the ring) is NOT the count; see below.
 _CHRON_EVIDENCE_WRITES = 0     # successful writes, so 0/0 cannot read as "all good"
 _CHRON_EVIDENCE_LAST_OK = None # v1801 — did the MOST RECENT attempt succeed? None = none yet.
 #
@@ -10113,7 +10114,7 @@ def _chron_evidence_save(prop):
     strength of a guarantee nobody provides. The writes are atomic by tmp+os.replace, which is what
     actually makes concurrent saves safe here.
     """
-    global _CHRON_EVIDENCE_WRITES, _CHRON_EVIDENCE_LAST_OK
+    global _CHRON_EVIDENCE_WRITES, _CHRON_EVIDENCE_LAST_OK, _CHRON_EVIDENCE_FAILCOUNT
     try:
         tmp = _CHRON_EVIDENCE_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
@@ -10139,6 +10140,13 @@ def _chron_evidence_save(prop):
         # v1801 — BOUNDED. A systematic failure (v1798's set-in-the-proposal made EVERY dump raise)
         # plus a 20s autoread tick is ~4,300 records a day, forever. Keep the first few — the ones
         # that say when it started — and a sliding tail, which is every semantic the payload uses.
+        # v1804 — THE COUNT AND THE RING ARE DIFFERENT THINGS, and v1801 published len(ring) as
+        # the count. The trim caps the ring at ~105 entries, so under the systematic failure this
+        # was built for (v1798: every dump raises) with a 20s autoread tick — ~4,300 failures a
+        # day — the console would have printed "105 failed writes" as a fact, forever, while the
+        # real number climbed past four thousand. The bound is a memory decision; the count is a
+        # measurement, and a bound must never silently become the answer.
+        _CHRON_EVIDENCE_FAILCOUNT += 1
         if len(_CHRON_EVIDENCE_FAILS) > 200:
             del _CHRON_EVIDENCE_FAILS[5:len(_CHRON_EVIDENCE_FAILS) - 100]
         _CHRON_EVIDENCE_LAST_OK = False
@@ -10358,9 +10366,17 @@ def chronicle_sweep_state():
     # (so a loss is never erased). None means no write has been attempted — not "fine".
     st["evidenceSaved"] = _CHRON_EVIDENCE_LAST_OK
     st["evidenceError"] = _CHRON_EVIDENCE_FAILS[-1]["err"] if _CHRON_EVIDENCE_FAILS else None
-    st["evidenceFailTs"] = _CHRON_EVIDENCE_FAILS[-1]["ts"] if _CHRON_EVIDENCE_FAILS else None
-    st["evidenceFails"] = len(_CHRON_EVIDENCE_FAILS)
+    st["evidenceFails"] = _CHRON_EVIDENCE_FAILCOUNT     # the measurement, not the ring's length
     st["evidenceWrites"] = _CHRON_EVIDENCE_WRITES
+    # v1804 — THE AGE IS COMPUTED HERE, NOT IN THE BROWSER. v1801 shipped a server epoch and let
+    # the page difference it against Date.now(). The console is served over HTTP and tv/ ships it
+    # to the Windows PC, so any clock skew rendered as a wrong age — and the browser-side
+    # Math.max(0, …) clamp turned a NEGATIVE skew into "just now" on the one surface whose entire
+    # job is reporting data loss. Two clocks, one subtraction. [[stale-reading]]
+    if _CHRON_EVIDENCE_FAILS:
+        st["evidenceFailAgeS"] = max(0, int(time.time() - _CHRON_EVIDENCE_FAILS[-1]["ts"] / 1000.0))
+    else:
+        st["evidenceFailAgeS"] = None
     return st
 
 
@@ -11056,7 +11072,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1803",
+        "ver": "v1804",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

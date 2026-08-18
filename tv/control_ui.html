@@ -13382,7 +13382,19 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
          of error he has flagged repeatedly, so the source is his data, not my recall. */
       'Catacombs': 'Andariel',
       'Tal Rasha\'s Chamber': 'Duriel',
-      'Nihlathak\'s Temple': 'Pindleskin'
+      'Nihlathak\'s Temple': 'Pindleskin',
+    /* v1804 — THE UNION (see the board's copy of this note). These two come from the board side;
+       the three above came from here. Both tables carry all 18 now, and tv/test_tz_art.py compares
+       TZ_NOTABLE as well as TZ_INFO, which is what bible.html's own comment had already claimed
+       was happening and was not.
+       ⚠ 'Ancient's Way' keeps its board justification verbatim, but that justification is
+       FACTUALLY WRONG and is flagged rather than silently dropped: Ancient's Way is Act 5
+       (exp-icecave, den 650) and Ancient TUNNELS is Act 2 (act2-tomb, den 680) — different acts,
+       different tilesets, not next door to each other. It reads like a name-similarity slip. Left
+       in place because removing a zone's standing changes his farming advice and that is his call,
+       not a drift fix. */
+    'Mausoleum': 'Bloodraven country',
+    'Ancient\'s Way': 'next door to the Ancient Tunnels'
     };
 
     /* v1596 — CONTEXT THAT DOES NOT PROMOTE. TZ_NOTABLE forces a zone to PRIME, which is right for
@@ -13981,15 +13993,26 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var evWarn = document.getElementById('chron-evwarn');
     if (evWarn) {
       var _nf = (st.evidenceFails == null) ? null : Number(st.evidenceFails);
-      var _broken   = (st.evidenceSaved === false);           // the last write FAILED — act now
-      var _recovered = (st.evidenceSaved === true) && !!_nf;  // failed earlier, writing again
+      var _ageS = (st.evidenceFailAgeS == null) ? null : Number(st.evidenceFailAgeS);
+      var _broken = (st.evidenceSaved === false);            // the last write FAILED — act now
+      /* v1804 — THE RECOVERED BANNER IS TIME-BOUNDED, because v1801's was not and that made it
+         the same furniture it replaced, one colour over. `evidenceSaved === true && failures > 0`
+         is true for the daemon's entire uptime after a single transient failure, so a role=alert
+         box sat above every subsequent successful sweep for days. A loss is worth saying while it
+         is still actionable — he can re-read the reels from that session — and stops being an
+         alert once it is history. Six hours, and the count stays in the payload either way, so
+         nothing is erased; it just stops shouting. */
+      var _recovered = (st.evidenceSaved === true) && !!_nf && (_ageS != null && _ageS < 6 * 3600);
       evWarn.hidden = !(_broken || _recovered);
       evWarn.classList.toggle('is-recovered', !_broken && _recovered);
       if (_broken || _recovered) {
+        /* The age arrives already computed by the process that recorded the failure. The page
+           does not subtract a server epoch from its own clock — that was two clocks and one
+           subtraction, and the clamp turned a negative skew into "just now". */
         var _when = '';
-        if (st.evidenceFailTs) {
-          var _mins = Math.max(0, Math.round((Date.now() - Number(st.evidenceFailTs)) / 60000));
-          _when = _mins < 1 ? 'just now'
+        if (_ageS != null) {
+          var _mins = Math.round(_ageS / 60);
+          _when = _mins < 1 ? 'less than a minute ago'
                 : _mins < 60 ? (_mins + 'm ago')
                 : _mins < 1440 ? (Math.round(_mins / 60) + 'h ago')
                 : (Math.round(_mins / 1440) + 'd ago');
@@ -14003,7 +14026,9 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                 + escC(String(st.evidenceError || 'no reason given'))
               : '\u26a0 the evidence ledger failed earlier, and is writing again')
           + '<span class="chron-evwarn-sub">' + escC(_cnt) + ' failed write'
-          + (_nf === 1 ? '' : 's') + ' this session'
+          /* "since the console started", not "this session" — the counter's lifetime is the
+             daemon process, which outlives any number of browser sessions. */
+          + (_nf === 1 ? '' : 's') + ' since the console started'
           + (_when ? ' \u00b7 last ' + escC(_when) : '')
           + ' \u00b7 ' + escC(String(st.evidenceWrites == null ? '?' : st.evidenceWrites))
           + ' succeeded \u00b7 sightings from a failed write are NOT in the ledger and cannot '

@@ -7035,9 +7035,12 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
 
         old_path = ca._CHRON_EVIDENCE_PATH
         old_fails, old_writes = list(ca._CHRON_EVIDENCE_FAILS), ca._CHRON_EVIDENCE_WRITES
+        old_count, old_lastok = ca._CHRON_EVIDENCE_FAILCOUNT, ca._CHRON_EVIDENCE_LAST_OK
         try:
             ca._CHRON_EVIDENCE_PATH = path
             ca._CHRON_EVIDENCE_FAILS[:] = []
+            ca._CHRON_EVIDENCE_FAILCOUNT = 0
+            ca._CHRON_EVIDENCE_LAST_OK = None
             # GREEN: the real writer, on the real merged shape
             self.assertTrue(ca._chron_evidence_save(merged),
                             "_chron_evidence_save refused a well-formed merged proposal")
@@ -7064,6 +7067,8 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
             ca._CHRON_EVIDENCE_PATH = old_path
             ca._CHRON_EVIDENCE_FAILS[:] = old_fails
             ca._CHRON_EVIDENCE_WRITES = old_writes
+            ca._CHRON_EVIDENCE_FAILCOUNT = old_count
+            ca._CHRON_EVIDENCE_LAST_OK = old_lastok
 
     def test_the_same_page_twice_is_still_ONE_sighting(self):
         """The de-dupe must survive the fix — two reads of one photograph are not corroboration."""
@@ -7200,15 +7205,24 @@ class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
     These pin the JOINT, not the ends. [[the-unjoined-end]]"""
 
     def setUp(self):
+        # v1804 — the monotonic FAILCOUNT is a third global and must be saved/reset like the other
+        # two, or these tests leak into each other and the count they assert is whatever the suite
+        # happened to accumulate. It caught itself the moment it was added: 2 != 1.
         self._fails = list(ca._CHRON_EVIDENCE_FAILS)
         self._writes = ca._CHRON_EVIDENCE_WRITES
+        self._count = ca._CHRON_EVIDENCE_FAILCOUNT
+        self._lastok = ca._CHRON_EVIDENCE_LAST_OK
         ca._CHRON_EVIDENCE_FAILS[:] = []
         ca._CHRON_EVIDENCE_WRITES = 0
+        ca._CHRON_EVIDENCE_FAILCOUNT = 0
+        ca._CHRON_EVIDENCE_LAST_OK = None
         self.addCleanup(self._restore)
 
     def _restore(self):
         ca._CHRON_EVIDENCE_FAILS[:] = self._fails
         ca._CHRON_EVIDENCE_WRITES = self._writes
+        ca._CHRON_EVIDENCE_FAILCOUNT = self._count
+        ca._CHRON_EVIDENCE_LAST_OK = self._lastok
 
     def test_a_later_success_does_not_erase_an_unshown_failure(self):
         """THE HEADLINE RECOVERS, THE HISTORY DOES NOT — and it took two wrong versions to land.
@@ -7240,10 +7254,15 @@ class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
                             "alarm for the life of the process, which is furniture, not a warning")
             self.assertEqual(st.get("evidenceFails"), 1,
                              "a later success erased a loss the board never showed him")
-            self.assertIsNotNone(st.get("evidenceFailTs"),
-                                 "the failure reached a screen with no age")
             self.assertEqual(st.get("evidenceWrites"), 1,
                              "0 writes and 0 failures must stay distinguishable from all-good")
+            self.assertIsNotNone(st.get("evidenceFailAgeS"),
+                                 "the age must be computed by the process that recorded the "
+                                 "failure — a server epoch differenced against the browser clock "
+                                 "renders skew as a wrong age")
+            self.assertNotIn("evidenceFailTs", st,
+                             "the raw server epoch is no longer published; publishing both invites "
+                             "a consumer to subtract it from its own clock again")
             # and the un-attempted state must not read as success
             ca._CHRON_EVIDENCE_FAILS[:] = []
             ca._CHRON_EVIDENCE_WRITES = 0

@@ -63,6 +63,17 @@ for (const claimBarUp of [false, true]) {
       // other five — a blind fixture inside the ship whose title is about a blind fixture. The
       // bar is now raised the way the page raises it, and ASSERTED up, so this can never quietly
       // become a no-op again. [[feedback-blind-fixture-green-gate]]
+      // The inbox FAB only exists once the queue has rows, and seeding needs its own reload — so
+      // the LAST navigation happens inside this block. v1804: the bar was previously raised and
+      // asserted BEFORE that reload, on a page the inbox case then threw away, which means the
+      // five inbox cases could silently drift back to measuring claim-bar-down geometry twice and
+      // the assertion would still pass. The assertion now runs on the page the geometry is
+      // actually measured on, which is the only page it says anything about.
+      if (P.seed) {
+        await page.evaluate(() => localStorage.setItem('d2r_chronicleInbox', JSON.stringify(
+          ['Battlecage', 'Templar Coat', 'Toothrow', 'Shaftstop'].map((name) => ({ name, ts: 1755600000000 })))));
+        await page.goto(FILE);
+      }
       if (claimBarUp) {
         await page.evaluate(() => {
           const c = document.getElementById('claim-bar');
@@ -80,18 +91,6 @@ for (const claimBarUp of [false, true]) {
         expect(parseFloat(barState.claimH) > 0, `--claim-h is ${barState.claimH} with the bar up — the measurement never ran`).toBe(true);
       } else {
         expect(parseFloat(barState.claimH) === 0, `--claim-h is ${barState.claimH} with no bar — the popovers are giving up space for nothing`).toBe(true);
-      }
-      if (P.seed) {
-        await page.evaluate(() => localStorage.setItem('d2r_chronicleInbox', JSON.stringify(
-          ['Battlecage', 'Templar Coat', 'Toothrow', 'Shaftstop'].map((name) => ({ name, ts: 1755600000000 })))));
-        await page.goto(FILE);
-        if (claimBarUp) {
-          await page.evaluate(() => {
-            const c = document.getElementById('claim-bar');
-            if (c) { (c as HTMLElement).hidden = false; document.body.classList.add('has-claim-bar'); }
-          });
-          await page.waitForTimeout(300);
-        }
       }
       await page.click(`[data-tab="${P.tab}"]`);
       await page.waitForTimeout(400);

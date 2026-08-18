@@ -143,7 +143,19 @@ class TestTZTiering(unittest.TestCase):
             return "prime"
         if not den:
             return "good"
-        s = (den / 2200) * 0.85 + max(0, (lvl - 67) / 18) * 0.15
+        if den < 600:
+            # v1804 — AND THIS COPY WAS ALSO MISSING THE DENSITY FLOOR that both shipped surfaces
+            # have carried since v1585. So it diverged from the product in two ways at once, and
+            # neither showed, because its fixture only ever asks about zones that the floor and
+            # the formula happen to agree on.
+            return "thin"
+        # v1804 — THE LEVEL TERM WAS STILL HERE. Two copies of the ranking live in this test file
+        # and BOTH kept the term that v1801 deleted from the board and the console. They survived
+        # because their callers compare zones at density 520, which exit at the `< 600` floor two
+        # lines up before the formula ever runs — a gate cannot fail on a branch its fixture never
+        # reaches. Reused on any zone above 600 they produce verdicts no shipped surface makes
+        # (Ancient's Way -> good, against PRIME on both surfaces today).
+        s = (den / 2200) * 0.85
         return "prime" if s >= 0.5 else ("good" if s >= 0.28 else "thin")
 
     def _notable(self, src):
@@ -216,12 +228,70 @@ class TestBoardConsoleAgree(unittest.TestCase):
         self.assertTrue(m, "bible.html has no TZ_INFO — the board tracker lost its data")
         return json.loads(m.group(1)), src
 
+    @staticmethod
+    def _notable_keys(src):
+        """Apostrophes are escaped inside single-quoted JS strings, so a naive /'([^']+)'/ splits
+        "Ancient\\'s Way" into "s Way" and reports a phantom difference. Four of these zones carry
+        one."""
+        m = re.search(r"(?:var|const) TZ_NOTABLE\s*=\s*\{(.*?)\n\s*\};", src, re.S)
+        assert m, "TZ_NOTABLE is gone"
+        keys = set()
+        for a, b in re.findall(
+                r"""(?:^|[,{])\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")\s*:""",
+                m.group(1), re.M):
+            keys.add((a or b).replace("\\'", "'"))
+        return keys
+
     def test_the_two_tables_are_identical(self):
         console, _ = _tz_info()
         board, _ = self._board()
         self.assertEqual(board, console,
                          "bible.html and tv/control_ui.html disagree about the zones — one surface "
                          "would show art/density the other does not")
+
+    def test_the_OVERRIDE_table_is_identical_too(self):
+        """v1804 — THE MISSING HALF, which bible.html's own comment already claimed existed:
+        "TZ_INFO / TZ_NOTABLE are copied VERBATIM... tv/test_tz_art.py asserts the two tables agree
+        and fails the push if they drift." Measured false — only TZ_INFO was ever compared.
+
+        TZ_NOTABLE is the FIRST branch of both tier functions and forces PRIME, so it outranks
+        every threshold the sibling test checks. With a byte-identical TZ_INFO the two surfaces
+        still disagreed on FOUR zones: Ancient's Way (PRIME board / THIN console), Catacombs
+        (THIN / PRIME), Mausoleum (PRIME / GOOD), Nihlathak's Temple (nodata / PRIME). v1802
+        aligned the SCORE, left this table alone, and then cited Ancient's Way as its proof that
+        the surfaces agreed — the one zone that had become the worst disagreement of the four."""
+        _, ui = _tz_info()
+        _, board = self._board()
+        b, c = self._notable_keys(board), self._notable_keys(ui)
+        self.assertEqual(b, c,
+                         "TZ_NOTABLE drifted — board-only: %s · console-only: %s"
+                         % (sorted(b - c), sorted(c - b)))
+
+    def test_no_zone_gets_two_verdicts(self):
+        """The PROPERTY the two table tests exist to protect, asserted directly over every zone
+        rather than inferred from the inputs matching. If a third input to the ranking is ever
+        added, both table tests go stale in silence and this one does not."""
+        console, ui = _tz_info()
+        board, board_src = self._board()
+        bn, cn = self._notable_keys(board_src), self._notable_keys(ui)
+
+        def tier(name, notable, info):
+            if name in notable:
+                return "prime"
+            den = info[name][0]
+            if not den:
+                return "good"
+            if den < 600:
+                return "thin"
+            s = (den / 2200) * 0.85          # density-only since v1801, on BOTH surfaces
+            return "prime" if s >= 0.5 else ("good" if s >= 0.28 else "thin")
+
+        disagree = [n for n in sorted(board) if tier(n, bn, board) != tier(n, cn, console)]
+        self.assertEqual(
+            disagree, [],
+            "the same zone gets two verdicts on the two screens he reads: %s"
+            % ", ".join("%s (board=%s console=%s)" % (n, tier(n, bn, board), tier(n, cn, console))
+                        for n in disagree[:6]))
 
     def test_both_surfaces_use_the_same_thresholds(self):
         _, ui = _tz_info()
@@ -349,7 +419,13 @@ class TestTierSeparation(unittest.TestCase):
             return "good"
         if den < 600:
             return "thin"
-        s = (den / 2200) * 0.85 + max(0, (lvl - 67) / 18) * 0.15
+        # v1804 — THE LEVEL TERM WAS STILL HERE. Two copies of the ranking live in this test file
+        # and BOTH kept the term that v1801 deleted from the board and the console. They survived
+        # because their callers compare zones at density 520, which exit at the `< 600` floor two
+        # lines up before the formula ever runs — a gate cannot fail on a branch its fixture never
+        # reaches. Reused on any zone above 600 they produce verdicts no shipped surface makes
+        # (Ancient's Way -> good, against PRIME on both surfaces today).
+        s = (den / 2200) * 0.85
         return "prime" if s >= 0.5 else ("good" if s >= 0.28 else "thin")
 
     def _notable(self, src):
@@ -505,6 +581,27 @@ class TestLockedVsRoutable(unittest.TestCase):
         # assertFalse, not assertNotIn: assertNotIn prints the whole 5MB container on failure.
         self.assertFalse("tzt-locked" in board, "the board still locks what the console now routes")
         self.assertFalse(".tzt-lock{" in board, "the padlock styling outlived its emitter")
+
+    def test_the_board_does_not_claim_a_route_its_filler_rows_lack(self):
+        """v1804 — the v1801 comment on the board read "a padlock promises the click will not work,
+        and now it does". It does not. A FILLER row carries no role, tabindex or onclick at any
+        tier; only the hunt branch routes, before and after that change. A comment that describes
+        the sibling file while sitting in this one is the exact shape [[feedback-comments-vs-code]]
+        is carved for, and this repo has been burned by a stale comment blinding a grep guard three
+        times in one session."""
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        i = board.find("return '<div class=\"tzt-zone tzt-filler tzt-t-'")
+        self.assertGreater(i, 0, "the board's filler row render moved — re-check this guard")
+        row = board[i:i + 400]
+        for claim in ("role=", "tabindex", "onclick"):
+            self.assertNotIn(claim, row,
+                             "the filler row grew %r — if the board really routes now, say so in "
+                             "the comment above it and update this guard" % claim)
+        # ...and the verdict must still reach a screen reader as TEXT
+        self.assertIn("tzt-z-skip", row,
+                      "the skip line is the only thing telling an assistive reader why a zone is "
+                      "thin, now that the padlock is gone")
 
     def test_both_surfaces_rank_a_zone_the_same_way(self):
         """THE ONE THAT MATTERS. bible.html and tv/control_ui.html each carry their own tzTier over

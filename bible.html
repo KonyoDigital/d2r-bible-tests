@@ -25980,7 +25980,19 @@ const TZ_HUNT = [
     'Worldstone Keep': 'the Baal run', 'Throne of Destruction': 'Baal', 'Worldstone Chamber': 'Baal',
     'The Pit': 'the best drop tier in the game', 'Arcane Sanctuary': 'the Summoner',
     'Halls of Vaught': 'Nihlathak', 'Moo Moo Farm': 'the Cow King', 'Mausoleum': 'Bloodraven country',
-    'Ancient\'s Way': 'next door to the Ancient Tunnels'
+    'Ancient\'s Way': 'next door to the Ancient Tunnels',
+    /* v1804 — THE UNION, because the two tables had drifted and TZ_NOTABLE is the FIRST branch of
+       both tier functions, so a name present in one and absent in the other forces PRIME on one
+       screen and lets density decide on the other. Measured before this fix, over a byte-identical
+       TZ_INFO: Ancient's Way PRIME here / THIN in the console, Catacombs THIN here / PRIME there,
+       Mausoleum PRIME here / GOOD there, Nihlathak's Temple good-nodata here / PRIME there. v1802
+       aligned the SCORE and left the override table alone, and then used Ancient's Way as its proof
+       that the two surfaces agreed — the one zone that had become the worst disagreement.
+       These three come from the console side, cross-referenced there against the board's own
+       BOSSES[] array rather than from memory. [[copy-drift]] */
+    'Catacombs': 'Andariel',
+    'Tal Rasha\'s Chamber': 'Duriel',
+    'Nihlathak\'s Temple': 'Pindleskin'
   };
 
   /* Density dominates because a Terror Zone raises monster level to the player's own — what the
@@ -26072,9 +26084,8 @@ function tzZoneRowHtml(zoneName){
   /* v1801 — THE SENTENCE NAMED THE TERM THAT NO LONGER EXISTS. "a low base level" was doing real
      work in this verdict until the line above stopped consulting base level at all; left as-is it
      would explain the ranking by a number the ranker had just been told to ignore. And "sit this
-     one out" is now wrong twice over: it is advice the card can no longer enforce (thin zones
-     route again, below) and advice he did not ask for — the tier states the density, he decides
-     the run. [[label-outlived-referent]] */
+     one out" is advice he did not ask for — the tier states the density, he decides the run.
+     [[label-outlived-referent]] */
   const skip = t.tier === 'thin'
     ? 'thin — low density for the window. Worth a look only if you want the zone itself.'
     : (t.tier === 'prime' ? 'no named boss, but the density is there — worth a clear.'
@@ -26083,11 +26094,17 @@ function tzZoneRowHtml(zoneName){
      padlock beside the name, so the difference is something he meets with the mouse before he
      reads a word. A non-thin zone with no named boss stays a normal card: it is worth running, and
      inventing a click target that goes nowhere would be worse than having none. */
-  /* v1801 — UNLOCKED, matching the console. Konyo was asked directly what should happen once the
-     level term goes and thin grows from 15 zones to 40, and chose: greyed and cancelled, still
-     clickable. That answer is about the RANKING, not about which file renders it, so the board
-     follows. The grey (.tzt-t-thin) is untouched and does all the telling; what goes is the
-     padlock and aria-disabled — a padlock promises the click will not work, and now it does. */
+  /* v1801 — the padlock and aria-disabled are gone, matching the console's unlock.
+     v1804 — AND THE CLAIM THAT CAME WITH IT WAS FALSE ON THIS SURFACE. It read "a padlock
+     promises the click will not work, and now it does". It does not: a FILLER row has never
+     carried role, tabindex or onclick at ANY tier — the `h` (hunt) branch above is the only
+     routable one on the board, and that was true before this change and after it. What actually
+     changed here is that a thin row stopped wearing a padlock and an aria-disabled it could not
+     justify, since aria-disabled on a permanently non-interactive div asserts a state that never
+     had a live counterpart. The VERDICT is not lost with it: `skip` renders as visible text in
+     .tzt-z-skip, which is what a screen reader reads and what a padlock never said.
+     Left standing, that sentence was a comment describing the console while sitting in the board —
+     the shape this repo has a carved scar for. [[feedback-comments-vs-code]] */
   return '<div class="tzt-zone tzt-filler tzt-t-'+t.tier+'">' + face
     + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
     + meta
@@ -41368,7 +41385,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1803', name:'v1803 - the deploy is what gets gated, not the push', date:'2026-08-19', note:'A push to main PUBLISHES, so the gate that matters stands in front of the deploy and not in front of the push. publish.yml runs the smoke set (read from hooks/pre-push, never restated, so the two cannot drift), the python suites, and a review of the bytes that actually landed - and publication is held if the review returns a HIGH finding. The local deploy stays in the hook until CI has deployed once: removing a working publisher before the new one is proven leaves two halves and no publication.' };
+  window.D2R_BUILD = { id:'v1804', name:'v1804 - the override table was the half that kept drifting', date:'2026-08-19', note:'v1802 aligned the tier FORMULA across the board and the console and left TZ_NOTABLE alone - and that table is the first branch of both tier functions, so four zones still got two verdicts over a byte-identical TZ_INFO. The commit even cited the worst of the four as its proof the surfaces agreed. Both tables now carry the union of 18, the drift guard compares TZ_NOTABLE as well as TZ_INFO which bible.html had already claimed it did, and a new test asserts the PROPERTY directly - no zone gets two verdicts - so a third input to the ranking cannot make both table guards go stale in silence.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
