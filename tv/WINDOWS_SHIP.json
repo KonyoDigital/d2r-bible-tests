@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1783",
+  "ver": "v1784",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1783: an untouched focus labelled town and fights as his stash",
+  "note": "v1784: six sites wrote a reason and nothing read one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

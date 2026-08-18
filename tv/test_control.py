@@ -5794,6 +5794,53 @@ class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
                           "%s does not consult the throttle" % fn.__name__)
 
 
+class TestV1784TheWatchdogSaysWhyItSkipped(unittest.TestCase):
+    """v1784 — SIX SITES WROTE A REASON AND NOTHING READ ONE.
+
+    Both tick docstrings promise "a silent skip is impossible to mistake for a clean run", and
+    _CHRON_AUTOREAD["skipped"]/["reads"]/["tries"] are filled in at six places — then read by
+    nothing: no route, no status payload, no print, never persisted. The only production caller
+    made a skip exactly what the docstrings forbid, and after a restart a visit or reel retired for
+    a NAMED reason was byte-identical to one genuinely swept.
+
+    They now ride in chronicle_sweep_state() — the payload the console and the board already read —
+    and survive a restart. BOTH writers of the mark file carry them, because v1762's scar in this
+    same file was a writer that knew only its own key and wiped the other's."""
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._skipped = dict(control_app._CHRON_AUTOREAD.get("skipped") or {})
+
+    def tearDown(self):
+        self.ca._CHRON_AUTOREAD["skipped"] = self._skipped
+
+    def test_a_named_refusal_reaches_the_state_everything_reads(self):
+        self.ca._CHRON_AUTOREAD["skipped"]["4242"] = "no ledger — offered, never guessed"
+        st = self.ca.chronicle_sweep_state()
+        self.assertIn("autoreadSkipped", st,
+                      "the watchdog's reasons are still write-only — a skip is invisible")
+        self.assertEqual(st["autoreadSkipped"].get("4242"), "no ledger — offered, never guessed")
+        self.assertIn("autoreadReads", st)
+
+    def test_BOTH_writers_of_the_mark_file_keep_the_reasons(self):
+        """v1762's scar, one file down: a writer that knows only its own key wipes the other's.
+        Marking a VISIT and marking a REEL must each leave the reasons intact."""
+        import json as _json
+        self.ca._CHRON_AUTOREAD["skipped"]["7777"] = "gave up after 2 tries"
+        self.ca._chron_autoread_mark(7777)
+        after_visit = _json.load(open(self.ca._CHRON_AUTOREAD_PATH, encoding="utf-8"))
+        self.assertIn("7777", (after_visit.get("skipped") or {}),
+                      "the VISIT writer dropped the reasons: %s" % after_visit)
+        self.ca._chron_reels_mark("reel_test_1784")
+        after_reel = _json.load(open(self.ca._CHRON_AUTOREAD_PATH, encoding="utf-8"))
+        self.assertIn("7777", (after_reel.get("skipped") or {}),
+                      "the REEL writer dropped the reasons: %s" % after_reel)
+        self.assertIn("reel_test_1784", (after_reel.get("reels") or []))
+        self.assertIn(7777, (after_reel.get("done") or []))
+
+
 class TestV1774AThrottledSweepSealsNothing(unittest.TestCase):
     """v1774 — A THROTTLED READER ANSWERED EMPTY AND EVERY LAYER BELIEVED IT.
 

@@ -9005,7 +9005,11 @@ def _chron_autoread_mark(ts):
         # reels, silently un-marking every reel already swept — and the watchdog would re-walk the
         # whole backlog on the next tick, paying for it again. Two writers, one file, one of them
         # unaware of the other: the same shape as the whitelist that dropped gateHeld an hour ago.
-        payload = {"done": sorted(done), "reels": sorted(_chron_reels_seen())}
+        payload = {"done": sorted(done), "reels": sorted(_chron_reels_seen()),
+                   # v1784 — the OTHER writer of this file. v1762 was
+                   # exactly this shape: a writer that knew only its own key wiped the
+                   # other one. The reasons must survive both marks, not one.
+                   "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {})}
         tmp = _CHRON_AUTOREAD_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh)
@@ -9112,7 +9116,10 @@ def _chron_reels_mark(reel_id):
     seen = _chron_reels_seen()
     seen.add(str(reel_id))
     try:
-        payload = {"done": sorted(_chron_autoread_done()), "reels": sorted(seen)}
+        payload = {"done": sorted(_chron_autoread_done()), "reels": sorted(seen),
+                   # v1784 — a mark without its reason is a decision with no author. Persisted so a
+                   # reel retired for a NAMED reason stays distinguishable from one genuinely swept.
+                   "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {})}
         tmp = _CHRON_AUTOREAD_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh)
@@ -10156,7 +10163,21 @@ def chronicle_sweep_state():
     # and "the process that ran it has restarted" are different facts and only one of them is true.
     _chron_result_load()
     with _CHRON_LOCK:
-        return dict(_CHRON_JOB)
+        st = dict(_CHRON_JOB)
+    # v1784 — THE WATCHDOG'S REASONS WERE WRITE-ONLY. Both tick docstrings promise "a silent skip is
+    # impossible to mistake for a clean run", and _CHRON_AUTOREAD["skipped"]/["reads"] are filled in
+    # at six sites — then read by NOTHING: no route, no payload, no print, never persisted. So the
+    # only production caller made a skip exactly what the docstring forbids, and after a restart a
+    # visit retired for a named reason was byte-identical to one genuinely swept. Found by an
+    # adversarial review of the watchdogs. They ride along here, in the state the console and the
+    # board already read.
+    try:
+        st["autoreadSkipped"] = dict(_CHRON_AUTOREAD.get("skipped") or {})
+        st["autoreadReads"] = int(_CHRON_AUTOREAD.get("reads") or 0)
+        st["autoreadTries"] = dict(_CHRON_AUTOREAD.get("tries") or {})
+    except Exception:
+        pass
+    return st
 
 
 def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, reel_id=None):
@@ -10817,7 +10838,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1783",
+        "ver": "v1784",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
