@@ -10076,18 +10076,35 @@ def _chron_evidence_load():
         return {}
 
 
-_CHRON_EVIDENCE_ERROR = None   # v1800 — the last save failure, or None. See _chron_evidence_save.
+# v1801 — A LEDGER-WRITE FAILURE IS HISTORY, AND A LATER SUCCESS DOES NOT UNMAKE IT.
+# v1800 kept ONE slot and cleared it to None on every success. But _chron_autoread_loop fires visit
+# sweeps on a timer, and each one saves: so a retro sweep whose write FAILED — its sightings gone
+# for good, because _chron_evidence_merge rebuilds `base` from the file every run and they never
+# reached it — was erased from the record seconds later by an unrelated tick that happened to
+# succeed. The board would then report evidenceSaved:true and the loss would be unrecorded. The
+# failures accumulate instead; only an explicit reset clears them, and nothing calls one. Zero
+# failures and "not attempted" stay distinguishable via evidenceWrites. [[unknown-stays-unknown]]
+_CHRON_EVIDENCE_FAILS = []     # [{"ts": epoch_ms, "err": str}] — append-only within a process
+_CHRON_EVIDENCE_WRITES = 0     # successful writes, so 0/0 cannot read as "all good"
 
 
 def _chron_evidence_save(prop):
-    """Takes NO lock — callers hold _CHRON_LOCK and threading.Lock is not reentrant (v1763)."""
-    global _CHRON_EVIDENCE_ERROR
+    """Takes NO lock, and does not need one.
+
+    v1801 — THE OLD DOCSTRING SAID "callers hold _CHRON_LOCK" AND THAT WAS SIMPLY UNTRUE: measured,
+    neither call site (_chron_evidence_merge, and the hunt) is inside a `with _CHRON_LOCK` block.
+    A false claim about locking is worse than none, because the next person to add a caller reasons
+    from it — either taking the lock and deadlocking against a real holder, or omitting it on the
+    strength of a guarantee nobody provides. The writes are atomic by tmp+os.replace, which is what
+    actually makes concurrent saves safe here.
+    """
+    global _CHRON_EVIDENCE_WRITES
     try:
         tmp = _CHRON_EVIDENCE_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(prop, fh)
         os.replace(tmp, _CHRON_EVIDENCE_PATH)
-        _CHRON_EVIDENCE_ERROR = None
+        _CHRON_EVIDENCE_WRITES += 1
         return True
     except Exception as e:
         # v1799 — SAY SO. This returned False into a caller that ignores it, so when v1798 made the
@@ -10101,7 +10118,8 @@ def _chron_evidence_save(prop):
         # module global that the sweep result carries to the board, which is the only place the
         # claim "this sweep accumulated" is actually made. [[the-unjoined-end]]
         print("   \u26a0 chronicle evidence NOT saved (%s) \u2014 the ledger did not accumulate this run" % e)
-        _CHRON_EVIDENCE_ERROR = str(e) or e.__class__.__name__
+        _CHRON_EVIDENCE_FAILS.append({"ts": int(time.time() * 1000),
+                                      "err": str(e) or e.__class__.__name__})
         return False
 
 
@@ -10314,8 +10332,10 @@ def chronicle_sweep_state():
     # joining it here covers both the sweep path and the hunt path without a second stamp site
     # that the next path can forget. evidenceSaved is False ONLY after a real failure — never
     # None-as-False, because "not saved" and "not attempted" are different facts.
-    st["evidenceSaved"] = (_CHRON_EVIDENCE_ERROR is None)
-    st["evidenceError"] = _CHRON_EVIDENCE_ERROR
+    st["evidenceSaved"] = not _CHRON_EVIDENCE_FAILS
+    st["evidenceError"] = _CHRON_EVIDENCE_FAILS[-1]["err"] if _CHRON_EVIDENCE_FAILS else None
+    st["evidenceFails"] = len(_CHRON_EVIDENCE_FAILS)
+    st["evidenceWrites"] = _CHRON_EVIDENCE_WRITES
     return st
 
 
@@ -11011,7 +11031,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1800",
+        "ver": "v1801",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

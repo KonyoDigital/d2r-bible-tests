@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1800",
+  "ver": "v1801",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1800: The v1799 test for the ledger writer never called it - it hand-rolled its own json.dump and passed identically with the writer deleted. It now drives the real function and is proven RED by mutation. The save failure reaches the board through chronicle_sweep_state instead of a stdout nobody reads. default=str removed so a set can no longer be written as its repr. Both siblings of the .inbox-pop clip fixed - .tools-legend-pop measured at top:-42px on his own 1440x800, heading off screen. Popovers flip to top-anchored below 620px where the anchor itself was the defect.",
+  "note": "v1801: The post-ship review found eight. Six were real and are fixed: the inbox popover was excluded from its own short-viewport fix and rendered 28px tall at 640x400; the tier sweep stopped at one member so GOOD and PENDING were still outranked in UP NEXT; evidenceSaved reached no reader at all despite the commit note saying it reached the board; a later successful write erased a failure the board had never shown; the base fact I added rendered the SLOT while the card already carried the real base; and meta.left went into an attribute unescaped. The claim-bar half of my own new gate was a no-op because _D2R_OWNER is true under automation on file://.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

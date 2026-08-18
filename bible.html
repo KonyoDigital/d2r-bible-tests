@@ -40101,16 +40101,6 @@ html{overflow-x:clip}
    its budget: a bottom-anchored box cannot fit above an anchor that is already near the top. Below
    620px the popovers flip to being TOP-anchored, which is the only arrangement that leaves the
    heading on screen. Measured: 640x400 went from top:-116 to a fully visible box. */
-@media (max-height:620px){
-  .tools-legend-pop,.forge-legend-pop,.inbox-pop{
-    top:calc(8px + var(--claim-h,0px))!important;bottom:auto!important;
-    /* v1800 — max(), because on a 400px-tall viewport carrying BOTH the claim bar (147px, wrapped)
-       and the dock (178px) the honest remainder is 51px, and a 51px scroll box is not a panel a
-       person can read. Below that floor the panel is allowed to overlay the dock: the dock is
-       reachable again the moment the popover closes, whereas an unreadable popover is simply a
-       dead control. Arithmetic that is correct and useless is still useless. */
-    max-height:max(180px, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 24px))!important}
-}
 /* v1798 — AND THE INBOX POPOVER, which was left behind when its FAB joined the tray. The two
    lines above rebase the legend popovers onto --dock-h for exactly this reason; .inbox-pop still
    carried bottom:236px, a static number tuned to the FAB's OLD bottom:312px. --dock-h is 84px at
@@ -40126,6 +40116,26 @@ html{overflow-x:clip}
    rather than removing it. */
 .inbox-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important;
   max-height:max(180px, min(70vh, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 190px)))!important}
+/* v1801 — THE MEDIA BLOCK HAD TO MOVE BELOW .inbox-pop, NOT JUST NAME IT.
+   v1800 added .inbox-pop to the short-viewport flip and left the block ABOVE .inbox-pop's own
+   rule. Same specificity (0,1,0), !important on both sides, so SOURCE ORDER decides and the
+   later rule won: .inbox-pop kept its `bottom` while the block's `top` still applied, leaving a
+   position:fixed box with BOTH edges pinned and height:auto — which CSS resolves as
+   viewport - top - bottom, not as max-height. Measured at 640x400: top:155px, bottom:348px,
+   rendered height 28px. The popover the whole fix was written for was the one member it did not
+   reach, and it was WORSE off than before, because 28px of a scroll box reads as a rendering
+   glitch rather than a panel. Its two legend siblings were fine only by the accident of sitting
+   above the block. Found by the post-ship review. [[d2r-css-last-rule-wins]] */
+@media (max-height:620px){
+  .tools-legend-pop,.forge-legend-pop,.inbox-pop{
+    top:calc(8px + var(--claim-h,0px))!important;bottom:auto!important;
+    /* v1800 — max(), because on a 400px-tall viewport carrying BOTH the claim bar (147px, wrapped)
+       and the dock (178px) the honest remainder is 51px, and a 51px scroll box is not a panel a
+       person can read. Below that floor the panel is allowed to overlay the dock: the dock is
+       reachable again the moment the popover closes, whereas an unreadable popover is simply a
+       dead control. Arithmetic that is correct and useless is still useless. */
+    max-height:max(180px, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 24px))!important}
+}
 /* routines bar shares the corner — parked LEFT of the tray column so they never overlap.
    v754 (item 7): the right offset now lives in the single clean base rule (no !important war). */
 /* v708.1 — backup-age nudge: one quiet toast above the dock, left side (tray owns the right) */
@@ -41340,7 +41350,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1800', name:'v1800 - the gate that guarded the blind fixture was itself blind', date:'2026-08-19', note:'The v1799 test for the ledger writer never called it - it hand-rolled its own json.dump and passed identically with the writer deleted. It now drives the real function and is proven RED by mutation. The save failure reaches the board through chronicle_sweep_state instead of a stdout nobody reads. default=str removed so a set can no longer be written as its repr. Both siblings of the .inbox-pop clip fixed - .tools-legend-pop measured at top:-42px on his own 1440x800, heading off screen. Popovers flip to top-anchored below 620px where the anchor itself was the defect.' };
+  window.D2R_BUILD = { id:'v1801', name:'v1801 - eight findings on the ship that fixed the blind gate', date:'2026-08-19', note:'The post-ship review found eight. Six were real and are fixed: the inbox popover was excluded from its own short-viewport fix and rendered 28px tall at 640x400; the tier sweep stopped at one member so GOOD and PENDING were still outranked in UP NEXT; evidenceSaved reached no reader at all despite the commit note saying it reached the board; a later successful write erased a failure the board had never shown; the base fact I added rendered the SLOT while the card already carried the real base; and meta.left went into an attribute unescaped. The claim-bar half of my own new gate was a no-op because _D2R_OWNER is true under automation on file://.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

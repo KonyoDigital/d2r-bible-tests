@@ -41,12 +41,33 @@ for (const claimBarUp of [false, true]) {
     test(`v1800 tools legend popover is reachable at ${w}x${h} (claim bar ${claimBarUp ? 'up' : 'dismissed'})`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: h });
       await page.goto(FILE);
-      // claim the browser (or un-claim it) BEFORE the load that matters — the bar decides at init
-      await page.evaluate((up) => {
-        if (up) localStorage.removeItem('d2r_ownerClaim');
-        else localStorage.setItem('d2r_ownerClaim', '*');
-      }, claimBarUp);
-      await page.goto(FILE);
+      // v1801 — RAISE THE BAR DIRECTLY. The first version of this spec toggled
+      // localStorage.d2r_ownerClaim and re-loaded, which does NOTHING here: bible.html resolves
+      // window._D2R_OWNER to true whenever navigator.webdriver && location.protocol==='file:'
+      // ("AUTOMATION ONLY. An automated browser on a file:// copy is the test suite"), so the
+      // claim-bar IIFE returns before it ever clears [hidden]. Both halves of the loop ran with
+      // no bar, --claim-h stayed 0px, and five of the ten cases were exact duplicates of the
+      // other five — a blind fixture inside the ship whose title is about a blind fixture. The
+      // bar is now raised the way the page raises it, and ASSERTED up, so this can never quietly
+      // become a no-op again. [[feedback-blind-fixture-green-gate]]
+      if (claimBarUp) {
+        await page.evaluate(() => {
+          const c = document.getElementById('claim-bar');
+          if (c) { (c as HTMLElement).hidden = false; document.body.classList.add('has-claim-bar'); }
+        });
+        await page.waitForTimeout(300);
+      }
+      const barState = await page.evaluate(() => {
+        const c = document.getElementById('claim-bar') as HTMLElement | null;
+        return { up: !!(c && !c.hidden && c.getBoundingClientRect().height > 0),
+                 claimH: getComputedStyle(document.documentElement).getPropertyValue('--claim-h').trim() };
+      });
+      expect(barState.up, `the claim bar is ${claimBarUp ? 'not up' : 'up'} — this case is not testing what it claims`).toBe(claimBarUp);
+      if (claimBarUp) {
+        expect(parseFloat(barState.claimH) > 0, `--claim-h is ${barState.claimH} with the bar up — the measurement never ran`).toBe(true);
+      } else {
+        expect(parseFloat(barState.claimH) === 0, `--claim-h is ${barState.claimH} with no bar — the popovers are giving up space for nothing`).toBe(true);
+      }
       await page.click('[data-tab="tools"]');
       await page.waitForTimeout(400);
       await page.click('.tools-legend-fab');

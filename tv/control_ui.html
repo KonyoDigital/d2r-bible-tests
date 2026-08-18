@@ -3015,6 +3015,30 @@
      [[d2r-css-last-rule-wins]] */
   .tz-slot.next .tzz-thin { opacity: .3; }
   .tz-slot.next .tzz-thin:hover { opacity: .92; }
+  /* v1801 — AND THE OTHER TWO MEMBERS OF THE SAME CLASS. The v1800 fix above corrected THIN and
+     stopped, which just moved the asymmetry to a different tier: `.tzz-good {opacity:.74}` and
+     `.tzz-pending {opacity:.6}` are both (0,1,0) and both still lost to the (0,3,0) column rule,
+     so UP NEXT read THIN .3 / GOOD .9 / PENDING .9 against LIVE NOW's .3 / .74 / .6. The pending
+     placeholder is the worst of the three: the code's own note says an empty `next` is the COMMON
+     case for part of every slot, so the one card that must read as "nothing published yet" was
+     the brightest thing in the row. `.tzz-good:hover` (0,2,0) was dead in that column too, so a
+     GOOD card in UP NEXT did not respond to the mouse at all.
+
+     Fixing one member of a class and declaring it done is the exact failure [[sweep-dont-ask]]
+     exists to prevent, and it happened in the commit that cited that skill. Found by the
+     post-ship review. */
+  .tz-slot.next .tzz-good { opacity: .74; }
+  .tz-slot.next .tzz-good:hover { opacity: .95; }
+  .tz-slot.next .tzz-pending { opacity: .6; }
+  /* v1801 — the ledger-write warning. --st-bad is the file's one colour for "this is broken",
+     and it is a role=alert because it reports data LOSS he cannot see any other way. */
+  .chron-evwarn { margin: 0 0 10px; padding: 9px 12px; border-radius: 9px;
+    border: 1px solid color-mix(in srgb, var(--st-bad,#ff5555) 55%, transparent);
+    background: color-mix(in srgb, var(--st-bad,#ff5555) 11%, transparent);
+    color: var(--st-bad,#ff5555);
+    font: var(--fw-bold) var(--fs-2xs)/1.45 var(--mono); }
+  .chron-evwarn-sub { display: block; margin-top: 4px; color: var(--fg-muted,#b5a48a);
+    font-weight: var(--fw-medium); }
   /* ★ ALIVE. A slow breath on the live card and its art, so "this one is on right now" is legible
      from across the room and from peripheral vision — the thing a font size can never do. Gated on
      prefers-reduced-motion like every other animation here. */
@@ -4764,6 +4788,7 @@
           <!-- v1520 — THE REVIEW. Everything below is what he DECIDES from, so it never shows a count
                without the evidence behind it: every grounded name carries the gate's own sentence,
                and every held name carries the reason it was held. -->
+          <div class="chron-evwarn" id="chron-evwarn" role="alert" hidden></div>
           <div class="chron-review" id="chron-review" hidden></div>
         </div>
         <!-- v1537 — 🔍 THE READ CHAIN.
@@ -5294,21 +5319,7 @@
     var tok = m[2].trim().toLowerCase();
     return _PIECE_SLOT_TOK[tok] ? m[1] : n;
   }
-  /* v1800 — THE EXACT INVERSE, defined touching its twin so the two cannot drift apart. What
-     _pieceLabel strips, this returns; what it keeps, this reports as ''. The pair has to agree,
-     because the defect that produced them was precisely two renderings of one name disagreeing:
-     the hero headline read "Telling of Beads" and a hover card on the same row read "Telling of
-     Beads (spired helm)". The base is real and worth showing — it just belongs on its own line,
-     not welded into the item's name in one of the two places it appears. */
-  function _pieceBase(name){
-    var n = (name == null ? '' : String(name));
-    var m = /^(.*\S)\s*\(([^()]*)\)\s*$/.exec(n);
-    if (!m) return '';
-    var tok = m[2].trim().toLowerCase();
-    return _PIECE_SLOT_TOK[tok] ? m[2].trim() : '';
-  }
   window._cPieceLabel = _pieceLabel;   // published so the SECOND script block (and specs) can reach it
-  window._cPieceBase  = _pieceBase;
   // v1604 — `ms` is optional and defaults to the old 2400. A refusal he must ACT on ("free 5GB and
   // press MINI again") cannot share a dwell time with "saved" — 2.4s is not long enough to read a
   // sentence, and a message that vanishes before it is read is the same as no message.
@@ -12376,7 +12387,11 @@
        restating the first. [[label-outlived-referent]] */
     var _setChip = setName ? ('<b class="hh-go' + _rarCls('set') + '" role="button" tabindex="0"'
       + ' aria-label="' + esc(setName) + ' — open it in the sets chronicle"'
-      + ' title="' + esc(setName) + ' — ' + (meta.left ? meta.left + ' piece' + (meta.left===1?'':'s') + ' left · ' : '')
+      /* v1801 — esc() ON meta.left. It arrives from d2r_setFarm in localStorage, which this file
+         treats as untrusted by policy (:5161, :5578), and v1800 concatenated it raw into an HTML
+         attribute where a quote breaks out into new attributes. The _itipAttr this replaced did
+         its own escaping, so removing that card removed the escaping with it. */
+      + ' title="' + esc(setName) + ' — ' + (meta.left ? esc(String(meta.left)) + ' piece' + (meta.left===1?'':'s') + ' left · ' : '')
       + 'open it in the sets chronicle"'
       + ' onclick="event.stopPropagation();window._hubGoSetPiece(' + JSON.stringify(top.name || '').replace(/"/g, '&quot;') + ')"'
       + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.stopPropagation();event.preventDefault();'
@@ -12401,12 +12416,20 @@
         + ' aria-label="' + esc(_pieceLabel(top.name) || '') + (setName ? ' — a piece of ' + esc(setName) : '')
         + ' — open it in the sets chronicle"'
         /* v1800 — _pieceLabel, not the raw name, so the card's title matches the headline it is
-           attached to. The base survives on its own line below rather than inside the name. */
+           attached to.
+           v1801 — AND NO `base` FACT. v1800 added one built from _pieceBase, which returns the
+           matched _PIECE_SLOT_TOK token — and roughly half that vocabulary is SLOT words (shield,
+           belt, gloves, amulet, helm...), not base items. So "Griswold's Honor (Shield)" rendered
+           `base Shield`, the slot, while the att-type line two rows above already rendered
+           `Set · Vortex Shield` from tip.b, the real base. One card, two answers to "what base is
+           this", and the one I added was the wrong one — on the very item v1620/v1630 were about.
+           The base was never missing; it was already there, correct, from the bridge. Trying to
+           surface it a second time from a name suffix could only ever restate or contradict it.
+           Found by the post-ship review. [[label-outlived-referent]] */
         + _itipAttr({ name: _pieceLabel(top.name) || top.name || '', art: meta.art || '',
                       rarity: meta.rarity || 'set',
                       tip: meta.tip || null,
-                      facts: [['base', _pieceBase(top.name) || ''],
-                              ['completes', setName || ''],
+                      facts: [['completes', setName || ''],
                               ['pieces left', meta.left ? String(meta.left) : ''],
                               ['hunt at', top.source || ''],
                               ['to the next piece', hrs ? '≈ ' + hrs : '']],
@@ -13878,6 +13901,30 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       return;
     }
     if (run) { run.disabled = false; run.textContent = 'run it again'; }
+    /* v1801 — THE LEDGER-WRITE FAILURE GETS A TAP, because until now it had none.
+       v1800's commit note claimed this failure "reaches the board through chronicle_sweep_state".
+       It reached the PAYLOAD and stopped: grepping the repo, the only readers of evidenceSaved
+       were that ship's own assertions. So the v1798 state was still fully reachable — the write
+       fails, the sweep reports success, every screen agrees, and the ledger quietly stops
+       accumulating. Built on both ends, never joined, with a test standing in for a reader.
+
+       It paints ABOVE the result and BEFORE the `if (!res) return` below, because the run most
+       likely to have lost its evidence is the one with nothing to show for it.
+       [[plumbing-with-no-tap]] */
+    var evWarn = document.getElementById('chron-evwarn');
+    if (evWarn) {
+      var _bad = (st.evidenceSaved === false);
+      evWarn.hidden = !_bad;
+      if (_bad) {
+        var _nf = st.evidenceFails || 1;
+        evWarn.innerHTML = '\u26a0 the evidence ledger did not save \u2014 '
+          + escC(String(st.evidenceError || 'no reason given'))
+          + '<span class="chron-evwarn-sub">' + escC(String(_nf)) + ' failed write'
+          + (_nf === 1 ? '' : 's') + ' this session \u00b7 ' + escC(String(st.evidenceWrites || 0))
+          + ' succeeded \u00b7 sightings from a failed write are NOT in the ledger and cannot '
+          + 'corroborate anything</span>';
+      }
+    }
     if (st.phase === 'error') {
       if (body) body.innerHTML = '<div class="chron-none">the sweep stopped — ' + escC(st.error || 'no reason given') + '</div>';
       return;

@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import time
+import re as _re_mod
 import unittest
 from unittest import mock
 import urllib.request
@@ -7032,10 +7033,11 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
         path = _os.path.join(d, "ev.json")
         merged = cr.merge_proposals(self._page(reel="A"), self._page(reel="B", frame="f9"))
 
-        old_path, old_err = ca._CHRON_EVIDENCE_PATH, ca._CHRON_EVIDENCE_ERROR
+        old_path = ca._CHRON_EVIDENCE_PATH
+        old_fails, old_writes = list(ca._CHRON_EVIDENCE_FAILS), ca._CHRON_EVIDENCE_WRITES
         try:
             ca._CHRON_EVIDENCE_PATH = path
-            ca._CHRON_EVIDENCE_ERROR = None
+            ca._CHRON_EVIDENCE_FAILS[:] = []
             # GREEN: the real writer, on the real merged shape
             self.assertTrue(ca._chron_evidence_save(merged),
                             "_chron_evidence_save refused a well-formed merged proposal")
@@ -7044,7 +7046,7 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
                 back = _json.load(fh)
             self.assertEqual(sorted(back["setGroups"]["Tal Rasha's Wrappings (Sorc)"]),
                              ["Tal Rasha's Adjudication", "Tal Rasha's Lidless Eye"])
-            self.assertIsNone(ca._CHRON_EVIDENCE_ERROR)
+            self.assertEqual(ca._CHRON_EVIDENCE_FAILS, [])
             self.assertTrue(ca.chronicle_sweep_state().get("evidenceSaved"))
 
             # RED: the v1798 payload — a set where a list belongs. Must FAIL, must SAY SO, and the
@@ -7052,14 +7054,16 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
             # proves the happy path, which is what every green-forever gate proves.
             self.assertFalse(ca._chron_evidence_save({"uniques": {"x"}}),
                              "an unserializable proposal was reported as saved")
-            self.assertIsNotNone(ca._CHRON_EVIDENCE_ERROR)
+            self.assertEqual(len(ca._CHRON_EVIDENCE_FAILS), 1)
             st = ca.chronicle_sweep_state()
             self.assertFalse(st.get("evidenceSaved"),
                              "the ledger failed to write and the sweep state still said it saved")
             self.assertIn("serializable", (st.get("evidenceError") or ""),
                           "the failure reached the board without saying what went wrong")
         finally:
-            ca._CHRON_EVIDENCE_PATH, ca._CHRON_EVIDENCE_ERROR = old_path, old_err
+            ca._CHRON_EVIDENCE_PATH = old_path
+            ca._CHRON_EVIDENCE_FAILS[:] = old_fails
+            ca._CHRON_EVIDENCE_WRITES = old_writes
 
     def test_the_same_page_twice_is_still_ONE_sighting(self):
         """The de-dupe must survive the fix — two reads of one photograph are not corroboration."""
@@ -7136,19 +7140,110 @@ class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
         self.assertIn("aria-label=", chip, "the set chip lost its spoken label")
         self.assertIn("_hubGoSetPiece(", chip, "the set chip lost its route")
 
-    def test_piece_label_and_piece_base_are_exact_inverses(self):
-        """They are defined touching each other for this reason. If they ever disagree, a name is
-        rendered two ways again — which is the defect above, returning by a different door."""
-        import re as _re
-        blk = self.ui
-        self.assertIn("function _pieceBase(name){", blk, "_pieceBase is gone")
-        self.assertIn("window._cPieceBase", blk, "_pieceBase is not published")
-        # the two must read the SAME token map, or they cannot be inverses
-        lab = blk[blk.find("function _pieceLabel(name){"):][:400]
-        bas = blk[blk.find("function _pieceBase(name){"):][:400]
-        for fn, name in ((lab, "_pieceLabel"), (bas, "_pieceBase")):
-            self.assertIn("_PIECE_SLOT_TOK[tok]", fn,
-                          "%s stopped consulting the shared slot vocabulary" % name)
+    def test_the_hover_card_does_not_answer_the_base_question_twice(self):
+        """v1800 added a `base` fact built from the name's parenthetical. About half of
+        _PIECE_SLOT_TOK is SLOT words, so "Griswold's Honor (Shield)" rendered `base Shield` — the
+        slot — while the att-type line above it already rendered `Set · Vortex Shield` from tip.b,
+        the real base. One card, two answers, the added one wrong.
+
+        Asserted against CODE, not the file: this class's own comments now discuss _pieceBase by
+        name, and a guard that greps the whole file matches its own explanation and passes forever.
+        [[feedback-comments-vs-code]]"""
+        # strip comments from the WHOLE file BEFORE slicing: a window that ends mid-comment leaves
+        # an unterminated /* the stripper cannot match, and the guard then reads its own prose.
+        # (That is not hypothetical — this assertion failed exactly that way when first written.)
+        code = _re_mod.sub(r"/\*.*?\*/", "", self.ui, flags=_re_mod.S)
+        i = code.find("var _setChip = setName")
+        self.assertGreater(i, 0)
+        code = code[i:i + 3000]
+        self.assertNotIn("_pieceBase", code,
+                         "the slot-as-base fact is back; the bridge already carries the real base")
+        self.assertNotIn("['base'", code, "a second `base` answer reappeared on the card")
+
+    def test_the_set_chip_escapes_the_bridge_value_it_prints(self):
+        """meta.left arrives from d2r_setFarm in localStorage — untrusted by this file's own stated
+        policy. v1800 removed the _itipAttr that had been escaping it and concatenated it raw into
+        a title attribute, where a quote breaks out into new attributes."""
+        code = _re_mod.sub(r"/\*.*?\*/", "", self.ui, flags=_re_mod.S)
+        i = code.find("var _setChip = setName")
+        self.assertGreater(i, 0)
+        code = code[i:i + 3000]
+        k = code.find("title=")
+        self.assertGreater(k, 0, "the set chip lost its title")
+        seg = code[k:k + 260]
+        self.assertNotIn("+ meta.left +", seg,
+                         "meta.left is concatenated into an HTML attribute unescaped")
+        self.assertIn("esc(String(meta.left))", seg,
+                      "the bridge value must be escaped before it enters an attribute")
+
+
+class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
+    """v1800 said the write failure "reaches the board". It reached the payload and stopped — the
+    only readers were v1800's own assertions, so the v1798 silent-freeze was still fully reachable.
+    These pin the JOINT, not the ends. [[the-unjoined-end]]"""
+
+    def setUp(self):
+        self._fails = list(ca._CHRON_EVIDENCE_FAILS)
+        self._writes = ca._CHRON_EVIDENCE_WRITES
+        ca._CHRON_EVIDENCE_FAILS[:] = []
+        ca._CHRON_EVIDENCE_WRITES = 0
+        self.addCleanup(self._restore)
+
+    def _restore(self):
+        ca._CHRON_EVIDENCE_FAILS[:] = self._fails
+        ca._CHRON_EVIDENCE_WRITES = self._writes
+
+    def test_a_later_success_does_not_erase_an_unshown_failure(self):
+        """The watchdog fires visit sweeps on a timer, and each one saves. v1800 cleared the error
+        slot on every success, so a retro sweep whose write failed — sightings lost for good, since
+        the merge rebuilds `base` from the file — was erased seconds later by an unrelated tick."""
+        import shutil as _shutil, tempfile, os as _os
+        d = tempfile.mkdtemp(); self.addCleanup(_shutil.rmtree, d, True)
+        old = ca._CHRON_EVIDENCE_PATH
+        try:
+            ca._CHRON_EVIDENCE_PATH = _os.path.join(d, "ev.json")
+            self.assertFalse(ca._chron_evidence_save({"uniques": {"x"}}))   # the failure
+            self.assertTrue(ca._chron_evidence_save({"uniques": {}}))       # a later success
+            st = ca.chronicle_sweep_state()
+            self.assertFalse(st.get("evidenceSaved"),
+                             "a later success erased a failure the board never showed him")
+            self.assertEqual(st.get("evidenceFails"), 1)
+            self.assertEqual(st.get("evidenceWrites"), 1,
+                             "0 writes and 0 failures must stay distinguishable from all-good")
+        finally:
+            ca._CHRON_EVIDENCE_PATH = old
+
+    def test_the_console_actually_reads_the_flag(self):
+        """The defect this whole thread is about: a value published and consumed by nothing."""
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertIn("st.evidenceSaved === false", ui,
+                      "nothing on the console reads evidenceSaved — the tap is missing again")
+        self.assertIn('id="chron-evwarn"', ui, "the warning element is gone, so the painter writes nowhere")
+        self.assertIn("chron-evwarn {", ui, "the warning has no styling and will paint as bare text")
+        # and it must be reachable when there is NO result — that is the likeliest failing run
+        i_warn = ui.find("var evWarn = document.getElementById('chron-evwarn')")
+        i_ret = ui.find("if (!res) return;", i_warn)
+        self.assertGreater(i_warn, 0)
+        self.assertGreater(i_ret, i_warn,
+                           "the warning paints after the empty-result early return, so the run most "
+                           "likely to have lost its evidence would never show it")
+
+    def test_the_result_writer_still_refuses_an_unserializable_payload(self):
+        """v1800 removed `default=str` from _chron_result_save so a set could not be written as its
+        repr — and that was the one changed line with no gate, so re-adding it left the suite green.
+        Asserts the REFUSAL, which is the behaviour that matters."""
+        import json as _json
+        with self.assertRaises(TypeError):
+            _json.dumps({"result": {"x": {"a", "b"}}})           # no default= : must raise
+        src = open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.find("def _chron_result_save")
+        self.assertGreater(i, 0)
+        body = src[i:i + 1800]
+        code = _re_mod.sub(r"#.*", "", body)
+        self.assertNotIn("default=str", code,
+                         "default=str is back: an unserializable value is written as its repr and "
+                         "reloaded as data, which is silent corruption instead of a loud failure")
 
 
 if __name__ == "__main__":
