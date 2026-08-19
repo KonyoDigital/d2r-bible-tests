@@ -525,10 +525,16 @@ test.describe('v1628 · 7 — hovering a name raises its real card', () => {
        fails in the next. It cost two consecutive red Routine I runs on shard 3/6, on commits
        that changed no page code at all. Same defect, same remedy, applied to the class. The
        assertion below stays exactly as strict: if the card never comes up, this still goes red. */
+    /* 2026-08-19 — 4s was not enough on a loaded CI runner. This test failed on two consecutive
+       shard-3 runs and then PASSED on a re-run with no code change between, which is the
+       definition of a flake and cost two full suite cycles to establish. The assertion is
+       untouched and exactly as strict: if the card never comes up, this still goes red. Only the
+       patience changes — the same argument v1717 made when it replaced a fixed 900ms snapshot
+       with polling in the first place. A gate that cries wolf is on its way to being ignored. */
     await page.waitForFunction(() => {
           const t = document.getElementById('arttip');
           return !!t && t.classList.contains('on');
-        }, null, { timeout: 4000 }).catch(() => {});
+        }, null, { timeout: 12000 }).catch(() => {});
     const after = await page.evaluate(() => {
       const t: any = document.getElementById('arttip');
       if (!t) return { exists: false, on: false, name: '', desc: 0, imgDecoded: null as any };
