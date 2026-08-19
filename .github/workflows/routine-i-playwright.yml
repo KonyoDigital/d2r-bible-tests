@@ -91,8 +91,21 @@ jobs:
       - name: Install Chromium (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      # 2026-08-19 — BOUNDED, AND NOT ALLOWED TO BLOCK. This step shells out to apt-get, which can
+      # sit forever on a dpkg lock or a slow mirror. It has hung twice in one morning: once holding
+      # shard 4 for 31 minutes until the run was cancelled (so its tests never ran at all and the
+      # verdict was simply lost), and again holding three jobs past 31 minutes. A step with no
+      # timeout does not fail, it just stops being informative — the run looks alive and answers
+      # nothing.
+      #
+      # continue-on-error because this is the CACHE-HIT path: the browser is already restored from
+      # cache and ubuntu-latest ships the libraries Playwright wants, so this is belt-and-braces. If
+      # a library genuinely is missing, browserType.launch fails in the next step with a message
+      # that names it — which is a better diagnosis than a silent half-hour on apt.
       - name: Install system deps (cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 5
+        continue-on-error: true
         run: npx playwright install-deps chromium
       - name: Run shard
         run: npx playwright test --project=chromium --shard=${{ matrix.shard }}/6 --reporter=blob
@@ -131,8 +144,21 @@ jobs:
       - name: Install Chromium (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      # 2026-08-19 — BOUNDED, AND NOT ALLOWED TO BLOCK. This step shells out to apt-get, which can
+      # sit forever on a dpkg lock or a slow mirror. It has hung twice in one morning: once holding
+      # shard 4 for 31 minutes until the run was cancelled (so its tests never ran at all and the
+      # verdict was simply lost), and again holding three jobs past 31 minutes. A step with no
+      # timeout does not fail, it just stops being informative — the run looks alive and answers
+      # nothing.
+      #
+      # continue-on-error because this is the CACHE-HIT path: the browser is already restored from
+      # cache and ubuntu-latest ships the libraries Playwright wants, so this is belt-and-braces. If
+      # a library genuinely is missing, browserType.launch fails in the next step with a message
+      # that names it — which is a better diagnosis than a silent half-hour on apt.
       - name: Install system deps (cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 5
+        continue-on-error: true
         run: npx playwright install-deps chromium
       - name: Run slow shard
         run: npx playwright test --project=slow --shard=${{ matrix.shard }}/2 --reporter=blob
