@@ -31,7 +31,27 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # 2026-08-19 — A BROKEN UBUNTU MIRROR MUST NOT BE ABLE TO STOP THIS RUN.
+      # `playwright install --with-deps` shells out to apt. On this date azure.archive.ubuntu.com
+      # answered `Ign` to every index for eight straight minutes; the publish workflow burned its
+      # whole 25-minute budget there and surfaced as "cancelled", and routines G and H died the same
+      # way on the same push. "Cancelled" reads as "a person stopped this", so the real cause hid.
+      # Cache the browser, bound the download, and let the apt top-up fail without taking the job:
+      # ubuntu-latest already ships the libraries, and if one is genuinely missing the run below
+      # fails on browserType.launch with the library's name in it, which is a far better diagnosis.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: pw-${{ runner.os }}-
+      - name: Install Chromium
+        timeout-minutes: 6
+        run: npx playwright install chromium
+      - name: OS deps for Chromium (best effort)
+        timeout-minutes: 5
+        continue-on-error: true
+        run: npx playwright install-deps chromium
       - name: Run perf watchdog
         run: node K_perf.js "$GITHUB_WORKSPACE/bible.html" | tee k.log
       - name: Check thresholds (warn only)

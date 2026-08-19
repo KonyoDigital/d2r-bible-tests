@@ -88,9 +88,20 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # 2026-08-19 — the cache-HIT path below was already bounded and non-blocking; this one was
+      # not, and it is the path that actually downloads. It kept `--with-deps`, so a cache miss
+      # still put apt on the critical path with no timeout — exactly the hang the note below
+      # describes, left running in the one branch most likely to hit it. Split like the other
+      # workflows: the browser download is required and bounded, the apt top-up is neither.
       - name: Install Chromium (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 6
+        run: npx playwright install chromium
+      - name: Install system deps (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
+        continue-on-error: true
+        run: npx playwright install-deps chromium
       # 2026-08-19 — BOUNDED, AND NOT ALLOWED TO BLOCK. This step shells out to apt-get, which can
       # sit forever on a dpkg lock or a slow mirror. It has hung twice in one morning: once holding
       # shard 4 for 31 minutes until the run was cancelled (so its tests never ran at all and the
@@ -141,9 +152,20 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # 2026-08-19 — the cache-HIT path below was already bounded and non-blocking; this one was
+      # not, and it is the path that actually downloads. It kept `--with-deps`, so a cache miss
+      # still put apt on the critical path with no timeout — exactly the hang the note below
+      # describes, left running in the one branch most likely to hit it. Split like the other
+      # workflows: the browser download is required and bounded, the apt top-up is neither.
       - name: Install Chromium (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 6
+        run: npx playwright install chromium
+      - name: Install system deps (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
+        continue-on-error: true
+        run: npx playwright install-deps chromium
       # 2026-08-19 — BOUNDED, AND NOT ALLOWED TO BLOCK. This step shells out to apt-get, which can
       # sit forever on a dpkg lock or a slow mirror. It has hung twice in one morning: once holding
       # shard 4 for 31 minutes until the run was cancelled (so its tests never ran at all and the
