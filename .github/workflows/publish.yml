@@ -248,6 +248,16 @@ jobs:
       - name: Publish
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # WRANGLER CANNOT DISCOVER THE ACCOUNT FROM THIS TOKEN, and that is not a misconfiguration.
+          # The token is deliberately narrow (Pages:Edit) and therefore has no Account:Read, so
+          # `GET /accounts` returns success:true with ZERO results and wrangler fails with
+          # "Failed to automatically retrieve account IDs for the logged in user. You may have
+          # incorrect permissions on your API token" — which reads like a broken credential and is
+          # actually a correctly-scoped one.
+          # His Mac never hit this because local wrangler caches the account in
+          # ~/Library/Preferences/.wrangler; a fresh CI runner has no such cache. Passing it
+          # explicitly is the fix that does NOT require widening the token.
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
             # NOT an error, and this distinction is the whole point. While hooks/pre-push still
