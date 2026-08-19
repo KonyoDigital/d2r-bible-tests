@@ -97,9 +97,24 @@ jobs:
           path: ~/.cache/ms-playwright
           key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: pw-${{ runner.os }}-
+      # SPLIT, because the two halves fail for different reasons and only one of them matters.
+      # The 8-minute bound above caught the real culprit on its first run: it was never the
+      # browser download, it was `--with-deps` running apt against azure.archive.ubuntu.com,
+      # which answered `Ign` to every index for eight straight minutes. The browser binary comes
+      # from a different host entirely and was fine. Bundling them meant a broken Ubuntu mirror
+      # could block a publication of this site, which is a dependency nobody would accept if it
+      # were written down.
       - name: Install Chromium
-        timeout-minutes: 8
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 6
+        run: npx playwright install chromium
+      # Best effort: the ubuntu-latest image already carries the shared libs Chromium needs, so
+      # this is a top-up, not a prerequisite. If it stalls or fails we continue — and if the libs
+      # really are missing the smoke run below fails on a browser launch, which names the problem
+      # far better than an apt timeout does.
+      - name: OS deps for Chromium (best effort)
+        timeout-minutes: 5
+        continue-on-error: true
+        run: npx playwright install-deps chromium
       # The spec list is READ FROM hooks/pre-push, never restated here. Two copies of a gate list
       # is [[copy-drift]] with a publication attached: the hook would gain a spec, this would not,
       # and the CI gate would quietly be weaker than the local one it replaced.
