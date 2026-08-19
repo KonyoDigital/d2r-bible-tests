@@ -18709,7 +18709,21 @@ window.toggleDock = function(force) {
     handle.setAttribute('aria-expanded', String(!collapsed));
     handle.setAttribute('title', (collapsed ? 'Show' : 'Hide') + ' MF / Players dock (D)');
   }
-  try { LS.setItem('d2r_dockCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+  /* v1809 — DO NOT PERSIST A DECISION MADE AGAINST AN AUTOMATIC STATE.
+     The collapsed flag above is computed from the CLASS, and v1806 started adding that class by
+     itself on a short viewport. So: he has 'always collapsed' stored, opens a 400px-tall window,
+     the dock auto-collapses, he taps D once to peek at it — and this line wrote '0', erasing the
+     preference he set deliberately. Measured before the fix: stored '1', one press, stored '0'.
+     His setting, destroyed by a layout adaptation he never asked for.
+     When the current collapse is OURS (data-auto-collapsed), a press still works — it expands, he
+     sees the dock — but his stored choice is left exactly as he left it. A toggle can only record
+     an intent when the thing it toggled away from was an intent.
+     Found by the Grok third eye reading this pairing; I had claimed the preference was never
+     overwritten because _dockFit never calls LS, which was true and not the question.
+     [[label-outlived-referent]] */
+  var _wasAuto = dock.dataset.autoCollapsed === '1';
+  if (_wasAuto) { delete dock.dataset.autoCollapsed; }
+  else { try { LS.setItem('d2r_dockCollapsed', collapsed ? '1' : '0'); } catch (e) {} }
 };
 // restore the persisted collapsed state on load
 (function () { try { if (LS.getItem('d2r_dockCollapsed') === '1') window.toggleDock(true); } catch (e) {} })();
@@ -18735,7 +18749,10 @@ window.toggleDock = function(force) {
       var dock = document.getElementById('control-dock');
       if (!dock) return;
       var tooShort = window.innerHeight <= 620;
-      if (tooShort) { dock.classList.add('dock-collapsed'); return; }
+      /* v1809 — MARK IT AS AUTOMATIC. Without this the class alone is indistinguishable from a
+         collapse he chose, and toggleDock() reads the CLASS to decide what the next press means. */
+      if (tooShort) { dock.classList.add('dock-collapsed'); dock.dataset.autoCollapsed = '1'; return; }
+      delete dock.dataset.autoCollapsed;
       // room again: hand control back to whatever HE chose, not to whatever we forced
       var pref = false;
       try { pref = LS.getItem('d2r_dockCollapsed') === '1'; } catch (e) {}
@@ -41481,7 +41498,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1808', name:'v1808 - a zone promoted on a relationship that does not exist', date:'2026-08-19', note:'Two fixes he asked for. The TZ_NOTABLE entry for the Act 5 ice cave claimed it was next door to the Act 2 tombs - different acts, different tilesets, a name-similarity slip - and TZ_NOTABLE is the one table that overrides density outright, so the zone was forced to PRIME on a relationship that does not exist. Removed from both tables and from the hint that printed the same claim on his card. And the workshop tab icons: v1683 mapped the six to ui_tab art and nothing ever read it, because the workshop row is a SIBLING of the tabs container and the icon pass only walked children. Both halves built, never joined.' };
+  window.D2R_BUILD = { id:'v1809', name:'v1809 - an automatic collapse must not become his setting', date:'2026-08-19', note:'The Grok third eye found it. v1806 auto-collapses the dock on a short viewport, and toggleDock computes the next state from the CLASS - so with always-collapsed stored, one tap of D on a 400px-tall window wrote the opposite and erased the preference he had set deliberately. Measured before the fix: stored 1, one press, stored 0. An automatic collapse is now marked, and a press against OUR state expands without recording an intent he never expressed.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

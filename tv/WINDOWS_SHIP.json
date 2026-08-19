@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1808",
+  "ver": "v1809",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1808: Two fixes he asked for. The TZ_NOTABLE entry for the Act 5 ice cave claimed it was next door to the Act 2 tombs - different acts, different tilesets, a name-similarity slip - and TZ_NOTABLE is the one table that overrides density outright, so the zone was forced to PRIME on a relationship that does not exist. Removed from both tables and from the hint that printed the same claim on his card. And the workshop tab icons: v1683 mapped the six to ui_tab art and nothing ever read it, because the workshop row is a SIBLING of the tabs container and the icon pass only walked children. Both halves built, never joined.",
+  "note": "v1809: The Grok third eye found it. v1806 auto-collapses the dock on a short viewport, and toggleDock computes the next state from the CLASS - so with always-collapsed stored, one tap of D on a 400px-tall window wrote the opposite and erased the preference he had set deliberately. Measured before the fix: stored 1, one press, stored 0. An automatic collapse is now marked, and a press against OUR state expands without recording an intent he never expressed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
