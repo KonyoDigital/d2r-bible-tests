@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1810",
+  "ver": "v1811",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1810: On a short viewport the bottom-anchored tray column met the top-anchored tab strip: the nav compass covered a tab outright and the help orb sat on the search field. Below 480px tall the tray now yields.",
+  "note": "v1811: Below 700px the tab strip is one scroll row and the site lands on Sessions, the 11th tab. At 375 wide it sat entirely outside the visible strip with scrollLeft 0, so the page opened with no active-tab indicator on screen. It is now aligned to its own snap point on boot, on hashchange, on resize and on a programmatic switch.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

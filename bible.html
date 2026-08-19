@@ -27202,6 +27202,9 @@ window.switchTab = function(name) {
   _v39_origSwitchTab(name);
   _v39_persistActiveTab(name);
   if (typeof syncNavWidget === "function") syncNavWidget(name);
+  // a PROGRAMMATIC switch (jump links, the nav compass, #tvd aliases) can land on a tab that is
+  // scrolled out of the strip; a click cannot, because you had to see it to click it
+  if (typeof _tabStripReveal === "function") setTimeout(_tabStripReveal, 40);
   // Sync URL hash without scroll-jump
   try {
     const newHash = '#' + name;
@@ -27224,6 +27227,39 @@ window._toolJump = function(id){
   } catch(e){}
 };
 
+/* v1811 — THE ACTIVE TAB WAS NEVER SCROLLED INTO VIEW.
+   Below 700px the tab strip is one nowrap scroll row (v708.1) and the site lands on #session
+   (v906) — and `session` is the 11th tab. Measured on a FRESH load at 375x700: it sits at
+   x 433-513 inside a strip whose visible range is 14-350, with scrollLeft 0. Entirely off-strip.
+   So the page opened on Sessions and the tab row read MAIN..RUNES with the active indicator
+   nowhere on screen, which a person reads as "nothing is selected", not as "scroll right". At
+   640 wide it was half-cut instead. Nothing ever scrolled it: switchTab only sets classes, and
+   the strip's own scrollLeft was written by no code in this file.
+   HORIZONTAL ONLY, deliberately. scrollIntoView({inline:'center'}) walks ancestors even with
+   block:'nearest' and would jump the PAGE during boot; this writes scrollLeft on the strip and
+   touches nothing else. It also no-ops when the strip is not scrollable, so on a wide viewport
+   where the row wraps normally it does nothing at all. [[the-unjoined-end]] */
+function _tabStripReveal() {
+  try {
+    var act = document.querySelector('.tabs .tab.active, .tabs-workshop .tab.active');
+    if (!act) return;
+    var strip = act.closest('.tabs');
+    if (!strip) return;
+    if (strip.scrollWidth <= strip.clientWidth + 1) return;   // wrapped, not scrolled — nothing to reveal
+    var s = strip.getBoundingClientRect(), a = act.getBoundingClientRect();
+    if (a.left >= s.left - 1 && a.right <= s.right + 1) return;   // already fully in view
+    /* ALIGN TO THE TAB'S START, rather than nudging by the smallest delta that would work.
+       The ≤700px rule sets scroll-snap-type:x proximity with scroll-snap-align:start on each
+       tab, so a minimal-delta write does not survive: asked for 46px at 640 wide, the browser
+       snapped it back to 29 and the tab stayed 1px outside the strip — a fix that measured as
+       almost working, which is the worst kind. A tab's own start IS a snap point, so this is
+       the one target the snapper will not move. Overshoot at the end of the row is clamped by
+       the browser to maxScroll, which still lands the tab on screen. */
+    strip.scrollLeft += (a.left - s.left);
+  } catch (e) {}
+}
+window._tabStripReveal = _tabStripReveal;
+
 // --- URL hash routing: react to manual #anchor changes (back/forward, paste)
 function _v39_routeFromHash() {
   let h = (location.hash || '').replace(/^#/, '').trim();
@@ -27243,7 +27279,12 @@ function _v39_routeFromHash() {
     }
   }
 }
-window.addEventListener('hashchange', _v39_routeFromHash);
+window.addEventListener('hashchange', function(){ _v39_routeFromHash(); setTimeout(_tabStripReveal, 60); });
+/* the strip's width settles after fonts and after the ≤700px rule applies, so reveal again on a
+   resize or an orientation flip — a phone turned to landscape re-lays the row out completely. */
+window.addEventListener('resize', function(){ setTimeout(_tabStripReveal, 80); });
+window.addEventListener('orientationchange', function(){ setTimeout(_tabStripReveal, 160); });
+window.addEventListener('load', function(){ setTimeout(_tabStripReveal, 120); });
 // v904 — the TV·D return pill follows the toggle (app-ctx only)
 (function(){
   try {
@@ -27331,6 +27372,8 @@ _v39_whenReady(() => {
     setTimeout(() => _v39_origSwitchTab(home), 0);
   }
   setTimeout(_v39_routeFromHash, 250);
+  // after the router has settled on a tab, put it where the reader can see it
+  setTimeout(_tabStripReveal, 320);
 });
 
 // --- Sync pulse: when MF changes, briefly highlight all .chance cells
@@ -41520,7 +41563,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1810', name:'v1810 - the floating tray rode up into the tab strip', date:'2026-08-19', note:'On a short viewport the bottom-anchored tray column met the top-anchored tab strip: the nav compass covered a tab outright and the help orb sat on the search field. Below 480px tall the tray now yields.' };
+  window.D2R_BUILD = { id:'v1811', name:'v1811 - the active tab was never scrolled into view', date:'2026-08-19', note:'Below 700px the tab strip is one scroll row and the site lands on Sessions, the 11th tab. At 375 wide it sat entirely outside the visible strip with scrollLeft 0, so the page opened with no active-tab indicator on screen. It is now aligned to its own snap point on boot, on hashchange, on resize and on a programmatic switch.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

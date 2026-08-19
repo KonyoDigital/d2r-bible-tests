@@ -82,7 +82,24 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 20, cache: npm }
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # v1811 — THE SHIP DIED ON A BROWSER DOWNLOAD, AND IT DID NOT LOOK LIKE ONE.
+      # v1810's publish sat in `playwright install` for 25 minutes, hit the job's timeout-minutes
+      # cap, and surfaced in `gh run list` as **cancelled** — which reads as "a person cancelled
+      # this", not "a download stalled". Deploy is `needs: [smoke, ...]`, so the publication was
+      # skipped and the site silently stayed a version behind while every other job was green.
+      # Two changes, because the stall and its DISGUISE are separate defects:
+      #   - cache the browsers, so the usual run does not download anything at all;
+      #   - give the step its own timeout well under the job's 25, so a stall fails THE STEP with
+      #     its name on it and leaves the remaining budget to say so.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: pw-${{ runner.os }}-
+      - name: Install Chromium
+        timeout-minutes: 8
+        run: npx playwright install --with-deps chromium
       # The spec list is READ FROM hooks/pre-push, never restated here. Two copies of a gate list
       # is [[copy-drift]] with a publication attached: the hook would gain a spec, this would not,
       # and the CI gate would quietly be weaker than the local one it replaced.
