@@ -53,6 +53,23 @@ for (const claimBarUp of [false, true]) {
   for (const { w, h } of SIZES) {
     test(`v1800 ${P.name} popover is reachable at ${w}x${h} (claim bar ${claimBarUp ? 'up' : 'dismissed'})`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: h });
+      /* v1806 — SEED BEFORE THE PAGE RUNS, and repaint through the app's own door.
+         The first two versions seeded with page.evaluate AFTER load and then re-navigated, hoping
+         the inbox pass would repaint in time. On CI it never did: the FAB stayed display:none, ten
+         page.clicks each burned their timeout, and one shard went from 15 minutes to 45.
+         v1789 and v1794 seed the SAME queue and have passed on CI for versions — they use
+         addInitScript, so the rows are in storage before any of the page's own JS reads them, and
+         then they call window.renderInboxFab() rather than waiting on a repaint they do not
+         control. Copying a pattern that is already green beats theorising about a race. */
+      if (P.seed) {
+        await page.addInitScript(() => {
+          try {
+            localStorage.setItem('d2r_chronicleInbox', JSON.stringify(
+              ['Battlecage', 'Templar Coat', 'Toothrow', 'Shaftstop']
+                .map((name) => ({ name, ts: 1755600000000 }))));
+          } catch (e) { /* storage refused — the assertion below reports it */ }
+        });
+      }
       await page.goto(FILE);
       // v1801 — RAISE THE BAR DIRECTLY. The first version of this spec toggled
       // localStorage.d2r_ownerClaim and re-loaded, which does NOTHING here: bible.html resolves
@@ -69,11 +86,6 @@ for (const claimBarUp of [false, true]) {
       // five inbox cases could silently drift back to measuring claim-bar-down geometry twice and
       // the assertion would still pass. The assertion now runs on the page the geometry is
       // actually measured on, which is the only page it says anything about.
-      if (P.seed) {
-        await page.evaluate(() => localStorage.setItem('d2r_chronicleInbox', JSON.stringify(
-          ['Battlecage', 'Templar Coat', 'Toothrow', 'Shaftstop'].map((name) => ({ name, ts: 1755600000000 })))));
-        await page.goto(FILE);
-      }
       if (claimBarUp) {
         await page.evaluate(() => {
           const c = document.getElementById('claim-bar');
@@ -94,6 +106,11 @@ for (const claimBarUp of [false, true]) {
       }
       await page.click(`[data-tab="${P.tab}"]`);
       await page.waitForTimeout(400);
+      // repaint through the app's own painter instead of waiting on whatever schedules it
+      if (P.seed) {
+        await page.evaluate(() => { try { (window as any).renderInboxFab(); } catch (e) {} });
+        await page.waitForTimeout(200);
+      }
 
       /* v1806 — DIAGNOSE, DO NOT HANG. The first version went straight to page.click(P.fab). When
          the inbox FAB was not visible on CI, Playwright waited for it to become actionable until
@@ -110,8 +127,15 @@ for (const claimBarUp of [false, true]) {
          this spec sampled 400ms after the click and saw nothing. That is a timing difference in
          the TEST, not a defect in the page, and reading it as "the FAB is missing" is how a
          perfectly good control gets reported dead. */
+      /* ⚠ `.has` BELONGS TO THE INBOX FAB ALONE. v1806's first cut polled `${P.fab}.has` for every
+         popover and broke the ten tools-legend cases that had been passing: the legend FAB is
+         shown by a body:has() tab rule and never carries a `.has` class, so the selector could
+         not match and ten green tests went red on a class they were never supposed to have.
+         Twenty failures instead of ten, from a fix. The inbox FAB is the one that is display:none
+         until the queue has rows, so it is the only one where `.has` is the readiness signal. */
+      const readySel = P.seed ? `${P.fab}.has` : P.fab;
       const appeared = await page
-        .waitForSelector(`${P.fab}.has`, { state: 'visible', timeout: 20000 })
+        .waitForSelector(readySel, { state: 'visible', timeout: 20000 })
         .then(() => true, () => false);
 
       const fabState = await page.evaluate((sel) => {
@@ -133,8 +157,8 @@ for (const claimBarUp of [false, true]) {
       }, P.fab);
 
       expect(appeared && fabState.visible,
-        `${P.fab} never became visible within 20s, so the popover could not be opened. That is an ` +
-        `ENGINE/SEED state rather than a layout defect, and the numbers say which: ` +
+        `${readySel} never became visible within 20s, so the popover could not be opened. That is ` +
+        `an ENGINE/SEED state rather than a layout defect, and the numbers say which: ` +
         `${JSON.stringify(fabState)}`).toBe(true);
 
       await page.click(P.fab, { timeout: 10000 });
