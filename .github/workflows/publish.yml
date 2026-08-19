@@ -43,9 +43,27 @@ concurrency:
   # the cancelled one reads as "superseded". A ship that was fine never reached the site because a
   # later, worse one arrived while it was queuing.
   #
-  # With cancel-in-progress:false they queue and each publishes in order; the newest simply wins
-  # last, which is the state you wanted anyway. Runner minutes are the cost and they are cheap
-  # against a silent non-publication.
+  # With cancel-in-progress:false a run already RUNNING is never cancelled — which is the whole
+  # point, because cancelling this job discards a publication rather than a test result.
+  #
+  # ⚠ BUT "they all queue and publish in order" IS NOT TRUE, and an earlier version of this comment
+  # said it was. GitHub keeps at most ONE run PENDING per concurrency group: when a third push
+  # arrives while one is running and one is pending, the PENDING one is cancelled and the newest
+  # takes its place. So with three pushes in quick succession the middle version may never publish.
+  #
+  # That is acceptable here and worth stating rather than glossing: main only moves forward, so the
+  # newest run carries the older commits' content too and the SITE still ends up correct. What is
+  # lost is an intermediate version never having been live, which nobody is relying on. What is
+  # PROTECTED is the case that actually costs something — a good ship's deploy being killed
+  # mid-flight by a later, worse one.
+  #
+  # Found by the Grok third eye (a different model family) reviewing this file's conditions. Its
+  # headline finding — that `deploy` would run even when smoke/suites FAILED, because an `if:`
+  # overrides the default needs-check — was WRONG, and checked rather than argued: run
+  # 32248211564 attempt 1 had "Python suites: failure" and "Deploy: skipped". A plain `if:` does
+  # not bypass `needs`; only a status function like always() does. But it was right about this,
+  # and the correction is in the direction that matters — a claim I made that the platform does
+  # not honour.
   #
   # routine-i-playwright.yml keeps cancel-in-progress:true, deliberately: it publishes nothing, and
   # because main only moves forward, the newer run covers the older run's code. What is lost there
