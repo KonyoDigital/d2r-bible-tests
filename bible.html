@@ -18711,6 +18711,38 @@ window.toggleDock = function(force) {
 // restore the persisted collapsed state on load
 (function () { try { if (LS.getItem('d2r_dockCollapsed') === '1') window.toggleDock(true); } catch (e) {} })();
 
+/* v1809 — ON A VERY SHORT VIEWPORT THE DOCK SWALLOWS THE TAB STRIP, so it stands aside.
+   Found by the tray spec, which is worth saying because it looked like a test problem for three
+   rounds: at 640x400 with the CLAIM BAR up, the bar takes the top 139px, the dock takes the bottom
+   ~178px, and 83px of usable height is left. The tab strip lands at y240..271 — inside the dock's
+   territory — and document.elementFromPoint over the Tools tab returns #control-dock. The tab is
+   fully inside the viewport and completely unclickable. A FIRST-TIME VISITOR (the claim bar only
+   shows on an unclaimed browser) on a short window cannot change tabs at all. Without the bar the
+   same size is fine, which is why nothing caught this before.
+
+   It reuses the collapse the dock already has rather than inventing a second hiding mechanism —
+   but NOT through toggleDock(), because that persists to d2r_dockCollapsed and would silently
+   rewrite his preference every time a window got short. The class is applied directly and removed
+   again when there is room, and his stored choice is re-honoured on the way back up: a layout
+   adaptation must not become a setting he never made. 620px matches the threshold the tray
+   popovers already flip at, so the two behaviours change at one line rather than two. */
+(function () {
+  var _dockFit = function () {
+    try {
+      var dock = document.getElementById('control-dock');
+      if (!dock) return;
+      var tooShort = window.innerHeight <= 620;
+      if (tooShort) { dock.classList.add('dock-collapsed'); return; }
+      // room again: hand control back to whatever HE chose, not to whatever we forced
+      var pref = false;
+      try { pref = LS.getItem('d2r_dockCollapsed') === '1'; } catch (e) {}
+      dock.classList.toggle('dock-collapsed', pref);
+    } catch (e) {}
+  };
+  window.addEventListener('resize', _dockFit);
+  _dockFit();
+})();
+
 window.toggleKbdHelp = function() {
   let modal = document.getElementById('kbd-help-modal');
   if (!modal) {
@@ -41401,7 +41433,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1805', name:'v1805 - CI caught three, and two were tokens I invented', date:'2026-08-19', note:'The v1804 Playwright run failed two shards. Two of the three failures were mine from the same session and the same mistake: I reached for three CSS token names this file has never defined and carried each colour in a var() fallback, so a quality hex landed outside the token block and the warn token resolved to two different colours across one file. The real vocabulary was three lines above where I was working. The third was the Cathedral tier assertion following the tiering change he approved - density 680 scores 0.263 against a 0.28 threshold once the meaningless level term is gone, so GOOD became THIN, which is exactly what he asked for.' };
+  window.D2R_BUILD = { id:'v1806', name:'v1806 - on a short viewport the dock swallowed the tab strip', date:'2026-08-19', note:'At 640x400 with the claim bar up, the bar takes the top 139px and the dock the bottom 178px of a 400px viewport. The tab strip lands inside the dock and elementFromPoint over the Tools tab returns the dock, so a first-time visitor on a short window cannot change tabs at all. The dock now stands aside below 620px tall, reusing the collapse it already has, and without persisting that to his saved preference.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
