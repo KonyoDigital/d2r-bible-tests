@@ -222,8 +222,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+      # NODE 22 HERE, 20 EVERYWHERE ELSE — and the difference is load-bearing.
+      # wrangler 4.124.0 refuses to run on Node 20: "Wrangler requires at least Node.js v22.0.0.
+      # You are using v20.20.2." The first armed deploy failed on exactly that, which is the whole
+      # reason it was tested with a workflow_dispatch instead of being discovered on a real ship.
+      # The test jobs stay on 20 because that is what the suites have always run on and this is not
+      # the change to move them.
       - uses: actions/setup-node@v5
-        with: { node-version: 20, cache: npm }
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       # WRANGLER IS PINNED, AND IT IS NOT IN package.json ON PURPOSE.
       #
