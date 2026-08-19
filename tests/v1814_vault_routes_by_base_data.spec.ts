@@ -116,12 +116,17 @@ test('v1814 — the migration repairs old assignments WITHOUT touching his own c
     try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
     try {
       localStorage.setItem('d2r_muleAssign', JSON.stringify({
-        "Andariel's Visage": 'uni-weap',      // mis-filed armour → must move
-        'Homunculus': 'uni-weap',             // mis-filed shield → must move
-        "Astreon's Iron Ward": 'uni-armor',   // mis-filed weapon → must move
+        "Andariel's Visage": 'uni-weap',      // mis-filed armour, BASE_DB-decisive → must move
+        'Homunculus': 'uni-weap',             // mis-filed shield, BASE_DB-decisive → must move
+        "Astreon's Iron Ward": 'uni-armor',   // mis-filed weapon, BASE_DB-decisive → must move
+        // v1815 — THE CASE THE FIRST MIGRATION MISSED. A belt has neither a defense nor a damage
+        // range, so a migration that asked BASE_DB directly left a mis-pinned Goldwrap in the
+        // WEAPONS locker while suggestMule would have said armour. Two rules, two answers, no
+        // way for a reader to say which was right. The migration asks the router now.
+        'Goldwrap': 'uni-weap',               // mis-filed belt, keyword-only → must move
+        'Nightsmoke': 'uni-weap',             // mis-filed belt, keyword-only → must move
         'Blackhand Key': 'uni-weap',          // correct → must stay
         'Shaftstop': 'uni-armor',             // correct → must stay
-        'Goldwrap': 'uni-armor',              // undecidable belt → must stay
         "Titan's Revenge": 'shared',          // HIS choice → must stay
         "Nord's Tenderizer": 'wip',           // HIS choice → must stay
       }));
@@ -138,7 +143,8 @@ test('v1814 — the migration repairs old assignments WITHOUT touching his own c
   expect(a["Astreon's Iron Ward"]).toBe('uni-weap');
   expect(a['Blackhand Key']).toBe('uni-weap');
   expect(a['Shaftstop']).toBe('uni-armor');
-  expect(a['Goldwrap'], 'a belt is undecidable from BASE_DB — leave it where it is').toBe('uni-armor');
+  expect(a['Goldwrap'], 'a belt is keyword-routed — the migration must still repair it').toBe('uni-armor');
+  expect(a['Nightsmoke'], 'the same, for the second belt').toBe('uni-armor');
   expect(a["Titan's Revenge"], 'SHARED is a judgement call, not a slot').toBe('shared');
   expect(a["Nord's Tenderizer"], 'WIP is a judgement call, not a slot').toBe('wip');
 });

@@ -31658,42 +31658,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
-  /* v1814 migration — MOVE WHAT THE OLD ROUTER ALREADY MIS-FILED.
-     Konyo: "some items here were incorrectly VAULTED and MULED ... make sure its routed
-     correctly." Fixing suggestMule only fixes the NEXT item; an assignment already written to
-     d2r_muleAssign is pinned and would sit in the wrong locker forever — which is precisely what
-     he is looking at. So the same BASE_DB test that now decides the route also repairs the
-     assignments made before it existed.
-     DELIBERATELY NARROW. It touches ONLY the uni-weap <-> uni-armor confusion, and only where
-     BASE_DB is decisive (a defense range, or a oneH/twoH damage range). Every other locker is
-     his choice — SHARED, WIP, GRAIL-DUPES and the rest are judgement calls, and a migration that
-     "corrects" a judgement call is just a second bug with better manners. Bases the table cannot
-     classify (belts, sashes — 121 of them) are left exactly where they are. */
-  (function(){
-    var moved = [];
-    try {
-      Object.keys(assign).forEach(function(n){
-        var cur = assign[n];
-        if (cur !== 'uni-weap' && cur !== 'uni-armor') return;
-        var tip = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[n] : null;
-        var b = (tip && tip.b) || '';
-        var rec = (b && typeof _baseRec === 'function') ? _baseRec(b) : null;
-        if (!rec) return;
-        var want = rec.defense ? 'uni-armor' : ((rec.oneH || rec.twoH) ? 'uni-weap' : '');
-        if (!want || want === cur) return;
-        assign[n] = want;
-        moved.push({item:n, base:b, from:cur, to:want});
-      });
-      if (moved.length){
-        window.LSR.setItem(AK, JSON.stringify(assign));
-        // leave the receipt on the page: a silent migration that moves his gear is a migration he
-        // cannot check. window._vaultReroute lists exactly what moved and why.
-        window._vaultReroute = moved;
-        try { console.info('[vault] re-routed ' + moved.length + ' mis-filed item(s):',
-                           moved.map(function(m){ return m.item+' ('+m.base+') '+m.from+'→'+m.to; }).join(' · ')); } catch(e){}
-      }
-    } catch(e){}
-  })();
   // v342.5 — ensure the MAGIC & RARE locker exists on rosters saved before it (holds the magicFinds keepers)
   (function(){
     if (!roster.some(function(m){ return m.id==='magic-rare'; })){
@@ -35074,6 +35038,51 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (img) img.src = VAULT_SHOT_EXAMPLE;
     } catch(e){}
   }
+  /* v1815 migration — REPAIR WHAT THE OLD ROUTER MIS-FILED, ASKING THE ROUTER.
+     Konyo: "some items here were incorrectly VAULTED and MULED ... make sure its routed
+     correctly." v1814 fixed suggestMule, but an assignment already written to d2r_muleAssign is
+     pinned — and the pinned copy is what he is looking at. So the old decisions get re-asked.
+
+     WHY IT CALLS suggestMule INSTEAD OF RE-DECIDING. v1814's first attempt tested BASE_DB here
+     directly, which quietly created a SECOND classification rule: the router asks BASE_DB and
+     then falls back to the keyword list, while the migration only ever asked BASE_DB. Belts and
+     sashes carry neither a defense nor a damage range, so a Goldwrap pinned to UNI-WEAPONS was
+     left sitting there — correct by the migration's rule, wrong by the router's, and a reader
+     comparing the two would find no single answer to "where does this belong". One authority
+     now. [[copy-drift]]
+
+     It runs HERE, at the end of the closure, rather than beside the other migrations at the top:
+     suggestMule leans on JEWELRY_RE and ARMOR_RE, which are `var`s declared further down, so at
+     the top of this IIFE the function is hoisted but its regexes are still undefined. It would
+     have thrown on every item and repaired nothing — silently, inside the try. Ordering is not a
+     detail here; it is the difference between a migration and a no-op.
+
+     STILL DELIBERATELY NARROW: only the uni-weap <-> uni-armor confusion. SHARED, WIP,
+     GRAIL-DUPES and the rest are judgement calls, and a migration that "corrects" a judgement
+     call is a second bug with better manners. */
+  (function(){
+    var moved = [];
+    try {
+      Object.keys(assign).forEach(function(n){
+        var cur = assign[n];
+        if (cur !== 'uni-weap' && cur !== 'uni-armor') return;
+        var sg = null;
+        try { sg = suggestMule(n); } catch(e){ return; }
+        if (!sg || !sg.id) return;
+        if (sg.id !== 'uni-weap' && sg.id !== 'uni-armor') return;   // never move it out of the pair
+        if (sg.id === cur) return;
+        assign[n] = sg.id;
+        moved.push({item:n, from:cur, to:sg.id, why:sg.why || ''});
+      });
+      if (moved.length){
+        saveA();
+        // leave the receipt: a silent migration that moves his gear is one he cannot check
+        window._vaultReroute = moved;
+        try { console.info('[vault] re-routed ' + moved.length + ' mis-filed item(s):',
+                moved.map(function(m){ return m.item+' '+m.from+'→'+m.to; }).join(' · ')); } catch(e){}
+      }
+    } catch(e){}
+  })();
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); renderJournal(); initShotExample(); initFolderWatch(); });
   else { renderVault(); renderJournal(); initShotExample(); initFolderWatch(); }
 })();
@@ -41695,7 +41704,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1814', name:'v1814 - the vault filed armour in the weapons locker', date:'2026-08-19', note:'suggestMule decided the slot from a list of words, so any base whose name contained none of them fell through to weapons. Eight armour pieces were in UNI-WEAPONS and three weapons were in UNI-ARMOR. BASE_DB already knows: armour carries a defense range, weapons carry a damage range. The data decides now, and a migration repairs the assignments already written.' };
+  window.D2R_BUILD = { id:'v1815', name:'v1815 - one authority decides where a vaulted item belongs', date:'2026-08-19', note:'The repair migration asked BASE_DB directly while the router asks BASE_DB and then the keyword list, so a mis-filed belt was left in the weapons locker. It asks the router now, and runs late enough in the closure that the regexes the router needs actually exist.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
