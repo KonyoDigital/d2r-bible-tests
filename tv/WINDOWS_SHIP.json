@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1816",
+  "ver": "v1817",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1816: As shipped it re-ran on every load, so a locker he chose by hand inside the weapons-armour pair would be dragged back forever. It is stamped and one-shot now, and the stamp is profile-forked like the assignment map it guards, so repairing MAIN cannot mark LADDER done.",
+  "note": "v1817: The vault repair stamped its done-flag before saving, so a quota error or a closed tab between the two writes sealed the mis-filing forever. Reversed, a lost write just means the next load retries. Found by a cross-family review.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

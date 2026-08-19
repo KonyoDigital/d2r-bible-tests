@@ -222,3 +222,73 @@ test('v1816 — the done-flag is profile-forked, like the map it guards', async 
   expect(keys, 'the done-flag must be forked alongside the map it guards')
     .toContain('d2r_vaultRerouteDone');
 });
+
+test('v1817 — a failed write must not stamp the repair as done', async ({ page, context }) => {
+  // Found by a cross-family review. v1816 stamped d2r_vaultRerouteDone BEFORE saveA(), so a
+  // storage quota error, a crash, or a tab closed on a slow write left the flag set with the
+  // ORIGINAL bad assignments in storage — the migration never ran again and the mis-filing was
+  // permanent. That is the precise outcome the whole change exists to prevent.
+  //
+  // Reversed, the failure is harmless and this test proves it end to end: with the assignment
+  // write failing, the stamp must be ABSENT so the next healthy load repairs and stamps then.
+  await context.addInitScript(() => {
+    try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {}
+    try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
+    try {
+      if (!localStorage.getItem('__seeded')) {
+        localStorage.setItem('d2r_muleAssign', JSON.stringify({
+          "Andariel's Visage": 'uni-weap',
+          'Blackhand Key': 'uni-weap',
+        }));
+        localStorage.setItem('__seeded', '1');
+      }
+    } catch (e) {}
+    // fail the ASSIGNMENT write exactly once, by trapping LSR the moment the page assigns it
+    try {
+      let real: any;
+      Object.defineProperty(window, 'LSR', {
+        configurable: true,
+        get() { return real; },
+        set(v: any) {
+          real = v;
+          if (v && typeof v.setItem === 'function'
+              && !(window as any).__trapped && !localStorage.getItem('__quotaSpent')) {
+            (window as any).__trapped = true;
+            const orig = v.setItem.bind(v);
+            v.setItem = (k: string, val: string) => {
+              if (String(k).includes('muleAssign')) {
+                localStorage.setItem('__quotaSpent', '1');
+                throw new Error('QuotaExceededError (simulated)');
+              }
+              return orig(k, val);
+            };
+          }
+        },
+      });
+    } catch (e) {}
+  });
+
+  await page.goto(FILE);
+  await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
+  await page.waitForTimeout(1200);
+
+  const flagAfterFailure = await page.evaluate(() => {
+    try { return (window as any).LSR.getItem('d2r_vaultRerouteDone'); } catch (e) { return 'ERR'; }
+  });
+  expect(flagAfterFailure,
+    'the repair was stamped done even though its write failed — the mis-filing is now permanent'
+  ).toBeFalsy();
+
+  // storage is healthy on the next load: it must repair and stamp then
+  await page.goto(FILE);
+  await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
+  await page.waitForFunction(() => {
+    try { return !!(window as any).LSR.getItem('d2r_vaultRerouteDone'); } catch (e) { return false; }
+  }, null, { timeout: 20000 });
+
+  const a = await page.evaluate(() => {
+    try { return JSON.parse((window as any).LSR.getItem('d2r_muleAssign') || '{}'); } catch (e) { return {}; }
+  });
+  expect(a["Andariel's Visage"], 'the retry must actually repair').toBe('uni-armor');
+  expect(a['Blackhand Key'], 'and leave the correct one alone').toBe('uni-weap');
+});

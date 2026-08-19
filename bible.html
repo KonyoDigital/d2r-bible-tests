@@ -35070,23 +35070,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        A repair is a one-time event; a rule that re-asserts itself is a policy, and he did not ask
        for a policy. One shot, stamped, and after that his hand wins. */
     var DONE = 'd2r_vaultRerouteDone';
-    var moved = [];
+    var moved = [], skipped = [];
     try {
       if (window.LSR.getItem(DONE)) return;
       Object.keys(assign).forEach(function(n){
         var cur = assign[n];
         if (cur !== 'uni-weap' && cur !== 'uni-armor') return;
         var sg = null;
-        try { sg = suggestMule(n); } catch(e){ return; }
+        try { sg = suggestMule(n); } catch(e){ skipped.push(n); return; }
         if (!sg || !sg.id) return;
         if (sg.id !== 'uni-weap' && sg.id !== 'uni-armor') return;   // never move it out of the pair
         if (sg.id === cur) return;
         assign[n] = sg.id;
         moved.push({item:n, from:cur, to:sg.id, why:sg.why || ''});
       });
-      /* stamped whether or not anything moved: a vault that was already correct must not be
-         re-examined on every load forever, and "nothing to do" is a completed migration too. */
-      try { window.LSR.setItem(DONE, String(Date.now())); } catch(e){}
+      /* v1817 — WRITE THE REPAIR BEFORE THE RECEIPT THAT SAYS IT HAPPENED.
+         Found by a cross-family review, and it is the one ordering here that can actually lose
+         data. As written in v1816 the DONE stamp went down FIRST and saveA() second, so anything
+         between them — a storage quota error, a crash, the tab closed on a slow write — left the
+         flag set with the ORIGINAL bad assignments still in storage. The migration would then
+         never run again and the mis-filing would be permanent: the exact outcome this whole
+         change exists to prevent.
+         Reversed, the failure is harmless. A crash after saveA() but before the stamp means the
+         repair is already durable, so the next load re-runs, finds nothing left to move, and
+         stamps then. The migration is idempotent, so the safe order is the one where the cheap
+         repeatable step is what gets lost. And if saveA() itself throws, the outer catch
+         swallows it with the stamp unwritten — it retries rather than declaring victory. */
       if (moved.length){
         saveA();
         // leave the receipt: a silent migration that moves his gear is one he cannot check
@@ -35094,6 +35103,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try { console.info('[vault] re-routed ' + moved.length + ' mis-filed item(s):',
                 moved.map(function(m){ return m.item+' '+m.from+'→'+m.to; }).join(' · ')); } catch(e){}
       }
+      /* SAY WHAT YOU COULD NOT CHECK. The same review noted that an item whose suggestMule call
+         throws is skipped and then sealed by the stamp — wrong forever, silently. It is still
+         stamped, because a repair that re-asserts itself on every load is the v1816 defect, but
+         the skip is now on the record instead of invisible. */
+      if (skipped.length){
+        window._vaultRerouteSkipped = skipped;
+        try { console.warn('[vault] ' + skipped.length + ' item(s) could not be re-checked and were left as they are:',
+                skipped.join(' · ')); } catch(e){}
+      }
+      /* stamped whether or not anything moved: a vault that was already correct must not be
+         re-examined on every load forever, and "nothing to do" is a completed migration too. */
+      try { window.LSR.setItem(DONE, String(Date.now())); } catch(e){}
     } catch(e){}
   })();
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); renderJournal(); initShotExample(); initFolderWatch(); });
@@ -41717,7 +41738,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1816', name:'v1816 - the vault repair runs once, then his hand wins', date:'2026-08-19', note:'As shipped it re-ran on every load, so a locker he chose by hand inside the weapons-armour pair would be dragged back forever. It is stamped and one-shot now, and the stamp is profile-forked like the assignment map it guards, so repairing MAIN cannot mark LADDER done.' };
+  window.D2R_BUILD = { id:'v1817', name:'v1817 - write the repair before the receipt that says it happened', date:'2026-08-19', note:'The vault repair stamped its done-flag before saving, so a quota error or a closed tab between the two writes sealed the mis-filing forever. Reversed, a lost write just means the next load retries. Found by a cross-family review.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
