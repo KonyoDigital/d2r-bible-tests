@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1811",
+  "ver": "v1812",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1811: Below 700px the tab strip is one scroll row and the site lands on Sessions, the 11th tab. At 375 wide it sat entirely outside the visible strip with scrollLeft 0, so the page opened with no active-tab indicator on screen. It is now aligned to its own snap point on boot, on hashchange, on resize and on a programmatic switch.",
+  "note": "v1812: The scroll row faded only its right edge. Once v1811 started aligning the active tab to the left, every tab before it went off-screen with nothing saying so. The fade now follows scroll position and disappears entirely on a row that fits.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

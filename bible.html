@@ -27256,9 +27256,43 @@ function _tabStripReveal() {
        the one target the snapper will not move. Overshoot at the end of the row is clamped by
        the browser to maxScroll, which still lands the tab on screen. */
     strip.scrollLeft += (a.left - s.left);
+    if (typeof _tabStripEdges === 'function') _tabStripEdges();
   } catch (e) {}
 }
 window._tabStripReveal = _tabStripReveal;
+
+/* v1812 — THE FADE SAID "MORE TO THE RIGHT" AND NEVER "MORE TO THE LEFT".
+   The ≤700px rule masks the strip with a single one-way gradient (opaque to 93%, transparent at
+   the right edge). That was harmless while the row always sat at scrollLeft 0 — there was never
+   anything to the left. v1811 changed that: aligning the active tab to the strip's left edge
+   means every tab BEFORE it is off-screen, and on a fresh 375px load that is MAIN through
+   REFERENCE — ten of them — with nothing on the page saying they exist. The row just looks like
+   it starts at SESSIONS.
+   So the mask now follows the scroll position instead of being a constant. Written as an
+   attribute rather than inline style so the gradients stay in the stylesheet next to the rule
+   they override. [[d2r-css-last-rule-wins]] */
+function _tabStripEdges() {
+  try {
+    var strip = document.querySelector('.tabs');
+    if (!strip) return;
+    var max = strip.scrollWidth - strip.clientWidth;
+    var st = (max <= 1) ? 'none'
+           : (strip.scrollLeft <= 1) ? 'start'
+           : (strip.scrollLeft >= max - 1) ? 'end'
+           : 'both';
+    strip.setAttribute('data-edge', st);
+  } catch (e) {}
+}
+window._tabStripEdges = _tabStripEdges;
+(function(){
+  try {
+    var strip = document.querySelector('.tabs');
+    if (strip) strip.addEventListener('scroll', _tabStripEdges, { passive: true });
+    window.addEventListener('resize', function(){ setTimeout(_tabStripEdges, 90); });
+    window.addEventListener('load', function(){ setTimeout(_tabStripEdges, 140); });
+    setTimeout(_tabStripEdges, 400);
+  } catch (e) {}
+})();
 
 // --- URL hash routing: react to manual #anchor changes (back/forward, paste)
 function _v39_routeFromHash() {
@@ -40337,6 +40371,13 @@ html{overflow-x:clip}
 @media (max-width:700px){
   .tabs{flex-wrap:nowrap!important;overflow-x:auto!important;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 93%,transparent);mask-image:linear-gradient(90deg,#000 93%,transparent)}
   .tabs::-webkit-scrollbar{display:none}
+  /* v1812 — the four edge states. Attribute selectors outrank the one-way gradient declared just
+     above (0,2,0 vs 0,1,0), so this overrides it wherever _tabStripEdges() has run, and the
+     original stays as the honest fallback if that JS never runs at all. */
+  .tabs[data-edge="none"]{-webkit-mask-image:none!important;mask-image:none!important}
+  .tabs[data-edge="start"]{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)!important;mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)!important}
+  .tabs[data-edge="end"]{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 26px)!important;mask-image:linear-gradient(90deg,transparent 0,#000 26px)!important}
+  .tabs[data-edge="both"]{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 26px,#000 calc(100% - 26px),transparent 100%)!important;mask-image:linear-gradient(90deg,transparent 0,#000 26px,#000 calc(100% - 26px),transparent 100%)!important}
   .tabs-data{flex:0 0 auto!important;flex-wrap:nowrap!important}
   .tabs-cluster{flex:0 0 auto!important;flex-wrap:nowrap!important}
   .tabs-workshop{flex:0 0 auto!important;flex-wrap:nowrap!important;margin:0!important}
@@ -41563,7 +41604,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1811', name:'v1811 - the active tab was never scrolled into view', date:'2026-08-19', note:'Below 700px the tab strip is one scroll row and the site lands on Sessions, the 11th tab. At 375 wide it sat entirely outside the visible strip with scrollLeft 0, so the page opened with no active-tab indicator on screen. It is now aligned to its own snap point on boot, on hashchange, on resize and on a programmatic switch.' };
+  window.D2R_BUILD = { id:'v1812', name:'v1812 - the strip fade now says which way the tabs are', date:'2026-08-19', note:'The scroll row faded only its right edge. Once v1811 started aligning the active tab to the left, every tab before it went off-screen with nothing saying so. The fade now follows scroll position and disappears entirely on a row that fits.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
