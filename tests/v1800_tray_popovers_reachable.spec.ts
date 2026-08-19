@@ -92,7 +92,18 @@ for (const claimBarUp of [false, true]) {
       } else {
         expect(parseFloat(barState.claimH) === 0, `--claim-h is ${barState.claimH} with no bar — the popovers are giving up space for nothing`).toBe(true);
       }
-      await page.click(`[data-tab="${P.tab}"]`);
+      /* v1808 — SCROLL THE TAB INTO VIEW, AND BOUND THE CLICK. The last two failures of twenty
+         were both 640x400 with the claim bar up, and both timed out on THIS click at the full 120s
+         — not on the FAB. Measured at that size: the Tools tab renders at x 650..715 inside a
+         640px viewport, so the tab strip has overflowed horizontally and the tab is past the right
+         edge; document.elementFromPoint at its centre returns nothing because the point is off
+         screen. The strip is scrollable, so a person reaches it by scrolling — this is the test
+         failing to do what a person would, not the page hiding a control.
+         scrollIntoViewIfNeeded does exactly that, and the 15s bound means a future regression here
+         costs seconds rather than two minutes per case. */
+      const tab = page.locator(`[data-tab="${P.tab}"]`);
+      await tab.scrollIntoViewIfNeeded({ timeout: 15000 });
+      await tab.click({ timeout: 15000 });
       await page.waitForTimeout(400);
       /* v1807 — SEED THROUGH THE APP'S OWN PUT-BACK DOOR, not through localStorage.
          Three fixtures failed before this one, and the reason was never the one I guessed:
