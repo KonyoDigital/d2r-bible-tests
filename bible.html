@@ -40260,6 +40260,28 @@ html{overflow-x:clip}
        dead control. Arithmetic that is correct and useless is still useless. */
     max-height:max(180px, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 24px))!important}
 }
+/* v1810 — THE TRAY COLUMN RODE UP INTO THE TAB STRIP ON A SHORT VIEWPORT.
+   The tray is bottom-anchored (help +14, nav compass +66, forge legend +118, all above --dock-h)
+   while the header and tab strip are top-anchored. On a tall window they never meet. Measured at
+   640x400 — and iPhone landscape is 844x390, so this is a real window, not a stress test — the
+   tab strip occupies y 240-271 and the 44px compass y 250-294, so the `session` tab hit-tested
+   to #nav-fab and could not be clicked at all. The forge legend at +118 lands on the same band
+   at 398-473px tall; it escaped the sweep only because it is scoped to the Forge tab and was not
+   rendered, which is exactly how one fixed site leaves its siblings running. Below 480px there
+   is no room for both, and the tab strip IS the primary navigation while the compass is only a
+   shortcut to it — so the shortcut yields.
+   S0 (help) WAS going to stay, on the reasoning that at +14 it sits at y 302-346 and clears the
+   strip. Measurement refuted that: it clears the TAB STRIP and lands on #gsearch-input instead
+   (382px^2 at 640x400, and visibly clipping the placeholder). The band a bottom-anchored orb
+   rides up into is not the tab strip specifically — it is whatever the layout happens to put
+   there, which is why the rule now covers the whole column rather than the two orbs I had
+   already caught. Below 480px there is no room for floating chrome at all.
+   Found by hit-testing element centres with elementFromPoint, not by eye — the strip scrolls
+   horizontally, so WHICH tab is buried under the orb changes with scroll position, and no single
+   screenshot shows it twice the same way. [[sweep-dont-ask]] */
+@media (max-height:480px){
+  .help-btn,.nav-widget,.forge-legend-fab{display:none!important}
+}
 /* routines bar shares the corner — parked LEFT of the tray column so they never overlap.
    v754 (item 7): the right offset now lives in the single clean base rule (no !important war). */
 /* v708.1 — backup-age nudge: one quiet toast above the dock, left side (tray owns the right) */
@@ -41498,7 +41520,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1809', name:'v1809 - an automatic collapse must not become his setting', date:'2026-08-19', note:'The Grok third eye found it. v1806 auto-collapses the dock on a short viewport, and toggleDock computes the next state from the CLASS - so with always-collapsed stored, one tap of D on a 400px-tall window wrote the opposite and erased the preference he had set deliberately. Measured before the fix: stored 1, one press, stored 0. An automatic collapse is now marked, and a press against OUR state expands without recording an intent he never expressed.' };
+  window.D2R_BUILD = { id:'v1810', name:'v1810 - the floating tray rode up into the tab strip', date:'2026-08-19', note:'On a short viewport the bottom-anchored tray column met the top-anchored tab strip: the nav compass covered a tab outright and the help orb sat on the search field. Below 480px tall the tray now yields.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

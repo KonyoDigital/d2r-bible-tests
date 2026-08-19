@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1809",
+  "ver": "v1810",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1809: The Grok third eye found it. v1806 auto-collapses the dock on a short viewport, and toggleDock computes the next state from the CLASS - so with always-collapsed stored, one tap of D on a 400px-tall window wrote the opposite and erased the preference he had set deliberately. Measured before the fix: stored 1, one press, stored 0. An automatic collapse is now marked, and a press against OUR state expands without recording an intent he never expressed.",
+  "note": "v1810: On a short viewport the bottom-anchored tray column met the top-anchored tab strip: the nav compass covered a tab outright and the help orb sat on the search field. Below 480px tall the tray now yields.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
