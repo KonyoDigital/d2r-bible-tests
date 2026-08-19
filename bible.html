@@ -41241,7 +41241,23 @@ try {
   var _dockSync = function(){
     try {
       var h = _dockEl ? Math.ceil(_dockEl.getBoundingClientRect().height) + 14 : 84;   // +14 = the dock's bottom padding
-      if (h < 60) h = 84;                                                              // collapsed/hidden dock → keep the floor sane
+      /* v1806.1 — A COLLAPSED DOCK WAS NEVER MEASURED AS COLLAPSED. The line below has always
+         said "collapsed/hidden dock → keep the floor sane", but the collapse is
+         `transform: translateY(...)` on .dock-inner, and a transform does not change
+         getBoundingClientRect().height. So this branch could not fire: --dock-h kept reporting the
+         EXPANDED height while the dock rendered as a 12px handle, and every consumer of that
+         variable positioned itself against a dock that was not there.
+         That is not only my auto-collapse — pressing D has always done it. Measured at 640x400
+         with the dock collapsed: --dock-h said 178px, so the tray FABs (bottom: calc(--dock-h + N))
+         were thrown to y8..y104 at the TOP of the viewport, where the claim bar covers them —
+         document.elementFromPoint over both returned .claim-in. The dock standing aside pushed the
+         controls into the one thing above them.
+         40px is what the CSS itself reserves for a collapsed dock
+         (`body:has(.control-dock.dock-collapsed){ padding-bottom: 40px }`), so this reads the same
+         number the layout already uses rather than inventing a second one. */
+      var _dk = document.getElementById('control-dock');
+      if (_dk && _dk.classList.contains('dock-collapsed')) h = 40;
+      else if (h < 60) h = 84;                                                         // hidden dock → keep the floor sane
       // v1451 — ignore sub-4px thrash (TZ text / font reflow) so the whole bottom chrome
       // doesn't bounce; routines strip no longer reads --dock-h at all, but TZ pill etc. still do.
       if (_dockHLast && Math.abs(h - _dockHLast) < 4) return;
@@ -41251,6 +41267,14 @@ try {
     } catch(e){}
   };
   if (_dockEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_dockSync).observe(_dockEl); }
+  /* ...and re-measure when the dock COLLAPSES, which a ResizeObserver cannot see: the transform
+     leaves its box the same size. Without this the fix above would only apply on the next resize. */
+  try {
+    var _dkEl = document.getElementById('control-dock');
+    if (_dkEl && typeof MutationObserver !== 'undefined'){
+      new MutationObserver(_dockSync).observe(_dkEl, { attributes: true, attributeFilter: ['class'] });
+    }
+  } catch(e){}
   window.addEventListener('resize', _dockSync);
   _dockSync();
   // v687.1 — the TZ countdown RIDES IN the dock band (first item) instead of floating above it:
@@ -41433,7 +41457,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1806', name:'v1806 - on a short viewport the dock swallowed the tab strip', date:'2026-08-19', note:'At 640x400 with the claim bar up, the bar takes the top 139px and the dock the bottom 178px of a 400px viewport. The tab strip lands inside the dock and elementFromPoint over the Tools tab returns the dock, so a first-time visitor on a short window cannot change tabs at all. The dock now stands aside below 620px tall, reusing the collapse it already has, and without persisting that to his saved preference.' };
+  window.D2R_BUILD = { id:'v1807', name:'v1807 - a collapsed dock was never measured as collapsed', date:'2026-08-19', note:'The dock collapse is a transform on dock-inner, and a transform does not change getBoundingClientRect height - so the measurer floor for a collapsed dock could never fire. --dock-h kept reporting the expanded height while the dock rendered as a 12px handle, and every consumer positioned against a dock that was not there. Pressing D has always done this. At 640x400 it threw the tray FABs to the top of the viewport under the claim bar.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

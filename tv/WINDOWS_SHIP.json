@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1806",
+  "ver": "v1807",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1806: At 640x400 with the claim bar up, the bar takes the top 139px and the dock the bottom 178px of a 400px viewport. The tab strip lands inside the dock and elementFromPoint over the Tools tab returns the dock, so a first-time visitor on a short window cannot change tabs at all. The dock now stands aside below 620px tall, reusing the collapse it already has, and without persisting that to his saved preference.",
+  "note": "v1807: The dock collapse is a transform on dock-inner, and a transform does not change getBoundingClientRect height - so the measurer floor for a collapsed dock could never fire. --dock-h kept reporting the expanded height while the dock rendered as a 12px handle, and every consumer positioned against a dock that was not there. Pressing D has always done this. At 640x400 it threw the tray FABs to the top of the viewport under the claim bar.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
