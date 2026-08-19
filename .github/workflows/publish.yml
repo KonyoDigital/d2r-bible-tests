@@ -30,9 +30,29 @@ permissions:
   contents: read
 
 concurrency:
-  # a newer ship supersedes an older one mid-flight; never two deploys racing to the same project
+  # ONE PUBLISH AT A TIME, AND NONE OF THEM CANCELLED.
+  #
+  # The group serialises deploys so two never race to the same Pages project. What it must NOT do
+  # is cancel: this job is the only thing that publishes, and cancelling it discards a PUBLICATION,
+  # not a test result.
+  #
+  # The failure it would cause is specific and quiet. Push v1804, push v1805 four minutes later
+  # while v1804's gates are still green but its deploy has not run yet; v1804's publish is
+  # cancelled; v1805 then fails its smoke and is correctly HELD. Nothing is published. The live
+  # site sits on v1803 while two good-looking ships are in the repo, and no job anywhere is red —
+  # the cancelled one reads as "superseded". A ship that was fine never reached the site because a
+  # later, worse one arrived while it was queuing.
+  #
+  # With cancel-in-progress:false they queue and each publishes in order; the newest simply wins
+  # last, which is the state you wanted anyway. Runner minutes are the cost and they are cheap
+  # against a silent non-publication.
+  #
+  # routine-i-playwright.yml keeps cancel-in-progress:true, deliberately: it publishes nothing, and
+  # because main only moves forward, the newer run covers the older run's code. What is lost there
+  # is ATTRIBUTION (which version broke it), not coverage — and v1802 and v1803 both lost their
+  # Playwright verdict that way today, which is worth knowing about but is not worth a deploy.
   group: publish-main
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   smoke:
