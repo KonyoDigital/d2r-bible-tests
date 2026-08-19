@@ -53,23 +53,11 @@ for (const claimBarUp of [false, true]) {
   for (const { w, h } of SIZES) {
     test(`v1800 ${P.name} popover is reachable at ${w}x${h} (claim bar ${claimBarUp ? 'up' : 'dismissed'})`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: h });
-      /* v1806 — SEED BEFORE THE PAGE RUNS, and repaint through the app's own door.
-         The first two versions seeded with page.evaluate AFTER load and then re-navigated, hoping
-         the inbox pass would repaint in time. On CI it never did: the FAB stayed display:none, ten
-         page.clicks each burned their timeout, and one shard went from 15 minutes to 45.
-         v1789 and v1794 seed the SAME queue and have passed on CI for versions — they use
-         addInitScript, so the rows are in storage before any of the page's own JS reads them, and
-         then they call window.renderInboxFab() rather than waiting on a repaint they do not
-         control. Copying a pattern that is already green beats theorising about a race. */
-      if (P.seed) {
-        await page.addInitScript(() => {
-          try {
-            localStorage.setItem('d2r_chronicleInbox', JSON.stringify(
-              ['Battlecage', 'Templar Coat', 'Toothrow', 'Shaftstop']
-                .map((name) => ({ name, ts: 1755600000000 }))));
-          } catch (e) { /* storage refused — the assertion below reports it */ }
-        });
-      }
+      /* The queue is seeded AFTER load, further down — see the v1807 note at the put-back. It
+         cannot be seeded here: under the owner path this page empties an injected queue during
+         load, on purpose. (v1806 said the opposite in this spot, having concluded the write was
+         being lost. It was being consumed. The note stayed accurate for about one CI round, which
+         is how long a wrong explanation usually survives.) */
       await page.goto(FILE);
       // v1801 — RAISE THE BAR DIRECTLY. The first version of this spec toggled
       // localStorage.d2r_ownerClaim and re-loaded, which does NOTHING here: bible.html resolves
@@ -106,10 +94,45 @@ for (const claimBarUp of [false, true]) {
       }
       await page.click(`[data-tab="${P.tab}"]`);
       await page.waitForTimeout(400);
-      // repaint through the app's own painter instead of waiting on whatever schedules it
+      /* v1807 — SEED THROUGH THE APP'S OWN PUT-BACK DOOR, not through localStorage.
+         Three fixtures failed before this one, and the reason was never the one I guessed:
+
+           attempt 1  seed + reload, poll 400ms   -> rawRows 0   "the paint is late"      WRONG
+           attempt 2  seed via addInitScript      -> rawRows 0   "the write is lost"      WRONG
+           attempt 3  + clear grail/retire caches -> rawRows 0   "a sibling ticked them"  WRONG
+
+         Reproduced locally at last by spoofing navigator.webdriver, which is what makes
+         _D2R_OWNER true under Playwright: the seed IS present at document start (4 rows) and the
+         app empties it between 0.6s and 2s. Not lost — CONSUMED, and correctly. The receipt says
+         so in its own words: "Toothrow :: already in your grail", "Battlecage :: a misread of
+         Rattlecage — already in your grail". Under the owner path the board reads the BARE keys,
+         where a full grail lives, so every seeded name resolves and the queue empties by design.
+         That is the feature working ("i dont want it pending my decisions at all if its not
+         needed"), and no amount of pre-clearing beats it: clearing d2r_foundLog at document start
+         measured 0 rows, and by end of load the app had rebuilt it to 353.
+
+         kaiChronicleUndoRetire is the door built for exactly this — a row he PUT BACK. It writes
+         the keep-list, and the resolver honours that against the grail by design (v1790). So the
+         fixture stops fighting the engine and asks it for the state it already models. Verified
+         under the spoofed owner path: rawRows 3, pending 3, display flex, `.inbox-fab.has`
+         matching. A fixture that has to disable the feature to observe it is testing something
+         else. */
       if (P.seed) {
-        await page.evaluate(() => { try { (window as any).renderInboxFab(); } catch (e) {} });
-        await page.waitForTimeout(200);
+        const seeded = await page.evaluate(() => {
+          const ok: string[] = [];
+          for (const nm of ['Toothrow', 'Shaftstop', 'Battlecage']) {
+            try {
+              const r = (window as any).kaiChronicleUndoRetire(nm);
+              if (r && r.ok) ok.push(nm);
+            } catch (e) { /* reported by the assertion below */ }
+          }
+          try { (window as any).renderInboxFab(); } catch (e) {}
+          return ok;
+        });
+        expect(seeded.length,
+          'kaiChronicleUndoRetire put nothing back, so there is no queue to open a popover for — ' +
+          'that is a CHANGE IN THE PUT-BACK CONTRACT, not a layout defect').toBeGreaterThan(0);
+        await page.waitForTimeout(300);
       }
 
       /* v1806 — DIAGNOSE, DO NOT HANG. The first version went straight to page.click(P.fab). When
