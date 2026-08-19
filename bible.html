@@ -68,8 +68,11 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 
 .tab{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:var(--fw-normal);font-family:inherit;transition:all .15s;white-space:nowrap}
 /* v551 — HD-art nav icons on tabs + compass chips */
-.tabs .tab img.tab-ic-img,.tabs .tab img.tab-hdico{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:5px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55))}
-.tabs .tab .tab-lbl{vertical-align:middle}
+/* v1808 — the workshop row is a SIBLING of .tabs, so every `.tabs .tab` selector had the same
+   blind spot as applyTabIcons(). Sizing the img in one place and forgetting the other would
+   have swapped dead emoji for an unstyled full-size PNG. */
+.tabs .tab img.tab-ic-img,.tabs .tab img.tab-hdico,.tabs-workshop .tab img.tab-ic-img,.tabs-workshop .tab img.tab-hdico{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:5px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55))}
+.tabs .tab .tab-lbl,.tabs-workshop .tab .tab-lbl{vertical-align:middle}
 .nav-chip img.nav-ic{width:21px;height:21px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
 .tab:hover{background:var(--surface-2);color:var(--text)}
 .tab.active{background:var(--gold);color:#1a1208;border-color:var(--gold)}
@@ -26012,7 +26015,12 @@ const TZ_HUNT = [
     'Worldstone Keep': 'the Baal run', 'Throne of Destruction': 'Baal', 'Worldstone Chamber': 'Baal',
     'The Pit': 'the best drop tier in the game', 'Arcane Sanctuary': 'the Summoner',
     'Halls of Vaught': 'Nihlathak', 'Moo Moo Farm': 'the Cow King', 'Mausoleum': 'Bloodraven country',
-    'Ancient\'s Way': 'next door to the Ancient Tunnels',
+    /* v1808 — 'Ancient's Way' REMOVED. Its reason, "next door to the Ancient Tunnels", is
+       factually wrong: Ancient's Way is Act 5 (exp-icecave, den 650), Ancient TUNNELS is Act 2
+       (act2-tomb, den 680). Different acts, different tilesets, not adjacent by any route — a
+       name-similarity slip. TZ_NOTABLE is the one table that OVERRIDES density outright, so a
+       zone was being forced to PRIME on a relationship that does not exist. On its own density
+       it ranks THIN, which is what the numbers say. Konyo, asked directly, said fix it. */
     /* v1804 — THE UNION, because the two tables had drifted and TZ_NOTABLE is the FIRST branch of
        both tier functions, so a name present in one and absent in the other forces PRIME on one
        screen and lets density decide on the other. Measured before this fix, over a byte-identical
@@ -26407,7 +26415,16 @@ function _tabIcoImg(tab, emoji, cls){
   return '<img class="'+(cls||'')+' tab-hdico" src="art/'+f+'" alt="" loading="lazy" data-emoji="'+(emoji||'•')+'" onerror="window._tabIcoFail&&window._tabIcoFail(this)">';
 }
 function applyTabIcons(){
-  document.querySelectorAll('.tabs .tab').forEach(function(t){
+  /* v1808 — .tabs-workshop TOO, and without it v1683 was dead code.
+     v1683 added the WORKSHOP SIX to TAB_ICON (session/tools/forge/funi/fsets/tvd → ui_tab_*.png)
+     to stop the website showing a Crown of Ages where the console shows a gold ring. The map was
+     right and nothing ever read it: the workshop row is `<div class="tabs-workshop">`, a SIBLING of
+     `.tabs`, not a child — so this selector never matched those six buttons and they kept rendering
+     their raw emoji on bull-4-u.com for the whole arc. Both halves existed and were never joined,
+     which is silent by construction: the map looks maintained, the row looks deliberate, and only
+     a pixel check disagrees. Found by measuring the rendered nav, not by reading either half.
+     [[the-unjoined-end]] */
+  document.querySelectorAll('.tabs .tab, .tabs-workshop .tab').forEach(function(t){
     var tab=t.dataset.tab; if(!TAB_ICON[tab]) return;
     if(t.querySelector('img.tab-hdico')) return;   // idempotent
     var parts=(t.textContent||'').trim().split(/\s+/);
@@ -41464,7 +41481,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1807', name:'v1807 - a collapsed dock was never measured as collapsed', date:'2026-08-19', note:'The dock collapse is a transform on dock-inner, and a transform does not change getBoundingClientRect height - so the measurer floor for a collapsed dock could never fire. --dock-h kept reporting the expanded height while the dock rendered as a 12px handle, and every consumer positioned against a dock that was not there. Pressing D has always done this. At 640x400 it threw the tray FABs to the top of the viewport under the claim bar.' };
+  window.D2R_BUILD = { id:'v1808', name:'v1808 - a zone promoted on a relationship that does not exist', date:'2026-08-19', note:'Two fixes he asked for. The TZ_NOTABLE entry for the Act 5 ice cave claimed it was next door to the Act 2 tombs - different acts, different tilesets, a name-similarity slip - and TZ_NOTABLE is the one table that overrides density outright, so the zone was forced to PRIME on a relationship that does not exist. Removed from both tables and from the hint that printed the same claim on his card. And the workshop tab icons: v1683 mapped the six to ui_tab art and nothing ever read it, because the workshop row is a SIBLING of the tabs container and the icon pass only walked children. Both halves built, never joined.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

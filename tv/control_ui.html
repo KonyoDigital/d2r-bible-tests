@@ -13408,8 +13408,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
        different tilesets, not next door to each other. It reads like a name-similarity slip. Left
        in place because removing a zone's standing changes his farming advice and that is his call,
        not a drift fix. */
-    'Mausoleum': 'Bloodraven country',
-    'Ancient\'s Way': 'next door to the Ancient Tunnels'
+    'Mausoleum': 'Bloodraven country'
+    /* v1808 — 'Ancient's Way' REMOVED here too; see the board's copy of this note. v1804 was
+       right to flag the claim and wrong to keep it: a false reason in the one table that
+       overrides density is not a documentation problem, it is a wrong verdict with a
+       footnote. Also removed from TZ_HINT below, where it did not lift a tier but did
+       print the claim onto his card — a false statement that only misinforms is not
+       safer than one that also miscounts. */
     };
 
     /* v1596 — CONTEXT THAT DOES NOT PROMOTE. TZ_NOTABLE forces a zone to PRIME, which is right for
@@ -13442,7 +13447,8 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
 
     var TZ_HINT = {
       'Cathedral': 'the way into the Andariel run',
-      'Ancient\'s Way': 'next door to the Ancient Tunnels',
+      // v1808 — 'Ancient's Way' hint removed: Act 5 ice cave, not next door to the Act 2
+      // tombs. See the TZ_NOTABLE note above.
       'Mausoleum': 'Bloodraven country'
     };
 

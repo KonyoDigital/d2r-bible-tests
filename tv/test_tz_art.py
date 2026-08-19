@@ -154,7 +154,8 @@ class TestTZTiering(unittest.TestCase):
         # because their callers compare zones at density 520, which exit at the `< 600` floor two
         # lines up before the formula ever runs — a gate cannot fail on a branch its fixture never
         # reaches. Reused on any zone above 600 they produce verdicts no shipped surface makes
-        # (Ancient's Way -> good, against PRIME on both surfaces today).
+        # (Ancient's Way -> good, against THIN on both surfaces since v1808 — it was PRIME via
+        # TZ_NOTABLE until that entry's reason was found to be factually wrong.)
         s = (den / 2200) * 0.85
         return "prime" if s >= 0.5 else ("good" if s >= 0.28 else "thin")
 
@@ -424,7 +425,8 @@ class TestTierSeparation(unittest.TestCase):
         # because their callers compare zones at density 520, which exit at the `< 600` floor two
         # lines up before the formula ever runs — a gate cannot fail on a branch its fixture never
         # reaches. Reused on any zone above 600 they produce verdicts no shipped surface makes
-        # (Ancient's Way -> good, against PRIME on both surfaces today).
+        # (Ancient's Way -> good, against THIN on both surfaces since v1808 — it was PRIME via
+        # TZ_NOTABLE until that entry's reason was found to be factually wrong.)
         s = (den / 2200) * 0.85
         return "prime" if s >= 0.5 else ("good" if s >= 0.28 else "thin")
 
@@ -581,6 +583,35 @@ class TestLockedVsRoutable(unittest.TestCase):
         # assertFalse, not assertNotIn: assertNotIn prints the whole 5MB container on failure.
         self.assertFalse("tzt-locked" in board, "the board still locks what the console now routes")
         self.assertFalse(".tzt-lock{" in board, "the padlock styling outlived its emitter")
+
+    def test_the_tab_icon_pass_reaches_the_workshop_row(self):
+        """v1808 — v1683 put the WORKSHOP SIX into TAB_ICON (ui_tab_*.png, the same files the console
+        strip uses, so the site stops showing a Crown of Ages where the console shows a gold ring)
+        and NOTHING EVER READ THEM. The workshop row is `<div class="tabs-workshop">`, a SIBLING of
+        `.tabs`, not a child — so applyTabIcons(), which walked `.tabs .tab`, never matched those six
+        buttons, and bull-4-u.com kept rendering their raw emoji for the whole icon arc.
+
+        Both halves existed and were never joined, which is silent by construction: the map looks
+        maintained, the markup looks deliberate, and only a pixel check disagrees. Measured after the
+        fix: all six render their PNG at 16px, loaded.
+
+        Pinned as the JOINT — the selector must name both containers, and so must the CSS that sizes
+        the image, or the fix swaps dead emoji for an unstyled full-size PNG. [[the-unjoined-end]]"""
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        i = board.find("function applyTabIcons()")
+        self.assertGreater(i, 0, "applyTabIcons is gone — re-check this guard")
+        walker = board[i:i + 900]
+        self.assertIn(".tabs-workshop .tab", walker,
+                      "applyTabIcons no longer walks the workshop row, so the six ui_tab_*.png "
+                      "entries in TAB_ICON are dead again")
+        # the six entries the walker exists to render
+        for tab in ("session", "tools", "forge", "funi", "fsets", "tvd"):
+            self.assertIn("%s:'ui_tab_%s.png'" % (tab, tab), board.replace(" ", ""),
+                          "TAB_ICON lost the %s workshop icon" % tab)
+        # and the CSS that sizes them has the same reach
+        self.assertIn(".tabs-workshop .tab img.tab-hdico", board,
+                      "the workshop icons render unstyled — sized in one container, not the other")
 
     def test_the_board_does_not_claim_a_route_its_filler_rows_lack(self):
         """v1804 — the v1801 comment on the board read "a padlock promises the click will not work,
