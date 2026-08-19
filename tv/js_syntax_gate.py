@@ -241,7 +241,29 @@ def check(targets=None, timeout=90):
                     r = subprocess.run(cmd, capture_output=True, text=True,
                                        encoding="utf-8", errors="replace", timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    problems.append(f"{rel}: browser timed out after {timeout}s")
+                    # v1808 — A TIMEOUT IS NOT A SYNTAX VERDICT, and this line used to file one.
+                    # It appended to `problems`, so a slow CI runner made the gate report
+                    # "bible.html: browser timed out after 90s" as a SYNTAX ERROR — the same shape
+                    # as "the page would be blank". Measured: it failed 1 run in 6 under runner
+                    # contention, and because publish.yml gates the deploy on the python suites, a
+                    # busy runner could BLOCK A PUBLICATION over a page that parses perfectly.
+                    #
+                    # The rule is already written twenty lines up, for the loopback case: "a browser
+                    # that cannot answer over loopback here can only produce a timeout, and a
+                    # timeout is not a syntax verdict." The same reasoning applies when the browser
+                    # answers too slowly — the difference between the two is the runner's mood, not
+                    # the file's correctness.
+                    #
+                    # So fall through to the node parser, which needs no browser, no loopback and
+                    # no server, and answers deterministically. Only if THAT cannot run either is
+                    # there genuinely no verdict, and then it is reported as a skip rather than a
+                    # failure — because "nobody could check" must never read the same as "it is
+                    # broken". [[unknown-stays-unknown]]
+                    node_problems, node_reason = check_with_node([rel])
+                    if node_reason:
+                        return [], (f"{rel}: browser timed out after {timeout}s and "
+                                    f"node could not stand in ({node_reason})")
+                    problems.extend(node_problems)
                     continue
                 except OSError as e:
                     return [], f"browser failed to start ({e})"

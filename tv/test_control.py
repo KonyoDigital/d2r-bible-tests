@@ -3692,6 +3692,49 @@ class TestJsSyntaxGate(unittest.TestCase):
     gets ignored, so this asks a real JS engine instead.
     """
 
+    def test_a_browser_timeout_is_not_reported_as_a_syntax_error(self):
+        """v1808 — THE GATE FILED A TIMEOUT AS A SYNTAX ERROR, and it cost a publication.
+
+        On a busy CI runner the browser exceeded its 90s budget and the gate appended
+        "bible.html: browser timed out after 90s" to `problems` — the same channel as
+        "the page would be blank". Measured: 1 failure in 6 runs. Because publish.yml gates
+        the deploy on the python suites, a slow runner could BLOCK A PUBLICATION over a file
+        that parses perfectly.
+
+        js_syntax_gate already states the rule twenty lines above the bug, for the loopback
+        case: "a timeout is not a syntax verdict". The same reasoning holds when the browser
+        answers too slowly — the difference is the runner's mood, not the file's correctness.
+
+        This branch cannot run on his Mac (loopback never answers, so check() takes the node
+        path early), which is exactly why it went unnoticed and exactly why it is forced here."""
+        import js_syntax_gate as g
+        import subprocess as _sp
+        real_run, real_loop = _sp.run, g.browser_can_load_localhost
+        try:
+            g.browser_can_load_localhost = lambda *a, **k: True      # pretend loopback works
+            # ⚠ TIME OUT ONLY THE BROWSER. The first version of this test patched subprocess.run
+            # globally, so _node_bin()'s own `node --version` probe "timed out" too and the gate
+            # correctly reported that node could not stand in — a true answer to a question the
+            # test did not mean to ask. Simulating a broken world instead of a slow browser tests
+            # the wrong thing.
+            def _timeout_the_browser_only(cmd, *a, **k):
+                argv = cmd if isinstance(cmd, (list, tuple)) else [cmd]
+                if any("--dump-dom" in str(x) for x in argv):
+                    raise _sp.TimeoutExpired(cmd="chrome", timeout=90)
+                return real_run(cmd, *a, **k)
+            _sp.run = _timeout_the_browser_only
+            if not g.find_browser():
+                self.skipTest("no browser on PATH — the branch under test needs one to be chosen")
+            problems, reason = g.check(targets=["bible.html"])
+        finally:
+            _sp.run, g.browser_can_load_localhost = real_run, real_loop
+        self.assertEqual(problems, [],
+                         "a browser TIMEOUT was reported as a syntax problem: %r. 'nobody could "
+                         "check' must never read the same as 'it is broken'." % (problems,))
+        self.assertIsNone(reason,
+                          "node should have stood in for the timed-out browser and produced a "
+                          "real verdict, not a skip: %r" % (reason,))
+
     def test_surfaces_parse_in_a_real_js_engine(self):
         import js_syntax_gate
         problems, skipped = js_syntax_gate.check()
