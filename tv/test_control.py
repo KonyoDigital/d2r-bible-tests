@@ -7390,5 +7390,92 @@ class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
                          "reloaded as data, which is silent corruption instead of a loud failure")
 
 
+class TestWaitingFootageIsVisible(unittest.TestCase):
+    """v1820 — Konyo, after recording three Chronicle sessions: "still not changed the sets or the
+    uniques number.. ill do another session it should definitely be able to read and tally them".
+
+    A fourth would have changed nothing either. A `chronicle/visit` row is journaled by the LIVE
+    agent; a MINI capture with a CHOSEN chronicle focus produces no such row, only a reel whose
+    index says focus=chronicle-uniques/sets. The offer the console renders read journal visits
+    only, so three reels sat on disk, correctly labelled by him, invisible to every screen — while
+    the only thing that would ever read them was a daemon inside a console that was closed.
+    Work waiting, and the system silent about it.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="chron-offer-")
+        self._hist = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = self.tmp
+        ca._CHRON_AUTOREAD["reels"] = set()
+
+    def tearDown(self):
+        if self._hist is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._hist
+        ca._CHRON_AUTOREAD["reels"] = None
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _reel(self, rid, focus, n=12):
+        d = os.path.join(self.tmp, rid)
+        os.makedirs(d, exist_ok=True)
+        idx = {"sessionId": rid[5:], "n": n, "focus": focus, "focusChosen": True,
+               "frames": [{"f": "f_%d.jpg" % (1787177179114 + i), "ts": 1787177179114 + i}
+                          for i in range(n)]}
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump(idx, fh)
+        return d
+
+    def test_a_reel_he_focused_on_the_chronicle_is_OFFERED(self):
+        self._reel("reel_s_1787177179114_91449", "chronicle-uniques", 35)
+        self._reel("reel_s_1787177267889_92273", "chronicle-sets", 38)
+        offers = ca.chronicle_offer(limit=8)["visits"]
+        reels = {o.get("reel"): o for o in offers if o.get("source") == "reel"}
+        self.assertIn("reel_s_1787177179114_91449", reels)
+        self.assertIn("reel_s_1787177267889_92273", reels)
+        self.assertEqual(reels["reel_s_1787177179114_91449"]["ledger"], "uniques")
+        self.assertEqual(reels["reel_s_1787177267889_92273"]["ledger"], "sets")
+        self.assertEqual(reels["reel_s_1787177267889_92273"]["n"], 38)
+
+    def test_the_offer_still_spends_nothing(self):
+        self._reel("reel_s_1787177179114_91449", "chronicle-uniques")
+        self.assertEqual(ca.chronicle_offer(limit=8)["spent"], 0)
+
+    def test_a_reel_already_swept_is_not_offered_again(self):
+        self._reel("reel_s_1787177179114_91449", "chronicle-uniques")
+        ca._CHRON_AUTOREAD["reels"] = {"reel_s_1787177179114_91449"}
+        offers = ca.chronicle_offer(limit=8)["visits"]
+        self.assertFalse([o for o in offers if o.get("reel") == "reel_s_1787177179114_91449"])
+
+    def test_a_mini_focused_somewhere_ELSE_is_never_offered(self):
+        # the vault sweep owns stash/rune/gem minis; guessing a ledger for one of those is the
+        # failure the whole chronicle lane refuses to commit
+        self._reel("reel_s_1787177179114_91449", "stash")
+        offers = ca.chronicle_offer(limit=8)["visits"]
+        self.assertFalse([o for o in offers if o.get("source") == "reel"])
+
+    def test_the_VISIT_tick_never_takes_a_REEL(self):
+        # this loop turns whatever it takes into chronicle_sweep_start(visit=ts). Handing it a reel
+        # would look up a journal row that does not exist, fail, spend one of that reel's two tries
+        # and eventually RETIRE footage the reel tick would have read correctly.
+        self._reel("reel_s_1787177179114_91449", "chronicle-uniques")
+        taken = {"visit": [], "reel": []}
+        orig_start = ca.chronicle_sweep_start
+        orig_alive = ca._agent_alive
+        orig_state = ca.chronicle_sweep_state
+        try:
+            ca.chronicle_sweep_start = lambda **kw: (
+                taken["visit"].append(kw.get("visit")) if kw.get("visit")
+                else taken["reel"].append(kw.get("reel_id"))) or {"ok": True}
+            ca._agent_alive = lambda: False
+            ca.chronicle_sweep_state = lambda: {"running": False}
+            ca.chronicle_autoread_tick()
+        finally:
+            ca.chronicle_sweep_start = orig_start
+            ca._agent_alive = orig_alive
+            ca.chronicle_sweep_state = orig_state
+        self.assertEqual(taken["reel"], [], "the visit tick grabbed a reel")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

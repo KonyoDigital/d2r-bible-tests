@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1819",
+  "ver": "v1820",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1819: Both reader lanes ask for the panel sort order and each found row First Found stamp and Dropped By line, the page normaliser keeps them, and every sighting in the evidence ledger carries its own stamp. A value on the wrong side of the date-monster line is refused rather than stored.",
+  "note": "v1820: Three chronicle reels he captured and labelled himself sat unread and invisible: the console offer read journalled visits only, and a mini capture with a chosen chronicle focus produces a reel, not a visit. The offer now carries both.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

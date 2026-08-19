@@ -8974,6 +8974,87 @@ def chronicle_visits(limit=8):
     return {"ok": True, "visits": out, "spent": 0}
 
 
+def chronicle_offer(limit=8):
+    """v1820 — EVERYTHING WAITING TO BE READ, in one list, spending nothing.
+
+    Konyo, after recording three Chronicle sessions: "still not changed the sets or the uniques
+    number.. ill do another session it should definitely be able to read and tally them". A fourth
+    would have changed nothing either, and no screen could have told him why.
+
+    A `chronicle/visit` row is journaled by the LIVE agent watching him open the panel. A MINI
+    capture with a CHOSEN chronicle focus produces no such row — it produces a REEL whose index
+    says focus=chronicle-uniques/sets with focusChosen true, which is a STRONGER declaration than a
+    visit because he picked it himself and nothing was inferred. The reel auto-sweep already knew
+    how to read exactly those; the console's offer did not, so three correctly-labelled reels sat on
+    disk invisible to every screen while the only thing that would ever read them was a daemon
+    inside a console that happened to be closed.
+
+    Kept SEPARATE from chronicle_visits() on purpose: that function is a pure reading of the
+    journal, three guards depend on it staying that way, and merging disk state into it made an
+    unrelated journal-failure test depend on whatever footage was lying in his frames directory.
+    Visits come first — v1762 gives them the cheaper, more targeted job.
+    """
+    base = chronicle_visits(limit=limit)
+    out = list(base.get("visits") or [])
+    try:
+        seen_ts = {v.get("ts") for v in out}
+        for r in _unswept_chron_reels(limit=max(0, limit - len(out))):
+            if r["ts"] in seen_ts:
+                continue
+            out.append(r)
+    except Exception:
+        pass
+    return {"ok": True, "visits": out, "spent": 0}
+
+
+def _unswept_chron_reels(limit=8):
+    """Reels captured with a CHOSEN chronicle focus that no sweep has read yet, newest first.
+
+    Pure and free: a directory listing and each reel's own index.json. It reads no page, spends
+    nothing, and deliberately reports only what the reel ITSELF declares — a mini capture focused
+    on the stash or the runes returns None from _declared_kind and never appears here.
+    """
+    out = []
+    if limit <= 0:
+        return out
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    try:
+        import chronicle_retro as _cr
+        dirs = _cr.reel_dirs(hist, newest_first=True) or []
+    except Exception:
+        return out
+    seen = _chron_reels_seen()
+    for d in dirs:
+        rid = os.path.basename(str(d))
+        if rid in seen:
+            continue
+        try:
+            with open(os.path.join(str(d), "index.json"), encoding="utf-8") as fh:
+                idx = json.load(fh) or {}
+        except Exception:
+            continue
+        kind = _cr._declared_kind(idx)
+        if not kind:
+            continue
+        ledger = "uniques" if kind == "chronicle-uniques" else "sets"
+        try:
+            ts = int(str(rid).split("_")[2])
+        except Exception:
+            ts = 0
+        out.append({
+            "ts": ts,
+            "ledger": ledger,
+            "n": int(idx.get("n") or 0),
+            "frames": [],
+            "reel": rid,          # what the sweep needs to read it: chronicle_sweep_start(reel_id=)
+            "source": "reel",     # visits carry no source; the console can tell them apart
+            "label": ("🏆 Holy Grail" if ledger == "uniques" else "🧩 Set pieces"),
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
 # ── v1745 📜🐕 CHRONICLE AUTO-READ — the watchdog, scoped to where reading is FREE ──────────
 # Konyo: "where is the coded AI reader that retro analyzes this within the console like a
 # watchdog.. i want it automatically synced."
@@ -9062,6 +9143,13 @@ def chronicle_autoread_tick():
         return {"ok": False, "why": "could not read visits: %s" % e}
     done = _chron_autoread_done()
     for v in visits:                      # newest first
+        # v1820 — belt and braces. chronicle_visits() is journal-only by design, so a reel cannot
+        # reach here; the OFFER that merges reels for the console is chronicle_offer(). If anyone
+        # ever points this loop at the merged list, a reel handed to the VISIT runner would look up
+        # a journal row that does not exist, fail, spend one of that reel's two tries and retire
+        # footage the reel tick would have read correctly. One line to make that impossible.
+        if v.get("source") == "reel":
+            continue
         ts = int(v.get("ts") or 0)
         if not ts or ts in done:
             continue
@@ -11094,7 +11182,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1819",
+        "ver": "v1820",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -12665,7 +12753,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/chronicle_visits":
             # v1522 — the Chronicle panels he opened in game, as an offer. Read-only, costs nothing.
-            self._json(200, chronicle_visits())
+            # v1820 — now the MERGED offer: journalled visits AND reels he focused on the Chronicle
+            # that no sweep has read. Same payload shape, so the console renders both without a
+            # change; a reel row carries source="reel" and the reel id that reads it.
+            self._json(200, chronicle_offer())
             return
         if path == "/api/chronicle_scan":
             # v1516 — THE FREE PASS. Groups every sealed reel's frames into still-runs and reports
