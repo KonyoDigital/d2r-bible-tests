@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1813",
+  "ver": "v1814",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1813: F-Uniques and F-Sets now render the same three header blocks in the same order through one meter template, each keeping its own sentences. And the TZ relay no longer serves a rotation cached before the slot boundary, which is why the console showed the 19:30 zone at 20:00:32.",
+  "note": "v1814: suggestMule decided the slot from a list of words, so any base whose name contained none of them fell through to weapons. Eight armour pieces were in UNI-WEAPONS and three weapons were in UNI-ARMOR. BASE_DB already knows: armour carries a defense range, weapons carry a damage range. The data decides now, and a migration repairs the assignments already written.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

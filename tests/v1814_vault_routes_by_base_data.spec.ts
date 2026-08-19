@@ -1,0 +1,139 @@
+import { test, expect } from './_net_stub';
+import * as path from 'path';
+
+// v1814 — THE VAULT FILED ARMOUR IN THE WEAPONS LOCKER.
+//
+// Konyo, 2026-08-19: "some items here were incorrectly VAULTED and MULED ... make sure its routed
+// correctly." His UNI-WEAPONS locker held six items and one of them was a gold horned face.
+//
+// suggestMule() decided the slot with ARMOR_RE, a list of WORDS tested against `base + ' ' + name`.
+// A base whose name contains none of those words fell through to the weapons default. Measured
+// through the real function, eight of them:
+//
+//   Andariel's Visage   Demonhead          (a helm)
+//   Ormus' Robes        Dusk Shroud        (body armour)
+//   Arkaine's Valor     Balrog Skin        (body armour)
+//   Gladiator's Bane    Wire Fleece        (body armour)
+//   Homunculus          Hierophant Trophy  (a necro shield)
+//   Boneflame           Succubus Skull     (a necro shield)
+//   Darkforce Spawn     Bloodlord Skull    (a necro shield)
+//   Head Hunter's Glory Troll Nest         (a barb shield)
+//
+// And the mirror, which the same sweep found: weapons pulled INTO uni-armor because an armour word
+// appears in their name — Astreon's Iron Ward (Caduceus) and Widowmaker (Ward Bow) on "ward", The
+// Vile Husk (Tusk Sword) on "husk".
+//
+// Adding eight more words would have fixed eight items and left the next one for him to find.
+// BASE_DB already knows: armour bases carry a `defense` range, weapons carry `oneH`/`twoH`. The
+// data decides now; the keyword list survives only for what the table cannot classify — belts and
+// sashes carry NEITHER field, which is why they are asserted here too.
+
+const FILE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
+
+const ARMOUR_IN_WEAPONS = [
+  "Andariel's Visage", "Ormus' Robes", "Arkaine's Valor",
+  'Homunculus', 'Boneflame', 'Darkforce Spawn', "Head Hunter's Glory",
+];
+const WEAPONS_IN_ARMOUR = ["Astreon's Iron Ward", 'The Vile Husk', 'Widowmaker'];
+const BELTS = ['Goldwrap', 'Nightsmoke', 'Lenymo', 'Snakecord'];
+
+async function routes(page: any, names: string[]) {
+  return page.evaluate((ns: string[]) => {
+    const w = window as any;
+    return ns.map((n) => {
+      let id = '';
+      try { id = (w.suggestMule(n) || {}).id || ''; } catch (e) { id = 'THREW'; }
+      const tip = w.ITEM_TIP ? w.ITEM_TIP[n] : null;
+      const b = (tip && tip.b) || '';
+      const rec = b && w._baseRec ? w._baseRec(b) : null;
+      return { n, b, id, armour: !!(rec && rec.defense), weapon: !!(rec && (rec.oneH || rec.twoH)) };
+    });
+  }, names);
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.goto(FILE);
+  await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
+});
+
+test('v1814 — armour whose base name carries no armour word still lands in UNI-ARMOR', async ({ page }) => {
+  for (const r of await routes(page, ARMOUR_IN_WEAPONS)) {
+    expect(r.armour, `${r.n} (${r.b}) must be armour in BASE_DB, or this test is asserting the wrong thing`).toBe(true);
+    expect(r.id, `${r.n} (${r.b})`).toBe('uni-armor');
+  }
+});
+
+test('v1814 — a weapon is not dragged into UNI-ARMOR by a word in its name', async ({ page }) => {
+  for (const r of await routes(page, WEAPONS_IN_ARMOUR)) {
+    expect(r.weapon, `${r.n} (${r.b}) must be a weapon in BASE_DB`).toBe(true);
+    expect(r.id, `${r.n} (${r.b})`).toBe('uni-weap');
+  }
+});
+
+test('v1814 — belts still route by the keyword list, which BASE_DB cannot replace', async ({ page }) => {
+  // Belts and sashes have neither a defense range nor a damage range. If the keyword fallback were
+  // ever removed in favour of "just use BASE_DB", every belt in the game would land in UNI-WEAPONS.
+  for (const r of await routes(page, BELTS)) {
+    expect(r.armour, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
+    expect(r.weapon, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
+    expect(r.id, `${r.n} (${r.b})`).toBe('uni-armor');
+  }
+});
+
+test('v1814 — no roster item contradicts its own base data, in either direction', async ({ page }) => {
+  // the sweep that found the eight. It is the whole point: a spot-check on named items would pass
+  // again the day a new base is added that no keyword happens to match.
+  const bad = await page.evaluate(() => {
+    const w = window as any;
+    const names: string[] = typeof w._gUniqueRoster === 'function' ? w._gUniqueRoster() : [];
+    const out: string[] = [];
+    for (const n of names) {
+      let sg: any = null;
+      try { sg = w.suggestMule(n); } catch (e) { continue; }
+      if (!sg) continue;
+      const tip = w.ITEM_TIP ? w.ITEM_TIP[n] : null;
+      const b = (tip && tip.b) || '';
+      const rec = b && w._baseRec ? w._baseRec(b) : null;
+      if (!rec) continue;
+      if (sg.id === 'uni-weap' && rec.defense) out.push(`ARMOUR in weapons: ${n} (${b})`);
+      if (sg.id === 'uni-armor' && !rec.defense && (rec.oneH || rec.twoH)) out.push(`WEAPON in armor: ${n} (${b})`);
+    }
+    return { total: names.length, bad: out };
+  });
+  expect(bad.total, 'the roster must be non-empty or this proves nothing').toBeGreaterThan(300);
+  expect(bad.bad, 'items filed against their own base data').toEqual([]);
+});
+
+test('v1814 — the migration repairs old assignments WITHOUT touching his own choices', async ({ page, context }) => {
+  // suggestMule only decides the NEXT item; an assignment already in d2r_muleAssign is pinned, and
+  // that pinned copy is what he is looking at. The migration must fix those — and stop there.
+  await context.addInitScript(() => {
+    try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
+    try {
+      localStorage.setItem('d2r_muleAssign', JSON.stringify({
+        "Andariel's Visage": 'uni-weap',      // mis-filed armour → must move
+        'Homunculus': 'uni-weap',             // mis-filed shield → must move
+        "Astreon's Iron Ward": 'uni-armor',   // mis-filed weapon → must move
+        'Blackhand Key': 'uni-weap',          // correct → must stay
+        'Shaftstop': 'uni-armor',             // correct → must stay
+        'Goldwrap': 'uni-armor',              // undecidable belt → must stay
+        "Titan's Revenge": 'shared',          // HIS choice → must stay
+        "Nord's Tenderizer": 'wip',           // HIS choice → must stay
+      }));
+    } catch (e) {}
+  });
+  await page.goto(FILE);
+  await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
+
+  const a = await page.evaluate(() => {
+    try { return JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'); } catch (e) { return {}; }
+  });
+  expect(a["Andariel's Visage"]).toBe('uni-armor');
+  expect(a['Homunculus']).toBe('uni-armor');
+  expect(a["Astreon's Iron Ward"]).toBe('uni-weap');
+  expect(a['Blackhand Key']).toBe('uni-weap');
+  expect(a['Shaftstop']).toBe('uni-armor');
+  expect(a['Goldwrap'], 'a belt is undecidable from BASE_DB — leave it where it is').toBe('uni-armor');
+  expect(a["Titan's Revenge"], 'SHARED is a judgement call, not a slot').toBe('shared');
+  expect(a["Nord's Tenderizer"], 'WIP is a judgement call, not a slot').toBe('wip');
+});

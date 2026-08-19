@@ -31658,6 +31658,42 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
+  /* v1814 migration — MOVE WHAT THE OLD ROUTER ALREADY MIS-FILED.
+     Konyo: "some items here were incorrectly VAULTED and MULED ... make sure its routed
+     correctly." Fixing suggestMule only fixes the NEXT item; an assignment already written to
+     d2r_muleAssign is pinned and would sit in the wrong locker forever — which is precisely what
+     he is looking at. So the same BASE_DB test that now decides the route also repairs the
+     assignments made before it existed.
+     DELIBERATELY NARROW. It touches ONLY the uni-weap <-> uni-armor confusion, and only where
+     BASE_DB is decisive (a defense range, or a oneH/twoH damage range). Every other locker is
+     his choice — SHARED, WIP, GRAIL-DUPES and the rest are judgement calls, and a migration that
+     "corrects" a judgement call is just a second bug with better manners. Bases the table cannot
+     classify (belts, sashes — 121 of them) are left exactly where they are. */
+  (function(){
+    var moved = [];
+    try {
+      Object.keys(assign).forEach(function(n){
+        var cur = assign[n];
+        if (cur !== 'uni-weap' && cur !== 'uni-armor') return;
+        var tip = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[n] : null;
+        var b = (tip && tip.b) || '';
+        var rec = (b && typeof _baseRec === 'function') ? _baseRec(b) : null;
+        if (!rec) return;
+        var want = rec.defense ? 'uni-armor' : ((rec.oneH || rec.twoH) ? 'uni-weap' : '');
+        if (!want || want === cur) return;
+        assign[n] = want;
+        moved.push({item:n, base:b, from:cur, to:want});
+      });
+      if (moved.length){
+        window.LSR.setItem(AK, JSON.stringify(assign));
+        // leave the receipt on the page: a silent migration that moves his gear is a migration he
+        // cannot check. window._vaultReroute lists exactly what moved and why.
+        window._vaultReroute = moved;
+        try { console.info('[vault] re-routed ' + moved.length + ' mis-filed item(s):',
+                           moved.map(function(m){ return m.item+' ('+m.base+') '+m.from+'→'+m.to; }).join(' · ')); } catch(e){}
+      }
+    } catch(e){}
+  })();
   // v342.5 — ensure the MAGIC & RARE locker exists on rosters saved before it (holds the magicFinds keepers)
   (function(){
     if (!roster.some(function(m){ return m.id==='magic-rare'; })){
@@ -31906,6 +31942,45 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // v362 — ARMOR before JEWELRY: body armor like "Ring Mail" contains the word "ring", so it must be
     // caught as armor (via "mail") FIRST, or it mis-files to UNI-SMALL (Konyo: Darkglow Ring Mail → jewelry).
+    /* v1814 — ASK THE BASE TABLE BEFORE GUESSING FROM THE NAME.
+       Konyo, 2026-08-19: "some items here were incorrectly VAULTED and MULED ... make sure its
+       routed correctly." Eight armour pieces were sitting in UNI-WEAPONS, and every one of them
+       failed for the same reason: ARMOR_RE is a list of WORDS, so a base whose name contains none
+       of them fell through to the weapons default. Measured through this very function:
+
+         Andariel's Visage   Demonhead          → uni-weap   (a helm)
+         Ormus' Robes        Dusk Shroud        → uni-weap   (body armour)
+         Arkaine's Valor     Balrog Skin        → uni-weap   (body armour)
+         Gladiator's Bane    Wire Fleece        → uni-weap   (body armour)
+         Homunculus          Hierophant Trophy  → uni-weap   (a necro shield)
+         Boneflame           Succubus Skull     → uni-weap   (a necro shield)
+         Darkforce Spawn     Bloodlord Skull    → uni-weap   (a necro shield)
+         Head Hunter's Glory Troll Nest         → uni-weap   (a barb shield)
+
+       Adding eight more words would fix these eight and leave the next base to be found by him
+       rather than by the code. BASE_DB already knows: it carries a `defense` range for armour and
+       none for weapons — 212 of its 508 entries, and the split is exact across every base tested
+       in both directions. So the DATA decides the slot and the keyword list stays only as the
+       fallback for names BASE_DB has never heard of (intake labels, rolled rares, placeholders).
+
+       Deliberately AFTER the jewelry check below would be wrong — rings and amulets have no
+       defense range, so they cannot be caught here and fall through correctly. */
+    try {
+      var _bRec = (typeof _baseRec === 'function' && base) ? _baseRec(_artSlotClean(base)) : null;
+      if (_bRec && _bRec.defense) return {id:'uni-armor', why:'armor slot — '+base+' (BASE_DB defense '+_bRec.defense+')'};
+      /* AND THE MIRROR, which the same sweep found: a WEAPON dragged into UNI-ARMOR because an
+         armour word appears in its NAME. ARMOR_RE is tested against `base + ' ' + name`, so:
+           Astreon's Iron Ward   Caduceus    → uni-armor, on the word "ward"
+           The Vile Husk         Tusk Sword  → uni-armor, on the word "husk"
+           Widowmaker            Ward Bow    → uni-armor, on "ward" in the base itself
+         BASE_DB gives weapons a damage range (oneH / twoH) exactly as it gives armour a defense
+         range, so the same table settles this direction too. Checked here, ahead of ARMOR_RE, so
+         the data outranks the noun.
+         Belts and sashes carry NEITHER field in BASE_DB — they are why the keyword list stays
+         below rather than being replaced: "Heavy Belt", "Sash" and "Light Belt" are routed
+         correctly by the word, and nothing here touches them. */
+      if (_bRec && (_bRec.oneH || _bRec.twoH)) return {id:'uni-weap', why:'weapon — '+base+' (BASE_DB damage '+(_bRec.oneH||_bRec.twoH)+')'};
+    } catch(e){}
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
     if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
     return {id:'uni-weap', why: base ? 'weapon — base: '+base : 'default: weapons'};
@@ -41620,7 +41695,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1813', name:'v1813 - one template for both grail forges and a cache that stops at the turn', date:'2026-08-19', note:'F-Uniques and F-Sets now render the same three header blocks in the same order through one meter template, each keeping its own sentences. And the TZ relay no longer serves a rotation cached before the slot boundary, which is why the console showed the 19:30 zone at 20:00:32.' };
+  window.D2R_BUILD = { id:'v1814', name:'v1814 - the vault filed armour in the weapons locker', date:'2026-08-19', note:'suggestMule decided the slot from a list of words, so any base whose name contained none of them fell through to weapons. Eight armour pieces were in UNI-WEAPONS and three weapons were in UNI-ARMOR. BASE_DB already knows: armour carries a defense range, weapons carry a damage range. The data decides now, and a migration repairs the assignments already written.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
