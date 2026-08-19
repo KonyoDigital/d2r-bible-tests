@@ -37554,10 +37554,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window._chronCelebrate = _chronCelebrate;   // the craft bench and any future chronicle call the same one
   window._chronTier = _chronTier;             // exported so the ladder is assertable without pixels
-  function _meter(found,total,color){
+  /* v1813 — ONE METER TEMPLATE FOR BOTH GRAIL FORGES (Konyo: "i want this area matching ... same
+     template style ... symmetric and matching in their own individual logic obviously just
+     structured the same").
+     This helper hardcoded the 🏆 glyph and the word "found", so F·Sets could not use it — it
+     counts PIECES and SETS, not finds — and hand-rolled a copy of the same markup instead. Two
+     copies of one bar is how they drifted: same classes, same gradient shape, different source of
+     truth for the structure, and nothing to keep them in step. The label is a parameter now, so
+     each forge says its own sentence through one template. [[copy-drift]] */
+  function _meter(found,total,color,opts){
+    opts = opts || {};
     var pct=total?Math.round(found/total*100):0;
-    return '<div class="forge-progress" title="'+found+' of '+total+'"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%'+(color?';background:linear-gradient(90deg,'+color+')':'')+'"></div></div>'
-      +'<div class="fp-lbl">🏆 <b>'+found+'</b> / '+total+' found<span class="fp-pct">'+pct+'%</span></div></div>';
+    var lbl = opts.label || ('🏆 <b>'+found+'</b> / '+total+' found');
+    return '<div class="forge-progress" title="'+(opts.title||(found+' of '+total))+'"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%'+(color?';background:linear-gradient(90deg,'+color+')':'')+'"></div></div>'
+      +'<div class="fp-lbl">'+lbl+'<span class="fp-pct">'+pct+'%</span></div></div>';
   }
   function _tile(key,emoji,label,cls,n,F,setter){
     return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="'+setter+'(\''+key+'\')" title="show '+esc(label)+'">'
@@ -39022,7 +39032,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v709 (Grok forge wave B5) — same sealed-landing rule as funi, from fsets' OWN scan
     if(!window._fsLanded){ window._fsLanded=true; try { if(s.totalPieces && s.havePieces/s.totalPieces>=.99 && _fsF==='all') _fsF='done'; } catch(e){} }   // fsets' found-key is 'done'
     var F=_fsF; var H=[];
-    H.push(_undoBar('set'));   // v644 — mis-ticks are one ↩ away, forge-style
     // v560.1 — Konyo: "I already have item trackers — F·Sets should be the F·Uniques coding logic." So this is
     // PIECE-centric, identical to Forge·Uniques: every missing PIECE is a farm item (Find → best run → ✓ found),
     // the tally syncs silently to the Item Set Tracker (d2r_setPieces), and the checklist wall stays in Tools.
@@ -39031,15 +39040,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        This is what ends "every set says Run Pindleskin": 134 pieces now carry their own odds. */
     s.sets.forEach(function(r){ var agg=_setAggSrc(r.name);
       r.pieces.forEach(function(p){ if(!p.have) missingP.push({ name:p.name, set:r.name, left:r.left, src:(_pieceSrc(p.name)||agg) }); }); });
-    var pct=s.totalPieces?Math.round(s.havePieces/s.totalPieces*100):0;
-    H.push('<div class="forge-progress" title="'+s.havePieces+' of '+s.totalPieces+' pieces"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%;background:linear-gradient(90deg,#4ade80,#86efac)"></div></div>'
-      +'<div class="fp-lbl">🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets<span class="fp-pct">'+pct+'%</span></div></div>');
+    /* v1813 — SAME THREE BLOCKS, SAME ORDER AS F·UNIQUES: headline meter, the line that explains
+       it, then the last-found/undo bar. F·Sets used to open with the undo bar and put the meter
+       second, so the two tabs read as different screens built by different people — the headline
+       number was the first thing on one and the third on the other. Order is the template; the
+       SENTENCES stay each forge's own, because pieces-and-sets is not finds. */
+    H.push(_meter(s.havePieces, s.totalPieces, '#4ade80,#86efac', {
+      title: s.havePieces+' of '+s.totalPieces+' pieces',
+      label: '🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets'
+    }));
     // 2026-08-13 — symmetry pass: F·Uniques has a "named cards" line explaining its grid against the
     // in-game chronicle total; F·Sets had no equivalent. SET truth only (pieces/sets from fsetsScan
     // above) — never a uniques number. There is no separate "in-game total sets" count to reconcile
     // against here (unlike uniques' chronTotal vs named-card subset), so this states what IS tracked
     // rather than inventing a dark-row figure that was never measured.
     H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="every set tracked here, from the mod\'s own set roster">🗂 sets: <b>'+s.done.length+' / '+s.sets.length+'</b> completed · <b>'+(s.totalPieces-s.havePieces)+'</b> piece'+((s.totalPieces-s.havePieces)===1?'':'s')+' still missing</div>');
+    H.push(_undoBar('set'));   // v644 — mis-ticks are one ↩ away, forge-style; v1813 — third, as on F·Uniques
     // group missing pieces by best run (same shape as Forge·Uniques)
     var bySrc={};
     /* v1564 — Konyo: "Run drops broadly? what level is this, is this a mistake?"
@@ -41604,7 +41620,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1812', name:'v1812 - the strip fade now says which way the tabs are', date:'2026-08-19', note:'The scroll row faded only its right edge. Once v1811 started aligning the active tab to the left, every tab before it went off-screen with nothing saying so. The fade now follows scroll position and disappears entirely on a row that fits.' };
+  window.D2R_BUILD = { id:'v1813', name:'v1813 - one template for both grail forges and a cache that stops at the turn', date:'2026-08-19', note:'F-Uniques and F-Sets now render the same three header blocks in the same order through one meter template, each keeping its own sentences. And the TZ relay no longer serves a rotation cached before the slot boundary, which is why the console showed the 19:30 zone at 20:00:32.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

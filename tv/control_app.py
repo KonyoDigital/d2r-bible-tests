@@ -1386,7 +1386,29 @@ def _tz_proxy():
     # stale. An empty `current` WITH history is a live payload, not DOWN.
     with _TZ_LOCK:
         now = time.time()
-        if _TZ_CACHE["body"] is not None and now - _TZ_CACHE["ts"] < 90:
+        # v1813 — THE CACHE MUST NOT OUTLIVE THE SLOT IT DESCRIBES.
+        #
+        # Konyo, 2026-08-19, screenshot stamped 20:00:32: the panel read "Burial Grounds, Crypt,
+        # and Mausoleum" as LIVE NOW and "not published yet" for UP NEXT. Burial Grounds was the
+        # 19:30 slot. The turn had happened 32 seconds earlier and the console was showing the
+        # previous zone.
+        #
+        # It was not the poll cadence — v1586/v1587 already fetch six seconds after the boundary
+        # and drop to 60s while NEXT is missing. It was THIS cache, one layer down. A body fetched
+        # at 19:59:20 stayed servable until 20:00:50, so the console's careful 20:00:06 fetch got
+        # the pre-turn answer, and the next poll was a further 60s away. The relay was faithfully
+        # serving a reading whose subject had stopped existing.
+        #
+        # A time-to-live is the wrong instrument for a value that changes on a SCHEDULE rather
+        # than by age. 90 seconds is a sensible age for this payload everywhere except across the
+        # one instant that makes it wrong. So the cache is valid while it is young AND still
+        # inside the slot it was read in; the rotation runs on exact 30-minute UTC boundaries
+        # (every slot stamp in the feed's own history divides by 1800000 with no remainder), so
+        # the slot index is arithmetic, not a guess. [[stale-reading]]
+        _SLOT_S = 1800
+        _fresh = _TZ_CACHE["body"] is not None and now - _TZ_CACHE["ts"] < 90
+        _same_slot = int(_TZ_CACHE["ts"] // _SLOT_S) == int(now // _SLOT_S)
+        if _fresh and _same_slot:
             return _TZ_CACHE["code"], _TZ_CACHE["body"]
         last_err = None
         ctx = _tz_ssl_context()
@@ -11072,7 +11094,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1812",
+        "ver": "v1813",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
