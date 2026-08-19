@@ -66,13 +66,32 @@ test.describe('v1596 — the NEXT terror zone states its own worth', () => {
     expect(c!.text, 'and it must name the boss — the reason he would go').toContain('Andariel');
   });
 
-  test('★ CATHEDRAL is honestly GOOD — adjacency is not a boss', async ({ page }) => {
+  test('★ CATHEDRAL is ranked on its own density — adjacency is not a boss', async ({ page }) => {
+    /* v1805 — THE EXPECTED VALUE MOVED, THE POINT DID NOT.
+       This test was written to stop Cathedral being promoted to PRIME on its neighbour's boss —
+       it has density 680 and Andariel is next door in the Catacombs, not here. It pinned that as
+       "GOOD" because 680 scored 0.304 under the old formula, which added 0.15 weighted on base
+       level. v1801 removed that term from both surfaces (a terror zone lifts any TZ area to mlvl
+       96, so base level is precisely what the boost overrides — v1585 had said so and fixed only
+       the floor), and on density alone 680 scores 0.263 against the 0.28 GOOD threshold. THIN.
+
+       Konyo asked for exactly this, looking at two 600-700 density zones badged GOOD: "density is
+       low and its not a terror zone worth farming". So the number this test was guarding did what
+       he asked it to do, and the assertion has to follow the ranking rather than pin the ranking
+       to whatever it was the day the test was written.
+
+       What is asserted now is the INTENT plus the current verdict: never PRIME (the original
+       point, and the part that must never regress), and THIN because that is what its density
+       says today. Both, so that a future change that quietly re-promotes it still fails here. */
     await open(page);
     const c = await cardFor(page, 'Cathedral');
     expect(c).toBeTruthy();
     expect(c!.tag,
       'promoting a 680-density corridor to PRIME on its neighbour\'s boss is advice, not data — ' +
-      'and it stole the header chip from the zone that actually has Andariel').toBe('GOOD');
+      'and it would steal the header chip from the zone that actually has Andariel').not.toBe('PRIME');
+    expect(c!.tag,
+      'Cathedral is density 680, which is below the GOOD threshold once the level term is gone')
+      .toBe('THIN');
     expect(c!.text, 'it still explains where it sits').toContain('the way into the Andariel run');
     expect(c!.text, 'and still shows the numbers the verdict rests on').toContain('680 density');
   });

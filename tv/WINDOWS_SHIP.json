@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1804",
+  "ver": "v1805",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1804: v1802 aligned the tier FORMULA across the board and the console and left TZ_NOTABLE alone - and that table is the first branch of both tier functions, so four zones still got two verdicts over a byte-identical TZ_INFO. The commit even cited the worst of the four as its proof the surfaces agreed. Both tables now carry the union of 18, the drift guard compares TZ_NOTABLE as well as TZ_INFO which bible.html had already claimed it did, and a new test asserts the PROPERTY directly - no zone gets two verdicts - so a third input to the ranking cannot make both table guards go stale in silence.",
+  "note": "v1805: The v1804 Playwright run failed two shards. Two of the three failures were mine from the same session and the same mistake: I reached for three CSS token names this file has never defined and carried each colour in a var() fallback, so a quality hex landed outside the token block and the warn token resolved to two different colours across one file. The real vocabulary was three lines above where I was working. The third was the Cathedral tier assertion following the tiering change he approved - density 680 scores 0.263 against a 0.28 threshold once the meaningless level term is gone, so GOOD became THIN, which is exactly what he asked for.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

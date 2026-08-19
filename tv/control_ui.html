@@ -3040,20 +3040,35 @@
      identical trap at :2704 ("SCOPED TO .tzz-top b, NOT .tzz-txt b") for min-height; the colour
      rules never got the same scoping. Found by the post-ship review. */
   .tz-zones-hero .tzz-txt b.tzz-terr,
-  .tz-slot.next .tzz-txt b.tzz-terr { color: var(--rar-orange, #ffa800); }
-  /* v1801 — the ledger-write warning. --st-bad is the file's one colour for "this is broken",
-     and it is a role=alert because it reports data LOSS he cannot see any other way. */
+  .tz-slot.next .tzz-txt b.tzz-terr { color: var(--rar-orange); }
+  /* v1801 — the ledger-write warning: a role=alert, because it reports data LOSS he cannot see
+     any other way.
+     v1805 — AND IT NOW USES TOKENS THAT EXIST. v1801 reached for three token names this file has
+     never defined (a broken-state one, a warn-state one and a muted-text one) and carried each
+     colour in a var() fallback. Two specs caught it and both were right: v1628 forbids a literal
+     quality/rarity colour outside the token block, and v1733 found the warn token resolving to two
+     DIFFERENT colours across the file — mine and the one pre-existing usage — which is precisely
+     the thing a token exists to prevent. The real vocabulary was three lines above where I was
+     working: --st-broken, --st-needs, --muted. Inventing a name and defining it in a fallback is
+     how a design system quietly becomes a pile of hexes.
+     No literal colour values are written in this note, deliberately: a guard that scans source for
+     stray hexes reads its own documentation, and that trap has already caught three separate
+     guards in this codebase. [[feedback-comments-vs-code]]
+     ⚠ One pre-existing usage of that warn token survives elsewhere in the file and is also
+     undefined. Left alone — it is not mine and changing it changes a colour on his screen — but it
+     is the same latent trap: the next person to reach for it picks a different fallback and
+     re-breaks v1733. */
   .chron-evwarn { margin: 0 0 10px; padding: 9px 12px; border-radius: 9px;
-    border: 1px solid color-mix(in srgb, var(--st-bad,#ff5555) 55%, transparent);
-    background: color-mix(in srgb, var(--st-bad,#ff5555) 11%, transparent);
-    color: var(--st-bad,#ff5555);
+    border: 1px solid color-mix(in srgb, var(--st-broken) 55%, transparent);
+    background: color-mix(in srgb, var(--st-broken) 11%, transparent);
+    color: var(--st-broken);
     font: var(--fw-bold) var(--fs-2xs)/1.45 var(--mono); }
-  .chron-evwarn-sub { display: block; margin-top: 4px; color: var(--fg-muted,#b5a48a);
+  .chron-evwarn-sub { display: block; margin-top: 4px; color: var(--muted);
     font-weight: var(--fw-medium); }
   /* recovered: still worth saying, no longer an emergency — --st-warn, not --st-bad */
-  .chron-evwarn.is-recovered { border-color: color-mix(in srgb, var(--st-warn,#ffcc44) 50%, transparent);
-    background: color-mix(in srgb, var(--st-warn,#ffcc44) 9%, transparent);
-    color: var(--st-warn,#ffcc44); }
+  .chron-evwarn.is-recovered { border-color: color-mix(in srgb, var(--st-needs) 50%, transparent);
+    background: color-mix(in srgb, var(--st-needs) 9%, transparent);
+    color: var(--st-needs); }
   /* ★ ALIVE. A slow breath on the live card and its art, so "this one is on right now" is legible
      from across the room and from peripheral vision — the thing a font size can never do. Gated on
      prefers-reduced-motion like every other animation here. */
