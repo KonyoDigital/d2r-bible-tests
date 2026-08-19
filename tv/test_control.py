@@ -7477,5 +7477,49 @@ class TestWaitingFootageIsVisible(unittest.TestCase):
         self.assertEqual(taken["reel"], [], "the visit tick grabbed a reel")
 
 
+class TestTheFreePassDoesNotAccuseTheReader(unittest.TestCase):
+    """v1821 — the quote screen must not diagnose a fault it cannot possibly have observed.
+
+    chronicle_scan_cost installs a stub read_page that returns {} by construction, so "no names" is
+    guaranteed and means nothing at all. Without priced_only the verdict landed on `read-nothing` —
+    "N Chronicle pages WERE read and produced no names. This one is the reading itself, not the
+    footage." That is a confident accusation against his reader, printed on the exact screen he
+    opens to decide whether a sweep is worth paying for, and it would send him hunting a fault in
+    the one component the pass never ran. sweep_verdict has had the `not-measured` state for this
+    since v1541 and the CLI always passed the flag; only this caller, the one he looks at, did not.
+    """
+
+    def test_the_quote_declares_itself_a_dry_run(self):
+        seen = {}
+        import chronicle_retro as _cr
+
+        def fake_sweep(hist, **kw):
+            seen.update(kw)
+            return {"reels": [], "proposal": {"pagesRead": 0, "refused": [], "uniques": {}, "sets": {}},
+                    "totals": {"reels": 0, "framesSeen": 0, "candidates": 0, "classified": 0,
+                               "pagesRead": 0, "refused": 0, "uniques": 0, "sets": 0},
+                    "verdict": _cr.sweep_verdict({"reels": 0, "framesSeen": 0, "candidates": 0,
+                                                  "classified": 0, "pagesRead": 0, "refused": 0,
+                                                  "uniques": 0, "sets": 0},
+                                                 priced_only=kw.get("priced_only", False))}
+
+        with mock.patch.object(_cr, "sweep_hist", side_effect=fake_sweep):
+            ca.chronicle_scan_cost(limit=1)
+        self.assertTrue(seen.get("priced_only"),
+                        "the free pass ran the sweep without priced_only — its verdict will blame "
+                        "the reader for finding nothing it was never allowed to look for")
+
+    def test_a_priced_verdict_is_never_a_reader_fault(self):
+        # the states that accuse something. A pass that read nothing may report `not-measured` and
+        # nothing else; anything here means it claimed to have observed a failure it did not.
+        import chronicle_retro as _cr
+        totals = {"reels": 3, "framesSeen": 112, "candidates": 18, "classified": 0,
+                  "pagesRead": 78, "refused": 0, "uniques": 0, "sets": 0}
+        v = _cr.sweep_verdict(totals, priced_only=True)
+        self.assertEqual(v["state"], "not-measured")
+        self.assertTrue(v["ok"])
+        self.assertNotIn("produced no names", v["say"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

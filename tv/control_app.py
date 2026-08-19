@@ -9356,7 +9356,15 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
 
     # {} is a dict with no "note", which proposal_from_pages counts as a page read and folds in as
     # zero found names — exactly the accounting we want, and zero model calls.
-    res = _cr.sweep_hist(hist, classify=_probe, read_page=lambda p, k: {}, limit=limit)
+    # v1821 — SAY THAT NOBODY READ ANYTHING. This pass installs a stub read_page that returns {}
+    # by construction, so "no names" is guaranteed and means nothing. Without priced_only the
+    # verdict landed on `read-nothing` — "N Chronicle pages WERE read and produced no names. This
+    # one is the reading itself, not the footage." — which is a confident accusation against his
+    # reader, printed on the exact screen he opens to decide whether a sweep is worth paying for.
+    # sweep_verdict has had the `not-measured` state for this since v1541 and the CLI has always
+    # passed the flag; only this caller, the one HE actually looks at, did not.
+    res = _cr.sweep_hist(hist, classify=_probe, read_page=lambda p, k: {}, limit=limit,
+                         priced_only=True)
     t = res["totals"]
     seen = t.get("framesSeen") or 0
     classifies = t.get("classified") or 0
@@ -11182,7 +11190,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1820",
+        "ver": "v1821",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
