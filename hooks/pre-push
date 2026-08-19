@@ -48,6 +48,9 @@ REPO="$(git rev-parse --show-toplevel)" || exit 1
 # What is fixed is the SHAPE of the failure: a hung gate now dies at its limit and reports as a
 # timeout with its log path, instead of blocking the push until a human gives up.
 # macOS ships no coreutils `timeout`; perl does the same job with alarm+exec (SIGALRM = 142).
+# GATE_RC is written by gate_run so a caller CAN tell a timeout-kill from a red result. No caller
+# needs that today, and the one that used to read it never did — see the review-lite note below.
+# Kept because gate_run sets it unconditionally; do NOT use it as a substitute for `exit 1`.
 GATE_RC=0
 GATE_LOG_DIR="${TMPDIR:-/tmp}/d2r-pre-push"
 mkdir -p "$GATE_LOG_DIR" 2>/dev/null || GATE_LOG_DIR="/tmp"
@@ -62,6 +65,15 @@ gate_run() {
   # failure. `&& return 0` short-circuits and leaves the command's own code in $?.
   # perl forks and REAPS rather than alarm+exec. With exec, SIGALRM kills the process outright and
   # the shell prints a raw "Alarm clock: 14" into the middle of his push output (a subshell does not
+  # ⚠ </dev/null ON THE CHILD (2026-08-19). A pre-push hook receives the ref lines it is judging on
+  # STDIN, and the `while read local_ref local_sha remote_ref remote_sha` loop below consumes them
+  # to decide what changed. Gate children inherited that same stdin, so any gate that read or
+  # drained it would leave that loop at EOF: `run` and `deploy` stay 0, the smoke gate is skipped
+  # as "no relevant changes", and the hook exits 0 — a push waved through by a gate that was trying
+  # to help. Measured: none of the three current gates touch stdin, so this is LATENT, not live.
+  # Closed anyway, because the failure mode is silent and the fix is one redirect.
+  # Found by a third-eye review of this hook.
+  #
   # hide it — the notice comes from whichever shell waits on the job). Forking lets the parent catch
   # ALRM, TERM the child, and exit 142 deliberately, so a timeout looks like a decision instead of a
   # crash. exit 127 mirrors the shell's own "command not found".
@@ -75,7 +87,7 @@ gate_run() {
            # mid-smoke; with this wrapper in front of it the push would have been waved
            # through green. A wrapper that reports success when the thing it wrapped died is
            # worse than no wrapper. 128+signal is what a shell reports, so match it.
-           exit(($st & 127) ? 128 + ($st & 127) : ($st >> 8));' "$limit" "$@" >"$log" 2>&1 && return 0
+           exit(($st & 127) ? 128 + ($st & 127) : ($st >> 8));' "$limit" "$@" </dev/null >"$log" 2>&1 && return 0
   rc=$?
   GATE_RC="$rc"        # the REAL code, for callers that must tell a kill from a red result;
                        # gate_run itself returns 1, so `rc=$?` at the call site sees 1 and a
@@ -112,8 +124,20 @@ gate_run() {
 # a live-state guard watching FILENAMES THAT DO NOT EXIST (chron_autoread.json was never watched),
 # the vault sweep's state file isolated by no test at all, and a cap default too small to read one
 # reel. The model half stays opt-in: TVD_REVIEW=1 prints an advisory read of the diff.
+# 2026-08-19 — THIS GATE COULD NOT BLOCK A PUSH, AND NOTHING SAID SO.
+# On failure it set GATE_RC=1 and carried on. `$GATE_RC` is never read anywhere in this file —
+# grep it: assigned at three places, consumed at none. So review-lite has been ADVISORY since it
+# was written, while its two siblings below (visual-lock, boss-portraits) both `exit 1` on the
+# same shape. Its own comment above says it earned its place by catching three real defects on
+# its first run; every one it caught after that was a line in a log nobody had to act on.
+# A gate that reports and cannot refuse is the failure this repo has the most scars for.
+# Found by a third-eye review of the hook. Verified before arming: `python3 tv/review_lite.py`
+# exits 0 today ("review-lite clean — 6 state paths, chronicle tolerances, caps, reader guards"),
+# so making it block refuses nothing that is currently green.
 if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
-  GATE_RC=1
+  echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
+  echo "            actually does. Fix it, or say why it is now correct, then push again."
+  exit 1
 fi
 
 if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)" 120 -- \
