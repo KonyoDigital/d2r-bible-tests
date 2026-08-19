@@ -20303,6 +20303,26 @@ function toggleOwned(name) {
       _gFoundDirty();
     } catch(e){}
   } else {
+    /* 2026-08-20 — THIS BRANCH IS DELIBERATELY UNGUARDED. Do not "fix" it.
+       v1782 recorded that a bad name reaching here "wrote a PHANTOM VAULT ENTRY and littered on
+       every tap", and fixed it AT THE CALLER by filtering that panel to the unique roster. The
+       obvious follow-up is to guard the sink instead — reject anything unrecognised — and it is
+       wrong. Measured through the live page, this branch is the normal path for real gear:
+
+         Enigma (forged runeword)        -> ownedPool KEEPS it
+         Aldur's Advance (boots)         -> ownedPool KEEPS it   (every set piece lands here)
+         Marshal's Amulet (EXTRA_ITEMS)  -> ownedPool KEEPS it
+         Monarch (4os) (socketed base)   -> kept, but ONLY AFTER _ensureSocketBaseEntry runs
+
+       That last line is the whole argument. The socketed-base flow adds to `owned` and creates
+       the EXTRA_ITEMS entry immediately AFTER, so at the instant this code runs the item is
+       indistinguishable from garbage. A guard here cannot tell "unknown" from "not registered
+       yet", and would silently stop socketed bases and runewords from ever being kept.
+
+       The harm it is tempting to prevent is also bounded: ownedPool() filters `owned` down to
+       ITEMS, EXTRA_ITEMS, runewords and set pieces, so a genuinely unknown name never renders in
+       a locker. It sits in d2r_owned and does nothing. A caller that can produce junk should be
+       filtered where it knows what it is holding, which is what v1782 did. */
     wasOwned = owned.has(name);
     if (wasOwned) owned.delete(name);
     else owned.add(name);
