@@ -17604,12 +17604,19 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
    uniques the silospen pull found. The count above is re-measured, not adjusted on paper: the
    line right below this block warns that a count in a comment is a number nobody re-measures,
    and it was already 15 versions stale when this arc reached it.) Verified against his real 346-key d2r_foundLog: it classifies all 236 real uniques as
-   'unique', all 110 real set pieces (via __allSets()'s piece list, ~line 13641) as 'set-piece' in
-   BOTH the ledger's suffixed form and the Chronicle's bare form, and window.BASE_DB (508 keys)
-   catches base names — zero base leaks, zero set-piece leaks, on his own data. 385 named + the 18
-   still-dark rows funiScan counts as chronTotal 403 is the game's own denominator; the in-game panel
-   reads 404 and prints 63%, which 236/403 (59%) still does not equal — that last gap is REPORTED,
-   not forced. This function decides KIND, nothing else; it never writes. */
+   'unique', all 110 real set pieces (via __allSets()'s piece list — search `function __allSets`, it has moved twice) as 'set-piece' in
+   BOTH the ledger's suffixed form and the Chronicle's bare form, and window.BASE_DB (508 keys,
+   re-measured 2026-08-20) catches base names — zero base leaks, zero set-piece leaks, on his own
+   data. The named roster + the still-dark rows funiScan counts as chronTotal 403 is the game's own
+   denominator; the in-game panel reads 404 and prints 63%, which 236/403 (59%) still does not
+   equal — that last gap is REPORTED, not forced.
+   ⚠ 2026-08-20 — THIS PARAGRAPH BECAME ITS OWN WARNING. The line below already said a count in a
+   comment is a number nobody re-measures; then this one went stale exactly that way. It read
+   "385 named + the 18 still-dark rows", and the roster is now **398 named + 5 still-dark** (398 +
+   5 = 403, unchanged). The split is deliberately not restated as a pair of literals again — run
+   `python3 tv/roster_sync.py` for the live count, which is the only figure that cannot rot.
+   The pointer to __allSets' piece list has also moved and is given by NAME below rather than by
+   line, for the same reason. This function decides KIND, nothing else; it never writes. */
 (function(){
   var _rosterCache = null, _pieceCache = null, _baseCache = null;
   function _norm(s){
@@ -37444,7 +37451,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        403 drives the headline percentage (the meter at :37035 divides by chronTotal, not by the
        roster) and the tooltip at :37039 states its provenance as "game-file truth:
        uniqueitems.txt". That may well be how it was counted — but nothing records WHO counted it
-       or WHEN, and :17315 records an actual reading of the in-game panel as **404, printing 63%**.
+       or WHEN, and this file records an actual reading of the in-game panel as **404, printing
+       63%** — search `the in-game panel` + `reads 404`, in the KIND-classifier note. It was cited
+       here as `:17315`; the file has grown since and that line now holds crafted-amulet
+       definitions, so the citation is by SEARCHABLE TEXT from now on. A line number is a
+       reference with a short half-life, which is the same defect as a stale count.
        One of the two is wrong by one entry, and neither can be re-derived on this machine right
        now: the CASC extractor lives at /tmp/casc_extract and /tmp does not survive a reboot.
        Stated rather than averaged, because a denominator quietly nudged to make a percentage look

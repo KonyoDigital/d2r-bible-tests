@@ -6029,6 +6029,23 @@ CASC extractor lives at `/tmp/casc_extract` and `/tmp` does not survive a reboot
 definition site rather than averaged** — a denominator quietly nudged to make a percentage look
 right is precisely the defect this board keeps finding. It does not move his answer: 259 is 64%
 against either total.
+
+**2026-08-20 — revisited, still OPEN, and the evidence trail was repaired.** The CASC route is
+confirmed closed on this machine rather than assumed: `tv/casc_extract.c` (the extractor SOURCE)
+survives in the repo, but there is no reachable game storage — no CrossOver bottle, no `.build.info`
+anywhere under Application Support — so `uniqueitems.txt` cannot be counted here and 403-vs-404
+cannot be settled by measurement. What COULD be fixed was the pointer: this note's evidence was
+cited as `:17315`, and the file has grown enough since v1751 that the line now holds crafted-amulet
+definitions. Anyone chasing the 404 landed on unrelated code. Both citations are by searchable text
+now, not line number — a line number is a reference with a short half-life, the same defect class as
+a stale count.
+
+Two counts in that same block had rotted the identical way and were re-measured: it read "385 named
++ the 18 still-dark rows" where the roster is now **398 named + 5 still-dark** (still 403), and it
+pointed at `~line 13641` for `__allSets()`, which now lives at 14122. The paragraph immediately
+above those figures warns that a count in a comment is a number nobody re-measures — it had become
+its own example. The split is no longer restated as literals; `python3 tv/roster_sync.py` prints the
+live count.
 ---
 
 ## REG-176 — v1736 broke twelve console specs, and CI said so while local smoke did not (v1749)
