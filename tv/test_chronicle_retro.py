@@ -1388,5 +1388,80 @@ class TestV1689JournalMarkedChronicleFrames(unittest.TestCase):
         self.assertEqual(self._sweep(known_chronicle=None), self._sweep())
 
 
+class TestChronicleDatesReachTheEvidence(unittest.TestCase):
+    """v1819 — Konyo: "date and timestamp related coding so they know what they registered
+    yesterday and whats new today".
+
+    Checked against his own 20-Aug frames before any of it was written: every Chronicle row prints
+    its own `First Found:` stamp and a `Dropped By:` line, and the sort control reads
+    "Newest to Oldest" at the top right. The sweep was reading those pages and keeping only the
+    names, so nothing downstream could separate a find made TODAY from one that had simply never
+    been read before — which is the only question he is asking.
+    """
+
+    UNIQUES = {
+        "ledger": "uniques", "found": ["Razorswitch", "Greyform"], "notFound": [],
+        "sort": "Newest to Oldest",
+        "foundAt": {"Razorswitch": "08/20/2026, 00:49", "Greyform": "08/16/2026, 02:18"},
+        "droppedBy": {"Razorswitch": "Infector of Souls", "Greyform": "Andariel"},
+        "printedFound": 2, "printedTotal": 2, "stateVisible": True, "wrongTab": False, "conf": 0.9,
+    }
+
+    def test_a_page_keeps_its_stamps_and_its_sort(self):
+        r = cr.normalize_page(dict(self.UNIQUES), "chronicle-uniques", "claude")
+        self.assertEqual(r["sort"], "Newest to Oldest")
+        self.assertEqual(r["foundAt"]["Razorswitch"], "08/20/2026, 00:49")
+        self.assertEqual(r["droppedBy"]["Greyform"], "Andariel")
+
+    def test_a_SWAPPED_read_never_reaches_the_ledger(self):
+        # The two tabs print `First Found:` and `Dropped By:` in OPPOSITE orders, so a reader going
+        # by position puts a monster where the date belongs. A wrong find-date outlives every later
+        # correction, because nothing downstream re-reads a date it already has.
+        r = cr.normalize_page({
+            "ledger": "sets", "found": ["M'avina's True Sight"], "notFound": [],
+            "sort": "Newest to Oldest",
+            "foundAt": {"M'avina's True Sight": "Doom Knight"},
+            "droppedBy": {"M'avina's True Sight": "08/17/2026, 00:10"},
+            "printedFound": 1, "printedTotal": 1, "stateVisible": True, "wrongTab": False,
+            "conf": 0.9}, "chronicle-sets", "claude")
+        self.assertEqual(r["foundAt"], {}, "a monster name was stored as a find date")
+        self.assertEqual(r["droppedBy"], {}, "a timestamp was stored as a monster")
+
+    def test_the_stamp_travels_all_the_way_into_the_sighting(self):
+        # a date sitting in normalize_page's output and not in the proposal would be plumbing with
+        # no tap: the gate and every consumer downstream read sightings, not pages.
+        resp = cr.normalize_page(dict(self.UNIQUES), "chronicle-uniques", "claude")
+        prop = cr.proposal_from_pages(
+            [{"reel": "reel_A", "frame": "f1", "kind": "chronicle-uniques", "resp": resp}])
+        sighting = prop["uniques"]["Razorswitch"][0]
+        self.assertEqual(sighting["foundAt"], "08/20/2026, 00:49")
+        self.assertEqual(sighting["droppedBy"], "Infector of Souls")
+        self.assertEqual(sighting["sort"], "Newest to Oldest")
+
+    def test_a_page_that_prints_no_dates_still_reads_exactly_as_before(self):
+        # additive or nothing: every page read before v1819 carries no stamps, and must keep
+        # producing the same sightings it always did.
+        bare = dict(self.UNIQUES)
+        for k in ("sort", "foundAt", "droppedBy"):
+            bare.pop(k)
+        resp = cr.normalize_page(bare, "chronicle-uniques", "claude")
+        self.assertEqual(resp["foundAt"], {})
+        self.assertEqual(resp["sort"], "")
+        prop = cr.proposal_from_pages(
+            [{"reel": "reel_A", "frame": "f1", "kind": "chronicle-uniques", "resp": resp}])
+        sighting = prop["uniques"]["Razorswitch"][0]
+        self.assertNotIn("foundAt", sighting, "an absent stamp must not become an empty one")
+        self.assertEqual(sighting["lane"], "claude")
+
+    def test_both_reader_lanes_ask_for_the_same_three_fields(self):
+        # the second eye must speak the same shape as the first, or a cross-lane agreement on a
+        # find DATE is impossible by construction — the same reason `complete` was mirrored in v1566
+        here = os.path.dirname(os.path.abspath(__file__))
+        claude = open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read()
+        grok = open(os.path.join(here, "g5_grok_eyes.py"), encoding="utf-8").read()
+        for field in ('"sort":""', '"foundAt":{{}}', '"droppedBy":{{}}'):
+            self.assertIn(field, claude, "the Claude lane stopped asking for %s" % field)
+            self.assertIn(field, grok, "the Grok lane stopped asking for %s" % field)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

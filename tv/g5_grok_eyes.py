@@ -91,7 +91,8 @@ CHRONICLE_VISION_PROMPT = (
     "Open that image with the read_file tool FIRST, then reply with STRICT JSON only, no markdown "
     "fences, no prose:\n"
     '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],'
-    '"printedFound":null,"printedTotal":null,"stateVisible":true,"wrongTab":false,"conf":0.0}}\n'
+    '"printedFound":null,"printedTotal":null,"stateVisible":true,"wrongTab":false,'
+    '"sort":"","foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
     "This is the in-game CHRONICLE (holy grail) panel: a scrollable list of item names, each row "
     "showing whether the player has FOUND it — bright/coloured text vs grey/dim, a tick, a filled "
     "marker.\n"
@@ -112,6 +113,21 @@ CHRONICLE_VISION_PROMPT = (
     "honest mismatch is useful, a fabricated match is not.\n"
     "Only rows you can actually READ belong in either list. A half-remembered item, a plausible "
     "guess at a blurred row, a name you expect to be there — none of those. Leave it out.\n"
+    # v1819 — see tv_diablo.py CHRONICLE_READ_PROMPT: the same three fields, worded the same way.
+    # The second eye must speak the same shape as the first, or a cross-lane agreement on a find
+    # DATE is impossible by construction — which is the same reason `complete` was mirrored here
+    # in v1566.
+    "sort = the sort control at the TOP RIGHT of the panel, copied as printed (\"Newest to Oldest\", "
+    "\"Oldest to Newest\", ...), or \"\" if it is not visible. It decides whether the TOP of this page "
+    "is his most recent finds, so a guess is worse than an empty string.\n"
+    "foundAt = map each FOUND name -> its exact `First Found:` stamp, copied digit for digit, e.g. "
+    '{{"Razorswitch":"08/20/2026, 00:49"}}. Omit any row whose stamp is hidden behind a tooltip or '
+    "cut off at the panel edge, and NEVER infer one from a row's position.\n"
+    "droppedBy = map each FOUND name -> the monster on its `Dropped By:` line. Omit what you cannot "
+    "read.\n"
+    "⚠ THE TWO TABS PRINT THOSE LINES IN OPPOSITE ORDER. On UNIQUES a row reads: name / "
+    "`First Found: ...` / `Dropped By: ...`. On SETS it reads: name / `Dropped By: ...` / "
+    "`First Found: ...`. Read each line by its LABEL, never by its position under the name.\n"
     "conf = 0.0-1.0, your own honest confidence in this page."
 )
 

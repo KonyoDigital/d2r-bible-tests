@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1818"   # the chronicle readers now read the dates that were always on screen
+VERSION = "v1819"   # the sweep now carries the dates the readers started reading
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4868,7 +4868,8 @@ CHRONICLE_READ_PROMPT = (
     "bright/coloured text vs grey/dim, a tick, or a filled marker.\n"
     "Reply with STRICT JSON only, no markdown, no prose:\n"
     '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],"printedFound":null,'
-    '"printedTotal":null,"stateVisible":true,"wrongTab":false,"conf":0.0}}\n'
+    '"printedTotal":null,"stateVisible":true,"wrongTab":false,'
+    '"sort":"","foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
     "found = ONLY names whose found-state is VISIBLY positive. notFound = names you can read whose "
     "state is dim, empty or ambiguous.\n"
     "If you cannot tell found from unfound ANYWHERE on this panel, set stateVisible=false and return "
@@ -4891,6 +4892,25 @@ CHRONICLE_READ_PROMPT = (
     "\"Found 108 of 135\") EXACTLY as printed, else null. They are checked against your own count as "
     "a second witness, so an honest mismatch is worth more than a flattering match.\n"
     "Read only rows you can actually see. Do not complete a set from memory or fill a page.\n"
+    # v1819 — THE DATES THAT WERE ALWAYS ON THE PAGE. Konyo: "there is an option for newest found ...
+    # so they know what they registered yesterday and whats new today". Checked against his own
+    # 20-Aug frames first: every row carries its own `First Found:` stamp and a `Dropped By:` line,
+    # and the sort control prints "Newest to Oldest" at the top right. The sweep was reading these
+    # pages and keeping only the names, so nothing downstream could distinguish a FRESH find from
+    # one that had simply never been read before — the question he is actually asking.
+    "sort = the sort control at the TOP RIGHT of the panel, copied as printed (\"Newest to Oldest\", "
+    "\"Oldest to Newest\", ...), or \"\" if it is not visible. It decides whether the TOP of this page "
+    "is his most recent finds, so a guess is worse than an empty string.\n"
+    "foundAt = map each FOUND name -> its exact `First Found:` stamp, copied digit for digit, e.g. "
+    '{{"Razorswitch":"08/20/2026, 00:49"}}. Omit any row whose stamp is hidden behind a tooltip or '
+    "cut off at the panel edge, and NEVER infer one from a row's position. A missing stamp is "
+    "recoverable; an invented one is a false find-date that nothing later re-reads.\n"
+    "droppedBy = map each FOUND name -> the monster on its `Dropped By:` line. Omit what you cannot "
+    "read.\n"
+    "⚠ THE TWO TABS PRINT THOSE LINES IN OPPOSITE ORDER — measured on his frames, not assumed. On "
+    "UNIQUES a row reads: name / `First Found: ...` / `Dropped By: ...`. On SETS it reads: name / "
+    "`Dropped By: ...` / `First Found: ...`. Read each line by its LABEL, never by its position "
+    "under the name, or every set piece gets a monster where its date belongs.\n"
     "conf = 0.0-1.0, your honest confidence in THIS page."
 )
 

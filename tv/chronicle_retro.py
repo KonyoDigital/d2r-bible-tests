@@ -811,6 +811,36 @@ def classifier(claude_read, on_seen=None):
     return _classify
 
 
+# v1819 — what the game's own `First Found:` stamp looks like: 08/20/2026, 00:49
+#
+# This is a REFUSAL, not a formatter. The UNIQUES and SETS tabs print `First Found:` and
+# `Dropped By:` in opposite orders, so the likeliest reader error by far is a row whose date slot
+# holds a monster name. A stamp that is not a date is dropped here rather than carried into the
+# ledger: a wrong find-date would survive every later correction, because nothing downstream ever
+# re-reads a date it already has.
+_STAMP_RX = re.compile(r"^\s*\d{1,2}/\d{1,2}/\d{4}\s*,?\s*\d{1,2}:\d{2}(:\d{2})?\s*$")
+
+
+def stamp_ok(v):
+    """True when v is the game's own First Found stamp, not a monster and not a guess."""
+    return bool(_STAMP_RX.match(str(v or "")))
+
+
+def _stamp_map(raw_map, want_stamp):
+    """name -> value, keeping only entries on the right side of the date/monster line."""
+    out = {}
+    if not isinstance(raw_map, dict):
+        return out
+    for k, v in list(raw_map.items())[:80]:
+        k = str(k or "").strip()[:64]
+        v = str(v or "").strip()[:48]
+        if not k or not v:
+            continue
+        if stamp_ok(v) == want_stamp:
+            out[k] = v
+    return out
+
+
 def normalize_page(raw, kind, lane):
     """v1519 — ONE normalizer, both lanes. Turns a reader's raw JSON into the v1510 response shape.
 
@@ -863,6 +893,11 @@ def normalize_page(raw, kind, lane):
         "found": found, "notFound": not_found, "sets": sets if ledger == "sets" else [],
         "stateVisible": state_visible, "wrongTab": wrong_tab, "wholePage": whole,
         "witness": witness, "conf": conf, "printed": printed,
+        # v1819 — the page's own dates. `sort` is copied as printed rather than normalised here so
+        # the raw wording survives into the evidence; callers decide what "newest" means.
+        "sort": str(raw.get("sort") or "").strip()[:32],
+        "foundAt": _stamp_map(raw.get("foundAt"), True),
+        "droppedBy": _stamp_map(raw.get("droppedBy"), False),
         "read": {"found": len(found), "notFound": len(not_found)},
         "note": "wrong-ledger" if wrong_tab else ("no-found-state" if not state_visible else None),
     }
@@ -947,12 +982,25 @@ def proposal_from_pages(pages):
         lane_map = resp.get("lanes") or {}
         for nm in (resp.get("found") or []):
             for lane in (lane_map.get(nm) or [resp.get("lane") or "claude"]):
-                prop[ledger].setdefault(nm, []).append({
+                # v1819 — a sighting now carries the row's OWN stamp when the page printed one.
+                # Two lanes agreeing on a name is corroboration; two lanes agreeing on a name AND
+                # the same find-date is strictly stronger, and it is the only thing that can tell a
+                # find made today from one that was simply never read before.
+                _sight = {
                     "reel": p.get("reel"), "frame": p.get("frame"),
                     "witness": resp.get("witness") or "none",
                     "conf": resp.get("conf") or 0,
                     "lane": lane,
-                })
+                }
+                _fa = (resp.get("foundAt") or {}).get(nm)
+                if _fa:
+                    _sight["foundAt"] = _fa
+                _db = (resp.get("droppedBy") or {}).get(nm)
+                if _db:
+                    _sight["droppedBy"] = _db
+                if resp.get("sort"):
+                    _sight["sort"] = resp["sort"]
+                prop[ledger].setdefault(nm, []).append(_sight)
         for nm in (resp.get("notFound") or []):
             prop["notFound"][ledger].add(nm)
         for g in (resp.get("sets") or []):

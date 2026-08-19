@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1818",
+  "ver": "v1819",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1818: Every chronicle row prints its own First Found stamp and a Dropped By line, and the panel sort control reads Newest to Oldest. The reader discarded all three and handed downstream a bare list of names. It now captures them, and refuses a stamp that is not a date.",
+  "note": "v1819: Both reader lanes ask for the panel sort order and each found row First Found stamp and Dropped By line, the page normaliser keeps them, and every sighting in the evidence ledger carries its own stamp. A value on the wrong side of the date-monster line is refused rather than stored.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
