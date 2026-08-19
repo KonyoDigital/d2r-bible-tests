@@ -296,20 +296,31 @@ else
   fi
 fi
 
-# ── 2. Auto-deploy (after green; warns but never blocks) ─────────────────────
+# ── 2. Publication moved to CI (2026-08-19) ──────────────────────────────────
+# This hook used to run deploy.sh here, which meant the live site only ever updated when
+# HIS LAPTOP was awake, unlocked, and had CLOUDFLARE_API_TOKEN in ~/.zshenv. It also added
+# roughly a minute to every push.
+#
+# .github/workflows/publish.yml now publishes, and only after smoke + python suites + the
+# review agree — so a ship that fails a gate reaches the repo and NOT bull-4-u.com. That is
+# the half that matters, because a push to main is what publishes this board.
+#
+# ⚠ REMOVED ONLY AFTER CI PUBLISHED FOR REAL, not after the job merely went green. Proof:
+# workflow_dispatch run 32248211564, deploy job -> "Deployment complete!
+# https://e96ae694.d2r-bible.pages.dev ... deploy: live." Taking the working publisher out
+# before the new one is proven is how you end up with two halves and no publication.
+#
+# Two things CI needed that this Mac never did, both found by testing rather than by a real
+# ship: Node 22 (wrangler 4.124 refuses to run on 20; this Mac is on 24) and an explicit
+# CLOUDFLARE_ACCOUNT_ID (a Pages:Edit token has no Account:Read, so wrangler cannot discover
+# the account; local wrangler had it cached in ~/Library/Preferences/.wrangler).
+#
+# deploy.sh IS STILL THERE and still works. If CI is ever down, publish by hand:
+#     bash deploy.sh
 if [ "$deploy" -eq 1 ]; then
   echo ""
-  echo "pre-push: main + deployable change — publishing live…"
-  if bash "$REPO/deploy.sh"; then
-    : # deploy.sh prints its own success line
-  else
-    rc=$?
-    if [ "$rc" -eq 2 ]; then
-      echo "pre-push: deploy SKIPPED (missing token/npx) — push still allowed; deploy by hand: bash deploy.sh"
-    else
-      echo "pre-push: deploy FAILED — push still allowed; re-run by hand: bash deploy.sh"
-    fi
-  fi
+  echo "pre-push: deployable change — CI will publish (see the Publish workflow)."
+  echo "          if CI is down, publish by hand: bash deploy.sh"
 fi
 
 exit 0
