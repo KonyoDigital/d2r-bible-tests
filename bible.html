@@ -40137,7 +40137,14 @@ html{overflow-x:clip}
 .tools-legend-btn{display:none!important}
 .forge-legend-fab{bottom:calc(var(--dock-h,84px) + 118px)!important;right:12px!important;width:44px!important;height:44px!important;z-index:230!important}
 .forge-legend-fab img{width:27px!important;height:27px!important}
-.tools-legend-fab{bottom:calc(var(--dock-h,84px) + 170px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:21px!important;z-index:230!important}
+/* v1808 — the dead `bottom` is GONE, the live properties stay. This block used to declare
+   bottom:+170px (slot S3) and the rule two lines below overrode it to +118px (slot S2, where
+   v708 moved this orb when the field-guide orb retired). Same specificity, !important on both,
+   later wins — so that 170 rendered nothing while right/width/height/font-size/z-index in the
+   same block rendered everything. Editing it changed nothing, silently, which is the trap this
+   file has a carved scar for. Deleting the declaration rather than the block keeps the five
+   live properties in their only home. [[d2r-css-last-rule-wins]] */
+.tools-legend-fab{right:12px!important;width:44px!important;height:44px!important;font-size:21px!important;z-index:230!important}
 /* v708 — with the 🧰 orb retired, the 🧭 tools map takes the S2 context slot (3-orb cap).
    ⚠ v1805 — THE CAP SAYS THREE AND THE TRAY SHOWS FOUR. v1798 gave the inbox orb slot S3, the
    one v708 had just emptied, so on the Forge and Tools tabs the column is help(S0) · nav(S1) ·
