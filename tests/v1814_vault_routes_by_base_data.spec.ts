@@ -51,57 +51,68 @@ async function routes(page: any, names: string[]) {
   }, names);
 }
 
-test.beforeEach(async ({ page }) => {
-  await page.goto(FILE);
-  await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
-});
+/* v1816 — THE beforeEach MUST NOT REACH THE MIGRATION TESTS.
+   It navigates, and since v1816 the vault repair is ONE-SHOT: the first load stamps
+   d2r_vaultRerouteDone and every later load is a no-op by design. A beforeEach that loads the
+   page before the test has seeded anything therefore SPENDS the single shot on an empty vault,
+   and the migration test then asserts against a repair that already ran and found nothing to do.
+   It cost a red shard to notice, and the red was honest: the product was right and the fixture
+   was navigating too early. The routing tests want the shared navigation; the migration tests
+   must own their first load. */
+test.describe('routing', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto(FILE);
+      await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
+    });
 
-test('v1814 — armour whose base name carries no armour word still lands in UNI-ARMOR', async ({ page }) => {
-  for (const r of await routes(page, ARMOUR_IN_WEAPONS)) {
-    expect(r.armour, `${r.n} (${r.b}) must be armour in BASE_DB, or this test is asserting the wrong thing`).toBe(true);
-    expect(r.id, `${r.n} (${r.b})`).toBe('uni-armor');
-  }
-});
-
-test('v1814 — a weapon is not dragged into UNI-ARMOR by a word in its name', async ({ page }) => {
-  for (const r of await routes(page, WEAPONS_IN_ARMOUR)) {
-    expect(r.weapon, `${r.n} (${r.b}) must be a weapon in BASE_DB`).toBe(true);
-    expect(r.id, `${r.n} (${r.b})`).toBe('uni-weap');
-  }
-});
-
-test('v1814 — belts still route by the keyword list, which BASE_DB cannot replace', async ({ page }) => {
-  // Belts and sashes have neither a defense range nor a damage range. If the keyword fallback were
-  // ever removed in favour of "just use BASE_DB", every belt in the game would land in UNI-WEAPONS.
-  for (const r of await routes(page, BELTS)) {
-    expect(r.armour, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
-    expect(r.weapon, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
-    expect(r.id, `${r.n} (${r.b})`).toBe('uni-armor');
-  }
-});
-
-test('v1814 — no roster item contradicts its own base data, in either direction', async ({ page }) => {
-  // the sweep that found the eight. It is the whole point: a spot-check on named items would pass
-  // again the day a new base is added that no keyword happens to match.
-  const bad = await page.evaluate(() => {
-    const w = window as any;
-    const names: string[] = typeof w._gUniqueRoster === 'function' ? w._gUniqueRoster() : [];
-    const out: string[] = [];
-    for (const n of names) {
-      let sg: any = null;
-      try { sg = w.suggestMule(n); } catch (e) { continue; }
-      if (!sg) continue;
-      const tip = w.ITEM_TIP ? w.ITEM_TIP[n] : null;
-      const b = (tip && tip.b) || '';
-      const rec = b && w._baseRec ? w._baseRec(b) : null;
-      if (!rec) continue;
-      if (sg.id === 'uni-weap' && rec.defense) out.push(`ARMOUR in weapons: ${n} (${b})`);
-      if (sg.id === 'uni-armor' && !rec.defense && (rec.oneH || rec.twoH)) out.push(`WEAPON in armor: ${n} (${b})`);
+  test('v1814 — armour whose base name carries no armour word still lands in UNI-ARMOR', async ({ page }) => {
+    for (const r of await routes(page, ARMOUR_IN_WEAPONS)) {
+      expect(r.armour, `${r.n} (${r.b}) must be armour in BASE_DB, or this test is asserting the wrong thing`).toBe(true);
+      expect(r.id, `${r.n} (${r.b})`).toBe('uni-armor');
     }
-    return { total: names.length, bad: out };
   });
-  expect(bad.total, 'the roster must be non-empty or this proves nothing').toBeGreaterThan(300);
-  expect(bad.bad, 'items filed against their own base data').toEqual([]);
+
+  test('v1814 — a weapon is not dragged into UNI-ARMOR by a word in its name', async ({ page }) => {
+    for (const r of await routes(page, WEAPONS_IN_ARMOUR)) {
+      expect(r.weapon, `${r.n} (${r.b}) must be a weapon in BASE_DB`).toBe(true);
+      expect(r.id, `${r.n} (${r.b})`).toBe('uni-weap');
+    }
+  });
+
+  test('v1814 — belts still route by the keyword list, which BASE_DB cannot replace', async ({ page }) => {
+    // Belts and sashes have neither a defense range nor a damage range. If the keyword fallback were
+    // ever removed in favour of "just use BASE_DB", every belt in the game would land in UNI-WEAPONS.
+    for (const r of await routes(page, BELTS)) {
+      expect(r.armour, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
+      expect(r.weapon, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
+      expect(r.id, `${r.n} (${r.b})`).toBe('uni-armor');
+    }
+  });
+
+  test('v1814 — no roster item contradicts its own base data, in either direction', async ({ page }) => {
+    // the sweep that found the eight. It is the whole point: a spot-check on named items would pass
+    // again the day a new base is added that no keyword happens to match.
+    const bad = await page.evaluate(() => {
+      const w = window as any;
+      const names: string[] = typeof w._gUniqueRoster === 'function' ? w._gUniqueRoster() : [];
+      const out: string[] = [];
+      for (const n of names) {
+        let sg: any = null;
+        try { sg = w.suggestMule(n); } catch (e) { continue; }
+        if (!sg) continue;
+        const tip = w.ITEM_TIP ? w.ITEM_TIP[n] : null;
+        const b = (tip && tip.b) || '';
+        const rec = b && w._baseRec ? w._baseRec(b) : null;
+        if (!rec) continue;
+        if (sg.id === 'uni-weap' && rec.defense) out.push(`ARMOUR in weapons: ${n} (${b})`);
+        if (sg.id === 'uni-armor' && !rec.defense && (rec.oneH || rec.twoH)) out.push(`WEAPON in armor: ${n} (${b})`);
+      }
+      return { total: names.length, bad: out };
+    });
+    expect(bad.total, 'the roster must be non-empty or this proves nothing').toBeGreaterThan(300);
+    expect(bad.bad, 'items filed against their own base data').toEqual([]);
+  });
+
 });
 
 test('v1814 — the migration repairs old assignments WITHOUT touching his own choices', async ({ page, context }) => {
