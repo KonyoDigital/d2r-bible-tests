@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1815",
+  "ver": "v1816",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1815: The repair migration asked BASE_DB directly while the router asks BASE_DB and then the keyword list, so a mis-filed belt was left in the weapons locker. It asks the router now, and runs late enough in the closure that the regexes the router needs actually exist.",
+  "note": "v1816: As shipped it re-ran on every load, so a locker he chose by hand inside the weapons-armour pair would be dragged back forever. It is stamped and one-shot now, and the stamp is profile-forked like the assignment map it guards, so repairing MAIN cannot mark LADDER done.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

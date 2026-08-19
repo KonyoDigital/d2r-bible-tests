@@ -148,3 +148,66 @@ test('v1814 — the migration repairs old assignments WITHOUT touching his own c
   expect(a["Titan's Revenge"], 'SHARED is a judgement call, not a slot').toBe('shared');
   expect(a["Nord's Tenderizer"], 'WIP is a judgement call, not a slot').toBe('wip');
 });
+
+test('v1816 — the repair runs ONCE, and after it his hand wins', async ({ page, context }) => {
+  // As shipped in v1815 this ran on every load, which quietly made it the thing its own comment
+  // forbids: a migration that overrules a judgement call. Inside the uni-weap/uni-armor pair the
+  // router is usually right but not always — an Infinity polearm he keeps beside his armour, a
+  // shield he files with the weapons because that is where he looks for it. Each would have been
+  // dragged back on every reload, forever, with nothing saying why. A repair is an event; a rule
+  // that re-asserts itself is a policy, and he did not ask for a policy.
+  await context.addInitScript(() => {
+    try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {}
+    try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
+    try {
+      if (!localStorage.getItem('__seeded')) {
+        localStorage.setItem('d2r_muleAssign', JSON.stringify({
+          "Andariel's Visage": 'uni-weap',   // mis-filed → the one-time repair must move it
+          'Blackhand Key': 'uni-weap',       // correct → untouched
+        }));
+        localStorage.setItem('__seeded', '1');
+      }
+    } catch (e) {}
+  });
+
+  const assign = async () => page.evaluate(() => {
+    try { return JSON.parse((window as any).LSR.getItem('d2r_muleAssign') || '{}'); } catch (e) { return {}; }
+  });
+
+  await page.goto(FILE);
+  await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
+  await page.waitForFunction(() => {
+    try { return !!(window as any).LSR.getItem('d2r_vaultRerouteDone'); } catch (e) { return false; }
+  }, null, { timeout: 20000 });
+  expect((await assign())["Andariel's Visage"], 'the one-time repair should have moved it').toBe('uni-armor');
+
+  // HIS HAND: deliberately put it back in the weapons locker
+  await page.evaluate(() => {
+    const w = window as any;
+    const a = JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}');
+    a["Andariel's Visage"] = 'uni-weap';
+    w.LSR.setItem('d2r_muleAssign', JSON.stringify(a));
+  });
+
+  await page.goto(FILE);
+  await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
+  await page.waitForTimeout(1500);
+
+  expect((await assign())["Andariel's Visage"],
+    'the migration ran a second time and overruled a placement he made by hand').toBe('uni-weap');
+});
+
+test('v1816 — the done-flag is profile-forked, like the map it guards', async () => {
+  // d2r_muleAssign is per-profile (MAIN / LADDER). A shared done-flag would mean repairing MAIN
+  // marks LADDER complete and leaves its vault untouched — a profile toggle silently changing
+  // what got fixed, which is the one thing the ladder doctrine forbids.
+  const fs = await import('fs');
+  const bible = fs.readFileSync(path.resolve(__dirname, '..', 'bible.html'), 'utf8');
+  const m = /window\._LP_FORKED = new Set\(\[(.*?)\]\)/s.exec(bible);
+  expect(m, '_LP_FORKED could not be found — this guard is protecting nothing').toBeTruthy();
+  const keys = (m as RegExpExecArray)[1].match(/"([^"]+)"/g)!.map((x) => x.replace(/"/g, ''));
+  expect(keys, 'the map itself must be forked, or this test is asserting the wrong thing')
+    .toContain('d2r_muleAssign');
+  expect(keys, 'the done-flag must be forked alongside the map it guards')
+    .toContain('d2r_vaultRerouteDone');
+});

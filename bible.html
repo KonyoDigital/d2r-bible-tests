@@ -3660,7 +3660,7 @@ window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(windo
 // Both directions, across reloads. Moving d2r_owned into the shared set is therefore a NO-OP — it was
 // built in v1633 with a union migration and REVERTED because the merge could not survive a reload
 // (the board re-derives from the ledger). Nobody try it a fourth time.
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -35061,8 +35061,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      GRAIL-DUPES and the rest are judgement calls, and a migration that "corrects" a judgement
      call is a second bug with better manners. */
   (function(){
+    /* v1816 — IT RUNS ONCE. As written in v1815 this repair ran on EVERY load, which quietly made
+       it the thing its own comment forbids: a migration that overrules a judgement call. Inside
+       the uni-weap/uni-armor pair the router's answer is usually right, but not always — an
+       Infinity polearm he deliberately keeps beside his armour, a shield he files with the
+       weapons because that is where he looks for it. Every one of those would have been dragged
+       back on the next reload, forever, with no way to make it stick and no message saying why.
+       A repair is a one-time event; a rule that re-asserts itself is a policy, and he did not ask
+       for a policy. One shot, stamped, and after that his hand wins. */
+    var DONE = 'd2r_vaultRerouteDone';
     var moved = [];
     try {
+      if (window.LSR.getItem(DONE)) return;
       Object.keys(assign).forEach(function(n){
         var cur = assign[n];
         if (cur !== 'uni-weap' && cur !== 'uni-armor') return;
@@ -35074,6 +35084,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         assign[n] = sg.id;
         moved.push({item:n, from:cur, to:sg.id, why:sg.why || ''});
       });
+      /* stamped whether or not anything moved: a vault that was already correct must not be
+         re-examined on every load forever, and "nothing to do" is a completed migration too. */
+      try { window.LSR.setItem(DONE, String(Date.now())); } catch(e){}
       if (moved.length){
         saveA();
         // leave the receipt: a silent migration that moves his gear is one he cannot check
@@ -41704,7 +41717,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1815', name:'v1815 - one authority decides where a vaulted item belongs', date:'2026-08-19', note:'The repair migration asked BASE_DB directly while the router asks BASE_DB and then the keyword list, so a mis-filed belt was left in the weapons locker. It asks the router now, and runs late enough in the closure that the regexes the router needs actually exist.' };
+  window.D2R_BUILD = { id:'v1816', name:'v1816 - the vault repair runs once, then his hand wins', date:'2026-08-19', note:'As shipped it re-ran on every load, so a locker he chose by hand inside the weapons-armour pair would be dragged back forever. It is stamped and one-shot now, and the stamp is profile-forked like the assignment map it guards, so repairing MAIN cannot mark LADDER done.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
