@@ -108,6 +108,11 @@ test('v1814 — the migration repairs old assignments WITHOUT touching his own c
   // suggestMule only decides the NEXT item; an assignment already in d2r_muleAssign is pinned, and
   // that pinned copy is what he is looking at. The migration must fix those — and stop there.
   await context.addInitScript(() => {
+    // v1518's guard is right and this spec tripped it: spoofing navigator.webdriver identifies the
+    // page as the SUITE, which v1499 treats as a GUEST — every bare key seeded below would land in
+    // an I·<id>· world the app never reads, and the assertions would be interrogating a world that
+    // does not exist. Claim the owner world in the same breath as the spoof.
+    try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {}
     try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
     try {
       localStorage.setItem('d2r_muleAssign', JSON.stringify({
