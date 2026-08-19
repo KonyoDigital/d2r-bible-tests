@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1817",
+  "ver": "v1818",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1817: The vault repair stamped its done-flag before saving, so a quota error or a closed tab between the two writes sealed the mis-filing forever. Reversed, a lost write just means the next load retries. Found by a cross-family review.",
+  "note": "v1818: Every chronicle row prints its own First Found stamp and a Dropped By line, and the panel sort control reads Newest to Oldest. The reader discarded all three and handed downstream a bare list of names. It now captures them, and refuses a stamp that is not a date.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

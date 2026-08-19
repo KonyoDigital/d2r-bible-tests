@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1817"   # write the repair before the receipt that says it happened
+VERSION = "v1818"   # the chronicle readers now read the dates that were always on screen
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -137,7 +137,7 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p1509"   # HUD-tell — dark frame is transition only if the bottom HUD is ABSENT (dark COMBAT keeps its HUD → gameplay); bump whenever READ_PROMPT changes
+PROMPT_VER = "p1818"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
@@ -174,6 +174,20 @@ READ_PROMPT = (
     "When scene=chronicle put EVERY item name you can read in names[], in the order shown, and put "
     "the found/claimed ones in discovered[]. A partial or scrolled list is expected and fine — "
     "never invent names to fill a page.\n"
+    "chronicleSort = ONLY when scene=chronicle: the sort control at the TOP RIGHT of the panel, read "
+    "literally. \"newest\" if it says Newest to Oldest, \"oldest\" if Oldest to Newest, \"other\" for any "
+    "other ordering, \"\" if it is not visible. This is what decides whether the TOP of the list is his "
+    "most recent finds, so guessing it is worse than leaving it blank.\n"
+    "foundAt = ONLY when scene=chronicle: map each item name -> its exact 'First Found:' stamp, copied "
+    "digit for digit, e.g. {{\"Razorswitch\":\"08/20/2026, 00:49\"}}. NEVER infer a date from a row's "
+    "position in the list, and omit any row whose stamp is covered by a tooltip or cut off at the panel "
+    "edge — a missing stamp is recoverable, an invented one is a false find date forever.\n"
+    "droppedBy = ONLY when scene=chronicle: map each item name -> the monster on its 'Dropped By:' line, "
+    "e.g. {{\"Razorswitch\":\"Infector of Souls\"}}. Omit what you cannot read.\n"
+    "⚠ THE TWO TABS PRINT THOSE LINES IN OPPOSITE ORDER — measured on his frames, not assumed. On "
+    "UNIQUE a row reads: name / 'First Found: ...' / 'Dropped By: ...'. On SETS it reads: name / "
+    "'Dropped By: ...' / 'First Found: ...'. Read each line by its LABEL, never by its position under "
+    "the name, or every set piece gets a monster where its date belongs.\n"
     "transition = fullscreen loading/portal art: the burning fire portal, act loading screen, or a "
     "dark frame with NO bottom HUD. THE DECIDING TELL: if the bottom HUD (belt row / red life + blue "
     "mana orbs / skill bar) is ABSENT the frame is transition; a dark COMBAT frame (night, a cave, a "
@@ -3687,6 +3701,46 @@ def _norm_stash_tab(raw, scene=None):
     return _STASH_TAB_ALIASES.get(lo, "") if lo in _STASH_TAB_ALIASES else ""
 
 
+# v1818 — the panel's sort order, and the shape a First Found stamp must have.
+#
+# _CHRON_STAMP_RX is not decoration. The UNIQUE and SETS tabs print `First Found:` and
+# `Dropped By:` in OPPOSITE orders (verified on his 08-20 frames), so the single most likely
+# reader error is filling foundAt with a monster name. A stamp that is not a date is DROPPED and
+# audited rather than stored: a wrong find-date would outlive every later correction, because
+# nothing downstream re-reads a date it already has.
+# Compiled on first use, not at import: this module has NO module-level `re` (its convention is a
+# local `import re as _re` inside the functions that need it), and a top-level re.compile here
+# raised NameError at import — caught by running the parser rather than by reading it.
+_CHRON_STAMP_RX = None
+
+
+def _chron_stamp_ok(v):
+    """True when v looks like the game's own `First Found` stamp, e.g. 08/20/2026, 00:49."""
+    global _CHRON_STAMP_RX
+    if _CHRON_STAMP_RX is None:
+        import re as _re
+        _CHRON_STAMP_RX = _re.compile(r"^\s*\d{1,2}/\d{1,2}/\d{4}\s*,?\s*\d{1,2}:\d{2}(:\d{2})?\s*$")
+    return bool(_CHRON_STAMP_RX.match(v or ""))
+
+
+def _norm_chron_sort(raw, scene=None):
+    """newest | oldest | other | "" — and "" whenever the scene is not a chronicle page."""
+    if scene is not None and scene != "chronicle":
+        return ""
+    v = str(raw or "").strip().lower()
+    if not v:
+        return ""
+    if "newest" in v and "oldest" in v:
+        return "newest" if v.index("newest") < v.index("oldest") else "oldest"
+    if v in ("newest", "oldest", "other"):
+        return v
+    if "newest" in v:
+        return "newest"
+    if "oldest" in v:
+        return "oldest"
+    return "other"
+
+
 def _norm_chron_tab(raw, scene=None):
     """v1512 — WHICH CHRONICLE LEDGER is on screen: "uniques" | "sets" | "".
 
@@ -4034,6 +4088,34 @@ def _parse_read(out):
     stash_tab = _norm_stash_tab(j.get("stashTab") or j.get("stash_tab"), scene)
     chron_tab = _norm_chron_tab(j.get("chronicleTab") or j.get("chronicle_tab"), scene)
     discovered = [str(x).strip() for x in (j.get("discovered") or []) if str(x).strip()][:12]
+    # v1818 — the chronicle's own dates, kept only when they are actually dates
+    chron_sort = _norm_chron_sort(j.get("chronicleSort") or j.get("chronicle_sort"), scene)
+    found_at, dropped_by = {}, {}
+    try:
+        _fa = j.get("foundAt") or j.get("found_at") or {}
+        if isinstance(_fa, dict):
+            for k3, v3 in list(_fa.items())[:80]:
+                k3 = str(k3).strip()[:64]
+                v3 = str(v3).strip()[:32]
+                if not k3 or not v3:
+                    continue
+                if _chron_stamp_ok(v3):
+                    found_at[k3] = v3
+                else:
+                    _audit["dropped"].append({"field": "foundAt", "from": v3[:24],
+                                              "why": "not-a-timestamp"})
+        _db = j.get("droppedBy") or j.get("dropped_by") or {}
+        if isinstance(_db, dict):
+            for k4, v4 in list(_db.items())[:80]:
+                k4 = str(k4).strip()[:64]
+                v4 = str(v4).strip()[:48]
+                if k4 and v4 and not _chron_stamp_ok(v4):
+                    dropped_by[k4] = v4
+                elif k4 and v4:
+                    _audit["dropped"].append({"field": "droppedBy", "from": v4[:24],
+                                              "why": "looks-like-a-timestamp"})
+    except Exception:
+        found_at, dropped_by = {}, {}
     names_loc = {}
     try:
         raw_loc = j.get("names_loc") or {}
@@ -4070,6 +4152,9 @@ def _parse_read(out):
             "discovered": discovered,
             "names_loc": names_loc,
             "sockets": sockets,
+            "chronicleSort": chron_sort,   # v1818 — newest|oldest|other|""
+            "foundAt": found_at,           # v1818 — name -> the row's own First Found stamp
+            "droppedBy": dropped_by,       # v1818 — name -> the monster on its Dropped By line
             "_parse_audit": dict(_audit, ok=True)}   # v835 — what the model SAID vs what survived
 
 def _intent_for(scene):

@@ -3210,8 +3210,61 @@ class TestChronicleScene(unittest.TestCase):
         self.assertEqual(r["chronicleTab"], "")
 
     def test_prompt_version_moved_with_the_prompt(self):
-        # PROMPT_VER gates cache reuse — a changed prompt on an old version replays stale reads
-        self.assertEqual(tv.PROMPT_VER, "p1509")
+        # PROMPT_VER gates cache reuse — a changed prompt on an old version replays stale reads.
+        # v1818 moved it p1509 -> p1818 when the chronicle rows started yielding their First Found
+        # stamp, Dropped By line and the panel's sort order. This assertion failing is the guard
+        # WORKING: it means the prompt moved and somebody has to decide whether cached reads from
+        # the old prompt are still answerable. They were not — the old reads carry no dates.
+        self.assertEqual(tv.PROMPT_VER, "p1818")
+
+    # ── v1818 — the chronicle's own dates ───────────────────────────────────────────────
+    # Konyo: "there is an option for newest found ... so they know what they registered
+    # yesterday and whats new today". Verified on his 08-20 frames before any of this was
+    # written: every row prints its own `First Found:` stamp and a `Dropped By:` line, and the
+    # sort control reads "Newest to Oldest" at the top right. The reader used to discard all
+    # three and hand downstream a bare list of names.
+
+    def _read(self, **over):
+        import json as _json
+        base = {"scene": "chronicle", "chronicleTab": "uniques",
+                "chronicleSort": "Newest to Oldest", "names": ["Razorswitch"],
+                "foundAt": {"Razorswitch": "08/20/2026, 00:49"},
+                "droppedBy": {"Razorswitch": "Infector of Souls"}, "conf": 0.9}
+        base.update(over)
+        return tv._parse_read(_json.dumps(base))
+
+    def test_a_chronicle_row_keeps_its_own_found_stamp(self):
+        r = self._read()
+        self.assertEqual(r["chronicleSort"], "newest")
+        self.assertEqual(r["foundAt"]["Razorswitch"], "08/20/2026, 00:49")
+        self.assertEqual(r["droppedBy"]["Razorswitch"], "Infector of Souls")
+
+    def test_a_SWAPPED_read_is_refused_rather_than_stored(self):
+        # THE failure this validation exists for. UNIQUE prints name / First Found / Dropped By;
+        # SETS prints name / Dropped By / First Found. A reader going by POSITION instead of by
+        # LABEL puts a monster where the date belongs. A wrong find-date would outlive every
+        # later correction, because nothing downstream re-reads a date it already has.
+        r = self._read(chronicleTab="sets",
+                       foundAt={"M'avina's True Sight": "Doom Knight"},
+                       droppedBy={"M'avina's True Sight": "08/17/2026, 00:10"},
+                       names=["M'avina's True Sight"])
+        self.assertEqual(r["foundAt"], {}, "a monster name was stored as a find date")
+        self.assertEqual(r["droppedBy"], {}, "a timestamp was stored as a monster")
+        why = [d["why"] for d in r["_parse_audit"]["dropped"] if d["field"] in ("foundAt", "droppedBy")]
+        self.assertIn("not-a-timestamp", why)
+        self.assertIn("looks-like-a-timestamp", why)
+
+    def test_the_sort_control_is_read_not_guessed(self):
+        self.assertEqual(self._read(chronicleSort="Newest to Oldest")["chronicleSort"], "newest")
+        self.assertEqual(self._read(chronicleSort="Oldest to Newest")["chronicleSort"], "oldest")
+        self.assertEqual(self._read(chronicleSort="A-Z")["chronicleSort"], "other")
+        # unseen must stay EMPTY: which end of the list is newest decides what counts as a new
+        # find, so a guess here is worse than an admission.
+        self.assertEqual(self._read(chronicleSort="")["chronicleSort"], "")
+
+    def test_a_non_chronicle_scene_carries_none_of_it(self):
+        r = self._read(scene="gameplay")
+        self.assertEqual(r["chronicleSort"], "")
 
 
 class TestLiveChronicleVisit(unittest.TestCase):
