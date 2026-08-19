@@ -3735,6 +3735,48 @@ class TestJsSyntaxGate(unittest.TestCase):
                           "node should have stood in for the timed-out browser and produced a "
                           "real verdict, not a skip: %r" % (reason,))
 
+    def test_an_unverifiable_target_never_erases_a_real_finding(self):
+        """v1809 — THE FALLBACK USED TO `return [], reason`, WHICH FORGOT WHAT IT HAD FOUND.
+
+        When the browser timed out and node was unavailable, check() returned an empty problem
+        list and a skip reason — discarding every problem collected from EARLIER targets and never
+        visiting the later ones. A genuine syntax error in bible.html would vanish the moment
+        control_ui.html happened to time out on a runner without node.
+
+        Found by a third-eye review of the block I had just written. A gate that forgets what it
+        already found is worse than one that never looked, because it reports clean.
+
+        Now: an unverifiable target is itself recorded as a problem (fail closed — this gate exists
+        to stop a blank page shipping), and the loop continues so nothing earlier is lost."""
+        import js_syntax_gate as g
+        import subprocess as _sp
+        real_run, real_loop, real_node = _sp.run, g.browser_can_load_localhost, g._node_bin
+        try:
+            g.browser_can_load_localhost = lambda *a, **k: True
+            g._node_bin = lambda: None                       # node cannot stand in
+            def _timeout_the_browser_only(cmd, *a, **k):
+                argv = cmd if isinstance(cmd, (list, tuple)) else [cmd]
+                if any("--dump-dom" in str(x) for x in argv):
+                    raise _sp.TimeoutExpired(cmd="chrome", timeout=90)
+                return real_run(cmd, *a, **k)
+            _sp.run = _timeout_the_browser_only
+            if not g.find_browser():
+                self.skipTest("no browser on PATH — the branch under test needs one to be chosen")
+            problems, reason = g.check(targets=["bible.html", "tv/control_ui.html"])
+        finally:
+            _sp.run, g.browser_can_load_localhost, g._node_bin = real_run, real_loop, real_node
+
+        self.assertIsNone(reason,
+                          "an unverifiable TARGET must not abort the whole gate as a skip: %r" % (reason,))
+        self.assertEqual(len(problems), 2,
+                         "both targets were unverifiable, so both must be named — an early return "
+                         "here is what erased earlier findings: %r" % (problems,))
+        for rel in ("bible.html", "tv/control_ui.html"):
+            self.assertTrue(any(rel in p for p in problems),
+                            "%s was silently dropped: %r" % (rel, problems))
+        self.assertTrue(all("NOT VERIFIED" in p for p in problems),
+                        "an unverifiable file must say so, not masquerade as a syntax error: %r" % (problems,))
+
     def test_surfaces_parse_in_a_real_js_engine(self):
         import js_syntax_gate
         problems, skipped = js_syntax_gate.check()

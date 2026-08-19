@@ -259,10 +259,34 @@ def check(targets=None, timeout=90):
                     # there genuinely no verdict, and then it is reported as a skip rather than a
                     # failure — because "nobody could check" must never read the same as "it is
                     # broken". [[unknown-stays-unknown]]
+                    #
+                    # ⚠ TWO CORRECTIONS FROM A THIRD-EYE REVIEW OF THIS VERY BLOCK:
+                    #
+                    # (1) The first version did `return [], reason` here. That DISCARDED every
+                    #     problem already collected from earlier targets and skipped the remaining
+                    #     ones — so a genuine syntax error found in bible.html would vanish the
+                    #     moment control_ui.html timed out with no node available. A gate that
+                    #     forgets what it already found is worse than one that never looked.
+                    #
+                    # (2) "Cannot verify" is now a PROBLEM, not a silent skip. This gate exists to
+                    #     stop a blank page shipping; when neither engine can answer for a file,
+                    #     fail closed and name it. It does not reintroduce the flake this fallback
+                    #     was written for, because that flake is a SLOW browser and CI installs
+                    #     node — the no-node path is the genuinely unverifiable one.
                     node_problems, node_reason = check_with_node([rel])
                     if node_reason:
-                        return [], (f"{rel}: browser timed out after {timeout}s and "
-                                    f"node could not stand in ({node_reason})")
+                        problems.append(f"{rel}: NOT VERIFIED — browser timed out after "
+                                        f"{timeout}s and node could not stand in ({node_reason})")
+                        continue
+                    # ⚠ AND THE FALLBACK IS A WEAKER CHECK, which is accepted and recorded rather
+                    # than pretended away. node --check parses classic inline <script> only: it
+                    # skips type=module, application/json, importmap, anything with a src-like
+                    # attribute, and it cannot see an UNCLOSED <script> the regex never matched.
+                    # The browser also catches execute-time SyntaxError (eval/Function/JSON.parse)
+                    # that no parser reaches. So a timeout downgrades the verdict for that file.
+                    # The alternative — the old behaviour — was to call a slow runner a syntax
+                    # error and block publication over nothing, which it did, once in six runs.
+                    # A narrower true answer beats a confident false one.
                     problems.extend(node_problems)
                     continue
                 except OSError as e:
