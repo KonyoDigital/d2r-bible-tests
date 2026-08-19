@@ -94,7 +94,50 @@ for (const claimBarUp of [false, true]) {
       }
       await page.click(`[data-tab="${P.tab}"]`);
       await page.waitForTimeout(400);
-      await page.click(P.fab);
+
+      /* v1806 — DIAGNOSE, DO NOT HANG. The first version went straight to page.click(P.fab). When
+         the inbox FAB was not visible on CI, Playwright waited for it to become actionable until
+         the 120s test timeout — ten times over, which turned one shard from 15 minutes into 45 and
+         reported nothing except "page.click timed out".
+         The FAB is display:none until the engine returns at least one HELD row, so "not visible"
+         and "not clickable" are different diagnoses and only one of them is about layout. Measured
+         locally the seed holds 3 of 4 rows and the FAB is visible; that could not be reproduced on
+         CI and the suite cannot be run on his Mac to chase it, so the spec now REPORTS the engine
+         state instead of blocking on it. A gate that cannot say why it failed costs another full
+         CI round to learn what one assertion could have told you. */
+      /* POLL, do not sample once. The FAB is painted by the inbox pass, not synchronously with
+         the tab click — a hand-run CDP check that slept ~10s after load saw it every time, while
+         this spec sampled 400ms after the click and saw nothing. That is a timing difference in
+         the TEST, not a defect in the page, and reading it as "the FAB is missing" is how a
+         perfectly good control gets reported dead. */
+      const appeared = await page
+        .waitForSelector(`${P.fab}.has`, { state: 'visible', timeout: 20000 })
+        .then(() => true, () => false);
+
+      const fabState = await page.evaluate((sel) => {
+        const f = document.querySelector(sel) as HTMLElement | null;
+        let pend: any[] = [];
+        try { pend = (window as any).kaiChronicleInbox({ sync: false }) || []; } catch (e) { pend = []; }
+        let raw: any[] = [];
+        try { raw = JSON.parse(localStorage.getItem('d2r_chronicleInbox') || '[]'); } catch (e) { raw = []; }
+        return {
+          exists: !!f,
+          cls: f ? f.className : null,
+          display: f ? getComputedStyle(f).display : null,
+          visible: !!f && getComputedStyle(f).display !== 'none' && f.getBoundingClientRect().width > 0,
+          pending: pend.length,
+          rawRows: raw.length,
+          owner: !!(window as any)._D2R_OWNER,
+          lsrKey: (window as any).LSR?.key ? (window as any).LSR.key('d2r_chronicleInbox') : '?',
+        };
+      }, P.fab);
+
+      expect(appeared && fabState.visible,
+        `${P.fab} never became visible within 20s, so the popover could not be opened. That is an ` +
+        `ENGINE/SEED state rather than a layout defect, and the numbers say which: ` +
+        `${JSON.stringify(fabState)}`).toBe(true);
+
+      await page.click(P.fab, { timeout: 10000 });
       await page.waitForTimeout(400);
 
       const m = await page.evaluate((SEL) => {
