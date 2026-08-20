@@ -6893,9 +6893,31 @@ above verified by reading the file. Only `<style>` bodies are scanned, so a sele
 JS cannot become a rule, and only depth-1 rules: one inside `@media` is a different cascade question
 and answering it here would be worse than silence.
 
-## REG-228 — `newlyDated` was computed twice and read nowhere (FIXED v1878)
+## REG-228 — `newlyDated` was computed twice and read nowhere (WRONG — CORRECTED v1880)
 
-Produced in `control_app` at two sites since **v1846**; consumed at **zero** places in the console,
+⚠ **THIS ENTRY WAS MINE AND IT WAS WRONG.** `newlyDated` was already consumed: `control_app` prints
+it at **both** sweep sites, **live**, while the reel is still being read. His own sweep printed it
+forty minutes after I shipped the "fix":
+
+```
+🆕 1 find(s) newer than anything read before: Bul-Kathos' Tribal Guardian (08/20/2026, 02:59)
+```
+
+— from the engine, not from the line v1878 added. **The duplicate print is removed (v1880)**, and
+the guards now assert the joint that was always real.
+
+**Why the grep missed it:** I searched for the field name `newlyDated`; the consumer works from the
+local `_fresh`, assigned before the field is built. Searching a name and concluding absence is the
+exact failure `source-reading-guard` exists for, applied to my own field.
+[[source-reading-guard]] [[feedback-silence-is-not-evidence]]
+
+What survives, and it is worth keeping: the field really is the **only** thing that separates *"he
+found this since the last sweep"* from *"nobody had read this page before"*, and the guards now cover
+both ends — the engine prints it while the sweep runs **and** carries it into the stored result, so a
+later reader cannot silently get nothing.
+
+**The original (incorrect) claim, kept so the record shows what happened:** Produced in `control_app`
+at two sites since **v1846**; consumed at **zero** places in the console,
 the board or the sweep script. Plumbing built at both ends and never joined — mine, and found by
 grepping my own field name. [[plumbing-with-no-tap]]
 
@@ -6925,3 +6947,42 @@ The guard asserts the **pair**, not either value: if the log is ever forked, the
 instead of quietly splitting from the finds they date. Two companions check the other half — the
 physical vault must stay per-profile, and the store must go through `LSR` at all, since the fork only
 applies to keys that use the wrapper. [[d2r-ladder-doctrine]]
+
+## REG-230 — the vault-gate test failed on a busy OCR lane, twice (FIXED v1880)
+
+`TestPrepTabChromeIsNotDead.test_a_real_stash_frame_is_recognised_and_gameplay_is_not` went red
+inside two long combined runs tonight and passed alone seconds later, both times.
+
+**REG-213 had already diagnosed why** — the tab-chrome OCR came back with no lines, so
+`stash_screen_open` refused a genuine stash frame — and v1864 gave the engine a way to tell the two
+apart (`gate_hearing() -> (silent, heard)`). **The test went on asserting the verdict anyway.**
+
+It now reads the counters around its own probe: if that probe was **silent**, the reader could not
+run, so the outcome is a **skip with the reason** rather than a failure blamed on the gate. Run three
+times in a row and inside the full combined suite: green.
+
+A flaky test is a test he learns to ignore, which is the same defect as a gate that never goes red.
+[[feedback-silence-is-not-evidence]] [[feedback-blind-fixture-green-gate]]
+
+## Sweep result — his Set-pieces reel, read 2026-08-20 23:5x
+
+22 frames quoted, **40 minutes**, and the numbers are the interesting part:
+
+```
+⏸ 5 page(s) refused by the throttle or the budget — NOT read, and none of their 3 looks spent
+🆕 1 find(s) newer than anything read before: Bul-Kathos' Tribal Guardian (08/20/2026, 02:59)
+   read 17 page(s) · 0 unique name(s) · 25 set name(s) · refused 5 · 5 read as not-found
+   fold: 53 name(s) corrected (Atma's Scarab → Atma’s Scarab, Battlecage → Rattlecage) · 26 retired
+```
+
+Three of tonight's ships proved themselves on his own footage in that one run:
+
+- **v1861** — five pages were refused by the throttle and **kept all three of their looks**. Before
+  that fix they would have burned one each, and three such sweeps would have retired pages the
+  reader never opened.
+- **v1864** — `Bul-Kathos' Tribal Guardian (08/20/2026, 02:59)` is the **game's own First Found**
+  stamp, not the reader's clock. He found it today at 02:59.
+- **v1878/v1880** — the new-finds line is the engine's, printed live while the reel was still being
+  read (which is how the v1878 claim was caught and corrected).
+
+**Nothing was applied.** 25 set names are waiting as a proposal for him to review on the board.

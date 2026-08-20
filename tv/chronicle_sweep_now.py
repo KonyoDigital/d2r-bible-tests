@@ -290,21 +290,22 @@ def main(argv=None):
             _eg = ", ".join("%s -> %s" % (k, v) for k, v in list(_fx.items())[:3])
             print("   fold: %d name(s) corrected%s · %d retired as debris"
                   % (len(_fx), (" (%s)" % _eg) if _eg else "", len(_rt)))
-        # v1878 — SAY WHICH FINDS ARE NEW, because that is the question a re-sweep is asking.
+        # v1880 — v1878 ADDED A SECOND PRINT OF THIS, ON A CLAIM THAT WAS WRONG, AND IT IS GONE.
         #
-        # `newlyDated` has been computed since v1846 and read by NOTHING: produced at two sites in
-        # control_app and consumed at zero. Plumbing built on both ends and never joined — mine,
-        # this time, and found by grepping my own field name. [[plumbing-with-no-tap]]
+        # v1878 said `newlyDated` was "produced at two sites and consumed at zero" and printed it
+        # here. It was already consumed — control_app prints it at both sweep sites, LIVE, while the
+        # reel is still being read. His own sweep proved it forty minutes later:
         #
-        # It is the only thing that can separate "he found this since the last sweep" from "nobody
-        # had read this page before", which look identical in every other number here: both arrive
-        # as a name that was not in the ledger. The dates come from the GAME's own First Found rows
-        # (v1864), so this is his history talking, not the reader's clock.
-        _fresh = (st.get("result") or {}).get("newlyDated") or []
-        if _fresh:
-            _names = ", ".join(str((f or {}).get("name") or f) for f in _fresh[:4])
-            print("   \U0001f195 %d find(s) NEWER than anything read before this sweep: %s%s"
-                  % (len(_fresh), _names, " …" if len(_fresh) > 4 else ""))
+        #     🆕 1 find(s) newer than anything read before: Bul-Kathos' Tribal Guardian (08/20/2026, 02:59)
+        #
+        # WHY THE GREP MISSED IT: I searched for the field name `newlyDated`, and the consumer works
+        # from the local `_fresh` that is assigned before the field is built. Searching a name and
+        # concluding absence is the failure my own source-reading-guard skill is about, applied to
+        # my own field. [[source-reading-guard]] [[feedback-silence-is-not-evidence]]
+        #
+        # The engine's print is also the BETTER one — it streams while the sweep runs, where a line
+        # here would only appear once the reel had sealed. So the duplicate goes and the live one
+        # stays, and the guards moved to assert THAT joint.
         if st.get("error"):
             print("   error: %s" % st["error"])
             failed += 1

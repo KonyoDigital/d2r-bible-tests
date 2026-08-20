@@ -8992,8 +8992,23 @@ class TestPrepTabChromeIsNotDead(unittest.TestCase):
         play = os.path.join(here, "frames", "hist", "6_1786554035205.jpg")
         if not (os.path.isfile(stash) and os.path.isfile(play)):
             self.skipTest("his footage is not on this machine")
-        self.assertTrue(ca.stash_screen_open(stash),
-                        "a genuine stash frame was refused — the gate passes nothing")
+        # v1880 — A SILENT OCR LANE IS NOT A VERDICT ABOUT THE GATE, and this test kept turning
+        # red for that reason. Twice tonight it failed inside a long combined run and passed alone
+        # seconds later; v1864 diagnosed why and gave the engine a way to tell the two apart, and
+        # then the test went on asserting the verdict anyway.
+        #
+        # gate_hearing() counts probes that came back with NOTHING against probes that heard
+        # something. If this frame's probe was silent, the reader could not run — so the honest
+        # outcome is SKIP with the reason, never a failure blamed on the gate. A flaky test is a
+        # test he learns to ignore, which is the same defect as a gate that never goes red.
+        # [[feedback-silence-is-not-evidence]] [[feedback-blind-fixture-green-gate]]
+        _s0, _h0 = ca.gate_hearing()
+        _got = ca.stash_screen_open(stash)
+        _s1, _h1 = ca.gate_hearing()
+        if _s1 > _s0 and _h1 == _h0:
+            self.skipTest("the tab-chrome OCR answered nothing on this probe — the reader could "
+                          "not run, so this says nothing about the gate")
+        self.assertTrue(_got, "a genuine stash frame was refused — the gate passes nothing")
         self.assertIsNone(ca.stash_screen_open(play),
                           "a gameplay frame was accepted as a stash")
 
@@ -9543,41 +9558,51 @@ class TestTheFindDateIsForkedExactlyLikeTheFindItself(unittest.TestCase):
 
 
 class TestNewlyDatedReachesASurface(unittest.TestCase):
-    """v1878 — `newlyDated` was computed at two sites and read by NOTHING.
+    """v1880 — CORRECTING v1878, which was mine and was wrong.
 
-    It has existed since v1846: produced in control_app twice, consumed at zero places in the
-    console, the board or the sweep script. Plumbing built at both ends and never joined — mine,
-    and found by grepping my own field name. [[plumbing-with-no-tap]]
+    v1878 said `newlyDated` was "produced at two sites and consumed at zero", and added a print to
+    the hand sweep. It was ALREADY consumed: control_app prints it at both sweep sites, LIVE, while
+    the reel is still being read. His own sweep printed it forty minutes later —
 
-    It is the only thing that can separate "he found this SINCE the last sweep" from "nobody had
-    read this page before", which are identical in every other number a sweep prints: both arrive as
-    a name that was not in the ledger. The dates come from the GAME's own First Found rows (v1864),
-    so it is his history talking and not the reader's clock."""
+        \U0001f195 1 find(s) newer than anything read before: Bul-Kathos' Tribal Guardian (08/20/2026, 02:59)
 
-    def test_the_hand_sweep_prints_it(self):
-        here = os.path.dirname(os.path.abspath(__file__))
-        src = open(os.path.join(here, "chronicle_sweep_now.py"), encoding="utf-8").read()
-        i = src.find('_fresh = (st.get("result") or {}).get("newlyDated")')
-        self.assertGreater(i, 0, "the sweep report reads newlyDated nowhere again")
-        after = src[i:i + 700]
-        self.assertIn("print(", after, "it is read and then not said")
-        self.assertIn("NEWER than anything read before", after)
+    — from the engine, not from my line. The duplicate is removed.
+
+    WHY THE GREP MISSED IT: I searched for the field name `newlyDated`, and the consumer works from
+    the local `_fresh`, assigned before the field is built. Searching a name and concluding absence
+    is the exact failure `source-reading-guard` exists for, applied to my own field.
+    [[source-reading-guard]] [[feedback-silence-is-not-evidence]]
+
+    So this guards the joint that was always real, and both ends that make it work: the engine
+    computes the dates, prints them where they can be seen WHILE the sweep runs, and carries them
+    into the stored result for anything reading it afterwards."""
+
+    def _ca_src(self):
+        import control_app as ca
+        return open(ca.__file__, encoding="utf-8").read()
+
+    def test_the_engine_says_it_while_the_sweep_is_still_running(self):
+        self.assertEqual(self._ca_src().count("find(s) newer than anything read before"), 2,
+                         "both sweep paths must say which finds are new, or one of them is silent")
 
     def test_it_says_nothing_when_there_is_nothing_new(self):
         # a line that always prints is one he stops reading
-        here = os.path.dirname(os.path.abspath(__file__))
-        src = open(os.path.join(here, "chronicle_sweep_now.py"), encoding="utf-8").read()
-        i = src.find('_fresh = (st.get("result") or {}).get("newlyDated")')
-        self.assertIn("if _fresh:", src[i:i + 200],
+        src = self._ca_src()
+        i = src.find("find(s) newer than anything read before")
+        self.assertIn("if _fresh:", src[max(0, i - 400):i],
                       "the new-finds line prints unconditionally")
 
-    def test_the_producer_still_exists_on_both_paths(self):
-        # the other half of the joint: if the field stops being emitted, the reader above goes
-        # quiet and looks like "nothing new" forever
-        import control_app as ca
-        src = open(ca.__file__, encoding="utf-8").read()
-        self.assertEqual(src.count('"newlyDated": _fresh'), 2,
-                         "one of the two sweep results stopped carrying the find dates")
+    def test_the_result_still_carries_them_for_later_readers(self):
+        # printing is for the person watching; the FIELD is for everything that reads the result
+        # afterwards. Both ends, or a later consumer silently gets nothing.
+        self.assertEqual(self._ca_src().count('"newlyDated": _fresh'), 2)
+
+    def test_the_hand_sweep_does_not_print_it_twice(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "chronicle_sweep_now.py"), encoding="utf-8").read()
+        body = "\n".join(ln for ln in src.splitlines() if not ln.strip().startswith("#"))
+        self.assertNotIn("newer than anything read before", body,
+                         "v1878's duplicate print is back — the engine already streams this line")
 
 
 class TestTheCascadeLookupAnswersCorrectly(unittest.TestCase):

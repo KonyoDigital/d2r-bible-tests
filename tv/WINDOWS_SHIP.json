@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1879",
+  "ver": "v1880",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1879: The game First Found date and the board own ledger describe one event from two sides, so they have to live in the same storage scope, and the fork list is what decides that. Measured rather than assumed: neither is forked, which matches the doctrine that a grail is what he has ever found and is therefore account-wide, while what he holds stays per-profile and is forked. The guard asserts the pair rather than either value, so if the ledger is ever forked the dates follow it instead of quietly splitting from the finds they date.",
+  "note": "v1880: v1878 claimed a field was computed twice and read nowhere and added a print for it. It was already consumed, live, at both sweep sites - his own sweep printed it forty minutes later from the engine rather than from my line. The grep searched for the field name while the consumer works from the local variable assigned before the field is built, which is the exact failure the source-reading-guard skill is about, applied to my own field. The duplicate is removed, the record keeps both the wrong claim and the correction, and the guards now assert the joint that was always real. Also the vault gate test now skips honestly when the OCR lane answers nothing rather than blaming the gate.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
