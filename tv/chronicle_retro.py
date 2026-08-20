@@ -1043,6 +1043,79 @@ CONF_FLOOR = 0.55        # below this the reader itself was unsure; unsure twice
 MIN_WITNESSES = 2
 
 
+
+def live_pages(rows, ledger_of=None, lane="live"):
+    """v1833 — THE FIRST EYES. Konyo: "we had a AI reader for live too just its probably not gonna
+    catch it... but if it does why not? make it an extra layer of accuracy its the first eyes".
+
+    While he plays, the live agent reads whatever is on screen. When that is the Chronicle it
+    already separates the rows it can SEE from the rows it can see are FOUND — `discovered_names`,
+    chronicle-only by design since v763. Measured on his journal: 13 chronicle rows, 10 of them
+    carrying discoveries, at conf 0.75, from two sessions. Every one of those was thrown away for
+    tally purposes. v1695 wired the live lane's FRAME IDENTITY into the sweep and stopped there;
+    the names it had already paid for kept going nowhere. [[plumbing-with-no-tap]]
+
+    THE INDEPENDENCE IS REAL, AND SO IS ITS LIMIT. A live sighting is keyed by its `sessionId`,
+    which _reel_key() normalises to exactly the key the retro pages of that same session land under.
+    So a live sighting and a retro read of the same footage score `cross-lane` — a genuinely
+    different reader, different prompt, different moment — and NOT `cross-reel`, which would be the
+    same session's evidence counted twice. witnesses() needed no change for this: it counts distinct
+    lanes generically. The two-witness gate still stands, so a live-only name never grounds alone.
+
+    THE LEDGER IS DERIVED, NEVER GUESSED. His live rows carry `chronicleTab: null` — the live prompt
+    does not always resolve the tab — and guessing costs more than a re-read: it writes set pieces
+    into his unique grail, which is the exact catastrophe chronicle_kind() refuses to risk. So the
+    tab is used when present, and otherwise the NAMES decide, against his own generated rosters:
+    every resolvable name must agree on one ledger, and a row that is mixed or wholly unresolvable
+    is DROPPED. Same move as v1828 preferring the printed `First Found:` stamps over reading a sort
+    control — derive it from the data, do not read it off a label.
+
+    Pure: no disk, no journal, no vision. `ledger_of(name) -> "uniques" | "sets" | None` is supplied
+    by the caller, which is what keeps this testable against fixtures.
+    """
+    out = []
+    for row in (rows or []):
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("scene") or "").lower() != "chronicle":
+            continue
+        names = [str(n).strip() for n in (row.get("discovered_names") or row.get("discovered") or [])
+                 if str(n).strip()]
+        if not names:
+            continue
+        tab = str(row.get("chronicleTab") or "").strip().lower()
+        kind = {"uniques": "chronicle-uniques", "sets": "chronicle-sets"}.get(tab)
+        if kind is None and ledger_of is not None:
+            seen = set()
+            for n in names:
+                try:
+                    led = ledger_of(n)
+                except Exception:
+                    led = None
+                if led:
+                    seen.add(str(led))
+            # unanimity or nothing — a mixed page tells us the reader was not on one ledger, and a
+            # page nothing resolves tells us only that we cannot say.
+            if len(seen) == 1:
+                kind = {"uniques": "chronicle-uniques", "sets": "chronicle-sets"}.get(seen.pop())
+        if kind not in ("chronicle-uniques", "chronicle-sets"):
+            continue
+        try:
+            conf = max(0.0, min(1.0, float(row.get("conf") or 0)))
+        except Exception:
+            conf = 0.0
+        raw = {"ledger": "sets" if kind.endswith("sets") else "uniques",
+               "found": names, "notFound": [], "sets": [],
+               "stateVisible": True, "wrongTab": False, "conf": conf}
+        resp = normalize_page(raw, kind, lane)
+        if not resp:
+            continue
+        reel = row.get("sessionId") or row.get("session") or row.get("reel") or "live"
+        frame = row.get("frameId") or row.get("frame") or ("live_%s" % (row.get("ts") or ""))
+        out.append({"reel": str(reel), "frame": str(frame), "kind": kind, "resp": resp})
+    return out
+
+
 def merge_proposals(base, incoming):
     """Fold `incoming` into `base` and return a NEW proposal. Evidence only ever ACCUMULATES.
 

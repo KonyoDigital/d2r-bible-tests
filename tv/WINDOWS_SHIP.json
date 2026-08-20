@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1832",
+  "ver": "v1833",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1832: The command line sweeper still refused outright while a capture session was live - the blanket refusal v1823 removed from the console path - so the console swept while he played and the command line sat idle. It now skips only the reel still receiving frames. Also: the suite was stamping his live tv .sweep.lock on every run, which run_gates reads to decide a sweep is in progress, and the lock documented as a heartbeat was written once so it went stale mid-sweep.",
+  "note": "v1833: The live agent already separates the Chronicle rows it can see from the ones it can see are found - 10 such rows sit in his journal at conf 0.75 - and nothing had ever read them for the tally. They now enter the evidence as a third lane, keyed to their own session so they earn cross-lane without inventing cross-reel, with the ledger derived from his rosters because his live rows carry no tab. A live-only name still cannot ground.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

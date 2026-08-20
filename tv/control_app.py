@@ -10950,6 +10950,52 @@ def _chron_known_from_journal(limit=500):
     return known
 
 
+def _chron_live_lane_pages(limit=2000):
+    """v1833 — the live agent's own Chronicle sightings, as pages the sweep can witness with.
+
+    Konyo: "we had a AI reader for live too ... make it an extra layer of accuracy its the first
+    eyes". His journal holds them already (13 chronicle rows, 10 with discoveries, conf 0.75) and
+    nothing has ever read them for the tally. The ledger comes from his generated rosters rather
+    than from the row, because his live rows carry chronicleTab:null — see live_pages().
+
+    Degrades to [] on ANY failure, deliberately: this makes a sweep better, and nothing downstream
+    is entitled to depend on it. A missing roster must never abort a sweep that would otherwise run.
+    """
+    try:
+        import chronicle_retro as _cr
+        import chronicle_resolve as _res
+    except Exception:
+        return []
+    try:
+        roster = _res.load_roster()
+    except Exception as e:
+        print("   \u26a0 live lane off — unique roster unavailable (%s)" % e)
+        return []
+    try:
+        sroster = _res.load_set_roster()
+    except Exception:
+        sroster = None
+
+    def _ledger_of(n):
+        u = _res.canonical(n, roster)
+        v = _res.canonical(n, sroster) if sroster else None
+        if u and not v:
+            return "uniques"
+        if v and not u:
+            return "sets"
+        return None      # in both catalogues, or neither — say nothing rather than pick
+
+    try:
+        rows = _kai_journal_rows() or []
+    except Exception:
+        return []
+    try:
+        return _cr.live_pages(rows[-int(limit):], _ledger_of)
+    except Exception as e:
+        print("   \u26a0 live lane off — %s" % e)
+        return []
+
+
 def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
     try:
         import chronicle_retro as _cr
@@ -11138,6 +11184,17 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                                                 "agentVer": getattr(_tv, "VERSION", "")}
         _chron_swept_save(swept)
         prop = res["proposal"]
+        # v1833 — THE FIRST EYES JOIN THE PANEL. Merged BEFORE the durable evidence merge so a live
+        # sighting accumulates exactly like a read page does, and so it can corroborate a retro read
+        # from a later sweep. It cannot ground anything alone: witnesses() counts lanes generically,
+        # a live sighting keys to its own session, and the two-witness gate is untouched.
+        try:
+            _live = _chron_live_lane_pages()
+            if _live:
+                prop = _cr.merge_proposals(prop, _cr.proposal_from_pages(_live))
+                print("   \U0001f441 live lane: %d page(s) the agent read while he played" % len(_live))
+        except Exception as _le:
+            print("   \u26a0 live lane not merged (%s)" % _le)
         # v1531 — KEEP THE RAW EVIDENCE. Re-running the GATE is free; re-running the READS is not.
         # Without this the only way to ask "what would a stricter floor have held back?" was to pay
         # for the whole sweep again, which means the thresholds would never actually get tuned.
@@ -11449,7 +11506,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1832",
+        "ver": "v1833",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

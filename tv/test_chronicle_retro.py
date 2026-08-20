@@ -1519,5 +1519,77 @@ class TestOneReelCannotWitnessItselfTwice(unittest.TestCase):
         self.assertNotIn("cross-reel", w)
 
 
+class TestV1833TheLiveLaneIsAWitness(unittest.TestCase):
+    """v1833 — the live agent's Chronicle sightings become evidence.
+
+    Konyo: "we had a AI reader for live too just its probably not gonna catch it... but if it does
+    why not? make it an extra layer of accuracy its the first eyes". His journal already held them
+    — 13 chronicle rows, 10 carrying `discovered_names` at conf 0.75 — and v1695 wired the live
+    lane's FRAME IDENTITY into the sweep while the names it had paid for went nowhere.
+    """
+
+    def _led(self, name):
+        return {"Windforce": "uniques", "Bul-Kathos' Sacred Charge": "uniques",
+                "Tal Rasha's Adjudicator": "sets"}.get(name)
+
+    ROW = {"scene": "chronicle", "sessionId": "s_100_1", "frameId": "f_9",
+           "conf": 0.75, "discovered_names": ["Windforce"]}
+
+    def test_a_live_row_becomes_a_page_on_its_own_lane(self):
+        pages = cr.live_pages([dict(self.ROW)], self._led)
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(pages[0]["resp"]["lane"], "live")
+        self.assertEqual(pages[0]["kind"], "chronicle-uniques")
+        self.assertEqual(pages[0]["resp"]["found"], ["Windforce"])
+
+    def test_the_ledger_is_derived_from_the_names_when_the_tab_is_unknown(self):
+        # his real rows carry chronicleTab:null — that is the case this exists for
+        pages = cr.live_pages([dict(self.ROW, chronicleTab=None)], self._led)
+        self.assertEqual(pages[0]["kind"], "chronicle-uniques")
+
+    def test_a_stated_tab_beats_the_derivation(self):
+        pages = cr.live_pages([dict(self.ROW, chronicleTab="sets",
+                                    discovered_names=["Tal Rasha's Adjudicator"])], self._led)
+        self.assertEqual(pages[0]["kind"], "chronicle-sets")
+
+    def test_a_row_whose_names_disagree_is_dropped_not_guessed(self):
+        # guessing here does not cost a re-read, it writes a set piece into his unique grail
+        row = dict(self.ROW, discovered_names=["Windforce", "Tal Rasha's Adjudicator"])
+        self.assertEqual(cr.live_pages([row], self._led), [])
+
+    def test_a_row_nothing_resolves_is_dropped(self):
+        row = dict(self.ROW, discovered_names=["Battlecage", "Nonesuch"])
+        self.assertEqual(cr.live_pages([row], self._led), [])
+
+    def test_a_row_with_no_discoveries_contributes_nothing(self):
+        self.assertEqual(cr.live_pages([dict(self.ROW, discovered_names=[])], self._led), [])
+
+    def test_gameplay_rows_are_ignored(self):
+        self.assertEqual(cr.live_pages([dict(self.ROW, scene="gameplay")], self._led), [])
+
+    def test_live_plus_retro_on_one_session_is_cross_lane_and_not_cross_reel(self):
+        # THE POINT OF THE WHOLE FEATURE, and its honest limit. The live sighting keys to its
+        # sessionId, which _reel_key normalises to the retro reel's key — so the same footage read
+        # twice by two different readers is ONE reel and TWO lanes.
+        live = cr.live_pages([dict(self.ROW)], self._led)
+        retro = {"reel": "reel_s_100_1", "frame": "f_42", "kind": "chronicle-uniques",
+                 "resp": cr.normalize_page({"ledger": "uniques", "found": ["Windforce"],
+                                            "stateVisible": True, "conf": 0.9},
+                                           "chronicle-uniques", "claude")}
+        prop = cr.proposal_from_pages(live + [retro])
+        w = cr.witnesses(prop["uniques"]["Windforce"])
+        self.assertIn("cross-lane", w)
+        self.assertNotIn("cross-reel", w,
+                         "one session's footage was counted as two — independence must be "
+                         "independent of itself")
+
+    def test_a_live_only_name_still_cannot_ground(self):
+        live = cr.live_pages([dict(self.ROW)], self._led)
+        prop = cr.proposal_from_pages(live)
+        self.assertFalse(cr.gate_verdict("Windforce", prop["uniques"]["Windforce"])["pass"],
+                         "the first eyes are an extra witness, never a shortcut past the gate")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
