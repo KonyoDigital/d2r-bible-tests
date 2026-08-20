@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1848",
+  "ver": "v1849",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1848: Konyo asked why the vault cross-reference needed him to paste a dump from the website browser instead of the console. The answer was real but it was a limitation, not a law: his ledgers live in localStorage inside bible.html and chronicle_apply has always reached into the board window to WRITE a tick. Only the read direction was missing. Same window, same evaluator, same refusals - and a timeout reports the ledger UNREAD rather than empty.",
+  "note": "v1849: Four lines pasted from prep_stash_grid referenced derived aspect and layout - all local to that function and none defined in this one - so prep_tab_chrome raised NameError on every call and its own bare except returned None. Introduced v1538, found at v1848 while building the vault structural gate, because that gate could not pass a single genuine stash frame. The stash tab chrome is the one non-model signal for which tab is open, so with it dead every ownership frame fell back to a model guess.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

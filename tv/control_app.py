@@ -10623,6 +10623,57 @@ def _chron_read_capped(reads, prompt_ver, reel, frame, cap=None):
                     % (n, prompt_ver)}
 
 
+
+def stash_screen_open(frame_path):
+    """HARDCODED: is this frame actually the stash, with the panels open? Not a model's opinion.
+
+    Konyo, 2026-08-20: "for vault manager and the items the AI reads from my reels... it needs to be
+    hardcoded and safegauded for vault manager to only when maybe i CLICK stash and am in my stash
+    with my inventory open at the same time thats the template it should start knowing to read
+    whats in my inventory and stash and log it and ledger it accordingly".
+
+    WHY THIS IS THE RIGHT GATE. A reel without a declared focus pays a model to say which ownership
+    surface a frame shows, and vault_retro says in its own words what that costs when it is wrong:
+    "a rune tab misread as 'inventory' files his runes in the wrong lane, which merge-max then makes
+    permanent." Permanent is the operative word — it is why he opened the vault manager and found
+    items he does not have. A structural check cannot be talked into an answer.
+
+    The signal is the stash TAB CHROME, read by OCR out of a fixed band (stash_eye._TAB_CHROME) and
+    resolved by tab_from_ocr_lines() to one of his real tabs. That chrome only renders when the
+    stash panel is open — and D2R draws the inventory beside it whenever it is, which is the
+    "both at the same time" template he described. No chrome, no vault read.
+
+    Returns the tab name when the stash is open, or None. None means NOT A STASH FRAME — it does not
+    mean an empty stash, and callers must not treat it as one.
+    """
+    try:
+        import tv_diablo as _tvd
+        from stash_eye import is_boot_screen
+    except Exception:
+        return None
+    try:
+        # CROP AND UPSCALE FIRST. OCR of the whole frame is noise at this resolution — measured on
+        # his own stash frame it returned five junk lines, one of which ("l*vpXYOkY") is INVENTORY
+        # mangled. stash_eye exists for exactly this: the tab chrome "only becomes readable via a
+        # deliberate crop + 3x upscale" (v947). Reading the full frame is how this gate came back
+        # None for genuine stash frames on the first cut — a gate that always refuses.
+        from stash_eye import prep_tab_chrome
+        import tempfile as _tf
+        crop = os.path.join(_tf.gettempdir(), "vault_gate_%d.jpg" % os.getpid())
+        if not prep_tab_chrome(str(frame_path), crop):
+            return None
+        rd = _tvd.ocr_fast(crop) or {}
+        lines = list(rd.get("raw_lines") or rd.get("lines") or [])
+        if not lines:
+            return None
+        if is_boot_screen(lines):
+            return None          # the reconnect splash is not a stash, however much text it carries
+        tab = _tab_from_ocr_lines(lines)
+        return tab or None
+    except Exception:
+        return None
+
+
 def _chron_evidence_merge(prop):
     """Fold this sweep's proposal into everything read so far, persist, and return the MERGED view.
 
@@ -11814,7 +11865,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1848",
+        "ver": "v1849",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

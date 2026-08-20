@@ -8828,5 +8828,85 @@ class TestBoardOwnershipReadBack(unittest.TestCase):
 
 
 
+class TestPrepTabChromeIsNotDead(unittest.TestCase):
+    """2026-08-20 — prep_tab_chrome returned None for 310 versions and nobody could tell.
+
+    Four lines pasted from prep_stash_grid referenced `derived`, `aspect` and `layout` — all local
+    to THAT function, none of them defined in this one. So it raised NameError on every call and its
+    own `except Exception: return None` swallowed it. Introduced v1538 (cc9c6f71), found at v1848
+    while building the vault's structural gate, because that gate could not pass a single genuine
+    stash frame.
+
+    What it cost: the stash TAB CHROME is the one NON-MODEL signal for which tab is open, and
+    stash_eye's own note says the chrome "only becomes readable via a deliberate crop + 3x upscale".
+    With this dead there was no readable chrome, nothing could confirm a stash panel structurally,
+    and every ownership frame fell back to a model's guess — the failure vault_retro warns about in
+    its own words: "a rune tab misread as 'inventory' files his runes in the wrong lane, which
+    merge-max then makes permanent."
+    """
+
+    def _frame(self, tmp):
+        from PIL import Image, ImageDraw
+        p = os.path.join(tmp, "f.jpg")
+        im = Image.new("RGB", (2560, 1665), (12, 12, 16))
+        d = ImageDraw.Draw(im)
+        for i in range(14):                      # content in the chrome band so the crop is real
+            d.rectangle([300 + i * 90, 200, 360 + i * 90, 300], fill=(180, 170, 140))
+        im.save(p, quality=88)
+        return p
+
+    def test_it_returns_a_path_not_None(self):
+        import stash_eye as se
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "crop.jpg")
+            got = se.prep_tab_chrome(self._frame(tmp), out)
+            self.assertIsNotNone(got, "prep_tab_chrome is dead again — it is swallowing its own "
+                                      "exception and returning None for every frame")
+            self.assertTrue(os.path.isfile(out), "it claimed success and wrote nothing")
+
+    def test_it_records_its_own_branch_not_the_grid_function_s(self):
+        # the telemetry that caused this: it described prep_stash_grid's decision, using
+        # prep_stash_grid's variables, from inside prep_tab_chrome
+        import stash_eye as se
+        with tempfile.TemporaryDirectory() as tmp:
+            se.prep_tab_chrome(self._frame(tmp), os.path.join(tmp, "crop.jpg"))
+            d = se.last_crop_decision() or {}
+            self.assertEqual(d.get("branch"), "tab-chrome",
+                             "the crop telemetry still reports another function's branch: %r" % (d,))
+
+    def test_the_dead_names_are_gone(self):
+        """A regression guard on the CLASS, not the line: these three names are local to
+        prep_stash_grid and must never appear in prep_tab_chrome again."""
+        import stash_eye as se
+        # Ask the COMPILER, not the text. co_names holds the global/attribute names the function
+        # actually references, so a dict KEY like "layout" is a constant and does not appear, while
+        # a bare `derived` does. The first cut of this guard grepped the source and tripped on
+        # `"layout": ""` — a string key that was never the bug.
+        names = set(se.prep_tab_chrome.__code__.co_names)
+        for dead in ("derived",):
+            self.assertNotIn(dead, names,
+                             "%r is referenced by prep_tab_chrome and is not defined there — that "
+                             "is the NameError that killed it for 310 versions" % dead)
+
+    def test_a_real_stash_frame_is_recognised_and_gameplay_is_not(self):
+        """GREEN AND RED, EACH FOR ITS OWN REASON — the thing that caught this.
+
+        Measured on his own footage: 5_1784984201581.jpg is journaled scene=stash and the gate reads
+        its tab as 'gems'; 6_1786554035205.jpg is gameplay and is refused. A gate that only ever
+        refuses is the same defect as one that only ever passes.
+        """
+        import control_app as ca
+        here = os.path.dirname(os.path.abspath(__file__))
+        stash = os.path.join(here, "frames", "hist", "5_1784984201581.jpg")
+        play = os.path.join(here, "frames", "hist", "6_1786554035205.jpg")
+        if not (os.path.isfile(stash) and os.path.isfile(play)):
+            self.skipTest("his footage is not on this machine")
+        self.assertTrue(ca.stash_screen_open(stash),
+                        "a genuine stash frame was refused — the gate passes nothing")
+        self.assertIsNone(ca.stash_screen_open(play),
+                          "a gameplay frame was accepted as a stash")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

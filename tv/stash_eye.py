@@ -201,9 +201,28 @@ def prep_tab_chrome(src_path: str, dest_path: str, scale: int = 3) -> Optional[s
         sw, sh = crop.size
         # the number the whole REG-086 diagnosis turned on: how much picture the reader was handed
         _LAST_CROP["size"] = [sw, sh]
-        if not derived and aspect >= 1.3:
-            _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "slab-46pct",
-                               "layout": layout, "band": None})
+        # 2026-08-20 — THIS FUNCTION HAS RETURNED None FOR 310 VERSIONS.
+        #
+        # These four lines were pasted here from prep_stash_grid, where `derived`, `aspect` and
+        # `layout` are all local. In prep_tab_chrome none of them exist, so the line raised
+        # NameError on EVERY call — and the function's own `except Exception: return None` swallowed
+        # it. Introduced in v1538 (cc9c6f71); found at v1848 while building the vault's structural
+        # gate, because that gate could not pass a single genuine stash frame.
+        #
+        # What it cost: the stash TAB CHROME is the one non-model signal for which tab is open, and
+        # stash_eye's own note says the chrome "only becomes readable via a deliberate crop + 3x
+        # upscale". With this dead there was no readable chrome, so nothing could confirm a stash
+        # panel structurally and every ownership frame fell back to a model's guess — the exact
+        # failure vault_retro warns about in its own words: "a rune tab misread as 'inventory' files
+        # his runes in the wrong lane, which merge-max then makes permanent."
+        #
+        # A bare `except Exception` that returns a plausible value is how a function dies silently
+        # and stays dead. The telemetry it was trying to write is kept, corrected to describe what
+        # THIS function actually does: one fixed band, no derived layout.
+        _w, _h = im.size
+        _aspect = (_w / float(_h)) if _h else 0.0
+        _LAST_CROP.update({"aspect": round(_aspect, 4), "branch": "tab-chrome",
+                           "layout": "", "band": list(_TAB_CHROME)})
         if sw < 8 or sh < 4:
             return None
         up = crop.resize((max(8, sw * scale), max(8, sh * scale)), getattr(__import__("PIL.Image", fromlist=["Image"]).Image, "LANCZOS", 1))

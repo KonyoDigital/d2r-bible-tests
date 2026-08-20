@@ -41854,7 +41854,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1848', name:'v1848 - Ask the board what he owns', date:'2026-08-20', note:'Konyo asked why the vault cross-reference needed him to paste a dump from the website browser instead of the console. The answer was real but it was a limitation, not a law: his ledgers live in localStorage inside bible.html and chronicle_apply has always reached into the board window to WRITE a tick. Only the read direction was missing. Same window, same evaluator, same refusals - and a timeout reports the ledger UNREAD rather than empty.' };
+  window.D2R_BUILD = { id:'v1849', name:'v1849 - prep_tab_chrome has been dead for 310 versions', date:'2026-08-20', note:'Four lines pasted from prep_stash_grid referenced derived aspect and layout - all local to that function and none defined in this one - so prep_tab_chrome raised NameError on every call and its own bare except returned None. Introduced v1538, found at v1848 while building the vault structural gate, because that gate could not pass a single genuine stash frame. The stash tab chrome is the one non-model signal for which tab is open, so with it dead every ownership frame fell back to a model guess.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
