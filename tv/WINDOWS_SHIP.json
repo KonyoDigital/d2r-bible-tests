@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1846",
+  "ver": "v1847",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1846: The First Found stamps have been captured on every chronicle read since v1819 and nothing has ever compared two of them - read as text, stored as text, printed as text. So the ledger knew every find-date in his grail and could not answer which of them were new. The sweep now reads the ledgers high-water mark BEFORE merging and reports every find dated after it. Measured on his real ledger: six finds in the early hours of 08/20 including M avina s Embrace.",
+  "note": "v1847: Konyo: it shouldnt even re-read them again like after third read it should be blocked - safegaurd. The A-Z reel proved the cost: 16 pages re-read for one name not already in the ledger. A frame can now be read three times under a given reader and then refuses out loud. Keyed by PROMPT_VER so a new reader always reopens every frame, which is the one legitimate reason to look again and the reason eight reels reopened.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

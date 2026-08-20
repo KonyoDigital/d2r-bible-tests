@@ -10480,6 +10480,100 @@ def _chron_evidence_save(prop):
         return False
 
 
+# ── THE RE-READ CAP ──────────────────────────────────────────────────────────────────────
+# Konyo, 2026-08-20: "it shouldnt even re-read them again like after third read it should be
+# blocked..? safegaurd?"
+#
+# He is right, and the A→Z reel is the proof: 16 pages re-read for ONE name not already in the
+# ledger. Nothing stopped a frame being read again on every sweep forever, so a reel that has
+# given up everything it holds still costs full price each time it is looked at.
+#
+# WHY THE COUNT LIVES HERE AND NOT IN THE EVIDENCE. A sighting is keyed (reel, frame, lane) and
+# DEDUPES, so the evidence cannot tell one read from three — that is v1836's whole point, and it is
+# right for evidence. A read COUNT is the opposite kind of number: it must not be idempotent. So it
+# is kept in its own small file, incremented when a read actually happens, never merged.
+#
+# KEYED BY PROMPT_VER, so the cap can never fight v1830. A new reader is the one legitimate reason
+# to look at a frame again — the whole reason those eight reels reopened — and a change of prompt
+# starts every frame's count from zero.
+_CHRON_READ_CAP = int(os.environ.get("TV_CHRON_READ_CAP") or 3)
+
+
+def _chron_reads_path():
+    """THE COUNTER BELONGS TO THE FOOTAGE, exactly like the sweep lock (v1832).
+
+    First cut hardcoded HERE/chron_reads.json and immediately wrote into his live tv/ from the test
+    suite — the same defect v1832 fixed for .sweep.lock, repeated by me within the hour of fixing
+    it. It also broke four sweep tests outright, because they shared one counter across runs and the
+    third run found itself capped.
+
+    That is the argument for deriving state paths from TV_HIST rather than remembering to: a rule
+    kept by memory is the rule that already failed. With TV_HIST unset — production, his real reels
+    — the path is byte-identical to what it would have been.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+    env = os.environ.get("TV_CHRON_READS")
+    if env:
+        return env
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        return os.path.join(hist, "chron_reads.json")
+    return os.path.join(HERE, "chron_reads.json")
+
+
+def _chron_reads_load():
+    try:
+        with open(_chron_reads_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _chron_reads_save(rec):
+    try:
+        _p = _chron_reads_path()
+        tmp = _p + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(rec, fh)
+        os.replace(tmp, _p)
+    except Exception:
+        pass
+
+
+def _chron_read_count(reads, prompt_ver, reel, frame):
+    return int(((reads or {}).get(str(prompt_ver)) or {}).get("%s|%s" % (reel, frame)) or 0)
+
+
+def _chron_read_bump(reads, prompt_ver, reel, frame):
+    # `reads or {}` would be a BUG here and was one: an empty dict is FALSY, so the very first
+    # bump — the case where reads IS {} — setdefault'd into a throwaway and the count stayed 0
+    # forever. Caught by its own guard before it shipped, which is the entire reason to write one.
+    if reads is None:
+        reads = {}
+    per = reads.setdefault(str(prompt_ver), {})
+    k = "%s|%s" % (reel, frame)
+    per[k] = int(per.get(k) or 0) + 1
+    return per[k]
+
+
+def _chron_read_capped(reads, prompt_ver, reel, frame, cap=None):
+    """Has this frame already been read `cap` times under THIS reader? Returns a refusal note or None.
+
+    A refusal, never a silence: it comes back in the shape chronicle_retro already understands as
+    "not read", so the page is reported and counted rather than quietly vanishing. A skip nobody can
+    see is the defect this repo keeps re-finding.
+    """
+    cap = _CHRON_READ_CAP if cap is None else cap
+    if cap <= 0:
+        return None
+    n = _chron_read_count(reads, prompt_ver, reel, frame)
+    if n < cap:
+        return None
+    return {"note": "read-cap — %d reads under %s already, and the reader has not changed since"
+                    % (n, prompt_ver)}
+
+
 def _chron_evidence_merge(prop):
     """Fold this sweep's proposal into everything read so far, persist, and return the MERGED view.
 
@@ -11155,14 +11249,32 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         grok_lane = None
         if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
             grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
+        _reads = _chron_reads_load()
+        _capped_frames = [0]
+
         def _read_one(p, k):
             _breathe()
+            # THE RE-READ CAP (2026-08-20, his ask). Asked BEFORE the throttle and the budget,
+            # because this one costs nothing to answer and the other two cost a wait.
+            _rl = os.path.basename(os.path.dirname(str(p)))
+            _fr = os.path.basename(str(p))
+            _cap_note = _chron_read_capped(_reads, _tv.PROMPT_VER, _rl, _fr)
+            if _cap_note:
+                _capped_frames[0] += 1
+                return _cap_note
             if _tv._is_throttled():
                 _throttled[0] += 1
             if _tv._sub_budget_check("oneshot"):
                 _capped[0] += 1
             _tick(pagesRead=1)
-            return _tv.claude_chronicle_read(p, k)
+            _out = _tv.claude_chronicle_read(p, k)
+            # bump only when a read was really attempted — a throttled or capped page must not
+            # burn one of its three looks
+            try:
+                _chron_read_bump(_reads, _tv.PROMPT_VER, _rl, _fr)
+            except Exception:
+                pass
+            return _out
 
         read_page = _cr.two_lane_reader(_read_one, grok_lane)
 
@@ -11294,6 +11406,11 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                                                 "agentVer": getattr(_tv, "VERSION", "")}
         _chron_swept_save(swept)
         prop = res["proposal"]
+        _chron_reads_save(_reads)
+        if _capped_frames[0]:
+            print("   \U0001f6d1 %d page(s) skipped by the re-read cap (%d reads each under %s) "
+                  "— re-read them by changing the reader, or TV_CHRON_READ_CAP=0"
+                  % (_capped_frames[0], _CHRON_READ_CAP, _tv.PROMPT_VER))
         # v1837 — KEEP THIS RUN'S REFUSALS SEPARATE FROM ALL TIME. `prop` becomes the MERGED,
         # cumulative proposal a line or two below, and the result then published `totals` (this run)
         # beside `refused` (every run, ever) as sibling keys with nothing saying so. Both numbers
@@ -11648,7 +11765,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1846",
+        "ver": "v1847",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

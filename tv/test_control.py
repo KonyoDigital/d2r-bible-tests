@@ -8624,5 +8624,119 @@ class TestV1844TheReopenedReelsRideInTheState(unittest.TestCase):
 
 
 
+class TestTheReReadCap(unittest.TestCase):
+    """2026-08-20 — Konyo: "it shouldnt even re-read them again like after third read it should be
+    blocked..? safegaurd?"
+
+    He is right, and the A→Z reel is the proof: 16 pages re-read for ONE name not already in the
+    ledger. Nothing stopped a frame being read again on every sweep forever, so a reel that has
+    given up everything it holds still cost full price every time it was looked at.
+
+    THE COUNT CANNOT LIVE IN THE EVIDENCE. A sighting is keyed (reel, frame, lane) and DEDUPES, so
+    the evidence cannot tell one read from three — that is v1836's point and it is right for
+    evidence. A read count is the opposite kind of number: it must not be idempotent.
+
+    AND IT IS KEYED BY PROMPT_VER, so the cap can never fight v1830. A new reader is the one
+    legitimate reason to look again — the reason eight reels reopened — and a prompt change starts
+    every frame's count at zero.
+    """
+
+    def test_a_fresh_frame_is_not_capped(self):
+        import control_app as ca
+        self.assertIsNone(ca._chron_read_capped({}, "p1", "r", "f"))
+
+    def test_the_third_read_is_the_last_one(self):
+        import control_app as ca
+        reads = {}
+        for _ in range(3):
+            self.assertIsNone(ca._chron_read_capped(reads, "p1", "r", "f"),
+                              "capped before the cap")
+            ca._chron_read_bump(reads, "p1", "r", "f")
+        note = ca._chron_read_capped(reads, "p1", "r", "f")
+        self.assertIsNotNone(note, "a fourth read was allowed")
+        self.assertIn("read-cap", note.get("note", ""))
+
+    def test_a_new_reader_starts_the_count_again(self):
+        # the cap must never block the one legitimate reason to look again
+        import control_app as ca
+        reads = {}
+        for _ in range(5):
+            ca._chron_read_bump(reads, "p1", "r", "f")
+        self.assertIsNotNone(ca._chron_read_capped(reads, "p1", "r", "f"))
+        self.assertIsNone(ca._chron_read_capped(reads, "p1846", "r", "f"),
+                          "a prompt change did not reopen the frame — this fights v1830")
+
+    def test_frames_are_counted_separately(self):
+        import control_app as ca
+        reads = {}
+        for _ in range(3):
+            ca._chron_read_bump(reads, "p1", "r", "f1")
+        self.assertIsNotNone(ca._chron_read_capped(reads, "p1", "r", "f1"))
+        self.assertIsNone(ca._chron_read_capped(reads, "p1", "r", "f2"))
+
+    def test_the_same_frame_id_in_two_reels_is_two_frames(self):
+        import control_app as ca
+        reads = {}
+        for _ in range(3):
+            ca._chron_read_bump(reads, "p1", "reelA", "f")
+        self.assertIsNone(ca._chron_read_capped(reads, "p1", "reelB", "f"))
+
+    def test_the_cap_can_be_turned_off(self):
+        import control_app as ca
+        reads = {}
+        for _ in range(9):
+            ca._chron_read_bump(reads, "p1", "r", "f")
+        self.assertIsNone(ca._chron_read_capped(reads, "p1", "r", "f", cap=0),
+                          "TV_CHRON_READ_CAP=0 must lift it — an optimisation he cannot clear is a cage")
+
+    def test_a_capped_page_REFUSES_out_loud(self):
+        # in the shape chronicle_retro already reads as "not read", so the page is reported and
+        # counted rather than silently vanishing. A skip nobody can see is the recurring defect here.
+        import control_app as ca
+        reads = {}
+        for _ in range(3):
+            ca._chron_read_bump(reads, "p1", "r", "f")
+        note = ca._chron_read_capped(reads, "p1", "r", "f")
+        self.assertIsInstance(note, dict)
+        self.assertTrue(note.get("note"), "a capped page came back with no reason")
+
+    def test_the_counter_follows_the_footage(self):
+        """The first cut hardcoded HERE/chron_reads.json and wrote into his live tv/ from the suite
+        — the v1832 scar repeated within the hour of fixing it. It also broke four sweep tests,
+        which shared one counter across runs until the third found itself capped."""
+        import control_app as ca
+        old = os.environ.get("TV_HIST")
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["TV_HIST"] = tmp
+            try:
+                p = ca._chron_reads_path()
+            finally:
+                if old is None: os.environ.pop("TV_HIST", None)
+                else: os.environ["TV_HIST"] = old
+            self.assertEqual(os.path.dirname(p), tmp,
+                             "the read counter lands outside the isolated footage: %s" % p)
+
+    def test_production_keeps_the_counter_beside_the_console(self):
+        import control_app as ca
+        saved = {k: os.environ.get(k) for k in ("TV_HIST", "TV_CHRON_READS")}
+        for k in saved: os.environ.pop(k, None)
+        try:
+            self.assertEqual(ca._chron_reads_path(),
+                             os.path.join(os.path.dirname(os.path.abspath(ca.__file__)),
+                                          "chron_reads.json"))
+        finally:
+            for k, v in saved.items():
+                if v is not None: os.environ[k] = v
+
+    def test_the_read_loop_asks_the_cap(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def _read_one(p, k):")
+        self.assertGreater(i, 0)
+        self.assertIn("_chron_read_capped(", src[i:i + 900],
+                      "the cap exists and the read loop never asks it")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
