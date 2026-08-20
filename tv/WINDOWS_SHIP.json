@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1866",
+  "ver": "v1867",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1866: His journal holds 414 rows written under the stub seam across ten days, beside real ones, with nothing to tell them apart except a mode field the summary rows do not carry. While MINI was dead he pressed buttons and the log shows five starts in 64 seconds alternating sim and live, so he reported a live session that had actually read canned frames whose scene always defaults to gameplay. The console believed it filtered simulations out; the flag it filtered on means a one-read ghost with no footage. Every simulated row now stamps itself, the payload carries it, and the today row counts runs and simulations apart and says so.",
+  "note": "v1867: His live journal holds 1729 rows written by a test harness, three quarters of every session_end row in it, still arriving during tonight gate runs. The harness isolates its frames and its hist root correctly and never knew there was a third path, so close_session appended into his real journal. Fixed at the module rather than the call site: an overridden hist that does not live under tv now implies an overridden journal, so the next harness that forgets is protected too. Proven by running the suite twice with the count unchanged.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

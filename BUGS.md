@@ -6566,3 +6566,30 @@ never landed because the manifest is keyed by basenames his reels never use (`pi
 canned name.** A guard that depends on a filename not colliding is not a guard, so the flag is now
 the guard, and a test asserts the fallback still returns no names.
 [[feedback-fixtures-never-touch-live-data]]
+
+## REG-215 — a test harness wrote 1,729 rows into his live journal (FIXED v1867)
+
+**Found:** 2026-08-20, tracing his session history. `tv/sessions.jsonl` holds **1,729 rows** whose
+session id ends `_dur` and whose note is `"durability-harness"` — **75% of every `session_end` row
+in his journal** — and they were still arriving *during tonight's gate runs* (7 more at 18:35,
+18:44, 19:11, 19:21, 19:36 and 20:04).
+
+`test_reel_index_durability.py` isolates its frames correctly: its child gets `TV_FRAMES_DIR` and
+`TV_HIST` pointing at a temp tree. It never knew there was a **third** path —
+`tv_diablo.JOURNAL = os.environ.get("TV_SESSIONS") or HERE/sessions.jsonl` — so
+`close_session()` appended into his live journal regardless.
+
+**Fixed at the module, not just the call site**, which is what his scar demands: an overridden
+`TV_HIST` that does not live under `tv/` now implies an overridden journal, so a caller that
+isolates the frames gets an isolated journal whether or not it thought to ask. An explicit
+`TV_SESSIONS` still wins (the CI harness has always used it and knows what it is asking for), a
+`TV_HIST` *inside* `tv/` is his real world and keeps his real journal, and the harness also names
+its own journal now — belt to that braces. [[feedback-fixtures-never-touch-live-data]]
+
+**Proven by running the suite twice**, which is the other half of that scar: `_dur` rows in his
+journal **1729 → 1729** across a full `test_reel_index_durability` run that previously added seven.
+
+**No purge, and no surface was lying.** Each `_dur` session is a single `session_end` row with zero
+frames, so `_theatre_sessions` already marks it `stub` (a 1-read ghost with no footage) and the
+console's shelf filters it out. The rows are journal bloat, not a wrong number on a screen — and
+they are his data, so they stay unless he says otherwise.

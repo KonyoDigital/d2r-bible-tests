@@ -3533,6 +3533,66 @@ class TestASimulationSaysSoOnEveryRow(unittest.TestCase):
                          "the fallback started returning names — every unmatched frame would now "
                          "carry them into his journal")
 
+
+class TestAnIsolatedFixtureCannotWriteHisJournal(unittest.TestCase):
+    """v1866 — 1,729 rows in his live tv/sessions.jsonl carry a `_dur` session id and the note
+    "durability-harness": 75% of every session_end row in it, written by a test, still arriving
+    during tonight's gate runs.
+
+    test_reel_index_durability.py isolates TV_FRAMES_DIR and TV_HIST correctly. It never knew there
+    was a third path — JOURNAL defaulted to tv/sessions.jsonl regardless. Guard the FIXTURE, not the
+    call site: a caller that isolates the frames has said "this is not his world", and a journal
+    beside those frames is the only journal that can describe them. [[feedback-fixtures-never-touch-live-data]]"""
+
+    def _journal_for(self, env):
+        import subprocess as _sp
+        here = os.path.dirname(os.path.abspath(__file__))
+        e = dict(os.environ)
+        for k in ("TV_SESSIONS", "TV_HIST", "TV_FRAMES_DIR"):
+            e.pop(k, None)
+        e.update(env)
+        out = _sp.run([sys.executable, "-c",
+                       "import sys; sys.path.insert(0, %r)\n"
+                       "import tv_diablo as t; print(t.JOURNAL)" % here],
+                      capture_output=True, text=True, env=e, timeout=120)
+        self.assertEqual(out.returncode, 0, out.stderr[-400:])
+        return out.stdout.strip().splitlines()[-1]
+
+    def test_an_isolated_hist_takes_the_journal_with_it(self):
+        import tempfile
+        # realpath on BOTH sides: on macOS /var is a symlink to /private/var, and the module
+        # resolves the path it was handed. Comparing a resolved path to an unresolved one fails on
+        # the symlink, not on the rule.
+        d = os.path.realpath(tempfile.mkdtemp())
+        self.assertEqual(os.path.realpath(self._journal_for({"TV_HIST": d})),
+                         os.path.join(d, "sessions.jsonl"))
+
+    def test_his_own_journal_is_still_the_default(self):
+        # the mirror — a rule that isolates everything would silence real play
+        here = os.path.dirname(os.path.abspath(__file__))
+        self.assertEqual(self._journal_for({}), os.path.join(here, "sessions.jsonl"))
+
+    def test_a_hist_INSIDE_tv_is_his_world_and_keeps_his_journal(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        self.assertEqual(self._journal_for({"TV_HIST": os.path.join(here, "frames", "hist")}),
+                         os.path.join(here, "sessions.jsonl"))
+
+    def test_an_explicit_TV_SESSIONS_still_wins(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        got = self._journal_for({"TV_HIST": d, "TV_SESSIONS": os.path.join(d, "x.jsonl")})
+        self.assertEqual(os.path.realpath(got), os.path.realpath(os.path.join(d, "x.jsonl")))
+
+    def test_the_durability_harness_names_its_own_journal(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        p = os.path.join(here, "test_reel_index_durability.py")
+        if not os.path.isfile(p):
+            self.skipTest("the durability harness is not on this machine")
+        self.assertIn('"TV_SESSIONS": os.path.join(self.root, "sessions.jsonl")',
+                      open(p, encoding="utf-8").read(),
+                      "the harness that wrote 1,729 rows into his journal stopped saying where "
+                      "its own journal goes")
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

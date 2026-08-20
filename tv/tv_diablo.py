@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1866"   # A simulation is not a run and now it says so
+VERSION = "v1867"   # A caller that isolates the frames gets an isolated journal
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -238,7 +238,39 @@ VERIFY_PROMPT = (
 
 # v752 — persistent session journal (tv/sessions.jsonl, gitignored): every published read
 # appended as one JSON line. This is what `tvd replay` re-runs — real frames, real reads.
-JOURNAL = os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")   # v877 — CI harness override
+def _journal_path():
+    """Where session rows are appended — and NEVER his live journal when the frames are a fixture.
+
+    v1866 — MEASURED, NOT SUSPECTED: 1,729 rows in tv/sessions.jsonl carry a `_dur` session id and
+    the note "durability-harness". That is test_reel_index_durability.py, which correctly gives its
+    child an isolated TV_HIST and TV_FRAMES_DIR — and never knew there was a THIRD path to isolate.
+    75% of the session_end rows in his journal are from a test harness, still arriving during gate
+    runs tonight.
+
+    The fix is the one his scar names: GUARD THE FIXTURE, NOT THE CALL SITE. A caller that isolates
+    the frames has said, unmistakably, "this is not his world"; a journal beside those frames is the
+    only journal that can describe them. So an overridden hist that does not live under this module
+    implies an overridden journal, and a test that forgets is protected anyway.
+
+    TV_SESSIONS still wins when set explicitly — the CI harness has always used it and knows what it
+    is asking for. [[feedback-fixtures-never-touch-live-data]]
+    """
+    explicit = os.environ.get("TV_SESSIONS")
+    if explicit:
+        return explicit
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        try:
+            h = os.path.realpath(hist)
+            here = os.path.realpath(HERE)
+            if not (h == here or h.startswith(here + os.sep)):
+                return os.path.join(h, "sessions.jsonl")
+        except Exception:
+            pass
+    return os.path.join(HERE, "sessions.jsonl")
+
+
+JOURNAL = _journal_path()   # v877 — CI harness override; v1866 — an isolated hist isolates this too
 _JOURNAL_WARNED = False
 _JQ = None   # v879 (Grok A-(a)) — ONE writer thread preserves apply order; emit never blocks on fsync
 def _journal_writer_loop():

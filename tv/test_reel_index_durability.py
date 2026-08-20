@@ -142,6 +142,15 @@ class _Seal(object):
             "TV_DIR": HERE,
             "TV_FRAMES_DIR": os.path.join(self.root, "frames"),
             "TV_HIST": self.hist,
+            # v1866 — AND THE JOURNAL. This harness isolated the frames and the hist root and never
+            # knew there was a third path: tv_diablo.close_session() appends to JOURNAL, which
+            # defaulted to tv/sessions.jsonl. 1,729 rows of "durability-harness" went into Konyo's
+            # live journal — 75% of every session_end row in it — and were still arriving during
+            # tonight's gate runs. tv_diablo now derives the journal from an isolated TV_HIST on its
+            # own, so this line is belt to that braces; both stay, because the module-side rule is
+            # the one that protects the NEXT harness and this one says out loud what it wants.
+            # [[feedback-fixtures-never-touch-live-data]]
+            "TV_SESSIONS": os.path.join(self.root, "sessions.jsonl"),
             "PROBE_JSON": self.probe_path,
             "DEAD_DELAY": str(delay),
             "MODE": mode,
