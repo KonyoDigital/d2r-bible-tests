@@ -59,8 +59,17 @@ def run_seal(stats, swept=None, throttled=0, capped=0):
     v1774 — `throttled` is the count of reads the throttle refused during that sweep. The loop reads
     it, so this harness has to supply it or the extraction stops compiling; passing it also lets the
     throttle case be tested through the SHIPPED code rather than a copy of it."""
+    # v1839 — the loop stamps each seal with the READER that made it (v1830), so the namespace has
+    # to supply `_tv` or the extraction stops compiling. That is the harness paying its way for
+    # running the SHIPPED code instead of a copy: this guard went red the moment the seal gained a
+    # field, which is exactly what it is for — and it stayed red for nine versions because
+    # run_gates.py runs it and the pre-push hook does not.
+    class _TvStub:
+        PROMPT_VER = "p-test"
+        VERSION = "v-test"
+
     ns = {"res": {"reels": list(stats)}, "swept": {} if swept is None else swept, "time": time,
-          "_throttled": [int(throttled)], "_capped": [int(capped)],
+          "_throttled": [int(throttled)], "_capped": [int(capped)], "_tv": _TvStub,
           "_tick": lambda **kw: None, "print": lambda *a, **k: None}
     exec(compile(_seal_rule(), "<control_app seal loop>", "exec"), ns)
     return ns["swept"]

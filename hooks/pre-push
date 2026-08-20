@@ -180,6 +180,21 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
     exit 1
   fi
+  # 2026-08-20 — THE CHRONICLE GATES RAN ONLY IN CI, AND ONE SAT RED FOR NINE VERSIONS.
+  # run_gates.py runs 30 gates; this hook ran three. test_chronicle_seal extracts the seal loop
+  # straight out of control_app.py and execs it, so v1830 adding the reader stamp to a seal broke it
+  # instantly — and nothing local said a word, because tv-tests.yml is the only thing that runs it.
+  # v1830..v1838 all shipped over a red gate nobody was looking at.
+  # Both suites are pure stdlib and finish in well under a second together, so the fast lane stays
+  # fast. [[feedback-ci-verdict-before-seal]]
+  if ! gate_run "test_chronicle_retro" "python3 tv/test_chronicle_retro.py" 120 -- \
+       python3 "$REPO/tv/test_chronicle_retro.py"; then
+    exit 1
+  fi
+  if ! gate_run "test_chronicle_seal" "python3 tv/test_chronicle_seal.py" 120 -- \
+       python3 "$REPO/tv/test_chronicle_seal.py"; then
+    exit 1
+  fi
   echo "pre-push: ✅ tv suites green."
   # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the six
   # demonstration journeys must pass (1.6s). App down → skip with a note (never block on
