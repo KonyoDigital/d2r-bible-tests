@@ -8220,5 +8220,139 @@ class TestV1834ANamedReelIsReachableAndPricedAsItself(unittest.TestCase):
 
 
 
+class TestV1835EvidenceIsBankedAsItIsRead(unittest.TestCase):
+    """v1835 — a sweep that dies must not lose everything it paid for.
+
+    Findings reached disk in ONE place: _chron_evidence_merge(), after the last page of the last
+    reel. Everything before that lived in a list in memory, so a sweep killed, throttled out, slept,
+    abandoned by the CLI's --timeout, or crashed on page 439 lost every read — and the reel was not
+    sealed either, so the whole bill came again.
+
+    Affordable at 21 pages a reel. Not at 440: v1834 made his 483-frame browse reachable and priced
+    it, and nobody should be asked to authorise sixteen hours of reading as one all-or-nothing
+    transaction.
+    """
+
+    def setUp(self):
+        try:
+            from PIL import Image  # noqa: F401
+        except Exception:
+            self.skipTest("Pillow absent — frame grouping needs to decode the JPEGs")
+        self.d = tempfile.mkdtemp()
+        for i, sid in enumerate(("s_a", "s_b", "s_c")):
+            rd = os.path.join(self.d, "reel_" + sid)
+            os.makedirs(rd)
+            for n in range(6):
+                _screenish((64, 48), 11 + i).save(os.path.join(rd, "f%d.jpg" % n))
+            with open(os.path.join(rd, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump({"sessionId": sid,
+                           "frames": [{"f": "f%d.jpg" % n, "ts": 1000 + n} for n in range(6)]}, fh)
+        self.man = os.path.join(self.d, "man.json")
+        with open(self.man, "w", encoding="utf-8") as fh:
+            # "*" feeds the CLASSIFIER and "*#chronicle" the page read — a manifest with only the
+            # second classifies nothing, reads nothing, and the test then measures an empty sweep.
+            json.dump({"*": {"scene": "chronicle", "chronicleTab": "uniques",
+                             "names": [], "conf": 0.9},
+                       "*#chronicle": {"ledger": "uniques", "found": ["Windforce"],
+                                       "notFound": [], "stateVisible": True, "conf": 0.9}}, fh)
+        self._env = {k: os.environ.get(k) for k in ("TV_STUB", "TV_STUB_MANIFEST", "TV_HIST")}
+        os.environ.update({"TV_STUB": "1", "TV_STUB_MANIFEST": self.man, "TV_HIST": self.d})
+        self._swept = mock.patch.object(ca, "_CHRON_SWEPT_PATH", os.path.join(self.d, "swept.json"))
+        self._swept.start()
+        self._ev = mock.patch.object(ca, "_CHRON_EVIDENCE_PATH", os.path.join(self.d, "ev.json"))
+        self._ev.start()
+
+    def tearDown(self):
+        self._ev.stop()
+        self._swept.stop()
+        for k, v in self._env.items():
+            if v is None: os.environ.pop(k, None)
+            else: os.environ[k] = v
+        shutil.rmtree(self.d, ignore_errors=True)
+        with ca._CHRON_LOCK:
+            ca._CHRON_JOB.update({"running": False, "phase": "idle", "result": None, "error": None})
+
+    def _run(self, timeout=60.0):
+        started = ca.chronicle_sweep_start(hist_dir=self.d)
+        self.assertTrue(started.get("ok"), started)
+        deadline = time.time() + timeout
+        while time.time() < deadline and ca.chronicle_sweep_state()["running"]:
+            time.sleep(0.05)
+        self.assertFalse(ca.chronicle_sweep_state()["running"], "the sweep never finished")
+
+    def test_evidence_is_merged_more_than_once(self):
+        calls = []
+        real = ca._chron_evidence_merge
+
+        def counting(prop):
+            calls.append(sum(len(v or {}) for k, v in (prop or {}).items()
+                             if k in ("uniques", "sets")))
+            return real(prop)
+
+        with mock.patch.object(ca, "_CHRON_CKPT_PAGES", 1), \
+             mock.patch.object(ca, "_chron_evidence_merge", counting):
+            self._run()
+        self.assertGreaterEqual(len(calls), 2,
+                                "evidence reached disk once, at the end — a sweep that dies on the "
+                                "last page still loses every read before it")
+
+    def test_the_banked_evidence_is_on_disk_and_holds_names(self):
+        with mock.patch.object(ca, "_CHRON_CKPT_PAGES", 1):
+            self._run()
+        self.assertTrue(os.path.isfile(ca._CHRON_EVIDENCE_PATH), "nothing was ever written")
+        with open(ca._CHRON_EVIDENCE_PATH, encoding="utf-8") as fh:
+            ev = json.load(fh)
+        self.assertIn("Windforce", ev.get("uniques") or {},
+                      "the ledger was written but holds none of what was read")
+
+    def test_a_high_threshold_still_completes_and_banks_at_the_end(self):
+        # the checkpoint is an addition, never a replacement: with a threshold no run reaches, the
+        # final merge must still put everything on disk exactly as before
+        with mock.patch.object(ca, "_CHRON_CKPT_PAGES", 10 ** 6):
+            self._run()
+        with open(ca._CHRON_EVIDENCE_PATH, encoding="utf-8") as fh:
+            ev = json.load(fh)
+        self.assertIn("Windforce", ev.get("uniques") or {})
+
+    def test_the_live_lane_stays_out_of_isolated_footage(self):
+        # v1833 shipped the live lane reading sessions.jsonl. Tests isolate TV_HIST but not
+        # TV_SESSIONS, so his REAL journal — Baranar's Star, Jalal's Mane, lane "live" — landed in
+        # fixture evidence within the hour. A journal about his sessions says nothing about a
+        # fixture reel, so this is wrong on the merits and not merely untidy in a test.
+        self.assertEqual(ca._chron_live_lane_pages(), [],
+                         "the live lane read his real journal into an isolated sweep")
+
+    def test_the_live_lane_still_runs_when_the_journal_is_pointed_at_the_same_footage(self):
+        # isolation must not become a mute button: name the journal and the lane works again
+        jp = os.path.join(self.d, "sessions.jsonl")
+        with open(jp, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"scene": "chronicle", "sessionId": "s_a", "frameId": "f0",
+                                 "conf": 0.8, "chronicleTab": "uniques",
+                                 "discovered_names": ["Windforce"]}) + "\n")
+        old = os.environ.get("TV_SESSIONS")
+        os.environ["TV_SESSIONS"] = jp
+        try:
+            pages = ca._chron_live_lane_pages()
+        finally:
+            if old is None: os.environ.pop("TV_SESSIONS", None)
+            else: os.environ["TV_SESSIONS"] = old
+        self.assertEqual(len(pages), 1, "the isolation swallowed a journal that WAS pointed at it")
+        self.assertEqual(pages[0]["resp"]["lane"], "live")
+
+    def test_re_banking_the_same_pages_does_not_duplicate_sightings(self):
+        # what makes a checkpoint safe: merge_proposals keys a sighting by (reel, frame, lane), so
+        # the final merge re-offers pages already banked and they fold to nothing
+        with mock.patch.object(ca, "_CHRON_CKPT_PAGES", 1):
+            self._run()
+        with open(ca._CHRON_EVIDENCE_PATH, encoding="utf-8") as fh:
+            ev = json.load(fh)
+        sightings = (ev.get("uniques") or {}).get("Windforce") or []
+        keys = [(x.get("reel"), x.get("frame"), x.get("lane")) for x in sightings]
+        self.assertEqual(len(keys), len(set(keys)),
+                         "the same photograph was banked twice — sighting counts now overstate the "
+                         "evidence: %s" % keys)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

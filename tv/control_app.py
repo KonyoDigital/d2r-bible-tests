@@ -9507,6 +9507,9 @@ _CHRON_LOCK = threading.Lock()
 # what has already been read lives out here, with the rest of the console's state. A sealed reel never
 # changes: re-reading one buys nothing and costs a subscription read per still-run.
 _CHRON_SWEPT_PATH = os.path.join(HERE, "chronicle_swept.json")
+# v1835 — how many pages a sweep may hold in memory before banking them. 20 is ~45 minutes of
+# reading at his measured two-lane rate, so a death costs under an hour rather than the whole run.
+_CHRON_CKPT_PAGES = int(os.environ.get("TV_CHRON_CKPT") or 20)
 
 
 def _chron_swept_load():
@@ -10997,6 +11000,15 @@ def _chron_live_lane_pages(limit=2000):
             return "sets"
         return None      # in both catalogues, or neither — say nothing rather than pick
 
+    # v1835 — THE JOURNAL MUST DESCRIBE THE FOOTAGE BEING SWEPT. TV_HIST points the sweep at other
+    # reels; TV_SESSIONS points the journal at the matching rows. Overriding the first without the
+    # second means the live lane would contribute sightings about his REAL sessions to a sweep of
+    # somebody else's footage — which is wrong on the merits, and in the suite it meant his actual
+    # journal (Baranar's Star, Jalal's Mane, lane "live") landed in fixture evidence within an hour
+    # of v1833 shipping. Isolated footage, isolated journal — the same rule v1832 applied to the
+    # sweep lock. [[feedback-fixtures-never-touch-live-data]]
+    if os.environ.get("TV_HIST") and not os.environ.get("TV_SESSIONS"):
+        return []
     try:
         rows = _kai_journal_rows() or []
     except Exception:
@@ -11118,6 +11130,42 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
 
         read_page = _cr.two_lane_reader(_read_one, grok_lane)
 
+        # v1835 — BANK THE EVIDENCE AS IT IS READ, not once at the end.
+        #
+        # A sweep's findings reached disk in exactly one place: _chron_evidence_merge(), after the
+        # LAST page of the LAST reel. Everything before that lived in a list in memory. So a sweep
+        # that died — killed, throttled out, the machine sleeping, the CLI's --timeout abandoned,
+        # a crash on page 439 — lost every read it had paid for, and the reel was not sealed either,
+        # so the whole bill came again.
+        #
+        # It was affordable while a reel was 21 pages. It is not now: v1834 made his 483-frame
+        # browse reachable and priced it at 440 pages — roughly sixteen hours of reading on one
+        # all-or-nothing transaction. Nobody should be asked to authorise that.
+        #
+        # Safe BECAUSE merge_proposals identifies a sighting by (reel, frame, lane) and skips one it
+        # already holds, and because every write is tmp+os.replace. So a checkpoint is idempotent:
+        # the final merge re-offers pages already banked and they fold to nothing. Partial evidence
+        # is honest evidence — the gate still needs two witnesses, and a half-read reel simply has
+        # fewer of them.
+        _ckpt = {"pages": [], "banked": 0}
+
+        def _read_and_bank(p, k):
+            resp = read_page(p, k)
+            try:
+                _ckpt["pages"].append({"reel": os.path.basename(os.path.dirname(str(p))),
+                                       "frame": os.path.basename(str(p)),
+                                       "kind": k, "resp": resp or {}})
+                if len(_ckpt["pages"]) >= _CHRON_CKPT_PAGES:
+                    _chron_evidence_merge(_cr.proposal_from_pages(_ckpt["pages"]))
+                    _ckpt["banked"] += len(_ckpt["pages"])
+                    _ckpt["pages"] = []
+                    print("   \U0001f4be banked %d page(s) of evidence so far" % _ckpt["banked"],
+                          flush=True)
+            except Exception as _be:
+                # a failed checkpoint must never end a sweep that is otherwise working
+                print("   \u26a0 checkpoint skipped (%s)" % _be)
+            return resp
+
         # v1780 — DECLARE THE SWEEP. run_gates fingerprints the live state files and cannot tell a
         # legitimate sweep from a test writing his console; a lock with a heartbeat is that signal.
         try:
@@ -11142,7 +11190,7 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 _skip = {r for r in _all if r != str(reel_id)}
             except Exception:
                 pass
-        res = _cr.sweep_hist(hist, _classify, read_page, limit=limit,
+        res = _cr.sweep_hist(hist, _classify, _read_and_bank, limit=limit,
                              skip_reels=_skip,
                              known_chronicle=known,
                              on_reel=lambda st: _tick(reelsDone=1))
@@ -11518,7 +11566,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1834",
+        "ver": "v1835",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

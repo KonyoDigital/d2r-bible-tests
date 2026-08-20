@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1834",
+  "ver": "v1835",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1834: v1830 reopened eight sealed reels and nothing could reach them - the selector lists only reels declaring a Chronicle focus, and those eight are ordinary sessions, so --reel and --again filtered to an empty list. Naming a reel now bypasses the focus filter and says so. The quote also priced the newest reel rather than the named one, quoting 21 pages for a 483-frame reel whose real count is 440.",
+  "note": "v1835: A sweep wrote its findings to disk once, after the last page of the last reel - so a sweep that died lost every read it had paid for, and the reel was not sealed either so the whole bill came again. Affordable at 21 pages; not at the 440 v1834 made reachable. Evidence is now banked every 20 pages, which is safe because a sighting is keyed by reel frame and lane so re-offering it folds to nothing. Also fixes v1833 reading his real journal into isolated test sweeps.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
