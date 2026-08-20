@@ -8958,6 +8958,25 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         self.assertIn("stash_screen_open(", src[i:j],
                       "the quote prices frames the sweep would refuse for free")
 
+    def test_the_gate_is_on_the_READER_too_not_only_the_classify(self):
+        """v1853 — v1850 claimed the gate covered every frame "including inside a declared-focus
+        reel". It did not: vault_retro skips the classifier ENTIRELY for a declared focus (v1603,
+        `if declared: surface = declared`), so the gate never ran on exactly the reels he records on
+        purpose — a mini started while walking to the stash.
+
+        The READER is the one hook both paths pass through."""
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def _reader(p, surface):")
+        self.assertGreater(i, 0, "the vault reader moved — re-point this guard")
+        body = src[i:i + 900]
+        self.assertIn("stash_screen_open(", body,
+                      "a declared-focus reel still reads every frame as ownership, gate or no gate")
+        gate_at = body.find("stash_screen_open(")
+        pay_at = body.find("_tick(pagesRead=1)")
+        self.assertGreater(pay_at, -1)
+        self.assertLess(gate_at, pay_at, "the frame is charged before the gate is asked")
+
     def test_a_refused_frame_is_reported_not_silent(self):
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()

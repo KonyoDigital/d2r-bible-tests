@@ -9743,34 +9743,12 @@ def _mini_focus(v):
     return v if v in MINI_FOCUSES else MINI_FOCUS
 
 
-def _focus_was_chosen(v):
-    """v1783 — DID HE ACTUALLY PICK THIS, or is it just the default?
-
-    The sweep skips the classifier entirely for a declared focus, on the premise (v1603) that "when
-    he presses MINI he TELLS the app what he is parked on". That premise holds for a focus he chose
-    and fails for one he never touched: MINI_FOCUS is "stash", _mini_focus coerces anything unknown
-    to it, and the console's own UI pre-selects it — so a MINI started without touching the buttons
-    stamps focus:"stash" and every still run in that reel is labelled a stash panel without being
-    looked at. Town, a fight and a Chronicle page all become "stash", and any name read off them
-    lands in the stash lane where merge-max makes it permanent.
-
-    An untouched default is not a statement. Only an explicit, recognised choice counts as one.
-    Found by an adversarial review of the intake lane.
-    """
-    return str(v or "").strip().lower() in MINI_FOCUSES
-MINI_MIN_SECONDS = 10
-MINI_MAX_SECONDS = 40
-MINI_DEFAULT_SECONDS = 25
-# v1744 — A CHRONICLE IS READ BY SCROLLING, SO IT NEEDS LONGER THAN A STASH TAB.
-# Konyo: "maybe longer then 25 seconds for it." A stash tab is ONE screen — 25s photographs it
-# several times over. A Chronicle is a LIST he scrolls, so the capture has to last as long as the
-# scrolling does, and the vision lane samples it sparsely on top of that (the v1689 guard measured
-# his chronicle reads 4.6–9.7s apart). Measured on session s_1786922954749_12579: a pass over his
-# uniques Chronicle produced five reads and got from "Amulet" to "Jewel" — A→J of ~400 names.
-# At 25s the cap was the binding constraint, not his scrolling.
-MINI_CHRONICLE_FOCUSES = ("chronicle-uniques", "chronicle-sets")
-MINI_CHRONICLE_MAX_SECONDS = 120
-MINI_CHRONICLE_DEFAULT_SECONDS = 75
+# v1853 — `_focus_was_chosen` lived here and was called by nothing. Its RULE is real and is
+# live: vault_retro._declared_surface() enforces it inline ("focusChosen" in idx and not
+# idx.get("focusChosen") -> None), which is what actually stops an untouched default focus
+# labelling town and a Chronicle page as a stash panel. A second copy of a live rule that
+# nothing calls is worse than no copy: the next person edits it, nothing changes, and the
+# real rule sits somewhere else untouched. [[copy-drift]]
 
 
 def _mini_bounds(focus):
@@ -10249,7 +10227,24 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             except Exception:
                 return None
 
+        # v1853 — THE GATE HAS TO BE ON THE READER TOO, which v1850 got wrong.
+        #
+        # v1850 put the stash template in front of _classify and its commit note claimed it was
+        # "asked of EVERY frame, including inside a declared-focus reel". It is not: vault_retro
+        # skips the classifier ENTIRELY for a declared focus (v1603, `if declared: surface =
+        # declared`), so the gate never ran on exactly the reels he records on purpose.
+        #
+        # His ask has no such exception in it — "only when i CLICK stash and am in my stash with my
+        # inventory open at the same time thats the template". A mini started while walking to the
+        # stash still holds frames that are not the stash, and a name read off one of those lands in
+        # the stash lane where merge-max makes it permanent.
+        #
+        # The READER is the one hook both paths pass through, so the gate belongs here as well. It
+        # stays on _classify too, where it saves paying for a classify at all.
         def _reader(p, surface):
+            if stash_screen_open(p) is None:
+                _not_stash[0] += 1
+                return {"note": "not a stash screen — no stash chrome, so nothing here is ownership"}
             _tick(pagesRead=1)
             try:
                 # v1785 — THE VAULT READER, at last. This called claude_chronicle_read, whose answer
@@ -11909,7 +11904,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1852",
+        "ver": "v1853",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

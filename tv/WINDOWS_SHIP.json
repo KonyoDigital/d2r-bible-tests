@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1852",
+  "ver": "v1853",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1852: v1851 gave the vault quotes probe the structural gate, which means it no longer prices every candidate run as a readable ownership surface - but the boundWhy sentence printed beside the number still said that it did. Still an upper bound, for a different reason than the one printed. Corrected by the person who invalidated it, an hour later.",
+  "note": "v1853: v1850 put the stash template in front of the vault classify and its note claimed it was asked of every frame including inside a declared-focus reel. It was not: vault_retro skips the classifier entirely for a declared focus, so the gate never ran on exactly the reels he records on purpose. The reader is the one hook both paths pass through. Also retires a dead duplicate of a rule that is live inline in vault_retro.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
