@@ -9497,6 +9497,73 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestTheCascadeLookupAnswersCorrectly(unittest.TestCase):
+    """v1877 — `d2r_css_last_rule_wins` is a carved scar: `.hero-title` had four rules and a twin
+    `filterSilver` cost him a pane. At equal specificity the LAST declaration wins, so editing the
+    first occurrence changes nothing and reads as "the edit did not take".
+
+    Measured on bible.html: 4,682 top-level rules, 201 selectors declared more than once, **153 that
+    set the same property in more than one block**. That is not 153 defects — a file grown over
+    1,800 versions overrides on purpose — which is exactly why this is a LOOKUP and not a gate. A
+    gate would cry wolf 153 times; the hazard is a person editing the wrong copy.
+
+    The tool must be right about WHICH LINE or it is worse than nothing. Its first cut concatenated
+    the style blocks and hunted a needle, and reported two different rules as the same line.
+    Offsets are carried through now, and this asserts the answers against the file."""
+
+    @staticmethod
+    def _mod():
+        import importlib.util
+        here = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location("_cww", os.path.join(here, "css_who_wins.py"))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
+
+    def _bible(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        return p
+
+    def test_every_line_it_reports_really_declares_that_selector(self):
+        m, p = self._mod(), self._bible()
+        lines = open(p, encoding="utf-8").read().splitlines()
+        found = 0
+        for sel in (".hero-title", ".h-title", ".tabs"):
+            rows = m.blocks_for(p, sel)
+            self.assertTrue(rows, "%s is declared nowhere — the scanner rotted" % sel)
+            for ln, sellist, _body in rows:
+                self.assertIn(sel, lines[ln - 1],
+                              "%s reported at line %d, which reads %r" % (sel, ln, lines[ln - 1][:70]))
+                found += 1
+        self.assertGreaterEqual(found, 8, "the scan collapsed to a couple of rules")
+
+    def test_it_finds_more_than_one_block_for_the_scarred_selector(self):
+        m, p = self._mod(), self._bible()
+        self.assertGreater(len(m.blocks_for(p, ".hero-title")), 1,
+                           "the very selector the scar is about now reads as declared once")
+
+    def test_an_undeclared_selector_says_so_rather_than_guessing(self):
+        m, p = self._mod(), self._bible()
+        self.assertEqual(m.blocks_for(p, ".no-such-class-anywhere-xyz"), [])
+
+    def test_it_reads_only_style_blocks(self):
+        # a selector-looking string in JS or an attribute must not become a CSS rule
+        import tempfile
+        m = self._mod()
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f:
+            f.write("<div class='x'></div>\n"
+                    "<script>var s = \".ghost { color: red }\";</script>\n"
+                    "<style>.real { color: blue }</style>\n")
+            p = f.name
+        try:
+            self.assertEqual(m.blocks_for(p, ".ghost"), [], "a JS string became a CSS rule")
+            self.assertEqual(len(m.blocks_for(p, ".real")), 1)
+        finally:
+            os.unlink(p)
+
+
 class TestNoCssVarWithoutAFallbackOnAnUndefinedToken(unittest.TestCase):
     """v1876 — `var(--x)` on a token nothing defines collapses the whole declaration, silently.
 

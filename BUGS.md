@@ -6861,3 +6861,34 @@ looking at what it accused rather than believing it:
   `--q-`. The fifth was that.
 
 Founding rule 4, twice in one sweep. [[feedback-suspect-the-instrument]]
+
+## REG-227 — 153 selectors set the same property twice, and that is not 153 defects (TOOL, v1877)
+
+`d2r_css_last_rule_wins` is a carved scar: `.hero-title` had four rules and a twin `filterSilver`
+cost a whole pane. At equal specificity the **last** declaration wins, so editing the first
+occurrence changes nothing and reads as *"the edit did not take"*.
+
+**Measured on bible.html:** 4,682 top-level rules · **201 selectors declared more than once** · **153
+that set the same property in more than one block**. `.h-title` has 4 blocks, `.tabs` has 8,
+`.hero-pick` has 6.
+
+**That is deliberately NOT a gate.** A file grown over 1,800 versions overrides on purpose, so a
+gate would cry wolf 153 times and be turned off. The hazard is a *person editing the wrong copy*,
+and the answer to that is a question you can ask in one second:
+
+```
+python3 tv/css_who_wins.py .hero-title color
+   [0] line 83     .hero-title            color: var(--best)
+   [1] line 29448  .hero-title            (does not set color)
+   [2] line 29613  h1, h2, h3, .h-title…  (does not set color)
+   [3] line 29856  .hero-title            color: var(--ink-kicker) !important
+>> color comes from block [3]
+```
+
+**It must be right about WHICH LINE or it is worse than nothing.** The first cut concatenated the
+style blocks and hunted for a needle, and reported two different rules at the same line. Offsets are
+carried through the comment-blanking now (comments are blanked *in place*, same length, so every
+offset still lands), and a test asserts every reported line really declares that selector — all four
+above verified by reading the file. Only `<style>` bodies are scanned, so a selector-shaped string in
+JS cannot become a rule, and only depth-1 rules: one inside `@media` is a different cascade question
+and answering it here would be worse than silence.
