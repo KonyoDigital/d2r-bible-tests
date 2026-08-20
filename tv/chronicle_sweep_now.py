@@ -54,6 +54,10 @@ def main(argv=None):
                          "one, and a Grok page read is tens of seconds — the first attempt at this "
                          "used 900s and gave up on a sweep that was working fine.")
     ap.add_argument("--reel", default=None, help="sweep exactly this reel id and stop")
+    ap.add_argument("--again", default=None, metavar="REEL_ID",
+                    help="forget that ONE reel was swept and read it again — for after a prompt "
+                         "change. Targeted on purpose: chronicle_forget_swept() clears the memory "
+                         "for EVERY reel, which on his hist is 18 of them.")
     args = ap.parse_args(argv)
 
     try:
@@ -74,6 +78,47 @@ def main(argv=None):
     if "claude" not in lanes:
         print("refusing: the primary (Claude) lane is unavailable — nothing to sweep with")
         return 1
+
+    if args.again:
+        # v1828 — RE-READ ONE REEL. Two separate records remember that a reel was swept:
+        # chronicle_swept.json (the sweep's own skip list) and the "reels" array in
+        # chron_autoread.json (the watchdog's). Clearing one and not the other leaves the reel
+        # invisible to half the system — two memories for one fact, and only one of them fixed is
+        # exactly how a reel comes back as "already done" after you thought you had freed it.
+        rid = args.again
+        freed = []
+        try:
+            swept = ca._chron_swept_load() or {}
+            if rid in swept:
+                swept.pop(rid, None)
+                ca._chron_swept_save(swept)
+                freed.append("chronicle_swept.json")
+        except Exception as e:
+            print("could not clear the sweep record: %s" % e)
+            return 1
+        try:
+            seen = ca._chron_reels_seen()
+            if rid in seen:
+                seen.discard(rid)
+                # persist through the app's own writer so the on-disk shape stays its shape
+                payload_reels = sorted(seen)
+                import json as _json
+                with open(ca._CHRON_AUTOREAD_PATH, encoding="utf-8") as fh:
+                    cur = _json.load(fh) or {}
+                cur["reels"] = payload_reels
+                tmp = ca._CHRON_AUTOREAD_PATH + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as fh:
+                    _json.dump(cur, fh)
+                os.replace(tmp, ca._CHRON_AUTOREAD_PATH)
+                freed.append("chron_autoread.json")
+        except Exception as e:
+            print("could not clear the watchdog record: %s" % e)
+            return 1
+        if not freed:
+            print("%s was not marked swept in either record — nothing to free" % rid)
+        else:
+            print("freed %s from: %s" % (rid, ", ".join(freed)))
+        args.reel = rid
 
     waiting = [r for r in ca._unswept_chron_reels(limit=50)]
     if args.reel:
