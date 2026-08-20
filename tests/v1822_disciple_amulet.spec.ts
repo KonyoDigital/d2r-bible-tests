@@ -65,7 +65,17 @@ test('v1822 — a tick made under the OLD label is not un-found', async ({ page,
   expect(seen.neu, 'his old tick must still satisfy the corrected label').toBe(true);
   expect(seen.old, 'and the string he actually stored must keep working too').toBe(true);
 
-  // and his storage is left exactly as he wrote it — the remap is read-side only
-  const stored = await page.evaluate(() => localStorage.getItem('d2r_setPieces'));
-  expect(stored).toBe(JSON.stringify(['Telling of Beads (spired helm)']));
+  /* and his storage is not REWRITTEN — the remap is read-side only.
+   *
+   * 2026-08-20 — this asserted byte-identical storage and could never pass, because claiming a
+   * fresh browser runs the grail SEED, which legitimately extends d2r_setPieces (measured: 1 entry
+   * in, 109 out). So the guard was red from the day it was written and Routine I carried it that
+   * way, which is the same as having no guard at all.
+   *
+   * The promise v1822 actually makes is narrower and is the thing worth pinning: his stored string
+   * is left alone and is NOT silently rewritten to the corrected label. Asserting that no other
+   * key may appear was never part of it. [[feedback-blind-fixture-green-gate]] */
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_setPieces') || '[]'));
+  expect(stored, 'his own tick was rewritten or dropped').toContain('Telling of Beads (spired helm)');
+  expect(stored, 'the remap leaked into storage — it must stay read-side').not.toContain('Telling of Beads (amulet)');
 });
