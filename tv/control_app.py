@@ -9401,7 +9401,7 @@ def _chron_autoread_loop():
             pass
 
 
-def chronicle_scan_cost(hist_dir=None, limit=None):
+def chronicle_scan_cost(hist_dir=None, limit=None, reel_id=None):
     """v1516 — what a Chronicle retro sweep would cost, computed on HIS film. No model calls.
 
     Konyo has been told "97% cheaper" — this is the route that lets him verify it instead of
@@ -9450,8 +9450,20 @@ def chronicle_scan_cost(hist_dir=None, limit=None):
     # reader, printed on the exact screen he opens to decide whether a sweep is worth paying for.
     # sweep_verdict has had the `not-measured` state for this since v1541 and the CLI has always
     # passed the flag; only this caller, the one HE actually looks at, did not.
+    # v1834 — PRICE THE REEL HE NAMED. `limit` slices reel_dirs newest-first, so pricing a reel by
+    # name was impossible: `--reel <an old reel>` printed the cost of the NEWEST one instead. On his
+    # hist that read "21 page read(s)" for a 483-frame reel whose real count is ~440 — a true number
+    # under a word naming a different quantity, printed on the line he uses to decide whether to
+    # spend. Same narrowing the sweep itself uses (skip everything else), and skip is applied before
+    # the slice, so the target is reached wherever it sits in the ordering. [[label-outlived-referent]]
+    _skip = None
+    if reel_id:
+        try:
+            _skip = {os.path.basename(str(d)) for d in _cr.reel_dirs(hist)} - {str(reel_id)}
+        except Exception:
+            _skip = None
     res = _cr.sweep_hist(hist, classify=_probe, read_page=lambda p, k: {}, limit=limit,
-                         priced_only=True)
+                         skip_reels=_skip, priced_only=True)
     t = res["totals"]
     seen = t.get("framesSeen") or 0
     classifies = t.get("classified") or 0
@@ -11506,7 +11518,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1833",
+        "ver": "v1834",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

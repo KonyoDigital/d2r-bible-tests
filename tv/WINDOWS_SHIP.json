@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1833",
+  "ver": "v1834",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1833: The live agent already separates the Chronicle rows it can see from the ones it can see are found - 10 such rows sit in his journal at conf 0.75 - and nothing had ever read them for the tally. They now enter the evidence as a third lane, keyed to their own session so they earn cross-lane without inventing cross-reel, with the ledger derived from his rosters because his live rows carry no tab. A live-only name still cannot ground.",
+  "note": "v1834: v1830 reopened eight sealed reels and nothing could reach them - the selector lists only reels declaring a Chronicle focus, and those eight are ordinary sessions, so --reel and --again filtered to an empty list. Naming a reel now bypasses the focus filter and says so. The quote also priced the newest reel rather than the named one, quoting 21 pages for a 483-frame reel whose real count is 440.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

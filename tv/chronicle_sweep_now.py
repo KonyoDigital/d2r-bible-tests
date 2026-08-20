@@ -155,6 +155,29 @@ def main(argv=None):
     elif live:
         print("a capture session is live — sweeping the SEALED reels behind it anyway (v1823)")
 
+    # v1834 — NAMING A REEL IS A STATEMENT OF INTENT, and the focus filter must not overrule it.
+    # _unswept_chron_reels() deliberately lists only reels that DECLARE a Chronicle focus, so an
+    # automatic run never sweeps a stash mini or a gameplay session at full price. Correct for the
+    # automatic case, and wrong the moment he names one: --reel and --again both FILTER that list,
+    # so an undeclared reel came back "nothing waiting" no matter what you typed.
+    #
+    # That silently stranded v1830's whole point. The eight reels it reopened — 1,032 frames,
+    # including the 483-frame browse whose pages print First Found stamps and his 64% meter — carry
+    # no declared focus, because they were ordinary sessions rather than a focused 🏆/🧩 capture.
+    # So the seals were voided and nothing could reach them: reopened in the skip set, invisible to
+    # the selector. Two halves, each right, never joined. [[the-unjoined-end]]
+    if args.reel and not waiting:
+        d = os.path.join(hist, str(args.reel))
+        if os.path.isdir(d):
+            n = len([f for f in os.listdir(d) if f.startswith("f_") and f.endswith(".jpg")])
+            if n:
+                print("%s declares no Chronicle focus — sweeping it because you named it "
+                      "(the classifier decides each run, at full price)" % args.reel)
+                waiting = [{"reel": str(args.reel), "label": "no declared focus", "n": n}]
+        if not waiting:
+            print("no reel named %s in %s" % (args.reel, hist))
+            return 1
+
     if not waiting:
         if growing:
             print("nothing to sweep: the only reel waiting is still being recorded")
@@ -167,9 +190,15 @@ def main(argv=None):
     for r in waiting:
         print("   %-32s %-14s %s frames" % (r["reel"], r["label"], r["n"]))
 
-    quote = ca.chronicle_scan_cost(limit=len(waiting)) or {}
+    quote = ca.chronicle_scan_cost(limit=len(waiting), reel_id=(args.reel or None)) or {}
+    # v1834 — COUNT THE REELS IT WOULD ACTUALLY READ. totals.reels counts every reel the walk
+    # touched, INCLUDING the ones it skipped as already-swept, so a single targeted reel priced as
+    # "440 page read(s) across 18 reel(s)" — the pages were right and the reels described a
+    # different set entirely. Both halves of a price he acts on have to name the same thing.
+    _priced = [r for r in (quote.get("reels") or []) if (r or {}).get("note") != "already-swept"]
+    _nreels = len(_priced) if _priced else _fmt((quote.get("totals") or {}).get("reels"))
     print("\nthe free pass says: %s page read(s) across %s reel(s), %s classify — %s"
-          % (_fmt(quote.get("wouldReadPages")), _fmt((quote.get("totals") or {}).get("reels")),
+          % (_fmt(quote.get("wouldReadPages")), _nreels,
              _fmt(quote.get("wouldClassify")), (quote.get("verdict") or {}).get("state")))
 
     if not args.yes:

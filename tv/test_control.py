@@ -8128,5 +8128,97 @@ class TestV1832TheSuiteMustNotTouchHisSweepLock(unittest.TestCase):
 
 
 
+class TestV1834ANamedReelIsReachableAndPricedAsItself(unittest.TestCase):
+    """v1834 — v1830 reopened eight sealed reels and nothing could reach them.
+
+    _unswept_chron_reels() lists only reels that DECLARE a Chronicle focus, which is right for an
+    automatic run — it stops a stash mini or a gameplay session being swept at full price. But
+    --reel and --again FILTER that list, so an undeclared reel answered "nothing waiting" whatever
+    you typed. The eight reels v1830 reopened (1,032 frames, including the 483-frame browse whose
+    pages print First Found stamps and his 64% meter) carry no declared focus, because they were
+    ordinary sessions. Reopened in the skip set, invisible to the selector: two halves, each
+    correct, never joined.
+
+    And the price named a different reel. `limit` slices reel_dirs newest-first, so pricing by name
+    was impossible — his 483-frame reel quoted "21 page read(s)", the cost of the NEWEST reel, on
+    the exact line he reads before agreeing to spend.
+    """
+
+    def _reel(self, root, name, n):
+        """REAL jpegs, in blocks of four. The first cut of this fixture wrote index.json and no
+        image files, so live_probe() found nothing readable, every run counted blank and BOTH
+        quotes came back zero pages — a test that would have passed the broken code just as
+        happily. Blocks of four so frames group into runs the way a held panel does, which is what
+        makes the page count scale with the reel."""
+        from PIL import Image, ImageDraw
+        d = os.path.join(root, name)
+        os.makedirs(d)
+        frames = []
+        for i in range(n):
+            fn = "f_%03d.jpg" % i
+            block = i // 4
+            im = Image.new("RGB", (320, 240), (16, 16, 20))
+            dr = ImageDraw.Draw(im)
+            # CONTENT, not a flat fill: live_probe() rejects a featureless frame as blank, so a
+            # solid-colour fixture priced zero pages and the test could not tell a working walk
+            # from a broken one. Deterministic bars, shifted per block so blocks are distinguishable.
+            for k in range(8):
+                y = 12 + k * 26
+                dr.rectangle([18 + ((block * 7 + k * 13) % 40), y, 300, y + 14],
+                             fill=(60 + ((block * 37 + k * 21) % 150), 90, 130))
+            im.save(os.path.join(d, fn), quality=88)
+            frames.append(fn)
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"frames": [{"f": f} for f in frames]}, fh)
+        return d
+
+    def test_the_pricer_prices_the_reel_it_was_given_not_the_newest(self):
+        import control_app as ca
+        with tempfile.TemporaryDirectory() as root:
+            self._reel(root, "reel_newest", 4)
+            self._reel(root, "reel_target", 24)
+            small = ca.chronicle_scan_cost(hist_dir=root, limit=1, reel_id="reel_newest") or {}
+            big = ca.chronicle_scan_cost(hist_dir=root, limit=1, reel_id="reel_target") or {}
+            self.assertGreater(big.get("wouldReadPages") or 0, small.get("wouldReadPages") or 0,
+                               "both quotes describe the same reel — reel_id is not reaching the walk")
+
+    def test_pricing_without_a_reel_id_is_unchanged(self):
+        import control_app as ca
+        with tempfile.TemporaryDirectory() as root:
+            self._reel(root, "reel_a", 8)
+            q = ca.chronicle_scan_cost(hist_dir=root, limit=1) or {}
+            self.assertTrue(q.get("ok"))
+            self.assertGreaterEqual(q.get("wouldReadPages") or 0, 1)
+
+    def test_the_cli_lets_an_explicitly_named_reel_through_the_focus_filter(self):
+        import control_app as ca
+        src = open(os.path.join(os.path.dirname(os.path.abspath(ca.__file__)),
+                                "chronicle_sweep_now.py"), encoding="utf-8").read()
+        i = src.find("if args.reel and not waiting:")
+        self.assertGreater(i, 0,
+                           "an undeclared reel is unreachable again — --reel filters a list it can "
+                           "never appear in, which is how v1830's eight reopened reels were stranded")
+        self.assertIn("declares no Chronicle focus", src[i:i + 700],
+                      "it reaches the reel without SAYING the focus filter was bypassed")
+
+    def test_the_cli_prices_the_named_reel(self):
+        import control_app as ca
+        src = open(os.path.join(os.path.dirname(os.path.abspath(ca.__file__)),
+                                "chronicle_sweep_now.py"), encoding="utf-8").read()
+        self.assertIn("reel_id=(args.reel or None)", src,
+                      "the quote is computed for whatever reel is newest, not the one named")
+
+    def test_the_printed_reel_count_matches_what_would_be_read(self):
+        import control_app as ca
+        src = open(os.path.join(os.path.dirname(os.path.abspath(ca.__file__)),
+                                "chronicle_sweep_now.py"), encoding="utf-8").read()
+        i = src.find("the free pass says:")
+        self.assertGreater(i, 0)
+        self.assertIn('!= "already-swept"', src[max(0, i - 600):i],
+                      "the reel count still counts reels skipped as already-swept, so the pages "
+                      "and the reels in one sentence describe different sets")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
