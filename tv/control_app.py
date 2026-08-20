@@ -8878,6 +8878,55 @@ def chronicle_apply(proposal=None):
         return {"ok": False, "why": "the board answered something unreadable"}
 
 
+
+def board_ownership(sample=0):
+    """ASK THE BOARD WHAT HE OWNS. The read direction of the channel that already applies.
+
+    Konyo, 2026-08-20, on being told the vault cross-reference needed him to paste a console dump:
+    "i neeed to do this in my website browser and not locally on the console? why?" — and then
+    "yea try to fix this :)".
+
+    The answer to "why" was real but it was a LIMITATION, not a law. His grail and vault ledgers
+    live in localStorage inside bible.html; `vault_ledger_load()` returns 0 entries on disk, because
+    the console has never held them. chronicle_apply already reaches into the board window to WRITE
+    a tick (v1523: "the console never writes the grail" — it asks the board, which owns it). Only
+    the read direction was missing, so answering a question about his own ledger required him to
+    copy it out by hand.
+
+    Same window, same evaluator, same refusals — including the one that matters: a TIMEOUT IS NOT AN
+    EMPTY LEDGER. If the board does not answer, this says so rather than reporting that he owns
+    nothing, because "he has none" and "nobody asked" must never read the same.
+    [[unknown-stays-unknown]]
+
+    `sample` returns that many names per store for eyeballing; 0 returns counts only, which is what
+    a cross-reference needs and keeps a 300-name payload out of the log.
+    """
+    w = globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    js = ("(function(){try{"
+          "var g=function(k){try{var v=(window.LSR?window.LSR.getItem(k):localStorage.getItem(k));"
+          "var p=v?JSON.parse(v):null;"
+          "if(Array.isArray(p))return p.slice();"
+          "if(p&&typeof p==='object')return Object.keys(p);return [];}catch(e){return [];}};"
+          "var fl=g('d2r_foundLog'),ow=g('d2r_owned'),sp=g('d2r_setPieces');"
+          "var n=%d;"
+          "return JSON.stringify({ok:true,counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length},"
+          "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)}});"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
+    try:
+        raw = _ejs(w, js, timeout=8.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused the read: %s" % str(e)[:160]}
+    if not raw:
+        return {"ok": False, "why": "the board did not answer in time — its ledger is UNREAD, "
+                                    "which is not the same as empty"}
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
+
+
 _CHRON_LAST_PROPOSAL = None
 
 
@@ -11765,7 +11814,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1847",
+        "ver": "v1848",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -13755,6 +13804,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/chronicle_apply":
             # v1523 — the write. POST only, and it goes through the BOARD, which owns the ledger.
             self._json(200, chronicle_apply(body.get("proposal")))
+            return
+        if path == "/api/board_ownership":
+            # 2026-08-20 — the READ direction of that same channel. The board owns the ledger, so
+            # the board is who to ask; the console had only ever been able to tell it to write.
+            # POST like its sibling, not because this spends anything (it spends nothing) but
+            # because the two halves of one channel should not answer to different verbs.
+            self._json(200, board_ownership(sample=body.get("sample") or 0))
             return
         if path == "/api/chronicle_sweep":
             # v1519 — POST starts it, deliberately. This is the call that spends subscription reads,

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1847",
+  "ver": "v1848",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1847: Konyo: it shouldnt even re-read them again like after third read it should be blocked - safegaurd. The A-Z reel proved the cost: 16 pages re-read for one name not already in the ledger. A frame can now be read three times under a given reader and then refuses out loud. Keyed by PROMPT_VER so a new reader always reopens every frame, which is the one legitimate reason to look again and the reason eight reels reopened.",
+  "note": "v1848: Konyo asked why the vault cross-reference needed him to paste a dump from the website browser instead of the console. The answer was real but it was a limitation, not a law: his ledgers live in localStorage inside bible.html and chronicle_apply has always reached into the board window to WRITE a tick. Only the read direction was missing. Same window, same evaluator, same refusals - and a timeout reports the ledger UNREAD rather than empty.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

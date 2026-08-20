@@ -8738,5 +8738,95 @@ class TestTheReReadCap(unittest.TestCase):
 
 
 
+class TestBoardOwnershipReadBack(unittest.TestCase):
+    """2026-08-20 — Konyo, on being told the vault cross-reference needed a hand-pasted dump:
+    "i neeed to do this in my website browser and not locally on the console? why?" then
+    "yea try to fix this :)".
+
+    The "why" was real but it was a LIMITATION, not a law. His ledgers live in localStorage inside
+    bible.html — vault_ledger_load() returns 0 entries on disk — and chronicle_apply has always
+    reached into the board window to WRITE a tick (v1523: "the console never writes the grail", it
+    asks the board, which owns it). Only the READ direction was missing, so a question about his own
+    ledger required him to copy it out by hand.
+    """
+
+    def test_no_board_means_say_so_not_zero(self):
+        """THE ONE THAT MATTERS. "he owns nothing" and "nobody could ask" must never read the same."""
+        import control_app as ca
+        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"))
+        ca.__dict__["_MAIN_WIN"] = None
+        ca.__dict__["_WINDOW_LIVE"] = False
+        try:
+            r = ca.board_ownership()
+        finally:
+            ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"] = old
+        self.assertFalse(r.get("ok"))
+        self.assertIn("board window is not open", r.get("why", ""))
+        self.assertNotIn("counts", r, "a closed board reported a ledger it never read")
+
+    def test_a_timeout_is_not_an_empty_ledger(self):
+        import control_app as ca
+        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"), ca._ejs)
+        ca.__dict__["_MAIN_WIN"] = object()
+        ca.__dict__["_WINDOW_LIVE"] = True
+        ca._ejs = lambda w, js, timeout=8.0: None        # _ejs returns None on timeout
+        try:
+            r = ca.board_ownership()
+        finally:
+            ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"], ca._ejs = old
+        self.assertFalse(r.get("ok"))
+        self.assertIn("UNREAD", r.get("why", ""),
+                      "a silent board was reported as an answer")
+
+    def test_it_reports_what_the_board_says(self):
+        import control_app as ca
+        payload = json.dumps({"ok": True,
+                              "counts": {"foundLog": 287, "owned": 0, "setPieces": 21},
+                              "sample": {"foundLog": [], "owned": [], "setPieces": []}})
+        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"), ca._ejs)
+        ca.__dict__["_MAIN_WIN"] = object()
+        ca.__dict__["_WINDOW_LIVE"] = True
+        ca._ejs = lambda w, js, timeout=8.0: payload
+        try:
+            r = ca.board_ownership()
+        finally:
+            ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"], ca._ejs = old
+        self.assertTrue(r.get("ok"))
+        self.assertEqual(r["counts"]["foundLog"], 287)
+
+    def test_unreadable_answer_is_refused_not_guessed(self):
+        import control_app as ca
+        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"), ca._ejs)
+        ca.__dict__["_MAIN_WIN"] = object()
+        ca.__dict__["_WINDOW_LIVE"] = True
+        ca._ejs = lambda w, js, timeout=8.0: "not json at all"
+        try:
+            r = ca.board_ownership()
+        finally:
+            ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"], ca._ejs = old
+        self.assertFalse(r.get("ok"))
+
+    def test_the_route_exists_beside_its_sibling(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn('path == "/api/board_ownership"', src)
+        # both halves of one channel answer to the same verb
+        i = src.find('path == "/api/board_ownership"')
+        # 900, not 400: the route carries a long note and a short window stopped before the call —
+        # the third time today a guard failed on its own reach rather than on the code.
+        self.assertIn("board_ownership(", src[i:i + 900])
+
+    def test_it_reads_all_three_stores(self):
+        # the vault question needs the found LEDGER and the physical VAULT kept apart — that split
+        # is the whole point of _UNI_EXTRA and of the v1692 mis-route it was written for
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def board_ownership(")
+        body = src[i:i + 2600]
+        for k in ("d2r_foundLog", "d2r_owned", "d2r_setPieces"):
+            self.assertIn(k, body, "%s is not read — the cross-reference cannot tell the stores apart" % k)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
