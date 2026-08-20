@@ -8938,8 +8938,8 @@ class TestBoardOwnershipReadBack(unittest.TestCase):
         # is the whole point of _UNI_EXTRA and of the v1692 mis-route it was written for
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
-        i = src.find("def board_ownership(")
-        body = src[i:i + 2600]
+        body = _between(self, src, "def board_ownership(", "\ndef ", min_len=400,
+                        what="board_ownership")
         for k in ("d2r_foundLog", "d2r_owned", "d2r_setPieces"):
             self.assertIn(k, body, "%s is not read — the cross-reference cannot tell the stores apart" % k)
 
@@ -9600,14 +9600,14 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
     guard stopped checking, and it is the same family as the two anchors that hit the wrong
     occurrence of a name and the stripper that ate a third of the file.
 
-    There are 26 of these in this file tonight. Rewriting them all at once would be a large,
+    There are 24 of these in this file tonight. Rewriting them all at once would be a large,
     risky change to the very things that catch regressions, so this does the safe half: it PINS THE
     COUNT so the class cannot grow, and names `_between()` as the way to write the next one. Lower
     the number as sites are converted; never raise it.
 
     ⚠ The number is a DEBT, not a target. It is here to be reduced. [[source-reading-guard]]"""
 
-    LIMIT = 26
+    LIMIT = 24
 
     def test_no_new_byte_counted_slices(self):
         import re as _re
@@ -10694,9 +10694,9 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         The READER is the one hook both paths pass through."""
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
-        i = src.find("def _reader(p, surface):")
-        self.assertGreater(i, 0, "the vault reader moved — re-point this guard")
-        body = src[i:i + 900]
+        # v1892 — bounded by the function's real end, not 900 bytes of habit
+        body = _between(self, src, "def _reader(p, surface):", "\n        prop = _vr.sweep(",
+                        min_len=200, what="the vault reader")
         self.assertIn("stash_screen_open(", body,
                       "a declared-focus reel still reads every frame as ownership, gate or no gate")
         gate_at = body.find("stash_screen_open(")
@@ -10782,7 +10782,13 @@ class TestTheTemplateClassifiesForFree(unittest.TestCase):
         # 3600, not 2200: the explanation above _classify_one is long and a short window stopped
         # before the paid fallback. That is the FOURTH guard of mine today to fail on its own reach
         # rather than on the code — measure the window against the function, not against a habit.
-        body = src[i:i + 3600]
+        # the function's real end is the line that WRAPS it — `_classify = _cr.classifier(...)`.
+        # The first end anchor I reached for ("def _reader") does not exist after this function at
+        # all, and _between REFUSED rather than silently running to EOF. That refusal is the whole
+        # point of the helper: the old `src[i:i + 3600]` would have measured 3600 bytes of whatever
+        # happened to follow and reported a pass.
+        body = _between(self, src, "def _classify_one(", "_classify = _cr.classifier(",
+                        min_len=400, what="the chronicle classify")
         t_at = body.find("chronicle_template")
         pay_at = body.find("_tv.claude_read(")
         self.assertGreater(t_at, -1, "the sweep still pays a model for what the template knows")

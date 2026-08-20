@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1892",
+  "ver": "v1893",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1892: Not a defect in his code but in mine, four times in one night and all the same family: a source guard that fails on its own reach rather than on the thing it checks - a byte window a comment pushed past, my own placeholder inside a comment, an unbounded comment stripper that ate a sixth of the file, and an anchor that matched a new call site instead of a definition. Every one produced an empty or truncated slice, and an empty slice does not announce itself because assertNotIn passes on one. There is a safe helper now that refuses all three failure directions, and a ratchet pinning the twenty-six byte-counted slices so the class cannot grow.",
+  "note": "v1893: It shipped with nothing calling it but its own self-test, which is plumbing with no tap by the definition used all night. Three of the longest byte windows are converted and the ratchet drops from twenty-six to twenty-four. The conversion immediately caught one: the obvious-looking end anchor for the chronicle classify does not appear after that function at all, so the helper refused where the old three thousand six hundred byte window would have measured whatever followed and reported a pass. Seen red in place by sabotaging inside the slice, after a first attempt that sabotaged a comment at the top of the file and proved nothing.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

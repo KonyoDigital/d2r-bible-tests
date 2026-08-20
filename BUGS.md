@@ -7379,3 +7379,28 @@ for a normal hour.
 ⚠ And installing it broke the file once: my first attempt's `%%`-escaped template got written with a
 live `""" % (25,)` on the end of a docstring, and the module stopped importing. Caught by the very
 next run, removed whole rather than patched.
+
+## REG-243 — the safe helper had no users, so it got three (v1893)
+
+`_between()` shipped in v1892 with nothing calling it but its own self-test — plumbing with no tap,
+by the definition I have been using all night. Three of the longest byte-windows are converted, and
+the ratchet drops **26 → 24**.
+
+**The conversion immediately caught one.** `def _classify_one(` → `def _reader(` looked like the
+obvious pair, and **`def _reader(` does not appear after `_classify_one` at all**. `_between`
+refused; the old `src[i:i + 3600]` would have measured 3,600 bytes of whatever followed and reported
+a pass. The real end of that function is the line that wraps it —
+`_classify = _cr.classifier(...)`.
+
+That is the helper doing precisely the job it was written for, on its first real use.
+
+**Seen red in place**, not merely assumed: sabotaging `chronicle_template` *inside* the slice fails
+the guard; restoring it passes. ⚠ My first sabotage attempt replaced the first occurrence in the
+whole file — a comment near the top — and nothing happened. The instrument again, and the fix was to
+sabotage inside the slice the guard actually reads.
+
+| | |
+|---|---|
+| `board_ownership` | 2600 bytes → bounded by the next `def ` |
+| the vault `_reader` | 900 bytes → bounded by `prop = _vr.sweep(` |
+| the chronicle `_classify_one` | 3600 bytes → bounded by `_classify = _cr.classifier(` |
