@@ -7127,3 +7127,44 @@ stash."* A still run is frames that look the **same**. [[feedback-suspect-the-in
 **No defect was found in the routing.** That is the result, and it is worth stating plainly rather
 than dressing up: the laws hold at 1 item and at 500, and now there is something that would notice
 if they stopped.
+
+## REG-235 — a misread name became a permanent ghost in his vault (FIXED v1885)
+
+Found by taking REG-234's battery one step further, on his own data: the **53 name corrections his
+chronicle sweep made on 2026-08-20**, pushed at the **vault** lane instead.
+
+```
+pushed   Atma's Scarab · Battlecage · Saracen's Chance
+owned    Atma's Scarab · Battlecage · Saracen's Chance      (verbatim)
+both spellings together -> SIX owned rows for THREE real items
+```
+
+**The vault sweep had no name fold at all** — 0 occurrences of `fold`, `roster` or `resolve` in its
+198 lines — while the chronicle sweep has had one for versions. And **merge-max never subtracts**, so
+every one of those rows is permanent. The two-witness keep bar does not save it either: a
+*systematic* misread is exactly the kind that repeats, as this repo's own law-3 note says —
+*"reading 'Ral' as 'Ort' a second time is exactly as likely as the first time."*
+
+**Fixed: an EXACT fold, and only exact.** `Atma's Scarab` and `Saracen's Chance` normalise onto their
+curly-quoted roster names exactly, so the apostrophe class — the common one, and the one his own
+sweep hit — is corrected. Six rows became three.
+
+⚠ **NEAR MATCHES ARE REFUSED, and that is a defect my own fold shipped for one minute before this
+battery caught it.** `canonical()` near-matched `"Isenhart's Armory (set)"` — a **set aggregate** —
+onto `"Isenhart's Parry (shield)"`, a specific piece. Not a correction: **a find he never made**,
+which is exactly what the resolver's own comment warns about.
+
+The chronicle lane can afford near matches because a Chronicle page is a **closed list** of grail
+names — every row *is* a roster item. **A stash is an open universe**: runes, gems, materials, bases,
+charms, jewels, set aggregates, quest items. "Nearest roster entry" there is a guess about which of
+two different things he owns.
+
+**So `Battlecage → Rattlecage` is deliberately NOT fixed in this lane.** An uncorrected row he can
+see beats a confident wrong attribution he cannot. Stated here rather than left as a surprise.
+
+⚠ And a missing resolver now **says so** — *"gating on RAW reader names, so a misread can become a
+permanent row"* — instead of silently reverting to the old behaviour.
+
+**22 tests**, including the safety half: nine ordinary stash things (`Ral Rune`, `Perfect Ruby`,
+`Cracked Sash`, `Chipped Skull`, `Tome of Town Portal`, `Small Charm`, `Jewel`, `Key of Terror`,
+`Wirt's Leg`) must come out **exactly as read**.

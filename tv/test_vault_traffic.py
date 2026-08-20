@@ -184,6 +184,91 @@ class TestTheThrowBarSeenFromBothSides(_Base):
         self.assertEqual(len(self.sweep(below)[0]["owned"]), 0, "below the floor passed")
 
 
+class TestAMisreadDoesNotBecomeAGhost(_Base):
+    """v1885 — the vault lane had NO name fold, and the chronicle lane has had one for versions.
+
+    Measured with the exact corrections his chronicle sweep made on 2026-08-20 — 53 in one reel —
+    pushed at the vault instead:
+
+        pushed   Atma's Scarab · Battlecage · Saracen's Chance
+        owned    Atma's Scarab · Battlecage · Saracen's Chance      (verbatim)
+        both spellings together -> SIX owned rows for THREE real items
+
+    And merge-max never subtracts, so every one of those is PERMANENT. The two-witness keep bar does
+    not save it either: a SYSTEMATIC misread is exactly the kind that repeats, as this repo's own
+    law-3 note says — "reading 'Ral' as 'Ort' a second time is exactly as likely as the first time".
+
+    ⚠ THE HALF THAT MATTERS MORE IS WHAT IT MUST NOT TOUCH. The chronicle fold may call an
+    unfoldable name debris, because a Chronicle page holds nothing but grail items. A STASH holds
+    runes, gems, materials, bases, charms and jewels. `canonical("Ral Rune")` is None and that is a
+    real thing he owns."""
+
+    # EXACT folds only — the apostrophe class, which is the common one and the one his own sweep
+    # hit. "Battlecage" -> "Rattlecage" needs a NEAR match and is deliberately NOT folded here; see
+    # test_a_near_match_is_refused_because_it_can_rename_one_item_into_another.
+    PAIRS = (("Atma's Scarab", "Atma’s Scarab"),
+             ("Saracen's Chance", "Saracen’s Chance"))
+
+    def test_two_spellings_of_one_item_become_one_row(self):
+        items = []
+        for raw, _canon in self.PAIRS:
+            items += [{"name": raw, "conf": 0.9}, {"name": _canon, "conf": 0.9}]
+        res, _ = self.sweep(items)
+        names = sorted(r["name"] for r in res["owned"])
+        self.assertEqual(names, sorted(c for _r, c in self.PAIRS),
+                         "the misread survived as its own row: %s" % names)
+
+    def test_a_misread_alone_is_recorded_under_its_real_name(self):
+        res, _ = self.sweep([{"name": raw, "conf": 0.9} for raw, _c in self.PAIRS])
+        self.assertEqual(sorted(r["name"] for r in res["owned"]),
+                         sorted(c for _r, c in self.PAIRS))
+
+    def test_it_NEVER_renames_something_that_is_not_a_grail_item(self):
+        """The safety half. A stash is mostly things the roster has never heard of."""
+        raw = ["Ral Rune", "Perfect Ruby", "Cracked Sash", "Chipped Skull", "Tome of Town Portal",
+               "Small Charm", "Jewel", "Key of Terror", "Wirt's Leg"]
+        res, _ = self.sweep([{"name": n, "conf": 0.9} for n in raw])
+        self.assertEqual(sorted(r["name"] for r in res["owned"]), sorted(raw),
+                         "the fold rewrote a name it had no business touching")
+
+    def test_a_near_match_is_refused_because_it_can_rename_one_item_into_another(self):
+        """The defect my own fold shipped for one minute, before this test caught it.
+
+        canonical() near-matched "Isenhart's Armory (set)" — a SET AGGREGATE — onto "Isenhart's
+        Parry (shield)", a specific piece. Not a correction: a find he never made. The chronicle
+        lane can afford near matches because a Chronicle page is a CLOSED list of grail names; a
+        stash is an open universe of runes, gems, bases, charms and aggregates."""
+        for n in ("Isenhart's Armory (set)", "Battlecage"):
+            res, _ = self.sweep([{"name": n, "conf": 0.9}])
+            self.assertEqual([r["name"] for r in res["owned"]], [n],
+                             "%r was near-matched onto a different item" % n)
+
+    def test_the_fold_can_be_switched_off_and_then_the_ghost_returns(self):
+        """Seen RED for its own reason: with the fold off, both spellings survive as two rows —
+        which is precisely the state the vault was in before v1885."""
+        both = [{"name": "Atma's Scarab", "conf": 0.9}, {"name": "Atma’s Scarab", "conf": 0.9}]
+        off, _ = self.sweep_with_resolve(both, lambda n: n)
+        self.assertEqual(len(off["owned"]), 2, "the fold is not actually doing the work")
+        on, _ = self.sweep(both)
+        self.assertEqual(len(on["owned"]), 1)
+
+    def sweep_with_resolve(self, items, resolve, sessions=2, surface="stash"):
+        import shutil
+        root = tempfile.mkdtemp(prefix="vault-fold-")
+        self.addCleanup(shutil.rmtree, root, True)
+        dirs = [_reel(root, "s_17870000%02d_sim" % s) for s in range(sessions)]
+        res = vr.sweep(dirs, sig=lambda p: list(_SIG), classify=lambda p: surface,
+                       reader=lambda p, s: {"items": items, "conf": 0.9, "note": None},
+                       resolve=resolve)
+        return res, 0.0
+
+    def test_a_fold_that_cannot_load_says_so_rather_than_failing_silent(self):
+        import inspect
+        src = inspect.getsource(vr._name_folder)
+        self.assertIn("gating on RAW reader names", src,
+                      "a missing resolver would now be silent, and a misread permanent")
+
+
 class TestTraffic(_Base):
     """"you fed it 300-500 items at once to see how it reacted to the traffic?" — now, yes."""
 

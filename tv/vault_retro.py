@@ -446,7 +446,78 @@ def _empty(why, sessions_seen=0):
                        "pagesRead": 0, "skipped": 0}}
 
 
-def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
+_RESOLVER_WARNED = [False]
+
+
+def _name_folder(resolve=None):
+    """A function that CORRECTS a reader's item name onto his roster, or leaves it alone.
+
+    v1885 — THE VAULT LANE HAD NO FOLD AT ALL, and the chronicle lane has had one for versions.
+    Measured on the exact corrections his chronicle sweep made on 2026-08-20 — 53 of them in one
+    reel — pushed at the vault instead:
+
+        pushed  Atma's Scarab · Battlecage · Saracen's Chance
+        owned   Atma's Scarab · Battlecage · Saracen's Chance      (verbatim)
+        both spellings together -> SIX owned rows for THREE real items
+
+    And merge-max never subtracts, so each of those is PERMANENT. A systematic misread is exactly
+    the kind that repeats across sessions — this file's own law-3 note says so: "Coming back four
+    minutes later and reading 'Ral' as 'Ort' a second time is exactly as likely as the first time"
+    — so the two-witness keep bar does not save it. Two sessions of one misread is a ghost item in
+    his vault, forever.
+
+    ⚠ THE ONE THING THIS MUST NOT DO IS RETIRE WHAT IT CANNOT FOLD. The chronicle fold may call an
+    unfoldable name debris, because a Chronicle page holds nothing but grail items. A STASH holds
+    runes, gems, materials, bases, charms and jewels — `canonical("Ral Rune")` is None and that is
+    a real thing he owns. So: correct what folds, leave everything else EXACTLY as read.
+    [[d2r-multiwitness-corroboration]] [[feedback-generalize-fixes]]
+    """
+    if resolve is not None:
+        return resolve
+    try:
+        import chronicle_resolve as _res
+        roster = _res.load_roster()
+        set_roster = _res.load_set_roster()
+    except Exception as e:
+        if not _RESOLVER_WARNED[0]:
+            _RESOLVER_WARNED[0] = True
+            print("   \u26a0 vault name-fold unavailable (%s) \u2014 gating on RAW reader names, so a "
+                  "misread can become a permanent row" % e)
+        return lambda n: n
+
+    # ⚠ EXACT FOLDS ONLY IN THE VAULT LANE — NO NEAR MATCHES. This is not caution, it is a defect
+    # my own test caught within a minute of writing the fold: canonical() near-matched
+    # "Isenhart's Armory (set)" — a SET AGGREGATE — onto "Isenhart's Parry (shield)", a specific
+    # piece. That is not a correction, it is a find he never made, and it is exactly what the
+    # resolver's own comment warns about ("guessing here writes a find he never made").
+    #
+    # WHY THE CHRONICLE LANE CAN AFFORD NEAR MATCHES AND THIS ONE CANNOT: a Chronicle page is a
+    # CLOSED list of grail names, so every row IS a roster item and the nearest one is very likely
+    # right. A STASH IS AN OPEN UNIVERSE — runes, gems, materials, bases, charms, jewels, set
+    # aggregates, quest items — so "nearest roster entry" is a guess about which of two different
+    # things he owns.
+    #
+    # WHAT THIS FIXES, measured: the apostrophe class, which is the common one and the one his own
+    # sweep hit — "Atma's Scarab" and "Saracen's Chance" both normalise onto their curly-quoted
+    # roster names EXACTLY (_norm folds ’ to ' and strips non-letters).
+    # WHAT IT DELIBERATELY DOES NOT FIX: "Battlecage" -> "Rattlecage". That needs a near match, and
+    # an uncorrected row he can SEE is better than a confident wrong attribution he cannot.
+    def fold(name):
+        try:
+            k = _res._norm(name)
+        except Exception:
+            return name
+        if not k:
+            return name
+        for r in (roster, set_roster):
+            if r and k in r:
+                return r[k]
+        return name           # a rune, a gem, a base, a charm — not debris, just not a grail name
+
+    return fold
+
+
+def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None):
     """THE VAULT RETRO SWEEP: sealed reels in, a PROPOSAL of what he owns out. Writes nothing.
 
     hist_dirs: sealed reel directories, newest-first (mini/stash reels are re-ordered to the front).
@@ -479,6 +550,8 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
     frames_seen = classified = pages_read = skipped = 0
     trusted = 0   # runs whose surface came from HIS declared focus rather than a paid read
 
+    _fold = _name_folder(resolve)
+    folded_names = {}
     for reel_dir in dirs:
         sessions_seen += 1
         idx = _load_index(reel_dir)
@@ -569,6 +642,13 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
                 ts = resp.get("ts") if isinstance(resp.get("ts"), (int, float)) else run.get("end_ts")
                 for raw in (resp.get("items") or []):
                     item = normalize_item(raw, surface, lane_default, page_conf)
+                    if item is not None:
+                        # v1885 — fold BEFORE the key is formed, or two spellings of one item are
+                        # two piles of evidence and neither may reach two witnesses
+                        _canon = _fold(item["name"])
+                        if _canon and _canon != item["name"]:
+                            folded_names[item["name"]] = _canon
+                            item["name"] = _canon
                     if item is None:
                         unsure.append({"name": None,
                                        "why": "the reader returned a row with no name on %s in %s — "
@@ -584,6 +664,10 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None):
         if read_this_reel:
             sessions_read.append(sid)
 
+    if folded_names:
+        _eg = ", ".join("%s -> %s" % kv for kv in sorted(folded_names.items())[:3])
+        print("   \U0001f9f9 %d reader name(s) folded onto the roster (%s)"
+              % (len(folded_names), _eg))
     owned, throw_out = [], []
     for key in sorted(evidence, key=lambda k: (k[1], k[0].lower(), k[0])):
         ev = evidence[key]
