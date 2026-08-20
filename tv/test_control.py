@@ -8940,6 +8940,24 @@ class TestTheVaultTemplateGate(unittest.TestCase):
                         "the gate is asked AFTER the classify is charged — a frame that is not a "
                         "stash must cost nothing")
 
+    def test_the_QUOTE_asks_the_same_gate_as_the_sweep(self):
+        """v1851 — both halves of a price must name the same thing.
+
+        vault_scan_cost's probe answered "stash" for every path on purpose (v1596: price the WORST
+        case, because a probe answering None hid the larger half of the bill). v1850 then put a
+        structural gate in front of the real sweep, so the quote would have priced every gameplay
+        frame as a readable stash page while the sweep refuses those for free — the same mismatch
+        v1834 fixed on the chronicle side, where a 483-frame reel quoted the cost of a different one.
+        """
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def vault_scan_cost")
+        self.assertGreater(i, 0)
+        j = src.find('return "stash"', i)
+        self.assertGreater(j, i, "the vault quote's probe moved — re-point this guard")
+        self.assertIn("stash_screen_open(", src[i:j],
+                      "the quote prices frames the sweep would refuse for free")
+
     def test_a_refused_frame_is_reported_not_silent(self):
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()

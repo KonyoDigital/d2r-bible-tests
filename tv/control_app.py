@@ -10103,8 +10103,20 @@ def vault_scan_cost(hist_dir=None, limit=None):
 
     def _probe(path):
         picked.append(path)
-        # a real ownership surface, so sweep()'s read stage runs and counts pages. Still cannot
-        # spend: the reader below is a local stub.
+        # v1851 — THE QUOTE ASKS THE SAME GATE THE SWEEP DOES.
+        #
+        # This answered "stash" for every path on purpose: v1596 made the quote price the WORST
+        # CASE, because a probe that answered None skipped the read stage and hid the larger half
+        # of the bill. That reasoning stands — but v1850 put a STRUCTURAL gate in front of the real
+        # sweep, so the two now disagree by a lot: the quote would price every gameplay frame as a
+        # readable stash page while the sweep refuses those for free.
+        #
+        # The gate costs no model call — a crop and an OCR — so the quote can just ask it, and the
+        # number he reads before agreeing to spend describes the run he would actually get. Same
+        # rule v1834 applied to the chronicle quote: both halves of a price must name the same
+        # thing. A refused frame is still COUNTED as looked at; it is only not priced as a page.
+        if stash_screen_open(path) is None:
+            return None
         return "stash"
 
     try:
@@ -11890,7 +11902,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1850",
+        "ver": "v1851",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -7,6 +7,7 @@
 #   tvd replay       REPLAY a real past session — tvd replay --list
 #   tvd restart      kill :17771 and start fresh
 #   tvd status       ping the bridge
+#   tvd owns         what the BOARD says he owns (found ledger / vault / set pieces)
 #   tvd stop         stop the agent (farewell read, up to ~90s)
 #   tvd --test IMG   one-shot vision check
 #
@@ -154,6 +155,26 @@ case "${1:-}" in
         | "$PY" -c 'import json,sys; st=json.load(sys.stdin); print("control", st.get("ver"), "· mode", st.get("mode"), "· bridge", st.get("bridge"), "· reads", st.get("readCount"))' 2>/dev/null || true
     fi
     cmd_status
+    ;;
+  owns | ownership )
+    # 2026-08-20 — what the BOARD says he owns. His grail and vault ledgers live in localStorage
+    # inside bible.html, never on disk, so this asks the board over the same channel the console
+    # already uses to apply a tick. Read-only and spends nothing.
+    #
+    # It is also this route's CALLER: v1550's gate refuses a /api route with no consumer — "a route
+    # with no caller is plumbing with no tap — give it one or delete it" — and it caught me adding
+    # /api/board_ownership in v1848 with nothing calling it, which is the exact defect I had spent
+    # the day fixing elsewhere.
+    curl -sS --max-time 10 -X POST "http://127.0.0.1:17772/api/board_ownership" \
+      -H 'Content-Type: application/json' -d '{"sample":0}' 2>/dev/null \
+      | "$PY" -c 'import json,sys
+r=json.load(sys.stdin)
+if not r.get("ok"):
+    print("not read —", r.get("why","no answer")); raise SystemExit(1)
+c=r.get("counts") or {}
+print("found ledger %s · physical vault %s · set pieces %s"
+      % (c.get("foundLog"), c.get("owned"), c.get("setPieces")))' 2>/dev/null \
+      || echo "the console is not running, or the board window is closed"
     ;;
   --test | test )
     shift
