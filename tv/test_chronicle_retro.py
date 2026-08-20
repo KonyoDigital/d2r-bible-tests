@@ -1463,5 +1463,49 @@ class TestChronicleDatesReachTheEvidence(unittest.TestCase):
             self.assertIn(field, claude, "the Claude lane stopped asking for %s" % field)
             self.assertIn(field, grok, "the Grok lane stopped asking for %s" % field)
 
+
+class TestOneReelCannotWitnessItselfTwice(unittest.TestCase):
+    """v1824 — a reel is written into the evidence under TWO different names.
+
+    read_reel takes `sid = idx.get("sessionId") or os.path.basename(reel_dir)`, so a reel whose
+    index carries a sessionId lands as "s_1787177267889_92273" while one without it falls back to
+    the directory name, "reel_s_1787177267889_92273". BOTH spellings are already in his live
+    ledger — found while watching a real sweep write one of them.
+
+    witnesses() counts DISTINCT reels, so one reel read once under each spelling would score
+    `cross-reel`: two sessions' worth of independence conjured out of one recording. The function's
+    own cross-frame rule states the principle — "Independence has to be independent of itself."
+    """
+
+    def test_the_same_reel_under_both_spellings_is_ONE_reel(self):
+        sightings = [
+            {"reel": "s_1787177267889_92273", "frame": "f1", "lane": "claude", "conf": 0.9},
+            {"reel": "reel_s_1787177267889_92273", "frame": "f2", "lane": "claude", "conf": 0.9},
+        ]
+        w = cr.witnesses(sightings)
+        self.assertNotIn("cross-reel", w,
+                         "one recording claimed to be two independent sessions")
+        self.assertIn("cross-frame", w, "two frames of one reel is still cross-frame")
+
+    def test_two_genuinely_different_reels_still_corroborate(self):
+        sightings = [
+            {"reel": "s_1787177267889_92273", "frame": "f1", "lane": "claude", "conf": 0.9},
+            {"reel": "reel_s_1786999742937_35523", "frame": "f2", "lane": "claude", "conf": 0.9},
+        ]
+        self.assertIn("cross-reel", cr.witnesses(sightings),
+                      "normalising the key must not cost a real witness")
+
+    def test_normalising_can_only_REMOVE_a_witness(self):
+        # the safe direction: this may only ever shrink the evidence for a name, never inflate it,
+        # so it cannot ground something that would not have grounded before.
+        sightings = [
+            {"reel": "reel_A", "frame": "f1", "lane": "claude", "conf": 0.9},
+            {"reel": "A", "frame": "f2", "lane": "grok", "conf": 0.9},
+        ]
+        w = cr.witnesses(sightings)
+        self.assertIn("cross-lane", w, "a second LANE is independent of how the reel is spelled")
+        self.assertNotIn("cross-reel", w)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

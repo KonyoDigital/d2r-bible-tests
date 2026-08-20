@@ -1125,11 +1125,29 @@ def merge_proposals(base, incoming):
     return out
 
 
+def _reel_key(reel):
+    """One reel, one key — whichever spelling it was recorded under.
+
+    v1824 — A REEL IS WRITTEN INTO THE EVIDENCE UNDER TWO DIFFERENT NAMES. read_reel takes
+    `sid = idx.get("sessionId") or os.path.basename(reel_dir)`, so a reel whose index carries a
+    sessionId lands as "s_1787177267889_92273" while one without it falls back to the directory
+    name, "reel_s_1787177267889_92273". Both spellings are already sitting in his live ledger.
+
+    witnesses() counts DISTINCT reels, so the same reel read once under each spelling would score
+    `cross-reel` — two independent sessions' worth of evidence conjured out of one. This function's
+    own rule for cross-frame says it in one line: "Independence has to be independent of itself."
+    Normalising here is conservative in the right direction: it can only ever REMOVE a witness, so
+    it cannot ground a name that would not otherwise have grounded.
+    """
+    r = str(reel or "")
+    return r[5:] if r.startswith("reel_") else r
+
+
 def witnesses(sightings):
     """The distinct, independent signals behind one proposed name. Returns a sorted list of tags."""
     tags = set()
     lanes = {(s.get("lane") or "claude") for s in (sightings or [])}
-    reels = {s.get("reel") for s in (sightings or []) if s.get("reel")}
+    reels = {_reel_key(s.get("reel")) for s in (sightings or []) if s.get("reel")}
     if len(lanes) >= 2:
         tags.add("cross-lane")
     if len(reels) >= 2:
@@ -1147,7 +1165,7 @@ def witnesses(sightings):
     by_reel = {}
     for s in (sightings or []):
         if s.get("frame"):
-            by_reel.setdefault(s.get("reel"), set()).add(s.get("frame"))
+            by_reel.setdefault(_reel_key(s.get("reel")), set()).add(s.get("frame"))
     if any(len(v) >= 2 for v in by_reel.values()):
         tags.add("cross-frame")
     if any((s.get("witness") == "agree") for s in (sightings or [])):

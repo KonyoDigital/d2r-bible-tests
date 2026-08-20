@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1823",
+  "ver": "v1824",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1823: Both chronicle watchdogs refused outright while a capture session was live, so with the console open and TV DIABLO capturing the sweeper never got a window and finished reels sat unread for hours. A session existing was a proxy. Whether a reel is still receiving frames is the fact, and only that reel is skipped now.",
+  "note": "v1824: A reel is written into the evidence under two names depending on whether its index carries a sessionId, and both spellings are already in the live ledger. Witness counting treated them as two independent sessions.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
