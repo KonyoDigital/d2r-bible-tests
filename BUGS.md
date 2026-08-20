@@ -7225,3 +7225,40 @@ than believing: a 501st rune that was residue from my own earlier probe (merge-m
 memory and localStorage — the designed behaviour); an edit that "did not take" because my harness
 matched the *first* `bible.html` tab and picked a stale one; and before that, the still-run signature
 inverted. **The count is the tell.** [[feedback-suspect-the-instrument]]
+
+## REG-238 — the chronicle lane got the battery the vault got (v1888)
+
+The symmetric half of REG-234. `test_chronicle_retro.py` has **162 tests** and they are thorough
+about the laws — a verdict explains itself either way, every reel folds into one proposal, a
+scroll's later pages are read and not just the first. **Every one of them uses a handful of
+hand-made names, and nothing tested volume.**
+
+`tv/test_chronicle_traffic.py` (11 tests, gate #34) drives the **whole universe**: 398 uniques + 135
+set pieces = **533 names**.
+
+| | |
+|---|---|
+| every unique, 2 frames × 2 lanes | **398 → 398 in the proposal → 398 ground** |
+| every set piece | **135 → 135 ground** |
+| one lane, one frame | **0 ground** — the corroboration law at 398 names, not three |
+| every held verdict | still carries a `why` |
+| the whole universe in one proposal | lossless, well under the time bound |
+| a page read **200 times** | still one row per name |
+| **12 reels, shuffled** | `merge_proposals` gives the same answer in any order, and loses nothing |
+
+**And the ambiguous fold his own roster contains** — found by trying *every single-letter deletion of
+every roster key*, not by imagining one:
+
+```
+probe 'stormspie'  ->  Stormspire (0.947)  vs  Stormspike (0.947)
+```
+
+Two **real** grail items, tied to three decimals. A reader dropping one letter of `Stormspike` would
+otherwise be recorded as finding `Stormspire` — a find he never made, kept forever by merge-max.
+`canonical()` returns **None**, and a standing check now sweeps all 398 keys × every deletion to
+prove no ambiguous probe ever folds onto a name.
+
+**Seen red**: drop the witness bar to zero and the one-lane test fails; set the ambiguity gap to zero
+and both fold tests fail. ⚠ My first sabotage attempt did **not** bite — `gate_verdict`'s
+`min_witnesses` default is bound at def time, so patching the module global does nothing. That was
+the instrument again, and the fix was to patch the function.

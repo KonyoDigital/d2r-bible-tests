@@ -78,6 +78,11 @@ GATES = [
     Gate("test_shard_balance", [sys.executable, os.path.join(HERE, "test_shard_balance.py")], 30,
          why="Routine I must peel the every-item simulations into the slow project so "
              "--shard cannot dump them all into one 45-minute file-count bucket"),
+    Gate("test_chronicle_traffic", [sys.executable, os.path.join(HERE, "test_chronicle_traffic.py")], 180,
+         why="v1888 — the whole grail (398 uniques + 135 set pieces) through proposal -> gate -> "
+             "merge, order-independence across twelve reels, and the ambiguous fold his own roster "
+             "contains: 'stormspie' sits between Stormspire and Stormspike at 0.947 each and must "
+             "come back None"),
     Gate("test_vault_traffic", [sys.executable, os.path.join(HERE, "test_vault_traffic.py")], 180,
          why="v1884 — EVERY item through sweep() end to end, and 500 at once. The 21 tests in "
              "test_vault_retro drive gate() and merge_vault() directly and not one of them calls "
