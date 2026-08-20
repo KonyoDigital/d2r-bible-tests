@@ -6792,3 +6792,30 @@ looked up, 0 missing.** Both clean, and now they stay clean.
 ⚠ **The count was the tell.** The first run reported **135 missing ids in the board** — not a
 codebase 135 ways broken, a broken instrument (REG-223). Founding rule 4, which is why the
 stripper's own test now sits beside this one.
+
+## REG-225 — the last two writers, and the watchlist becomes the whole tree (FIXED v1874)
+
+With Konyo's console **down** — so nothing else could be blamed — a full 32-gate run still rewrote
+two of his files, both of which v1869 was supposed to have covered:
+
+1. **`g5_stats.json`.** v1869 patched `_STATS_PATH` in `TestG5OffByDefault`'s `setUp` and stopped
+   there. Every other class in that file — the CLI call, the dual intake receivers, the
+   cross-process counter — writes through `_stats_path()`, which reads
+   **`os.environ.get("G5_STATS_PATH")` FIRST**. One env var in `setUpModule` covers all of them,
+   where a `mock.patch` covers exactly the class that remembered to write it. Third time this
+   lesson has arrived tonight: guard the FIXTURE, not the call site.
+2. **`.tvd_beacon.json`.** The beacon test stubs `urlopen`, which stops the network half — and the
+   beacon *also* persists to `_BEACON_STATE_PATH`, his real fleet-history file. A test telling his
+   dashboard that a console checked in.
+
+**Then the gate itself was upgraded.** A named watchlist is a list of the leaks somebody already
+found: it named five files while a harness wrote a sixth, and adding that sixth caught two more
+writers inside an hour, and a whole-tree hash then caught five nobody had thought to name —
+including the subscription meter.
+
+`run_gates` now fingerprints **everything under `tv/`** (skipping `.git`, `__pycache__`, `frames`,
+`node_modules`, `.pytest_cache`). The named files remain the hard failure; every other moved file is
+**reported by name**, so the next leak is found rather than waited for.
+
+**PROVEN:** with his console down, a full 32-gate run now leaves his whole `tv/` tree
+**byte-identical**. That is the first time this has been true.

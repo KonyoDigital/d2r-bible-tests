@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import subprocess
@@ -15,6 +16,35 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import g5_grok_eyes as g5  # noqa: E402
+
+
+# v1874 — ONE SANDBOX FOR THE WHOLE MODULE, not one class at a time.
+#
+# v1869 patched `_STATS_PATH` in TestG5OffByDefault's setUp and stopped there. Measured after that
+# ship, with his console down so nothing else could be blamed: a full 32-gate run still rewrote his
+# live tv/g5_stats.json, and the bisect named this file again. Every OTHER class here — the CLI
+# call, the dual intake receivers, the cross-process counter — writes through the same helper, and
+# that helper reads an env override FIRST:
+#
+#     def _stats_path(): return os.environ.get("G5_STATS_PATH") or _STATS_PATH
+#
+# So the env var covers every class in one line, where a mock.patch covers exactly the class that
+# remembered to write it. That is the same lesson as v1867 and v1869, arriving a third time: guard
+# the FIXTURE, not the call site. [[feedback-fixtures-never-touch-live-data]]
+_G5_SANDBOX = tempfile.mkdtemp(prefix="g5-tests-")
+_G5_KEEP_STATS = os.environ.get("G5_STATS_PATH")
+
+
+def setUpModule():
+    os.environ["G5_STATS_PATH"] = os.path.join(_G5_SANDBOX, "g5_stats.json")
+
+
+def tearDownModule():
+    if _G5_KEEP_STATS is None:
+        os.environ.pop("G5_STATS_PATH", None)
+    else:
+        os.environ["G5_STATS_PATH"] = _G5_KEEP_STATS
+    shutil.rmtree(_G5_SANDBOX, ignore_errors=True)
 
 
 class TestG5OffByDefault(unittest.TestCase):

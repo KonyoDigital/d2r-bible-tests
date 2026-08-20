@@ -986,6 +986,17 @@ class TestV875Beacon(unittest.TestCase):
         # say which side of that it is testing. It passed on the Mac and ERRORed on the runner purely
         # because CI=true is set there — the same local-vs-CI blindness as REG-082, inverted.
         _saved_env = {k: os.environ.pop(k, None) for k in ("CI", "GITHUB_ACTIONS", "TVD_NO_BEACON")}
+        # v1874 — AND OWN THE FILE IT WRITES. Stubbing urlopen stops the network half; the beacon
+        # ALSO persists to _BEACON_STATE_PATH ("otherwise 'it has never ONCE succeeded' is
+        # unanswerable after a reboot"), which is his real tv/.tvd_beacon.json. Measured with his
+        # console down, so nothing else could be blamed: this was the last file a full 32-gate run
+        # still rewrote. A test that tells his dashboard a console checked in is a test writing his
+        # fleet's history. [[feedback-fixtures-never-touch-live-data]]
+        _beacon_dir = tempfile.mkdtemp(prefix="beacon-")
+        _beacon_keep = ca._BEACON_STATE_PATH
+        ca._BEACON_STATE_PATH = os.path.join(_beacon_dir, ".tvd_beacon.json")
+        self.addCleanup(shutil.rmtree, _beacon_dir, True)
+        self.addCleanup(setattr, ca, "_BEACON_STATE_PATH", _beacon_keep)
         try:
             ca._console_beacon("boot")
             self.assertEqual(sent["url"], "https://bull-4-u.com/api/console")
@@ -9484,6 +9495,58 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                "window.Real && window.Real();\n")
         self.assertEqual(self._dead_calls(src), [],
                          "the guard is reading its own documentation again")
+
+
+class TestTheGateWatchesTheWholeTreeNotAList(unittest.TestCase):
+    """v1874 — a named watchlist is a list of the leaks somebody already found.
+
+    It named five files while a harness wrote a SIXTH (1,729 rows into his session journal). Adding
+    that sixth caught two more writers within the hour. Then hashing the WHOLE tree caught five more
+    nobody had thought to name — including `.subscription_budget.json`, which meant every push spent
+    a real vision call on his account.
+
+    So the gate hashes everything under tv/ now. The named files stay the hard FAILURE; every other
+    moved file is reported by name, so the next leak is found the way tonight's were rather than
+    waited for. Measured with his console down, after the last writer was fixed: a full 32-gate run
+    leaves the tree byte-identical. [[feedback-blind-fixture-green-gate]]"""
+
+    def _rg(self):
+        import importlib.util
+        here = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location("_rg_probe", os.path.join(here, "run_gates.py"))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
+
+    def test_it_names_a_file_that_moved_created_or_vanished(self):
+        rg = self._rg()
+        before = {"a.json": "111", "b.log": "222", "gone.txt": "333"}
+        after = {"a.json": "111", "b.log": "999", "new.txt": "444"}
+        moved = rg._tree_diff(before, after)
+        joined = " | ".join(moved)
+        self.assertIn("b.log", joined, "a changed file was not reported")
+        self.assertIn("new.txt", joined, "a file the run CREATED was not reported")
+        self.assertIn("gone.txt", joined, "a file the run DELETED was not reported")
+        self.assertNotIn("a.json", joined, "an untouched file was reported")
+
+    def test_an_unchanged_tree_reports_nothing(self):
+        # the mirror — a reporter that always speaks is one he learns to scroll past
+        rg = self._rg()
+        same = {"a.json": "111", "b.log": "222"}
+        self.assertEqual(rg._tree_diff(same, dict(same)), [])
+
+    def test_the_watchlist_is_still_the_hard_failure(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "run_gates.py"), encoding="utf-8").read()
+        self.assertIn('failed.append("live-state-untouched")', src,
+                      "the named files stopped failing the run")
+        self.assertIn('if m.split(" (")[0] not in _LIVE_STATE', src,
+                      "the tree report duplicates the named files instead of complementing them")
+
+    def test_the_skips_are_the_three_that_legitimately_churn(self):
+        rg = self._rg()
+        self.assertEqual(rg._TREE_SKIP_DIRS,
+                         {".git", "__pycache__", "frames", "node_modules", ".pytest_cache"})
 
 
 class TestNoLookupOfAnElementThatIsNeverCreated(unittest.TestCase):

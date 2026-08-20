@@ -394,6 +394,36 @@ def _external_writer(names=_LIVE_STATE):
     return held
 
 
+# v1874 — THE WATCHLIST BECOMES THE WHOLE TREE.
+#
+# A named list is a list of the leaks somebody already found. It named five files while a harness
+# wrote a sixth (1,729 rows), and adding that sixth immediately caught two more writers, and then a
+# whole-tree hash caught five files nobody had thought to name — including .subscription_budget.json,
+# which meant every push spent a real vision call on his account.
+#
+# So: hash EVERYTHING here, not a list. Measured with his console down, after the last writer was
+# fixed, a full 32-gate run leaves tv/ byte-identical — so this can be armed without inventing false
+# reds. The exclusions are the three that legitimately churn: git internals, bytecode caches, and
+# his footage (the frames dir is enormous and a sweep writing an index there is not this gate's
+# business). [[feedback-blind-fixture-green-gate]]
+_TREE_SKIP_DIRS = {".git", "__pycache__", "frames", "node_modules", ".pytest_cache"}
+
+
+def _tree_fingerprint():
+    import hashlib
+    out = {}
+    for root, dirs, files in os.walk(HERE):
+        dirs[:] = [d for d in dirs if d not in _TREE_SKIP_DIRS]
+        for f in files:
+            p = os.path.join(root, f)
+            try:
+                with open(p, "rb") as fh:
+                    out[os.path.relpath(p, HERE)] = hashlib.md5(fh.read()).hexdigest()[:16]
+            except Exception:
+                continue
+    return out
+
+
 def _live_fingerprint():
     import hashlib
     out = {}
@@ -409,15 +439,21 @@ def _live_fingerprint():
     return out
 
 
-def _live_state_diff(before, after):
+def _live_state_diff(before, after, names=None):
     moved = []
-    for n in _LIVE_STATE:
+    for n in (names if names is not None else _LIVE_STATE):
         b, a = before.get(n), after.get(n)
         if b != a:
             was = "absent" if b is None else b
             now = "absent" if a is None else a
             moved.append("%s (%s -> %s)" % (n, was, now))
     return moved
+
+
+def _tree_diff(before, after):
+    """Every file under tv/ that the run created, changed or removed. v1874 — the named list is a
+    list of the leaks somebody already found; this is the one that finds the next one."""
+    return sorted(_live_state_diff(before, after, names=sorted(set(before) | set(after))))
 
 
 def main(argv):
@@ -436,8 +472,13 @@ def main(argv):
     if _sweep_in_progress():
         _sweep_live = _sweep_live or ["a chronicle sweep (tv/.sweep.lock)"]
     _live_before = _live_fingerprint()
+    _tree_before = _tree_fingerprint()
     results = run(a.only)
     _live_moved = _live_state_diff(_live_before, _live_fingerprint())
+    # the named files are the FAILURE; everything else in the tree is reported by name so the next
+    # leak is found the way tonight's five were, instead of waiting to be guessed at
+    _tree_moved = [m for m in _tree_diff(_tree_before, _tree_fingerprint())
+                   if m.split(" (")[0] not in _LIVE_STATE]
     for g, status, dt, detail, _blob in results:
         mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠"}[status]
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
@@ -458,6 +499,17 @@ def main(argv):
         for m in _live_moved:
             print("     %s" % m)
         print("   Redirect the path in that test's setUp; never write files beside control_app.py.")
+    if _tree_moved:
+        _why = ("the console is running on :17772" if _console_live
+                else ("held by %s" % ", ".join(_sweep_live)) if _sweep_live else "")
+        print("⚠ THE RUN ALSO TOUCHED %d OTHER FILE(S) UNDER tv/%s:"
+              % (len(_tree_moved), (" — %s, so this may not be the suite" % _why) if _why else ""))
+        for m in _tree_moved[:12]:
+            print("     %s" % m)
+        if not _why:
+            print("   Nothing here should move: with his console down, a full gate run leaves this "
+                  "tree byte-identical (measured v1874). Find the writer before it becomes a "
+                  "watchlist entry.")
     if skipped:
         # never silent: a check that did not happen is not a check that passed
         for n, d in skipped:

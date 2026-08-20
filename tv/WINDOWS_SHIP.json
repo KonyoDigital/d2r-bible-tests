@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1873",
+  "ver": "v1874",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1873: A third static sweep pointed at the same helper the last ship introduced, and the helper was wrong: an unbounded comment stripper removed seventeen percent of the board and 170 of its 444 id declarations, because a slash-star inside a string matches forward to the next star-slash anywhere in the file. The guard it powered had passed on a mangled view, which can only ever be a false negative. Bounding the block form loses none of the 444, the stripper now has its own test run before any verdict built on it is believed, and the new sweep it enabled reports that neither surface looks up an element nothing creates.",
+  "note": "v1874: Two writers survived the last ship and both were the same shape: a fixture that isolated one path and not the others. The g5 suite patched the stats path in one class while every other class reaches the same helper through an env override, and the beacon test stubbed the network half while the beacon also writes his fleet history to disk. With his console down so nothing else could be blamed, a full gate run now leaves the whole tv tree byte-identical. The gate no longer watches a list of the leaks somebody already found: it fingerprints everything under tv and names anything that moves.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
