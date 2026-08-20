@@ -9101,6 +9101,42 @@ class TestTheTemplateClassifiesForFree(unittest.TestCase):
         self.assertGreater(pay_at, -1, "the paid fallback is gone — an abstaining detector needs it")
         self.assertLess(t_at, pay_at, "the model is called before the free detector is asked")
 
+    def test_the_VAULT_names_its_surface_from_the_tab_it_already_read(self):
+        """"this same intelligence should be all round" — the vault half.
+
+        stash_screen_open() resolves the tab in order to decide whether a frame may be read at all.
+        Paying a model afterwards to name what was just read is the waste he pointed at. Every tab
+        it can return maps to a real ownership surface, so the classify is free whenever the gate
+        passed."""
+        import control_app as ca
+        import vault_retro as vr
+        for tab, surface in ca._VAULT_TAB_SURFACE.items():
+            self.assertIn(surface, vr.OWNERSHIP_SURFACES,
+                          "tab %r maps to %r, which vault_retro does not accept" % (tab, surface))
+            self.assertIn(surface, vr.SURFACE_LANE,
+                          "surface %r has no lane — it would be held, never filed" % surface)
+
+    def test_every_tab_the_gate_can_return_is_mapped(self):
+        # an unmapped tab must fall through to the paid classify, not be dropped — but the five the
+        # detector actually returns should never need it
+        import control_app as ca
+        from stash_eye import _ALL_TABS
+        for tab in _ALL_TABS:
+            self.assertIn(tab, ca._VAULT_TAB_SURFACE,
+                          "the gate can return %r and the vault would pay a model to re-read it" % tab)
+
+    def test_the_vault_classify_asks_the_tab_before_paying(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("_tab = stash_screen_open(p)")
+        self.assertGreater(i, 0, "the vault classify no longer reuses the tab it already read")
+        body = src[i:src.find("def _reader", i)]
+        free_at = body.find("_VAULT_TAB_SURFACE.get(")
+        pay_at = body.find("_tv.claude_read(")
+        self.assertGreater(free_at, -1)
+        self.assertGreater(pay_at, -1, "the paid fallback is gone — an unmapped tab needs it")
+        self.assertLess(free_at, pay_at, "it pays before checking what it already knows")
+
     def test_the_model_is_still_the_fallback(self):
         # this may only REMOVE model calls; when the detector abstains the old path must run
         # unchanged, or an occluded tab becomes an unread page

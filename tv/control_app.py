@@ -10201,6 +10201,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # The tick stays INSIDE the lane so "classified" counts probes ATTEMPTED — a probe that
         # died is still money spent and still belongs in the count.
         _not_stash = [0]
+        _tmpl_surface = [0]
 
         def _classify(p):
             # ── THE TEMPLATE GATE (2026-08-20, his ask) ──────────────────────────────────────
@@ -10218,9 +10219,16 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             # told the app what he parked on, not that every frame of the recording is that screen.
             # Which SURFACE it is still comes from the declared focus first (v1603) — the gate only
             # decides whether this frame may speak about ownership at all.
-            if stash_screen_open(p) is None:
+            _tab = stash_screen_open(p)
+            if _tab is None:
                 _not_stash[0] += 1
                 return None
+            # ...and the tab it just read IS the surface. No model needed to repeat it.
+            _surf = _VAULT_TAB_SURFACE.get(_tab)
+            if _surf:
+                _tmpl_surface[0] += 1
+                return _surf              # a bare string; _surface_of() accepts one
+            # an unmapped tab is a real "I do not know" — fall through to the paid classify
             _tick(classified=1)
             try:
                 return _tv.claude_read(p)
@@ -10256,6 +10264,9 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 return {"note": "the reader failed on this page — not read"}
 
         prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit)
+        if _tmpl_surface[0]:
+            print("   \U0001f9ed %d frame(s) named by the stash TAB itself, free — no model call"
+                  % _tmpl_surface[0])
         if _not_stash[0]:
             # said out loud, never silently: "the stash was never open on camera" and "the reader
             # found nothing in it" are different answers and only one of them is about his stash
@@ -10759,6 +10770,20 @@ def _stamp_math_broke(where, exc):
     """
     print("   \u26a0 the find-date comparison FAILED (%s: %s) — 'nothing new' below is NOT an "
           "answer about his grail" % (where, str(exc)[:120]))
+
+
+# 2026-08-20 — the stash TAB the structural gate already read, as an ownership SURFACE.
+# Konyo: "this same intelligence should be all round obviously like with their own relevant coding
+# to whatever its routing or filtering". The chronicle sweep stopped paying a model to name its
+# ledger in v1856; this is the same move on the vault side, and it costs nothing extra because
+# stash_screen_open() has already resolved the tab in order to decide whether to allow the frame at
+# all. Paying a model afterwards to name what we just read is the waste he is pointing at.
+#
+# personal/shared are the stash proper; runes/gems/materials are its tally tabs, and vault_retro
+# keeps them as distinct surfaces because SURFACE_LANE files all five into the stash lane while the
+# tally tabs count differently.
+_VAULT_TAB_SURFACE = {"personal": "stash", "shared": "stash",
+                      "runes": "runes", "gems": "gems", "materials": "materials"}
 
 
 def _chron_evidence_merge(prop):
@@ -11992,7 +12017,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1856",
+        "ver": "v1857",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
