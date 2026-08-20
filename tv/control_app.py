@@ -10554,6 +10554,48 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
     return {"ok": True, "started": True, "lanes": lanes}
 
 
+def _reel_for_frame_epoch(hist, epoch_ms, _cache={}):
+    """Which sealed reel was recording at this instant? "" when it cannot be proven.
+
+    v1825 — VISIT SIGHTINGS WERE ALL FILED UNDER THE REEL ID "hist". _chron_visit_run joins each
+    journalled frame id straight onto the hist ROOT (the live agent writes those frames there, not
+    into a reel), so sweep_frames' default reel_of — basename(dirname(path)) — returned the name of
+    the hist directory itself. 15 sightings in his live ledger carry it.
+
+    That is not cosmetic. witnesses() counts DISTINCT reels, so every visit he has ever swept
+    collapses into one pseudo-reel: two genuinely separate sittings of the same item cannot
+    corroborate each other, and a name that deserved cross-reel is held instead. It under-counts,
+    which is the safe direction, but it is still wrong.
+
+    The obvious repair — key them per visit — would be WORSE, and in the dangerous direction: the
+    same frames later swept as a REEL would appear under two different keys and the sitting would
+    corroborate ITSELF. That is precisely the fault v1824 closed one field over.
+
+    So the only honest key is the reel that actually holds that moment, matched on the frame's own
+    epoch against each reel's span. When no reel covers it the answer is "" and the caller keeps
+    the old collapsed behaviour — an unproven independence is not independence.
+    """
+    key = os.path.abspath(hist)
+    spans = _cache.get(key)
+    if spans is None:
+        spans = []
+        try:
+            import chronicle_retro as _cr
+            for d in (_cr.reel_dirs(hist, newest_first=False) or []):
+                idx = _cr.load_index(str(d)) or {}
+                ts = [int(f.get("ts") or 0) for f in (idx.get("frames") or []) if f.get("ts")]
+                if ts:
+                    sid = idx.get("sessionId") or os.path.basename(str(d))
+                    spans.append((min(ts), max(ts), sid))
+        except Exception:
+            spans = []
+        _cache[key] = spans
+    for lo, hi, sid in spans:
+        if lo <= epoch_ms <= hi:
+            return sid
+    return ""
+
+
 def _chron_visit_run(visit_ts):
     """v1527 — sweep ONE recorded in-game visit. Cheapest path in the whole arc: no classify stage,
     and only the distinct pages of a panel he already told us he was reading."""
@@ -10585,6 +10627,16 @@ def _chron_visit_run(visit_ts):
                 paths.append(p)
         if not paths:
             raise RuntimeError("the frames from that visit are no longer on disk")
+        # v1825 — give each frame its REAL reel, so a visit stops masquerading as the hist folder
+        def _reel_of(path):
+            base = os.path.basename(str(path))
+            try:
+                epoch = int(base.rsplit("_", 1)[-1].split(".")[0])
+            except Exception:
+                return os.path.basename(os.path.dirname(str(path)))
+            sid = _reel_for_frame_epoch(hist, epoch)
+            return sid or os.path.basename(os.path.dirname(str(path)))
+
         grok_lane = None
         if _g5 is not None and "grok" in (_CHRON_JOB.get("lanes") or []):
             grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
@@ -10603,7 +10655,7 @@ def _chron_visit_run(visit_ts):
             return _tv.claude_chronicle_read(p, k)
 
         read_page = _cr.two_lane_reader(_visit_read, grok_lane)
-        res = _cr.sweep_frames(paths, kind, read_page)
+        res = _cr.sweep_frames(paths, kind, read_page, reel_of=_reel_of)
         if _v_refused[0]:
             print("   🚦 %d visit read(s) refused (throttle/cap) — the visit is NOT retired"
                   % _v_refused[0])
@@ -11224,7 +11276,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1824",
+        "ver": "v1825",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

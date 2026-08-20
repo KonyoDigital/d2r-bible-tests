@@ -7663,5 +7663,61 @@ class TestALiveSessionDoesNotBlockSealedFootage(unittest.TestCase):
         self.assertIn("already running", r.get("why", ""))
 
 
+class TestAVisitIsNotTheHistFolder(unittest.TestCase):
+    """v1825 — every visit ever swept was filed under the reel id "hist".
+
+    _chron_visit_run joins each journalled frame id onto the hist ROOT (the live agent writes those
+    frames there, not into a reel), so sweep_frames' default reel_of — basename(dirname(path)) —
+    returned the name of the hist directory. 15 sightings in his live ledger carry it.
+
+    witnesses() counts DISTINCT reels, so every visit collapsed into one pseudo-reel: two genuinely
+    separate sittings of the same item could not corroborate each other. Under-counting, which is
+    the safe direction, but wrong. Keying them per VISIT would have been worse and in the dangerous
+    direction — the same frames later swept as a reel would appear under two keys and the sitting
+    would corroborate itself, the fault v1824 closed one field over. So the key is the reel that
+    actually holds the moment, matched on the frame's own epoch, and "" when it cannot be proven.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="visit-reel-")
+        ca._reel_for_frame_epoch.__defaults__[0].clear()   # the span cache is keyed by hist path
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        ca._reel_for_frame_epoch.__defaults__[0].clear()
+
+    def _reel(self, rid, first_ts, n=5, step=1000):
+        d = os.path.join(self.tmp, rid)
+        os.makedirs(d, exist_ok=True)
+        frames = []
+        for i in range(n):
+            name = "f_%d.jpg" % (first_ts + i * step)
+            with open(os.path.join(d, name), "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xd9")
+            frames.append({"f": name, "ts": first_ts + i * step})
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": rid[5:], "n": n, "frames": frames}, fh)
+        return d
+
+    def test_a_frame_inside_a_reels_span_resolves_to_that_reel(self):
+        self._reel("reel_s_1787177179114_91449", 1787177185446)
+        self.assertEqual(ca._reel_for_frame_epoch(self.tmp, 1787177187446),
+                         "s_1787177179114_91449")
+
+    def test_two_reels_are_told_apart(self):
+        self._reel("reel_s_1000000000000_aaa", 1000000000000)
+        self._reel("reel_s_2000000000000_bbb", 2000000000000)
+        self.assertEqual(ca._reel_for_frame_epoch(self.tmp, 1000000002000), "s_1000000000000_aaa")
+        self.assertEqual(ca._reel_for_frame_epoch(self.tmp, 2000000003000), "s_2000000000000_bbb")
+
+    def test_an_epoch_no_reel_covers_is_UNPROVEN_not_guessed(self):
+        # an unproven independence is not independence: the caller keeps the old collapsed key
+        self._reel("reel_s_1000000000000_aaa", 1000000000000)
+        self.assertEqual(ca._reel_for_frame_epoch(self.tmp, 5555555555555), "")
+
+    def test_an_empty_hist_answers_unproven_rather_than_throwing(self):
+        self.assertEqual(ca._reel_for_frame_epoch(os.path.join(self.tmp, "nope"), 123), "")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

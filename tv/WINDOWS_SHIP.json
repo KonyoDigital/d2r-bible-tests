@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1824",
+  "ver": "v1825",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1824: A reel is written into the evidence under two names depending on whether its index carries a sessionId, and both spellings are already in the live ledger. Witness counting treated them as two independent sessions.",
+  "note": "v1825: Every swept visit was filed under the reel id hist, so all his visits collapsed into one pseudo-reel and two separate sittings could never corroborate each other. Each frame now resolves to the reel that actually holds its moment, and an unproven one stays collapsed rather than guessed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
