@@ -8478,5 +8478,46 @@ class TestTheStampsAgreeInTheCOMMITNotJustTheWorktree(unittest.TestCase):
 
 
 
+class TestV1843TheFoldReceiptReachesASurface(unittest.TestCase):
+    """v1843 — the fold's receipt was written at three sites and read by none.
+
+    control_app builds `_fold_report` and publishes it as result["fold"]; grepping the tree finds no
+    reader — not bible.html, not tv/control_ui.html, not the CLI. v1789 wrote it for exactly this
+    purpose, in its own words: a name folded onto an item he already has, or retired as reader
+    debris, "must not simply vanish: 'we looked and it was not a grail item' and 'nobody looked'
+    have to read differently". They could not, because neither was ever printed.
+
+    It carries real information. On the 2026-08-20 sweep: 49 corrections — Battlecage -> Rattlecage,
+    Naglring -> Nagelring, Twitchthrow -> Twitchthroe, Heart Garver -> Heart Carver — and 25 names
+    retired, every one verified as NOT an exact roster member, so nothing real was discarded.
+    """
+
+    def _cli(self):
+        import control_app as ca
+        p = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), "chronicle_sweep_now.py")
+        return open(p, encoding="utf-8").read()
+
+    def test_the_cli_reads_the_fold_key(self):
+        src = self._cli()
+        self.assertIn('.get("fold")', src,
+                      "the fold report is published by three sites and consumed by none again")
+
+    def test_it_reports_both_halves(self):
+        # a count of corrections without a count of retirements answers only half the question
+        src = self._cli()
+        i = src.find('.get("fold")')
+        body = src[i:i + 600]
+        self.assertIn("corrected", body)
+        self.assertIn("retired as debris", body)
+
+    def test_it_says_nothing_when_the_fold_did_nothing(self):
+        # "no corrections" and "no fold ran" must not print the same line
+        src = self._cli()
+        i = src.find('.get("fold")')
+        self.assertIn("if _fx or _rt:", src[i:i + 400],
+                      "an empty fold would print a receipt for work that never happened")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

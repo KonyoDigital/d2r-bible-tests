@@ -258,6 +258,22 @@ def main(argv=None):
               "not-found (audit only)"
               % (_fmt(tot.get("pagesRead")), _fmt(tot.get("uniques")),
                  _fmt(tot.get("sets")), _fmt(tot.get("refused")), _fmt(tot.get("notFound"))))
+        # v1843 — THE FOLD'S RECEIPT, WHICH NOTHING HAS EVER SHOWN HIM. control_app builds
+        # `_fold_report` and publishes it as result["fold"] at three sites; grepping the tree finds
+        # no reader — not the board, not the console, not this CLI. v1789 wrote it FOR this purpose,
+        # in its own words: a name folded onto an item he already has, or retired as reader debris,
+        # "must not simply vanish: 'we looked and it was not a grail item' and 'nobody looked' have
+        # to read differently". They could not, because neither was printed anywhere.
+        # It carries real information. On his 08-20 sweep: 49 corrections including Battlecage ->
+        # Rattlecage, Naglring -> Nagelring and Twitchthrow -> Twitchthroe, and 25 names retired as
+        # debris - every one verified as NOT an exact roster member, so nothing real was thrown
+        # away. That is a fact worth being able to see. [[plumbing-with-no-tap]]
+        _fold = (st.get("result") or {}).get("fold") or {}
+        _fx, _rt = _fold.get("folded") or {}, _fold.get("retired") or []
+        if _fx or _rt:
+            _eg = ", ".join("%s -> %s" % (k, v) for k, v in list(_fx.items())[:3])
+            print("   fold: %d name(s) corrected%s · %d retired as debris"
+                  % (len(_fx), (" (%s)" % _eg) if _eg else "", len(_rt)))
         if st.get("error"):
             print("   error: %s" % st["error"])
             failed += 1
