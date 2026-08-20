@@ -6985,4 +6985,20 @@ Three of tonight's ships proved themselves on his own footage in that one run:
 - **v1878/v1880** — the new-finds line is the engine's, printed live while the reel was still being
   read (which is how the v1878 claim was caught and corrected).
 
-**Nothing was applied.** 25 set names are waiting as a proposal for him to review on the board.
+**Nothing was applied.** The proposal is what changed, and by exactly how much:
+
+| | |
+|---|---|
+| **6 of the 13 held pieces cleared** | Arcanna's Flesh · Arcanna's Sign · Hsarus' Iron Heel · Immortal King's Forge · Natalya's Shadow · Natalya's Soul |
+| **7 still held** | Arcanna's Deathwand · Arcanna's Head · Dangoon's Teaching · Iratha's Collar · Iratha's Cord · Iratha's Cuff · Milabrega's Diadem |
+| **3 newly surfaced, held on one witness** | Bul-Kathos' Sacred Charge · Bul-Kathos' Tribal Guardian · **Natalya's Totem** |
+| **`wouldAdd` sets** | **21 → 28** |
+
+⚠ **`Natalya's Totem` is the DAILY PICK on his own F·Sets screen** — *"the LAST piece of Natalya's
+Odium"*. It now has one witness (cross-frame). One more legible pass over that row grounds it and
+completes the set.
+
+The seven that stayed held need the same thing they needed before: one more corroborating sighting.
+Two of them (Arcanna's Deathwand, Arcanna's Head) are held because **the reader itself was unsure**
+(0.50 against a 0.55 floor) — those rows are hard to read, not merely unseen, so a slower pass over
+that part of the ledger is what they want.
