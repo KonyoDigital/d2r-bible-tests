@@ -8962,6 +8962,56 @@ class TestPrepTabChromeIsNotDead(unittest.TestCase):
 
 
 
+class TestTheBridgeCacheKeyNamesWhatItCaches(unittest.TestCase):
+    """v1862 — his F·Sets tab read 116/135 while the console's DAILY TASK FORCE read 113/135.
+
+    Konyo: "this dailt tasks is not sycned to the counter as the sets and uniques tabs".
+
+    `d2r_forgeSummary` is written ONLY on real change, and `_fsCmp` in bible.html computes the
+    signature that decides. `sets` joined the payload in v922; `_fsCmp` was written in v913 and
+    never updated. A change in the set count alone produced an identical signature, so the bridge
+    was never rewritten and the console served whatever snapshot was stored the last time the GRAIL
+    or a RUNEWORD moved. The tab read live, the console read a fossil, and both were sure.
+
+    THE INVARIANT, stated across the two files rather than inside either: every `fs.<chronicle>.<field>`
+    the console PRINTS must appear in the comparator that decides whether it is refreshed. A cache
+    key that omits the value it is caching is not a cache key. [[the-unjoined-end]] [[copy-drift]]
+    """
+
+    def _sources(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        b = os.path.join(os.path.dirname(here), "bible.html")
+        c = os.path.join(here, "control_ui.html")
+        for p in (b, c):
+            if not os.path.isfile(p):
+                self.skipTest("%s is not on this machine" % os.path.basename(p))
+        return (open(b, encoding="utf-8").read(), open(c, encoding="utf-8").read())
+
+    def test_every_field_the_console_prints_is_in_the_compare(self):
+        import re
+        bible, console = self._sources()
+        i = console.find("var _tfChron = function(")
+        j = console.find("var runsToday", i)
+        self.assertGreater(i, 0, "the console no longer has a task-force chronicle row")
+        printed = set(re.findall(r"fs\.(\w+)\.(\w+)", console[i:j]))
+        self.assertTrue(printed, "no fs.<chronicle>.<field> is read where the rows are built")
+        k = bible.find("var _fsCmp = function(x){")
+        self.assertGreater(k, 0, "bible.html no longer has the bridge comparator")
+        cmp_body = bible[k:bible.find("if (_fsCmp(", k)]
+        for chron, field in sorted(printed):
+            self.assertIn("(x.%s || {}).%s" % (chron, field), cmp_body,
+                          "the console prints fs.%s.%s and the comparator ignores it — a change in "
+                          "it alone will never refresh the bridge" % (chron, field))
+
+    def test_the_compare_still_names_the_sets_count_by_name(self):
+        # the specific one that was missing, spelled out, so a refactor of the loop above cannot
+        # quietly stop covering the case that cost him three different numbers on one screen
+        bible, _ = self._sources()
+        k = bible.find("var _fsCmp = function(x){")
+        cmp_body = bible[k:bible.find("if (_fsCmp(", k)]
+        self.assertIn("(x.sets || {}).found", cmp_body)
+
+
 class TestTheVaultTemplateGate(unittest.TestCase):
     """2026-08-20 — Konyo: "it needs to be hardcoded and safegauded for vault manager to only when
     maybe i CLICK stash and am in my stash with my inventory open at the same time thats the

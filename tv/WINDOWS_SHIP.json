@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1861",
+  "ver": "v1862",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1861: Three fixes proven on his own footage. The re-read cap counted reads that never happened: the capped case returned early but throttled and budget-blocked fell through to the bump, so three throttled sweeps would retire a page the reader had never opened. Measured five refusals on one frame: count 5 to 0. The inventory read was cropped to the left stash panel, so it was handed his stash and asked to read his inventory. And the vault sweep now names a third outcome it could not say before: read cleanly and held no readable name, which is what a D2R stash grid actually is.",
+  "note": "v1862: His F-Sets tab read 116 of 135 while the console daily task force read 113 and its daily pick sentence read 112. Three numbers for one quantity on two screens, and two separate staleness bugs. The bridge signature that decides whether the console gets a fresh payload was written in v913 and never learned about the sets field added in v922, so a change in the set count alone left the console serving a fossil. Four of the six fields the console prints were missing from it. And the once-a-day pick sentence had a staleness check that covered runewords only, so it kept quoting a count he had moved past.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

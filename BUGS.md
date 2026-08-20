@@ -6394,3 +6394,70 @@ The decision moved out of the closure into `_chron_read_bump_if_read()` so a tes
 version that could not be driven was wrong for two ships. **Guards:** `test_control` —
 `test_a_THROTTLED_page_does_not_burn_a_look`, `test_a_DEAD_lane_does_not_burn_a_look_either`,
 `test_a_REAL_read_still_spends_one` (the mirror), `test_the_sweep_spends_looks_through_THIS_function_only`.
+
+## REG-209 — three different set counts on one screen (FIXED v1862)
+
+**Reported by Konyo, 2026-08-20:** *"this dailt tasks is not sycned to the counter as the sets and
+uniques tabs"* — with two screenshots three minutes apart:
+
+| surface | says |
+|---|---|
+| F·Sets tab | **116**/135 · 86% · 19 pieces still missing |
+| console DAILY TASK FORCE, progress row | **113**/135 · 84% · 22 pieces left |
+| console DAILY TASK FORCE, daily pick sentence | **112**/135 pieces |
+
+Each surface is internally consistent (135−116=19, 135−113=22). They disagree with each other, and
+**two separate staleness bugs** produced the two wrong numbers.
+
+**113 — the bridge cache key omitted the value it was caching.** `d2r_forgeSummary` is written only
+on real change, and `_fsCmp` computes the signature that decides. `sets` joined the payload in v922;
+`_fsCmp` dates from v913 and was never updated. A change in the set count alone produced an
+identical signature, so the bridge was never rewritten and the console served whatever snapshot was
+stored the last time the GRAIL or a RUNEWORD moved. Measured: of the six `fs.<chronicle>.<field>`
+values the console PRINTS, **four were absent from the comparator** — `sets.found`, `sets.total`,
+`grail.total`, `chron.total`.
+
+**112 — a cached sentence quoting a count that had moved.** `dailyCreateAi` generates one sentence
+per day and caches it, count frozen inside. A staleness check already existed and covered only
+RUNEWORDS (*"if the cached pick NAMES a runeword the player has since made"*); nobody extended the
+reasoning to the other chronicles. Now the `N/M` pairs in the cached sentence are compared against
+the live rotation — same denominator, different numerator means the sentence describes a state he
+has left — and it is regenerated. No model call: the grail/sets pick is computed locally.
+
+**Guards:** `test_control.TestTheBridgeCacheKeyNamesWhatItCaches` — a cross-file invariant, since
+neither file alone shows the defect: every `fs.<chronicle>.<field>` the console prints must appear
+in the comparator that decides whether it is refreshed.
+
+## REG-210 — "I don't have 116 items" — the Chronicle counts FOUND-EVER, not HELD-NOW (ANSWERED)
+
+**Konyo, 2026-08-20:** *"this is incorrect i didnt and dont have 116 items... the last item i
+defintely dont have where did it read this exactly? where is the tooltip image for it"*
+
+Provenance, from `chron_evidence.json`, for **Immortal King's Will**:
+
+```
+reel s_1787177267889_92273  frame f_1787177298256.jpg  lane claude  conf 0.55
+reel s_1787177267889_92273  frame f_1787177298256.jpg  lane grok    conf 0.55
+reel s_1787177267889_92273  frame f_1787177300387.jpg  lane claude  conf 0.55
+```
+
+That reel is his own **🧩 Set pieces** recording. Opening the frame: it is his in-game **Chronicle →
+Sets** panel, sorted Newest to Oldest, and the row reads —
+
+> **IMMORTAL KING'S WILL** · Dropped By: **Andariel** · First Found: **07/18/2026, 02:47**
+
+— in the gold found styling, with the drop provenance the game prints only for pieces you have
+found. Two frames, two independent lanes, and the game's own words.
+
+**It is not a tooltip read.** A tooltip IS on screen in that frame (he was hovering the item, green
+"Immortal King's Will / Avenger Guard"), but the ledger entry came from the ROW, which is the
+Chronicle's own record.
+
+**The gap is FOUND-EVER vs HELD-NOW.** The in-game Chronicle is a holy-grail ledger: it records
+what has ever dropped for him, permanently, whether or not he still holds it. The board mirrors that
+ledger, so 116 is "pieces the game says you have found", not "pieces in your stash". His own in-game
+Sets bar on that very frame reads **85%** against the board's 86% — the same truth, one piece apart.
+
+Nothing to fix in the reader. If he wants a HELD-NOW count that is a different ledger and a
+different feature — and per REG-206 it cannot come from looking at a stash, because D2R prints no
+names there.
