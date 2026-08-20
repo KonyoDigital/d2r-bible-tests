@@ -41999,7 +41999,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1871', name:'v1871 - Every found chip carries its storyline, and the chain is proven end to end', date:'2026-08-20', note:'The in-game find date now shows on every found item rather than only the last one ticked, riding in the chip title so the wall keeps its density. And the whole chain is locked with a guard built from his own reader output: two frames by two lanes through the proposal, the gate corroborating cross-frame and cross-lane, and the exact row the board receives carrying the date and the dropper. A page that printed no date ships no key at all rather than an empty one, so the board can still tell found-on-this-date from found-date-unknown.' };
+  window.D2R_BUILD = { id:'v1872', name:'v1872 - Two silent-nothing classes, swept statically across the board', date:'2026-08-20', note:'A typeof guard on a name that is never declared is permanently false, and an optional window call to a function assigned nowhere calls nothing forever. Both are valid JS, both fail by simply not happening. The board carries 94 typeof guards and 227 optional call sites; the sweep found one dead call, the line that reads as the backstop refreshing his grail meters after an inbox decision, pointing at a name assigned nowhere in the file. It was harmless because the accept path already refreshes, which is why it survived. The first run of the new sweep flagged the placeholder inside my own comment, so comments are stripped first.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43175,7 +43175,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     } catch(e){}
     try { window.renderInbox(); } catch(e){}
     try { window.renderInboxBadge(); } catch(e){}
-    try { window.renderGrailMeters && window.renderGrailMeters(); } catch(e){}
+    /* v1872 — `window.renderGrailMeters` IS ASSIGNED NOWHERE IN THIS FILE. The `&&` made that
+       silent: the line has never called anything, and it reads as the backstop that refreshes his
+       meters after an inbox decision. The real name is renderGrailProgress, published on window at
+       line ~18547 and called that way in five other places.
+       It was harmless in practice — kaiChronicleAccept already calls renderGrailProgress itself —
+       and that is precisely why it survived: a backstop that is never needed is a backstop nobody
+       notices is missing, until the day the path it guards changes. Now it is one.
+       Found by a static sweep for `window.X && window.X()` where X is assigned nowhere: 227 such
+       call sites in this file, 85 distinct names, exactly ONE that could never fire.
+       [[the-unjoined-end]] */
+    try { window.renderGrailProgress && window.renderGrailProgress(); } catch(e){}
   };
 
   window.kaiChronicleLedger = function(opts){

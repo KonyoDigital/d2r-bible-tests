@@ -6731,3 +6731,32 @@ than an invented fixture: two frames × two lanes → `proposal_from_pages` → 
 `gameFound {at: "07/18/2026, 02:47", by: "Andariel"}`. A page that printed no date ships **no key
 at all** rather than an empty one, so the board can still tell *found on this date* from *found,
 date unknown*. v1864's defect was that every link was sound and the chain carried nothing.
+
+## REG-222 — two silent-nothing classes, swept statically across the board (FIXED v1872)
+
+Both fail the same way: the JS is valid, the branch simply never runs, and nothing anywhere says so.
+
+**A. `typeof X !== 'undefined'` on a name that is never declared.** Permanently false. Not
+hypothetical here — it is **v1562**, recorded in bible.html's own comment: a Session cockpit KPI tile
+*"HAS NEVER RENDERED, NOT ONCE"* because its guard needed `SETS` while the array is `ITEM_SETS`. His
+cockpit reported Chronicle 99/99 and Grail 243/403 and said nothing at all about sets, while F·Sets
+one click away said 108/135. **Swept: 94 such guards in the board, 0 dead.** The class is closed and
+now stays closed.
+
+**B. `window.X && window.X()` on a name assigned nowhere.** Calls nothing, forever. **Swept: 227 call
+sites, 85 distinct names, exactly ONE dead** —
+`window.renderGrailMeters && window.renderGrailMeters()` in `_inboxAct`, the line that reads as the
+backstop refreshing his grail meters after an inbox decision. The real name is `renderGrailProgress`,
+published on window at ~18547 and called that way in five other places. Repointed.
+
+It was harmless in practice, because `kaiChronicleAccept` already calls `renderGrailProgress` itself
+— **and that is exactly why it survived**. A backstop that is never needed is a backstop nobody
+notices is missing, until the path it guards changes. [[the-unjoined-end]]
+
+⚠ **The sweep's first run after the fix reported a dead call to `window.X`** — the placeholder inside
+the comment explaining the fix. Comments are stripped first now. His scar file already names this
+shape: an explanatory comment blinding a guard that greps for a name.
+[[feedback-comments-vs-code]]
+
+These are the JS twins of the AST walk that found MINI dead (v1863): a name inside a branch is only
+resolved when that branch runs, so neither class can be caught by parsing or by running the suite.

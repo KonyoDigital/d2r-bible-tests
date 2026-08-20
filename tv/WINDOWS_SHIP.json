@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1871",
+  "ver": "v1872",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1871: The in-game find date now shows on every found item rather than only the last one ticked, riding in the chip title so the wall keeps its density. And the whole chain is locked with a guard built from his own reader output: two frames by two lanes through the proposal, the gate corroborating cross-frame and cross-lane, and the exact row the board receives carrying the date and the dropper. A page that printed no date ships no key at all rather than an empty one, so the board can still tell found-on-this-date from found-date-unknown.",
+  "note": "v1872: A typeof guard on a name that is never declared is permanently false, and an optional window call to a function assigned nowhere calls nothing forever. Both are valid JS, both fail by simply not happening. The board carries 94 typeof guards and 227 optional call sites; the sweep found one dead call, the line that reads as the backstop refreshing his grail meters after an inbox decision, pointing at a name assigned nowhere in the file. It was harmless because the accept path already refreshes, which is why it survived. The first run of the new sweep flagged the placeholder inside my own comment, so comments are stripped first.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

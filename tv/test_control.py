@@ -9400,6 +9400,129 @@ class TestEveryFoundChipCarriesItsStoryline(unittest.TestCase):
         self.assertEqual(got[2], "", "an unparseable date must claim nothing, not approximate")
 
 
+class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
+    """v1872 — `window.X && window.X()` on a name assigned nowhere calls nothing, forever, silently.
+
+    Found live: `window.renderGrailMeters && window.renderGrailMeters()` in `_inboxAct`, the line
+    that reads as the backstop refreshing his grail meters after an inbox decision. The real name is
+    `renderGrailProgress` and it is published on window at ~18547. 227 such call sites in the board,
+    85 distinct names, exactly ONE that could never fire.
+
+    It was harmless in practice — kaiChronicleAccept already calls renderGrailProgress itself — and
+    that is why it survived. A backstop that is never needed is a backstop nobody notices is
+    missing, until the path it guards changes. [[the-unjoined-end]]
+
+    ⚠ COMMENTS ARE STRIPPED FIRST, and that is not caution. The first run of this sweep after the
+    fix reported a dead call to `window.X` — which is the placeholder inside the comment explaining
+    the fix. His scar file already names this exact shape: an explanatory comment blinding a guard
+    that greps for a name. [[feedback-comments-vs-code]]"""
+
+    @staticmethod
+    def _strip_js_comments(src):
+        import re
+        src = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+        return re.sub(r"(?m)^\s*//.*$", " ", src)
+
+    @classmethod
+    def _dead_calls(cls, src):
+        import re
+        body = cls._strip_js_comments(src)
+        calls = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*(?:&&|\?)\s*window\.\1\s*\(", body))
+        assigned = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=", body))
+        return sorted(calls - assigned)
+
+    def test_the_board_calls_nothing_that_does_not_exist(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        dead = self._dead_calls(open(p, encoding="utf-8").read())
+        self.assertEqual(dead, [], "optional calls to functions assigned nowhere — they have never "
+                                   "run and never will: %s" % ", ".join(dead))
+
+    def test_it_SEES_the_renderGrailMeters_shape(self):
+        # seen red, on the exact line that was live until this ship
+        live = ("window.renderGrailProgress = function(){};\n"
+                "try { window.renderGrailProgress && window.renderGrailProgress(); } catch(e){}\n")
+        dead = ("window.renderGrailProgress = function(){};\n"
+                "try { window.renderGrailMeters && window.renderGrailMeters(); } catch(e){}\n")
+        self.assertEqual(self._dead_calls(live), [])
+        self.assertEqual(self._dead_calls(dead), ["renderGrailMeters"])
+
+    def test_a_comment_cannot_blind_it(self):
+        src = ("/* explaining that window.Ghost && window.Ghost() would be dead */\n"
+               "// and again in a line comment: window.Ghost && window.Ghost()\n"
+               "window.Real = function(){};\n"
+               "window.Real && window.Real();\n")
+        self.assertEqual(self._dead_calls(src), [],
+                         "the guard is reading its own documentation again")
+
+
+class TestNoTypeofGuardOnANameThatCannotExist(unittest.TestCase):
+    """v1872 — `typeof X !== 'undefined'` on a name that is never declared is PERMANENTLY FALSE,
+    and it fails silently, which is the worst way for a feature to be absent.
+
+    That is not hypothetical here — it is v1562, recorded in bible.html's own comment: a Session
+    cockpit KPI tile "HAS NEVER RENDERED, NOT ONCE" because its guard needed `SETS` and the array is
+    called `ITEM_SETS`. `typeof` on a name that was never declared returns 'undefined' rather than
+    throwing, so the condition was false forever and the tile drew nothing. His cockpit reported
+    Chronicle 99/99 and Grail 243/403 and said nothing at all about sets, while the F·Sets tab one
+    click away said 108/135.
+
+    The board is ~44k lines and there are 94 such guards in it. This is the cheap static check that
+    the class is closed, and it is the JS twin of the AST walk that found MINI dead (v1863).
+    [[source-reading-guard]]"""
+
+    # names the browser or the host provides — a guard on one of these is the guard doing its job
+    HOST = {"window", "document", "console", "Object", "Array", "JSON", "Math", "Date", "String",
+            "Number", "Boolean", "Promise", "Set", "Map", "WeakMap", "WeakSet", "RegExp", "Error",
+            "localStorage", "sessionStorage", "fetch", "navigator", "location", "performance",
+            "requestAnimationFrame", "cancelAnimationFrame", "IntersectionObserver",
+            "MutationObserver", "ResizeObserver", "AbortController", "URL", "URLSearchParams",
+            "Intl", "Symbol", "Proxy", "Reflect", "BigInt", "structuredClone", "queueMicrotask",
+            "setTimeout", "setInterval", "clearTimeout", "clearInterval", "getComputedStyle",
+            "CustomEvent", "Event", "Blob", "File", "FileReader", "Image", "Worker", "matchMedia",
+            "crypto", "TextEncoder", "TextDecoder", "Element", "Node", "HTMLElement", "DOMParser",
+            "alert", "confirm", "prompt", "history", "screen", "top", "parent", "self", "globalThis"}
+
+    @classmethod
+    def _dead_guards(cls, src):
+        import re
+        guards = set(re.findall(
+            r"typeof\s+([A-Za-z_$][\w$]*)\s*[!=]==?\s*['\"]undefined['\"]", src))
+        declared = set()
+        for pat in (r"\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)",
+                    r"\bfunction\s+([A-Za-z_$][\w$]*)",
+                    r"\bclass\s+([A-Za-z_$][\w$]*)",
+                    r"window\.([A-Za-z_$][\w$]*)\s*=",
+                    r"\b([A-Za-z_$][\w$]*)\s*=\s*(?:function|\(|\{|\[)"):
+            declared.update(re.findall(pat, src))
+        return sorted(n for n in guards if n not in declared and n not in cls.HOST)
+
+    def test_the_board_has_none(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        dead = self._dead_guards(src)
+        self.assertEqual(dead, [], "guarded on names that are never declared, so the branch can "
+                                   "never run: %s" % ", ".join(dead))
+
+    def test_the_console_has_none(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        if not os.path.isfile(p):
+            self.skipTest("control_ui.html is not on this machine")
+        dead = self._dead_guards(open(p, encoding="utf-8").read())
+        self.assertEqual(dead, [], "guarded on names that are never declared: %s" % ", ".join(dead))
+
+    def test_it_SEES_the_v1562_shape(self):
+        """A gate never seen red is measuring nothing. This is v1562's exact line, and the name it
+        should have used, side by side."""
+        good = "var ITEM_SETS = [];\nif (typeof ITEM_SETS !== 'undefined') { draw(); }\n"
+        bad = "var ITEM_SETS = [];\nif (typeof SETS !== 'undefined') { draw(); }\n"
+        self.assertEqual(self._dead_guards(good), [])
+        self.assertEqual(self._dead_guards(bad), ["SETS"])
+
+
 class TestTheMiniDurationsHaveOneSource(unittest.TestCase):
     """v1870 — Konyo: "i just did a MINI sets and its too short.. it needs to be longer like the
     UNIQUES mini".
