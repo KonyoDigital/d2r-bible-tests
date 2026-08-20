@@ -7503,8 +7503,15 @@ class TestTheFreePassDoesNotAccuseTheReader(unittest.TestCase):
                                                   "uniques": 0, "sets": 0},
                                                  priced_only=kw.get("priced_only", False))}
 
+        # HERMETIC ON PURPOSE, and this test taught me why the hard way: the first version called
+        # chronicle_scan_cost() with no hist_dir, so it fell through to his real frames directory.
+        # That passes on his Mac, where footage exists, and FAILS on CI, where tv/frames/hist is
+        # absent and the function returns early before the sweep it is meant to be checking. A test
+        # that reads whatever happens to be on the machine is not testing the code.
+        tmp = tempfile.mkdtemp(prefix="scan-cost-")
+        self.addCleanup(shutil.rmtree, tmp, True)
         with mock.patch.object(_cr, "sweep_hist", side_effect=fake_sweep):
-            ca.chronicle_scan_cost(limit=1)
+            ca.chronicle_scan_cost(hist_dir=tmp, limit=1)
         self.assertTrue(seen.get("priced_only"),
                         "the free pass ran the sweep without priced_only — its verdict will blame "
                         "the reader for finding nothing it was never allowed to look for")
