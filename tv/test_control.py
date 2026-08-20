@@ -8354,5 +8354,50 @@ class TestV1835EvidenceIsBankedAsItIsRead(unittest.TestCase):
 
 
 
+class TestV1837RefusedThisRunIsNotRefusedEver(unittest.TestCase):
+    """v1837 — one result object published two scopes under sibling keys and said neither.
+
+    `totals` is computed from THIS run's proposal; `refused` was taken from `prop`, which two lines
+    earlier had become the MERGED, cumulative ledger. Both true, each answering a different
+    question, printed side by side.
+
+    It cost real time on the night it was found: a cumulative refused list read as one pass's, and
+    a working fix (v1829) briefly called a failure on the strength of it. If it misleads the person
+    who wrote it an hour later, it will mislead him.
+    """
+
+    def _src(self):
+        import control_app as ca
+        return open(ca.__file__, encoding="utf-8").read()
+
+    def test_both_publish_sites_separate_the_two(self):
+        src = self._src()
+        # the visit path and the reel path are byte-identical twins here; fixing one is the
+        # copy-drift that produced half these bugs
+        self.assertEqual(src.count('"refused": _run_refused,'), 2,
+                         "only one of the two result builders reports THIS run's refusals")
+        self.assertEqual(src.count('"refusedEver": prop.get("refused") or [],'), 2,
+                         "the cumulative list is unnamed again in one of the two paths")
+
+    def test_the_cumulative_list_is_never_published_as_refused(self):
+        src = self._src()
+        self.assertNotIn('"refused": prop.get("refused")', src,
+                         "the all-time list is being published under the same key as the per-run "
+                         "one, beside a per-run `totals`")
+
+    def test_the_per_run_list_is_captured_before_the_merge(self):
+        # captured AFTER the merge it would simply be the cumulative list wearing a new name
+        src = self._src()
+        for anchor in ('_run_refused = list(prop.get("refused") or [])',
+                       '_run_refused = list((res.get("proposal") or {}).get("refused") or [])'):
+            i = src.find(anchor)
+            self.assertGreater(i, 0, "missing capture: %s" % anchor)
+            j = src.find("_chron_evidence_merge(prop)", i)
+            self.assertTrue(j == -1 or j > i,
+                            "this run's refusals are captured after the cumulative merge, so they "
+                            "are the cumulative list under another name")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

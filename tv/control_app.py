@@ -10837,6 +10837,15 @@ def _chron_visit_run(visit_ts):
         with _CHRON_LOCK:
             _CHRON_JOB["pagesRead"] = res["pagesRead"]
         prop = _cr.proposal_from_pages(res["pages"])
+        # v1837 — KEEP THIS RUN'S REFUSALS SEPARATE FROM ALL TIME. `prop` becomes the MERGED,
+        # cumulative proposal a line or two below, and the result then published `totals` (this run)
+        # beside `refused` (every run, ever) as sibling keys with nothing saying so. Both numbers
+        # true, each answering a different question.
+        #
+        # It cost real time tonight: I read a cumulative refused list as one pass's, concluded
+        # v1827 had changed nothing and called a working fix a failure. If it misleads the person
+        # who wrote it an hour after writing it, it will mislead him. [[label-outlived-referent]]
+        _run_refused = list(prop.get("refused") or [])
         # v1562 — the LIVE-VISIT path never stored its evidence, so "⚖ tune the gate" appeared
         # (control_ui reveals it on any result) and could only answer "no sweep evidence in memory
         # — run a sweep first". v1550 wired the retro path only.
@@ -10896,7 +10905,11 @@ def _chron_visit_run(visit_ts):
                                         "lane": sg.get("lane") or "claude"}
                                        for sg in (h["sightings"] or [])[:6]]}
                              for h in applied["held"]],
-                    "refused": prop.get("refused") or [],
+                    # THIS RUN — the same scope as `totals` beside it.
+                    "refused": _run_refused,
+                    # EVERY RUN — the durable ledger's whole list, named so it cannot be read as
+                    # the line above.
+                    "refusedEver": prop.get("refused") or [],
                     # v1789 — the RECEIPT for a queue that got smaller. A name folded onto an
                     # item he already has, or retired as reader debris, must not simply vanish:
                     # "we looked and it was not a grail item" and "nobody looked" have to read
@@ -11244,6 +11257,15 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                                                 "agentVer": getattr(_tv, "VERSION", "")}
         _chron_swept_save(swept)
         prop = res["proposal"]
+        # v1837 — KEEP THIS RUN'S REFUSALS SEPARATE FROM ALL TIME. `prop` becomes the MERGED,
+        # cumulative proposal a line or two below, and the result then published `totals` (this run)
+        # beside `refused` (every run, ever) as sibling keys with nothing saying so. Both numbers
+        # true, each answering a different question.
+        #
+        # It cost real time tonight: I read a cumulative refused list as one pass's, concluded
+        # v1827 had changed nothing and called a working fix a failure. If it misleads the person
+        # who wrote it an hour after writing it, it will mislead him. [[label-outlived-referent]]
+        _run_refused = list((res.get("proposal") or {}).get("refused") or [])
         # v1833 — THE FIRST EYES JOIN THE PANEL. Merged BEFORE the durable evidence merge so a live
         # sighting accumulates exactly like a read page does, and so it can corroborate a retro read
         # from a later sweep. It cannot ground anything alone: witnesses() counts lanes generically,
@@ -11334,7 +11356,11 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                                         "lane": sg.get("lane") or "claude"}
                                        for sg in (h["sightings"] or [])[:6]]}
                              for h in applied["held"]],
-                    "refused": prop.get("refused") or [],
+                    # THIS RUN — the same scope as `totals` beside it.
+                    "refused": _run_refused,
+                    # EVERY RUN — the durable ledger's whole list, named so it cannot be read as
+                    # the line above.
+                    "refusedEver": prop.get("refused") or [],
                     # v1789 — the RECEIPT for a queue that got smaller. A name folded onto an
                     # item he already has, or retired as reader debris, must not simply vanish:
                     # "we looked and it was not a grail item" and "nobody looked" have to read
@@ -11566,7 +11592,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1835",
+        "ver": "v1837",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1836",
+  "ver": "v1837",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1836: A sighting has always been keyed by reel frame and lane so names fold correctly however often a proposal is re-offered - but pagesRead and pagesRefused were summed and refused was a bare extend. His ledger claimed 4907 pages read where the evidence proves 620, listed 47 refusals of which only 30 are distinct, and reported 0 refused while 30 pages were refused. v1835 banking would have multiplied all of it.",
+  "note": "v1837: One result object published totals computed from this run beside a refused list taken from the merged all-time ledger, as sibling keys with nothing saying so. Both true, each answering a different question. Reading the cumulative list as one pass is what briefly made me call the working v1829 fix a failure. Both the visit path and the reel path now report refused for this run and refusedEver separately.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
