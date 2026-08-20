@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1878",
+  "ver": "v1879",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1878: newlyDated has existed since v1846, produced at two sites in the control app and consumed at zero places anywhere. It is the only thing that can tell a find made since the last sweep from a page nobody had read before, which are identical in every other number a sweep prints, and its dates come from the game own First Found rows rather than the reader clock. The hand sweep prints it now, and only when there is something to say. Guarded at both ends of the joint, because a producer that stops emitting leaves the reader silent in a way that reads exactly like nothing new.",
+  "note": "v1879: The game First Found date and the board own ledger describe one event from two sides, so they have to live in the same storage scope, and the fork list is what decides that. Measured rather than assumed: neither is forked, which matches the doctrine that a grail is what he has ever found and is therefore account-wide, while what he holds stays per-profile and is forked. The guard asserts the pair rather than either value, so if the ledger is ever forked the dates follow it instead of quietly splitting from the finds they date.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

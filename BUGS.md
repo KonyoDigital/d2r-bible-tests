@@ -6908,3 +6908,20 @@ The hand sweep now prints it — `🆕 N find(s) NEWER than anything read before
 only when there are any: a line that always prints is one he stops reading. Guarded on **both** ends
 of the joint, because if the field stops being emitted the reader goes quiet and looks exactly like
 *"nothing new"* forever.
+
+## REG-229 — the game's find DATE and the find it dates could have drifted apart (guarded v1879)
+
+`d2r_gameFound` (v1864) holds the game's First Found date and dropper per item; `d2r_foundLog` holds
+when the **board** learned of the same find. They describe **one event from two sides**, so they must
+live in the same scope — and `_LP_FORKED` decides that: a forked key is per-account, an unforked one
+is shared.
+
+**Measured, not assumed:** neither is forked, which matches the ladder doctrine — *"everything
+NON-LADDER syncs to main; a profile toggle must never change a count"*. A grail is what he has **ever
+found**, so it is account-wide. `d2r_owned` **is** forked, because what he **holds** is per-profile.
+That split is right.
+
+The guard asserts the **pair**, not either value: if the log is ever forked, the dates follow it
+instead of quietly splitting from the finds they date. Two companions check the other half — the
+physical vault must stay per-profile, and the store must go through `LSR` at all, since the fork only
+applies to keys that use the wrapper. [[d2r-ladder-doctrine]]

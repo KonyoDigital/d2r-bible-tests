@@ -9497,6 +9497,51 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestTheFindDateIsForkedExactlyLikeTheFindItself(unittest.TestCase):
+    """v1879 — a coupling, checked rather than assumed.
+
+    `d2r_gameFound` (v1864) holds the GAME's First Found date and dropper per item. `d2r_foundLog`
+    holds when the BOARD learned of the same find. They describe one event from two sides, so they
+    must live in the same scope — and `_LP_FORKED` decides that: a forked key is per-account, an
+    unforked one is shared.
+
+    Measured: neither is forked, which matches the ladder doctrine — *"everything NON-LADDER syncs
+    to main; a profile toggle must never change a count"*. A grail is what he has EVER found, so it
+    is account-wide; `d2r_owned` IS forked, because what he HOLDS is per-profile. That split is
+    right, and this asserts the PAIR rather than either value, so if the log is ever forked the
+    dates follow it instead of quietly splitting from the finds they date.
+    [[d2r-ladder-doctrine]] [[the-unjoined-end]]"""
+
+    def _forked(self):
+        import re
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        m = re.search(r"window\._LP_FORKED = new Set\(\[(.*?)\]\)", src, re.S)
+        self.assertIsNotNone(m, "the fork list is gone — every key just changed scope")
+        return set(re.findall(r'"([^"]+)"', m.group(1))), src
+
+    def test_the_dates_share_the_ledger_s_scope(self):
+        forked, _ = self._forked()
+        self.assertEqual("d2r_gameFound" in forked, "d2r_foundLog" in forked,
+                         "the game's find DATE and the find it dates ended up in different scopes: "
+                         "one per-account, one shared. They describe one event from two sides.")
+
+    def test_what_he_HOLDS_is_still_per_profile(self):
+        # the other half of the split, or the test above passes on a board where nothing is forked
+        forked, _ = self._forked()
+        self.assertIn("d2r_owned", forked,
+                      "the physical vault stopped being per-profile — a profile toggle would now "
+                      "change what he owns")
+
+    def test_the_store_is_actually_written_through_LSR(self):
+        # forked or not, the fork only applies to keys that go through the wrapper
+        _, src = self._forked()
+        self.assertIn("window.LSR.setItem('d2r_gameFound'", src,
+                      "the dates are written past the storage wrapper, so no scope applies at all")
+
+
 class TestNewlyDatedReachesASurface(unittest.TestCase):
     """v1878 — `newlyDated` was computed at two sites and read by NOTHING.
 
