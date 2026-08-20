@@ -6892,3 +6892,19 @@ offset still lands), and a test asserts every reported line really declares that
 above verified by reading the file. Only `<style>` bodies are scanned, so a selector-shaped string in
 JS cannot become a rule, and only depth-1 rules: one inside `@media` is a different cascade question
 and answering it here would be worse than silence.
+
+## REG-228 — `newlyDated` was computed twice and read nowhere (FIXED v1878)
+
+Produced in `control_app` at two sites since **v1846**; consumed at **zero** places in the console,
+the board or the sweep script. Plumbing built at both ends and never joined — mine, and found by
+grepping my own field name. [[plumbing-with-no-tap]]
+
+It is the only thing that can separate **"he found this since the last sweep"** from **"nobody had
+read this page before"**, which are identical in every other number a sweep prints: both arrive as a
+name that was not in the ledger. And the dates come from the **game's own First Found rows** (v1864),
+so it is his history talking, not the reader's clock.
+
+The hand sweep now prints it — `🆕 N find(s) NEWER than anything read before this sweep: …` — and
+only when there are any: a line that always prints is one he stops reading. Guarded on **both** ends
+of the joint, because if the field stops being emitted the reader goes quiet and looks exactly like
+*"nothing new"* forever.

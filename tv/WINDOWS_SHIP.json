@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1877",
+  "ver": "v1878",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1877: The carved scar says the last CSS declaration wins and that editing the first occurrence looks like the edit did not take. Measured on the board: 4682 top-level rules, 201 selectors declared more than once, 153 setting the same property in more than one block. That is deliberate in a file grown over 1800 versions, so it is a lookup rather than a gate - a gate would cry wolf 153 times and be turned off. The tool answers which block wins for a selector and a property, and it had to be made exact first: the first cut reported two different rules at the same line, which in a tool whose whole job is which copy do I edit is worse than printing nothing.",
+  "note": "v1878: newlyDated has existed since v1846, produced at two sites in the control app and consumed at zero places anywhere. It is the only thing that can tell a find made since the last sweep from a page nobody had read before, which are identical in every other number a sweep prints, and its dates come from the game own First Found rows rather than the reader clock. The hand sweep prints it now, and only when there is something to say. Guarded at both ends of the joint, because a producer that stops emitting leaves the reader silent in a way that reads exactly like nothing new.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

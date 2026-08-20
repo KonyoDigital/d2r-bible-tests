@@ -9497,6 +9497,44 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestNewlyDatedReachesASurface(unittest.TestCase):
+    """v1878 — `newlyDated` was computed at two sites and read by NOTHING.
+
+    It has existed since v1846: produced in control_app twice, consumed at zero places in the
+    console, the board or the sweep script. Plumbing built at both ends and never joined — mine,
+    and found by grepping my own field name. [[plumbing-with-no-tap]]
+
+    It is the only thing that can separate "he found this SINCE the last sweep" from "nobody had
+    read this page before", which are identical in every other number a sweep prints: both arrive as
+    a name that was not in the ledger. The dates come from the GAME's own First Found rows (v1864),
+    so it is his history talking and not the reader's clock."""
+
+    def test_the_hand_sweep_prints_it(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "chronicle_sweep_now.py"), encoding="utf-8").read()
+        i = src.find('_fresh = (st.get("result") or {}).get("newlyDated")')
+        self.assertGreater(i, 0, "the sweep report reads newlyDated nowhere again")
+        after = src[i:i + 700]
+        self.assertIn("print(", after, "it is read and then not said")
+        self.assertIn("NEWER than anything read before", after)
+
+    def test_it_says_nothing_when_there_is_nothing_new(self):
+        # a line that always prints is one he stops reading
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "chronicle_sweep_now.py"), encoding="utf-8").read()
+        i = src.find('_fresh = (st.get("result") or {}).get("newlyDated")')
+        self.assertIn("if _fresh:", src[i:i + 200],
+                      "the new-finds line prints unconditionally")
+
+    def test_the_producer_still_exists_on_both_paths(self):
+        # the other half of the joint: if the field stops being emitted, the reader above goes
+        # quiet and looks like "nothing new" forever
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertEqual(src.count('"newlyDated": _fresh'), 2,
+                         "one of the two sweep results stopped carrying the find dates")
+
+
 class TestTheCascadeLookupAnswersCorrectly(unittest.TestCase):
     """v1877 — `d2r_css_last_rule_wins` is a carved scar: `.hero-title` had four rules and a twin
     `filterSilver` cost him a pane. At equal specificity the LAST declaration wins, so editing the

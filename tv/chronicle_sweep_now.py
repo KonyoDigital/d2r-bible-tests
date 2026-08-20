@@ -290,6 +290,21 @@ def main(argv=None):
             _eg = ", ".join("%s -> %s" % (k, v) for k, v in list(_fx.items())[:3])
             print("   fold: %d name(s) corrected%s · %d retired as debris"
                   % (len(_fx), (" (%s)" % _eg) if _eg else "", len(_rt)))
+        # v1878 — SAY WHICH FINDS ARE NEW, because that is the question a re-sweep is asking.
+        #
+        # `newlyDated` has been computed since v1846 and read by NOTHING: produced at two sites in
+        # control_app and consumed at zero. Plumbing built on both ends and never joined — mine,
+        # this time, and found by grepping my own field name. [[plumbing-with-no-tap]]
+        #
+        # It is the only thing that can separate "he found this since the last sweep" from "nobody
+        # had read this page before", which look identical in every other number here: both arrive
+        # as a name that was not in the ledger. The dates come from the GAME's own First Found rows
+        # (v1864), so this is his history talking, not the reader's clock.
+        _fresh = (st.get("result") or {}).get("newlyDated") or []
+        if _fresh:
+            _names = ", ".join(str((f or {}).get("name") or f) for f in _fresh[:4])
+            print("   \U0001f195 %d find(s) NEWER than anything read before this sweep: %s%s"
+                  % (len(_fresh), _names, " …" if len(_fresh) > 4 else ""))
         if st.get("error"):
             print("   error: %s" % st["error"])
             failed += 1
