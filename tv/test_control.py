@@ -8399,5 +8399,70 @@ class TestV1837RefusedThisRunIsNotRefusedEver(unittest.TestCase):
 
 
 
+class TestTheStampsAgreeInTheCOMMITNotJustTheWorktree(unittest.TestCase):
+    """2026-08-20 — CI was RED on every publish for TEN consecutive versions and nothing local saw it.
+
+    test_all_four_stamps_are_the_same_version reads the four files from the WORKING TREE, where the
+    bump had landed correctly every time. The pre-push hook runs that same suite against that same
+    working tree, so it went green on all ten. CI reads the COMMITTED tree, where tv/tv_diablo.py
+    had not been staged since v1832 and sat seven versions behind:
+
+        bible.html v1838 · control_app v1837 · tv_diablo v1831 · WINDOWS_SHIP v1838
+
+    Ten ships reached origin/main and none of them deployed; the site stayed on v1828 while each was
+    reported as shipped. The push was real, the publish was not.
+
+    So this asks the only question that matters — what do the bytes that were PUSHED say — and it
+    can fail locally, before the push, which the working-tree version never could.
+    [[feedback-blind-fixture-green-gate]] [[the-unjoined-end]]
+
+    It reads HEAD, never the tree, so a half-finished bump in progress does NOT trip it: HEAD still
+    holds the previous, self-consistent set. It only speaks about what was committed.
+    """
+
+    def _at_head(self, path):
+        r = subprocess.run(["git", "show", "HEAD:" + path],
+                           capture_output=True, text=True,
+                           cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if r.returncode != 0:
+            self.skipTest("not a git checkout (%s)" % (r.stderr or "").strip()[:60])
+        return r.stdout
+
+    def test_the_four_stamps_agree_as_committed(self):
+        board = re.search(r"D2R_BUILD\s*=\s*\{\s*id:'(v\d+)'", self._at_head("bible.html"))
+        control = re.search(r'"ver": "(v\d+)"', self._at_head("tv/control_app.py"))
+        agent = re.search(r'VERSION = "(v\d+)"', self._at_head("tv/tv_diablo.py"))
+        try:
+            ship = json.loads(self._at_head("tv/WINDOWS_SHIP.json")).get("ver")
+        except Exception:
+            ship = None
+        for label, m in (("bible.html", board), ("control_app", control), ("tv_diablo", agent)):
+            self.assertIsNotNone(m, "%s carries no parseable stamp in HEAD" % label)
+        stamps = {"bible.html D2R_BUILD": board.group(1),
+                  "control_app /api/status": control.group(1),
+                  "tv_diablo VERSION": agent.group(1),
+                  "tv/WINDOWS_SHIP.json": ship}
+        self.assertEqual(
+            len(set(stamps.values())), 1,
+            "THE COMMIT IS HALF-BUMPED and CI will refuse to publish it, however green the working "
+            "tree looks: %s. bump_version.py writes all four — stage all four."
+            % json.dumps(stamps, indent=2))
+
+    def test_every_stamp_is_read_from_head(self):
+        # A guard that opens the working copy is the guard that missed ten ships, so this checks
+        # all four lookups go through _at_head.
+        #
+        # Its first cut asserted the ABSENCE of the working-tree reader and tripped on its own
+        # failure message, which contained the very string it was banning — the same shape as the
+        # comment that once blinded a guard grepping for a module name. A positive count cannot
+        # be fooled by the prose around it. [[feedback-comments-vs-code]]
+        src = open(os.path.abspath(__file__), encoding="utf-8").read()
+        i = src.find("def test_the_four_stamps_agree_as_committed")
+        body = src[i:src.find("def ", i + 40)]
+        self.assertEqual(body.count("self._at_head("), 4,
+                         "not all four stamps are read from HEAD — a mixed guard is a blind one")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
