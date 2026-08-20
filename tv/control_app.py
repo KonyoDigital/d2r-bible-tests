@@ -10253,6 +10253,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # died is still money spent and still belongs in the count.
         _not_stash = [0]
         _read_no_names = [0]     # read cleanly, and the panel prints no names to read
+        _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
 
         def _classify(p):
             # ── THE TEMPLATE GATE (2026-08-20, his ask) ──────────────────────────────────────
@@ -10347,9 +10348,15 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             # found nothing in it" are different answers and only one of them is about his stash
             print("   \U0001f512 %d frame(s) refused by the stash template — no stash chrome, so "
                   "not an ownership screen" % _not_stash[0])
-        _gs, _gh = gate_hearing()
+        # v1865 — MEASURE THE RUN, NOT THE PROCESS. This read gate_hearing() raw, and those
+        # counters are process-lifetime: in the long-lived console, ONE successful probe ever makes
+        # `heard` non-zero forever, so the warning could never fire again no matter how completely
+        # the OCR lane died later. A run-level claim built on a lifetime counter — the same defect
+        # this whole arc keeps finding, written by me into the fix for it. Deltas now.
+        _gs = _GATE_SILENT[0] - _gate0[0]
+        _gh = _GATE_HEARD[0] - _gate0[1]
         if _gs and not _gh:
-            print("   \U0001f507 the tab-chrome OCR answered NOTHING on all %d probe(s) this run. "
+            print("   \U0001f507 the tab-chrome OCR answered NOTHING on all %d probe(s) THIS RUN. "
                   "That is the READER being silent, not a verdict about his stash — nothing here "
                   "says a frame was or was not an ownership screen." % _gs)
         if _read_no_names[0]:
@@ -12231,7 +12238,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1864",
+        "ver": "v1865",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -9450,6 +9450,26 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         s2, h2 = ca.gate_hearing()
         self.assertEqual((s2, h2), (s1, h1 + 1))
 
+    def test_the_sweeps_silence_report_measures_THIS_RUN_not_the_process(self):
+        """v1865 — caught reviewing v1864, which was my own fix for the defect it repeated.
+
+        gate_hearing() counts for the LIFE OF THE PROCESS. The console runs for hours, so one
+        successful probe ever makes `heard` non-zero forever and the "the reader is silent" warning
+        could never fire again however completely the OCR lane died afterwards. A run-level claim
+        built on a lifetime counter. [[stale-reading]]"""
+        import ast, control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def _vault_sweep_run(")
+        j = src.find("\ndef ", i + 10)
+        body = src[i:j]
+        self.assertIn("_gate0 = gate_hearing()", body,
+                      "the sweep does not snapshot the gate's audibility before it starts")
+        self.assertIn("_GATE_SILENT[0] - _gate0[0]", body)
+        self.assertIn("_GATE_HEARD[0] - _gate0[1]", body)
+        # and the snapshot must be taken BEFORE anything is probed, or the delta is not the run's
+        self.assertLess(body.find("_gate0 = gate_hearing()"), body.find("_vr.sweep("),
+                        "the baseline is taken after the sweep — the delta would be zero")
+
     def test_a_working_gate_records_no_failures(self):
         # 0 must mean "it ran", never "nobody looked" — otherwise the counter is the next silence
         import control_app as ca
