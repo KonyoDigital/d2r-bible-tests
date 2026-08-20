@@ -3281,7 +3281,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      row wrap then fixed the clip but pushed the "all N terrorised together" note (which carries
      margin-left:auto) onto its own line in one card and not the other, so the two cards stopped
      matching. Outside the row, neither happens and the label keeps the layout it always had. */
-  .tzt-turning{display:block;margin:0 0 6px;font-size:var(--fs-tiny);font-weight:var(--fw-normal);
+  .tzt-turning{display:block;margin:0 0 6px;font-size:var(--fs-micro);font-weight:var(--fw-normal);
     letter-spacing:.4px;line-height:1.35;color:var(--nm);white-space:normal}
   .tzt-now .tzt-turning{color:var(--warn,#ffd27f);border-color:rgba(255,210,127,.34)}
   .tzt-live-dot{width:10px;height:10px;border-radius:50%;background:var(--best);box-shadow:0 0 0 0 rgba(102,255,136,.55);animation:tztPulse 1.5s ease-out infinite}
@@ -41854,7 +41854,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1840', name:'v1840 - No reason beats a false reason, for the other reason too', date:'2026-08-20', note:'REG-145 left open: a boss difficulty cell declares a tcMax and 39 of 66 cells carry drop rows above it, so the blocked reason strings could name a ceiling the table underneath them ignores. v1722 already suppressed the qlvl reason in any cell whose own data breaks that rule; the TC reason on the next line never got the same test. Measured: TC-cited entries 2687 to 1211, not-in-pool 3250 to 4726, total blocked entries unchanged at 5937. No tcMax value was rewritten - REG-145 says that is his call.' };
+  window.D2R_BUILD = { id:'v1841', name:'v1841 - The token my own chip named does not exist', date:'2026-08-20', note:'v1831 styled the turning-over notice with font-size var(--fs-tiny), and there is no --fs-tiny in this file - the scale is --fs-micro. An undefined token renders as nothing and the declaration is silently dropped, which is exactly what v1733s gate exists to catch. It caught it; I had not read Routine I. Also confirms the same gate needed no change: it already strips block comments, so the --rar-rune in a comment about control_ui.html was never its complaint.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

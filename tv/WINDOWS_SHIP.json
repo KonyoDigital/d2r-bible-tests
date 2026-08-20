@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1840",
+  "ver": "v1841",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1840: REG-145 left open: a boss difficulty cell declares a tcMax and 39 of 66 cells carry drop rows above it, so the blocked reason strings could name a ceiling the table underneath them ignores. v1722 already suppressed the qlvl reason in any cell whose own data breaks that rule; the TC reason on the next line never got the same test. Measured: TC-cited entries 2687 to 1211, not-in-pool 3250 to 4726, total blocked entries unchanged at 5937. No tcMax value was rewritten - REG-145 says that is his call.",
+  "note": "v1841: v1831 styled the turning-over notice with font-size var(--fs-tiny), and there is no --fs-tiny in this file - the scale is --fs-micro. An undefined token renders as nothing and the declaration is silently dropped, which is exactly what v1733s gate exists to catch. It caught it; I had not read Routine I. Also confirms the same gate needed no change: it already strips block comments, so the --rar-rune in a comment about control_ui.html was never its complaint.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
