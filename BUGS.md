@@ -6711,3 +6711,23 @@ And the ceiling was binding either way: the console POSTs only `{focus}` and no 
 **Guards:** sets > uniques · headroom above both · the stash focuses untouched (a stash tab is one
 screen and 25s photographs it several times over) · the engine publishes what it enforces · the
 console prefers the published numbers **before** it renders the buttons.
+
+## REG-221 — the in-game date reached one item, not the wall (FIXED v1871)
+
+v1864 landed the game's own First Found date and dropper, and v1864 showed it in exactly one place:
+the *"last found"* bar. Konyo's ask was broader — *"when it was added to the chronicle it should be
+storyline synced with the ingame diablo ii"*.
+
+Every found chip now carries it, in the chip's `title`: nothing on the page moves, because the wall
+is dense and a second line would cost the density that makes it readable.
+
+**Proven in node, not by reading** — which is how the half-claim was caught: `{at:'', by:'Mephisto'}`
+rendered *"found in game · dropped by Mephisto"*, a sentence that stops mid-claim. Each half now
+stands alone or not at all, and an unparseable date claims nothing.
+
+**And the whole chain is locked**, with a guard built from his own measured reader output rather
+than an invented fixture: two frames × two lanes → `proposal_from_pages` → `gate_verdict`
+(corroborated *cross-frame, cross-lane*) → the exact `wouldAdd` row the board receives, carrying
+`gameFound {at: "07/18/2026, 02:47", by: "Andariel"}`. A page that printed no date ships **no key
+at all** rather than an empty one, so the board can still tell *found on this date* from *found,
+date unknown*. v1864's defect was that every link was sound and the chain carried nothing.

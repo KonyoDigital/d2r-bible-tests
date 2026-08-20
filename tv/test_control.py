@@ -9340,6 +9340,66 @@ class TestNoGateWritesHisLiveWorld(unittest.TestCase):
         self.assertIn("TV_CONTROL_PORT=", body, "the port isolation is gone")
 
 
+class TestEveryFoundChipCarriesItsStoryline(unittest.TestCase):
+    """v1871 — Konyo: "when it was added to the chronicle it should be storyline synced with the
+    ingame diablo ii".
+
+    v1864 landed the date; this makes it visible on the HUNDREDS of found items rather than only on
+    the last one ticked. It rides in the chip's `title`, so nothing on the page moves — the wall is
+    dense and a second line would cost the density that makes it readable.
+
+    Run in node, because the half-claim it now avoids was found that way and not by reading:
+    {at:'', by:'Mephisto'} used to render "found in game · dropped by Mephisto" — a sentence that
+    stops mid-claim. Each half stands alone or not at all."""
+
+    def _run(self, store):
+        import json as _json
+        import shutil as _sh
+        import subprocess as _sp
+        import tempfile as _tf
+        node = _sh.which("node")
+        if not node:
+            self.skipTest("node is not installed on this machine")
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i, j = src.find("var _GAME_MON = ["), src.find("window._gameFoundSet")
+        k = src.find("  function _gameFoundTitle(n){")
+        m = src.find("  function _itemChip(n,q){", k)
+        self.assertGreater(k, 0, "the chip no longer carries a storyline")
+        prog = ("var window = {};\n" + src[i:j]
+                + "var STORE = " + _json.dumps(store) + ";\n"
+                + "window.gameFoundFor = function(n){ return STORE[n] || null; };\n"
+                + src[k:m].replace("function _gameFoundTitle", "window._gft = function")
+                + "console.log(JSON.stringify(Object.keys(STORE).concat(['__absent'])"
+                  ".map(function(x){ return window._gft(x); })));\n")
+        with _tf.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+            f.write(prog)
+            jp = f.name
+        try:
+            out = _sp.run([node, jp], capture_output=True, text=True, timeout=60)
+            self.assertEqual(out.returncode, 0, out.stderr[:400])
+            return _json.loads(out.stdout.strip().splitlines()[-1])
+        finally:
+            os.unlink(jp)
+
+    def test_his_own_row_reads_as_the_game_printed_it(self):
+        got = self._run({"Immortal King's Will": {"at": "07/18/2026, 02:47", "by": "Andariel"}})
+        self.assertEqual(got[0], " \u2014 \u2694 found in game Jul 18, 2026 \u00b7 02:47 "
+                                 "\u00b7 dropped by Andariel")
+        self.assertEqual(got[-1], "", "an item the Chronicle never dated claims nothing")
+
+    def test_each_half_stands_alone_or_not_at_all(self):
+        got = self._run({"a": {"at": "", "by": "Mephisto"},
+                         "b": {"at": "06/02/2026, 01:06"},
+                         "c": {"at": "nonsense"}})
+        self.assertEqual(got[0], " \u2014 \u2694 dropped by Mephisto",
+                         "'found in game' with no date is a sentence that stops mid-claim")
+        self.assertEqual(got[1], " \u2014 \u2694 found in game Jun 2, 2026 \u00b7 01:06")
+        self.assertEqual(got[2], "", "an unparseable date must claim nothing, not approximate")
+
+
 class TestTheMiniDurationsHaveOneSource(unittest.TestCase):
     """v1870 — Konyo: "i just did a MINI sets and its too short.. it needs to be longer like the
     UNIQUES mini".

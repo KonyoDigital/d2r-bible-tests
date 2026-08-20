@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1870"   # A sets row is three lines to a unique one and they got equal time
+VERSION = "v1871"   # Every found chip carries its storyline, and the chain is proven end to end
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _fixture_root(here):

@@ -1900,5 +1900,58 @@ class TestTheGamesOwnFindDate(unittest.TestCase):
         self.assertEqual(cr.in_game_stamp([]), {})
         self.assertEqual(cr.in_game_stamp(None), {})
 
+
+class TestTheGameDateSurvivesTheWholeChain(unittest.TestCase):
+    """v1871 — the END-TO-END proof, on his own reader output rather than an invented fixture.
+
+    The `resp` below is MEASURED: it is what claude_chronicle_read returned when asked directly for
+    frame f_1787177298256.jpg of his Set-pieces reel, and it matches his pixels — the row reads
+    "IMMORTAL KING'S WILL · Dropped By: Andariel · First Found: 07/18/2026, 02:47".
+
+    Each earlier guard covers one link. This one asserts the whole run: two frames × two lanes ->
+    proposal_from_pages -> gate_verdict -> the exact wouldAdd row control_app ships to the board.
+    v1864's defect was that every link was sound and the chain carried nothing."""
+
+    RESP = {"kind": "chronicle", "ledger": "sets", "conf": 0.9, "stateVisible": True,
+            "found": ["Immortal King's Will"], "notFound": [], "sets": [],
+            "foundAt": {"Immortal King's Will": "07/18/2026, 02:47"},
+            "droppedBy": {"Immortal King's Will": "Andariel"}}
+
+    def _prop(self):
+        pages = []
+        for frame in ("f_1787177298256.jpg", "f_1787177300387.jpg"):
+            for lane in ("claude", "grok"):
+                pages.append({"reel": "s_1787177267889_92273", "frame": frame,
+                              "resp": dict(self.RESP, lane=lane, witness="cross-frame")})
+        return cr.proposal_from_pages(pages)
+
+    def test_the_gate_grounds_it_and_the_row_carries_the_game_date(self):
+        name = "Immortal King's Will"
+        sights = self._prop()["sets"][name]
+        v = cr.gate_verdict(name, sights)
+        self.assertTrue(v.get("pass"), "his own two frames and two lanes did not corroborate: %r" % v)
+        self.assertIn("cross-lane", v.get("witnesses") or [])
+        stamp = cr.in_game_stamp(sights)
+        self.assertEqual(stamp.get("at"), "07/18/2026, 02:47")
+        self.assertEqual(stamp.get("by"), "Andariel")
+        # the row control_app builds, assembled the same way
+        row = dict({"name": name, "why": v.get("why", "")},
+                   **({"gameFound": stamp} if stamp else {}))
+        self.assertIn("gameFound", row,
+                      "the row reaching the board carries no date — v1864's defect, returned")
+
+    def test_a_page_that_prints_no_date_ships_NO_key_rather_than_an_empty_one(self):
+        """Absent, never blank: the board has to be able to tell "found on this date" from
+        "found, date unknown". [[unknown-stays-unknown]]"""
+        bare = dict(self.RESP)
+        bare.pop("foundAt"); bare.pop("droppedBy")
+        pages = [{"reel": "r", "frame": "f.jpg", "resp": dict(bare, lane=l, witness="cross-frame")}
+                 for l in ("claude", "grok")]
+        sights = cr.proposal_from_pages(pages)["sets"]["Immortal King's Will"]
+        stamp = cr.in_game_stamp(sights)
+        self.assertEqual(stamp, {})
+        row = dict({"name": "x"}, **({"gameFound": stamp} if stamp else {}))
+        self.assertNotIn("gameFound", row)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

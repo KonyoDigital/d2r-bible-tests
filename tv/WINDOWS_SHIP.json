@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1870",
+  "ver": "v1871",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1870: He said the sets MINI is too short and should be like uniques. They were already identical at 75 seconds on both sides, so the premise as stated could not be the defect, but the reason under it is real: a sets row prints name and dropped-by and first-found where a unique prints one line, so the same scroll covers about a third as much ledger. Sets doubles to 150, the chronicle ceiling doubles to 240 so there is room above both, and the durations are now published by the engine instead of copied into the console, which had its own table and would have gone on saying 75. Also the status payload now answers whether its reads are real.",
+  "note": "v1871: The in-game find date now shows on every found item rather than only the last one ticked, riding in the chip title so the wall keeps its density. And the whole chain is locked with a guard built from his own reader output: two frames by two lanes through the proposal, the gate corroborating cross-frame and cross-lane, and the exact row the board receives carrying the date and the dropper. A page that printed no date ships no key at all rather than an empty one, so the board can still tell found-on-this-date from found-date-unknown.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

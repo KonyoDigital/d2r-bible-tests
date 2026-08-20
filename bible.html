@@ -37825,8 +37825,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="'+setter+'(\''+key+'\')" title="show '+esc(label)+'">'
       +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+esc(label)+'</span><span class="ft-ct">'+n+'</span></button>';
   }
+  /* v1871 — EVERY FOUND CHIP CARRIES ITS STORYLINE, when the game printed one.
+     Konyo: "when it was added to the chronicle it should be storyline synced with the ingame
+     diablo ii". v1864 landed the date; this is where it becomes visible on the hundreds of items
+     rather than only on the last one ticked. It rides in the TITLE, so nothing moves on the page
+     and no row can be pushed out of shape — the chips are dense and a second line would cost him
+     the density that makes the wall readable. Absent when the Chronicle never printed one; never
+     invented. [[unknown-stays-unknown]] */
+  function _gameFoundTitle(n){
+    try {
+      var g = window.gameFoundFor ? window.gameFoundFor(n) : null;
+      if (!g) return '';
+      var d = g.at ? window._gameStampToLedger(g.at) : '';
+      if (!d && !g.by) return '';
+      /* "found in game" with nothing after it is a sentence that stops mid-claim — measured in
+         node on {at:'', by:'Mephisto'}. Each half stands alone or not at all. */
+      if (!d) return ' \u2014 \u2694 dropped by ' + g.by;
+      return ' \u2014 \u2694 found in game ' + d + (g.by ? ' \u00b7 dropped by ' + g.by : '');
+    } catch(e){ return ''; }
+  }
   function _itemChip(n,q){
-    return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+_tickBtn(n,'grailFoundUni')+chipLogo(n)+'<span class="gf-cname">'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
+    return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card'+esc(_gameFoundTitle(n))+'">'+_tickBtn(n,'grailFoundUni')+chipLogo(n)+'<span class="gf-cname">'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
   }
   /* ── v1624 — THE RUN'S PICTURE IS THE RUN ─────────────────────────────────────────────────────
      Konyo: "the item logos on the left for each Hell mephisto and the pindleskin.. like what are
@@ -41980,7 +41999,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1870', name:'v1870 - A sets row is three lines to a unique one and they got equal time', date:'2026-08-20', note:'He said the sets MINI is too short and should be like uniques. They were already identical at 75 seconds on both sides, so the premise as stated could not be the defect, but the reason under it is real: a sets row prints name and dropped-by and first-found where a unique prints one line, so the same scroll covers about a third as much ledger. Sets doubles to 150, the chronicle ceiling doubles to 240 so there is room above both, and the durations are now published by the engine instead of copied into the console, which had its own table and would have gone on saying 75. Also the status payload now answers whether its reads are real.' };
+  window.D2R_BUILD = { id:'v1871', name:'v1871 - Every found chip carries its storyline, and the chain is proven end to end', date:'2026-08-20', note:'The in-game find date now shows on every found item rather than only the last one ticked, riding in the chip title so the wall keeps its density. And the whole chain is locked with a guard built from his own reader output: two frames by two lanes through the proposal, the gate corroborating cross-frame and cross-lane, and the exact row the board receives carrying the date and the dropper. A page that printed no date ships no key at all rather than an empty one, so the board can still tell found-on-this-date from found-date-unknown.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
