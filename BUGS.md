@@ -6303,3 +6303,94 @@ rather than to pick a side — but the disagreement is **not exercised by any fr
 (zero occurrences across the 68 stash-panel frames), so a change here would ship untested against
 his data. Filed with the measurement so the next pass starts from evidence rather than from this
 paragraph.
+
+## REG-205 — the selected stash tab IS visible in the pixels; reading it is not solved (OPEN)
+
+**Found:** 2026-08-20, looking at the frames REG-202 newly admits.
+
+The tab question is answered by a documented **guess** today (REG-204, v1859). But the answer is
+right there in the picture: D2R draws the ACTIVE tab boxed and brighter — `MATERIALS` in
+`8_1785078207015.jpg`, `PERSONAL` in `6_1784984233446.jpg`. A pixel read of which label is
+highlighted would replace the guess with a structural fact, exactly as the chrome gate replaced a
+model's opinion.
+
+**Tried and measured, so the next pass does not re-derive it.** Crop `_TAB_CHROME`, find the
+brightest row band, split into five equal cells, take the argmax mean luminance:
+
+| frame | truth | cell means | argmax | margin |
+|---|---|---|---|---|
+| `6_1784984233446` | personal | 57.7 52.7 51.7 50.6 45.5 | **personal** ✓ | 5.0 |
+| `8_1785078207015` | materials | 63.2 77.3 80.1 74.0 66.3 | gems ✗ | 2.8 |
+| `5_1784984201581` | runes | 47.4 54.5 60.9 59.6 49.7 | gems ✗ | 1.2 |
+
+**1 of 3, on margins of 1–5 grey levels.** The five-equal-cells assumption is the flaw: the labels
+are not equal width (`Gems` is short, `Materials` long), so a cell straddles two labels and the
+bright pixels land in the wrong bucket. Segmenting by the separators, or matching the box border
+rather than the fill, are the next things to try.
+
+**NOT shipped.** Three hand-labelled frames is not a corpus, and a plausible-but-wrong tab detector
+is the precise defect v1857 and v1859 already cost. Ground truth in this table was established by
+opening the images. When he records a stash reel, label its frames and calibrate against those.
+
+## REG-206 — the vault lane cannot ledger a stash by looking at it (MEASURED, by design not defect)
+
+**Found:** 2026-08-20, by running the whole vault chain end-to-end on the exact template Konyo
+described — `6_1784984233446.jpg`: Stash open on the left with **Personal** selected, Inventory open
+on the right, both full of items.
+
+Every link works:
+
+| step | answer |
+|---|---|
+| `stash_screen_open` | `"stash"` — admitted (v1860) |
+| `claude_read` (classify) | `scene: "stash"`, `stashTab: "personal"`, conf 0.95, 31s, G5/grok |
+| `claude_vault_read(…, "stash")` | `{"items": [], "conf": 0.0}` |
+
+The reader was genuinely asked — the raw `_oneshot` reply was captured: `sonnet, 8s ->
+{'surface':'materials','items':[],'conf':0.0}`. Same answer on the Runes tab
+(`5_1784984201581`) and the Materials tab (`8_1785078207015`).
+
+**It is right.** `VAULT_READ_PROMPT` says *"Return a row ONLY when you can actually READ its name on
+this image"* — and **D2R prints no item names in a stash grid.** A name exists only in the HOVER
+tooltip. The one name that DID come through on that frame arrived exactly that way: the classify
+returned `names_loc: {"Tome of Town Portal": "inventory"}`, read off the tooltip he happened to be
+hovering.
+
+**What this means for the footage he records.** Parking on an open stash grounds nothing, however
+long the recording. To ledger items by name he must **hover them**. The alternative — ledger by icon
+and stack count rather than by name — is a different design and his call.
+
+**Shipped alongside:** the sweep now counts and names this third outcome, so its report says
+*"read cleanly and held no readable name"* instead of offering "unreadable page or empty shelf",
+neither of which was true.
+
+## REG-207 — the inventory read was cropped to the stash panel (FIXED v1861)
+
+`claude_vault_read` cropped every non-tally surface to the `runes` band — the **left** stash panel.
+For `surface="stash"` that is roughly right. For `surface="inventory"` it handed the reader HIS
+STASH and asked it to read his inventory, so the honest reply was always "not an inventory panel,
+items empty": a lane that could never ground a row, reported as an empty shelf.
+
+No inventory band is calibrated anywhere in `stash_eye` — the tally crops were measured for the left
+panel only. Rather than invent one, `inventory` now reads the **full frame**: more tokens, and the
+only rectangle known to contain the panel. [[unknown-stays-unknown]]
+
+## REG-208 — a throttled page burned one of its three looks (FIXED v1861)
+
+The re-read cap (his ask: *"after third read it should be blocked..? safegaurd?"*) counted reads
+that never happened. `_read_one` bumped the counter unconditionally, under a comment that said the
+opposite — *"bump only when a read was really attempted — a throttled or capped page must not burn
+one of its three looks."* The CAPPED case returned early so it was safe; **THROTTLED and
+BUDGET-BLOCKED fell straight through to the bump.**
+
+`claude_chronicle_read` answers those two with `{"note": "reader throttled — not read"}` and
+`{"note": "not read — <why>"}` and reads nothing. So three throttled sweeps would retire a page that
+had never been read once — and the cap message would then tell him to re-read it *"by changing the
+reader"*, about a page the reader never saw.
+
+Measured, old vs new, five refusals on one frame: **count 5 → 0**, **capped True → False**.
+
+The decision moved out of the closure into `_chron_read_bump_if_read()` so a test can drive it; the
+version that could not be driven was wrong for two ships. **Guards:** `test_control` —
+`test_a_THROTTLED_page_does_not_burn_a_look`, `test_a_DEAD_lane_does_not_burn_a_look_either`,
+`test_a_REAL_read_still_spends_one` (the mirror), `test_the_sweep_spends_looks_through_THIS_function_only`.

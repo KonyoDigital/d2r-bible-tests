@@ -10231,6 +10231,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # The tick stays INSIDE the lane so "classified" counts probes ATTEMPTED — a probe that
         # died is still money spent and still belongs in the count.
         _not_stash = [0]
+        _read_no_names = [0]     # read cleanly, and the panel prints no names to read
 
         def _classify(p):
             # ── THE TEMPLATE GATE (2026-08-20, his ask) ──────────────────────────────────────
@@ -10303,7 +10304,19 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 # has no `items` key, so vault_retro could never ground a row from it — and because
                 # `note` is None on a good chronicle read it did not even count as a refusal: the
                 # page counted as read and the reel was marked swept. The seam exists now.
-                return _tv.claude_vault_read(p, surface)
+                _r = _tv.claude_vault_read(p, surface)
+                # v1861 — "READ FINE, AND THERE IS NOTHING NAMEABLE ON IT" IS A THIRD ANSWER.
+                # D2R prints no item names in a stash grid; a name appears only in the HOVER
+                # tooltip. So a perfectly good read of a full shelf honestly returns items:[] —
+                # measured on his own frames, with the model's raw reply captured:
+                #   6_1784984233446 stash     -> {"items":[],"conf":0.0}   (sonnet, 8s, real reply)
+                #   5_1784984201581 runes     -> {"items":[],"conf":0.0}
+                #   8_1785078207015 materials -> {"items":[],"conf":0.0}
+                # Counted separately so the end-of-sweep line can say WHICH of the three happened
+                # instead of offering him two possibilities, neither of them the true one.
+                if isinstance(_r, dict) and not _r.get("note") and not (_r.get("items") or []):
+                    _read_no_names[0] += 1
+                return _r
             except Exception:
                 return {"note": "the reader failed on this page — not read"}
 
@@ -10313,6 +10326,10 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             # found nothing in it" are different answers and only one of them is about his stash
             print("   \U0001f512 %d frame(s) refused by the stash template — no stash chrome, so "
                   "not an ownership screen" % _not_stash[0])
+        if _read_no_names[0]:
+            print("   \U0001f441 %d panel(s) READ CLEANLY and held no readable name. D2R prints "
+                  "no names in a stash grid — a name exists only in the HOVER tooltip. This is not "
+                  "a failure and not an empty shelf; it is the footage." % _read_no_names[0])
         _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
         # remember ONLY the reels this run actually read — a reel that errored or was skipped stays
         # unread, or one bad run permanently hides footage from every future sweep.
@@ -10342,9 +10359,8 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             _vault_swept_save(swept)
         else:
             print("   \u26a0 vault sweep produced no rows — sealing nothing, so the footage stays "
-                  "readable. The reader ran (v1785's seam); it simply returned no items, which is "
-                  "either an unreadable page or a genuinely empty shelf — vault_retro's own verdict "
-                  "above says which.")
+                  "readable. The reader ran (v1785's seam). The lines above say which of the three "
+                  "it was: refused by the template, read-and-nothing-nameable, or genuinely empty.")
 
         # ACCUMULATE ACROSS SESSIONS — merge-max only, and the merge itself lives in vault_retro.
         # This ledger is what the readers have SEEN; it is never what he owns.
@@ -10709,6 +10725,31 @@ def _chron_read_bump(reads, prompt_ver, reel, frame):
     k = "%s|%s" % (reel, frame)
     per[k] = int(per.get(k) or 0) + 1
     return per[k]
+
+
+def _chron_read_bump_if_read(reads, prompt_ver, reel, frame, out):
+    """Spend one of this frame's three looks — but ONLY if the reader actually looked.
+
+    v1861. `_read_one` bumped unconditionally, under a comment that said it did not: "bump only
+    when a read was really attempted — a throttled or capped page must not burn one of its three
+    looks." The CAPPED case returned early so it was safe; THROTTLED and BUDGET-BLOCKED fell
+    through. claude_chronicle_read answers those two with {"note": "reader throttled — not read"}
+    and {"note": "not read — <why>"} and reads nothing, so three throttled sweeps would retire a
+    page nobody had ever read — and the cap message would then tell him to re-read it "by changing
+    the reader", about a page the reader never saw.
+
+    `note` is set by exactly those two refusals (both early returns in tv_diablo.claude_chronicle_read)
+    and by nothing a real read produces, so its presence IS "not read". A lane that returns None —
+    a dead reader — is also not a read.
+
+    Returns True when a look was spent. Lives at module level, and takes `out` rather than deciding
+    inside a closure, so it can be driven by a test; the version that could not be was wrong for
+    two ships. [[the-unjoined-end]]
+    """
+    if out is None or (isinstance(out, dict) and out.get("note")):
+        return False
+    _chron_read_bump(reads, prompt_ver, reel, frame)
+    return True
 
 
 def _chron_read_capped(reads, prompt_ver, reel, frame, cap=None):
@@ -11571,6 +11612,7 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             grok_lane = lambda p, k: _g5.g5_chronicle_read(p, k)
         _reads = _chron_reads_load()
         _capped_frames = [0]
+        _unread_not_burned = [0]      # refused by throttle/budget — read never happened, look kept
 
         def _read_one(p, k):
             _breathe()
@@ -11588,10 +11630,23 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 _capped[0] += 1
             _tick(pagesRead=1)
             _out = _tv.claude_chronicle_read(p, k)
-            # bump only when a read was really attempted — a throttled or capped page must not
-            # burn one of its three looks
+            # BUMP ONLY WHEN THE PAGE WAS REALLY READ — a page nobody looked at must not burn one
+            # of its three looks.
+            #
+            # v1861 — this comment said exactly that and the code did not do it. The CAPPED case
+            # returns early above, so it was safe; the THROTTLED and BUDGET-BLOCKED cases fell
+            # straight through to the bump. claude_chronicle_read answers those two with
+            # {"note": "reader throttled — not read"} and {"note": "not read — <why>"} and reads
+            # NOTHING, so three throttled sweeps would retire a page that had never been read once
+            # — and the cap message would then tell him to "re-read them by changing the reader",
+            # about pages the reader never saw. Silent, permanent, and the precise safeguard he
+            # asked for. [[the-unjoined-end]] — the early return was joined, these two were not.
+            #
+            # `note` is only ever set by those two refusals (both early returns in tv_diablo); a
+            # page that was actually read carries none. So its presence IS "not read".
             try:
-                _chron_read_bump(_reads, _tv.PROMPT_VER, _rl, _fr)
+                if not _chron_read_bump_if_read(_reads, _tv.PROMPT_VER, _rl, _fr, _out):
+                    _unread_not_burned[0] += 1
             except Exception:
                 pass
             return _out
@@ -11740,6 +11795,11 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             print("   \U0001f6d1 %d page(s) skipped by the re-read cap (%d reads each under %s) "
                   "— re-read them by changing the reader, or TV_CHRON_READ_CAP=0"
                   % (_capped_frames[0], _CHRON_READ_CAP, _tv.PROMPT_VER))
+        if _unread_not_burned[0]:
+            # said out loud so a throttled stretch cannot look like a quiet one. These pages spent
+            # nothing and kept all three of their looks — the opposite of the capped line above.
+            print("   ⏸ %d page(s) refused by the throttle or the budget — NOT read, and none "
+                  "of their %d looks spent" % (_unread_not_burned[0], _CHRON_READ_CAP))
         # v1837 — KEEP THIS RUN'S REFUSALS SEPARATE FROM ALL TIME. `prop` becomes the MERGED,
         # cumulative proposal a line or two below, and the result then published `totals` (this run)
         # beside `refused` (every run, ever) as sibling keys with nothing saying so. Both numbers
@@ -12096,7 +12156,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1860",
+        "ver": "v1861",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

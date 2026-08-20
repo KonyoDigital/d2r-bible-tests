@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1860"   # Admission counts the tab labels, it does not ask which tab
+VERSION = "v1861"   # A page nobody read may not burn one of its three looks
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -5046,8 +5046,22 @@ def claude_vault_read(image_path, surface, timeout=None):
             from PIL import Image as _Im
             _im = _Im.open(ap).convert("RGB")
             _W, _H = _im.size
-            _band = _se.crops_for_aspect(surface if surface in ("runes", "gems", "materials")
-                                         else "runes", float(_W) / float(_H))
+            # v1861 — THE INVENTORY IS THE PANEL ON THE RIGHT, and this cropped it to the left one.
+            #
+            # Every surface that was not a tally tab fell to the "runes" band — the LEFT stash
+            # panel. For surface="stash" that is roughly right. For surface="inventory" it handed
+            # the reader HIS STASH and asked it to read his inventory, so the honest answer was
+            # always "this is not an inventory panel, items empty" — a lane that could never ground
+            # a row, reported as an empty shelf. Measured on 6_1784984233446.jpg, the frame that is
+            # exactly the stash+inventory template he asked for.
+            #
+            # The inventory band is not calibrated anywhere in stash_eye — the tally crops were
+            # measured for the left panel only. So the honest move is NOT to invent one: read the
+            # FULL FRAME for inventory. It costs more tokens and it is the only rectangle known to
+            # contain the panel. [[unknown-stays-unknown]] — an uncalibrated band is not a band.
+            _layout = surface if surface in ("runes", "gems", "materials") else "runes"
+            _band = (None if surface == "inventory"
+                     else _se.crops_for_aspect(_layout, float(_W) / float(_H)))
             if _band:
                 _c = _im.crop((int(_W * _band[0]), int(_H * _band[1]),
                                int(_W * _band[2]), int(_H * _band[3])))

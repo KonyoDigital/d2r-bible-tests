@@ -8641,6 +8641,60 @@ class TestTheReReadCap(unittest.TestCase):
     every frame's count at zero.
     """
 
+    def test_a_THROTTLED_page_does_not_burn_a_look(self):
+        """v1861 — the defect this closes, in his own words: "after third read it should be
+        blocked..? safegaurd?". It was, and a throttle could spend all three looks on pages the
+        reader never opened.
+
+        claude_chronicle_read answers a throttle with {"note": "reader throttled — not read"} and
+        reads nothing. `_read_one` bumped anyway, under a comment promising it did not — so three
+        throttled sweeps would retire a page that had never been read once, and the cap message
+        would tell him to re-read it "by changing the reader"."""
+        import control_app as ca
+        reads = {}
+        for note in ("reader throttled — not read", "not read — subscription cap"):
+            for _ in range(5):
+                spent = ca._chron_read_bump_if_read(reads, "p1", "r", "f", {"note": note})
+                self.assertFalse(spent, "a page nobody read spent a look")
+        self.assertEqual(ca._chron_read_count(reads, "p1", "r", "f"), 0)
+        self.assertIsNone(ca._chron_read_capped(reads, "p1", "r", "f"),
+                          "ten refusals capped a frame the reader never opened")
+
+    def test_a_DEAD_lane_does_not_burn_a_look_either(self):
+        # None is the other "not read" — a lane that died. Absence of a page is not a page.
+        import control_app as ca
+        reads = {}
+        self.assertFalse(ca._chron_read_bump_if_read(reads, "p1", "r", "f", None))
+        self.assertEqual(ca._chron_read_count(reads, "p1", "r", "f"), 0)
+
+    def test_a_REAL_read_still_spends_one(self):
+        # the mirror, or the fix is just a cap that never counts and the safeguard is gone
+        import control_app as ca
+        reads = {}
+        for i in range(3):
+            self.assertTrue(ca._chron_read_bump_if_read(
+                reads, "p1", "r", "f", {"found": ["Shako"], "note": None}))
+            self.assertEqual(ca._chron_read_count(reads, "p1", "r", "f"), i + 1)
+        self.assertIsNotNone(ca._chron_read_capped(reads, "p1", "r", "f"),
+                             "three real reads must still reach the cap")
+
+    def test_the_sweep_spends_looks_through_THIS_function_only(self):
+        """The joint, not the parts. Both halves were right for two ships and only the closure
+        called the raw bump — which is why a source check earns its place here.
+        [[source-reading-guard]]"""
+        import ast, control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        fn = None
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, ast.FunctionDef) and node.name == "_read_one":
+                fn = node
+        self.assertIsNotNone(fn, "the chronicle sweep no longer has a _read_one")
+        called = {getattr(n.func, "id", None) or getattr(n.func, "attr", None)
+                  for n in ast.walk(fn) if isinstance(n, ast.Call)}
+        self.assertIn("_chron_read_bump_if_read", called)
+        self.assertNotIn("_chron_read_bump", called,
+                         "the raw bump is back in the closure — it cannot tell a read from a refusal")
+
     def test_a_fresh_frame_is_not_capped(self):
         import control_app as ca
         self.assertIsNone(ca._chron_read_capped({}, "p1", "r", "f"))

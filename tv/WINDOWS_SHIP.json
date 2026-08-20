@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1860",
+  "ver": "v1861",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1860: The vault gate decided whether a frame may speak about ownership by asking which stash tab was selected. That question abstains whenever two or more labels are legible - correctly, because the strip prints all five whichever is active - and the gate read the abstention as not a stash. So the clearest evidence his stash is open refused exactly like an empty frame. Measured on his own reels: four frames printed PERSONAL SHARED GEMS MATERIALS in one strip and all four were turned away. Admission now counts legible labels; one is proof, four is overwhelming, and the tab stays honestly unknown.",
+  "note": "v1861: Three fixes proven on his own footage. The re-read cap counted reads that never happened: the capped case returned early but throttled and budget-blocked fell through to the bump, so three throttled sweeps would retire a page the reader had never opened. Measured five refusals on one frame: count 5 to 0. The inventory read was cropped to the left stash panel, so it was handed his stash and asked to read his inventory. And the vault sweep now names a third outcome it could not say before: read cleanly and held no readable name, which is what a D2R stash grid actually is.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
