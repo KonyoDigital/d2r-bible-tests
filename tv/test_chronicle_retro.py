@@ -1786,5 +1786,72 @@ class TestV1839ThreeRefusalsThreeNames(unittest.TestCase):
 
 
 
+class TestV1846WhatWasRegisteredYesterdayAndWhatIsNewToday(unittest.TestCase):
+    """v1846 — the stamps were captured and never once COMPARED.
+
+    Konyo: "maybe try to code and focus the AI readers to understand this logic too as an addition
+    to the cross reference maybe date and timestamp related coding so they know what they registered
+    yesterday and whats new today".
+
+    v1819 taught both readers to capture each row's `First Found:` stamp, and the ledger has held
+    them ever since — as TEXT. Read as text, stored as text, printed as text, and never compared.
+    So the system knew every find-date in his grail and could not answer the one question he asked
+    of them. This is the missing arithmetic.
+
+    Measured on his real ledger: newest stamp 08/20/2026 02:10 (Hellclap), and six finds dated after
+    08/17 — Hellclap, Rainbow Facet, Blood Raven's Charge, Rixot's Keen, Razorswitch and M'avina's
+    Embrace, all in the early hours of the 20th.
+    """
+
+    def _prop(self, pairs):
+        return {"uniques": {n: [{"reel": "r", "frame": "f", "lane": "claude", "foundAt": d}]
+                            for n, d in pairs}, "sets": {}}
+
+    def test_a_printed_stamp_sorts_by_time_not_by_text(self):
+        # MM/DD/YYYY sorts alphabetically into nonsense: "01/02/2027" < "12/31/2026" as text
+        early, late = cr.stamp_key("12/31/2026, 23:59"), cr.stamp_key("01/02/2027, 00:01")
+        self.assertIsNotNone(early)
+        self.assertLess(early, late, "the new year sorted before December")
+
+    def test_a_monster_name_is_not_a_stamp(self):
+        for junk in ("Hell Bovine", "", None, "Dropped By: Baal", "08/2026"):
+            self.assertIsNone(cr.stamp_key(junk), "parsed a non-stamp: %r" % (junk,))
+
+    def test_the_newest_stamp_is_found_across_both_ledgers(self):
+        p = self._prop([("A", "05/10/2026, 23:22"), ("B", "08/20/2026, 02:10")])
+        self.assertEqual(cr.newest_stamp(p), (2026, 8, 20, 2, 10))
+
+    def test_a_ledger_with_no_stamps_has_no_newest(self):
+        # None is not a date and must never compare as one
+        self.assertIsNone(cr.newest_stamp({"uniques": {"A": [{"reel": "r", "frame": "f"}]}}))
+
+    def test_only_finds_newer_than_the_mark_are_reported(self):
+        p = self._prop([("old", "05/10/2026, 23:22"), ("new", "08/20/2026, 02:10")])
+        got = cr.newly_dated(p, (2026, 8, 17, 23, 59))
+        self.assertEqual([r["name"] for r in got], ["new"])
+
+    def test_it_reports_newest_first(self):
+        p = self._prop([("mid", "08/19/2026, 10:00"), ("newest", "08/20/2026, 02:10"),
+                        ("older", "08/18/2026, 09:00")])
+        got = cr.newly_dated(p, (2026, 8, 17, 0, 0))
+        self.assertEqual([r["name"] for r in got], ["newest", "mid", "older"])
+
+    def test_no_prior_mark_reports_NOTHING_rather_than_everything(self):
+        """THE ONE THAT MATTERS. A ledger that has never held a stamp cannot tell new from old.
+        Answering "everything is new" would flood the first sweep after this ships with his entire
+        grail dressed as today's finds. [[unknown-stays-unknown]]"""
+        p = self._prop([("A", "08/20/2026, 02:10")])
+        self.assertEqual(cr.newly_dated(p, None), [])
+
+    def test_a_name_keeps_its_newest_sighting(self):
+        # one name seen in two reels keeps the later date, not whichever was merged last
+        p = {"uniques": {"A": [{"reel": "r1", "frame": "f1", "foundAt": "05/10/2026, 23:22"},
+                               {"reel": "r2", "frame": "f2", "foundAt": "08/20/2026, 02:10"}]},
+             "sets": {}}
+        got = cr.newly_dated(p, (2026, 8, 1, 0, 0))
+        self.assertEqual(got, [{"name": "A", "foundAt": "08/20/2026, 02:10"}])
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

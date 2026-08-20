@@ -10850,6 +10850,16 @@ def _chron_visit_run(visit_ts):
         # v1827 had changed nothing and called a working fix a failure. If it misleads the person
         # who wrote it an hour after writing it, it will mislead him. [[label-outlived-referent]]
         _run_refused = list(prop.get("refused") or [])
+        # v1846 — WHAT HE REGISTERED YESTERDAY vs WHAT IS NEW TODAY. Konyo asked for exactly this:
+        # "date and timestamp related coding so they know what they registered yesterday and whats
+        # new today". The First Found stamps have been captured since v1819 and NOTHING has ever
+        # compared two of them, so the ledger knew every find-date and still could not say which
+        # were new. Read the high-water mark BEFORE the merge — after it, this run's finds are
+        # already folded in and every one of them looks old.
+        try:
+            _prev_newest = _cr.newest_stamp(_chron_evidence_load())
+        except Exception:
+            _prev_newest = None
         # v1562 — the LIVE-VISIT path never stored its evidence, so "⚖ tune the gate" appeared
         # (control_ui reveals it on any result) and could only answer "no sweep evidence in memory
         # — run a sweep first". v1550 wired the retro path only.
@@ -10860,6 +10870,13 @@ def _chron_visit_run(visit_ts):
         # sweep additive: the next one can only ADD sightings, never wipe the last one's, and a name
         # seen in a reel swept tonight can finally corroborate one seen in a reel swept tomorrow.
         prop = _chron_evidence_merge(prop)
+        try:
+            _fresh = _cr.newly_dated(prop, _prev_newest)
+        except Exception:
+            _fresh = []
+        if _fresh:
+            print("   \U0001f195 %d find(s) newer than anything read before: %s"
+                  % (len(_fresh), ", ".join("%s (%s)" % (r["name"], r["foundAt"]) for r in _fresh[:4])))
         globals()["_CHRON_LAST_PROPOSAL"] = prop
         # v1789 — FOLD ONTO THE ROSTER BEFORE THE GATE COUNTS. _CHRON_LAST_PROPOSAL above keeps
         # the reader's RAW words (the receipt); the gate reads the board's canonical names, so
@@ -10914,6 +10931,8 @@ def _chron_visit_run(visit_ts):
                     # EVERY RUN — the durable ledger's whole list, named so it cannot be read as
                     # the line above.
                     "refusedEver": prop.get("refused") or [],
+                    # v1846 — the finds this sweep dated newer than anything read before it
+                    "newlyDated": _fresh,
                     # v1789 — the RECEIPT for a queue that got smaller. A name folded onto an
                     # item he already has, or retired as reader debris, must not simply vanish:
                     # "we looked and it was not a grail item" and "nobody looked" have to read
@@ -11284,6 +11303,16 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # v1827 had changed nothing and called a working fix a failure. If it misleads the person
         # who wrote it an hour after writing it, it will mislead him. [[label-outlived-referent]]
         _run_refused = list((res.get("proposal") or {}).get("refused") or [])
+        # v1846 — WHAT HE REGISTERED YESTERDAY vs WHAT IS NEW TODAY. Konyo asked for exactly this:
+        # "date and timestamp related coding so they know what they registered yesterday and whats
+        # new today". The First Found stamps have been captured since v1819 and NOTHING has ever
+        # compared two of them, so the ledger knew every find-date and still could not say which
+        # were new. Read the high-water mark BEFORE the merge — after it, this run's finds are
+        # already folded in and every one of them looks old.
+        try:
+            _prev_newest = _cr.newest_stamp(_chron_evidence_load())
+        except Exception:
+            _prev_newest = None
         # v1833 — THE FIRST EYES JOIN THE PANEL. Merged BEFORE the durable evidence merge so a live
         # sighting accumulates exactly like a read page does, and so it can corroborate a retro read
         # from a later sweep. It cannot ground anything alone: witnesses() counts lanes generically,
@@ -11302,6 +11331,13 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # sweep additive: the next one can only ADD sightings, never wipe the last one's, and a name
         # seen in a reel swept tonight can finally corroborate one seen in a reel swept tomorrow.
         prop = _chron_evidence_merge(prop)
+        try:
+            _fresh = _cr.newly_dated(prop, _prev_newest)
+        except Exception:
+            _fresh = []
+        if _fresh:
+            print("   \U0001f195 %d find(s) newer than anything read before: %s"
+                  % (len(_fresh), ", ".join("%s (%s)" % (r["name"], r["foundAt"]) for r in _fresh[:4])))
         globals()["_CHRON_LAST_PROPOSAL"] = prop
         # v1789 — FOLD ONTO THE ROSTER BEFORE THE GATE COUNTS. _CHRON_LAST_PROPOSAL above keeps
         # the reader's RAW words (the receipt); the gate reads the board's canonical names, so
@@ -11379,6 +11415,8 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     # EVERY RUN — the durable ledger's whole list, named so it cannot be read as
                     # the line above.
                     "refusedEver": prop.get("refused") or [],
+                    # v1846 — the finds this sweep dated newer than anything read before it
+                    "newlyDated": _fresh,
                     # v1789 — the RECEIPT for a queue that got smaller. A name folded onto an
                     # item he already has, or retired as reader debris, must not simply vanish:
                     # "we looked and it was not a grail item" and "nobody looked" have to read
@@ -11610,7 +11648,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1845",
+        "ver": "v1846",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

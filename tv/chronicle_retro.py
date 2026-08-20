@@ -826,6 +826,75 @@ def stamp_ok(v):
     return bool(_STAMP_RX.match(str(v or "")))
 
 
+
+def stamp_key(v):
+    """A First Found stamp as a sortable tuple, or None when it is not a stamp.
+
+    v1846 — Konyo: "maybe try to code and focus the AI readers to understand this logic too as an
+    addition to the cross reference maybe date and timestamp related coding so they know what they
+    registered yesterday and whats new today".
+
+    The stamps have been captured since v1819 and nothing has ever COMPARED two of them. They are
+    read as text, stored as text, and printed as text — so the ledger knows every find-date and
+    cannot answer "which of these is new". This is the missing arithmetic, and it is deliberately
+    the smallest possible piece of it: parse, or say None. `stamp_ok` already decides what counts as
+    a stamp; this only orders the ones it accepts.
+
+    Sorts correctly across months and years because the tuple is (year, month, day, hh, mm) rather
+    than the printed MM/DD/YYYY, which sorts alphabetically into nonsense.
+    """
+    if not stamp_ok(v):
+        return None
+    try:
+        date, clock = str(v).split(",", 1)
+        m, d, y = [int(x) for x in date.strip().split("/")]
+        parts = [int(x) for x in clock.strip().split(":")]
+        hh, mm = parts[0], parts[1]
+        return (y, m, d, hh, mm)
+    except Exception:
+        return None
+
+
+def newest_stamp(prop):
+    """The newest First Found stamp anywhere in a proposal or ledger, or None if it holds none.
+
+    None is not a date and must never compare as one — a ledger with no stamps has no newest, and
+    saying so is different from saying "the beginning of time". [[unknown-stays-unknown]]
+    """
+    best = None
+    for ledger in ("uniques", "sets"):
+        for sightings in ((prop or {}).get(ledger) or {}).values():
+            for sg in (sightings or []):
+                k = stamp_key((sg or {}).get("foundAt"))
+                if k and (best is None or k > best):
+                    best = k
+    return best
+
+
+def newly_dated(prop, since):
+    """Names in `prop` whose find-date is NEWER than `since` — what he found since the last sweep.
+
+    v1846 — the answer to "what did I register yesterday and what is new today", computed rather
+    than guessed. `since` is a stamp_key tuple or None; with None NOTHING is reported as new, because
+    a ledger that has never held a stamp cannot tell new from old and must not pretend to. Returns
+    {name: stamp} sorted newest first.
+    """
+    out = []
+    for ledger in ("uniques", "sets"):
+        for name, sightings in ((prop or {}).get(ledger) or {}).items():
+            best = None
+            for sg in (sightings or []):
+                k = stamp_key((sg or {}).get("foundAt"))
+                # compare the KEY against the stored key, not against the (key, raw) pair — the
+                # first cut compared a 5-tuple with a 2-tuple and raised on his real ledger
+                if k and (best is None or k > best[0]):
+                    best = (k, (sg or {}).get("foundAt"))
+            if best and since is not None and best[0] > since:
+                out.append((best[0], name, best[1]))
+    out.sort(reverse=True)
+    return [{"name": n, "foundAt": raw} for _k, n, raw in out]
+
+
 def _stamp_map(raw_map, want_stamp):
     """name -> value, keeping only entries on the right side of the date/monster line."""
     out = {}

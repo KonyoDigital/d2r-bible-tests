@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1845",
+  "ver": "v1846",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1845: The subscription cap is checked once at the top of a chronicle or vault read. Before v1829 the full-frame retry fired only on a hard crash, so one check covered one read in practice. v1829 made the retry fire on a refusal, which is common - so every refused page spent two reads on a single check. Bounded but systematic, and the cap is the one guard between a long sweep and his whole allowance. Both routes now re-ask the cap, and a skipped retry leaves the crops honest refusal standing.",
+  "note": "v1846: The First Found stamps have been captured on every chronicle read since v1819 and nothing has ever compared two of them - read as text, stored as text, printed as text. So the ledger knew every find-date in his grail and could not answer which of them were new. The sweep now reads the ledgers high-water mark BEFORE merging and reports every find dated after it. Measured on his real ledger: six finds in the early hours of 08/20 including M avina s Embrace.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
