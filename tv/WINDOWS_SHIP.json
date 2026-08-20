@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1851",
+  "ver": "v1852",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1851: v1550s gate refuses any api route with no consumer - a route with no caller is plumbing with no tap - and it caught me adding api board_ownership in v1848 with nothing calling it, the exact defect I had spent the day fixing elsewhere. tvd owns is now its caller and prints what the board says he owns. Also: the vault quote now asks the same structural gate the sweep does, so it stops pricing gameplay frames the sweep refuses for free.",
+  "note": "v1852: v1851 gave the vault quotes probe the structural gate, which means it no longer prices every candidate run as a readable ownership surface - but the boundWhy sentence printed beside the number still said that it did. Still an upper bound, for a different reason than the one printed. Corrected by the person who invalidated it, an hour later.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

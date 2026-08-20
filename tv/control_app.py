@@ -10143,8 +10143,15 @@ def vault_scan_cost(hist_dir=None, limit=None):
         "wouldClassify": classifies,
         "wouldReadPages": pages,
         "upperBound": True,
-        "boundWhy": "prices every candidate run as a readable ownership surface; a real sweep skips "
-                    "the ones that are not, so the true bill lands at or under this",
+        # v1852 — this sentence stopped being true the moment v1851 gave the probe the structural
+        # gate: it no longer prices EVERY candidate run, it prices the ones that prove they are a
+        # stash screen. Still an upper bound — a gated-in frame can still turn out unreadable to the
+        # model — but for a different reason than the one printed here, and a right number under a
+        # stale explanation is the shape this repo keeps paying for. Corrected by the person who
+        # invalidated it, an hour later. [[label-outlived-referent]]
+        "boundWhy": "prices the candidate runs that PROVE they are an ownership screen (the same "
+                    "structural gate the real sweep uses, v1850); a gated-in frame can still turn "
+                    "out unreadable, so the true bill lands at or under this",
         "insteadOf": seen,
         "spent": 0,            # ★ said out loud: this route cannot cost anything
         "frames": [os.path.relpath(p, hist) for p in picked[:40]],
@@ -11902,7 +11909,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1851",
+        "ver": "v1852",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
