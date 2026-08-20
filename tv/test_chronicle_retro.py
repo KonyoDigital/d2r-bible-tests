@@ -1459,9 +1459,21 @@ class TestChronicleDatesReachTheEvidence(unittest.TestCase):
         here = os.path.dirname(os.path.abspath(__file__))
         claude = open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read()
         grok = open(os.path.join(here, "g5_grok_eyes.py"), encoding="utf-8").read()
-        for field in ('"sort":""', '"foundAt":{{}}', '"droppedBy":{{}}'):
+        for field in ('"foundAt":{{}}', '"droppedBy":{{}}'):
             self.assertIn(field, claude, "the Claude lane stopped asking for %s" % field)
             self.assertIn(field, grok, "the Grok lane stopped asking for %s" % field)
+        # v1829 — `sort` IS DELIBERATELY ABSENT FROM BOTH, and this test asserted the retired
+        # contract for a version after it was retired. v1828 dropped it because it returned empty
+        # 2358 times out of 2358, including on a frame that plainly prints "Newest to Oldest" while
+        # correctly returning four names and four dates from the same picture. The ordering it was
+        # for is derivable from the per-row `First Found:` stamps instead.
+        # SYMMETRY IS STILL THE POINT: one lane quietly re-adding it would put the lanes back in
+        # different units, which is the whole reason this test exists.
+        for lane_name, src in (("claude", claude), ("grok", grok)):
+            self.assertNotIn('"sort":""', src,
+                             "the %s lane is asking for `sort` again — v1828 retired it as a field "
+                             "no reader has ever once filled; re-adding it on one lane only puts "
+                             "the two eyes back in different units" % lane_name)
 
 
 class TestOneReelCannotWitnessItselfTwice(unittest.TestCase):

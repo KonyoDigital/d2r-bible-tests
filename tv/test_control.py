@@ -7784,5 +7784,86 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         self.assertEqual(_tv.PROMPT_VER, "p1828")
 
 
+class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):
+    """v1829 — A CROP THAT ANSWERS AND REFUSES IS STILL REFUSED.
+
+    Both crop routes in tv_diablo retried the full frame on `not raw`, which catches only a crop
+    that returned NOTHING. A crop returning a well-formed {"stateVisible": false} is TRUTHY, so the
+    retry never fired — and that is the COMMON failure, because what a bad crop cuts away is
+    precisely the chrome the reader is asked to judge.
+
+    The page that proved it: frames/hist/reel_s_1787177267889_92273/f_1787177297466.jpg, recorded
+    `no-found-state` by the sweep on two passes, while both lanes read the FULL frame at conf
+    0.90/0.88 with five dated set pieces. Nothing was wrong with the footage or the readers.
+    """
+
+    def _jpg(self, tmp):
+        from PIL import Image
+        p = os.path.join(tmp, "page.jpg")
+        Image.new("RGB", (1400, 1000), (18, 18, 22)).save(p, quality=90)
+        return p
+
+    def _drive(self, crop_answer, full_answer):
+        """Run the real reader with only the vision call faked, and report which paths it asked."""
+        import tv_diablo as _tv
+        seen = []
+
+        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
+            seen.append(ap)
+            # the crop is written to a temp file; the full frame is the path we passed in
+            return crop_answer if "tvd_chron_crop" in os.path.basename(ap) else full_answer
+
+        with tempfile.TemporaryDirectory() as tmp:
+            img = self._jpg(tmp)
+            old = (_tv._oneshot, _tv._is_throttled, _tv._sub_budget_check)
+            _tv._oneshot = fake_oneshot
+            _tv._is_throttled = lambda: False
+            _tv._sub_budget_check = lambda *a, **k: None
+            try:
+                out = _tv.claude_chronicle_read(img, "chronicle-sets")
+            finally:
+                (_tv._oneshot, _tv._is_throttled, _tv._sub_budget_check) = old
+        return out, seen
+
+    GOOD = {"stateVisible": True, "wrongTab": False, "conf": 0.9,
+            "found": ["Trang-Oul's Girth", "Sazabi's Mental Sheath"],
+            "sets": [{"set": "Trang-Oul's Avatar", "pieces": ["Trang-Oul's Girth"]}]}
+    REFUSED = {"stateVisible": False, "conf": 0.2, "found": []}
+
+    def test_a_crop_that_refuses_gets_the_full_frame(self):
+        out, seen = self._drive(self.REFUSED, self.GOOD)
+        self.assertEqual(len(seen), 2,
+                         "the full frame was never requested — the crop's refusal was taken as the "
+                         "page's answer. Asked for: %s" % seen)
+        self.assertIsNone((out or {}).get("note"),
+                          "a legible page was recorded as refused: %r" % ((out or {}).get("note"),))
+        self.assertIn("Sazabi's Mental Sheath", (out or {}).get("found") or [],
+                      "the full frame was read and then thrown away")
+
+    def test_a_full_frame_that_also_refuses_never_overwrites_the_crop(self):
+        # a retry that can LOSE information is not a retry. The crop keeps its answer.
+        out, seen = self._drive(dict(self.GOOD, conf=0.55), self.REFUSED)
+        self.assertEqual(len(seen), 1, "nothing was refused — no retry was owed")
+        self.assertIn("Sazabi's Mental Sheath", (out or {}).get("found") or [])
+
+    def test_wrong_ledger_from_a_crop_is_re_asked_on_the_full_frame(self):
+        # a crop that cuts the tab chrome reports the wrong ledger for the same reason it reports
+        # no found-state. If the ledger really is wrong the full frame says so too.
+        out, seen = self._drive({"wrongTab": True, "conf": 0.3, "found": []}, self.GOOD)
+        self.assertEqual(len(seen), 2, "a wrong-ledger crop was believed without a second look")
+        self.assertFalse((out or {}).get("wrongTab"))
+
+    def test_the_helper_reads_every_shape_a_refusal_arrives_in(self):
+        import tv_diablo as _tv
+        for shape in (None, {}, "", [], {"stateVisible": False}, {"wrongTab": True}):
+            self.assertTrue(_tv._crop_answer_refused(shape), "not caught as refused: %r" % (shape,))
+        self.assertFalse(_tv._crop_answer_refused({"stateVisible": True, "found": []}),
+                         "an EMPTY page is an answer, not a refusal")
+        # the vault lane marks refusals with `note`, and an empty stash tab is a real answer
+        self.assertTrue(_tv._crop_answer_refused({"note": "not read"}, ledger_lane=False))
+        self.assertFalse(_tv._crop_answer_refused({"items": []}, ledger_lane=False))
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

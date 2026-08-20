@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1828",
+  "ver": "v1829",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1828: Asked for on every chronicle read since v1819 and returned empty 2358 times out of 2358, then tested against a frame that plainly shows the control: still empty, while the same read returned four names and four correct dates. Removed from both lanes; the per row dates make the ordering derivable anyway.",
+  "note": "v1829: The chronicle and vault readers crop before reading and retry the full frame when the crop is refused - but the retry fired only when the crop returned NOTHING. A crop answering stateVisible:false is truthy, so the retry never ran, and that is the common case because what a crop cuts away is the chrome the reader is judging. One sets page was recorded no-found-state twice while both lanes read the full frame at conf 0.90 and 0.88 with five dated pieces.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

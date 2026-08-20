@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1828"   # the sort control was never once answered
+VERSION = "v1829"   # A refused crop is still a refusal
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4950,6 +4950,39 @@ CHRONICLE_READ_PROMPT = (
 )
 
 
+def _crop_answer_refused(raw, ledger_lane=True):
+    """v1829 — is a CROPPED read's answer refused, in every shape a refusal actually arrives in?
+
+    THE HALF THAT WAS MISSING. Both crop routes below retried the full frame on `not raw` — which
+    catches only a crop that returned NOTHING. A crop that returns a well-formed
+    `{"stateVisible": false}` is TRUTHY, so the retry never fired. That is not the rare case, it is
+    the COMMON one: the thing a crop most often cuts away is exactly the chrome the reader is being
+    asked to judge, so a bad crop's most likely output is a confident, correctly-formatted "I cannot
+    see the found state".
+
+    MEASURED, not reasoned. `frames/hist/reel_s_1787177267889_92273/f_1787177297466.jpg` was
+    recorded `no-found-state` by the sweep on two separate passes. Handed the FULL frame, both lanes
+    read it: claude conf 0.90 with five dated pieces, grok conf 0.88 with six — including
+    `Sazabi's Mental Sheath — Mephisto — 08/02/2026, 02:25`. The page was always legible; the crop
+    was the instrument that could not see it, and the retry built for exactly this never ran.
+
+    The comment on both routes promised "cropping can only add reads, never remove one". With this
+    condition that promise is true; with `not raw` it was false, and it cost whole legible pages.
+    """
+    if not isinstance(raw, dict) or not raw:
+        return True
+    if ledger_lane:
+        # A refusal IS an answer. Ask whether the answer is USABLE, not whether one arrived.
+        # `wrongTab` is included deliberately: a crop that cuts the tab chrome reports the wrong
+        # ledger for the same reason it reports no found-state. If the ledger really IS wrong the
+        # full frame says so too, and the caller keeps the crop's answer — so this cannot lose one.
+        return raw.get("stateVisible") is False or raw.get("wrongTab") is True
+    # The vault lane marks its own refusals with `note`. An EMPTY page is not a refusal — a stash
+    # tab with nothing in it is a real answer, and retrying every empty page would double the cost
+    # of the commonest read there is.
+    return bool(raw.get("note"))
+
+
 def claude_vault_read(image_path, surface, timeout=None):
     """One ownership panel, read on Konyo's Claude subscription, in vault_retro's `items` shape.
 
@@ -5009,12 +5042,17 @@ def claude_vault_read(image_path, surface, timeout=None):
                        prompt=VAULT_READ_PROMPT.format(path=_read_path, surface=surface),
                        raw_json=True)
         # the dual route v1780 proved out: a refused CROP gets one full-frame retry, so cropping
-        # can only ever add reads
-        if _read_path != ap and not raw:
-            raw = _oneshot(ap, GENIUS_MODEL,
-                           timeout=float(timeout or 120),
-                           prompt=VAULT_READ_PROMPT.format(path=ap, surface=surface),
-                           raw_json=True)
+        # can only ever add reads. v1829 — "refused" now covers a crop that ANSWERS and refuses,
+        # not only one that returns nothing (see _crop_answer_refused).
+        if _read_path != ap and _crop_answer_refused(raw, ledger_lane=False):
+            _full = _oneshot(ap, GENIUS_MODEL,
+                             timeout=float(timeout or 120),
+                             prompt=VAULT_READ_PROMPT.format(path=ap, surface=surface),
+                             raw_json=True)
+            # Only if it is actually BETTER. A full frame that also refuses must never overwrite
+            # the crop's answer — a retry that can lose information is not a retry.
+            if not _crop_answer_refused(_full, ledger_lane=False):
+                raw = _full
 
     if raw is None:
         return None
@@ -5118,12 +5156,16 @@ def claude_chronicle_read(image_path, kind, timeout=None):
                        timeout=float(timeout or 120),
                        prompt=CHRONICLE_READ_PROMPT.format(path=_read_path, ledger=ledger),
                        raw_json=True)
-        # the dual route: a refused CROP gets one full-frame retry, so cropping can only add reads
-        if _read_path != ap and not raw:
-            raw = _oneshot(ap, GENIUS_MODEL,
-                           timeout=float(timeout or 120),
-                           prompt=CHRONICLE_READ_PROMPT.format(path=ap, ledger=ledger),
-                           raw_json=True)
+        # the dual route: a refused CROP gets one full-frame retry, so cropping can only add reads.
+        # v1829 — "refused" now covers a crop that ANSWERS and refuses. This is the line that was
+        # silently discarding legible sets pages; the evidence is in _crop_answer_refused.
+        if _read_path != ap and _crop_answer_refused(raw):
+            _full = _oneshot(ap, GENIUS_MODEL,
+                             timeout=float(timeout or 120),
+                             prompt=CHRONICLE_READ_PROMPT.format(path=ap, ledger=ledger),
+                             raw_json=True)
+            if not _crop_answer_refused(_full):
+                raw = _full
     try:
         import chronicle_retro as _cr
     except Exception:
