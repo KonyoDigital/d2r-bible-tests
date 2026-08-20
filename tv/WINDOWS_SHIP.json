@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1874",
+  "ver": "v1875",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1874: Two writers survived the last ship and both were the same shape: a fixture that isolated one path and not the others. The g5 suite patched the stats path in one class while every other class reaches the same helper through an env override, and the beacon test stubbed the network half while the beacon also writes his fleet history to disk. With his console down so nothing else could be blamed, a full gate run now leaves the whole tv tree byte-identical. The gate no longer watches a list of the leaks somebody already found: it fingerprints everything under tv and names anything that moves.",
+  "note": "v1875: The zone graphic for Halls of Anguish has been open since v1639 and is fully diagnosed: the game ships a tileset for that zone while the graphic family is 800 by 800 scene pictures, so there is nothing in the archive to re-extract and the fix is a captured frame. That left a half-minute of walking blocked behind a research project. The processor now exists, with every number measured off the four existing family members rather than chosen, and it refuses a near-flat picture rather than shipping the failure the tz family already recorded. It also prints its two statistics while saying plainly that both were healthy on the broken file.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

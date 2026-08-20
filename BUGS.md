@@ -2864,6 +2864,24 @@ tiles stdev 14.0-42.7, the blank one 2.8). Measured here: this file's stdev is 2
 `*_graphic.png` family runs 21.5-61.0 — comfortably healthy and well clear of any floor. Both
 statistics say fine while the picture stays wrong, so no threshold will ever close this one.
 
+**2026-08-20 (c) — THE PROCESSOR EXISTS NOW, so the only thing left is the walk.** `art/make_zone_graphic.py`
+turns one captured frame into a family-matched `*_graphic.png`:
+
+```
+python3 art/make_zone_graphic.py <frame.jpg> act5-hallsofanguish
+```
+
+Every number in it is **measured off the four existing family members**, not chosen: 800×800 (centre
+-cropped square first, so nothing is squashed), gamma-matched to the family mean band 40.0–46.4, and
+saved as mode `P` with 256 adaptive colours — three of the four members are already `P` with 138–206
+distinct colours, and a straight RGB save of a game frame lands at ~750KB, seven times the family.
+
+It **refuses** a picture with stdev < 15 rather than shipping it: that is the v1610 failure on the
+`tz_*` family, where a blank grey tile passed a byte-size floor. And it prints its two statistics
+while saying plainly that **both were already healthy on the broken file** — this entry exists
+because luminance 42.9 and variance 24.9 both looked fine while the picture stayed wrong. Open the
+result and look at it; no threshold closes this one.
+
 WARNING FOR WHOEVER LOOKS NEXT: `act5-crystallinepassage_graphic.png` is murky enough that judging
 the family from it alone suggests they are ALL abstract and nothing is broken. That reading is
 wrong. `act5-worldstonekeep_graphic.png` is a stone floor with a lit wall lantern and a figure —
