@@ -2830,13 +2830,45 @@ NOT fixed.**
 by OPENING it and by an independent read — not by luminance statistics, which is exactly what this
 entry proves insufficient.
 
+**2026-08-20 (b) — THE STATED FIX WILL NOT WORK, and here is what will.** Toolchain rebuilt and
+PROVEN against this install (CascLib -> /tmp/casc_extract, verified by pulling a known-good sprite
+while the game was running; nothing installed system-wide, nothing in the bottle touched). Then the
+game's own tables were asked instead of guessing paths:
+
+    levels.txt    Halls of Anguish = "Act 5 - Temple 1", Id 122, LevelType 32
+    lvltypes.txt  LevelType 32 = "Act 5 - Temple", tileset Expansion/wildtemple/interior.dt1
+
+That is the answer and it is a negative one. The game ships a TILESET for this zone; the
+`*_graphic.png` family is 800x800 SCENE pictures. There is no drop-in asset in CASC to re-extract,
+so "re-extract the way v1578 did the TZ art" cannot be followed — v1578's tz_*.jpg set is
+per-environment-type and has no act5 member at all (`ls art/tz_act5*` returns nothing).
+
+His own footage was searched too: the live journal holds exactly one Temple frame
+(`6_1786554035205`, "Nihlathak's Temple"), and opening it shows the OUTSIDE at the moment of
+entering — Harrogath snow and the red portal, not the interior.
+
+**So the fix is a FRAME, not an extraction.** One capture of any wildtemple interior (Halls of
+Anguish / Pain / Vaught — all LevelType 32) taken while the console is recording can be processed to
+the family's style, which keeps the art self-hosted from his own game exactly as the doctrine
+requires. Until then this stays OPEN for a reason now recorded, rather than for a fix nobody could
+execute.
+
 **2026-08-20 — re-verified by OPENING it, still OPEN.** Exposure remains in family (mean 42.9 against
 siblings 41.3 / 44.2 / 46.1, max 249), so the gamma correction still holds and the luminance confound
 is still removed. The picture itself is unchanged: jagged brown-black abstract shapes with one small
 purple blob, no floor, no torch, no figure, no architecture — nothing a person would call Halls of
 Anguish. That is a second independent read, months after Grok's, agreeing with the diagnosis. It
-also re-proves the entry's own warning: every statistic this file carries is now HEALTHY and the
-image is still wrong, so no threshold will ever close this one. The fix is still a re-extraction,
+also re-proves the entry's own warning against a SECOND statistic, not just luminance. The tz_*
+family gained a pixel-VARIANCE gate in v1610 after a flat grey tile passed a byte-size floor (real
+tiles stdev 14.0-42.7, the blank one 2.8). Measured here: this file's stdev is 24.9, and the
+`*_graphic.png` family runs 21.5-61.0 — comfortably healthy and well clear of any floor. Both
+statistics say fine while the picture stays wrong, so no threshold will ever close this one.
+
+WARNING FOR WHOEVER LOOKS NEXT: `act5-crystallinepassage_graphic.png` is murky enough that judging
+the family from it alone suggests they are ALL abstract and nothing is broken. That reading is
+wrong. `act5-worldstonekeep_graphic.png` is a stone floor with a lit wall lantern and a figure —
+the readable sibling this entry originally cited — and `act5-bloodyfoothills_graphic.png` is a
+campfire with flames and a figure. Against those two, hallsofanguish is plainly the outlier. The fix is still a re-extraction,
 and it needs the game — not this repo.
 
 ## REG-115 — Routine I: the 27 failures are ONE deterministic set, not flake, and not CI-only
