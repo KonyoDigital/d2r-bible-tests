@@ -9340,6 +9340,90 @@ class TestNoGateWritesHisLiveWorld(unittest.TestCase):
         self.assertIn("TV_CONTROL_PORT=", body, "the port isolation is gone")
 
 
+class TestTheMiniDurationsHaveOneSource(unittest.TestCase):
+    """v1870 — Konyo: "i just did a MINI sets and its too short.. it needs to be longer like the
+    UNIQUES mini".
+
+    They were ALREADY equal — 75s on the server and 75s in the console's own MINI_FOCUS_SECS table —
+    so the premise as stated could not be the defect. The reason underneath it is real: a SETS row
+    is three lines (name · Dropped By · First Found) where a UNIQUES row is one, so the same 75
+    seconds of scrolling covers about a third as much ledger. Equal numbers, unequal work. And the
+    ceiling was binding either way, because the console sends only {focus} and no duration — he had
+    no way to ask for longer.
+
+    The second copy is the part that would have made the fix invisible: raising the bound on the
+    server would have left the button printing 75s and asking for 75s. [[copy-drift]]"""
+
+    def test_sets_gets_longer_than_uniques(self):
+        import control_app as ca
+        self.assertGreater(ca._mini_bounds("chronicle-sets")[0],
+                           ca._mini_bounds("chronicle-uniques")[0],
+                           "a sets row is three lines to a unique's one and they still get equal time")
+
+    def test_there_is_headroom_above_both(self):
+        import control_app as ca
+        for f in ("chronicle-sets", "chronicle-uniques"):
+            d, mx = ca._mini_bounds(f)
+            self.assertGreater(mx, d, "%s cannot be asked to run longer than its default" % f)
+
+    def test_the_stash_focuses_are_untouched(self):
+        # the mirror — a stash tab is ONE screen and 25s photographs it several times over
+        import control_app as ca
+        for f in ("stash", "runes", "gems", "materials"):
+            self.assertEqual(ca._mini_bounds(f), (25, 40))
+
+    def test_the_engine_publishes_the_numbers_it_enforces(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn("focusSecs={f: _mini_bounds(f)[0] for f in MINI_FOCUSES}", src)
+        self.assertIn("focusMax={f: _mini_bounds(f)[1] for f in MINI_FOCUSES}", src)
+
+    def test_the_console_prefers_the_engines_numbers_over_its_own(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        i = ui.find("if (j && j.focusSecs)")
+        j = ui.find("if (j && j.focuses)", i)
+        self.assertGreater(i, 0, "the console never reads the published durations")
+        self.assertGreater(j, i, "it renders the buttons before taking the durations")
+        self.assertIn("MINI_FOCUS_SECS[k] = v", ui[i:j])
+
+
+class TestTheStatusSaysWhetherReadsAreReal(unittest.TestCase):
+    """v1870 — `stub` was in the status payload as a literal None: it reads like "no" and means
+    "nobody asked", which is the worst of the three answers.
+
+    It cost an hour tonight. His reel s_1787244002054_15361 is unmistakably his — shared stash open
+    at page 1/5, a Raven Frost tooltip under the cursor — and its journal rows say lane=deep
+    mode=stub, so those reads were CANNED. Deciding whether that meant he pressed SIM or his console
+    had inherited TV_STUB meant reading a log that tests also write to, and then inspecting the live
+    process's environment by hand. [[unknown-stays-unknown]]"""
+
+    def test_it_answers_true_when_the_stub_is_set(self):
+        import control_app as ca
+        keep = os.environ.get("TV_STUB")
+        os.environ["TV_STUB"] = "1"
+        try:
+            p = ca.status_payload()
+        finally:
+            if keep is None:
+                os.environ.pop("TV_STUB", None)
+            else:
+                os.environ["TV_STUB"] = keep
+        self.assertIs(p.get("stub"), True)
+        self.assertIs(p.get("readsAreReal"), False)
+
+    def test_it_answers_false_in_real_play(self):
+        import control_app as ca
+        keep = os.environ.pop("TV_STUB", None)
+        try:
+            p = ca.status_payload()
+        finally:
+            if keep is not None:
+                os.environ["TV_STUB"] = keep
+        self.assertIs(p.get("stub"), False, "None here reads like 'no' and means 'nobody asked'")
+        self.assertIs(p.get("readsAreReal"), True)
+
+
 class TestTheBridgeCacheKeyNamesWhatItCaches(unittest.TestCase):
     """v1862 — his F·Sets tab read 116/135 while the console's DAILY TASK FORCE read 113/135.
 

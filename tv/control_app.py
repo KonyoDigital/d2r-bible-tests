@@ -9800,8 +9800,21 @@ MINI_DEFAULT_SECONDS = 25
 # SETS problem; it was every focus, for ten versions. Nothing failed loudly, because the only path
 # that touches them is an HTTP handler whose exception became a toast about the network.
 MINI_CHRONICLE_FOCUSES = ("chronicle-uniques", "chronicle-sets")
-MINI_CHRONICLE_MAX_SECONDS = 120
+MINI_CHRONICLE_MAX_SECONDS = 240
 MINI_CHRONICLE_DEFAULT_SECONDS = 75
+
+# v1870 — Konyo: "i just did a MINI sets and its too short.. it needs to be longer like the UNIQUES
+# mini". They were ALREADY the same — 75s each, here and in the console's own table — so the
+# premise as stated could not be the defect. What is true is the reason underneath it: a SETS row
+# is three lines (name · Dropped By · First Found) where a UNIQUES row is one, so the same 75
+# seconds of scrolling covers roughly a third as much ledger. Equal numbers, unequal work.
+#
+# His judgement about his own scrolling outranks my arithmetic, and the ceiling was the binding
+# constraint either way: the console sends only {focus} and no duration, so he had no way to ask
+# for more. Sets gets double the default, the chronicle ceiling doubles to 240 so there is room
+# above both, and the numbers are PUBLISHED (see /api/mini) instead of copied — the console's
+# MINI_FOCUS_SECS was a second copy of this table and would have gone on saying 75. [[copy-drift]]
+MINI_FOCUS_SECONDS = {"chronicle-sets": 150}
 
 
 def _mini_focus(v):
@@ -9822,9 +9835,11 @@ def _mini_focus(v):
 def _mini_bounds(focus):
     """(default, max) for a focus. One place, because the console prints these numbers and the
     clamp enforces them, and two copies of a bound is how a button starts lying about itself."""
-    if str(focus or "") in MINI_CHRONICLE_FOCUSES:
-        return MINI_CHRONICLE_DEFAULT_SECONDS, MINI_CHRONICLE_MAX_SECONDS
-    return MINI_DEFAULT_SECONDS, MINI_MAX_SECONDS
+    f = str(focus or "")
+    if f in MINI_CHRONICLE_FOCUSES:
+        return (MINI_FOCUS_SECONDS.get(f, MINI_CHRONICLE_DEFAULT_SECONDS),
+                MINI_CHRONICLE_MAX_SECONDS)
+    return MINI_FOCUS_SECONDS.get(f, MINI_DEFAULT_SECONDS), MINI_MAX_SECONDS
 
 _MINI_LOCK = threading.Lock()
 _MINI = {"running": False, "seconds": 0, "startedTs": 0, "endsTs": 0,
@@ -12255,7 +12270,22 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1869",
+        "ver": "v1870",
+        # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
+        #
+        # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
+        # is unmistakably his — shared stash open at page 1/5, a Raven Frost tooltip under the
+        # cursor — and its journal rows say lane=deep mode=stub, so its reads were CANNED. Working
+        # out whether that meant he had pressed SIM, or his console had inherited TV_STUB from a
+        # shell, meant reading a log that TESTS also write to (v1869) and then inspecting the live
+        # process's environment by hand. It ends up settled — `ps eww` on his console shows TV_FILM
+        # and TV_OCR and no TV_STUB, so a non-sim start could not have produced canned rows and that
+        # session was a SIM — but no surface should require that.
+        #
+        # `stub` was already in this payload as None, which is the worst of the three answers: it
+        # reads like "no" and means "nobody asked". [[unknown-stays-unknown]]
+        "stub": bool(os.environ.get("TV_STUB")),
+        "readsAreReal": not bool(os.environ.get("TV_STUB")),
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -13862,7 +13892,12 @@ class Handler(BaseHTTPRequestHandler):
             # v1578 — ⏱ MINI CAPTURE countdown. Read-only; secondsLeft is clamped at 0.
             # v1603 — ships the focus vocabulary too, so the console renders its buttons from the
             # engine's list instead of holding a second copy that can drift out of step.
-            self._json(200, dict(mini_state(), focuses=list(MINI_FOCUSES)))
+            # v1870 — publish the DURATIONS beside the vocabulary. The console kept its own
+            # MINI_FOCUS_SECS table, so raising a bound here would have left the button still
+            # saying 75s and still asking for it. One source. [[copy-drift]]
+            self._json(200, dict(mini_state(), focuses=list(MINI_FOCUSES),
+                                 focusSecs={f: _mini_bounds(f)[0] for f in MINI_FOCUSES},
+                                 focusMax={f: _mini_bounds(f)[1] for f in MINI_FOCUSES}))
             return
         if path.startswith("/art/"):
             self._serve_art(path[len("/art/") :])

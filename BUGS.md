@@ -6543,13 +6543,22 @@ was dead (REG-211): **sim · live · live · sim**. Under `TV_STUB` the deep rea
 from `stub_manifest.json` whose `scene` defaults to `"gameplay"` — so a Chronicle page open on
 screen is journaled as gameplay, and nothing in the pipeline is broken.
 
-⚠ **CORRECTION, made the same night (v1869).** The attribution above is WRONG and the fix is
-still right. `test_button_matrix` and `test_roundtrip_sim` spawn their own control app and write
+⚠ **CORRECTION, and then a correction to the correction — the record keeps both, in order.**
+
+**v1869 said the attribution above was wrong.** It was half wrong. `test_button_matrix` and `test_roundtrip_sim` spawn their own control app and write
 `—— control start … mode=sim ——` banners into the same `control_agent.log` — 14 and 4 lines per run
 — so the "five starts in 64 seconds" I read as Konyo at his keyboard were **my own gate runs**.
-Founding rule 4: suspect the instrument. Why his live Sets session did not read the Chronicle is
-therefore **still open**, and the sim-stamping below stands on its own merits, not on this story.
-[[feedback-suspect-the-instrument]]
+Founding rule 4: suspect the instrument.
+
+**v1870 settled it from his own data instead, and the original story holds.** Reel
+`s_1787244002054_15361` is unmistakably his — shared stash open at page 1/5, a **Raven Frost**
+tooltip under the cursor — and its journal rows read `lane=deep mode=stub`, so those reads were
+canned. His running console's environment carries `TV_FILM=1` and `TV_OCR=1` and **no `TV_STUB`**,
+so a non-sim start could not have produced canned rows: that session was started with **SIM**.
+
+What remains true from the correction: the log banners are polluted by tests and were never
+admissible evidence. What changes back: the conclusion was right, reached the wrong way.
+[[feedback-suspect-the-instrument]] [[feedback-contradiction-is-the-finding]]
 
 **His journal holds 414 rows written under TV_STUB across ten days** (08-02 → 08-20), beside real
 ones, with nothing to tell them apart except `mode: "stub"` on the deep-read rows. Session summary
@@ -6666,3 +6675,39 @@ Measured: `test_roundtrip_sim` spent **1 → 0** real vision calls.
 ⚠ **The log pollution had already cost a wrong diagnosis** — see the correction on REG-214. That is
 why this is filed as a defect and not as tidiness: a diagnostic file a test can write is a
 diagnostic that will eventually be believed about the wrong actor.
+
+
+## REG-219 — "is this console reading for real?" had no answer (FIXED v1870)
+
+`status_payload` carried `stub` as a literal `None` — which reads like *"no"* and means *"nobody
+asked"*, the worst of the three answers. Deciding whether his canned session was a SIM press or a
+console that had inherited `TV_STUB` cost an hour, a log that tests also write to (REG-218), and a
+by-hand inspection of the live process's environment.
+
+The payload now answers `stub` and `readsAreReal` truthfully, guarded in both directions.
+[[unknown-stays-unknown]]
+
+## REG-220 — the sets MINI and the uniques MINI got equal time for unequal work (FIXED v1870)
+
+**Konyo:** *"i just did a MINI sets and its too short.. it needs to be longer like the UNIQUES mini"*
+
+They were **already identical** — 75s in `_mini_bounds` and 75s in the console's own
+`MINI_FOCUS_SECS` — so the premise as stated could not be the defect. The reason underneath it is
+real: a **SETS** row is three lines (name · *Dropped By* · *First Found*) where a **UNIQUES** row is
+one, so the same 75 seconds of scrolling covers roughly a third as much ledger. Equal numbers,
+unequal work.
+
+And the ceiling was binding either way: the console POSTs only `{focus}` and no duration, so he had
+**no way to ask for more**.
+
+- `chronicle-sets` → **150s** default (uniques stays 75).
+- The chronicle ceiling → **240s**, so there is headroom above both.
+- ⚠ **The durations are now published by the engine** (`/api/mini` → `focusSecs`, `focusMax`).
+  `MINI_FOCUS_SECS` in `control_ui.html` was a second copy of the server's table: raising the bound
+  on the server alone would have left the button printing *75s* and asking for 75s — a bound lying
+  about itself, which is the exact thing `_mini_bounds`' own docstring says it exists to prevent.
+  [[copy-drift]]
+
+**Guards:** sets > uniques · headroom above both · the stash focuses untouched (a stash tab is one
+screen and 25s photographs it several times over) · the engine publishes what it enforces · the
+console prefers the published numbers **before** it renders the buttons.

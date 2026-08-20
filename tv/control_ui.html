@@ -10156,7 +10156,13 @@
      duration focus-aware (a Chronicle is scrolled, a stash tab is one screen), so a hardcoded
      "25s" under a chronicle button would be the button lying about itself. Mirrors
      control_app._mini_bounds; the engine still clamps, this only labels. */
-  var MINI_FOCUS_SECS = { 'chronicle-uniques': 75, 'chronicle-sets': 75 };
+  /* v1870 — THE ENGINE OWNS THESE NUMBERS. This table was a second copy of _mini_bounds, so
+     raising the sets duration on the server would have left this button still printing 75s and
+     still asking for 75s — a bound that lies about itself is exactly what _mini_bounds' own
+     docstring says it exists to prevent. /api/mini now publishes focusSecs; the literals below are
+     the last-resort fallback for a console talking to an older engine, never the source.
+     [[copy-drift]] */
+  var MINI_FOCUS_SECS = { 'chronicle-uniques': 75, 'chronicle-sets': 150 };
   function _miniSecsFor(f){ return MINI_FOCUS_SECS[f] || 25; }
   var MINI_FOCUS_ART = {
     'stash': CONSOLE_ART.stash, 'runes': CONSOLE_ART.runes,
@@ -10232,7 +10238,13 @@
       try {
         var r = await fetch('/api/mini', { cache: 'no-store' });
         var j = await r.json();
-        if (j && j.focuses) _miniFocuses(j.focuses);   // the engine owns the vocabulary
+        // the engine owns the vocabulary AND the durations — take both before rendering, or the
+        // button prints one number and the engine runs another (v1870)
+        if (j && j.focusSecs){
+          try { Object.keys(j.focusSecs).forEach(function(k){
+            var v = parseInt(j.focusSecs[k], 10); if (v > 0) MINI_FOCUS_SECS[k] = v; }); } catch(e){}
+        }
+        if (j && j.focuses) _miniFocuses(j.focuses);
         /* v1605 — AN EMPTY REEL MUST NOT LOOK LIKE A GOOD ONE. Konyo: "i clicked mini and it
            doesnt record anything." MINI replicates ON AIR everywhere that matters, but it adds a
            25s bound — and if capture has not warmed up inside it (D2R not running, window not
