@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1875",
+  "ver": "v1876",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1875: The zone graphic for Halls of Anguish has been open since v1639 and is fully diagnosed: the game ships a tileset for that zone while the graphic family is 800 by 800 scene pictures, so there is nothing in the archive to re-extract and the fix is a captured frame. That left a half-minute of walking blocked behind a research project. The processor now exists, with every number measured off the four existing family members rather than chosen, and it refuses a near-flat picture rather than shipping the failure the tz family already recorded. It also prints its two statistics while saying plainly that both were healthy on the broken file.",
+  "note": "v1876: The board used a token that was never defined in v1841 and the rule carrying it rendered with no font-size at all. The build-note path was guarded then; the stylesheet was not. Swept both surfaces: 118 tokens used against 114 defined on the board, 92 against 87 on the console, and zero of the hard kind on either. The distinction is the point - a var with a fallback still renders and is a tidiness question, while a var without one collapses the declaration. The instrument accused five and four were tokens set from JavaScript and the fifth was a dynamic construction naming no token at all.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

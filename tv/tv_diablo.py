@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1875"   # REG-113 is now a thirty-second action, not a research project
+VERSION = "v1876"   # A CSS token with no fallback and no definition renders nothing
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _fixture_root(here):

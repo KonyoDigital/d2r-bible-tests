@@ -6837,3 +6837,27 @@ including the subscription meter.
 
 **PROVEN:** with his console down, a full 32-gate run now leaves his whole `tv/` tree
 **byte-identical**. That is the first time this has been true.
+
+## REG-226 — `var(--x)` with no fallback on a token nothing defines (SWEPT CLEAN, guarded v1876)
+
+The whole declaration collapses, silently. That is **v1841**, on his own board: `--fs-tiny` was used
+and never defined, so the rule carrying it rendered with no font-size at all. `bump_version` already
+refuses `var(--x)` in a build note (so the note cannot re-create it); nothing guarded the CSS.
+
+**The distinction that matters.** `var(--x, 10px)` still renders — the fallback is doing the work,
+which makes the token decorative rather than broken, and that is a tidiness question and his call.
+`var(--x)` with **no** fallback and no definition renders **nothing**. Only the second fails.
+
+**Swept: bible.html 118 tokens used / 114 defined, control_ui.html 92 / 87 — zero hard failures on
+either.** The with-fallback ones are recorded rather than fixed: `--gold-antique`, `--q-base` on the
+board; `--dim`, `--amber`, `--sg-hue`, `--fg-accent`, `--st-warn` on the console, each falling back
+to a literal hex. `--fs-micro` falls back to `var(--fs-2xs)`, which is defined.
+
+⚠ **The instrument needed two corrections before its verdict was worth anything**, both found by
+looking at what it accused rather than believing it:
+- a token set from JS — `style.setProperty('--claim-h', …)` — **is** defined, just not in CSS. Four
+  of five accusations were these.
+- `'var(--q-' + rarity + ')'` is a dynamic **construction**, not a reference to a token named
+  `--q-`. The fifth was that.
+
+Founding rule 4, twice in one sweep. [[feedback-suspect-the-instrument]]

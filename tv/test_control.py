@@ -9497,6 +9497,68 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestNoCssVarWithoutAFallbackOnAnUndefinedToken(unittest.TestCase):
+    """v1876 — `var(--x)` on a token nothing defines collapses the whole declaration, silently.
+
+    That is v1841, on his own board: `--fs-tiny` was used and never defined, so the rule carrying it
+    rendered with no font-size at all. There is already a guard against the NOTE text re-creating it
+    (bump_version refuses `var(--x)` in a build note); there was none on the CSS itself.
+
+    THE DISTINCTION THAT MATTERS: `var(--x, 10px)` still renders — the fallback is doing the work,
+    which is a token that is decorative rather than broken, and that is a tidiness question and his
+    call. `var(--x)` with NO fallback and no definition renders NOTHING. Only the second fails here.
+
+    ⚠ THE INSTRUMENT NEEDED TWO CORRECTIONS BEFORE ITS VERDICT WAS WORTH ANYTHING, both found by
+    looking at what it accused:
+      · a token set from JS — `style.setProperty('--claim-h', …)` — is defined, just not in CSS.
+        Four of the five accusations were these.
+      · `'var(--q-' + rarity + ')'` is a dynamic CONSTRUCTION, not a reference to a token named
+        `--q-`. The fifth was that.
+    Founding rule 4, twice in one sweep. [[feedback-suspect-the-instrument]]"""
+
+    @classmethod
+    def _dead(cls, src):
+        import re
+        s = TestNoOptionalCallToAFunctionThatCannotExist._strip_js_comments(src)
+        defined = set(re.findall(r"(--[\w-]+)\s*:", s))
+        defined |= set(re.findall(r"setProperty\(\s*['\"](--[\w-]+)", s))
+        bad = []
+        for m in re.finditer(r"var\(\s*(--[\w-]+)\s*\)", s):     # NO fallback: the failing form
+            name = m.group(1)
+            if name in defined:
+                continue
+            # a dynamic build — 'var(--q-' + x + ')' — names no token at all
+            if s[max(0, m.start() - 1):m.start()] in ("'", '"'):
+                continue
+            bad.append(name)
+        return sorted(set(bad))
+
+    def test_the_board_has_none(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        dead = self._dead(open(p, encoding="utf-8").read())
+        self.assertEqual(dead, [], "used with no fallback and never defined — the declaration "
+                                   "carrying it renders nothing: %s" % ", ".join(dead))
+
+    def test_the_console_has_none(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        if not os.path.isfile(p):
+            self.skipTest("control_ui.html is not on this machine")
+        dead = self._dead(open(p, encoding="utf-8").read())
+        self.assertEqual(dead, [], "used with no fallback and never defined: %s" % ", ".join(dead))
+
+    def test_it_SEES_the_v1841_shape_and_spares_the_others(self):
+        self.assertEqual(self._dead(".a{font-size:var(--fs-tiny)}"), ["--fs-tiny"])
+        self.assertEqual(self._dead(":root{--fs-tiny:10px}.a{font-size:var(--fs-tiny)}"), [])
+        self.assertEqual(self._dead(".a{font-size:var(--fs-tiny, 10px)}"), [],
+                         "a fallback renders — that is decoration, not breakage")
+        self.assertEqual(self._dead("el.style.setProperty('--claim-h', h);.a{top:var(--claim-h)}"), [],
+                         "a token set from JS is defined, just not in CSS")
+        self.assertEqual(self._dead("var c = 'var(--q-' + rarity + ')';"), [],
+                         "a dynamic construction names no token at all")
+
+
 class TestTheGateWatchesTheWholeTreeNotAList(unittest.TestCase):
     """v1874 — a named watchlist is a list of the leaks somebody already found.
 
