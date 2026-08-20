@@ -6121,6 +6121,16 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         self._state0 = control_app.chronicle_sweep_state
         self._start0 = control_app.chronicle_sweep_start
         control_app._CHRON_AUTOREAD_PATH = self.state
+        # v1823 — ISOLATE THE FOOTAGE. This class never set TV_HIST, so chronicle_autoreel_tick()
+        # has always walked his REAL frames directory while the fixture wrote reels into a temp
+        # one. It passed only because every real reel happened to be swept already; the moment
+        # three of his sat unread, these tests started picking THOSE up and asserting against
+        # whatever was on the machine. A test that reads his live footage is not testing the code —
+        # the same fault this session already hit twice, in chronicle_visits() and in a guard of my
+        # own.
+        self._hist0 = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = os.path.join(self.tmp, "hist")
+        os.makedirs(os.environ["TV_HIST"], exist_ok=True)
         control_app._CHRON_AUTOREAD["done"] = None
         control_app._CHRON_AUTOREAD["reels"] = None
         # v1766.1 — these are module globals and the retry counter is new; leaving them dirty made
@@ -6133,6 +6143,10 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         control_app.chronicle_sweep_start = lambda **kw: (self.started.append(kw) or {"ok": True})
 
     def tearDown(self):
+        if getattr(self, "_hist0", None) is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._hist0
         self.ca._CHRON_AUTOREAD_PATH = self._path0
         self.ca._CHRON_AUTOREEL_ON = self._on0
         self.ca._agent_alive = self._alive0
@@ -6157,15 +6171,49 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
                 fh.write(b"\xff\xd8\xff\xd9")
         with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
             _json.dump({"frames": [{"f": "f0.jpg", "ts": 1}, {"f": "f1.jpg", "ts": 2}]}, fh)
+        # v1823 — AGE IT, because a reel written this instant is one still being written. The tick
+        # now decides "finished" by measuring whether the directory is still receiving frames
+        # (_reel_is_growing) instead of asking whether a session exists anywhere, so a fixture left
+        # at the current mtime is a LIVE reel and would be skipped — these tests are all about
+        # FINISHED ones. Ageing it is what makes the fixture mean what its name says.
+        old = time.time() - 3600
+        for n in os.listdir(d):
+            os.utime(os.path.join(d, n), (old, old))
+        os.utime(d, (old, old))
         return hist
 
-    def test_a_live_session_is_never_swept(self):
-        """A reel that is still growing is not a finished reel."""
+    def test_a_reel_that_is_still_growing_is_never_swept(self):
+        """A reel that is still growing is not a finished reel.
+
+        v1823 — the ASSERTION changed; the charter in that sentence did not. This used to prove the
+        rule through a proxy: a session exists anywhere, therefore refuse everything. Konyo found
+        what that cost — "why is nothing automatically sweeping? its been hours" — because he plays
+        with the console capturing, so a session was live almost whenever he was at the machine and
+        three FINISHED reels sat unread behind the guard. The proxy protected footage that had
+        stopped growing hours earlier.
+        It now measures the thing the docstring names. A reel still receiving frames is skipped
+        whether or not a session is live, which is strictly stronger than the old rule.
+        """
         self.ca._agent_alive = lambda *a, **k: True
+        rid = "reel_s_9999999999999_live"
+        self._make_reel(rid)
+        d = os.path.join(self.tmp, "hist", rid)
+        now = time.time()
+        for n in os.listdir(d):
+            os.utime(os.path.join(d, n), (now, now))
+        os.utime(d, (now, now))
         r = self.ca.chronicle_autoreel_tick()
-        self.assertFalse(r.get("ok"))
-        self.assertIn("session is live", r.get("why", ""))
-        self.assertEqual(self.started, [], "it started a sweep while a session was live")
+        self.assertEqual(self.started, [], "it swept a reel that was still being written")
+        self.assertIn(rid, self.ca._CHRON_AUTOREAD["skipped"])
+
+    def test_a_SEALED_reel_is_swept_even_while_a_session_is_live(self):
+        """The other half, and the one that cost him hours: a live session says nothing about the
+        reels behind it."""
+        self.ca._agent_alive = lambda *a, **k: True
+        self._make_reel("reel_s_1787177179114_91449")     # aged by the fixture = finished
+        r = self.ca.chronicle_autoreel_tick()
+        self.assertTrue(r.get("ok"), r)
+        self.assertEqual([k.get("reel_id") for k in self.started], ["reel_s_1787177179114_91449"])
 
     def test_it_never_runs_two_sweeps_at_once(self):
         self.ca.chronicle_sweep_state = lambda *a, **k: {"running": True}
@@ -7526,6 +7574,93 @@ class TestTheFreePassDoesNotAccuseTheReader(unittest.TestCase):
         self.assertEqual(v["state"], "not-measured")
         self.assertTrue(v["ok"])
         self.assertNotIn("produced no names", v["say"])
+
+
+class TestALiveSessionDoesNotBlockSealedFootage(unittest.TestCase):
+    """v1823 — Konyo: "why refused when session is LIVE?" and, before that, "why is nothing
+    automatically sweeping? its been hours".
+
+    Both watchdog ticks opened with a blanket `if _agent_alive(): refuse`, giving the reason "a reel
+    is only final once it stops growing". That is true of the reel being recorded RIGHT NOW and
+    false of every sealed reel behind it. He plays with the console capturing, so a session was live
+    almost whenever he was at the machine, and three finished reels sat unread for hours while the
+    guard did exactly what it said on the tin. My first diagnosis — "the console was closed" — was
+    wrong, and he corrected it: it had been open the whole time.
+
+    "A session exists" was a PROXY. "This directory is still receiving frames" is the fact.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="reel-growing-")
+        self._hist = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = self.tmp
+        ca._CHRON_AUTOREAD["reels"] = set()
+        ca._CHRON_AUTOREAD["tries"] = {}
+        ca._CHRON_AUTOREAD["skipped"] = {}
+
+    def tearDown(self):
+        if self._hist is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._hist
+        ca._CHRON_AUTOREAD["reels"] = None
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _reel(self, rid, focus="chronicle-uniques", n=6, age_s=3600):
+        d = os.path.join(self.tmp, rid)
+        os.makedirs(d, exist_ok=True)
+        frames = []
+        when = time.time() - age_s
+        for i in range(n):
+            name = "f_%d.jpg" % (1787177179114 + i)
+            fp = os.path.join(d, name)
+            with open(fp, "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xe0stub")
+            os.utime(fp, (when, when))
+            frames.append({"f": name, "ts": 1787177179114 + i})
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": rid[5:], "n": n, "focus": focus, "focusChosen": True,
+                       "frames": frames}, fh)
+        os.utime(d, (when, when))
+        return d
+
+    def test_a_sealed_reel_is_swept_even_while_a_session_is_live(self):
+        d = self._reel("reel_s_1787177179114_91449", age_s=3600)
+        self.assertFalse(ca._reel_is_growing(d), "an hour-old reel is not growing")
+        taken = []
+        with mock.patch.object(ca, "chronicle_sweep_start",
+                               side_effect=lambda **kw: taken.append(kw.get("reel_id")) or {"ok": True}), \
+             mock.patch.object(ca, "_agent_alive", return_value=True), \
+             mock.patch.object(ca, "chronicle_sweep_state", return_value={"running": False}):
+            r = ca.chronicle_autoreel_tick()
+        self.assertTrue(r.get("ok"), r)
+        self.assertEqual(taken, ["reel_s_1787177179114_91449"],
+                         "a live session blocked footage that had already stopped growing")
+
+    def test_the_reel_still_receiving_frames_IS_skipped(self):
+        # the one thing the old guard genuinely protected, kept
+        self._reel("reel_s_1787177179114_91449", age_s=2)
+        taken = []
+        with mock.patch.object(ca, "chronicle_sweep_start",
+                               side_effect=lambda **kw: taken.append(kw.get("reel_id")) or {"ok": True}), \
+             mock.patch.object(ca, "_agent_alive", return_value=True), \
+             mock.patch.object(ca, "chronicle_sweep_state", return_value={"running": False}):
+            ca.chronicle_autoreel_tick()
+        self.assertEqual(taken, [], "a reel still being written was swept")
+        self.assertIn("reel_s_1787177179114_91449", ca._CHRON_AUTOREAD["skipped"])
+
+    def test_a_reel_it_cannot_judge_counts_as_growing(self):
+        # reading a half-written reel spends money on footage about to change, so "cannot tell"
+        # must never mean "go ahead"
+        self.assertTrue(ca._reel_is_growing(os.path.join(self.tmp, "does-not-exist")))
+
+    def test_a_sweep_already_running_still_refuses(self):
+        self._reel("reel_s_1787177179114_91449", age_s=3600)
+        with mock.patch.object(ca, "_agent_alive", return_value=False), \
+             mock.patch.object(ca, "chronicle_sweep_state", return_value={"running": True}):
+            r = ca.chronicle_autoreel_tick()
+        self.assertFalse(r.get("ok"))
+        self.assertIn("already running", r.get("why", ""))
 
 
 if __name__ == "__main__":

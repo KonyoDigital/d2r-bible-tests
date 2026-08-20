@@ -9243,12 +9243,42 @@ def _chron_reels_mark(reel_id):
         pass
 
 
+def _reel_is_growing(reel_dir, quiet_s=90):
+    """Is this reel STILL BEING WRITTEN? Measured, not inferred from whether a session exists.
+
+    v1823 — Konyo: "why refused when session is LIVE?" He was right to ask. Both watchdog ticks
+    opened with a blanket `if _agent_alive(): refuse`, and the reason given was "a reel is only
+    final once it stops growing" — true of the reel being recorded RIGHT NOW, false of every sealed
+    reel behind it. He plays with the console capturing, so a session was live almost whenever he
+    was at the machine: the sweeper never got a window, and three finished reels sat unread for
+    hours while the guard did exactly what it said on the tin.
+
+    The guard was checking the wrong thing. "A session exists" is a proxy; "this directory is still
+    receiving frames" is the fact. The refusal therefore moves from the whole tick down to the
+    individual reel, and only the one actually growing is skipped.
+
+    Unreadable answers GROWING on purpose: a reel we cannot judge must never be swept, because
+    reading a half-written reel spends money on footage that is about to change.
+    """
+    try:
+        newest = os.path.getmtime(reel_dir)
+        for n in os.listdir(reel_dir):
+            if n.startswith("f_") and n.endswith(".jpg"):
+                m = os.path.getmtime(os.path.join(reel_dir, n))
+                if m > newest:
+                    newest = m
+        return (time.time() - newest) < quiet_s
+    except Exception:
+        return True
+
+
 def chronicle_autoreel_tick():
     """One pass over the REELS. Returns what it did, and every refusal carries a named reason."""
     if not _CHRON_AUTOREEL_ON:
         return {"ok": False, "why": "reel auto-sweep is off (TV_CHRON_AUTOREEL=0)"}
-    if _agent_alive():
-        return {"ok": False, "why": "a session is live — a reel is only final once it stops growing"}
+    # v1823 — NO BLANKET REFUSAL WHILE A SESSION IS LIVE. A live session says nothing about the
+    # SEALED reels behind it, and refusing on it meant the sweeper never ran while he was at the
+    # machine. The one reel it genuinely protects is skipped individually below.
     try:
         if chronicle_sweep_state().get("running"):
             return {"ok": False, "why": "a sweep is already running"}
@@ -9264,6 +9294,10 @@ def chronicle_autoreel_tick():
     for d in dirs:
         rid = os.path.basename(str(d))
         if rid in seen:
+            continue
+        # the ONE reel a live session actually protects: the one still receiving frames
+        if _reel_is_growing(str(d)):
+            _CHRON_AUTOREAD["skipped"][rid] = "still growing — not final yet"
             continue
         # MARK BEFORE READING is wrong here for the same reason it was wrong for visits (v1745):
         # a refused sweep would burn the reel. Mark only once the sweep has taken the job.
@@ -11190,7 +11224,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1822",
+        "ver": "v1823",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
