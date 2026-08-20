@@ -10248,8 +10248,9 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             # told the app what he parked on, not that every frame of the recording is that screen.
             # Which SURFACE it is still comes from the declared focus first (v1603) — the gate only
             # decides whether this frame may speak about ownership at all.
-            _tab = stash_screen_open(p)
-            if _tab is None:
+            # the value is deliberately DISCARDED — only "may this frame speak about ownership"
+            # is asked here. v1859 proved what happens when the answer is also used as a lane.
+            if stash_screen_open(p) is None:
                 _not_stash[0] += 1
                 return None
             # v1859 — REVERTED: THE TAB IS A GUESS, AND A GUESS MAY NOT NAME A LANE.
@@ -10796,8 +10797,32 @@ def stash_screen_open(frame_path):
             return None
         if is_boot_screen(lines):
             return None          # the reconnect splash is not a stash, however much text it carries
-        tab = _tab_from_ocr_lines(lines)
-        return tab or None
+        # v1860 — ADMISSION COUNTS THE LABELS; IT DOES NOT ASK WHICH TAB IS SELECTED.
+        #
+        # This line was `tab = _tab_from_ocr_lines(lines); return tab or None`, and that asks the
+        # WRONG QUESTION. tab_from_ocr_lines abstains on 2+ legible labels — correctly, because the
+        # strip prints all five whichever is active — and the gate then read that abstention as
+        # "not a stash frame". So the CLEAREST evidence his stash is open (four tab names printed
+        # in one strip) refused exactly like an empty frame.
+        #
+        # MEASURED ON HIS OWN REELS, not reasoned: of 68 frames the grid fingerprint called a stash
+        # panel, four had unmistakable chrome — ['$•NAL','SHAkED','% Gems','I mATeRIALS'] and
+        # ['S*NAL','SHARED','g Gems','mATeRIALS'] among them — and the gate turned away all four.
+        # [[the-unjoined-end]] — a gate built right and joined to the wrong question.
+        #
+        # The chrome renders ONLY when the panel is open, so one legible label is already proof and
+        # four is overwhelming. Which tab is selected is a different question with a different
+        # answer, it is a GUESS (v1859), and admission never needed it.
+        from stash_eye import stash_chrome_canons
+        canons = stash_chrome_canons(lines)
+        if not canons:
+            return None
+        if len(canons) == 1:
+            return canons[0]
+        # ambiguous chrome = the panel is unmistakably open and the tab is unknown. Say STASH, which
+        # is true, rather than a tab, which would be invented. Callers test `is None`; none of them
+        # may use this value as a lane (v1859's revert), so a truthful non-answer is the right one.
+        return "stash"
     except Exception as _e:
         # v1854 — A GATE THAT CANNOT RUN MUST NOT ANSWER "NO".
         #
@@ -12071,7 +12096,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1859",
+        "ver": "v1860",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -128,18 +128,29 @@ def is_boot_screen(ocr_lines: Optional[Sequence[Any]]) -> bool:
     return False
 
 
-def tab_from_ocr_lines(lines: Optional[Sequence[Any]]) -> str:
-    """Active-tab guess from OCR lines.
+def stash_chrome_canons(lines: Optional[Sequence[Any]]) -> List[str]:
+    """WHICH stash tab labels are legible in this strip — the raw hits, in canon form.
 
-    Stash chrome always prints ALL five tab names — first-hit order wrongly
-    returned 'materials' whenever the strip was fully readable. Rule:
-      · 0 hits → ''
-      · 1 unique canon → that tab
-      · 2+ canons → '' (ambiguous chrome; pixel/grid fingerprint decides)
+    v1860. This was the private middle of tab_from_ocr_lines(), and burying it conflated two
+    questions that have different answers and different consequences:
+
+      "IS THE STASH PANEL OPEN?"  — answered by how many canon labels are legible. This chrome
+                                    renders only when the panel is open, so ONE is already proof
+                                    and FIVE is overwhelming proof.
+      "WHICH TAB IS SELECTED?"    — answered by which one, and honestly unanswerable from labels
+                                    alone, because the strip prints all five whichever is active.
+
+    Fusing them meant the CLEAREST evidence of an open stash produced the same answer as an empty
+    frame: '' — and every caller reading that as "not a stash" refused his best footage. Measured
+    on his own reels, four frames printed PERSONAL · SHARED · GEMS · MATERIALS in one strip and the
+    vault gate turned all four away. [[the-unjoined-end]]
+
+    Returns canon names in a stable order; the list length is the admission signal.
     """
     blob = " ".join(str(t).lower() for t in (lines or []))
     if not blob.strip():
-        return ""
+        return []          # a LIST, always — "" is falsy and len()==0 too, which is exactly how a
+                           # wrong type survives review; a caller doing canons[0] would have found it
     # normalize common OCR garble of RotW tab labels (never break the word "materials")
     blob = re.sub(r"matera?l\$?", "materials", blob)   # mATERIAL$ style
     blob = re.sub(r"materlal", "materials", blob)
@@ -161,6 +172,24 @@ def tab_from_ocr_lines(lines: Optional[Sequence[Any]]) -> str:
         if re.search(r"(?<![a-z])" + re.escape(key) + r"(?![a-z])", blob):
             if canon not in hits:
                 hits.append(canon)
+    return hits
+
+
+def tab_from_ocr_lines(lines: Optional[Sequence[Any]]) -> str:
+    """Active-tab GUESS from OCR lines — and a guess is all it is.
+
+    Stash chrome always prints ALL five tab names — first-hit order wrongly
+    returned 'materials' whenever the strip was fully readable. Rule:
+      · 0 hits → ''
+      · 1 unique canon → that tab
+      · 2+ canons → '' (ambiguous chrome; pixel/grid fingerprint decides)
+
+    ⚠ '' MEANS "I CANNOT TELL WHICH TAB", NEVER "THIS IS NOT A STASH". Ask
+    stash_chrome_canons() when the question is whether the panel is open — v1857
+    shipped a lane assignment built on this return value and it mis-filed a full
+    Runes stash as gems. [[unknown-stays-unknown]]
+    """
+    hits = stash_chrome_canons(lines)
     if len(hits) == 1:
         return hits[0]
     return ""

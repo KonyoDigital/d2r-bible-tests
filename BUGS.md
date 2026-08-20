@@ -6230,3 +6230,76 @@ Fixed where the other external stub already lived: `_net_stub` now fulfils both 
 ⚠ Worth stating plainly: **two of the four failures were mine and two were not**, and it would have
 been easy to "fix" all four as one regression or dismiss all four as flake. They needed separating
 before either verdict was safe.
+
+---
+
+## REG-202 — the vault gate refused his clearest stash frames (FIXED v1860)
+
+**Found:** 2026-08-20, by measuring the gate against every frame in `tv/frames/hist/` rather than
+against a fixture.
+
+`stash_screen_open()` decided ADMISSION by asking `tab_from_ocr_lines()` **which tab is selected**.
+That function abstains — returns `""` — whenever 2+ canon labels are legible, and it is right to:
+the stash strip prints all five tab names whichever one is active. The gate read that abstention as
+"not a stash frame".
+
+So the **strongest possible evidence that his stash is open** produced the same verdict as an empty
+frame. Measured on his own reels: of the 68 frames the grid fingerprint called a stash panel, four
+carried unmistakable chrome — `['$•NAL','SHAkED','% Gems','I mATeRIALS']` and
+`['S*NAL','SHARED','g Gems','mATeRIALS']` among them — and **all four were turned away**. This is
+`the-unjoined-end`: a gate built correctly and joined to the wrong question.
+
+**Fix.** `stash_eye.stash_chrome_canons()` is now the admission signal — how many canon labels are
+legible. One is proof the panel is open, four is overwhelming. `tab_from_ocr_lines()` keeps its
+abstention for the tab question, where abstaining is correct. Ambiguous chrome now answers `"stash"`
+(true, and not a tab) instead of `None`.
+
+Admitted, over the same 68 frames: **3 → 5**. Refused: 63, and those were verified by eye to be
+gameplay — one is a Durance-of-Hate fight. **Guards:** `test_control.TestTheVaultTemplateGate` —
+`test_FULL_chrome_admits_it_is_the_strongest_proof_the_stash_is_open`,
+`test_ambiguous_chrome_names_no_tab_it_did_not_read`, `test_junk_chrome_still_refuses` (the mirror,
+or the fix is just a gate that always says yes).
+
+## REG-203 — `classify_stash_grid` calls a fire-lit gameplay frame `stash-gems` (OPEN)
+
+**Found:** 2026-08-20, while checking whether the gate was over-refusing. It was not — the GRID was
+over-claiming, and I nearly filed the instrument's error as the gate's.
+
+`tv/frames/hist/f_1786554127532.jpg` is a Durance-style fight lit by a wall of fire. `classify_stash_grid`
+returns **`stash-gems`**. The v1258 not-D2R guard does not catch it: fire supplies the chroma and the
+dark scene supplies enough dark columns for `panel_open` to read true. It is the same shape as the
+scar already recorded in that function — *"69 wallpaper frames sealed as stash-gems"* — in a new
+flavour.
+
+**Exposure, measured:** across all 847 hist frames the grid names a tally tab on **9**; **8 of those
+9 have no legible tab chrome at all**, i.e. they are not stash panels. In `fuse_tab_signals` rule 2,
+`allow_grid_solo=True` (the KAI retro path) lets grid promote a tally tab with **no** corroboration,
+so those 8 can be filed as gems/materials panels in retro.
+
+**Not fixed here** — retuning a pixel fingerprint needs its own before/after sweep over the whole
+corpus, and the vault lane is already protected by REG-202's chrome gate, which refuses all 8.
+
+## REG-204 — a solo OCR tab GUESS outranks two disagreeing witnesses (OPEN)
+
+**Found:** 2026-08-20, sweeping the class of the v1857/v1859 defect.
+
+`stash_eye.fuse_tab_signals` rule 1 — *"OCR tally wins over vague vault labels"* — returns the OCR
+tab **before grid or model are consulted at all**. The intent is sound (a specific tally word should
+beat a vague `shared`/`vault` label); the implementation also beats a **specific and different**
+tally tab. Measured:
+
+```
+fuse_tab_signals(ocr_tab="gems", grid_label="stash-runes")            -> ('gems', ['ocr'])
+fuse_tab_signals(ocr_tab="gems", grid_label="stash", model_tab="runes") -> ('gems', ['ocr'])
+```
+
+One witness — one that names itself a *guess* in its own docstring — overrules two that disagree,
+and reports `sources: ['ocr']` while doing it. That contradicts the multi-witness doctrine directly.
+v1194 fixed the neighbouring half (an OCR-only fusion masquerading as a grid vote in
+`_kai_grid_vote_label`); it did not touch which tab is chosen.
+
+**Not fixed here, deliberately.** The correct behaviour on a contradiction is to name no tally tab
+rather than to pick a side — but the disagreement is **not exercised by any frame in his corpus**
+(zero occurrences across the 68 stash-panel frames), so a change here would ship untested against
+his data. Filed with the measurement so the next pass starts from evidence rather than from this
+paragraph.

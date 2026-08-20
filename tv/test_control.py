@@ -8927,7 +8927,7 @@ class TestTheVaultTemplateGate(unittest.TestCase):
     def test_the_sweep_asks_the_gate_before_paying_a_classify(self):
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
-        i = src.find("_tab = stash_screen_open(p)")
+        i = src.find("if stash_screen_open(p) is None:")
         self.assertGreater(i, 0, "no vault classify consults the stash template")
         # bound by the function's REAL end, not a byte count — a 2000-char window broke the moment
         # v1859 added its explanation. [[source-reading-guard]]
@@ -8968,12 +8968,18 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         The ANSWER stays None, because refusing is the safe direction for a gate. What must not stay
         the same is the silence."""
         import control_app as ca
+        import stash_eye as se
+        # v1860 — SABOTAGE WHAT THE GATE ACTUALLY CALLS. This used to break
+        # ca._tab_from_ocr_lines; when the gate switched to stash_chrome_canons the sabotage stopped
+        # reaching it, the gate ran fine, and this guard would have passed forever on a gate it was
+        # no longer testing. It failed instead — because it asserts an OUTCOME (None + a recorded
+        # failure), not that a particular symbol was called. [[feedback-blind-fixture-green-gate]]
         before = ca.gate_failures()
-        old = ca.__dict__.get("_tab_from_ocr_lines")
+        old = se.stash_chrome_canons
         ca.__dict__["_GATE_BROKE"]["said"] = True          # keep the log quiet during the test
         def boom(_lines):
             raise RuntimeError("the gate itself is broken")
-        ca.__dict__["_tab_from_ocr_lines"] = boom
+        se.stash_chrome_canons = boom
         try:
             here = os.path.dirname(os.path.abspath(__file__))
             f = os.path.join(here, "frames", "hist", "5_1784984201581.jpg")
@@ -8981,11 +8987,50 @@ class TestTheVaultTemplateGate(unittest.TestCase):
                 self.skipTest("his footage is not on this machine")
             got = ca.stash_screen_open(f)
         finally:
-            ca.__dict__["_tab_from_ocr_lines"] = old
+            se.stash_chrome_canons = old
         self.assertIsNone(got, "a broken gate must still refuse — that is the safe direction")
         self.assertGreater(ca.gate_failures(), before,
                            "the gate failed and said nothing — the exact shape that hid "
                            "prep_tab_chrome for 310 versions")
+
+    def test_FULL_chrome_admits_it_is_the_strongest_proof_the_stash_is_open(self):
+        """v1860 — the gate refused his clearest stash frames.
+
+        It asked tab_from_ocr_lines "which tab?", which abstains on 2+ legible labels — correctly,
+        because the strip prints all five whichever is active — and then read that abstention as
+        "not a stash frame". So a strip reading ['$•NAL','SHAkED','% Gems','I mATeRIALS'] — four tab
+        names, chrome that renders ONLY when the panel is open — was turned away exactly like an
+        empty frame. Two of his own reels' frames, measured.
+
+        Admission counts labels; it does not ask which is selected. One is proof, four is
+        overwhelming, and the tab stays unknown because it genuinely is."""
+        import control_app as ca
+        for lines, why in (
+            (["$\u2022NAL", "SHAkED", "% Gems", "I mATeRIALS"], "his frame 6_1784984233446"),
+            (["S*NAL", "SHARED", "g Gems", "mATeRIALS"], "his frame 8_1785078207015"),
+        ):
+            self.assertGreaterEqual(len(se.stash_chrome_canons(lines)), 2, why)
+            self.assertEqual(se.tab_from_ocr_lines(lines), "",
+                             "the tab is genuinely ambiguous — that half was always right")
+
+    def test_ambiguous_chrome_names_no_tab_it_did_not_read(self):
+        """Admitting must not become inventing. Ambiguous chrome answers 'stash' — true, and not
+        a tab — never one of the five, which would be a guess wearing an answer's clothes."""
+        import control_app as ca
+        here = os.path.dirname(os.path.abspath(__file__))
+        f = os.path.join(here, "frames", "hist", "6_1784984233446.jpg")
+        if not os.path.isfile(f):
+            self.skipTest("his footage is not on this machine")
+        got = ca.stash_screen_open(f)
+        self.assertEqual(got, "stash",
+                         "full chrome must admit as an open stash of unknown tab, not as a tab")
+
+    def test_junk_chrome_still_refuses(self):
+        """The mirror, or the fix is just a gate that always says yes. Two of the same 68 frames
+        OCR'd to ['AYp*INt..:-;'] — no canon label anywhere — and must still be refused."""
+        import control_app as ca
+        self.assertEqual(se.stash_chrome_canons(["AYp*INt..:-;"]), [])
+        self.assertEqual(se.stash_chrome_canons(["Corrupted tremors strike Durance of Hate"]), [])
 
     def test_a_working_gate_records_no_failures(self):
         # 0 must mean "it ran", never "nobody looked" — otherwise the counter is the next silence
@@ -9120,13 +9165,31 @@ class TestTheTemplateClassifiesForFree(unittest.TestCase):
         exists to prevent."""
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
-        i = src.find("_tab = stash_screen_open(p)")
+        i = src.find("if stash_screen_open(p) is None:")
         self.assertGreater(i, 0, "the vault gate stopped reading the tab entirely")
-        body = src[src.rfind("def _classify(p):", 0, i):src.find("def _reader", i)]
-        self.assertNotIn("return _surf", body,
-                         "the tab GUESS is being returned as the ownership surface again")
-        self.assertIn("_tv.claude_read(", body,
-                      "the paid classify must decide the surface — the guess may not")
+        # NAME-INDEPENDENT. A `assertNotIn("return _surf")` only forbids the variable v1857
+        # happened to use; the invariant is about what the function may RETURN at all. Every exit
+        # from the vault classify is either "I do not know" (None) or the paid reader's answer.
+        # Anything else is a surface named without paying for it. [[source-reading-guard]]
+        import ast
+        fn = None
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, ast.FunctionDef) and node.name == "_vault_sweep_run":
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.FunctionDef) and inner.name == "_classify":
+                        fn = inner
+        self.assertIsNotNone(fn, "no _classify inside _vault_sweep_run")
+        rets = [r.value for r in ast.walk(fn) if isinstance(r, ast.Return)]
+        self.assertTrue(rets, "a classify that returns nothing classifies nothing")
+        paid = 0
+        for v in rets:
+            if v is None or (isinstance(v, ast.Constant) and v.value is None):
+                continue          # "not a stash screen" / the reader died — both honest unknowns
+            self.assertIsInstance(v, ast.Call, "the vault classify returns a value it did not pay for")
+            self.assertEqual(getattr(v.func, "attr", None), "claude_read",
+                             "only the paid reader may name the ownership surface")
+            paid += 1
+        self.assertGreater(paid, 0, "the paid classify is gone — the guess would be all that is left")
 
     def test_the_model_is_still_the_fallback(self):
         # this may only REMOVE model calls; when the detector abstains the old path must run
