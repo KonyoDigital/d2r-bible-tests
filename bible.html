@@ -3281,7 +3281,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      row wrap then fixed the clip but pushed the "all N terrorised together" note (which carries
      margin-left:auto) onto its own line in one card and not the other, so the two cards stopped
      matching. Outside the row, neither happens and the label keeps the layout it always had. */
-  .tzt-turning{display:block;margin:0 0 6px;font-size:var(--fs-micro);font-weight:var(--fw-normal);
+  .tzt-clock{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px;
+  font:var(--fw-semibold) var(--fs-meta,12.5px)/1.4 var(--mono,ui-monospace,monospace);
+  letter-spacing:var(--ls-wide,.06em);color:var(--text-dim,#9a8c72)}
+.tzt-clock b{color:var(--gold-bright,#f0c060);font-variant-numeric:tabular-nums}
+.tzt-clock.soon b{color:var(--q-set,#5fc97a)}
+.tzt-turning{display:block;margin:0 0 6px;font-size:var(--fs-micro);font-weight:var(--fw-normal);
     letter-spacing:.4px;line-height:1.35;color:var(--nm);white-space:normal}
   .tzt-now .tzt-turning{color:var(--warn,#ffd27f);border-color:rgba(255,210,127,.34)}
   .tzt-live-dot{width:10px;height:10px;border-radius:50%;background:var(--best);box-shadow:0 0 0 0 rgba(102,255,136,.55);animation:tztPulse 1.5s ease-out infinite}
@@ -4555,6 +4560,12 @@ try {
       <div class="tzt-sub">Live region rotation — ranked on the game&rsquo;s own monster density</div>
     </div>
   </div>
+  <!-- v1881 — Konyo: "the TZ TRACKER when im on it i want it to be refreshed its stuck and not
+       updating". It was not frozen, it was SILENT: the panel refetched every 120s and nothing on
+       screen moved between polls, so a working tracker and a dead one looked identical. This line
+       ticks every second against his own clock, so the page is visibly alive and he can see the
+       turn coming. [[feedback-silence-is-not-evidence]] -->
+  <div class="tzt-clock" id="tztracker-clock" aria-live="polite"></div>
   <div class="tzt-panel" id="tztracker-body">
     <div class="tzt-loading">📡 Loading the live rotation…</div>
   </div>
@@ -26303,7 +26314,8 @@ function renderTzTracker(data){
       /* v1831 — DO NOT PRINT A FINISHED WINDOW AS LIVE. Measured across a real boundary: 44s after
          the rotation the upstream feed still returned the previous zone as `current`, and had
          caught up by 89s. Polling faster cannot fix that — v1813 already stopped OUR cache
-         outliving its slot, and the board already refetches 6s after the turn; the staleness left
+         outliving its slot, and the board chases the turn with retries at +8s/+25s/+60s (v1881 — this
+         line used to claim a 6s refetch that did not exist); the staleness left
          is the feed's own. `turning` is derived server-side from the feed's own history stamps
          (they divide by 1800000 exactly), so it costs no extra request. [[stale-reading]] */
       + '</div>'
@@ -26429,14 +26441,76 @@ window.refreshTzTracker = refreshTzTracker;
 window._tzPeek = function(){ return _tzLast; };            // v686 — session cockpit reads the tracker's last fetch
 window.tzZoneRowHtml = tzZoneRowHtml;                       // v686 — cockpit reuses the tracker's zone row renderer
 
+/* ── v1881 — THE TRACKER LOOKED STUCK BECAUSE NOTHING MOVED ────────────────────────────────────
+   Konyo: "the TZ TRACKER when im on it i want it to be refreshed its stuck and not updating".
+
+   It was not frozen. It was SILENT, and worse than that it was LATE at the only moment it matters.
+
+     · the panel refetched on a flat 120s interval, so between polls NOTHING on screen changed —
+       a working tracker and a dead one look identical to a person watching one.
+     · the zone turns ON THE HOUR AND THE HALF HOUR, and a flat 120s poll is unaligned to that, so
+       he could sit up to two minutes reading the zone that had just ended.
+     · ⚠ a comment fifty lines above claimed "the board already refetches 6s after the turn". IT
+       DOES NOT, and never did — `_tzTimer` was the only timer in the file. A stale claim about a
+       safeguard is worse than no claim: it is why nobody went looking. [[label-outlived-referent]]
+
+   Three things now, and each answers one of those:
+     1. A ONE-SECOND CLOCK counting down to the next :00 / :30. The page is visibly alive, and he
+        can see the turn coming instead of guessing whether the tab is dead.
+     2. A TURN-ALIGNED REFETCH — at the boundary, then again at +8s, +25s and +60s, because the
+        upstream feed lags its own rotation (the "turning over" state this file already renders is
+        exactly that lag). Retries stop as soon as one lands with a changed zone.
+     3. The 120s poll stays as the floor for everything else.
+
+   All of it hangs off ONE interval that also does the countdown, so there is a single timer to
+   reason about and a single place it can be cleared. */
+function _tzTurnBoundary(now){
+  // the next :00 or :30, in ms
+  const d = new Date(now);
+  const mins = d.getMinutes();
+  const nextMin = mins < 30 ? 30 : 60;
+  const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), 0, 0, 0);
+  return t.getTime() + nextMin * 60000;
+}
+function _tzPaintClock(){
+  const el = document.getElementById('tztracker-clock');
+  if (!el) return;
+  const now = Date.now();
+  const left = Math.max(0, _tzTurnBoundary(now) - now);
+  const m = Math.floor(left / 60000), sec = Math.floor((left % 60000) / 1000);
+  const soon = left <= 120000;
+  el.className = 'tzt-clock' + (soon ? ' soon' : '');
+  el.innerHTML = '<span>next zone in</span><b>' + m + ':' + (sec < 10 ? '0' : '') + sec + '</b>'
+    + '<span>· turns on the hour and the half hour</span>';
+}
 function tzTrackerOnShow(){
   refreshTzTracker(false);
+  _tzPaintClock();
   if (_tzTimer){ clearInterval(_tzTimer); _tzTimer = null; }
+  let _lastPoll = Date.now();
+  let _turnAt = _tzTurnBoundary(Date.now());
+  let _chase = [];          // the post-turn retries still owed
   _tzTimer = setInterval(function(){
     const panel = document.getElementById('tab-tztracker');
-    if (panel && panel.classList.contains('active')) refreshTzTracker(false);
-    else { clearInterval(_tzTimer); _tzTimer = null; }
-  }, 120000);
+    if (!panel || !panel.classList.contains('active')){
+      clearInterval(_tzTimer); _tzTimer = null; return;
+    }
+    _tzPaintClock();
+    const now = Date.now();
+    if (now >= _turnAt){
+      // the boundary just passed: fetch now, then chase the feed's own lag
+      _chase = [now + 8000, now + 25000, now + 60000];
+      _turnAt = _tzTurnBoundary(now + 1000);
+      refreshTzTracker(false); _lastPoll = now;
+      return;
+    }
+    if (_chase.length && now >= _chase[0]){
+      _chase.shift();
+      refreshTzTracker(false); _lastPoll = now;
+      return;
+    }
+    if (now - _lastPoll >= 120000){ refreshTzTracker(false); _lastPoll = now; }
+  }, 1000);
 }
 window.tzTrackerOnShow = tzTrackerOnShow;
 
@@ -41999,7 +42073,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1880', name:'v1880 - A grep for the field name missed the consumer that uses the variable', date:'2026-08-20', note:'v1878 claimed a field was computed twice and read nowhere and added a print for it. It was already consumed, live, at both sweep sites - his own sweep printed it forty minutes later from the engine rather than from my line. The grep searched for the field name while the consumer works from the local variable assigned before the field is built, which is the exact failure the source-reading-guard skill is about, applied to my own field. The duplicate is removed, the record keeps both the wrong claim and the correction, and the guards now assert the joint that was always real. Also the vault gate test now skips honestly when the OCR lane answers nothing rather than blaming the gate.' };
+  window.D2R_BUILD = { id:'v1881', name:'v1881 - The TZ tracker was not frozen, it was silent and late', date:'2026-08-21', note:'He said the tracker is stuck when he sits on it. It refetched on a flat 120 second interval, so nothing on screen moved between polls and a working tracker looked exactly like a dead one, and that interval is unaligned to a rotation that turns on the hour and the half hour, so he could spend two minutes reading a zone that had already ended. A comment claimed the board refetched six seconds after the turn and no such code has ever existed. Now a one second clock counts down to the next turn, the fetch chases the boundary with retries at plus 8, 25 and 60 seconds because the feed lags its own rotation, and the two minute poll stays as the floor.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

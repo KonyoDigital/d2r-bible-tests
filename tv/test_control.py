@@ -9512,6 +9512,111 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestTheTzTrackerChasesTheTurn(unittest.TestCase):
+    """v1881 — Konyo: "the TZ TRACKER when im on it i want it to be refreshed its stuck and not
+    updating".
+
+    It was not frozen. It was SILENT, and LATE at the only moment that matters:
+      · a flat 120s poll, so between polls nothing on screen changed and a working tracker looked
+        exactly like a dead one;
+      · that poll is unaligned to the rotation, which turns ON THE HOUR AND THE HALF HOUR, so he
+        could sit up to two minutes reading the zone that had just ended;
+      · ⚠ a comment claimed "the board already refetches 6s after the turn". IT DID NOT — `_tzTimer`
+        was the only timer in the file. A stale claim about a safeguard is why nobody looked.
+        [[label-outlived-referent]]
+
+    The boundary maths is run in NODE against fixed clocks, including both one-second edges and the
+    midnight rollover, because an off-by-one here means the chase fires on the wrong side of the
+    turn and he sees the old zone for another half hour."""
+
+    def _boundaries(self, cases):
+        import json as _json
+        import shutil as _sh
+        import subprocess as _sp
+        import tempfile as _tf
+        node = _sh.which("node")
+        if not node:
+            self.skipTest("node is not installed on this machine")
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("function _tzTurnBoundary(now){")
+        j = src.find("function tzTrackerOnShow(){", i)
+        self.assertGreater(i, 0, "the tracker lost its turn-boundary maths")
+        prog = ("var document = { getElementById: function(){ return null; } };\n" + src[i:j]
+                + "var cases = " + _json.dumps(cases) + ";\n"
+                + "console.log(JSON.stringify(cases.map(function(c){ var t = new Date(c).getTime();"
+                  " return Math.round((_tzTurnBoundary(t) - t) / 1000); })));\n")
+        with _tf.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+            f.write(prog)
+            jp = f.name
+        try:
+            out = _sp.run([node, jp], capture_output=True, text=True, timeout=60)
+            self.assertEqual(out.returncode, 0, out.stderr[:400])
+            return _json.loads(out.stdout.strip().splitlines()[-1])
+        finally:
+            os.unlink(jp)
+
+    def test_it_counts_to_the_next_hour_or_half_hour(self):
+        got = self._boundaries(["2026-08-21T00:05:00", "2026-08-21T00:29:59",
+                                "2026-08-21T00:30:00", "2026-08-21T00:31:00"])
+        self.assertEqual(got, [1500, 1, 1800, 1740])
+
+    def test_it_survives_midnight(self):
+        # the boundary is built from the top of the hour plus 60 minutes, so the date rolls with it
+        self.assertEqual(self._boundaries(["2026-08-21T23:45:00", "2026-08-21T23:59:59"]),
+                         [900, 1])
+
+    def test_the_panel_has_somewhere_to_show_it(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        self.assertIn('id="tztracker-clock"', src, "the countdown has no element to render into")
+        self.assertIn(".tzt-clock{", src, "the countdown element has no styling at all")
+
+    def test_the_chase_and_the_floor_both_exist(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("function tzTrackerOnShow(){")
+        body = src[i:src.find("window.tzTrackerOnShow", i)]
+        self.assertIn("now + 8000", body, "the post-turn chase is gone — the feed lags its own turn")
+        self.assertIn("now - _lastPoll >= 120000", body, "the 120s floor is gone")
+        self.assertIn("}, 1000);", body, "the tick is no longer once a second, so nothing moves")
+
+    def test_the_stale_6s_claim_never_stands_unretracted(self):
+        """⚠ THE FIRST CUT OF THIS TEST FAILED ON ITS OWN DOCUMENTATION.
+
+        It asserted the phrase was ABSENT — and v1881's note about removing it quotes the phrase, so
+        the guard found the record of the fix and called it the defect. Third time tonight that an
+        explanatory comment blinded a guard that greps for a name, and this one was written sixty
+        seconds after the last. [[feedback-comments-vs-code]]
+
+        A string cannot tell a claim from its retraction, so the check is about what SURROUNDS it:
+        every occurrence must sit beside a retraction. The claim re-introduced plainly still fails;
+        the history is allowed to stay written down."""
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        RETRACTED = ("used to claim", "IT\n", "DOES NOT", "did not exist", "v1881")
+        i, unretracted = 0, []
+        while True:
+            i = src.find("the board already refetches 6s after the turn", i)
+            if i < 0:
+                break
+            near = src[max(0, i - 400):i + 400]
+            if not any(w in near for w in RETRACTED):
+                unretracted.append(src.count("\n", 0, i) + 1)
+            i += 10
+        self.assertEqual(unretracted, [],
+                         "a safeguard that does not exist is claimed as fact at line(s) %s"
+                         % unretracted)
+
+
 class TestTheFindDateIsForkedExactlyLikeTheFindItself(unittest.TestCase):
     """v1879 — a coupling, checked rather than assumed.
 

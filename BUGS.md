@@ -7002,3 +7002,38 @@ The seven that stayed held need the same thing they needed before: one more corr
 Two of them (Arcanna's Deathwand, Arcanna's Head) are held because **the reader itself was unsure**
 (0.50 against a 0.55 floor) — those rows are hard to read, not merely unseen, so a slower pass over
 that part of the ledger is what they want.
+
+## REG-231 — the TZ tracker looked stuck because nothing moved (FIXED v1881)
+
+**Konyo:** *"the TZ TRACKER when im on it i want it to be refreshed its stuck and not updating"*
+
+It was not frozen. It was **silent**, and **late at the only moment that matters**:
+
+- the panel refetched on a **flat 120s interval**, so between polls nothing on screen changed — a
+  working tracker and a dead one look identical to a person watching one;
+- that poll is **unaligned to the rotation**, which turns on the hour and the half hour, so he could
+  sit up to two minutes reading the zone that had just ended;
+- ⚠ a comment fifty lines above claimed *"the board already refetches 6s after the turn"*. **It did
+  not, and never did** — `_tzTimer` was the only timer in the file. A stale claim about a safeguard
+  is worse than no claim: it is why nobody went looking. [[label-outlived-referent]]
+
+Three things now, one per symptom, all hanging off a **single one-second interval** so there is one
+timer to reason about and one place it can be cleared:
+
+1. **A live countdown** to the next `:00` / `:30`, turning green inside the last two minutes. The
+   page is visibly alive and he can see the turn coming.
+2. **A turn-aligned chase** — refetch at the boundary, then again at **+8s, +25s and +60s**, because
+   the upstream feed lags its own rotation (the *"turning over"* state this file already renders is
+   exactly that lag).
+3. **The 120s poll stays** as the floor for everything else.
+
+The boundary maths is run in **node** against fixed clocks — both one-second edges and the midnight
+rollover — because an off-by-one there fires the chase on the wrong side of the turn and he reads the
+old zone for another half hour: `00:05→1500s · 00:29:59→1s · 00:30→1800s · 23:59:59→1s`.
+
+⚠ **The stale-claim guard failed on its own documentation.** It asserted the phrase was absent, and
+v1881's note about removing it quotes the phrase — so the guard found the record of the fix and
+called it the defect. **Third time tonight** an explanatory comment blinded a guard that greps for a
+name, and this one was written sixty seconds after the last. A string cannot tell a claim from its
+retraction, so the check is now about what surrounds it: every occurrence must sit beside a
+retraction. Proven to still flag the claim standing alone. [[feedback-comments-vs-code]]

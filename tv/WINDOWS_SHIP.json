@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1880",
+  "ver": "v1881",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1880: v1878 claimed a field was computed twice and read nowhere and added a print for it. It was already consumed, live, at both sweep sites - his own sweep printed it forty minutes later from the engine rather than from my line. The grep searched for the field name while the consumer works from the local variable assigned before the field is built, which is the exact failure the source-reading-guard skill is about, applied to my own field. The duplicate is removed, the record keeps both the wrong claim and the correction, and the guards now assert the joint that was always real. Also the vault gate test now skips honestly when the OCR lane answers nothing rather than blaming the gate.",
+  "note": "v1881: He said the tracker is stuck when he sits on it. It refetched on a flat 120 second interval, so nothing on screen moved between polls and a working tracker looked exactly like a dead one, and that interval is unaligned to a rotation that turns on the hour and the half hour, so he could spend two minutes reading a zone that had already ended. A comment claimed the board refetched six seconds after the turn and no such code has ever existed. Now a one second clock counts down to the next turn, the fetch chases the boundary with retries at plus 8, 25 and 60 seconds because the feed lags its own rotation, and the two minute poll stays as the floor.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
