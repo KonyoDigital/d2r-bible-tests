@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1857",
+  "ver": "v1858",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1857: Konyo: this same intelligence should be all round obviously like with their own relevant coding to whatever its routing or filtering. The chronicle sweep stopped paying a model to name its ledger in v1856; this is the vault half. stash_screen_open already resolves the tab in order to decide whether a frame may be read at all, and every tab it returns maps to a real ownership surface - so paying a model afterwards to name what was just read was pure waste. Proven on his frames: gems to gems, shared to stash, gameplay refused.",
+  "note": "v1858: The swept ledger was the only one of five live-state files with no isolation override, so anything but a unittest wrote his real memory of what has been swept. And v1856s template report sat beside the skip-set, which runs before the sweep, so its counter was always zero and the line could never print - plumbing with no tap, written into the commit that removed some. Both found by an isolated end-to-end run on real frames.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

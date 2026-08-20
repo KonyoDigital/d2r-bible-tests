@@ -9561,9 +9561,38 @@ _CHRON_SWEPT_PATH = os.path.join(HERE, "chronicle_swept.json")
 _CHRON_CKPT_PAGES = int(os.environ.get("TV_CHRON_CKPT") or 20)
 
 
+def _chron_swept_path():
+    """v1858 — the LAST of the five live-state files to get an isolation override.
+
+    Four already had one (TV_CHRON_EVIDENCE, TV_CHRON_RESULT, TV_SWEEP_LOCK, TV_CHRON_READS) and
+    this one did not — and it is the file that decides whether a reel is ever re-read. Anything but
+    a unittest (a probe, an integration run, a one-off script) therefore wrote his REAL memory of
+    what has been swept, and marking a throwaway reel swept in his live ledger is the same class of
+    damage v1832 fixed for the lock and v1855 for the tracked files.
+
+    Falls back to the module GLOBAL rather than a literal path, deliberately: the sweep tests patch
+    `_CHRON_SWEPT_PATH` with mock.patch.object and must keep working exactly as they do.
+    """
+    # PRECEDENCE: EXPLICIT BEATS AMBIENT. The first cut put TV_HIST above the module global and
+    # broke a sweep test that patches the global AND sets TV_HIST to the same tmpdir — it wrote
+    # chronicle_swept.json where the test was reading swept.json. Naming a path outright (an env
+    # var, or mock.patch.object on the global) is a deliberate instruction; TV_HIST is a statement
+    # about the FOOTAGE that only implies where state should live. The deliberate one wins.
+    env = os.environ.get("TV_CHRON_SWEPT")
+    if env:
+        return env
+    _default = os.path.join(HERE, "chronicle_swept.json")
+    if _CHRON_SWEPT_PATH != _default:
+        return _CHRON_SWEPT_PATH          # patched on purpose — honour it
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        return os.path.join(hist, "chronicle_swept.json")
+    return _CHRON_SWEPT_PATH
+
+
 def _chron_swept_load():
     try:
-        with open(_CHRON_SWEPT_PATH, encoding="utf-8") as fh:
+        with open(_chron_swept_path(), encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -9574,12 +9603,13 @@ def _chron_swept_save(rec):
     """Torn-write safe, same as every other persisted file here (v1209): a crash mid-write would
     leave a truncated JSON that reads as 'nothing was ever swept' and re-pays for the whole hist."""
     try:
-        tmp = _CHRON_SWEPT_PATH + ".tmp"
+        _p = _chron_swept_path()
+        tmp = _p + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(rec, fh, indent=1)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, _CHRON_SWEPT_PATH)
+        os.replace(tmp, _p)
     except Exception:
         pass
 
@@ -11576,9 +11606,6 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # marked anyway. Narrowing skip_reels to "everything except this one" makes sweep_hist land
         # on it without teaching sweep_hist a new parameter.
         _skip, _reopened = _chron_skip_set(swept, force=force)
-        if _tmpl_hits[0]:
-            print("   \U0001f9ed %d run(s) classified by the TEMPLATE, free — no model call"
-                  % _tmpl_hits[0])
         # v1844 — AND THE CONSOLE HAS TO BE ABLE TO SAY WHY THE BILL MOVED.
         #
         # v1830 voids a zero-page seal made by an older reader, and v1839 bumped PROMPT_VER — so
@@ -11656,6 +11683,15 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                                                 "agentVer": getattr(_tv, "VERSION", "")}
         _chron_swept_save(swept)
         prop = res["proposal"]
+        # v1859 — REPORTED HERE, AFTER THE SWEEP, because that is when the counter has a value.
+        # v1856 put this line beside the skip-set, which runs BEFORE sweep_hist — so _tmpl_hits was
+        # always 0 and the report could never print. A counter incremented inside the classify
+        # closure cannot be read before anything has been classified. Plumbing with no tap, written
+        # into the commit that removed some. Caught by an isolated end-to-end run on real frames,
+        # not by the unit tests, which never execute this function.
+        if _tmpl_hits[0]:
+            print("   \U0001f9ed %d run(s) classified by the TEMPLATE, free — no model call"
+                  % _tmpl_hits[0])
         _chron_reads_save(_reads)
         if _capped_frames[0]:
             print("   \U0001f6d1 %d page(s) skipped by the re-read cap (%d reads each under %s) "
@@ -12017,7 +12053,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1857",
+        "ver": "v1858",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
