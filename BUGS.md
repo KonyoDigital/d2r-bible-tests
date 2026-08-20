@@ -7037,3 +7037,93 @@ called it the defect. **Third time tonight** an explanatory comment blinded a gu
 name, and this one was written sixty seconds after the last. A string cannot tell a claim from its
 retraction, so the check is now about what surrounds it: every occurrence must sit beside a
 retraction. Proven to still flag the claim standing alone. [[feedback-comments-vs-code]]
+
+## REG-232 — the dock's TZ countdown was up to 30 minutes wrong, on every tab (FIXED v1882)
+
+Found while **visually verifying** the tracker fix (REG-231) — the render showed *two* countdowns,
+and only their agreement in that moment hid the defect.
+
+The bottom-dock badge computed `remMin = 59 - m`: it counts to the next **`:00` only**. So for the
+whole first half of every hour it read **up to thirty minutes too long**, and it **never once fired
+at the `:30` turn**. It sits in the dock on every tab — the most-seen clock on the site — and it had
+said *"TZ rotates each hour at :00 IDT"* for ~1,840 versions while the tracker page said *"on the
+hour and the half hour"*.
+
+**Settled from the feed's own history**, not from either surface's opinion — `bull-4-u.com/api/tz`,
+ten consecutive slots:
+
+```
+00:30 · 21:30 · 21:00 · 20:30 · 20:00 · 19:30 · 19:00 · 18:30 · 18:00 · 17:30
+gaps (min): [30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
+```
+
+The tracker was right; the badge was wrong. ⚠ **They agreed only when sampled in the second half of
+an hour**, where `:30` and `:00` coincide — and the render that found it happened at 00:34, showing
+25:28 and 25:29. That is why it survived. [[feedback-contradiction-is-the-finding]]
+
+Both go through **one** definition now (`window._tzTurnBoundary`), so a cadence change cannot move
+one surface and leave the other. Measured after: `00:05→1500s · 00:29:59→1s · 00:31→1740s ·
+00:59:59→1s` — the old rule gave **3300s** at 00:05.
+
+**Verified on the pixels**, per the standing order: both clocks rendered at 1440×1000 in headless
+Chrome read **21:32**, identical.
+
+## REG-233 — an `except:` that fell back to his own directory (FIXED v1883)
+
+`_g5_stats_root()` asked `tv_diablo` for the fixture root and, on **any** failure, returned its own
+directory — his live `tv/`. The import genuinely can fail there: a control app spawned by a harness
+imports the two modules in an order this one does not control.
+
+Measured with his console down, after v1874: **six** harnesses still rewrote his live `g5_stats.json`
+— `test_console_fleet`, `robot_smoke`, `test_roundtrip_sim`, `test_button_matrix`, `test_vault_lane`,
+`test_inbox_engine` — every one of them with `TV_HIST` correctly sandboxed.
+
+**An `except: return his_directory` is a fallback that fails toward the thing being protected.** The
+rule is six lines; it is inlined now rather than surrendered. Five of the six went clean immediately.
+
+The sixth, `test_console_fleet`, imports `control_app` **in-process** — and it already isolates the
+beacon with real care, which is exactly the point: *a harness can be scrupulous about the leak it
+knows about and still have another*. It gets `G5_STATS_PATH`, the override g5 reads first.
+
+**A full 32-gate run leaves his whole `tv/` tree byte-identical again.**
+
+## REG-234 — the vault routing had never been driven end to end, at any size (CLOSED v1884)
+
+**Konyo:** *"vault manager? and items being routed correctly? you simulated every single item that
+would be found and made sure it gets muled or thrown out properly? and you fed it 300-500 items at
+once to see how it reacted to the traffic?"*
+
+**The honest answer was no**, and the gap was precise. `test_vault_retro.py` has 21 good tests —
+merge-max never subtracts, order cannot change the answer, lanes do not bleed, the throw bar is
+strictly higher. **Every one of them calls `gate()` or `merge_vault()` directly**, with three or four
+hand-made rows. **Not one calls `sweep()`.** So the routing *inside* the sweep — surface → lane per
+item, throw flags collected per key, the two bars applied to real piles — had never been executed at
+all.
+
+`tv/test_vault_traffic.py` (16 tests, now gate #33) drives the real `sweep()` over real reel
+directories in a tempdir. Measured:
+
+| | |
+|---|---|
+| his whole set roster, 2 sessions | **169 in → 169 owned, 0 dropped**, 0.06s |
+| the same, 1 session | **0 owned**, 169 unsure — law 2 holds at scale |
+| every surface × every item | `stash`/`runes`/`gems`/`materials` → **stash** · `inventory` → **inventory** · `equipment` → **equipment** |
+| throw-out, 2 recordings | **0 suggested, 1 held** |
+| throw-out, 3 recordings | **1 suggested**, `suggestion:true`, never automatic |
+| **500 items at once** | **500 owned, 0 dropped, 0.00s** |
+| 500 throw flags × 3 recordings | **500 verdicts** |
+| 1,000 rows of one item | **1 row**, count not inflated |
+| one item alone vs in a crowd of 500 | identical lane and count |
+
+**Seen red, three ways**, because a battery that passes first time proves nothing on its own: route
+`inventory` into the stash lane → the routing test fails; drop the keep bar to one witness → the
+one-session test fails; drop the throw bar to two recordings → the throw test fails. Restored: clean.
+
+⚠ **The first run of the harness proved the harness wrong, not the code.** It gave every frame a
+different signature and got 0 of 135 items out — and the sweep said exactly why: *"2 reel(s) held no
+screen still long enough to be worth reading — that is footage of moving, not of looking at a
+stash."* A still run is frames that look the **same**. [[feedback-suspect-the-instrument]]
+
+**No defect was found in the routing.** That is the result, and it is worth stating plainly rather
+than dressing up: the laws hold at 1 item and at 500, and now there is something that would notice
+if they stopped.

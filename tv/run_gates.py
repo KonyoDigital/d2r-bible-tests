@@ -78,6 +78,11 @@ GATES = [
     Gate("test_shard_balance", [sys.executable, os.path.join(HERE, "test_shard_balance.py")], 30,
          why="Routine I must peel the every-item simulations into the slow project so "
              "--shard cannot dump them all into one 45-minute file-count bucket"),
+    Gate("test_vault_traffic", [sys.executable, os.path.join(HERE, "test_vault_traffic.py")], 180,
+         why="v1884 — EVERY item through sweep() end to end, and 500 at once. The 21 tests in "
+             "test_vault_retro drive gate() and merge_vault() directly and not one of them calls "
+             "sweep(), so the routing INSIDE it — surface to lane per item, throw flags per key, "
+             "the two bars on real piles — had never been executed at any size"),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),

@@ -40,6 +40,31 @@ import sys
 import tempfile
 import unittest
 
+# v1883 — THIS FILE IMPORTS control_app IN-PROCESS, so it also imports g5_grok_eyes, and something
+# in that path writes his live tv/g5_stats.json. It was the last of six harnesses still doing so
+# after v1874 and v1883's fallback fix — measured with his console down, by hashing the whole tree
+# before and after a gate run.
+#
+# It already isolates the beacon with real care, which is exactly why this is worth a comment: a
+# harness can be scrupulous about the leak it KNOWS about and still have another. G5_STATS_PATH is
+# the override g5_grok_eyes reads first, so this is precise — it moves the stats file and nothing
+# else this suite reads. [[feedback-fixtures-never-touch-live-data]]
+_G5_STATS_SANDBOX = tempfile.mkdtemp(prefix="fleet-g5-")
+_G5_STATS_KEEP = os.environ.get("G5_STATS_PATH")
+
+
+def setUpModule():
+    os.environ["G5_STATS_PATH"] = os.path.join(_G5_STATS_SANDBOX, "g5_stats.json")
+
+
+def tearDownModule():
+    if _G5_STATS_KEEP is None:
+        os.environ.pop("G5_STATS_PATH", None)
+    else:
+        os.environ["G5_STATS_PATH"] = _G5_STATS_KEEP
+    shutil.rmtree(_G5_STATS_SANDBOX, ignore_errors=True)
+
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 API_CONSOLE = os.path.join(ROOT, "functions", "api", "console.js")

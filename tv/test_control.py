@@ -9512,6 +9512,78 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestBothTzClocksAgreeOnTheCadence(unittest.TestCase):
+    """v1882 — the dock badge counted to :00 ONLY, and the rotation is every 30 minutes.
+
+    `remMin = 59 - m` reaches the next hour, so for the whole first half of every hour the badge read
+    up to THIRTY MINUTES too long and it never once fired at the :30 turn. It sits in the bottom
+    dock, on every tab — the most-seen clock on the site — and it had said "TZ rotates each hour at
+    :00 IDT" for ~1,840 versions while the tracker page said "on the hour and the half hour".
+
+    SETTLED FROM THE FEED'S OWN HISTORY, not from either surface's opinion. https://bull-4-u.com/api/tz,
+    ten consecutive slots: 00:30 · 21:30 · 21:00 · 20:30 · 20:00 · 19:30 · 19:00 · 18:30 · 18:00 ·
+    17:30 — gaps [30]×10. The tracker was right; the badge was wrong.
+
+    THEY AGREED ONLY WHEN SAMPLED IN THE SECOND HALF OF AN HOUR, where :30 and :00 coincide. That is
+    why it survived: the render that found it happened at 00:34, and both read 25:28 and 25:29.
+    [[feedback-contradiction-is-the-finding]] [[copy-drift]]"""
+
+    def _bible(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        return p, open(p, encoding="utf-8").read()
+
+    def test_the_dock_counts_to_the_half_hour_too(self):
+        import json as _json
+        import shutil as _sh
+        import subprocess as _sp
+        import tempfile as _tf
+        node = _sh.which("node")
+        if not node:
+            self.skipTest("node is not installed on this machine")
+        _p, src = self._bible()
+        i = src.find("  function _nextTurnMs(now) {")
+        j = src.find("  function update() {", i)
+        self.assertGreater(i, 0, "the dock badge lost its boundary helper")
+        prog = ("var window = {};\n" + src[i:j]
+                + "var cases=['2026-08-21T00:05:00','2026-08-21T00:29:59','2026-08-21T00:31:00',"
+                  "'2026-08-21T00:59:59'];\n"
+                  "console.log(JSON.stringify(cases.map(function(c){var t=new Date(c).getTime();"
+                  "return Math.round((_nextTurnMs(t)-t)/1000);})));\n")
+        with _tf.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+            f.write(prog)
+            jp = f.name
+        try:
+            out = _sp.run([node, jp], capture_output=True, text=True, timeout=60)
+            self.assertEqual(out.returncode, 0, out.stderr[:400])
+            got = _json.loads(out.stdout.strip().splitlines()[-1])
+        finally:
+            os.unlink(jp)
+        # 00:05 was 3300 (55 min) under the old rule — thirty minutes wrong
+        self.assertEqual(got, [1500, 1, 1740, 1])
+
+    def test_there_is_ONE_definition_and_the_dock_prefers_it(self):
+        _p, src = self._bible()
+        self.assertIn("window._tzTurnBoundary = _tzTurnBoundary", src,
+                      "the tracker's boundary is not published, so the dock cannot share it")
+        i = src.find("  function _nextTurnMs(now) {")
+        body = src[i:src.find("  function update() {", i)]
+        self.assertIn("window._tzTurnBoundary", body,
+                      "the dock stopped preferring the shared definition — two copies again")
+
+    def test_no_surface_still_says_hourly(self):
+        _p, src = self._bible()
+        for phrase in ("TZ rotates each hour at :00",
+                       "Terror Zones rotate every hour on the hour"):
+            i = src.find(phrase)
+            if i < 0:
+                continue
+            near = src[max(0, i - 500):i + 500]
+            self.assertIn("v1882", near,
+                          "a surface still claims an hourly rotation as fact: %r" % phrase)
+
+
 class TestTheTzTrackerChasesTheTurn(unittest.TestCase):
     """v1881 — Konyo: "the TZ TRACKER when im on it i want it to be refreshed its stuck and not
     updating".

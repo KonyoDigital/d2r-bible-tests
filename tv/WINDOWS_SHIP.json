@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1881",
+  "ver": "v1884",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1881: He said the tracker is stuck when he sits on it. It refetched on a flat 120 second interval, so nothing on screen moved between polls and a working tracker looked exactly like a dead one, and that interval is unaligned to a rotation that turns on the hour and the half hour, so he could spend two minutes reading a zone that had already ended. A comment claimed the board refetched six seconds after the turn and no such code has ever existed. Now a one second clock counts down to the next turn, the fetch chases the boundary with retries at plus 8, 25 and 60 seconds because the feed lags its own rotation, and the two minute poll stays as the floor.",
+  "note": "v1884: He asked whether every single item had been simulated through the routing and whether the traffic had been tested at three to five hundred, and the answer was no. The existing suite has 21 good tests and every one of them calls the gate or the merge directly, so the routing inside the sweep had never been executed at all. The new battery drives the real sweep over real reel directories: his whole roster lands, one session owns nothing, every surface files into its own lane, the throw bar holds at two recordings and clears at three, five hundred items land with none dropped, and a thousand rows of one item stay one row. Seen red three ways. No defect found.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

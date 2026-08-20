@@ -26472,6 +26472,7 @@ function _tzTurnBoundary(now){
   const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), 0, 0, 0);
   return t.getTime() + nextMin * 60000;
 }
+try { window._tzTurnBoundary = _tzTurnBoundary; } catch(e){}   // v1882 — ONE definition, two surfaces
 function _tzPaintClock(){
   const el = document.getElementById('tztracker-clock');
   if (!el) return;
@@ -30539,7 +30540,7 @@ table th {
 }
 </style>
 
-<div id="v42-tz-countdown" title="TZ rotates each hour at :00 IDT · toggle from the ⌘K command palette">
+<div id="v42-tz-countdown" title="TZ rotates on the hour and the half hour · toggle from the ⌘K command palette">
   <span class="v42-tz-label">🔥 TZ rotates in</span>
   <span class="v42-tz-time">--:--</span>
 </div>
@@ -30547,8 +30548,11 @@ table th {
 <script>
 (function() {
   'use strict';
-  // v42: TZ countdown — D2R Terror Zones rotate every hour on the hour (UTC-aligned in-game).
-  // We show MM:SS until next rotation (local clock approximation).
+  // v42: TZ countdown — the RotW rotation runs EVERY 30 MINUTES, on the hour and the half hour.
+  // (v1882: this comment and this badge both said "every hour on the hour" for ~1840 versions. The
+  // feed's own history says otherwise — ten consecutive 30-minute slots — and the tracker page has
+  // been saying "on the hour and the half hour" the whole time.)
+  // We show MM:SS until the next rotation, from the local clock.
   const W = document.getElementById('v42-tz-countdown');
   if (!W) return;
   const TIME_EL = W.querySelector('.v42-tz-time');
@@ -30567,13 +30571,34 @@ table th {
   // Visibility is toggled from the ⌘K command palette (window._v42_toggleTZCountdown);
   // the badge itself is pointer-events:none so it never intercepts clicks on page content.
 
+  /* v1882 — THIS COUNTED TO :00 ONLY, AND THE ROTATION IS EVERY 30 MINUTES.
+     `remMin = 59 - m` reaches the next hour, so for the whole first half of every hour this badge
+     read up to THIRTY MINUTES too long, and it never once fired at the :30 turn. It sits in the
+     bottom dock, on every tab, so it was the most-seen clock on the site.
+
+     SETTLED FROM THE FEED'S OWN HISTORY, not from either surface's opinion — ten consecutive
+     slots, https://bull-4-u.com/api/tz:
+
+         00:30 · 21:30 · 21:00 · 20:30 · 20:00 · 19:30 · 19:00 · 18:30 · 18:00 · 17:30
+         gaps (min): [30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
+
+     So the tracker page's "on the hour and the half hour" was right and this badge was wrong, and
+     they agreed only when sampled in the second half of an hour, where :30 and :00 coincide. That
+     is why nobody caught it. [[feedback-contradiction-is-the-finding]]
+
+     Both now go through ONE definition — window._tzTurnBoundary, published beside the tracker's own
+     clock — so a future change to the cadence cannot move one surface and leave the other. The
+     local fallback exists only because this is a separate <script> block and the tracker's block may
+     not have run yet; it uses the SAME rule, never the old one. [[copy-drift]] */
+  function _nextTurnMs(now) {
+    try { if (typeof window._tzTurnBoundary === 'function') return window._tzTurnBoundary(now); } catch(e){}
+    const d = new Date(now);
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), 0, 0, 0);
+    return t.getTime() + (d.getMinutes() < 30 ? 30 : 60) * 60000;
+  }
   function update() {
-    const now = new Date();
-    const m = now.getMinutes();
-    const s = now.getSeconds();
-    const remMin = 59 - m;
-    const remSec = 60 - s;
-    const totalSecRem = remMin * 60 + remSec;
+    const nowMs = Date.now();
+    const totalSecRem = Math.max(0, Math.round((_nextTurnMs(nowMs) - nowMs) / 1000));
     const mm = Math.floor(totalSecRem / 60);
     const ss = totalSecRem % 60;
     if (TIME_EL) TIME_EL.textContent = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
@@ -42073,7 +42098,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1881', name:'v1881 - The TZ tracker was not frozen, it was silent and late', date:'2026-08-21', note:'He said the tracker is stuck when he sits on it. It refetched on a flat 120 second interval, so nothing on screen moved between polls and a working tracker looked exactly like a dead one, and that interval is unaligned to a rotation that turns on the hour and the half hour, so he could spend two minutes reading a zone that had already ended. A comment claimed the board refetched six seconds after the turn and no such code has ever existed. Now a one second clock counts down to the next turn, the fetch chases the boundary with retries at plus 8, 25 and 60 seconds because the feed lags its own rotation, and the two minute poll stays as the floor.' };
+  window.D2R_BUILD = { id:'v1884', name:'v1884 - Every item through the sweep, and five hundred at once', date:'2026-08-21', note:'He asked whether every single item had been simulated through the routing and whether the traffic had been tested at three to five hundred, and the answer was no. The existing suite has 21 good tests and every one of them calls the gate or the merge directly, so the routing inside the sweep had never been executed at all. The new battery drives the real sweep over real reel directories: his whole roster lands, one session owns nothing, every surface files into its own lane, the throw bar holds at two recordings and clears at three, five hundred items land with none dropped, and a thousand rows of one item stay one row. Seen red three ways. No defect found.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

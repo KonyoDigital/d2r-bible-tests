@@ -594,13 +594,33 @@ def _budget_save(state):
 # Same shape, same override-per-call env hook, same swallow-on-failure — a stats write must never
 # be able to break a vision call.
 def _g5_stats_root():
-    """v1869 — the same one rule: a fixture's reads are not his G5 statistics."""
+    """v1869 — the same one rule: a fixture's reads are not his G5 statistics.
+
+    v1883 — AND THE FALLBACK MUST APPLY THE RULE, NOT SURRENDER TO HIS TREE. This asked tv_diablo
+    for the answer and, on any failure, returned his own directory — and the import CAN fail here,
+    because a control app spawned by a harness imports these two modules in an order this one does
+    not control. Measured after v1874 with his console down: six harnesses still rewrote his live
+    g5_stats.json (test_console_fleet, robot_smoke, test_roundtrip_sim, test_button_matrix,
+    test_vault_lane, test_inbox_engine), every one of them with TV_HIST correctly sandboxed.
+    An `except: return his_directory` is a fallback that fails toward the thing being protected.
+    The rule is six lines; it is inlined rather than surrendered. [[feedback-fixtures-never-touch-live-data]]
+    """
     _here = os.path.dirname(os.path.abspath(__file__))
     try:
         import tv_diablo as _tvd
         return _tvd._fixture_root(_here)
     except Exception:
-        return _here
+        pass
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        try:
+            h = os.path.realpath(hist)
+            root = os.path.realpath(_here)
+            if not (h == root or h.startswith(root + os.sep)):
+                return h
+        except Exception:
+            pass
+    return _here
 
 
 _STATS_PATH = os.path.join(_g5_stats_root(), "g5_stats.json")
