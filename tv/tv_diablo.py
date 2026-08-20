@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1885"   # A misread name was a permanent ghost in his vault
+VERSION = "v1886"   # A fixture whose verdict depends on how long ago it was written
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _fixture_root(here):

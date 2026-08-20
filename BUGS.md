@@ -7168,3 +7168,26 @@ permanent row"* — instead of silently reverting to the old behaviour.
 **22 tests**, including the safety half: nine ordinary stash things (`Ral Rune`, `Perfect Ruby`,
 `Cracked Sash`, `Chipped Skull`, `Tome of Town Portal`, `Small Charm`, `Jewel`, `Key of Terror`,
 `Wirt's Leg`) must come out **exactly as read**.
+
+
+## REG-236 — my own test was a time bomb, and his pre-push gate caught it going off (FIXED v1886)
+
+`test_a_millisecond_entry_is_rescaled_not_trusted` (v1868) pinned the real value from his budget
+file — `1787177667153.0` — and asserted it survived the 24-hour window. That value rescales to
+**08-20 01:14**, so the test passed for a day and then failed **mid-push at 01:16 the next night,
+exactly 24.0 hours after the moment it described**. Measured at the moment of failure: age 24.0 h
+against a 24 h window, crossed **two minutes** earlier.
+
+**A fixture whose verdict depends on how long ago it was written is not a fixture.** The behaviour
+under test has nothing to do with the wall clock, so neither does the test now: the millisecond value
+is built **relative to `now`**. A mirror was added at the same time — a millisecond stamp three days
+old must still age out, or "rescale" would quietly mean "resurrect".
+
+⚠ **The refusal is the story.** `git push` exited 1 and the ref never moved; the version was
+committed locally and reported nowhere until this was fixed. That is the gate working exactly as
+designed, on a test I wrote about timestamp units being confused — undone by the passage of time.
+
+**Swept the class:** every other absolute epoch literal in tonight's tests is a reel id or a frame
+name — opaque strings with no window semantics. The one reel fixture that *does* care about age
+(`_make_reel`) ages its files with `os.utime` relative to now, which is the right shape.
+[[feedback-blind-fixture-green-gate]] [[stale-reading]]

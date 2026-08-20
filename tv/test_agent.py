@@ -3607,14 +3607,33 @@ class TestTheSubscriptionMeterCannotBePoisonedByUnits(unittest.TestCase):
     ever moves one way. [[d2r-g5-budget-unit-collision]]"""
 
     def test_a_millisecond_entry_is_rescaled_not_trusted(self):
+        """⚠ THE FIRST CUT OF THIS TEST WAS A TIME BOMB, and his pre-push gate caught it going off.
+
+        It pinned the real value from his budget file — 1787177667153.0 — and asserted it survived
+        the 24-hour window. That value rescales to 08-20 01:14, so the test passed for a day and
+        then failed at 01:16 the next night, mid-push, EXACTLY 24.0 hours after the moment it
+        described. A fixture whose verdict depends on how long ago it was written is not a fixture.
+        [[feedback-blind-fixture-green-gate]] [[stale-reading]]
+
+        The behaviour under test has nothing to do with the wall clock, so neither does this now:
+        the millisecond value is built RELATIVE to `now`."""
         import time
         import tv_diablo as tv
         now = time.time()
-        got = tv._sub_budget_calls({"calls": [1787177667153.0]}, now)
-        self.assertEqual(len(got), 1)
+        real_secs = now - 3600.0                      # an hour ago: inside every window, always
+        got = tv._sub_budget_calls({"calls": [real_secs * 1000.0]}, now)
+        self.assertEqual(len(got), 1, "a millisecond stamp an hour old was dropped entirely")
         self.assertLess(got[0], now + 60, "a millisecond stamp is still in the future")
-        self.assertAlmostEqual(got[0], 1787177667.153, 1,
+        self.assertAlmostEqual(got[0], real_secs, 1,
                                "the real moment is recoverable — divide, do not discard")
+
+    def test_a_millisecond_entry_that_is_genuinely_OLD_still_ages_out(self):
+        # the mirror: rescaling must not resurrect a call from three days ago
+        import time
+        import tv_diablo as tv
+        now = time.time()
+        old_ms = (now - 3 * 86400.0) * 1000.0
+        self.assertEqual(tv._sub_budget_calls({"calls": [old_ms]}, now), [])
 
     def test_the_window_is_two_sided(self):
         import time

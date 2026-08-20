@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1885",
+  "ver": "v1886",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1885: The vault sweep had no name fold at all while the chronicle sweep has had one for versions, and merge-max never subtracts, so a misread became a permanent row. Pushing the exact corrections his chronicle sweep made yesterday at the vault instead gave six owned rows for three real items. Now an exact fold, and only exact: the apostrophe class is corrected and near matches are refused, because my own fold near-matched a set aggregate onto one of its pieces within a minute of being written, which is a find he never made. A chronicle page is a closed list of grail names; a stash is an open universe.",
+  "note": "v1886: The test I wrote about a millisecond timestamp being confused for seconds pinned the real value from his budget file and asserted it survived the twenty-four hour window. It passed for a day and then failed mid-push, exactly twenty-four hours after the moment it described, and his pre-push gate refused the ship. The value is built relative to now, a mirror asserts that a genuinely old stamp still ages out so that rescaling never means resurrecting, and the class was swept: every other epoch literal in tonight tests is a reel id with no window semantics.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
