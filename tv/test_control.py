@@ -8540,5 +8540,51 @@ class TestV1843TheFoldReceiptReachesASurface(unittest.TestCase):
 
 
 
+class TestV1844TheReopenedReelsRideInTheState(unittest.TestCase):
+    """v1844 — the console must be able to say WHY the bill moved.
+
+    v1830 voids a zero-page seal made by an older reader; v1839 bumped PROMPT_VER, so eight of his
+    eleven seals reopened at once. Correct, and the point. But it changes what one button costs: the
+    console's "run it for real" posts {}, so limit=None, so every unswept reel — and those eight are
+    roughly 808 pages, where the same press used to sweep almost nothing.
+
+    The console prices before it spends, so the NUMBER stays honest. What was missing was the
+    REASON: the reopened list was printed to stdout, which only a terminal sees, so the UI could
+    show a bill grown thirty-fold with nothing on screen explaining it. Same write-only shape v1784
+    fixed for the watchdog's skip reasons, and the same fix — ride along in the state the console
+    and the board already read.
+    """
+
+    def test_the_state_always_carries_the_key(self):
+        import control_app as ca
+        st = ca.chronicle_sweep_state()
+        self.assertIn("reopenedReels", st,
+                      "the surface that shows the bill cannot show the reason for it")
+
+    def test_absent_and_empty_do_not_read_the_same(self):
+        # "none were reopened" and "this build does not report it" are different facts
+        import control_app as ca
+        st = ca.chronicle_sweep_state()
+        self.assertIsInstance(st.get("reopenedReels"), list)
+
+    def test_the_sweep_records_what_it_reopened(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("_skip, _reopened = _chron_skip_set(")
+        self.assertGreater(i, 0, "the skip split moved — re-point this guard")
+        self.assertIn("_tick(reopenedReels=", src[i:i + 1400],
+                      "the reopened list is computed and then only printed, which is where it was")
+
+    def test_it_matches_what_the_skip_split_reports(self):
+        import control_app as ca
+        swept = {"stands": {"pages": 0, "promptVer": "p-now"},
+                 "stale": {"pages": 0, "promptVer": "p-old"},
+                 "read_it": {"pages": 5, "promptVer": "p-old"}}
+        skip, reopened = ca._chron_skip_set(swept, prompt_ver="p-now")
+        self.assertEqual(reopened, ["stale"])
+        self.assertEqual(skip, {"stands", "read_it"})
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -10679,6 +10679,10 @@ def chronicle_sweep_state():
     # board already read.
     try:
         st["autoreadSkipped"] = dict(_CHRON_AUTOREAD.get("skipped") or {})
+        # v1844 — which reels a prompt change reopened, so the surface that shows the bill can show
+        # the reason for it. Defaults to [] rather than being absent: "none were reopened" and "this
+        # build does not report it" must not read the same.
+        st["reopenedReels"] = list(_CHRON_JOB.get("reopenedReels") or [])
         st["autoreadReads"] = int(_CHRON_AUTOREAD.get("reads") or 0)
         st["autoreadTries"] = dict(_CHRON_AUTOREAD.get("tries") or {})
     except Exception:
@@ -11194,6 +11198,20 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # marked anyway. Narrowing skip_reels to "everything except this one" makes sweep_hist land
         # on it without teaching sweep_hist a new parameter.
         _skip, _reopened = _chron_skip_set(swept, force=force)
+        # v1844 — AND THE CONSOLE HAS TO BE ABLE TO SAY WHY THE BILL MOVED.
+        #
+        # v1830 voids a zero-page seal made by an older reader, and v1839 bumped PROMPT_VER — so
+        # eight of his eleven seals reopened at once. That is correct and it is the point, but it
+        # changes what one button costs: the console's "run it for real" posts {} , which means
+        # limit=None, which means every unswept reel. Those eight are ~808 pages. Before v1830 the
+        # same press swept almost nothing.
+        #
+        # The console prices before it spends, so the NUMBER is honest either way. What was missing
+        # is the REASON: this list was printed to stdout, which only a terminal sees, so the UI
+        # could show a bill that had grown thirty-fold with nothing on screen explaining it. Same
+        # write-only shape v1784 fixed for the watchdog's skip reasons, and its fix is the one
+        # copied here — ride along in the state the console and the board already read.
+        _tick(reopenedReels=list(_reopened))
         if _reopened:
             print("   \U0001f513 %d reel(s) reopened - sealed with 0 pages by an older reader (now %s): %s"
                   % (len(_reopened), _tv.PROMPT_VER, ", ".join(sorted(_reopened)[:4])))
