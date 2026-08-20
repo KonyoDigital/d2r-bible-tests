@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1841",
+  "ver": "v1842",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1841: v1831 styled the turning-over notice with font-size var(--fs-tiny), and there is no --fs-tiny in this file - the scale is --fs-micro. An undefined token renders as nothing and the declaration is silently dropped, which is exactly what v1733s gate exists to catch. It caught it; I had not read Routine I. Also confirms the same gate needed no change: it already strips block comments, so the --rar-rune in a comment about control_ui.html was never its complaint.",
+  "note": "v1842: v1841 fixed a chip that referenced the undefined token --fs-tiny, then described the fix in the build note using that exact callable spelling. D2R_BUILD.note is a JS string literal inside bible.html and v1733s token gate strips block comments but not string literals, so it read the sentence about the token as a live reference and stayed red. The fix re-created the defect it fixed, one line down. bump_version.py now refuses a note naming a token in callable form, the same way it already refuses an apostrophe.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

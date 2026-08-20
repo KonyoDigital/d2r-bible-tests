@@ -36,6 +36,22 @@ def bump(ver, name, note):
     if "'" in note or "'" in name:
         raise SystemExit("apostrophe in note/name would break the single-quoted D2R_BUILD literal")
 
+    # 2026-08-20 — AND A NOTE MAY NOT NAME A CSS TOKEN IN CALLABLE FORM.
+    #
+    # v1841 fixed a chip that referenced `var(--fs-tiny)`, a token this file never defines, and then
+    # DESCRIBED the fix in the build note using that exact spelling. D2R_BUILD.note is a JS string
+    # literal inside bible.html, and v1733's gate strips block comments but not string literals — so
+    # it read the sentence about the token as a live reference to it and stayed red. The fix
+    # re-created the very defect it fixed, one line further down. [[feedback-comments-vs-code]]
+    #
+    # Same shape as the apostrophe above: the note is DATA that lands in a parsed file, so what it
+    # may contain is a property of the file and not of the prose. Write `--fs-tiny` bare instead.
+    if "var(--" in note or "var(--" in name:
+        raise SystemExit(
+            "the note names a CSS token in callable form (var(--x)). D2R_BUILD.note is a string "
+            "literal in bible.html and v1733's token gate cannot tell it from real CSS, so this "
+            "would report a token that renders as nothing. Write the token bare: --x")
+
     # v1613 — REFUSE A VERSION WITHOUT ITS 'v'. Every consumer of these stamps matches `v\d+`:
     # the parity tests, the ship manifest comparison, the badge. Handing this tool a bare "1613"
     # wrote four stamps that all AGREED with each other and none of which any reader could parse —

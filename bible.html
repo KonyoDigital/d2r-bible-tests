@@ -41854,7 +41854,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1841', name:'v1841 - The token my own chip named does not exist', date:'2026-08-20', note:'v1831 styled the turning-over notice with font-size var(--fs-tiny), and there is no --fs-tiny in this file - the scale is --fs-micro. An undefined token renders as nothing and the declaration is silently dropped, which is exactly what v1733s gate exists to catch. It caught it; I had not read Routine I. Also confirms the same gate needed no change: it already strips block comments, so the --rar-rune in a comment about control_ui.html was never its complaint.' };
+  window.D2R_BUILD = { id:'v1842', name:'v1842 - A note may not name a token in callable form', date:'2026-08-20', note:'v1841 fixed a chip that referenced the undefined token --fs-tiny, then described the fix in the build note using that exact callable spelling. D2R_BUILD.note is a JS string literal inside bible.html and v1733s token gate strips block comments but not string literals, so it read the sentence about the token as a live reference and stayed red. The fix re-created the defect it fixed, one line down. bump_version.py now refuses a note naming a token in callable form, the same way it already refuses an apostrophe.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
