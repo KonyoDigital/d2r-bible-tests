@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1827"   # a First Found line is the found state
+VERSION = "v1828"   # the sort control was never once answered
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -137,7 +137,7 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p1827"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
+PROMPT_VER = "p1828"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
@@ -4869,7 +4869,7 @@ CHRONICLE_READ_PROMPT = (
     "Reply with STRICT JSON only, no markdown, no prose:\n"
     '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],"printedFound":null,'
     '"printedTotal":null,"stateVisible":true,"wrongTab":false,'
-    '"sort":"","foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
+    '"foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
     "found = ONLY names whose found-state is VISIBLY positive. notFound = names you can read whose "
     "state is dim, empty or ambiguous.\n"
     "If you cannot tell found from unfound ANYWHERE on this panel, set stateVisible=false and return "
@@ -4926,9 +4926,16 @@ CHRONICLE_READ_PROMPT = (
     # and the sort control prints "Newest to Oldest" at the top right. The sweep was reading these
     # pages and keeping only the names, so nothing downstream could distinguish a FRESH find from
     # one that had simply never been read before — the question he is actually asking.
-    "sort = the sort control at the TOP RIGHT of the panel, copied as printed (\"Newest to Oldest\", "
-    "\"Oldest to Newest\", ...), or \"\" if it is not visible. It decides whether the TOP of this page "
-    "is his most recent finds, so a guess is worse than an empty string.\n"
+    # v1828 — `sort` IS GONE, because it never once arrived. Asked for on every chronicle read since
+    # v1819 and returned EMPTY 2358 times out of 2358 - then tested directly against a frame that
+    # plainly shows "Newest to Oldest" at its top right, which came back sort="" while correctly
+    # returning four found names and four dates from the same picture. The field was plumbed end to
+    # end; the readers simply never fill it.
+    # It is not worth another attempt at the wording either, because the thing it was for is already
+    # solved better: every row now carries its own `First Found:` stamp, so the ORDER of the list is
+    # derivable from the data instead of read off a control. A prompt line that has never produced a
+    # value is not free - it is paid for on every page of every sweep, and it reads to the next
+    # person as a capability that exists.
     "foundAt = map each FOUND name -> its exact `First Found:` stamp, copied digit for digit, e.g. "
     '{{"Razorswitch":"08/20/2026, 00:49"}}. Omit any row whose stamp is hidden behind a tooltip or '
     "cut off at the panel edge, and NEVER infer one from a row's position. A missing stamp is "

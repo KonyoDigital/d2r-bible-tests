@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1827",
+  "ver": "v1828",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1827: His sets reel refused 20 of 35 read attempts. One of the refusals was a perfectly legible page of dated set pieces. The rule was written for the uniques panel where unfound rows sit beside found ones to contrast against, and a sets page showing only owned rows has nothing to contrast with, so an honest reader had to refuse it.",
+  "note": "v1828: Asked for on every chronicle read since v1819 and returned empty 2358 times out of 2358, then tested against a frame that plainly shows the control: still empty, while the same read returned four names and four correct dates. Removed from both lanes; the per row dates make the ordering derivable anyway.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

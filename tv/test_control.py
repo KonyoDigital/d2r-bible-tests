@@ -7736,6 +7736,24 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         return (open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read(),
                 open(os.path.join(here, "g5_grok_eyes.py"), encoding="utf-8").read())
 
+    def test_neither_lane_still_asks_for_the_sort_control(self):
+        """v1828 — `sort` was asked for on every chronicle read since v1819 and returned EMPTY 2358
+        times out of 2358, then tested directly against a frame that plainly shows "Newest to
+        Oldest" at its top right: it came back "" while the same read returned four found names and
+        four correct dates. Plumbed end to end; never filled.
+
+        Removed rather than re-worded, because the thing it was for is solved better - every row
+        carries its own First Found stamp, so the list's ORDER is derivable from the data instead of
+        read off a control. A prompt line that has never produced a value is not free: it is paid
+        for on every page of every sweep and it reads to the next person as a capability that
+        exists.
+        """
+        claude, grok = self._prompts()
+        for lane, src in (("claude", claude), ("grok", grok)):
+            i = src.index("CHRONICLE_READ_PROMPT" if lane == "claude" else "CHRONICLE_VISION_PROMPT")
+            body = src[i:i + 4000]
+            self.assertNotIn('"sort":""', body, "the %s lane still asks for sort" % lane)
+
     def test_both_lanes_know_a_First_Found_line_IS_the_found_state(self):
         """v1827 — the sets reel refused 20 of 35 attempts, and one of the refusals was a perfectly
         legible page: M'avina's Tenet (Demon Imp, 05/19/2026), M'avina's Icy Clutch (The Cow King,
@@ -7763,7 +7781,7 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         # a changed prompt on an old version replays cached reads that were answered under the old
         # wording — the same guard test_agent keeps, asserted here because THIS change is the reason
         import tv_diablo as _tv
-        self.assertEqual(_tv.PROMPT_VER, "p1827")
+        self.assertEqual(_tv.PROMPT_VER, "p1828")
 
 
 if __name__ == "__main__":

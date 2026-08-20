@@ -92,7 +92,7 @@ CHRONICLE_VISION_PROMPT = (
     "fences, no prose:\n"
     '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],'
     '"printedFound":null,"printedTotal":null,"stateVisible":true,"wrongTab":false,'
-    '"sort":"","foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
+    '"foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
     "This is the in-game CHRONICLE (holy grail) panel: a scrollable list of item names, each row "
     "showing whether the player has FOUND it — bright/coloured text vs grey/dim, a tick, a filled "
     "marker.\n"
@@ -141,9 +141,8 @@ CHRONICLE_VISION_PROMPT = (
     # The second eye must speak the same shape as the first, or a cross-lane agreement on a find
     # DATE is impossible by construction — which is the same reason `complete` was mirrored here
     # in v1566.
-    "sort = the sort control at the TOP RIGHT of the panel, copied as printed (\"Newest to Oldest\", "
-    "\"Oldest to Newest\", ...), or \"\" if it is not visible. It decides whether the TOP of this page "
-    "is his most recent finds, so a guess is worse than an empty string.\n"
+    # v1828 — see tv_diablo.py: `sort` never once arrived (0 of 2358) and the per-row dates make it
+    # unnecessary. Removed from both lanes together so the two keep asking for the same thing.
     "foundAt = map each FOUND name -> its exact `First Found:` stamp, copied digit for digit, e.g. "
     '{{"Razorswitch":"08/20/2026, 00:49"}}. Omit any row whose stamp is hidden behind a tooltip or '
     "cut off at the panel edge, and NEVER infer one from a row's position.\n"
