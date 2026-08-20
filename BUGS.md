@@ -7262,3 +7262,30 @@ prove no ambiguous probe ever folds onto a name.
 and both fold tests fail. ⚠ My first sabotage attempt did **not** bite — `gate_verdict`'s
 `min_witnesses` default is bound at def time, so patching the module global does nothing. That was
 the instrument again, and the fix was to patch the function.
+
+## REG-239 — the apply receipt said five, the grail meter moved four (FIXED v1889)
+
+Driving `window.chronicleApply` in a real page — headless Chrome, because it lives in a closure no
+unit test can reach — applying **Shako · Stormspire · Stormspike · Titan’s Revenge · Herald of
+Zakarum** reported `uniques: 5` and moved the counter by **4**.
+
+One at a time named the odd one out:
+
+```
+Shako   reported 1 · delta 0 · not in d2r_foundLog at all · found in d2r_owned
+```
+
+**"Shako" is the community nickname for Harlequin Crest**, so the board has no such unique.
+`toggleOwned` routes by what the board *knows*: a grail unique lands in the **found ledger**, a name
+it does not recognise lands in the **physical vault**. That split is deliberate — `_UNI_EXTRA` exists
+precisely so real uniques with no card stop falling into the vault — but **the receipt did not know
+about it** and counted both as applied uniques. A number under a word naming a different quantity.
+
+The reader-side fold does not save it either: `canonical("Shako")` is `None`.
+
+**The ledger is the arbiter, not the intent**, so the receipt asks it. After: `uniques: 4`,
+`vaulted: ["Shako"]`, delta **4** — receipt and meter agree.
+
+⚠ **An unreadable ledger does not invent a demotion.** If the store cannot be read, *"he did not find
+it"* is a claim we have not earned, so the fallback is the old behaviour — counted as a unique — not
+a fabricated vault row. Guarded explicitly, because the tempting `catch` is the wrong way round.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1888",
+  "ver": "v1889",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1888: The existing suite has 162 tests about the laws and every one of them uses a handful of hand-made names, so the whole grail had never been driven and volume had never been tested. Now 398 uniques and 135 set pieces go through the proposal, the gate and the merge: all ground with two frames and two lanes, none ground on one lane and one frame, a page read two hundred times is still one row, and twelve reels shuffled fold to the same answer. And the ambiguous fold his own roster contains was found by trying every single letter deletion of every key: stormspie sits between Stormspire and Stormspike at 0.947 each and correctly comes back as nothing.",
+  "note": "v1889: Driving the board chronicle apply in a real page showed five uniques reported and the counter moving by four. One at a time named it: Shako is the community nickname for Harlequin Crest so the board has no such unique, and toggleOwned routes a name it does not recognise into the physical vault rather than the found ledger. That split is deliberate but the receipt did not know about it and counted a vault write as a find. The ledger is the arbiter rather than the intent, so the receipt asks it, and an unreadable ledger falls back to the old behaviour rather than inventing a demotion.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

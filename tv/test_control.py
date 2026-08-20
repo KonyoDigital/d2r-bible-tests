@@ -9512,6 +9512,56 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
+    """v1889 — `chronicleApply` reported five uniques applied while the grail counter moved by four.
+
+    MEASURED IN A REAL PAGE, headless Chrome on :9224, because this function lives in a closure no
+    unit test can reach. Applying Shako · Stormspire · Stormspike · Titan’s Revenge · Herald of
+    Zakarum gave `uniques: 5` and a delta of 4. Driving them one at a time named the odd one out:
+
+        Shako   reported 1, delta 0, and it is not in d2r_foundLog at all — it is in d2r_owned
+
+    "Shako" is the community nickname for Harlequin Crest, so the board has no such unique.
+    `toggleOwned` routes by what the board KNOWS: a grail unique lands in the found ledger, a name it
+    does not recognise lands in the PHYSICAL VAULT. That split is deliberate — `_UNI_EXTRA` exists
+    precisely so real uniques with no card stop falling into the vault — but the RECEIPT did not know
+    about it and counted both as applied uniques. A number under a word naming a different quantity.
+
+    The ledger is the arbiter, not the intent, so the receipt asks it. After: `uniques: 4`,
+    `vaulted: ['Shako']`, delta 4 — the receipt and the meter agree.
+    [[label-outlived-referent]] [[unknown-stays-unknown]]"""
+
+    def _apply_src(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("    (add.uniques || []).forEach(function(row){")
+        j = src.find("    (add.sets || []).forEach(function(row){", i)
+        self.assertGreater(i, 0, "the uniques apply branch is gone")
+        return src[i:j]
+
+    def test_it_asks_the_ledger_where_the_name_landed(self):
+        body = self._apply_src()
+        self.assertIn("d2r_foundLog", body,
+                      "the receipt reports intent again instead of asking the ledger")
+        self.assertIn("res.vaulted", body, "there is nowhere to report a vault landing")
+
+    def test_a_name_that_did_not_land_is_not_counted_as_a_find(self):
+        body = self._apply_src()
+        i = body.find("if (_landed) res.uniques.push(n);")
+        self.assertGreater(i, 0, "the receipt pushes unconditionally again")
+        self.assertIn("else { res.vaulted", body[i:i + 200],
+                      "a name that went to the vault is silently dropped from the receipt")
+
+    def test_an_unreadable_ledger_does_NOT_invent_a_demotion(self):
+        """If the ledger cannot be read, "he did not find it" is a claim we have not earned. The
+        safe direction here is the OLD behaviour, not a fabricated vault row."""
+        body = self._apply_src()
+        self.assertIn("_landed = true;", body,
+                      "an unreadable ledger now demotes a real find to a vault row")
+
+
 class TestTheVaultApplyTellsZeroFromUnknown(unittest.TestCase):
     """v1887 — `window.vaultAccumApply` called `count: 0` and `count: null` the same thing.
 

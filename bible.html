@@ -38829,7 +38829,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try {
         if (_d) window._grailStamp = function(){ return _d; };
         if (typeof window.toggleOwned === 'function') window.toggleOwned(n);
-        res.uniques.push(n);
+        /* v1889 — REPORT WHERE IT ACTUALLY WENT, not where it was sent.
+           toggleOwned routes by what the board KNOWS: a grail unique lands in the found ledger
+           (d2r_foundLog); a name it does not recognise as one lands in the PHYSICAL VAULT
+           (d2r_owned). That split is deliberate — _UNI_EXTRA exists precisely so real uniques with
+           no card stop falling into the vault — but the receipt did not know about it and counted
+           BOTH as "applied uniques".
+           MEASURED in a real page: applying Shako · Stormspire · Stormspike · Titan’s Revenge ·
+           Herald of Zakarum reported `uniques: 5` and moved the grail counter by FOUR. "Shako" is
+           the community nickname for Harlequin Crest, so the board has no such unique, and it went
+           to the vault while the receipt called it a find. A number under a word naming a different
+           quantity — the exact class he has been pointing at all night.
+           The ledger is the arbiter, not the intent: ask it. [[label-outlived-referent]] */
+        var _landed = false;
+        try {
+          var _fl = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {};
+          _landed = Object.prototype.hasOwnProperty.call(_fl, n);
+        } catch(e){ _landed = true; }   // cannot tell → do not invent a demotion
+        if (_landed) res.uniques.push(n);
+        else { res.vaulted = res.vaulted || []; res.vaulted.push(n); }
       } catch(e){} finally { window._grailStamp = _savedStamp; }
     });
     (add.sets || []).forEach(function(row){
@@ -42108,7 +42126,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1888', name:'v1888 - The chronicle lane gets the battery the vault got', date:'2026-08-21', note:'The existing suite has 162 tests about the laws and every one of them uses a handful of hand-made names, so the whole grail had never been driven and volume had never been tested. Now 398 uniques and 135 set pieces go through the proposal, the gate and the merge: all ground with two frames and two lanes, none ground on one lane and one frame, a page read two hundred times is still one row, and twelve reels shuffled fold to the same answer. And the ambiguous fold his own roster contains was found by trying every single letter deletion of every key: stormspie sits between Stormspire and Stormspike at 0.947 each and correctly comes back as nothing.' };
+  window.D2R_BUILD = { id:'v1889', name:'v1889 - The apply receipt said five and the grail meter moved four', date:'2026-08-21', note:'Driving the board chronicle apply in a real page showed five uniques reported and the counter moving by four. One at a time named it: Shako is the community nickname for Harlequin Crest so the board has no such unique, and toggleOwned routes a name it does not recognise into the physical vault rather than the found ledger. That split is deliberate but the receipt did not know about it and counted a vault write as a find. The ledger is the arbiter rather than the intent, so the receipt asks it, and an unreadable ledger falls back to the old behaviour rather than inventing a demotion.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
