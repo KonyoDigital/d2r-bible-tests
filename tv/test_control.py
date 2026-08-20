@@ -9044,5 +9044,72 @@ class TestTheVaultTemplateGate(unittest.TestCase):
 
 
 
+class TestTheTemplateClassifiesForFree(unittest.TestCase):
+    """2026-08-20 — Konyo: "is there a way here to code this more inteligently?"
+
+    There was, and it was already written. chronicle_template.detect() resolves the Chronicle tab
+    from FOUR independent pixel signals and reports how many voted. Structural, free, and until now
+    called by NOTHING outside its own test — tv_diablo imports the module only to borrow a crop
+    band — while every candidate run paid a MODEL to answer the same question.
+
+    Measured on his own frames before wiring: uniques page 4/4, sets page 4/4, TV DIABLO console
+    window 1/4, gameplay 1/4, stash panel 0/4.
+    """
+
+    def _f(self, *parts):
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames", "hist", *parts)
+
+    def test_it_names_the_uniques_tab_with_no_model(self):
+        import chronicle_template as ct
+        f = self._f("reel_s_1786999742937_35523", "f_1786999985035.jpg")
+        if not os.path.isfile(f):
+            self.skipTest("his footage is not on this machine")
+        self.assertEqual(ct.ledger_kind_for_tab((ct.detect(f) or {}).get("tab")), "chronicle-uniques")
+
+    def test_it_names_the_sets_tab_with_no_model(self):
+        import chronicle_template as ct
+        f = self._f("reel_s_1787177267889_92273", "f_1787177293765.jpg")
+        if not os.path.isfile(f):
+            self.skipTest("his footage is not on this machine")
+        self.assertEqual(ct.ledger_kind_for_tab((ct.detect(f) or {}).get("tab")), "chronicle-sets")
+
+    def test_it_ABSTAINS_on_a_frame_that_is_not_the_chronicle(self):
+        """Abstaining is an answer here, not a failure — and it is what makes the fallback safe.
+        A detector that guessed on gameplay would put names into a grail he never opened."""
+        import chronicle_template as ct
+        for name, parts in (("console window", ("reel_s_1787177267889_92273", "f_1787177276485.jpg")),
+                            ("gameplay", ("6_1786554035205.jpg",)),
+                            ("stash", ("5_1784984201581.jpg",))):
+            f = self._f(*parts)
+            if not os.path.isfile(f):
+                continue
+            self.assertIsNone(ct.ledger_kind_for_tab((ct.detect(f) or {}).get("tab")),
+                              "%s was classified as a Chronicle ledger" % name)
+
+    def test_the_sweep_asks_the_template_before_paying(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def _classify_one(p):")
+        self.assertGreater(i, 0)
+        # 3600, not 2200: the explanation above _classify_one is long and a short window stopped
+        # before the paid fallback. That is the FOURTH guard of mine today to fail on its own reach
+        # rather than on the code — measure the window against the function, not against a habit.
+        body = src[i:i + 3600]
+        t_at = body.find("chronicle_template")
+        pay_at = body.find("_tv.claude_read(")
+        self.assertGreater(t_at, -1, "the sweep still pays a model for what the template knows")
+        self.assertGreater(pay_at, -1, "the paid fallback is gone — an abstaining detector needs it")
+        self.assertLess(t_at, pay_at, "the model is called before the free detector is asked")
+
+    def test_the_model_is_still_the_fallback(self):
+        # this may only REMOVE model calls; when the detector abstains the old path must run
+        # unchanged, or an occluded tab becomes an unread page
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def _classify_one(p):")
+        self.assertIn("claude_read", src[i:i + 3600])
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

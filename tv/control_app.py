@@ -11407,7 +11407,40 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 _tick(throttleWaitS=int(slept))
             return slept
 
+        _tmpl_hits = [0]
+
         def _classify_one(p):
+            # ── THE TEMPLATE READS ITSELF (2026-08-20, his ask) ──────────────────────────────
+            # Konyo: "is there a way here to code this more inteligently?" — about having to
+            # declare a focus, or pay a model to rediscover which panel a frame shows.
+            #
+            # There is, and it was already written. chronicle_template.detect() resolves the
+            # Chronicle tab from FOUR independent pixel signals (close-X, secondary-gold, the tab
+            # markers) and says how many voted. It is structural, it costs nothing, and until now
+            # NOTHING outside its own test called it — tv_diablo imports the module only to borrow
+            # a crop band. A complete classifier, built and tested, sitting dark while every
+            # candidate run paid a model to answer the same question.
+            #
+            # Measured on his own frames before wiring: a uniques page 4/4, a sets page 4/4, the TV
+            # DIABLO console window 1/4, gameplay 1/4, a stash panel 0/4. Perfect discrimination.
+            #
+            # The MODEL REMAINS THE FALLBACK, deliberately: when the detector abstains (occluded
+            # tab, an aspect it was not calibrated on) the old paid path runs exactly as before.
+            # This can only remove model calls, never add a wrong answer that was not already
+            # reachable. [[unknown-stays-unknown]] — abstaining is an answer here, not a failure.
+            try:
+                import chronicle_template as _ct
+                _tab = (_ct.detect(p) or {}).get("tab")
+                _kind = _ct.ledger_kind_for_tab(_tab)
+                if _kind:
+                    _tmpl_hits[0] += 1
+                    # the shape classifier() already understands, so nothing downstream changes
+                    return {"scene": "chronicle",
+                            "chronicleTab": "uniques" if _kind.endswith("uniques") else "sets",
+                            "names": [], "conf": 1.0, "via": "template"}
+            except Exception as _te:
+                print("   \u26a0 template detect failed (%s) — falling back to the paid classify"
+                      % str(_te)[:100])
             _breathe()
             if _tv._is_throttled():
                 _throttled[0] += 1
@@ -11518,6 +11551,9 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # marked anyway. Narrowing skip_reels to "everything except this one" makes sweep_hist land
         # on it without teaching sweep_hist a new parameter.
         _skip, _reopened = _chron_skip_set(swept, force=force)
+        if _tmpl_hits[0]:
+            print("   \U0001f9ed %d run(s) classified by the TEMPLATE, free — no model call"
+                  % _tmpl_hits[0])
         # v1844 — AND THE CONSOLE HAS TO BE ABLE TO SAY WHY THE BILL MOVED.
         #
         # v1830 voids a zero-page seal made by an older reader, and v1839 bumped PROMPT_VER — so
@@ -11956,7 +11992,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1855",
+        "ver": "v1856",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
