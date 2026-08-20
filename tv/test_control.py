@@ -8927,11 +8927,12 @@ class TestTheVaultTemplateGate(unittest.TestCase):
     def test_the_sweep_asks_the_gate_before_paying_a_classify(self):
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
-        i = src.find("def _classify(p):")
-        while i > 0 and "stash_screen_open" not in src[i:i + 2000]:
-            i = src.find("def _classify(p):", i + 10)
+        i = src.find("_tab = stash_screen_open(p)")
         self.assertGreater(i, 0, "no vault classify consults the stash template")
-        body = src[i:i + 2000]
+        # bound by the function's REAL end, not a byte count — a 2000-char window broke the moment
+        # v1859 added its explanation. [[source-reading-guard]]
+        i = src.rfind("def _classify(p):", 0, i)
+        body = src[i:src.find("def _reader", i)]
         gate_at = body.find("stash_screen_open(")
         pay_at = body.find("_tick(classified=1)")
         self.assertGreater(gate_at, -1)
@@ -9101,41 +9102,31 @@ class TestTheTemplateClassifiesForFree(unittest.TestCase):
         self.assertGreater(pay_at, -1, "the paid fallback is gone — an abstaining detector needs it")
         self.assertLess(t_at, pay_at, "the model is called before the free detector is asked")
 
-    def test_the_VAULT_names_its_surface_from_the_tab_it_already_read(self):
-        """"this same intelligence should be all round" — the vault half.
+    def test_the_tab_GUESS_may_never_name_the_ownership_surface(self):
+        """v1859 — v1857 did exactly this and it was wrong.
 
-        stash_screen_open() resolves the tab in order to decide whether a frame may be read at all.
-        Paying a model afterwards to name what was just read is the waste he pointed at. Every tab
-        it can return maps to a real ownership surface, so the classify is free whenever the gate
-        passed."""
-        import control_app as ca
-        import vault_retro as vr
-        for tab, surface in ca._VAULT_TAB_SURFACE.items():
-            self.assertIn(surface, vr.OWNERSHIP_SURFACES,
-                          "tab %r maps to %r, which vault_retro does not accept" % (tab, surface))
-            self.assertIn(surface, vr.SURFACE_LANE,
-                          "surface %r has no lane — it would be held, never filed" % surface)
+        stash_eye.tab_from_ocr_lines says so in its own docstring: "Active-tab GUESS from OCR
+        lines. Stash chrome always prints ALL five tab names... 2+ canons -> '' (ambiguous chrome;
+        pixel/grid fingerprint decides)."
 
-    def test_every_tab_the_gate_can_return_is_mapped(self):
-        # an unmapped tab must fall through to the paid classify, not be dropped — but the five the
-        # detector actually returns should never need it
-        import control_app as ca
-        from stash_eye import _ALL_TABS
-        for tab in _ALL_TABS:
-            self.assertIn(tab, ca._VAULT_TAB_SURFACE,
-                          "the gate can return %r and the vault would pay a model to re-read it" % tab)
+        Proven on his frame 5_1784984201581.jpg: the strip OCRs as [',WAAITHsrirEP', 'Gems',
+        'fflATtklAL5'] — a tooltip plus two labels, one garbled past recognition — so one canon
+        matched and it answered "gems" while the selected tab is Runes. v1857 handed that to the
+        reader as the SURFACE; the reader was asked whether a runes panel is a gems panel, said no,
+        and returned zero items from a stash full of them.
 
-    def test_the_vault_classify_asks_the_tab_before_paying(self):
+        Reading a label proves the stash is OPEN (v1850's gate, still sound). It does not prove
+        which tab is SELECTED, and a lane assignment made from it is the very mis-filing this arc
+        exists to prevent."""
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
         i = src.find("_tab = stash_screen_open(p)")
-        self.assertGreater(i, 0, "the vault classify no longer reuses the tab it already read")
-        body = src[i:src.find("def _reader", i)]
-        free_at = body.find("_VAULT_TAB_SURFACE.get(")
-        pay_at = body.find("_tv.claude_read(")
-        self.assertGreater(free_at, -1)
-        self.assertGreater(pay_at, -1, "the paid fallback is gone — an unmapped tab needs it")
-        self.assertLess(free_at, pay_at, "it pays before checking what it already knows")
+        self.assertGreater(i, 0, "the vault gate stopped reading the tab entirely")
+        body = src[src.rfind("def _classify(p):", 0, i):src.find("def _reader", i)]
+        self.assertNotIn("return _surf", body,
+                         "the tab GUESS is being returned as the ownership surface again")
+        self.assertIn("_tv.claude_read(", body,
+                      "the paid classify must decide the surface — the guess may not")
 
     def test_the_model_is_still_the_fallback(self):
         # this may only REMOVE model calls; when the detector abstains the old path must run

@@ -10231,7 +10231,6 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # The tick stays INSIDE the lane so "classified" counts probes ATTEMPTED — a probe that
         # died is still money spent and still belongs in the count.
         _not_stash = [0]
-        _tmpl_surface = [0]
 
         def _classify(p):
             # ── THE TEMPLATE GATE (2026-08-20, his ask) ──────────────────────────────────────
@@ -10253,12 +10252,26 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             if _tab is None:
                 _not_stash[0] += 1
                 return None
-            # ...and the tab it just read IS the surface. No model needed to repeat it.
-            _surf = _VAULT_TAB_SURFACE.get(_tab)
-            if _surf:
-                _tmpl_surface[0] += 1
-                return _surf              # a bare string; _surface_of() accepts one
-            # an unmapped tab is a real "I do not know" — fall through to the paid classify
+            # v1859 — REVERTED: THE TAB IS A GUESS, AND A GUESS MAY NOT NAME A LANE.
+            #
+            # v1857 returned this tab as the ownership SURFACE, to save a model call. That was
+            # wrong, and stash_eye says so in its own docstring, which I did not read closely
+            # enough: "Active-tab GUESS from OCR lines. Stash chrome always prints ALL five tab
+            # names... 2+ canons → '' (ambiguous chrome; pixel/grid fingerprint decides)."
+            #
+            # Reading a tab LABEL off the strip proves the stash panel is OPEN — which is all
+            # v1850's gate needs, and it remains sound. It does not prove which tab is SELECTED.
+            # Proven on his own frame 5_1784984201581.jpg: the strip OCRs as
+            # [',WAAITHsrirEP', 'Gems', 'fflATtklAL5'] — a tooltip, plus two labels, one garbled
+            # past recognition — so exactly one canon matched and the function answered "gems"
+            # while the selected tab is Runes. v1857 then handed "gems" to the reader as the
+            # surface, the reader was asked whether a RUNES panel is a gems panel, correctly said
+            # no, and returned zero items from a stash full of them.
+            #
+            # That is precisely the harm this whole arc exists to prevent — vault_retro: "a rune
+            # tab misread as 'inventory' files his runes in the wrong lane, which merge-max then
+            # makes permanent." Saving a model call is not worth reintroducing it. The paid
+            # classify decides the surface again; the free gate still decides admission.
             _tick(classified=1)
             try:
                 return _tv.claude_read(p)
@@ -10294,9 +10307,6 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 return {"note": "the reader failed on this page — not read"}
 
         prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit)
-        if _tmpl_surface[0]:
-            print("   \U0001f9ed %d frame(s) named by the stash TAB itself, free — no model call"
-                  % _tmpl_surface[0])
         if _not_stash[0]:
             # said out loud, never silently: "the stash was never open on camera" and "the reader
             # found nothing in it" are different answers and only one of them is about his stash
@@ -10305,21 +10315,35 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
         # remember ONLY the reels this run actually read — a reel that errored or was skipped stays
         # unread, or one bad run permanently hides footage from every future sweep.
-        # v1779 — DO NOT SEAL FOOTAGE A LANE CANNOT READ. An adversarial review proved the vault
-        # sweep is wired to the CHRONICLE reader: claude_chronicle_read returns
-        # {found, notFound, sets, stateVisible, printed, read, note} and vault_retro reads
-        # resp["items"], which is never present. `note` is None on a GOOD read, so it is not even
-        # treated as a refusal — the page counts as read, the reel is marked, and no row can ever
-        # be produced. There is no vault reader anywhere in tv/: the seam was never built.
-        # Until it is, a sweep that grounded NOTHING seals nothing, so his footage survives the gap.
+        # v1779 — DO NOT SEAL FOOTAGE A LANE CANNOT READ. The rule stands; the reason below it had
+        # gone stale and is corrected here.
+        #
+        # WHAT v1779 FOUND, and it was real: the vault sweep was wired to the CHRONICLE reader.
+        # claude_chronicle_read returns {found, notFound, sets, stateVisible, ...} while vault_retro
+        # reads resp["items"], which was never present — and `note` is None on a GOOD chronicle read,
+        # so it did not even count as a refusal. The page counted as read, the reel was marked, and
+        # no row could ever be produced.
+        #
+        # ⚠ THAT WAS FIXED IN v1785 AND THIS TEXT WAS NOT. `claude_vault_read` exists, `_reader`
+        # calls it, and v1785's own note says "THE VAULT READER, at last... The seam exists now."
+        # The comment and the message below kept telling anyone who read them that "the seam was
+        # never built" — for seventy-odd versions, and it sent me looking for a seam that was
+        # already there during an integration run on 2026-08-20. A right rule under a dead reason
+        # is still a lie about the system. [[label-outlived-referent]]
+        #
+        # THE SAFEGUARD ITSELF IS UNCHANGED AND STILL WANTED: a sweep that grounded nothing seals
+        # nothing, so a reel is never written off on the strength of a run that produced no rows —
+        # whatever the cause. What changes is that the message now says what is actually known.
         _rows = len((prop.get("uniques") or {})) + len((prop.get("owned") or []))
         if _rows:
             for sess in (prop.get("sessionsRead") or []):
                 swept[str(sess)] = {"ts": int(time.time() * 1000)}
             _vault_swept_save(swept)
         else:
-            print("   ⚠ vault sweep produced no rows — sealing nothing (the vault reader seam is "
-                  "not built: vault_retro reads resp['items'], the chronicle reader never sets it)")
+            print("   \u26a0 vault sweep produced no rows — sealing nothing, so the footage stays "
+                  "readable. The reader ran (v1785's seam); it simply returned no items, which is "
+                  "either an unreadable page or a genuinely empty shelf — vault_retro's own verdict "
+                  "above says which.")
 
         # ACCUMULATE ACROSS SESSIONS — merge-max only, and the merge itself lives in vault_retro.
         # This ledger is what the readers have SEEN; it is never what he owns.
@@ -10802,18 +10826,12 @@ def _stamp_math_broke(where, exc):
           "answer about his grail" % (where, str(exc)[:120]))
 
 
-# 2026-08-20 — the stash TAB the structural gate already read, as an ownership SURFACE.
-# Konyo: "this same intelligence should be all round obviously like with their own relevant coding
-# to whatever its routing or filtering". The chronicle sweep stopped paying a model to name its
-# ledger in v1856; this is the same move on the vault side, and it costs nothing extra because
-# stash_screen_open() has already resolved the tab in order to decide whether to allow the frame at
-# all. Paying a model afterwards to name what we just read is the waste he is pointing at.
-#
-# personal/shared are the stash proper; runes/gems/materials are its tally tabs, and vault_retro
-# keeps them as distinct surfaces because SURFACE_LANE files all five into the stash lane while the
-# tally tabs count differently.
-_VAULT_TAB_SURFACE = {"personal": "stash", "shared": "stash",
-                      "runes": "runes", "gems": "gems", "materials": "materials"}
+# v1859 — `_VAULT_TAB_SURFACE` lived here and is GONE. v1857 used it to name the ownership
+# surface from the tab the gate had read, saving a model call. stash_eye calls that tab an
+# "Active-tab GUESS" in its own docstring, and on his frame 5_1784984201581.jpg it answered
+# "gems" for a RUNES panel — so the reader was asked the wrong question and returned zero
+# items from a full stash. A guess may gate ADMISSION (v1850, still sound); it may never
+# name a LANE. [[label-outlived-referent]]
 
 
 def _chron_evidence_merge(prop):
@@ -12053,7 +12071,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1858",
+        "ver": "v1859",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
