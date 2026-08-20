@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1842"   # A note may not name a token in callable form
+VERSION = "v1845"   # One budget check may not license two reads
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -5064,7 +5064,10 @@ def claude_vault_read(image_path, surface, timeout=None):
         # the dual route v1780 proved out: a refused CROP gets one full-frame retry, so cropping
         # can only ever add reads. v1829 — "refused" now covers a crop that ANSWERS and refuses,
         # not only one that returns nothing (see _crop_answer_refused).
-        if _read_path != ap and _crop_answer_refused(raw, ledger_lane=False):
+        if (_read_path != ap and _crop_answer_refused(raw, ledger_lane=False)
+                and not _sub_budget_check("oneshot")):
+            # same cap re-check as the chronicle route above — one budget check may not license two
+            # reads now that the retry fires on a refusal rather than only on a crash.
             _full = _oneshot(ap, GENIUS_MODEL,
                              timeout=float(timeout or 120),
                              prompt=VAULT_READ_PROMPT.format(path=ap, surface=surface),
@@ -5181,7 +5184,15 @@ def claude_chronicle_read(image_path, kind, timeout=None):
         # legible sets pages their second attempt. NOTE the correction in _crop_answer_refused: the
         # crop framing is NOT the cause — measured, the crop reads the canonical failing frame fine.
         # This buys a retry against a TRANSIENT refusal, and the source of that transience is open.
-        if _read_path != ap and _crop_answer_refused(raw):
+        if _read_path != ap and _crop_answer_refused(raw) and not _sub_budget_check("oneshot"):
+            # v1845 — THE RETRY MUST ASK THE CAP AGAIN. The budget is checked once, at the top of
+            # this read, and before v1829 the full-frame retry fired only on a hard crash, so one
+            # check covered one read in practice. v1829 made the retry fire on a REFUSAL, which is
+            # common, so a single budget check now licenses two reads on every refused page. Under
+            # the subscription cap that is a bounded but systematic overrun, and the cap is the one
+            # guard between a long sweep and his whole allowance.
+            # Skipping the retry simply leaves the crop's answer standing, which is exactly the
+            # pre-v1829 behaviour — an honest refusal rather than a read he could not afford.
             _full = _oneshot(ap, GENIUS_MODEL,
                              timeout=float(timeout or 120),
                              prompt=CHRONICLE_READ_PROMPT.format(path=ap, ledger=ledger),

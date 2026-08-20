@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1842",
+  "ver": "v1845",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1842: v1841 fixed a chip that referenced the undefined token --fs-tiny, then described the fix in the build note using that exact callable spelling. D2R_BUILD.note is a JS string literal inside bible.html and v1733s token gate strips block comments but not string literals, so it read the sentence about the token as a live reference and stayed red. The fix re-created the defect it fixed, one line down. bump_version.py now refuses a note naming a token in callable form, the same way it already refuses an apostrophe.",
+  "note": "v1845: The subscription cap is checked once at the top of a chronicle or vault read. Before v1829 the full-frame retry fired only on a hard crash, so one check covered one read in practice. v1829 made the retry fire on a refusal, which is common - so every refused page spent two reads on a single check. Bounded but systematic, and the cap is the one guard between a long sweep and his whole allowance. Both routes now re-ask the cap, and a skipped retry leaves the crops honest refusal standing.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -7848,6 +7848,44 @@ class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):
         self.assertIn("Sazabi's Mental Sheath", (out or {}).get("found") or [],
                       "the full frame was read and then thrown away")
 
+    def test_the_retry_asks_the_subscription_cap_again(self):
+        """v1845 — one budget check may not license two reads.
+
+        The cap is checked once at the top of the read. Before v1829 the full-frame retry fired only
+        on a hard crash, so one check covered one read in practice. v1829 made it fire on a REFUSAL,
+        which is common — so every refused page spent two reads on a single check. Bounded, but
+        systematic, and the cap is the one guard between a long sweep and his whole allowance.
+
+        Skipping the retry leaves the crop's answer standing, which is the pre-v1829 behaviour: an
+        honest refusal rather than a read he cannot afford.
+        """
+        import tv_diablo as _tv
+        seen = []
+
+        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
+            seen.append(ap)
+            return self.REFUSED if "tvd_chron_crop" in os.path.basename(ap) else self.GOOD
+
+        with tempfile.TemporaryDirectory() as tmp:
+            img = self._jpg(tmp)
+            old = (_tv._oneshot, _tv._is_throttled, _tv._sub_budget_check)
+            _tv._oneshot = fake_oneshot
+            _tv._is_throttled = lambda: False
+            # the cap is OPEN at entry and CLOSES before the retry would fire
+            calls = []
+            def capped(*a, **k):
+                calls.append(1)
+                return None if len(calls) == 1 else "out of reads until the window rolls"
+            _tv._sub_budget_check = capped
+            try:
+                out = _tv.claude_chronicle_read(img, "chronicle-sets")
+            finally:
+                (_tv._oneshot, _tv._is_throttled, _tv._sub_budget_check) = old
+        self.assertEqual(len(seen), 1,
+                         "the retry spent a read the cap had already refused: %s" % seen)
+        self.assertEqual((out or {}).get("note"), "no-found-state",
+                         "a skipped retry must leave the crop's honest refusal standing")
+
     def test_a_full_frame_that_also_refuses_never_overwrites_the_crop(self):
         # a retry that can LOSE information is not a retry. The crop keeps its answer.
         out, seen = self._drive(dict(self.GOOD, conf=0.55), self.REFUSED)

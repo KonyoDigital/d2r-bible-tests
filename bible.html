@@ -41854,7 +41854,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1842', name:'v1842 - A note may not name a token in callable form', date:'2026-08-20', note:'v1841 fixed a chip that referenced the undefined token --fs-tiny, then described the fix in the build note using that exact callable spelling. D2R_BUILD.note is a JS string literal inside bible.html and v1733s token gate strips block comments but not string literals, so it read the sentence about the token as a live reference and stayed red. The fix re-created the defect it fixed, one line down. bump_version.py now refuses a note naming a token in callable form, the same way it already refuses an apostrophe.' };
+  window.D2R_BUILD = { id:'v1845', name:'v1845 - One budget check may not license two reads', date:'2026-08-20', note:'The subscription cap is checked once at the top of a chronicle or vault read. Before v1829 the full-frame retry fired only on a hard crash, so one check covered one read in practice. v1829 made the retry fire on a refusal, which is common - so every refused page spent two reads on a single check. Bounded but systematic, and the cap is the one guard between a long sweep and his whole allowance. Both routes now re-ask the cap, and a skipped retry leaves the crops honest refusal standing.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
