@@ -10663,6 +10663,29 @@ def _chron_read_capped(reads, prompt_ver, reel, frame, cap=None):
 
 
 
+_GATE_BROKE = {"n": 0, "said": False}
+
+
+def _gate_broke(where, exc):
+    """The stash gate FAILED rather than refused — say it once, loudly enough to be found.
+
+    v1854 — prep_tab_chrome proved what silence costs here: 310 versions of every caller reading
+    "None" as an answer about his footage when it was really an answer about a NameError. The count
+    is kept so a status surface can report it; the print fires once so a broken gate cannot drown
+    the log it is trying to warn in.
+    """
+    _GATE_BROKE["n"] += 1
+    if not _GATE_BROKE["said"]:
+        _GATE_BROKE["said"] = True
+        print("   \u26a0 the stash template gate FAILED (%s: %s) — it is refusing frames because it "
+              "cannot run, not because they are not stash screens" % (where, str(exc)[:120]))
+
+
+def gate_failures():
+    """How many times the stash gate broke this process. 0 means it ran; it never means 'unknown'."""
+    return int(_GATE_BROKE["n"])
+
+
 def stash_screen_open(frame_path):
     """HARDCODED: is this frame actually the stash, with the panels open? Not a model's opinion.
 
@@ -10688,7 +10711,8 @@ def stash_screen_open(frame_path):
     try:
         import tv_diablo as _tvd
         from stash_eye import is_boot_screen
-    except Exception:
+    except Exception as _imp:
+        _gate_broke("import", _imp)
         return None
     try:
         # CROP AND UPSCALE FIRST. OCR of the whole frame is noise at this resolution — measured on
@@ -10709,7 +10733,18 @@ def stash_screen_open(frame_path):
             return None          # the reconnect splash is not a stash, however much text it carries
         tab = _tab_from_ocr_lines(lines)
         return tab or None
-    except Exception:
+    except Exception as _e:
+        # v1854 — A GATE THAT CANNOT RUN MUST NOT ANSWER "NO".
+        #
+        # This function is shaped exactly like prep_tab_chrome was: a bare handler returning a
+        # plausible value. That is how prep_tab_chrome stayed dead for 310 versions — every caller
+        # read None as "not a stash panel" when the truth was "this never ran". Written by me
+        # yesterday, one day after diagnosing that exact failure.
+        #
+        # The answer stays None, because the safe direction for a gate is to refuse. What changes
+        # is that it is no longer SILENT: a gate that is failing rather than refusing says so, once
+        # per process, so a permanent breakage cannot look like a quiet stretch of gameplay.
+        _gate_broke("read", _e)
         return None
 
 
@@ -11904,7 +11939,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1853",
+        "ver": "v1854",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

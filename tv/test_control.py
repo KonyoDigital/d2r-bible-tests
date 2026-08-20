@@ -8958,6 +8958,45 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         self.assertIn("stash_screen_open(", src[i:j],
                       "the quote prices frames the sweep would refuse for free")
 
+    def test_a_BROKEN_gate_is_not_a_quiet_gate(self):
+        """v1854 — stash_screen_open is shaped exactly like prep_tab_chrome was: a bare handler
+        returning a plausible value. That is how prep_tab_chrome stayed dead for 310 versions —
+        every caller read None as "not a stash panel" when the truth was "this never ran". I wrote
+        this one the day after diagnosing that.
+
+        The ANSWER stays None, because refusing is the safe direction for a gate. What must not stay
+        the same is the silence."""
+        import control_app as ca
+        before = ca.gate_failures()
+        old = ca.__dict__.get("_tab_from_ocr_lines")
+        ca.__dict__["_GATE_BROKE"]["said"] = True          # keep the log quiet during the test
+        def boom(_lines):
+            raise RuntimeError("the gate itself is broken")
+        ca.__dict__["_tab_from_ocr_lines"] = boom
+        try:
+            here = os.path.dirname(os.path.abspath(__file__))
+            f = os.path.join(here, "frames", "hist", "5_1784984201581.jpg")
+            if not os.path.isfile(f):
+                self.skipTest("his footage is not on this machine")
+            got = ca.stash_screen_open(f)
+        finally:
+            ca.__dict__["_tab_from_ocr_lines"] = old
+        self.assertIsNone(got, "a broken gate must still refuse — that is the safe direction")
+        self.assertGreater(ca.gate_failures(), before,
+                           "the gate failed and said nothing — the exact shape that hid "
+                           "prep_tab_chrome for 310 versions")
+
+    def test_a_working_gate_records_no_failures(self):
+        # 0 must mean "it ran", never "nobody looked" — otherwise the counter is the next silence
+        import control_app as ca
+        here = os.path.dirname(os.path.abspath(__file__))
+        f = os.path.join(here, "frames", "hist", "5_1784984201581.jpg")
+        if not os.path.isfile(f):
+            self.skipTest("his footage is not on this machine")
+        before = ca.gate_failures()
+        self.assertTrue(ca.stash_screen_open(f))
+        self.assertEqual(ca.gate_failures(), before, "a healthy read was counted as a failure")
+
     def test_the_gate_is_on_the_READER_too_not_only_the_classify(self):
         """v1853 — v1850 claimed the gate covered every frame "including inside a declared-focus
         reel". It did not: vault_retro skips the classifier ENTIRELY for a declared focus (v1603,

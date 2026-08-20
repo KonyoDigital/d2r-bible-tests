@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1853",
+  "ver": "v1854",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1853: v1850 put the stash template in front of the vault classify and its note claimed it was asked of every frame including inside a declared-focus reel. It was not: vault_retro skips the classifier entirely for a declared focus, so the gate never ran on exactly the reels he records on purpose. The reader is the one hook both paths pass through. Also retires a dead duplicate of a rule that is live inline in vault_retro.",
+  "note": "v1854: stash_screen_open is shaped exactly like prep_tab_chrome was - a bare handler returning a plausible value - which is how prep_tab_chrome stayed dead for 310 versions with every caller reading None as not a stash panel when the truth was this never ran. Written by me one day after diagnosing that. The answer stays None because refusing is the safe direction for a gate; what changes is that it is no longer silent.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
