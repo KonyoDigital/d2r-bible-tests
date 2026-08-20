@@ -9467,6 +9467,67 @@ def _chron_swept_save(rec):
         pass
 
 
+def _chron_seal_stands(rec, prompt_ver=None):
+    """v1830 — A SEAL THAT READ NOTHING IS ONLY AS GOOD AS THE READER THAT MADE IT.
+
+    `chronicle_swept.json` recorded ts/classified/pages and NOTHING about the reader, so a reel
+    written off as "the classifier looked and found no Chronicle page" stayed written off through
+    every later fix to the classifier. The comment above the seal calls that a legitimate seal, and
+    it is — but only while the instrument that produced it is the instrument you still have.
+
+    WHAT THAT COST, measured 2026-08-20. Eight reels — 1,032 frames — carried `pages: 0`, sealed
+    08-17 16:10 and 08-18 00:41. The fixes that landed AFTER those timestamps: v1770 (a slow scroll
+    is not walking through town), v1774 (a throttled reader answered empty and every layer believed
+    it), v1777 (the subscription cap refused silently and the sweep believed it), v1778 (a capped
+    classify must not seal the reel), v1779 (the worst one burning his footage) and v1780 (read the
+    list, not the living room). Three of those six are specifically about the sweep believing a
+    reader that had stopped answering — which is exactly the shape "classified 43, pages 0" has.
+
+    And the footage was fine. Frame f_1786999985035.jpg out of the 483-frame reel, opened and looked
+    at: a Chronicle page on the Unique tab printing `Nature's Peace — 05/23/2026, 01:06`,
+    `Nightsmoke — 05/15/2026, 20:17`, `Nightwing's Veil — 05/18/2026, 00:38`, with his 64% meter in
+    the corner. Re-read today it returns all three with their stamps at conf 0.80, and the CLASSIFIER
+    now calls it `chronicle-uniques` outright. Nothing about that reel was ever unreadable.
+
+    KEYED ON PROMPT_VER, NOT THE SHIP VERSION — deliberately. Voiding zero-page seals on every
+    version bump would re-pay for every genuine gameplay reel on every ship, which is a cost bomb
+    dressed as caution. `PROMPT_VER` is already documented as the thing to bump when the reader's
+    wording changes, and test_agent has asserted for versions that it "gates cache reuse" — a claim
+    nothing in the tree implemented until this function. A seal is a cached verdict; this gives it
+    the key it always claimed to have. [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]
+
+    A seal that DID read pages stands forever: those pages are in the evidence ledger, and re-reading
+    them buys nothing. Only the "I looked and there was nothing" claim expires.
+    """
+    if not isinstance(rec, dict):
+        return True     # an unreadable record is not a licence to re-spend his subscription
+    if (rec.get("pages") or 0) > 0:
+        return True     # it found pages; the findings outlive the reader that found them
+    want = prompt_ver
+    if want is None:
+        try:
+            import tv_diablo as _tvd
+            want = _tvd.PROMPT_VER
+        except Exception:
+            return True   # cannot tell which reader is current → change nothing
+    return str(rec.get("promptVer") or "") == str(want)
+
+
+def _chron_skip_set(swept, force=False, prompt_ver=None):
+    """v1830 — which sealed reels this sweep may skip, and which it is REOPENING.
+
+    Split out of the sweep body so the decision is testable without a vision model: the inline
+    version was `set(swept.keys())`, which is the line that made a stale verdict permanent.
+    Returns (skip, reopened) — reopened is returned rather than logged in here so the caller owns
+    the wording and the function stays pure.
+    """
+    swept = swept if isinstance(swept, dict) else {}
+    if force:
+        return set(), []
+    skip = {k for k, v in swept.items() if _chron_seal_stands(v, prompt_ver)}
+    return skip, sorted(k for k in swept if k not in skip)
+
+
 def chronicle_forget_swept():
     """Let him re-read everything — after a prompt change, a new lane, or simple doubt. The memory is
     an optimisation, and an optimisation he cannot clear is a cage."""
@@ -10909,7 +10970,10 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # passes reel_id; without this the sweep just re-read reel_dirs[0] and the picked reel was
         # marked anyway. Narrowing skip_reels to "everything except this one" makes sweep_hist land
         # on it without teaching sweep_hist a new parameter.
-        _skip = set(swept.keys()) if not force else set()
+        _skip, _reopened = _chron_skip_set(swept, force=force)
+        if _reopened:
+            print("   \U0001f513 %d reel(s) reopened - sealed with 0 pages by an older reader (now %s): %s"
+                  % (len(_reopened), _tv.PROMPT_VER, ", ".join(sorted(_reopened)[:4])))
         if reel_id:
             try:
                 _all = {os.path.basename(str(d)) for d in _cr.reel_dirs(hist)}
@@ -10962,7 +11026,12 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 continue
             swept["reel_" + str(st["reel"])] = {"ts": int(time.time() * 1000),
                                                 "classified": st.get("classified") or 0,
-                                                "pages": st.get("pages") or 0}
+                                                "pages": st.get("pages") or 0,
+                                                # v1830 — WHICH READER SAID SO. Without this a
+                                                # "nothing here" verdict outlives every fix to the
+                                                # thing that produced it (see _chron_seal_stands).
+                                                "promptVer": _tv.PROMPT_VER,
+                                                "agentVer": getattr(_tv, "VERSION", "")}
         _chron_swept_save(swept)
         prop = res["proposal"]
         # v1531 — KEEP THE RAW EVIDENCE. Re-running the GATE is free; re-running the READS is not.
@@ -11276,7 +11345,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1829",
+        "ver": "v1830",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

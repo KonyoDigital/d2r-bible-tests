@@ -7865,5 +7865,69 @@ class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):
 
 
 
+class TestV1830ASealIsOnlyAsGoodAsItsReader(unittest.TestCase):
+    """v1830 — a zero-page seal made by an older reader must not outlive it.
+
+    `chronicle_swept.json` stored ts/classified/pages and nothing about WHO read. So "the classifier
+    looked and found no Chronicle page" — a legitimate verdict — survived every later fix to the
+    classifier. Eight reels, 1,032 frames, sealed 08-17 16:10 and 08-18 00:41, ahead of v1770, v1774,
+    v1777, v1778, v1779 and v1780. Three of those six exist because the sweep believed a reader that
+    had stopped answering, which is the exact shape of "classified 43, pages 0".
+
+    The footage was never the problem: a frame from the 483-frame reel, opened and looked at, is a
+    Chronicle page printing Nature's Peace 05/23/2026 01:06 and two more with stamps, and today's
+    classifier calls it chronicle-uniques outright.
+    """
+
+    def test_a_seal_with_no_reader_recorded_does_not_stand(self):
+        import control_app as ca
+        self.assertFalse(ca._chron_seal_stands({"ts": 1, "classified": 43, "pages": 0}, "p1828"),
+                         "every seal on his disk predates the stamp — if these stand, nothing reopens")
+
+    def test_a_seal_from_the_current_reader_stands(self):
+        import control_app as ca
+        self.assertTrue(ca._chron_seal_stands({"pages": 0, "promptVer": "p1828"}, "p1828"),
+                        "a gameplay reel must stay sealed, or every ship re-pays for the whole hist")
+
+    def test_a_seal_from_an_older_reader_is_void(self):
+        import control_app as ca
+        self.assertFalse(ca._chron_seal_stands({"pages": 0, "promptVer": "p1700"}, "p1828"))
+
+    def test_a_seal_that_actually_read_pages_stands_forever(self):
+        import control_app as ca
+        # the findings outlive the reader that found them — they are already in the evidence ledger
+        self.assertTrue(ca._chron_seal_stands({"pages": 21, "promptVer": "p1700"}, "p1828"))
+
+    def test_an_unreadable_record_is_not_a_licence_to_re_spend(self):
+        import control_app as ca
+        for junk in (None, "", 3, []):
+            self.assertTrue(ca._chron_seal_stands(junk, "p1828"), "junk reopened a reel: %r" % (junk,))
+
+    def test_force_reopens_everything_and_reports_nothing_as_reopened(self):
+        import control_app as ca
+        skip, reopened = ca._chron_skip_set({"a": {"pages": 9, "promptVer": "p1828"}}, force=True)
+        self.assertEqual((skip, reopened), (set(), []))
+
+    def test_the_split_names_what_it_reopens(self):
+        import control_app as ca
+        swept = {"stands": {"pages": 0, "promptVer": "p1828"},
+                 "read_it": {"pages": 4, "promptVer": "p1000"},
+                 "stale":   {"pages": 0, "promptVer": "p1000"},
+                 "nostamp": {"pages": 0}}
+        skip, reopened = ca._chron_skip_set(swept, prompt_ver="p1828")
+        self.assertEqual(skip, {"stands", "read_it"})
+        self.assertEqual(reopened, ["nostamp", "stale"])
+
+    def test_the_seal_writer_records_which_reader_sealed_it(self):
+        # the decision above is worthless if nothing ever writes the key it reads
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find('swept["reel_" + str(st["reel"])]')
+        self.assertGreater(i, 0, "the seal writer moved — find it and re-point this guard")
+        self.assertIn("promptVer", src[i:i + 700],
+                      "seals are written without the reader stamp, so nothing will ever reopen")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

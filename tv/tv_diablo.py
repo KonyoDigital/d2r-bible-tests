@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1829"   # A refused crop is still a refusal
+VERSION = "v1830"   # A seal is only as good as its reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4955,19 +4955,29 @@ def _crop_answer_refused(raw, ledger_lane=True):
 
     THE HALF THAT WAS MISSING. Both crop routes below retried the full frame on `not raw` — which
     catches only a crop that returned NOTHING. A crop that returns a well-formed
-    `{"stateVisible": false}` is TRUTHY, so the retry never fired. That is not the rare case, it is
-    the COMMON one: the thing a crop most often cuts away is exactly the chrome the reader is being
-    asked to judge, so a bad crop's most likely output is a confident, correctly-formatted "I cannot
-    see the found state".
+    `{"stateVisible": false}` is TRUTHY, so the retry never fired, and a refusal is by far the
+    likelier shape of a bad read than a crash. The comment on both routes promised "cropping can
+    only add reads, never remove one"; with `not raw` that promise was false.
 
-    MEASURED, not reasoned. `frames/hist/reel_s_1787177267889_92273/f_1787177297466.jpg` was
-    recorded `no-found-state` by the sweep on two separate passes. Handed the FULL frame, both lanes
-    read it: claude conf 0.90 with five dated pieces, grok conf 0.88 with six — including
-    `Sazabi's Mental Sheath — Mephisto — 08/02/2026, 02:25`. The page was always legible; the crop
-    was the instrument that could not see it, and the retry built for exactly this never ran.
+    ⚠ WHAT THIS DOES **NOT** EXPLAIN — recorded because the first version of this docstring got it
+    wrong, confidently, and a wrong mechanism sends the next person to the wrong subsystem.
+    `frames/hist/reel_s_1787177267889_92273/f_1787177297466.jpg` was recorded `no-found-state` by
+    the sweep on two separate passes. I wrote that the CROP FRAMING was blinding the reader. Then I
+    measured the crop alone on that exact frame: **it reads the page correctly** — stateVisible
+    true, five found pieces, conf 0.85. So does the full frame (claude 0.90), and so does the Grok
+    lane (0.88, six names), including `Sazabi's Mental Sheath — Mephisto — 08/02/2026, 02:25`.
 
-    The comment on both routes promised "cropping can only add reads, never remove one". With this
-    condition that promise is true; with `not raw` it was false, and it cost whole legible pages.
+    Same image, same prompt, same PROMPT_VER: **refused twice inside the sweep, read correctly three
+    times out of three by hand.** The framing is not the variable and the readers are not the
+    variable. What differs is that the sweep reads through the worker pool under concurrency, which
+    makes a transient, load-shaped degradation the leading hypothesis — and it is a HYPOTHESIS, not
+    a finding, because nothing here has measured it yet. `_is_throttled()` already exists for a
+    related failure (v1774) and the sweep now consults it; whatever remains is not that flag.
+
+    So the honest account of this fix: it does not repair the framing, it gives a refused page a
+    SECOND ATTEMPT it never got. Against a transient refusal that is worth real pages; against a
+    systematically illegible one it costs one extra read and changes nothing. Both are acceptable.
+    The cause of the transience stays OPEN.
     """
     if not isinstance(raw, dict) or not raw:
         return True
@@ -5157,8 +5167,10 @@ def claude_chronicle_read(image_path, kind, timeout=None):
                        prompt=CHRONICLE_READ_PROMPT.format(path=_read_path, ledger=ledger),
                        raw_json=True)
         # the dual route: a refused CROP gets one full-frame retry, so cropping can only add reads.
-        # v1829 — "refused" now covers a crop that ANSWERS and refuses. This is the line that was
-        # silently discarding legible sets pages; the evidence is in _crop_answer_refused.
+        # v1829 — "refused" now covers a crop that ANSWERS and refuses, which is what was denying
+        # legible sets pages their second attempt. NOTE the correction in _crop_answer_refused: the
+        # crop framing is NOT the cause — measured, the crop reads the canonical failing frame fine.
+        # This buys a retry against a TRANSIENT refusal, and the source of that transience is open.
         if _read_path != ap and _crop_answer_refused(raw):
             _full = _oneshot(ap, GENIUS_MODEL,
                              timeout=float(timeout or 120),
