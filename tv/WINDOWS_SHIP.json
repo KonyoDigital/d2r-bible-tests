@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1890",
+  "ver": "v1891",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1890: The uniques defect in a worse shape, found by sweeping the class it belongs to. Applying three real pieces plus two names the board has never heard of reported five, moved the meter by three, and wrote all five into the found ledger - and where an unrecognised unique at least lands in the vault, an unrecognised set piece lands in the ledger and stays, because nothing ever un-finds. Membership is asked before the write now, against the board own piece universe, memoised so a five hundred name payload does not walk it five hundred times, and an unreadable or empty roster does not invent a refusal.",
+  "note": "v1891: The undo bar promises the ledger entry is erased and it returns to the hunt, and the game own First Found date survived it. That matters rather than being tidy because the reason he un-ticks is usually that the read was wrong, so the date belongs to a different item, and left behind it re-attaches the moment he ticks that name by hand later and gets printed on the chip as a claim sourced from a read he threw away. The undo stashes it on the redo record first so the round trip loses nothing, and it touches only the name being undone. Two of my own guards broke on it because they anchored on a bare name that the new call site now matches earlier in the file.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -9390,7 +9390,10 @@ class TestEveryFoundChipCarriesItsStoryline(unittest.TestCase):
         if not os.path.isfile(p):
             self.skipTest("bible.html is not on this machine")
         src = open(p, encoding="utf-8").read()
-        i, j = src.find("var _GAME_MON = ["), src.find("window._gameFoundSet")
+        i, j = src.find("var _GAME_MON = ["), src.find("window._gameFoundSet = function")   # the DEFINITION, not the first
+        # mention: v1891 added a CALL to it inside _forgeRedo, which sits earlier in the file, and
+        # the bare name anchored there and truncated the slice to nothing. Fourth time tonight an
+        # anchor hit the wrong occurrence. [[source-reading-guard]]
         k = src.find("  function _gameFoundTitle(n){")
         m = src.find("  function _itemChip(n,q){", k)
         self.assertGreater(k, 0, "the chip no longer carries a storyline")
@@ -9560,6 +9563,59 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
         body = self._apply_src()
         self.assertIn("_landed = true;", body,
                       "an unreadable ledger now demotes a real find to a vault row")
+
+
+class TestUndoRetractsTheGameDateToo(unittest.TestCase):
+    """v1891 — the undo bar promises "the ledger entry is erased and it returns to the hunt", and
+    v1864's `d2r_gameFound` was left behind.
+
+    MEASURED in a real page, the full round trip:
+
+        tick   have +1 · ledger row + stamp "Jul 18, 2026 · 02:47" · date present
+        undo   have  0 · ledger row gone   · DATE STILL THERE          <- the defect
+        after  have  0 · ledger row gone   · date gone
+        redo   have +1 · date restored exactly: 07/18/2026, 02:47 · Andariel
+
+    WHY IT MATTERS RATHER THAN BEING TIDY. The reason he un-ticks is usually that the READ WAS
+    WRONG, so the date belongs to a different item. Left behind, it re-attaches the moment he ticks
+    that name by hand later — and v1871 prints it on the chip: "⚔ found in game Jul 18, 2026 ·
+    Andariel", a claim sourced from a read he threw away. If he genuinely found it, the next read
+    re-establishes it.
+
+    A joint I opened in v1864 and did not finish. [[the-unjoined-end]]"""
+
+    def _src(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("  window._forgeUndo = function(el, name, kind){")
+        j = src.find("  function _undoBar(kind){", i)
+        self.assertGreater(i, 0, "the undo is gone")
+        return src, src[i:j]
+
+    def test_undo_deletes_the_date(self):
+        _s, body = self._src()
+        self.assertIn("d2r_gameFound", body, "the undo does not touch the game's find date")
+        self.assertIn("delete _gf[name];", body)
+        self.assertIn("window.LSR.setItem('d2r_gameFound'", body,
+                      "the date is deleted in memory and never written back")
+
+    def test_undo_keeps_it_so_redo_can_put_it_back_unchanged(self):
+        _s, body = self._src()
+        self.assertIn("window._FORGE_REDO.gameFound = _gf[name];", body,
+                      "the date is dropped with no way to restore it — redo would lose it")
+        self.assertIn("if (r.gameFound) window._gameFoundSet(r.name, r.gameFound);", body,
+                      "redo does not restore the date it was handed")
+
+    def test_it_only_touches_the_name_being_undone(self):
+        _s, body = self._src()
+        i = body.find("delete _gf[name];")
+        self.assertGreater(i, 0)
+        window = body[max(0, i - 300):i]
+        self.assertIn("hasOwnProperty.call(_gf, name)", window,
+                      "the undo rewrites the whole store even when the name is not in it")
+        self.assertNotIn("_gf = {}", body, "the undo clears every date rather than one")
 
 
 class TestANonPieceNeverEntersTheSetLedger(unittest.TestCase):

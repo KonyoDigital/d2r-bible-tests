@@ -37221,6 +37221,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      back something an undo actually took away — it can never invent a find. */
   window._forgeUndo = function(el, name, kind){
     window._FORGE_REDO = { name: name, kind: kind };
+    /* v1891 — AN UNDO RETRACTS EVERYTHING THE APPLY ASSERTED, and v1864's date was left behind.
+       The undo bar's own promise is "the ledger entry is erased and it returns to the hunt", and
+       d2r_gameFound — the GAME's First Found date and dropper — survived it. Measured in a real
+       page: tick → +1, ledger row and stamp written; undo → -1, ledger row gone, and the date
+       still sitting there.
+       WHY THAT MATTERS RATHER THAN BEING TIDY. The reason he un-ticks is usually that the READ WAS
+       WRONG, so the date belongs to a different item entirely. Left behind, it re-attaches itself
+       the moment he ticks that name by hand later, and v1871 prints it on the chip: "⚔ found in
+       game Jul 18, 2026 · Andariel" — a claim sourced from a read he threw away.
+       If he genuinely found it, the next read re-establishes it. A joint I opened in v1864 and did
+       not finish. [[the-unjoined-end]] */
+    try {
+      var _gf = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
+      if (Object.prototype.hasOwnProperty.call(_gf, name)){
+        window._FORGE_REDO.gameFound = _gf[name];    // so redo can put it back, unchanged
+        delete _gf[name];
+        window.LSR.setItem('d2r_gameFound', JSON.stringify(_gf));
+      }
+    } catch(e){}
     try {
       if (kind === 'set') { if (typeof window.grailTogglePiece === 'function') return window.grailTogglePiece(el, name); }
       else if (typeof window.grailFoundUni === 'function') return window.grailFoundUni(el, name);
@@ -37230,6 +37249,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window._forgeRedo = function(){
     var r = window._FORGE_REDO; if (!r) return;
     window._FORGE_REDO = null;
+    // v1891 — redo puts the game's date back exactly as it was, or the round trip loses it
+    try { if (r.gameFound) window._gameFoundSet(r.name, r.gameFound); } catch(e){}
     try {
       if (r.kind === 'set') { if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(r.name); }
       else if (typeof window.toggleOwned === 'function') window.toggleOwned(r.name);
@@ -42162,7 +42183,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1890', name:'v1890 - A name that is not a set piece was written into his found ledger', date:'2026-08-21', note:'The uniques defect in a worse shape, found by sweeping the class it belongs to. Applying three real pieces plus two names the board has never heard of reported five, moved the meter by three, and wrote all five into the found ledger - and where an unrecognised unique at least lands in the vault, an unrecognised set piece lands in the ledger and stays, because nothing ever un-finds. Membership is asked before the write now, against the board own piece universe, memoised so a five hundred name payload does not walk it five hundred times, and an unreadable or empty roster does not invent a refusal.' };
+  window.D2R_BUILD = { id:'v1891', name:'v1891 - An undo that left the game find date behind', date:'2026-08-21', note:'The undo bar promises the ledger entry is erased and it returns to the hunt, and the game own First Found date survived it. That matters rather than being tidy because the reason he un-ticks is usually that the read was wrong, so the date belongs to a different item, and left behind it re-attaches the moment he ticks that name by hand later and gets printed on the chip as a claim sourced from a read he threw away. The undo stashes it on the redo record first so the round trip loses nothing, and it touches only the name being undone. Two of my own guards broke on it because they anchored on a bare name that the new call site now matches earlier in the file.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

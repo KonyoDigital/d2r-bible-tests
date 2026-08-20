@@ -7319,3 +7319,30 @@ wrong way round here, exactly as it was in REG-239, and both directions are guar
 
 **The sweep that found it:** a regex for *a write call followed immediately by a `.push` into a
 result array* over the whole board — one live hit, this one.
+
+## REG-241 — the undo left the game's find date behind (FIXED v1891)
+
+The undo bar promises *"the ledger entry is erased and it returns to the hunt"*, and v1864's
+`d2r_gameFound` survived it. Measured in a real page, the full round trip:
+
+```
+tick   have +1 · ledger row + stamp "Jul 18, 2026 · 02:47" · date present
+undo   have  0 · ledger row gone                          · DATE STILL THERE   ← the defect
+now    have  0 · ledger row gone                          · date gone
+redo   have +1 · date restored exactly: 07/18/2026, 02:47 · Andariel
+```
+
+**Why it matters rather than being tidy.** The reason he un-ticks is usually that the **read was
+wrong**, so the date belongs to a different item. Left behind, it re-attaches the moment he ticks
+that name by hand later — and v1871 prints it on the chip: *"⚔ found in game Jul 18, 2026 ·
+Andariel"*, a claim sourced from a read he threw away. If he genuinely found it, the next read
+re-establishes it.
+
+A joint I opened in v1864 and did not finish. The undo stashes the date on `_FORGE_REDO` first, so
+the round trip loses nothing, and it touches **only** the name being undone.
+
+⚠ **And it broke two of my own v1871 guards, for the fourth-in-a-night reason.** They anchored on the
+bare name `window._gameFoundSet`; v1891 added a **call** to it inside `_forgeRedo`, which sits
+earlier in the file, so the anchor hit the call and truncated the extracted slice to nothing. Both
+now anchor on the **definition** (`window._gameFoundSet = function`). An anchor that matches the
+wrong occurrence is the exact failure `source-reading-guard` is carved about.
