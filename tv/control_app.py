@@ -10347,6 +10347,11 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             # found nothing in it" are different answers and only one of them is about his stash
             print("   \U0001f512 %d frame(s) refused by the stash template — no stash chrome, so "
                   "not an ownership screen" % _not_stash[0])
+        _gs, _gh = gate_hearing()
+        if _gs and not _gh:
+            print("   \U0001f507 the tab-chrome OCR answered NOTHING on all %d probe(s) this run. "
+                  "That is the READER being silent, not a verdict about his stash — nothing here "
+                  "says a frame was or was not an ownership screen." % _gs)
         if _read_no_names[0]:
             print("   \U0001f441 %d panel(s) READ CLEANLY and held no readable name. D2R prints "
                   "no names in a stash grid — a name exists only in the HOVER tooltip. This is not "
@@ -10814,6 +10819,19 @@ def gate_failures():
     return int(_GATE_BROKE["n"])
 
 
+# v1864 — how often the tab-chrome OCR came back with NOTHING, against how often it came back with
+# something. Two numbers rather than one, because a run where every single probe is silent is an OCR
+# lane that is down, and a run where most are silent and some are not is ordinary gameplay footage.
+# One number could not separate those and the gate would keep answering "not a stash" either way.
+_GATE_SILENT = [0]
+_GATE_HEARD = [0]
+
+
+def gate_hearing():
+    """(silent, heard) for this process — the tab-chrome OCR's own audibility, not a verdict."""
+    return (_GATE_SILENT[0], _GATE_HEARD[0])
+
+
 def stash_screen_open(frame_path):
     """HARDCODED: is this frame actually the stash, with the panels open? Not a model's opinion.
 
@@ -10856,7 +10874,21 @@ def stash_screen_open(frame_path):
         rd = _tvd.ocr_fast(crop) or {}
         lines = list(rd.get("raw_lines") or rd.get("lines") or [])
         if not lines:
+            # v1864 — "THE STRIP WAS DARK" AND "THE OCR LANE ANSWERED NOTHING" LOOK IDENTICAL HERE.
+            #
+            # The crop was made, so there IS a picture; zero lines back means either a genuinely
+            # blank strip (gameplay — 61 of his 68 grid-called stash frames, correctly refused) or
+            # an OCR lane that could not run. The second is not a verdict about his stash, and it
+            # is not hypothetical: this gate's own test went RED once during a run while his live
+            # session held the OCR worker, and passed alone seconds later.
+            #
+            # The frame-level answer cannot tell them apart and stays None, which is the safe
+            # direction. What CAN tell them apart is the RUN: if every frame a sweep probes comes
+            # back silent, the lane is down, not his footage. So it is counted, and the counter is
+            # read out at the end of a sweep. [[feedback-silence-is-not-evidence]]
+            _GATE_SILENT[0] += 1
             return None
+        _GATE_HEARD[0] += 1
         if is_boot_screen(lines):
             return None          # the reconnect splash is not a stash, however much text it carries
         # v1860 — ADMISSION COUNTS THE LABELS; IT DOES NOT ASK WHICH TAB IS SELECTED.
@@ -11342,12 +11374,23 @@ def _chron_visit_run(visit_ts):
                     # `var add = proposal.wouldAdd`. So even a populated list was invisible to
                     # every single reader. dict(comprehension, completeSets=...) keeps the existing
                     # per-ledger shape untouched and adds the third key beside it.
-                    "wouldAdd": dict({lg: [{"name": n,
+                    # v1864 — THE GAME'S OWN FIND DATE TRAVELS WITH THE NAME.
+                    # Konyo: "i want the console also updateing me on when it was found timestamped
+                    # in the game..(not when the AI READ IT)". His Chronicle prints it per row and
+                    # the reader has returned it since p1839; proposal_from_pages hangs it on every
+                    # sighting; bible.html has consumed a per-row `date` since v1693 — and this
+                    # payload, the only thing between them, never carried one. Plumbing built at
+                    # both ends and never joined. [[plumbing-with-no-tap]]
+                    # `gameFound` is ABSENT rather than empty when the page did not print a legible
+                    # date, so the board can tell "found on this date" from "found, date unknown".
+                    "wouldAdd": dict({lg: [dict({"name": n,
                                        "why": (gate.verdicts.get(n) or {}).get("why", ""),
                                        "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
                                        "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
                                                  "lane": sg.get("lane") or "claude"}
-                                                for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
+                                                for sg in (prop.get(lg, {}).get(n) or [])[:6]]},
+                                       **({"gameFound": _cr.in_game_stamp(prop.get(lg, {}).get(n) or [])}
+                                          if _cr.in_game_stamp(prop.get(lg, {}).get(n) or []) else {}))
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
                                 completeSets=[{"name": _cn,
@@ -11910,12 +11953,23 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     # `var add = proposal.wouldAdd`. So even a populated list was invisible to
                     # every single reader. dict(comprehension, completeSets=...) keeps the existing
                     # per-ledger shape untouched and adds the third key beside it.
-                    "wouldAdd": dict({lg: [{"name": n,
+                    # v1864 — THE GAME'S OWN FIND DATE TRAVELS WITH THE NAME.
+                    # Konyo: "i want the console also updateing me on when it was found timestamped
+                    # in the game..(not when the AI READ IT)". His Chronicle prints it per row and
+                    # the reader has returned it since p1839; proposal_from_pages hangs it on every
+                    # sighting; bible.html has consumed a per-row `date` since v1693 — and this
+                    # payload, the only thing between them, never carried one. Plumbing built at
+                    # both ends and never joined. [[plumbing-with-no-tap]]
+                    # `gameFound` is ABSENT rather than empty when the page did not print a legible
+                    # date, so the board can tell "found on this date" from "found, date unknown".
+                    "wouldAdd": dict({lg: [dict({"name": n,
                                        "why": (gate.verdicts.get(n) or {}).get("why", ""),
                                        "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
                                        "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
                                                  "lane": sg.get("lane") or "claude"}
-                                                for sg in (prop.get(lg, {}).get(n) or [])[:6]]}
+                                                for sg in (prop.get(lg, {}).get(n) or [])[:6]]},
+                                       **({"gameFound": _cr.in_game_stamp(prop.get(lg, {}).get(n) or [])}
+                                          if _cr.in_game_stamp(prop.get(lg, {}).get(n) or []) else {}))
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
                                 completeSets=[{"name": _cn,
@@ -12177,7 +12231,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1863",
+        "ver": "v1864",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

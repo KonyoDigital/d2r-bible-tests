@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1863"   # MINI has been dead since v1853 and the only symptom blamed the network
+VERSION = "v1864"   # The game says when he found it, and now so does the board
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

@@ -6461,3 +6461,73 @@ Sets bar on that very frame reads **85%** against the board's 86% — the same t
 Nothing to fix in the reader. If he wants a HELD-NOW count that is a different ledger and a
 different feature — and per REG-206 it cannot come from looking at a stash, because D2R prints no
 names there.
+
+## REG-211 — MINI has been dead since v1853 (FIXED v1863)
+
+**Reported by Konyo:** *"for sets when i click MINI and the sets for a reel record it does an
+error"*, then *"the MINI doesnt work for them all"*.
+
+v1853 removed `_focus_was_chosen` as dead code — correctly, nothing called it — and took the six
+constants beside it: `MINI_MIN_SECONDS`, `MINI_MAX_SECONDS`, `MINI_DEFAULT_SECONDS`,
+`MINI_CHRONICLE_FOCUSES`, `MINI_CHRONICLE_MAX_SECONDS`, `MINI_CHRONICLE_DEFAULT_SECONDS`.
+`_mini_bounds` still names all six.
+
+Every `/api/mini` POST raised `NameError` → 500 → a non-JSON body → the console's `fetch().json()`
+threw → its catch printed **"mini could not start — the console is not reachable"**. Ten versions,
+every focus, and the only thing on screen blamed the network.
+
+```
+_mini_bounds('stash')            NameError  ->  (25, 40)
+_mini_bounds('chronicle-sets')   NameError  ->  (75, 120)
+```
+
+**Guard: `test_control.TestNoFunctionLoadsAnUndefinedName`** — a static AST scope walk over nine tv
+modules. Python resolves a name used only inside a function body when that LINE RUNS, so this class
+cannot be caught at import and no test that never called `/api/mini` could see it. Seen red against
+the exact shape v1853 left behind.
+
+## REG-212 — the in-game First Found date reached nothing (FIXED v1864)
+
+**Konyo:** *"i want the console also updateing me on when it was found timestamped in the game..
+(not when the AI READ IT) ... it should be storyline synced with the ingame diablo ii"*
+
+Every end of this path already existed; the middle did not.
+
+| step | state before |
+|---|---|
+| the reader returns `foundAt` / `droppedBy` | ✅ since p1839 — measured live: `{"Immortal King's Will": "07/18/2026, 02:47"}`, `{"...": "Andariel"}`, matching his pixels |
+| `proposal_from_pages` hangs them on each sighting | ✅ since v1819 |
+| the sweep payload carries them | ❌ `name` / `why` / `witnesses` / `seen` only |
+| `bible.html` consumes a per-row date | ✅ since v1693 — **and had never once been fed** |
+| the SETS branch consumes one | ❌ never existed |
+
+Result: **0 of 339 names** in his stored proposal carried a date, and every find was filed with the
+moment the sweep ran. [[plumbing-with-no-tap]]
+
+Now: `chronicle_retro.in_game_stamp()` resolves the date and the dropper **by agreement** across
+sightings (a First Found date is a fixed fact, so two lanes printing the same string is
+corroboration; a tie between two different values returns nothing rather than a coin flip). The
+payload carries `gameFound`. Both board branches consume it, and `d2r_gameFound` keeps the game's
+answer **beside** `d2r_foundLog` rather than overwriting it — "when the game says he found it" and
+"when this board learned of it" are different questions and both keep an answer.
+
+⚠ **The date order is measured, not assumed.** `07/18/2026` can only be July 18, so his D2R prints
+US `M/D/YYYY` — which is what settles the ambiguous rows (`06/02/2026` is 2 June). Anything not of
+that shape is refused rather than approximated; a wrong find-date reorders his history.
+
+**Guards:** `test_chronicle_retro.TestTheGamesOwnFindDate` (agreement, tie→nothing, date and dropper
+decided separately) · `test_control.TestTheGameFindDateReachesTheBoard` (the seam, both branches,
+the sets branch by name) · `test_control.TestTheGameDateConversionRunsInARealEngine` (the JS
+converter run in **node**, including the refusals).
+
+## REG-213 — a silent OCR lane and a dark strip gave the gate the same answer (FIXED v1864)
+
+Found because `TestPrepTabChromeIsNotDead` went RED once mid-run and passed alone seconds later:
+Konyo's live session held the OCR worker, `ocr_fast` returned no lines, and `stash_screen_open`
+answered `None` for a genuine stash frame.
+
+Zero lines means either a genuinely blank strip (gameplay — 61 of his 68 grid-called stash frames,
+correctly refused) **or** an OCR lane that could not run. The frame-level answer cannot tell them
+apart and stays `None`, which is the safe direction. The **run** can: every probe silent means the
+lane is down, not that his footage holds no stash. Counted as `gate_hearing() -> (silent, heard)`
+and read out at the end of a sweep. [[feedback-silence-is-not-evidence]]

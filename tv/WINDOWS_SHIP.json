@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1863",
+  "ver": "v1864",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1863: A commit that correctly removed a dead function took six live constants with it, and mini_bounds still names all of them. Every MINI press raised NameError, returned a 500, and the console fetch parsed a non-JSON body and printed that the console is not reachable. Ten versions, every focus, and a toast about the network. Restored, and guarded by a static AST scope walk over every tv module: a name used only inside a function body is resolved when that line runs, so this class cannot be caught at import and has to be checked statically. Also: the TODAY row paired today runs with a lifetime tally count under one word.",
+  "note": "v1864: Every end of this path already existed and the middle did not. The reader has returned the in-game First Found date and the dropper since p1839, the proposal hangs them on every sighting, and bible.html has consumed a per-row date since v1693 without ever being fed one, so 0 of 339 names in his stored proposal carried a date and every find was filed with the moment the sweep ran. The date is now resolved by agreement across sightings, travels in the payload, and lands in both branches including sets, which never had one at all. The ledger stamp is kept beside it rather than replaced, because when the game says he found it and when this board learned of it are different questions.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

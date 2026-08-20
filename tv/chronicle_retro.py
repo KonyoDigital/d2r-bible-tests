@@ -1328,6 +1328,50 @@ def _reel_key(reel):
     return r[5:] if r.startswith("reel_") else r
 
 
+def in_game_stamp(sightings):
+    """The GAME's own First Found date and dropper for one name, or {} when it cannot be claimed.
+
+    v1864 — Konyo: "i want the console also updateing me on when it was found timestamped in the
+    game..(not when the AI READ IT) ... it should be storyline synced with the ingame diablo ii".
+
+    His Chronicle prints it per row — "IMMORTAL KING'S WILL · Dropped By: Andariel · First Found:
+    07/18/2026, 02:47" — the reader has been returning it since p1839 (`foundAt`, `droppedBy`), and
+    proposal_from_pages already hangs it on each sighting. Nothing downstream had ever read it back
+    off. This is that read.
+
+    THE RULE IS AGREEMENT, NOT FIRST-SEEN. A First Found date is a FIXED fact about an item, so two
+    lanes reading the same row should print the same string; when they do, that agreement is exactly
+    the corroboration the rest of this file is built on. When two different values are equally
+    supported the answer is NOT a coin flip — it is that the date is unknown, and unknown is what
+    gets returned. [[unknown-stays-unknown]]
+
+    Returns {"at": <raw game string>, "by": <dropper>, "n": <sightings that agreed>} — `at` and `by`
+    are decided INDEPENDENTLY, because a page can print a legible date beside an illegible dropper.
+    """
+    def _pick(key):
+        tally = {}
+        for sg in (sightings or []):
+            v = str((sg or {}).get(key) or "").strip()
+            if v:
+                tally[v] = tally.get(v, 0) + 1
+        if not tally:
+            return "", 0
+        best = sorted(tally.items(), key=lambda kv: (-kv[1], kv[0]))
+        if len(best) > 1 and best[0][1] == best[1][1]:
+            return "", 0          # tied and contradictory — say nothing rather than pick
+        return best[0][0], best[0][1]
+
+    at, n_at = _pick("foundAt")
+    by, _n_by = _pick("droppedBy")
+    out = {}
+    if at:
+        out["at"] = at
+        out["n"] = n_at
+    if by:
+        out["by"] = by
+    return out
+
+
 def witnesses(sightings):
     """The distinct, independent signals behind one proposed name. Returns a sorted list of tags."""
     tags = set()

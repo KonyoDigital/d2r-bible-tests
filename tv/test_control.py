@@ -9022,7 +9022,32 @@ class TestNoFunctionLoadsAnUndefinedName(unittest.TestCase):
                 elif isinstance(n, ast.NamedExpr):
                     bind(n.target, into)
 
-        collect(list(ast.walk(tree)), module)
+        # MODULE SCOPE IS tree.body, NOT ast.walk. Walking the whole tree adds names bound INSIDE
+        # functions (a local `import x as _y`, a loop variable) to the module set, and every other
+        # function then looks like it can see them. It still caught v1853 — those constants were
+        # bound nowhere at all — but a weaker gate than it reads as. Class bodies count, since a
+        # method may reference a class-level constant by bare name at class scope.
+        # MODULE SCOPE = everything not inside a function or class body — which includes the
+        # `try: import g5_grok_eyes as _G5 / except: _G5 = None` at the top of control_app, a
+        # module-level binding nested in a Try. Reading only tree.body missed it and the gate
+        # reported eight uses of a name that genuinely exists. `own_scope` is defined below for the
+        # same reason, one level down.
+        module_nodes = []
+        stack = list(ast.iter_child_nodes(tree))
+        while stack:
+            nd = stack.pop()
+            module_nodes.append(nd)
+            if isinstance(nd, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                continue
+            stack.extend(ast.iter_child_nodes(nd))
+        collect(module_nodes, module)
+        for n in module_nodes:
+            if isinstance(n, ast.ClassDef):
+                collect(list(ast.iter_child_nodes(n)), module)
+        # `global X` anywhere makes X a module name — that is the whole meaning of the statement.
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Global):
+                module.update(n.names)
         out = []
 
         def own_scope(root):
@@ -9101,6 +9126,123 @@ class TestNoFunctionLoadsAnUndefinedName(unittest.TestCase):
         self.assertEqual(names, ["MINI_CHRONICLE_DEFAULT_SECONDS", "MINI_CHRONICLE_FOCUSES",
                                  "MINI_CHRONICLE_MAX_SECONDS", "MINI_DEFAULT_SECONDS",
                                  "MINI_MAX_SECONDS"])
+
+
+class TestTheGameFindDateReachesTheBoard(unittest.TestCase):
+    """v1864 — the middle of this path was missing, and both ends looked finished.
+
+    The reader returns foundAt/droppedBy (p1839). proposal_from_pages hangs them on each sighting
+    (v1819). bible.html has consumed a per-row `date` since v1693. The PAYLOAD between them carried
+    name/why/witnesses/seen and nothing else, so `row.date` was never once fed and every find — his
+    Immortal King's Will included — was filed with the moment the sweep ran. [[plumbing-with-no-tap]]
+
+    Guarded across the seam because neither side alone shows it: the server must EMIT the key, and
+    both board branches must READ it. The sets branch is called out by name — v1693 wired the
+    uniques branch and stopped, and the piece he asked about is a set piece."""
+
+    def _bible(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        return open(p, encoding="utf-8").read()
+
+    def test_the_payload_emits_the_game_date_for_both_ledgers(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertEqual(src.count('"gameFound": _cr.in_game_stamp('), 2,
+                         "both sweep payloads must carry the game's own find date")
+
+    def test_the_board_reads_it_in_the_UNIQUES_branch(self):
+        b = self._bible()
+        i = b.find("(add.uniques || []).forEach(")
+        j = b.find("(add.sets || []).forEach(", i)
+        self.assertGreater(i, 0)
+        self.assertIn("row.gameFound", b[i:j])
+        self.assertIn("_gameFoundSet(", b[i:j])
+
+    def test_the_board_reads_it_in_the_SETS_branch_too(self):
+        # v1693 wired uniques and stopped. Immortal King's Will — the piece he asked about — is a
+        # SET piece, so the branch that had no date was the branch his question landed in.
+        b = self._bible()
+        i = b.find("(add.sets || []).forEach(")
+        j = b.find("completeSets", i)
+        self.assertGreater(i, 0)
+        self.assertIn("row.gameFound", b[i:j])
+        self.assertIn("window._grailStamp = function(){ return _ds; }", b[i:j],
+                      "the set piece is still stamped with the moment the sweep ran")
+        self.assertIn("window._grailStamp = _savedS", b[i:j],
+                      "the stamp swap is not restored — every later tick would wear this date")
+
+    def test_the_ledger_stamp_is_NOT_replaced_by_the_game_date(self):
+        # both questions keep their answer: d2r_foundLog says when the BOARD learned it,
+        # d2r_gameFound says when the GAME says he found it. Collapsing them loses the only thing
+        # that can tell a fresh find from an old one nobody had read. [[label-outlived-referent]]
+        b = self._bible()
+        self.assertIn("window.LSR.setItem('d2r_gameFound'", b)
+        self.assertIn("window.gameFoundFor = function(name)", b)
+
+
+class TestTheGameDateConversionRunsInARealEngine(unittest.TestCase):
+    """v1864 — the converter is JS, so it is TESTED as JS, in node, not asserted about as text.
+
+    ⚠ THE DATE ORDER IS MEASURED, NOT ASSUMED. His Chronicle printed "07/18/2026" — 18 cannot be a
+    month, so his D2R prints US M/D/YYYY, which is what settles the ambiguous rows ("06/02/2026" is
+    2 June, not 6 February). Anything that does not fit that shape is REFUSED rather than guessed
+    at: a wrong find-date reorders his history, which is worse than no date at all."""
+
+    def _run(self, cases):
+        import json as _json
+        import shutil as _sh
+        import subprocess as _sp
+        import tempfile as _tf
+        node = _sh.which("node")
+        if not node:
+            self.skipTest("node is not installed on this machine")
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("var _GAME_MON = [")
+        j = src.find("window._gameFoundSet", i)
+        self.assertGreater(i, 0, "the game-date converter is gone")
+        body = src[i:j]
+        prog = ("var window = {};\n" + body
+                + "\nconsole.log(JSON.stringify(" + _json.dumps(cases)
+                + ".map(function(x){ return window._gameStampToLedger(x); })));\n")
+        with _tf.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+            f.write(prog)
+            jp = f.name
+        try:
+            out = _sp.run([node, jp], capture_output=True, text=True, timeout=60)
+            self.assertEqual(out.returncode, 0, out.stderr[:400])
+            return _json.loads(out.stdout.strip().splitlines()[-1])
+        finally:
+            os.unlink(jp)
+
+    def test_his_real_rows_convert(self):
+        got = self._run(["07/18/2026, 02:47", "06/02/2026, 01:06", "05/18/2026, 07:34"])
+        self.assertEqual(got, ["Jul 18, 2026 \u00b7 02:47",
+                               "Jun 2, 2026 \u00b7 01:06",
+                               "May 18, 2026 \u00b7 07:34"])
+
+    def test_anything_that_is_not_that_shape_is_REFUSED_not_guessed(self):
+        got = self._run(["18/07/2026, 02:47",     # D/M — month 18 does not exist
+                         "07/18/2026, 25:47",     # hour 25
+                         "07/18/26, 02:47",       # two-digit year
+                         "July 18 2026", "", "07/18/2026 02:47", "  ", "not a date"])
+        self.assertEqual(got, ["", "", "", "", "", "", "", ""],
+                         "a date it cannot read must come back empty, never approximated")
+
+    def test_a_date_with_no_time_still_converts(self):
+        self.assertEqual(self._run(["07/18/2026"]), ["Jul 18, 2026"])
+
+    def test_the_output_matches_the_boards_own_stamp_shape(self):
+        # _grailStamp writes "Aug 20, 2026 · 18:25"; a second shape in the same ledger field would
+        # make his history sort and read two different ways.
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        src = open(p, encoding="utf-8").read()
+        self.assertIn("month:'short',day:'numeric',year:'numeric'", src,
+                      "the board's own stamp changed shape — the converter must follow it")
 
 
 class TestTheBridgeCacheKeyNamesWhatItCaches(unittest.TestCase):
@@ -9276,6 +9418,37 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         import control_app as ca
         self.assertEqual(se.stash_chrome_canons(["AYp*INt..:-;"]), [])
         self.assertEqual(se.stash_chrome_canons(["Corrupted tremors strike Durance of Hate"]), [])
+
+    def test_a_SILENT_ocr_lane_is_counted_apart_from_a_dark_strip(self):
+        """v1864 — this very class went RED once, mid-run, and passed alone seconds later.
+
+        His live session held the OCR worker; `ocr_fast` came back with no lines; the gate answered
+        None for a genuine stash frame. The frame-level answer cannot tell "the strip was dark" from
+        "the reader could not run" — both are zero lines — and None is the safe answer either way.
+        What CAN tell them apart is the RUN: every probe silent means the lane is down, not that his
+        footage holds no stash. So the two are counted separately and read out.
+        [[feedback-silence-is-not-evidence]]"""
+        import control_app as ca
+        import tv_diablo as tvd
+        s0, h0 = ca.gate_hearing()
+        here = os.path.dirname(os.path.abspath(__file__))
+        f = os.path.join(here, "frames", "hist", "6_1784984233446.jpg")
+        if not os.path.isfile(f):
+            self.skipTest("his footage is not on this machine")
+        old = tvd.ocr_fast
+        try:
+            tvd.ocr_fast = lambda *_a, **_k: {}          # the lane, answering nothing
+            self.assertIsNone(ca.stash_screen_open(f),
+                              "a gate that cannot read must refuse — that half was always right")
+        finally:
+            tvd.ocr_fast = old
+        s1, h1 = ca.gate_hearing()
+        self.assertEqual(s1, s0 + 1, "the silence was not counted — it is invisible again")
+        self.assertEqual(h1, h0, "a silent probe was counted as one that heard something")
+        # and the mirror: a frame it CAN read moves the other counter, or the pair is decoration
+        self.assertEqual(ca.stash_screen_open(f), "stash")
+        s2, h2 = ca.gate_hearing()
+        self.assertEqual((s2, h2), (s1, h1 + 1))
 
     def test_a_working_gate_records_no_failures(self):
         # 0 must mean "it ran", never "nobody looked" — otherwise the counter is the next silence

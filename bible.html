@@ -37167,7 +37167,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(!_lRar || !(typeof _Q_HEX!=='undefined' && _Q_HEX[_lRar])) _lRar = (kind==='uni') ? 'unique' : 'set';
     try { _lCol = (typeof _Q_HEX!=='undefined' && _Q_HEX[_lRar]) ? _Q_HEX[_lRar] : ''; } catch(e){}
     try { _lArt = (typeof chipLogo==='function') ? chipLogo(last) : ''; } catch(e){}
-    return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: '+_lArt+'<b class="gf-lastname" data-arttip="'+esc(last)+'"'+(_lCol?' style="color:'+_lCol+'"':'')+'>'+esc(_pieceLabel(last))+'</b> <span class="gp-date">'+esc(fl[last])+'</span></span>'
+    /* v1864 — SAY WHEN THE GAME SAYS HE FOUND IT, not only when this board learned of it.
+       Konyo: "i want the console also updateing me on when it was found timestamped in the game..
+       (not when the AI READ IT)". `fl[last]` is the LEDGER stamp — the moment the tick was
+       written. When his own Chronicle printed a First Found date and a dropper, that is the
+       storyline fact and it goes first, with the ledger stamp kept in the title so neither
+       question loses its answer. Absent when the page never printed one; never invented. */
+    var _gfMeta = null; try { _gfMeta = window.gameFoundFor ? window.gameFoundFor(last) : null; } catch(e){}
+    var _gfDate = (_gfMeta && _gfMeta.at) ? window._gameStampToLedger(_gfMeta.at) : '';
+    var _gfLine = _gfDate
+      ? '<span class="gp-date" title="the date printed in your in-game Chronicle'
+        + (_gfMeta.by ? ' \u00b7 dropped by ' + esc(_gfMeta.by) : '')
+        + ' \u2014 this board ticked it ' + esc(fl[last] || 'at an unrecorded time') + '">\u2694 found in game '
+        + esc(_gfDate) + (_gfMeta.by ? ' \u00b7 ' + esc(_gfMeta.by) : '') + '</span>'
+      : '<span class="gp-date">' + esc(fl[last]) + '</span>';
+    return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: '+_lArt+'<b class="gf-lastname" data-arttip="'+esc(last)+'"'+(_lCol?' style="color:'+_lCol+'"':'')+'>'+esc(_pieceLabel(last))+'</b> '+_gfLine+'</span>'
       +'<button class="f-btn f-btn-mini" onclick="window._forgeUndo(this,\''+jsq(last)+'\',\''+kind+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button>'
       +(_redo && _redo.kind===kind
         ? '<button class="f-btn f-btn-mini" onclick="window._forgeRedo()" title="put it back — undoing the undo">↪ redo <b>'+esc(_pieceLabel(_redo.name))+'</b></button>'
@@ -38580,6 +38594,62 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _chronAlreadyUni(n){ try { return _ownedNames().has(n); } catch(e){ return false; } }
   function _chronAlreadySet(n){ try { return _setHave().has(n); } catch(e){ return false; } }
 
+  /* ── v1864 — THE GAME'S OWN FIND DATE ─────────────────────────────────────────────────────
+     Konyo: "i want the console also updateing me on when it was found timestamped in the game..
+     (not when the AI READ IT) that can be a ledger timestamp but for the item itself and when it
+     was added to the chronicle it should be storyline synced with the ingame diablo ii".
+
+     His Chronicle prints it on every found row — "IMMORTAL KING'S WILL · Dropped By: Andariel ·
+     First Found: 07/18/2026, 02:47" — and the whole path existed except the middle: the reader
+     returns foundAt/droppedBy (p1839), proposal_from_pages hangs them on each sighting, v1693 built
+     `row.date` HERE to receive one, and the payload between them never carried it. Now it does
+     (`gameFound`), and this is where it lands. [[plumbing-with-no-tap]]
+
+     ⚠ THE DATE ORDER IS M/D/YYYY AND THAT IS MEASURED, NOT ASSUMED. "07/18/2026" can only be
+     July 18 — 18 is no month — so his D2R prints US order, which settles the ambiguous ones
+     ("06/02/2026" is 2 June, not 6 February). A string that does not fit that shape is REFUSED
+     rather than guessed at: a wrong find-date is worse than none, because it reorders his history.
+     [[unknown-stays-unknown]] */
+  var _GAME_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  window._gameStampToLedger = function(raw){
+    try {
+      var m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s*,\s*(\d{1,2}):(\d{2}))?\s*$/.exec(String(raw || ''));
+      if (!m) return '';
+      var mo = parseInt(m[1], 10), da = parseInt(m[2], 10), yr = parseInt(m[3], 10);
+      if (!(mo >= 1 && mo <= 12) || !(da >= 1 && da <= 31)) return '';   // not M/D — refuse it
+      var out = _GAME_MON[mo - 1] + ' ' + da + ', ' + yr;
+      if (m[4] != null){
+        var hh = parseInt(m[4], 10), mi = m[5];
+        if (!(hh >= 0 && hh <= 23)) return '';
+        out += ' \u00b7 ' + (hh < 10 ? '0' + hh : '' + hh) + ':' + mi;
+      }
+      return out;
+    } catch(e){ return ''; }
+  };
+  /* WHAT THE GAME SAID, kept beside the ledger rather than inside it. d2r_foundLog holds ONE
+     string per name and every surface already reads it; overwriting that with a game date would
+     lose "when this board learned it", which is the only thing that can tell a fresh find from an
+     old one nobody had read. So both are kept, each answering its own question. */
+  window._gameFoundSet = function(name, g){
+    try {
+      if (!name || !g) return false;
+      var map = {}; try { map = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {}; } catch(e){}
+      var prev = map[name] || {};
+      var rec = { at: g.at || prev.at || '', by: g.by || prev.by || '', n: g.n || prev.n || 0 };
+      if (!rec.at && !rec.by) return false;
+      if (prev.at === rec.at && prev.by === rec.by) return false;
+      map[name] = rec;
+      window.LSR.setItem('d2r_gameFound', JSON.stringify(map));
+      return true;
+    } catch(e){ return false; }
+  };
+  window.gameFoundFor = function(name){
+    try {
+      var map = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
+      return map[name] || null;
+    } catch(e){ return null; }
+  };
+
   window.chronicleApply = function(proposal){
     var add = (proposal && proposal.wouldAdd) || {};
     var res = { uniques: [], sets: [], skipped: [], unknown: [], ts: Date.now() };
@@ -38632,7 +38702,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // stamp function for the one toggleOwned call, then restoring it — no second write path, no
       // raw localStorage touch. Rows with no .date (an unreadable or partial read) fall through to
       // the normal now-stamp exactly as an unannotated find always has.
-      var _d = row && row.date; var _savedStamp = window._grailStamp;
+      /* v1864 — the date now arrives as `gameFound.at` in the GAME's own format; `row.date`
+         (v1693, already in the board's ledger format) still wins if a caller supplies one. */
+      var _g = row && row.gameFound;
+      try { if (_g) window._gameFoundSet(n, _g); } catch(e){}
+      var _d = (row && row.date) || (_g && _g.at ? window._gameStampToLedger(_g.at) : '');
+      var _savedStamp = window._grailStamp;
       try {
         if (_d) window._grailStamp = function(){ return _d; };
         if (typeof window.toggleOwned === 'function') window.toggleOwned(n);
@@ -38642,7 +38717,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     (add.sets || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
       if (_chronAlreadySet(n)) { res.skipped.push(n); return; }
-      try { if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(n); res.sets.push(n); } catch(e){}
+      /* v1864 — THE SETS BRANCH HAD NO DATE AT ALL. v1693 gave the uniques branch an honest
+         in-game stamp and stopped there, so every set piece was filed with the moment the sweep
+         ran — and the piece Konyo asked about, Immortal King's Will, is a SET piece. Same
+         mechanism, same one-call swap, same restore; toggleSetPiece writes into the same
+         d2r_foundLog through the same _grailStamp. */
+      var _gs = row && row.gameFound;
+      try { if (_gs) window._gameFoundSet(n, _gs); } catch(e){}
+      var _ds = (row && row.date) || (_gs && _gs.at ? window._gameStampToLedger(_gs.at) : '');
+      var _savedS = window._grailStamp;
+      try {
+        if (_ds) window._grailStamp = function(){ return _ds; };
+        if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(n);
+        res.sets.push(n);
+      } catch(e){} finally { window._grailStamp = _savedS; }
     });
     // v1530 — A SET THE PANEL CALLED COMPLETE. The Chronicle often shows a set as done without its
     // piece rows being legible, and the game saying "complete" IS the claim — one row worth five.
@@ -41892,7 +41980,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1863', name:'v1863 - MINI has been dead since v1853 and the only symptom blamed the network', date:'2026-08-20', note:'A commit that correctly removed a dead function took six live constants with it, and mini_bounds still names all of them. Every MINI press raised NameError, returned a 500, and the console fetch parsed a non-JSON body and printed that the console is not reachable. Ten versions, every focus, and a toast about the network. Restored, and guarded by a static AST scope walk over every tv module: a name used only inside a function body is resolved when that line runs, so this class cannot be caught at import and has to be checked statically. Also: the TODAY row paired today runs with a lifetime tally count under one word.' };
+  window.D2R_BUILD = { id:'v1864', name:'v1864 - The game says when he found it, and now so does the board', date:'2026-08-20', note:'Every end of this path already existed and the middle did not. The reader has returned the in-game First Found date and the dropper since p1839, the proposal hangs them on every sighting, and bible.html has consumed a per-row date since v1693 without ever being fed one, so 0 of 339 names in his stored proposal carried a date and every find was filed with the moment the sweep ran. The date is now resolved by agreement across sightings, travels in the payload, and lands in both branches including sets, which never had one at all. The ledger stamp is kept beside it rather than replaced, because when the game says he found it and when this board learned of it are different questions.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

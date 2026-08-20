@@ -1853,5 +1853,52 @@ class TestV1846WhatWasRegisteredYesterdayAndWhatIsNewToday(unittest.TestCase):
 
 
 
+
+class TestTheGamesOwnFindDate(unittest.TestCase):
+    """v1864 — Konyo: "i want the console also updateing me on when it was found timestamped in the
+    game..(not when the AI READ IT) ... storyline synced with the ingame diablo ii".
+
+    His Chronicle prints it per row and the reader has returned it since p1839. Measured live on
+    his frame f_1787177298256.jpg, which is his own Sets page:
+
+        foundAt   {"Immortal King's Will": "07/18/2026, 02:47",
+                   "Immortal King's Pillar": "06/02/2026, 01:06"}
+        droppedBy {"Immortal King's Will": "Andariel", "Immortal King's Pillar": "Andariel"}
+
+    — matching the pixels exactly. What was missing was every step after: 0 of 339 names in his
+    stored proposal carried a date, because nothing read it back off the sightings."""
+
+    def test_two_lanes_agreeing_on_a_date_is_the_date(self):
+        got = cr.in_game_stamp([
+            {"lane": "claude", "foundAt": "07/18/2026, 02:47", "droppedBy": "Andariel"},
+            {"lane": "grok", "foundAt": "07/18/2026, 02:47"},
+            {"lane": "claude"}])
+        self.assertEqual(got.get("at"), "07/18/2026, 02:47")
+        self.assertEqual(got.get("by"), "Andariel")
+        self.assertEqual(got.get("n"), 2)
+
+    def test_a_TIE_between_two_dates_returns_nothing(self):
+        # a First Found date is a FIXED fact — two equally-supported answers means it was misread,
+        # and a wrong find-date reorders his history. Unknown stays unknown.
+        self.assertEqual(cr.in_game_stamp([{"foundAt": "07/18/2026, 02:47"},
+                                           {"foundAt": "06/02/2026, 01:06"}]), {})
+
+    def test_a_majority_still_wins(self):
+        got = cr.in_game_stamp([{"foundAt": "07/18/2026, 02:47"},
+                                {"foundAt": "07/18/2026, 02:47"},
+                                {"foundAt": "06/02/2026, 01:06"}])
+        self.assertEqual(got.get("at"), "07/18/2026, 02:47")
+
+    def test_the_date_and_the_dropper_are_decided_separately(self):
+        # a page can print a legible dropper beside an illegible date, and vice versa
+        got = cr.in_game_stamp([{"droppedBy": "Andariel"}, {"droppedBy": "Andariel"}])
+        self.assertEqual(got.get("by"), "Andariel")
+        self.assertNotIn("at", got)
+
+    def test_no_sighting_carries_one_is_an_empty_answer_not_a_blank_date(self):
+        self.assertEqual(cr.in_game_stamp([{"lane": "claude", "conf": 0.9}]), {})
+        self.assertEqual(cr.in_game_stamp([]), {})
+        self.assertEqual(cr.in_game_stamp(None), {})
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
