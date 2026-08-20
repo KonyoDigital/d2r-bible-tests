@@ -6760,3 +6760,35 @@ shape: an explanatory comment blinding a guard that greps for a name.
 
 These are the JS twins of the AST walk that found MINI dead (v1863): a name inside a branch is only
 resolved when that branch runs, so neither class can be caught by parsing or by running the suite.
+
+## REG-223 — my own sweep's comment stripper ate a third of the board (FIXED v1873)
+
+**Found within the hour of shipping v1872**, by pointing a third sweep at the same helper.
+
+`re.sub(r"/\*.*?\*/", " ", src, flags=re.S)` on a 5.6MB mixed HTML/CSS/JS file removed **16.9% of
+it and 170 of its 444 `id=` declarations** — because a `/*` inside a JS string or a regex literal
+matches forward to the next `*/` anywhere in the file. `js_syntax_gate` says exactly this in its own
+docstring — *"a heuristic cannot separate a comment from a string containing nested backticks,
+embedded HTML with quotes, and regex literals"* — and I built a guard on one anyway.
+
+It **passed**, on a mangled view. A stripper that deletes a third of the file can only produce false
+**negatives**, which is the quiet direction and the reason it went unnoticed.
+
+Bounding the block form (`/\*.{0,4000}?\*/`) loses **0 of 444**: a real comment in this file is long
+but not unbounded; a match spanning thousands of characters is a string that happens to contain the
+tokens. The stripper now has **its own test**, run before any verdict built on it is believed.
+[[feedback-suspect-the-instrument]]
+
+## REG-224 — no element is looked up that nothing creates (SWEPT CLEAN, guarded v1873)
+
+`document.getElementById('x')` with no `id="x"` anywhere returns null, and the customary `if (el)`
+turns that into silence. The console records this failure in its own comment: everything after one
+line *"wrote into `#hd-shelf-grid`, an element nothing creates"* — a whole block rendering into
+nowhere.
+
+**Swept: bible.html looks up 276 distinct ids against 444 declared, 0 missing. control_ui.html: 236
+looked up, 0 missing.** Both clean, and now they stay clean.
+
+⚠ **The count was the tell.** The first run reported **135 missing ids in the board** — not a
+codebase 135 ways broken, a broken instrument (REG-223). Founding rule 4, which is why the
+stripper's own test now sits beside this one.

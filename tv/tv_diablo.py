@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1872"   # Two silent-nothing classes, swept statically across the board
+VERSION = "v1873"   # The count was the tell, and the instrument was mine
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _fixture_root(here):

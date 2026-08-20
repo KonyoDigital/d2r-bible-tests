@@ -9418,10 +9418,39 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
     that greps for a name. [[feedback-comments-vs-code]]"""
 
     @staticmethod
-    def _strip_js_comments(src):
+    def _strip_js_comments(src, cap=4000):
+        """Strip comments — and BOUND the block form, because an unbounded one eats the file.
+
+        v1873, measured on bible.html the hour after v1872 shipped this guard: `/\*.*?\*/` with
+        DOTALL removed 16.9% of a 5.6MB mixed HTML/CSS/JS file and **170 of its 444 `id=`
+        declarations**, because a `/*` inside a JS string or a regex literal matches forward to the
+        next `*/` anywhere in the file. js_syntax_gate says this in its own docstring — a heuristic
+        cannot separate a comment from a string containing embedded HTML and regex literals — and I
+        shipped a guard built on one anyway. It PASSED, on a mangled view: a stripper that deletes
+        a third of the ids can only ever produce false NEGATIVES, which is the quiet direction.
+
+        A real comment in this file is long but not unbounded; a match spanning thousands of
+        characters is a string that happens to contain the tokens. At cap=4000 the loss is 0 of
+        444. [[feedback-suspect-the-instrument]] [[feedback-comments-vs-code]]
+        """
         import re
-        src = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+        src = re.sub(r"/\*.{0,%d}?\*/" % int(cap), " ", src, flags=re.S)
         return re.sub(r"(?m)^\s*//.*$", " ", src)
+
+    def test_the_stripper_does_not_eat_live_markup(self):
+        """The instrument, checked before its verdict is believed. Founding rule 4."""
+        import re
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        raw = open(p, encoding="utf-8").read()
+        ID = r"\bid\s*=\s*[\\]?[\'\"]([\w-]+)"
+        raw_ids = set(re.findall(ID, raw))
+        kept = set(re.findall(ID, self._strip_js_comments(raw)))
+        self.assertTrue(raw_ids, "no id= declarations found at all — the pattern rotted")
+        self.assertEqual(raw_ids - kept, set(),
+                         "the comment stripper deleted live markup; every verdict built on it is "
+                         "a false negative waiting to happen")
 
     @classmethod
     def _dead_calls(cls, src):
@@ -9455,6 +9484,53 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                "window.Real && window.Real();\n")
         self.assertEqual(self._dead_calls(src), [],
                          "the guard is reading its own documentation again")
+
+
+class TestNoLookupOfAnElementThatIsNeverCreated(unittest.TestCase):
+    """v1873 — `document.getElementById('x')` where no `id="x"` exists anywhere returns null, and
+    the usual `if (el)` around it turns that into silence.
+
+    The console records this exact failure in its own comment: everything after one line "wrote into
+    #hd-shelf-grid, an element nothing creates" — a whole block of work rendering into nowhere.
+
+    Swept with a stripper that is itself checked first (see the sibling class): **bible.html looks
+    up 276 distinct ids and declares 444; zero lookups have no declaration. control_ui.html: 236
+    looked up, zero missing.** Both clean, and now they stay clean.
+
+    ⚠ THE COUNT WAS THE TELL. The first run of this sweep reported 135 missing ids in the board.
+    That is not a codebase 135 ways broken, it is a broken instrument: the unbounded comment
+    stripper had deleted 170 of the 444 declarations. Founding rule 4, and the reason the
+    stripper's own test sits beside this one. [[feedback-suspect-the-instrument]]"""
+
+    @staticmethod
+    def _missing(src):
+        import re
+        s = TestNoOptionalCallToAFunctionThatCannotExist._strip_js_comments(src)
+        ids = set(re.findall(r"\bid\s*=\s*[\\]?['\"]([\w-]+)", s))
+        got = set(re.findall(r"getElementById\(\s*['\"]([\w-]+)['\"]\s*\)", s))
+        return sorted(got - ids)
+
+    def test_the_board_looks_up_nothing_it_never_creates(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        dead = self._missing(open(p, encoding="utf-8").read())
+        self.assertEqual(dead, [], "these ids are looked up and never created, so every branch "
+                                   "behind them is silent: %s" % ", ".join(dead))
+
+    def test_the_console_looks_up_nothing_it_never_creates(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        if not os.path.isfile(p):
+            self.skipTest("control_ui.html is not on this machine")
+        dead = self._missing(open(p, encoding="utf-8").read())
+        self.assertEqual(dead, [], "looked up and never created: %s" % ", ".join(dead))
+
+    def test_it_SEES_the_hd_shelf_grid_shape(self):
+        # the console's own recorded scar, as the fixture
+        live = "<div id=\"hd-shelf\"></div>\ndocument.getElementById('hd-shelf').innerHTML = x;\n"
+        dead = "<div id=\"hd-shelf\"></div>\ndocument.getElementById('hd-shelf-grid').innerHTML = x;\n"
+        self.assertEqual(self._missing(live), [])
+        self.assertEqual(self._missing(dead), ["hd-shelf-grid"])
 
 
 class TestNoTypeofGuardOnANameThatCannotExist(unittest.TestCase):

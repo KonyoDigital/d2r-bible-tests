@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1872",
+  "ver": "v1873",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1872: A typeof guard on a name that is never declared is permanently false, and an optional window call to a function assigned nowhere calls nothing forever. Both are valid JS, both fail by simply not happening. The board carries 94 typeof guards and 227 optional call sites; the sweep found one dead call, the line that reads as the backstop refreshing his grail meters after an inbox decision, pointing at a name assigned nowhere in the file. It was harmless because the accept path already refreshes, which is why it survived. The first run of the new sweep flagged the placeholder inside my own comment, so comments are stripped first.",
+  "note": "v1873: A third static sweep pointed at the same helper the last ship introduced, and the helper was wrong: an unbounded comment stripper removed seventeen percent of the board and 170 of its 444 id declarations, because a slash-star inside a string matches forward to the next star-slash anywhere in the file. The guard it powered had passed on a mangled view, which can only ever be a false negative. Bounding the block form loses none of the 444, the stripper now has its own test run before any verdict built on it is believed, and the new sweep it enabled reports that neither surface looks up an element nothing creates.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
