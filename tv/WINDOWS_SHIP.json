@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1838",
+  "ver": "v1839",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1838: notFound is carried for audit on purpose and subtracts from nothing - that stays true - but it reached no surface a person reads, and an audit nobody can see is not an audit. It is also the cheapest instrument check there is: a grail page yielding found names and zero not-found rows means the reader saw the ticks and missed the list, which is the v1758 failure exactly. Zero is now a measured zero rather than a silence.",
+  "note": "v1839: A reel opens and closes on the TV DIABLO console window and on gameplay. Refusing those is correct - but they answered stateVisible false, the same word as a legible Chronicle page whose rows could not be judged, so the refusal count mixed healthy refusals with lost pages and could be read as neither. Opening six refused frames settled it: three were console or gameplay, three were legible sets pages carrying First Found dates.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

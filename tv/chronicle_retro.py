@@ -872,7 +872,8 @@ def normalize_page(raw, kind, lane):
         conf = 0.0
     state_visible = raw.get("stateVisible") is not False
     wrong_tab = raw.get("wrongTab") is True
-    found = [] if (wrong_tab or not state_visible) else names(raw.get("found"))
+    not_chronicle = raw.get("notChronicle") is True
+    found = [] if (not_chronicle or wrong_tab or not state_visible) else names(raw.get("found"))
     not_found = names(raw.get("notFound"))
     # v1570 — CARRY `complete`. This rebuilt every set row as {set, pieces} and dropped the flag,
     # while proposal_from_pages reads g.get("complete") off THIS normalised dict — so completeSets
@@ -899,7 +900,13 @@ def normalize_page(raw, kind, lane):
         "foundAt": _stamp_map(raw.get("foundAt"), True),
         "droppedBy": _stamp_map(raw.get("droppedBy"), False),
         "read": {"found": len(found), "notFound": len(not_found)},
-        "note": "wrong-ledger" if wrong_tab else ("no-found-state" if not state_visible else None),
+        # v1839 — THREE REFUSALS, THREE NAMES. "not-a-chronicle-page" is the console window or
+        # gameplay and is a HEALTHY refusal on a screen recording; "no-found-state" is a Chronicle
+        # page whose rows could not be judged and is a LOST one. They were the same word, so the
+        # refusal count could be read as neither.
+        "note": ("not-a-chronicle-page" if not_chronicle
+                 else "wrong-ledger" if wrong_tab
+                 else ("no-found-state" if not state_visible else None)),
     }
 
 

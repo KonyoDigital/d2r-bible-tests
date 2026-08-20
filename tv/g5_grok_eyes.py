@@ -91,13 +91,18 @@ CHRONICLE_VISION_PROMPT = (
     "Open that image with the read_file tool FIRST, then reply with STRICT JSON only, no markdown "
     "fences, no prose:\n"
     '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],'
-    '"printedFound":null,"printedTotal":null,"stateVisible":true,"wrongTab":false,'
+    '"printedFound":null,"printedTotal":null,"stateVisible":true,"wrongTab":false,"notChronicle":false,'
     '"foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
     "This is the in-game CHRONICLE (holy grail) panel: a scrollable list of item names, each row "
     "showing whether the player has FOUND it — bright/coloured text vs grey/dim, a tick, a filled "
     "marker.\n"
     "found = ONLY names whose found-state is VISIBLY positive. notFound = names you can read whose "
     "state is dim, empty or ambiguous.\n"
+    # v1839 — mirrored from the Claude lane so the two eyes answer in the same units (v1519's rule:
+    # cross-lane agreement is only evidence if both lanes are answering the same question).
+    "notChronicle = true when the picture is not a Chronicle panel at all - gameplay, a stash, a "
+    "menu, or the TV DIABLO console window. That is a different answer from a Chronicle page whose "
+    "rows you cannot judge.\n"
     "If you cannot tell found from unfound anywhere on the panel: set stateVisible=false and return "
     "found EMPTY. Do not assume everything shown is owned — this read is unattended and a confident "
     "wrong page permanently mis-tallies his grail.\n"

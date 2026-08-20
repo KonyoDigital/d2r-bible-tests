@@ -1726,5 +1726,65 @@ class TestV1838TheAuditTrailReachesASurface(unittest.TestCase):
 
 
 
+class TestV1839ThreeRefusalsThreeNames(unittest.TestCase):
+    """v1839 — "this is not the Chronicle" and "I cannot judge these rows" were the same word.
+
+    A reel is a screen recording: it opens and closes on his TV DIABLO console window and on
+    ordinary gameplay. Refusing those frames is CORRECT. But they came back stateVisible=false — the
+    same answer as a legible Chronicle page whose rows could not be judged — so `refused 7` mixed
+    healthy refusals with lost pages and could be read as neither.
+
+    Settled by opening six of his refused frames rather than reasoning about them: three were the
+    console window or gameplay (right to refuse), three were legible sets pages carrying First Found
+    dates (lost). One number, two opposite meanings.
+    """
+
+    def _norm(self, **raw):
+        base = {"ledger": "sets", "found": ["M'avina's Tenet (belt)"], "conf": 0.8,
+                "stateVisible": True, "wrongTab": False}
+        base.update(raw)
+        return cr.normalize_page(base, "chronicle-sets", "claude")
+
+    def test_a_non_chronicle_frame_says_so(self):
+        self.assertEqual(self._norm(notChronicle=True)["note"], "not-a-chronicle-page")
+
+    def test_a_chronicle_page_that_cannot_be_judged_still_says_no_found_state(self):
+        self.assertEqual(self._norm(stateVisible=False)["note"], "no-found-state")
+
+    def test_the_wrong_ledger_is_still_its_own_answer(self):
+        self.assertEqual(self._norm(wrongTab=True)["note"], "wrong-ledger")
+
+    def test_not_a_chronicle_page_outranks_the_other_two(self):
+        # gameplay cannot be "the wrong tab" or "rows I could not judge" — there is no panel
+        self.assertEqual(self._norm(notChronicle=True, wrongTab=True, stateVisible=False)["note"],
+                         "not-a-chronicle-page")
+
+    def test_it_contributes_no_names(self):
+        r = self._norm(notChronicle=True)
+        self.assertEqual(r["found"], [], "a gameplay frame handed names to the grail")
+
+    def test_a_clean_page_is_unaffected(self):
+        r = self._norm()
+        self.assertIsNone(r["note"])
+        self.assertEqual(r["found"], ["M'avina's Tenet (belt)"])
+
+    def test_absent_means_not_claimed(self):
+        # a reader that never heard of the field must not be read as asserting either way
+        r = self._norm()
+        self.assertIsNone(r["note"])
+
+    def test_both_lanes_ask_for_it(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        claude = open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read()
+        grok = open(os.path.join(here, "g5_grok_eyes.py"), encoding="utf-8").read()
+        for lane, src in (("claude", claude), ("grok", grok)):
+            self.assertIn('"notChronicle":false', src,
+                          "the %s lane does not ask for notChronicle — cross-lane agreement is "
+                          "only evidence if both lanes answer the same question" % lane)
+            self.assertIn("notChronicle = true when the picture is not a Chronicle panel", src,
+                          "the %s lane asks for the field without saying what it means" % lane)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

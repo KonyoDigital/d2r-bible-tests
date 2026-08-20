@@ -7781,7 +7781,7 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         # a changed prompt on an old version replays cached reads that were answered under the old
         # wording — the same guard test_agent keeps, asserted here because THIS change is the reason
         import tv_diablo as _tv
-        self.assertEqual(_tv.PROMPT_VER, "p1828")
+        self.assertEqual(_tv.PROMPT_VER, "p1839")
 
 
 class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):

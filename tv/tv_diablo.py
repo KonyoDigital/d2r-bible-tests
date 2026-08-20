@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1838"   # The audit trail reaches a surface
+VERSION = "v1839"   # Three refusals, three names
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -137,7 +137,7 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p1828"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
+PROMPT_VER = "p1839"   # v1839 — the readers now separate "not a Chronicle page" from "cannot judge these rows"; bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
@@ -4868,10 +4868,20 @@ CHRONICLE_READ_PROMPT = (
     "bright/coloured text vs grey/dim, a tick, or a filled marker.\n"
     "Reply with STRICT JSON only, no markdown, no prose:\n"
     '{{"ledger":"{ledger}","found":[],"notFound":[],"sets":[],"printedFound":null,'
-    '"printedTotal":null,"stateVisible":true,"wrongTab":false,'
+    '"printedTotal":null,"stateVisible":true,"wrongTab":false,"notChronicle":false,'
     '"foundAt":{{}},"droppedBy":{{}},"conf":0.0}}\n'
     "found = ONLY names whose found-state is VISIBLY positive. notFound = names you can read whose "
     "state is dim, empty or ambiguous.\n"
+    # v1839 — "THIS IS NOT THE CHRONICLE" AND "I CANNOT JUDGE THESE ROWS" ARE DIFFERENT FACTS.
+    # A reel is a screen recording: it opens and closes on his TV DIABLO console window and on
+    # ordinary gameplay. Those frames are correctly refused — but they came back stateVisible=false,
+    # the SAME answer as a legible Chronicle page whose rows could not be judged, so the refusal
+    # count mixed healthy refusals with lost pages and could be read as neither. Opening six of his
+    # refused frames settled it: three were the console window or gameplay (right to refuse), three
+    # were legible sets pages carrying First Found dates (lost). One number, two opposite meanings.
+    "notChronicle = true when the picture is not a Chronicle panel at all - gameplay, a stash, a "
+    "menu, or the TV DIABLO console window. That is a different answer from a Chronicle page whose "
+    "rows you cannot judge, and saying which costs nothing while guessing costs a page.\n"
     "If you cannot tell found from unfound ANYWHERE on this panel, set stateVisible=false and return "
     "found EMPTY. This read runs unattended over old footage, so a confident wrong page permanently "
     "mis-tallies a grail nobody is watching. An empty answer is recoverable; a wrong one is not.\n"
