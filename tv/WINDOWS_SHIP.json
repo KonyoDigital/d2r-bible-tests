@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1835",
+  "ver": "v1836",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1835: A sweep wrote its findings to disk once, after the last page of the last reel - so a sweep that died lost every read it had paid for, and the reel was not sealed either so the whole bill came again. Affordable at 21 pages; not at the 440 v1834 made reachable. Evidence is now banked every 20 pages, which is safe because a sighting is keyed by reel frame and lane so re-offering it folds to nothing. Also fixes v1833 reading his real journal into isolated test sweeps.",
+  "note": "v1836: A sighting has always been keyed by reel frame and lane so names fold correctly however often a proposal is re-offered - but pagesRead and pagesRefused were summed and refused was a bare extend. His ledger claimed 4907 pages read where the evidence proves 620, listed 47 refusals of which only 30 are distinct, and reported 0 refused while 30 pages were refused. v1835 banking would have multiplied all of it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

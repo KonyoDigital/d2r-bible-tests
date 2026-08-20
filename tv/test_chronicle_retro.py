@@ -1099,14 +1099,21 @@ class TestV1776EvidenceOutlivesTheSweep(unittest.TestCase):
     The vault path has accumulated since v1533 ("merge-max only"); the chronicle path never did."""
 
     def test_a_later_sweep_never_erases_an_earlier_one(self):
+        # v1836 — the fixture now carries WHICH pages, not just a count. It used to declare
+        # pagesRead:4 beside a single sighting, which no real proposal looks like, and the counter
+        # is derived from page identity since v1835's checkpointing made a summed count double
+        # itself on re-merge. The claim under test is unchanged: two sweeps ADD, never replace.
         first = {"uniques": {"Gore Rider": [{"reel": "A", "frame": "f1", "lane": "claude"}]},
-                 "pagesRead": 4}
+                 "pageKeys": ["A|f1", "A|f2", "A|f3", "A|f4"], "pagesRead": 4}
         second = {"uniques": {"Bonesnap": [{"reel": "B", "frame": "f7", "lane": "claude"}]},
-                  "pagesRead": 6}
+                  "pageKeys": ["B|f5", "B|f6", "B|f7", "B|f8", "B|f9", "B|f10"], "pagesRead": 6}
         m = cr.merge_proposals(first, second)
         self.assertIn("Gore Rider", m["uniques"], "the second sweep wiped the first one's finding")
         self.assertIn("Bonesnap", m["uniques"])
         self.assertEqual(m["pagesRead"], 10, "the page count reversed instead of adding")
+        # and merging the same two again must not make it twenty
+        again = cr.merge_proposals(m, second)
+        self.assertEqual(again["pagesRead"], 10, "the count grew on a re-merge of the same pages")
 
     def test_cross_reel_can_finally_fire_ACROSS_two_sweeps(self):
         """The whole point. One name, two recordings, read on two different days — that is exactly
@@ -1588,6 +1595,74 @@ class TestV1833TheLiveLaneIsAWitness(unittest.TestCase):
         prop = cr.proposal_from_pages(live)
         self.assertFalse(cr.gate_verdict("Windforce", prop["uniques"]["Windforce"])["pass"],
                          "the first eyes are an extra witness, never a shortcut past the gate")
+
+
+
+class TestV1836TheCountersSurviveARemerge(unittest.TestCase):
+    """v1836 — v1835 banks evidence mid-sweep, and the counters could not take it.
+
+    A sighting has always been keyed by (reel, frame, lane), so NAMES fold correctly no matter how
+    often a proposal is re-offered. The counters did not: `pagesRead` and `pagesRefused` were summed
+    and `refused` was a bare extend. So the checkpointing shipped an hour earlier made a long sweep
+    report roughly twice the pages it read, and repeated every refusal once per bank.
+
+    That is the headline he reads. I misread this list myself tonight — took a cumulative `refused`
+    for one pass's and briefly called a working fix a failure.
+    """
+
+    def _pages(self, reel, found_frames, refused_frames=()):
+        out = []
+        for f in found_frames:
+            out.append({"reel": reel, "frame": f, "kind": "chronicle-uniques",
+                        "resp": cr.normalize_page({"ledger": "uniques", "found": ["Windforce"],
+                                                   "stateVisible": True, "conf": 0.9},
+                                                  "chronicle-uniques", "claude")})
+        for f in refused_frames:
+            out.append({"reel": reel, "frame": f, "kind": "chronicle-uniques",
+                        "resp": cr.normalize_page({"ledger": "uniques", "found": [],
+                                                   "stateVisible": False, "conf": 0.2},
+                                                  "chronicle-uniques", "claude")})
+        return out
+
+    def test_re_merging_the_same_proposal_changes_nothing(self):
+        p = cr.proposal_from_pages(self._pages("r1", ["f1", "f2"], ["f3"]))
+        m = cr.merge_proposals({}, p)
+        first = (m["pagesRead"], m["pagesRefused"], len(m["refused"]))
+        for _ in range(5):
+            m = cr.merge_proposals(m, p)
+        self.assertEqual((m["pagesRead"], m["pagesRefused"], len(m["refused"])), first,
+                         "the counters grew on a re-merge — a banked sweep now overstates itself")
+
+    def test_two_different_reels_still_add(self):
+        a = cr.proposal_from_pages(self._pages("r1", ["f1", "f2"]))
+        b = cr.proposal_from_pages(self._pages("r2", ["f1", "f2", "f3"]))
+        m = cr.merge_proposals(a, b)
+        self.assertEqual(m["pagesRead"], 5, "accumulation across sweeps was the point of v1776")
+
+    def test_the_same_frame_in_two_reels_is_two_pages(self):
+        # frame ids repeat across reels; the key has to be the pair
+        a = cr.proposal_from_pages(self._pages("r1", ["f1"]))
+        b = cr.proposal_from_pages(self._pages("r2", ["f1"]))
+        self.assertEqual(cr.merge_proposals(a, b)["pagesRead"], 2)
+
+    def test_a_refusal_is_not_counted_as_a_page_read(self):
+        p = cr.proposal_from_pages(self._pages("r1", ["f1"], ["f2", "f3"]))
+        m = cr.merge_proposals({}, p)
+        self.assertEqual(m["pagesRead"], 1)
+        self.assertEqual(m["pagesRefused"], 2)
+
+    def test_a_legacy_ledger_without_page_keys_is_reconstructed(self):
+        # his chron_evidence.json predates pageKeys; its pages are recoverable from the (reel,
+        # frame) its own sightings already carry
+        p = cr.proposal_from_pages(self._pages("r1", ["f1", "f2"]))
+        p.pop("pageKeys")
+        self.assertEqual(cr.merge_proposals({}, p)["pagesRead"], 2)
+
+    def test_the_same_refusal_seen_twice_is_listed_once(self):
+        p = cr.proposal_from_pages(self._pages("r1", [], ["f9"]))
+        m = cr.merge_proposals(cr.merge_proposals({}, p), p)
+        self.assertEqual(len(m["refused"]), 1,
+                         "one refused frame, listed twice — this is what made me misread the list")
 
 
 

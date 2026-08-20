@@ -967,8 +967,14 @@ def proposal_from_pages(pages):
     (no-found-state / wrong-ledger, v1510) contribute nothing but are counted, because "8 pages read,
     3 refused" is the honest headline and "5 pages read" is not.
     """
+    # v1836 — `pageKeys` is WHICH pages were read, not how many. A scalar cannot survive an
+    # idempotent merge: v1835 banks evidence every 20 pages and the final merge re-offers pages
+    # already banked, so `pagesRead += pagesRead` counted a long sweep roughly twice. The names were
+    # always safe (a sighting is keyed by reel/frame/lane and folds), and only the COUNTERS lied —
+    # which is worse than it sounds, because the counters are the headline he reads.
     prop = {"uniques": {}, "sets": {}, "setGroups": {}, "completeSets": {}, "refused": [],
-            "pagesRead": 0, "notFound": {"uniques": set(), "sets": set()}}
+            "pagesRead": 0, "pageKeys": [], "notFound": {"uniques": set(), "sets": set()}}
+    _pk = set()
     for p in (pages or []):
         resp = p.get("resp") or {}
         ledger = resp.get("ledger") or ("sets" if p.get("kind") == "chronicle-sets" else "uniques")
@@ -977,6 +983,7 @@ def proposal_from_pages(pages):
                                     "why": resp.get("note")})
             continue
         prop["pagesRead"] += 1
+        _pk.add("%s|%s" % (p.get("reel"), p.get("frame")))
         # v1514 — ONE SIGHTING PER LANE. Two eyes that agree must reach the gate as TWO witnesses;
         # folding them into one row would silently discard the strongest signal in the system.
         lane_map = resp.get("lanes") or {}
@@ -1021,6 +1028,7 @@ def proposal_from_pages(pages):
                     })
     prop["notFound"] = {k: sorted(v) for k, v in prop["notFound"].items()}
     prop["setGroups"] = {k: sorted(v) for k, v in prop["setGroups"].items()}
+    prop["pageKeys"] = sorted(_pk)
     return prop
 
 
@@ -1137,6 +1145,8 @@ def merge_proposals(base, incoming):
     """
     out = {"uniques": {}, "sets": {}, "setGroups": {}, "completeSets": {}, "refused": [],
            "pagesRead": 0, "pagesRefused": 0, "notFound": {"uniques": set(), "sets": set()}}
+    _seen_ref = set()
+    _keys = set()
     for src in (base or {}, incoming or {}):
         if not isinstance(src, dict):
             continue
@@ -1180,9 +1190,30 @@ def merge_proposals(base, incoming):
         if isinstance(nf, dict):
             for ledger, names in nf.items():
                 out.setdefault("notFound", {}).setdefault(ledger, set()).update(set(names or ()))
-        out["refused"].extend(src.get("refused") or [])
-        for k in ("pagesRead", "pagesRefused"):
-            out[k] += int(src.get(k) or 0)
+        # v1836 — REFUSALS DEDUPE TOO. This was a bare extend, so a frame refused on Monday and
+        # refused again on Tuesday appeared twice, and v1835's checkpointing multiplied that by the
+        # number of banks in a run. I misread this list myself tonight — counted a cumulative list
+        # as one pass's and briefly called a working fix a failure.
+        for r in (src.get("refused") or []):
+            if not isinstance(r, dict):
+                continue
+            key = (r.get("reel"), r.get("frame"), r.get("why"))
+            if key in _seen_ref:
+                continue
+            _seen_ref.add(key)
+            out["refused"].append(r)
+        # WHICH pages, then how many. A source written before v1836 has no pageKeys, so they are
+        # reconstructed from the (reel, frame) its own sightings and refusals already carry — exact
+        # for every page that yielded a name or a refusal, which is every page that left a trace.
+        keys = src.get("pageKeys")
+        if keys is None:
+            keys = set()
+            for ledger in ("uniques", "sets", "completeSets"):
+                for sightings in (src.get(ledger) or {}).values():
+                    for sg in (sightings or []):
+                        if isinstance(sg, dict) and sg.get("frame"):
+                            keys.add("%s|%s" % (sg.get("reel"), sg.get("frame")))
+        _keys.update(str(k) for k in (keys or ()))
     # v1799 — RETURN WHAT THE PRODUCER RETURNS. Sets are the right type to accumulate WITH and the
     # wrong type to hand back: this dict is json.dump-ed straight to chron_evidence.json, and
     # `json.dumps` refuses a set — it failed on an EMPTY merge. `_chron_evidence_save` wraps its dump
@@ -1195,6 +1226,11 @@ def merge_proposals(base, incoming):
     # same shape or the two halves of one contract disagree.
     out["notFound"] = {k: sorted(v) for k, v in (out.get("notFound") or {}).items()}
     out["setGroups"] = {k: sorted(v) for k, v in (out.get("setGroups") or {}).items()}
+    # DERIVED, never accumulated — the whole point. Both are now answers to "what can this ledger
+    # prove", which is a question a re-merge cannot change.
+    out["pageKeys"] = sorted(_keys)
+    out["pagesRead"] = len(_keys)
+    out["pagesRefused"] = len(out["refused"])
     return out
 
 
