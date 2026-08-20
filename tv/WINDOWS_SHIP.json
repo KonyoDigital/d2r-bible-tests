@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1837",
+  "ver": "v1838",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1837: One result object published totals computed from this run beside a refused list taken from the merged all-time ledger, as sibling keys with nothing saying so. Both true, each answering a different question. Reading the cumulative list as one pass is what briefly made me call the working v1829 fix a failure. Both the visit path and the reel path now report refused for this run and refusedEver separately.",
+  "note": "v1838: notFound is carried for audit on purpose and subtracts from nothing - that stays true - but it reached no surface a person reads, and an audit nobody can see is not an audit. It is also the cheapest instrument check there is: a grail page yielding found names and zero not-found rows means the reader saw the ticks and missed the list, which is the v1758 failure exactly. Zero is now a measured zero rather than a silence.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

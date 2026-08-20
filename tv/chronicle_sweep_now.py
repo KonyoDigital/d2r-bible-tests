@@ -251,9 +251,13 @@ def main(argv=None):
             break
         st = ca.chronicle_sweep_state() or {}
         tot = ((st.get("result") or {}).get("totals")) or {}
-        print("   read %s page(s) · %s unique name(s) · %s set name(s) · refused %s"
+        # v1838 — `not-found` rides along as an instrument check. A grail page that yields names
+        # and NO not-found rows means the reader saw the ticks and missed the list. It changes
+        # nothing in the tally by design.
+        print("   read %s page(s) · %s unique name(s) · %s set name(s) · refused %s · %s read as "
+              "not-found (audit only)"
               % (_fmt(tot.get("pagesRead")), _fmt(tot.get("uniques")),
-                 _fmt(tot.get("sets")), _fmt(tot.get("refused"))))
+                 _fmt(tot.get("sets")), _fmt(tot.get("refused")), _fmt(tot.get("notFound"))))
         if st.get("error"):
             print("   error: %s" % st["error"])
             failed += 1

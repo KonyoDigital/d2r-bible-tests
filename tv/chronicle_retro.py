@@ -1478,6 +1478,16 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
         "refused": len(prop.get("refused") or []),
         "uniques": len(prop.get("uniques") or {}),
         "sets": len(prop.get("sets") or {}),
+        # v1838 — SURFACE THE AUDIT TRAIL SO IT CAN BE AUDITED. notFound is carried on purpose and
+        # subtracts from nothing (test_notFound_is_carried_for_audit_and_subtracts_from_nothing) —
+        # absence is not allowed to un-tick a find, and that stays true. But it reached no surface a
+        # person reads, and an audit nobody can see is not an audit.
+        #
+        # It is also the cheapest INSTRUMENT check there is: a Chronicle page yielding eight found
+        # names and zero not-found ones means the reader is seeing the ticks and missing the list,
+        # which is the exact failure v1758 spent a whole version on. Zero here is a smell, not a
+        # clean bill. [[feedback-suspect-the-instrument]]
+        "notFound": sum(len(v or ()) for v in (prop.get("notFound") or {}).values()),
     }
     return {
         "reels": stats,

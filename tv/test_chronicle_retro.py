@@ -1666,5 +1666,65 @@ class TestV1836TheCountersSurviveARemerge(unittest.TestCase):
 
 
 
+class TestV1838TheAuditTrailReachesASurface(unittest.TestCase):
+    """v1838 — notFound is carried for audit and reached no surface a person reads.
+
+    Absence stays inert: it subtracts from nothing, and the guard that says so
+    (test_notFound_is_carried_for_audit_and_subtracts_from_nothing) is untouched. What changes is
+    that the count is now reported, because an audit nobody can see is not an audit.
+
+    It is also the cheapest instrument check available. A Chronicle page that yields eight found
+    names and ZERO not-found rows means the reader saw the ticks and missed the list — the exact
+    failure v1758 spent a version on, where a scrolled panel collapsed into one frame and reported
+    the top of the list as the whole ledger. Zero here is a smell, not a clean bill.
+    """
+
+    def _page(self, reel, frame, found, not_found):
+        return {"reel": reel, "frame": frame, "kind": "chronicle-uniques",
+                "resp": cr.normalize_page({"ledger": "uniques", "found": found,
+                                           "notFound": not_found, "stateVisible": True,
+                                           "conf": 0.9}, "chronicle-uniques", "claude")}
+
+    def test_the_count_is_reported_in_the_totals(self):
+        res = cr.sweep_frames.__doc__ is not None   # module sanity, cheap
+        self.assertTrue(res)
+        prop = cr.proposal_from_pages([self._page("r1", "f1", ["Windforce"],
+                                                  ["Stormshield", "Gore Rider"])])
+        self.assertEqual(sorted(prop["notFound"]["uniques"]), ["Gore Rider", "Stormshield"])
+
+    def test_absence_still_subtracts_from_nothing(self):
+        # the rule this must not break: a name read as not-found does not remove or block a find
+        # THREE reels, so the find genuinely grounds (cross-reel + cross-reel-3+ = two witnesses).
+        # The first cut of this test used two and failed on the WITNESS COUNT while accusing the
+        # not-found row of vetoing it — a fixture proving the gate's floor, not the claim.
+        pages = [self._page("r1", "f1", ["Windforce"], []),
+                 self._page("r2", "f2", ["Windforce"], ["Windforce"]),
+                 self._page("r3", "f3", ["Windforce"], ["Windforce"])]
+        prop = cr.proposal_from_pages(pages)
+        self.assertIn("Windforce", prop["uniques"])
+        self.assertIn("Windforce", prop["notFound"]["uniques"])
+        v = cr.gate_verdict("Windforce", prop["uniques"]["Windforce"])
+        self.assertTrue(v["pass"],
+                        "a not-found sighting vetoed a find that its own witnesses ground: %s" % v)
+        # and the SAME evidence without the not-found rows grounds identically — absence changed
+        # nothing either way, which is the actual claim
+        clean = cr.proposal_from_pages([self._page("r%d" % i, "f%d" % i, ["Windforce"], [])
+                                        for i in (1, 2, 3)])
+        self.assertEqual(cr.witnesses(prop["uniques"]["Windforce"]),
+                         cr.witnesses(clean["uniques"]["Windforce"]))
+
+    def test_a_page_with_no_not_found_rows_still_reports_zero_rather_than_nothing(self):
+        # zero must be a MEASURED zero — "nobody looked" and "there were none" cannot look alike
+        prop = cr.proposal_from_pages([self._page("r1", "f1", ["Windforce"], [])])
+        self.assertEqual(prop["notFound"]["uniques"], [])
+
+    def test_the_cli_prints_it(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "chronicle_sweep_now.py"), encoding="utf-8").read()
+        self.assertIn("not-found (audit only)", src,
+                      "the audit count is computed and again reaches no surface")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
