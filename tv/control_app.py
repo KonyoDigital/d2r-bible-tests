@@ -10748,6 +10748,19 @@ def stash_screen_open(frame_path):
         return None
 
 
+def _stamp_math_broke(where, exc):
+    """The find-date arithmetic FAILED rather than found nothing — say so.
+
+    v1855 — REG-200's law applied to code I wrote the same day I filed it: `except Exception:
+    _fresh = []` makes a broken comparison indistinguishable from "he found nothing new", which is
+    the single thing this feature exists to tell him. Third time in one day I have written the
+    silent-plausible-value shape after diagnosing it, which is the argument for saying it out loud
+    rather than trusting myself to remember.
+    """
+    print("   \u26a0 the find-date comparison FAILED (%s: %s) — 'nothing new' below is NOT an "
+          "answer about his grail" % (where, str(exc)[:120]))
+
+
 def _chron_evidence_merge(prop):
     """Fold this sweep's proposal into everything read so far, persist, and return the MERGED view.
 
@@ -11126,7 +11139,8 @@ def _chron_visit_run(visit_ts):
         # already folded in and every one of them looks old.
         try:
             _prev_newest = _cr.newest_stamp(_chron_evidence_load())
-        except Exception:
+        except Exception as _se:
+            _stamp_math_broke("high-water mark", _se)
             _prev_newest = None
         # v1562 — the LIVE-VISIT path never stored its evidence, so "⚖ tune the gate" appeared
         # (control_ui reveals it on any result) and could only answer "no sweep evidence in memory
@@ -11140,7 +11154,8 @@ def _chron_visit_run(visit_ts):
         prop = _chron_evidence_merge(prop)
         try:
             _fresh = _cr.newly_dated(prop, _prev_newest)
-        except Exception:
+        except Exception as _se:
+            _stamp_math_broke("newly-dated", _se)
             _fresh = []
         if _fresh:
             print("   \U0001f195 %d find(s) newer than anything read before: %s"
@@ -11602,7 +11617,8 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # already folded in and every one of them looks old.
         try:
             _prev_newest = _cr.newest_stamp(_chron_evidence_load())
-        except Exception:
+        except Exception as _se:
+            _stamp_math_broke("high-water mark", _se)
             _prev_newest = None
         # v1833 — THE FIRST EYES JOIN THE PANEL. Merged BEFORE the durable evidence merge so a live
         # sighting accumulates exactly like a read page does, and so it can corroborate a retro read
@@ -11624,7 +11640,8 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         prop = _chron_evidence_merge(prop)
         try:
             _fresh = _cr.newly_dated(prop, _prev_newest)
-        except Exception:
+        except Exception as _se:
+            _stamp_math_broke("newly-dated", _se)
             _fresh = []
         if _fresh:
             print("   \U0001f195 %d find(s) newer than anything read before: %s"
@@ -11939,7 +11956,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1854",
+        "ver": "v1855",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
