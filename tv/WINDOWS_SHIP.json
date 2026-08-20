@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1831",
+  "ver": "v1832",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1831: Measured across a real slot boundary - 44s after the rotation the TZ upstream still called the previous zone current, and had caught up by 89s. Polling faster cannot fix that because the staleness is upstreams. The board now says turning over instead of printing a finished window as LIVE NOW, derived from the feeds own history stamps at no extra request.",
+  "note": "v1832: The command line sweeper still refused outright while a capture session was live - the blanket refusal v1823 removed from the console path - so the console swept while he played and the command line sat idle. It now skips only the reel still receiving frames. Also: the suite was stamping his live tv .sweep.lock on every run, which run_gates reads to decide a sweep is in progress, and the lock documented as a heartbeat was written once so it went stale mid-sweep.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

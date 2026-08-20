@@ -7998,5 +7998,135 @@ class TestV1831TheFeedCanBeBehindTheClock(unittest.TestCase):
 
 
 
+class TestV1832OneLiveSessionRuleInBothSweepers(unittest.TestCase):
+    """v1832 — the console and the command line must refuse for the SAME reasons.
+
+    Konyo: "why refused when session is LIVE? we had a AI reader for live too". v1823 removed the
+    blanket live-session refusal from the console path, saying why in its own comment: "A live
+    session says nothing about the SEALED reels behind it, and refusing on it meant the sweeper
+    never ran while he was at the machine." chronicle_sweep_now.py kept the old rule while its
+    comment claimed to "refuse for the same reasons the watchdog refuses" — so the console would
+    sweep while he played and the command line would not. [[copy-drift]]
+    """
+
+    def _sweeper_src(self):
+        import control_app as ca
+        p = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), "chronicle_sweep_now.py")
+        self.assertTrue(os.path.isfile(p), "the standalone sweeper moved — re-point this guard")
+        return open(p, encoding="utf-8").read()
+
+    def test_the_command_line_does_not_refuse_just_because_a_session_is_live(self):
+        # Scanned by LINE, not by a character window: the first cut of this guard read 260 chars
+        # past the live check and tripped on the NEXT refusal — the already-running-sweep one,
+        # which is supposed to return. A guard that cannot tell two adjacent rules apart reports
+        # the wrong one broken.
+        src = self._sweeper_src()
+        lines = src.splitlines()
+        hits = [n for n, ln in enumerate(lines) if "_agent_alive()" in ln]
+        self.assertTrue(hits, "the live check vanished entirely — the growing reel is now unprotected")
+        for n in hits:
+            branch = [ln.strip() for ln in lines[n:n + 4]]
+            if not lines[n].strip().startswith("if "):
+                continue      # an assignment (live = ...) is the v1832 shape and refuses nothing
+            self.assertNotIn("return 1", branch,
+                             "line %d aborts the whole run on a live session; v1823 skips only "
+                             "the reel still recording" % (n + 1))
+
+    def test_it_still_protects_the_reel_that_is_actually_recording(self):
+        # dropping the blanket refusal must not drop the real protection with it
+        self.assertIn("_reel_is_growing", self._sweeper_src(),
+                      "nothing skips the reel still receiving frames — a half-written reel would "
+                      "be swept and then sealed")
+
+    def test_a_running_sweep_is_still_refused(self):
+        src = self._sweeper_src()
+        self.assertIn("a sweep is already running", src)
+
+    def test_the_doc_no_longer_claims_a_refusal_it_does_not_make(self):
+        # the drift that produced this bug was a comment asserting a rule the code had stopped
+        # sharing; a doc that lies about the refusal is the same defect one layer up
+        src = self._sweeper_src()
+        self.assertNotIn("It refuses outright while a capture session is live", src)
+
+
+
+class TestV1832TheSuiteMustNotTouchHisSweepLock(unittest.TestCase):
+    """v1832 — a properly isolated test still stamped his live tv/.sweep.lock.
+
+    Every sweep test already sets TV_HIST + TV_STUB and spends nothing, but chronicle_sweep_start
+    wrote the lock at a hardcoded HERE/.sweep.lock. Measured before the fix: one full run of
+    `python3 -m unittest test_control` moved tv/.sweep.lock every time.
+
+    It has teeth. run_gates._sweep_in_progress() reads that file and calls anything younger than
+    900s a live sweep, so for fifteen minutes after any suite run the gate believed a sweep was
+    running and softened its live-state verdict — a guard disarmed by the suite beside it.
+    """
+
+    def test_an_isolated_hist_gets_an_isolated_lock(self):
+        import control_app as ca
+        old = os.environ.get("TV_HIST")
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["TV_HIST"] = tmp
+            try:
+                p = ca._sweep_lock_path()
+            finally:
+                if old is None: os.environ.pop("TV_HIST", None)
+                else: os.environ["TV_HIST"] = old
+            self.assertEqual(os.path.dirname(p), tmp,
+                             "the lock still lands outside the isolated footage: %s" % p)
+
+    def test_production_keeps_the_exact_path_run_gates_reads(self):
+        # run_gates points at tv/.sweep.lock by name; changing it in production would silently
+        # retire that guard instead of fixing it
+        import control_app as ca
+        saved = {k: os.environ.get(k) for k in ("TV_HIST", "TV_SWEEP_LOCK")}
+        for k in saved: os.environ.pop(k, None)
+        try:
+            self.assertEqual(ca._sweep_lock_path(),
+                             os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), ".sweep.lock"))
+        finally:
+            for k, v in saved.items():
+                if v is not None: os.environ[k] = v
+
+    def test_the_heartbeat_actually_beats(self):
+        # run_gates has always CALLED it a heartbeat ("a sweep touches it while it runs") while the
+        # lock was written once, at sweep start — so its 900s staleness bound went blind partway
+        # through every long sweep. His reels take far longer than 900s.
+        import control_app as ca
+        with tempfile.TemporaryDirectory() as tmp:
+            lock = os.path.join(tmp, "beat.lock")
+            os.environ["TV_SWEEP_LOCK"] = lock
+            try:
+                ca._sweep_lock_touch(_last=[0.0])
+                self.assertTrue(os.path.isfile(lock), "the heartbeat wrote nothing")
+                first = os.path.getmtime(lock)
+                ca._sweep_lock_touch(_last=[0.0])       # a later beat refreshes it
+                self.assertGreaterEqual(os.path.getmtime(lock), first)
+            finally:
+                os.environ.pop("TV_SWEEP_LOCK", None)
+
+    def test_the_heartbeat_is_rate_limited(self):
+        # it runs before every page read; the point is a fresh mtime, not a write per read
+        import control_app as ca
+        with tempfile.TemporaryDirectory() as tmp:
+            lock = os.path.join(tmp, "rl.lock")
+            os.environ["TV_SWEEP_LOCK"] = lock
+            try:
+                ca._sweep_lock_touch(_last=[time.time()])
+                self.assertFalse(os.path.isfile(lock), "a beat inside the window still wrote")
+            finally:
+                os.environ.pop("TV_SWEEP_LOCK", None)
+
+    def test_the_read_loop_beats_it(self):
+        # a heartbeat nothing calls is the defect it replaced
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def _breathe()")
+        self.assertGreater(i, 0, "_breathe moved — re-point this guard")
+        self.assertIn("_sweep_lock_touch()", src[i:i + 1400],
+                      "the sweep's per-read hook no longer beats the lock")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

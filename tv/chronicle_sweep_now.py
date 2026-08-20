@@ -7,7 +7,7 @@ different AI readers not sweeping it one after another? and checking" — then, 
 
 WHY NOTHING WAS SWEEPING, exactly. The auto-read watchdog is a `threading.Thread` started inside
 control_app.py when the console app boots. Its logic was fine and its bounds were already real —
-two tries per reel, refuses while a session is live or a sweep runs, marks each reel read-once,
+two tries per reel, skips the reel still recording, refuses while a sweep runs, marks each read-once,
 retires with a named reason. It simply never ran, because the process that hosts it was closed.
 chronicle_retro's own CLI says the rest out loud: "This sweep needs a reader." The readers live in
 the console, so there was no way to tally without opening it.
@@ -22,8 +22,11 @@ WHAT IT WILL NOT DO, since he asked for safeguarded and not clever:
     re-arms itself; when the list is done the process exits.
   · Every wait is bounded by --timeout seconds per reel. A sweep that hangs ends the run with a
     named reason instead of parking forever.
-  · It refuses outright while a capture session is live — a reel is only final once it stops
-    growing — and while another sweep is already running.
+  · It skips the ONE reel still receiving frames — a reel is only final once it stops growing —
+    and refuses while another sweep is already running. It does NOT refuse merely because a
+    capture session is live: v1823 established that a live session says nothing about the sealed
+    reels behind it, and this file kept the old blanket refusal until v1832, so the console swept
+    while he played and the command line sat idle.
   · It reads and proposes. It does NOT apply: grounding a name into his grail stays a decision he
     makes on the board, exactly as it is from the console.
 """
@@ -67,9 +70,19 @@ def main(argv=None):
         return 2
 
     # ── refuse for the same reasons the watchdog refuses ────────────────────────────────
-    if ca._agent_alive():
-        print("refusing: a capture session is live — a reel is only final once it stops growing")
-        return 1
+    # v1832 — AND THE WATCHDOG STOPPED REFUSING FOR THIS ONE. Konyo: "why refused when session is
+    # LIVE? we had a AI reader for live too". v1823 removed the blanket live-session refusal from
+    # the console path in as many words — "A live session says nothing about the SEALED reels
+    # behind it, and refusing on it meant the sweeper never ran while he was at the machine" — and
+    # skips the single reel still receiving frames instead. This file kept the old rule while
+    # claiming in its own comment to mirror the watchdog, so the console would sweep while he
+    # played and the command line would not. One rule, two copies, one of them updated.
+    # [[copy-drift]]
+    live = False
+    try:
+        live = bool(ca._agent_alive())
+    except Exception:
+        live = False
     if (ca.chronicle_sweep_state() or {}).get("running"):
         print("refusing: a sweep is already running")
         return 1
@@ -123,7 +136,29 @@ def main(argv=None):
     waiting = [r for r in ca._unswept_chron_reels(limit=50)]
     if args.reel:
         waiting = [r for r in waiting if r.get("reel") == args.reel]
+
+    # v1832 — the ONE reel a live session actually protects: the one still receiving frames. Named
+    # out loud, because "skipped it" and "there was nothing to do" are different facts and only one
+    # of them is worth waiting on.
+    hist = os.environ.get("TV_HIST") or os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                     "frames", "hist")
+    growing = []
+    for r in list(waiting):
+        try:
+            if ca._reel_is_growing(os.path.join(hist, str(r.get("reel")))):
+                growing.append(r.get("reel"))
+                waiting.remove(r)
+        except Exception:
+            pass
+    if growing:
+        print("still recording, left alone: %s" % ", ".join(str(g) for g in growing))
+    elif live:
+        print("a capture session is live — sweeping the SEALED reels behind it anyway (v1823)")
+
     if not waiting:
+        if growing:
+            print("nothing to sweep: the only reel waiting is still being recorded")
+            return 0
         print("nothing waiting: every reel with a chosen Chronicle focus has been swept")
         return 0
 

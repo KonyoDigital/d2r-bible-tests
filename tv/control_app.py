@@ -9520,6 +9520,52 @@ def _chron_swept_save(rec):
         pass
 
 
+def _sweep_lock_path():
+    """v1832 — THE LOCK BELONGS TO THE FOOTAGE, NOT TO THE SOURCE TREE.
+
+    `.sweep.lock` was written at a hardcoded HERE/.sweep.lock, so every test that started a sweep —
+    all of them properly isolated behind TV_HIST + TV_STUB, spending nothing — still reached into
+    his working tree and stamped the real file. Measured: `python3 -m unittest test_control` moves
+    tv/.sweep.lock every run.
+
+    That is not cosmetic, because run_gates._sweep_in_progress() READS this file to decide whether a
+    chronicle sweep is live, and treats anything under 900s old as running. So for fifteen minutes
+    after any suite run, the gate believed a sweep was in progress and softened its live-state
+    verdict accordingly — a guard disarmed by the very suite it runs beside, which is the shape of
+    [[feedback-fixtures-never-touch-live-data]] and of the 08-17 fix "the test suite was writing his
+    console's live state".
+
+    Derived from TV_HIST rather than bolted to a new env var: the lock answers "is a sweep of THIS
+    footage running", so it belongs beside that footage. With TV_HIST unset — production, his real
+    reels — the path is byte-identical to what it always was, so run_gates needs no change.
+    """
+    env = os.environ.get("TV_SWEEP_LOCK")
+    if env:
+        return env
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        return os.path.join(hist, ".sweep.lock")
+    return os.path.join(HERE, ".sweep.lock")
+
+
+def _sweep_lock_touch(_last=[0.0]):
+    """v1832 — MAKE THE HEARTBEAT REAL. run_gates calls this a lock "with a heartbeat" and says a
+    sweep "touches it while it runs" — it was written exactly ONCE, at sweep start. Its staleness
+    bound is 900s, and a real sweep of his footage takes far longer than that (the reel running
+    while this was written: 37 minutes and counting on ONE reel). So the guard went blind partway
+    through precisely the long sweeps it exists to notice. Rate-limited to once a minute: the point
+    is a fresh mtime, not the write."""
+    now = time.time()
+    if now - _last[0] < 60:
+        return
+    _last[0] = now
+    try:
+        with open(_sweep_lock_path(), "w") as fh:
+            fh.write(str(int(now)))
+    except Exception:
+        pass
+
+
 def _chron_seal_stands(rec, prompt_ver=None):
     """v1830 — A SEAL THAT READ NOTHING IS ONLY AS GOOD AS THE READER THAT MADE IT.
 
@@ -10951,7 +10997,12 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             Same flag, opposite correct behaviour.
 
             Bounded so a stuck throttle cannot hang the sweep forever: the window is 120s, this
-            waits at most 180s per call and then lets the reader refuse as v1774 does."""
+            waits at most 180s per call and then lets the reader refuse as v1774 does.
+
+            v1832 — and it is where the sweep's heartbeat beats, because it is the one hook that
+            runs before EVERY page read. run_gates has always described the lock as a heartbeat;
+            until now nothing beat it."""
+            _sweep_lock_touch()
             import time as _t
             deadline = _t.time() + 180.0
             slept = 0.0
@@ -11012,7 +11063,7 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # v1780 — DECLARE THE SWEEP. run_gates fingerprints the live state files and cannot tell a
         # legitimate sweep from a test writing his console; a lock with a heartbeat is that signal.
         try:
-            with open(os.path.join(HERE, ".sweep.lock"), "w") as _lk:
+            with open(_sweep_lock_path(), "w") as _lk:
                 _lk.write(str(int(time.time())))
         except Exception:
             pass
@@ -11398,7 +11449,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1831",
+        "ver": "v1832",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
