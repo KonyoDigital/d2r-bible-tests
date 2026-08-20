@@ -6543,6 +6543,14 @@ was dead (REG-211): **sim · live · live · sim**. Under `TV_STUB` the deep rea
 from `stub_manifest.json` whose `scene` defaults to `"gameplay"` — so a Chronicle page open on
 screen is journaled as gameplay, and nothing in the pipeline is broken.
 
+⚠ **CORRECTION, made the same night (v1869).** The attribution above is WRONG and the fix is
+still right. `test_button_matrix` and `test_roundtrip_sim` spawn their own control app and write
+`—— control start … mode=sim ——` banners into the same `control_agent.log` — 14 and 4 lines per run
+— so the "five starts in 64 seconds" I read as Konyo at his keyboard were **my own gate runs**.
+Founding rule 4: suspect the instrument. Why his live Sets session did not read the Chronicle is
+therefore **still open**, and the sim-stamping below stands on its own merits, not on this story.
+[[feedback-suspect-the-instrument]]
+
 **His journal holds 414 rows written under TV_STUB across ten days** (08-02 → 08-20), beside real
 ones, with nothing to tell them apart except `mode: "stub"` on the deep-read rows. Session summary
 rows carry no mode at all, so a whole SIM session was indistinguishable from a live one that saw
@@ -6637,3 +6645,24 @@ recoverable: 1787177667153 → today 18:14), drops anything beyond a minute of c
 future, and uses a **two-sided** window — *"not older than a day"* and *"not in the future"* are two
 conditions and the one-sided test only ever checked one. Normalised on write as well as read, or the
 next recorded call copies the poison straight back in.
+
+
+## REG-218 — one gate run rewrote five of his live files, and spent a real vision call (FIXED v1869)
+
+With the journal leak closed, the same question was asked of the WHOLE tree rather than a watchlist:
+hash every file in `tv/`, run all 32 gates, hash again. **Five files changed** —
+`.subscription_budget.json`, `.tvd_beacon.json`, `control_agent.log`, `g5_stats.json`, `state.json`
+— and the first of those means a gate run **spent one real vision call against his subscription**.
+Every push runs those gates, so every push quietly bought a read he did not ask for.
+
+**One rule, four files.** `tv_diablo._fixture_root()`: when `TV_HIST` points outside the module's own
+tree, the caller has said *"this is not his world"*, so his engine state, his console log, his G5
+stats and his subscription meter follow the fixture instead. Same shape as v1867's journal rule.
+`test_g5_grok_eyes` was the fifth: it patched `_STATE_FILE` and `_BUDGET_PATH` to a tempdir and
+**not `_STATS_PATH`** — a partial sandbox reads as a sandbox.
+
+Measured: `test_roundtrip_sim` spent **1 → 0** real vision calls.
+
+⚠ **The log pollution had already cost a wrong diagnosis** — see the correction on REG-214. That is
+why this is filed as a defect and not as tidiness: a diagnostic file a test can write is a
+diagnostic that will eventually be believed about the wrong actor.

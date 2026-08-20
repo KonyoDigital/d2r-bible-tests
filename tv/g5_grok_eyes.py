@@ -593,7 +593,17 @@ def _budget_save(state):
 # hourlyUsed was right for exactly one reason: the budget goes through a FILE. So the stats do too.
 # Same shape, same override-per-call env hook, same swallow-on-failure — a stats write must never
 # be able to break a vision call.
-_STATS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "g5_stats.json")
+def _g5_stats_root():
+    """v1869 — the same one rule: a fixture's reads are not his G5 statistics."""
+    _here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(_here)
+    except Exception:
+        return _here
+
+
+_STATS_PATH = os.path.join(_g5_stats_root(), "g5_stats.json")
 _COUNTERS = ("calls", "ok", "errors", "skipped_budget", "shadow", "primary")
 
 

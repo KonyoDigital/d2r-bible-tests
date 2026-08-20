@@ -25,8 +25,14 @@ class TestG5OffByDefault(unittest.TestCase):
         self._td = tempfile.mkdtemp()
         self._p_state = mock.patch.object(g5, "_STATE_FILE", os.path.join(self._td, "g5.state"))
         self._p_budget = mock.patch.object(g5, "_BUDGET_PATH", os.path.join(self._td, "budget.json"))
+        # v1869 — AND THE STATS FILE. Two of the three paths were isolated and the third was not, so
+        # every run of this suite rewrote his live tv/g5_stats.json — the file the console reads to
+        # answer "was the second eye actually asked". A partial sandbox reads as a sandbox.
+        # [[feedback-fixtures-never-touch-live-data]]
+        self._p_stats = mock.patch.object(g5, "_STATS_PATH", os.path.join(self._td, "stats.json"))
         self._p_state.start()
         self._p_budget.start()
+        self._p_stats.start()
         g5._CALL_LOG.clear()
         g5._STATS.update({
             "calls": 0, "ok": 0, "errors": 0, "skipped_budget": 0,
@@ -37,6 +43,7 @@ class TestG5OffByDefault(unittest.TestCase):
     def tearDown(self):
         self._p_state.stop()
         self._p_budget.stop()
+        self._p_stats.stop()
         os.environ.clear()
         os.environ.update(self._env)
 

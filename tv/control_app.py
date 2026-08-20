@@ -76,7 +76,21 @@ def _journal_ring():
 
 CONTROL_PORT = int(os.environ.get("TV_CONTROL_PORT", "17772"))
 AGENT_PORT = int(os.environ.get("TV_PORT", "17771"))
-LOG_PATH = os.path.join(HERE, "control_agent.log")
+def _log_root():
+    """v1869 — his console log, unless TV_HIST says this is a fixture's world.
+
+    This one cost a wrong diagnosis before it was found: test_button_matrix and test_roundtrip_sim
+    write `—— control start … mode=sim ——` banners into control_agent.log, and I read a cluster of
+    them as Konyo pressing SIM and LIVE at his keyboard. They were my own gate runs.
+    Founding rule 4 — suspect the instrument. [[feedback-suspect-the-instrument]]"""
+    try:
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(HERE)
+    except Exception:
+        return HERE
+
+
+LOG_PATH = os.path.join(_log_root(), "control_agent.log")
 PID_PATH = os.path.join(HERE, "control_agent.pid")
 CAP_PID_PATH = os.path.join(HERE, "control_capture.pid")
 UI_PATH = os.path.join(HERE, "control_ui.html")
@@ -1054,7 +1068,10 @@ def _pid_cached():
 # thing that tells them apart, so the bare-except must never be restored without it.
 # Fire-and-forget and non-blocking are UNCHANGED — only the bookkeeping is new.
 _BEACON_LOCK = threading.Lock()
-_BEACON_STATE_PATH = os.path.join(HERE, ".tvd_beacon.json")   # per-install, alongside .tvd_identity.json
+# v1869 — per-install, alongside .tvd_identity.json — and per-FIXTURE when TV_HIST says so, by the
+# one rule in tv_diablo._fixture_root. A test-spawned console announcing itself into his beacon is
+# a test telling his dashboard that a session started. [[feedback-fixtures-never-touch-live-data]]
+_BEACON_STATE_PATH = os.path.join(_log_root(), ".tvd_beacon.json")
 _BEACON_LAST = {"t": None, "ts": None, "ok": None, "code": None, "err": "", "event": "",
                 "okAt": None, "attempts": 0, "failures": 0, "suppressed_by": "", "fleet": None}
 
@@ -12238,7 +12255,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1868",
+        "ver": "v1869",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

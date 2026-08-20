@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1868",
+  "ver": "v1869",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1868: The live-state gate watched five files and not his session journal, which is how a test harness wrote 1729 rows into it unseen. Teaching it to watch turned it red within one run and it found two more writers: a button matrix that carefully took a private port and then handed the app his real environment, and the subscription-cap tests, which exist to cause refusals and journal every one of them into his live file while leaking a daily cap of one into every later test. Also his budget meter held a millisecond timestamp among seconds, and since both windows subtract, it sat in the future and never expired.",
+  "note": "v1869: With the journal leak closed the same question was asked of the whole tree: hash every file in tv, run all 32 gates, hash again. Five changed, and one of them means a gate run spent a real vision call against his subscription on every push. One rule now covers four of them: when TV_HIST points outside this tree the caller has said this is not his world, so his engine state, his console log, his G5 stats and his subscription meter follow the fixture. The g5 suite was the fifth, isolating two of its three paths. It had already cost a wrong diagnosis: the sim and live start banners I read as him pressing buttons were written by my own gate runs.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

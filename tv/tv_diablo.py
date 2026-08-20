@@ -49,10 +49,32 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1868"   # Isolating the port is not isolating the world
+VERSION = "v1869"   # A fixture must not write his log, his meter or his stats
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
-STATE  = os.path.join(HERE, "state.json")
+def _fixture_root(here):
+    """The directory live state belongs in: his tree normally, the FIXTURE's when TV_HIST is one.
+
+    v1869 — one rule, four files. A caller that repoints TV_HIST outside this module has said "this
+    is not his world"; his console log, his engine state, his G5 stats and his subscription meter
+    must not then describe a fixture's run. Measured tonight: a single gate run rewrote all four,
+    and the pollution of ONE of them — control_agent.log — cost a wrong diagnosis, because the
+    sim/live start banners I read as HIS button presses were written by my own test-spawned control
+    apps. [[feedback-fixtures-never-touch-live-data]] [[feedback-suspect-the-instrument]]
+    """
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        try:
+            h = os.path.realpath(hist)
+            root = os.path.realpath(here)
+            if not (h == root or h.startswith(root + os.sep)):
+                return h
+        except Exception:
+            pass
+    return here
+
+
+STATE  = os.path.join(_fixture_root(HERE), "state.json")
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
 # v780 — one ON cycle = one theatre session. Every journal row carries this id so SIM/theatre
 # never glues multiple restarts into one mega-run (the 10min gap alone was too soft).
@@ -2542,7 +2564,34 @@ def _claude_lean_args(model, *, stream=False, add_dirs=None):
 # v1379 — hard subscription circuit breaker for cold oneshots + warm budget log.
 # Armed only for REAL claude CLI vision — never for TV_STUB / fake_claude (tests would
 # burn the hourly cap on themselves and return None without spawning a worker).
-_SUB_BUDGET_PATH = os.path.join(HERE, ".subscription_budget.json")
+def _sub_budget_path():
+    """Where the subscription meter lives — and never HIS meter when the world is a fixture.
+
+    v1869 — MEASURED: one full 32-gate run spends ONE REAL VISION CALL against his subscription and
+    writes it into this file. Every push runs those gates, so every push quietly bought a read he
+    did not ask for. Small; unasked; and the meter is the one thing that must describe his account
+    and nothing else.
+
+    Same rule as the journal (v1867), for the same reason: a caller that isolates TV_HIST has said
+    "this is not his world", and a meter counting reads made in a fixture is not a meter of his
+    account. TV_SUB_BUDGET wins when named explicitly. [[feedback-fixtures-never-touch-live-data]]
+    """
+    explicit = os.environ.get("TV_SUB_BUDGET")
+    if explicit:
+        return explicit
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        try:
+            h = os.path.realpath(hist)
+            here = os.path.realpath(HERE)
+            if not (h == here or h.startswith(here + os.sep)):
+                return os.path.join(h, ".subscription_budget.json")
+        except Exception:
+            pass
+    return os.path.join(HERE, ".subscription_budget.json")
+
+
+_SUB_BUDGET_PATH = _sub_budget_path()
 # v1777 — THE CAPS WERE SIZED FOR A LIVE SESSION, NOT FOR READING HIS FOOTAGE BACK.
 # 60/hour and 250/day fit a farm session sipping the odd frame. A Chronicle catch-up is the opposite
 # shape: ONE reel of his thorough scroll is ~290 pages, so the very first honest sweep could not fit
