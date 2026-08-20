@@ -268,6 +268,22 @@ def main(argv=None):
         # Rattlecage, Naglring -> Nagelring and Twitchthrow -> Twitchthroe, and 25 names retired as
         # debris - every one verified as NOT an exact roster member, so nothing real was thrown
         # away. That is a fact worth being able to see. [[plumbing-with-no-tap]]
+        # v1843 — AND THE VERDICT ITSELF, which is the one that answers "why did it find nothing".
+        # sweep_verdict distinguishes FIVE kinds of nothing — no-footage, all-swept, no-chronicle,
+        # read-nothing, not-measured — and only the fourth means the reader is at fault. Its
+        # docstring says exactly why it exists: Konyo reported "i tried this yesterday and it didnt
+        # work properly" about a run that had worked perfectly, over four reels holding 394 frames
+        # of lobby and character select and not one Chronicle page. The sweep proposed nothing, which
+        # is "indistinguishable from broken, because it never said any of that".
+        # It still never said it HERE. result["verdict"] is published and read by nothing, so the
+        # only surface he runs by hand printed a bare count and left him to guess which nothing he
+        # got. The count is not the diagnosis. [[plumbing-with-no-tap]]
+        _v = (st.get("result") or {}).get("verdict") or {}
+        if _v.get("state") and _v.get("state") != "found":
+            print("   %s: %s" % (_v["state"], _v.get("say") or ""))
+        if _v.get("do"):
+            print("   -> %s" % _v["do"])
+
         _fold = (st.get("result") or {}).get("fold") or {}
         _fx, _rt = _fold.get("folded") or {}, _fold.get("retired") or []
         if _fx or _rt:

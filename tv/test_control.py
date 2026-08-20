@@ -8510,6 +8510,27 @@ class TestV1843TheFoldReceiptReachesASurface(unittest.TestCase):
         self.assertIn("corrected", body)
         self.assertIn("retired as debris", body)
 
+    def test_the_cli_prints_the_sweep_verdict(self):
+        """The five-kinds-of-nothing diagnostic reached no surface either.
+
+        sweep_verdict separates no-footage / all-swept / no-chronicle / read-nothing / not-measured
+        precisely because only ONE of them means the reader is at fault, and its docstring records
+        the complaint that produced it: a run reported as broken that had worked perfectly over 394
+        frames of lobby and character select. The CLI printed a bare count, which is the same
+        ambiguity the verdict was written to end.
+        """
+        src = self._cli()
+        # anchored on the SWEEP verdict's own assignment: the file also reads a verdict off the
+        # PRICING quote, and the first cut of this guard found that one instead and reported the
+        # actionable half missing from a block it was never looking at.
+        anchor = '_v = (st.get("result") or {}).get("verdict")'
+        self.assertIn(anchor, src, "the sweep verdict is published and read by nothing")
+        i = src.find(anchor)
+        body = src[i:i + 400]
+        self.assertIn('_v.get("do")', body, "the actionable half of the verdict is dropped")
+        self.assertIn('!= "found"', body,
+                      "a successful sweep would repeat itself — the count already says that")
+
     def test_it_says_nothing_when_the_fold_did_nothing(self):
         # "no corrections" and "no fold ran" must not print the same line
         src = self._cli()
