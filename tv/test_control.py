@@ -7797,6 +7797,14 @@ class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):
     0.90/0.88 with five dated set pieces. Nothing was wrong with the footage or the readers.
     """
 
+    def setUp(self):
+        # Pillow is installed in CI (publish.yml + tv-tests.yml), but a bare environment must SKIP
+        # rather than ERROR — an unguarded import here refused ten consecutive publishes.
+        try:
+            from PIL import Image  # noqa: F401
+        except Exception:
+            self.skipTest("Pillow absent — this fixture writes a real JPEG for the reader to crop")
+
     def _jpg(self, tmp):
         from PIL import Image
         p = os.path.join(tmp, "page.jpg")
@@ -8143,6 +8151,12 @@ class TestV1834ANamedReelIsReachableAndPricedAsItself(unittest.TestCase):
     was impossible — his 483-frame reel quoted "21 page read(s)", the cost of the NEWEST reel, on
     the exact line he reads before agreeing to spend.
     """
+
+    def setUp(self):
+        try:
+            from PIL import Image  # noqa: F401
+        except Exception:
+            self.skipTest("Pillow absent — the pricing walk has to decode frames to group them")
 
     def _reel(self, root, name, n):
         """REAL jpegs, in blocks of four. The first cut of this fixture wrote index.json and no

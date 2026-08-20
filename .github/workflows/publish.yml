@@ -148,6 +148,14 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
+      # Pillow FIRST — the same reason tv-tests.yml has installed it since it was written:
+      # "without it the chronicle RED/GREEN class skips, and a guard that skips is not a guard".
+      # publish.yml never got that line, so the workflow that BLOCKS THE DEPLOY ran the same suite
+      # with fewer capabilities than the one that only reports. 26 tests skipped here and ran there,
+      # and on 2026-08-20 two new fixtures that decode JPEGs turned that gap from silent skipping
+      # into an outright ERROR that refused ten consecutive publishes.
+      - name: Install Pillow (so the frame-decoding suites run instead of skipping)
+        run: python3 -m pip install --quiet pillow
       - run: cd tv && python3 -m unittest test_control test_tz_art
 
   review:
