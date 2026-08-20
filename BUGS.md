@@ -7191,3 +7191,37 @@ designed, on a test I wrote about timestamp units being confused — undone by t
 name — opaque strings with no window semantics. The one reel fixture that *does* care about age
 (`_make_reel`) ages its files with `os.utime` relative to now, which is the right shape.
 [[feedback-blind-fixture-green-gate]] [[stale-reading]]
+
+## REG-237 — mixed panels in one reel, and the board's vault apply, both driven for the first time (v1887)
+
+Closing the two gaps I named after REG-234.
+
+**Mixed panels in one reel.** Every earlier test used one surface per sweep; he does not park on one
+panel. Three still-runs in one reel — Personal stash → Runes tab → Inventory — now drive the sweep:
+6 classifies, 6 page reads, and each item lands in the lane of the panel it was seen on
+(`Shako`→stash, `Ral Rune`→stash/rune/count 3, `Tome of Town Portal`→inventory). The same item on two
+panels stays **two rows**, and a gameplay panel between them **costs nothing** — 4 pages read, not 6.
+26 tests in the battery now.
+
+**The board's `vaultAccumApply`, in a real page.** It lives inside an IIFE no unit test can reach, so
+it was driven under headless Chrome on `:9224`. All four rules it states about itself hold:
+
+1. **merge-max** — a read of 3 left a stored 9 alone; a read of 14 raised it
+2. **route by kind** — gem→gems, material→materials, `item`→grail, unknown kind→**skipped by name**
+3. **throw-outs are never written** — 2 suggestions acknowledged, all three stores byte-identical
+4. **an empty payload refuses** — `ok:false, "the payload carried no items"`
+
+Traffic: **500 tally items in 242 ms**, every one written. A throw-out naming something he owns left
+it owned. Garbage counts (`-3`, `'lots'`) never lowered anything.
+
+**One real finding: `count: 0` was reported as "no readable count".** Zero is a measurement — *"I
+looked at that shelf and there are none"* — and null is an absence. Both correctly write nothing, so
+the store was always safe, but the receipt attached a wrong reason to a right action. His own
+doctrine: *"`0` means 'we measured, it was zero'; `None` means 'nobody looked'. Collapsing them is a
+lie with no author."* Now: `read as none — nothing to raise` vs `no readable count`.
+
+⚠ **Three instrument errors in this pass, none of them in his code**, each caught by looking rather
+than believing: a 501st rune that was residue from my own earlier probe (merge-max taking the max of
+memory and localStorage — the designed behaviour); an edit that "did not take" because my harness
+matched the *first* `bible.html` tab and picked a stale one; and before that, the still-run signature
+inverted. **The count is the tell.** [[feedback-suspect-the-instrument]]

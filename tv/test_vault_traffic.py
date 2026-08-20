@@ -184,6 +184,86 @@ class TestTheThrowBarSeenFromBothSides(_Base):
         self.assertEqual(len(self.sweep(below)[0]["owned"]), 0, "below the floor passed")
 
 
+class TestOneReelManyPanels(_Base):
+    """He does not park on one panel. He opens the stash, clicks through Personal → Runes → Gems,
+    then looks at his inventory — all inside ONE recording.
+
+    Every earlier test in this file used a single surface for a whole sweep, so the case that
+    actually happens had never been driven: several still-runs in one reel, each classified
+    separately, each read against its own surface, all folding into one proposal."""
+
+    RUNS = ((6, 10.0), (6, 60.0), (6, 110.0))          # three panels, six frames each
+    SURF = {10.0: "stash", 60.0: "runes", 110.0: "inventory"}
+    ITEMS = {"stash": [{"name": "Shako", "conf": 0.9}],
+             "runes": [{"name": "Ral Rune", "kind": "rune", "count": 3, "conf": 0.9}],
+             "inventory": [{"name": "Tome of Town Portal", "conf": 0.9}]}
+
+    def _mixed(self, items=None, sessions=2):
+        import shutil
+        items = items or self.ITEMS
+        root = tempfile.mkdtemp(prefix="vault-mixed-")
+        self.addCleanup(shutil.rmtree, root, True)
+        sigmap, dirs = {}, []
+        for sn in range(sessions):
+            sid = "s_17870000%02d_sim" % sn
+            d = os.path.join(root, "reel_" + sid)
+            os.makedirs(d, exist_ok=True)
+            idx, i = {"sessionId": sid, "frames": []}, 0
+            for n, sv in self.RUNS:
+                for _ in range(n):
+                    f = "f_%03d.jpg" % i
+                    with open(os.path.join(d, f), "wb") as fh:
+                        fh.write(b"x")
+                    idx["frames"].append({"f": f, "ts": 1787000000000 + i * 1000})
+                    sigmap[os.path.join(d, f)] = sv
+                    i += 1
+            with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump(idx, fh)
+            dirs.append(d)
+        return vr.sweep(dirs,
+                        sig=lambda p: [sigmap[p]] * 8,
+                        classify=lambda p: self.SURF[sigmap[p]],
+                        reader=lambda p, surf: {"items": items[surf], "conf": 0.9, "note": None})
+
+    def test_each_panel_is_classified_and_read_on_its_own(self):
+        res = self._mixed()
+        self.assertTrue(res["ok"], res.get("why"))
+        self.assertEqual(res["totals"]["classified"], 6, "panels were not classified one by one")
+        self.assertEqual(res["totals"]["pagesRead"], 6)
+
+    def test_every_item_lands_in_the_lane_of_the_panel_it_was_seen_on(self):
+        res = self._mixed()
+        got = {r["name"]: (r["lane"], r.get("kind"), r.get("count")) for r in res["owned"]}
+        self.assertEqual(got.get("Shako"), ("stash", "item", None))
+        self.assertEqual(got.get("Ral Rune"), ("stash", "rune", 3),
+                         "the runes TAB is a stash tab; its items are stash items")
+        self.assertEqual(got.get("Tome of Town Portal"), ("inventory", "item", None))
+        self.assertEqual(len(res["unsure"]), 0)
+
+    def test_the_same_item_on_two_panels_is_two_rows(self):
+        """His Shako is in the stash AND one is in his inventory — that is two facts, not one."""
+        items = dict(self.ITEMS)
+        items["inventory"] = [{"name": "Shako", "conf": 0.9}]
+        res = self._mixed(items)
+        pairs = sorted((r["name"], r["lane"]) for r in res["owned"] if r["name"] == "Shako")
+        self.assertEqual(pairs, [("Shako", "inventory"), ("Shako", "stash")],
+                         "two panels collapsed into one row: %s" % pairs)
+
+    def test_a_panel_that_is_NOT_an_ownership_surface_costs_nothing(self):
+        """He walks through town between panels. Gameplay must not be read at all."""
+        surf = dict(self.SURF)
+        surf[60.0] = "gameplay"
+        keep = self.SURF
+        self.SURF = surf
+        try:
+            res = self._mixed()
+        finally:
+            self.SURF = keep
+        self.assertEqual(res["totals"]["pagesRead"], 4, "a non-ownership panel was paid for")
+        self.assertEqual(sorted(r["name"] for r in res["owned"]),
+                         ["Shako", "Tome of Town Portal"])
+
+
 class TestAMisreadDoesNotBecomeAGhost(_Base):
     """v1885 — the vault lane had NO name fold, and the chronicle lane has had one for versions.
 

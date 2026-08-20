@@ -41198,7 +41198,17 @@ window._renderStashFresh = function(){
       }
       var have = parseInt(pend[kind][nm], 10) || 0;
       var saw  = parseInt(it.count, 10);
-      if (!isFinite(saw) || saw <= 0){ out.skipped.push(nm + ' (no readable count)'); return; }
+      /* v1887 — ZERO IS A MEASUREMENT, NOT AN ABSENCE, and this line called both the same thing.
+         `count: 0` is the reader saying "I looked at that shelf and there are none"; `count: null`
+         is "I could not read a number". Both correctly write NOTHING — merge-max means a zero can
+         never lower a count, so the STORE was always safe — but the receipt said "no readable
+         count" for a genuine zero, which is a wrong reason attached to a right action.
+         Konyo's own doctrine: "`0` means 'we measured, it was zero'; `None` means 'nobody looked'.
+         Collapsing them is a lie with no author." Found by driving this function in a real page
+         under headless Chrome, which is the only way this line was ever going to be read.
+         [[unknown-stays-unknown]] */
+      if (saw === 0){ out.skipped.push(nm + ' (read as none — nothing to raise)'); return; }
+      if (!isFinite(saw) || saw < 0){ out.skipped.push(nm + ' (no readable count)'); return; }
       if (saw > have){ pend[kind][nm] = saw; out.raised.push(nm + ' ' + have + '→' + saw); }
       else            { out.held.push(nm + ' (held ' + have + ', read ' + saw + ')'); }
     });
@@ -42098,7 +42108,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1886', name:'v1886 - A fixture whose verdict depends on how long ago it was written', date:'2026-08-21', note:'The test I wrote about a millisecond timestamp being confused for seconds pinned the real value from his budget file and asserted it survived the twenty-four hour window. It passed for a day and then failed mid-push, exactly twenty-four hours after the moment it described, and his pre-push gate refused the ship. The value is built relative to now, a mirror asserts that a genuinely old stamp still ages out so that rescaling never means resurrecting, and the class was swept: every other epoch literal in tonight tests is a reel id with no window semantics.' };
+  window.D2R_BUILD = { id:'v1887', name:'v1887 - Zero is a measurement and null is an absence', date:'2026-08-21', note:'Two gaps closed. Mixed panels in one reel now drive the sweep - stash then runes then inventory inside one recording, each item landing in the lane of the panel it was seen on, the same item on two panels staying two rows, and a gameplay panel between them costing nothing. And the board vault apply was driven in a real page under headless Chrome because it lives inside a closure no unit test can reach: all four rules it states about itself hold, five hundred tally items land in 242 milliseconds, and a throw-out naming something he owns leaves it owned. The one finding is that a count of zero was reported as no readable count, which attaches a wrong reason to a right action.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

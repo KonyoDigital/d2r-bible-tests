@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1886",
+  "ver": "v1887",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1886: The test I wrote about a millisecond timestamp being confused for seconds pinned the real value from his budget file and asserted it survived the twenty-four hour window. It passed for a day and then failed mid-push, exactly twenty-four hours after the moment it described, and his pre-push gate refused the ship. The value is built relative to now, a mirror asserts that a genuinely old stamp still ages out so that rescaling never means resurrecting, and the class was swept: every other epoch literal in tonight tests is a reel id with no window semantics.",
+  "note": "v1887: Two gaps closed. Mixed panels in one reel now drive the sweep - stash then runes then inventory inside one recording, each item landing in the lane of the panel it was seen on, the same item on two panels staying two rows, and a gameplay panel between them costing nothing. And the board vault apply was driven in a real page under headless Chrome because it lives inside a closure no unit test can reach: all four rules it states about itself hold, five hundred tally items land in 242 milliseconds, and a throw-out naming something he owns leaves it owned. The one finding is that a count of zero was reported as no readable count, which attaches a wrong reason to a right action.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

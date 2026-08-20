@@ -9512,6 +9512,58 @@ class TestNoOptionalCallToAFunctionThatCannotExist(unittest.TestCase):
                          "the guard is reading its own documentation again")
 
 
+class TestTheVaultApplyTellsZeroFromUnknown(unittest.TestCase):
+    """v1887 — `window.vaultAccumApply` called `count: 0` and `count: null` the same thing.
+
+    Both correctly write NOTHING — merge-max means a zero can never lower a count, so the STORE was
+    always safe — but the receipt said "no readable count" for a genuine zero, which is a wrong
+    reason attached to a right action. His own doctrine: "`0` means 'we measured, it was zero';
+    `None` means 'nobody looked'. Collapsing them is a lie with no author."
+
+    VERIFIED IN A REAL PAGE, headless Chrome on :9224, calling the function itself — which is the
+    only way this line was ever going to be read, because it lives inside an IIFE that no unit test
+    can reach:
+
+        count: 0      -> "Flawless Amethyst (read as none — nothing to raise)"
+        count: null   -> "Flawless Topaz (no readable count)"
+        count: 'lots' -> "Flawless Emerald (no readable count)"
+        count: -3     -> "Perfect Ruby (no readable count)"      store untouched in all four
+
+    THE SAME PASS CHECKED THE FOUR RULES THE FUNCTION STATES ABOUT ITSELF, and all four hold:
+      1. merge-max — a read of 3 left a stored 9 alone; a read of 14 raised it
+      2. route by kind — gem→gems, material→materials, item→grail, unknown kind→skipped BY NAME
+      3. throw-outs are never written — 2 suggestions acknowledged, all three stores byte-identical
+      4. an empty payload refuses: ok:false, "the payload carried no items"
+      · traffic: 500 tally items in 242ms, every one written
+
+    What is asserted HERE is the one thing a source check can hold honestly: the ORDER of the two
+    branches. `saw === 0` must be tested BEFORE the `!isFinite || saw < 0` branch, or zero falls
+    through into it and the distinction is gone again. [[unknown-stays-unknown]]"""
+
+    def test_zero_is_tested_before_the_unreadable_branch(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        zero = src.find("if (saw === 0){")
+        junk = src.find("if (!isFinite(saw) || saw < 0){")
+        self.assertGreater(zero, 0, "the zero branch is gone — a measurement reads as an absence")
+        self.assertGreater(junk, 0, "the unreadable-count branch is gone")
+        self.assertLess(zero, junk, "zero now falls through into 'no readable count' again")
+
+    def test_neither_branch_writes_anything(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("if (saw === 0){")
+        j = src.find("if (saw > have){", i)
+        self.assertGreater(j, i)
+        between = src[i:j]
+        self.assertEqual(between.count("return;"), 2, "a refusal stopped returning early")
+        self.assertNotIn("pend[kind][nm] =", between, "a refused row writes into the store")
+
+
 class TestBothTzClocksAgreeOnTheCadence(unittest.TestCase):
     """v1882 — the dock badge counted to :00 ONLY, and the rotation is every 30 minutes.
 
