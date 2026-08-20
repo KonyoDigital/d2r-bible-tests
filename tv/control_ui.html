@@ -11938,7 +11938,13 @@
       if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('runes', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build', 'runes'));
       if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('uniques', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt', 'funi'));
       if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('sets', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left', 'fsets'));
-      var runsToday = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); }).length;
+      /* v1866 — A SIMULATION IS NOT A RUN. HD_ALL filters `x.stub`, which means a 1-read ghost
+         with no footage, NOT a sim — so his six- and seven-frame SIM sessions were counted here as
+         runs recorded today. They are separated rather than hidden: a sim that vanishes silently is
+         its own kind of lie, and he pressed SIM on purpose. */
+      var _todays = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); });
+      var runsToday = _todays.filter(function(x){ return !x.sim; }).length;
+      var simToday = _todays.length - runsToday;
       /* v1863 — TWO NUMBERS IN ONE SENTENCE, MEASURING TWO DIFFERENT WINDOWS.
          The row read "24 runs recorded today · 0 tallies synced" under a TODAY tag. `runsToday` is
          genuinely today; `led.length` is the LIFETIME de-dup log, capped at 2000. It reads 0 today
@@ -11966,7 +11972,9 @@
       var _tlyTitle = led.length + ' in the tally log all time'
         + (led.length >= 2000 ? ' — the log caps at 2000, so this is a floor, not a total' : '')
         + (_tlyUndated ? ' · ' + _tlyUndated + ' carry no datable session id' : '');
-      rows.push('<div class="tf-row tf-stat" title="' + _tlyTitle + '"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + _tlyTxt + '</span><span class="tf-tag dim">TODAY</span></div>');
+      rows.push('<div class="tf-row tf-stat" title="' + _tlyTitle + (simToday ? ' · ' + simToday + ' simulation' + (simToday === 1 ? '' : 's') + ' today read canned frames and are not counted as runs' : '') + '"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today'
+        + (simToday ? ' <span style="opacity:.6">(+' + simToday + ' sim)</span>' : '')
+        + ' · ' + _tlyTxt + '</span><span class="tf-tag dim">TODAY</span></div>');
       var box = $('hd-taskforce');
       // v1425 — skip identical repaint: status poll (~1.5s) was rewriting the whole roster →
       // rows flashed/jumped even when nothing changed (Konyo: "still routines jumping").

@@ -3466,6 +3466,73 @@ class TestNoTestWritesIntoHisLiveCaptureDir(unittest.TestCase):
                         "no test rebinds tv.FRAMES/STATE at all — the pattern must be wrong")
         self.assertEqual(offenders, [], "; ".join(offenders))
 
+
+class TestASimulationSaysSoOnEveryRow(unittest.TestCase):
+    """v1866 — 414 rows in his journal were written under TV_STUB, across ten days, sitting beside
+    real ones with nothing to tell them apart except `mode: "stub"` on the deep-read rows. A
+    session's summary rows carry no mode at all, so a whole SIM session was indistinguishable from
+    a live one that happened to see nothing.
+
+    It cost a real misdiagnosis tonight. While MINI was dead (v1863) he pressed buttons, and
+    control_agent.log records five starts in 64 seconds: sim · live · live · sim. He then said "i
+    did a regular LIVE SESSION it worked" and asked why the readers had not read his Sets
+    chronicle. Under TV_STUB the deep reader returns canned rows whose scene defaults to
+    "gameplay", so a Chronicle page open on screen is journaled as gameplay — and nothing is wrong
+    with the reader.
+
+    ⚠ THE EXPOSURE IS REAL AND HAS NOT FIRED, and both halves belong in the record.
+    stub_manifest.json carries REAL item names — "Ars Dul'Mephistos" is in bible.html's own
+    _UNI_EXTRA — and nothing excluded a sim reel from a sweep. It never landed because the manifest
+    is keyed by basenames his reels never use (pit_loot.jpg, town_stash.jpg) and the "*" fallback
+    returns names: []. Measured: 0 of 414 stub rows carry a canned name. A guard that depends on a
+    filename not colliding is not a guard. [[feedback-fixtures-never-touch-live-data]]"""
+
+    def setUp(self):
+        self._prev = os.environ.get("TV_STUB")
+
+    def tearDown(self):
+        if self._prev is None:
+            os.environ.pop("TV_STUB", None)
+        else:
+            os.environ["TV_STUB"] = self._prev
+
+    def _capture(self):
+        import tv_diablo as tv
+        rows = []
+        old_w, old_q = tv._journal_write, tv._JQ
+        tv._journal_write = lambda r: rows.append(r)
+        tv._JQ = None
+        try:
+            tv._journal({"scene": "gameplay", "names": []})
+        finally:
+            tv._journal_write, tv._JQ = old_w, old_q
+        return rows[0]
+
+    def test_a_row_written_under_the_stub_says_sim(self):
+        os.environ["TV_STUB"] = "1"
+        self.assertIs(self._capture().get("sim"), True)
+
+    def test_a_REAL_row_does_not(self):
+        # the mirror, or every row is a simulation and the flag says nothing
+        os.environ.pop("TV_STUB", None)
+        self.assertNotIn("sim", self._capture())
+
+    def test_the_canned_manifest_still_carries_names_that_are_real_items(self):
+        """The exposure, asserted rather than described — if someone renames a frame to
+        town_stash.jpg this stops being theoretical, and the flag above is what stands in the way."""
+        import json as _json
+        here = os.path.dirname(os.path.abspath(__file__))
+        man = _json.load(open(os.path.join(here, "stub_manifest.json"), encoding="utf-8"))
+        canned = set()
+        for k, v in man.items():
+            if isinstance(v, dict):
+                canned.update(v.get("names") or [])
+        self.assertIn("Ars Dul'Mephistos", canned,
+                      "the manifest changed — re-check whether its names are real grail items")
+        self.assertEqual(man.get("*", {}).get("names"), [],
+                         "the fallback started returning names — every unmatched frame would now "
+                         "carry them into his journal")
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

@@ -6531,3 +6531,38 @@ correctly refused) **or** an OCR lane that could not run. The frame-level answer
 apart and stays `None`, which is the safe direction. The **run** can: every probe silent means the
 lane is down, not that his footage holds no stash. Counted as `gate_hearing() -> (silent, heard)`
 and read out at the end of a sweep. [[feedback-silence-is-not-evidence]]
+
+## REG-214 — a simulation looked exactly like a live session (FIXED v1866)
+
+**Found:** 2026-08-20, investigating Konyo's *"i did a regular LIVE SESSION it worked... make sure
+to see the coding logic for ai readers are correct"* — his Sets chronicle was open and nothing read
+it as a chronicle.
+
+**The readers are correct.** `control_agent.log` records five agent starts in 64 seconds while MINI
+was dead (REG-211): **sim · live · live · sim**. Under `TV_STUB` the deep reader returns canned rows
+from `stub_manifest.json` whose `scene` defaults to `"gameplay"` — so a Chronicle page open on
+screen is journaled as gameplay, and nothing in the pipeline is broken.
+
+**His journal holds 414 rows written under TV_STUB across ten days** (08-02 → 08-20), beside real
+ones, with nothing to tell them apart except `mode: "stub"` on the deep-read rows. Session summary
+rows carry no mode at all, so a whole SIM session was indistinguishable from a live one that saw
+nothing.
+
+Worse, the console *believed* it excluded them: `HD_ALL` filters `x.stub`, and `stub` in that
+payload means **a 1-read ghost with no footage**, not a simulation. His six- and seven-frame sim
+sessions passed straight through and were counted as *"runs recorded today"*.
+[[label-outlived-referent]]
+
+**Fixed:** every journal row written under `TV_STUB` now carries `sim: true`; the sessions payload
+exposes a real `sim` field derived from the rows; the TODAY row counts runs and simulations
+separately and **says so** (`24 runs recorded today (+3 sim)`) rather than hiding them — he presses
+SIM on purpose.
+
+⚠ **The contamination exposure is real and has not fired — both halves belong in the record.**
+`stub_manifest.json` carries real item names (`Ars Dul'Mephistos` is in bible.html's own
+`_UNI_EXTRA`, `Skin of the Vipermagi`, `Ist Rune`) and nothing excluded a sim reel from a sweep. It
+never landed because the manifest is keyed by basenames his reels never use (`pit_loot.jpg`,
+`town_stash.jpg`) and the `"*"` fallback returns `names: []`. **Measured: 0 of 414 stub rows carry a
+canned name.** A guard that depends on a filename not colliding is not a guard, so the flag is now
+the guard, and a test asserts the fallback still returns no names.
+[[feedback-fixtures-never-touch-live-data]]

@@ -9245,6 +9245,37 @@ class TestTheGameDateConversionRunsInARealEngine(unittest.TestCase):
                       "the board's own stamp changed shape — the converter must follow it")
 
 
+class TestTheShelfSeparatesASimulationFromARun(unittest.TestCase):
+    """v1866 — the sessions payload had a `stub` flag that means something else, and the console
+    filtered on it believing it excluded simulations. It does not: `stub` is a 1-read ghost with no
+    footage, so his six- and seven-frame SIM sessions passed straight through and were counted as
+    "runs recorded today". [[label-outlived-referent]]"""
+
+    def test_the_payload_marks_a_sim_session(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn('"sim": any(bool(r2.get("sim")) or r2.get("mode") == "stub"', src,
+                      "the sessions payload cannot tell a simulation from a run")
+
+    def test_the_console_does_not_count_a_sim_as_a_run(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        p = os.path.join(here, "control_ui.html")
+        if not os.path.isfile(p):
+            self.skipTest("control_ui.html is not on this machine")
+        ui = open(p, encoding="utf-8").read()
+        i = ui.find("var _todays = (HD_ALL || [])")
+        self.assertGreater(i, 0, "the today-count no longer separates simulations")
+        # bound by the block's REAL end, not a byte count — a 900-char window stopped short of the
+        # render the moment a comment landed between them. [[source-reading-guard]]
+        j = ui.find('<span class="tf-tag dim">TODAY</span>', i)
+        self.assertGreater(j, i, "the TODAY row is gone")
+        body = ui[i:j]
+        self.assertIn("return !x.sim;", body)
+        # and it must SAY so rather than quietly dropping them — he pressed SIM on purpose
+        self.assertIn("(+' + simToday + ' sim)", body,
+                      "the simulations vanish silently, which is its own kind of lie")
+
+
 class TestTheBridgeCacheKeyNamesWhatItCaches(unittest.TestCase):
     """v1862 — his F·Sets tab read 116/135 while the console's DAILY TASK FORCE read 113/135.
 

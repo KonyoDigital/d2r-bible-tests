@@ -12238,7 +12238,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1865",
+        "ver": "v1866",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -13353,6 +13353,17 @@ class Handler(BaseHTTPRequestHandler):
                             "named": sum(1 for r in sess if r.get("names")),
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
                              and _reeln == 0),   # v885 (Grok #1) — a 1-read ghost never poses as a run
+                            # v1866 — A SIMULATION IS NOT A RUN, and until now it looked exactly
+                            # like one. `stub` above means something else entirely (a 1-read ghost
+                            # with no footage), so it never excluded a sim session: his six- and
+                            # seven-frame SIM sessions passed that filter and were counted as runs
+                            # recorded today. Under TV_STUB the deep reader returns canned rows
+                            # whose scene defaults to "gameplay", so a Chronicle page open on
+                            # screen is journaled as gameplay and the readers look broken when
+                            # nothing is wrong with them. Read from the rows themselves: the new
+                            # per-row stamp, or the mode the stub branch has always written.
+                            "sim": any(bool(r2.get("sim")) or r2.get("mode") == "stub"
+                                       for r2 in sess),
                     "footageN": _reeln,   # v883 — the shelf tells the truth about video
                     "intakes": len([r2 for r2 in sess if r2.get("lane") == "intake"]),   # v902
                     "thumb": _thumb,      # v890 — HD filmstrip art from the run itself

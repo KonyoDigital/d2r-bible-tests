@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1865"   # A run-level claim built on a lifetime counter
+VERSION = "v1866"   # A simulation is not a run and now it says so
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -279,7 +279,32 @@ def _journal_flush(timeout=10.0):
 
 
 def _journal(rec):
-    """v879 — enqueue when the writer runs; direct write otherwise (tests/replay)."""
+    """v879 — enqueue when the writer runs; direct write otherwise (tests/replay).
+
+    v1866 — EVERY ROW A SIMULATION WRITES SAYS SO. Konyo's own journal holds 414 rows produced
+    under TV_STUB across ten days, sitting beside real ones with nothing on them to tell the
+    difference except `mode: "stub"` on the deep-read rows — and a session's summary rows carry no
+    mode at all, so a whole SIM session was indistinguishable from a live one that saw nothing.
+
+    That mattered tonight: while MINI was dead (v1863) he pressed buttons, and control_agent.log
+    records five starts in 64 seconds alternating sim · live · live · sim. He then reported "i did
+    a regular LIVE SESSION it worked" and asked why the readers had not read his Sets chronicle.
+    Under TV_STUB the deep reader returns canned rows whose scene defaults to "gameplay", so a
+    Chronicle page open on screen is journaled as gameplay and nothing is wrong with the reader.
+
+    THE EXPOSURE IS REAL AND HAS NOT FIRED — say both halves. stub_manifest.json carries real item
+    names ("Ars Dul'Mephistos", "Skin of the Vipermagi", "Ist Rune"), and nothing excluded a sim
+    reel from a sweep. It never landed because the manifest is keyed by basenames his reels never
+    use (pit_loot.jpg, town_stash.jpg) and the "*" fallback returns names: []. Measured: 0 of 414
+    stub rows carry a canned name. A guard that depends on a filename not colliding is not a guard,
+    so the flag is the guard. [[feedback-fixtures-never-touch-live-data]]
+    """
+    try:
+        if os.environ.get("TV_STUB") and isinstance(rec, dict) and "sim" not in rec:
+            rec = dict(rec)
+            rec["sim"] = True
+    except Exception:
+        pass
     if _JQ is not None:
         try:
             _JQ.put(dict(rec) if isinstance(rec, dict) else rec)
