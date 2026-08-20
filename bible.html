@@ -16263,8 +16263,20 @@ BOSSES.forEach(boss => {
         let blocked = null;
         const _qlvlSound = !(boss.dropTable || []).some(o =>
           o !== d && o[k] !== null && o[k] !== undefined && (o.qlvl || 0) > diff.mlvl);
+        /* v1840 — THE SAME TEST, FOR THE OTHER REASON. v1722 suppressed the qlvl reason in any cell
+           whose own data breaks that rule, and said why: "no reason beats a false reason". The TC
+           reason sitting on the next line never got it, so a cell could still print a ceiling its
+           own rows ignore. REG-145 measured that and left it open: 39 of 66 boss-difficulty cells
+           carried rows above their declared tcMax at v1715, 48 of 66 after the v1716 pull — e.g.
+           Normal Mephisto declares TC40 and carries Bverrit Keep, TC60, at 1:289. In those cells
+           "TC 60 > Normal Mephisto TC 40" is a sentence the table underneath it refutes.
+           This does NOT rewrite a single tcMax. REG-145 says correcting those 66 values changes
+           what the calculator calls impossible and is HIS call; it stays his. All that changes is
+           that a demonstrably unenforced ceiling stops being quoted as the reason. */
+        const _tcSound = !(boss.dropTable || []).some(o =>
+          o !== d && o[k] !== null && o[k] !== undefined && (o.tc || 0) > diff.tcMax);
         if (d.qlvl > 0 && d.qlvl > diff.mlvl && _qlvlSound) blocked = `qlvl ${d.qlvl} > ${label} mlvl ${diff.mlvl}`;
-        else if (d.tc > 0 && d.tc > diff.tcMax) blocked = `TC ${d.tc} > ${label} ${boss.name} TC ${diff.tcMax}`;
+        else if (d.tc > 0 && d.tc > diff.tcMax && _tcSound) blocked = `TC ${d.tc} > ${label} ${boss.name} TC ${diff.tcMax}`;
         /* v1723 — SUPPRESSING A FALSE REASON MUST NOT DELETE THE FACT.
            v1722 stopped citing `qlvl > mlvl` in cells whose own data breaks that rule, and a row
            with no reason gets NO source entry at all — so the "cannot drop here" marker vanished
@@ -16274,7 +16286,13 @@ BOSSES.forEach(boss => {
            annotations. So the row keeps its entry with a reason that is true by construction —
            silospen's pull for that cell does not list it. [[unknown-stays-unknown]]: "not in the
            pool" is an answer; an invented rule is not, and silence is not either. */
-        else if (d.qlvl > 0 && d.qlvl > diff.mlvl) blocked = `not in ${label} ${boss.name}'s drop pool`;
+        /* v1840 — and the fallback covers BOTH suppressions now. v1723's lesson was that removing a
+           false reason must not remove the FACT: a row with no reason gets no source entry, and the
+           "cannot drop here" marker vanishes with the bad explanation (Routine L caught it when
+           probe_meph_shako lost keys that had been present-and-null). Extending the suppression
+           without extending this line would have re-armed that exact regression. */
+        else if ((d.qlvl > 0 && d.qlvl > diff.mlvl) || (d.tc > 0 && d.tc > diff.tcMax))
+          blocked = `not in ${label} ${boss.name}'s drop pool`;
         if (blocked) item.sources.push({boss:`${label} ${boss.name}`,chance:null,blocked,bossId:boss.id,diffKey:k});
       }
     });
@@ -41836,7 +41854,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1839', name:'v1839 - Three refusals, three names', date:'2026-08-20', note:'A reel opens and closes on the TV DIABLO console window and on gameplay. Refusing those is correct - but they answered stateVisible false, the same word as a legible Chronicle page whose rows could not be judged, so the refusal count mixed healthy refusals with lost pages and could be read as neither. Opening six refused frames settled it: three were console or gameplay, three were legible sets pages carrying First Found dates.' };
+  window.D2R_BUILD = { id:'v1840', name:'v1840 - No reason beats a false reason, for the other reason too', date:'2026-08-20', note:'REG-145 left open: a boss difficulty cell declares a tcMax and 39 of 66 cells carry drop rows above it, so the blocked reason strings could name a ceiling the table underneath them ignores. v1722 already suppressed the qlvl reason in any cell whose own data breaks that rule; the TC reason on the next line never got the same test. Measured: TC-cited entries 2687 to 1211, not-in-pool 3250 to 4726, total blocked entries unchanged at 5937. No tcMax value was rewritten - REG-145 says that is his call.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
