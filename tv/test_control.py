@@ -8908,5 +8908,65 @@ class TestPrepTabChromeIsNotDead(unittest.TestCase):
 
 
 
+class TestTheVaultTemplateGate(unittest.TestCase):
+    """2026-08-20 — Konyo: "it needs to be hardcoded and safegauded for vault manager to only when
+    maybe i CLICK stash and am in my stash with my inventory open at the same time thats the
+    template it should start knowing to read whats in my inventory and stash and log it and ledger
+    it accordingly".
+
+    HARDCODED means structural. Before this, a reel without a declared focus paid a MODEL to say
+    which ownership surface a frame showed, and vault_retro names the cost when that is wrong: "a
+    rune tab misread as 'inventory' files his runes in the wrong lane, which merge-max then makes
+    permanent." Permanent is why he opened the vault manager and found items he does not have.
+
+    The gate reads the stash TAB CHROME out of a fixed band by OCR — no chrome, no stash panel, no
+    vault read — and D2R draws the inventory beside the stash whenever it is open, which is the
+    "both at the same time" template he described.
+    """
+
+    def test_the_sweep_asks_the_gate_before_paying_a_classify(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        i = src.find("def _classify(p):")
+        while i > 0 and "stash_screen_open" not in src[i:i + 2000]:
+            i = src.find("def _classify(p):", i + 10)
+        self.assertGreater(i, 0, "no vault classify consults the stash template")
+        body = src[i:i + 2000]
+        gate_at = body.find("stash_screen_open(")
+        pay_at = body.find("_tick(classified=1)")
+        self.assertGreater(gate_at, -1)
+        self.assertGreater(pay_at, -1)
+        self.assertLess(gate_at, pay_at,
+                        "the gate is asked AFTER the classify is charged — a frame that is not a "
+                        "stash must cost nothing")
+
+    def test_a_refused_frame_is_reported_not_silent(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn("refused by the stash template", src,
+                      "frames vanish with no reason — 'the stash was never open on camera' and "
+                      "'the reader found nothing in it' are different answers")
+
+    def test_gameplay_is_not_an_ownership_screen(self):
+        import control_app as ca
+        here = os.path.dirname(os.path.abspath(__file__))
+        play = os.path.join(here, "frames", "hist", "6_1786554035205.jpg")
+        if not os.path.isfile(play):
+            self.skipTest("his footage is not on this machine")
+        self.assertIsNone(ca.stash_screen_open(play),
+                          "a gameplay frame would be read into his vault")
+
+    def test_a_real_stash_frame_still_passes(self):
+        # the gate must not be a mute button: refusing everything is the same defect as refusing
+        # nothing, and it is how the first cut of this shipped before prep_tab_chrome was revived
+        import control_app as ca
+        here = os.path.dirname(os.path.abspath(__file__))
+        stash = os.path.join(here, "frames", "hist", "5_1784984201581.jpg")
+        if not os.path.isfile(stash):
+            self.skipTest("his footage is not on this machine")
+        self.assertTrue(ca.stash_screen_open(stash))
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

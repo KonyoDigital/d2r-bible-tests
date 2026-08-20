@@ -10203,7 +10203,27 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # (honest-absent — "not read", never a guessed surface) and every later reel is still read.
         # The tick stays INSIDE the lane so "classified" counts probes ATTEMPTED — a probe that
         # died is still money spent and still belongs in the count.
+        _not_stash = [0]
+
         def _classify(p):
+            # ── THE TEMPLATE GATE (2026-08-20, his ask) ──────────────────────────────────────
+            # Konyo: "it needs to be hardcoded and safegauded for vault manager to only when maybe
+            # i CLICK stash and am in my stash with my inventory open at the same time thats the
+            # template it should start knowing to read whats in my inventory and stash".
+            #
+            # HARDCODED means structural, not a model's opinion. stash_screen_open() reads the stash
+            # TAB CHROME out of a fixed band by OCR — no chrome, no stash panel, no vault read. D2R
+            # draws the inventory beside the stash whenever it is open, so that chrome IS the
+            # "both at the same time" template he described.
+            #
+            # This is asked BEFORE the paid classify, so a frame that is not a stash costs nothing
+            # at all, and it is asked of EVERY frame including those in a declared-focus reel: he
+            # told the app what he parked on, not that every frame of the recording is that screen.
+            # Which SURFACE it is still comes from the declared focus first (v1603) — the gate only
+            # decides whether this frame may speak about ownership at all.
+            if stash_screen_open(p) is None:
+                _not_stash[0] += 1
+                return None
             _tick(classified=1)
             try:
                 return _tv.claude_read(p)
@@ -10222,6 +10242,11 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 return {"note": "the reader failed on this page — not read"}
 
         prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit)
+        if _not_stash[0]:
+            # said out loud, never silently: "the stash was never open on camera" and "the reader
+            # found nothing in it" are different answers and only one of them is about his stash
+            print("   \U0001f512 %d frame(s) refused by the stash template — no stash chrome, so "
+                  "not an ownership screen" % _not_stash[0])
         _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
         # remember ONLY the reels this run actually read — a reel that errored or was skipped stays
         # unread, or one bad run permanently hides footage from every future sweep.
@@ -11865,7 +11890,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1849",
+        "ver": "v1850",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

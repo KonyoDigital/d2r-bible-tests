@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1849",
+  "ver": "v1850",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1849: Four lines pasted from prep_stash_grid referenced derived aspect and layout - all local to that function and none defined in this one - so prep_tab_chrome raised NameError on every call and its own bare except returned None. Introduced v1538, found at v1848 while building the vault structural gate, because that gate could not pass a single genuine stash frame. The stash tab chrome is the one non-model signal for which tab is open, so with it dead every ownership frame fell back to a model guess.",
+  "note": "v1850: Konyo: it needs to be hardcoded and safegauded for vault manager to only when i CLICK stash and am in my stash with my inventory open at the same time thats the template. Hardcoded means structural: the stash tab chrome read by OCR from a fixed band, not a model opinion. No chrome, no stash panel, no vault read - and the check runs before the paid classify so a non-stash frame costs nothing. Which surface it is still comes from his declared focus first.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
