@@ -108,6 +108,14 @@ CHRONICLE_VISION_PROMPT = (
     # cross-lane agreement on a COMPLETE set is impossible by construction.
     "sets = only when ledger=sets: [{{\"set\":\"<set name>\",\"pieces\":[<found piece names>],\"complete\":true|false}}].\n"
     "set `complete` true ONLY when the panel itself marks that set finished — never inferred.\n"
+    # v1826 — see tv_diablo.py: the same tell, worded the same way. Measured on his swept evidence,
+    # 4 of 16 set groups were keyed by a PIECE name rather than a set. The second eye must describe
+    # a group the same way the first does or the two can never agree about one.
+    "A SETS page groups its rows under a set-name HEADING. The heading is centred, has NO item "
+    "icon, NO `Dropped By:` line and NO `First Found:` line. Every PIECE row has all three. Put the "
+    "HEADING in \"set\" and the rows beneath it in \"pieces\" — never a piece name in \"set\", and "
+    "never a heading in \"pieces\". If you cannot see which heading a row belongs to, leave that "
+    "row out rather than inventing a group for it.\n"
     "printedFound / printedTotal = the panel's own progress numbers if it prints any (\"243/403\", "
     "\"Found 108 of 135\") EXACTLY as shown, else null. They are checked against your own count — an "
     "honest mismatch is useful, a fabricated match is not.\n"

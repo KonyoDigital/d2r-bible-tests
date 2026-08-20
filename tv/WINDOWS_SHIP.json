@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1825",
+  "ver": "v1826",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1825: Every swept visit was filed under the reel id hist, so all his visits collapsed into one pseudo-reel and two separate sittings could never corroborate each other. Each frame now resolves to the reel that actually holds its moment, and an unproven one stays collapsed rather than guessed.",
+  "note": "v1826: Four of sixteen set groups his sweep produced were keyed by a piece name rather than a set. Both reader lanes are now told the tell that separates them: a heading is centred with no icon, no Dropped By and no First Found, while every piece row carries all three.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

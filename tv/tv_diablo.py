@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1825"   # a visit is not the hist folder
+VERSION = "v1826"   # a set heading is not a piece
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -137,7 +137,7 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p1818"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
+PROMPT_VER = "p1826"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
@@ -4888,6 +4888,18 @@ CHRONICLE_READ_PROMPT = (
     'sets = only when ledger=sets: [{{"set":"<set name>","pieces":["<found piece>"],"complete":true|false}}].\n'
     'set `complete` true ONLY when the panel itself marks that set finished — never inferred from '
     'the pieces you happen to see.\n'
+    # v1826 — A SET HEADING IS NOT A PIECE, and the readers confused the two about a quarter of the
+    # time. Measured on his own swept evidence: of 16 set groups, 4 were keyed by something that is
+    # not a set — "M'avina's True Sight", "M'avina's Tenet" and "Cleglaw's Claw" are PIECES, and
+    # "Cathan's" is a truncation. It wrote no bad data (a heading that matches no set expands to
+    # nothing, and the apply only ever wrote real roster pieces), but a quarter of the groups being
+    # junk is a reader that has not been told what a heading looks like.
+    # The tell is unambiguous on his frames, so it is spelled out rather than left to judgement.
+    "A SETS page groups its rows under a set-name HEADING. The heading is centred, has NO item "
+    "icon, NO `Dropped By:` line and NO `First Found:` line. Every PIECE row has all three. Put the "
+    "HEADING in \"set\" and the rows beneath it in \"pieces\" — never a piece name in \"set\", and "
+    "never a heading in \"pieces\". If you cannot see which heading a row belongs to, leave that "
+    "row out rather than inventing a group for it.\n"
     "printedFound / printedTotal = the panel's own progress numbers if it shows any (\"243/403\", "
     "\"Found 108 of 135\") EXACTLY as printed, else null. They are checked against your own count as "
     "a second witness, so an honest mismatch is worth more than a flattering match.\n"

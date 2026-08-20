@@ -7719,5 +7719,35 @@ class TestAVisitIsNotTheHistFolder(unittest.TestCase):
         self.assertEqual(ca._reel_for_frame_epoch(os.path.join(self.tmp, "nope"), 123), "")
 
 
+class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
+    """v1826 — the readers confused a set HEADING with a PIECE about a quarter of the time.
+
+    Measured on his own swept evidence, not imagined: of 16 set groups, 4 were keyed by something
+    that is not a set — "M'avina's True Sight", "M'avina's Tenet" and "Cleglaw's Claw" are PIECES,
+    and "Cathan's" is a truncation. It wrote no bad data, because a heading matching no set expands
+    to nothing and the apply only ever wrote real roster pieces. But a quarter of the groups being
+    junk is a reader that was never told what a heading looks like, and the tell is unambiguous on
+    his frames: a heading is centred with NO icon, NO `Dropped By:` and NO `First Found:`, while
+    every piece row carries all three.
+    """
+
+    def _prompts(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        return (open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read(),
+                open(os.path.join(here, "g5_grok_eyes.py"), encoding="utf-8").read())
+
+    def test_both_lanes_describe_the_heading_the_same_way(self):
+        claude, grok = self._prompts()
+        for needle in ("set-name HEADING", "NO `Dropped By:` line", "never a piece name in"):
+            self.assertIn(needle, claude, "the Claude lane lost: %s" % needle)
+            self.assertIn(needle, grok, "the Grok lane lost: %s" % needle)
+
+    def test_the_prompt_version_moved_with_the_prompt(self):
+        # a changed prompt on an old version replays cached reads that were answered under the old
+        # wording — the same guard test_agent keeps, asserted here because THIS change is the reason
+        import tv_diablo as _tv
+        self.assertEqual(_tv.PROMPT_VER, "p1826")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

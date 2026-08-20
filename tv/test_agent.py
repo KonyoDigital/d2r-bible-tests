@@ -3215,7 +3215,7 @@ class TestChronicleScene(unittest.TestCase):
         # stamp, Dropped By line and the panel's sort order. This assertion failing is the guard
         # WORKING: it means the prompt moved and somebody has to decide whether cached reads from
         # the old prompt are still answerable. They were not — the old reads carry no dates.
-        self.assertEqual(tv.PROMPT_VER, "p1818")
+        self.assertEqual(tv.PROMPT_VER, "p1826")
 
     # ── v1818 — the chronicle's own dates ───────────────────────────────────────────────
     # Konyo: "there is an option for newest found ... so they know what they registered
