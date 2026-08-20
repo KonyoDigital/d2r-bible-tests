@@ -7346,3 +7346,36 @@ bare name `window._gameFoundSet`; v1891 added a **call** to it inside `_forgeRed
 earlier in the file, so the anchor hit the call and truncated the extracted slice to nothing. Both
 now anchor on the **definition** (`window._gameFoundSet = function`). An anchor that matches the
 wrong occurrence is the exact failure `source-reading-guard` is carved about.
+
+## REG-242 — four guards died on one shape in one night, so the shape is now pinned (v1892)
+
+Not a defect in his code: a defect in **mine**, four times over, all the same family — a source guard
+that fails on its own reach rather than on the thing it checks.
+
+```
+v1866  body = ui[i:i + 900]        a later comment pushed the checked line past the window
+v1872  window.X in a comment       my own explanatory placeholder became the defect it hunted
+v1873  /\*.*?\*/ unbounded         ate 16.9% of a 5.6MB file and 170 of its 444 id= declarations
+v1891  find("window._gameFoundSet")  matched a new CALL earlier in the file, not the definition
+```
+
+**Every one produced an empty or truncated slice**, and an empty slice does not announce itself:
+`assertIn` fails somewhere confusing and **`assertNotIn` passes**.
+
+Two things, and deliberately not a third:
+
+1. **`_between(case, src, start, end, min_len)`** — the safe way to take a slice. It refuses if the
+   start anchor is missing, if the end anchor is not *after* it, or if what comes back is too small
+   to be the thing you meant. Seen red in all three directions.
+2. **A ratchet.** `test_control.py` currently has **26** byte-counted slices (`src[i:i + N]`). A test
+   pins that number so the class **cannot grow** and names `_between()` as the way to write the next
+   guard. ⚠ The number is a **debt, not a target** — lower it as sites are converted, never raise it.
+
+**Deliberately NOT done: rewriting all 26 now.** They are the things that catch regressions, at
+3am, in one sweep, with no way to tell a converted-and-still-correct guard from a
+converted-and-quietly-broken one. The ratchet stops the bleeding; the conversion is ordinary work
+for a normal hour.
+
+⚠ And installing it broke the file once: my first attempt's `%%`-escaped template got written with a
+live `""" % (25,)` on the end of a docstring, and the module stopped importing. Caught by the very
+next run, removed whole rather than patched.

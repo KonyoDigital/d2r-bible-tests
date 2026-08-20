@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1891",
+  "ver": "v1892",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1891: The undo bar promises the ledger entry is erased and it returns to the hunt, and the game own First Found date survived it. That matters rather than being tidy because the reason he un-ticks is usually that the read was wrong, so the date belongs to a different item, and left behind it re-attaches the moment he ticks that name by hand later and gets printed on the chip as a claim sourced from a read he threw away. The undo stashes it on the redo record first so the round trip loses nothing, and it touches only the name being undone. Two of my own guards broke on it because they anchored on a bare name that the new call site now matches earlier in the file.",
+  "note": "v1892: Not a defect in his code but in mine, four times in one night and all the same family: a source guard that fails on its own reach rather than on the thing it checks - a byte window a comment pushed past, my own placeholder inside a comment, an unbounded comment stripper that ate a sixth of the file, and an anchor that matched a new call site instead of a definition. Every one produced an empty or truncated slice, and an empty slice does not announce itself because assertNotIn passes on one. There is a safe helper now that refuses all three failure directions, and a ratchet pinning the twenty-six byte-counted slices so the class cannot grow.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

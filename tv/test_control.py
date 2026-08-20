@@ -151,6 +151,32 @@ def tearDownModule():
     shutil.rmtree(globals().get("_MOD_TMP") or "", ignore_errors=True)
 
 
+
+# ── v1892 — THE SAFE WAY TO TAKE A SLICE OF SOURCE, because four guards died on the unsafe one ──
+#
+# In one night: a 900-char window a later comment pushed past; an anchor that matched the FIRST
+# mention of a name instead of its definition, twice; and a comment stripper that ate 16.9% of the
+# file. Every one of them produced an EMPTY OR TRUNCATED slice, and an empty slice does not announce
+# itself — `assertIn(x, "")` just fails somewhere confusing, and `assertNotIn(x, "")` PASSES.
+#
+# So the helper refuses instead: it insists the start anchor is found, that the end anchor is after
+# it, and that what comes back is big enough to be the thing you meant. Every new source guard
+# should use it. [[source-reading-guard]]
+def _between(case, src, start, end, min_len=40, what="slice"):
+    """src between `start` and the next `end` after it — or a failure that says which anchor moved."""
+    i = src.find(start)
+    case.assertGreater(i, -1, "%s: the start anchor is gone from the file: %r" % (what, start[:60]))
+    j = src.find(end, i + len(start))
+    case.assertGreater(j, i, "%s: the end anchor %r never appears after the start — the slice would "
+                             "run to the end of the file or come back empty" % (what, end[:60]))
+    out = src[i:j]
+    case.assertGreaterEqual(len(out), min_len,
+                            "%s: the slice came back %d chars. An empty or truncated slice does not "
+                            "announce itself — assertNotIn PASSES on one. Check the anchors."
+                            % (what, len(out)))
+    return out
+
+
 class TestTheatre(unittest.TestCase):
     """v765 — Konyo: 'its not really simulated anymore… its own independent VIEW, eyes on
     history' — the theatre serves REAL journaled sessions + REAL archived frames."""
@@ -9563,6 +9589,51 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
         body = self._apply_src()
         self.assertIn("_landed = true;", body,
                       "an unreadable ledger now demotes a real find to a vault row")
+
+
+class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
+    """v1892 — A RATCHET, not a cleanup. Four source guards died in one night on the same shape.
+
+    `body = src[i:i + 900]` reads a fixed number of BYTES from an anchor. It works until someone
+    adds a comment between the anchor and the line being checked, and then it silently measures
+    nothing — `assertIn` fails somewhere confusing and `assertNotIn` PASSES. That is how v1866's
+    guard stopped checking, and it is the same family as the two anchors that hit the wrong
+    occurrence of a name and the stripper that ate a third of the file.
+
+    There are 26 of these in this file tonight. Rewriting them all at once would be a large,
+    risky change to the very things that catch regressions, so this does the safe half: it PINS THE
+    COUNT so the class cannot grow, and names `_between()` as the way to write the next one. Lower
+    the number as sites are converted; never raise it.
+
+    ⚠ The number is a DEBT, not a target. It is here to be reduced. [[source-reading-guard]]"""
+
+    LIMIT = 26
+
+    def test_no_new_byte_counted_slices(self):
+        import re as _re
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "test_control.py"), encoding="utf-8").read()
+        found = _re.findall(r"\[i:i \+ \d+\]|\[i:i\+\d+\]", src)
+        self.assertLessEqual(len(found), self.LIMIT,
+                             "%d byte-counted source slices, up from %d. Use _between(self, src, "
+                             "start, end) instead — it refuses an empty or truncated slice rather "
+                             "than measuring nothing." % (len(found), self.LIMIT))
+
+    def test_the_safe_helper_refuses_an_empty_slice(self):
+        """Seen RED for its own reason, in all three directions it can fail."""
+        src = "AAA start ... middle ... end ZZZ"
+        with self.assertRaises(AssertionError):
+            _between(self, src, "no such anchor", "end")
+        with self.assertRaises(AssertionError):
+            _between(self, src, "middle", "start")          # the end anchor is BEFORE the start
+        with self.assertRaises(AssertionError):
+            _between(self, src, "start", "end", min_len=999)
+        got = _between(self, src, "start", "end", min_len=5)
+        self.assertTrue(got.startswith("start"))
+        self.assertNotIn("end", got)
+
+    def test_the_helper_is_reachable(self):
+        self.assertTrue(callable(_between))
 
 
 class TestUndoRetractsTheGameDateToo(unittest.TestCase):
