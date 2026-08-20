@@ -7929,5 +7929,74 @@ class TestV1830ASealIsOnlyAsGoodAsItsReader(unittest.TestCase):
 
 
 
+class TestV1831TheFeedCanBeBehindTheClock(unittest.TestCase):
+    """v1831 — upstream itself lags the rotation, so "refresh more often" cannot fix it.
+
+    Measured across a real boundary, sampling every 45s:
+        07:29:59  +1799s | cur=Burial Grounds   | next=Kurast Bazaar
+        07:30:44  +  44s | cur=Burial Grounds   | next=Kurast Bazaar      <- slot ALREADY turned
+        07:31:29  +  89s | cur=Kurast Bazaar    | next=Nihlathak's Temple
+
+    Forty-four seconds past the turn, the feed still called the previous zone `current`. v1813 fixed
+    OUR cache outliving its slot; this is the same reading arriving through the other door, and the
+    console printed it as LIVE NOW.
+    """
+    SLOT = 1800000
+
+    def _body(self, newest_slot):
+        return {"current": "Burial Grounds, Crypt, and Mausoleum",
+                "next": "Kurast Bazaar, Ruined Temple, and Disused Fane",
+                "history": [{"slot": newest_slot, "zone": "Burial Grounds"},
+                            {"slot": newest_slot - self.SLOT, "zone": "Tal Rasha's Tombs"}]}
+
+    def test_a_feed_still_on_the_previous_slot_is_turning(self):
+        import control_app as ca
+        now = 1787200244000                       # 07:30:44 — 44s past the turn
+        here = (now // self.SLOT) * self.SLOT
+        out = ca._tz_mark_turning(self._body(here - self.SLOT), now_ms=now)
+        self.assertEqual(out["slotBehind"], 1)
+        self.assertTrue(out["turning"], "the board will print a zone that has already ended")
+
+    def test_a_caught_up_feed_is_not_turning(self):
+        import control_app as ca
+        now = 1787201000000
+        here = (now // self.SLOT) * self.SLOT
+        out = ca._tz_mark_turning(self._body(here), now_ms=now)
+        self.assertEqual(out["slotBehind"], 0)
+        self.assertFalse(out["turning"])
+
+    def test_a_badly_frozen_feed_is_not_flattered_as_a_turnover(self):
+        # many slots behind is a broken feed, which `stale` already says. Calling that "turning
+        # over" would dress a dead feed as a healthy one mid-rotation.
+        import control_app as ca
+        now = 1787201000000
+        here = (now // self.SLOT) * self.SLOT
+        out = ca._tz_mark_turning(self._body(here - 9 * self.SLOT), now_ms=now)
+        self.assertEqual(out["slotBehind"], 9)
+        self.assertFalse(out["turning"])
+
+    def test_no_history_claims_nothing(self):
+        import control_app as ca
+        out = ca._tz_mark_turning({"current": "x", "next": "y"}, now_ms=1787201000000)
+        self.assertIsNone(out["slotBehind"], "not measured must not read as not behind")
+        self.assertFalse(out["turning"])
+
+    def test_it_is_additive_and_never_rewrites_the_reading(self):
+        import control_app as ca
+        now = 1787200244000
+        here = (now // self.SLOT) * self.SLOT
+        src = self._body(here - self.SLOT)
+        before = dict(src)
+        out = ca._tz_mark_turning(src, now_ms=now)
+        for k in ("current", "next", "history"):
+            self.assertEqual(out[k], before[k], "%s was rewritten — the reading is upstream's" % k)
+
+    def test_a_junk_payload_is_returned_untouched(self):
+        import control_app as ca
+        for junk in (None, "", 7, []):
+            self.assertEqual(ca._tz_mark_turning(junk, now_ms=1), junk)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

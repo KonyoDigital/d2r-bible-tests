@@ -3272,6 +3272,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:9px}
   .tzt-now .tzt-slot-label{color:var(--best)}
   .tzt-next .tzt-slot-label{color:var(--nm)}
+  /* v1831 — the feed lags the rotation by 44-89s (measured across a real boundary), so for up to
+     ~90s after the turn its `current` names a window that has already ended. Said in the label
+     rather than patched over: the reading is upstream's, the honesty is ours. */
+  /* A SIBLING OF THE LABEL, never inside it. Two cuts were needed to get here and both are worth
+     recording: riding inline with white-space:nowrap clipped mid-word at 901px ("turning over -
+     tracker sti"), because .tzt-slot-label is a single-line flex row in a narrow card; letting that
+     row wrap then fixed the clip but pushed the "all N terrorised together" note (which carries
+     margin-left:auto) onto its own line in one card and not the other, so the two cards stopped
+     matching. Outside the row, neither happens and the label keeps the layout it always had. */
+  .tzt-turning{display:block;margin:0 0 6px;font-size:var(--fs-tiny);font-weight:var(--fw-normal);
+    letter-spacing:.4px;line-height:1.35;color:var(--nm);white-space:normal}
+  .tzt-now .tzt-turning{color:var(--warn,#ffd27f);border-color:rgba(255,210,127,.34)}
   .tzt-live-dot{width:10px;height:10px;border-radius:50%;background:var(--best);box-shadow:0 0 0 0 rgba(102,255,136,.55);animation:tztPulse 1.5s ease-out infinite}
   @keyframes tztPulse{0%{box-shadow:0 0 0 0 rgba(102,255,136,.5)}70%{box-shadow:0 0 0 10px rgba(102,255,136,0)}100%{box-shadow:0 0 0 0 rgba(102,255,136,0)}}
   /* the big hero zone card filling each half */
@@ -26244,9 +26256,23 @@ function renderTzTracker(data){
        cards side by side with nothing saying they are concurrent reads like the half hour split in
        two, which is what he asked about. Said out loud, and only when there is more than one. */
     '<div class="tzt-slot tzt-now"><div class="tzt-slot-label"><span class="tzt-live-dot"></span> LIVE NOW'
-      + tzTogether(data.current) + '</div>'+tzZonesHtml(data.current)+'</div>'
-    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN'
-      + tzTogether(data.next) + '</div>'
+      + tzTogether(data.current)
+      /* v1831 — DO NOT PRINT A FINISHED WINDOW AS LIVE. Measured across a real boundary: 44s after
+         the rotation the upstream feed still returned the previous zone as `current`, and had
+         caught up by 89s. Polling faster cannot fix that — v1813 already stopped OUR cache
+         outliving its slot, and the board already refetches 6s after the turn; the staleness left
+         is the feed's own. `turning` is derived server-side from the feed's own history stamps
+         (they divide by 1800000 exactly), so it costs no extra request. [[stale-reading]] */
+      + '</div>'
+      + (data.turning ? '<div class="tzt-turning">⏳ turning over — the tracker is still reporting the window that just ended</div>' : '')
+      + tzZonesHtml(data.current)+'</div>'
+    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">'
+      + (data.turning ? '▶️ ON NOW' : '⏭️ NEXT · ~30 MIN')
+      + tzTogether(data.next)
+      /* while the feed is a slot behind, what it calls `next` is the window that has ALREADY
+         started — which is the one he wants to read, so it is named for what it is. */
+      + '</div>'
+      + (data.turning ? '<div class="tzt-turning">this one has already started — the feed catches up within about a minute</div>' : '')
       + (String(data.next || '').trim()
           ? tzZonesHtml(data.next)
           /* v1585 — the upstream really does return next:"" for part of every slot, so "(unknown)"
@@ -41810,7 +41836,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1830', name:'v1830 - A seal is only as good as its reader', date:'2026-08-20', note:'Eight reels - 1032 frames of readable Chronicle - were sealed as swept with zero pages read, by a reader that has since been fixed six times. The swept ledger recorded no reader version, so the verdict outlived the instrument. Seals now carry PROMPT_VER and a zero-page seal from an older reader is void.' };
+  window.D2R_BUILD = { id:'v1831', name:'v1831 - The feed can be behind the clock', date:'2026-08-20', note:'Measured across a real slot boundary - 44s after the rotation the TZ upstream still called the previous zone current, and had caught up by 89s. Polling faster cannot fix that because the staleness is upstreams. The board now says turning over instead of printing a finished window as LIVE NOW, derived from the feeds own history stamps at no extra request.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

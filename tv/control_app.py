@@ -1416,6 +1416,7 @@ def _tz_proxy():
             try:
                 code, body = _tz_fetch_one(url, ctx)
                 if code == 200 and _tz_has_payload(body):
+                    body = _tz_mark_turning(body)
                     _TZ_CACHE.update(ts=now, code=200, body=body)
                     return 200, body
                 last_err = "http %s no rotation" % code
@@ -1425,8 +1426,60 @@ def _tz_proxy():
         if _TZ_CACHE["body"] is not None:
             stale = dict(_TZ_CACHE["body"])
             stale["stale"] = True
-            return 200, stale
+            # re-derived against NOW: a cached body served later is further behind than when it
+            # was fetched, and the flag has to age with it rather than be frozen at fetch time.
+            return 200, _tz_mark_turning(stale)
         return 502, {"error": f"tz upstream unreachable: {last_err}"}
+
+
+def _tz_mark_turning(body, now_ms=None):
+    """v1831 — SAY WHEN THE FEED IS BEHIND THE CLOCK, instead of printing its answer as live.
+
+    Konyo asked whether the TZ tracker "should be refreshed maybe also more often". Measured across
+    a real boundary on 2026-08-20 rather than guessed, sampling upstream every 45s:
+
+        07:29:59  +1799s | cur=Burial Grounds ...      | next=Kurast Bazaar ...
+        07:30:44  +  44s | cur=Burial Grounds ...      | next=Kurast Bazaar ...   <- slot ALREADY turned
+        07:31:29  +  89s | cur=Kurast Bazaar ...       | next=Nihlathak's Temple ...
+
+    Forty-four seconds after the rotation, UPSTREAM was still calling the previous zone `current`.
+    So the answer to his question is no: polling faster cannot fix this, because the staleness is
+    not ours. v1813 already fixed OUR cache (it must not outlive the slot it describes) and the
+    board already re-fetches six seconds after the boundary — and gets a payload the feed has not
+    updated yet. For up to ~90s the console prints a zone that stopped being live, exactly the
+    complaint v1813 answered, arriving through the other door.
+
+    It is derivable with no extra request. Every slot stamp in the feed's own history divides by
+    1800000 with no remainder, so "which slot does upstream think it is in" is arithmetic: if its
+    newest history slot is older than the slot we are actually in, its `current` describes a zone
+    that has already ended. That is reported as a FIELD (`turning`, `slotBehind`) rather than
+    patched over — the reading is upstream's to make, and ours to label honestly. [[stale-reading]]
+
+    Additive by construction: no existing key changes value, so a board that has never heard of
+    `turning` renders exactly as it did before.
+    """
+    if not isinstance(body, dict):
+        return body
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    slot_ms = 1800000
+    here = (now_ms // slot_ms) * slot_ms
+    newest = None
+    for row in (body.get("history") or []):
+        if isinstance(row, dict) and isinstance(row.get("slot"), (int, float)):
+            v = int(row["slot"])
+            if newest is None or v > newest:
+                newest = v
+    if newest is None:
+        # NOT measured is not the same as NOT behind. Nothing is claimed when nothing can be read.
+        body["slotBehind"] = None
+        body["turning"] = False
+        return body
+    behind = int((here - newest) // slot_ms)
+    body["slotBehind"] = behind
+    # Only the ONE-slot case is a turnover. Many slots behind is a broken or frozen feed, which is
+    # what `stale` already means, and calling that "turning over" would flatter it.
+    body["turning"] = behind == 1
+    return body
 
 
 def _port_listener_pid(port=None):
@@ -11345,7 +11398,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1830",
+        "ver": "v1831",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
