@@ -101,6 +101,22 @@ CHRONICLE_VISION_PROMPT = (
     "If you cannot tell found from unfound anywhere on the panel: set stateVisible=false and return "
     "found EMPTY. Do not assume everything shown is owned — this read is unattended and a confident "
     "wrong page permanently mis-tallies his grail.\n"
+    # v1827 — A `First Found:` LINE IS ITSELF THE FOUND-STATE, and not saying so was throwing away
+    # readable pages. Konyo's sets reel refused 20 of 35 attempts; pulling one of the refusals and
+    # LOOKING at it settled why. The frame is a perfectly legible SETS page - M'avina's Tenet
+    # (Demon Imp, 05/19/2026), M'avina's Icy Clutch (The Cow King, 05/18/2026), the Trang-Oul's
+    # Avatar heading, then Girth and Claws each with their own date - and the reader returned
+    # stateVisible=false.
+    # The rule above was written for the UNIQUES panel, where unfound rows are dim silhouettes
+    # sitting next to bright found ones, so "can you tell them apart" is answerable by contrast. A
+    # SETS page showing only owned rows has nothing to contrast against, and an honest reader
+    # following that rule literally must refuse it. The refusal was correct behaviour from an
+    # incomplete instruction.
+    "A row that prints a `First Found:` date IS found - that line is the found-state by itself, and "
+    "needs nothing to compare against. A page where EVERY visible row carries one is a page where "
+    "every visible row is found; report them and do NOT set stateVisible=false. Only say "
+    "stateVisible=false when the rows carry no found-state you can read at all - no dates, no ticks, "
+    "no bright/dim distinction.\n"
     "THE LEDGER YOU WERE GIVEN IS {ledger}. uniques = single unique items (Harlequin Crest, "
     "Windforce, Stormshield). sets = rows grouped under SET names (Tal Rasha's Wrappings, Immortal "
     "King). If the panel on screen is the OTHER one, set wrongTab=true and return found empty.\n"

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1826",
+  "ver": "v1827",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1826: Four of sixteen set groups his sweep produced were keyed by a piece name rather than a set. Both reader lanes are now told the tell that separates them: a heading is centred with no icon, no Dropped By and no First Found, while every piece row carries all three.",
+  "note": "v1827: His sets reel refused 20 of 35 read attempts. One of the refusals was a perfectly legible page of dated set pieces. The rule was written for the uniques panel where unfound rows sit beside found ones to contrast against, and a sets page showing only owned rows has nothing to contrast with, so an honest reader had to refuse it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

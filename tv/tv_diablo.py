@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1826"   # a set heading is not a piece
+VERSION = "v1827"   # a First Found line is the found state
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -137,7 +137,7 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p1826"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
+PROMPT_VER = "p1827"   # v1818 — chronicle rows now yield their First Found stamp, Dropped By line and the panel sort order; bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
@@ -4875,6 +4875,22 @@ CHRONICLE_READ_PROMPT = (
     "If you cannot tell found from unfound ANYWHERE on this panel, set stateVisible=false and return "
     "found EMPTY. This read runs unattended over old footage, so a confident wrong page permanently "
     "mis-tallies a grail nobody is watching. An empty answer is recoverable; a wrong one is not.\n"
+    # v1827 — A `First Found:` LINE IS ITSELF THE FOUND-STATE, and not saying so was throwing away
+    # readable pages. Konyo's sets reel refused 20 of 35 attempts; pulling one of the refusals and
+    # LOOKING at it settled why. The frame is a perfectly legible SETS page - M'avina's Tenet
+    # (Demon Imp, 05/19/2026), M'avina's Icy Clutch (The Cow King, 05/18/2026), the Trang-Oul's
+    # Avatar heading, then Girth and Claws each with their own date - and the reader returned
+    # stateVisible=false.
+    # The rule above was written for the UNIQUES panel, where unfound rows are dim silhouettes
+    # sitting next to bright found ones, so "can you tell them apart" is answerable by contrast. A
+    # SETS page showing only owned rows has nothing to contrast against, and an honest reader
+    # following that rule literally must refuse it. The refusal was correct behaviour from an
+    # incomplete instruction.
+    "A row that prints a `First Found:` date IS found - that line is the found-state by itself, and "
+    "needs nothing to compare against. A page where EVERY visible row carries one is a page where "
+    "every visible row is found; report them and do NOT set stateVisible=false. Only say "
+    "stateVisible=false when the rows carry no found-state you can read at all - no dates, no ticks, "
+    "no bright/dim distinction.\n"
     "THE LEDGER YOU WERE ASKED FOR IS {ledger}. uniques = single unique items (Harlequin Crest, "
     "Windforce, Stormshield). sets = rows grouped under SET names (Tal Rasha's Wrappings, Immortal "
     "King). If the panel is the OTHER one, set wrongTab=true and return found empty — never tally "

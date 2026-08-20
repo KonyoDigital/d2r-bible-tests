@@ -7736,6 +7736,23 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         return (open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read(),
                 open(os.path.join(here, "g5_grok_eyes.py"), encoding="utf-8").read())
 
+    def test_both_lanes_know_a_First_Found_line_IS_the_found_state(self):
+        """v1827 — the sets reel refused 20 of 35 attempts, and one of the refusals was a perfectly
+        legible page: M'avina's Tenet (Demon Imp, 05/19/2026), M'avina's Icy Clutch (The Cow King,
+        05/18/2026), the Trang-Oul's Avatar heading, then Girth and Claws each with a date.
+
+        The stateVisible rule was written for the UNIQUES panel, where unfound rows are dim
+        silhouettes sitting beside bright found ones, so "can you tell them apart" is answerable by
+        contrast. A SETS page showing only owned rows has nothing to contrast against, and a reader
+        following that rule literally MUST refuse it. The refusal was correct behaviour from an
+        incomplete instruction, which is the worst kind to debug: nothing is broken and pages still
+        vanish.
+        """
+        claude, grok = self._prompts()
+        for needle in ("`First Found:` date IS found", "do NOT set stateVisible=false"):
+            self.assertIn(needle, claude, "the Claude lane lost: %s" % needle)
+            self.assertIn(needle, grok, "the Grok lane lost: %s" % needle)
+
     def test_both_lanes_describe_the_heading_the_same_way(self):
         claude, grok = self._prompts()
         for needle in ("set-name HEADING", "NO `Dropped By:` line", "never a piece name in"):
@@ -7746,7 +7763,7 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         # a changed prompt on an old version replays cached reads that were answered under the old
         # wording — the same guard test_agent keeps, asserted here because THIS change is the reason
         import tv_diablo as _tv
-        self.assertEqual(_tv.PROMPT_VER, "p1826")
+        self.assertEqual(_tv.PROMPT_VER, "p1827")
 
 
 if __name__ == "__main__":
