@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1889",
+  "ver": "v1890",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1889: Driving the board chronicle apply in a real page showed five uniques reported and the counter moving by four. One at a time named it: Shako is the community nickname for Harlequin Crest so the board has no such unique, and toggleOwned routes a name it does not recognise into the physical vault rather than the found ledger. That split is deliberate but the receipt did not know about it and counted a vault write as a find. The ledger is the arbiter rather than the intent, so the receipt asks it, and an unreadable ledger falls back to the old behaviour rather than inventing a demotion.",
+  "note": "v1890: The uniques defect in a worse shape, found by sweeping the class it belongs to. Applying three real pieces plus two names the board has never heard of reported five, moved the meter by three, and wrote all five into the found ledger - and where an unrecognised unique at least lands in the vault, an unrecognised set piece lands in the ledger and stays, because nothing ever un-finds. Membership is asked before the write now, against the board own piece universe, memoised so a five hundred name payload does not walk it five hundred times, and an unreadable or empty roster does not invent a refusal.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

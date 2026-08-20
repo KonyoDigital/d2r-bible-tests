@@ -38712,6 +38712,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _chronAlreadyUni(n){ try { return _ownedNames().has(n); } catch(e){ return false; } }
   function _chronAlreadySet(n){ try { return _setHave().has(n); } catch(e){ return false; } }
 
+  /* v1890 — EVERY NAME THE BOARD ACCEPTS AS A SET PIECE, memoised. __allSets() is the one place the
+     piece universe lives (ITEM_SETS + the two EXTRA tables), and walking it per applied row on a
+     500-name payload would walk it 500 times. Published on window so a guard can reach it — the
+     REG-083/REG-087 lesson about helpers that only LOOK available from outside their IIFE. */
+  var _CH_PIECES = null;
+  window._chronSetPieceSet = function(){
+    if (_CH_PIECES) return _CH_PIECES;
+    var s = new Set();
+    try {
+      (typeof __allSets === 'function' ? __allSets() : []).forEach(function(st){
+        (st.pieces || []).forEach(function(p){
+          var nm = (p && p.name) || p;
+          if (nm) s.add(String(nm));
+        });
+      });
+    } catch(e){}
+    _CH_PIECES = s;
+    return s;
+  };
+
   /* ── v1864 — THE GAME'S OWN FIND DATE ─────────────────────────────────────────────────────
      Konyo: "i want the console also updateing me on when it was found timestamped in the game..
      (not when the AI READ IT) that can be a ledger timestamp but for the item itself and when it
@@ -38861,6 +38881,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _gs = row && row.gameFound;
       try { if (_gs) window._gameFoundSet(n, _gs); } catch(e){}
       var _ds = (row && row.date) || (_gs && _gs.at ? window._gameStampToLedger(_gs.at) : '');
+      /* v1890 — A NAME THAT IS NOT A SET PIECE MUST NOT ENTER THE LEDGER AT ALL.
+         Measured in a real page: applying three real pieces plus "IK Helm" and "Totally Not A Set
+         Piece" reported `sets: 5`, moved the meter by THREE, and wrote ALL FIVE into d2r_foundLog.
+         Worse than v1889's uniques case — there an unknown name landed in the vault, here it lands
+         in the FOUND LEDGER and stays, because nothing ever un-finds.
+         So the membership question is asked BEFORE the write, against the board's own piece
+         universe (__allSets), and a name it does not know is reported as unknown rather than
+         written. If that universe cannot be read we do NOT invent a refusal — the old behaviour
+         stands, because "this is not a set piece" is a claim that needs the roster to make.
+         [[unknown-stays-unknown]] [[label-outlived-referent]] */
+      var _known = true;
+      try {
+        var _pieces = window._chronSetPieceSet && window._chronSetPieceSet();
+        if (_pieces && _pieces.size) _known = _pieces.has(n);
+      } catch(e){ _known = true; }
+      if (!_known){ res.unknown.push(n); return; }
       var _savedS = window._grailStamp;
       try {
         if (_ds) window._grailStamp = function(){ return _ds; };
@@ -42126,7 +42162,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1889', name:'v1889 - The apply receipt said five and the grail meter moved four', date:'2026-08-21', note:'Driving the board chronicle apply in a real page showed five uniques reported and the counter moving by four. One at a time named it: Shako is the community nickname for Harlequin Crest so the board has no such unique, and toggleOwned routes a name it does not recognise into the physical vault rather than the found ledger. That split is deliberate but the receipt did not know about it and counted a vault write as a find. The ledger is the arbiter rather than the intent, so the receipt asks it, and an unreadable ledger falls back to the old behaviour rather than inventing a demotion.' };
+  window.D2R_BUILD = { id:'v1890', name:'v1890 - A name that is not a set piece was written into his found ledger', date:'2026-08-21', note:'The uniques defect in a worse shape, found by sweeping the class it belongs to. Applying three real pieces plus two names the board has never heard of reported five, moved the meter by three, and wrote all five into the found ledger - and where an unrecognised unique at least lands in the vault, an unrecognised set piece lands in the ledger and stays, because nothing ever un-finds. Membership is asked before the write now, against the board own piece universe, memoised so a five hundred name payload does not walk it five hundred times, and an unreadable or empty roster does not invent a refusal.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

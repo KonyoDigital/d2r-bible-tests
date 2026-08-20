@@ -9562,6 +9562,66 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
                       "an unreadable ledger now demotes a real find to a vault row")
 
 
+class TestANonPieceNeverEntersTheSetLedger(unittest.TestCase):
+    """v1890 — the sets branch had v1889's defect in a WORSE shape.
+
+    MEASURED in a real page on a cleared store: applying three real pieces plus "IK Helm" and
+    "Totally Not A Set Piece" reported `sets: 5`, moved the meter by THREE, and wrote ALL FIVE into
+    d2r_foundLog. In the uniques case an unrecognised name at least landed in the vault; here it
+    lands in the FOUND LEDGER and stays, because nothing ever un-finds.
+
+    After: `sets: 3`, `unknown: ["IK Helm", "Totally Not A Set Piece"]`, meter +3, and the ledger
+    holds only the three real pieces.
+
+    The membership question is asked BEFORE the write, against the board's own piece universe
+    (`__allSets` — ITEM_SETS plus the two EXTRA tables), memoised because a 500-name payload would
+    otherwise walk that universe 500 times.
+
+    ⚠ AND AN UNREADABLE ROSTER DOES NOT INVENT A REFUSAL. "This is not a set piece" is a claim that
+    needs the roster to make; without it the old behaviour stands. The tempting catch is the wrong
+    way round here, exactly as it was in v1889. [[unknown-stays-unknown]]"""
+
+    def _sets_branch(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("    (add.sets || []).forEach(function(row){")
+        j = src.find("completeSets", i)
+        self.assertGreater(i, 0, "the sets apply branch is gone")
+        return src, src[i:j]
+
+    def test_membership_is_asked_BEFORE_the_write(self):
+        _src, body = self._sets_branch()
+        ask = body.find("_chronSetPieceSet")
+        write = body.find("window.toggleSetPiece")
+        self.assertGreater(ask, 0, "nothing checks that the name is a set piece at all")
+        self.assertGreater(write, 0)
+        self.assertLess(ask, write, "the name is written first and questioned afterwards — by then "
+                                    "it is in his ledger and nothing ever un-finds")
+
+    def test_an_unknown_name_is_reported_not_written(self):
+        _src, body = self._sets_branch()
+        i = body.find("if (!_known){")
+        self.assertGreater(i, 0)
+        self.assertIn("res.unknown.push(n); return;", body[i:i + 120],
+                      "an unrecognised name still falls through into the write")
+
+    def test_an_unreadable_roster_does_NOT_invent_a_refusal(self):
+        _src, body = self._sets_branch()
+        self.assertIn("catch(e){ _known = true; }", body,
+                      "a missing roster now refuses every piece he actually found")
+        self.assertIn("if (_pieces && _pieces.size)", body,
+                      "an EMPTY piece set would refuse everything — that is the same failure")
+
+    def test_the_piece_universe_is_memoised_and_reachable(self):
+        src, _body = self._sets_branch()
+        self.assertIn("window._chronSetPieceSet = function()", src,
+                      "the helper is not reachable from outside its IIFE — the REG-083 shape")
+        self.assertIn("if (_CH_PIECES) return _CH_PIECES;", src,
+                      "the piece universe is rebuilt per row; a 500-name payload walks it 500 times")
+
+
 class TestTheVaultApplyTellsZeroFromUnknown(unittest.TestCase):
     """v1887 — `window.vaultAccumApply` called `count: 0` and `count: null` the same thing.
 

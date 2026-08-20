@@ -7289,3 +7289,33 @@ The reader-side fold does not save it either: `canonical("Shako")` is `None`.
 ⚠ **An unreadable ledger does not invent a demotion.** If the store cannot be read, *"he did not find
 it"* is a claim we have not earned, so the fallback is the old behaviour — counted as a unique — not
 a fabricated vault row. Guarded explicitly, because the tempting `catch` is the wrong way round.
+
+## REG-240 — a name that is not a set piece was written into his found ledger (FIXED v1890)
+
+v1889's defect, in a worse shape, found by sweeping the class it belongs to: *a receipt computed from
+intent rather than from the store.*
+
+**Measured in a real page, on a cleared store.** Applying three real pieces plus `IK Helm` and
+`Totally Not A Set Piece`:
+
+```
+receipt   sets: 5          meter  +3          d2r_foundLog: all FIVE
+```
+
+In the uniques case an unrecognised name at least landed in the vault. **Here it lands in the found
+ledger and stays**, because nothing ever un-finds.
+
+**After:** `sets: 3` · `unknown: ["IK Helm", "Totally Not A Set Piece"]` · meter **+3** · the ledger
+holds only the three real pieces.
+
+The membership question is asked **before** the write, against the board's own piece universe
+(`__allSets` — `ITEM_SETS` plus the two EXTRA tables), memoised because a 500-name payload would
+otherwise walk that universe 500 times, and published on `window` so a guard can reach it (the
+REG-083/REG-087 shape: a helper that only *looks* available from outside its IIFE).
+
+⚠ **An unreadable — or empty — roster does not invent a refusal.** *"This is not a set piece"* is a
+claim that needs the roster to make; without it the old behaviour stands. The tempting `catch` is the
+wrong way round here, exactly as it was in REG-239, and both directions are guarded.
+
+**The sweep that found it:** a regex for *a write call followed immediately by a `.push` into a
+result array* over the whole board — one live hit, this one.
