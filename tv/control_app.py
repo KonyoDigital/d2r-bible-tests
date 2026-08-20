@@ -9764,6 +9764,27 @@ MINI_FOCUS = "stash"                 # the DEFAULT focus
 # drift: the console renders its buttons from this, the agent validates against it, and the retro
 # sweep decides whether the stamp is trustworthy by membership in it.
 MINI_FOCUSES = ("stash", "runes", "gems", "materials", "chronicle-uniques", "chronicle-sets")
+MINI_MIN_SECONDS = 10
+MINI_MAX_SECONDS = 40
+MINI_DEFAULT_SECONDS = 25
+# v1744 — A CHRONICLE IS READ BY SCROLLING, SO IT NEEDS LONGER THAN A STASH TAB.
+# Konyo: "maybe longer then 25 seconds for it." A stash tab is ONE screen — 25s photographs it
+# several times over. A Chronicle is a LIST he scrolls, so the capture has to last as long as the
+# scrolling does, and the vision lane samples it sparsely on top of that (the v1689 guard measured
+# his chronicle reads 4.6-9.7s apart). Measured on session s_1786922954749_12579: a pass over his
+# uniques Chronicle produced five reads and got from "Amulet" to "Jewel" — A-to-J of ~400 names.
+# At 25s the cap was the binding constraint, not his scrolling.
+#
+# ⚠ v1863 — THESE SIX WERE DELETED BY v1853 AND MINI HAS BEEN DEAD EVER SINCE.
+# That commit removed `_focus_was_chosen` as dead code, correctly, and took the constants sitting
+# beside it. `_mini_bounds` still names all six, so EVERY /api/mini POST raised
+# NameError -> 500 -> a non-JSON body -> the console's fetch().json() threw -> the catch printed
+# "mini could not start — the console is not reachable". Konyo saw that toast and reported it as a
+# SETS problem; it was every focus, for ten versions. Nothing failed loudly, because the only path
+# that touches them is an HTTP handler whose exception became a toast about the network.
+MINI_CHRONICLE_FOCUSES = ("chronicle-uniques", "chronicle-sets")
+MINI_CHRONICLE_MAX_SECONDS = 120
+MINI_CHRONICLE_DEFAULT_SECONDS = 75
 
 
 def _mini_focus(v):
@@ -12156,7 +12177,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1862",
+        "ver": "v1863",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

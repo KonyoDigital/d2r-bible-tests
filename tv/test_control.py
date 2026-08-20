@@ -8962,6 +8962,147 @@ class TestPrepTabChromeIsNotDead(unittest.TestCase):
 
 
 
+class TestNoFunctionLoadsAnUndefinedName(unittest.TestCase):
+    """v1863 — MINI WAS DEAD FOR TEN VERSIONS AND NOTHING SAID SO.
+
+    v1853 removed `_focus_was_chosen` as dead code — correctly — and took the six constants sitting
+    beside it: MINI_MIN/MAX/DEFAULT_SECONDS and MINI_CHRONICLE_FOCUSES/MAX/DEFAULT_SECONDS.
+    `_mini_bounds` still names all six. So every /api/mini POST raised NameError -> 500 -> a
+    non-JSON body -> the console's `fetch().json()` threw -> its catch printed "mini could not
+    start — the console is not reachable". Konyo reported it as a SETS problem; it was EVERY focus,
+    since v1853, and the only symptom was a toast blaming the network.
+
+    Python cannot catch this at import: a name used only inside a function body is resolved when
+    that line RUNS. So the check has to be static, and this is it — an AST scope walk asserting
+    that every bare name a function LOADS resolves to a local, a parameter, a module global, an
+    import or a builtin.
+
+    It is the whole class, not the one site: run against the tree as v1853 left it, it names
+    `MINI_CHRONICLE_FOCUSES` and `MINI_DEFAULT_SECONDS` directly. [[source-reading-guard]] —
+    "ask fn.__code__ before the text", which is what this does, one level up at the AST.
+    """
+
+    MODULES = ("control_app.py", "tv_diablo.py", "stash_eye.py", "chronicle_retro.py",
+               "vault_retro.py", "chronicle_template.py", "chronicle_resolve.py",
+               "g5_grok_eyes.py", "chronicle_sweep_now.py")
+
+    @staticmethod
+    def _undefined(path):
+        import ast, builtins
+        src = open(path, encoding="utf-8").read()
+        tree = ast.parse(src)
+        module = set(dir(builtins)) | {"__file__", "__name__", "__doc__", "__spec__", "__package__"}
+
+        def bind(node, into):
+            for x in ast.walk(node):
+                if isinstance(x, ast.Name):
+                    into.add(x.id)
+
+        def collect(nodes, into):
+            for n in nodes:
+                if isinstance(n, (ast.Import, ast.ImportFrom)):
+                    for a in n.names:
+                        into.add((a.asname or a.name).split(".")[0])
+                elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    into.add(n.name)
+                elif isinstance(n, ast.Assign):
+                    for t in n.targets:
+                        bind(t, into)
+                elif isinstance(n, (ast.AugAssign, ast.AnnAssign)):
+                    bind(n.target, into)
+                elif isinstance(n, (ast.For, ast.AsyncFor, ast.comprehension)):
+                    if getattr(n, "target", None) is not None:
+                        bind(n.target, into)
+                elif isinstance(n, ast.withitem) and n.optional_vars is not None:
+                    bind(n.optional_vars, into)
+                elif isinstance(n, ast.ExceptHandler) and n.name:
+                    into.add(n.name)
+                elif isinstance(n, (ast.Global, ast.Nonlocal)):
+                    into.update(n.names)
+                elif isinstance(n, ast.NamedExpr):
+                    bind(n.target, into)
+
+        collect(list(ast.walk(tree)), module)
+        out = []
+
+        def own_scope(root):
+            """Every node of THIS scope — never descending into a nested function or class, whose
+            parameters would otherwise be checked against the OUTER locals and all read undefined."""
+            stack, seen = list(ast.iter_child_nodes(root)), []
+            while stack:
+                nd = stack.pop()
+                seen.append(nd)
+                if isinstance(nd, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                    continue
+                stack.extend(ast.iter_child_nodes(nd))
+            return seen
+
+        def scope(fn, bound):
+            local = set(bound)
+            a = fn.args
+            for p in list(getattr(a, "posonlyargs", [])) + list(a.args) + list(a.kwonlyargs):
+                local.add(p.arg)
+            if a.vararg:
+                local.add(a.vararg.arg)
+            if a.kwarg:
+                local.add(a.kwarg.arg)
+            nodes = own_scope(fn)
+            inner = [n for n in nodes
+                     if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))]
+            collect(nodes, local)
+            for n in nodes:
+                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
+                    if n.id not in local and n.id not in module:
+                        out.append((getattr(fn, "name", "<lambda>"), n.id, n.lineno))
+            for f in inner:
+                scope(f, local)
+
+        # START ONLY AT MODULE LEVEL. Walking every FunctionDef reaches nested ones twice — once by
+        # recursion, with the enclosing scope's names bound, and once from here with nothing bound —
+        # and the second visit reports every closure variable as undefined. Six false positives,
+        # all of them real closures. A gate with false alarms is a gate he learns to scroll past.
+        for n in tree.body:
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                scope(n, set())
+            elif isinstance(n, ast.ClassDef):
+                for m in n.body:
+                    if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        scope(m, set())
+        return sorted(set(out), key=lambda t: t[2])
+
+    def test_no_function_references_a_name_that_does_not_exist(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        checked = 0
+        for name in self.MODULES:
+            p = os.path.join(here, name)
+            if not os.path.isfile(p):
+                continue
+            checked += 1
+            bad = self._undefined(p)
+            self.assertEqual(bad, [], "%s references names that do not exist: %s" % (
+                name, "; ".join("%s() loads %r at line %d" % b for b in bad[:8])))
+        self.assertGreaterEqual(checked, 5, "the module list has rotted — this gate is checking air")
+
+    def test_the_guard_SEES_the_v1853_deletion(self):
+        """A gate never seen RED is measuring nothing. Feed it the exact shape v1853 left behind."""
+        import tempfile
+        src = ("MINI_FOCUSES = ('stash',)\n"
+               "def _mini_bounds(focus):\n"
+               "    if focus in MINI_CHRONICLE_FOCUSES:\n"
+               "        return MINI_CHRONICLE_DEFAULT_SECONDS, MINI_CHRONICLE_MAX_SECONDS\n"
+               "    return MINI_DEFAULT_SECONDS, MINI_MAX_SECONDS\n")
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as f:
+            f.write(src)
+            p = f.name
+        try:
+            names = sorted(set(n for _, n, _ in self._undefined(p)))
+        finally:
+            os.unlink(p)
+        self.assertEqual(names, ["MINI_CHRONICLE_DEFAULT_SECONDS", "MINI_CHRONICLE_FOCUSES",
+                                 "MINI_CHRONICLE_MAX_SECONDS", "MINI_DEFAULT_SECONDS",
+                                 "MINI_MAX_SECONDS"])
+
+
 class TestTheBridgeCacheKeyNamesWhatItCaches(unittest.TestCase):
     """v1862 — his F·Sets tab read 116/135 while the console's DAILY TASK FORCE read 113/135.
 

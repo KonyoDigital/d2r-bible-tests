@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1862",
+  "ver": "v1863",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1862: His F-Sets tab read 116 of 135 while the console daily task force read 113 and its daily pick sentence read 112. Three numbers for one quantity on two screens, and two separate staleness bugs. The bridge signature that decides whether the console gets a fresh payload was written in v913 and never learned about the sets field added in v922, so a change in the set count alone left the console serving a fossil. Four of the six fields the console prints were missing from it. And the once-a-day pick sentence had a staleness check that covered runewords only, so it kept quoting a count he had moved past.",
+  "note": "v1863: A commit that correctly removed a dead function took six live constants with it, and mini_bounds still names all of them. Every MINI press raised NameError, returned a 500, and the console fetch parsed a non-JSON body and printed that the console is not reachable. Ten versions, every focus, and a toast about the network. Restored, and guarded by a static AST scope walk over every tv module: a name used only inside a function body is resolved when that line runs, so this class cannot be caught at import and has to be checked statically. Also: the TODAY row paired today runs with a lifetime tally count under one word.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

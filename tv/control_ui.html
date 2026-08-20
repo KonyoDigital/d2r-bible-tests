@@ -11939,7 +11939,34 @@
       if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('uniques', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt', 'funi'));
       if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('sets', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left', 'fsets'));
       var runsToday = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); }).length;
-      rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + led.length + ' tallies synced</span><span class="tf-tag dim">TODAY</span></div>');
+      /* v1863 — TWO NUMBERS IN ONE SENTENCE, MEASURING TWO DIFFERENT WINDOWS.
+         The row read "24 runs recorded today · 0 tallies synced" under a TODAY tag. `runsToday` is
+         genuinely today; `led.length` is the LIFETIME de-dup log, capped at 2000. It reads 0 today
+         only because his log is empty — the moment he tallies anything, a lifetime figure sits
+         beside a daily one under one word, and nothing on the row says so. That is the defect he
+         has named more than once: a right number under a word naming a different quantity.
+         [[label-outlived-referent]]
+         A tally id is `<sessionId>|<frameId>|<kind>:<key>|<sign>` and a sessionId is
+         `s_<ms-epoch>_<n>`, so every row already carries its own date — no schema change, and the
+         de-dup semantics ("exactly once, forever") are untouched.
+         ⚠ THE EPOCH IS MILLISECONDS AND IS TREATED AS SUCH ONLY WHEN IT LOOKS LIKE ONE (>1e12).
+         An id that cannot be dated is NOT silently dropped from a "today" count — it makes the
+         count un-claimable, and the row falls back to saying `all time`, which is the one thing
+         that is certainly true. [[unknown-stays-unknown]] */
+      var _tlyToday = 0, _tlyUndated = 0;
+      (led || []).forEach(function(id){
+        var m = /^s_(\d{10,})_/.exec(String(id || ''));
+        var ms = m ? parseInt(m[1], 10) : NaN;
+        if (!m || !(ms > 1e12)) { _tlyUndated++; return; }
+        if (new Date(ms).toDateString() === new Date().toDateString()) _tlyToday++;
+      });
+      var _tlyTxt = _tlyUndated
+        ? (led.length + ' tallies synced, all time' + (led.length >= 2000 ? ' (log caps at 2000)' : ''))
+        : (_tlyToday + ' tallie' + (_tlyToday === 1 ? '' : 's') + ' synced today');
+      var _tlyTitle = led.length + ' in the tally log all time'
+        + (led.length >= 2000 ? ' — the log caps at 2000, so this is a floor, not a total' : '')
+        + (_tlyUndated ? ' · ' + _tlyUndated + ' carry no datable session id' : '');
+      rows.push('<div class="tf-row tf-stat" title="' + _tlyTitle + '"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + _tlyTxt + '</span><span class="tf-tag dim">TODAY</span></div>');
       var box = $('hd-taskforce');
       // v1425 — skip identical repaint: status poll (~1.5s) was rewriting the whole roster →
       // rows flashed/jumped even when nothing changed (Konyo: "still routines jumping").
