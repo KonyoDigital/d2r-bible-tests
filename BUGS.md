@@ -5348,6 +5348,80 @@ nine shipped versions, on a whim. It found this on the first ship after it was m
 
 ---
 
+## REG-200 — prep_tab_chrome returned None on EVERY call for 310 versions (v1849)
+
+**Symptom.** The vault kept items he does not have. He said so plainly: "im pretty sure some items
+here were incorrectly VAULTED and MULED some are okay and i have them for real in my stash but some
+i do not."
+
+**Found by** building the structural stash gate he asked for on 2026-08-20 — it could not pass a
+single genuine stash frame, including frames his own journal marks `scene=stash`.
+
+**Measured.** Four lines in `prep_tab_chrome` were pasted from `prep_stash_grid` and reference
+`derived`, `aspect` and `layout` — all local to THAT function, none defined in this one:
+
+```
+if not derived and aspect >= 1.3:
+    _LAST_CROP.update({... "layout": layout ...})
+```
+
+Running the body without the swallow raises `NameError: name 'derived' is not defined`, while the
+crop before it succeeds at 820x142. The function's own `except Exception: return None` turned that
+into a plausible answer. Introduced v1538 (cc9c6f71), found at v1848 — **310 versions**.
+
+**Why it mattered.** The stash TAB CHROME is the one NON-MODEL signal for which tab is open, and
+stash_eye's own note says the chrome "only becomes readable via a deliberate crop + 3x upscale" —
+which is exactly what this function does. With it dead there was no readable chrome, nothing could
+confirm a stash panel structurally, and every ownership frame fell back to a model's guess.
+vault_retro states the consequence itself: "a rune tab misread as 'inventory' files his runes in the
+wrong lane, which merge-max then makes permanent."
+
+**Fixed** in v1849; the telemetry those lines meant to write is kept, corrected to describe what this
+function actually does. Verified on his own footage, green and red each for its own reason:
+`5_1784984201581.jpg` (journal: scene=stash) -> tab `gems`; `6_1786554035205.jpg` (gameplay) ->
+refused.
+
+**Prevention — the transferable law: A BARE `except` THAT RETURNS A PLAUSIBLE VALUE IS HOW A
+FUNCTION DIES SILENTLY AND STAYS DEAD.** Guard: `tv/test_control.py
+TestPrepTabChromeIsNotDead` — and it asks the COMPILER (`co_names`) rather than grepping the source,
+because the first cut tripped on the dict KEY `"layout"`, a string that was never the bug.
+
+⚠ The same shape was then found in `stash_screen_open`, written the next day, and fixed in v1854: a
+gate that cannot RUN must not answer "no". It still refuses (the safe direction) but is no longer
+silent, and `gate_failures()` counts it.
+
+## REG-201 — ten versions reached origin/main and NONE of them deployed (2026-08-20)
+
+**Symptom.** v1829..v1838 were each reported as shipped. The site stayed on v1828.
+
+**Cause.** `bump_version.py` writes four version stamps; they were staged by hand and
+`tv/tv_diablo.py` stopped being included from v1832. The committed tree read:
+
+```
+bible.html v1838 · control_app v1837 · tv_diablo v1831 · WINDOWS_SHIP v1838
+```
+
+and the Publish job's own guard, `test_all_four_stamps_are_the_same_version`, refused it exactly as
+designed — ten times.
+
+**Why nothing local saw it.** That guard reads the four files FROM THE WORKING TREE, where every
+stamp was correct the whole time, and `hooks/pre-push` runs the same suite against the same working
+tree. CI reads the COMMITTED tree. A gate blind to the only state that matters: the bytes that were
+actually pushed.
+
+**Fixed** by committing the missing stamps, and by a guard that reads `git show HEAD:` for all four —
+so a half-bumped commit fails LOCALLY, before the push. A second cause surfaced behind the first:
+`publish.yml` had never installed Pillow, while `tv-tests.yml` has since it was written, so the
+workflow that BLOCKS THE DEPLOY ran the same suite with fewer capabilities than the one that only
+reports.
+
+**Prevention — the transferable law: A PUSH THAT LANDS IS NOT A SHIP.** `origin/main` moving proves
+the push; only the deploy proves the ship. Read CI, and read the SITE.
+
+⚠ Two more gates were red and unheard on the same day: `test_chronicle_seal` for nine versions
+(run_gates runs it, the pre-push hook did not — now it does), and `v1733_css_tokens_resolve` for ten
+(Routine I was never read). Both were caught by their own guards instantly and by nobody else.
+
 ## REG-199 — the height caps ignored the dock, and the earlier "zero collisions" only held for short queues (v1799)
 
 Two findings from the same review, both real, both mine.
