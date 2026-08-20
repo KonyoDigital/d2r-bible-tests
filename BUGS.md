@@ -2830,6 +2830,15 @@ NOT fixed.**
 by OPENING it and by an independent read — not by luminance statistics, which is exactly what this
 entry proves insufficient.
 
+**2026-08-20 — re-verified by OPENING it, still OPEN.** Exposure remains in family (mean 42.9 against
+siblings 41.3 / 44.2 / 46.1, max 249), so the gamma correction still holds and the luminance confound
+is still removed. The picture itself is unchanged: jagged brown-black abstract shapes with one small
+purple blob, no floor, no torch, no figure, no architecture — nothing a person would call Halls of
+Anguish. That is a second independent read, months after Grok's, agreeing with the diagnosis. It
+also re-proves the entry's own warning: every statistic this file carries is now HEALTHY and the
+image is still wrong, so no threshold will ever close this one. The fix is still a re-extraction,
+and it needs the game — not this repo.
+
 ## REG-115 — Routine I: the 27 failures are ONE deterministic set, not flake, and not CI-only
 
 **Symptom.** `Routine I — Playwright suite` has been red since ~v1634 and, per the project record,
