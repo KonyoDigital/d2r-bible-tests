@@ -12893,8 +12893,15 @@ const SET_PIECES_EXTRA = [
   // v456 — The Disciple: Konyo's GREEN "Dark Adherent" (a Dusk Shroud body) read as Magic & Rare because this
   // set wasn't in the data — same gap as Sander's/Tancred's (v367). Adding it → findSetPiece resolves all 5
   // pieces (set-green + set-locker route) and they enter the intake vocab via __setPieceNames() so the AI reads
-  // them as grail, not rare. Pieces verified against d2 setitems.json (Telling of Beads = Spired Helm helm).
-  {name:"The Disciple (set)", pieces:["Telling of Beads (spired helm)","Dark Adherent (dusk shroud)","Credendum (mithril coil)","Laying of Hands (bramble mitts)","Rite of Passage (sharkskin boots)"]}
+  // them as grail, not rare. Pieces verified against d2 setitems.json.
+  // v1822 — TELLING OF BEADS IS AN AMULET, and this comment used to assert the opposite while
+  // claiming it had been verified. The board contradicted ITSELF: the HD art map has served
+  // "Telling of Beads":"art/hd_amulet.png" all along, so one surface drew an amulet while the
+  // piece label said spired helm. Konyo hit the seam twice — first as the Disciple tooltip
+  // "mismatch or unsynced", then plainly: "its not a spired helm its an amulet". A wrong slot
+  // is not cosmetic here: it decides the vault locker (an amulet routes to UNI-SMALL, a helm to
+  // UNI-ARMOR) and the art the card draws.
+  {name:"The Disciple (set)", pieces:["Telling of Beads (amulet)","Dark Adherent (dusk shroud)","Credendum (mithril coil)","Laying of Hands (bramble mitts)","Rite of Passage (sharkskin boots)"]}
 ];
 // v382 — the 13 classic + 2 RotW sets that weren't yet defined (identity → search/tracker/findSetPiece).
 const SET_PIECES_EXTRA2 = [
@@ -38320,7 +38327,41 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
 
   /* ── SETS ────────────────────────────────────────────── */
-  function _setHave(){ try { return new Set(JSON.parse(window.LSR.getItem('d2r_setPieces')||'[]')); } catch(e){ return new Set(); } }
+  /* v1822 — A CORRECTED SLOT MUST NOT UN-FIND A PIECE HE ALREADY OWNS.
+     d2r_setPieces stores the FULL "Name (slot)" string and this Set is consulted with an exact
+     have.has(pieceName), so the moment a roster slot is fixed — "Telling of Beads (spired helm)"
+     becoming "(amulet)" — every tick he made under the old label silently stops matching. He would
+     watch a set he completed months ago lose a piece, with nothing to point at.
+     Handled on READ rather than by migrating his file: each stored entry also admits the roster's
+     CURRENT label for the same base name. Nothing is written, it is idempotent, it needs no
+     ordering to be correct, and it fixes the next slot correction too without another migration.
+     His own storage is left exactly as he wrote it. */
+  function _setHave(){
+    var out = new Set();
+    var raw;
+    try { raw = JSON.parse(window.LSR.getItem('d2r_setPieces') || '[]'); } catch(e){ return out; }
+    if (!Array.isArray(raw)) return out;
+    var byBase = null;
+    raw.forEach(function(stored){
+      if (typeof stored !== 'string' || !stored) return;
+      out.add(stored);
+      if (byBase === null) {
+        byBase = {};
+        try {
+          ((typeof window.__allSets === 'function') ? window.__allSets() : []).forEach(function(st){
+            (st.pieces || []).forEach(function(pn){
+              try { byBase[_norm(__pieceBase(pn))] = pn; } catch(e){}
+            });
+          });
+        } catch(e){ byBase = {}; }
+      }
+      try {
+        var cur = byBase[_norm(__pieceBase(stored))];
+        if (cur && cur !== stored) out.add(cur);   // the same piece, wearing its corrected slot
+      } catch(e){}
+    });
+    return out;
+  }
   // v1539 (REG-087) — PUBLISHED, because two call sites in the LATER IIFE (~35817) guard on
   // `typeof _setHave==='function'` and this declaration is invisible to them. typeof on an
   // undeclared name does not throw, so that guard was permanently FALSE and the owned-piece
@@ -41769,7 +41810,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1821', name:'v1821 - the quote screen stopped blaming the reader', date:'2026-08-20', note:'The free pass installs a stub reader that returns nothing by construction, then reported the verdict without saying so, so it accused the reading itself of finding no names. It now declares itself a dry run and reports the footage as unmeasured.' };
+  window.D2R_BUILD = { id:'v1822', name:'v1822 - Telling of Beads is an amulet', date:'2026-08-20', note:'The board contradicted itself: the HD art map served an amulet while the piece label said spired helm, under a comment claiming the pieces had been verified. The slot decides the vault locker and the card art. A tick made under the old label is still counted, on read, without rewriting his storage.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

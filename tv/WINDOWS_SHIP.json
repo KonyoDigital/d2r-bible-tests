@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1821",
+  "ver": "v1822",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1821: The free pass installs a stub reader that returns nothing by construction, then reported the verdict without saying so, so it accused the reading itself of finding no names. It now declares itself a dry run and reports the footage as unmeasured.",
+  "note": "v1822: The board contradicted itself: the HD art map served an amulet while the piece label said spired helm, under a comment claiming the pieces had been verified. The slot decides the vault locker and the card art. A tick made under the old label is still counted, on read, without rewriting his storage.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
