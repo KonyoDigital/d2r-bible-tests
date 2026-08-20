@@ -3593,6 +3593,53 @@ class TestAnIsolatedFixtureCannotWriteHisJournal(unittest.TestCase):
                       "the harness that wrote 1,729 rows into his journal stopped saying where "
                       "its own journal goes")
 
+
+class TestTheSubscriptionMeterCannotBePoisonedByUnits(unittest.TestCase):
+    """v1868 — his LIVE .subscription_budget.json held a millisecond timestamp among seconds.
+
+    Measured: 1787177667153.0 sitting in `calls` beside 404 ordinary seconds-scale entries. Both
+    windows were written `now - t < WINDOW`, and for a value ~55,000 years in the future that
+    difference is hugely NEGATIVE — so it passed every window, forever: one permanent slot off the
+    hourly cap AND the daily cap, invisible, unable to age out.
+
+    Harmless at 4000/hour; not harmless as a mechanism, and not new — the same unit collision is
+    already on the record against the G5 lane. A meter that the passage of time cannot correct only
+    ever moves one way. [[d2r-g5-budget-unit-collision]]"""
+
+    def test_a_millisecond_entry_is_rescaled_not_trusted(self):
+        import time
+        import tv_diablo as tv
+        now = time.time()
+        got = tv._sub_budget_calls({"calls": [1787177667153.0]}, now)
+        self.assertEqual(len(got), 1)
+        self.assertLess(got[0], now + 60, "a millisecond stamp is still in the future")
+        self.assertAlmostEqual(got[0], 1787177667.153, 1,
+                               "the real moment is recoverable — divide, do not discard")
+
+    def test_the_window_is_two_sided(self):
+        import time
+        import tv_diablo as tv
+        now = time.time()
+        got = tv._sub_budget_calls({"calls": [now - 10, now - 90000, now + 999999]}, now)
+        self.assertEqual([round(x) for x in got], [round(now - 10)],
+                         "'not older than a day' and 'not in the future' are two conditions and "
+                         "the one-sided test only ever checked one")
+
+    def test_junk_does_not_crash_the_meter(self):
+        import time
+        import tv_diablo as tv
+        now = time.time()
+        self.assertEqual(tv._sub_budget_calls({"calls": ["x", None, {}, now - 5]}, now),
+                         [now - 5])
+
+    def test_the_poison_is_not_rewritten_on_every_record(self):
+        # normalise on WRITE as well as READ, or the next recorded read copies it straight back in
+        import inspect
+        import tv_diablo as tv
+        src = inspect.getsource(tv._sub_budget_record)
+        self.assertIn("_sub_budget_calls(st, now)", src,
+                      "the writer still rebuilds the list with the raw filter")
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

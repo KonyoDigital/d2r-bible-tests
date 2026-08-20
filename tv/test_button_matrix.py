@@ -38,6 +38,8 @@ except Exception:
 # If TV_CTRL_URL is set, that is honoured instead and nothing is started — for pointing the matrix
 # at an already-running instance deliberately.
 import atexit
+import tempfile
+import shutil
 import socket
 
 _OWNED = None
@@ -53,7 +55,33 @@ def _boot_control():
     """Start a private control_app and return its base URL, or None if it will not come up."""
     global _OWNED
     port = _free_port()
-    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_ROBOT="1")
+    # v1867 — ISOLATING THE PORT IS NOT ISOLATING THE WORLD.
+    #
+    # This harness was careful about the one thing that had bitten before — it takes a private free
+    # port, passes --no-open, and terminates only the pid it started — and then handed that private
+    # control app his REAL environment. Measured tonight: one run appends six rows to his live
+    # tv/sessions.jsonl, including deep-lane rows stamped mode="stub". It writes his hist root and
+    # his chronicle state the same way.
+    #
+    # It was invisible because run_gates' live-state watchlist named five files and not the journal
+    # (fixed in the same ship). A port is one door; the frames, the journal, the sweep memory and
+    # the sweep lock are four more. [[feedback-fixtures-never-touch-live-data]]
+    #
+    # TV_HIST alone would now carry the journal with it (v1867), but every path is named here on
+    # purpose: a reader of this block should not have to know that rule to see that nothing escapes.
+    _sand = tempfile.mkdtemp(prefix="btnmatrix-")
+    atexit.register(shutil.rmtree, _sand, True)
+    _hist = os.path.join(_sand, "frames", "hist")
+    os.makedirs(_hist, exist_ok=True)
+    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_ROBOT="1",
+               TV_HIST=_hist,
+               TV_FRAMES_DIR=os.path.join(_sand, "frames"),
+               TV_SESSIONS=os.path.join(_sand, "sessions.jsonl"),
+               TV_CHRON_EVIDENCE=os.path.join(_sand, "chron_evidence.json"),
+               TV_CHRON_RESULT=os.path.join(_sand, "chron_last_result.json"),
+               TV_CHRON_SWEPT=os.path.join(_sand, "chronicle_swept.json"),
+               TV_CHRON_READS=os.path.join(_sand, "chron_reads.json"),
+               TV_SWEEP_LOCK=os.path.join(_sand, ".sweep.lock"))
     here = os.path.dirname(os.path.abspath(__file__))
     proc = subprocess.Popen([sys.executable, os.path.join(here, "control_app.py"), "--no-open"],
                             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1867"   # A caller that isolates the frames gets an isolated journal
+VERSION = "v1868"   # Isolating the port is not isolating the world
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2604,6 +2604,40 @@ def _vision_budget_armed():
         return False
     return True
 
+def _sub_budget_calls(st, now):
+    """The call timestamps that still count, in SECONDS, with nonsense dropped.
+
+    v1868 — HIS LIVE BUDGET FILE HELD A MILLISECOND TIMESTAMP AMONG SECONDS. Measured:
+    1787177667153.0 sitting in `calls` beside 404 ordinary seconds-scale entries. Both filters here
+    are written as `now - t < WINDOW`, and for a value ~55,000 years in the future that difference
+    is hugely NEGATIVE — so it passes every window, forever. One permanent slot off the hourly cap
+    AND the daily cap, invisible, and it can never age out on its own.
+
+    Harmless at 4000/hour and 20000/day; not harmless as a mechanism, and not new — this is the same
+    unit collision already recorded against the G5 lane. A meter that cannot be corrected by the
+    passage of time is a meter that only ever goes one way.
+
+    So: a value that looks like milliseconds IS milliseconds (nothing in 2026 is 1.7e12 seconds), a
+    value in the future beyond a minute of clock skew is dropped rather than trusted, and the window
+    is a two-sided one — `0 <= now - t < WINDOW` — because "not older than a day" and "not in the
+    future" are two conditions and the one-sided test only ever checked one of them.
+    [[d2r-g5-budget-unit-collision]] [[unknown-stays-unknown]]
+    """
+    out = []
+    for raw in (st.get("calls") or []):
+        try:
+            t = float(raw)
+        except Exception:
+            continue
+        if t > 1e12:            # milliseconds, written by something that used a different clock
+            t = t / 1000.0
+        if t > now + 60:        # beyond clock skew: a timestamp we cannot place, not a call
+            continue
+        if now - t < 86400:
+            out.append(t)
+    return out
+
+
 def _sub_budget_check(kind="vision"):
     """Return None if allowed, else a short reason string (circuit open)."""
     if not _vision_budget_armed():
@@ -2617,7 +2651,7 @@ def _sub_budget_check(kind="vision"):
                                       # on EVERY read, so the leaked handle recurred per frame
         except Exception:
             st = {}
-        calls = [float(t) for t in (st.get("calls") or []) if now - float(t) < 86400]
+        calls = _sub_budget_calls(st, now)
         hour = [t for t in calls if now - t < 3600]
         if len(hour) >= _SUB_HOURLY_MAX:
             return "subscription hourly cap %d/%d (%s)" % (len(hour), _SUB_HOURLY_MAX, kind)
@@ -2635,8 +2669,8 @@ def _sub_budget_record():
                                       # on EVERY read, so the leaked handle recurred per frame
         except Exception:
             st = {}
-        calls = [float(t) for t in (st.get("calls") or []) if now - float(t) < 86400]
-        calls.append(now)
+        calls = _sub_budget_calls(st, now)   # v1868 — normalise on WRITE too, or the poison is
+        calls.append(now)                    # simply rewritten every time a read is recorded
         try:
             # v1779 — ATOMIC, because a torn write here silently DISARMS the circuit breaker.
             # _sub_budget_load returns {} on any parse failure, so a half-written file makes the

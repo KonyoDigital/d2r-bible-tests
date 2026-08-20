@@ -6593,3 +6593,47 @@ journal **1729 → 1729** across a full `test_reel_index_durability` run that pr
 frames, so `_theatre_sessions` already marks it `stub` (a 1-read ghost with no footage) and the
 console's shelf filters it out. The rows are journal bloat, not a wrong number on a screen — and
 they are his data, so they stay unless he says otherwise.
+
+## REG-216 — the live-state gate learned to watch the journal and found three leaks in an hour (FIXED v1868)
+
+`run_gates`' live-state watchlist named five chronicle/vault files and **not** `sessions.jsonl`,
+which is why REG-215 survived for months of green runs. Adding it (plus `chron_reads.json`, live
+state added this week that the list never followed) turned the gate **red within one run**, and it
+kept finding writers:
+
+1. **`test_reel_index_durability`** — 1,729 rows (REG-215, fixed at the module).
+2. **`test_button_matrix`** — boots a private control app on a private free port with `--no-open`,
+   terminating only its own pid: every process-discipline lesson applied, and then it handed that
+   app **his real environment**. Six rows per run into his journal, plus his hist root and his
+   chronicle state. **Isolating the port is not isolating the world.** Now sandboxed on all six
+   paths; measured 4173 → 4173 across a full run that previously appended six, and every check
+   still passes.
+3. **The subscription-cap tests** — this class exists to *cause* refusals, and a refusal is
+   journaled. Every run appended `{"lane":"skip","note":"subscription daily cap 50/1 (oneshot)"}`
+   to his live file — the source of those rows. Worse, `test_a_capped_vault_read_names_the_refusal`
+   restored `_sub_budget_load` in its `finally` and **not `_SUB_DAILY_MAX`**, leaking a daily cap of
+   **1** into every later test in the same process.
+
+**A blanket `TV_SESSIONS` for every gate subprocess was tried and reverted.** It stopped the leaks
+and broke eleven tests that already isolate correctly by repointing `control_app.HERE` at a tempdir
+— an env var outranks their patch. A lock that overrides working isolation is not a stronger guard,
+it is a different bug. The reason is recorded in `run_gates.py` so it is not re-attempted.
+
+**Now: a full 32-gate run leaves his journal byte-identical.**
+
+## REG-217 — a millisecond timestamp in a seconds meter never expires (FIXED v1868)
+
+His live `.subscription_budget.json` held `1787177667153.0` among 404 seconds-scale entries. Both
+windows read `now - t < WINDOW`; for a value ~55,000 years in the future that difference is hugely
+**negative**, so it passed every window forever — one permanent slot off the hourly cap *and* the
+daily cap, invisible, unable to age out.
+
+Harmless at 4000/hour and 20000/day; not harmless as a mechanism, and **not new** — the same unit
+collision is already on the record against the G5 lane. A meter the passage of time cannot correct
+only ever moves one way.
+
+`_sub_budget_calls()` now rescales a millisecond value rather than discarding it (the real moment is
+recoverable: 1787177667153 → today 18:14), drops anything beyond a minute of clock skew into the
+future, and uses a **two-sided** window — *"not older than a day"* and *"not in the future"* are two
+conditions and the one-sided test only ever checked one. Normalised on write as well as read, or the
+next recorded call copies the poison straight back in.

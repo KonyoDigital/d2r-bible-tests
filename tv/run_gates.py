@@ -24,6 +24,8 @@ Reporting rules (learned the hard way)
 from __future__ import annotations
 
 import argparse
+import shutil
+import atexit
 import fcntl
 import glob
 import os
@@ -42,6 +44,11 @@ try:
     _console_safe()
 except Exception:
     pass
+
+
+# v1868 — one scratch dir per gate RUN, for anything a gate must not write into his tree.
+_GATE_SCRATCH = tempfile.mkdtemp(prefix="tvd-gates-")
+atexit.register(shutil.rmtree, _GATE_SCRATCH, True)
 
 
 class Gate:
@@ -210,6 +217,14 @@ def run(only=None):
             continue
         t0 = time.time()
         try:
+            # v1868 — NO BLANKET TV_SESSIONS HERE, and that is a deliberate retreat.
+            # Forcing a scratch journal on every gate DID stop the leaks — and broke eleven tests
+            # that already isolate correctly by repointing control_app.HERE at a tempdir, because
+            # an env var outranks their patch. A lock that overrides working isolation is not a
+            # stronger guard, it is a different bug. The leaks are fixed where they were written
+            # (the durability harness, the button matrix, the capped-vault-read test) and the
+            # live-state watchlist below is what catches the next one — it caught all three within
+            # an hour of learning to watch the journal. [[feedback-blind-fixture-green-gate]]
             p = subprocess.run(g.argv, cwd=g.cwd, capture_output=True, text=True,
                                encoding="utf-8", errors="replace", timeout=g.timeout)
             dt = time.time() - t0
@@ -303,8 +318,17 @@ def _claim_the_tree():
 # listed "autoread.json" and "chronicle_autoread.json"; the real file is chron_autoread.json, so the
 # guard built to catch REG-179 was blind to the visit-mark file for its whole life. Caught by
 # review_lite.py, which compares this tuple against the _*_PATH constants themselves.
+# v1867 — THE FILE THE LEAK ACTUALLY USED WAS NOT ON THIS LIST.
+# This guard exists to catch a test writing his live state, and it watched five files while
+# test_reel_index_durability appended 1,729 rows to a SIXTH — sessions.jsonl, his session journal,
+# 75% of every session_end row in it, for months, through every green run of this gate. A watchlist
+# that omits the busiest live file is a gate blind to the thing it was built for.
+# [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+# chron_reads.json joins it for the same reason: it is live state added this week and the list did
+# not follow.
 _LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "chron_autoread.json",
-               "chron_evidence.json", "vault_swept.json")
+               "chron_evidence.json", "vault_swept.json", "sessions.jsonl",
+               "chron_reads.json")
 
 
 def _console_is_running(port=17772):

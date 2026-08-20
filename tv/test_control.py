@@ -5804,10 +5804,21 @@ class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmpdir, True)
         self._keep = (tv_diablo._SUB_DAILY_MAX, tv_diablo._SUB_HOURLY_MAX,
                       list(tv_diablo._THROTTLED_UNTIL))
+        # v1868 — A REFUSAL IS JOURNALED, AND THIS CLASS EXISTS TO CAUSE REFUSALS.
+        # Every run appended `{"lane":"skip","note":"subscription daily cap 50/1 (oneshot)"}` to
+        # his live tv/sessions.jsonl — that is exactly where those rows came from. The caps were
+        # saved and restored carefully here; the write path was not isolated at all.
+        # [[feedback-fixtures-never-touch-live-data]]
+        self._keep_journal = os.environ.get("TV_NO_JOURNAL")
+        os.environ["TV_NO_JOURNAL"] = "1"
 
     def tearDown(self):
         self.tv._SUB_DAILY_MAX, self.tv._SUB_HOURLY_MAX = self._keep[0], self._keep[1]
         self.tv._THROTTLED_UNTIL[0] = self._keep[2][0]
+        if self._keep_journal is None:
+            os.environ.pop("TV_NO_JOURNAL", None)
+        else:
+            os.environ["TV_NO_JOURNAL"] = self._keep_journal
 
     def _img(self):
         """A REAL image, because the cap guard sits after the file check on the Claude path — a
@@ -5954,17 +5965,32 @@ class TestV1785TheVaultReaderSeam(unittest.TestCase):
         self.assertFalse(r.get("items"), "a refusal must not carry rows")
 
     def test_a_capped_vault_read_names_the_refusal(self):
+        """v1868 — this test wrote into his live journal and left the cap set to 1 behind it.
+
+        Every run appended `{"lane":"skip","note":"subscription daily cap 50/1 (oneshot)"}` to
+        tv/sessions.jsonl — that is where those rows in his journal came from — and the finally
+        restored `_sub_budget_load` but NOT `_SUB_DAILY_MAX`, so every later test in the same
+        process ran with a daily cap of ONE. A fixture that leaks a cap is a fixture that can make
+        the next test pass for a reason nobody chose. [[feedback-fixtures-never-touch-live-data]]"""
         import time as _t
         real = self.tv._sub_budget_load
+        keep_daily = self.tv._SUB_DAILY_MAX
+        keep_journal = os.environ.get("TV_NO_JOURNAL")
         now = _t.time()
         self.tv._sub_budget_load = lambda: {"calls": [now - 1] * 50}
         self.tv._SUB_DAILY_MAX = 1
+        os.environ["TV_NO_JOURNAL"] = "1"      # the refusal is journaled — not into his file
         try:
             r = self.tv.claude_vault_read("/nonexistent.jpg", "stash")
             self.assertIn("note", r, "a capped vault read answered like an empty shelf: %r" % (r,))
             self.assertIn("cap", str(r["note"]).lower())
         finally:
             self.tv._sub_budget_load = real
+            self.tv._SUB_DAILY_MAX = keep_daily
+            if keep_journal is None:
+                os.environ.pop("TV_NO_JOURNAL", None)
+            else:
+                os.environ["TV_NO_JOURNAL"] = keep_journal
 
     def test_it_returns_the_shape_vault_retro_actually_reads(self):
         """The contract lives in vault_retro, not here: normalize_item refuses a nameless row, so an
@@ -9274,6 +9300,44 @@ class TestTheShelfSeparatesASimulationFromARun(unittest.TestCase):
         # and it must SAY so rather than quietly dropping them — he pressed SIM on purpose
         self.assertIn("(+' + simToday + ' sim)", body,
                       "the simulations vanish silently, which is its own kind of lie")
+
+
+class TestNoGateWritesHisLiveWorld(unittest.TestCase):
+    """v1867/v1868 — the guard that exists to catch a test writing his live state was not watching
+    the file the leak used.
+
+    run_gates' watchlist named five chronicle/vault files. test_reel_index_durability had been
+    appending to a SIXTH — tv/sessions.jsonl, his session journal, 1,729 rows, 75% of every
+    session_end row in it — through every green run of that gate. Extending the list turned it RED
+    within one run and it immediately caught a SECOND leak: test_button_matrix boots a private
+    control app on a private free port, with --no-open, terminating only its own pid — every
+    process-discipline lesson applied — and then handed it his REAL environment, so it wrote his
+    journal, his hist root and his chronicle state. Isolating the port is not isolating the world.
+    [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]"""
+
+    def test_the_watchlist_includes_the_journal(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "run_gates.py"), encoding="utf-8").read()
+        i = src.find("_LIVE_STATE = (")
+        self.assertGreater(i, 0)
+        block = src[i:src.find(")", i)]
+        for name in ("sessions.jsonl", "chron_evidence.json", "chron_reads.json"):
+            self.assertIn(name, block, "%s is live state and the gate is not watching it" % name)
+
+    def test_the_button_matrix_sandboxes_every_path_not_only_the_port(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        p = os.path.join(here, "test_button_matrix.py")
+        if not os.path.isfile(p):
+            self.skipTest("the button matrix is not on this machine")
+        src = open(p, encoding="utf-8").read()
+        i = src.find("def _boot_control():")
+        j = src.find("\ndef ", i + 10)
+        body = src[i:j]
+        for var in ("TV_HIST=", "TV_SESSIONS=", "TV_FRAMES_DIR=", "TV_CHRON_EVIDENCE=",
+                    "TV_CHRON_RESULT=", "TV_SWEEP_LOCK="):
+            self.assertIn(var, body,
+                          "the private control app can still write his %s" % var.strip("=T V_"))
+        self.assertIn("TV_CONTROL_PORT=", body, "the port isolation is gone")
 
 
 class TestTheBridgeCacheKeyNamesWhatItCaches(unittest.TestCase):
