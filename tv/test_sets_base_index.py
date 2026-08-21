@@ -174,5 +174,67 @@ class TestTheSentenceNamesWhatItLists(unittest.TestCase):
                         "otherwise be measuring an unrelated occurrence [[source-reading-guard]]")
 
 
+class TestTheLedgerRepair(unittest.TestCase):
+    """His F·Sets read 118/135 while the game read 116. Asking the live board settled it: 119
+    stored, and three rows that do not belong — a UNIQUE (Blood Crescent, already in his Holy
+    Grail) plus two pieces the game's own Remaining page lists as missing. 119 - 3 = 116.
+    """
+
+    def _src(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_repair_and_its_boot_call_both_exist(self):
+        s = self._src()
+        self.assertIn("window._chRepairLedgers = function", s)
+        self.assertIn("window._chRepairLedgers()", s,
+                      "the repair exists but nothing runs it [[the-unjoined-end]]")
+        self.assertIn("window._SET_MISSING", s)
+
+    def test_it_refuses_to_judge_against_an_empty_catalogue(self):
+        """Judging a ledger against a roster that has not loaded would delete every row in it."""
+        s = self._src()
+        self.assertIn("the set catalogue is not loaded yet", s)
+
+    def test_the_missing_list_branch_fires_ONCE_PER_READING(self):
+        """⚠ THE DATA-LOSS TRAP. _SET_MISSING is a photograph of one moment. Without the key, the
+        day he finds Natalya's Soul and ticks it, the next load strips it again — forever, while
+        the repair looks like it is working. Proven in a browser: after a re-tick, run 2 removes 0.
+        [[stale-reading]]"""
+        s = self._src()
+        self.assertIn("d2r_setRepairAt", s, "no per-reading key — the repair would re-fire forever")
+        self.assertIn("!doneThisReading", s,
+                      "the missing-list branch must be gated on the reading key")
+        # ...and the not-a-set-piece branch must NOT be gated: "this is a unique" never goes stale
+        i_uni = s.index("it was routed into the set ledger by mistake")
+        i_gate = s.index("if (missing[n] && !doneThisReading)")
+        self.assertLess(i_uni, i_gate,
+                        "the unique branch must run before, and independently of, the expiring one")
+
+    def test_it_never_removes_a_row_that_is_in_BOTH_ledgers(self):
+        """⚠ THE RULE THAT WOULD HAVE DELETED 116 REAL FINDS. He asked for a guard against an item
+        being in both chronicles, and the obvious reading of that is catastrophic here:
+        toggleSetPiece writes every set piece into d2r_foundLog ON PURPOSE (v644), so all 116 of
+        his real pieces are in both by design."""
+        s = self._src()
+        self.assertNotIn("counted in BOTH your Holy Grail and your set ledger", s,
+                         "this rule deletes every legitimate set piece")
+        self.assertIn("IN BOTH LEDGERS\" IS NORMAL".replace('\"', '"'), s.replace('“', '"'),
+                      "the reason must stay recorded, or someone re-adds the rule")
+
+    def test_the_write_guard_stops_a_unique_entering_the_set_store(self):
+        s = self._src()
+        self.assertIn("A UNIQUE MUST NEVER ENTER THE SET STORE", s)
+        i_guard = s.index("_isPiece = _cat.exact.has(piece)")
+        i_add = s.index("if (_isPiece) setPieces.add(piece);")
+        self.assertLess(i_guard, i_add, "the guard must be computed before the add")
+
+    def test_the_meter_floors_so_it_matches_the_game(self):
+        """116/135 = 85.93%. Rounded prints 86; the game prints 85, and he compares them directly."""
+        s = self._src()
+        self.assertIn("var pct=total?Math.floor(found/total*100):0;", s)
+        self.assertNotIn("var pct=total?Math.round(found/total*100):0;", s)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -21490,7 +21490,34 @@ function toggleSetPiece(piece) {
   // W·-family writes stay correct via LSR.
   try { if (window._SET_SEED && window._SET_SEED[piece] && (window._isCousinShell || window.D2R_PROFILE !== 'ladder')) { var _sgu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (setPieces.has(piece)) _sgu[piece] = 1; else delete _sgu[piece]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_sgu)); } } catch(e){}
   if (setPieces.has(piece)) setPieces.delete(piece);
-  else setPieces.add(piece);
+  else {
+    /* v1925 — A UNIQUE MUST NEVER ENTER THE SET STORE. Konyo: "code a safegaurd for this so it
+       cant be or have a duplicate of a chronicle within them both."
+       This is the write side of that. v1913 fixed the undo bar that was ROUTING uniques here, and
+       v664 strips them on load — but only `_UNI_EXTRA` mod uniques, so `Blood Crescent`, a
+       main-roster unique, sat in his set ledger and inflated F·Sets to 118/135 against the game's
+       116. A guard at the write is the only one that cannot be out-run by a new caller.
+       The find is NOT lost: the foundLog write above has already recorded it, which is where a
+       unique belongs. */
+    var _isPiece = false;
+    try {
+      var _cat = (typeof window._chSetPieceNames === 'function') ? window._chSetPieceNames() : null;
+      if (_cat && _cat.exact.size){
+        _isPiece = _cat.exact.has(piece) || !!_cat.byBase[_norm(__pieceBase(piece))];
+      } else {
+        _isPiece = true;   /* catalogue not loaded — refuse to judge rather than drop a real tick */
+      }
+    } catch(e){ _isPiece = true; }
+    if (_isPiece) setPieces.add(piece);
+    else {
+      try {
+        if (typeof window.kaiChronicleRecord === 'function')
+          window.kaiChronicleRecord({ name: piece, status: 'refused', store: 'setPieces',
+            ledger: 'sets', source: 'ledger-guard', _bump: true,
+            why: 'not a set piece — kept in your Holy Grail instead, where a unique belongs' });
+      } catch(e){}
+    }
+  }
   persist();
   renderSetTracker();
   // v619 — found-sync both ways: a tick from the Tools checklist wall re-scans an open F·Sets tab
@@ -38033,7 +38060,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      each forge says its own sentence through one template. [[copy-drift]] */
   function _meter(found,total,color,opts){
     opts = opts || {};
-    var pct=total?Math.round(found/total*100):0;
+    /* v1925 — FLOOR, NOT ROUND, so this reads the same as the number in the game.
+       116 of 135 is 85.93%. Rounded it prints 86; D2R prints 85, and he compares the two side by
+       side — that one point is exactly the kind of gap that sends him looking for a bug that is
+       not there. Flooring is also the honest direction on its own merits: a completion meter must
+       never claim a percentage he has not reached.
+       Both callers are grail meters (uniques at ~38487, sets at ~39928) and neither moves at his
+       current numbers — 246/403 and 259/403 floor and round alike. [[d2r-uniques-percent-calibration]] */
+    var pct=total?Math.floor(found/total*100):0;
     var lbl = opts.label || ('🏆 <b>'+found+'</b> / '+total+' found');
     return '<div class="forge-progress" title="'+(opts.title||(found+' of '+total))+'"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%'+(color?';background:linear-gradient(90deg,'+color+')':'')+'"></div></div>'
       +'<div class="fp-lbl">'+lbl+'<span class="fp-pct">'+pct+'%</span></div></div>';
@@ -38702,6 +38736,149 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // restore it. A shim, not a ported copy: this same function feeds fsetsScan, toggleSetPiece and
   // _chronAlreadySet, and a second copy would be a second thing to drift.
   try { window._setHave = _setHave; } catch(e){}
+
+  /* ── v1925 — ONE ITEM, ONE LEDGER ────────────────────────────────────────────────────────────
+     Konyo, 2026-08-21: "code a safegaurd for this so it cant be or have a duplicate of a chronicle
+     within them both", after his F·Sets meter read 118/135 while the game read 116.
+
+     Asking the live board settled it: it was carrying **119** stored pieces and exactly three do
+     not belong.
+
+       Blood Crescent                        a UNIQUE, and already in d2r_foundLog. A pure
+                                             duplicate in the wrong store — the misroute he
+                                             reported earlier, whose fix (v1913) corrected the
+                                             ROUTING and never repaired the ROW already written.
+       Natalya's Soul (claws)                the game's own Remaining page lists both as missing
+       Sazabi's Ghost Liberator (balrog skin)
+
+     119 − 3 = 116, which is his number and the game's.
+
+     ⚠ v664 ALREADY DID HALF OF THIS AND NOBODY NOTICED THE HALF. It strips uniques out of
+     d2r_setPieces on every load — but only names in `_UNI_EXTRA`, the MOD uniques. Blood Crescent
+     is a main-roster unique, so it walked straight through a guard written for exactly its case.
+     A fix applied to one subset of a class reports success and leaves the class running.
+     [[feedback-generalize-fixes]]
+
+     NOTHING HERE DELETES A FIND. A removed row is written to d2r_grailUnfound — his own user-truth
+     store — so the seed cannot re-add it, and every removal is recorded in the Activity Ledger with
+     the reason, in his words. Reversible per row on the board, exactly like a hand un-tick. */
+  window._chSetPieceNames = function(){
+    /* Every legal set-piece string, plus the base-name tolerance _setHave already relies on, so a
+       piece stored under an older slot label is NOT mistaken for a misroute and deleted. */
+    var ok = new Set(), byBase = {};
+    try {
+      ((typeof window.__allSets === 'function') ? window.__allSets() : []).forEach(function(st){
+        (st.pieces || []).forEach(function(pn){
+          ok.add(pn);
+          try { byBase[_norm(__pieceBase(pn))] = pn; } catch(e){}
+        });
+      });
+    } catch(e){}
+    return { exact: ok, byBase: byBase };
+  };
+
+  window._chRepairLedgers = function(opts){
+    opts = opts || {};
+    var dry = !!opts.dryRun;
+    var out = { removed: [], kept: 0, ok: true };
+    var cat = window._chSetPieceNames();
+    if (!cat.exact.size) { out.ok = false; out.why = 'the set catalogue is not loaded yet — '
+      + 'refusing to judge a ledger against an empty roster'; return out; }
+    var sp = [];
+    try { sp = JSON.parse(window.LSR.getItem('d2r_setPieces') || '[]') || []; } catch(e){ return out; }
+    if (!Array.isArray(sp)) return out;
+    var fl = {};
+    try {
+      var raw = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}');
+      if (Array.isArray(raw)) raw.forEach(function(n){ fl[String(n)] = 1; });
+      else if (raw && typeof raw === 'object') Object.keys(raw).forEach(function(n){ fl[n] = 1; });
+    } catch(e){}
+    var missing = {}, readAt = (window._SET_MISSING || {}).readAt || '';
+    try { ((window._SET_MISSING || {}).names || []).forEach(function(n){ missing[n] = 1; }); } catch(e){}
+    var doneThisReading = false;
+    try { doneThisReading = readAt && window.LSR.getItem('d2r_setRepairAt') === readAt; } catch(e){}
+
+    var keep = [];
+    sp.forEach(function(n){
+      if (typeof n !== 'string' || !n) return;
+      var isPiece = cat.exact.has(n);
+      if (!isPiece) { try { isPiece = !!cat.byBase[_norm(__pieceBase(n))]; } catch(e){} }
+      if (!isPiece){
+        out.removed.push({ name: n, why: fl[n]
+          ? 'a unique, and already ticked in your Holy Grail — this row was a duplicate in the wrong ledger'
+          : 'not a set piece in this game — it was routed into the set ledger by mistake' });
+        return;
+      }
+      /* ⚠ "IN BOTH LEDGERS" IS NORMAL, AND ASSUMING OTHERWISE WOULD HAVE DELETED 116 REAL FINDS.
+         He asked for a safeguard against an item being in both chronicles, and the obvious rule —
+         remove anything present in d2r_foundLog and d2r_setPieces — is CATASTROPHICALLY wrong here:
+         `toggleSetPiece` writes every set piece into d2r_foundLog on purpose (v644, "set pieces
+         chronicle into the same found ledger"), so all 116 of his real pieces sit in both by
+         design. Reading the write path instead of trusting the phrase is the only reason this is
+         not a data-loss bug.
+         The true invariant is narrower and is exactly his case: a UNIQUE must never appear in the
+         SET store. That is the branch above — a name that is not a set piece at all — and it is
+         where Blood Crescent is caught. [[feedback-suspect-the-instrument]] */
+      /* ⚠ ONCE PER READING, NEVER EVERY LOAD. _SET_MISSING is a photograph of one moment, and he
+         keeps playing. Without this key, the day he finds Natalya's Soul and ticks it, the next
+         page load would silently strip it again — and again, forever, with the repair looking like
+         it was working. A negative reading expires; the guard built on it must expire with it.
+         The not-a-set-piece branch above has no such clause, because "this is a unique" does not
+         go stale. [[stale-reading]] */
+      if (missing[n] && !doneThisReading){
+        out.removed.push({ name: n, why: 'the game\u2019s own Remaining page still lists this as '
+          + 'missing (read ' + ((window._SET_MISSING || {}).readAt || 'recently') + ')' });
+        return;
+      }
+      keep.push(n);
+    });
+    out.kept = keep.length;
+    if (!out.removed.length || dry) return out;
+    try {
+      window.LSR.setItem('d2r_setPieces', JSON.stringify(keep));
+      /* USER TRUTH, so the boot seed cannot put them back on the next load. */
+      var gu = {};
+      try { gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound') || '{}') || {}; } catch(e){}
+      out.removed.forEach(function(r){ gu[r.name] = 1; });
+      window.LSR.setItem('d2r_grailUnfound', JSON.stringify(gu));
+      /* stamp the reading this repair acted on, so it cannot act on it twice */
+      if (readAt) window.LSR.setItem('d2r_setRepairAt', readAt);
+    } catch(e){ out.ok = false; out.why = String(e && e.message || e); return out; }
+    /* SAY WHAT WAS DONE. A repair that silently changes his totals is indistinguishable from the
+       drift it is repairing. */
+    try {
+      out.removed.forEach(function(r){
+        if (typeof window.kaiChronicleRecord === 'function')
+          window.kaiChronicleRecord({ name: r.name, status: 'removed', store: 'setPieces',
+            ledger: 'sets', why: r.why, source: 'ledger-repair', _bump: true });
+      });
+    } catch(e){}
+    return out;
+  };
+
+  /* RUN IT ON LOAD, ONCE, AND ONLY WHEN THE CATALOGUE IS ACTUALLY THERE.
+     `load` rather than DOMContentLoaded for the same reason v1409 gives a few lines up: the set
+     catalogue is defined far below this point, and judging a ledger against an empty roster would
+     delete everything in it. _chRepairLedgers refuses in that case; this just avoids asking. */
+  try {
+    window.addEventListener('load', function(){
+      setTimeout(function(){
+        try {
+          if (window.__chLedgerRepaired) return;
+          var r = window._chRepairLedgers();
+          window.__chLedgerRepaired = true;
+          if (r && r.removed && r.removed.length){
+            try { console.log('[ledger-repair] removed ' + r.removed.length + ' row(s): '
+              + r.removed.map(function(x){ return x.name; }).join(', ')); } catch(e){}
+            try { if (typeof renderSetTracker === 'function') renderSetTracker(); } catch(e){}
+            try { if (typeof window.renderForgeSets === 'function') window.renderForgeSets(); } catch(e){}
+          }
+        } catch(e){}
+      }, 400);
+    });
+  } catch(e){}
+
+
   window.fsetsScan=function(){
     var have=_setHave(); var sets=(typeof window.__allSets==='function')?window.__allSets():[];
     var totalP=0, haveP=0;
@@ -43299,6 +43476,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
      base he already owns never needs expanding. The stamp travels so the age is answerable.
      [[stale-reading]] */
   window._SET_BASE_INDEX = {"index":{"amulet":{"base":"Amulet","pieces":["Tal Rasha's Adjudication (amulet)","Telling of Beads (amulet)"]},"balrog skin":{"base":"Balrog Skin","pieces":["Sazabi's Ghost Liberator (balrog skin)"]},"boots":{"base":"Boots","pieces":["Tancred's Hobnails (light plated boots)"]},"bramble mitts":{"base":"Bramble Mitts","pieces":["Laying of Hands (bramble mitts)"]},"caduceus":{"base":"Caduceus","pieces":["Griswold's Redemption (scepter)"]},"cantor trophy":{"base":"Cantor Trophy","pieces":["Trang-Oul's Wing (shield)"]},"heavy boots":{"base":"Heavy Boots","pieces":["Cow King's Hooves (heavy boots)"]},"lacquered plate":{"base":"Lacquered Plate","pieces":["Tal Rasha's Guardianship (armor)"]},"leather armor":{"base":"Leather Armor","pieces":["Vidala's Ambush (armor)"]},"leather gloves":{"base":"Leather Gloves","pieces":["Death's Hand (gloves)"]},"occult codex":{"base":"Occult Codex","pieces":["Horazon's Secrets (grimoire)"]},"russet armor":{"base":"Russet Armor","pieces":["Horazon's Dominion (armor)"]},"sacred armor":{"base":"Sacred Armor","pieces":["Immortal King's Soul Cage (armor)"]},"sash":{"base":"Sash","pieces":["Death's Guard (belt)"]},"scissors suwayyah":{"base":"Scissors Suwayyah","pieces":["Natalya's Soul (claws)"]},"shadow plate":{"base":"Shadow Plate","pieces":["Aldur's Deception (armor)"]},"vortex shield":{"base":"Vortex Shield","pieces":["Griswold's Honor (shield)"]},"ward":{"base":"Ward","pieces":["Taebaek's Glory (ward)"]}},"readAt":"2026-08-21T10:19:13.811000Z","reel":"reel_s_1787307553811_9452","source":"sets_2026-08-21.json"};
+
+  /* v1925 — THE GAME'S OWN MISSING LIST, so the board can be checked against it without a sweep.
+     Read off his Chronicle Remaining page; stamped, because a negative reading expires the moment
+     he finds the item. [[stale-reading]] */
+  window._SET_MISSING = {"names":["Aldur's Deception (armor)","Cow King's Hooves (heavy boots)","Death's Guard (belt)","Death's Hand (gloves)","Griswold's Honor (shield)","Griswold's Redemption (scepter)","Horazon's Dominion (armor)","Horazon's Secrets (grimoire)","Immortal King's Soul Cage (armor)","Laying of Hands (bramble mitts)","Natalya's Soul (claws)","Sazabi's Ghost Liberator (balrog skin)","Taebaek's Glory (ward)","Tal Rasha's Adjudication (amulet)","Tal Rasha's Guardianship (armor)","Tancred's Hobnails (light plated boots)","Telling of Beads (amulet)","Trang-Oul's Wing (shield)","Vidala's Ambush (armor)"],"readAt":"2026-08-21T10:19:13.811000Z","reel":"reel_s_1787307553811_9452"};
 
   window._chSetPiecesOnBase = function(baseName){
     /* Same shape as _chUniquesOnBase so the engine can treat the two symmetrically: a caller that
