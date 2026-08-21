@@ -1,6 +1,25 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
+import { suppressOneShots } from './_oneshots';
+
+/* v1937 — BOOT AS A LATER LOAD, because this spec is about the TICK LIFECYCLE, not boot applies.
+ *
+ * v1925 added a load-time ledger repair that removes any set piece the game's own Remaining page
+ * lists as missing. It fires 400ms after `load`. This spec ticks every missing piece and checks the
+ * store immediately, so on a loaded CI runner the repair can land MID-LOOP: the tick writes, the
+ * repair strips, and the check reports NOT TALLIED / NOT DATED / NOT RESTORED for
+ * Natalya's Soul (claws) — one of the 19 the game says he does not have.
+ *
+ * That is the async-mutation race, and _oneshots.ts is the mechanism for exactly it: suppress the
+ * boot apply so the page boots as the LATER load this spec means to measure. The structural rule
+ * (a unique may never sit in the set store) is NOT suppressed and still runs. */
+const BOOT_AS_LATER_LOAD = suppressOneShots();
+async function bootLater(page: any) {
+  await page.addInitScript((d: Record<string, string>) => {
+    for (const k of Object.keys(d)) localStorage.setItem(k, d[k]);
+  }, BOOT_AS_LATER_LOAD);
+}
 
 // v645 — EVERY-ITEM SIMULATION (Konyo: 'demonstrations and SIMULATIONS for every single item —
 // there is a lot — to make sure they all properly work and render/tally/found'). The FULL pools:
@@ -10,7 +29,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallied → untick → restored)', async ({ page }) => {
   test.setTimeout(600000);
-  await page.goto(URL); await page.waitForTimeout(2200);
+  await bootLater(page); await page.goto(URL); await page.waitForTimeout(2200);
   const r = await page.evaluate(async () => {
     const w: any = window;
     w.switchTab('funi'); await new Promise((res) => setTimeout(res, 800));
@@ -96,7 +115,7 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
 });
 
 test('VISIBILITY: with every drawer open, ALL missing uniques appear in the run cards AND the wall (302 = 302 = 302)', async ({ page }) => {
-  await page.goto(URL); await page.waitForTimeout(2200);
+  await bootLater(page); await page.goto(URL); await page.waitForTimeout(2200);
   const r = await page.evaluate(async () => {
     const w: any = window;
     w.switchTab('funi'); await new Promise((res) => setTimeout(res, 800));
@@ -115,7 +134,7 @@ test('VISIBILITY: with every drawer open, ALL missing uniques appear in the run 
 
 test('ALL set pieces: reachable + full found lifecycle through the Set Tracker store', async ({ page }) => {
   test.setTimeout(600000);
-  await page.goto(URL); await page.waitForTimeout(2200);
+  await bootLater(page); await page.goto(URL); await page.waitForTimeout(2200);
   const r = await page.evaluate(async () => {
     const w: any = window;
     w.switchTab('fsets'); await new Promise((res) => setTimeout(res, 800));

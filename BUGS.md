@@ -9041,3 +9041,31 @@ pre-push smoke is 13 specs; Routine I is the whole suite.
 costs CI minutes and contradicts a documented decision. That is his money and his call. Options if
 he wants one: split the group by event (one guaranteed verdict a day, more minutes), or leave it and
 **read Routine I before the next push** — which is what the design already assumes.
+
+## REG-299 — the load-time repair raced a simulation mid-loop (FIXED, test-side)
+
+Caught by reading Routine I **while it was still running**, one job at a time, instead of pushing
+past it: `slow 2/2` failed with
+
+```
+NOT TALLIED:        Natalya's Soul (claws)
+NOT DATED:          Natalya's Soul (claws)
+NOT RESTORED:       Natalya's Soul (claws)
+LEDGER NOT ERASED:  Natalya's Soul (claws)
+```
+
+`tests/v645_every_item_sim.spec.ts` ticks every missing set piece and checks the store immediately.
+v1925's repair fires **400 ms after `load`**, so on a loaded CI runner it lands **mid-loop**: the
+tick writes, the repair strips (that piece is one of the 19 the game says he does not have), and the
+check reports four failures for one row.
+
+**An async mutation on a timer races anything that touches the same store.** On his board that is
+invisible — he clicks slowly. In a simulation it is a coin flip, which is why it passed locally and
+failed on CI.
+
+Fixed test-side: the spec boots as a **later load** via `suppressOneShots()` — the mechanism
+`_oneshots.ts` exists for — because it is measuring the tick lifecycle, not boot applies. The
+structural rule (a unique may never sit in the set store) is **not** suppressed and still runs.
+
+Verified: the whole `slow` project, **58 passed**, locally, BEFORE pushing — rather than discovering
+it on the next CI round-trip, which is what the previous four ships did.
