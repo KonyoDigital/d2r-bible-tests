@@ -361,5 +361,43 @@ class TestEverySweepPayloadKeyIsRead(unittest.TestCase):
                          "contestedResolved is back on the payload with nothing reading it")
 
 
+class TestNoGateSkipsSilently(unittest.TestCase):
+    """A skip that whispers is a gate that is not there.
+
+    The console-demo gate fires only on a tv/control_ui.html diff with the app up. v1930 was the
+    first push in a while to satisfy both and it caught J9 failing — which bisection showed had
+    ALSO been failing on v1924 through v1929, every one of which pushed clean because none touched
+    that file. Seven versions, a real red gate, and nothing said a word.
+
+    The trigger stays narrow on purpose (never block on an environment the push did not break).
+    What must not return is the SILENT skip. [[feedback-blind-fixture-green-gate]]
+    """
+
+    def _hook(self):
+        p = os.path.join(ROOT, "hooks", "pre-push")
+        if not os.path.isfile(p):
+            self.skipTest("hooks/pre-push is not on this machine")
+        with io.open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_demo_gate_announces_every_skip(self):
+        h = self._hook()
+        self.assertIn("CONSOLE DEMOS SKIPPED", h,
+                      "the app-down branch must SAY it skipped")
+        self.assertIn("console demos not run", h,
+                      "the file-unchanged branch must say it skipped too — that is the branch that "
+                      "hid seven versions of a red gate")
+
+    def test_the_skip_says_how_long_it_has_been_skipping(self):
+        """A count he can watch grow beats a line he stops seeing."""
+        h = self._hook()
+        self.assertIn("commit(s) since it last was", h)
+        self.assertIn("_since=", h)
+
+    def test_the_skip_says_how_to_run_it_by_hand(self):
+        h = self._hook()
+        self.assertIn("node tv/demo_console.mjs", h)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

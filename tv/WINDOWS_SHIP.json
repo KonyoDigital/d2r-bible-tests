@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1930",
+  "ver": "v1931",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1930: A payload-reach sweep over the chronicle sweep result found seven keys no UI has ever read, and two of them mattered. newlyDated, from v1846, is the finds whose IN-GAME date is newer than anything read before this sweep - precisely what he asked for when he said the stamp must be the in-game finding and not when the AI registered it. It had been computed for eighty versions and shown nowhere. contestedExpired, mine, names the rows dropped from the contested count because the newest look says found, without which a row he saw flagged silently stops being flagged and nothing says why. That one shipped in the SAME COMMIT that fixed three other instances of this exact defect, which is how a class survives being fixed. A third key of mine drove no decision and is removed from the payload rather than rendered, because an unread key is the thing being swept for. The first sweep was unscoped and returned 153 keys including subprocess kwargs and HTTP headers - a finding too large to act on is noise - so it was scoped to the result payload and returned seven. Also fixed an icon written with an uppercase backslash-U escape, which JavaScript does not understand, so the panel printed the literal escape text; the syntax gate passed because it is valid JS, just not the escape intended, and only the pixels showed it.",
+  "note": "v1931: Follow-on to the demo gate that hid a red J9 for seven versions. The trigger stays narrow on purpose, because widening it would block pushes on an environment the push did not break, which the original was careful about. What is gone is the SILENT skip: both branches now announce themselves, the file-unchanged branch counts how many commits have passed since the console UI last moved so the number grows visibly instead of the line disappearing, and both say how to run the demos by hand. We chose not to run this and this passed must never look the same.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

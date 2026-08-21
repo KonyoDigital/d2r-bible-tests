@@ -196,19 +196,45 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
     exit 1
   fi
   echo "pre-push: ✅ tv suites green."
-  # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the six
-  # demonstration journeys must pass (1.6s). App down → skip with a note (never block on
-  # an environment the push didn't break). Konyo's "full test system" law.
+  # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the
+  # demonstration journeys must pass. App down → skip with a note (never block on an environment
+  # the push didn't break). Konyo's "full test system" law.
+  #
+  # ⚠ v1930 — A SKIP THAT WHISPERS IS A GATE THAT ISN'T THERE. This fires only on a
+  # tv/control_ui.html diff with the app up. v1930 was the first push in a while to satisfy both,
+  # and it caught J9 failing — which bisection then showed had ALSO been failing on v1924, v1925,
+  # v1926, v1927, v1928 and v1929, every one of which pushed clean because none touched that file.
+  # Seven versions, a real red gate, and nothing said a word.
+  #
+  # The trigger is deliberately narrow and stays narrow: widening it would block pushes on an
+  # environment the push did not break, which is the thing v938.6 was careful about. What changes
+  # is that a SKIP is now LOUD and says WHY and HOW LONG it has been skipping, because "we chose
+  # not to run this" and "this passed" must never look the same.
+  # [[feedback-blind-fixture-green-gate]]
+  _demo_touched=0
   if git diff --cached --name-only 2>/dev/null | grep -q "tv/control_ui.html" ||      git log -1 --name-only --pretty=format: 2>/dev/null | grep -q "tv/control_ui.html"; then
+    _demo_touched=1
+  fi
+  if [ "$_demo_touched" = "1" ]; then
     if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
       if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
-        echo "pre-push: ✅ console demos 6/6."
+        echo "pre-push: ✅ console demos green."
       else
         exit 1
       fi
     else
-      echo "pre-push: (console app down — demo gate skipped)"
+      echo "pre-push: ⏭  CONSOLE DEMOS SKIPPED — the console app is not up on :17772."
+      echo "           The UI changed and nothing verified it. Start TV DIABLO and re-push, or"
+      echo "           run it by hand:  node tv/demo_console.mjs"
     fi
+  else
+    # How many pushes have gone by without this gate running? Cheap, and it turns an invisible
+    # skip into a number he can watch grow.
+    _since=$(git log --format=%H -30 2>/dev/null | while read -r _c; do
+               if git show --name-only --pretty=format: "$_c" 2>/dev/null | grep -q "tv/control_ui.html"; then break; fi
+               echo x
+             done | wc -l | tr -d ' ')
+    echo "pre-push: ⏭  console demos not run — tv/control_ui.html is unchanged (${_since} commit(s) since it last was)."
   fi
 fi
 cd "$REPO" || exit 1

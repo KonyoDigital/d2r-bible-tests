@@ -8798,3 +8798,13 @@ defect as one that always passes.* [[feedback-blind-fixture-green-gate]]
 `control_ui.html` diff with the app up. That is deliberate (never block on an environment the push
 did not break) and it is why this sat unseen for seven versions. Worth revisiting: run them on any
 `tv/` UI change, or report loudly when they SKIP so a skip is visible rather than silent.
+
+## REG-293 — the skip is now loud (FIXED v1931)
+
+Follow-on to REG-292. The trigger stays narrow deliberately — never block a push on an environment
+the push did not break — but the **silent** skip is gone. Both branches now announce themselves, the
+file-unchanged branch counts how many commits have passed since `tv/control_ui.html` last moved, and
+both say how to run the demos by hand.
+
+*"We chose not to run this"* and *"this passed"* must never look the same.
+Guard: `TestNoGateSkipsSilently` (3), seen RED.
