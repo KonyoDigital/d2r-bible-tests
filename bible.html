@@ -17994,23 +17994,43 @@ window.d2rInboxEngine = function(row){
        of a find. ITEM_CODEX knows the base per unique, so it resolves back to what he is missing. */
     var u = { missing: [], owned: [], known: false };
     try { u = window._chUniquesOnBase(canon) || u; } catch(e){}
+    /* v1925 — AND ASK THE SETS SIDE THE SAME QUESTION. A base the Chronicle prints can belong to a
+       SET piece just as easily as to a unique, and until now only uniques were asked: "Ward",
+       "Occult Codex" and "Bramble Mitts" all resolved to nothing and the row read "a base item name"
+       — true, and useless, when the answer was Taebaek's Glory, Horazon's Secrets and Laying of
+       Hands. The two resolvers return the same shape so they can simply be merged. */
+    var sp = { missing: [], owned: [], known: false };
+    try { sp = window._chSetPiecesOnBase(canon) || sp; } catch(e){}
+    var known = u.known || sp.known;
+    var missing = u.missing.concat(sp.missing);
+    var owned = u.owned.concat(sp.owned);
     out.name = canon; out.canonical = canon;
-    if (u.known && !u.missing.length && u.owned.length){
+    if (known && !missing.length && owned.length){
       /* THE ONE CASE THAT MUST NOT BE SWALLOWED. The panel called this base unfound and the board
          says he owns every unique built on it; both cannot be true, and dismissing it destroys the
          only evidence the disagreement exists. The contradiction IS the finding. */
       out.verdict = 'base-conflict'; out.action = 'hold';
-      out.why = 'game-says-unfound:' + u.owned.join(', ');
-      out.owned = u.owned;
+      out.why = 'game-says-unfound:' + owned.join(', ');
+      out.owned = owned;
       return out;
     }
-    out.verdict = 'base'; out.action = 'retire'; out.uni = u.missing;
-    out.show = u.missing.length ? u.missing.join(' · ') : canon;
-    out.why = u.missing.length
-      ? 'the Chronicle shows this base for a unique you have NOT found'
+    out.verdict = 'base'; out.action = 'retire'; out.uni = missing;
+    /* Which catalogue answered is worth carrying: a set piece and a unique are hunted in different
+       places, and a row that says only "still to find" makes him look it up again. */
+    out.setPieces = sp.missing;
+    out.show = missing.length ? missing.join(' · ') : canon;
+    /* NAME BOTH WHEN BOTH ARE TRUE. "Ward" carries a unique (Spirit Ward) AND a set piece
+       (Taebaek's Glory) he is missing; saying only "a unique" prints a correct LIST under a word
+       naming half of it, and he would hunt one and not the other. [[label-outlived-referent]] */
+    out.why = missing.length
+      ? (u.missing.length && sp.missing.length
+          ? 'the Chronicle shows this base for a unique AND a set piece you have NOT found'
+          : (sp.missing.length
+              ? 'the Chronicle shows this base for a SET PIECE you have NOT found'
+              : 'the Chronicle shows this base for a unique you have NOT found'))
       : 'a base item name — the Chronicle prints that for a row you have NOT found';
-    out.code = u.missing.length ? ('base-name-still-to-find:' + u.missing.join(', '))
-                                : 'base-name-not-a-find';
+    out.code = missing.length ? ('base-name-still-to-find:' + missing.join(', '))
+                              : 'base-name-not-a-find';
     return out;
   }
 
@@ -18066,6 +18086,28 @@ window.d2rInboxEngine = function(row){
     out.code = out.why;
     return out;
   }
+
+  /* v1925 — LAST CHANCE: A GENERIC BASE THE GAME REALLY DOES PRINT.
+     The base branch above only fires when d2rResolveItem calls the string a base, and its catalogue
+     does not hold the plain slot words. Measured live: "Ward", "Occult Codex", "Scissors Suwayyah"
+     and "Bramble Mitts" all resolved correctly, while **"Amulet" came back not-in-game** — even
+     though the game printed it on his own Remaining page for two set pieces he is still hunting,
+     Tal Rasha's Adjudication and Telling of Beads. Declaring an item the game itself listed to be
+     "not an item in this game" is the most confident possible way to be wrong.
+     Only the missing-piece index can answer here, and it only ever speaks about pieces he does not
+     have — so a hit is always a real thing still to find, never a claim about ownership. */
+  try {
+    var _sb = window._chSetPiecesOnBase(canon || raw);
+    if (_sb && _sb.known && _sb.missing.length){
+      out.verdict = 'base'; out.action = 'retire';
+      out.name = canon || raw; out.canonical = canon || raw;
+      out.uni = _sb.missing; out.setPieces = _sb.missing;
+      out.show = _sb.missing.join(' \u00b7 ');
+      out.why = 'the Chronicle shows this base for a SET PIECE you have NOT found';
+      out.code = 'base-name-still-to-find:' + _sb.missing.join(', ');
+      return out;
+    }
+  } catch(e){}
 
   /* NOT AN ITEM IN THIS GAME. This is the row he was complaining about, and it is the one that must
      not be quietly deleted: "we looked and it is not an item" and "nobody looked" must never produce
@@ -43229,6 +43271,55 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var have = false;
         try { have = !!window._gFound(k); } catch(e){}
         (have ? out.owned : out.missing).push(k);
+      });
+      out.missing.sort(); out.owned.sort();
+      return out;
+    } catch(e){ return out; }
+  };
+
+  /* ── v1925 — BASE -> SET PIECE STILL TO HUNT ───────────────────────────────────────────────
+     Konyo: "for F-SETS it should cross reference the items i still dont have so it knows whats
+     left to find and it can keyword search for it when anaylzing and reading. (JUST LIKE UNQIUES
+     i rememever we integrated this in some way for it already)".
+
+     He is right that uniques already do this — _chUniquesOnBase, just above, expands a base the
+     Chronicle printed back to the uniques he has not found. It could not be copied, and the reason
+     is worth keeping: ITEM_CODEX carries a `base` for only 14 of the 135 set pieces (measured: 320
+     entries, 300 unique, 14 set, 6 special). The sets side has no base index and never did.
+
+     ⚠ AND THE SLOT SUFFIX IS NOT THE BASE. "Taebaek's Glory (ward)" really is based on a Ward, but
+     "Natalya's Soul (claws)" is a Scissors Suwayyah, "Horazon's Secrets (grimoire)" an Occult Codex
+     and "Immortal King's Soul Cage (armor)" a Sacred Armor. A suffix rule would resolve some rows
+     and quietly mis-resolve others, which is worse than resolving none. So this is READ DATA, not
+     a derivation — generated by tv/sets_base_index.py from the Remaining page he recorded, and
+     pinned against its source by a test so the two cannot drift. [[copy-drift]]
+
+     IT COVERS ONLY WHAT IS MISSING (19 of 135 today), and that is the right scope rather than a
+     shortfall: a base printed on the Remaining page is a piece he does NOT have, by definition. A
+     base he already owns never needs expanding. The stamp travels so the age is answerable.
+     [[stale-reading]] */
+  window._SET_BASE_INDEX = {"index":{"amulet":{"base":"Amulet","pieces":["Tal Rasha's Adjudication (amulet)","Telling of Beads (amulet)"]},"balrog skin":{"base":"Balrog Skin","pieces":["Sazabi's Ghost Liberator (balrog skin)"]},"boots":{"base":"Boots","pieces":["Tancred's Hobnails (light plated boots)"]},"bramble mitts":{"base":"Bramble Mitts","pieces":["Laying of Hands (bramble mitts)"]},"caduceus":{"base":"Caduceus","pieces":["Griswold's Redemption (scepter)"]},"cantor trophy":{"base":"Cantor Trophy","pieces":["Trang-Oul's Wing (shield)"]},"heavy boots":{"base":"Heavy Boots","pieces":["Cow King's Hooves (heavy boots)"]},"lacquered plate":{"base":"Lacquered Plate","pieces":["Tal Rasha's Guardianship (armor)"]},"leather armor":{"base":"Leather Armor","pieces":["Vidala's Ambush (armor)"]},"leather gloves":{"base":"Leather Gloves","pieces":["Death's Hand (gloves)"]},"occult codex":{"base":"Occult Codex","pieces":["Horazon's Secrets (grimoire)"]},"russet armor":{"base":"Russet Armor","pieces":["Horazon's Dominion (armor)"]},"sacred armor":{"base":"Sacred Armor","pieces":["Immortal King's Soul Cage (armor)"]},"sash":{"base":"Sash","pieces":["Death's Guard (belt)"]},"scissors suwayyah":{"base":"Scissors Suwayyah","pieces":["Natalya's Soul (claws)"]},"shadow plate":{"base":"Shadow Plate","pieces":["Aldur's Deception (armor)"]},"vortex shield":{"base":"Vortex Shield","pieces":["Griswold's Honor (shield)"]},"ward":{"base":"Ward","pieces":["Taebaek's Glory (ward)"]}},"readAt":"2026-08-21T10:19:13.811000Z","reel":"reel_s_1787307553811_9452","source":"sets_2026-08-21.json"};
+
+  window._chSetPiecesOnBase = function(baseName){
+    /* Same shape as _chUniquesOnBase so the engine can treat the two symmetrically: a caller that
+       has to remember which resolver returns which keys is a caller that will eventually get it
+       wrong. */
+    var b = String(baseName || '').trim();
+    var out = { missing: [], owned: [], known: false, readAt: null };
+    if (!b) return out;
+    try {
+      var IX = window._SET_BASE_INDEX || {};
+      var hit = (IX.index || {})[b.toLowerCase()];
+      if (!hit) return out;
+      out.known = true;
+      out.readAt = IX.readAt || null;
+      var have = null;
+      try { have = (typeof window._setHave === 'function') ? window._setHave() : null; } catch(e){ have = null; }
+      (hit.pieces || []).forEach(function(pn){
+        /* An UNREADABLE ledger is not an empty one: if _setHave could not answer, every piece would
+           look un-owned and the base-conflict branch below could never fire. Treat it as unknown. */
+        if (have === null){ out.missing.push(pn); return; }
+        (have.has(pn) ? out.owned : out.missing).push(pn);
       });
       out.missing.sort(); out.owned.sort();
       return out;
