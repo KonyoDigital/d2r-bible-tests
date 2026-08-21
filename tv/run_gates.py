@@ -19,7 +19,12 @@ Reporting rules (learned the hard way)
   (REG-044/054/077/078).
 * A suite that cannot RUN is reported as SKIPPED, loudly, and never counted as a pass. Silence
   about a check that did not happen is the same lie as a false green.
-* The exit code is the verdict: non-zero if any REQUIRED entry failed.
+* A SKIP must be DECLARED IN ADVANCE or it is a failure (v1925). Loud was not enough: every gate
+  here is required, so a gate that skips on every venue has never run at all, and the run still
+  exited 0 with a tidy "✅ N gate(s) passed, 1 skipped". Each Gate now names the skip reasons its
+  lane is allowed to produce (`skip_ok=`); a SKIP whose reason matches nothing there is counted
+  with the failures and named in the verdict.
+* The exit code is the verdict: non-zero if any REQUIRED entry failed OR skipped undeclared.
 """
 from __future__ import annotations
 
@@ -52,9 +57,17 @@ atexit.register(shutil.rmtree, _GATE_SCRATCH, True)
 
 
 class Gate:
-    def __init__(self, name, argv, timeout=900, needs_app=False, cwd=REPO, why=""):
+    # v1925 — skip_ok: the reasons THIS gate's lane is allowed to skip for, as regexes matched
+    # (case-insensitively) against the reason string the run reports. Empty — the default — means
+    # this gate may never skip: every entry in GATES is REQUIRED, so an undeclared skip is a gate
+    # that did not run, and that is now counted with the failures instead of printing a warning
+    # beside a green verdict. Declare a reason only when the lane genuinely cannot exist on some
+    # venue (a browser lane on his Mac runs on CI instead — [[test-venue]]); "it broke today" is
+    # never a reason to add one.
+    def __init__(self, name, argv, timeout=900, needs_app=False, cwd=REPO, why="", skip_ok=()):
         self.name, self.argv, self.timeout = name, argv, timeout
         self.needs_app, self.cwd, self.why = needs_app, cwd, why
+        self.skip_ok = tuple(skip_ok)
 
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
@@ -88,6 +101,8 @@ GATES = [
              "test_vault_retro drive gate() and merge_vault() directly and not one of them calls "
              "sweep(), so the routing INSIDE it — surface to lane per item, throw flags per key, "
              "the two bars on real piles — had never been executed at any size"),
+    Gate("test_inventory_lattice", [sys.executable, os.path.join(HERE, "test_inventory_lattice.py")], 180,
+         why="v1925 — the inventory lattice AND its refusals. A column of checkboxes in the game-creation lobby is periodic, so a lattice fitter finds a lattice in it and answers \"18 occupied, 9 free\" about a menu; every case here is a real frame from his own reel, so a loosened refusal fails here instead of on his screen"),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),
@@ -201,6 +216,19 @@ GATES = [
              "no-index reel that read NOTHING — footage lost until a full `force` re-run. The "
              "tests EXECUTE the shipped loop out of control_app.py rather than copying it, so a "
              "widened predicate turns them red instead of quietly passing"),
+    Gate("test_import_bound_paths",
+         [sys.executable, os.path.join(HERE, "test_import_bound_paths.py")], 120,
+         why="v1925 — the registry of which env redirects a fixture can still make AFTER import. "
+             "_CHRON_EVIDENCE_PATH binds from TV_CHRON_EVIDENCE at import, so a test that set it "
+             "inside a function body called the real save and truncated tv/chron_evidence.json "
+             "from 525,187 bytes to 748 — 767 paid page reads gone. conftest.py reports that "
+             "damage after the fact; this names the trap before a fixture falls into it"),
+    Gate("test_sets_base_index",
+         [sys.executable, os.path.join(HERE, "test_sets_base_index.py")], 60,
+         why="base -> set piece exists TWICE — the source JSON and the copy embedded in "
+             "bible.html — and a copy nothing compares is a copy that drifts [[copy-drift]]. "
+             "ITEM_CODEX carries a base for only 14 of the 135 set pieces, so the mapping could "
+             "not be derived and had to be recorded; this is the comparison"),
     Gate("test_button_matrix", [sys.executable, os.path.join(HERE, "test_button_matrix.py")], 300,
          # v1711 — needs_app was TRUE, so this gate was skipped before it could even try, on
          # every run where Konyo did not happen to have his console open. It now BOOTS ITS OWN
@@ -214,6 +242,20 @@ GATES = [
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
 
 _OK = re.compile(r"^(OK|✅|Ran \d+ tests)", re.M)
+
+
+def _skip_allowed(g, reason):
+    """v1925 — which declared reason (if any) covers this SKIP. None means it is a FAILURE.
+
+    The reason string is the gate's own last output line, so the patterns below are matched against
+    what the gate SAYS, not against why we think it stopped. A gate that skips silently produces an
+    empty reason and matches nothing — which is the correct verdict: an unexplained skip is the
+    least trustworthy state a required gate can be in.
+    """
+    for pat in g.skip_ok:
+        if re.search(pat, reason or "", re.I):
+            return pat
+    return None
 
 
 def _app_up(port=17772, timeout=1.5):
@@ -232,6 +274,13 @@ def run(only=None):
         if only and g.name not in only:
             continue
         if g.needs_app and not app_up:
+            # v1925 — NO GATE SETS needs_app=True ANY MORE (test_button_matrix, the last one, boots
+            # its own control_app on an ephemeral port since v1711), so this branch is currently
+            # unreachable and the :17772 probe above only costs the run 1.5s. It is kept because the
+            # NEXT gate that needs the live app will reach for it — and it is deliberately left
+            # UNDECLARED in skip_ok, so the day someone sets needs_app=True the run goes red on his
+            # Mac with the console down instead of quietly not running that gate. That is the whole
+            # v1711 lesson: "needs_app was TRUE, so this gate was skipped before it could even try".
             results.append((g, "SKIP", 0.0, "control app is not running on :17772", ""))
             continue
         t0 = time.time()
@@ -257,7 +306,11 @@ def run(only=None):
                 status = "SKIP"
             else:
                 status = "PASS" if p.returncode == 0 else "FAIL"
-            results.append((g, status, dt, tail[0][:150], blob if status == "FAIL" else ""))
+            # v1925 — the blob is kept for a SKIP too. An undeclared skip is now a failure, and a
+            # failure has to be diagnosable from the log alone: the reason column is only the LAST
+            # line the gate printed, which for a suite that skipped in setUp is rarely the sentence
+            # that says why.
+            results.append((g, status, dt, tail[0][:150], blob if status in ("FAIL", "SKIP") else ""))
         except subprocess.TimeoutExpired:
             results.append((g, "FAIL", time.time() - t0,
                             "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
@@ -498,8 +551,15 @@ def main(argv):
     # leak is found the way tonight's five were, instead of waiting to be guessed at
     _tree_moved = [m for m in _tree_diff(_tree_before, _tree_fingerprint())
                    if m.split(" (")[0] not in _LIVE_STATE]
+    # v1925 — an undeclared SKIP is decided BEFORE the table prints, so the line itself carries ⛔
+    # rather than the same ⚠ a legitimate CI-only lane wears. Two states that read identically in
+    # the log is how "js-syntax skipped for ~220 versions" stayed invisible in plain sight.
+    _undeclared = {g.name for g, s, _, d, _ in results
+                   if s == "SKIP" and not _skip_allowed(g, d)}
     for g, status, dt, detail, _blob in results:
         mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠"}[status]
+        if status == "SKIP" and g.name in _undeclared:
+            mark = "⛔"
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
 
     failed = [g.name for g, s, _, _, _ in results if s == "FAIL"]
@@ -507,6 +567,8 @@ def main(argv):
         # not a warning: a suite that writes his console's state has already done the damage
         failed.append("live-state-untouched")
     skipped = [(g.name, d) for g, s, _, d, _ in results if s == "SKIP"]
+    # v1925 — the verdict, not a warning: a required gate that did not run is not a clean run.
+    failed += ["%s (undeclared SKIP)" % n for n in sorted(_undeclared)]
     print("\n── VERDICT ──")
     if _live_moved and (_console_live or _sweep_live):
         why = "the console is running on :17772" if _console_live else ("held by %s" % ", ".join(_sweep_live))
@@ -532,7 +594,24 @@ def main(argv):
     if skipped:
         # never silent: a check that did not happen is not a check that passed
         for n, d in skipped:
-            print("⚠ SKIPPED %s — %s" % (n, d))
+            print("%s SKIPPED %s — %s" % ("⛔" if n in _undeclared else "⚠", n, d))
+    if _undeclared:
+        # v1925 — LOUD IS NOT ACCOUNTABLE. Every entry in GATES is required, so a skip is a gate
+        # that did not run; printing that beside exit 0 is the same lie as a false green, one
+        # sentence further along. The allowed reasons are declared per gate (skip_ok=), so an
+        # environment that quietly stops producing a lane turns the run red instead of shrinking it.
+        print("\n⛔ %d REQUIRED gate(s) SKIPPED for a reason no lane declared:" % len(_undeclared))
+        for g, s, _dt, d, blob in results:
+            if s != "SKIP" or g.name not in _undeclared:
+                continue
+            print("   · %s — %s" % (g.name, d or "(the gate printed no reason at all)"))
+            print("     declared skip reasons: %s"
+                  % (", ".join(g.skip_ok) if g.skip_ok else "NONE — this gate may never skip"))
+            for ln in [ln for ln in (blob or "").strip().split("\n") if ln.strip()][-6:]:
+                print("       " + ln[:200])
+        print("   Either fix the lane so the gate RUNS here, or add the reason to that Gate's "
+              "skip_ok= and say which venue does run it. A gate that skips on every venue has "
+              "never run at all.")
     if failed:
         # v1711 — SAY WHICH TEST, NOT JUST WHICH GATE.
         # The summary line was the gate's LAST output line, which for a unittest run is
@@ -554,7 +633,8 @@ def main(argv):
         print("\n❌ %d gate(s) FAILED: %s" % (len(failed), ", ".join(failed)))
         return 1
     print("✅ %d gate(s) passed%s."
-          % (len(results) - len(skipped), (", %d skipped" % len(skipped)) if skipped else ""))
+          % (len(results) - len(skipped),
+             (", %d skipped for a DECLARED reason" % len(skipped)) if skipped else ""))
     return 0
 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # 🎛 TV DIABLO control app — TDD (v765 REPLAY THEATRE + button/window discipline).
 # Boots the REAL Handler on an ephemeral port with a fixture journal + frame archive.
+import atexit
 import glob
 import json
 import os
@@ -32,6 +33,32 @@ import control_app as ca  # noqa: E402
 import replay as rp  # noqa: E402
 
 
+# v1925 — CLASS 2 (orphaned processes from tests). Tests that drive the REAL structural gate
+# (control_app.stash_screen_open -> tv_diablo.ocr_fast) warm tv_diablo's PERSISTENT `ocr_mac
+# --worker` singleton, `_OCR`. In production that worker is reaped by close_session(); under a
+# test runner close_session is never called, so every such test left one live `ocr_mac --worker`
+# behind — the conftest orphan-reaper named the pid and killed it, and the suite ERRORed with
+# "A TEST LEFT A CHILD PROCESS RUNNING". The test that starts it now reaps it, through the
+# worker's own stop() (kill by PID; `pkill -f` is banned in this repo). tearDownModule reaps it
+# under BOTH runners — pytest, whose session-scoped orphan check runs after this module and long
+# before interpreter exit, and the plain `python3 test_control.py` that run_gates.py uses; atexit
+# is the belt for an abort that never reaches tearDownModule. Importing pytest here is not an
+# option: TestNoSuiteImportsSomethingCIDoesNotHave fails any third-party import CI does not
+# install, and pytest is not one of them.
+def _reap_ocr_worker():
+    tvd = sys.modules.get("tv_diablo")
+    w = getattr(tvd, "_OCR", None) if tvd is not None else None
+    if w is None or getattr(w, "p", None) is None:
+        return
+    try:
+        w.stop()
+    except Exception:
+        pass
+
+
+atexit.register(_reap_ocr_worker)
+
+
 def _get(port, path, timeout=3):
     # v1463 — timeout is a parameter now. /api/doctor genuinely takes seconds (it shells out
     # to probe the Claude CLI, WebView2, ports, pid files and frame ages — start_tvd_win.ps1
@@ -40,6 +67,38 @@ def _get(port, path, timeout=3):
     with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=timeout) as r:
         return r.status, r.read(), dict(r.headers)
 
+
+
+def _reap(proc):
+    """Take a headless-Chrome launcher AND the helpers it forked down, by PID only.
+
+    v1925 — CLASS 2 (orphaned processes from tests). The launcher is started in its own
+    session, so ONE killpg reaches the renderer grandchildren that hold the stdout pipe open;
+    if the group call fails we still SIGKILL the launcher itself, we close the pipes so no
+    wait can block on a fd a survivor still holds, and we always wait() so nothing is left
+    unreaped. `pkill -f` is banned in this repo — this kills by pid/pgid and nothing else.
+    Safe to call on a process that has already exited: then it is just the wait().
+    """
+    if proc is None:
+        return
+    if proc.poll() is None:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    for stream in (proc.stdout, proc.stderr):
+        try:
+            if stream is not None:
+                stream.close()
+        except Exception:
+            pass
+    try:
+        proc.wait(timeout=10)
+    except Exception:
+        pass
 
 
 def _dump_dom(browser, url, budget=6000, timeout=45):
@@ -74,21 +133,21 @@ def _dump_dom(browser, url, budget=6000, timeout=45):
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 start_new_session=True)      # its own group, so the kill reaches the helpers
             try:
-                out, err = proc.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired:
                 try:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                except Exception:
-                    proc.kill()
-                try:
-                    proc.communicate(timeout=10)
-                except Exception:
-                    pass
-                continue
-            return subprocess.CompletedProcess(
-                proc.args, proc.returncode,
-                (out or b"").decode("utf-8", "replace"),
-                (err or b"").decode("utf-8", "replace"))
+                    out, err = proc.communicate(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    continue
+                return subprocess.CompletedProcess(
+                    proc.args, proc.returncode,
+                    (out or b"").decode("utf-8", "replace"),
+                    (err or b"").decode("utf-8", "replace"))
+            finally:
+                # v1925 — the reap is in a finally, not only in the timeout branch. ANY other
+                # escape (a decode blowing up, the harness torn down mid-communicate) used to
+                # leave the launcher and every renderer helper it forked running, unreaped.
+                # The second communicate() the timeout branch used to make could itself block
+                # on a pipe a surviving grandchild held — _reap closes the pipes instead.
+                _reap(proc)
     return None
 
 
@@ -149,6 +208,7 @@ def tearDownModule():
     for attr, orig in (globals().get("_MOD_PATHS") or {}).items():
         setattr(ca, attr, orig)
     shutil.rmtree(globals().get("_MOD_TMP") or "", ignore_errors=True)
+    _reap_ocr_worker()          # v1925 — the persistent `ocr_mac --worker` this file warmed
 
 
 
@@ -211,6 +271,9 @@ class TestTheatre(unittest.TestCase):
         ca.HIST_DIR = cls.hist
         rp.JOURNAL = cls.journal
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        # v1925 — tearDownClass is SKIPPED when setUpClass raises, so the listening socket used to
+        # survive the whole run. addClassCleanup fires either way; server_close() is idempotent.
+        cls.addClassCleanup(cls.srv.server_close)
         cls.port = cls.srv.server_address[1]
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
 
@@ -379,6 +442,9 @@ class TestBoardHost(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        # v1925 — tearDownClass is SKIPPED when setUpClass raises, so the listening socket used to
+        # survive the whole run. addClassCleanup fires either way; server_close() is idempotent.
+        cls.addClassCleanup(cls.srv.server_close)
         cls.port = cls.srv.server_address[1]
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
 
@@ -558,6 +624,8 @@ class TestDoctor(unittest.TestCase):
 
     def test_doctor_endpoint_live(self):
         srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        # v1925 — the socket is freed even if Thread.start() never gets to run.
+        self.addCleanup(srv.server_close)
         port = srv.server_address[1]
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
@@ -1055,6 +1123,9 @@ class TestV919IntakeLane(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        # v1925 — tearDownClass is SKIPPED when setUpClass raises, so the listening socket used to
+        # survive the whole run. addClassCleanup fires either way; server_close() is idempotent.
+        cls.addClassCleanup(cls.srv.server_close)
         cls.port = cls.srv.server_address[1]
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
 
@@ -2051,6 +2122,9 @@ class TestIntakeResultReceiptSessionBoundary(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        # v1925 — tearDownClass is SKIPPED when setUpClass raises, so the listening socket used to
+        # survive the whole run. addClassCleanup fires either way; server_close() is idempotent.
+        cls.addClassCleanup(cls.srv.server_close)
         cls.port = cls.srv.server_address[1]
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
 
@@ -2665,6 +2739,9 @@ class TestEvRank(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        # v1925 — tearDownClass is SKIPPED when setUpClass raises, so the listening socket used to
+        # survive the whole run. addClassCleanup fires either way; server_close() is idempotent.
+        cls.addClassCleanup(cls.srv.server_close)
         cls.port = cls.srv.server_address[1]
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
 
@@ -4301,26 +4378,23 @@ class TestAFreshMachineStartsEmpty(unittest.TestCase):
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             start_new_session=True)   # its own group, so the kill reaches the helpers
                         try:
-                            out, err = proc.communicate(timeout=LOAD_TIMEOUT_S)
-                        except subprocess.TimeoutExpired:
-                            # subprocess timeouts kill the launcher, NOT the renderer helpers Chrome
-                            # forks — that left orphan Chrome processes burning CPU (two found on
-                            # this machine). Own the group and take the whole tree down.
                             try:
-                                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                            except Exception:
-                                proc.kill()
-                            try:
-                                proc.communicate(timeout=10)
-                            except Exception:
-                                pass
-                            continue
-                        if not mode_ok:
-                            mode_ok.append(mode)
-                        return subprocess.CompletedProcess(
-                            proc.args, proc.returncode,
-                            (out or b"").decode("utf-8", "replace"),
-                            (err or b"").decode("utf-8", "replace"))
+                                out, err = proc.communicate(timeout=LOAD_TIMEOUT_S)
+                            except subprocess.TimeoutExpired:
+                                # subprocess timeouts kill the launcher, NOT the renderer helpers
+                                # Chrome forks — that left orphan Chrome processes burning CPU (two
+                                # found on this machine). _reap owns the whole group.
+                                continue
+                            if not mode_ok:
+                                mode_ok.append(mode)
+                            return subprocess.CompletedProcess(
+                                proc.args, proc.returncode,
+                                (out or b"").decode("utf-8", "replace"),
+                                (err or b"").decode("utf-8", "replace"))
+                        finally:
+                            # v1925 — reap on EVERY path, not only the timeout one: an assertion or
+                            # an exception raised out of load() used to strand the whole Chrome tree.
+                            _reap(proc)
                     timed_out.append(rel)
                     return None
 
