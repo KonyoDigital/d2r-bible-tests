@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1913",
+  "ver": "v1914",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1913: Three of his reports in one sitting and the first two are one cause: the forge undo bar bucketed names as in-ITEMS-or-in-UNI-EXTRA with else-to-SET as a catch-all, so Blood Crescent, an off-grail unique in neither list, was claimed by F-Sets and every sets-side undo on it was a no-op. The answer was already two lines below in the same function, where the colour is resolved with the app one classifier - which is why the chip rendered in unique gold while the bucket called it a set. It routes on the classifier now and the catch-all is gone. Third, the in-game found date was built in v1864 and joined to one surface of three, so both FOUND lists printed only the ledger stamp - one shared helper now serves the undo bar and both lists. And stash_screen_open returned a legible-label count as a selected tab, wrong on all three of his frames that took that branch; it asks the gem first now.",
+  "note": "v1914: He asked where the accept for the proposal was. It was never missing - it was on the other tab. Measured live against his running console: the register button exists, is not hidden, says register 302, and its bounding box is zero by zero, because the whole chronicle column is display none under the sessions view - which v1674 did at his own request. So the panel stays where he put it and Sessions gets a pointer carrying the count and a route to it, rendered only when something is waiting. Verified on his live console at 1001 by 38 pixels on the tab he actually uses. The same measurement also confirmed the proposal age line and the on-disk persistence shipped last night are both working on his machine through a restart on real data.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

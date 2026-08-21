@@ -8081,3 +8081,31 @@ It asks the **gem** first now (v1912, structural, abstains rather than guess) an
 wrong.** ⚠ It was inert — all three callers test `is None` and discard the value, because v1857 used
 it as a lane and v1859 had to revert that. A function that returns a wrong-by-construction tab is a
 loaded gun waiting for the next caller who does not read the comment.
+
+## REG-264 — 302 finds were waiting and the tab he lives on said nothing (FIXED v1914)
+
+Konyo: *"where is my inbox widget with the ACCEPTing the 267/214 the thing you mentioned earlier."*
+
+**It was never missing — it was on the other tab.** Measured live against his running console:
+
+```
+/api/chronicle_sweep  ->  wouldAdd {uniques: 266, sets: 36}   saved 2026-08-21 00:47
+#chron-apply          ->  text "register 302 ✓", hidden=false, boundingBox 0 × 0
+#hd-chron             ->  display: none
+```
+
+The button exists, is not hidden, says the right number, and **has no pixels** — because v1674 hid
+that whole column on Sessions **at his own request** (*"everything here and to the bottom is
+duplicated on the TV-D tab.. i dont need it on SESSIONS TAB"*).
+
+So the panel stays where he put it and **Sessions gets a pointer**: `📜 302 find(s) read and waiting
+to register — TV·D ▸ Chronicle Sweep →`, rendered only when there is something to register, carrying
+the COUNT (a nag without a number is furniture), and clicking it routes to TV·D and scrolls the panel
+into view. Verified on his live console at 1001×38 px on the Sessions tab.
+
+**A night of reads nobody can see is a night of reads that did not happen.** [[the-unjoined-end]]
+
+Also confirmed by the same measurement, and worth recording because both were shipped blind last
+night: the panel's header reads *"this proposal was made 10h ago · restored from disk, not from this
+session"* — v1894's age line and v1895/v1899's persistence, both working on his machine, through a
+restart, on real data.

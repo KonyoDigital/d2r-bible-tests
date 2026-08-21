@@ -3109,6 +3109,16 @@
     padding: 6px 9px; border-radius: 7px; }
   .hd-tz .tz-foot { display: flex; gap: 6px; margin-top: 8px; }
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  /* v1914 — the Sessions-side pointer at the waiting proposal. Sized like a banner note, not a
+     button that competes with the hunt; the arrow is the only thing that says it goes somewhere. */
+  .chron-waiting { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; width: 100%;
+    margin: 2px 0 0; padding: 7px 11px; text-align: left; cursor: pointer;
+    font: var(--fw-semibold) var(--fs-xs) / 1.4 var(--mono, ui-monospace, monospace);
+    letter-spacing: .03em; color: var(--acc-chron, #c9a6ff);
+    border: 1px solid rgba(181,140,255,.42); border-radius: 8px;
+    background: rgba(181,140,255,.07); }
+  .chron-waiting:hover { background: rgba(181,140,255,.13); border-color: rgba(181,140,255,.6); }
+  .chron-waiting[hidden] { display: none; }
   /* v1541 — the verdict on an empty sweep. Deliberately NOT red for the ok states: "no Chronicle
      appeared in your footage" is information, and dressing it as a fault sends him debugging a
      machine that is working. Only read-nothing — the one case that IS the reader — goes amber. */
@@ -4710,6 +4720,25 @@
            tests/v1613_hub_routes.spec.ts asserts on, not labels. -->
       <section class="zone">
         <div class="zone-banner zone-hunt"><span class="zb-no">Ⅰ</span><span class="zb-ico">🏆</span>TZ TRACKER<span class="zb-sub">live terror zones · what to hunt now</span></div>
+        <!-- ══ v1914 — 302 FINDS WERE WAITING AND SESSIONS DID NOT SAY SO ══════════════════════
+             Konyo: "where is my inbox widget with the ACCEPTing the 267/214 the thing you
+             mentioned earlier."
+
+             It was never missing — it was on the OTHER TAB. `register 302 ✓` sits in the CHRONICLE
+             SWEEP panel, and v1674 hid that whole column on Sessions at his own request
+             ("everything here and to the bottom is duplicated on the TV-D tab.. i dont need it on
+             SESSIONS TAB"). Measured live on his console: the button exists, is not hidden, reads
+             `register 302 ✓` — and its bounding box is 0x0, because #hd-chron is display:none under
+             data-view="sessions".
+
+             So the panel stays where he put it and Sessions gets a POINTER instead. A night of
+             reads that nobody can see is the same as a night of reads that never happened, and the
+             tab he actually lives on said nothing about 302 of them. It renders only when there is
+             something to register, and it says the NUMBER — a nag with no count is furniture.
+             [[the-unjoined-end]] -->
+        <button class="chron-waiting" id="chron-waiting" type="button" hidden
+                onclick="try{window._shellHome&&window._shellHome();var p=document.getElementById('hd-chron');if(p)setTimeout(function(){p.scrollIntoView({block:'center',behavior:'smooth'})},120);}catch(e){}"
+                title="the proposal is read-only until you press register — this only takes you to it"></button>
         <!-- v1580 — THE ROTATION IS "WHAT TO HUNT TODAY", so it lives in zone Ⅰ (renamed
              Ⅰ TZ TRACKER in v1630 precisely because this rotation card IS what it renders).
              It was in Ⅲ THE RECORD — "the chronicle of your runs" — which is the wrong
@@ -14185,11 +14214,24 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     if (note) note.textContent = 'read-only — nothing has been written to your chronicle';
     // v1523 — the write is offered only when there is something gated to write
     var ap = document.getElementById('chron-apply');
+    var _n = u.length + sset.length;
     if (ap) {
-      var n = u.length + sset.length;
-      ap.hidden = !n;
+      ap.hidden = !_n;
       ap.disabled = false;
-      ap.textContent = 'register ' + n + ' ✓';
+      ap.textContent = 'register ' + _n + ' ✓';
+    }
+    /* v1914 — AND SAY IT ON THE TAB HE LIVES ON. The button above is on TV·D, because
+       v1674 hid this whole column on Sessions at his own request. Measured live on his
+       console: it exists, is not hidden, reads `register 302 ✓`, and its box is 0x0 there,
+       because #hd-chron is display:none under data-view="sessions". So Sessions gets the
+       COUNT and a way to reach it — one line, only when something is waiting, never a
+       countless nag. A night of reads nobody can see is a night of reads that did not
+       happen. [[the-unjoined-end]] */
+    var _wait = document.getElementById('chron-waiting');
+    if (_wait) {
+      _wait.hidden = !_n;
+      _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> find(s) read and waiting to register'
+        + ' <span style="margin-left:auto;opacity:.8">TV·D ▸ Chronicle Sweep →</span>';
     }
   }
   // v1526 — epoch-ms "how long ago". NOT _fleetSince: that one does Date.parse(iso) and a visit
