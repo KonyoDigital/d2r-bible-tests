@@ -8680,3 +8680,19 @@ instrument for a small gap is `counter_ledger` — exact, and it NAMES the rows.
 needs no session and catches gross drift; the Remaining page needs a recording and catches two rows.
 Recorded as a test so the limit is a fact, not a surprise.
 Guard: `tv/test_chronicle_calibrate.py` (10), registered in `run_gates.py`.
+
+## REG-287 — v1925 wrote two ledger statuses and never told the thing that renders them (FIXED v1927)
+
+The ledger repair records `removed` and the write guard records `refused`. Neither was in the panel's
+`PILL` map, so both fell through to the bare-status fallback and rendered as **plain dim text
+beside a green "✓ ticked"** — a row that CHANGED his grail reading quieter than one that merely
+confirmed it, which inverts the whole point of the changed/confirmed split shipped in the same
+version. Seen on the rendered panel, not in the source.
+
+Both now have pills (`⛔ taken out`, `⛔ kept out`). Guard: `TestEveryLedgerStatusHasAPill` — every
+status written through `kaiChronicleRecord` must have one. Seen RED by deleting the `removed` pill.
+
+⚠ **The guard's first draft grepped a bare `status: '...'` and reported six defects that were not
+there** — `farm`, `hunt`, `idle`, `now`, `pipe`, `queued`, belonging to entirely different
+subsystems this panel never renders. Scoped to `kaiChronicleRecord` call sites, plus an assertion
+that it found any at all, so it cannot pass by matching nothing. [[source-reading-guard]]

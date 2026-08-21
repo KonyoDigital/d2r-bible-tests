@@ -279,5 +279,35 @@ class TestTheChroniclesShareOneStyle(unittest.TestCase):
                       "which is worse than the drift")
 
 
+class TestEveryLedgerStatusHasAPill(unittest.TestCase):
+    """v1925 started writing `removed` and `refused` into the Activity Ledger and never told the
+    PILL map, so both rendered as bare dim text beside a green "✓ ticked" — a row that CHANGED his
+    grail reading quieter than one that merely confirmed it. Found on the rendered panel.
+
+    This pins the join: any status the code writes must have a pill to render it.
+    [[the-unjoined-end]]"""
+
+    def test_written_statuses_all_have_pills(self):
+        import re
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            s = fh.read()
+        i = s.index("var PILL = {")
+        pills = set(re.findall(r"'([a-z\-]+)':\s*\[", s[i:i + 1400]))
+        # ⚠ SCOPE IT TO THE LEDGER'S OWN WRITER. A bare `status: '...'` grep pulled in farm, hunt,
+        # idle, now, pipe and queued — other subsystems entirely, none of which this panel renders.
+        # A guard that reaches past its subject reports six defects that are not there, and six
+        # false positives is how a guard stops being read. [[source-reading-guard]]
+        written = set()
+        for m in re.finditer(r"kaiChronicleRecord\(\{", s):
+            seg = s[m.start():m.start() + 700]
+            written |= set(re.findall(r"status:\s*'([a-z\-]+)'", seg))
+        self.assertTrue(written, "no kaiChronicleRecord call sites found — this guard has lost its "
+                                 "subject and would pass on an empty set")
+        missing = sorted(w for w in written if w not in pills)
+        self.assertEqual(missing, [],
+                         "these statuses are written into the ledger but have no pill, so they "
+                         "render as bare text: %s" % missing)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
