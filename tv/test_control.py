@@ -9636,6 +9636,105 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestTheCssInvariantsRunWhereTheyCannotBeCancelled(unittest.TestCase):
+    """v1906 — TWO REAL CSS DEFECTS SAT ON MAIN FOR ELEVEN VERSIONS BECAUSE THEIR ONLY GATE KEEPS
+    GETTING CANCELLED.
+
+    `Routine I — Playwright suite` is the only thing that judges these two invariants, and it takes
+    long enough that the next push cancels it. Twelve consecutive runs — v1894 through v1902 — are
+    all `cancelled`. v1903 was the first to reach a verdict since v1893, and it went RED on two
+    defects I had shipped myself:
+
+        bible.html:3288       var(--q-set,#5fc97a) — the settled set green is #00fc00
+        tv/control_ui.html    --dim renders as #5f6a5a AND #7d7360, undefined, both fallbacks live
+
+    A gate that never reaches a verdict reads exactly like one that passed. That is the same class
+    as everything else in this arc: a mechanism that looks like protection and carries nothing.
+
+    Both invariants are pure file reads — no browser, no page — so there is no reason they only live
+    somewhere cancellable. They run in the python suites now, which his pre-push hook runs on every
+    single push. The Playwright copies stay where they are; this is a second, earlier reader of the
+    same rule, not a replacement. [[feedback-batch-pushes-gate-cost]] [[feedback-ci-verdict-before-seal]]
+
+    ⚠ THE PALETTE IS READ OUT OF THE SPEC, never copied. A second hardcoded copy of SETTLED would
+    drift from the first the moment either moved, which is the defect this file exists to catch.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    FILES = ("bible.html", "tv/control_ui.html")
+    SPEC = "tests/v1628_no_literal_quality_hex.spec.ts"
+
+    def _read(self, rel):
+        with open(os.path.join(self.REPO, rel), encoding="utf-8") as fh:
+            return fh.read()
+
+    def _palette(self):
+        spec = self._read(self.SPEC)
+        m = re.search(r"const SETTLED[^=]*=\s*\{(.*?)\}\s*;", spec, re.S)
+        m2 = re.search(r"const CANONICAL_TOKENS[^=]*=\s*\{(.*?)\}\s*;", spec, re.S)
+        self.assertTrue(m and m2, "the spec no longer declares SETTLED/CANONICAL_TOKENS — this "
+                                  "guard is reading the wrong file and must not report a pass")
+        settled = dict(re.findall(r"([a-z]+)\s*:\s*'(#[0-9a-fA-F]{6})'", m.group(1)))
+        canon = dict(re.findall(r"'(--[a-z-]+)'\s*:\s*'([a-z]+)'", m2.group(1)))
+        self.assertTrue(settled and canon, "the palette parsed empty — a vacuous pass")
+        return settled, canon
+
+    def test_a_quality_colour_never_drifts_from_the_settled_palette(self):
+        settled, canon = self._palette()
+        bad, checked = [], 0
+        for rel in self.FILES:
+            code = self._read(rel)
+            # B1 — the JS/object map form:  unique:'#c7b377'
+            for m in re.finditer(r"\b(unique|set|magic|rare|crafted)\s*:\s*['\"]?(#[0-9a-fA-F]{6})",
+                                 code):
+                checked += 1
+                want = settled.get(m.group(1).lower())
+                if want and m.group(2).lower() != want:
+                    bad.append("%s line %d: %s = %s — settled is %s"
+                               % (rel, code[:m.start()].count("\n") + 1, m.group(1),
+                                  m.group(2), want))
+            # B2 — the CSS custom-property form, second palettes included:  --d2-set:#2fe35e
+            for m in re.finditer(r"--(?:q|rar|d2)-(unique|set|magic|rare|orange|crafted)"
+                                 r"\s*:\s*(#[0-9a-fA-F]{6})", code):
+                checked += 1
+                concept = "crafted" if m.group(1).lower() == "orange" else m.group(1).lower()
+                want = settled.get(concept)
+                if want and m.group(2).lower() != want:
+                    bad.append("%s line %d: --*-%s = %s — settled is %s"
+                               % (rel, code[:m.start()].count("\n") + 1, m.group(1),
+                                  m.group(2), want))
+            # B3 — the var() fallback form:  var(--q-unique,#c7b377)
+            for m in re.finditer(r"var\(\s*(--(?:q|rar)-[a-z]+)\s*,\s*(#[0-9a-fA-F]{6})", code):
+                concept = canon.get(m.group(1).lower())
+                if not concept:
+                    continue
+                checked += 1
+                if m.group(2).lower() != settled[concept]:
+                    bad.append("%s line %d: var(%s) fallback %s — settled is %s"
+                               % (rel, code[:m.start()].count("\n") + 1, m.group(1),
+                                  m.group(2), settled[concept]))
+        self.assertGreater(checked, 0, "found ZERO quality-keyed colours — the matcher is broken, "
+                                       "not the files")
+        self.assertEqual(bad, [], "\n".join(bad))
+
+    def test_an_undefined_token_does_not_render_as_two_different_values(self):
+        for rel in self.FILES:
+            raw = self._read(rel)
+            code = re.sub(r"/\*[\s\S]*?\*/", " ", raw)
+            fb = {}
+            for m in re.finditer(r"var\(\s*(--[a-zA-Z0-9-]+)\s*,\s*([^)]+?)\s*\)", code):
+                fb.setdefault(m.group(1), set()).add(m.group(2).lower().strip())
+            checked, bad = 0, []
+            for token, vals in fb.items():
+                if re.search(re.escape(token) + r"\s*:", code):
+                    continue          # a DEFINED token always wins; its fallbacks are dead
+                checked += 1
+                if len(vals) > 1:
+                    bad.append("%s: %s renders as %s" % (rel, token, " AND ".join(sorted(vals))))
+            self.assertGreater(checked, 3, "%s: no undefined-with-fallback tokens to judge" % rel)
+            self.assertEqual(bad, [], "one token, several colours:\n  " + "\n  ".join(bad))
+
+
 class TestEveryWrittenStateFileFollowsAnIsolatedHist(unittest.TestCase):
     """v1902 — THE ONE FILE THAT SAYS WHAT HE OWNS DID NOT FOLLOW THE ISOLATION RULE.
 

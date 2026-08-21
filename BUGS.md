@@ -7749,3 +7749,36 @@ point is that the number now exists and can be read off `chronicle_doctor.py` at
 
 Also fixed in the same run: the doctor's report column was a hardcoded `%-16s`, which the 18-char
 name `second eye receipt` un-aligned on sight. The width comes from the longest name now.
+
+## REG-256 — two CSS defects sat on main for eleven versions because their only gate kept getting cancelled (FIXED v1906)
+
+`Routine I — Playwright suite` is the only thing that judges two CSS invariants, and it takes long
+enough that the next push cancels it. **Twelve consecutive Routine I runs — v1894 through v1902 —
+are all `cancelled`.** v1903 was the first to reach a verdict since v1893, and it went **RED** on two
+defects I had shipped myself and never seen:
+
+```
+bible.html:3288        var(--q-set,#5fc97a)  — the settled set green is #00fc00   (mine, v1881)
+tv/control_ui.html     --dim renders as #5f6a5a AND #7d7360, undefined, both live (mine, v1894)
+```
+
+**A gate that never reaches a verdict reads exactly like one that passed.** That is the same class as
+everything else in this arc, and the cause was my own push cadence — one ship per push, all night,
+against his standing rule to batch 3–4. [[feedback-batch-pushes-gate-cost]]
+
+**Fixed, both:** the "soon" countdown now uses `--best` (#66ff88), which is the green its own live dot
+already uses and semantically right — an item-quality token had no business colouring a clock. The
+console's `.chron-age` uses the `#5f6a5a` every other `--dim` site in that file uses.
+
+**And both invariants now run where they cannot be cancelled.** They are pure file reads — no
+browser, no page — so there was never a reason for them to live only in a shard-6 Playwright suite.
+They run in the python suites, which his pre-push hook executes on every single push. The Playwright
+copies stay; this is an earlier second reader of the same rule, not a replacement. ⚠ **The palette is
+parsed out of the spec, never copied** — a second hardcoded `SETTLED` would drift from the first the
+moment either moved, which is the defect the guard exists to catch.
+
+Verified on pixels (headless Chrome, CDP, :9231): forcing `.soon` was useless because `_tzPaintClock`
+rewrites `el.className` every second and the forced class was gone before the shutter — the first
+capture showed the GOLD normal state while `getComputedStyle` had just reported green. Stubbing
+`Date.now()` to 45s before a boundary made the state genuinely soon, and it renders `0:45` in green.
+[[chrome-cdp-mac]] — markers do not survive a re-render.
