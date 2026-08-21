@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1921",
+  "ver": "v1922",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1921: notFound has been a bare set of names since it was written - no reel, no frame, no lane, no moment - so when the same piece is read found on one page and not found on another, which happens constantly because he keeps finding things, nothing could say which photographs disagreed and nothing computed that they disagreed at all. It cost a wrong answer to him directly: told that twelve of his thirty-six proposed set pieces were ones the game says he does not have, three of them carry First Found dates on his newest reel and the not-found readings were simply old. Measured over his banked evidence there are 26 contested names, thirteen of each ledger, including the very item he told me he does not have. Each not-found reading now carries its page and eye beside the untouched original field, the contradiction is computed and merged and printed, and it is deliberately made visible rather than resolved because the ordering to resolve it is not stored.",
+  "note": "v1922: His 25-frame session was the sets Chronicle with the Remaining filter on, the list the game keeps of what he does not have, and read by eye it comes to exactly 19, matching his count. The game lists remaining pieces by their BASE name rather than the set piece name, and the roster records that base in each piece slot suffix, so all nineteen matched exactly. Cross referenced against the pending proposal: 35 of the 36 proposed set pieces are consistent with the game and exactly one is wrong, a claws piece the game still lists as missing. Nothing was wrongly withheld. This also corrects two claims I made earlier from undated not-found readings - the real count of bad rows is one, not twelve.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

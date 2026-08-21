@@ -8439,3 +8439,25 @@ evidence, and a claim built on undated evidence cannot be checked.
 **Still open and separate:** the board counts **118** where the game's own arithmetic gives **116**
 (116 + 19 = 135). Those two phantoms are in what the board ALREADY holds, not in this proposal — the
 two pieces on the 19 that his board does not list among its 17 missing.
+
+## REG-274 — a commit claimed a version it had not stamped (FIXED immediately, v1922)
+
+`bump_version.py` refuses a note containing an apostrophe, because the ship note is written into a
+**single-quoted JS literal** in `D2R_BUILD` and an apostrophe would break the page. It said so
+clearly — *"apostrophe in note/name would break the single-quoted D2R_BUILD literal"* — and exited
+without bumping.
+
+⚠ **AND I PUSHED ANYWAY.** The refusal was one line above a `git commit` in the same command, its
+output scrolled past, and a commit titled **v1922** landed on `origin/main` with all four stamps
+still reading **v1921** — the half-bumped state the four-stamp rule exists to prevent, arriving by
+the one route the rule does not cover: not a partial bump, but a *commit message* asserting a version
+that nothing stamped.
+
+Two things, and the second is the general one:
+
+1. Fixed by bumping properly and pushing the stamps, so the ref that says v1922 is v1922.
+2. **A refusal printed into a compound command is a refusal nobody reads.** This is the same shape as
+   `git push | tail` reporting tail's exit status — the check ran, it was right, and the pipeline
+   swallowed it. It had already happened once tonight on this exact tool and I re-ran it by hand;
+   the second time I did not look. **Bump, then VERIFY the stamps, then commit — never in one
+   breath.** [[feedback-version-numbers-mean-ships]]
