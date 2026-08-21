@@ -8590,3 +8590,60 @@ no git recovery for any of them.**
 `TV_HIST` and `TV_SESSIONS` are read at call time as well as at import, so redirecting them mid-test
 genuinely works. A guard with 26 false positives is a guard nobody reads. The canary has none,
 because it reasons about no mechanism at all. Seen RED on a planted write.
+
+## REG-283 — the repair fixed one of two surfaces, and MOVED the disagreement (FIXED v1926)
+
+Immediately after the F·Sets count was corrected: *"the daily tasks not synced to the tab F-Sets 116
+to 118"*. Reproduced in a browser on his own ledger — **bridge 118, tab 116, same page**.
+
+The repair repainted `renderSetTracker` and `renderForgeSets`, the two SET surfaces. The console's
+DAILY TASK FORCE reads `d2r_forgeSummary`, which is written **only inside `forgeScan()`**, reached
+through `renderForge()`. Never called, so the tab read live and the bridge served a fossil.
+
+⚠ **v1862 already fixed this complaint once**, from the other end: its comparator decided whether
+the bridge is rewritten *at all* and did not include the set count, so a change in sets alone
+produced an identical signature. That fix taught the comparator about the number; this one makes
+sure the comparator is actually **consulted** after the number moves. Same defect, new door.
+
+**A repair that fixes one of two disagreeing surfaces has not fixed the disagreement — it has moved
+it.** [[the-unjoined-end]] [[feedback-generalize-fixes]]
+
+## REG-284 — one chronicle opted itself out of the rule that unified them (FIXED v1926)
+
+*"make sure its a unified CSS between the individual chronicles related."*
+
+The stylesheet already unifies them: `:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill` gives all three
+siblings one gradient, and F·Uniques uses it by passing no colour. **F·Sets passed
+`'#4ade80,#86efac'` as an inline style, and inline beats the stylesheet.** Measured side by side:
+
+```
+uniques  rgb(95,201,122) -> rgb(143,230,160)     <- the shared rule
+sets     rgb(74,222,128) -> rgb(134,239,172)     <- an inline override
+```
+
+⚠ **v775 had already found this drift**, unified the sibling TITLE colour, and wrote *"was #4ade80
+on Sets"* in its own comment — then left the FILL behind. **Half a class is how it comes back.**
+
+Both now inherit one rule; computed styles are byte-identical. Guard:
+`TestTheChroniclesShareOneStyle` — no `_meter` call may pass an inline colour, and it also asserts
+the shared rule still exists, because removing the overrides is only safe while there is something
+to inherit. Seen RED by restoring the inline gradient.
+
+## REG-285 — the Chronicle bar reader returned a CONSTANT (FIXED v1926)
+
+`chronicle_calibrate.bar_fill` shipped in v1920 as a safeguard with a docstring claiming ±1.5
+points. Measured across 36 frames from **three different reels**: it answered **0.8395 on all 14**
+and `None` on the rest — one distinct value, which is not a measurement. On a Chronicle page
+printing **63%** it said **83.9%**.
+
+Two bugs, and the first is the instructive one:
+
+1. **It picked the row with the MOST GOLD.** In an 882×210 band that row is not the bar — it is the
+   "View Rewards" button chrome (316 gold pixels, fragmented) outvoting the bar (208, solid).
+   **The discriminator is CONTIGUITY, not quantity:** a progress bar is one run, chrome is pieces.
+2. **It walked the unfilled track as "dark"** (`r,g,b < 90`). The track is mid-grey, ~55–110 — and
+   so is the panel background beyond it, so the walk ran to the band edge and the denominator became
+   the whole band.
+
+Fixed it reads 61.4% where the game prints 63% — 1.6 points, reported as the watchdog it is and
+never as the figure. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]

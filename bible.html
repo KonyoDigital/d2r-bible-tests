@@ -38886,6 +38886,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               + r.removed.map(function(x){ return x.name; }).join(', ')); } catch(e){}
             try { if (typeof renderSetTracker === 'function') renderSetTracker(); } catch(e){}
             try { if (typeof window.renderForgeSets === 'function') window.renderForgeSets(); } catch(e){}
+            /* ⚠ AND THE BRIDGE THE DAILY TASKS READ. Konyo, immediately after the count was fixed:
+               "the daily tasks not synced to the tab F-Sets 116 to 118".
+               renderSetTracker and renderForgeSets repaint the two SET surfaces; the console's
+               DAILY TASK FORCE reads `d2r_forgeSummary`, which is only rewritten inside forgeScan()
+               — reached through renderForge(). Repairing the count without re-running it leaves the
+               tab live and the bridge a fossil, which is v1862's defect arriving through a new
+               door: that fix taught the cache COMPARATOR about the sets count, and this one makes
+               sure the comparator is actually consulted after the count moves.
+               A repair that fixes one of two surfaces has not fixed the disagreement — it has
+               MOVED it. [[the-unjoined-end]] [[feedback-generalize-fixes]] */
+            try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
           }
         } catch(e){}
       }, 400);
@@ -39956,7 +39967,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        second, so the two tabs read as different screens built by different people — the headline
        number was the first thing on one and the third on the other. Order is the template; the
        SENTENCES stay each forge's own, because pieces-and-sets is not finds. */
-    H.push(_meter(s.havePieces, s.totalPieces, '#4ade80,#86efac', {
+    /* v1925 — NO INLINE GRADIENT. Konyo: "make sure its a unified CSS between the individual
+       chronicles related."
+       The stylesheet ALREADY unifies them — `:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill` at
+       ~7626 gives all three siblings one gradient, and F·Uniques uses it by passing no colour.
+       F·Sets passed '#4ade80,#86efac' as an INLINE style, and inline beats the stylesheet, so the
+       one tab opted itself out of the rule written to keep them the same. Measured side by side:
+       uniques rgb(95,201,122)→rgb(143,230,160), sets rgb(74,222,128)→rgb(134,239,172).
+       v775 had already noticed the sibling drift and unified the TITLE colour, noting "was #4ade80
+       on Sets" — and left the FILL behind. Half a class is how it comes back.
+       [[d2r-css-last-rule-wins]] [[feedback-generalize-fixes]] */
+    H.push(_meter(s.havePieces, s.totalPieces, '', {
       title: s.havePieces+' of '+s.totalPieces+' pieces',
       label: '🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets'
     }));
@@ -42551,7 +42572,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1925', name:'v1925 - Three rows that were not his', date:'2026-08-21', note:'His F-Sets meter read 118 of 135 while the game read 116. Asking the live board settled it: 119 stored pieces, three of which do not belong - Blood Crescent, a UNIQUE already ticked in his Holy Grail and the misroute he reported earlier whose fix corrected the routing and never repaired the row already written, plus two pieces the game own Remaining page lists as missing. 119 minus 3 is 116, and the meter now reads 116 of 135 at 85 percent with 19 still missing, matching the game exactly. The safeguard he asked for lives on the WRITE side, because a load-time sweep can always be out-run by a new caller: a name that is not a set piece can no longer enter the set store. The obvious version of that rule would have deleted 116 real finds, because toggleSetPiece writes every set piece into the found log on purpose, so the true invariant is narrower - a unique must never appear in the set store. The missing-list repair fires once per reading, or the day he finds one of those pieces and ticks it the next load would strip it again forever. The meter also floors instead of rounding, because 85.9 printed as 86 while the game prints 85. And the Activity Ledger now separates what changed from what was merely confirmed: 324 rows of you already had this one collapse into one line he can open.' };
+  window.D2R_BUILD = { id:'v1926', name:'v1926 - The daily tasks and the sibling gradient', date:'2026-08-21', note:'Two surfaces disagreeing about one number, and two chronicles wearing different greens. The repair fixed the F-Sets count and repainted the two SET surfaces, but the console DAILY TASK FORCE reads a cached bridge that is only rewritten inside forgeScan, reached through renderForge - so the tab went live while the bridge stayed a fossil. Reproduced exactly: bridge 118, tab 116, on the same page. v1862 taught that cache comparator about the set count; this makes sure the comparator is actually consulted after the count moves, because a repair that fixes one of two surfaces has not fixed the disagreement, it has moved it. And the meters: the stylesheet already unifies all three sibling tabs with one fp-fill gradient, and F-Uniques used it by passing no colour, while F-Sets passed one inline - and inline beats the stylesheet, so the one tab opted itself out of the rule written to keep them the same. Measured before: uniques 95,201,122 and sets 74,222,128. v775 had already noticed the sibling drift, unified the TITLE colour, wrote was 4ade80 on Sets in its own comment, and left the FILL behind. Both meters now inherit one rule and their computed styles are byte-identical. Also rewrote the Chronicle bar reader, which had been returning a single constant across three different reels and read 83.9 percent on a page printing 63.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

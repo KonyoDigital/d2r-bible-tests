@@ -240,5 +240,44 @@ class TestTheLedgerRepair(unittest.TestCase):
         self.assertNotIn("var pct=total?Math.round(found/total*100):0;", s)
 
 
+class TestTheChroniclesShareOneStyle(unittest.TestCase):
+    """Konyo: "make sure its a unified CSS between the individual chronicles related."
+
+    The stylesheet already unifies them — `:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill` gives all
+    three siblings ONE gradient — and F·Uniques used it by passing no colour. F·Sets passed
+    '#4ade80,#86efac' inline, and **inline beats the stylesheet**, so the one tab opted itself out
+    of the rule written to keep them the same. Measured side by side before the fix:
+
+        uniques  rgb(95,201,122) -> rgb(143,230,160)
+        sets     rgb(74,222,128) -> rgb(134,239,172)
+
+    v775 had already spotted the sibling drift and unified the TITLE colour, noting in its own
+    comment "was #4ade80 on Sets" — and left the FILL behind. Half a class is how it comes back.
+    [[d2r-css-last-rule-wins]] [[feedback-generalize-fixes]]
+    """
+
+    def _src(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_no_meter_call_passes_an_inline_colour(self):
+        import re
+        s = self._src()
+        calls = [m for m in re.findall(r"_meter\(([^;]{0,120})", s) if not m.startswith("found,")]
+        self.assertTrue(calls, "no _meter calls found — this guard has lost its subject")
+        bad = [c for c in calls if re.search(r"'#[0-9a-fA-F]{3,8}", c)]
+        self.assertEqual(bad, [],
+                         "a chronicle meter passes an inline gradient, which overrides the shared "
+                         ":is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill rule and un-unifies the "
+                         "siblings: %s" % bad)
+
+    def test_the_shared_sibling_rule_still_exists(self):
+        """The guard above is only meaningful while there IS a shared rule to inherit."""
+        s = self._src()
+        self.assertIn(":is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill", s,
+                      "the sibling rule is gone — removing inline colours now leaves them unstyled, "
+                      "which is worse than the drift")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

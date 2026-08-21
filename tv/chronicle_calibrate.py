@@ -42,14 +42,36 @@ _console_safe_enable()
 
 # The completion bar's band, measured off his own Chronicle frames (2940x1912).
 BAR_BAND = (0.10, 0.63, 0.40, 0.74)
+TRACK_LO, TRACK_HI = 40.0, 118.0   # the unfilled track's luminance band (measured)
 TOLERANCE = 0.03          # 3 points. Below the gap that matters, above this reader's own error.
 
 
 def bar_fill(path):
-    """The game's own completion, as a fraction. None when no bar is on the frame.
+    """The game's own completion, as a fraction. None when no bar can be identified.
 
-    Refuses rather than guesses: too little gold is not a bar, and a bar with no dark track to its
-    right has no measurable end.
+    ⚠ v1925 — THIS RETURNED A CONSTANT AND I SHIPPED IT AS A SAFEGUARD. Measured across 36 frames
+    from THREE different reels, the old reader returned **0.8395 on all 14 frames it answered for**
+    and None on the rest — one distinct value, which is not a measurement, it is a fixed number
+    wearing one. On a Chronicle page that printed **63%** it said 83.9%, a 21-point error under a
+    docstring claiming +/-1.5.
+
+    Two bugs, and the first is the instructive one:
+
+      1. IT PICKED THE ROW WITH THE MOST GOLD. In the 882x210 band that row is not the bar — it is
+         the "View Rewards" button's chrome (316 gold pixels, spread) which outvotes the bar (208,
+         solid). THE DISCRIMINATOR IS CONTIGUITY, NOT QUANTITY: a progress bar is ONE run; panel
+         chrome is fragments. Requiring the longest run to be >=85% of the row's gold picks the bar
+         every time and needs no new band.
+      2. IT WALKED THE UNFILLED TRACK AS "DARK" (r,g,b all < 90). The track is MID-GREY, luminance
+         roughly 55-110 — and so is the panel background beyond it, so the walk ran to the band edge
+         and the denominator became the whole band. The track has to be walked as a LUMINANCE BAND
+         with an end, not as "not bright".
+
+    Fixed, it reads 61.4% where the game prints 63%. That is 1.6 points, and it is reported as what
+    it is: a WATCHDOG good to a couple of points, whose job is to catch a 3-point disagreement. It
+    must never be quoted as the figure. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+
+    guard: tv/test_chronicle_calibrate.py::TestTheBarReaderIsNotAConstant
     """
     try:
         from PIL import Image
@@ -68,25 +90,57 @@ def bar_fill(path):
         r, g, b = p
         return r > 120 and g > 105 and b < 130 and (r - b) > 35
 
-    best_y, best_n = None, 0
+    def lum(x, y):
+        r, g, b = px[x, y]
+        return (r + g + b) / 3.0
+
+    # THE BAR IS ONE SOLID RUN. Score rows by their longest contiguous gold run, and refuse any row
+    # whose gold is scattered — that is chrome, not a bar.
+    best = None
     for y in range(H):
-        n = sum(1 for x in range(W) if is_gold(px[x, y]))
-        if n > best_n:
-            best_y, best_n = y, n
-    if best_y is None or best_n < 20:
+        xs = [x for x in range(W) if is_gold(px[x, y])]
+        if len(xs) < 20:
+            continue
+        run = cur = 1
+        start = run_start = xs[0]
+        for k in range(1, len(xs)):
+            if xs[k] == xs[k - 1] + 1:
+                cur += 1
+            else:
+                if cur > run:
+                    run, run_start = cur, start
+                cur, start = 1, xs[k]
+        if cur > run:
+            run, run_start = cur, start
+        if run / float(len(xs)) < 0.85:
+            continue
+        if best is None or run > best[0]:
+            best = (run, y, run_start)
+    if best is None:
         return None
-    gold = [x for x in range(W) if is_gold(px[x, best_y])]
-    x0, xg = gold[0], gold[-1]
-    x1 = xg
+    run, y, x0 = best
+    xg = x0 + run - 1
+
+    # THE UNFILLED TRACK IS MID-GREY WITH AN END. Walk it as a luminance band, tolerating a few
+    # pixels of noise, and stop where the band does — not where the frame gets dark.
+    x1, miss = xg, 0
     while x1 + 1 < W:
-        r, g, b = px[x1 + 1, best_y]
-        if r < 90 and g < 90 and b < 90:
+        v = lum(x1 + 1, y)
+        if TRACK_LO <= v <= TRACK_HI:
             x1 += 1
+            miss = 0
         else:
-            break
+            miss += 1
+            if miss > 3:
+                break
+            x1 += 1
+    x1 -= miss
     if x1 <= x0:
         return None
-    return (xg - x0 + 1) / float(x1 - x0 + 1)
+    frac = (xg - x0 + 1) / float(x1 - x0 + 1)
+    if not (0.0 < frac <= 1.0):
+        return None
+    return frac
 
 
 def read_reel(reel_dir, sample=6):
