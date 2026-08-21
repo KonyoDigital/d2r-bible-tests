@@ -8364,3 +8364,35 @@ current. Filed, not half-fixed.
 name inside a function body resolves only when that line RUNS, so it would have surfaced as "the
 sweep crashed at the end", long after the reads were paid for. That is precisely the class that left
 MINI dead for ten versions, caught this time before it shipped. [[source-reading-guard]]
+
+## REG-272 — a not-found reading had no page, so the contradiction was invisible (FIXED v1921)
+
+`notFound` has been a bare set of NAMES since it was written — no reel, no frame, no lane, no moment
+(`chronicle_retro.py`: `prop["notFound"][ledger]` is a `set` of strings). So when the same piece is
+read **FOUND** on one page and **NOT FOUND** on another — which happens constantly, because he keeps
+finding things — nothing could say which photographs disagreed, and **nothing computed that they
+disagreed at all**.
+
+⚠ **IT COST A WRONG ANSWER TO HIM DIRECTLY.** Told that 12 of his 36 proposed set pieces were ones
+*"the game says you do not have"*, the truth was that three of them — `Natalya's Totem`,
+`Hsarus' Iron Fist`, `Hsarus' Iron Heel` — carry **First Found dates on his newest reel**. The
+not-found readings were simply OLD. A claim built on evidence that cannot be dated cannot be checked,
+and I made it anyway.
+
+**Measured over his banked evidence: 26 contested names** — 13 uniques and 13 sets — including
+`Immortal King's Will`, the very item he told me hours earlier he does not have. Every one of them
+was invisible before this.
+
+Each not-found reading now carries `{reel, frame, lane}` **beside** the existing set (the old field is
+untouched, because every reader and gate consumes it and changing it would be a second defect), the
+contradiction is computed as `contested`, `merge_proposals` carries the receipts and recomputes it
+over the merged evidence, and the sweep prints it:
+
+> ⚔ 26 name(s) were read BOTH found and not-found — the reader disagreed with itself about these,
+> and that is worth your eyes before you register
+
+⚠ **THIS MAKES THE CONTRADICTION VISIBLE, NOT RESOLVABLE — and that distinction is the point.**
+Deciding which reading is newer needs a timestamp on the sighting, which these do not carry. An older
+not-found reading is perfectly ordinary once he has since found the item, so picking a side would be
+an invention. It is reported and left to him. [[unknown-stays-unknown]]
+[[feedback-contradiction-is-the-finding]]

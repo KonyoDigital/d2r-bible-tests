@@ -12240,6 +12240,17 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             _cal_report = {"ok": None, "say": "calibration failed: %s" % str(_ce)[:120]}
         if _cal_report.get("ok") is False:
             print("   \u2696 %s" % _cal_report.get("say"))
+        _con = prop.get("contested") or {}
+        _ncon = sum(len(v or []) for v in _con.values())
+        if _ncon:
+            print("   \u2694 %d name(s) were read BOTH found and not-found — the reader disagreed "
+                  "with itself about these, and that is worth your eyes before you register:"
+                  % _ncon)
+            for _led in ("uniques", "sets"):
+                _names = _con.get(_led) or []
+                if _names:
+                    print("      %-8s %s%s" % (_led, ", ".join(_names[:6]),
+                                               " …+%d" % (len(_names) - 6) if len(_names) > 6 else ""))
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -12323,6 +12334,14 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     # It costs no model call: the game's own completion bar is pixels the sweep
                     # already has. See _chron_calibration for what it cost to not have this.
                     "calibration": _cal_report,
+                    # v1921 — THE NAMES READ BOTH WAYS. A piece the reader saw as FOUND on one page
+                    # and NOT FOUND on another is the most informative row in a proposal, and until
+                    # now nothing computed it. 26 of them sit in his banked evidence — including
+                    # Immortal King's Will, the very item he told me hours ago he does not have.
+                    # Reported, never acted on: an older not-found reading is perfectly ordinary
+                    # once he has since found the item, and the ordering to tell those apart is not
+                    # stored yet. [[feedback-contradiction-is-the-finding]]
+                    "contested": prop.get("contested") or {},
                     "setGroups": prop.get("setGroups") or {},
                     "lanes": _CHRON_JOB.get("lanes") or [],
                 },
@@ -12547,7 +12566,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1920",
+        "ver": "v1921",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

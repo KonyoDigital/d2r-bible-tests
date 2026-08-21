@@ -2012,5 +2012,72 @@ class TestTheSortControlReachesThePage(unittest.TestCase):
                       "the LIVE prompt stopped asking for it, which makes the join dead again")
 
 
+class TestANotFoundReadingCarriesItsPage(unittest.TestCase):
+    """v1921 — `notFound` was a bare set of NAMES: no reel, no frame, no lane, no moment.
+
+    So when the same piece is read FOUND on one page and NOT FOUND on another — which happens
+    constantly, because he keeps finding things — nothing could say which photographs disagreed, and
+    nothing computed that they disagreed at all.
+
+    ⚠ IT COST A WRONG ANSWER TO HIM DIRECTLY. Told that 12 of his 36 proposed set pieces were ones
+    "the game says you do not have", the truth was that three of them — Natalya's Totem, Hsarus'
+    Iron Fist, Hsarus' Iron Heel — carry First Found dates on his newest reel. The not-found
+    readings were simply OLD. A claim built on evidence that cannot be dated cannot be checked.
+
+    Measured over his banked evidence the day this shipped: **26 contested names**, 13 uniques and
+    13 sets, including Immortal King's Will — the very item he had told me he does not have.
+
+    ⚠ THIS MAKES THE CONTRADICTION VISIBLE, NOT RESOLVABLE. Resolving by recency needs a timestamp
+    on the sighting, which these do not carry. Saying which is newer would be an invention, so it is
+    reported and left to him. [[unknown-stays-unknown]]"""
+
+    def _pages(self):
+        return [
+            {"reel": "r1", "frame": "f1.jpg", "kind": "chronicle-sets",
+             "resp": cr.normalize_page({"stateVisible": True, "found": ["Tancred's Skull"],
+                                        "notFound": ["Milabrega's Diadem"], "conf": 0.9},
+                                       "chronicle-sets", "claude")},
+            {"reel": "r2", "frame": "f2.jpg", "kind": "chronicle-sets",
+             "resp": cr.normalize_page({"stateVisible": True, "found": ["Milabrega's Diadem"],
+                                        "conf": 0.9}, "chronicle-sets", "grok")},
+        ]
+
+    def test_the_not_found_reading_names_its_page_and_its_eye(self):
+        p = cr.proposal_from_pages(self._pages())
+        seen = (p.get("notFoundSeen") or {}).get("sets", {}).get("Milabrega's Diadem") or []
+        self.assertTrue(seen, "a not-found reading still carries no receipt")
+        self.assertEqual(seen[0]["reel"], "r1")
+        self.assertEqual(seen[0]["frame"], "f1.jpg")
+        self.assertEqual(seen[0]["lane"], "claude")
+
+    def test_the_contradiction_is_NAMED(self):
+        p = cr.proposal_from_pages(self._pages())
+        self.assertEqual((p.get("contested") or {}).get("sets"), ["Milabrega's Diadem"],
+                         "a name read both ways is still averaged into silence")
+
+    def test_an_uncontested_name_is_not_listed(self):
+        """The mirror, or `contested` is just a copy of the proposal."""
+        p = cr.proposal_from_pages(self._pages())
+        self.assertNotIn("Tancred's Skull", (p.get("contested") or {}).get("sets") or [])
+
+    def test_the_old_shape_still_stands_untouched(self):
+        """Every existing reader and gate consumes `notFound` as a sorted list of names. The receipt
+        is added BESIDE it; changing the old field would have been a second defect."""
+        p = cr.proposal_from_pages(self._pages())
+        self.assertEqual(p["notFound"]["sets"], ["Milabrega's Diadem"])
+        self.assertIsInstance(p["notFound"]["uniques"], list)
+
+    def test_a_merge_carries_the_receipts_and_recomputes_the_contradiction(self):
+        """merge_proposals is what makes evidence ACCUMULATE; a field it does not know about is a
+        field that quietly resets after one sweep."""
+        a = cr.proposal_from_pages(self._pages()[:1])       # only the not-found page
+        b = cr.proposal_from_pages(self._pages()[1:])       # only the found page
+        m = cr.merge_proposals(a, b)
+        self.assertEqual((m.get("contested") or {}).get("sets"), ["Milabrega's Diadem"],
+                         "the contradiction vanished across a merge")
+        seen = (m.get("notFoundSeen") or {}).get("sets", {}).get("Milabrega's Diadem") or []
+        self.assertTrue(seen, "the receipt did not survive the merge")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

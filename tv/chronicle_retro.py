@@ -1100,6 +1100,27 @@ def proposal_from_pages(pages):
                 prop[ledger].setdefault(nm, []).append(_sight)
         for nm in (resp.get("notFound") or []):
             prop["notFound"][ledger].add(nm)
+            # ── v1921 — A NOT-FOUND READING NEEDS A PAGE AND A LANE, OR IT CANNOT BE JUDGED ──────
+            #
+            # `notFound` has been a bare set of NAMES since it was written: no reel, no frame, no
+            # lane, no moment. So when the same piece is read FOUND on one page and NOT FOUND on
+            # another — which happens constantly, because he keeps finding things — nothing could
+            # say which reading is newer, or even which photographs disagreed.
+            #
+            # It cost a wrong answer to him directly. Told that 12 of his 36 proposed set pieces
+            # were ones "the game says you do not have", the truth was that three of them
+            # (Natalya's Totem, Hsarus' Iron Fist, Hsarus' Iron Heel) carry First Found dates on
+            # his newest reel — the not-found readings were simply OLD. A claim built on evidence
+            # that cannot be dated is a claim that cannot be checked.
+            #
+            # The set stays exactly as it was, so every existing reader and gate is untouched. What
+            # is added is the RECEIPT beside it. Resolving by recency needs a timestamp on the
+            # sighting, which these do not carry yet — so this ship makes the contradiction VISIBLE
+            # and says plainly that it does not yet make it RESOLVABLE. [[unknown-stays-unknown]]
+            prop.setdefault("notFoundSeen", {}).setdefault(ledger, {}).setdefault(nm, []).append({
+                "reel": p.get("reel"), "frame": p.get("frame"),
+                "lane": resp.get("lane") or "claude",
+            })
         for g in (resp.get("sets") or []):
             nm = g.get("set")
             if not nm:
@@ -1117,6 +1138,17 @@ def proposal_from_pages(pages):
                         "conf": resp.get("conf") or 0, "lane": lane,
                     })
     prop["notFound"] = {k: sorted(v) for k, v in prop["notFound"].items()}
+    # v1921 — THE CONTRADICTION, NAMED. A piece read FOUND on one page and NOT FOUND on another is
+    # not noise to be averaged away: it is the most informative row in the proposal, and until now
+    # nothing computed it at all. It is reported, never acted on — an older not-found reading is a
+    # perfectly ordinary thing when he has since found the item.
+    contested = {}
+    for _led in ("uniques", "sets"):
+        _nf = set(prop.get("notFound", {}).get(_led) or ())
+        for _nm in (prop.get(_led) or {}):
+            if _nm in _nf:
+                contested.setdefault(_led, []).append(_nm)
+    prop["contested"] = {k: sorted(v) for k, v in contested.items()}
     prop["setGroups"] = {k: sorted(v) for k, v in prop["setGroups"].items()}
     prop["pageKeys"] = sorted(_pk)
     return prop
@@ -1283,6 +1315,18 @@ def merge_proposals(base, incoming):
         # notFound was dropped entirely by the old merge, so "the game says he has NOT found this"
         # survived one sweep and then vanished — an absence that cannot be carried is an absence
         # nobody can act on.
+        # v1921 — carry the RECEIPTS across a merge too, or the page a not-found reading came from
+        # survives exactly one sweep. merge_proposals is what makes evidence accumulate; a field it
+        # does not know about is a field that quietly resets.
+        for _led, _names in (src.get("notFoundSeen") or {}).items():
+            for _nm, _seen in (_names or {}).items():
+                _bucket = out.setdefault("notFoundSeen", {}).setdefault(_led, {}).setdefault(_nm, [])
+                _have = {(x.get("reel"), x.get("frame"), x.get("lane")) for x in _bucket}
+                for _s in (_seen or []):
+                    _k = (_s.get("reel"), _s.get("frame"), _s.get("lane"))
+                    if _k not in _have:
+                        _have.add(_k)
+                        _bucket.append(_s)
         nf = src.get("notFound") or {}
         if isinstance(nf, dict):
             for ledger, names in nf.items():
@@ -1322,6 +1366,14 @@ def merge_proposals(base, incoming):
     # proposal_from_pages already sorts these to lists before returning; the merger must end in the
     # same shape or the two halves of one contract disagree.
     out["notFound"] = {k: sorted(v) for k, v in (out.get("notFound") or {}).items()}
+    # and recompute the contradiction over the MERGED evidence, which is the only place it is true
+    _con = {}
+    for _led in ("uniques", "sets"):
+        _nf = set(out.get("notFound", {}).get(_led) or ())
+        for _nm in (out.get(_led) or {}):
+            if _nm in _nf:
+                _con.setdefault(_led, []).append(_nm)
+    out["contested"] = {k: sorted(v) for k, v in _con.items()}
     out["setGroups"] = {k: sorted(v) for k, v in (out.get("setGroups") or {}).items()}
     # DERIVED, never accumulated — the whole point. Both are now answers to "what can this ledger
     # prove", which is a question a re-merge cannot change.
