@@ -43,10 +43,42 @@ from console_safe import enable as _console_safe_enable  # noqa: E402
 
 _console_safe_enable()
 
-# The INVENTORY title band, measured off his own "both panels open" frame (6_1784984233446).
+# A GOLD PANEL TITLE, in the band where D2R draws one — measured off his own "both panels open"
+# frame (6_1784984233446).
+#
+# ⚠ v1925 — IT IS NOT THE *INVENTORY* TITLE, and calling it that was a label outliving its referent.
+# The test is "gold-on-stone lettering in this band", which is equally true of the CHRONICLE panel:
+# spot-checking the frames this admits turned up a Holy Grail page with First Found dates and a 63%
+# completion bar, correctly reporting panel=True. `scan()` has always been honest about this — it
+# returns `panel` beside `tab`, and `panel` means A TITLED PANEL IS OPEN — but the name above
+# invited every reader to take it for an inventory detector.
+#
+# If you need "is this the inventory", ask `inventory_lattice()`: it requires a 10x4 grid of square
+# cells and refuses everything else, including the game-creation lobby menu that this band cannot
+# tell from a panel. [[label-outlived-referent]]
 TITLE_BAND = (0.56, 0.125, 0.80, 0.165)
-# The tight window the real title occupies. Below it: no panel. Above it: another gold thing.
-TITLE_MIN, TITLE_MAX = 0.0006, 0.0012
+# The window the real title occupies. Below it: no panel. Above it: another gold thing.
+#
+# ⚠ v1925 — THE LOWER BOUND WAS RESOLUTION-DEPENDENT AND ADMITTED NOTHING ON HIS LARGER FRAMES.
+# The original 0.0006 was measured on a single 2560x1665 frame, which scores 0.00079 and sits
+# comfortably inside it. His reel records at 2940x1912, and there the SAME panel scores 0.00024 —
+# because the band is a FRACTION of the frame while D2R draws the title at a near-fixed pixel size,
+# so a bigger window means the same lettering covers proportionally less of the band.
+#
+# Measured across all 153 frames of reel_s_1784984019250_95276, classed by inventory_lattice (an
+# independent oracle — it never consults the title):
+#
+#     shipped  0.00060-0.00120 -> inventory  0/94   non-inventory 0/59   <- ADMITS NOTHING
+#     now      0.00008-0.00120 -> inventory 94/94   non-inventory 0/59
+#
+# The upper bound was always right; only the floor was wrong. The classes separate with a wide gap
+# (inventory 0.00013-0.00024 and 0.00079; everything else 0.0-0.00004 or 0.00175-0.00291), so this
+# is a window with real margin rather than a constant tuned until the answer came out.
+#
+# A gate that admits nothing is the same defect as one that admits everything: it has stopped
+# carrying information, and nothing said so because nobody compared the two classes.
+# [[feedback-blind-fixture-green-gate]] [[feedback-threshold-above-the-ceiling]]
+TITLE_MIN, TITLE_MAX = 0.00008, 0.0012
 OUT = os.path.join(HERE, "vault_corpus_index.json")
 
 

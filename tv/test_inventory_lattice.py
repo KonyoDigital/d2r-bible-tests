@@ -114,5 +114,61 @@ class TestOneFrameIsAFixture(unittest.TestCase):
         self.assertIn("not the same as", r["say"])
 
 
+class TestTheTitleWindowAdmitsSomething(unittest.TestCase):
+    """A gate that admits NOTHING is the same defect as one that admits everything.
+
+    TITLE_MIN was 0.0006, measured on a single 2560x1665 frame. His reel records at 2940x1912, where
+    the same panel scores 0.00024 — the band is a fraction of the frame while D2R draws the title at
+    a near-fixed pixel size. Measured across 153 frames, the shipped window admitted **0 of 94**
+    inventory frames and 0 of 59 others. It had stopped carrying information and nothing said so,
+    because nobody had ever compared the two classes.
+    """
+
+    def test_the_frame_the_constants_came_from_is_still_admitted(self):
+        p = os.path.join(HERE, "frames", "hist", "6_1784984233446.jpg")
+        if not _have(p):
+            self.skipTest("frame missing")
+        s = vc.title_score(p)
+        self.assertTrue(vc.TITLE_MIN <= s <= vc.TITLE_MAX,
+                        "widening the floor must not drop the 2560px frame the window was "
+                        "originally measured on (%.5f)" % s)
+
+    def test_a_real_inventory_frame_at_the_larger_size_is_admitted(self):
+        if not _have(GOOD):
+            self.skipTest("frame missing")
+        s = vc.title_score(GOOD)
+        self.assertTrue(vc.TITLE_MIN <= s <= vc.TITLE_MAX,
+                        "the 2940px inventory scores %.5f and the window is %.5f-%.5f — this is the "
+                        "exact hole: a gate that admits nothing" % (s, vc.TITLE_MIN, vc.TITLE_MAX))
+
+    def test_the_title_band_is_a_PANEL_test_not_an_inventory_test(self):
+        """The distinction that keeps the corrected floor honest.
+
+        Widening the floor admitted 317 more frames, and spot-checking them against the lattice
+        found 14 of 25 were inventories and 11 were something else — one of them a CHRONICLE page
+        with First Found dates and a 63% bar. That is not a false positive: the band detects a gold
+        PANEL TITLE, and a Chronicle panel has one. The failure would be reading `panel` as
+        `inventory`, which is why inventory_lattice exists.
+        """
+        chron = os.path.join(HERE, "frames", "hist", "reel_s_1786385768689_67392",
+                             "f_1786385817510.jpg")
+        if not _have(chron):
+            self.skipTest("frame missing")
+        s = vc.title_score(chron)
+        self.assertTrue(vc.TITLE_MIN <= s <= vc.TITLE_MAX,
+                        "a Chronicle panel has a gold title and SHOULD score as a panel")
+        self.assertFalse(vc.inventory_lattice(chron).get("ok"),
+                         "...and must NOT pass as an inventory — that is the whole division of "
+                         "labour between the two checks")
+
+    def test_the_lobby_menu_is_still_excluded(self):
+        """Widening a floor must not swallow the thing the ceiling was keeping out."""
+        if not _have(LOBBY):
+            self.skipTest("frame missing")
+        s = vc.title_score(LOBBY)
+        self.assertFalse(vc.TITLE_MIN <= s <= vc.TITLE_MAX,
+                         "the lobby menu scores %.5f and must stay outside the window" % s)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
