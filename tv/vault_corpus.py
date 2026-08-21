@@ -137,3 +137,171 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ── THE INVENTORY LATTICE ───────────────────────────────────────────────────────────────────────
+# Solved 2026-08-21 after five attempts aimed at the wrong panel. Full record in
+# PROJECT_VAULT_MANAGER.md; the short version, because the refusals below only make sense with it:
+#
+#   * The GEMS tab has NO cell borders. Five attempts hunted vertical dividers in a panel that has
+#     none — and it is out of scope by his own words ("gems/runes/materials never move").
+#   * The INVENTORY grid does: 10 x 4, pitch 86.75 x 85.75, square cells.
+#   * A LATTICE IS REGULAR. Fitting pitch+phase beats picking peaks, because item art has to land on
+#     a periodic grid to score and it does not. Every earlier attempt discarded that property.
+#   * Borders are found by RIDGE on the per-axis MEDIAN, not brightness: border visibility depends
+#     on occupancy (a border around a black empty cell is nearly invisible), so no global threshold
+#     exists, and item art is bright at SOME y while a border is bright at EVERY y.
+#
+# ⚠ THE REFUSALS ARE THE FEATURE. Without them this returned a confident "18 occupied, 9 free" for
+# the game-creation LOBBY MENU — a column of checkboxes is periodic, so a lattice fitter finds a
+# lattice in it. A periodic grid is a PROXY; the 10x4 square inventory is the thing.
+_LAT_LO, _LAT_HI = 70.0, 100.0
+INV_CROP = (0.595, 0.495, 0.915, 0.70)   # fractions of the frame
+INV_COLS, INV_ROWS = 10, 4               # the D2 inventory is ALWAYS this
+
+
+def _ridge(v, k=12):
+    import numpy as _np
+    n = len(v)
+    out = _np.zeros(n)
+    for i in range(n):
+        l = v[max(0, i - k):max(1, i - 2)]
+        r = v[min(n - 1, i + 3):min(n, i + k + 1)]
+        if len(l) and len(r):
+            out[i] = max(0.0, v[i] - max(l.mean(), r.mean()))
+    return out
+
+
+def _fit(v):
+    import numpy as _np
+    best = None
+    n = len(v)
+    for pitch in _np.arange(_LAT_LO, _LAT_HI, 0.25):
+        for phase in _np.arange(0, pitch, 1.0):
+            xs = _np.arange(phase, n, pitch)
+            if len(xs) < 4:
+                continue
+            idx = _np.clip(_np.round(xs).astype(int), 0, n - 1)
+            sc = float(v[idx].mean())
+            if best is None or sc > best[0]:
+                best = (sc, float(pitch), float(phase), idx)
+    return best
+
+
+def inventory_lattice(frame_path):
+    """{ok, colPitch, rowPitch, cols, rows} or {ok: False, why} — and it says NO often.
+
+    Each refusal is a real failure seen on his own reel:
+      * pitch pinned to a SEARCH BOUND -> the fit found nothing (33 frames)
+      * ridge score at the noise floor -> a black loading frame reads exactly like this (7 frames)
+      * not exactly 10x4, or cells not square -> the LOBBY MENU (13 frames)
+    """
+    try:
+        import numpy as _np
+        from PIL import Image
+        im = Image.open(frame_path).convert("L")
+    except Exception as e:
+        return {"ok": False, "why": "unreadable: %s" % str(e)[:80]}
+    W, H = im.size
+    if W < 1200 or H < 800:
+        return {"ok": False, "why": "frame too small (%dx%d) to hold the panel" % (W, H)}
+    g = _np.asarray(im.crop((int(INV_CROP[0] * W), int(INV_CROP[1] * H),
+                             int(INV_CROP[2] * W), int(INV_CROP[3] * H))), dtype=_np.float32)
+    sc, cp, _cph, cols = _fit(_ridge(_np.median(g, axis=0)))
+    sr, rp, _rph, rows = _fit(_ridge(_np.median(g, axis=1)))
+    for nm, pitch, score in (("columns", cp, sc), ("rows", rp, sr)):
+        if abs(pitch - _LAT_LO) < 0.3 or abs(pitch - (_LAT_HI - 0.25)) < 0.3:
+            return {"ok": False, "why": "%s pitch pinned to the search bound (%.2f) — the fit found "
+                                        "nothing, which is not a narrow grid" % (nm, pitch)}
+        if score < 3.0:
+            return {"ok": False, "why": "%s ridge score %.2f is at the noise floor — no lattice "
+                                        "here" % (nm, score)}
+    nc, nr = len(cols) - 1, len(rows) - 1
+    if (nc, nr) != (INV_COLS, INV_ROWS):
+        return {"ok": False, "why": "found %dx%d cells; the D2 inventory is ALWAYS %dx%d"
+                                    % (nc, nr, INV_COLS, INV_ROWS)}
+    if abs(cp - rp) > 4.0:
+        return {"ok": False, "why": "cells are not square (%.1f x %.1f) — a menu fits a lattice "
+                                    "too, and this is how it is told apart" % (cp, rp)}
+    return {"ok": True, "colPitch": cp, "rowPitch": rp,
+            "cols": [int(x) for x in cols], "rows": [int(y) for y in rows],
+            "cells": nc * nr, "crop": INV_CROP}
+
+
+def inventory_occupancy(frame_path, lat=None):
+    """{ok, occupied, free, grid} — free inventory space, the number the vault manager needs.
+
+    An EMPTY cell is uniformly near-black (mean 4.3, std 0.6-1.0); an occupied one is 31-169 with
+    std 20-78. The gap is enormous and three separate threshold pairs return the identical answer,
+    which is what a real bimodal signal looks like and what a tuned constant never does.
+
+    ⚠ The obvious feature was WRONG: occupied cells sit on a blue background, but the ITEM ART
+    covers it — a grey cube, an orange torch and silver coins all score negative on blue-minus-red.
+    Hue found 4 of 22.
+
+    ⚠ ONE FRAME IS A FIXTURE. A tooltip drawn over the panel makes an empty cell read as occupied
+    (measured: one frame of 94 said 23/17 instead of 22/18). A per-frame occlusion detector was
+    tried and rejected — divider continuity gives 0.477 clean vs 0.452 occluded, a threshold rather
+    than a separation. Use `inventory_reading()` over a reel instead; his own 3+-witness rule is the
+    occlusion detector.
+    """
+    try:
+        import numpy as _np
+        from PIL import Image
+        im = Image.open(frame_path).convert("L")
+    except Exception as e:
+        return {"ok": False, "why": "unreadable: %s" % str(e)[:80]}
+    r = lat or inventory_lattice(frame_path)
+    if not r.get("ok"):
+        return {"ok": False, "why": r.get("why")}
+    W, H = im.size
+    g = _np.asarray(im.crop((int(INV_CROP[0] * W), int(INV_CROP[1] * H),
+                             int(INV_CROP[2] * W), int(INV_CROP[3] * H))), dtype=_np.float32)
+    cols, rows = r["cols"], r["rows"]
+    grid, occ, free = [], 0, 0
+    for i in range(len(rows) - 1):
+        line = []
+        for j in range(len(cols) - 1):
+            cell = g[rows[i] + 12:rows[i + 1] - 12, cols[j] + 12:cols[j + 1] - 12]
+            if cell.size == 0:
+                line.append(None)
+                continue
+            taken = bool(cell.mean() > 20 or cell.std() > 15)
+            line.append(taken)
+            if taken:
+                occ += 1
+            else:
+                free += 1
+        grid.append(line)
+    return {"ok": True, "occupied": occ, "free": free, "cells": occ + free, "grid": grid}
+
+
+def inventory_reading(frame_paths):
+    """The MODAL reading across many frames, with the count that agreed.
+
+    93 of 94 is evidence. 1 of 1 is a fixture, and this project has already paid for believing one.
+    A minority reading is reported rather than dropped, because it is either a contaminated frame or
+    the first sign of an edge case, and those look identical until someone opens it.
+    """
+    from collections import Counter
+    seen, refused = [], 0
+    for p in (frame_paths or []):
+        o = inventory_occupancy(p)
+        if o.get("ok"):
+            seen.append((o["occupied"], o["free"]))
+        else:
+            refused += 1
+    if not seen:
+        return {"ok": None, "read": 0, "refused": refused,
+                "say": "no frame held a readable inventory panel — which is not the same as an "
+                       "empty inventory"}
+    c = Counter(seen).most_common()
+    (occ, free), n = c[0]
+    out = {"ok": True, "occupied": occ, "free": free, "agreed": n, "read": len(seen),
+           "refused": refused, "minority": [{"occupied": a, "free": b, "frames": k}
+                                            for (a, b), k in c[1:]]}
+    out["say"] = ("%d free of %d, agreed by %d of %d readable frame(s)%s"
+                  % (free, occ + free, n, len(seen),
+                     "" if len(c) == 1 else "; %d frame(s) disagreed and are listed rather than "
+                                            "averaged away" % sum(k for _, k in c[1:])))
+    return out
