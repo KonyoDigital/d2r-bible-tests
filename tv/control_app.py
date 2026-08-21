@@ -11168,7 +11168,16 @@ def _chron_result_load():
             return False
         _CHRON_JOB["result"] = res
         _CHRON_JOB["phase"] = _CHRON_JOB.get("phase") or "done"
+        # v1894 — WHEN was this proposal made. `restoredFrom` has been set here for versions and
+        # rendered by nothing, so the console shows a proposal with no age at all: one made an hour
+        # ago and one made last week look identical, and he acts on both the same way.
+        #
+        # It cost me an hour tonight in the most direct way possible. I read this file WHILE the
+        # sweep that owns it was still running, reported "6 of 13 cleared, 28 sets" to him from the
+        # PREVIOUS result, and the real answer — written at 00:47 — was 11 of 13 and 36 sets. A
+        # reading carries the age of the thing it measured, not of the fetch. [[stale-reading]]
         _CHRON_JOB["restoredFrom"] = payload.get("savedTs")
+        _CHRON_JOB["resultTs"] = payload.get("savedTs")
         if payload.get("proposal"):
             globals()["_CHRON_LAST_PROPOSAL"] = payload["proposal"]
         return True
@@ -11195,6 +11204,10 @@ def chronicle_sweep_state():
         # the reason for it. Defaults to [] rather than being absent: "none were reopened" and "this
         # build does not report it" must not read the same.
         st["reopenedReels"] = list(_CHRON_JOB.get("reopenedReels") or [])
+        # v1894 — the age travels with the result, always. A proposal with no timestamp is one he
+        # cannot tell from a fresh one.
+        st["resultTs"] = _CHRON_JOB.get("resultTs") or _CHRON_JOB.get("restoredFrom")
+        st["resultFromDisk"] = bool(_CHRON_JOB.get("restoredFrom"))
         st["autoreadReads"] = int(_CHRON_AUTOREAD.get("reads") or 0)
         st["autoreadTries"] = dict(_CHRON_AUTOREAD.get("tries") or {})
     except Exception:
@@ -12270,7 +12283,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1893",
+        "ver": "v1894",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

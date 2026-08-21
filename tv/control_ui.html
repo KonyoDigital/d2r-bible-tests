@@ -3112,6 +3112,12 @@
   /* v1541 — the verdict on an empty sweep. Deliberately NOT red for the ok states: "no Chronicle
      appeared in your footage" is information, and dressing it as a fault sends him debugging a
      machine that is working. Only read-nothing — the one case that IS the reader — goes amber. */
+  /* v1894 — --fs-2xs, not a raw 11px. His declared type floor is ~13px ("nothing important under
+     ~12-13px"), and TestV1504TypeFloor caught this line the moment it existed — three surfaces had
+     slipped under that floor before, and the gate exists so a fourth does not. */
+  .chron-age { font: var(--fw-semibold) var(--fs-2xs) / 1.4 var(--mono, ui-monospace, monospace);
+    letter-spacing: .05em; color: var(--dim, #7d7360); margin: 0 0 8px; }
+  .chron-age.stale { color: var(--st-warn, #d8a657); }
   .chron-verdict { flex: 1 1 100%; padding: 10px 12px; border-radius: 8px; line-height: 1.55;
     border: 1px solid rgba(181,140,255,.32); background: rgba(181,140,255,.06); }
   .chron-verdict.bad { border-color: rgba(224,168,96,.45); background: rgba(224,168,96,.08); }
@@ -14113,6 +14119,37 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var tuneBtn = document.getElementById('chron-tune');
     if (tuneBtn) tuneBtn.hidden = !res;
     if (!res) return;
+    /* v1894 — SAY WHEN THIS PROPOSAL WAS MADE. It rendered with no age at all, so a sweep from an
+       hour ago and one from last week looked identical and he would act on both the same way. The
+       engine has stamped it `savedTs` for versions and nothing read it.
+       Not hypothetical: I read the stored result WHILE the sweep that owns it was still running and
+       reported the PREVIOUS proposal's numbers to him as this one's — "6 of 13 cleared, 28 sets"
+       when the real answer, written minutes later, was 11 of 13 and 36. A reading carries the age
+       of the thing it measured, not of the fetch. [[stale-reading]] */
+    try {
+      var _ageEl = document.getElementById('chron-result-age');
+      if (!_ageEl){
+        var _host = document.getElementById('chron-body');
+        if (_host && _host.parentNode){
+          _ageEl = document.createElement('div');
+          _ageEl.id = 'chron-result-age';
+          _host.parentNode.insertBefore(_ageEl, _host);
+        }
+      }
+      if (_ageEl){
+        if (!st.resultTs){ _ageEl.textContent = ''; _ageEl.className = 'chron-age'; }
+        else {
+          var _mins = Math.max(0, Math.round((Date.now() - st.resultTs) / 60000));
+          var _when = _mins < 1 ? 'just now'
+                    : _mins < 60 ? (_mins + ' min ago')
+                    : _mins < 1440 ? (Math.round(_mins / 60) + 'h ago')
+                    : (Math.round(_mins / 1440) + 'd ago');
+          _ageEl.textContent = 'this proposal was made ' + _when
+            + (st.resultFromDisk ? ' \u00b7 restored from disk, not from this session' : '');
+          _ageEl.className = 'chron-age' + (_mins >= 1440 ? ' stale' : '');
+        }
+      }
+    } catch(e){}
     var add = (res.wouldAdd || {}), held = res.held || [];
     var u = add.uniques || [], sset = add.sets || [];
     /* v1541 — THE VERDICT, and it goes FIRST. A sweep that proposes nothing used to render three

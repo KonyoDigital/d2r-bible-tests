@@ -6985,6 +6985,10 @@ Three of tonight's ships proved themselves on his own footage in that one run:
 - **v1878/v1880** — the new-finds line is the engine's, printed live while the reel was still being
   read (which is how the v1878 claim was caught and corrected).
 
+⚠ **THE NUMBERS BELOW WERE READ MID-SWEEP AND ARE WRONG. See REG-244 for the real ones** — 11 of
+the 13 cleared, not 6, and `wouldAdd` sets reached **36**, not 28. Kept here as written, because a
+record that quietly resolves to whatever turned out right teaches nothing.
+
 **Nothing was applied.** The proposal is what changed, and by exactly how much:
 
 | | |
@@ -7404,3 +7408,34 @@ sabotage inside the slice the guard actually reads.
 | `board_ownership` | 2600 bytes → bounded by the next `def ` |
 | the vault `_reader` | 900 bytes → bounded by `prop = _vr.sweep(` |
 | the chronicle `_classify_one` | 3600 bytes → bounded by `_classify = _cr.classifier(` |
+
+
+## REG-244 — I read the result while the sweep that owns it was still running (CORRECTED v1894)
+
+I reported *"6 of the 13 held pieces cleared, `wouldAdd` sets 21 → 28"*. **Both numbers were from
+the PREVIOUS proposal.** `chron_last_result.json` was written at **00:47:02**; my read was minutes
+earlier, while the sweep was still in its fold-and-gate phase.
+
+**The real result:**
+
+| | |
+|---|---|
+| of the 13 held before that reel | **11 CLEARED**, 2 still held |
+| cleared | Arcanna's Deathwand · Arcanna's Flesh · Arcanna's Head · Arcanna's Sign · Hsarus' Iron Heel · Immortal King's Forge · Iratha's Collar · Iratha's Cord · Iratha's Cuff · Natalya's Shadow · Natalya's Soul |
+| still held | **Dangoon's Teaching** · **Milabrega's Diadem** |
+| `wouldAdd` | **266 uniques · 36 sets** |
+| **every one of the 36 set rows carries the game's own date** | e.g. `Arcanna's Head — 05/14/2026, 20:17 · The Cow King` |
+
+Including the two — Arcanna's Deathwand and Arcanna's Head — that had been held because *"the reader
+itself was unsure"*. The second pass corroborated them.
+
+**The durable fix, because the surface had the same blindness I did.** The engine has stamped every
+result `savedTs` for versions and **nothing rendered it**: the console showed a proposal with no age
+at all, so one made an hour ago and one made last week looked identical and he would act on both the
+same way. The state now publishes `resultTs` and `resultFromDisk`, and the panel says *"this proposal
+was made 12 min ago · restored from disk, not from this session"*, turning amber past a day.
+[[stale-reading]]
+
+⚠ **And the type floor caught the new line the moment it existed.** `font-size: 11px` is under his
+declared ~13px floor; `TestV1504TypeFloor` failed, and it now uses `--fs-2xs`. Three surfaces had
+slipped under that floor before — the gate exists so a fourth does not.
