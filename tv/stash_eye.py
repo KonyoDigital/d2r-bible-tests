@@ -578,9 +578,17 @@ def fuse_tab_signals(
         # stash-panel frames — which is exactly why it was filed OPEN rather than fixed blind, and
         # exactly why the guards below drive it synthetically. A branch his data cannot exercise is
         # still a branch. [[gate-blind-to-unexercised-input]] [[d2r-multiwitness-corroboration]]
-        _disagree = sorted({t for t in (grid_tab, model_tab, journal_tab)
-                            if t in _TALLY_TABS and t != ocr_tab})
-        if _disagree:
+        # ⚠ v1907.1 — THE JOURNAL STICKY IS NOT A DISAGREEING WITNESS, IT IS A LAGGING ONE.
+        # v1907 shipped this set with `journal_tab` in it and that was wrong, caught in the review
+        # pass 20 minutes later. `_kai_sticky_tab` says so in its own docstring: "last deep tab with
+        # st<=ts+1.5s, HELD until the next deep tab (or 25s)". So for up to 25 seconds after he
+        # clicks from Runes to Gems, the sticky still says runes while the OCR correctly reads gems
+        # — and treating that as a contradiction would demote an ordinary tab switch to a generic
+        # `stash` with no tally. That is a regression on something he does constantly, traded
+        # against a contradiction measured at ZERO of 68 frames. REG-204's measurement named grid
+        # and model, and it named them for a reason. [[feedback-suspect-the-instrument]]
+        _conflicting = {t for t in (grid_tab, model_tab) if t in _TALLY_TABS and t != ocr_tab}
+        if _conflicting:
             return "stash", ["tab-conflict"]
         sources.append("ocr")
         if grid_tab == ocr_tab:

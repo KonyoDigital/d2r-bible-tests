@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1907"   # The sort control, and a guess that outranked two answers
+VERSION = "v1908"   # A lagging witness is not a disagreeing one
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):

@@ -7829,3 +7829,32 @@ the half that was always right (a vague `shared`/`personal` label is still beate
 **CI note:** `Routine I — Playwright suite` reached a verdict on v1906 — **all 8 shards green**, the
 first completed Playwright run since v1893, confirming both REG-256 fixes. And the live site serves
 `v1906`, checked on the actual bytes at `https://bull-4-u.com/d2r/`, not on a workflow's green tick.
+
+## REG-258 — a lagging witness is not a disagreeing one (FIXED v1908, regression from v1907)
+
+**v1907 shipped REG-204's fix with `journal_tab` in the conflict set, and that was wrong.** Caught in
+the review pass 20 minutes later, before any sweep ran against it.
+
+`_kai_sticky_tab` says what it is in its own docstring: *"journal tab for a film timestamp: last deep
+tab with st<=ts+1.5s, **held** until the next deep tab (or 25s)"*. It is a **lagging** signal by
+construction. So for up to 25 seconds after he clicks from Runes to Gems, the sticky still says runes
+while the OCR correctly reads gems — and v1907 treated that as a contradiction, demoting an **ordinary
+tab switch** to a generic `stash` with no tally.
+
+That trades a regression on something he does constantly against a contradiction measured at **zero of
+68 frames**. REG-204's measurement named `grid` and `model`, and it named them for a reason — I widened
+the set past the evidence that justified it. The conflict set is grid and model again, with the ordinary
+tab-switch case pinned by its own test. [[feedback-suspect-the-instrument]]
+
+Two more guards while the file was open, both **seen RED for their own reason**:
+
+- **The conflict marker is not mistaken for an OCR witness.** `control_app` has two sites that do
+  `owner = "ocr" if row.get("sources") else None`, so a non-witness token in `sources` could claim OCR
+  ownership of a frame no reader vouched for. It cannot — the conflict returns tab `"stash"`, whose
+  label is `stash` and never `stash-*`, and that branch is guarded by `label.startswith("stash-")`.
+  Pinned rather than left to be re-reasoned. (Precedent for a named non-witness token already exists in
+  that file: the boot-screen guard returns `["boot-screen-guard"]`.)
+- **The CLAUDE lane's crop path is driven.** v1901 moved the crop into a shared module and the new tests
+  covered only the lane that had been broken. **Every existing chronicle test runs under `TV_STUB`,
+  which returns before the crop is ever reached** — so the side that was already right was unexercised,
+  and a refactor whose old side is unexercised is a refactor half-verified.

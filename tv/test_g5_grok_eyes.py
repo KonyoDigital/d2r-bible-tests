@@ -451,6 +451,42 @@ class TestBothLanesSeeTheSamePixels(unittest.TestCase):
         self.assertEqual(page.get("framing"), cc.FULL,
                          "the page still claims the crop answered it")
 
+    def test_the_CLAUDE_lane_crop_path_is_driven_too(self):
+        """v1907 — the g5 tests above cover the lane that was BROKEN; nothing covered the lane that
+        was already right after v1901 moved its crop into a shared module. A refactor whose old side
+        is unexercised is a refactor half-verified: every existing chronicle test runs under TV_STUB,
+        which returns before the crop is ever reached. This drives the real branch."""
+        import shutil
+        import tempfile
+        import chronicle_crop as cc
+        import tv_diablo as td
+        root = tempfile.mkdtemp(prefix="claudecrop-")
+        self.addCleanup(shutil.rmtree, root, True)
+        frame = self._frame(root)
+        seen = []
+
+        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
+            seen.append(ap)
+            return {"stateVisible": True, "found": ["Razorswitch"], "conf": 0.85,
+                    "printedFound": 1, "printedTotal": 1}
+
+        real = td._oneshot
+        td._oneshot = fake_oneshot
+        old_stub = os.environ.pop("TV_STUB", None)
+        try:
+            page = td.claude_chronicle_read(frame, "chronicle-uniques")
+        finally:
+            td._oneshot = real
+            if old_stub is not None:
+                os.environ["TV_STUB"] = old_stub
+
+        self.assertTrue(seen, "the claude lane never called its reader")
+        self.assertNotEqual(os.path.abspath(seen[0]), os.path.abspath(frame),
+                            "the claude lane stopped cropping — v1780's 0/6-vs-5/6 measurement is "
+                            "the whole reason it does")
+        self.assertEqual(page.get("framing"), cc.CROP)
+        self.assertEqual(page.get("found"), ["Razorswitch"])
+
     def test_neither_lane_carries_its_own_copy_of_the_band(self):
         """The band numbers were measured once, on his own calibration film, and live in
         chronicle_template. A lane that names LIST_BAND itself is a second copy waiting to drift —

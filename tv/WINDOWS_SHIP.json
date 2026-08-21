@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1907",
+  "ver": "v1908",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1907: Two fixes batched, because shipping one at a time all night is what cancelled Routine I thirteen times. First: the live prompt has asked for chronicleSort since v1818 and tv_diablo stores the answer on every chronicle row, but live_pages built its page without it while normalize_page reads sort and every sighting copies it - a question asked, an answer stored, and a reader looking at a different key. Joined, and the blank is now explained: neither retro prompt asks for it at all, so a retro blank is the absence of a question and a live blank is the absence of an answer. Second: REG-204 closed - a solo OCR tab guess returned before grid or model were consulted, so one witness that calls itself a guess overruled two that disagreed. A disagreeing tally now returns stash with a named tab-conflict, keeping the frame and claiming no tally.",
+  "note": "v1908: v1907 shipped REG-204 with journal_tab in the conflict set and that was wrong, caught in the review pass twenty minutes later before any sweep ran against it. The journal sticky says what it is in its own docstring - last deep tab HELD until the next deep tab or 25 seconds - so it is a lagging signal by construction, and for up to 25 seconds after he clicks from Runes to Gems the sticky still says runes while the OCR correctly reads gems. v1907 treated that as a contradiction and demoted an ordinary tab switch to a generic stash with no tally, trading a regression on something he does constantly against a contradiction measured at zero of 68 frames. I widened the set past the evidence that justified it. Also pinned: the conflict marker cannot be mistaken for an OCR witness downstream, and the claude lane crop path is now driven, because every existing chronicle test runs under TV_STUB and returns before the crop is reached.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

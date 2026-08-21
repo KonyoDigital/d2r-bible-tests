@@ -122,11 +122,44 @@ class TestAGuessNeverOutranksADifferentAnswer(unittest.TestCase):
         self.assertNotEqual(se.class_from_tab(tab), "",
                             "a contradiction now throws the frame away entirely")
 
+    def test_a_LAGGING_sticky_is_not_a_disagreeing_witness(self):
+        """⚠ v1907 SHIPPED THIS WRONG AND THE REVIEW PASS CAUGHT IT 20 MINUTES LATER.
+
+        The first version put `journal_tab` in the conflict set. `_kai_sticky_tab` says what it is
+        in its own docstring: *"last deep tab with st<=ts+1.5s, HELD until the next deep tab (or
+        25s)"*. So for up to 25 seconds after he clicks from Runes to Gems the sticky still says
+        runes while the OCR correctly reads gems — and treating that as a contradiction demotes an
+        ORDINARY TAB SWITCH to a generic stash with no tally.
+
+        That trades a regression on something he does constantly against a contradiction measured
+        at zero of 68 frames. REG-204's measurement named grid and model, and it named them for a
+        reason. [[feedback-suspect-the-instrument]]"""
+        tab, sources = se.fuse_tab_signals(ocr_tab="gems", journal_tab="runes")
+        self.assertEqual(tab, "gems",
+                         "a stale sticky from before a tab switch now cancels a correct OCR read")
+        self.assertEqual(sources, ["ocr"])
+
     def test_a_VAGUE_label_is_still_beaten_by_the_tally(self):
         """The rule's real intent must survive the fix — this is the half that was right."""
         self.assertEqual(se.fuse_tab_signals(ocr_tab="gems", grid_label="stash",
                                              model_tab="shared")[0], "gems")
         self.assertEqual(se.fuse_tab_signals(ocr_tab="gems", journal_tab="personal")[0], "gems")
+
+    def test_the_conflict_marker_is_not_mistaken_for_an_OCR_WITNESS(self):
+        """`sources` is read downstream as a list of witnesses — `control_app` has two sites that do
+        `owner = "ocr" if row.get("sources") else None`. A non-witness token in that list could
+        therefore claim OCR ownership of a frame no reader vouched for.
+
+        It cannot, and this pins WHY rather than leaving it to be re-reasoned: the conflict returns
+        the tab `"stash"`, so `class_from_tab` yields the label `stash` and never `stash-*` — and
+        the branch that turns a truthy `sources` into `owner="ocr"` is guarded by
+        `label.startswith("stash-")`. The precedent for a named non-witness token is already in this
+        file: the boot-screen guard returns `["boot-screen-guard"]`."""
+        tab, sources = se.fuse_tab_signals(ocr_tab="gems", grid_label="stash-runes")
+        self.assertEqual(sources, ["tab-conflict"])
+        self.assertFalse(se.class_from_tab(tab).startswith("stash-"),
+                         "a tab-conflict now produces a stash-* label, and the downstream branch "
+                         "that reads a truthy `sources` as an OCR witness would fire on it")
 
     def test_agreement_still_gathers_its_witnesses(self):
         tab, sources = se.fuse_tab_signals(ocr_tab="gems", grid_label="stash-gems")
