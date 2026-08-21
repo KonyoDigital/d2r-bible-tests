@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1939",
+  "ver": "v1940",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1939: The remaining-repair edited storage and never synced the live in-memory setPieces Set, so the next persist rewrote the store from that stale Set and put all 19 pieces back: 116 measured, then 134 after one unrelated tick. Also three more spec fixtures the repair was editing, and a panel measured through six locator round-trips instead of one atomic pass.",
+  "note": "v1940: The photo intake added the counts it read to the counts already stored, but the photo is OF the stash so the number read is a total. Re-photographing a shelf doubled it. Five sites now share one merge rule with vaultAccumApply, which had been doing it correctly next door for versions.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

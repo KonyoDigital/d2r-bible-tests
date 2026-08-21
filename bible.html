@@ -23433,6 +23433,42 @@ async function _tallyRead(b64, vocab, layout, kind){
   return (res || vote(reads)).merged;
 }
 window._tallyRead = _tallyRead;
+
+/* v1940 — ONE MERGE RULE FOR EVERY STASH WRITER, BECAUSE THERE WERE TWO AND THEY DISAGREED.
+   Konyo, on his own Tools tab: "alot of items got double registered/double counted", showing
+   WORLDSTONE SHARD (WESTERN) x17, MADAWC'S IRE x9, BONE BREAK x12.
+
+   THE DEFECT. Two writers owned the same four stores and merged in opposite directions:
+     - vaultAccumApply (the vault-sweep path) is merge-MAX: `if (saw > have)` raise, else hold. A
+       re-read of one shot cannot inflate it. Deliberate, documented, correct.
+     - the PHOTO intake was ADDITIVE — materials, gems, runes and craft each did
+       `stash[k] = (parseInt(stash[k],10)||0) + c`. But the photo is of the STASH, so `c` is a
+       TOTAL, and adding a total to itself doubles it. Photograph the same shelf twice and the
+       count doubles twice.
+
+   WHY NOT 3-WITNESS CORROBORATION, which is this project's usual answer. Konyo ruled it out before
+   it was built: "gem/runes/material we said they have infinite room in the stash..player does this
+   automatically so probably wont have 3 witnesses before its stashed". Consumables are stashed on
+   pickup, so corroboration would never reach three and the rule would block real counts. These are
+   an INVENTORY SNAPSHOT, not an event stream.
+
+   WHY MAX AND NOT REPLACE. Replace is the more truthful model for a snapshot — it can fall when he
+   spends a key or cubes a portal. It is also the one bug vaultAccumApply names as unsurvivable:
+   "A merge-max accumulator that can lower a count is the one bug that destroys his stash silently".
+   A photo that catches half a shelf would erase the rest. So: never lower, and REPORT every read
+   that came in under the stored count, so a genuine spend is visible instead of invisible. That
+   receipt is the half that makes the conservative choice honest. [[unknown-stays-unknown]] */
+function _stashRaise(store, name, read){
+  var have = parseInt(store[name], 10) || 0;
+  var saw  = parseInt(read, 10);
+  /* 0 is a MEASUREMENT ("that shelf is empty"), NaN is an ABSENCE ("could not read it"). Both
+     write nothing, and they get different words — v1887 fixed exactly this conflation next door. */
+  if (!isFinite(saw) || saw < 0) return { have: have, why: 'no readable count' };
+  if (saw === 0)                 return { have: have, saw: 0, why: 'read as none' };
+  if (saw > have){ store[name] = saw; return { have: have, saw: saw, raised: true, delta: saw - have }; }
+  return { have: have, saw: saw, held: true, why: 'held ' + have + ', read ' + saw };
+}
+window._stashRaise = _stashRaise;
 // v341.53 — after a rune tally, flag the OWNED high runes (the error-prone, valuable ones the AI is
 // most likely to misread by a digit) with a pulsing "✓?" so Konyo can eyeball just those. Auto-clears
 // after 20s, or instantly on any −/+ (which re-renders the grid). Returns how many were flagged.
@@ -23485,7 +23521,7 @@ window.gemIntake = async function(files){
   }
   var vocab = [];
   try { GEM_TYPES.forEach(function(t){ t.q.forEach(function(g){ vocab.push(g.name); }); }); } catch(e){}
-  var added={}, total=0, errors=0;
+  var added={}, total=0, errors=0, held=[];   /* v1940 — reads that came in UNDER the stored count; never silently dropped */
   for (var i=0;i<files.length;i++){
     try{
       var b64=await _tallyPrepImage(files[i], 'gems');   // v341.59 — gem-specific tight crop (7×5 block)
@@ -23493,7 +23529,7 @@ window.gemIntake = async function(files){
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         var key=findGem(k);
-        if(key){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ gemStash[key]=(parseInt(gemStash[key],10)||0)+c; added[key]=(added[key]||0)+c; total+=c; } }
+        if(key){ var _r=_stashRaise(gemStash,key,t[k]); if(_r.raised){ added[key]=(added[key]||0)+_r.delta; total+=_r.delta; } else if(_r.held){ held.push(key+' ('+_r.why+')'); } }
       });
     }catch(e){ errors++; }
   }
@@ -24892,7 +24928,7 @@ window.craftIntake = async function(files){
   if (!files || !files.length) return;
   window._aiIntakeStart('craft-workshop','reading your crafted items','the AI is classifying each by craft type + slot');
   var vocab = []; CRAFTS.forEach(function(c){ CRAFT_SLOTS.forEach(function(s){ vocab.push(c.key + ' ' + s); }); });
-  var added = {}, total = 0, errors = 0;
+  var added = {}, total = 0, errors = 0, held=[];   /* v1940 — reads that came in UNDER the stored count; never silently dropped */
   for (var i = 0; i < files.length; i++){
     try {
       var b64 = await _craftPrepImage(files[i]);
@@ -24901,7 +24937,7 @@ window.craftIntake = async function(files){
       Object.keys(t).forEach(function(k){
         var f = findCraft(k); if (!f || !f.slot) return;
         var key = f.craft.key + ' ' + f.slot; var c = parseInt(t[k], 10);
-        if (isFinite(c) && c > 0){ craftStash[key] = (parseInt(craftStash[key], 10) || 0) + c; added[key] = (added[key] || 0) + c; total += c; }
+        var _r=_stashRaise(craftStash,key,c); if(_r.raised){ added[key]=(added[key]||0)+_r.delta; total+=_r.delta; } else if(_r.held){ held.push(key+' ('+_r.why+')'); }
       });
     } catch(e){ errors++; }
   }
@@ -24978,7 +25014,7 @@ window.runeIntake = async function(files){
     });
   }
   var vocab = (typeof RUNES!=='undefined') ? RUNES.map(function(r){return r.n;}) : [];
-  var added={}, total=0, errors=0;
+  var added={}, total=0, errors=0, held=[];   /* v1940 — reads that came in UNDER the stored count; never silently dropped */
   for (var i=0;i<files.length;i++){
     try{
       // v661 — foreign captures (cousin WhatsApp / windowed shots) go through the pixel-detected
@@ -24993,7 +25029,7 @@ window.runeIntake = async function(files){
       }
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
-        if(k in RUNE_INDEX){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ runeStash[k]=(parseInt(runeStash[k],10)||0)+c; added[k]=(added[k]||0)+c; total+=c; } }
+        if(k in RUNE_INDEX){ var _r=_stashRaise(runeStash,k,t[k]); if(_r.raised){ added[k]=(added[k]||0)+_r.delta; total+=_r.delta; } else if(_r.held){ held.push(k+' ('+_r.why+')'); } }
       });
     }catch(e){ errors++; }
   }
@@ -26099,7 +26135,7 @@ window.materialIntake = async function(files){
   // Colossal Statues are a COLLECTED tracker (Set), not a count stash — fold them into
   // the same photo: a detected statue gets marked collected.
   try { COLOSSAL_STATUES.forEach(function(s){ statueByLc[s.n.toLowerCase()] = s.n; vocab.push(s.n); }); } catch(e){}
-  var added={}, statuesAdded=[], total=0, errors=0;
+  var added={}, statuesAdded=[], total=0, errors=0, held=[];   /* v1940 — reads that came in UNDER the stored count; never silently dropped */
   for (var i=0;i<files.length;i++){
     try{
       var b64=await _tallyPrepImage(files[i]);
@@ -26107,8 +26143,8 @@ window.materialIntake = async function(files){
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         var lc = String(k).toLowerCase().trim();
-        if (byLc[lc]){ var canon=byLc[lc]; var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ materialStash[canon]=(parseInt(materialStash[canon],10)||0)+c; added[canon]=(added[canon]||0)+c; total+=c; } }
-        else if (statueByLc[lc]){ var sn=statueByLc[lc]; var sc=parseInt(t[k],10); if(isFinite(sc)&&sc>0){ materialStash[sn]=(parseInt(materialStash[sn],10)||0)+sc; added[sn]=(added[sn]||0)+sc; total+=sc; } try { if(!statues.has(sn)){ statues.add(sn); statuesAdded.push(sn); } } catch(e){} }
+        if (byLc[lc]){ var canon=byLc[lc]; var _r=_stashRaise(materialStash,canon,t[k]); if(_r.raised){ added[canon]=(added[canon]||0)+_r.delta; total+=_r.delta; } else if(_r.held){ held.push(canon+' ('+_r.why+')'); } }
+        else if (statueByLc[lc]){ var sn=statueByLc[lc]; var _rs=_stashRaise(materialStash,sn,t[k]); if(_rs.raised){ added[sn]=(added[sn]||0)+_rs.delta; total+=_rs.delta; } else if(_rs.held){ held.push(sn+' ('+_rs.why+')'); } try { if(!statues.has(sn)){ statues.add(sn); statuesAdded.push(sn); } } catch(e){} }
       });
     }catch(e){ errors++; }
   }
@@ -42729,7 +42765,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1939', name:'v1939 - the count that undid itself on the first click', date:'2026-08-21', note:'The remaining-repair edited storage and never synced the live in-memory setPieces Set, so the next persist rewrote the store from that stale Set and put all 19 pieces back: 116 measured, then 134 after one unrelated tick. Also three more spec fixtures the repair was editing, and a panel measured through six locator round-trips instead of one atomic pass.' };
+  window.D2R_BUILD = { id:'v1940', name:'v1940 - one merge rule for the stash', date:'2026-08-21', note:'The photo intake added the counts it read to the counts already stored, but the photo is OF the stash so the number read is a total. Re-photographing a shelf doubled it. Five sites now share one merge rule with vaultAccumApply, which had been doing it correctly next door for versions.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
