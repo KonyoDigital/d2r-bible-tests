@@ -910,7 +910,7 @@ def _stamp_map(raw_map, want_stamp):
     return out
 
 
-def normalize_page(raw, kind, lane):
+def normalize_page(raw, kind, lane, framing=None):
     """v1519 — ONE normalizer, both lanes. Turns a reader's raw JSON into the v1510 response shape.
 
     This exists because the two lanes were each about to normalize their own answer, and the moment
@@ -960,6 +960,13 @@ def normalize_page(raw, kind, lane):
                else ("agree" if printed["found"] == len(found) else "differ"))
     return {
         "kind": kind, "ledger": ledger, "lane": lane,
+        # v1901 — WHICH PIXELS THIS WITNESS ACTUALLY SAW. Cross-lane agreement is evidence only if
+        # both lanes read the same rectangle, and for eleven versions they did not: the Claude lane
+        # cropped to the list band and the Grok lane was handed the whole desktop grab, with nothing
+        # anywhere recording the difference. Both lanes crop now — and a disagreement carries the
+        # framing that produced it, so the next one is attributable instead of mysterious.
+        # None means the lane did not say, which is not the same as "full". [[unknown-stays-unknown]]
+        "framing": (str(framing) if framing else None),
         "found": found, "notFound": not_found, "sets": sets if ledger == "sets" else [],
         "stateVisible": state_visible, "wrongTab": wrong_tab, "wholePage": whole,
         "witness": witness, "conf": conf, "printed": printed,

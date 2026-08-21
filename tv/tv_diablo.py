@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1900"   # One writer for the auto-read marks
+VERSION = "v1901"   # The second witness was shown a different picture
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -5143,46 +5143,12 @@ CHRONICLE_READ_PROMPT = (
 
 
 def _crop_answer_refused(raw, ledger_lane=True):
-    """v1829 — is a CROPPED read's answer refused, in every shape a refusal actually arrives in?
-
-    THE HALF THAT WAS MISSING. Both crop routes below retried the full frame on `not raw` — which
-    catches only a crop that returned NOTHING. A crop that returns a well-formed
-    `{"stateVisible": false}` is TRUTHY, so the retry never fired, and a refusal is by far the
-    likelier shape of a bad read than a crash. The comment on both routes promised "cropping can
-    only add reads, never remove one"; with `not raw` that promise was false.
-
-    ⚠ WHAT THIS DOES **NOT** EXPLAIN — recorded because the first version of this docstring got it
-    wrong, confidently, and a wrong mechanism sends the next person to the wrong subsystem.
-    `frames/hist/reel_s_1787177267889_92273/f_1787177297466.jpg` was recorded `no-found-state` by
-    the sweep on two separate passes. I wrote that the CROP FRAMING was blinding the reader. Then I
-    measured the crop alone on that exact frame: **it reads the page correctly** — stateVisible
-    true, five found pieces, conf 0.85. So does the full frame (claude 0.90), and so does the Grok
-    lane (0.88, six names), including `Sazabi's Mental Sheath — Mephisto — 08/02/2026, 02:25`.
-
-    Same image, same prompt, same PROMPT_VER: **refused twice inside the sweep, read correctly three
-    times out of three by hand.** The framing is not the variable and the readers are not the
-    variable. What differs is that the sweep reads through the worker pool under concurrency, which
-    makes a transient, load-shaped degradation the leading hypothesis — and it is a HYPOTHESIS, not
-    a finding, because nothing here has measured it yet. `_is_throttled()` already exists for a
-    related failure (v1774) and the sweep now consults it; whatever remains is not that flag.
-
-    So the honest account of this fix: it does not repair the framing, it gives a refused page a
-    SECOND ATTEMPT it never got. Against a transient refusal that is worth real pages; against a
-    systematically illegible one it costs one extra read and changes nothing. Both are acceptable.
-    The cause of the transience stays OPEN.
-    """
-    if not isinstance(raw, dict) or not raw:
-        return True
-    if ledger_lane:
-        # A refusal IS an answer. Ask whether the answer is USABLE, not whether one arrived.
-        # `wrongTab` is included deliberately: a crop that cuts the tab chrome reports the wrong
-        # ledger for the same reason it reports no found-state. If the ledger really IS wrong the
-        # full frame says so too, and the caller keeps the crop's answer — so this cannot lose one.
-        return raw.get("stateVisible") is False or raw.get("wrongTab") is True
-    # The vault lane marks its own refusals with `note`. An EMPTY page is not a refusal — a stash
-    # tab with nothing in it is a real answer, and retrying every empty page would double the cost
-    # of the commonest read there is.
-    return bool(raw.get("note"))
+    """v1901 — ONE COPY, in chronicle_crop. The rule and every measurement behind it live in
+    `chronicle_crop.crop_answer_refused`; this name stays because both crop routes below and the
+    v1829 guards call it. A second copy of a refusal rule is how the two lanes drift apart, which
+    is the exact defect v1901 was fixing when it moved this. [[copy-drift]]"""
+    import chronicle_crop as _cc
+    return _cc.crop_answer_refused(raw, ledger_lane=ledger_lane)
 
 
 def claude_vault_read(image_path, surface, timeout=None):
@@ -5331,6 +5297,7 @@ def claude_chronicle_read(image_path, kind, timeout=None):
         raw = man.get(os.path.basename(image_path) + "#chronicle") or man.get("*#chronicle")
         if raw is None:
             return None
+        _framing = "stub"   # v1901 — a stubbed read saw no pixels at all; say so rather than lie
     else:
         ap = os.path.abspath(str(image_path or ""))
         if not os.path.isfile(ap):
@@ -5353,24 +5320,11 @@ def claude_chronicle_read(image_path, kind, timeout=None):
         # DUAL ROUTE, accuracy first: if the crop comes back refused we retry the FULL frame, so
         # this can only add reads, never remove one. Upscaling was measured too and did not help on
         # top of the crop, so it is not done — the win is the framing, not the pixels.
-        _read_path = ap
-        try:
-            import chronicle_template as _ct
-            from PIL import Image as _Im
-            _im = _Im.open(ap).convert("RGB")
-            _W, _H = _im.size
-            _bx = _ct.LIST_BAND
-            try:
-                _bx, _ = _ct._scale_band_for_aspect(_ct.LIST_BAND, float(_W) / float(_H))
-            except Exception:
-                pass
-            _c = _im.crop((int(_W * _bx[0]), int(_H * _bx[1]), int(_W * _bx[2]), int(_H * _bx[3])))
-            if _c.width > 200 and _c.height > 200:
-                _cp = os.path.join(tempfile.gettempdir(), "tvd_chron_crop_%d.jpg" % os.getpid())
-                _c.save(_cp, quality=94)
-                _read_path = _cp
-        except Exception:
-            _read_path = ap
+        # v1901 — ONE CROP, SHARED WITH THE GROK LANE. This block used to live here alone, which
+        # is precisely why the second lane never had it: a crop nobody else can call is a crop only
+        # one witness gets. The band, the aspect correction and the fallback are in chronicle_crop.
+        import chronicle_crop as _cc
+        _read_path, _framing = _cc.list_crop(ap)
         raw = _oneshot(_read_path, GENIUS_MODEL,
                        timeout=float(timeout or 120),
                        prompt=CHRONICLE_READ_PROMPT.format(path=_read_path, ledger=ledger),
@@ -5395,11 +5349,12 @@ def claude_chronicle_read(image_path, kind, timeout=None):
                              raw_json=True)
             if not _crop_answer_refused(_full):
                 raw = _full
+                _framing = _cc.FULL   # v1901 — the page records the pixels that ANSWERED it
     try:
         import chronicle_retro as _cr
     except Exception:
         return None
-    return _cr.normalize_page(raw, kind, "claude")
+    return _cr.normalize_page(raw, kind, "claude", framing=_framing)
 
 
 def _maybe_genius(ap, parsed, t0, mode):

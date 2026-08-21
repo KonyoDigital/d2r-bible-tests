@@ -187,10 +187,31 @@ def g5_chronicle_read(image_path, kind, *, force=True):
         except Exception:
             return None
         # absent from the manifest ⇒ a SILENT lane, which two_lane_read already reports honestly
-        return _cr.normalize_page(raw, kind, "grok") if raw is not None else None
+        return (_cr.normalize_page(raw, kind, "grok", framing="stub")
+                if raw is not None else None)
     path = _os.path.abspath(str(image_path or ""))
-    raw = g5_vision_read(path, prompt=CHRONICLE_VISION_PROMPT.format(path=path, ledger=ledger),
+    # ── v1901 — THE SECOND WITNESS GETS THE SAME PIXELS ───────────────────────────────────────
+    # For eleven versions it did not. The Claude lane has cropped to the Chronicle list band since
+    # v1780 — measured 0/6 pages full-frame against 5/6 cropped on his own reel — and this lane was
+    # handed the whole 2940x1912 desktop grab every single time, because the crop lived inside the
+    # Claude reader where nothing else could call it. Two lanes exist so that agreement between them
+    # is evidence; agreement between witnesses shown different pictures is worth less than it reads.
+    #
+    # DUAL ROUTE, exactly as the Claude lane proves it: a refused crop retries the full frame, so
+    # this can only ever add a read, never lose one. The retry is gated on g5's own budget — the
+    # Claude lane's v1845 lesson was that a retry which never re-asks the cap turns one budget check
+    # into a licence for two reads on every refused page.
+    import chronicle_crop as _cc
+    _read_path, _framing = _cc.list_crop(path)
+    raw = g5_vision_read(_read_path,
+                         prompt=CHRONICLE_VISION_PROMPT.format(path=_read_path, ledger=ledger),
                          force=force)
+    if _read_path != path and _cc.crop_answer_refused(raw):
+        _full = g5_vision_read(path, prompt=CHRONICLE_VISION_PROMPT.format(path=path, ledger=ledger),
+                               force=force)
+        if not _cc.crop_answer_refused(_full):
+            raw = _full
+            _framing = _cc.FULL
     # v1519 — ONE normalizer, shared with the Claude lane (chronicle_retro.normalize_page). If each
     # lane shaped its own answer, "witness: agree" would mean two different things depending on who
     # said it — and cross-lane agreement is only evidence when both lanes answer in the same units.
@@ -198,7 +219,7 @@ def g5_chronicle_read(image_path, kind, *, force=True):
         import chronicle_retro as _cr
     except Exception:
         return None
-    return _cr.normalize_page(raw, kind, "grok")
+    return _cr.normalize_page(raw, kind, "grok", framing=_framing)
 
 
 # ── subscription auth (NOT API keys) ───────────────────────────────────────────

@@ -7596,3 +7596,34 @@ are the four whose path is **env-isolated** (`TV_CHRON_AUTOREAD`, `TV_CHRON_EVID
 **banked pages**, the most expensive bytes the console keeps, because every one was paid for by a
 real read. The remaining sites write into directories that exist by construction (the reel dir,
 `tv/` itself) and were left alone rather than papered with a line each.
+
+## REG-251 — the second witness was being shown a different picture (FIXED v1901)
+
+The Chronicle is read by **two lanes** so that agreement between them is evidence. For eleven
+versions the two lanes were not looking at the same pixels:
+
+- The **Claude** lane has cropped to the Chronicle list band since v1780 — its own measurement was
+  **0/6 pages read full-frame against 5/6 cropped**, six frames of his reel, same reader, same day.
+- The **Grok** lane was handed the whole **2940×1912 desktop grab every time**, because the crop
+  lived *inside* the Claude reader where no other lane could call it. `grep LIST_BAND` found it in
+  `chronicle_template` (which owns the numbers) and `tv_diablo` — and nowhere else.
+
+Agreement between witnesses shown different pictures is worth less than it reads, and a
+**disagreement was not even attributable**, because the framing was never written down anywhere.
+
+⚠ **This does NOT claim the crop is simply better, and the file says so.** v1829 measured a frame
+the sweep had refused twice and found the **full frame read it fine — and so did the Grok lane,
+full-frame, conf 0.88, six names.** Both measurements are real and they are in tension; the cause
+of the transience is still open. What is not in tension is that the two lanes should be asked the
+same question about the same rectangle, and that the record should say which.
+
+**Fixed:** one `chronicle_crop.list_crop()` called by both lanes (the band stays in
+`chronicle_template`, which measured it); the Grok lane gets the same dual route — a refused crop
+retries the full frame, so this can only add a read, never lose one; and `normalize_page` now
+stamps **`framing`** (`crop` / `full` / `stub` / `None` = the lane did not say) onto every page, so
+the next cross-lane disagreement is attributable instead of mysterious.
+
+Guards in `test_g5_grok_eyes.TestBothLanesSeeTheSamePixels`, **seen RED for their own reason**:
+restoring the pre-v1901 lane fails with *"the grok lane read the WHOLE DESKTOP GRAB — the framing
+v1780 measured at 0/6 pages"*. A third asserts neither lane names `LIST_BAND` itself, comments
+excluded — the copy that drifts is always the second one.

@@ -367,5 +367,109 @@ class TheCounterCrossesTheProcessBoundary(unittest.TestCase):
         self.assertIn("budget", skip)
 
 
+class TestBothLanesSeeTheSamePixels(unittest.TestCase):
+    """v1901 — THE SECOND WITNESS WAS BEING SHOWN A DIFFERENT PICTURE, and nothing recorded it.
+
+    The Claude lane has cropped to the Chronicle list band since v1780 — its own measurement was
+    0/6 pages read full-frame against 5/6 cropped, on his reel, same reader, same day. The Grok
+    lane was handed the whole 2940x1912 desktop grab every time, because the crop lived INSIDE the
+    Claude reader where no other lane could call it.
+
+    Two lanes exist so that agreement between them is evidence. Agreement between witnesses shown
+    different pictures is worth less than it reads, and a disagreement between them was not even
+    attributable, because the framing was never written down. [[copy-drift]] [[the-unjoined-end]]
+    """
+
+    def _frame(self, root):
+        from PIL import Image
+        p = os.path.join(root, "f_1787000000000.jpg")
+        Image.new("RGB", (2940, 1912), (12, 10, 9)).save(p, quality=80)
+        return p
+
+    def test_the_grok_lane_reads_the_crop_not_the_desktop(self):
+        import shutil
+        import tempfile
+        import chronicle_crop as cc
+        import g5_grok_eyes as g5
+        root = tempfile.mkdtemp(prefix="lanepixels-")
+        self.addCleanup(shutil.rmtree, root, True)
+        frame = self._frame(root)
+        seen = []
+
+        def fake_read(path, prompt=None, force=False):
+            seen.append(path)
+            return {"stateVisible": True, "found": ["Razorswitch"], "conf": 0.8,
+                    "printedFound": 1, "printedTotal": 1}
+
+        real = g5.g5_vision_read
+        g5.g5_vision_read = fake_read
+        old_stub = os.environ.pop("TV_STUB", None)
+        try:
+            page = g5.g5_chronicle_read(frame, "chronicle-uniques")
+        finally:
+            g5.g5_vision_read = real
+            if old_stub is not None:
+                os.environ["TV_STUB"] = old_stub
+
+        self.assertEqual(len(seen), 1, "the grok lane read more than once on a clean answer")
+        self.assertNotEqual(os.path.abspath(seen[0]), os.path.abspath(frame),
+                            "the grok lane read the WHOLE DESKTOP GRAB — the framing v1780 "
+                            "measured at 0/6 pages, while the claude lane read the list band")
+        self.assertEqual(page.get("framing"), cc.CROP,
+                         "the page does not record which pixels this witness saw")
+
+    def test_a_refused_crop_gets_the_full_frame_and_says_so(self):
+        import shutil
+        import tempfile
+        import chronicle_crop as cc
+        import g5_grok_eyes as g5
+        root = tempfile.mkdtemp(prefix="lanepixels2-")
+        self.addCleanup(shutil.rmtree, root, True)
+        frame = self._frame(root)
+        seen = []
+
+        def fake_read(path, prompt=None, force=False):
+            seen.append(path)
+            if len(seen) == 1:
+                return {"stateVisible": False}          # the crop refuses
+            return {"stateVisible": True, "found": ["Razorswitch"], "conf": 0.9,
+                    "printedFound": 1, "printedTotal": 1}
+
+        real = g5.g5_vision_read
+        g5.g5_vision_read = fake_read
+        old_stub = os.environ.pop("TV_STUB", None)
+        try:
+            page = g5.g5_chronicle_read(frame, "chronicle-uniques")
+        finally:
+            g5.g5_vision_read = real
+            if old_stub is not None:
+                os.environ["TV_STUB"] = old_stub
+
+        self.assertEqual(len(seen), 2, "a refused crop got no full-frame retry")
+        self.assertEqual(os.path.abspath(seen[1]), os.path.abspath(frame))
+        self.assertEqual(page.get("found"), ["Razorswitch"])
+        self.assertEqual(page.get("framing"), cc.FULL,
+                         "the page still claims the crop answered it")
+
+    def test_neither_lane_carries_its_own_copy_of_the_band(self):
+        """The band numbers were measured once, on his own calibration film, and live in
+        chronicle_template. A lane that names LIST_BAND itself is a second copy waiting to drift —
+        which is how the Grok lane came to have no crop at all. (tv_diablo still crops for the
+        VAULT lane, a different band from stash_eye; that is not this rule's business.)"""
+        import g5_grok_eyes as g5
+        import tv_diablo as td
+        for mod in (g5, td):
+            with open(mod.__file__, encoding="utf-8") as fh:
+                src = fh.read()
+            code = "\n".join(l for l in src.split("\n") if not l.lstrip().startswith("#"))
+            self.assertNotIn("LIST_BAND", code,
+                             "%s names the Chronicle band itself instead of calling "
+                             "chronicle_crop.list_crop" % os.path.basename(mod.__file__))
+        import chronicle_crop as cc
+        with open(cc.__file__, encoding="utf-8") as fh:
+            self.assertIn("chronicle_template", fh.read(),
+                          "the shared crop invented its own band instead of using the measured one")
+
+
 if __name__ == "__main__":
     unittest.main()
