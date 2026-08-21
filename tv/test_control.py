@@ -9636,6 +9636,75 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestOneLegibleLabelIsNotASelectedTab(unittest.TestCase):
+    """v1913 — `stash_screen_open` returned a legible-label COUNT as if it were the selected tab.
+
+    The branch was `if len(canons) == 1: return canons[0]`, which is the same wrong question v1860
+    fixed on the line below it: the strip prints ALL FIVE labels whichever tab is active, so how
+    many of them the OCR happened to read is a fact about the OCR, not about the selection.
+
+    MEASURED ON HIS OWN HIST, all 883 frames: the gate admits 10 and took that branch on THREE.
+    It was wrong on all three — `5_1784984201581` (canons ['gems'], a tooltip over the rest),
+    `7_1784984245418` and `8_1784984208085` (canons ['shared']) are all unmistakably on PERSONAL:
+    gold box, blue gem, four grey labels beside it.
+
+    ⚠ IT WAS INERT AND THAT IS NOT A REASON TO LEAVE IT. All three callers test `is None` and
+    discard the value — because v1857 DID use it as a lane and v1859 had to revert that. A function
+    that returns a wrong-by-construction tab is a loaded gun waiting for the next caller who does
+    not read the comment. The VALUE is truthful now instead of the discipline being.
+    [[label-outlived-referent]] [[the-unjoined-end]]"""
+
+    def _gate(self, lines, gem=""):
+        """Drive the gate with canned chrome and a canned gem — no OCR, no model, no frame."""
+        from unittest import mock
+        import control_app as ca
+        import stash_eye as se
+        import tv_diablo as tvd
+        with mock.patch.object(se, "prep_tab_chrome", lambda src, dst: dst), \
+             mock.patch.object(tvd, "ocr_fast", lambda p: {"raw_lines": list(lines)}), \
+             mock.patch.object(se, "tab_from_gem", lambda p: (gem, {"method": "stub"})):
+            return ca.stash_screen_open("whatever.jpg")
+
+    def test_one_legible_label_admits_the_frame_and_names_no_tab(self):
+        got = self._gate(["Gems"])
+        self.assertEqual(got, "stash",
+                         "the gate called a frame the GEMS tab because GEMS was the one label the "
+                         "OCR could read — on his footage that frame is PERSONAL")
+
+    def test_several_legible_labels_still_admit_and_still_name_no_tab(self):
+        self.assertEqual(self._gate(["$\u2022NAL", "SHAkED", "% Gems", "I mATeRIALS"]), "stash")
+
+    def test_the_GEM_names_it_when_it_can(self):
+        self.assertEqual(self._gate(["Gems"], gem="personal"), "personal")
+        self.assertEqual(self._gate(["$\u2022NAL", "SHAkED"], gem="materials"), "materials")
+
+    def test_no_chrome_is_still_a_refusal_however_loud_the_gem(self):
+        """Admission is the chrome's job. A gem without chrome is not a stash frame — and the gem
+        reader itself abstains on those, so this pins the ORDER, not a hypothetical."""
+        self.assertIsNone(self._gate([], gem="personal"))
+
+    def test_his_three_real_frames_are_no_longer_given_a_wrong_tab(self):
+        """The measurement, not a mock: these are the exact frames the old branch got wrong."""
+        import control_app as ca
+        here = os.path.dirname(os.path.abspath(__file__))
+        frames = {"5_1784984201581.jpg": "personal",
+                  "7_1784984245418.jpg": None,      # the gem abstains — "stash", never "shared"
+                  "8_1784984208085.jpg": None}
+        hist = os.path.join(here, "frames", "hist")
+        if not os.path.isfile(os.path.join(hist, "5_1784984201581.jpg")):
+            self.skipTest("his frames are not in this checkout")
+        for f, want in frames.items():
+            got = ca.stash_screen_open(os.path.join(hist, f))
+            self.assertIsNotNone(got, "%s stopped being admitted at all" % f)
+            if want:
+                self.assertEqual(got, want, "%s: the gate says %r, the picture says %r"
+                                 % (f, got, want))
+            else:
+                self.assertEqual(got, "stash",
+                                 "%s: the gate named a tab it cannot see — it is on PERSONAL and "
+                                 "the old branch called it SHARED" % f)
+
+
 class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
     """v1911 — `import yaml` IN A TEST TOOK THE PUBLISH WORKFLOW DOWN AND KEPT v1910 OFF THE SITE.
 
@@ -11181,16 +11250,32 @@ class TestTheVaultTemplateGate(unittest.TestCase):
                              "the tab is genuinely ambiguous — that half was always right")
 
     def test_ambiguous_chrome_names_no_tab_it_did_not_read(self):
-        """Admitting must not become inventing. Ambiguous chrome answers 'stash' — true, and not
-        a tab — never one of the five, which would be a guess wearing an answer's clothes."""
+        """Admitting must not become inventing: the gate may name a tab only when something actually
+        READ one, never from how many labels the OCR happened to transcribe.
+
+        ⚠ v1913 UPDATED THE EXPECTED VALUE AND NOT THE RULE. This asserted `stash` because, when it
+        was written, nothing on the frame could say which tab was selected — so "unknown" was the
+        only truthful answer. The gem reader now reads it (12/12, structural, abstains rather than
+        guess), and on THIS frame it says `personal`, which is what the picture shows: gold box and
+        blue gem on PERSONAL, four grey labels beside it.
+
+        So the invariant is unchanged and the answer got better. The half that must never come back
+        — naming a tab from a label COUNT — is pinned in
+        TestOneLegibleLabelIsNotASelectedTab, and by the no-gem case below."""
         import control_app as ca
+        import stash_eye as se_mod
+        from unittest import mock
         here = os.path.dirname(os.path.abspath(__file__))
         f = os.path.join(here, "frames", "hist", "6_1784984233446.jpg")
         if not os.path.isfile(f):
             self.skipTest("his footage is not on this machine")
-        got = ca.stash_screen_open(f)
-        self.assertEqual(got, "stash",
-                         "full chrome must admit as an open stash of unknown tab, not as a tab")
+        self.assertEqual(ca.stash_screen_open(f), "personal",
+                         "the gate stopped reporting the tab the picture actually shows")
+        # and with nothing able to READ the tab, it must go back to saying only "open"
+        with mock.patch.object(se_mod, "tab_from_gem", lambda p: ("", {"method": "stub"})):
+            self.assertEqual(ca.stash_screen_open(f), "stash",
+                             "with no reader for the tab, full chrome must admit as an open stash "
+                             "of UNKNOWN tab — never one of the five as a guess")
 
     def test_junk_chrome_still_refuses(self):
         """The mirror, or the fix is just a gate that always says yes. Two of the same 68 frames
@@ -11226,7 +11311,9 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         self.assertEqual(s1, s0 + 1, "the silence was not counted — it is invisible again")
         self.assertEqual(h1, h0, "a silent probe was counted as one that heard something")
         # and the mirror: a frame it CAN read moves the other counter, or the pair is decoration
-        self.assertEqual(ca.stash_screen_open(f), "stash")
+        # v1913 — `personal`, not `stash`: the gem reader names this frame's tab now. The counter
+        # is what this test is about; the tab value is asserted by its own class.
+        self.assertEqual(ca.stash_screen_open(f), "personal")
         s2, h2 = ca.gate_hearing()
         self.assertEqual((s2, h2), (s1, h1 + 1))
 

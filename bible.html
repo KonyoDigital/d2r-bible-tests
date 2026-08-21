@@ -37219,6 +37219,34 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      him to trust it as history when the ledger's own dates are the history. */
   /* v1575 — undo, but REMEMBER. The slot is filled here and nowhere else, so redo can only put
      back something an undo actually took away — it can never invent a find. */
+  /* ── v1913 — THE GAME'S DATE ON EVERY FOUND CHIP, not only on the undo bar ────────────────
+     Konyo: "for completed the items need to eventually be timestamped to the ingame finding and
+     found ingame (NOT WHEN THE AI REGISTERED IT) that should be in the ledger which is a separate
+     timestamp", and then "same for F-Sets same logic".
+
+     v1864 built exactly this and joined it to ONE surface — the undo bar's single last-find line —
+     while both FOUND lists, which are where he actually reads his collection, kept printing the
+     LEDGER stamp alone. The wire existed; two of its three ends were never connected.
+
+     ONE HELPER, BOTH FORGES. A third copy of this rule is how the two lists drift apart, and the
+     undo bar already carries the same words. What the game printed goes on the chip; when this
+     board ticked it stays in the title, so neither question loses its answer, and nothing is
+     invented when the Chronicle page never printed a date. [[copy-drift]] [[the-unjoined-end]] */
+  window._chipFoundDate = function(name, ledgerStamp, long){
+    var gf = null;
+    try { gf = window.gameFoundFor ? window.gameFoundFor(name) : null; } catch(e){}
+    var d = '';
+    try { d = (gf && gf.at) ? (window._gameStampToLedger(gf.at) || '') : ''; } catch(e){}
+    if (!d) return ledgerStamp ? '<span class="gp-date">' + esc(ledgerStamp) + '</span>' : '';
+    /* `long` is the undo bar, which has a whole row; a chip in a wall of 267 has a few
+       characters. Same rule, same store, two widths — never two implementations. */
+    return '<span class="gp-date gp-ingame" title="the date printed in your in-game Chronicle'
+      + (gf.by ? ' \u00b7 dropped by ' + esc(gf.by) : '')
+      + ' \u2014 this board ticked it ' + esc(ledgerStamp || 'at an unrecorded time')
+      + '">\u2694 ' + (long ? 'found in game ' : '') + esc(d)
+      + (long && gf.by ? ' \u00b7 ' + esc(gf.by) : '') + '</span>';
+  };
+
   window._forgeUndo = function(el, name, kind){
     window._FORGE_REDO = { name: name, kind: kind };
     /* v1891 — AN UNDO RETRACTS EVERYTHING THE APPLY ASSERTED, and v1864's date was left behind.
@@ -37261,7 +37289,38 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _undoBar(kind){
     var fl=_flog(); var keys=Object.keys(fl);
     var _L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);   // v644.1 — ITEMS is const-scoped elsewhere; the bare typeof check silently emptied the 'uni' ledger
-    var mine=keys.filter(function(n){ var isU=_L.some(function(i){return i.n===n;}) || !!(window._UNI_EXTRA && window._UNI_EXTRA[n]); return kind==='uni'?isU:!isU; });   // v664 (army audit) — the 62 mod-chronicle uniques bucketed as 'set' and the F·Sets undo bar walked them INTO d2r_setPieces
+    /* ── v1913 — THE BAR PAINTED IT GOLD BECAUSE IT KNEW, AND FILED IT UNDER SETS BECAUSE IT DID
+       NOT ASK. Konyo, live: "this is a UNIQUE item and it wrongly put this color and item in the
+       wrong area routed incorrectly to F-Sets instead of F-Uniques" — Blood Crescent, a unique
+       Scimitar, sitting as F·Sets' last find. And pressing undo did nothing, because every
+       sets-side operation on a name that is not a set piece is a no-op: "when i hit UNDO it doesnt
+       really undo it its stil counted".
+
+       ONE CAUSE. The filter was `isU = in ITEMS || in _UNI_EXTRA`, with `else -> SET` as a
+       CATCH-ALL. Blood Crescent is an off-grail unique in neither list, so the sets bucket took it.
+       _UNI_EXTRA is a hand-maintained exceptions list and this is the THIRD time it has been
+       patched for exactly this (v664: 62 mod-chronicle uniques walked into d2r_setPieces; v1692: a
+       find routed into the physical vault). A list of exceptions is not a classifier.
+
+       AND THE ANSWER WAS ALREADY IN THIS FUNCTION. Two lines below, the colour is resolved with
+       window._artRarity — the app's one classifier — which is why the chip rendered in unique gold
+       while the bucket called it a set. Measured in a real page:
+           Aldur's Deception -> "set"      Immortal King's Will -> "set"
+           Blood Crescent    -> "unique"   Shako -> "basic"
+       So it answers correctly for BOTH ledgers, and the bar was reading it for the paint and not
+       for the routing. It routes on it now, with the two lists kept as a fallback for names the
+       classifier has no opinion about.
+
+       ⚠ AND `else -> set` IS GONE. A name neither side recognises is claimed by NEITHER bar, which
+       is the honest answer: an undo button that cannot undo is worse than no button.
+       [[feedback-contradiction-is-the-finding]] [[the-unjoined-end]] */
+    var mine=keys.filter(function(n){
+      var rar=''; try { rar = window._artRarity ? (window._artRarity(n)||'') : ''; } catch(e){}
+      var listU = _L.some(function(i){return i.n===n;}) || !!(window._UNI_EXTRA && window._UNI_EXTRA[n]);
+      var isU = (rar==='unique') || (rar!=='set' && listU);
+      var isS = (rar==='set') || (!listU && rar==='');
+      return kind==='uni' ? isU : (isS && !isU);
+    });
     if(!mine.length) return '';
     mine=_flogSort(mine); var last=mine[0];
     var fn=kind==='uni'?'grailFoundUni':'grailTogglePiece';
@@ -37293,14 +37352,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        written. When his own Chronicle printed a First Found date and a dropper, that is the
        storyline fact and it goes first, with the ledger stamp kept in the title so neither
        question loses its answer. Absent when the page never printed one; never invented. */
-    var _gfMeta = null; try { _gfMeta = window.gameFoundFor ? window.gameFoundFor(last) : null; } catch(e){}
-    var _gfDate = (_gfMeta && _gfMeta.at) ? window._gameStampToLedger(_gfMeta.at) : '';
-    var _gfLine = _gfDate
-      ? '<span class="gp-date" title="the date printed in your in-game Chronicle'
-        + (_gfMeta.by ? ' \u00b7 dropped by ' + esc(_gfMeta.by) : '')
-        + ' \u2014 this board ticked it ' + esc(fl[last] || 'at an unrecorded time') + '">\u2694 found in game '
-        + esc(_gfDate) + (_gfMeta.by ? ' \u00b7 ' + esc(_gfMeta.by) : '') + '</span>'
-      : '<span class="gp-date">' + esc(fl[last]) + '</span>';
+    /* v1913 — THROUGH THE SHARED HELPER. This bar built the sentence itself and the two FOUND
+       lists printed the ledger stamp alone, so one rule lived in one place and was missing from
+       the two surfaces he actually reads. Same store, same words, one implementation. */
+    var _gfLine = window._chipFoundDate(last, fl[last], true);
     return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: '+_lArt+'<b class="gf-lastname" data-arttip="'+esc(last)+'"'+(_lCol?' style="color:'+_lCol+'"':'')+'>'+esc(_pieceLabel(last))+'</b> '+_gfLine+'</span>'
       +'<button class="f-btn f-btn-mini" onclick="window._forgeUndo(this,\''+jsq(last)+'\',\''+kind+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button>'
       +(_redo && _redo.kind===kind
@@ -38535,7 +38590,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            Now: the body opens the item card, like every other chip in the app. Un-marking is a
            deliberate ✕ on the chip, and it ARMS first — one tap says "remove?", a second removes,
            and it disarms itself after 4s so a stray tap cannot linger as a loaded trigger. */
-        H.push('<span class="gf-piece have" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card"><span class="gp-ck">✓</span>'+chipLogo(n)+'<span class="gf-nm">'+esc(n)+'</span>'+(_flU[n]?'<span class="gp-date">'+esc(_flU[n])+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(n)+'\',\'uni\')">✕</button></span>');
+        H.push('<span class="gf-piece have" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card"><span class="gp-ck">✓</span>'+chipLogo(n)+'<span class="gf-nm">'+esc(n)+'</span>'+window._chipFoundDate(n, _flU[n])+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(n)+'\',\'uni\')">✕</button></span>');
       });
       H.push('</div></div>');
       if(!s.found) H.push('<div class="forge-empty">Nothing marked found yet — tick uniques here or in the Calculator (they sync).</div>');
@@ -39562,7 +39617,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          landed — the sets ledger simply never read it while the uniques ledger built month
          headings out of the same store. data-chip lets the shared filter see it. */
       var _pd = _flog()[nm] || '';
-      return '<span class="gf-piece have" data-chip data-arttip="'+esc(clean)+'" title="'+esc(clean)+'"><span class="gp-ck">✓</span>'+chipLogo(clean)+'<span class="gf-nm">'+esc(clean)+'</span>'+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+(_pd?'<span class="gp-date">'+esc(_pd)+'</span>':'')+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(nm)+'\',\'set\')">✕</button></span>';
+      return '<span class="gf-piece have" data-chip data-arttip="'+esc(clean)+'" title="'+esc(clean)+'"><span class="gp-ck">✓</span>'+chipLogo(clean)+'<span class="gf-nm">'+esc(clean)+'</span>'+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+window._chipFoundDate(nm, _pd)+'<button type="button" class="gp-rm" title="un-mark this find" onclick="event.stopPropagation();window._armUnmark(this,\''+jsq(nm)+'\',\'set\')">✕</button></span>';
     }
     return '<span class="gf-piece" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="mark found"><span class="gp-ck">○</span>'+chipLogo(clean)+'<span class="gf-nm">'+esc(clean)+'</span>'+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
   }
@@ -40990,6 +41045,8 @@ html{overflow-x:clip}
 .gf-allgrid .gf-piece.gf-miss{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 4px;border:1px solid rgba(233,208,122,.28);border-radius:7px;background:rgba(233,208,122,.04);color:var(--text,#d8cdb6);font-size:var(--fs-meta);cursor:help}
 .gf-allgrid .gf-piece.gf-miss:hover{border-color:rgba(233,208,122,.6)}
 .gp-date{font-size:9px;color:var(--text-dim,#9a8c72);margin-left:5px;font-family:var(--mono,monospace)}
+/* v1913 — the GAME's date reads as the storyline fact it is; the ledger stamp stays in the title. */
+.gp-date.gp-ingame{color:var(--gold-dim,#a07830)}
 .gf-undo-bar{display:flex;align-items:center;gap:10px;justify-content:flex-start}
 </style>
 <style id="v639-polish">
@@ -42183,7 +42240,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1912', name:'v1912 - The selected stash tab is in the pixels, and the marker is the gem', date:'2026-08-21', note:'REG-205 said the selected stash tab is visible in the pixels and that reading it was not solved - it tried five equal cells and argmax luminance and got 1 of 3 on margins of a few grey levels. The obvious thing was the wrong feature: the game draws a gold box around the active tab and sets a small blue gem on the underline beneath it, tiny and saturated and at a position no other chrome occupies. Twelve of twelve on the hand-labelled corpus, zero false tabs on the seven non-panels, and eight named frames across his whole hist. The tab pitch is measured rather than assumed, and the two tabs with no example frame are declared unverified. It caught a wrong label on the way - the frame REG-205 called runes is personal, which also explains the one missed tally. And it almost shipped a false positive on solid blue capture failures, so both guards are measured and driven red.' };
+  window.D2R_BUILD = { id:'v1913', name:'v1913 - A unique filed under sets and a tab read off a label count', date:'2026-08-21', note:'Three of his reports in one sitting and the first two are one cause: the forge undo bar bucketed names as in-ITEMS-or-in-UNI-EXTRA with else-to-SET as a catch-all, so Blood Crescent, an off-grail unique in neither list, was claimed by F-Sets and every sets-side undo on it was a no-op. The answer was already two lines below in the same function, where the colour is resolved with the app one classifier - which is why the chip rendered in unique gold while the bucket called it a set. It routes on the classifier now and the catch-all is gone. Third, the in-game found date was built in v1864 and joined to one surface of three, so both FOUND lists printed only the ledger stamp - one shared helper now serves the undo bar and both lists. And stash_screen_open returned a legible-label count as a selected tab, wrong on all three of his frames that took that branch; it asks the gem first now.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

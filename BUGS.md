@@ -8029,3 +8029,55 @@ geometric prediction until the corpus says otherwise.
 ⚠ **Instrument note, ~15 minutes lost:** a stale `__pycache__` served bytecode from a sabotage run
 and reported a result the source could not produce. **After a sabotage/restore cycle, clear
 `__pycache__` before believing anything.** Founding rule 4, in its cheapest form.
+
+## REG-262 — a unique filed under sets, an undo that could not undo, and a date wired to one surface of three (FIXED v1913)
+
+Three reports in one sitting, and the first two are **one cause**.
+
+**1. "this is a UNIQUE item and it wrongly put this color and item in the wrong area routed
+incorrectly to F-Sets instead of F-Uniques"** — *Blood Crescent*, a unique Scimitar, sitting as
+F·Sets' last find. **2. "when i hit UNDO it doesnt really undo it its stil counted"** — because every
+sets-side operation on a name that is not a set piece is a no-op, so the ledger row survived.
+
+The undo bar bucketed names as `isU = in ITEMS || in _UNI_EXTRA`, with **`else → SET` as a
+catch-all**. Blood Crescent is an off-grail unique in neither list, so the sets bucket took it.
+`_UNI_EXTRA` is a hand-maintained exceptions list, and this is the **third** time it has been patched
+for exactly this shape (v664: 62 mod-chronicle uniques walked into `d2r_setPieces`; v1692: a find
+routed into the physical vault). **A list of exceptions is not a classifier.**
+
+⚠ **AND THE ANSWER WAS ALREADY INSIDE THE SAME FUNCTION.** Two lines below the bucket, the colour is
+resolved with `window._artRarity` — the app's one classifier — which is why the chip **rendered in
+unique gold while the bucket called it a set**. Measured in a real page:
+
+```
+Aldur's Deception -> "set"    Immortal King's Will -> "set"
+Blood Crescent    -> "unique" Shako -> "basic"
+```
+
+It routes on the classifier now, keeps the two lists as a fallback for names it has no opinion about,
+and **`else → set` is gone**: a name neither side recognises is claimed by neither bar. Verified in a
+real page — F·Uniques claims Blood Crescent in `#c7b377`, F·Sets claims Aldur's Deception in
+`#00fc00`, and undo removes the row. [[feedback-contradiction-is-the-finding]]
+
+**3. "the items need to be timestamped to the ingame finding (NOT WHEN THE AI REGISTERED IT) … same
+for F-Sets same logic."** v1864 built exactly that and joined it to **one** surface — the undo bar's
+single last-find line — while both FOUND lists, which are where he actually reads his collection,
+kept printing the ledger stamp alone. One `window._chipFoundDate(name, ledgerStamp, long)` now serves
+all three: the game's date on the chip in gold, *"this board ticked it …"* in the title, and nothing
+invented when the Chronicle page never printed one. [[the-unjoined-end]] [[copy-drift]]
+
+## REG-263 — one legible label is not a selected tab (FIXED v1913)
+
+`stash_screen_open` returned `canons[0]` when exactly **one** chrome label was legible — the same
+wrong question v1860 fixed on the line below it. The strip prints **all five** labels whichever tab is
+active, so how many the OCR transcribed is a fact about the OCR.
+
+**Measured on all 883 of his hist frames:** the gate admits 10 and took that branch on **three**, and
+was **wrong on all three** — `5_1784984201581` (canons `['gems']`, a tooltip over the rest),
+`7_1784984245418` and `8_1784984208085` (canons `['shared']`) are all unmistakably on **PERSONAL**.
+
+It asks the **gem** first now (v1912, structural, abstains rather than guess) and otherwise answers
+`"stash"`. Before: 7 honest + 3 wrong. After: **8 correct specific tabs + 2 honest abstentions, zero
+wrong.** ⚠ It was inert — all three callers test `is None` and discard the value, because v1857 used
+it as a lane and v1859 had to revert that. A function that returns a wrong-by-construction tab is a
+loaded gun waiting for the next caller who does not read the comment.

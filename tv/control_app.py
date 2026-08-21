@@ -11060,15 +11060,38 @@ def stash_screen_open(frame_path):
         # The chrome renders ONLY when the panel is open, so one legible label is already proof and
         # four is overwhelming. Which tab is selected is a different question with a different
         # answer, it is a GUESS (v1859), and admission never needed it.
-        from stash_eye import stash_chrome_canons
+        from stash_eye import stash_chrome_canons, tab_from_gem
         canons = stash_chrome_canons(lines)
         if not canons:
             return None
-        if len(canons) == 1:
-            return canons[0]
-        # ambiguous chrome = the panel is unmistakably open and the tab is unknown. Say STASH, which
-        # is true, rather than a tab, which would be invented. Callers test `is None`; none of them
-        # may use this value as a lane (v1859's revert), so a truthful non-answer is the right one.
+        # ── v1913 — ONE LEGIBLE LABEL IS NOT A SELECTED TAB ────────────────────────────────────
+        #
+        # This branch was `if len(canons) == 1: return canons[0]`, and that is the same wrong
+        # question v1860 fixed one line below it: the strip prints ALL FIVE labels whichever tab is
+        # active, so how MANY of them the OCR happened to read is a fact about the OCR, not about
+        # the selection. Reading exactly one means the other four were smudged, occluded or
+        # mis-transcribed — nothing more.
+        #
+        # MEASURED ON HIS OWN HIST, all 883 frames: the gate admits 10, and it took this branch on
+        # THREE of them. It was wrong on all three.
+        #     5_1784984201581  canons ['gems']   (a WRAITHSTEP tooltip covers the rest) -> PERSONAL
+        #     7_1784984245418  canons ['shared']                                        -> PERSONAL
+        #     8_1784984208085  canons ['shared']                                        -> PERSONAL
+        # All three are unmistakably on PERSONAL: gold box, blue gem, four grey labels beside it.
+        #
+        # ⚠ IT IS INERT TODAY AND THAT IS NOT A REASON TO LEAVE IT. All three callers test `is None`
+        # and discard the value — because v1857 DID use it as a lane and v1859 had to revert that.
+        # A function that returns a wrong-by-construction tab is a loaded gun waiting for the next
+        # caller who does not read the comment. The value is truthful now instead of the discipline
+        # being. [[label-outlived-referent]] [[the-unjoined-end]]
+        #
+        # THE GEM IS ASKED FIRST because it answers the question actually being asked. It is
+        # structural (the game's own selected-state marker), it measured 12/12 on the hand-labelled
+        # corpus with zero false tabs, and it ABSTAINS rather than guess — which is why 7_ and 8_
+        # above come back "stash" here rather than a confident wrong answer.
+        _gem, _gd = tab_from_gem(str(frame_path))
+        if _gem:
+            return _gem
         return "stash"
     except Exception as _e:
         # v1854 — A GATE THAT CANNOT RUN MUST NOT ANSWER "NO".
@@ -12413,7 +12436,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1912",
+        "ver": "v1913",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

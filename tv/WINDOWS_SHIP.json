@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1912",
+  "ver": "v1913",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1912: REG-205 said the selected stash tab is visible in the pixels and that reading it was not solved - it tried five equal cells and argmax luminance and got 1 of 3 on margins of a few grey levels. The obvious thing was the wrong feature: the game draws a gold box around the active tab and sets a small blue gem on the underline beneath it, tiny and saturated and at a position no other chrome occupies. Twelve of twelve on the hand-labelled corpus, zero false tabs on the seven non-panels, and eight named frames across his whole hist. The tab pitch is measured rather than assumed, and the two tabs with no example frame are declared unverified. It caught a wrong label on the way - the frame REG-205 called runes is personal, which also explains the one missed tally. And it almost shipped a false positive on solid blue capture failures, so both guards are measured and driven red.",
+  "note": "v1913: Three of his reports in one sitting and the first two are one cause: the forge undo bar bucketed names as in-ITEMS-or-in-UNI-EXTRA with else-to-SET as a catch-all, so Blood Crescent, an off-grail unique in neither list, was claimed by F-Sets and every sets-side undo on it was a no-op. The answer was already two lines below in the same function, where the colour is resolved with the app one classifier - which is why the chip rendered in unique gold while the bucket called it a set. It routes on the classifier now and the catch-all is gone. Third, the in-game found date was built in v1864 and joined to one surface of three, so both FOUND lists printed only the ledger stamp - one shared helper now serves the undo bar and both lists. And stash_screen_open returned a legible-label count as a selected tab, wrong on all three of his frames that took that branch; it asks the gem first now.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
