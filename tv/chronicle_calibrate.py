@@ -43,7 +43,21 @@ _console_safe_enable()
 # The completion bar's band, measured off his own Chronicle frames (2940x1912).
 BAR_BAND = (0.10, 0.63, 0.40, 0.74)
 TRACK_LO, TRACK_HI = 40.0, 118.0   # the unfilled track's luminance band (measured)
-TOLERANCE = 0.03          # 3 points. Below the gap that matters, above this reader's own error.
+# ⚠ 3 POINTS, AND HIS ACTUAL DEFECT WAS 2.4 — SO THIS WATCHDOG WOULD NOT HAVE CAUGHT IT.
+# Measured: his board read 118/135 = 87.4% while the game printed 85%. Gap 2.4 points, inside this
+# tolerance, verdict "agree". The comment this replaces claimed the tolerance sat "below the gap
+# that matters"; the gap that mattered was smaller than the tolerance, which makes the check absent
+# for the case it was written for. [[feedback-threshold-above-the-ceiling]]
+#
+# It is NOT tightened, and that is the honest call rather than the comfortable one: the reader
+# itself is only good to about two points (0.6 and 1.6 against printed figures on three reels), so a
+# 2-point tolerance would fire on its own noise and a gate that cries wolf is the one nobody reads.
+#
+# THE RIGHT INSTRUMENT FOR A SMALL GAP IS counter_ledger, NOT THIS. The game's own Remaining page is
+# exact and NAMES the wrong rows; this reads a bar off pixels and can only ever say "roughly". Keep
+# both: this one needs no session and catches gross drift, that one needs a recorded page and
+# catches two rows. Quoting this one for a 2-piece error is asking a ruler for a micrometre reading.
+TOLERANCE = 0.03
 
 
 def bar_fill(path):
@@ -67,9 +81,22 @@ def bar_fill(path):
          and the denominator became the whole band. The track has to be walked as a LUMINANCE BAND
          with an end, not as "not bright".
 
-    Fixed, it reads 61.4% where the game prints 63%. That is 1.6 points, and it is reported as what
-    it is: a WATCHDOG good to a couple of points, whose job is to catch a 3-point disagreement. It
-    must never be quoted as the figure. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+    A THIRD bug hid behind those two and was only visible once they were gone: `is_gold` required
+    `b < 130`, and the bar's OWN pixels reach b=131. The contiguous run was cut by a single channel
+    unit, so the sets reel answered **0 of 25 frames**. The warm/grey split is already done by
+    `(r - b) > 35` — bar pixels measure r-b 42..61, the dark track beyond measures -4..0 — so the
+    blue cap was redundant and load-bearing in the wrong direction.
+
+    MEASURED AFTER, across three reels (the game's printed figure in brackets):
+
+        reel_s_1787307553811_9452   22/25  frames -> 0.844   [85%]   0.6 points
+        reel_s_1787307317840_8033  144/148 frames -> 0.844   [85%]   0.6 points
+        reel_s_1786385768689_67392 198/217 frames -> 0.614   [63%]   1.6 points
+
+    Two different reels now return two different numbers, which is the property the old reader did
+    not have. Call it good to **about two points**: a WATCHDOG whose job is to catch a 3-point
+    disagreement, never the figure itself.
+    [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
 
     guard: tv/test_chronicle_calibrate.py::TestTheBarReaderIsNotAConstant
     """
@@ -87,8 +114,14 @@ def bar_fill(path):
     px = c.load()
 
     def is_gold(p):
+        # ⚠ THE `b < 130` CLAUSE CUT THE BAR BY A SINGLE CHANNEL UNIT. On his sets panel the bar's
+        # own pixels reach b=131 at x=700 and b=130 at x=733, so the contiguous run stopped at 699
+        # and the reader refused the whole frame — 0 of 25 answered. The warm/grey discrimination is
+        # already done by `(r - b) > 35`: measured on that row, bar pixels run r-b 42..61 and the
+        # dark track beyond is r-b -4..0. The blue cap was redundant AND load-bearing in the wrong
+        # direction. [[feedback-threshold-above-the-ceiling]]
         r, g, b = p
-        return r > 120 and g > 105 and b < 130 and (r - b) > 35
+        return r > 120 and g > 105 and (r - b) > 35
 
     def lum(x, y):
         r, g, b = px[x, y]
@@ -135,6 +168,10 @@ def bar_fill(path):
                 break
             x1 += 1
     x1 -= miss
+    # A bar with no measurable remainder is FULL, not broken. Without this clamp the walk can end
+    # one pixel BEHIND the gold, producing frac > 1 and a refusal on a legitimately complete bar.
+    if x1 < xg:
+        x1 = xg
     if x1 <= x0:
         return None
     frac = (xg - x0 + 1) / float(x1 - x0 + 1)

@@ -8647,3 +8647,36 @@ Two bugs, and the first is the instructive one:
 
 Fixed it reads 61.4% where the game prints 63% — 1.6 points, reported as the watchdog it is and
 never as the figure. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+
+## REG-286 — the bar reader was cut by ONE channel unit, and its tolerance is above its own case
+
+Two follow-ons to REG-285, both found by measuring coverage instead of stopping at "it works now".
+
+**(a) `is_gold` required `b < 130`, and the bar's own pixels reach b=131.** The contiguous run was
+cut a pixel short on his sets panel, the track walk then ended *behind* the gold, `frac` came out
+1.004, and the reader refused — **0 of 25 frames**. The warm/grey split is already done by
+`(r - b) > 35`: bar pixels measure r-b **42..61**, the dark track beyond measures **-4..0**. The blue
+cap was redundant and load-bearing in the wrong direction. Also clamped `x1 >= xg`: a bar with no
+measurable remainder is FULL, not broken.
+
+Coverage after, against the game's printed figure:
+
+```
+reel_s_1787307553811_9452    22/25  frames -> 84.4%   [85%]   0.6 points
+reel_s_1787307317840_8033   144/148 frames -> 84.4%   [85%]   0.6 points
+reel_s_1786385768689_67392  198/217 frames -> 61.4%   [63%]   1.6 points
+```
+
+Two reels now return two different numbers — the property the old reader did not have.
+
+**(b) ⚠ `TOLERANCE = 0.03` IS ABOVE THE DEFECT IT EXISTS TO CATCH.** His board read 118/135 = 87.4%
+against a printed 85%: a **2.4-point** gap, *inside* a 3-point tolerance, verdict "agree". The
+comment it replaced claimed the tolerance sat "below the gap that matters" — the gap that mattered
+was smaller than the tolerance. [[feedback-threshold-above-the-ceiling]]
+
+**It is deliberately NOT tightened.** The reader is only good to ~2 points itself, so a 2-point
+tolerance fires on its own noise, and a gate that cries wolf is a gate nobody reads. The right
+instrument for a small gap is `counter_ledger` — exact, and it NAMES the rows. Keep both: the bar
+needs no session and catches gross drift; the Remaining page needs a recording and catches two rows.
+Recorded as a test so the limit is a fact, not a surprise.
+Guard: `tv/test_chronicle_calibrate.py` (10), registered in `run_gates.py`.

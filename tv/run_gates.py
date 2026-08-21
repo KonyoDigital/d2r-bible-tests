@@ -145,6 +145,15 @@ GATES = [
              "v1576 defect class again — plumbing built on both ends and never joined"),
     Gate("test_chronicle_chain", [sys.executable, os.path.join(HERE, "test_chronicle_chain.py")], 300,
          why="the WHOLE chronicle chain in one pass — every other suite mocks its neighbours"),
+    Gate("test_chronicle_calibrate", [sys.executable, os.path.join(HERE, "test_chronicle_calibrate.py")], 120,
+         why="the completion-bar reader shipped as a SAFEGUARD and returned a single constant — "
+             "0.8395 on every frame it answered across three reels, and 83.9% on a page printing "
+             "63%. A reader that returns the same number for different inputs is dead and nothing "
+             "could tell. This pins the property it lacked: two reels at different completions must "
+             "read differently, it must answer on most frames of a reel that has a bar, and it must "
+             "land within about two points of the printed figure. It also records that his ACTUAL "
+             "2.4-point defect sits INSIDE the 3-point tolerance, so nobody mistakes this watchdog "
+             "for the instrument that catches two wrong rows (that is counter_ledger)"),
     Gate("test_counter_ledger", [sys.executable, os.path.join(HERE, "test_counter_ledger.py")], 120,
          why="the game's own Remaining page is the ONLY reading in this project that can say "
              "\"you do not have that\" — every other reader reads a found page and proposes an "

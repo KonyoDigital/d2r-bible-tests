@@ -1,5 +1,34 @@
 # HANDOFF — defects in the Konyo workflow engine, found by running it
 
+> ## ✅ ADDRESSED 2026-08-21 — all three, plus one this handoff did not catch.
+> Fixed in `~/.claude/workflows/konyo-workflow.js` (the path `/Konyo` actually invokes), committed
+> as **v40** on branch `v40-incomplete-runs-cannot-read-as-complete` in `~/konyo-workflow`.
+> **Not pushed** — that remote is PUBLIC and publishing is Konyo's call.
+> Proof: `automation/claude-code/v40_defects_proof.mjs`, **25 checks, every one first proven RED on
+> the pre-fix engine.** All six pre-existing proofs still pass.
+>
+> - **DEFECT 1** — incompleteness now raises a real **blocker**, and the verdict string
+>   *concatenates* an `INCOMPLETE` clause instead of picking one ternary rung, so `BLOCKED` and
+>   "4 of 6 swept" are both sayable in one sentence. `complete` / `not_swept` / `planned_items` are
+>   top-level. `{strictScope:true}` refuses rather than dropping the tail of the list.
+> - **DEFECT 2 — the handoff's two hypotheses were BOTH wrong, and it was right to demand a
+>   measurement first.** The journal shows 4 of 5 seats returned
+>   `grok timed out after 180s (perl alarm, exit 142)` with partial output proving **Grok was alive
+>   and mid-review when our own alarm killed it.** Not unreachable, not the ceiling — *we hung up on
+>   it.* Budget raised to 420s and made configurable; the courier's Bash backstop now derives from
+>   it (it was hardcoded `180000`, which would have strangled the fix); silence is now **typed**, so
+>   "could not afford to ask" / "nothing answered" / "we cut it off" stop sharing one word.
+> - **DEFECT 3** — builders are told what their siblings are building, and declare
+>   `provides`/`consumes`; an unmatched provide goes to LAW19 as a **lead, never a verdict**.
+> - **DEFECT 4 (new)** — the FEASIBILITY warning was **blind by construction**: it computed its
+>   worst case from `items.length` *after* the trim had already shrunk items to fit, so the two
+>   sides of its comparison could never disagree. The gate written to predict the trim could not
+>   fire for the trim. It now reads the pre-trim plan size.
+>
+> The third eye (Grok) refuted the fix twice and was right both times — a dead API whose error text
+> said "timeout" was being classified as a live model we cut off. Both pinned in the proof table.
+
+
 **For a fresh session.** Nothing here is about `d2r_bible_tests`; it is about
 `~/.claude/workflows/konyo-workflow.js`. Konyo asked for this because the run below produced good
 findings *and* three engine-level problems that will repeat on every future run until fixed.
