@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1915",
+  "ver": "v1916",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1915: He asked for a cancelled cursor on terror zones that are not worth farming and for only the worthwhile ones to be clickable and routable. A thin zone was greyed and grayscaled and still routed, with a title that said open it anyway. This is the third reversal of the same decision and the whole thread is recorded rather than swapped in silence - v1588 made it inert, v1801 unlocked it because dropping the level term took thin from 15 of 66 to 40 of 66 and a lock over most of the map punishes him for a ranking rather than informing him of one, and he chose clickable at the time. He has now chosen the opposite, the consequence is unchanged and stated, and what v1588 never had is the cursor itself. The spec that pinned the old choice in four assertions is why this could not be accidental, and it pins the new one.",
+  "note": "v1916: He said the cursor is not symmetric across the platform and that some areas show a regular mouse cursor. Measured on both surfaces before writing a line: the board has carried the gauntlet on everything since v605 and an audit of 2778 interactive elements across 12 tabs found zero on the OS arrow, while the console had zero custom cursor declarations and 69 plain pointer rules - the asymmetry was the whole console. One asset serves both now, the exact bytes decoded out of the board inline data URI, pinned byte-identical by a test so the hand cannot drift. The closed hand is NOT done and is named rather than faked: the extracted sprite is 16 frames of the open hand idling with no fist in it. Separately, a different model family was shown the sweep panel cold and said the worst thing was that the green button never states its consequence - it now carries the arithmetic and both escape routes.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

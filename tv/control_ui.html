@@ -3112,6 +3112,35 @@
      "there is nothing to open here", which is the half a colour cannot carry. Both columns. */
   .tzz.tzz-thin, .tzz.tzz-thin * { cursor: not-allowed; }
   .tzz.tzz-thin:hover { transform: none; }
+  /* ══ v1916 — 🧤 THE GAUNTLET REACHES THE CONSOLE ═════════════════════════════════════════
+     Konyo: "the MOUSE CURSOR with its effects when clicking and the hand closes the cursor mouse
+     isnt syncing and symetric across the platform there are areas that its a regular mouse cursor".
+
+     MEASURED, both surfaces, before writing a line:
+       bible.html   — `*{cursor:url(<gauntlet>) 2 1, auto !important}` since v605, plus an
+                      @supports image-set upgrade. An audit of 2,778 interactive elements across
+                      12 tabs found ZERO falling back to the OS arrow.
+       control_ui   — ZERO custom cursor declarations, 69 plain `cursor: pointer` rules.
+     So the asymmetry is not scattered across the board; it is the whole console.
+
+     ONE ASSET, NOT A SECOND COPY. art/hd_cursor_hand32.png is the EXACT bytes decoded out of the
+     board's inline data URI (1674 bytes, md5 e7af77aa), served here as /art/. A test pins the two
+     byte-identical, so the hand cannot drift between the two surfaces — which is the thing he
+     actually asked for. The board keeps its inline copy: it is proven, it is deployed to Cloudflare
+     where a relative art path is a different question, and changing a working cursor to prove a
+     point is not a fix. [[copy-drift]]
+
+     ⚠ THE CLOSED HAND IS NOT HERE, AND SAYING SO IS THE POINT. He also asked for the hand to close
+     on click. art/hd_cursor_ohand_atlas.png is 16 frames of the OPEN hand idling — opened and
+     looked at, frame by frame — and there is no closed fist in it. Swapping in a slightly-more-
+     curled idle frame would read as a fix and look like nothing, so the press state is left
+     undone and named rather than faked. [[unknown-stays-unknown]] */
+  * { cursor: url("/art/hd_cursor_hand32.png") 2 1, auto !important; }
+  input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio]):not([type=range]),
+  textarea, [contenteditable=true] { cursor: text !important; }
+  /* the two verdict cursors survive the blanket rule — a disabled control and an unfarmable zone
+     must still say no with the pointer, which is the whole of v1915. */
+  .tzz.tzz-thin, .tzz.tzz-thin *, button:disabled, .act:disabled { cursor: not-allowed !important; }
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
   /* v1914 — the Sessions-side pointer at the waiting proposal. Sized like a banner note, not a
      button that competes with the hunt; the arrow is the only thing that says it goes somewhere. */
@@ -14243,6 +14272,20 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       ap.hidden = !_n;
       ap.disabled = false;
       ap.textContent = 'register ' + _n + ' ✓';
+      /* v1916 — THE ARITHMETIC AND THE CONSEQUENCE, ON THE CONTROL ITSELF.
+         A different model family was shown this panel cold and asked what was worst about
+         it for someone deciding whether to press the green button. Its answer: "the actual
+         cost or consequence of pressing `register 302` is never stated — the user only sees
+         what WOULD be added, not what 302 means, or whether registration is permanent."
+         It is right, and it is the biggest control on the panel. The note beside it says
+         what has NOT happened yet; nothing said what happens when he presses it, and 302 is
+         266 + 36 with the panel never joining those numbers to it.
+         The consequence is stated TRUE rather than reassuring: the write is reversible two
+         ways — per item on the board, and wholesale via `forget what is swept` here.
+         [[grok-second-eye]] */
+      ap.title = 'writes ' + u.length + ' unique(s) + ' + sset.length + ' set piece(s) = '
+        + _n + ' into your grail ledger.\nReversible: undo any one on the board, or press '
+        + '"forget what is swept" here to drop the whole proposal.';
     }
     /* v1914 — AND SAY IT ON THE TAB HE LIVES ON. The button above is on TV·D, because
        v1674 hid this whole column on Sessions at his own request. Measured live on his

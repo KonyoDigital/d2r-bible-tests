@@ -9705,6 +9705,60 @@ class TestOneLegibleLabelIsNotASelectedTab(unittest.TestCase):
                                  "the old branch called it SHARED" % f)
 
 
+class TestOneGauntletForBothSurfaces(unittest.TestCase):
+    """v1916 — the board wore the D2R gauntlet and the console wore the macOS arrow.
+
+    Konyo: *"the MOUSE CURSOR with its effects when clicking ... isnt syncing and symetric across
+    the platform there are areas that its a regular mouse cursor"*. Measured before writing a line:
+    bible.html has carried `*{cursor:url(<gauntlet>) 2 1, auto !important}` since v605 and an audit
+    of 2,778 interactive elements across 12 tabs found ZERO falling back to the OS arrow;
+    control_ui.html had **zero** custom cursor declarations and 69 plain `cursor: pointer` rules.
+    The asymmetry was not scattered — it was the whole console.
+
+    ONE ASSET, NOT A SECOND COPY: `art/hd_cursor_hand32.png` is the exact bytes decoded out of the
+    board's inline data URI. This pins them byte-identical, so the hand cannot drift between the
+    two surfaces — which is the thing he actually asked for. [[copy-drift]]"""
+
+    def _repo(self):
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def test_the_console_asset_is_the_boards_own_bytes(self):
+        import base64
+        import hashlib
+        repo = self._repo()
+        with open(os.path.join(repo, "bible.html"), encoding="utf-8") as fh:
+            page = fh.read()
+        m = re.search(r'\*\{cursor:url\("data:image/png;base64,([A-Za-z0-9+/=]+)"\)\s*(\d+)\s*(\d+)',
+                      page)
+        self.assertTrue(m, "the board lost its inline gauntlet cursor entirely")
+        inline = base64.b64decode(m.group(1))
+        asset = os.path.join(repo, "art", "hd_cursor_hand32.png")
+        self.assertTrue(os.path.isfile(asset), "the console's cursor asset is gone")
+        with open(asset, "rb") as fh:
+            served = fh.read()
+        self.assertEqual(hashlib.md5(served).hexdigest(), hashlib.md5(inline).hexdigest(),
+                         "the console's hand and the board's hand are different pictures — that is "
+                         "the asymmetry he reported, arriving again by drift instead of by absence")
+        self.assertEqual((m.group(2), m.group(3)), ("2", "1"), "the board's hotspot moved")
+
+    def test_the_console_actually_declares_it_with_the_same_hotspot(self):
+        with open(os.path.join(self._repo(), "tv", "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        code = re.sub(r"/\*[\s\S]*?\*/", " ", ui)
+        self.assertIn('cursor: url("/art/hd_cursor_hand32.png") 2 1', code,
+                      "the console is back on the OS arrow")
+        self.assertIn("cursor: text !important", code,
+                      "text entry lost its I-beam under the blanket rule")
+
+    def test_the_verdict_cursors_survive_the_blanket_rule(self):
+        """A blanket `*{cursor:...!important}` is exactly the shape that eats a not-allowed. v1915's
+        unfarmable zone and every disabled control must still say no with the pointer."""
+        with open(os.path.join(self._repo(), "tv", "control_ui.html"), encoding="utf-8") as fh:
+            code = re.sub(r"/\*[\s\S]*?\*/", " ", fh.read())
+        self.assertRegex(code, r"\.tzz\.tzz-thin[^{]*\{[^}]*cursor:\s*not-allowed\s*!important",
+                         "the blanket cursor overrode the CANCELLED sign he asked for")
+
+
 class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
     """v1911 — `import yaml` IN A TEST TOOK THE PUBLISH WORKFLOW DOWN AND KEPT v1910 OFF THE SITE.
 

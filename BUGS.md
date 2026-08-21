@@ -8140,3 +8140,52 @@ reversal could not be accidental. It pins the new one — no handler, `aria-disa
 `tabindex="-1"`, `cursor: not-allowed` — and the verdict half (grey, grayscale, THIN tag, "not worth
 the window") is untouched. **The test's name was renamed too**: *"but it is no longer a dead card"*
 would have been a label that outlived its assertion. [[label-outlived-referent]]
+
+## REG-266 — the board wore the gauntlet and the console wore the macOS arrow (FIXED v1916)
+
+Konyo: *"the MOUSE CURSOR with its effects when clicking and the hand closes the cursor mouse isnt
+syncing and symetric across the platform there are areas that its a regular mouse cursor."*
+
+**Measured on both surfaces before writing a line — the asymmetry is not scattered, it is the whole
+console:**
+
+| | custom cursor | measured |
+|---|---|---|
+| `bible.html` | `*{cursor:url(<gauntlet>) 2 1, auto !important}` since v605 | **2,778 interactive elements across 12 tabs, zero on the OS arrow** |
+| `tv/control_ui.html` | **none** | 69 plain `cursor: pointer` rules |
+
+**One asset, not a second copy.** `art/hd_cursor_hand32.png` is the exact bytes decoded out of the
+board's inline data URI (1674 bytes, md5 `e7af77aa`), served to the console as `/art/`. A test pins
+the two **byte-identical**, so the hand cannot drift between surfaces — which is what he actually
+asked for. The board keeps its inline copy: it is proven, it deploys to Cloudflare where a relative
+art path is a different question, and changing a working cursor to prove a point is not a fix.
+
+Verified in a real page: `body` and every button return the gauntlet URL with hotspot `2 1`, text
+inputs keep the I-beam, and the OS-arrow audit on the console is now **21 interactive elements, 0 on
+the arrow**. Three sabotages each fail their own guard: remove the rule, drift the hotspot, drop the
+`not-allowed` override.
+
+⚠ **THE CLOSED HAND IS NOT DONE, AND THAT IS SAID RATHER THAN FAKED.** He also asked for the hand to
+close on click. `art/hd_cursor_ohand_atlas.png` is **16 frames of the OPEN hand idling** — opened and
+looked at, frame by frame, with the ink bounding box measured per frame — and **there is no closed
+fist in it**. A slightly-more-curled idle frame would read as a fix and look like nothing. The press
+state needs the real CASC press asset or new art, and his CrossOver bottle is not on this machine's
+usual path to re-extract from. [[unknown-stays-unknown]]
+
+## REG-267 — the biggest button on the panel never said what it does (FIXED v1916)
+
+The Chronicle Sweep panel was shown **cold to a different model family**, with no hint, and asked
+what was worst about it for someone deciding whether to press the green button:
+
+> *"The actual cost or consequence of pressing `register 302` is never stated. The user only sees
+> what WOULD be added, not what 302 means, or whether registration is permanent."*
+
+It is right. The note beside the button says what has **not** happened yet (*"read-only — nothing has
+been written"*); nothing said what happens when he presses it. And `302` is `266 + 36` — the panel
+shows both numbers and never joins them to the button.
+
+The control now carries the arithmetic and the consequence, and the consequence is **true rather
+than reassuring**: *"writes 266 unique(s) + 36 set piece(s) = 302 into your grail ledger. Reversible:
+undo any one on the board, or press 'forget what is swept' here to drop the whole proposal."*
+Both escape routes exist — `_forgeUndo` per item, `/api/chronicle_forget` wholesale.
+[[grok-second-eye]]
