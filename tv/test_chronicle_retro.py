@@ -2130,5 +2130,54 @@ class TestV1932APieceIsNotASet(unittest.TestCase):
         self.assertTrue(rg[0].get("frame"), "the refusal must carry its receipt")
 
 
+class TestV1936ACalibrationTableCannotOutliveItsConstant(unittest.TestCase):
+    """A comment that says "← chosen" about a value the code no longer uses.
+
+    v1712 calibrated CHRON_STILL_MAX_DIFF and its table marked `0.005 ← chosen`. v1758 then moved
+    the constant to **0.002** — correctly, and with its evidence immediately BELOW the constant —
+    and nobody updated the table above it. Two statements about one number, three lines apart,
+    disagreeing.
+
+    Nothing was broken: the CODE is right. What is broken is the instruction to the next reader,
+    who sees "0.005 ← chosen" beside `= 0.002` and helpfully "fixes" a deliberate decision back to
+    the comment. I nearly did exactly that on 2026-08-21, which is why this exists.
+    [[label-outlived-referent]] [[feedback-comments-vs-code]]
+    """
+
+    def _src(self):
+        # plain open(), not io.open — `io` is not imported in this suite, and only THIS class
+        # needed it. The guard about stale comments failed on its own missing import.
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "chronicle_retro.py"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_no_chosen_marker_names_a_value_the_constant_does_not_use(self):
+        import re
+        s = self._src()
+        m = re.search(r"^CHRON_STILL_MAX_DIFF\s*=\s*([0-9.]+)", s, re.M)
+        self.assertIsNotNone(m, "the constant is gone — this guard has lost its subject")
+        live = m.group(1)
+        for line in s.split("\n"):
+            if "chosen" not in line or not line.strip().startswith("#"):
+                continue
+            nums = re.findall(r"0\.\d+", line)
+            if not nums:
+                continue
+            # a table row that still says "chosen" must either name the live value or say it is old
+            if live in nums:
+                continue
+            self.assertTrue(
+                "SUPERSEDED" in line.upper() or "AT THE TIME" in line.upper(),
+                "this line marks %s as chosen while the constant is %s, and does not say it is "
+                "history: %s" % (nums, live, line.strip()[:90]))
+
+    def test_the_superseding_decision_is_recorded_beside_the_constant(self):
+        s = self._src()
+        i = s.index("CHRON_STILL_MAX_DIFF = ")
+        self.assertIn("v1758", s[i:i + 400],
+                      "the reason the constant holds its current value must live next to it, or "
+                      "the older table upstream is the only story a reader finds")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

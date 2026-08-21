@@ -8950,3 +8950,31 @@ that walked *up* a few lines and hit `_sleep` — a red herring. Walking out by 
 real enclosing function immediately. **A negative claim deserves the same measurement as a positive
 one**; I published "unfixable" on a worse instrument than the one that found the answer.
 [[feedback-suspect-the-instrument]] Guard: 2 more in `TestAKeeperCanNameItsPhotograph`.
+
+## CLASS-6 SWEEP — one real instance, and 449 candidates that were noise (v1936)
+
+The last unswept class from the hardening brief: *a comment that asserts a rule the adjacent code
+does not enforce.*
+
+⚠ **The broad sweep is useless and saying so is the finding.** Matching strong assertions
+("must never", "always", "can never") above code returned **449 candidates** across `tv/*.py`, and
+inspection of the first twenty found every one to be ordinary prose using "never" descriptively.
+A finding too large to act on is noise. [[sweep-dont-ask]]
+
+**The one real instance came from following a known scar instead**, `STILL_MAX_DIFF` in memory:
+
+`CHRON_STILL_MAX_DIFF` is **0.002**. The v1712 calibration table three lines above it still read
+`0.005 ← chosen`. v1758 had moved the constant — correctly, with its evidence immediately *below* —
+and nobody updated the table above. **Two statements about one number, three lines apart,
+disagreeing.**
+
+Nothing was broken: the code is right. What was broken is the instruction to the next reader, who
+sees `0.005 ← chosen` beside `= 0.002` and helpfully "fixes" a deliberate decision back to the
+comment. **I nearly did exactly that**, which is the only reason it is written down.
+[[label-outlived-referent]] [[feedback-comments-vs-code]]
+
+Guard: `TestV1936ACalibrationTableCannotOutliveItsConstant` — a `← chosen` marker must name the live
+constant or say it is history. Seen RED by restoring the stale marker.
+
+⚠ The guard's own first draft used `io.open` in a suite that does not import `io`. The guard about
+stale comments failed on its own missing import. Caught by running it.

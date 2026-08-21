@@ -71,8 +71,8 @@ STILL_MAX_DIFF = 0.22
 #     max_diff   classified   pagesRead
 #       0.220        22           0        ← shipped behaviour: pays 22 reads, finds nothing
 #       0.010        35           4
-#       0.005        45           9        ← chosen
-#       0.002        44           8
+#       0.005        45           9        ← chosen AT THE TIME (v1712); SUPERSEDED, see below
+#       0.002        44           8        ← what actually ships now (v1758)
 # 0.005 sits on a stable shelf (0.002 gives 8, 0.005 gives 9) and roughly doubles the classify
 # cost to turn a sweep that reads NOTHING into one that reads nine pages. The memory in
 # chronicle_swept.json means that cost is paid once per reel, ever.
@@ -80,6 +80,12 @@ STILL_MAX_DIFF = 0.22
 # ⚠ HONESTLY STATED: this is calibrated against the ONE session in his journal that carries a
 # Chronicle visit, because that is the only ground truth that exists. It is a named constant
 # rather than a number inside a comparison precisely so the next measurement can move it.
+# ⚠ THIS TABLE IS HISTORY, NOT THE CURRENT SETTING. v1758 moved the constant to 0.002 for a reason
+# this table could not see — 0.005 was itself above the signal it measured, the same defect one
+# order of magnitude down. Its evidence is immediately BELOW the constant. Saying "← chosen" about
+# a value the code no longer uses is how the next reader "corrects" a deliberate decision back to
+# the number in the comment. Nearly done exactly that on 2026-08-21.
+# [[label-outlived-referent]] [[feedback-comments-vs-code]]
 # ⚠ NOT SHARED WITH THE VAULT. vault_retro.py:452 deliberately borrows still_runs() and says so
 # ("chronicle_retro owns STILL_MAX_DIFF / MIN_RUN_FRAMES"). Retuning the shared constant would
 # silently change the vault sweep's cost and grouping on footage nobody measured here, so the
