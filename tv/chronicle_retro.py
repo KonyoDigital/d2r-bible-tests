@@ -972,6 +972,13 @@ def normalize_page(raw, kind, lane, framing=None):
         "witness": witness, "conf": conf, "printed": printed,
         # v1819 — the page's own dates. `sort` is copied as printed rather than normalised here so
         # the raw wording survives into the evidence; callers decide what "newest" means.
+        #
+        # ⚠ v1907 — ONLY THE LIVE LANE SUPPLIES THIS, and an empty string here means NOT ASKED, not
+        # "the panel had no sort control". Neither retro prompt (CHRONICLE_READ_PROMPT,
+        # CHRONICLE_VISION_PROMPT) mentions `sort` at all — deliberately, because v1828 settled that
+        # the printed `First Found:` stamps decide order, never a label. So a retro page's blank
+        # `sort` is an absence of a question, and a live page's blank one is an absence of an
+        # answer. Do not read the two as the same fact. [[unknown-stays-unknown]]
         "sort": str(raw.get("sort") or "").strip()[:32],
         "foundAt": _stamp_map(raw.get("foundAt"), True),
         "droppedBy": _stamp_map(raw.get("droppedBy"), False),
@@ -1197,6 +1204,13 @@ def live_pages(rows, ledger_of=None, lane="live"):
             conf = 0.0
         raw = {"ledger": "sets" if kind.endswith("sets") else "uniques",
                "found": names, "notFound": [], "sets": [],
+               # v1907 — JOIN THE WIRE. The live prompt has asked for `chronicleSort` since v1818
+               # ("the sort control at the TOP RIGHT of the panel, read literally"), tv_diablo
+               # writes the answer into every chronicle row, and this converter built its page
+               # WITHOUT it while normalize_page reads `sort` and proposal_from_pages copies it
+               # onto every sighting. Two halves each built right, never joined: the field was
+               # empty on every page ever produced. [[plumbing-with-no-tap]]
+               "sort": row.get("chronicleSort") or row.get("chronicle_sort") or "",
                "stateVisible": True, "wrongTab": False, "conf": conf}
         resp = normalize_page(raw, kind, lane)
         if not resp:

@@ -7782,3 +7782,50 @@ rewrites `el.className` every second and the forced class was gone before the sh
 capture showed the GOLD normal state while `getComputedStyle` had just reported green. Stubbing
 `Date.now()` to 45s before a boundary made the state genuinely soon, and it renders `0:45` in green.
 [[chrome-cdp-mac]] — markers do not survive a re-render.
+
+## REG-257 — the sort control was asked for, stored, and read under another name (FIXED v1907)
+
+The live prompt has asked for `chronicleSort` since v1818 — *"the sort control at the TOP RIGHT of
+the panel, read literally"* — and `tv_diablo` writes the answer into every chronicle journal row.
+`normalize_page` reads **`sort`**, and `proposal_from_pages` copies it onto every sighting.
+
+`live_pages` built its page dict **without it.** So the field was empty on every page ever produced:
+a question asked, an answer stored, and a reader looking at a different key. Fifth hit of this shape.
+[[plumbing-with-no-tap]]
+
+Joined, both spellings (`chronicleSort` / `chronicle_sort`), and the blank is now explained rather
+than accidental: **neither retro prompt asks for `sort` at all**, deliberately, because v1828 settled
+that the printed `First Found:` stamps decide order and never a label. So a retro page's blank `sort`
+is the absence of a *question* and a live page's blank one is the absence of an *answer* — pinned by
+a test so the distinction cannot quietly collapse. [[unknown-stays-unknown]]
+
+## REG-204 — a solo OCR tab guess outranked two disagreeing witnesses (CLOSED v1907, filed OPEN 2026-08-20)
+
+`fuse_tab_signals` rule 1 — *"OCR tally wins over vague vault labels"* — returned the OCR tab before
+grid or model were consulted at all. The intent is right; the implementation also beat a **specific
+and different** tally:
+
+```
+fuse_tab_signals(ocr_tab="gems", grid_label="stash-runes")              -> ('gems', ['ocr'])
+fuse_tab_signals(ocr_tab="gems", grid_label="stash", model_tab="runes") -> ('gems', ['ocr'])
+```
+
+One witness — one that calls itself a **guess** in its own docstring — overruled two that disagreed,
+and reported `sources: ['ocr']` while doing it.
+
+Now: a tally from grid, model or journal that **disagrees** with the OCR tally returns
+`("stash", ["tab-conflict"])` — a named refusal, no tally claimed.
+
+⚠ **It returns `"stash"`, not `""`.** Both witnesses agree the panel IS a stash and disagree only
+about which tally; `""` sends `class_from_tab` down the else branch and the frame is dropped as
+`gameplay`. Losing a real stash panel is a worse answer than declining to name its tab.
+
+⚠ **The reason it sat OPEN is the reason it needed synthetic tests.** The disagreement occurs in
+**zero of the 68 stash-panel frames** in his corpus, so his data cannot exercise the branch either
+way — a fix validated on his frames alone would be untested. Five tests drive it directly, including
+the half that was always right (a vague `shared`/`personal` label is still beaten by the tally).
+[[gate-blind-to-unexercised-input]]
+
+**CI note:** `Routine I — Playwright suite` reached a verdict on v1906 — **all 8 shards green**, the
+first completed Playwright run since v1893, confirming both REG-256 fixes. And the live site serves
+`v1906`, checked on the actual bytes at `https://bull-4-u.com/d2r/`, not on a workflow's green tick.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1906",
+  "ver": "v1907",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1906: Routine I is the only thing that judges two CSS invariants and it takes long enough that the next push cancels it - twelve consecutive runs from v1894 to v1902 are all cancelled, and v1903 was the first to reach a verdict since v1893, going red on two defects I had shipped myself: a set-quality green that drifted from the settled palette in the TZ tracker, and a --dim token in the console rendering as two colours because both fallbacks were live. A gate that never reaches a verdict reads exactly like one that passed, and the cause was my own push cadence against his rule to batch. Both are fixed - the soon countdown uses the same green its own live dot already uses - and both invariants now run in the python suites where they cannot be cancelled, with the palette parsed out of the spec rather than copied.",
+  "note": "v1907: Two fixes batched, because shipping one at a time all night is what cancelled Routine I thirteen times. First: the live prompt has asked for chronicleSort since v1818 and tv_diablo stores the answer on every chronicle row, but live_pages built its page without it while normalize_page reads sort and every sighting copies it - a question asked, an answer stored, and a reader looking at a different key. Joined, and the blank is now explained: neither retro prompt asks for it at all, so a retro blank is the absence of a question and a live blank is the absence of an answer. Second: REG-204 closed - a solo OCR tab guess returned before grid or model were consulted, so one witness that calls itself a guess overruled two that disagreed. A disagreeing tally now returns stash with a named tab-conflict, keeping the frame and claiming no tally.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

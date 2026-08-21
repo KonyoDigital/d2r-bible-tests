@@ -89,5 +89,50 @@ class TestTheFixIsHonestlyLabelled(unittest.TestCase):
         self.assertIn("DERIVED, NOT YET MEASURED", src)
 
 
+class TestAGuessNeverOutranksADifferentAnswer(unittest.TestCase):
+    """v1907 — REG-204, filed OPEN on 2026-08-20 and closed here.
+
+    `fuse_tab_signals` rule 1 — *"OCR tally wins over vague vault labels"* — returned the OCR tab
+    before grid or model were consulted at all. The intent is sound: a specific tally word should
+    beat a vague `shared`/`vault`/`stash` label. The implementation also beat a SPECIFIC AND
+    DIFFERENT tally, so one witness — one that names itself a GUESS in its own docstring —
+    overruled two that disagreed, and reported `sources: ['ocr']` while doing it.
+
+    ⚠ THE REASON IT SAT OPEN IS THE REASON IT NEEDS THESE TESTS: the disagreement occurs in ZERO of
+    the 68 stash-panel frames in his corpus, so his data cannot exercise the branch either way. A
+    fix shipped on his frames alone would be untested; these drive it synthetically.
+    [[gate-blind-to-unexercised-input]] [[d2r-multiwitness-corroboration]]"""
+
+    def test_a_disagreeing_grid_stops_the_ocr_guess(self):
+        tab, sources = se.fuse_tab_signals(ocr_tab="gems", grid_label="stash-runes")
+        self.assertEqual(tab, "stash", "the OCR guess still overruled a grid that said otherwise")
+        self.assertEqual(sources, ["tab-conflict"],
+                         "a refusal has to carry its named reason, not an empty list")
+
+    def test_a_disagreeing_model_stops_it_too(self):
+        tab, sources = se.fuse_tab_signals(ocr_tab="gems", grid_label="stash", model_tab="runes")
+        self.assertEqual((tab, sources), ("stash", ["tab-conflict"]))
+
+    def test_the_frame_is_KEPT_as_a_stash_panel_not_dropped(self):
+        """Both witnesses agree the panel IS a stash and disagree only about WHICH tally. Returning
+        "" would send class_from_tab down the else branch and the frame would be dropped as
+        `gameplay` — losing a real stash panel is a worse answer than declining to name its tab."""
+        tab, _ = se.fuse_tab_signals(ocr_tab="gems", grid_label="stash-runes")
+        self.assertEqual(se.class_from_tab(tab), "stash")
+        self.assertNotEqual(se.class_from_tab(tab), "",
+                            "a contradiction now throws the frame away entirely")
+
+    def test_a_VAGUE_label_is_still_beaten_by_the_tally(self):
+        """The rule's real intent must survive the fix — this is the half that was right."""
+        self.assertEqual(se.fuse_tab_signals(ocr_tab="gems", grid_label="stash",
+                                             model_tab="shared")[0], "gems")
+        self.assertEqual(se.fuse_tab_signals(ocr_tab="gems", journal_tab="personal")[0], "gems")
+
+    def test_agreement_still_gathers_its_witnesses(self):
+        tab, sources = se.fuse_tab_signals(ocr_tab="gems", grid_label="stash-gems")
+        self.assertEqual(tab, "gems")
+        self.assertIn("grid", sources, "an agreeing witness stopped being counted")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

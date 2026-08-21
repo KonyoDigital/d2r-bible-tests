@@ -1953,5 +1953,64 @@ class TestTheGameDateSurvivesTheWholeChain(unittest.TestCase):
         row = dict({"name": "x"}, **({"gameFound": stamp} if stamp else {}))
         self.assertNotIn("gameFound", row)
 
+
+class TestTheSortControlReachesThePage(unittest.TestCase):
+    """v1907 — TWO HALVES EACH BUILT RIGHT, NEVER JOINED.
+
+    The live prompt has asked for `chronicleSort` since v1818 — *"the sort control at the TOP RIGHT
+    of the panel, read literally"* — and `tv_diablo` writes the answer into every chronicle journal
+    row. `normalize_page` reads `sort`, and `proposal_from_pages` copies it onto every sighting.
+
+    `live_pages` built its `raw` dict WITHOUT it. So the field was empty on every page ever produced:
+    a question asked, an answer stored, and a reader looking at a different key.
+    [[plumbing-with-no-tap]] [[the-unjoined-end]]"""
+
+    def _row(self, **kw):
+        row = {"scene": "chronicle", "chronicleTab": "uniques",
+               "discovered_names": ["Harlequin Crest"], "conf": 0.9,
+               "sessionId": "s_1", "frameId": "f_1", "ts": 1}
+        row.update(kw)
+        return row
+
+    def test_a_live_row_carries_its_sort_onto_the_page(self):
+        pages = cr.live_pages([self._row(chronicleSort="Newest to Oldest")])
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(pages[0]["resp"]["sort"], "Newest to Oldest",
+                         "the sort control the live reader was asked for never reached the page")
+
+    def test_the_snake_case_spelling_is_accepted_too(self):
+        """tv_diablo accepts `chronicleTab` or `chronicle_tab` from the reader; the same defensive
+        pair has to survive the whole way, or the tolerant half is decorative."""
+        pages = cr.live_pages([self._row(chronicle_sort="Oldest to Newest")])
+        self.assertEqual(pages[0]["resp"]["sort"], "Oldest to Newest")
+
+    def test_a_row_with_no_sort_is_empty_not_invented(self):
+        pages = cr.live_pages([self._row()])
+        self.assertEqual(pages[0]["resp"]["sort"], "")
+
+    def test_it_reaches_the_SIGHTING_not_just_the_page(self):
+        """proposal_from_pages is where it has to land — a page nobody folds is not evidence."""
+        pages = cr.live_pages([self._row(chronicleSort="Newest to Oldest")])
+        prop = cr.proposal_from_pages(pages)
+        sights = (prop.get("uniques") or {}).get("Harlequin Crest") or []
+        self.assertTrue(sights, "the name never became a sighting")
+        self.assertEqual(sights[0].get("sort"), "Newest to Oldest")
+
+    def test_the_retro_prompts_deliberately_do_NOT_ask_for_it(self):
+        """So a blank `sort` on a retro page is an absence of a QUESTION, and on a live page an
+        absence of an ANSWER. v1828 settled that the printed `First Found:` stamps decide order,
+        never a label — this pins that decision so the blank is explained, not accidental."""
+        import g5_grok_eyes as g5
+        import tv_diablo as td
+        for name, prompt in (("claude", td.CHRONICLE_READ_PROMPT),
+                             ("grok", g5.CHRONICLE_VISION_PROMPT)):
+            self.assertNotIn("sort", prompt,
+                             "the %s retro prompt now asks for a sort control — if that is "
+                             "deliberate, v1828's reasoning has to be revisited, not quietly "
+                             "reversed" % name)
+        self.assertIn("chronicleSort", td.READ_PROMPT,
+                      "the LIVE prompt stopped asking for it, which makes the join dead again")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

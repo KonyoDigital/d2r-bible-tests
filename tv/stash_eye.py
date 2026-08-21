@@ -556,6 +556,32 @@ def fuse_tab_signals(
 
     # 1 OCR tally wins over vague vault labels (same law as live _resolve_stash_tab)
     if ocr_tab in _TALLY_TABS:
+        # ── v1907 — REG-204 CLOSED: A GUESS MAY BEAT A VAGUE LABEL, NEVER A DIFFERENT ANSWER ──
+        #
+        # This rule's intent is sound: a specific tally word should beat a vague `shared`/`vault`/
+        # `stash` label. Its implementation also beat a SPECIFIC AND DIFFERENT tally. Measured when
+        # the defect was filed:
+        #
+        #     fuse_tab_signals(ocr_tab="gems", grid_label="stash-runes")              -> ('gems', ['ocr'])
+        #     fuse_tab_signals(ocr_tab="gems", grid_label="stash", model_tab="runes") -> ('gems', ['ocr'])
+        #
+        # One witness — one that names itself a GUESS in its own docstring — overruled two that
+        # disagreed, and reported `sources: ['ocr']` while doing it. That contradicts the
+        # multi-witness doctrine head-on.
+        #
+        # ⚠ WHY IT RETURNS "stash" AND NOT "". Both witnesses agree the panel IS a stash; they
+        # disagree only about WHICH tally. Returning "" sends class_from_tab down the else branch
+        # and the frame is dropped as `gameplay` — losing a real stash panel is a worse answer than
+        # declining to name its tab. "stash" keeps the frame and claims no tally.
+        #
+        # ⚠ AND THIS CHANGES NOTHING ON HIS CORPUS. The disagreement occurs in ZERO of the 68
+        # stash-panel frames — which is exactly why it was filed OPEN rather than fixed blind, and
+        # exactly why the guards below drive it synthetically. A branch his data cannot exercise is
+        # still a branch. [[gate-blind-to-unexercised-input]] [[d2r-multiwitness-corroboration]]
+        _disagree = sorted({t for t in (grid_tab, model_tab, journal_tab)
+                            if t in _TALLY_TABS and t != ocr_tab})
+        if _disagree:
+            return "stash", ["tab-conflict"]
         sources.append("ocr")
         if grid_tab == ocr_tab:
             sources.append("grid")
