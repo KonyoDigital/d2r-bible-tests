@@ -8765,3 +8765,36 @@ The new block's icon was written `'\U0001f5d3'`. JavaScript understands `\uXXXX`
 uppercase `\U` — so the panel rendered the literal text **`U0001f5d3 2 find(s) carry…`**. The JS
 syntax gate passed (it is valid JS, just not the escape intended) and no text assertion would have
 caught it. Found by looking at the rendered strip. Swept both UI files for siblings: none.
+
+## REG-292 — a gate that only runs when one file changes hid a failure for seven versions (FIXED v1930)
+
+`hooks/pre-push` runs the console demos **only when `tv/control_ui.html` is in the diff AND the
+console app is up**. v1930 touched that file with his console running, so the gate fired for the
+first time in a while and blocked the push on **J9 TERROR ZONE FLAGSHIP**.
+
+Bisected: **J9 fails on v1924, v1925, v1926, v1927, v1928 and v1929 — every one of which pushed
+clean**, because none of them touched `control_ui.html`. *A gate that always SKIPS is the same
+defect as one that always passes.* [[feedback-blind-fixture-green-gate]]
+
+**Both failures were mine, and both were HIS later instructions the demo had not caught up with:**
+
+- **`firstCard`** asserted `zone.children[1] === el` — silently assuming nothing would ever sit
+  between the zone banner and the flagship. v1914 put `#chron-waiting` there, the "N finds waiting
+  to register" line he asked for on the tab he lives on. Measured children:
+  `[zone-banner, chron-waiting, hd-tz, hd-taskforce]`. The flagship is still the first **card**; it
+  is no longer the second **child**. Now compared against the cards, so a notice line cannot fail a
+  layout gate.
+- **`thinRoutes`** asserted a thin zone stays clickable — **a decision he has now reversed three
+  times.** v1588 inert → v1801 clickable ("a lock over most of the map stops informing him of a
+  ranking and starts overruling him with one") → v1915 inert again, in his own words: *"only the TZ
+  ZONES worth farming should be clickable and routable."* The assertion is not a bug that appeared;
+  it is a recorded expectation his instruction superseded. Updated to assert the current rule —
+  `role=button`, `aria-disabled="true"`, no `onclick`, `cursor:not-allowed` — which is a **stronger**
+  check than the one it replaces.
+
+9/9 demos green.
+
+⚠ **The remaining hole is the trigger, not the assertions.** The demos still only run on a
+`control_ui.html` diff with the app up. That is deliberate (never block on an environment the push
+did not break) and it is why this sat unseen for seven versions. Worth revisiting: run them on any
+`tv/` UI change, or report loudly when they SKIP so a skip is visible rather than silent.

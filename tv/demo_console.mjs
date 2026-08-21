@@ -373,7 +373,16 @@ async function j9_terrorZoneFlagship(page) {
       slotSpread: hs.length ? Math.max(...hs) - Math.min(...hs) : 0,
       allBoxes: all.map((c) => (c.why ? '★' : '·') + c.n + ' ' + c.w + 'x' + c.h + '@y' + c.y),
       numeral: ban ? (ban.querySelector('.zb-no') || {}).textContent : null,
-      firstCard: zone ? zone.children[1] === el : false,
+      /* v1930 — "FIRST CARD" MEANS FIRST CARD, NOT FIRST CHILD. This asserted
+         `zone.children[1] === el`, which silently assumed nothing would ever sit between the zone
+         banner and the flagship. v1914 put `#chron-waiting` there — a one-line notice that appears
+         only when a sweep is waiting on him, and which he asked for on the tab he lives on. The
+         flagship is still the first CARD; it is no longer the second CHILD.
+         Measured: children are [zone-banner, chron-waiting, hd-tz, hd-taskforce].
+         Compare against the cards, so a notice line cannot fail a layout gate. */
+      firstCard: zone
+        ? [...zone.children].filter((c) => c.classList.contains('hd-col'))[0] === el
+        : false,
       bannerAbove: ban ? ban.getBoundingClientRect().y < el.getBoundingClientRect().y : false,
       fullWidth: Math.round(el.getBoundingClientRect().width)
                  >= Math.round(el.parentElement.getBoundingClientRect().width) - 24,
@@ -445,8 +454,25 @@ async function j9_terrorZoneFlagship(page) {
       thinGrey: [...document.querySelectorAll('#tz-body .tzz-thin')]
         .every((c) => parseFloat(getComputedStyle(c).opacity) <= 0.35
                    && getComputedStyle(c).filter.includes('grayscale')),
+      /* ⚠ v1930 — THIS ASSERTED A DECISION HE HAS SINCE REVERSED, FOR THE THIRD TIME.
+         v1588 made a thin zone inert. v1801 undid it: dropping the meaningless level term took
+         thin from 15 zones to 40, and "a lock over most of the map stops informing him of a
+         ranking and starts overruling him with one". v1915 reversed it again, in his own words:
+         "the mouse cursor for TZ ZONES that arent worth farming at all i want a CANCELLED sign on
+         it so i know i cant click them. only the TZ ZONES worth farming should be clickable and
+         routable."
+         So a thin card must now be INERT and SAY SO: role=button for the screen reader, explicitly
+         aria-disabled, no click handler, cursor:not-allowed. The old assertion is not a bug that
+         appeared — it is a recorded expectation that his instruction superseded, and updating it is
+         the honest move rather than reverting a feature he asked for twice.
+         The pair that can still go wrong is unchanged in spirit: the verdict must survive undimmed
+         AND the card must be honestly inert. Checking one half is how a card ends up bright and
+         dead, or grey and secretly clickable. */
       thinRoutes: [...document.querySelectorAll('#tz-body .tzz-thin')]
-        .every((c) => c.getAttribute('role') === 'button' && !c.hasAttribute('aria-disabled')),
+        .every((c) => c.getAttribute('role') === 'button'
+                   && c.getAttribute('aria-disabled') === 'true'
+                   && !c.hasAttribute('onclick')
+                   && getComputedStyle(c).cursor === 'not-allowed'),
       thinSeen: document.querySelectorAll('#tz-body .tzz-thin').length,
       routes: [...document.querySelectorAll('#tz-body .tzz-prime, #tz-body .tzz-good')]
         .every((c) => c.getAttribute('role') === 'button'),
@@ -487,7 +513,7 @@ async function j9_terrorZoneFlagship(page) {
     // stopped working rather than that this window happened to be all good
     if (!place.thinSeen) fail.push('no thin zone rendered — the tiering is not running');
     if (!place.thinGrey) fail.push('a thin zone is not greyed out — the verdict stopped being visible');
-    if (!place.thinRoutes) fail.push('a thin zone does not route — he chose greyed-and-cancelled, still clickable');
+    if (!place.thinRoutes) fail.push('a thin zone is not honestly inert — it must be role=button, aria-disabled, no onclick, cursor:not-allowed (v1915, his words)');
     if (!place.routes) fail.push('a zone worth running does not route anywhere');
   }
   if (out.some((o) => /^and /i.test(o.n))) fail.push('a chip is labelled "and <Zone>" — the Oxford-comma split is back');
