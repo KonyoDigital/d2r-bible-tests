@@ -12392,6 +12392,14 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                        "say": "the game's missing list could not be consulted: %s" % str(_de)[:120]}
         if _denial.get("denied") or _denial.get("undated"):
             print("   \U0001f6a9 %s" % _denial.get("say"))
+        # v1932 — a set-group refused because its heading was a PIECE, not a set. Printed rather
+        # than only stored: a refusal nobody sees is the same as a group silently dropped, and the
+        # whole reason this guard exists is that "one row worth five pieces" must never come from a
+        # misread heading. [[unknown-stays-unknown]]
+        _rg = prop.get("refusedGroups") or []
+        if _rg:
+            print("   \u26d4 %d set-group(s) refused — the heading was a PIECE, not a set: %s"
+                  % (len(_rg), ", ".join(sorted({str(x.get("set")) for x in _rg})[:6])))
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -12721,7 +12729,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1931",
+        "ver": "v1932",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

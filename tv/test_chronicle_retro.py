@@ -2079,5 +2079,56 @@ class TestANotFoundReadingCarriesItsPage(unittest.TestCase):
         self.assertTrue(seen, "the receipt did not survive the merge")
 
 
+class TestV1932APieceIsNotASet(unittest.TestCase):
+    """A set the panel calls complete is ONE ROW WORTH FIVE PIECES. A piece accepted as a set there
+    would tick pieces he does not own, from a single misread heading.
+
+    MEASURED ON HIS BANKED EVIDENCE, not supposed: 5 of 38 setGroups keys are PIECE names —
+    "M'avina's True Sight" (a helm) keyed as a set carrying M'avina's Icy Clutch and M'avina's
+    Tenet; "Cleglaw's Claw" (a shield) carrying Cleglaw's Pincers and Tooth. The reader grouped
+    rows under a row instead of under the heading.
+
+    ⚠ The comparison is on the BARE name, because the readers print "M'avina's Tenet" while the
+    roster stores "M'avina's Tenet (belt)" — the same two-conventions gap that once let a guard pass
+    cleanly on 86 names none of which could ever have matched. [[source-reading-guard]]
+    """
+
+    def test_a_real_set_name_is_accepted(self):
+        for good in ("M'avina's Battle Hymn", "Trang-Oul's Avatar", "Immortal King",
+                     "Natalya's Odium"):
+            self.assertFalse(cr._is_piece_not_set(good), "%s is a real set" % good)
+
+    def test_a_piece_name_is_refused(self):
+        for bad in ("M'avina's True Sight", "M'avina's Tenet", "Cleglaw's Claw",
+                    "M'avina's Caster", "M'avina's Embrace"):
+            self.assertTrue(cr._is_piece_not_set(bad), "%s is a PIECE, not a set" % bad)
+
+    def test_the_suffixed_spelling_is_caught_too(self):
+        self.assertTrue(cr._is_piece_not_set("M'avina's Tenet (belt)"))
+
+    def test_with_no_roster_it_refuses_to_JUDGE_rather_than_refusing_the_data(self):
+        """An unavailable roster must not turn every group into a refusal."""
+        old = cr._PIECE_BARE
+        try:
+            cr._PIECE_BARE = set()
+            self.assertFalse(cr._is_piece_not_set("M'avina's Tenet"))
+        finally:
+            cr._PIECE_BARE = old
+
+    def test_the_refusal_is_recorded_not_dropped(self):
+        pages = [{"reel": "s_1787177267889_92273", "frame": "f_1787177277865.jpg",
+                  "resp": {"ledger": "sets", "lane": "claude", "sets": [
+                      {"set": "M'avina's True Sight", "pieces": ["M'avina's Tenet"]},
+                      {"set": "Trang-Oul's Avatar", "pieces": ["Trang-Oul's Claws"]}]}}]
+        prop = cr.proposal_from_pages(pages)
+        self.assertIn("Trang-Oul's Avatar", prop["setGroups"], "a real set must still be collected")
+        self.assertNotIn("M'avina's True Sight", prop["setGroups"], "a piece must not become a set")
+        rg = prop.get("refusedGroups") or []
+        self.assertEqual([x["set"] for x in rg], ["M'avina's True Sight"],
+                         "the refusal must be RECORDED — a silently dropped group is "
+                         "indistinguishable from a page that held none")
+        self.assertTrue(rg[0].get("frame"), "the refusal must carry its receipt")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

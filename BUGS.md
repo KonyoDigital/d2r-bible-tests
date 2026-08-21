@@ -8808,3 +8808,35 @@ both say how to run the demos by hand.
 
 *"We chose not to run this"* and *"this passed"* must never look the same.
 Guard: `TestNoGateSkipsSilently` (3), seen RED.
+
+## REG-294 — a set PIECE was being read as a SET, five times in his banked evidence (FIXED v1932)
+
+Class-4 sweep (a guard that cannot reach its subject), run by measuring the **overlap** between
+every name-set the pipeline holds and the roster it is judged against. The table is the finding:
+
+```
+source                        n   vs SET roster   vs UNIQUE roster
+board.setPieces             119        118              1     <- Blood Crescent (already fixed)
+evidence.sets                86          0              0     <- bare vs suffixed (folds: 85/86)
+evidence.setGroups           38          0              0     <- a set is not a piece; 0 is correct
+evidence.notFound.uniques    32          0             11     <- the rest are BASE names (correct)
+game.remaining               19         19              0
+```
+
+Reading `setGroups` properly turned up the real defect: **5 of its 38 keys are PIECE names, not set
+names** — `M'avina's True Sight` (a helm) keyed as a set carrying `M'avina's Icy Clutch` and
+`M'avina's Tenet`; `Cleglaw's Claw` (a shield) carrying `Cleglaw's Pincers` and `Cleglaw's Tooth`.
+The reader grouped rows under a **row** instead of under the heading.
+
+`setGroups` alone is harmless — no UI reads it. **`completeSets` is the one that bites:** a set the
+panel calls complete is ONE ROW WORTH FIVE PIECES, expanded by the board. A piece accepted there
+would tick pieces he does not own from a single misread heading. It has not happened yet
+(`completeSets` is empty on his evidence), which is exactly when a guard is cheap.
+
+Refused OUT LOUD and with its receipt (reel + frame), and printed by the sweep — a silently dropped
+group is indistinguishable from a page that held none.
+
+⚠ **The guard's first cut had the defect it was written about.** It stripped the slot suffix from
+the ROSTER and compared the raw input, so it caught `M'avina's Tenet` and missed
+`M'avina's Tenet (belt)` — the same two-conventions gap, inside the guard. Caught by its own test.
+[[source-reading-guard]] Guards: `TestV1932APieceIsNotASet` (5), seen RED.

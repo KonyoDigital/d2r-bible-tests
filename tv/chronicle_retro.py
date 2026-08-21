@@ -1049,6 +1049,38 @@ def two_lane_reader(claude_lane, grok_lane=None):
     return _read
 
 
+_PIECE_BARE = None
+
+
+def _is_piece_not_set(name):
+    """True when `name` is a set PIECE, so it can never be the set itself.
+
+    Compared on the BARE name because the readers print "M'avina's Tenet" while the roster stores
+    "M'avina's Tenet (belt)" — the same two-conventions gap that made an earlier guard pass cleanly
+    on 86 names none of which could ever have matched. THE COUNT IS THE TELL, so this one was
+    measured before it was believed: 5 of his 38 real groups are pieces.
+    """
+    global _PIECE_BARE
+    if _PIECE_BARE is None:
+        try:
+            import re as _re
+            import chronicle_resolve as _res
+            _PIECE_BARE = {
+                _re.sub(r"\s*\([^)]*\)\s*$", "", v).strip().lower()
+                for v in (_res.load_set_roster() or {}).values()
+            }
+        except Exception:
+            _PIECE_BARE = set()
+    if not _PIECE_BARE:
+        return False          # no roster -> refuse to judge, never refuse the data
+    # ⚠ STRIP THE SUFFIX FROM THE INPUT TOO. The first cut stripped it from the ROSTER and compared
+    # the raw input, so it caught "M'avina's Tenet" and missed "M'avina's Tenet (belt)" — the very
+    # two-conventions gap this guard is a reaction to, inside the guard. Caught by its own test.
+    import re as _re
+    n = _re.sub(r"\s*\([^)]*\)\s*$", "", " ".join(str(name or "").split())).strip().lower()
+    return n in _PIECE_BARE
+
+
 def proposal_from_pages(pages):
     """Fold read pages into ONE proposal per ledger, keeping every name's evidence.
 
@@ -1124,6 +1156,26 @@ def proposal_from_pages(pages):
         for g in (resp.get("sets") or []):
             nm = g.get("set")
             if not nm:
+                continue
+            # ── v1932 — A PIECE IS NOT A SET, AND SAYING SO COSTS ONE LOOKUP ────────────────────
+            # Measured on his banked evidence: 5 of 38 setGroups keys are PIECE names, not set
+            # names — "M'avina's True Sight" (a helm) keyed as a set carrying M'avina's Icy Clutch
+            # and M'avina's Tenet; "Cleglaw's Claw" (a shield) carrying Cleglaw's Pincers and Tooth.
+            # The reader grouped rows under a row instead of under the heading.
+            #
+            # setGroups alone is harmless — no UI reads it. `completeSets` is the one that bites: a
+            # set the panel calls complete is ONE ROW WORTH FIVE PIECES, expanded by the board. A
+            # piece accepted as a set there would tick pieces he does not own, from a single misread
+            # heading. It has not happened yet (completeSets is empty on his evidence), which is
+            # exactly when a guard is cheap.
+            #
+            # Refused OUT LOUD, never dropped: a silently discarded group is indistinguishable from
+            # a page that held none. [[unknown-stays-unknown]] [[source-reading-guard]]
+            if _is_piece_not_set(nm):
+                prop.setdefault("refusedGroups", []).append({
+                    "set": nm, "reel": p.get("reel"), "frame": p.get("frame"),
+                    "why": "this is a set PIECE, not a set — a piece cannot be complete",
+                })
                 continue
             prop["setGroups"].setdefault(nm, set()).update(g.get("pieces") or [])
             # v1530 — A SET THE PANEL CALLS COMPLETE. The Chronicle often shows a set as done without
