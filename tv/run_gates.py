@@ -88,6 +88,11 @@ GATES = [
     Gate("test_tz_relay", [sys.executable, os.path.join(HERE, "test_tz_relay.py")], 60,
          why="the console TZ relay must treat a history-only payload as live, not as "
              "unreachable, and /d2r/api/tz must stay as open as /api/tz"),
+    Gate("test_bake_seed", [sys.executable, os.path.join(HERE, "test_bake_seed.py")], 90,
+         why="v1947 — the seed baker rebuilds his shipped grail/set seed from his real board. The "
+             "seed is his HISTORY, so the guards are the four REFUSALS: report-only unless "
+             "--write, never shrink, never seed a piece the game lists as missing, never seed a "
+             "name a boot one-shot owns"),
     Gate("test_gate_cache", [sys.executable, os.path.join(HERE, "test_gate_cache.py")], 60,
          why="v1941 — the Vault Accumulator quote memoises a crop+OCR verdict per frame (7.4 "
              "minutes of his evening before it did). The speed is not the risk: a stale 'stash' "
