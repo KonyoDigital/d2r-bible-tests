@@ -158,18 +158,46 @@ def main(argv=None):
     print("\n  by reel (tab-readable frames):")
     for reel, n in by_reel.most_common(12):
         print("     %-34s %d" % (reel, n))
+
+    # ── FREE INVENTORY SPACE, per reel ────────────────────────────────────────────────────────
+    # v1928 — THE JOIN. inventory_lattice / inventory_occupancy / inventory_reading were built and
+    # guarded and NOTHING CALLED THEM, which is the defect this whole night has been about: a
+    # mechanism that reads as protection and carries nothing. This is the tap.
+    #
+    # Only frames the title scan already called a PANEL are offered, and only a handful per reel:
+    # the lattice fit is the expensive part, and inventory_reading needs corroboration rather than
+    # volume. It reports how many frames AGREED, because 93 of 94 is evidence and 1 of 1 is a
+    # fixture — this project has already paid for believing one frame.
+    inv_rows = {}
+    by_reel_panels = collections.defaultdict(list)
+    for r in rows:
+        if r.get("panel"):
+            by_reel_panels[r["reel"]].append(os.path.join(hist, r["reel"], r["frame"]))
+    if by_reel_panels:
+        print("\n  free inventory space (10x4 grid; %d frame(s) sampled per reel):" % INV_SAMPLE)
+        for reel in sorted(by_reel_panels):
+            fs = [p for p in by_reel_panels[reel][:INV_SAMPLE] if os.path.isfile(p)]
+            if not fs:
+                continue
+            rd = inventory_reading(fs)
+            inv_rows[reel] = rd
+            if rd.get("ok"):
+                print("     %-34s %2d free of %d  (%d of %d frame(s) agreed%s)"
+                      % (reel, rd["free"], rd["occupied"] + rd["free"], rd["agreed"], rd["read"],
+                         "" if not rd["minority"] else "; %d disagreed"
+                         % sum(m["frames"] for m in rd["minority"])))
+            else:
+                # A REFUSAL IS A RESULT. "no frame held a readable inventory panel" and "his
+                # inventory is empty" are opposite facts and must never print the same.
+                print("     %-34s %s" % (reel, rd.get("say", "no reading")))
     with io.open(OUT, "w", encoding="utf-8") as fh:
         json.dump({"hist": hist, "scanned": len(paths), "rows": rows,
+                   "inventory": inv_rows,
                    "totals": {"withEvidence": len(rows), "panels": panels,
                               "tabReadable": sum(tabs.values()), "byTab": dict(tabs)}},
                   fh, indent=1)
     print("\nwrote %s" % os.path.relpath(OUT, os.path.dirname(HERE)))
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-
 
 # ── THE INVENTORY LATTICE ───────────────────────────────────────────────────────────────────────
 # Solved 2026-08-21 after five attempts aimed at the wrong panel. Full record in
@@ -190,6 +218,7 @@ if __name__ == "__main__":
 _LAT_LO, _LAT_HI = 70.0, 100.0
 INV_CROP = (0.595, 0.495, 0.915, 0.70)   # fractions of the frame
 INV_COLS, INV_ROWS = 10, 4               # the D2 inventory is ALWAYS this
+INV_SAMPLE = 8                           # frames per reel: corroboration, not volume
 
 
 def _ridge(v, k=12):
@@ -337,3 +366,6 @@ def inventory_reading(frame_paths):
                      "" if len(c) == 1 else "; %d frame(s) disagreed and are listed rather than "
                                             "averaged away" % sum(k for _, k in c[1:])))
     return out
+
+if __name__ == "__main__":
+    sys.exit(main())

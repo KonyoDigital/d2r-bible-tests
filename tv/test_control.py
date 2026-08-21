@@ -12072,5 +12072,66 @@ class TestV1924LiveStateFollowsTheFixture(unittest.TestCase):
 
 
 
+class TestV1928NothingRunnableLivesBelowTheRunner(unittest.TestCase):
+    """`if __name__ == "__main__": main()` runs BEFORE anything defined under it.
+
+    ⚠ TWICE IN ONE NIGHT, IN TWO FILES. In tv/test_control.py new classes were appended below the
+    runner and simply never collected — caught by TestRunnerIsLast, which exists for that. Then the
+    SAME shape in tv/vault_corpus.py: an inventory block appended below the runner, so `main()`
+    executed while `INV_SAMPLE` did not yet exist and a 145-second corpus scan died with NameError
+    on its last line, after all the work was done.
+
+    ⚠ AND THE SCOPE GUARD PASSED. TestNoFunctionLoadsAnUndefinedName asks whether a name EXISTS,
+    not whether it exists YET — `INV_SAMPLE` is a perfectly good module global, defined 20 lines too
+    late. A guard can be right about its own question and blind to the failure standing next to it.
+
+    TestRunnerIsLast covers the test files. This covers the RUNNABLE MODULES, which had nothing.
+    [[feedback-generalize-fixes]] [[feedback-blind-fixture-green-gate]]
+    """
+
+    MODULES = ("vault_corpus.py", "counter_ledger.py", "chronicle_calibrate.py",
+               "sets_base_index.py", "chronicle_hunt.py", "chronicle_sweep_now.py",
+               "chronicle_doctor.py", "run_gates.py", "bump_version.py")
+
+    @staticmethod
+    def _is_main_guard(node):
+        import ast
+        return isinstance(node, ast.If) and "__main__" in ast.dump(node.test)
+
+    def test_no_module_defines_anything_below_its_main_guard(self):
+        import ast
+        here = os.path.dirname(os.path.abspath(__file__))
+        bad = []
+        for name in self.MODULES:
+            path = os.path.join(here, name)
+            if not os.path.isfile(path):
+                continue
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
+            guard = None
+            for node in tree.body:
+                if self._is_main_guard(node):
+                    guard = node.lineno
+            if guard is None:
+                continue
+            for node in tree.body:
+                if node.lineno > guard and not self._is_main_guard(node):
+                    bad.append("%s:%d %s is defined BELOW the __main__ guard at :%d"
+                               % (name, node.lineno, type(node).__name__, guard))
+        self.assertEqual(bad, [],
+                         "the __main__ guard runs before these, so the script dies with NameError "
+                         "at runtime while importing perfectly cleanly:\n  " + "\n  ".join(bad))
+
+    def test_the_check_can_see_a_planted_offender(self):
+        """Calibrate through the same path the real subjects take. Founding rule 4."""
+        import ast
+        tree = ast.parse('import sys\nif __name__ == "__main__":\n    sys.exit(0)\nX = 1\n')
+        guard = [n.lineno for n in tree.body if self._is_main_guard(n)]
+        self.assertTrue(guard, "the guard-finder cannot find a guard it was handed")
+        below = [n for n in tree.body if n.lineno > guard[-1] and not self._is_main_guard(n)]
+        self.assertEqual(len(below), 1, "the check cannot see an assignment placed below the guard")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

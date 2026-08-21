@@ -8696,3 +8696,43 @@ status written through `kaiChronicleRecord` must have one. Seen RED by deleting 
 there** — `farm`, `hunt`, `idle`, `now`, `pipe`, `queued`, belonging to entirely different
 subsystems this panel never renders. Scoped to `kaiChronicleRecord` call sites, plus an assertion
 that it found any at all, so it cannot pass by matching nothing. [[source-reading-guard]]
+
+## REG-288 — a runnable module had its own code below the `__main__` guard (FIXED v1929)
+
+`vault_corpus.py` grew an inventory block appended **below** `if __name__ == "__main__": sys.exit(main())`.
+The guard runs first, so `main()` executed while `INV_SAMPLE` did not yet exist and a **145-second**
+corpus scan died with `NameError` on its final line, after every frame had been read.
+
+⚠ **The same shape had already bitten this session**, in `tv/test_control.py`, where appended classes
+sat below the runner and were never collected. `TestRunnerIsLast` caught that one — it covers test
+files. Nothing covered the RUNNABLE MODULES.
+
+⚠ **And the scope guard passed.** `TestNoFunctionLoadsAnUndefinedName` asks whether a name EXISTS,
+not whether it exists **yet**: `INV_SAMPLE` is a perfectly good module global, defined twenty lines
+too late. A guard can be right about its own question and blind to the failure standing next to it.
+[[feedback-generalize-fixes]] [[feedback-blind-fixture-green-gate]]
+
+Guard: `TestV1928NothingRunnableLivesBelowTheRunner` over nine runnable modules, plus a
+planted-offender calibration so a check that can no longer see one fails rather than passing quietly.
+Seen RED on the real defect (`vault_corpus.py:224 Assign is defined BELOW the __main__ guard at :221`).
+
+## REG-289 — the inventory detector was built, guarded, and called by nothing (JOINED v1929)
+
+`inventory_lattice` / `inventory_occupancy` / `inventory_reading` shipped with 13 tests and **zero
+callers** — the exact defect class this whole arc has been about: a mechanism that reads as
+protection and carries nothing.
+
+Joined to `vault_corpus.main()`, which already scans the archive. It now reports free inventory space
+per reel, sampling 8 panel frames each (corroboration, not volume) and printing **how many agreed**,
+because 93 of 94 is evidence and 1 of 1 is a fixture. Measured across his archive:
+
+```
+reel_s_1784984019250_95276    18 free of 40   (8 of 8 agreed)
+reel_s_1785078127173_28278    18 free of 40   (8 of 8 agreed)
+reel_s_1785708285647_38665    11 free of 40   (2 of 2 agreed)
+reel_s_1787244002054_15361     8 free of 40   (6 of 6 agreed)
+reel_s_1787243026006_12211     1 free of 40   (2 of 3 agreed; 1 disagreed)
+```
+
+Six of sixteen reels hold a readable inventory; the other ten say **"no frame held a readable
+inventory panel — which is not the same as an empty inventory"** rather than printing 0 free.
