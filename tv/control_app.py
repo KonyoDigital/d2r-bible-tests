@@ -7734,6 +7734,33 @@ def _kai_closer_loop():
             time.sleep(10.0)
 
 
+def _intake_why(body):
+    """ONE SENTENCE SAYING WHICH KIND OF NOTHING THIS WAS.
+
+    Four outcomes that used to look identical in the journal and in the AI-READS feed. They are
+    different facts and a reader acts differently on each, so they get different words — the same
+    rule v1887 applied to a zero count and v1943 to an empty routing.
+    """
+    try:
+        err = int(body.get("errors") or 0)
+    except Exception:
+        err = 0
+    try:
+        tot = int(body.get("total") or 0)
+    except Exception:
+        tot = 0
+    ok = bool(body.get("ok", True))
+    if body.get("err"):
+        return str(body.get("err"))[:200]
+    if err:
+        return "read failed \u2014 %d image error%s" % (err, "" if err == 1 else "s")
+    if body.get("guardHeld"):
+        return "held \u2014 the read did not beat the stored count"
+    if not ok and not tot:
+        return "read fine \u2014 nothing on this screen to count"
+    return ""
+
+
 def _kai_journal_rows():
     """Fresh journal rows for KAI (module-level read; the handler cache is instance-side)."""
     rows = []
@@ -8763,8 +8790,13 @@ def _receipts_stream():
                 # rule v1887 applied to the stash tallies next door. [[unknown-stays-unknown]]
                 _ok = bool(ik.get("ok", True))
                 _err = int(ik.get("errors") or 0)
+                # v1945 — prefer the reason the record actually carries; the derivations below are
+                # the fallback for rows written before the handler started keeping it.
+                _why = str(ik.get("why") or "").strip()
                 if tot:
                     _tail = " \u00d7%d" % tot
+                elif _why:
+                    _tail = " \u00b7 " + _why
                 elif _err:
                     _tail = " \u00b7 read failed (%d image error%s)" % (_err, "" if _err == 1 else "s")
                 elif not _ok:
@@ -12876,7 +12908,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1944",
+        "ver": "v1945",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -15192,6 +15224,22 @@ class Handler(BaseHTTPRequestHandler):
                         "errors": int(body.get("errors") or 0),
                         "items": (body.get("items") or [])[:60],
                         "ok": bool(body.get("ok", True)),
+                        # ── v1945 — KEEP THE REASON THE SENDER ALREADY SENT ──────────────────
+                        # Konyo: "also AI read needs an update". MEASURED over his journal: 46
+                        # intake records, 45 of them ok:false, and not ONE carrying a reason —
+                        # every single one `{tab,kind,counts:{},total:0,errors:0,items:[],ok:false}`.
+                        # So a deliberate guard hold, a failed read, and a read that honestly found
+                        # nothing were indistinguishable in the record, and the feed could only say
+                        # "routed".
+                        #
+                        # The sender was never the problem. The kai-funnel fire has posted
+                        # `guardHeld:!applied` since v1197 (control_app.py ~7323) and the route
+                        # guard writes `refused`/`err` (~7942). THIS handler built the record from
+                        # seven fields and dropped the rest on the floor — the explanation arrived
+                        # and was thrown away at the door. [[the-unjoined-end]]
+                        **({"guardHeld": True} if body.get("guardHeld") else {}),
+                        **({"err": str(body.get("err"))[:200]} if body.get("err") else {}),
+                        "why": _intake_why(body),
                     },
                     "frameId": _fid,
                     "capSrc": _cap_src,

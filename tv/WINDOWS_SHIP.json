@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1944",
+  "ver": "v1945",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1944: v1940 made the photo intakes merge-MAX so total became the sum of raises, and ok was defined as total greater than zero. A re-read of an unchanged shelf raised nothing and would have reported a failed read, which also blocks the kai-funnel from marking the frame routed.",
+  "note": "v1945: The kai-funnel has posted guardHeld since v1197 and the route guard writes refused and err, but the intake_result handler built its record from seven fields and dropped the rest. So a guard hold, a failed read and an honestly empty screen were one indistinguishable record.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

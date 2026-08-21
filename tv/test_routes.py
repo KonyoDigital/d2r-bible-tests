@@ -2376,6 +2376,39 @@ class TestAnEmptyRoutingSaysSo(unittest.TestCase):
         self.assertIn("read failed", label, "an image error was reported as an empty shelf: %r" % label)
         self.assertIn("2 image errors", label, "the error COUNT was dropped: %r" % label)
 
+    def test_the_four_kinds_of_nothing_get_four_different_sentences(self):
+        """v1945 — 45 of his 46 intakes were ok:false and NOT ONE carried a reason. A guard hold, a
+        failed read, and an honest empty screen were the same record and the same feed row. They are
+        different facts and a reader acts differently on each."""
+        import control_app as ca
+        got = {
+            "errors":    ca._intake_why({"errors": 2}),
+            "guardHeld": ca._intake_why({"guardHeld": True, "ok": False}),
+            "empty":     ca._intake_why({"ok": False, "total": 0}),
+            "fine":      ca._intake_why({"ok": True, "total": 7}),
+            "explicit":  ca._intake_why({"err": "the reader threw"}),
+        }
+        self.assertIn("image error", got["errors"], got)
+        self.assertIn("held", got["guardHeld"], got)
+        self.assertIn("nothing", got["empty"], got)
+        self.assertEqual(got["fine"], "", "a SUCCESSFUL read was given a failure reason: %r" % got["fine"])
+        self.assertEqual(got["explicit"], "the reader threw", got)
+        # and they must not collapse into each other — that collapse IS the defect
+        distinct = {v for k, v in got.items() if v}
+        self.assertEqual(len(distinct), 4, "two different failures share one sentence: %s" % got)
+
+    def test_a_guard_hold_is_not_reported_as_an_empty_shelf(self):
+        """The pair that mattered most: the kai-funnel has POSTED `guardHeld` since v1197; the
+        /intake_result handler built its record from seven fields and dropped it. The explanation
+        arrived and was thrown away at the door. [[the-unjoined-end]]"""
+        rows = self._stream_with({"tab": "gems", "kind": "kai-funnel", "ok": False,
+                                  "errors": 0, "total": 0, "guardHeld": True,
+                                  "why": "held \u2014 the read did not beat the stored count"})
+        label = (rows[0].get("diablo") or {}).get("label") or ""
+        self.assertIn("held", label, "a guard hold still reads as an empty shelf: %r" % label)
+        self.assertNotIn("nothing counted", label,
+                         "the hold was overwritten by the generic empty message: %r" % label)
+
     def test_a_real_routing_is_untouched(self):
         rows = self._stream_with({"tab": "gems", "kind": "tally", "ok": True,
                                   "errors": 0, "total": 7})
