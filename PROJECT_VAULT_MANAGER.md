@@ -87,8 +87,40 @@ ever walked**. That is why the vault lane looked starved.
 gems at 0.508 and runes at 0.875 with no frames to check. The reels have both. Opened and looked at:
 **runes reads 0.874, gems reads 0.506.** The gem reader is 5 of 5 tabs, verified on his own footage.
 
-## The step after this one
+## The step after this one — STARTED, and the first two attempts FAILED
 
-Still not the big build. **Label what is IN the slots** on a handful of those 151 frames — the grid
-position of every item — because *"has it moved?"* cannot be scored until *"what is in slot (r,c)?"*
-can be. The corpus index says which frames to label and which reels they live in.
+**Label what is IN the slots**, because *"has it moved?"* cannot be scored until *"what is in slot
+(row, col)?"* can be. That needs a slot ADDRESS, which needs the cell lattice.
+
+Opened `f_1784984271825` (GEMS tab) and looked: it is an unmistakable **7 × 5 lattice** of bordered
+cells, each holding one gem with its stack count in the corner, with the Horadric cube's 3 × 4 grid
+below it. To the eye it could not be clearer.
+
+**Two cheap recoveries were tried and neither worked**, and both are recorded so the third does not
+repeat them:
+
+| attempt | expected | got |
+|---|---|---|
+| peak-picking the column/row brightness projection | 7 columns, even pitch | 14 columns, pitch sd **34 on a mean of 70** — it locked onto gem highlights and stack digits, not dividers |
+| autocorrelating the brightness profile | pitch ≈ 151 px | **216 px** (a harmonic); at the true lag the correlation is strongly **negative** |
+| autocorrelating the dark-cell/divider fraction | a clean square wave | best lag **108 px**, ac **0.023** — no peak anywhere near 151 |
+
+**The lesson is REG-205's, one subsystem over: the obvious feature is the wrong feature.** There, five
+equal cells and argmax luminance got 1 of 3, and the answer turned out to be a small structural
+marker — the active-tab gem — that no projection would ever have found.
+
+**What to try next, in order:**
+1. **The cell BOX, not the projection.** Every cell is a bordered rectangle of a fixed size. Match one
+   cell template across the panel, or find the repeated rectangle directly. The lattice is a grid of
+   boxes; a 1-D projection throws away the fact that makes it recognisable.
+2. **Derive the panel rectangle first.** Every attempt above used a hand-eyeballed crop box, and a
+   crop whose edges include panel chrome distorts every statistic taken inside it. The panel's inner
+   frame is a strong rectangle — find it, then the grid is a known fraction of it.
+3. **Then, and only then, label.** A slot map built on a lattice that was fitted rather than found is
+   a plausible-but-wrong detector, which is the precise failure v1857/v1859 already cost.
+
+⚠ **And the tally tabs are a different problem from the free-form ones.** GEMS / RUNES / MATERIALS are
+a fixed catalogue grid ordered by type — "did it move" is close to meaningless there, and the vault
+lane's existing COUNT logic already owns them. The movement question is only real for **personal**,
+**shared**, **inventory** and **equipment**. That splits the work, and it means the 102 personal and
+23 shared frames are the ones that matter for the lock.
