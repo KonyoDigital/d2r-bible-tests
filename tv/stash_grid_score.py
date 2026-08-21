@@ -66,6 +66,9 @@ def score(hist_dir=None):
     hist = hist_dir or os.path.join(HERE, "frames", "hist")
     rows, missing = [], []
     for frame, t in sorted(load_truth().items()):
+        # v1919 — a corpus entry may name a frame INSIDE a reel ("reel_x/f_y.jpg"), because the two
+        # tabs that verified the gem geometry live there. os.path.join handles both; what changed is
+        # that the corpus is no longer confined to the loose half of the archive.
         p = os.path.join(hist, frame)
         if not os.path.isfile(p):
             missing.append(frame)

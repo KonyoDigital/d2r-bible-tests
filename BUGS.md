@@ -8279,3 +8279,41 @@ provenance write between the push and the return moved them apart and it went re
 still refused, still returned, and still wrote nothing. It asserts the **property** now — pushed,
 returned, and no writer in the branch — and it was driven RED by letting the refusal write.
 [[source-reading-guard]]
+
+## REG-270 — the ownership footage was never missing; the archive is two archives (MEASURED v1919)
+
+The Vault Manager brief needs one number before any of it is buildable: **how many frames of each
+surface does he have, and which tab is each one on.** `tv/vault_corpus.py` answers it from pixels
+alone — the INVENTORY title (gold-on-stone in a fixed band, scored as a fraction) and the v1912
+active-tab gem. No model call.
+
+**MEASURED over the 27 reels the sweeps already walk:**
+
+| | |
+|---|---|
+| frames carrying ownership evidence | **263** |
+| the stash+inventory template — his exact "both panels open" | **112** |
+| a structurally readable stash tab | **151** |
+| by tab | personal **102** · shared **23** · materials **14** · runes **8** · gems **4** |
+
+⚠ **THE ARCHIVE IS TWO ARCHIVES, AND EVERY STASH MEASUREMENT SO FAR WAS TAKEN ON THE WRONG HALF.**
+`frames/hist` holds **883 loose frames**; the 27 reels hold **1,970**; they share **zero filenames**.
+The 68-frame corpus, the gem calibration and `stash_grid_truth.json` all came from the **loose** half
+— **which no sweep has ever walked**. REG-185's *"0 of 17 reels declare an ownership surface"* was
+read for months as "there is no stash footage"; it only ever said no reel **declared** one.
+
+✅ **THE FALSIFIABLE PREDICTION FROM v1912 CAME TRUE.** The tab pitch `0.141 + 0.1835·i` was derived
+from three tabs and predicted **gems 0.508** and **runes 0.875** with no frames to check them
+against. The reels have both. Opened and looked at — gold box and gem on the named tab:
+
+```
+f_1784984269782   RUNES   detector x = 0.874   predicted 0.875   (off by 0.001)
+f_1784984271825   GEMS    detector x = 0.506   predicted 0.508   (off by 0.002)
+```
+
+**The gem reader is 5 of 5 tabs**, and the corpus behind that claim is 151 frames, not 12.
+
+⚠ **Widening the corpus surfaced a real miss, and the ratchet went UP.** The runes frame is a genuine
+RUNES panel the grid fingerprint calls plain `stash` — `MISSED_TALLIES` goes 0 → **1**. It is
+contained: the gem names that frame correctly, so `fuse_tab_signals` still answers
+`('runes', ['gem'])`. **A number that only ever goes down is a number nobody is testing.**

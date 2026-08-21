@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1918",
+  "ver": "v1919",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1918: He asked for the ledger to register each item timestamped to when it was analyzed and to record what happened to it while routing and funnelling and tallying, in Diablo language, so a wrong route can be fixed surgically later. He is describing the visual backend log this file already calls every KAI read forever for debug - and its recorder was IIFE-private, so the accept path could not call it from the same file. Measured on the proposal on his disk: 302 rows ready to apply, all 302 carrying why and witnesses and seen with reel frame and lane, and the apply read exactly three fields per row. Six provenance facts arrived and one survived. Every applied item now leaves a row saying where it landed, which photograph and which eye produced it, when the game says he found it, and why in his words - and a refusal leaves a row too, which it never did.",
+  "note": "v1919: The vault manager brief needs one number before any of it is buildable - how many frames of each surface he has and which tab each is on - and a new indexer answers it from pixels alone with the inventory title and the active-tab gem, no model call. Over the 27 reels the sweeps already walk: 263 frames carry ownership evidence, 112 show his both-panels-open template, and 151 have a structurally readable stash tab across all five tabs. The archive is two archives - 883 loose frames and 1970 inside reels sharing zero filenames - and every stash measurement so far was taken on the loose half, which no sweep has ever walked. And the falsifiable prediction from v1912 came true: a pitch derived from three tabs placed the other two within two thousandths, so the gem reader is five of five, verified on his own footage. Widening the corpus surfaced a real miss and the ratchet went UP, which is what a corpus is for.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -188,7 +188,13 @@ class TestTheGridAgainstHandLabelledFrames(unittest.TestCase):
     """
 
     FALSE_TALLIES = 0    # v1909: was 3 here (8 across his whole hist) before the ceiling landed
-    MISSED_TALLIES = 0   # v1912: was 1, and the 'miss' was a WRONG LABEL — see the gem reader
+    # v1919 — BACK TO 1, AND THE ONE IS REAL THIS TIME. Widening the corpus into the reels added a
+    # genuine RUNES panel (f_1784984269782) that the grid fingerprint calls plain `stash`. It is a
+    # MISS, not a false tally, and it is contained: the gem reader names that frame `runes`
+    # correctly, so fuse_tab_signals still answers ('runes', ['gem']) — the fingerprint being blind
+    # to a tab no longer decides anything on its own. Widening a corpus is supposed to surface
+    # exactly this; a number that only ever goes down is a number nobody is testing.
+    MISSED_TALLIES = 1
 
     def _rows(self):
         import stash_grid_score as sgs
@@ -201,7 +207,8 @@ class TestTheGridAgainstHandLabelledFrames(unittest.TestCase):
         """A missing frame must never read as a pass — an empty corpus scores perfectly."""
         rows, missing = self._rows()
         self.assertEqual(missing, [], "labelled frames vanished from the checkout: %s" % (missing,))
-        self.assertEqual(len(rows), 12)
+        self.assertEqual(len(rows), 14, "the corpus lost frames — it spans BOTH halves of the "
+                                        "archive now, the loose one and the reels")
 
     def test_no_frame_without_a_panel_is_given_a_TALLY(self):
         """THE EXPENSIVE ERROR. A false tally writes a tally count for a panel that was never open;
@@ -330,15 +337,31 @@ class TestTheActiveTabGem(unittest.TestCase):
         self.assertEqual(tab, "", "a blue wash over the gem band still named a tab: %r" % (detail,))
         self.assertIn("too much blue", detail.get("why", ""))
 
-    def test_the_pitch_is_measured_and_its_two_predictions_are_declared(self):
+    def test_the_pitch_predicted_the_two_tabs_it_had_never_seen(self):
         """personal 0.141, shared 0.324, materials 0.691 — one and two pitches apart. That fixes
-        gems at 0.508 and runes at 0.875, and NEITHER has a frame in his corpus. The constants must
-        keep saying so rather than letting two unverified predictions read as covered."""
+        gems at 0.508 and runes at 0.875, and when v1912 shipped, NEITHER had a frame in his corpus;
+        both were recorded UNVERIFIED rather than counted as covered.
+
+        ✅ v1919 — vault_corpus.py found them in the REELS, a half of the archive no stash
+        measurement had touched, and the prediction landed on the nose:
+            f_1784984269782  RUNES  x=0.874  vs 0.875 predicted   (off by 0.001)
+            f_1784984271825  GEMS   x=0.506  vs 0.508 predicted   (off by 0.002)
+        A pitch derived from three tabs placed the other two to within two thousandths of the strip.
+        This pins the arithmetic AND the two frames, so a retune has to keep both."""
         self.assertAlmostEqual(se._GEM_FIRST + se._GEM_PITCH * 1, 0.3245, places=3)
+        self.assertAlmostEqual(se._GEM_FIRST + se._GEM_PITCH * 2, 0.5080, places=3)
         self.assertAlmostEqual(se._GEM_FIRST + se._GEM_PITCH * 3, 0.6915, places=3)
-        src = open(se.__file__, encoding="utf-8").read()
-        self.assertIn("UNVERIFIED", src,
-                      "the note that gems and runes have no example frame is gone")
+        self.assertAlmostEqual(se._GEM_FIRST + se._GEM_PITCH * 4, 0.8750, places=3)
+        here = os.path.dirname(os.path.abspath(__file__))
+        for frame, want, x in (("reel_s_1784984019250_95276/f_1784984269782.jpg", "runes", 0.874),
+                               ("reel_s_1784984019250_95276/f_1784984271825.jpg", "gems", 0.506)):
+            p = os.path.join(here, "frames", "hist", frame)
+            if not os.path.isfile(p):
+                self.skipTest("his reels are not in this checkout")
+            got, d = se.tab_from_gem(p)
+            self.assertEqual(got, want, "%s: the reader stopped seeing the %s tab" % (frame, want))
+            self.assertAlmostEqual(d.get("gemX", 0), x, places=2,
+                                   msg="the gem moved on a frame the geometry was verified against")
 
     def test_the_gem_is_a_witness_in_the_fusion_and_never_outranks_the_WORDS(self):
         self.assertEqual(se.fuse_tab_signals(gem_tab="materials"), ("materials", ["gem"]))

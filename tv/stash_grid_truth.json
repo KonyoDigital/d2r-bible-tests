@@ -62,6 +62,17 @@
    "panel": false,
    "tab": null,
    "note": "the CHRONICLE panel (Sets) is open — a panel, but NOT a stash"
+  },
+  "reel_s_1784984019250_95276/f_1784984269782.jpg": {
+   "panel": true,
+   "tab": "runes",
+   "note": "v1919 — the RUNES example v1912 predicted and could not verify. Gold box and blue gem both on RUNES; the detector reads x=0.874 against a predicted 0.875. Lives INSIDE a reel, which is the half of the archive no stash measurement had touched."
+  },
+  "reel_s_1784984019250_95276/f_1784984271825.jpg": {
+   "panel": true,
+   "tab": "gems",
+   "note": "v1919 — the GEMS example. Detector x=0.506 against a predicted 0.508. Same reel."
   }
- }
+ },
+ "_corpus": "v1919 — tv/vault_corpus.py indexes the ownership footage. Measured 2026-08-21 over the 27 reels the sweeps walk: 263 frames carry evidence, 112 show the stash+inventory template, 151 have a readable tab — personal 102, shared 23, materials 14, runes 8, gems 4. The loose frames/hist root holds a SEPARATE 883 with zero filename overlap."
 }

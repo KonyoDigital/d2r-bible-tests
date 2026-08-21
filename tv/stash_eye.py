@@ -382,8 +382,17 @@ def _panel_open_from_features(frac_dark: float, dark_cols: int) -> Tuple[bool, b
 # THE GEOMETRY IS REGULAR, and that is a MEASUREMENT rather than an assumption. The gem centres came
 # out at personal 0.141, shared 0.324, materials 0.691 of the strip — differences of 0.183 and
 # 0.367, exactly one and two pitches. So the five centres are 0.141 + 0.1835*i, which PREDICTS
-# gems at 0.508 and runes at 0.875. No frame in his corpus has those two tabs open, so those two
-# predictions are UNVERIFIED and say so here rather than being quietly counted as covered.
+# gems at 0.508 and runes at 0.875. When this was written no frame in his corpus had those two tabs
+# open, so both were recorded as UNVERIFIED rather than quietly counted as covered.
+#
+# ✅ v1919 — BOTH PREDICTIONS ARE NOW VERIFIED, on his own footage, and they came in on the nose.
+# vault_corpus.py found the missing frames in the REELS — a half of the archive no stash measurement
+# had ever touched (the 883 loose frames in frames/hist and the 1,970 inside the reels share ZERO
+# filenames). Opened and looked at, gold box and gem both on the named tab:
+#     f_1784984269782  RUNES  detector x=0.874   predicted 0.875   (off by 0.001)
+#     f_1784984271825  GEMS   detector x=0.506   predicted 0.508   (off by 0.002)
+# A pitch derived from three tabs placed the other two to within two thousandths of the strip. The
+# reader is 5 of 5 tabs, and the corpus behind that claim is 151 tab-readable frames, not 12.
 #
 # ⚠ THE FALSE POSITIVE THAT ALMOST SHIPPED: run without the guards below, this named a tab on 131
 # of his 883 frames, 125 of them "personal" — and five of the six I opened were SOLID BLUE capture
