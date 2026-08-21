@@ -8978,3 +8978,35 @@ constant or say it is history. Seen RED by restoring the stale marker.
 
 ⚠ The guard's own first draft used `io.open` in a suite that does not import `io`. The guard about
 stale comments failed on its own missing import. Caught by running it.
+
+## REG-298 — my repair mutated another spec's fixture, and only CI caught it (FIXED v1937)
+
+v1925's ledger repair runs on load and removes rows the game's Remaining page lists as missing.
+`tests/v1692_tally_counts_the_chronicle.spec.ts` seeds **110** set pieces — including
+`Natalya's Soul (claws)` and `Sazabi's Ghost Liberator (balrog skin)`, the exact two — and then read
+**108 of its own fixture**.
+
+⚠ **The pre-push smoke does not run that spec. Routine I did.** Six versions of Routine I show
+`cancelled` (superseded by the next push) with one `failure` in the middle — a red full-suite run
+that no local signal reproduced, because the local subset never touches it.
+
+⚠ **AND THE MECHANISM TO PREVENT THIS ALREADY EXISTED.** `tests/_oneshots.ts` derives every
+boot-apply guard **out of bible.html** by the pattern `d2r_v<version><Thing>Applied`, so a spec can
+boot as a *later* load. It was written because a hand-listed version went stale and reported *"the
+app MUTATED his ledger"* about a correct apply — the same failure, one ship earlier.
+
+`d2r_setRepairAt` does not match that pattern, so the suppressor could not see it. Fixed by naming a
+second guard correctly — and the spec then passed with **zero spec changes**, because the suppressor
+derives it from source.
+
+Two keys, two questions, and conflating them is what cost the CI round-trip:
+
+```
+d2r_setRepairAt                    WHICH READING did this act on   (staleness)
+d2r_v1925RemainingRepairApplied    is a SPEC booting a later load  (suppression)
+```
+
+⚠ **Suppression covers the game-Remaining apply only.** The unique-in-the-set-store branch is NOT
+suppressed: "this is a unique" is a structural invariant, not a one-shot decision, and it does not
+go stale. Measured — his board removes 3, a suppressed spec removes 1.
+[[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]

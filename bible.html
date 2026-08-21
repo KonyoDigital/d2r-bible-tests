@@ -38863,6 +38863,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { ((window._SET_MISSING || {}).names || []).forEach(function(n){ missing[n] = 1; }); } catch(e){}
     var doneThisReading = false;
     try { doneThisReading = readAt && window.LSR.getItem('d2r_setRepairAt') === readAt; } catch(e){}
+    /* ⚠ v1937 — AND THE ONE-SHOT CONVENTION THIS REPAIR NEVER JOINED.
+       tests/_oneshots.ts derives every boot-apply guard OUT OF THIS FILE by the pattern
+       `d2r_v<version><Thing>Applied`, so a spec that seeds a ledger can boot as a LATER load and
+       measure the page as he sees it every day. It was written precisely because a hand-listed
+       version of it went stale and reported "the app MUTATED his ledger" about a correct apply.
+
+       `d2r_setRepairAt` does not match that pattern, so the suppressor could not see it — and this
+       repair silently removed two rows from the fixture of v1692's tally spec, which then read
+       108 of its own seeded 110. CI caught it; the pre-push smoke subset does not run that spec.
+
+       The readAt key stays: it is the STALENESS guard and answers "which reading did this act on".
+       This second, conventional flag answers a different question — "is a spec booting a later
+       load" — and naming it correctly is what joins this repair to the machinery that already
+       existed. [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] */
+    var _repairSuppressed = false;
+    try { _repairSuppressed = window.LSR.getItem('d2r_v1925RemainingRepairApplied') === '1'; } catch(e){}
 
     var keep = [];
     sp.forEach(function(n){
@@ -38891,7 +38907,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          it was working. A negative reading expires; the guard built on it must expire with it.
          The not-a-set-piece branch above has no such clause, because "this is a unique" does not
          go stale. [[stale-reading]] */
-      if (missing[n] && !doneThisReading){
+      if (missing[n] && !doneThisReading && !_repairSuppressed){
         out.removed.push({ name: n, why: 'the game\u2019s own Remaining page still lists this as '
           + 'missing (read ' + ((window._SET_MISSING || {}).readAt || 'recently') + ')' });
         return;
@@ -42660,7 +42676,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1936', name:'v1936 - A table that outlived its constant', date:'2026-08-21', note:'The last unswept class from the hardening brief: a comment asserting a rule the adjacent code does not enforce. The broad sweep is useless and saying so IS the finding - matching strong assertions above code returned 449 candidates and every one inspected was ordinary prose using never descriptively, which is a finding too large to act on and therefore noise. The one real instance came from following a known scar instead: the chronicle still-threshold constant is 0.002, while the calibration table three lines above it still read 0.005 chosen. A later version had moved the constant correctly with its evidence immediately below, and nobody updated the table above - two statements about one number, three lines apart, disagreeing. Nothing was broken because the code is right; what was broken is the instruction to the next reader, who sees the old value marked chosen beside the new one and helpfully corrects a deliberate decision back to the comment. I nearly did exactly that, which is the only reason it is written down. The guard own first draft used an io helper in a suite that does not import io, so the guard about stale comments failed on its own missing import.' };
+  window.D2R_BUILD = { id:'v1937', name:'v1937 - The repair that edited a fixture', date:'2026-08-21', note:'The ledger repair from v1925 runs on load and removes rows the game Remaining page lists as missing - and it did that to another spec seeded fixture, which then read 108 of its own 110. The pre-push smoke does not run that spec; the full Playwright routine on CI did, and six of its recent runs show cancelled with one failure in the middle, a red full-suite run no local signal reproduced. The mechanism to prevent this already existed: the one-shots helper derives every boot-apply guard out of bible.html by a naming pattern so a spec can boot as a later load, and it was written because a hand-listed version went stale and reported that the app had mutated his ledger about a correct apply - the same failure one ship earlier. My guard key did not match the pattern so the suppressor could not see it. Naming a second guard correctly fixed the spec with zero spec changes, because the suppressor derives it from source. Two keys now answer two questions: which reading did this act on, and is a spec booting a later load. Suppression covers the game-Remaining apply only; a unique sitting in the set store is a structural invariant that does not go stale and is never suppressed - measured, his board removes three and a suppressed spec removes one.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

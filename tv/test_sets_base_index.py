@@ -207,7 +207,10 @@ class TestTheLedgerRepair(unittest.TestCase):
                       "the missing-list branch must be gated on the reading key")
         # ...and the not-a-set-piece branch must NOT be gated: "this is a unique" never goes stale
         i_uni = s.index("it was routed into the set ledger by mistake")
-        i_gate = s.index("if (missing[n] && !doneThisReading)")
+        # v1937 added `&& !_repairSuppressed` to this line; the pin below caught the change, which
+        # is the guard working. Anchored on the stable prefix so the next legitimate condition does
+        # not read as a regression.
+        i_gate = s.index("if (missing[n] && !doneThisReading")
         self.assertLess(i_uni, i_gate,
                         "the unique branch must run before, and independently of, the expiring one")
 
@@ -509,6 +512,51 @@ class TestAKeeperCanNameItsPhotograph(unittest.TestCase):
         seg = s[i - 200:i + 160]
         self.assertIn("_d2artEsc(", seg)
         self.assertNotIn("+ esc(", seg)
+
+
+class TestTheRepairJoinedTheOneShotConvention(unittest.TestCase):
+    """My v1925 repair mutated another spec's fixture, and CI is what caught it.
+
+    tests/_oneshots.ts derives every boot-apply guard OUT OF bible.html by the pattern
+    `d2r_v<version><Thing>Applied`, so a spec that seeds a ledger can boot as a LATER load. It
+    exists because a hand-listed version went stale and reported "the app MUTATED his ledger" about
+    a correct apply.
+
+    `d2r_setRepairAt` does not match that pattern, so the suppressor could not see it: the repair
+    quietly removed two rows from v1692's seeded 110 and the spec read 108 of its own fixture. The
+    pre-push smoke subset does not run that spec; **Routine I did**.
+
+    Two keys, two questions, and conflating them is why this took a CI round-trip:
+        d2r_setRepairAt                    WHICH READING did this act on (staleness)
+        d2r_v1925RemainingRepairApplied    is a SPEC booting a later load (suppression)
+
+    ⚠ Suppression covers the game-Remaining apply only. The unique-in-the-set-store branch is NOT
+    suppressed, because "this is a unique" is a structural invariant, not a one-shot decision, and
+    it does not go stale. Measured: his board removes 3, a suppressed spec removes 1.
+    [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]
+    """
+
+    def _src(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_flag_matches_the_pattern_the_suppressor_derives(self):
+        import re
+        s = self._src()
+        flags = set(re.findall(r"d2r_v\d{3,4}[A-Za-z]*Applied", s))
+        self.assertIn("d2r_v1925RemainingRepairApplied", flags,
+                      "the repair's guard does not match d2r_v<version><Thing>Applied, so "
+                      "tests/_oneshots.ts cannot see it and it will mutate seeded fixtures")
+
+    def test_only_the_expiring_branch_is_suppressed(self):
+        """A structural invariant must not be switched off by a test convenience."""
+        s = self._src()
+        self.assertIn("if (missing[n] && !doneThisReading && !_repairSuppressed)", s)
+        i_uni = s.index("it was routed into the set ledger by mistake")
+        i_supp = s.index("!_repairSuppressed")
+        self.assertLess(i_uni, i_supp,
+                        "the unique branch must run before, and independently of, the suppressible "
+                        "one — a unique in the set store is wrong on every load")
 
 
 if __name__ == "__main__":
