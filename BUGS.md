@@ -8396,3 +8396,46 @@ Deciding which reading is newer needs a timestamp on the sighting, which these d
 not-found reading is perfectly ordinary once he has since found the item, so picking a side would be
 an invention. It is reported and left to him. [[unknown-stays-unknown]]
 [[feedback-contradiction-is-the-finding]]
+
+## REG-273 — cross-referencing his own Remaining page: the proposal is 35 of 36 right, and one row is wrong (MEASURED v1922)
+
+Konyo: *"just did a F-sets MINI SESSION FOR SETS check the last reel session and cross reference is
+and see exactly the correct sets i have and make sure the AI READERS are reading them and correctly
+tallying and fix what is wrongly counted"*, then *"this is exactly 19 i still have missing"*.
+
+His 25-frame session was the sets Chronicle with the **Remaining** filter on — the game's own list of
+what he does not have. **Read by eye, not by a model**, off `reel_s_1787307553811_9452`, and it comes
+to **exactly 19**, matching his count.
+
+⚠ **THE GAME LISTS REMAINING PIECES BY THEIR BASE NAME**, not the set-piece name: `Ward`,
+`Occult Codex`, `Sacred Armor`, `Bramble Mitts`. The roster records that base in each piece's slot
+suffix (`Taebaek's Glory (ward)`, `Laying of Hands (bramble mitts)`), so all **19 of 19** matched
+exactly. This is also the reason a reader must never treat a Remaining page as a list of finds — the
+board already knows the shape as `base-name-still-to-find`.
+
+Saved as `tv/sets_remaining_2026-08-21.json`.
+
+**CROSS-REFERENCED AGAINST THE PENDING PROPOSAL:**
+
+| | |
+|---|---|
+| the game says he is missing | **19** |
+| the sweep proposes to add | **36** |
+| proposed AND consistent with the game | **35** |
+| ⚠ proposed but the game says he does NOT have it | **1 — `Natalya's Soul (claws)`** |
+| held names that are genuinely missing | 0 (nothing was wrongly withheld) |
+
+So the readers are doing well — **35 of 36** — and the single bad row is now named rather than
+suspected. The proposal is safe to register **minus that one**, and v1916's own tooltip already tells
+him the write is reversible per item.
+
+⚠ **AND A CORRECTION TO MY OWN EARLIER CLAIM, twice over.** I said 12 of the 36 were pieces the game
+shows as unfound; the real number measured against today's Remaining page is **1**. I also told him
+he was right that `Immortal King's Will` is not his — **today's game data shows it as FOUND**. Both of
+my claims came from `notFound` readings with no date on them (REG-272), which is exactly the defect
+that made them unusable as evidence. The lesson is the one already carved: an inherited claim is not
+evidence, and a claim built on undated evidence cannot be checked.
+
+**Still open and separate:** the board counts **118** where the game's own arithmetic gives **116**
+(116 + 19 = 135). Those two phantoms are in what the board ALREADY holds, not in this proposal — the
+two pieces on the 19 that his board does not list among its 17 missing.
