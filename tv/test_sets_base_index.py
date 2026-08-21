@@ -478,6 +478,28 @@ class TestAKeeperCanNameItsPhotograph(unittest.TestCase):
         self.assertIn("no source frame for this", s)
         self.assertIn("Untick it if you do not own it", s)
 
+    def test_the_UPLOAD_lane_records_the_filename_it_already_had(self):
+        """v1934 fixed the aic-judge writer and NAMED this one as still blind. It was not.
+
+        `fname` — the uploaded screenshot's filename — is in scope at the writer, and
+        `_vPutShot(fname, …)` has stashed the FULL-RES image in IndexedDB under that same key since
+        v365, for click-to-enlarge. So this lane can not only name its source, it can SHOW it. The
+        receipt existed, was already keyed, and the row dropped it anyway. [[the-unjoined-end]]"""
+        s = self._src()
+        i = s.index("magicFinds[nm] = { q: f.q || 'magic'")
+        seg = s[i:i + 300]
+        self.assertIn("shotFile: fname", seg,
+                      "the upload lane still drops the filename it already has in scope")
+        self.assertIn("the full-res shot is stored", s,
+                      "the card does not offer the shot it can actually produce")
+
+    def test_all_three_provenance_states_are_distinguishable(self):
+        """frame · filename · nothing. Collapsing any two of these is how a claim outlives its
+        evidence."""
+        s = self._src()
+        for phrase in ("· frame ", "the full-res shot is stored", "no source frame for this"):
+            self.assertIn(phrase, s, "missing the %r branch" % phrase)
+
     def test_the_provenance_branch_uses_an_escaper_that_EXISTS(self):
         """⚠ It first used `esc`, which is not in that scope — and ONLY the with-provenance branch
         reaches that line, so it threw ReferenceError on exactly the case the feature adds. Testing

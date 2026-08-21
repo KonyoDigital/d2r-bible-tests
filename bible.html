@@ -10312,6 +10312,9 @@ function _mfTipHtml(name){
         // reaches this line, so it threw ReferenceError on exactly the case the feature adds.
         // Testing both branches is the only reason it was caught. [[feedback-blind-fixture-green-gate]]
         if (fid) return 'Stats read from your screenshot · frame ' + _d2artEsc(String(fid).slice(0, 22));
+        var sf = v && typeof v === 'object' ? (v.shotFile || '') : '';
+        if (sf) return 'Stats read from your screenshot · ' + _d2artEsc(String(sf).slice(0, 40))
+                     + ' (the full-res shot is stored — click to enlarge)';
         return 'Stats read from a screenshot the ledger did not record — no source frame for this '
              + 'one, so it cannot be traced back. Untick it if you do not own it.';
       })() + ' Click for the full keeper card.</div>';
@@ -34924,7 +34927,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               if (_jk && _jk.keep && !assign[nm]) assign[nm] = 'magic-rare';   // top-tier → MAGIC & RARE locker
             }
           } catch(e){}
-          if (!magicFinds[nm]){ magicFinds[nm] = { q: f.q || 'magic', base: f.base || '', mods: _mods }; magicNew.push(nm); }
+          /* v1935 — AND THE OTHER DOOR, WHICH HAD BETTER PROVENANCE ALL ALONG.
+             v1934 gave the aic-judge writer frameId/sessionId and NAMED this one as still blind.
+             It is not: `fname` (the uploaded screenshot's filename, line ~34598) is in scope here,
+             and `_vPutShot(fname, …)` has been stashing the FULL-RES image in IndexedDB under that
+             same key since v365 — for click-to-enlarge. So this lane can not only name its source,
+             it can SHOW it.
+             The receipt existed, was already keyed, and the row still dropped it. Recording
+             `shotFile` costs one field and turns "from what picture is this here?" into a
+             filename he can open. [[the-unjoined-end]] */
+          if (!magicFinds[nm]){ magicFinds[nm] = { q: f.q || 'magic', base: f.base || '', mods: _mods,
+                                                   shotFile: fname || '', at: Date.now() }; magicNew.push(nm); }
           else if (typeof magicFinds[nm] === 'object'){
             if (!magicFinds[nm].base && f.base) magicFinds[nm].base = f.base;
             // fill mods if we didn't have them yet (a later/cleaner read of the same item)
@@ -42647,7 +42660,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1934', name:'v1934 - The photograph a keeper could not name', date:'2026-08-21', note:'He looked at a small charm in his MAGIC locker and asked from what picture is this here, and neither he nor the board could answer. A keeper row carried its quality, base, mods and checker verdict and NO frame, reel or session, while the card said stats read from your screenshot - a claim its own data could not support. The receipt was already in scope: thirty seven lines above the writer the same function builds a chronicle proposal carrying frameId, sessionId and firstSeenTs from meta, uses them for the chronicle and drops them for the vault. The tally lane for runes, gems and materials has keyed its durable ledger on session-frame-name since v889; keepers went through a different door and lost it. The writer now records all three and the card names the frame. Rows that predate this carry nothing and the card SAYS so rather than repeating the claim, telling him it cannot be traced and to untick it if he does not own it, because an item whose source cannot be produced is exactly the one he is right to distrust. The provenance branch first used an escaper that is not in that scope, and since only the with-frame case reaches that line it threw on exactly the case the feature adds while passing on the one that already existed - testing both branches is the only reason it was caught.' };
+  window.D2R_BUILD = { id:'v1935', name:'v1935 - The receipt that was already keyed', date:'2026-08-21', note:'The second vault writer, which v1934 named as having no frame in scope and therefore unfixable, had better provenance all along. Its enclosing function holds fname, the uploaded screenshot filename, and the vault has been stashing the FULL RES image in IndexedDB under that same key since v365 for click to enlarge - so this lane can not only name its source, it can show it. The receipt existed, was already keyed, and the row dropped it. The keeper card now distinguishes three states: read from a reel and named by frame, read from an upload and named by a filename whose full res shot is stored and openable, and predating provenance where it says so and tells him to untick it if he does not own it. Collapsing any two of those is how a claim outlives its evidence. The lesson is about the earlier finding rather than this fix: the claim that no frame was in scope came from a regex that walked up a few lines and hit a helper by coincidence, while walking out by brace depth found the real enclosing function immediately. A negative claim deserves the same measurement as a positive one, and I published unfixable on the worse instrument.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

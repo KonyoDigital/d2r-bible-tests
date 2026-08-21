@@ -8924,3 +8924,29 @@ Guard: `TestAKeeperCanNameItsPhotograph` (3).
 ⚠ **The second writer still has no provenance.** A different vault path takes its rows from a finds
 list with no frame in scope. Named here rather than half-fixed: it is a separate seam and it is not
 the one he was looking at.
+
+## REG-297 — the "second writer with no provenance" had BETTER provenance all along (FIXED v1935)
+
+v1934 fixed the aic-judge writer and **named this one as unfixable — "no frame in scope"**. That was
+wrong, and it was wrong because I stopped at the first look instead of walking out to the enclosing
+function.
+
+`processFile(i, _retry)` holds **`fname`** — the uploaded screenshot's filename — and
+`_vPutShot(fname, …)` has been stashing the **full-res image in IndexedDB under that same key since
+v365**, for click-to-enlarge. So this lane can not only name its source, it can **show** it. The
+receipt existed, was already keyed, and the row dropped it.
+
+The keeper card now distinguishes **three** states, and collapsing any two is how a claim outlives
+its evidence:
+
+```
+· frame f_1787307574509                                    read from a reel
+· Screenshot 2026-08-21 at 18.44.12.png (full-res stored)  read from an upload — openable
+  no source frame for this one … untick it if you do not own it   predates provenance
+```
+
+⚠ **The lesson is about the earlier finding, not this fix.** "No frame in scope" came from a regex
+that walked *up* a few lines and hit `_sleep` — a red herring. Walking out by brace depth found the
+real enclosing function immediately. **A negative claim deserves the same measurement as a positive
+one**; I published "unfixable" on a worse instrument than the one that found the answer.
+[[feedback-suspect-the-instrument]] Guard: 2 more in `TestAKeeperCanNameItsPhotograph`.
