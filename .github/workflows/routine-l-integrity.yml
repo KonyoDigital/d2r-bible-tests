@@ -18,8 +18,15 @@ on:
   # documenting this gate as "312 items, 11 bosses" while the baseline it reads says 322 and 13.
   push:
     paths:
+      # v1910 — A GATE MUST SEE THE INPUT IT POLICES, ITSELF INCLUDED. Routine I already says this
+      # in its own path list and fixes it for itself; these four did not. Editing L_integrity.js (or this
+      # workflow) changed what the gate DOES while triggering nothing, so the change landed and the
+      # routine that judges it stayed asleep until the next cron — or, if the edit broke it, until
+      # a bible.html push blamed someone else's commit.
       - 'bible.html'
       - 'baseline/integrity_baseline.json'
+      - 'L_integrity.js'
+      - '.github/workflows/routine-l-integrity.yml'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"

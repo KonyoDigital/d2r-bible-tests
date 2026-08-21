@@ -2,8 +2,18 @@ name: Routine J — visual screenshots
 
 # Replaces laptop launchd "Routine J" (daily 10:00 IDT). Captures 4 reference
 # screenshots (bosses, Travincal card, calc+Shako, TZ tab) and uploads them as
-# a build artifact for manual visual review. (Pixel-diff against a committed
-# baseline can be layered on later.)
+# a build artifact.
+#
+# v1910 — AND IT JUDGES THEM NOW. Until then this job printed "captured 4 screenshots" and exited 0
+# ALWAYS: the shots were uploaded "for manual visual review", and nobody downloads a 30-day artifact
+# daily. So it reported SUCCESS for a page that could be four black rectangles, four copies of one
+# unchanged view, or a calc panel with nothing selected. A green lamp with no judgement.
+#
+# It asserts three renderer-independent things instead of the pixel baseline this header used to
+# propose (a committed baseline goes flaky the moment CI's fonts or GPU flags move, and a gate that
+# cries wolf gets disabled): every shot PAINTED something, the four states are actually DIFFERENT
+# from each other, and the state each shot claims to show is the state the page was in. Thresholds
+# were measured on the real page first — see the header of J_screens.js.
 on:
   schedule:
     - cron: '0 7 * * *'   # 10:00 IDT
@@ -16,7 +26,14 @@ on:
   # remaining routine-* workflows found four more, of which this is one.
   push:
     paths:
+      # v1910 — A GATE MUST SEE THE INPUT IT POLICES, ITSELF INCLUDED. Routine I already says this
+      # in its own path list and fixes it for itself; these four did not. Editing J_screens.js (or this
+      # workflow) changed what the gate DOES while triggering nothing, so the change landed and the
+      # routine that judges it stayed asleep until the next cron — or, if the edit broke it, until
+      # a bible.html push blamed someone else's commit.
       - 'bible.html'
+      - 'J_screens.js'
+      - '.github/workflows/routine-j-screens.yml'
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 

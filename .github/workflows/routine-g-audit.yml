@@ -15,7 +15,14 @@ on:
   # remaining routine-* workflows found four more, of which this is one.
   push:
     paths:
+      # v1910 — A GATE MUST SEE THE INPUT IT POLICES, ITSELF INCLUDED. Routine I already says this
+      # in its own path list and fixes it for itself; these four did not. Editing end_to_end_audit.js (or this
+      # workflow) changed what the gate DOES while triggering nothing, so the change landed and the
+      # routine that judges it stayed asleep until the next cron — or, if the edit broke it, until
+      # a bible.html push blamed someone else's commit.
       - 'bible.html'
+      - 'end_to_end_audit.js'
+      - '.github/workflows/routine-g-audit.yml'
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 

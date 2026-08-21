@@ -15,7 +15,14 @@ on:
   # remaining routine-* workflows found four more, of which this is one.
   push:
     paths:
+      # v1910 — A GATE MUST SEE THE INPUT IT POLICES, ITSELF INCLUDED. Routine I already says this
+      # in its own path list and fixes it for itself; these four did not. Editing H_sweep.js (or this
+      # workflow) changed what the gate DOES while triggering nothing, so the change landed and the
+      # routine that judges it stayed asleep until the next cron — or, if the edit broke it, until
+      # a bible.html push blamed someone else's commit.
       - 'bible.html'
+      - 'H_sweep.js'
+      - '.github/workflows/routine-h-item-sweep.yml'
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -53,11 +60,31 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Run item sweep
         run: node H_sweep.js "$GITHUB_WORKSPACE/bible.html" | tee h.log
-      - name: Gate on item fails
+      # v1910 — GATE ON THREE THINGS, NOT ONE. This step read `fail_count` and nothing else, so it
+      # was green in two cases that are not successes:
+      #
+      #   1. NOTHING WAS TESTED. `items` comes from the page own ITEMS array. If that stops loading
+      #      — a rename, a syntax error above it, a data blob that fails to parse — the sweep
+      #      reports {tested: 0, opened: 0, fail_count: 0} and this gate said PASS. The codebase
+      #      already guards this exact shape elsewhere in as many words: a pass must mean N were
+      #      inspected, never that the matcher matched nothing.
+      #   2. THE PAGE THREW. H_sweep.js has collected `pageerror` since it was written and the gate
+      #      never looked at it — evidence gathered and not consumed, the same defect as a field
+      #      nobody reads.
+      #
+      # Measured on the run before this change: tested 320, opened 320, fail_count 0, errors [].
+      # The floor is 250 — comfortably under the real count and comfortably over zero, and it also
+      # catches ITEMS shrinking, which is a data regression worth a red run on its own.
+      - name: Gate on fails, on nothing tested, and on page errors
         run: |
-          FAILS=$(node -e "const l=require('fs').readFileSync('h.log','utf8').trim().split('\n').pop(); console.log(JSON.parse(l).fail_count)")
-          echo "Item open failures: $FAILS"
-          if [ "$FAILS" -ne 0 ]; then
-            echo "::error::Routine H — $FAILS item(s) failed to open"
-            exit 1
-          fi
+          node -e '
+            const l = require("fs").readFileSync("h.log", "utf8").trim().split("\n").pop();
+            const r = JSON.parse(l);
+            const errs = r.errors || [];
+            console.log("tested " + r.tested + " | opened " + r.opened + " | failed " + r.fail_count + " | page errors " + errs.length);
+            let bad = 0;
+            if (r.fail_count !== 0) { console.log("::error::Routine H — " + r.fail_count + " item(s) failed to open: " + (r.fails || []).join(", ")); bad = 1; }
+            if (!(r.tested >= 250)) { console.log("::error::Routine H tested only " + r.tested + " item(s) — the page ITEMS array did not load, so a green run here would have meant nothing"); bad = 1; }
+            if (errs.length) { console.log("::error::Routine H — the page threw during the sweep: " + errs.join(" | ")); bad = 1; }
+            process.exit(bad);
+          '

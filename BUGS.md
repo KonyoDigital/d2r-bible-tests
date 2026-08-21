@@ -7902,3 +7902,62 @@ different test. [[feedback-blind-fixture-green-gate]]
 **Still open, and now measurable:** `5_1784984201581` is a real RUNES tab the grid calls plain
 `stash` — one missed tally, pinned by the ratchet so a future retune has to keep it at one or say
 what earned better. That is REG-205's remaining half.
+
+## REG-259 — three CI gates that could not fail, and one that failed for no reason (FIXED v1910)
+
+A sweep of every routine asking one question: **can this gate go red for the thing it exists to
+watch?** Four could not, in four different ways.
+
+**1. Routine J was a lamp.** `J_screens.js` captured four PNGs, printed *"captured 4 screenshots"*
+and exited 0 — always. The workflow's own header says they are uploaded *"for manual visual review"*,
+and nobody downloads a 30-day artifact daily. So it reported SUCCESS for a page that could be four
+black rectangles, four copies of one unchanged view, or a calc panel with nothing selected.
+
+It asserts three renderer-independent things now, rather than the pixel baseline the header proposed
+(a committed baseline goes flaky the moment CI's fonts or GPU flags move, and a gate that cries wolf
+gets disabled): every shot **painted** something, the four states are actually **different from each
+other**, and the state each shot **claims** to show is the state the page was in. Every threshold was
+measured first through CDP — 547–751 KB per shot, four distinct md5s, `data-active-tab` stepping
+`bosses → calc → tz` — and `MIN_BYTES` is 60 000: an order of magnitude under the smallest real shot
+and an order of magnitude over a blank 1600×1200 PNG.
+
+⚠ **And shot 01 was never the bosses.** The page opens on `session`, so `01_bosses.png` has been a
+picture of the session cockpit for as long as that file existed. It clicks the bosses tab now —
+restoring the intent rather than renaming the evidence. [[label-outlived-referent]]
+
+**2. Routine H could pass vacuously.** It gated on `fail_count !== 0` and nothing else. `items` comes
+from the page's own `ITEMS` array; if that stops loading the sweep reports
+`{tested: 0, opened: 0, fail_count: 0}` and the gate said **PASS**. It also collected `pageerror`
+since the day it was written and **never looked at it** — evidence gathered and not consumed, the
+same defect as a field nobody reads. Measured on the run before the change: tested 320, opened 320,
+errors []. The floor is 250. Driven against four fixtures: normal passes; zero-tested, page-threw and
+a real failure each fail with their own message.
+
+**3. Routine K signed off on measurements it never took.** Warn-only about speed by choice — but
+`undefined > 2500` is false, so a metric `K_perf.js` stopped emitting printed `k=undefined (budget
+2500ms) OK` and the step concluded **"All perf thresholds green"**. *"We measured and it was fine"*
+and *"nobody measured"* are different facts. A missing metric is an error now; exceeding a budget
+still only warns.
+
+**4. Five routines could not see the input they police.** Routine I already says this in its own path
+list; G, H, J, K and L watched only `bible.html`. Editing `J_screens.js` — or the workflow file that
+runs it — changed what the gate DOES while triggering nothing, so the change landed and the routine
+that judges it stayed asleep until the next cron. Each watches its own script and itself now, pinned
+by a test. ⚠ That test had its own trap worth recording: **PyYAML parses the bare key `on:` as the
+boolean `True`**, so a naive `doc.get("on")` reads as *"this workflow has no triggers"*.
+
+## REG-260 — a flaky spec is a lamp with extra steps (FIXED v1910)
+
+`tests/v587_spare_base_capacity.spec.ts` failed **twice** on one CI runner (`retries: 1` = two
+attempts) on **v1909 — a commit that changed no page logic at all** — and passed on a fresh runner
+minutes later, same bytes. Attribution by delta: Routine I was green on v1906, v1907 and v1908, and
+v1909 touched only `tv/` python and the version stamps.
+
+The spec waited on three fixed `waitForTimeout`s and a 400 ms `_spareBaseInfo` memo; on a loaded
+runner `forgeScan` had simply not planned both words yet. Both phases poll now, up to 20 s, with a
+message that says what never happened. **Polling is strictly more patient than a fixed sleep, so it
+can only remove timing failures, never add one.**
+
+A flaky gate is the same defect as a lamp: it stops carrying information, and it trains everyone to
+re-run instead of read. Compile-checked with `playwright test --list`, which runs no test and opens
+no browser — the suite itself still runs on GitHub, never on his Mac.

@@ -16,7 +16,14 @@ on:
   # remaining routine-* workflows found four more, of which this is one.
   push:
     paths:
+      # v1910 — A GATE MUST SEE THE INPUT IT POLICES, ITSELF INCLUDED. Routine I already says this
+      # in its own path list and fixes it for itself; these four did not. Editing K_perf.js (or this
+      # workflow) changed what the gate DOES while triggering nothing, so the change landed and the
+      # routine that judges it stayed asleep until the next cron — or, if the edit broke it, until
+      # a bible.html push blamed someone else's commit.
       - 'bible.html'
+      - 'K_perf.js'
+      - '.github/workflows/routine-k-perf.yml'
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -60,10 +67,21 @@ jobs:
             const fs = require("fs");
             const r = JSON.parse(fs.readFileSync("k.log","utf8").trim().split("\n").pop());
             const lim = { load_ms: 2500, boss_ms: 800, sim_2000_ms: 6000 };
-            let warn = false;
+            let warn = false, missing = [];
             for (const k in lim) {
+              // v1910 — A MISSING MEASUREMENT IS NOT A PASSING ONE. `undefined > 2500` is false, so
+              // a metric K_perf stopped emitting printed "k=undefined (budget 2500ms) OK" and the
+              // step signed off with "All perf thresholds green" while measuring nothing. This gate
+              // is warn-only about SPEED by choice; it must not be silent about ABSENCE, because
+              // "we measured and it was fine" and "nobody measured" are different facts.
+              // Measured on the run before this change: load_ms 1997, boss_ms 101, sim_2000_ms 4522.
+              if (typeof r[k] !== "number") { missing.push(k); continue; }
               if (r[k] > lim[k]) { console.log(`::warning::K perf ${k}=${r[k]}ms exceeds ${lim[k]}ms budget`); warn = true; }
               else { console.log(`${k}=${r[k]}ms (budget ${lim[k]}ms) OK`); }
+            }
+            if (missing.length) {
+              console.log(`::error::Routine K measured NOTHING for: ${missing.join(", ")} — K_perf.js stopped emitting them, so a green verdict here would mean only that nobody looked`);
+              process.exit(1);
             }
             if (!warn) console.log("All perf thresholds green");
           '

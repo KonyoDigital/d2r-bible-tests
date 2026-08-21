@@ -9636,6 +9636,54 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestEveryRoutineCanSeeTheInputItPolices(unittest.TestCase):
+    """v1910 — a gate that cannot see the input it polices is not a gate, and Routine I already says
+    exactly that in its own path list. The other five did not follow it: editing `J_screens.js`,
+    `H_sweep.js`, `K_perf.js`, `end_to_end_audit.js` or `L_integrity.js` — or the workflow file that
+    runs them — changed what the gate DOES while triggering nothing.
+
+    So the change landed and the routine that judges it stayed asleep until the next cron; and if
+    the edit broke it, the red run arrived later, wearing someone else's commit. That is the same
+    shape as REG-256, where twelve cancelled Routine I runs hid two CSS defects for eleven versions.
+    [[gate-blind-to-unexercised-input]]"""
+
+    WATCHES = {
+        "routine-g-audit.yml": "end_to_end_audit.js",
+        "routine-h-item-sweep.yml": "H_sweep.js",
+        "routine-j-screens.yml": "J_screens.js",
+        "routine-k-perf.yml": "K_perf.js",
+        "routine-l-integrity.yml": "L_integrity.js",
+    }
+
+    def _paths(self, wf):
+        import yaml
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(repo, ".github", "workflows", wf), encoding="utf-8") as fh:
+            doc = yaml.safe_load(fh)
+        # PyYAML parses the bare key `on:` as the BOOLEAN True, not the string "on" — a real trap
+        # in every GitHub-workflow test, and one that reads as "this workflow has no triggers".
+        on = doc.get("on", doc.get(True)) or {}
+        return ((on.get("push") or {}).get("paths")) or []
+
+    def test_each_routine_watches_its_own_script_and_its_own_workflow(self):
+        for wf, script in sorted(self.WATCHES.items()):
+            paths = self._paths(wf)
+            self.assertTrue(paths, "%s has no push paths at all" % wf)
+            self.assertIn(script, paths,
+                          "%s runs %s and does not watch it — editing the gate would not run it"
+                          % (wf, script))
+            self.assertIn(".github/workflows/" + wf, paths,
+                          "%s does not watch ITSELF; a change to its own verdict step would not "
+                          "run it" % wf)
+
+    def test_routine_i_still_watches_the_page_and_the_specs(self):
+        """The one that got it right first — pinned so it cannot quietly lose it."""
+        paths = self._paths("routine-i-playwright.yml")
+        for want in ("bible.html", "tests/**", "tv/control_ui.html",
+                     ".github/workflows/routine-i-playwright.yml"):
+            self.assertIn(want, paths, "routine I stopped watching %s" % want)
+
+
 class TestTheCssInvariantsRunWhereTheyCannotBeCancelled(unittest.TestCase):
     """v1906 — TWO REAL CSS DEFECTS SAT ON MAIN FOR ELEVEN VERSIONS BECAUSE THEIR ONLY GATE KEEPS
     GETTING CANCELLED.
