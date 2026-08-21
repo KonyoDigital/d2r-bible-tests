@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1922",
+  "ver": "v1923",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1922: His 25-frame session was the sets Chronicle with the Remaining filter on, the list the game keeps of what he does not have, and read by eye it comes to exactly 19, matching his count. The game lists remaining pieces by their BASE name rather than the set piece name, and the roster records that base in each piece slot suffix, so all nineteen matched exactly. Cross referenced against the pending proposal: 35 of the 36 proposed set pieces are consistent with the game and exactly one is wrong, a claws piece the game still lists as missing. Nothing was wrongly withheld. This also corrects two claims I made earlier from undated not-found readings - the real count of bad rows is one, not twelve.",
+  "note": "v1923: The game keeps its own list of what he does NOT have, and until now nothing in the pipeline could read a negative: every reader reads a found page and proposes an addition, so the count could only ever go up and a wrong row was invisible to all of it. One recording of the Chronicle Remaining filter falsifies rows no amount of found page reading could, and completes by subtraction - roster 135 minus remaining 19 gives the 116 he owns exactly, by name, with no model call. Wired at three points: the sweep flags a denied row, the panel shows it with its own next action, and the apply path withholds it, because a flag the register button ignores is decoration. It is time ordered, so a piece found after the page was shot is superseded rather than denied and an unestablished order stays UNKNOWN. Also joins calibration and contested to the panel - both were computed and thrown away - and fixes a CSS token that did not exist and so rendered the calming block louder than the warnings.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -3058,6 +3058,41 @@
      undefined. Left alone — it is not mine and changing it changes a colour on his screen — but it
      is the same latent trap: the next person to reach for it picks a different fallback and
      re-breaks v1733. */
+  /* v1923 — the warning strip above the proposal columns. It reuses this file's existing state
+     tokens (--st-broken / --st-needs / --st-ok / --muted) rather than minting colours, so it reads
+     as part of the console and follows the theme. Nothing here is fixed-position and nothing
+     overlaps: it is a block in normal flow above .chron-cols, which is what makes it survive the
+     narrow viewport the render gate checks. */
+  .chron-warns { margin: 0 0 10px; display: grid; gap: 6px; }
+  .chron-warn { padding: 8px 11px; border-radius: 9px; border: 1px solid transparent;
+    font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); }
+  .chron-warn b { display: block; margin-bottom: 2px; font-weight: var(--fw-bold); }
+  .chron-warn span { display: block; color: var(--muted); overflow-wrap: anywhere; }
+  /* the next action. Dimmer than the finding and italic, because it is the answer to the finding
+     rather than a second finding — two equally loud lines read as two problems. */
+  .chron-warn em.chron-todo { display: block; margin-top: 5px; font-style: italic;
+    color: var(--muted); font-weight: var(--fw-medium); }
+  .chron-warn.bad { border-color: color-mix(in srgb, var(--st-broken) 55%, transparent);
+    background: color-mix(in srgb, var(--st-broken) 11%, transparent); color: var(--st-broken); }
+  .chron-warn.warn { border-color: color-mix(in srgb, var(--st-needs) 50%, transparent);
+    background: color-mix(in srgb, var(--st-needs) 9%, transparent); color: var(--st-needs); }
+  .chron-warn.ok { border-color: color-mix(in srgb, var(--st-good) 45%, transparent);
+    background: color-mix(in srgb, var(--st-good) 9%, transparent); color: var(--st-good); }
+  /* UNKNOWN gets its own muted look on purpose: it must not read as an alarm, and it must not
+     read as a pass either. [[unknown-stays-unknown]] */
+  .chron-warn.unk { border-color: color-mix(in srgb, var(--muted) 40%, transparent);
+    background: color-mix(in srgb, var(--muted) 7%, transparent); color: var(--muted); }
+  /* the per-row flag. display:block so a long name and a long badge never share a line and
+     collide — the collision class the second eye catches and a text assertion never does. */
+  .chron-flag { display: block; margin: 3px 0 0; padding: 1px 7px; border-radius: 999px;
+    width: fit-content; max-width: 100%; font: var(--fw-bold) var(--fs-3xs, var(--fs-2xs))/1.5 var(--mono); }
+  .chron-flag.denied { background: color-mix(in srgb, var(--st-broken) 18%, transparent);
+    color: var(--st-broken); }
+  .chron-flag.undated, .chron-flag.contested {
+    background: color-mix(in srgb, var(--st-needs) 15%, transparent); color: var(--st-needs); }
+  .chron-n.flagged.denied > summary { border-left: 3px solid var(--st-broken); padding-left: 7px; }
+  .chron-n.flagged.undated > summary, .chron-n.flagged.contested > summary {
+    border-left: 3px solid var(--st-needs); padding-left: 7px; }
   .chron-evwarn { margin: 0 0 10px; padding: 9px 12px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--st-broken) 55%, transparent);
     background: color-mix(in srgb, var(--st-broken) 11%, transparent);
@@ -13407,14 +13442,119 @@ function escC(s) {
         + '<span class="chron-fr-lane">' + escC(v.lane || 'claude') + '</span></a>';
     }).join('') + '</div>';
   }
-  function _chronNames(rows, held) {
+  /* v1923 — THREE SAFEGUARDS THAT WERE COMPUTED AND THROWN AWAY.
+     `calibration` (v1920), `contested` (v1921) and `denial` (v1923) were each built, each carried
+     in the sweep payload, and NONE of them was ever rendered. Grepping the two UI files for all
+     three returned zero hits. That is [[plumbing-with-no-tap]] three times over, and twice in my
+     own work from the same night — a safeguard that reaches the payload and stops there reads as
+     protection from the code side and carries nothing at the only moment that matters, which is
+     the moment he is looking at a green `register 302` button.
+     It goes ABOVE the columns, because a warning under the thing it warns about is decoration. */
+  function _chronWarnStrip(res) {
+    var out = [], den = res.denial || {}, cal = res.calibration || {}, con = res.contested || {};
+    var d = den.denied || [], und = den.undated || [], sup = den.superseded || [];
+    /* v1923 — EACH BLOCK CARRIES ITS OWN NEXT ACTION, AND THEY ARE ORDERED BY SEVERITY.
+       Shown this panel cold, a different model family said: "The panel flags multiple blocking
+       issues but gives no explicit instruction. It is not clear whether the user should skip
+       registration, fix rows first, or proceed anyway." It also noticed that the hard numeric
+       contradiction sat LAST while a smaller one sat first — visual order not matching real
+       severity. Both are fixed here.
+       The most important sentence is the one that was missing entirely: the register button
+       ALREADY withholds a denied row (chronicle_apply does it on the write path), so the answer to
+       "what do I do" is usually "nothing". A warning that makes him hunt for a checkbox that does
+       not exist is worse than no warning. [[grok-second-eye]] */
+    function push(rank, cls, head, body, todo) {
+      out.push([rank, '<div class="chron-warn ' + cls + '"><b>' + head + '</b><span>' + body
+        + '</span>' + (todo ? '<em class="chron-todo">\u2192 ' + todo + '</em>' : '') + '</div>']);
+    }
+    if (d.length) {
+      var age = (den.reading && den.reading.ageDays != null)
+        ? (den.reading.ageDays < 1 ? 'today' : den.reading.ageDays.toFixed(1) + ' days old') : 'of unknown age';
+      push(0, 'bad', '\u26d4 the game itself denies ' + d.length + ' of these',
+        escC(d.map(function (x) { return x.name; }).join(', '))
+        + ' \u2014 its own Remaining page (' + escC(age) + ') was shot AFTER these were seen and '
+        + 'still lists them as missing.',
+        'nothing to do \u2014 register already holds ' + (d.length === 1 ? 'it' : 'them')
+        + ' back and will name ' + (d.length === 1 ? 'it' : 'them') + ' when you press it. '
+        + 'Record a new Remaining page after you find ' + (d.length === 1 ? 'it' : 'them')
+        + ' and the denial lifts.');
+    }
+    if (cal && cal.ok === false && cal.say) {
+      push(1, 'bad', '\u2696 the board and the game do not add up', escC(cal.say),
+        'this is about rows ALREADY on your board, not about this proposal \u2014 registering or '
+        + 'skipping will not change it. Shoot a Remaining page and the two wrong rows can be named.');
+    }
+    var cn = 0, cparts = [];
+    ['uniques', 'sets'].forEach(function (k) {
+      var v = con[k] || []; if (v.length) { cn += v.length; cparts.push(k + ': ' + v.slice(0, 6).join(', ')); }
+    });
+    if (cn) {
+      push(2, 'warn', '\u2694 the reader disagreed with itself about ' + cn,
+        escC(cparts.join(' \u00b7 ')) + ' \u2014 read BOTH as found and as not-found.',
+        'open the row and check the frames before you register; the reader is not sure, so you are '
+        + 'the tiebreak.');
+    }
+    if (und.length) {
+      push(3, 'warn', '\u2753 ' + und.length + ' cannot be ordered against the game\u2019s list',
+        escC(und.map(function (x) { return x.name; }).join(', '))
+        + ' \u2014 on the missing list, but nothing dates the sighting against the page, so which '
+        + 'came first is UNKNOWN.',
+        'these WILL register. If you have not actually found '
+        + (und.length === 1 ? 'it' : 'them') + ', untick '
+        + (und.length === 1 ? 'it' : 'them') + ' on the board afterwards.');
+    }
+    if (sup.length) {
+      push(4, 'ok', '\u2713 ' + sup.length + (sup.length === 1 ? ' was' : ' were')
+        + ' on the missing list and you found ' + (sup.length === 1 ? 'it' : 'them') + ' since',
+        escC(sup.map(function (x) { return x.name; }).join(', '))
+        + ' \u2014 seen AFTER the page was shot, so the page is simply older than the fact.',
+        'nothing to do \u2014 ' + (sup.length === 1 ? 'it stands' : 'these stand') + '.');
+    }
+    /* v1923 — AND SAY WHEN THE NOT-FOUND EVIDENCE CANNOT BE DATED. This is the block that exists
+       because of a wrong answer given out loud: "12 of your 36 set pieces are ones the game shows
+       as not-found", said about 46 readings not one of which carried a reel or a frame. Three of
+       them had First Found dates on his newest reel. The real number was one.
+       It ranks just under the hard findings, because it is not a defect in the proposal — it is a
+       statement about what this proposal is ALLOWED to conclude. */
+    var nfd = res.notFoundDatable;
+    if (nfd && nfd.ok === false) {
+      push(1.5, 'unk', '\u23f3 the not-found readings here cannot be dated', escC(nfd.say),
+        'nothing is wrong with the finds above \u2014 it means no not-found reading in this batch '
+        + 'may be used to argue against one. Sweep again and they arrive with receipts.');
+    }
+    if (cal && cal.ok === null && cal.say) {
+      /* UNKNOWN IS NOT AGREEMENT, and it must not be silent either — a check that did not run looks
+         exactly like a check that passed if nothing says otherwise. It ranks LAST because it is the
+         absence of a finding, not a finding. [[unknown-stays-unknown]] */
+      push(5, 'unk', '\u2696 the cross-check did not run', escC(cal.say),
+        'treat this proposal as unaudited by the game rather than as agreeing with it.');
+    }
+    out.sort(function (a, b) { return a[0] - b[0]; });
+    return out.length ? '<div class="chron-warns">'
+      + out.map(function (x) { return x[1]; }).join('') + '</div>' : '';
+  }
+
+  function _chronNames(rows, held, flags) {
     if (!rows.length) return '<div class="chron-none">' + (held ? 'nothing held' : 'nothing new to add') + '</div>';
+    flags = flags || {};
     return rows.map(function (r) {
       var ws = held ? '' : (r.witnesses || []).map(function (w) {
         return '<span class="chron-w">' + escC(w) + '</span>'; }).join('');
+      /* v1923 — A WARNING ABOUT ONE ROW BELONGS ON THAT ROW. The denial strip above names the
+         rows the game itself contradicts, but he scans a column of 36 to decide, and a caution
+         that lives only in a banner is a caution he has to hold in his head while he reads. The
+         flag rides the name. */
+      var f = flags[r.name] || '';
+      var badge = f === 'denied'
+        ? '<span class="chron-flag denied" title="The game\u2019s own Remaining page — shot AFTER this was seen — still lists this as missing. Registering it would put on your board something you do not have.">\u26d4 the game says you do NOT have this</span>'
+        : (f === 'undated'
+          ? '<span class="chron-flag undated" title="This piece is on the game\u2019s missing list, but nothing dates the sighting against that page, so which came first is UNKNOWN. Worth your eyes; not called wrong.">\u2753 unordered against the game\u2019s list</span>'
+          : (f === 'contested'
+            ? '<span class="chron-flag contested" title="The reader read this name BOTH as found and as not-found. It disagreed with itself.">\u2694 read both ways</span>'
+            : ''));
       // the reason is never optional: a name with no sentence is not reviewable
-      return '<details class="chron-n"><summary><b>' + escC(r.name) + '</b><i>' + escC(r.why || '—') + '</i>'
-        + ws + ((r.seen && r.seen.length) ? '<span class="chron-ev">' + r.seen.length + ' frame'
+      return '<details class="chron-n' + (f ? ' flagged ' + f : '') + '"><summary><b>' + escC(r.name) + '</b><i>' + escC(r.why || '—') + '</i>'
+        + badge + ws + ((r.seen && r.seen.length) ? '<span class="chron-ev">' + r.seen.length + ' frame'
             + (r.seen.length === 1 ? '' : 's') + ' ▾</span>' : '') + '</summary>'
         + _chronSeen(r.seen) + '</details>';
     }).join('');
@@ -14250,16 +14390,24 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       return;
     }
     rev.hidden = false;
+    /* v1923 — one map, so the strip and the rows tell the same story. A banner saying "1 denied"
+       over a column where nothing is marked makes him hunt for it. */
+    var _flags = {};
+    ((res.contested || {}).uniques || []).forEach(function (n) { _flags[n] = 'contested'; });
+    ((res.contested || {}).sets || []).forEach(function (n) { _flags[n] = 'contested'; });
+    ((res.denial || {}).undated || []).forEach(function (x) { _flags[x.name] = 'undated'; });
+    ((res.denial || {}).denied || []).forEach(function (x) { _flags[x.name] = 'denied'; });
     rev.innerHTML = _chronRunRow(st, res)
+      + _chronWarnStrip(res)
       + '<div class="chron-cols">'
       /* v1634 — q-uni / q-set are COLOUR HOOKS ONLY (see the .chron-c.q-* rules): this lane holds
          nothing but uniques, that one nothing but set pieces, so heading and names paint the real
          quality. The existing .chron-c / .add classes are untouched, so every selector that
          already targets these lanes still matches. */
       + '<div class="chron-c add q-uni"><div class="chron-c-h">🏆 WOULD ADD · Holy Grail (' + u.length + ')</div>'
-      +   '<div class="chron-list">' + _chronNames(u, false) + '</div></div>'
+      +   '<div class="chron-list">' + _chronNames(u, false, _flags) + '</div></div>'
       + '<div class="chron-c add q-set"><div class="chron-c-h">🧩 WOULD ADD · Set pieces (' + sset.length + ')</div>'
-      +   '<div class="chron-list">' + _chronNames(sset, false) + '</div></div>'
+      +   '<div class="chron-list">' + _chronNames(sset, false, _flags) + '</div></div>'
       + '<div class="chron-c held"><div class="chron-c-h">⚖ HELD (' + held.length + ')</div>'
       +   '<div class="chron-list">' + _chronNames(held, true) + '</div></div>'
       + '</div>';
@@ -14529,8 +14677,15 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       }
       var a = j.applied || {};
       var n = (a.uniques || []).length + (a.sets || []).length;
+      /* v1923 — SAY WHAT THE GAME'S VETO KEPT BACK. chronicle_apply withholds any set piece the
+         game's own Remaining page still lists as missing, and a count that silently came back one
+         short is exactly the kind of quiet subtraction he would have to audit by hand to notice.
+         "302 registered" when 303 were offered is a lie of omission; naming the row is not. */
+      var _wh = j.withheld || [];
       if (note) note.textContent = '✓ ' + n + ' registered in your chronicle'
         + ((a.skipped || []).length ? ' · ' + a.skipped.length + ' you already had' : '')
+        + (_wh.length ? ' · ⛔ ' + _wh.length + ' held back by the game\u2019s own missing list ('
+            + _wh.join(', ') + ')' : '')
         + ' · undo from the board';
       if (btn) { btn.hidden = true; }
       /* v1594 — REPAINT WHAT THE WRITE CHANGED. Konyo: "nothing should have this LAG as an option.

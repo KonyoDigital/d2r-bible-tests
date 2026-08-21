@@ -8461,3 +8461,93 @@ Two things, and the second is the general one:
    swallowed it. It had already happened once tonight on this exact tool and I re-ran it by hand;
    the second time I did not look. **Bump, then VERIFY the stamps, then commit — never in one
    breath.** [[feedback-version-numbers-mean-ships]]
+
+## REG-275 — nothing in the pipeline could ever say "you do not have that" (FIXED v1923)
+
+Every reader on this project reads a **found** page and proposes an **addition**. That is the whole
+chain: classify, read, normalize, gate, apply. So the count can only ever go UP, and a row that is
+on the board and should not be is invisible to all of it — there is no reading in the system capable
+of subtracting.
+
+His board said 118/135 = 87%; the game said 85%. Both computed correctly. The board was carrying two
+pieces he does not own, and had been long enough that **he caught it by eye before any gate did**.
+
+The game keeps the negative itself: the Chronicle's **Remaining** filter. One recording of it is
+worth more than a found page, because it FALSIFIES, it COMPLETES BY SUBTRACTION (135 roster − 19
+remaining = the 116 he owns, exactly, by name, with no model call), and it TARGETS the hunt.
+
+`tv/counter_ledger.py`, wired at three points: the sweep flags a denied row, the panel shows it, and
+`chronicle_apply` **withholds it on the write path** — because a flag the register button ignores is
+decoration. On today's pending proposal it catches exactly one row of 36, `Natalya's Soul (claws)`,
+which is the row he was about to register.
+
+**⚠ TIME-ORDERED, and that is the rule rather than a refinement.** A Remaining page is a photograph
+of one moment and he keeps playing, so a denial only bites when the page was shot AFTER the
+sighting. Three-way split — `denied` / `superseded` (found since) / `undated` (order UNKNOWN, flagged
+never denied). Without it the safeguard would start eating the finds it exists to protect.
+Guards: `tv/test_counter_ledger.py` (17), `TestV1923TheGameGetsAVetoOnTheWritePath` (5).
+
+## REG-276 — my own guard could not reach the names it was guarding (FIXED before ship, v1923)
+
+The first cut of `denied()` compared proposal names against the Remaining page directly and reported
+**"no proposed name appears on the game's missing list (86 checked)"**. A clean pass.
+
+**Zero of those 86 names were roster strings.** The pipeline carries set pieces bare —
+`M'avina's Caster` — while the roster and the Remaining page carry them suffixed —
+`M'avina's Caster (helm)`. A comparison between two naming conventions agrees no matter what is in
+it. Folding both sides turns the same input into the one true hit.
+
+The tell was the count, again: 86 checked, 0 hits, on data I already knew by hand contained one.
+[[source-reading-guard]] [[feedback-suspect-the-instrument]]
+
+## REG-277 — three safeguards computed, carried, and never rendered (FIXED v1923)
+
+`calibration` (v1920), `contested` (v1921) and `denial` (v1923) were each built, each attached to the
+sweep payload, and **none was ever drawn**. Grepping both UI files for all three returned zero hits.
+
+Two of the three were mine, from the same night. That is the defining property of the class: it reads
+as protection from the code side and carries nothing at the only moment that matters — when he is
+looking at a green `register 302` button. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+
+## REG-278 — an undefined CSS variable renders as a plausible page (FIXED v1923)
+
+The new strip was styled `var(--st-ok)`. This file's token is `--st-good`. No parse error, no console
+warning, no failing assertion — the property simply **inherited**, so the one REASSURING block on the
+panel rendered in white and louder than the two real warnings above it. The hierarchy was inverted.
+
+Found only by looking at the pixels. Swept the whole class across both files: of four undefined
+tokens, **three were prose** — `--a` and `--rar-rune` appear only inside comments (one quoting the
+other file) and `--q-` is a name JS concatenates at runtime. Exactly one was real and it was mine.
+A guard that reads its own documentation reports its explanations as defects.
+Guard: `TestV1923EveryCssVariableUsedIsActuallyDefined`, comments stripped first.
+
+## REG-279 — a not-found reading was quoted as if it described today (FIXED v1923)
+
+**This one cost a wrong answer to his face.** I told Konyo that **12 of his 36 proposed set pieces
+were ones the game shows as not-found**. Three of them carry First Found dates on his newest reel:
+those not-found readings were simply OLD, describing a moment before he owned the item. The real
+number was **one**.
+
+A not-found reading is not a fact about an item. It is a fact about an item **at one moment**, and it
+expires the instant a later look disagrees.
+
+**The code already knew this and did nothing with it.** v1921's own comment, sitting directly above
+the offending line, reads: *"an older not-found reading is a perfectly ordinary thing when he has
+since found the item."* The line under it compared found-names against not-found-names as flat set
+membership. Knowledge in the prose and not in the engine is the same as not having it — the same
+shape as REG-277, one layer up.
+
+Fixed in three places:
+
+1. `counter_ledger.resolve_contested` decides each contradiction **by time** — `found` (the
+   not-found is older and expired), `not-found` (a real contradiction), `same-moment` (the reader
+   disagreed about one picture), `undatable` (**order unknown, never resolved by guess**).
+2. `contested` no longer lists a name whose newest look says found. That padding is the defect: a
+   contested list swollen with expired readings is exactly how a wrong number gets stated.
+3. A proposal now declares its own evidential reach in `notFoundDatable`, and the panel says so.
+
+**⚠ AND THE MEASUREMENT THAT MATTERS:** on his currently banked evidence, **46 of 46** not-found
+readings carry no reel and no frame — receipts only arrived in v1921. So every one is `undatable`
+and the engine refuses to quote any of them. That is the correct answer and it is also the proof
+that my "12" was never supportable by that file. `python3 tv/counter_ledger.py --audit` reports it
+and exits non-zero. Guards: `TestANotFoundReadingExpires` (6). [[stale-reading]] [[unknown-stays-unknown]]

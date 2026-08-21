@@ -1142,13 +1142,59 @@ def proposal_from_pages(pages):
     # not noise to be averaged away: it is the most informative row in the proposal, and until now
     # nothing computed it at all. It is reported, never acted on — an older not-found reading is a
     # perfectly ordinary thing when he has since found the item.
+    # v1923 — AND RESOLVED BY TIME, because a flat membership test is what produced a wrong answer
+    # to his face. I told him 12 of his 36 proposed set pieces were ones the game shows as
+    # not-found. Three carried First Found dates on his newest reel: those not-found readings were
+    # simply OLD, describing a moment before he owned the item. The real number was one.
+    #
+    # A not-found reading is not a fact about the item — it is a fact about the item AT ONE MOMENT,
+    # and it expires the instant a later look disagrees. The comment above already said so and the
+    # code compared two sets as flat membership anyway, which is the same as not knowing it.
+    # v1921 put the receipts in `notFoundSeen`; this is the consumer that makes them mean something.
     contested = {}
+    resolved = {}
     for _led in ("uniques", "sets"):
         _nf = set(prop.get("notFound", {}).get(_led) or ())
+        _seen = (prop.get("notFoundSeen") or {}).get(_led) or {}
         for _nm in (prop.get(_led) or {}):
-            if _nm in _nf:
+            if _nm not in _nf and _nm not in _seen:
+                continue
+            try:
+                import counter_ledger as _clg
+                _r = _clg.resolve_contested(prop[_led].get(_nm) or [], _seen.get(_nm) or [])
+            except Exception:
+                _r = {"verdict": "undatable", "say": "the resolver could not be consulted"}
+            resolved.setdefault(_led, {})[_nm] = _r
+            # A name whose NEWEST look says found is not contested — it is settled, and listing it
+            # would rebuild the very padding that produced the wrong claim.
+            if _r.get("verdict") != "found":
                 contested.setdefault(_led, []).append(_nm)
     prop["contested"] = {k: sorted(v) for k, v in contested.items()}
+    prop["contestedResolved"] = resolved
+    # ⚠ AND SAY WHEN THE NOT-FOUND SIDE CANNOT BE DATED AT ALL. Receipts for not-found readings
+    # (`notFoundSeen`) arrived in v1921; every proposal banked before that carries a flat list of
+    # NAMES with no reel, no frame and no time. Such a reading cannot contradict anything, and the
+    # danger is that it looks exactly like one that can — which is how "12 of your 36" got said out
+    # loud about a set of readings not one of which could be ordered.
+    #
+    # So the proposal states its own evidential reach. A consumer that wants to call something
+    # contested has to look at this first. [[unknown-stays-unknown]]
+    _nf_total = sum(len(prop.get("notFound", {}).get(l) or ()) for l in ("uniques", "sets"))
+    _nf_withreceipts = sum(len((prop.get("notFoundSeen") or {}).get(l) or {})
+                           for l in ("uniques", "sets"))
+    prop["notFoundDatable"] = {
+        "readings": _nf_total, "withReceipts": _nf_withreceipts,
+        "ok": (_nf_total == 0 or _nf_withreceipts >= _nf_total),
+        "say": ("every not-found reading carries a receipt and can be ordered against the found "
+                "ones" if (_nf_total == 0 or _nf_withreceipts >= _nf_total) else
+                "%d of %d not-found reading(s) carry NO reel or frame, so they cannot be ordered "
+                "against anything and must not be quoted as contradicting a find. They were banked "
+                "before receipts existed; the next sweep records them and they become usable."
+                % (_nf_total - _nf_withreceipts, _nf_total))}
+    prop["contestedExpired"] = {
+        led: sorted(n for n, r in (resolved.get(led) or {}).items() if r.get("verdict") == "found")
+        for led in ("uniques", "sets")
+        if any(r.get("verdict") == "found" for r in (resolved.get(led) or {}).values())}
     prop["setGroups"] = {k: sorted(v) for k, v in prop["setGroups"].items()}
     prop["pageKeys"] = sorted(_pk)
     return prop

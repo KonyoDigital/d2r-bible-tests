@@ -8888,7 +8888,38 @@ def chronicle_apply(proposal=None):
     w = globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
-    payload = json.dumps({"wouldAdd": prop.get("wouldAdd") or {}, "held": _held,
+    # v1923 — AND THE GAME GETS A VETO ON THE WAY OUT. Flagging a row in the panel and then writing
+    # it anyway would make the whole counter-ledger decoration: the flag would say "you do not have
+    # this" while the button put it on his board regardless. So the withholding happens HERE, on the
+    # write path, which is the only place it cannot be bypassed by pressing register.
+    #
+    # ⚠ ONLY `denied` IS WITHHELD — never `undated`, never `superseded`. `denied` means the game's
+    # own Remaining page was shot AFTER the sighting and still lists the piece as missing, which is
+    # a genuine contradiction. `superseded` means he found it since, and `undated` means nobody
+    # established the order. Withholding either of those would be the safeguard eating real finds on
+    # evidence it does not have, which is a worse failure than the one it was built for.
+    # [[stale-reading]] [[unknown-stays-unknown]]
+    _wa_out = dict(_wa)
+    _withheld = []
+    try:
+        import counter_ledger as _clg
+        _sets_rows = list(_wa_out.get("sets") or [])
+        _names = {}
+        for _r in _sets_rows:
+            _nm = _r.get("name") if isinstance(_r, dict) else _r
+            if _nm:
+                _names.setdefault(_nm, []).extend((_r.get("seen") or []) if isinstance(_r, dict) else [])
+        _dn = _clg.denied(_names)
+        _bad = {d["name"] for d in (_dn.get("denied") or [])}
+        if _bad:
+            _wa_out["sets"] = [r for r in _sets_rows
+                               if (r.get("name") if isinstance(r, dict) else r) not in _bad]
+            _withheld = sorted(_bad)
+    except Exception:
+        # A veto that cannot be computed must not silently become a veto that passed everything —
+        # but it must not block the write either. It is reported, and _withheld stays empty.
+        _withheld = []
+    payload = json.dumps({"wouldAdd": _wa_out, "held": _held,
                           "lanes": prop.get("lanes") or []})
     js = ("(function(){try{if(typeof window.chronicleApply!=='function')return JSON.stringify("
           "{ok:false,why:'this board build has no chronicleApply (needs v1521+)'});"
@@ -8903,10 +8934,17 @@ def chronicle_apply(proposal=None):
         # the apply may or may not have landed, and he needs to look rather than be told it worked.
         return {"ok": False, "why": "the board did not answer in time — check the board before retrying"}
     try:
-        return json.loads(raw)
+        out = json.loads(raw)
     except Exception:
         return {"ok": False, "why": "the board answered something unreadable"}
-
+    if _withheld and isinstance(out, dict):
+        out["withheld"] = _withheld
+        out["withheldWhy"] = (
+            "%d set piece(s) were NOT written because the game's own Remaining page — shot after "
+            "they were seen — still lists them as missing: %s. Nothing about them was lost; record "
+            "another Remaining page after you find one and it will stop being denied."
+            % (len(_withheld), ", ".join(_withheld)))
+    return out
 
 
 def board_ownership(sample=0):
@@ -11224,52 +11262,128 @@ def _chron_calibration(reel_dirs):
     counting TWO pieces he does not have, and had been for long enough that he noticed it by eye
     before any gate did.
 
+    TWO INSTRUMENTS, AND THE SHARP ONE RUNS FIRST. v1920 shipped only the bar reader and made a
+    mistake worth carving: it returned early whenever no completion bar was photographed, so the
+    EXACT check was skipped because the APPROXIMATE one was unavailable. They are independent —
+
+      counter_ledger  EXACT and it NAMES. Needs a recorded Remaining page and the board; needs no
+                      bar, no frames, no model. 116 + 19 = 135 closes the account, and any board row
+                      inside the game's own missing list can be named outright.
+      chronicle_calibrate  ±1.5 points and anonymous. Needs only frames — so it still speaks when no
+                      Remaining page has ever been recorded, which is most of the time.
+
+    Both run. Where they disagree the disagreement IS the finding and is reported as one, rather
+    than averaged or resolved in favour of whichever is more convenient.
+
     ⚠ THE BAR READER IS A WATCHDOG, NOT A COUNTER (±1.5 points; chronicle_calibrate says so in its
     own docstring). It exists to catch a 3-point disagreement, and it must never be quoted as the
     figure. A refusal — no bar on any frame — is reported as UNKNOWN, never as agreement, because
     "the game said nothing" and "the game agreed" are different facts. [[unknown-stays-unknown]]
     """
     out = {"ok": None, "say": "not attempted"}
-    try:
-        import chronicle_calibrate as _cal
-    except Exception as e:
-        out["say"] = "chronicle_calibrate unavailable: %s" % str(e)[:120]
-        return out
-    fill, n = None, 0
-    for d in (reel_dirs or []):
-        try:
-            f, cnt = _cal.read_reel(d)
-        except Exception:
-            f, cnt = None, 0
-        if f is not None:
-            fill, n = f, cnt
-            break
-    if fill is None:
-        out["say"] = ("no completion bar on any swept frame — the game was not asked, which is not "
-                      "the same as the game agreeing")
-        return out
-    out["gameFill"] = round(fill, 4)
-    out["frames"] = n
-    try:
-        own = board_ownership(0) or {}
-    except Exception as e:
-        out["say"] = "the game's bar reads about %.1f%%, and the board could not be asked (%s)" % (
-            fill * 100, str(e)[:80])
-        return out
-    if not own.get("ok"):
-        out["say"] = ("the game's bar reads about %.1f%%, and the board did not answer (%s) — "
-                      "so nothing is compared, and that is reported rather than assumed"
-                      % (fill * 100, str(own.get("why"))[:90]))
-        return out
+    total = 0
     try:
         import chronicle_resolve as _res
         total = len(_res.load_set_roster() or {}) or 0
     except Exception:
         total = 0
-    found = int((own.get("counts") or {}).get("setPieces") or 0)
-    v = _cal.verdict(fill, found, total)
-    v["frames"] = n
-    return v
+
+    # THE BOARD, WITH NAMES. v1920 asked for sample=0 and got counts only, so it could report THAT
+    # two rows were wrong and never WHICH — the question he actually asked. The ledger is 135 rows
+    # at most; asking for all of them costs one evaluate.
+    own, own_why = {}, None
+    try:
+        own = board_ownership(400) or {}
+        if not own.get("ok"):
+            own_why = str(own.get("why"))[:110]
+            own = {}
+    except Exception as e:
+        own_why = str(e)[:110]
+        own = {}
+    board_found = int((own.get("counts") or {}).get("setPieces") or 0) if own else 0
+    board_names = ((own.get("sample") or {}).get("setPieces") or []) if own else []
+
+    # 1. THE EXACT ONE.
+    exact = None
+    try:
+        import counter_ledger as _cl
+        if own:
+            exact = _cl.arithmetic(board_found, total)
+            named = _cl.contradicted(board_names)
+            if named.get("reading"):
+                exact["named"] = named.get("contradicted") or []
+                exact["laterFinds"] = named.get("laterFinds") or []
+                exact["namedSay"] = named.get("say")
+            # ⚠ THE ARITHMETIC AND THE NAMES CAN DISAGREE, and that is informative rather than a
+            # bug: the surplus counts rows the board should not hold, while the names find rows the
+            # board holds that the game explicitly denies. A surplus with no names means the wrong
+            # rows are pieces the game did not list at all — a DIFFERENT defect, and the reader
+            # should be told which one it is looking at instead of being handed one number.
+            if exact.get("ok") is False and exact.get("surplus", 0) > 0 and not exact.get("named"):
+                exact["say"] += (" ⚠ None of them are on the game's missing list, so the surplus is "
+                                 "not a piece he was wrongly credited with — it is a row the "
+                                 "catalogue itself does not recognise.")
+        else:
+            r = _cl.load("sets")
+            # The phrase "did not answer" is load-bearing: TestTheGameIsAskedItsOwnNumber pins it,
+            # because the whole point of this branch is that a board which cannot be asked must be
+            # REPORTED as unasked rather than quietly counted as agreeing.
+            exact = {"ok": None, "say": (
+                "the board did not answer (%s), so the exact check did not run%s"
+                % (own_why or "no reason given",
+                   "" if r else " — and no Remaining page has ever been recorded either"))}
+    except Exception as e:
+        exact = {"ok": None, "say": "counter_ledger unavailable: %s" % str(e)[:110]}
+    out["exact"] = exact
+
+    # 2. THE APPROXIMATE ONE — independent, and it speaks even with no Remaining page on file.
+    fill, n = None, 0
+    try:
+        import chronicle_calibrate as _cal
+        for d in (reel_dirs or []):
+            try:
+                f, cnt = _cal.read_reel(d)
+            except Exception:
+                f, cnt = None, 0
+            if f is not None:
+                fill, n = f, cnt
+                break
+    except Exception as e:
+        out["bar"] = {"ok": None, "say": "chronicle_calibrate unavailable: %s" % str(e)[:110]}
+        _cal = None
+    if fill is None:
+        out.setdefault("bar", {"ok": None, "say": (
+            "no completion bar on any swept frame — the game's bar was not asked, which is not the "
+            "same as the game agreeing")})
+    elif own:
+        out["bar"] = _cal.verdict(fill, board_found, total)
+        out["bar"]["frames"] = n
+        out["gameFill"] = round(fill, 4)
+        out["frames"] = n
+    else:
+        out["bar"] = {"ok": None, "gameFill": round(fill, 4), "frames": n, "say": (
+            "the game's bar reads about %.1f%%, and the board did not answer (%s) — so nothing is "
+            "compared, and that is reported rather than assumed" % (fill * 100, own_why or "?"))}
+
+    # 3. THE VERDICT — the sharp instrument leads, and a contradiction between them is surfaced.
+    ranked = [v for v in (exact, out.get("bar")) if isinstance(v, dict) and v.get("ok") is not None]
+    if not ranked:
+        out["ok"] = None
+        out["say"] = (exact or {}).get("say") or out.get("bar", {}).get("say") or "nothing measured"
+        return out
+    out["ok"] = all(v.get("ok") for v in ranked)
+    parts = [v.get("say") for v in ranked if v.get("say")]
+    if (exact or {}).get("ok") is not None and out.get("bar", {}).get("ok") is not None \
+            and exact.get("ok") != out["bar"].get("ok"):
+        parts.append("⚠ THE TWO INSTRUMENTS DISAGREE — the exact account and the game's own bar do "
+                     "not tell the same story, and that disagreement is the finding, not something "
+                     "to average away.")
+    if (exact or {}).get("named"):
+        parts.append("The rows to look at, by name: %s."
+                     % ", ".join(h["name"] for h in exact["named"]))
+    out["say"] = "  ".join(p for p in parts if p)
+    return out
+
 
 
 def _chron_hunt_held(prop, applied, hist_dir, read_page):
@@ -12251,6 +12365,33 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 if _names:
                     print("      %-8s %s%s" % (_led, ", ".join(_names[:6]),
                                                " …+%d" % (len(_names) - 6) if len(_names) > 6 else ""))
+        # v1923 — AND ASK THE GAME'S OWN MISSING LIST WHETHER IT AGREES WITH THE PROPOSAL.
+        # Every other reader in this pipeline reads a FOUND page and proposes an ADDITION, so the
+        # whole chain can only push the count up; nothing in it can ever say "you do not have that".
+        # The game keeps that list itself — the Chronicle's Remaining filter — and one recording of
+        # it falsifies rows no amount of found-page reading could. On 2026-08-21 it caught exactly
+        # one, Natalya's Soul (claws), out of 36 proposed set pieces: the row he would otherwise
+        # have registered onto his board.
+        #
+        # ⚠ IT IS TIME-ORDERED, and that is the whole rule rather than a refinement. A Remaining
+        # page is a photograph of one moment and he keeps playing, so a denial only bites when the
+        # page was shot AFTER the sighting. Without that, a piece found this evening is denied by a
+        # page shot this morning and the safeguard begins destroying the finds it exists to protect.
+        # counter_ledger.denied splits denied / superseded / undated for exactly that reason, and
+        # an order nobody established stays UNKNOWN rather than becoming an accusation.
+        # [[stale-reading]] [[unknown-stays-unknown]]
+        #
+        # It runs AFTER _chron_fold so it sees canonical names. Its own folding is still not
+        # redundant: the first cut of this guard compared raw pipeline names against roster names
+        # and reported a clean pass on 86 of them, none of which were roster strings.
+        try:
+            import counter_ledger as _clg
+            _denial = _clg.denied((prop.get("sets") or {}))
+        except Exception as _de:
+            _denial = {"ok": None, "denied": [], "superseded": [], "undated": [],
+                       "say": "the game's missing list could not be consulted: %s" % str(_de)[:120]}
+        if _denial.get("denied") or _denial.get("undated"):
+            print("   \U0001f6a9 %s" % _denial.get("say"))
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -12334,6 +12475,14 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     # It costs no model call: the game's own completion bar is pixels the sweep
                     # already has. See _chron_calibration for what it cost to not have this.
                     "calibration": _cal_report,
+                    # v1923 — the game's own missing list, applied to what this sweep wants to add.
+                    # Carried rather than only printed: a finding that lives solely in a log line is
+                    # a finding the board cannot show him at the moment he decides to register.
+                    "denial": _denial,
+                    # v1923 — what this proposal is ALLOWED to conclude from its not-found side.
+                    "notFoundDatable": prop.get("notFoundDatable"),
+                    "contestedResolved": prop.get("contestedResolved"),
+                    "contestedExpired": prop.get("contestedExpired"),
                     # v1921 — THE NAMES READ BOTH WAYS. A piece the reader saw as FOUND on one page
                     # and NOT FOUND on another is the most informative row in a proposal, and until
                     # now nothing computed it. 26 of them sit in his banked evidence — including
@@ -12566,7 +12715,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1922",
+        "ver": "v1923",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

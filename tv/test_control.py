@@ -9064,9 +9064,15 @@ class TestNoFunctionLoadsAnUndefinedName(unittest.TestCase):
     "ask fn.__code__ before the text", which is what this does, one level up at the AST.
     """
 
+    # v1923 — A GUARD THAT DOES NOT GROW WITH THE TREE SHRINKS. This list was written when these
+    # nine were the tree; three modules shipped since sat outside it, including the two this very
+    # class caught a NameError in one version earlier. New reader/ledger modules belong here on the
+    # day they land, not the day they break. [[feedback-generalize-fixes]]
     MODULES = ("control_app.py", "tv_diablo.py", "stash_eye.py", "chronicle_retro.py",
                "vault_retro.py", "chronicle_template.py", "chronicle_resolve.py",
-               "g5_grok_eyes.py", "chronicle_sweep_now.py")
+               "g5_grok_eyes.py", "chronicle_sweep_now.py",
+               "counter_ledger.py", "chronicle_calibrate.py", "chronicle_hunt.py",
+               "vault_corpus.py")
 
     @staticmethod
     def _undefined(path):
@@ -11736,6 +11742,188 @@ class TestTheTemplateClassifiesForFree(unittest.TestCase):
         src = open(ca.__file__, encoding="utf-8").read()
         i = src.find("def _classify_one(p):")
         self.assertIn("claude_read", src[i:i + 3600])
+
+
+class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
+    """A flag the register button ignores is decoration.
+
+    v1923 added the counter-ledger: the game's own Remaining page, which is the only reading in the
+    whole pipeline that can say "you do NOT have that". It caught one row of 36 — Natalya's Soul
+    (claws) — in the proposal Konyo was about to register. Flagging it in the panel and then writing
+    it anyway would have been the worst of both: a warning that reads as protection while the button
+    beside it puts the row on his board.
+
+    So the veto lives on the WRITE path, where pressing register cannot bypass it. These tests pin
+    both directions, because a veto only ever seen pass is a veto nobody has seen work — and pin the
+    two rows it must NEVER eat, which is the more dangerous half: withholding a real find on
+    evidence nobody has is worse than the defect it was built for.
+    [[feedback-blind-fixture-green-gate]] [[stale-reading]]
+    """
+
+    def _fake_board(self, ca, captured):
+        def _ejs(w, js, timeout=8.0):
+            i = js.index("window.chronicleApply(") + len("window.chronicleApply(")
+            j = js.rindex(");return JSON.stringify")
+            captured.append(json.loads(js[i:j]))
+            return json.dumps({"ok": True, "applied": {"uniques": 0, "sets": 0, "skipped": 0}})
+        return _ejs
+
+    def _run(self, rows, remaining=("Natalya's Soul (claws)",)):
+        import tempfile
+        import control_app as ca
+        tmp = tempfile.mkdtemp(prefix="veto-")
+        with open(os.path.join(tmp, "sets.json"), "w", encoding="utf-8") as fh:
+            json.dump({"ledger": "sets", "reel": "reel_s_1787307553811_9452",
+                       "readAt": "2026-08-21T10:19:13.811000Z",
+                       "rows": [{"piece": n} for n in remaining]}, fh)
+        cap = []
+        old_env = os.environ.get("TV_REMAINING_DIR")
+        os.environ["TV_REMAINING_DIR"] = tmp
+        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"), ca._ejs)
+        ca.__dict__["_MAIN_WIN"] = object()
+        ca.__dict__["_WINDOW_LIVE"] = True
+        ca._ejs = self._fake_board(ca, cap)
+        try:
+            out = ca.chronicle_apply({"wouldAdd": {"uniques": [], "sets": rows}, "held": []})
+        finally:
+            ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"], ca._ejs = old
+            if old_env is None:
+                os.environ.pop("TV_REMAINING_DIR", None)
+            else:
+                os.environ["TV_REMAINING_DIR"] = old_env
+        sent = [r["name"] for r in ((cap[0] if cap else {}).get("wouldAdd") or {}).get("sets", [])]
+        return out, sent
+
+    def test_a_denied_row_never_reaches_the_board(self):
+        out, sent = self._run([
+            {"name": "Natalya's Soul (claws)", "seen": [{"frame": "f_1787177277865.jpg"}]},
+            {"name": "Aldur's Rhythm (mace)", "seen": [{"frame": "f_1787177277865.jpg"}]},
+        ])
+        self.assertEqual(sent, ["Aldur's Rhythm (mace)"],
+                         "the denied row was handed to the board anyway")
+        self.assertEqual(out.get("withheld"), ["Natalya's Soul (claws)"])
+        self.assertIn("still lists them as missing", out.get("withheldWhy", ""))
+
+    def test_a_row_the_game_never_listed_passes_through_untouched(self):
+        """The veto must be seen NOT firing, or it is indistinguishable from a filter that eats
+        everything."""
+        out, sent = self._run([
+            {"name": "Aldur's Rhythm (mace)", "seen": [{"frame": "f_1787177277865.jpg"}]},
+        ])
+        self.assertEqual(sent, ["Aldur's Rhythm (mace)"])
+        self.assertNotIn("withheld", out)
+
+    def test_a_piece_found_AFTER_the_page_is_NOT_withheld(self):
+        """The dangerous half. He keeps playing; the page ages. A find made after the reading must
+        survive, or the safeguard starts deleting the finds it exists to protect."""
+        out, sent = self._run([
+            {"name": "Natalya's Soul (claws)", "seen": [{"frame": "f_1787999999999.jpg"}]},
+        ])
+        self.assertEqual(sent, ["Natalya's Soul (claws)"],
+                         "seen AFTER the Remaining page — the page is older than the fact")
+        self.assertNotIn("withheld", out)
+
+    def test_an_UNDATED_sighting_is_not_withheld_either(self):
+        """Order unknown is not evidence for the accusation. [[unknown-stays-unknown]]"""
+        out, sent = self._run([
+            {"name": "Natalya's Soul (claws)", "seen": [{"frame": "screenshot.png"}]},
+        ])
+        self.assertEqual(sent, ["Natalya's Soul (claws)"])
+        self.assertNotIn("withheld", out)
+
+    def test_with_no_remaining_page_on_file_nothing_is_withheld(self):
+        out, sent = self._run(
+            [{"name": "Natalya's Soul (claws)", "seen": [{"frame": "f_1787177277865.jpg"}]}],
+            remaining=())
+        self.assertEqual(sent, ["Natalya's Soul (claws)"],
+                         "no reading on file must mean the veto is silent, never that it denies "
+                         "everything or approves everything on its own authority")
+        self.assertNotIn("withheld", out)
+
+
+class TestV1923EveryCssVariableUsedIsActuallyDefined(unittest.TestCase):
+    """An undefined CSS custom property does not error. It INHERITS — silently.
+
+    v1923 styled a new warning strip with `var(--st-ok)`. This file's token is `--st-good`. Nothing
+    failed: no parse error, no console warning, no failing assertion. The strip simply rendered in
+    inherited white — which made the one REASSURING message on the panel the loudest thing on it,
+    above the two genuine warnings. Found by looking at the pixels, which is the only thing that
+    could have found it.
+
+    That is the whole class, and it is worth a guard precisely because the failure mode is a
+    plausible-looking page rather than an error:
+
+      * `color: var(--nope)`      -> inherits the parent colour
+      * `color-mix(in srgb, var(--nope) 45%, transparent)` -> the whole declaration is invalid at
+        computed-value time, so the property falls back to its inherited or initial value
+
+    ⚠ COMMENTS ARE STRIPPED FIRST, and this is not caution — it is the majority of the answer. Run
+    raw, this sweep reports four undefined tokens across the two files and THREE are prose: `--a`
+    and `--rar-rune` appear only inside comments (one of them quoting the OTHER file), and `--q-`
+    is the literal prefix of a name JS concatenates at runtime. Exactly one was real, and it was
+    mine. A guard that reads documentation reports its own explanations as defects.
+    [[feedback-comments-vs-code]] [[feedback-suspect-the-instrument]]
+    """
+
+    FILES = ("tv/control_ui.html", "bible.html")
+
+    # Set at runtime via element.style.setProperty(), so they are correctly absent from the
+    # stylesheet. Each must be justified by a real setProperty call — asserted below, so this list
+    # cannot quietly become a place to hide a genuine miss.
+    RUNTIME = {"--tz-cols"}
+
+    def _files(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for rel in self.FILES:
+            p = os.path.join(root, rel)
+            if os.path.isfile(p):
+                yield rel, p
+
+    def test_no_var_reference_resolves_to_nothing(self):
+        import re
+        strip = TestNoOptionalCallToAFunctionThatCannotExist._strip_js_comments
+        problems = []
+        for rel, p in self._files():
+            with open(p, encoding="utf-8") as fh:
+                raw = fh.read()
+            src = strip(raw)
+            defined = set(re.findall(r"(--[A-Za-z0-9_-]+)\s*:", src))
+            for m in re.finditer(r"var\(\s*(--[A-Za-z0-9_-]+)\s*([,)])", src):
+                name, nxt = m.group(1), m.group(2)
+                if nxt == ",":
+                    continue                       # var(--x, fallback) is legitimate
+                if name in defined or name in self.RUNTIME:
+                    continue
+                problems.append("%s: var(%s) is used with no fallback and never defined" % (rel, name))
+        self.assertEqual(sorted(set(problems)), [],
+                         "an undefined custom property inherits instead of erroring, so this "
+                         "renders as a plausible page in the wrong colour")
+
+    def test_every_runtime_exemption_is_really_set_at_runtime(self):
+        """An allowlist nobody checks becomes the place defects go to be forgotten."""
+        found = set()
+        for _rel, p in self._files():
+            with open(p, encoding="utf-8") as fh:
+                src = fh.read()
+            for name in self.RUNTIME:
+                if ("setProperty('%s'" % name) in src or ('setProperty("%s"' % name) in src:
+                    found.add(name)
+        self.assertEqual(found, self.RUNTIME,
+                         "these are exempted as runtime-set but no setProperty call sets them: %s"
+                         % sorted(self.RUNTIME - found))
+
+    def test_the_stripper_does_not_hide_a_planted_miss(self):
+        """Calibrate the instrument through the SAME path the real subjects take, or a clean
+        result means nothing. Founding rule 4. [[feedback-blind-fixture-green-gate]]"""
+        import re
+        strip = TestNoOptionalCallToAFunctionThatCannotExist._strip_js_comments
+        planted = "  .planted { color: var(--definitely-not-a-real-token); }\n"
+        src = strip(planted)
+        defined = set(re.findall(r"(--[A-Za-z0-9_-]+)\s*:", src))
+        hits = [m.group(1) for m in re.finditer(r"var\(\s*(--[A-Za-z0-9_-]+)\s*\)", src)
+                if m.group(1) not in defined]
+        self.assertEqual(hits, ["--definitely-not-a-real-token"],
+                         "the sweep cannot see a miss it is pointed straight at")
 
 
 

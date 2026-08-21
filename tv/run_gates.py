@@ -130,6 +130,15 @@ GATES = [
              "v1576 defect class again — plumbing built on both ends and never joined"),
     Gate("test_chronicle_chain", [sys.executable, os.path.join(HERE, "test_chronicle_chain.py")], 300,
          why="the WHOLE chronicle chain in one pass — every other suite mocks its neighbours"),
+    Gate("test_counter_ledger", [sys.executable, os.path.join(HERE, "test_counter_ledger.py")], 120,
+         why="the game's own Remaining page is the ONLY reading in this project that can say "
+             "\"you do not have that\" — every other reader reads a found page and proposes an "
+             "addition, so the count can only go up and a wrong row is invisible to all of it. "
+             "It is TIME-ORDERED, and that is the half worth a gate: a denial must bite only when "
+             "the page was shot AFTER the sighting, or the safeguard starts eating the finds it "
+             "exists to protect. Its first cut compared bare pipeline names against suffixed "
+             "roster names and passed cleanly on 86 of them, none of which could ever have "
+             "matched — so the folding is pinned too"),
     Gate("test_chronicle_visit_flush", [sys.executable, os.path.join(HERE, "test_chronicle_visit_flush.py")], 120,
          why="a Chronicle visit still OPEN when the session ends must still be journalled — "
              "looking at the Chronicle LAST is the normal way to register finds, and before "
