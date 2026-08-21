@@ -1,0 +1,67 @@
+{
+ "_what": "HAND-LABELLED GROUND TRUTH for tv/stash_eye.classify_stash_grid, established by OPENING the images (v1909, 2026-08-21). REG-205 said in as many words that three hand-labelled frames is not a corpus; this is twelve, and it exists so the next attempt at REG-203 can be MEASURED instead of argued.",
+ "_how_to_use": "python3 tv/stash_grid_score.py — prints the confusion and the score. The ratchet lives in tv/test_stash_eye_aspect.py: the disagreement count may go DOWN and may never go up, and all five real panels must stay claimed.",
+ "_refuted": "dark_cols CANNOT separate a panel from a dark picture, measured here and recorded so it is not re-derived a third time: a REAL stash panel on the SHARED tab (1_1787244007255, 3_1787244010577) has dark_cols=40, the SAME as the fire-lit temple frames the grid falsely calls stash-gems (39-40). An upper bound tuned to drop the false positives throws away real stash panels with it.",
+ "_frames": {
+  "8_1785078207015.jpg": {
+   "panel": true,
+   "tab": "materials",
+   "note": "stash open, MATERIALS tab highlighted; REG-205 labelled this one too"
+  },
+  "6_1784984233446.jpg": {
+   "panel": true,
+   "tab": "personal",
+   "note": "stash open, PERSONAL tab (REG-205's label, re-confirmed by eye)"
+  },
+  "5_1784984201581.jpg": {
+   "panel": true,
+   "tab": "runes",
+   "note": "stash open, RUNES tab (REG-205's label); a tooltip covers part of the strip"
+  },
+  "1_1787244007255.jpg": {
+   "panel": true,
+   "tab": "shared",
+   "note": "stash open, SHARED tab highlighted, PAGE 1/5 visible"
+  },
+  "3_1787244010577.jpg": {
+   "panel": true,
+   "tab": "shared",
+   "note": "same session, SHARED tab, a ring tooltip open over the grid"
+  },
+  "f_1786554127532.jpg": {
+   "panel": false,
+   "tab": null,
+   "note": "Nihlathak-style temple lit by a wall of FIRE. No panel of any kind"
+  },
+  "f_1786554128448.jpg": {
+   "panel": false,
+   "tab": null,
+   "note": "same fight, two Super Mana Potions on the floor. No panel"
+  },
+  "f_1786554269866.jpg": {
+   "panel": false,
+   "tab": null,
+   "note": "same fight, a Siege Crossbow dropped. No panel"
+  },
+  "f_1786554075677.jpg": {
+   "panel": false,
+   "tab": null,
+   "note": "'Entering Nihlathak's Temple' portal scene. No panel"
+  },
+  "f_1786554033725.jpg": {
+   "panel": false,
+   "tab": null,
+   "note": "same portal scene, one second earlier. No panel"
+  },
+  "f_1785708388296.jpg": {
+   "panel": false,
+   "tab": null,
+   "note": "River of Flame, the screen is mostly fire. No panel"
+  },
+  "f_1787239640412.jpg": {
+   "panel": false,
+   "tab": null,
+   "note": "the CHRONICLE panel (Sets) is open — a panel, but NOT a stash"
+  }
+ }
+}

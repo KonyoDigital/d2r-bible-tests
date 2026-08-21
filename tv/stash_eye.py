@@ -316,6 +316,30 @@ def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
 _PANEL_DARK_MIN = 0.12     # real stash crop is substantially dark cells
 _PANEL_DARK_MAX = 0.62     # above this = boot/loading/dark-combat, not an open panel
 _PANEL_MIN_DARKCOLS = 4    # ≥4 dark-gridline columns = grid lattice present (wallpaper=0)
+# v1909 — AND AN UPPER BOUND, WHICH IS WHAT REG-203 WAS MISSING. A stash grid is a LATTICE: a
+# bounded number of dark gridline columns out of 84. A dark PICTURE is not a lattice — most of its
+# columns are dark. The v1258 rule had a floor and no ceiling, so a fire-lit Nihlathak temple
+# (dark_cols 31-40) satisfied "grid lattice present" as easily as a real panel (7-14).
+#
+# MEASURED ON HIS WHOLE 883-FRAME HIST, before → after:
+#     tally claims   9  →  1        (the 1 is 8_1785078207015, the ONLY true positive)
+#     stash bucket  69  → 77        (the 8 false tallies are demoted, not discarded)
+#     real panels    5/5 kept, both ways
+# The 8 that go are one fire-lit fight sequence; REG-203 named it and measured 8 of 9 wrong.
+#
+# ⚠ I FIRST CONCLUDED THIS CAP WAS UNSAFE, FROM THE FEATURE TABLE, AND THE MEASUREMENT SAID
+# OTHERWISE. A real stash panel on the SHARED tab reads dark_cols=40, which looks fatal — but the
+# plain-stash path does not require panel_open, so those frames still come back `stash`. The cap
+# only gates the TALLY branches, where the real panels read 7 and 14 and the false ones 31-39.
+# Reasoning from the features was wrong; running it decided. [[feedback-suspect-the-instrument]]
+#
+# WHY 24: real tally panels max at 14, false ones start at 31 — a 17-column gap, and 24 sits in the
+# middle of it rather than on either knife-edge. dark_cols spans 0-71 across his corpus, so this is
+# a threshold the signal can actually cross in both directions. [[feedback-threshold-above-ceiling]]
+#
+# THE ASYMMETRY THAT SETTLES THE DIRECTION: a MISSED tally costs one more look at the shelf (the
+# post-seal funnel rechecks); a FALSE tally writes a tally count for a panel that was never open.
+_PANEL_MAX_DARKCOLS = 24
 _NOT_D2R_DARK_MAX = 0.05   # a lit photograph has essentially no dark stash cells
 
 
@@ -335,7 +359,7 @@ def _panel_open_from_features(frac_dark: float, dark_cols: int) -> Tuple[bool, b
     panel_open = (
         (not not_d2r)
         and (_PANEL_DARK_MIN <= fd <= _PANEL_DARK_MAX)
-        and (dc >= _PANEL_MIN_DARKCOLS)
+        and (_PANEL_MIN_DARKCOLS <= dc <= _PANEL_MAX_DARKCOLS)
     )
     return panel_open, not_d2r
 

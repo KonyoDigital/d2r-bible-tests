@@ -167,5 +167,83 @@ class TestAGuessNeverOutranksADifferentAnswer(unittest.TestCase):
         self.assertIn("grid", sources, "an agreeing witness stopped being counted")
 
 
+class TestTheGridAgainstHandLabelledFrames(unittest.TestCase):
+    """v1909 — THE CORPUS REG-205 SAID WAS MISSING, in its own words: *"Three hand-labelled frames is
+    not a corpus."* This is twelve, labelled by OPENING the images.
+
+    REG-203 (a fire-lit fight called `stash-gems`) and REG-205 (the tab is in the pixels, reading it
+    is not solved) were both filed OPEN with the same reason — *retuning a pixel fingerprint needs
+    its own before/after sweep over the whole corpus* — and there was nothing to sweep against.
+    Now there is, and `tv/stash_grid_score.py` prints the before/after.
+
+    ⚠ THE REFUTATION IS PINNED HERE SO IT IS NOT RE-DERIVED A THIRD TIME. `dark_cols` looks like the
+    obvious separator: the real panels measured 7, 11, 14 and the fire-lit frames 31, 31, 39, 40, so
+    an upper bound seems to cut cleanly. It does not. A REAL stash panel on the SHARED tab reads
+    **40** — the same as the fire. Every bound that drops the false positives throws real stash
+    panels away with them. I proposed exactly that bound, and his own frames refused it.
+    [[feedback-suspect-the-instrument]] [[gate-blind-to-unexercised-input]]
+
+    THE RATCHET: the disagreement count may go DOWN and may never go up, and every real panel must
+    stay claimed — because the cheap way to "fix" the false positives is to stop admitting panels.
+    """
+
+    FALSE_TALLIES = 0    # v1909: was 3 here (8 across his whole hist) before the ceiling landed
+    MISSED_TALLIES = 1   # 5_1784984201581 is a RUNES tab the grid calls plain `stash` — REG-205
+
+    def _rows(self):
+        import stash_grid_score as sgs
+        rows, missing = sgs.score()
+        if not rows:
+            self.skipTest("his labelled frames are not in this checkout")
+        return rows, missing
+
+    def test_the_corpus_is_actually_present(self):
+        """A missing frame must never read as a pass — an empty corpus scores perfectly."""
+        rows, missing = self._rows()
+        self.assertEqual(missing, [], "labelled frames vanished from the checkout: %s" % (missing,))
+        self.assertEqual(len(rows), 12)
+
+    def test_no_frame_without_a_panel_is_given_a_TALLY(self):
+        """THE EXPENSIVE ERROR. A false tally writes a tally count for a panel that was never open;
+        a missed one costs another look and the funnel rechecks. REG-203's fire-lit fight lived
+        here — three of these frames, eight across his whole hist."""
+        import stash_grid_score as sgs
+        rows, _ = self._rows()
+        false_t, _missed = sgs.tally_score(rows)
+        self.assertLessEqual(len(false_t), self.FALSE_TALLIES,
+                             "the grid names a tally on a frame that has no panel:\n  "
+                             + "\n  ".join(false_t))
+
+    def test_the_MISSED_tallies_do_not_grow_either(self):
+        """The cheap way to kill false tallies is to stop naming any. This is the half that keeps
+        the other test honest."""
+        import stash_grid_score as sgs
+        rows, _ = self._rows()
+        _false, missed = sgs.tally_score(rows)
+        self.assertLessEqual(len(missed), self.MISSED_TALLIES,
+                             "the grid stopped naming tallies it used to get right:\n  "
+                             + "\n  ".join(missed))
+
+    def test_every_real_stash_panel_is_still_claimed(self):
+        """The ceiling gates the TALLY branches only — the plain-stash path never needed
+        panel_open, which is exactly why a real SHARED-tab panel at dark_cols=40 survives it. That
+        is the fact I got wrong by reading the feature table instead of running it."""
+        rows, _ = self._rows()
+        lost = [r[0] for r in rows if r[1] and not r[5]]
+        self.assertEqual(lost, [], "a retune stopped seeing REAL stash panels: %s" % (lost,))
+
+    def test_the_ceiling_is_a_threshold_the_signal_can_CROSS(self):
+        """A bound outside the signal's range is an absent bound wearing a tuned face. Real tally
+        panels read 7 and 14 here, the false ones 31-39, and dark_cols spans 0-71 across his hist —
+        so 24 sits inside a 17-column gap rather than on either knife-edge.
+        [[feedback-threshold-above-the-ceiling]]"""
+        import stash_eye as se
+        rows, _ = self._rows()
+        dcs = [r[4] for r in rows if r[4] is not None]
+        self.assertLess(min(dcs), se._PANEL_MAX_DARKCOLS, "nothing is below the ceiling")
+        self.assertGreater(max(dcs), se._PANEL_MAX_DARKCOLS, "nothing is above it — it never fires")
+        self.assertGreater(se._PANEL_MAX_DARKCOLS, se._PANEL_MIN_DARKCOLS)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

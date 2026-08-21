@@ -7858,3 +7858,47 @@ Two more guards while the file was open, both **seen RED for their own reason**:
   covered only the lane that had been broken. **Every existing chronicle test runs under `TV_STUB`,
   which returns before the crop is ever reached** — so the side that was already right was unexercised,
   and a refactor whose old side is unexercised is a refactor half-verified.
+
+## REG-203 — a fire-lit fight called `stash-gems` (CLOSED v1909, filed OPEN 2026-08-20)
+
+Filed OPEN with a named reason: *"retuning a pixel fingerprint needs its own before/after sweep over
+the whole corpus"*, and REG-205 added *"three hand-labelled frames is not a corpus."* Both are
+answered here.
+
+**The corpus:** `tv/stash_grid_truth.json` — **twelve frames labelled by opening the images**: five
+real stash panels (materials, personal, runes, and two on shared), a Chronicle panel, two portal
+scenes, three frames of a fire-lit Nihlathak temple, and the River of Flame. `tv/stash_grid_score.py`
+prints the before/after; the ratchet lives in `test_stash_eye_aspect.py`.
+
+**The fix:** `_panel_open_from_features` had a floor on `dark_cols` and **no ceiling**. A stash grid
+is a *lattice* — a bounded number of dark gridline columns out of 84. A dark *picture* is not a
+lattice: most of its columns are dark. So a fire-lit temple (31–40) satisfied "grid lattice present"
+as easily as a real panel (7–14). `_PANEL_MAX_DARKCOLS = 24` sits in the middle of that 17-column
+gap, and `dark_cols` spans 0–71 across his hist, so it is a threshold the signal actually crosses.
+
+**Measured on his whole 883-frame hist, before → after:**
+
+| | before | after |
+|---|---|---|
+| tally claims | **9** | **1** |
+| …of which correct | 1 | **1** (`8_1785078207015`, the real MATERIALS panel) |
+| `stash` bucket | 69 | 77 — the eight false tallies are **demoted, not discarded** |
+| real panels claimed | 5/5 | 5/5 |
+
+⚠ **I CONCLUDED THE OPPOSITE FIRST, FROM THE FEATURE TABLE, AND THE MEASUREMENT OVERTURNED IT.** A
+real stash panel on the SHARED tab reads `dark_cols=40` — the same as the fire — which looks fatal to
+any ceiling. It is not: **the plain-stash path never required `panel_open`**, so those frames still
+come back `stash`. The ceiling gates only the TALLY branches, where the real panels read 7 and 14 and
+the false ones 31–39. I wrote the refutation into the corpus file before running it, and running it
+said otherwise. That paragraph is now the correction it deserves. [[feedback-suspect-the-instrument]]
+
+⚠ **AND MY FIRST SCORER WAS BLIND.** It graded `label != "gameplay"` — an axis that is nearly
+constant, because the grid answers `stash` for almost any dark frame. **Two opposite sabotages — a
+`dark_cols` cap and refusing every panel outright — scored identically to the real code.** A metric
+two opposite sabotages cannot move is measuring nothing. It grades the TALLY axis now, and three
+sabotages (remove the ceiling · refuse every panel · a ceiling above the signal's range) each fail a
+different test. [[feedback-blind-fixture-green-gate]]
+
+**Still open, and now measurable:** `5_1784984201581` is a real RUNES tab the grid calls plain
+`stash` — one missed tally, pinned by the ratchet so a future retune has to keep it at one or say
+what earned better. That is REG-205's remaining half.
