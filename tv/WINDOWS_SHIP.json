@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1938",
+  "ver": "v1939",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1938: The remaining-repair wrote a game reading into the un-tick store, so eight assertions across four suites read 2 where they required 0. Split into d2r_setRepairRemoved, and the one-shot suppressor now stops the whole boot repair rather than one of its two branches.",
+  "note": "v1939: The remaining-repair edited storage and never synced the live in-memory setPieces Set, so the next persist rewrote the store from that stale Set and put all 19 pieces back: 116 measured, then 134 after one unrelated tick. Also three more spec fixtures the repair was editing, and a panel measured through six locator round-trips instead of one atomic pass.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

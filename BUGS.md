@@ -9069,3 +9069,50 @@ structural rule (a unique may never sit in the set store) is **not** suppressed 
 
 Verified: the whole `slow` project, **58 passed**, locally, BEFORE pushing — rather than discovering
 it on the next CI round-trip, which is what the previous four ships did.
+
+## REG-300 — the count he asked for landed, then his first click undid it (v1925→v1938, FIXED v1939)
+
+`_chRepairLedgers` wrote `d2r_setPieces` to storage and never touched the live in-memory
+`setPieces` Set. `persist()` serialises `[...setPieces]` over the top of that key, and `persist()`
+runs on virtually any board interaction — a set tick, a rune, a boss filter, a stash edit.
+
+**MEASURED, end to end** (`tests/v1938_remaining_repair_outcome.spec.ts`):
+
+```
+roster 135 -> repair -> 116   correct, and this is where every guard stopped looking
+   -> un-tick ONE unrelated piece -> 134   all 19 back
+```
+
+So F·Sets showed the 116/135 he asked for — *"fix the 118/135 to 116/135 i want to see it fixed!"* —
+and reverted to 134 the moment he touched anything. **Fourteen ships carried it, v1925 through
+v1938**, and every guard written in that window stayed green, because each read the store
+immediately after boot and nothing ever clicked. A gate that never interacts cannot see a defect
+that only appears on interaction.
+
+⚠ **THE RULE ALREADY EXISTED, ELEVEN LINES FROM CODE THAT OBEYS IT.** v684 wrote it into the seed
+floor: *"sync the LIVE in-memory Set too ... otherwise the first persist() rewrites d2r_setPieces
+from the stale pre-seed Set and clobbers every floored piece."* The floor obeys it. The repair was a
+second writer to the same store that never read the first writer's warning.
+
+**THE CLASS, SWEPT — AND THE FIRST SWEEP WAS TOO NARROW.** I first checked the 15 writers of
+`d2r_setPieces` / `d2r_owned` / `d2r_foundLog` and called it closed. But the exposure is not those
+three keys: it is **every key `persist()` writes**, because `persist()` is what does the clobbering.
+`persist()` writes **21**. Checking 3 of 21 and reporting a closed class is the same mistake in
+miniature — the count is the tell.
+
+All 21 swept. Nine have a writer outside `persist()`, and every one of those nine is safe by one of
+three mechanisms:
+  * it serialises FROM the live structure (`owned` x3, `copies`, `multiKeep`, `magicFinds` x5,
+    `ethereal`, `superiorBases`, `unknownReads`, `rwMade` x4);
+  * it mutates the live structure and THEN writes (`chronicleReset` sets `rwMade = {}` on the line
+    above its storage write; the `_UNI_EXTRA` strip deletes from the Set first; the v684 floor);
+  * it writes and then RELOADS the page (the grail-import path, which says so in its own comment).
+
+The repair was the only writer in the file that did none of the three. `d2r_foundLog` carries no
+live mirror — every reader re-parses it — so it is not exposed to this at all.
+
+**Second symptom, same cause:** ticking a repaired-away piece back "did nothing". The stale Set
+still contained it, so `toggleSetPiece` took the *delete* branch instead of *add*.
+
+Guard: `tests/v1938_remaining_repair_outcome.spec.ts` — un-ticks one unrelated piece after the
+repair and requires 115, seen RED at 134 before being trusted.

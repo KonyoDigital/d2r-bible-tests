@@ -21533,6 +21533,20 @@ function toggleSetPiece(piece) {
   // would erase main's explicit un-marks). The floor only runs on the owner (mac main); cousin's
   // W·-family writes stay correct via LSR.
   try { if (window._SET_SEED && window._SET_SEED[piece] && (window._isCousinShell || window.D2R_PROFILE !== 'ladder')) { var _sgu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (setPieces.has(piece)) _sgu[piece] = 1; else delete _sgu[piece]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_sgu)); } } catch(e){}
+  /* v1939 — AND CLEAR THE MACHINE STORE WHEN HE TICKS IT BACK.
+     d2r_setRepairRemoved says "the game's Remaining filter listed this as one he does not have".
+     If he then ticks the piece by hand, that sentence is no longer true, and leaving it in place
+     leaves storage holding two contradictory claims about one piece. It is INERT today — the boot
+     floor only consults it to decide whether to re-add a piece it can already see — so this is
+     honesty in the store rather than a visible fix. Ungated by _SET_SEED on purpose: the repair
+     can remove a piece the seed never carried, and that row needs clearing just the same.
+     A NEW reading may of course list it again; that is new evidence, and it wins. [[label-outlived-referent]] */
+  try {
+    if (!setPieces.has(piece)) {
+      var _srr = JSON.parse(window.LSR.getItem('d2r_setRepairRemoved') || '{}') || {};
+      if (_srr[piece]) { delete _srr[piece]; window.LSR.setItem('d2r_setRepairRemoved', JSON.stringify(_srr)); }
+    }
+  } catch(e){}
   if (setPieces.has(piece)) setPieces.delete(piece);
   else {
     /* v1925 — A UNIQUE MUST NEVER ENTER THE SET STORE. Konyo: "code a safegaurd for this so it
@@ -38973,6 +38987,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!out.removed.length || dry) return out;
     try {
       window.LSR.setItem('d2r_setPieces', JSON.stringify(keep));
+      /* v1939 — AND THE LIVE IN-MEMORY SET, OR THE NEXT persist() PUTS ALL OF THEM BACK.
+         This is the defect v684 already wrote down eleven lines into the seed floor: "otherwise the
+         first persist() rewrites d2r_setPieces from the stale pre-seed Set". The floor obeyed it;
+         this repair, shipped v1925, wrote storage only and never touched `setPieces`.
+
+         MEASURED, not reasoned: roster 135 -> repair -> 116 (correct) -> ONE un-tick of an unrelated
+         piece -> 134. persist() serialises [...setPieces] over the top, so every one of the 19 the
+         game says he does not have came back, and the count he asked to see fixed silently undid
+         itself on his first click. v1925 through v1938 all carried it.
+
+         Guarded on typeof because this function is reachable before the tracker scope is built;
+         a repair that throws here would leave storage edited and the page mid-flight. */
+      try {
+        if (typeof setPieces !== 'undefined' && setPieces && typeof setPieces.delete === 'function')
+          out.removed.forEach(function(r){ setPieces.delete(r.name); });
+      } catch(e){}
       /* MACHINE TRUTH — the game's Remaining filter, NOT his un-tick — so the boot seed cannot
          put them back on the next load. These are different claims and they get different stores:
          writing this into d2r_grailUnfound (v1925) meant a set-piece reading answered a question
@@ -42699,7 +42729,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1938', name:'v1938 - two claims, one store', date:'2026-08-21', note:'The remaining-repair wrote a game reading into the un-tick store, so eight assertions across four suites read 2 where they required 0. Split into d2r_setRepairRemoved, and the one-shot suppressor now stops the whole boot repair rather than one of its two branches.' };
+  window.D2R_BUILD = { id:'v1939', name:'v1939 - the count that undid itself on the first click', date:'2026-08-21', note:'The remaining-repair edited storage and never synced the live in-memory setPieces Set, so the next persist rewrote the store from that stale Set and put all 19 pieces back: 116 measured, then 134 after one unrelated tick. Also three more spec fixtures the repair was editing, and a panel measured through six locator round-trips instead of one atomic pass.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

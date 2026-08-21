@@ -22,6 +22,20 @@ import * as path from 'path';
 // the decision is a pure function and this gate exercises every branch of it — including the ADOPT
 // branch, without which the four refusals are trivially satisfied by a function that never says yes.
 
+import { suppressOneShots } from './_oneshots';
+
+/* v1939 — THIS SPEC SEEDS THE LEDGER IT THEN READS BACK IN ORDER, so it must boot as a LATER load.
+   v1925's remaining-repair runs 400ms after load and upserts its own provenance row for every
+   piece it removes. On CI that put "Natalya's Soul (claws)" — the one seeded set piece the game's
+   Remaining list names — at the TOP of both fixtures, and the two ordering assertions read it as
+   the board mis-sorting its own ledger:
+     ["Natalya's Soul (claws)","Andariel's Visage","Bonesnap","Gorefoot"]
+     ["Natalya's Soul (claws)","Newer Find","Older Find"]
+   Nothing was wrong with the sort. A fourth row had joined the fixture between seeding and
+   reading. Same defect as v1756 and v1937 — this is the third fixture the repair has edited, so
+   it is a class, not an incident. [[feedback_generalize_fixes]] [[feedback_blind_fixture_green_gate]] */
+const BOOT_AS_LATER_LOAD = suppressOneShots();
+
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.describe('v1765 — the board adopts a finished sweep, and only ever its own', () => {
@@ -87,6 +101,9 @@ test.describe('v1765 — the board adopts a finished sweep, and only ever its ow
      read that way: you lose your place, and a moved row is indistinguishable from a new one. */
   test('★★★ same rows, same order — every time', async ({ page }) => {
     const ts = 1786000000000;
+    await page.addInitScript((flags: Record<string, string>) => {
+      for (const k of Object.keys(flags)) localStorage.setItem(k, flags[k]);
+    }, BOOT_AS_LATER_LOAD);
     await page.addInitScript((t: number) => {
       localStorage.setItem('d2r_chronicleInboxLog', JSON.stringify([
         { name: 'Gorefoot',   status: 'in-chronicle', store: 'foundLog', lastTs: t },
@@ -110,6 +127,9 @@ test.describe('v1765 — the board adopts a finished sweep, and only ever its ow
   });
 
   test('★★★ newer sweeps sit above older ones — it is a log, after all', async ({ page }) => {
+    await page.addInitScript((flags: Record<string, string>) => {
+      for (const k of Object.keys(flags)) localStorage.setItem(k, flags[k]);
+    }, BOOT_AS_LATER_LOAD);
     await page.addInitScript(() => {
       localStorage.setItem('d2r_chronicleInboxLog', JSON.stringify([
         { name: 'Older Find', status: 'in-chronicle', store: 'foundLog', lastTs: 1786000000000 },

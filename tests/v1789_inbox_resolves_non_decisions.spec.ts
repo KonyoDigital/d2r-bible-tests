@@ -1,5 +1,6 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { suppressOneShots } from './_oneshots';
 
 // v1789 — MOST OF THE QUEUE WAS NEVER HIS DECISION.
 //
@@ -35,12 +36,20 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
    he puts back, and the put-back test wrote "Templar Coat" into it — after which every earlier test
    in the file stopped retiring that row and five assertions went red at once. A fixture that seeds
    only what it wants and inherits the rest is not testing the code, it is testing the run order. */
+/* v1939 — BOOT AS A LATER LOAD. Every test in this file establishes the exact inbox state it
+   measures, and then a boot one-shot edits the board underneath it. This file already carries the
+   scar in prose — "the shard may have marked these found" — and ensureUnfound() was written to
+   repair the damage after the fact. Suppressing the applies stops it happening. Derived from
+   bible.html, never hand-listed (tests/_oneshots.ts). */
+const BOOT_AS_LATER_LOAD = suppressOneShots();
+
 async function seedInbox(page: any, names: string[]) {
-  await page.addInitScript((ns: string[]) => {
+  await page.addInitScript(([ns, flags]: [string[], Record<string, string>]) => {
+    for (const k of Object.keys(flags)) localStorage.setItem(k, flags[k]);
     localStorage.removeItem('d2r_chronicleAutoRetired');
     localStorage.removeItem('d2r_chronicleKeepPending');
     localStorage.setItem('d2r_chronicleInbox', JSON.stringify(ns.map((n) => ({ name: n }))));
-  }, names);
+  }, [names, BOOT_AS_LATER_LOAD]);
 }
 
 // NOTE ON HOW THESE ASSERT, and the two corrections that got them here.
@@ -232,17 +241,51 @@ test('every pending row actually SHOWS its name and both buttons', async ({ page
     (window as any).renderInboxFab();
   }, rowNames);
   await page.evaluate(() => (window as any).inboxPopTog());
-  const rows = page.locator('#inbox-pop .ibp-row');
-  await expect(rows).toHaveCount(3);
-  for (let i = 0; i < 3; i++) {
-    const nm = rows.nth(i).locator('.ibp-nm');
-    await expect(nm).toBeVisible();
-    const box = await nm.boundingBox();
-    expect(box!.width).toBeGreaterThan(40);
+  await expect(page.locator('#inbox-pop .ibp-row')).toHaveCount(3);
+
+  /* v1939 — MEASURE THE WHOLE PANEL IN ONE EVALUATE, NOT THROUGH SIX LOCATOR ROUND-TRIPS.
+     This used `await expect(nm).toBeVisible()` and then `await nm.boundingBox()` as two separate
+     calls. The panel re-renders (the resolver runs on its own), so the element the first call
+     verified is detached by the time the second measures it, and boundingBox() answers null for a
+     row that is on screen and perfectly fine. It threw `Cannot read properties of null (reading
+     'width')` on CI, passed twelve-for-twelve locally twice, then failed locally on the third run —
+     a flake, not a layout defect.
+
+     The geometry claim is unchanged and still a GEOMETRY claim, which is the whole point of this
+     test: `.ibp-why` is flex:0 0 100% and once squeezed the name and both buttons to zero width
+     while textContent stayed perfect. One synchronous pass over the live DOM cannot be raced.
+     [[chrome-cdp-mac]] — "markers do not survive a re-render; make query and measure one atomic
+     evaluate". */
+  const measured = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll('#inbox-pop .ibp-row')) as HTMLElement[];
+    return rows.map((row, i) => {
+      const nm = row.querySelector('.ibp-nm') as HTMLElement | null;
+      const btns = (Array.from(row.querySelectorAll('button')) as HTMLElement[]).map((b) => ({
+        text: (b.textContent || '').trim().toLowerCase(),
+        w: b.getBoundingClientRect().width,
+        display: getComputedStyle(b).display,
+      }));
+      return {
+        i,
+        nmText: nm ? (nm.textContent || '').trim().slice(0, 40) : null,
+        nmW: nm ? nm.getBoundingClientRect().width : null,
+        btns,
+        html: row.innerHTML.slice(0, 200),
+      };
+    });
+  });
+
+  expect(measured.length, 'the panel did not render three rows').toBe(3);
+  for (const r of measured) {
+    expect(r.nmText, `row ${r.i} has no .ibp-nm at all — ${r.html}`).toBeTruthy();
+    expect(r.nmW ?? 0, `row ${r.i} name "${r.nmText}" is squeezed to ${r.nmW}px — ${r.html}`)
+      .toBeGreaterThan(40);
     for (const label of ['tick it', 'ignore']) {
-      const b = rows.nth(i).getByRole('button', { name: label });
-      const bb = await b.boundingBox();
-      expect(bb!.width).toBeGreaterThan(20);
+      const b = r.btns.find((x) => x.text.includes(label));
+      expect(b, `row ${r.i} has no "${label}" button — buttons were ${JSON.stringify(r.btns)}`)
+        .toBeTruthy();
+      expect(b!.w, `row ${r.i} "${label}" button is ${b!.w}px wide (display:${b!.display})`)
+        .toBeGreaterThan(20);
     }
   }
 });

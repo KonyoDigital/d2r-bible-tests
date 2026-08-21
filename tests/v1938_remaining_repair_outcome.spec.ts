@@ -72,4 +72,106 @@ test.describe('v1938 — the remaining-repair lands on 116/135 and stays there',
         (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).length);
       expect(again, 'a second load put removed pieces back').toBe(116);
     });
+
+  /* v1939 — A HAND TICK RETIRES THE MACHINE CLAIM.
+     d2r_setRepairRemoved asserts "the game listed this among the ones he does not have". The moment
+     he ticks the piece himself that sentence stops being true, and a store holding two contradictory
+     claims about one piece is how a right number ends up under a word that no longer applies. */
+  test('★★ ticking a removed piece back retires the machine claim, and the floor does not fight it',
+    async ({ page }) => {
+      await page.goto(URL);
+      await page.waitForTimeout(1400);
+
+      const target = await page.evaluate(() => {
+        const w: any = window;
+        const names: string[] = [];
+        (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
+        localStorage.setItem('d2r_setPieces', JSON.stringify(names));
+        localStorage.removeItem('d2r_setRepairAt');
+        localStorage.removeItem('d2r_setRepairRemoved');
+        localStorage.setItem('d2r_grailUnfound', '{}');
+        return ((w._SET_MISSING || {}).names || [])[0] as string;
+      });
+      expect(target, 'the game named at least one missing piece to test with').toBeTruthy();
+
+      await page.reload();
+      await page.waitForTimeout(1600);
+      const removedClaim = await page.evaluate((n: string) =>
+        !!JSON.parse(localStorage.getItem('d2r_setRepairRemoved') || '{}')[n], target);
+      expect(removedClaim, 'the repair should have removed and recorded this piece').toBe(true);
+
+      // he ticks it back by hand — through the real toggle, not a raw store write
+      await page.evaluate((n: string) => (window as any).toggleSetPiece(n), target);
+      await page.waitForTimeout(500);
+      const afterTick = await page.evaluate((n: string) => ({
+        inMemory: (window as any).setPieces ? (window as any).setPieces.has(n) : null,
+        owned: (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).includes(n),
+        stillClaimed: !!JSON.parse(localStorage.getItem('d2r_setRepairRemoved') || '{}')[n],
+      }), target);
+      expect(afterTick.owned, 'his tick did not land').toBe(true);
+      expect(afterTick.stillClaimed, 'the machine store still says the game listed a piece he now has').toBe(false);
+
+      // and it survives a reload — the floor must not undo his tick
+      await page.reload();
+      await page.waitForTimeout(1600);
+      const survived = await page.evaluate((n: string) =>
+        (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).includes(n), target);
+      expect(survived, 'a reload took his hand tick away again').toBe(true);
+    });
+
+  /* v1939 — ★★★ THE ONE THAT MATTERS: A persist() MUST NOT RESURRECT THEM.
+     The repair wrote d2r_setPieces to storage and never touched the live in-memory `setPieces` Set.
+     persist() serialises [...setPieces] over the top, and persist() runs on virtually any board
+     interaction — a set tick, a rune, a boss filter. So the count landed on 116, and his first
+     click anywhere put all 19 back.
+
+     MEASURED BEFORE THE FIX: roster 135 -> repair -> 116 -> one un-tick of an UNRELATED piece ->
+     134. v1925 through v1938 all shipped it, and every guard written in that window still passed,
+     because each of them measured the store immediately after boot and nothing ever clicked.
+
+     v684 had already written this exact warning into the seed floor eleven lines from the code that
+     obeys it. The rule existed; the second writer never read it. [[feedback_generalize_fixes]] */
+  test('★★★ a persist() does not resurrect the pieces the game says he does not have',
+    async ({ page }) => {
+      await page.goto(URL);
+      await page.waitForTimeout(1400);
+      await page.evaluate(() => {
+        const w: any = window;
+        const names: string[] = [];
+        (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
+        localStorage.setItem('d2r_setPieces', JSON.stringify(names));
+        localStorage.removeItem('d2r_setRepairAt');
+        localStorage.removeItem('d2r_setRepairRemoved');
+        localStorage.setItem('d2r_grailUnfound', '{}');
+      });
+      await page.reload();
+      await page.waitForTimeout(1600);
+
+      const afterRepair = await page.evaluate(() =>
+        (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).length);
+      expect(afterRepair, 'the repair itself must land on 116 first').toBe(116);
+
+      /* un-tick ONE unrelated piece — the cheapest thing that calls persist(). Deliberately a piece
+         the repair never touched, so anything that comes back came back on its own. */
+      const ctl = await page.evaluate(() => {
+        const w: any = window;
+        const miss: string[] = (w._SET_MISSING || {}).names || [];
+        const names: string[] = [];
+        (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
+        const pick = names.filter((p) => miss.indexOf(p) < 0)[0];
+        w.toggleSetPiece(pick);
+        return pick;
+      });
+      await page.waitForTimeout(400);
+
+      const after = await page.evaluate(() =>
+        JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]);
+      expect(after.length, `un-ticking ${ctl} resurrected the repaired-away pieces`).toBe(115);
+
+      const back = await page.evaluate((prev: string[]) => {
+        const miss: string[] = ((window as any)._SET_MISSING || {}).names || [];
+        return miss.filter((n) => prev.includes(n));
+      }, after);
+      expect(back, 'these are back in his set ledger and the game says he does not have them').toEqual([]);
+    });
 });
