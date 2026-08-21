@@ -96,28 +96,37 @@ Opened `f_1784984271825` (GEMS tab) and looked: it is an unmistakable **7 × 5 l
 cells, each holding one gem with its stack count in the corner, with the Horadric cube's 3 × 4 grid
 below it. To the eye it could not be clearer.
 
-**Two cheap recoveries were tried and neither worked**, and both are recorded so the third does not
-repeat them:
+**Five attempts. THE ROWS ARE SOLVED AND CONFIRMED ON THE PIXELS; the columns are not.** Every
+attempt is recorded with its numbers so the sixth does not repeat one:
 
-| attempt | expected | got |
-|---|---|---|
-| peak-picking the column/row brightness projection | 7 columns, even pitch | 14 columns, pitch sd **34 on a mean of 70** — it locked onto gem highlights and stack digits, not dividers |
-| autocorrelating the brightness profile | pitch ≈ 151 px | **216 px** (a harmonic); at the true lag the correlation is strongly **negative** |
-| autocorrelating the dark-cell/divider fraction | a clean square wave | best lag **108 px**, ac **0.023** — no peak anywhere near 151 |
+| # | attempt | expected | got |
+|---|---|---|---|
+| 1 | peak-pick the brightness projection | 7 columns, even pitch | 14 columns, pitch sd **34 on a mean of 70** — locked onto gem highlights and stack digits |
+| 2 | autocorrelate the brightness profile | pitch ≈ 151 px | **216 px**, a harmonic; at the true lag the correlation is strongly **negative** |
+| 3 | autocorrelate the dark-cell/divider fraction | a clean square wave | best lag **108 px**, ac **0.023** — no peak near 151 |
+| 4 | **project EDGE energy instead of brightness** | dividers are long straight lines, gems are blobs | ✅ **ROWS: 6 boundaries at pitch 92 ± 7.5** against a truth of 5 rows at 96 — and drawing them back onto the frame puts **every line on a real divider**. ❌ columns: 7 peaks, pitch sd **31** |
+| 5 | mask the column projection to the empty band under each row divider | only dividers survive | **worse** — 5 peaks at pitch 235. The band clips item art rather than background |
 
-**The lesson is REG-205's, one subsystem over: the obvious feature is the wrong feature.** There, five
-equal cells and argmax luminance got 1 of 3, and the answer turned out to be a small structural
-marker — the active-tab gem — that no projection would ever have found.
+**Attempt 4 is the method.** A horizontal divider spans the full panel width and nothing else does,
+so the row axis falls out cleanly. The column axis carries the gems' own vertical edges *and* the
+stack-count digits at each cell's right edge, which is why the same projection fails on it.
 
-**What to try next, in order:**
-1. **The cell BOX, not the projection.** Every cell is a bordered rectangle of a fixed size. Match one
-   cell template across the panel, or find the repeated rectangle directly. The lattice is a grid of
-   boxes; a 1-D projection throws away the fact that makes it recognisable.
-2. **Derive the panel rectangle first.** Every attempt above used a hand-eyeballed crop box, and a
-   crop whose edges include panel chrome distorts every statistic taken inside it. The panel's inner
-   frame is a strong rectangle — find it, then the grid is a known fraction of it.
-3. **Then, and only then, label.** A slot map built on a lattice that was fitted rather than found is
-   a plausible-but-wrong detector, which is the precise failure v1857/v1859 already cost.
+**What to try next, on the columns only:**
+1. **The cell BOX, not a 1-D projection.** Every cell is a bordered rectangle of one fixed size. Match
+   one cell template across the panel; the lattice is a grid of boxes, and a projection throws away
+   the very fact that makes it recognisable.
+2. **Use the SOLVED rows as the template height** — one axis is known, which halves the search.
+3. **Derive the panel rectangle first.** Every attempt above used a hand-eyeballed crop box, and a
+   crop whose edges include panel chrome distorts every statistic taken inside it.
+
+**And the lesson is REG-205's, one subsystem over: the obvious feature is the wrong feature.** There,
+five equal cells and argmax luminance got 1 of 3, and the answer was a small structural marker — the
+active-tab gem — that no projection would ever have found. Here the same held twice: brightness was
+the wrong feature and EDGES were the right one, and the axis that works is the one whose divider has
+no competition.
+
+**Then, and only then, label.** A slot map built on a lattice that was fitted rather than FOUND is a
+plausible-but-wrong detector, which is the precise failure v1857/v1859 already cost.
 
 ⚠ **And the tally tabs are a different problem from the free-form ones.** GEMS / RUNES / MATERIALS are
 a fixed catalogue grid ordered by type — "did it move" is close to meaningless there, and the vault
