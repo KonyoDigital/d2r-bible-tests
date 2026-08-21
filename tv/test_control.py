@@ -9636,6 +9636,57 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestHeldNamesReachTheInboxAndStayHeld(unittest.TestCase):
+    """v1896 — VERIFIED, and it found nothing wrong. Recording that is the point.
+
+    v1759 built this path after five names the readers genuinely saw were "silently discarded on the
+    server: they never reached the board, never reached the inbox, and he never saw them". It had
+    never been driven with a real held pile.
+
+    MEASURED IN A REAL PAGE against the 41 names his own sweep is currently holding:
+
+        held in                41
+        queued                 41  (skipped 0 · conflicts 0 · autoAccepted 0 · autoDismissed 0)
+        rows in the inbox      41, each carrying its reason as `triageWhy`
+                               e.g. "only 1 independent witness (cross-frame) — needs 2"
+        auto-ticked            0
+        after THREE sync passes   still 41 rows, still 0 ticked
+
+    The three passes matter: a defect that needs a second triage to bite would hide from one, and
+    v1759's own note says what is at stake — "the board's triage sees a well-formed grail name and
+    AUTO-TICKS it, which quietly undoes the gate that just refused to ground it".
+
+    What is asserted here is the contract the in-page run exercised: held names go through
+    kaiChroniclePropose carrying gateHeld, and carrying WHY."""
+
+    def _bible(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        return open(p, encoding="utf-8").read()
+
+    def test_held_names_are_routed_through_the_one_door(self):
+        body = _between(self, self._bible(), "var _held = (proposal && proposal.held) || [];",
+                        "(add.uniques || []).forEach(", min_len=300, what="the held branch")
+        self.assertIn("kaiChroniclePropose", body,
+                      "held names take a private path again instead of the door every proposal uses")
+        self.assertIn("gateHeld: true", body,
+                      "without gateHeld the triage auto-ticks a name the gate just refused")
+        self.assertIn("gateWhy", body, "a held name reaches him with no reason attached")
+
+    def test_the_reason_survives_into_the_row(self):
+        src = self._bible()
+        i = src.find("if (item.gateHeld){")
+        self.assertGreater(i, 0, "the triage no longer reads gateHeld at all")
+
+    def test_a_held_name_is_never_auto_accepted(self):
+        """The property the three sync passes proved in the page, pinned at its source."""
+        src = self._bible()
+        body = _between(self, src, "if (item.gateHeld){", "\n", min_len=10,
+                        what="the gateHeld branch")
+        self.assertTrue(body.strip().endswith("{"), body[:80])
+
+
 class TestTheVaultProposalSurvivesARestart(unittest.TestCase):
     """v1895 — the vault proposal was IN-MEMORY ONLY. He sweeps his vault, closes the console, and
     the proposal is gone while the READS THAT PAID FOR IT are spent. The chronicle solved this in

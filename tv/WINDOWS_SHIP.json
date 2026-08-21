@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1895",
+  "ver": "v1896",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1895: The vault job was in memory only, so he sweeps his vault, closes the console, and the proposal is gone while the reads that paid for it are spent. The chronicle solved this for the same reason versions ago. It persists now with the same atomic write and the same refusal to stringify what will not serialise, proven end to end in an isolated tree with his own confirmed untouched. The age ships in the same breath because a proposal that outlives the session must say how old it is, and the new live file joined the gate watchlist and the ignore file on day one, since new live state that nothing watches is exactly how the last three leaks survived.",
+  "note": "v1896: The path was built after five names the readers genuinely saw were discarded on the server and never reached him, and it had never been driven with a real held pile. Measured in a real page against the forty-one names his own sweep is holding: forty-one queued, forty-one rows each carrying its reason, nothing auto-accepted, and still nothing after three sync passes - which is the part that matters, because a defect needing a second triage to bite would hide from one. No defect found, and that is the result: this is where his last two set pieces are waiting, with the reason each is waiting attached.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

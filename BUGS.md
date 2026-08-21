@@ -7466,3 +7466,29 @@ restored from disk, not from this session"*, amber past a day. [[stale-reading]]
 
 ⚠ **The new live file joined the gate's watchlist and `.gitignore` on day one** — new live state that
 nothing watches is precisely how REG-215, REG-216 and REG-218 each survived.
+
+## REG-246 — the held pile reaches his inbox and stays held (VERIFIED, no defect, v1896)
+
+v1759 built this path after five names the readers genuinely saw were *"silently discarded on the
+server: they never reached the board, never reached the inbox, and he never saw them."* It had never
+been driven with a real held pile.
+
+**Measured in a real page against the 41 names his own sweep is currently holding:**
+
+```
+held in                 41
+queued                  41   (skipped 0 · conflicts 0 · autoAccepted 0 · autoDismissed 0)
+rows in the inbox       41, each carrying its reason as `triageWhy`
+                        e.g. "only 1 independent witness (cross-frame) — needs 2"
+auto-ticked             0
+after THREE sync passes  still 41 rows, still 0 ticked
+```
+
+**The three passes are the point.** A defect that needs a second triage to bite would hide from one,
+and v1759's own note says what is at stake: *"the board's triage sees a well-formed grail name and
+AUTO-TICKS it, which quietly undoes the gate that just refused to ground it."*
+
+**No defect found**, and that is the result rather than a disappointment — this is where his last two
+set pieces (**Dangoon's Teaching**, **Milabrega's Diadem**) are waiting, with the reason each is
+waiting attached. The contract the run exercised is now pinned: held names go through the one door,
+carrying `gateHeld` and carrying **why**.
