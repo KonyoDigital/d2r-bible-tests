@@ -11227,28 +11227,57 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
     except Exception as e:
         report["skipped"] = "chronicle_hunt unavailable: %s" % e
         return prop, applied, report
-    held = [h["name"] for h in (applied.get("held") or []) if h.get("ledger") == "uniques"]
-    if not held:
+    # ── v1917 — THE HUNT WAS BLIND TO THE LEDGER WHERE EVERY HELD NAME LIVES ──────────────────
+    #
+    # This filtered to `ledger == "uniques"`, and his last sweep held FORTY-ONE names of which
+    # forty-one are SET PIECES and zero are uniques. So the report read "nothing was held" and the
+    # hunt spent 0 reads while 41 corroborated-once pieces — Tancred's Skull at six sightings,
+    # Aldur's Rhythm, Sander's Riprap — sat one witness short of grounding.
+    #
+    # Konyo asked for exactly this and it is what he was told he had: "for F-SETS it should cross
+    # reference the items i still dont have ... JUST LIKE UNIQUES i remember we integrated this in
+    # some way for it already". The integration existed and covered one of the two ledgers.
+    #
+    # Both ledgers now, each hunted in its own evidence and read with its own page kind — a sets
+    # page is read as `chronicle-sets` or the reader is answering about the wrong list.
+    held_by = {"uniques": [], "sets": []}
+    for h in (applied.get("held") or []):
+        led = h.get("ledger")
+        if led in held_by and h.get("name"):
+            held_by[led].append(h["name"])
+    if not (held_by["uniques"] or held_by["sets"]):
         report["skipped"] = "nothing was held"
         return prop, applied, report
-    held = held[:_CHRON_HUNT_MAX_NAMES]
-    report["hunted"] = held
+    # The cap is per ledger, not shared: a long uniques list must not starve the sets hunt of every
+    # read, which is the shape that made this uniques-only in effect even after it stopped being so
+    # in the filter.
+    for led in held_by:
+        held_by[led] = held_by[led][:_CHRON_HUNT_MAX_NAMES]
+    report["hunted"] = held_by["uniques"] + held_by["sets"]
+    found_by = {}
     try:
         with _CHRON_LOCK:
             _CHRON_JOB["phase"] = "hunting"
-        found = _ch.hunt(held, prop, hist_dir, read_page, log=lambda m: print("   \U0001f50e %s" % m))
+        for led in ("uniques", "sets"):
+            if not held_by[led]:
+                continue
+            kind = "chronicle-sets" if led == "sets" else "chronicle-uniques"
+            got = _ch.hunt(held_by[led], prop, hist_dir, read_page, kind=kind,
+                           log=lambda m, _l=led: print("   \U0001f50e [%s] %s" % (_l, m)))
+            if got:
+                found_by[led] = got
     except Exception as e:
         report["skipped"] = "hunt failed: %s" % e
         return prop, applied, report
-    if not found:
+    if not found_by:
         return prop, applied, report
     # merge_proposals is what makes the new sightings ACCUMULATE rather than replace, and it is the
     # same path a second sweep takes — the hunt earns evidence, it does not get a private door.
-    merged = _cr.merge_proposals(prop, {"uniques": found})
+    merged = _cr.merge_proposals(prop, found_by)
     _chron_evidence_save(merged)
     merged, _ = _chron_fold(merged)
     regated = _cr.apply_proposal(merged, {"uniques": [], "sets": []}, gate=_cr.strict_gate())
-    report["found"] = {k: len(v) for k, v in found.items()}
+    report["found"] = {led: {k: len(v) for k, v in got.items()} for led, got in found_by.items()}
     return merged, regated, report
 
 
@@ -12436,7 +12465,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1916",
+        "ver": "v1917",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

@@ -8189,3 +8189,44 @@ than reassuring**: *"writes 266 unique(s) + 36 set piece(s) = 302 into your grai
 undo any one on the board, or press 'forget what is swept' here to drop the whole proposal."*
 Both escape routes exist — `_forgeUndo` per item, `/api/chronicle_forget` wholesale.
 [[grok-second-eye]]
+
+## REG-268 — the focused hunt was dead twice over, and both halves were invisible (FIXED v1917)
+
+Konyo: *"for F-SETS it should cross reference the items i still dont have so it knows whats left to
+find and it can keyword search for it when anaylzing and reading. (JUST LIKE UNIQUES i remember we
+integrated this in some way for it already)."*
+
+The integration is real — v1789's **focused hunt**, which goes back and re-reads the names the gate
+HELD (seen once, needing a second witness). It had two defects, and each hid the other.
+
+**1. IT READ A KEY THE READER HAS NEVER EMITTED.** `chronicle_hunt` scored every page on
+`page["items"]`. `normalize_page` returns eighteen keys — `kind, ledger, lane, found, notFound, sets,
+stateVisible, wrongTab, wholePage, witness, conf, printed, sort, foundAt, droppedBy, read, framing,
+note` — and **`items` is not one of them**; `two_lane_read` passes that dict straight through. So
+every hunted frame was read, **paid for with a real vision call**, and matched against an empty list.
+It could not register a hit in production and never has: `grep -c "hunting\|hunt done"` across every
+log on his machine is **0**, while `live lane` from the same function prints fine.
+
+⚠ **The test that covered it handed it the wrong shape too** — `{"items": [{"name": "Mid Name"}]}` —
+a fixture nobody had cross-checked against the real reader. The blind-fixture scar, in the one place
+it costs money. [[feedback-blind-fixture-green-gate]]
+
+**2. IT WAS UNIQUES-ONLY WHILE EVERY HELD NAME WAS A SET PIECE.** Hardcoded in three places. Measured
+on his own last sweep (2026-08-21 00:47): **41 held, 41 of them sets, 0 uniques** — and the report
+said *"nothing was held"* and spent **0 reads**, with `Tancred's Skull (bone helm)` sitting on six
+sightings, one witness short of grounding.
+
+**Fixed:** `page_names()` reads what the reader emits — `found` for a uniques page, `sets[].pieces`
+for a sets page, and the old `items` shape still accepted because a caller using it is old, not
+wrong. The hunt runs **per ledger**, each in its own evidence (`targets_for` defaulted to uniques, so
+a sets hunt looked for its frames in the wrong index) and with its own page kind, and the read cap is
+**per ledger** so a long uniques list cannot starve the sets hunt.
+
+Guards: five, including the two measurements above. Sabotage A (back to `items`) fails 2; sabotage B
+(uniques-only filter) fails 1. The old blind fixture now speaks the reader's real shape.
+
+**Also filed, not fixed:** nothing anywhere hands a reader a list of what he is still MISSING. Both
+chronicle prompts take only `{path}` and `{ledger}`, and both explicitly forbid naming an item the
+reader expects to see (*"a name you expect to be there — leave it out"*). The hunt targets what was
+**seen once**, never what was **never seen**. That is a different feature and it is written down in
+`PROJECT_VAULT_MANAGER.md` rather than half-built.

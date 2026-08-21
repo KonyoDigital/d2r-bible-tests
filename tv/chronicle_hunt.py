@@ -170,6 +170,43 @@ def _key_gap(a, b):
     return 0.1 if len(a) != len(b) else 0.0
 
 
+def page_names(page):
+    """Every name a READ PAGE actually reports, in the shape the real reader emits.
+
+    ⚠ v1917 — THIS WAS `page["items"]`, A KEY THE READER HAS NEVER EMITTED. `normalize_page` returns
+    exactly these eighteen keys — kind, ledger, lane, found, notFound, sets, stateVisible, wrongTab,
+    wholePage, witness, conf, printed, sort, foundAt, droppedBy, read, framing, note — and `items`
+    is not among them; `two_lane_read` passes that dict straight through. So every hunted frame was
+    read, paid for, and scored against an EMPTY LIST. The focused hunt could not register a hit in
+    production, and never has: `grep -c "hunting\|hunt done"` across every log on his machine is 0.
+
+    ⚠ AND THE TEST THAT COVERED IT HANDED IT THE WRONG SHAPE TOO — `{"items": [{"name": "Mid Name"}]}`
+    — so a fixture nobody had cross-checked against the real reader kept the gate green over a
+    function that could not work. The blind-fixture scar, in the one place it costs money: each miss
+    is a real vision read. [[feedback-blind-fixture-green-gate]]
+
+    `found` is the list of TICKED rows, which is what a hunt for a held name is looking for. A SETS
+    page also carries `sets: [{set, pieces[]}]`, and the piece names live in there — so a sets hunt
+    that read only `found` would be the same defect one ledger over.
+    """
+    p = page or {}
+    out = []
+    for n in (p.get("found") or []):
+        if str(n).strip():
+            out.append(str(n).strip())
+    for g in (p.get("sets") or []):
+        if isinstance(g, dict):
+            for n in (g.get("pieces") or []):
+                if str(n).strip():
+                    out.append(str(n).strip())
+    # the pre-v1917 shape is still accepted: a caller that hands us `items` is not wrong, it is old.
+    for it in (p.get("items") or []):
+        n = it.get("name") if isinstance(it, dict) else it
+        if str(n or "").strip():
+            out.append(str(n).strip())
+    return out
+
+
 def hunt(held_names, evidence, hist_dir, read_page, kind="chronicle-uniques", log=None):
     """Read the targeted frames and return {name: [new sightings]}.
 
@@ -180,7 +217,10 @@ def hunt(held_names, evidence, hist_dir, read_page, kind="chronicle-uniques", lo
     found = {}
     reads = 0
     for name in held_names:
-        targets = targets_for(name, evidence, hist_dir)
+        # v1917 — TARGET WITHIN THE LEDGER BEING HUNTED. `targets_for` defaults to "uniques", so a
+        # sets hunt looked for its frames in the uniques evidence and found none of them.
+        targets = targets_for(name, evidence, hist_dir,
+                              ledger=("sets" if str(kind or "").endswith("sets") else "uniques"))
         if log:
             log("hunting %-30s %d frame(s) across %d reel(s)"
                 % (name, len(targets), len({t[0] for t in targets})))
@@ -192,7 +232,7 @@ def hunt(held_names, evidence, hist_dir, read_page, kind="chronicle-uniques", lo
                     log("   read failed %s: %s" % (frame, exc))
                 continue
             reads += 1
-            names = [str(it.get("name") or it) for it in ((page or {}).get("items") or [])]
+            names = page_names(page)
             if any(_sort_key(n) == _sort_key(name) for n in names):
                 found.setdefault(name, []).append(
                     {"reel": reel, "frame": frame, "lane": (page or {}).get("lane") or "claude",

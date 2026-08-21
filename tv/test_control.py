@@ -6850,7 +6850,11 @@ class TestV1789TheHuntAimsWhereATagCanChange(unittest.TestCase):
 
         def read_page(path, kind):
             reads.append(path)
-            return {"items": [{"name": "Mid Name"}], "conf": 0.8}
+            # v1917 — THE REAL READER'S SHAPE. This fixture used to say {"items": [...]}, a key
+            # normalize_page has never emitted, so the hunt scored every page against an empty list
+            # and this test stayed green over a function that could not work in production. The
+            # blind-fixture scar, in the one place it costs money: each miss is a paid vision read.
+            return {"found": ["Mid Name"], "sets": [], "conf": 0.8, "lane": "claude"}
 
         ch.hunt(["Mid Name"], ev, root, read_page)
         self.assertEqual(len(reads), 1, "it kept reading after it already had the answer")
@@ -9703,6 +9707,91 @@ class TestOneLegibleLabelIsNotASelectedTab(unittest.TestCase):
                 self.assertEqual(got, "stash",
                                  "%s: the gate named a tab it cannot see — it is on PERSONAL and "
                                  "the old branch called it SHARED" % f)
+
+
+class TestTheFocusedHuntCanActuallyRegisterAHit(unittest.TestCase):
+    """v1917 — THE FOCUSED HUNT WAS DEAD TWICE OVER, and both halves were invisible.
+
+    1. IT READ A KEY THE READER NEVER EMITS. `chronicle_hunt` scored each page on `page["items"]`;
+       `normalize_page` returns eighteen keys and `items` is not one of them, and `two_lane_read`
+       passes that dict straight through. So every hunted frame was read, PAID FOR, and matched
+       against an empty list. `grep -c "hunting|hunt done"` across every log on his machine: **0**.
+       The test that covered it handed it `{"items": [{"name": "Mid Name"}]}` — a fixture nobody had
+       cross-checked against the real reader. [[feedback-blind-fixture-green-gate]]
+
+    2. IT WAS UNIQUES-ONLY while every held name was a set piece. Measured on his own last sweep
+       (2026-08-21 00:47): **41 held, 41 of them sets, 0 uniques** — and the report said "nothing
+       was held" and spent 0 reads. Tancred's Skull sat there with six sightings, one witness short.
+
+    Konyo asked for exactly this and was told he had it: *"for F-SETS it should cross reference the
+    items i still dont have ... JUST LIKE UNIQUES i remember we integrated this already"*. The
+    integration was real and covered one of the two ledgers."""
+
+    def test_it_reads_the_shape_the_reader_actually_emits(self):
+        import chronicle_hunt as ch
+        import chronicle_retro as cr
+        uni = cr.normalize_page({"stateVisible": True, "found": ["Shako", "Ist Rune"], "conf": 0.9},
+                                "chronicle-uniques", "claude")
+        self.assertNotIn("items", uni, "the reader started emitting `items` — re-read this guard")
+        self.assertEqual(ch.page_names(uni), ["Shako", "Ist Rune"],
+                         "the hunt cannot see the names on a real uniques page")
+
+    def test_a_SETS_page_yields_its_piece_names(self):
+        """A sets page carries names under `sets[].pieces`, not `found`. A hunt that read only
+        `found` would be the same defect one ledger over."""
+        import chronicle_hunt as ch
+        import chronicle_retro as cr
+        sp = cr.normalize_page(
+            {"stateVisible": True, "sets": [{"set": "Tancred's Battlegear",
+                                             "pieces": ["Tancred's Skull", "Tancred's Spine"]}],
+             "conf": 0.9}, "chronicle-sets", "claude")
+        self.assertEqual(ch.page_names(sp), ["Tancred's Skull", "Tancred's Spine"])
+
+    def test_the_old_shape_is_still_accepted(self):
+        """A caller that hands `items` is not wrong, it is old — refusing it would be a second
+        defect wearing the first one's clothes."""
+        import chronicle_hunt as ch
+        self.assertEqual(ch.page_names({"items": [{"name": "Old Shape"}]}), ["Old Shape"])
+
+    def test_held_SET_pieces_are_hunted_at_all(self):
+        """The measurement that matters: 41 held set pieces used to produce `nothing was held`."""
+        from unittest import mock
+        import control_app as ca
+        applied = {"held": [{"name": "Tancred's Skull (bone helm)", "ledger": "sets"},
+                            {"name": "Aldur's Rhythm (mace)", "ledger": "sets"}]}
+        seen = {}
+
+        def fake_hunt(names, prop, hist, read_page, kind="chronicle-uniques", log=None):
+            seen[kind] = list(names)
+            return {}
+
+        with mock.patch.dict("sys.modules"):
+            import chronicle_hunt as ch
+            with mock.patch.object(ch, "hunt", fake_hunt):
+                _p, _a, rep = ca._chron_hunt_held({}, applied, "/nowhere", lambda p, k: None)
+        self.assertNotEqual(rep.get("skipped"), "nothing was held",
+                            "41 held set pieces still read as nothing to hunt")
+        self.assertIn("chronicle-sets", seen,
+                      "the sets ledger was never hunted — the reader would be asked about the "
+                      "wrong list even if it were")
+        self.assertEqual(len(seen.get("chronicle-sets") or []), 2)
+
+    def test_a_uniques_hold_still_hunts_uniques(self):
+        """The half that already worked must survive the half that did not."""
+        from unittest import mock
+        import control_app as ca
+        applied = {"held": [{"name": "Shako", "ledger": "uniques"}]}
+        seen = {}
+
+        def fake_hunt(names, prop, hist, read_page, kind="chronicle-uniques", log=None):
+            seen[kind] = list(names)
+            return {}
+
+        import chronicle_hunt as ch
+        with mock.patch.object(ch, "hunt", fake_hunt):
+            ca._chron_hunt_held({}, applied, "/nowhere", lambda p, k: None)
+        self.assertEqual(seen.get("chronicle-uniques"), ["Shako"])
+        self.assertNotIn("chronicle-sets", seen, "it hunted a sets page with nothing held there")
 
 
 class TestOneGauntletForBothSurfaces(unittest.TestCase):
