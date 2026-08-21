@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1943",
+  "ver": "v1944",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1943: Forty-five of his forty-six intakes counted zero, and every one of them rendered in the feed exactly like the single success. The row now says nothing counted, or names the image errors, and an empty routing is dimmed.",
+  "note": "v1944: v1940 made the photo intakes merge-MAX so total became the sum of raises, and ok was defined as total greater than zero. A re-read of an unchanged shelf raised nothing and would have reported a failed read, which also blocks the kai-funnel from marking the frame routed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

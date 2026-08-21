@@ -23564,7 +23564,8 @@ window.gemIntake = async function(files){
     } else {
       report.innerHTML='No gems read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot — gems filling the frame, good lighting.';
     }
-    return { ok: total > 0, total: total, added: added, errors: errors, kind: 'gems' };   // v908
+    /* v1944 — `ok` MEANS THE READ WORKED, NOT THAT A NUMBER WENT UP. v1940 made these intakes merge-MAX, so `total` became the sum of RAISES; a re-read of an unchanged shelf raises nothing and would have reported ok:false. That is not a failed read, and it matters downstream: the kai-funnel gates funnel_by_fid on `ok` (control_app.py ~5486), so an honest no-change read would leave the frame unrouted and Stage-3 free to select it again, forever. A read that HELD every count is a successful read. */
+    return { ok: (total > 0 || held.length > 0), total: total, added: added, held: held, errors: errors, kind: 'gems' };   // v908
   }
   return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'gems' };
 };
@@ -25064,7 +25065,7 @@ window.runeIntake = async function(files){
     } else {
       report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
     }
-    return { ok: total > 0, total: total, added: added, errors: errors, kind: 'runes' };   // v908 — the connector carries real numbers
+    return { ok: (total > 0 || held.length > 0), total: total, added: added, held: held, errors: errors, kind: 'runes' };   // v908 — the connector carries real numbers
   }
   return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'runes' };
 };
@@ -26179,7 +26180,7 @@ window.materialIntake = async function(files){
     } else {
       report.innerHTML='No materials read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your keys / organs / essences / statues.';
     }
-    return { ok: (total > 0 || statuesAdded.length > 0), total: total, added: added,
+    return { ok: (total > 0 || held.length > 0 || statuesAdded.length > 0), total: total, added: added, held: held,
              statues: statuesAdded.length, errors: errors, kind: 'materials' };   // v908
   }
   return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'materials' };
@@ -42806,7 +42807,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1943', name:'v1943 - a routing that carried nothing', date:'2026-08-22', note:'Forty-five of his forty-six intakes counted zero, and every one of them rendered in the feed exactly like the single success. The row now says nothing counted, or names the image errors, and an empty routing is dimmed.' };
+  window.D2R_BUILD = { id:'v1944', name:'v1944 - ok means the read worked', date:'2026-08-22', note:'v1940 made the photo intakes merge-MAX so total became the sum of raises, and ok was defined as total greater than zero. A re-read of an unchanged shelf raised nothing and would have reported a failed read, which also blocks the kai-funnel from marking the frame routed.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
