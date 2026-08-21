@@ -3659,6 +3659,85 @@ class TestTheSubscriptionMeterCannotBePoisonedByUnits(unittest.TestCase):
         self.assertIn("_sub_budget_calls(st, now)", src,
                       "the writer still rebuilds the list with the raw filter")
 
+
+class TestTheFixtureRootIsDecidedByTheFilesystem(unittest.TestCase):
+    """v1897 — the isolation rule compared paths with `startswith`, four times over, and that is a
+    coin flip on two of his three surfaces.
+
+    ON HIS WINDOWS MACHINE the same directory arrives as C:\\Users\\... from one call and
+    c:\\users\\... from another; `startswith` says no, and the rule silently decides a FIXTURE is
+    his real tree — the exact class this whole arc closed, arriving on the machine the suite cannot
+    run on.
+
+    ON HIS MAC the mirror: APFS is case-insensitive by default, so the UPPERCASED spelling of
+    tv/frames/hist IS the same directory — and normcase alone calls it different, so "isolated"
+    writes would land in his real folder under another spelling. Measured before the fix: exactly
+    that.
+
+    So the FILESYSTEM decides when it can: os.path.samefile compares inodes and is right on both.
+    normcase is the fallback for a directory that does not exist yet — a fixture about to be
+    created — where there is nothing to stat. [[dual-machine-setup]]"""
+
+    def _journal_for(self, hist):
+        import subprocess as _sp
+        here = os.path.dirname(os.path.abspath(__file__))
+        e = dict(os.environ)
+        for k in ("TV_SESSIONS", "TV_HIST", "TV_FRAMES_DIR"):
+            e.pop(k, None)
+        if hist is not None:
+            e["TV_HIST"] = hist
+        out = _sp.run([sys.executable, "-c",
+                       "import sys; sys.path.insert(0, %r)\n"
+                       "import tv_diablo as t; print(t.JOURNAL)" % here],
+                      capture_output=True, text=True, env=e, timeout=180)
+        self.assertEqual(out.returncode, 0, out.stderr[-300:])
+        return out.stdout.strip().splitlines()[-1]
+
+    def setUp(self):
+        self.here = os.path.dirname(os.path.abspath(__file__))
+        self.hist = os.path.join(self.here, "frames", "hist")
+
+    def test_a_case_variant_of_his_own_tree_is_still_his_tree(self):
+        """The one the fix was written for. Before: treated as isolated, so 'isolated' writes would
+        have landed in his real directory under a different spelling."""
+        if not os.path.isdir(self.hist):
+            self.skipTest("his frames dir is not on this machine")
+        got = self._journal_for(self.hist.upper())
+        self.assertTrue(got.startswith(self.here),
+                        "an uppercased spelling of his own hist was treated as a fixture: %s" % got)
+
+    def test_his_real_hist_is_his_tree(self):
+        if not os.path.isdir(self.hist):
+            self.skipTest("his frames dir is not on this machine")
+        self.assertTrue(self._journal_for(self.hist).startswith(self.here))
+
+    def test_no_override_is_his_tree(self):
+        self.assertTrue(self._journal_for(None).startswith(self.here))
+
+    def test_a_real_fixture_is_isolated(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        self.assertFalse(self._journal_for(d).startswith(self.here))
+
+    def test_a_directory_that_does_not_exist_yet_is_isolated(self):
+        """The normcase fallback: a fixture about to be created has nothing to stat."""
+        import tempfile
+        d = os.path.join(tempfile.mkdtemp(), "not", "made", "yet")
+        self.assertFalse(self._journal_for(d).startswith(self.here))
+
+    def test_the_helper_is_the_one_definition(self):
+        import tv_diablo as tv
+        self.assertTrue(callable(getattr(tv, "_under", None)),
+                        "the shared path rule is gone — four copies again")
+        src = open(tv.__file__, encoding="utf-8").read()
+        # ⚠ THE EXECUTABLE FORM, not the phrase. The bare string appears once more in _under's own
+        # docstring, describing the shape it replaced — and asserting on the phrase failed on that
+        # documentation. FIFTH time in one night that a guard grepping a name found the record of
+        # the fix and called it the defect. The executable form ends in `):`; the prose does not.
+        # [[source-reading-guard]] [[feedback-comments-vs-code]]
+        self.assertNotIn("h.startswith(root + os.sep)):", src,
+                         "a raw startswith path comparison is back in the code")
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

@@ -614,12 +614,18 @@ def _g5_stats_root():
     hist = os.environ.get("TV_HIST")
     if hist:
         try:
-            h = os.path.realpath(hist)
-            root = os.path.realpath(_here)
-            if not (h == root or h.startswith(root + os.sep)):
-                return h
+            # v1897 — the SAME comparison tv_diablo makes, and it must stay the same: on Windows a
+            # raw startswith on paths of differing case decides a fixture is his real tree.
+            import tv_diablo as _tvd2
+            if not _tvd2._under(hist, _here):
+                return os.path.realpath(hist)
         except Exception:
-            pass
+            try:
+                a, b = os.path.normcase(os.path.realpath(hist)), os.path.normcase(os.path.realpath(_here))
+                if not (a == b or a.startswith(b + os.sep)):
+                    return a
+            except Exception:
+                pass
     return _here
 
 

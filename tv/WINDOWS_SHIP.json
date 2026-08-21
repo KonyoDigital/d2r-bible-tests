@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1896",
+  "ver": "v1897",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1896: The path was built after five names the readers genuinely saw were discarded on the server and never reached him, and it had never been driven with a real held pile. Measured in a real page against the forty-one names his own sweep is holding: forty-one queued, forty-one rows each carrying its reason, nothing auto-accepted, and still nothing after three sync passes - which is the part that matters, because a defect needing a second triage to bite would hide from one. No defect found, and that is the result: this is where his last two set pieces are waiting, with the reason each is waiting attached.",
+  "note": "v1897: Tonight isolation work compared paths with a raw startswith, four times, and that is a coin flip on two of his three surfaces: on Windows the same directory arrives in two cases and the rule decides a fixture is his real tree, and on his Mac the mirror, where the filesystem is case-insensitive so an uppercased spelling is the same directory while the comparison calls it different and isolated writes land in his real folder. The filesystem decides now, by inode, walking up the ancestors, with case normalisation only as the fallback for a directory that does not exist yet. One definition, four sites, five cases guarded.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

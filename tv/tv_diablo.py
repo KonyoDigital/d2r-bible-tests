@@ -49,9 +49,55 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1896"   # The held pile reaches his inbox and stays held
+VERSION = "v1897"   # The isolation rule was a coin flip on his Windows machine
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
+def _under(path, root):
+    """Is `path` inside `root`? Case-normalised, because HIS WINDOWS MACHINE IS THE OTHER HALF.
+
+    v1897 — this comparison was written four times tonight as `h.startswith(root + os.sep)`, and on
+    Windows that is a coin flip: the same directory arrives as C:\\Users\\... from one call and
+    c:\\users\\... from another, `startswith` says no, and the isolation rule silently decides a
+    FIXTURE is his real tree — which is the exact class the whole night was spent closing, arriving
+    on the machine I cannot run the suite on.
+
+    os.path.normcase is a no-op on macOS and Linux and lowercases + normalises separators on
+    Windows, so this is correct everywhere and changes nothing here. [[dual-machine-setup]]
+    """
+    try:
+        a = os.path.realpath(path)
+        b = os.path.realpath(root)
+    except Exception:
+        return False
+    # THE FILESYSTEM IS THE AUTHORITY WHEN IT CAN ANSWER. os.path.samefile compares inodes, so it
+    # is right on a case-INSENSITIVE volume (his Mac's APFS by default) where two spellings are one
+    # directory — normcase alone says "different" there and would call his own tree a fixture.
+    # Measured: TV_HIST set to the uppercased form of tv/frames/hist was treated as isolated, and
+    # "isolated" writes would have landed in his real directory under a different spelling.
+    try:
+        if os.path.exists(a) and os.path.exists(b) and os.path.samefile(a, b):
+            return True
+    except Exception:
+        pass
+    # walk up: is any ancestor of `a` the same file as `b`? Handles the nested case with the same
+    # authority, and stops at the root rather than looping.
+    try:
+        cur = a
+        while True:
+            parent = os.path.dirname(cur)
+            if parent == cur:
+                break
+            cur = parent
+            if os.path.exists(cur) and os.path.exists(b) and os.path.samefile(cur, b):
+                return True
+    except Exception:
+        pass
+    # neither exists yet (a fixture dir about to be created): fall back to normcase, which is a
+    # no-op on posix and lowercases + normalises separators on Windows.
+    a, b = os.path.normcase(a), os.path.normcase(b)
+    return a == b or a.startswith(b + os.sep)
+
+
 def _fixture_root(here):
     """The directory live state belongs in: his tree normally, the FIXTURE's when TV_HIST is one.
 
@@ -65,10 +111,8 @@ def _fixture_root(here):
     hist = os.environ.get("TV_HIST")
     if hist:
         try:
-            h = os.path.realpath(hist)
-            root = os.path.realpath(here)
-            if not (h == root or h.startswith(root + os.sep)):
-                return h
+            if not _under(hist, here):
+                return os.path.realpath(hist)
         except Exception:
             pass
     return here
@@ -284,8 +328,7 @@ def _journal_path():
     if hist:
         try:
             h = os.path.realpath(hist)
-            here = os.path.realpath(HERE)
-            if not (h == here or h.startswith(here + os.sep)):
+            if not _under(hist, HERE):
                 return os.path.join(h, "sessions.jsonl")
         except Exception:
             pass
@@ -2583,8 +2626,7 @@ def _sub_budget_path():
     if hist:
         try:
             h = os.path.realpath(hist)
-            here = os.path.realpath(HERE)
-            if not (h == here or h.startswith(here + os.sep)):
+            if not _under(hist, HERE):
                 return os.path.join(h, ".subscription_budget.json")
         except Exception:
             pass

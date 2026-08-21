@@ -7492,3 +7492,29 @@ AUTO-TICKS it, which quietly undoes the gate that just refused to ground it."*
 set pieces (**Dangoon's Teaching**, **Milabrega's Diadem**) are waiting, with the reason each is
 waiting attached. The contract the run exercised is now pinned: held names go through the one door,
 carrying `gateHeld` and carrying **why**.
+
+## REG-247 — the isolation rule was a coin flip on his Windows machine (FIXED v1897)
+
+Tonight's isolation work compared paths with `h.startswith(root + os.sep)`, written **four times**.
+That is a coin flip on two of his three surfaces:
+
+- **Windows** — the same directory arrives as `C:\Users\…` from one call and `c:\users\…` from
+  another. `startswith` says no, and the rule silently decides a **fixture is his real tree** — the
+  exact class this whole arc closed, arriving on the machine the suite cannot run on.
+- **His Mac, the mirror** — APFS is case-insensitive by default, so the **uppercased** spelling of
+  `tv/frames/hist` *is* the same directory. `normcase` alone calls it different, so "isolated"
+  writes would land in his real folder under another spelling. **Measured before the fix: exactly
+  that.**
+
+**So the filesystem decides when it can.** `os.path.samefile` compares inodes and is right on both;
+it also walks up the ancestors, so a nested path is answered with the same authority. `normcase` is
+the fallback only for a directory that does not exist yet — a fixture about to be created, where
+there is nothing to stat.
+
+**One definition** (`tv_diablo._under`), used by all four sites. Five cases guarded: no override ·
+his real hist · **an uppercased spelling of it** · a real fixture · a directory that does not exist
+yet.
+
+⚠ **And the guard failed on its own documentation — the fifth time tonight.** `_under`'s docstring
+quotes the shape it replaced, so `assertNotIn("h.startswith(root + os.sep)")` found the record of the
+fix. It asserts the **executable** form now (`…)):`), which the prose does not contain.
