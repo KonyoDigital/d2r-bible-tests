@@ -387,7 +387,11 @@ class TestANotFoundReceiptSurvivesTheWholeChain(unittest.TestCase):
         # ATTRIBUTE and asserts the redirect took; doing it inline here left that helper with zero
         # call sites, so the repo prescribed an API nobody used and the prescription was untested.
         # A helper nothing calls is a helper nothing proves. [[the-unjoined-end]]
-        from conftest import redirect_module_path
+        # ⚠ FROM pathguard, NOT conftest. run_gates.py runs this file as a plain script and the
+        # agent-tests runner has NO pytest, so importing conftest (which does `import pytest` at
+        # module level) turned this into a CI ERROR for nine consecutive runs while every local
+        # signal was green. [[test-venue]]
+        from pathguard import redirect_module_path
         with redirect_module_path(ca, "_CHRON_EVIDENCE_PATH", os.path.join(tmp, "ev.json")):
             self.assertNotEqual(ca._CHRON_EVIDENCE_PATH, live,
                                 "the redirect did not take — refusing to run a write test that "

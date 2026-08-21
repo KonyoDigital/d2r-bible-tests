@@ -8892,3 +8892,35 @@ by "the last `path == "/api/…"` before this line" is unreliable with nested ha
 `dup` and `retry_s` under `/api/identity_name` when both are intake keys. The claim was checked
 against the surrounding code and corrected before it went anywhere.
 [[feedback-suspect-the-instrument]]
+
+## REG-296 — a keeper could not name the photograph it came from (FIXED v1934)
+
+Konyo, on a small charm in his MAGIC locker: *"it wrongly muled a random charm.. i dont think i even
+own this.. from what picture is this here?"*
+
+He could not check, and neither could the board. A `d2r_magicFinds` row carried
+`{q, base, mods, verdict, score, checkedAt}` — **no frame, no reel, no session** — while the keeper
+card said *"Stats read from your screenshot."* A claim its own data could not support.
+
+⚠ **THE RECEIPT WAS ALREADY IN SCOPE.** Thirty-seven lines above the writer, the same function
+(`aicJudgeApply`) builds `prop` for `kaiChroniclePropose` carrying `frameId`, `sessionId` and
+`firstSeenTs` from `meta` — **uses them for the chronicle, drops them for the vault.** Two halves of
+one read, one of which remembers where it came from.
+
+The asymmetry is the tell: the tally lane (runes/gems/materials) has keyed its durable ledger on
+`sid|frameId|name` since **v889**. Keepers went through a different door and lost it.
+[[the-unjoined-end]]
+
+Fixed: the writer records `frameId` / `sessionId` / `at`, and the card **names the frame**. Rows that
+predate this carry nothing, and the card now says so rather than repeating the claim — *"no source
+frame for this one, so it cannot be traced back. Untick it if you do not own it."* An item whose
+source cannot be produced is exactly the one he is right to distrust. [[unknown-stays-unknown]]
+
+⚠ **The provenance branch first used `esc`, which is not in that scope.** Only the WITH-frame case
+reaches that line, so it threw `ReferenceError` on exactly the case the feature adds — and passed on
+the case that already existed. **Testing both branches is the only reason it was caught.**
+Guard: `TestAKeeperCanNameItsPhotograph` (3).
+
+⚠ **The second writer still has no provenance.** A different vault path takes its rows from a finds
+list with no frame in scope. Named here rather than half-fixed: it is a separate seam and it is not
+the one he was looking at.

@@ -9146,7 +9146,7 @@ class TestNoFunctionLoadsAnUndefinedName(unittest.TestCase):
                "vault_retro.py", "chronicle_template.py", "chronicle_resolve.py",
                "g5_grok_eyes.py", "chronicle_sweep_now.py",
                "counter_ledger.py", "chronicle_calibrate.py", "chronicle_hunt.py",
-               "vault_corpus.py")
+               "vault_corpus.py", "pathguard.py", "sets_base_index.py")
 
     @staticmethod
     def _undefined(path):
@@ -10034,6 +10034,35 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
         std = os.path.realpath(sysconfig.get_paths().get("stdlib") or "")
         return "site-packages" in origin or not os.path.realpath(origin).startswith(std)
 
+    @staticmethod
+    def _repo_module_deps(here, mod):
+        """Module-level third-party imports of a REPO module — one level, which is where the
+        failure lived. Guarded imports (inside a try) are skipped: those already say they may be
+        absent."""
+        import ast
+        path = os.path.join(here, mod + ".py")
+        if not os.path.isfile(path):
+            return []
+        try:
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
+        except Exception:
+            return []
+        guarded = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Try):
+                for sub in ast.walk(node):
+                    guarded.add(id(sub))
+        out = []
+        for node in tree.body:                     # MODULE LEVEL only — a function-local import
+            if id(node) in guarded:                # costs nothing until it is called
+                continue
+            if isinstance(node, ast.Import):
+                out += [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                out.append(node.module.split(".")[0])
+        return out
+
     def test_every_third_party_import_is_one_CI_installs(self):
         import ast
         import glob
@@ -10056,7 +10085,24 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
                 elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
                     mods = [node.module.split(".")[0]]
                 for m in mods:
-                    if m in repo_mods or not self._is_third_party(m):
+                    if m in repo_mods:
+                        # ⚠ v1934 — A LOCAL MODULE IS NOT AUTOMATICALLY SAFE. It was treated as
+                        # safe, and that let a suite import `conftest` — a repo module whose FIRST
+                        # LINE is `import pytest`. run_gates.py runs each suite as a plain script
+                        # and the agent-tests runner installs only pillow, so the gate ERRORED on CI
+                        # for NINE consecutive runs while every local signal stayed green. The guard
+                        # was right about its own question — "is this import third-party?" — and
+                        # blind to the failure one level below it. [[the-unjoined-end]] §6
+                        for dep in self._repo_module_deps(here, m):
+                            if dep in repo_mods or not self._is_third_party(dep):
+                                continue
+                            if dep not in self.ALLOWED_BARE:
+                                bad.append("%s:%d imports the repo module %r, which imports %r "
+                                           "at module level — and the runner does not have it"
+                                           % (os.path.basename(path),
+                                              getattr(node, "lineno", 0), m, dep))
+                        continue
+                    if not self._is_third_party(m):
                         continue
                     ok = (self.ALLOWED_GUARDED if id(node) in inside_try else self.ALLOWED_BARE)
                     if m not in ok:

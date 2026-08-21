@@ -10295,7 +10295,26 @@ function _mfTipHtml(name){
     + '<div class="att-tag">rolls: ' + roll + '</div>'
     + ((typeof _socketGuideLine === 'function') ? _socketGuideLine(base, q) : '')
     + _cubeUpNote(name)
-    + '<div class="att-info">' + (modLine ? 'Stats read from your screenshot.' : 'Rolled-name item — no fixed drop card.') + ' Click for the full keeper card.</div>';
+    /* v1934 — SAY WHICH SCREENSHOT, OR SAY THERE ISN'T ONE.
+       Konyo, on a small charm in his MAGIC locker: "i dont think i even own this.. from what
+       picture is this here?" The card said "Stats read from your screenshot" and the row carried
+       no frame, no reel, no session — a claim its own data could not support, and no way for him
+       to check it.
+       Rows written from here on carry frameId/sessionId (see the aic-judge writer). Rows that
+       predate that carry nothing, and this says SO rather than repeating the claim: an item whose
+       source cannot be produced is exactly the one he is right to distrust.
+       [[unknown-stays-unknown]] */
+    + '<div class="att-info">' + (function(){
+        if (!modLine) return 'Rolled-name item — no fixed drop card.';
+        var v = null; try { v = (typeof magicFinds !== 'undefined' && magicFinds) ? magicFinds[name] : null; } catch(e){}
+        var fid = v && typeof v === 'object' ? (v.frameId || '') : '';
+        // _d2artEsc, not esc — `esc` is not in this scope, and only the WITH-provenance branch
+        // reaches this line, so it threw ReferenceError on exactly the case the feature adds.
+        // Testing both branches is the only reason it was caught. [[feedback-blind-fixture-green-gate]]
+        if (fid) return 'Stats read from your screenshot · frame ' + _d2artEsc(String(fid).slice(0, 22));
+        return 'Stats read from a screenshot the ledger did not record — no source frame for this '
+             + 'one, so it cannot be traced back. Untick it if you do not own it.';
+      })() + ' Click for the full keeper card.</div>';
 }
 // v349 — strip the throw-out suffix " (Nos low base)" / "(rare)" to a clean base/name for art + resolution.
 function _throwClean(name){
@@ -33781,7 +33800,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (_kwRW){
             try { if (typeof owned !== 'undefined' && owned.add) owned.add(nm); } catch(e0){}
           } else if (typeof magicFinds === 'object' && magicFinds){
-            magicFinds[nm] = { q: q || 'magic', base: base, mods: mods };
+            /* ── v1934 — A KEEPER MUST BE ABLE TO NAME THE PHOTOGRAPH IT CAME FROM ─────────────
+               Konyo, looking at a small charm in his MAGIC locker: "it wrongly muled a random
+               charm.. i dont think i even own this.. from what picture is this here?"
+
+               He could not check, and neither could the board. A magicFinds row carried
+               {q, base, mods} and the checker's verdict — and NO frame, reel or session. The card
+               says "Stats read from your screenshot" while the data cannot say WHICH screenshot.
+               A claim with no receipt.
+
+               ⚠ AND THE RECEIPT WAS ALREADY IN SCOPE. Thirty-seven lines above, this same function
+               builds `prop` for kaiChroniclePropose carrying frameId, sessionId and firstSeenTs
+               from `meta` — uses them for the chronicle, drops them for the vault. The two halves
+               of one read, one of which remembers where it came from.
+
+               The tally lane (runes/gems/materials) has keyed its durable ledger on
+               sid|frameId|name since v889. Keepers went through a different door and lost it.
+               [[the-unjoined-end]] */
+            magicFinds[nm] = { q: q || 'magic', base: base, mods: mods,
+                               frameId: meta.frameId || '',
+                               sessionId: meta.sid || meta.sessionId || '',
+                               at: meta.fts || meta.firstSeenTs || Date.now() };
           }
           try {
             var sg = (typeof suggestMule === 'function') ? suggestMule(nm) : null;
@@ -42608,7 +42647,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1933', name:'v1933 - Audited not edited', date:'2026-08-21', note:'The symmetric audit of the uniques ledger against both rosters. Of 389 rows, 265 are uniques, 119 are set pieces which live in both stores by design, and five match neither. Measured rather than guessed: two are the roster own curly apostrophe and resolve correctly because both normalisers fold the three apostrophe forms; one is a misread of Nagelring and one an annotated set piece, and in BOTH cases the real name is also in his ledger, so they are duplicates and not lost finds; the last is a set name sitting in the uniques ledger. His 267 of 403 is right and none of this changes it, because the scan counts against the roster so a row resolving to nothing cannot inflate it, and the write path is already guarded. They are therefore REPORTED and NOT REMOVED - deleting grail rows that cost him nothing, to tidy a number that is already correct, is an unasked-for edit to his history. Also recorded: the unique roster uses BOTH apostrophe forms, 83 straight and 4 curly, which every comparison here survives only because it goes through a normaliser that folds them.' };
+  window.D2R_BUILD = { id:'v1934', name:'v1934 - The photograph a keeper could not name', date:'2026-08-21', note:'He looked at a small charm in his MAGIC locker and asked from what picture is this here, and neither he nor the board could answer. A keeper row carried its quality, base, mods and checker verdict and NO frame, reel or session, while the card said stats read from your screenshot - a claim its own data could not support. The receipt was already in scope: thirty seven lines above the writer the same function builds a chronicle proposal carrying frameId, sessionId and firstSeenTs from meta, uses them for the chronicle and drops them for the vault. The tally lane for runes, gems and materials has keyed its durable ledger on session-frame-name since v889; keepers went through a different door and lost it. The writer now records all three and the card names the frame. Rows that predate this carry nothing and the card SAYS so rather than repeating the claim, telling him it cannot be traced and to untick it if he does not own it, because an item whose source cannot be produced is exactly the one he is right to distrust. The provenance branch first used an escaper that is not in that scope, and since only the with-frame case reaches that line it threw on exactly the case the feature adds while passing on the one that already existed - testing both branches is the only reason it was caught.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

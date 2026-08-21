@@ -446,5 +446,48 @@ class TestTheUniquesLedgerIsAuditedNotEdited(unittest.TestCase):
                       "Saracen’s Chance, Seraph’s Hymn and The Cat’s Eye would stop resolving")
 
 
+class TestAKeeperCanNameItsPhotograph(unittest.TestCase):
+    """Konyo, on a small charm in his MAGIC locker: "it wrongly muled a random charm.. i dont think
+    i even own this.. from what picture is this here?"
+
+    He could not check, and neither could the board. A `magicFinds` row carried {q, base, mods} and
+    the checker verdict — and NO frame, reel or session. The card said "Stats read from your
+    screenshot" while the data could not say WHICH screenshot: a claim with no receipt.
+
+    ⚠ AND THE RECEIPT WAS ALREADY IN SCOPE. Thirty-seven lines above the writer, the same function
+    builds `prop` for kaiChroniclePropose carrying frameId, sessionId and firstSeenTs from `meta` —
+    uses them for the chronicle and drops them for the vault. The tally lane (runes/gems/materials)
+    has keyed its durable ledger on sid|frameId|name since v889; keepers went through a different
+    door and lost it. [[the-unjoined-end]]
+    """
+
+    def _src(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_writer_records_the_frame_and_session(self):
+        s = self._src()
+        i = s.index("magicFinds[nm] = { q: q || 'magic', base: base, mods: mods,")
+        seg = s[i:i + 400]
+        for k in ("frameId:", "sessionId:", "at:"):
+            self.assertIn(k, seg, "the keeper row drops %s — the receipt is in scope and unused" % k)
+
+    def test_a_row_with_no_frame_SAYS_SO_instead_of_repeating_the_claim(self):
+        """An item whose source cannot be produced is exactly the one he is right to distrust."""
+        s = self._src()
+        self.assertIn("no source frame for this", s)
+        self.assertIn("Untick it if you do not own it", s)
+
+    def test_the_provenance_branch_uses_an_escaper_that_EXISTS(self):
+        """⚠ It first used `esc`, which is not in that scope — and ONLY the with-provenance branch
+        reaches that line, so it threw ReferenceError on exactly the case the feature adds. Testing
+        both branches is the only reason it was caught."""
+        s = self._src()
+        i = s.index("'Stats read from your screenshot \u00b7 frame '".replace("\u00b7", "·"))
+        seg = s[i - 200:i + 160]
+        self.assertIn("_d2artEsc(", seg)
+        self.assertNotIn("+ esc(", seg)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
