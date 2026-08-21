@@ -364,6 +364,94 @@ def _panel_open_from_features(frac_dark: float, dark_cols: int) -> Tuple[bool, b
     return panel_open, not_d2r
 
 
+# ── v1912 — THE SELECTED TAB IS IN THE PIXELS, AND IT IS THE GEM ────────────────────────────────
+# REG-205 filed this OPEN: "the selected stash tab IS visible in the pixels; reading it is not
+# solved." It tried the obvious thing — crop the chrome, split it into five equal cells, take the
+# argmax mean luminance — and got 1 of 3 on margins of 1-5 grey levels, because the labels are not
+# equal width and a cell straddles two of them.
+#
+# The obvious thing was the wrong FEATURE. D2R does not merely brighten the active tab; it draws a
+# gold box around it AND sets a small BLUE GEM on the underline directly beneath it. That gem is
+# tiny, saturated, and sits at a position no other chrome occupies — a structural marker, not a
+# brightness contest.
+#
+# MEASURED, on the twelve hand-labelled frames of stash_grid_truth.json:
+#     five real panels     -> 5/5 correct   (personal, shared x2, materials, and the one below)
+#     seven non-panels     -> 0 false tabs  (zero qualifying blue pixels in the band)
+#
+# THE GEOMETRY IS REGULAR, and that is a MEASUREMENT rather than an assumption. The gem centres came
+# out at personal 0.141, shared 0.324, materials 0.691 of the strip — differences of 0.183 and
+# 0.367, exactly one and two pitches. So the five centres are 0.141 + 0.1835*i, which PREDICTS
+# gems at 0.508 and runes at 0.875. No frame in his corpus has those two tabs open, so those two
+# predictions are UNVERIFIED and say so here rather than being quietly counted as covered.
+#
+# ⚠ THE FALSE POSITIVE THAT ALMOST SHIPPED: run without the guards below, this named a tab on 131
+# of his 883 frames, 125 of them "personal" — and five of the six I opened were SOLID BLUE capture
+# failures. Every pixel qualifies as blue, so the "centre of the strongest blue" lands wherever the
+# arithmetic puts it. It is the same shape as this file's own oldest scar, "69 wallpaper frames
+# sealed as stash-gems". Both guards are measured, and both gaps are enormous:
+#     qualifying blue px:  real 2-18        solid blue 1025
+#     strip luminance sd:  real 32.7-35.2   solid blue 0.00   (a flat fill has no variance)
+_GEM_MIN_PX = 2            # the tooltip-occluded frame shows only 2 and is still right
+_GEM_MAX_PX = 200          # a gem is small; a blue SCREEN is not
+_GEM_MIN_STRIP_SD = 8.0    # chrome has structure; a flat fill has none
+_GEM_BAND = (0.74, 0.90)   # the underline the gem sits on, as a fraction of the chrome crop
+_GEM_FIRST = 0.141         # measured centre of tab 1
+_GEM_PITCH = 0.1835        # measured spacing, from three tabs spanning four pitches
+_GEM_TABS = ("personal", "shared", "gems", "materials", "runes")
+
+
+def tab_from_gem(src_path: str) -> Tuple[str, Dict[str, Any]]:
+    """Which stash tab is SELECTED, read off the active-tab gem. ("" , detail) when it cannot say.
+
+    Never guesses: no gem, too much "gem", or a strip with no structure all return "". An honest
+    empty is the whole point — a plausible-but-wrong tab detector is the precise defect v1857 and
+    v1859 already cost.
+    """
+    detail: Dict[str, Any] = {"method": "tab-gem"}
+    try:
+        from PIL import Image, ImageStat  # type: ignore
+        im = _open_rgb(src_path)
+        w, h = im.size
+        if w < 200 or h < 200:
+            return "", detail
+        c = _crop_frac(im, _TAB_CHROME)
+        if c is None:
+            return "", detail
+        W, H = c.size
+        sd = ImageStat.Stat(c.convert("L")).stddev[0]
+        detail["stripSd"] = round(float(sd), 2)
+        if sd < _GEM_MIN_STRIP_SD:
+            detail["why"] = "the tab strip has no structure — a flat fill, not chrome"
+            return "", detail
+        px = c.load()
+        hits = []
+        for y in range(int(H * _GEM_BAND[0]), int(H * _GEM_BAND[1])):
+            for x in range(W):
+                r, g, b = px[x, y]
+                if b > 110 and b - r > 45 and b - g > 25:
+                    hits.append((x, b - max(r, g)))
+        detail["gemPx"] = len(hits)
+        if len(hits) < _GEM_MIN_PX:
+            detail["why"] = "no active-tab gem found"
+            return "", detail
+        if len(hits) > _GEM_MAX_PX:
+            detail["why"] = "too much blue to be a gem (%d px) — a blue screen, not a panel" % len(hits)
+            return "", detail
+        hits.sort(key=lambda t: -t[1])
+        top = hits[:40]
+        cx = sum(x for x, _ in top) / float(len(top)) / float(W)
+        detail["gemX"] = round(cx, 4)
+        idx = int(round((cx - _GEM_FIRST) / _GEM_PITCH))
+        if idx < 0 or idx >= len(_GEM_TABS):
+            detail["why"] = "the gem is outside the tab strip (x=%.3f)" % cx
+            return "", detail
+        return _GEM_TABS[idx], detail
+    except Exception as e:
+        detail["why"] = "could not read the tab strip: %s" % str(e)[:80]
+        return "", detail
+
+
 def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
     """Pixel fingerprint of the left stash GRID (intake crop region) → tab guess.
 
@@ -543,6 +631,7 @@ def fuse_tab_signals(
     journal_tab: str = "",
     model_tab: str = "",
     allow_grid_solo: bool = False,
+    gem_tab: str = "",
 ) -> Tuple[str, List[str]]:
     """Fuse eye signals into one tab + list of agreeing sources.
 
@@ -562,6 +651,9 @@ def fuse_tab_signals(
     ocr_tab = (ocr_tab or "").lower().strip()
     journal_tab = (journal_tab or "").lower().strip()
     model_tab = (model_tab or "").lower().strip()
+    gem_tab = (gem_tab or "").lower().strip()
+    if gem_tab not in _ALL_TABS:
+        gem_tab = ""
     gl = (grid_label or "").lower().strip()
     grid_tab = ""
     if gl.startswith("stash-"):
@@ -611,10 +703,16 @@ def fuse_tab_signals(
         # `stash` with no tally. That is a regression on something he does constantly, traded
         # against a contradiction measured at ZERO of 68 frames. REG-204's measurement named grid
         # and model, and it named them for a reason. [[feedback-suspect-the-instrument]]
-        _conflicting = {t for t in (grid_tab, model_tab) if t in _TALLY_TABS and t != ocr_tab}
+        _conflicting = {t for t in (grid_tab, model_tab, gem_tab)
+                        if t in _TALLY_TABS and t != ocr_tab}
         if _conflicting:
             return "stash", ["tab-conflict"]
         sources.append("ocr")
+        # v1912 — CREDIT THE GEM WHEN IT AGREES. It is a witness like the others; leaving it out of
+        # the list would under-report the corroboration that actually existed, which is the same
+        # class of quiet dishonesty as over-reporting it.
+        if gem_tab == ocr_tab:
+            sources.append("gem")
         if grid_tab == ocr_tab:
             sources.append("grid")
         if journal_tab == ocr_tab:
@@ -622,6 +720,25 @@ def fuse_tab_signals(
         if model_tab == ocr_tab:
             sources.append("model")
         return ocr_tab, sources
+
+    # 1b THE ACTIVE-TAB GEM (v1912). Placed AFTER the OCR, which reads the actual word, and BEFORE
+    # the grid, which is a colour fingerprint that measured 1-of-9 on his own frames. The gem is the
+    # game's own selected-state marker: 12 of 12 on the hand-labelled corpus, zero false tabs on the
+    # seven non-panels, and 8 named frames across his whole 883-frame hist.
+    #
+    # ⚠ IT IS NOT PROMOTED ABOVE THE OCR, on purpose. Twelve frames is a small corpus and two of the
+    # five tabs (gems, runes) have no example in it at all — their positions are PREDICTED by the
+    # measured pitch and unverified. A reader of actual words outranks a geometric prediction until
+    # the corpus says otherwise. [[unknown-stays-unknown]]
+    if gem_tab:
+        sources.append("gem")
+        if grid_tab == gem_tab:
+            sources.append("grid")
+        if journal_tab == gem_tab:
+            sources.append("journal")
+        if model_tab == gem_tab:
+            sources.append("model")
+        return gem_tab, sources
 
     # 2 grid fingerprint tally — when stash panel is open
     if grid_tab in _TALLY_TABS and stash_open:
@@ -732,8 +849,11 @@ def analyze_frame(
     out["gridLabel"] = gl
     out["gridDetail"] = gd
 
+    gem_tab, gem_detail = tab_from_gem(path)
+    out["gemTab"] = gem_tab
+    out["gemDetail"] = gem_detail
     tab, sources = fuse_tab_signals(
-        ocr_tab, gl, journal_tab, model_tab, allow_grid_solo=allow_grid_solo)
+        ocr_tab, gl, journal_tab, model_tab, allow_grid_solo=allow_grid_solo, gem_tab=gem_tab)
     out["tab"] = tab
     out["sources"] = sources
     # class from fused tab; retro solo grid still only yields cls when fuse accepted it

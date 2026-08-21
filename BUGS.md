@@ -7988,3 +7988,44 @@ AST and fails on any third-party import outside the allowlist — which is exact
 wraps it in a `try`. It asks the **filesystem** where each module lives rather than consulting
 `sys.stdlib_module_names`, which his 3.9 does not have — the guard must not repeat the defect it
 guards. Seen RED by restoring the exact import: *"test_control.py:9744 imports 'yaml'"*.
+
+## REG-205 — the selected stash tab is in the pixels, and the marker is the GEM (CLOSED v1912, filed OPEN 2026-08-20)
+
+REG-205's own words: *"the selected stash tab IS visible in the pixels; reading it is not solved."*
+It tried the obvious thing — crop the chrome, split into five equal cells, argmax mean luminance —
+and got **1 of 3 on margins of 1–5 grey levels**, because the labels are not equal width and a cell
+straddles two of them.
+
+**The obvious thing was the wrong FEATURE.** D2R does not merely brighten the active tab: it draws a
+gold box around it *and* sets a small **blue gem** on the underline directly beneath it — tiny,
+saturated, at a position no other chrome occupies. A structural marker, not a brightness contest.
+
+**Measured on the twelve hand-labelled frames: 12 correct, 0 wrong, and zero false tabs on the seven
+non-panels.** Across his whole 883-frame hist it names a tab on **8** frames.
+
+**The geometry is regular, and that is a measurement, not an assumption.** The gem centres came out
+at personal **0.141**, shared **0.324**, materials **0.691** of the strip — differences of 0.183 and
+0.367, exactly one and two pitches. So the five centres are `0.141 + 0.1835·i`, which **predicts**
+gems at 0.508 and runes at 0.875. ⚠ **No frame in his corpus has either tab open, so those two
+predictions are UNVERIFIED** and the constants say so rather than letting them read as covered.
+
+⚠ **IT CAUGHT A WRONG LABEL, AND THE DISAGREEMENT WAS THE FINDING.** On `5_1784984201581` the reader
+said PERSONAL where REG-205's hand label said RUNES. Zoomed to 2.6×: the gold box and the gem are
+both on PERSONAL, a WRAITHSTEP tooltip covers its text, RUNES is grey with no border, and the grid
+below holds gear. **The detector was right and the label was wrong** — corrected in the corpus, and
+REG-203's "one missed tally" was that same mislabel, so the tally axis is now **0 false, 0 missed**.
+
+⚠ **THE FALSE POSITIVE THAT ALMOST SHIPPED.** Without guards it named a tab on **131 of 883** frames,
+125 of them "personal" — and five of the six I opened were **solid blue capture failures**, where
+every pixel qualifies as blue. Same shape as this file's oldest scar, *"69 wallpaper frames sealed as
+stash-gems"*. Both guards sit in enormous measured gaps — qualifying blue px **2–18 vs 1025**, strip
+luminance sd **32.7–35.2 vs 0.00** — and both are driven red by their own fixture.
+
+**Wired as a witness, not a king.** It sits *after* the OCR, which reads the actual word, and
+*before* the grid, which measured 1-of-9. It joins the conflict set, and it is credited when it
+agrees. Twelve frames is a small corpus and two tabs have no example: a reader of words outranks a
+geometric prediction until the corpus says otherwise.
+
+⚠ **Instrument note, ~15 minutes lost:** a stale `__pycache__` served bytecode from a sabotage run
+and reported a result the source could not produce. **After a sabotage/restore cycle, clear
+`__pycache__` before believing anything.** Founding rule 4, in its cheapest form.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1911",
+  "ver": "v1912",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1911: v1910 never reached the live site: the Publish workflow went red on ModuleNotFoundError for yaml, deploy skipped, the site left serving v1909, while locally 1413 tests and all 34 gates were green. PyYAML is installed on his Mac and is not on the runner, and the host is part of the fixture - this is the third host difference of the arc after his Windows console encoding and a local Python 3.9 against CI 3.11. Fixed by parsing the workflow paths block directly and verified under a simulated no-yaml host rather than by deleting the import and hoping. Skipping would have been worse than failing, because a test that skips on the only machine that publishes is a test that does not exist. The class is guarded now by an AST walk over every suite that fails on any third-party import outside what CI actually installs.",
+  "note": "v1912: REG-205 said the selected stash tab is visible in the pixels and that reading it was not solved - it tried five equal cells and argmax luminance and got 1 of 3 on margins of a few grey levels. The obvious thing was the wrong feature: the game draws a gold box around the active tab and sets a small blue gem on the underline beneath it, tiny and saturated and at a position no other chrome occupies. Twelve of twelve on the hand-labelled corpus, zero false tabs on the seven non-panels, and eight named frames across his whole hist. The tab pitch is measured rather than assumed, and the two tabs with no example frame are declared unverified. It caught a wrong label on the way - the frame REG-205 called runes is personal, which also explains the one missed tally. And it almost shipped a false positive on solid blue capture failures, so both guards are measured and driven red.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

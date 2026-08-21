@@ -1,7 +1,7 @@
 {
  "_what": "HAND-LABELLED GROUND TRUTH for tv/stash_eye.classify_stash_grid, established by OPENING the images (v1909, 2026-08-21). REG-205 said in as many words that three hand-labelled frames is not a corpus; this is twelve, and it exists so the next attempt at REG-203 can be MEASURED instead of argued.",
  "_how_to_use": "python3 tv/stash_grid_score.py — prints the confusion and the score. The ratchet lives in tv/test_stash_eye_aspect.py: the disagreement count may go DOWN and may never go up, and all five real panels must stay claimed.",
- "_refuted": "dark_cols CANNOT separate a panel from a dark picture, measured here and recorded so it is not re-derived a third time: a REAL stash panel on the SHARED tab (1_1787244007255, 3_1787244010577) has dark_cols=40, the SAME as the fire-lit temple frames the grid falsely calls stash-gems (39-40). An upper bound tuned to drop the false positives throws away real stash panels with it.",
+ "_refuted": "dark_cols CANNOT separate a panel from a dark picture, measured here and recorded so it is not re-derived a third time: a REAL stash panel on the SHARED tab (1_1787244007255, 3_1787244010577) has dark_cols=40, the SAME as the fire-lit temple frames the grid falsely calls stash-gems (39-40). An upper bound tuned to drop the false positives throws away real stash panels with it.  — CORRECTED v1912: the ceiling measured out clean after all (9 tally claims -> 1 across his 883 frames, no real panel lost), because the plain-stash path never required panel_open. Reasoning from the feature table said no; running it said yes.",
  "_frames": {
   "8_1785078207015.jpg": {
    "panel": true,
@@ -15,8 +15,8 @@
   },
   "5_1784984201581.jpg": {
    "panel": true,
-   "tab": "runes",
-   "note": "stash open, RUNES tab (REG-205's label); a tooltip covers part of the strip"
+   "tab": "personal",
+   "note": "CORRECTED v1912 — REG-205 labelled this RUNES and it is PERSONAL. The v1912 gem reader said personal, so the label and the detector disagreed, and the disagreement WAS the finding: zoomed to 2.6x, the gold-bordered box and the blue active-tab gem are both on PERSONAL (leftmost), a WRAITHSTEP tooltip covers its text, RUNES on the far right is grey with no border, and the grid below holds gear, not runes. The detector was right and the hand label was wrong."
   },
   "1_1787244007255.jpg": {
    "panel": true,

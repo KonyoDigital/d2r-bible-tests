@@ -188,7 +188,7 @@ class TestTheGridAgainstHandLabelledFrames(unittest.TestCase):
     """
 
     FALSE_TALLIES = 0    # v1909: was 3 here (8 across his whole hist) before the ceiling landed
-    MISSED_TALLIES = 1   # 5_1784984201581 is a RUNES tab the grid calls plain `stash` — REG-205
+    MISSED_TALLIES = 0   # v1912: was 1, and the 'miss' was a WRONG LABEL — see the gem reader
 
     def _rows(self):
         import stash_grid_score as sgs
@@ -243,6 +243,109 @@ class TestTheGridAgainstHandLabelledFrames(unittest.TestCase):
         self.assertLess(min(dcs), se._PANEL_MAX_DARKCOLS, "nothing is below the ceiling")
         self.assertGreater(max(dcs), se._PANEL_MAX_DARKCOLS, "nothing is above it — it never fires")
         self.assertGreater(se._PANEL_MAX_DARKCOLS, se._PANEL_MIN_DARKCOLS)
+
+
+class TestTheActiveTabGem(unittest.TestCase):
+    """v1912 — REG-205 said *"the selected stash tab IS visible in the pixels; reading it is not
+    solved."* It is solved: the marker is the GEM, not the brightness.
+
+    REG-205 tried the obvious thing — split the chrome into five equal cells, take the argmax mean
+    luminance — and got **1 of 3 on margins of 1-5 grey levels**, because the labels are not equal
+    width and a cell straddles two of them. The obvious thing was the wrong FEATURE. D2R draws a
+    gold box around the active tab AND sets a small blue gem on the underline beneath it: tiny,
+    saturated, at a position no other chrome occupies.
+
+    **12 of 12 on the hand-labelled corpus, zero false tabs on the seven non-panels**, and 8 named
+    frames across his whole 883-frame hist.
+
+    ⚠ AND IT CAUGHT A WRONG LABEL. On `5_1784984201581` the detector said PERSONAL where REG-205's
+    hand label said RUNES. The disagreement WAS the finding: zoomed to 2.6x, the gold box and the
+    gem are both on PERSONAL, a WRAITHSTEP tooltip covers its text, RUNES is grey with no border,
+    and the grid below holds gear. The detector was right and the label was wrong.
+    [[feedback-contradiction-is-the-finding]]
+
+    ⚠ THE FALSE POSITIVE THAT ALMOST SHIPPED: without its guards this named a tab on 131 of 883
+    frames, 125 of them "personal" — and five of six I opened were SOLID BLUE capture failures,
+    where every pixel qualifies as blue. Same shape as this file's oldest scar, "69 wallpaper frames
+    sealed as stash-gems". Both guards sit in enormous measured gaps: qualifying blue px real 2-18
+    against 1025, strip luminance sd real 32.7-35.2 against 0.00."""
+
+    def _frames(self):
+        import json
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "stash_grid_truth.json"), encoding="utf-8") as fh:
+            return json.load(fh)["_frames"], os.path.join(here, "frames", "hist")
+
+    def test_it_reads_every_labelled_panel_and_invents_none(self):
+        frames, hist = self._frames()
+        if not os.path.isfile(os.path.join(hist, list(frames)[0])):
+            self.skipTest("his labelled frames are not in this checkout")
+        wrong = []
+        for f, t in sorted(frames.items()):
+            got, _d = se.tab_from_gem(os.path.join(hist, f))
+            want = t.get("tab") if t.get("panel") else None
+            if (got or None) != want:
+                wrong.append("%s: said %r, truth %r" % (f, got or None, want))
+        self.assertEqual(wrong, [], "\n  ".join(wrong))
+
+    def test_a_solid_blue_capture_never_names_a_tab(self):
+        """The failure that almost shipped, driven directly rather than described."""
+        import shutil
+        import tempfile
+        from PIL import Image
+        root = tempfile.mkdtemp(prefix="bluefail-")
+        self.addCleanup(shutil.rmtree, root, True)
+        p = os.path.join(root, "blue.jpg")
+        Image.new("RGB", (1280, 800), (0, 0, 255)).save(p, quality=90)
+        tab, detail = se.tab_from_gem(p)
+        self.assertEqual(tab, "", "a solid blue frame was given a stash tab: %r" % (detail,))
+        self.assertIn("why", detail, "it refused without saying why")
+
+    def test_a_BLUE_WASH_over_real_chrome_is_refused_too(self):
+        """The stddev guard catches a flat blue SCREEN. This is the other half — a frame with real
+        chrome structure and far too much blue in the gem band, which is what `_GEM_MAX_PX` is for.
+        Without it the "centre of the strongest blue" is arithmetic on a wash, and it lands
+        somewhere, and somewhere is always one of five tabs."""
+        import shutil
+        import tempfile
+        from PIL import Image, ImageDraw
+        frames, hist = self._frames()
+        real = os.path.join(hist, "8_1785078207015.jpg")
+        if not os.path.isfile(real):
+            self.skipTest("his labelled frames are not in this checkout")
+        base = Image.open(real).convert("RGB")
+        w, h = base.size
+        b = se._TAB_CHROME
+        d = ImageDraw.Draw(base)
+        y0 = h * b[1] + (h * (b[3] - b[1])) * se._GEM_BAND[0]
+        y1 = h * b[1] + (h * (b[3] - b[1])) * se._GEM_BAND[1]
+        d.rectangle([w * b[0], y0, w * b[2], y1], fill=(20, 40, 230))
+        root = tempfile.mkdtemp(prefix="bluewash-")
+        self.addCleanup(shutil.rmtree, root, True)
+        p = os.path.join(root, "wash.jpg")
+        base.save(p, quality=92)
+        tab, detail = se.tab_from_gem(p)
+        self.assertGreater(detail.get("stripSd", 0), se._GEM_MIN_STRIP_SD,
+                           "the fixture lost its chrome structure, so this proves nothing")
+        self.assertEqual(tab, "", "a blue wash over the gem band still named a tab: %r" % (detail,))
+        self.assertIn("too much blue", detail.get("why", ""))
+
+    def test_the_pitch_is_measured_and_its_two_predictions_are_declared(self):
+        """personal 0.141, shared 0.324, materials 0.691 — one and two pitches apart. That fixes
+        gems at 0.508 and runes at 0.875, and NEITHER has a frame in his corpus. The constants must
+        keep saying so rather than letting two unverified predictions read as covered."""
+        self.assertAlmostEqual(se._GEM_FIRST + se._GEM_PITCH * 1, 0.3245, places=3)
+        self.assertAlmostEqual(se._GEM_FIRST + se._GEM_PITCH * 3, 0.6915, places=3)
+        src = open(se.__file__, encoding="utf-8").read()
+        self.assertIn("UNVERIFIED", src,
+                      "the note that gems and runes have no example frame is gone")
+
+    def test_the_gem_is_a_witness_in_the_fusion_and_never_outranks_the_WORDS(self):
+        self.assertEqual(se.fuse_tab_signals(gem_tab="materials"), ("materials", ["gem"]))
+        self.assertEqual(se.fuse_tab_signals(ocr_tab="gems", gem_tab="gems"), ("gems", ["ocr", "gem"]))
+        self.assertEqual(se.fuse_tab_signals(ocr_tab="gems", gem_tab="runes"),
+                         ("stash", ["tab-conflict"]))
+        self.assertEqual(se.fuse_tab_signals(gem_tab="nonsense"), ("", []))
 
 
 if __name__ == "__main__":
