@@ -97,15 +97,40 @@ test.describe('v1595 — the vault accumulator writes through the board, and nev
       let called: any = null;
       const orig = w.chronicleApply;
       w.chronicleApply = (p: any) => { called = p; return { uniques: ['Shako'], sets: [] }; };
-      const out = w.vaultAccumApply({ items: [{ name: 'Shako', kind: 'item' }] });
+      const out = w.vaultAccumApply({
+        items: [{ name: 'Shako', kind: 'item', lane: 'stash', conf: 0.91,
+                  witnesses: [{ session: 's_1', frame: 'f_1.jpg' }] }] });
       w.chronicleApply = orig;
       const runes = JSON.parse(w.LSR.getItem('d2r_runeStash') || '{}');
-      return { called, grail: out.grail, leakedIntoRunes: 'Shako' in runes };
+      const rows = (called && called.wouldAdd && called.wouldAdd.uniques) || [];
+      return {
+        called,
+        names: rows.map((x: any) => (x && x.name) || x),   // the row may be a string OR a row object
+        row: rows[0],
+        grail: out.grail,
+        leakedIntoRunes: 'Shako' in runes,
+      };
     });
     expect(r.called, 'a grail item must be handed to chronicleApply — the ONE write path').toBeTruthy();
-    expect(r.called.wouldAdd.uniques).toContain('Shako');
+    expect(r.names, 'the payload must NAME the item, whatever shape the row is').toContain('Shako');
     expect(r.leakedIntoRunes, 'and must never be written into a tally store').toBe(false);
     expect(r.grail).toContain('Shako');
+
+    /* ⚠ v1919 — THIS ASSERTION USED TO READ `toContain('Shako')` ON THE ROW ARRAY ITSELF, and v1918
+       broke it on CI while every local gate stayed green: carrying provenance turned each row from a
+       bare string into {name, lane, conf, witnesses, source}, so the array no longer *contained* the
+       string. The test was right to fail — the contract it pinned had changed — and the fix is to
+       pin the PROPERTY (the payload names the item) instead of the SHAPE, then pin the new shape
+       separately and on purpose, below.
+
+       Why the shape matters and is not incidental: before v1918 a grail item found by the VAULT lane
+       arrived at chronicleApply with no reel, no eye and no confidence, so its ledger row could only
+       say "accepted from a Chronicle sweep" about an item that never came from the Chronicle.
+       [[the-unjoined-end]] */
+    expect(typeof r.row, 'the row carries its evidence now, not just a name').toBe('object');
+    expect(r.row.lane, 'which surface the vault reader saw it on').toBe('stash');
+    expect(r.row.conf, 'and how sure it was').toBe(0.91);
+    expect(r.row.source, 'and that it came from the VAULT lane, not the Chronicle').toBe('vault-sweep');
   });
 
   test('an unreadable count is skipped, never guessed', async ({ page }) => {

@@ -11206,6 +11206,72 @@ def _chron_fold(prop):
 _CHRON_HUNT_MAX_NAMES = int(os.environ.get("TV_CHRON_HUNT_NAMES") or 8)
 
 
+def _chron_calibration(reel_dirs):
+    """THE SAFEGUARD HE ASKED FOR: put the game's own number beside the board's, every sweep.
+
+    Konyo, 2026-08-21: "and sets.. are you sure its 118/135 how is it 87%? ingame im 85%" — and then
+    the harder question — "the AI READERS needs to be doing this automatically ... where is the AI
+    intelligence and AI coder that routes and funnels and watchdog even for a safegaurd of this?"
+
+    He was right that it did not exist. Every Chronicle page carries a completion bar, the readers
+    have been photographing it for months, and NOTHING ever compared it to the board's tally. Two
+    numbers about one collection, computed by different routes, never put side by side — which is
+    the single arrangement that turns a silent drift into a finding.
+
+    WHAT IT COST TO NOT HAVE THIS: his board read 118/135 = 87.4% while the game printed 85%. His
+    own two sentences settled it — "this is exactly 19 i still have missing" and "meaning i have
+    116/135" — 116 + 19 = 135, and 116/135 = 85.9%, which the game truncates to 85. So the board was
+    counting TWO pieces he does not have, and had been for long enough that he noticed it by eye
+    before any gate did.
+
+    ⚠ THE BAR READER IS A WATCHDOG, NOT A COUNTER (±1.5 points; chronicle_calibrate says so in its
+    own docstring). It exists to catch a 3-point disagreement, and it must never be quoted as the
+    figure. A refusal — no bar on any frame — is reported as UNKNOWN, never as agreement, because
+    "the game said nothing" and "the game agreed" are different facts. [[unknown-stays-unknown]]
+    """
+    out = {"ok": None, "say": "not attempted"}
+    try:
+        import chronicle_calibrate as _cal
+    except Exception as e:
+        out["say"] = "chronicle_calibrate unavailable: %s" % str(e)[:120]
+        return out
+    fill, n = None, 0
+    for d in (reel_dirs or []):
+        try:
+            f, cnt = _cal.read_reel(d)
+        except Exception:
+            f, cnt = None, 0
+        if f is not None:
+            fill, n = f, cnt
+            break
+    if fill is None:
+        out["say"] = ("no completion bar on any swept frame — the game was not asked, which is not "
+                      "the same as the game agreeing")
+        return out
+    out["gameFill"] = round(fill, 4)
+    out["frames"] = n
+    try:
+        own = board_ownership(0) or {}
+    except Exception as e:
+        out["say"] = "the game's bar reads about %.1f%%, and the board could not be asked (%s)" % (
+            fill * 100, str(e)[:80])
+        return out
+    if not own.get("ok"):
+        out["say"] = ("the game's bar reads about %.1f%%, and the board did not answer (%s) — "
+                      "so nothing is compared, and that is reported rather than assumed"
+                      % (fill * 100, str(own.get("why"))[:90]))
+        return out
+    try:
+        import chronicle_resolve as _res
+        total = len(_res.load_set_roster() or {}) or 0
+    except Exception:
+        total = 0
+    found = int((own.get("counts") or {}).get("setPieces") or 0)
+    v = _cal.verdict(fill, found, total)
+    v["frames"] = n
+    return v
+
+
 def _chron_hunt_held(prop, applied, hist_dir, read_page):
     """Go back and look again for the names the gate held, then re-gate with whatever came back.
 
@@ -12162,6 +12228,18 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # has. Whatever it finds is merged through merge_proposals and RE-GATED by the same rule as
         # everything else, so nothing reaches his grail on a private path.
         prop, applied, _hunt_report = _chron_hunt_held(prop, applied, hist, read_page)
+        # v1920 — and then ask the GAME, from the same frames, and put the two side by side.
+        try:
+            # ⚠ v1920 — `dirs` DID NOT EXIST HERE and the v1853 scope guard caught it before it
+            # shipped. That is the exact class that left MINI dead for ten versions: a name inside a
+            # function body resolves only when that line RUNS, so a NameError here would have
+            # surfaced as "the sweep crashed at the end" long after the reads were paid for.
+            # The reel list in this function is `reels` (line ~11854). [[source-reading-guard]]
+            _cal_report = _chron_calibration(reels)
+        except Exception as _ce:
+            _cal_report = {"ok": None, "say": "calibration failed: %s" % str(_ce)[:120]}
+        if _cal_report.get("ok") is False:
+            print("   \u2696 %s" % _cal_report.get("say"))
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         with _CHRON_LOCK:
@@ -12241,6 +12319,10 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     "fold": _fold_report,
                     # v1789 — what the focused hunt went looking for, and what came back
                     "hunt": _hunt_report,
+                    # v1920 — THE SAFEGUARD RUNS ON EVERY SWEEP, not when someone remembers.
+                    # It costs no model call: the game's own completion bar is pixels the sweep
+                    # already has. See _chron_calibration for what it cost to not have this.
+                    "calibration": _cal_report,
                     "setGroups": prop.get("setGroups") or {},
                     "lanes": _CHRON_JOB.get("lanes") or [],
                 },
@@ -12465,7 +12547,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1919",
+        "ver": "v1920",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

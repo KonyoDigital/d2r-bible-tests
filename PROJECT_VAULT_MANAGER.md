@@ -128,8 +128,26 @@ no competition.
 **Then, and only then, label.** A slot map built on a lattice that was fitted rather than FOUND is a
 plausible-but-wrong detector, which is the precise failure v1857/v1859 already cost.
 
-⚠ **And the tally tabs are a different problem from the free-form ones.** GEMS / RUNES / MATERIALS are
-a fixed catalogue grid ordered by type — "did it move" is close to meaningless there, and the vault
-lane's existing COUNT logic already owns them. The movement question is only real for **personal**,
-**shared**, **inventory** and **equipment**. That splits the work, and it means the 102 personal and
-23 shared frames are the ones that matter for the lock.
+⚠ **The tally tabs are not a smaller version of the problem — they are OUTSIDE it.** In his words,
+2026-08-21:
+
+> "gems/runes/materials — these never move... these go to their templates grid in stash where they
+> have infinite room they stack up on the same inventroy cell block unit.. so nothing to automate
+> here. they should be like sort of ghosts.. cuz before the third reel witness it gets stashed
+> already."
+
+Three consequences, and the third is the one that would have been got wrong:
+
+1. **No slot tracking.** A catalogue cell is fixed by TYPE, with infinite depth. There is no "where
+   is it" question to answer, so no lattice address is needed for these tabs at all.
+2. **No movement question.** Nothing there can move, so the lock, the 3-session no-move check and
+   the whole equipment/inventory apparatus simply do not apply.
+3. ⚠ **THE THREE-WITNESS BAR IS WRONG FOR THEM.** The vault gate demands corroboration across
+   recordings before it will believe an item. For a tally tab the item is *already stashed by the
+   time a third reel exists* — the game did it automatically. Applying the KEEP bar there does not
+   make the answer safer, it makes it LATE, and a rule that is right everywhere else can be wrong
+   here precisely because the game is doing the work. They are **ghosts**: counted, never gated,
+   never routed.
+
+So the movement work is only ever about **personal**, **shared**, **inventory** and **equipment** —
+which is where 102 personal + 23 shared of the indexed frames sit.

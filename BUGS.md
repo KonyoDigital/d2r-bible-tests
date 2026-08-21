@@ -8317,3 +8317,50 @@ f_1784984271825   GEMS    detector x = 0.506   predicted 0.508   (off by 0.002)
 RUNES panel the grid fingerprint calls plain `stash` — `MISSED_TALLIES` goes 0 → **1**. It is
 contained: the gem names that frame correctly, so `fuse_tab_signals` still answers
 `('runes', ['gem'])`. **A number that only ever goes down is a number nobody is testing.**
+
+## REG-271 — the game prints its own number and nothing ever read it (FIXED v1920)
+
+Konyo: *"and sets.. are you sure its 118/135 how is it 87%? ingame im 85% somewthing isnt
+calliberated properly to the ingame with the console"*, and then the harder question —
+*"the AI READERS needs to be doing this automatically... where is the AI intelligence and AI coder
+that routes and funnels and watchdog even for a safegaurd of this?"*
+
+**He was right that it did not exist.** Every Chronicle page carries a completion bar and a printed
+percentage. The readers have been photographing that panel for months and **nothing has ever compared
+it to the board's own tally.** Two numbers about one collection, computed by different routes, never
+put side by side — the single arrangement that turns a silent drift into a finding.
+
+**HIS TWO SENTENCES SETTLED THE ARITHMETIC, and no gate did:**
+
+> *"this is exactly 19 i still have missing"* … *"meaning i have 116/135"*
+
+**116 + 19 = 135** ✓ and 116/135 = **85.9%**, which the game truncates to the **85%** on his page.
+So the denominator is right and **the board's 118 was two too many** — a drift he caught by eye.
+
+`tv/chronicle_calibrate.py` reads the bar's gold fill as a fraction of its track: structural, no OCR,
+no model call, on frames the sweep already has. `_chron_calibration()` runs it on **every sweep** and
+puts the verdict in the result.
+
+⚠ **IT IS A WATCHDOG, NOT A COUNTER, and it says so in its own docstring.** On his 2026-08-21 sets
+reel the fill reads **0.8395 on four separate frames** (stable, so the reading is repeatable) while
+the page's printed digits say 85% — the soft right edge of the fill and the track end-cap are worth
+about a point. Tolerance is 3 points: wider than the instrument's own error, tighter than the gap
+that matters. A tolerance tighter than the instrument is an alarm that fires on itself.
+
+⚠ **SILENCE IS NOT AGREEMENT.** No bar on any sampled frame reports `ok: None` — *"the game was not
+asked, which is not the same as the game agreeing"* — and a board window that does not answer is
+reported the same way. [[unknown-stays-unknown]]
+
+⚠ **A CORRECTION I OWE, recorded because I told him the wrong thing first.** I reported that 12 of
+the 36 proposed set pieces are ones the game shows as NOT found. That was built on stale data: his
+newest reel shows `Natalya's Totem`, `Hsarus' Iron Fist` and `Hsarus' Iron Heel` **with First Found
+dates**. The underlying defect is real but different — `notFound` is stored as a bare list of names
+with **no page and no timestamp** (`chronicle_retro.py`: `prop['notFound'][ledger]` is a set of
+strings), so a May reading can never be aged out by an August one and the gate cannot tell stale from
+current. Filed, not half-fixed.
+
+⚠ **AND THE v1853 SCOPE GUARD CAUGHT A NameError IN THIS VERY SHIP.** The first cut called
+`_chron_calibration(dirs)` and `dirs` does not exist in that function — the reel list is `reels`. A
+name inside a function body resolves only when that line RUNS, so it would have surfaced as "the
+sweep crashed at the end", long after the reads were paid for. That is precisely the class that left
+MINI dead for ten versions, caught this time before it shipped. [[source-reading-guard]]

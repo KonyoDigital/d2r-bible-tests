@@ -9794,6 +9794,75 @@ class TestTheFocusedHuntCanActuallyRegisterAHit(unittest.TestCase):
         self.assertNotIn("chronicle-sets", seen, "it hunted a sets page with nothing held there")
 
 
+class TestTheGameIsAskedItsOwnNumber(unittest.TestCase):
+    """v1920 — THE SAFEGUARD THAT DID NOT EXIST.
+
+    Konyo: *"and sets.. are you sure its 118/135 how is it 87%? ingame im 85% somewthing isnt
+    calliberated properly"*, and then the harder one: *"the AI READERS needs to be doing this
+    automatically... where is the AI intelligence and AI coder that routes and funnels and watchdog
+    even for a safegaurd of this?"*
+
+    He was right that it was missing. Every Chronicle page carries a completion bar, the readers have
+    photographed it for months, and NOTHING compared it to the board's tally. Two numbers about one
+    collection, by different routes, never put side by side.
+
+    WHAT IT COST: the board read 118/135 = 87.4% while the game printed 85%. His own two sentences
+    settled it — "this is exactly 19 i still have missing" and "meaning i have 116/135" — and
+    116 + 19 = 135 with 116/135 = 85.9%, which the game truncates to 85. The board was counting TWO
+    pieces he does not have, and he caught it by eye before any gate did.
+
+    ⚠ THE READER IS A WATCHDOG, NOT A COUNTER (±1.5 points). These tests pin that it FIRES on a real
+    gap and REFUSES rather than agreeing when the game says nothing — never that its figure is
+    exact. [[unknown-stays-unknown]]"""
+
+    def test_it_fires_on_the_gap_that_actually_happened(self):
+        import chronicle_calibrate as cal
+        v = cal.verdict(0.8395, 118, 135)          # the measured fill, and his board that day
+        self.assertIs(v["ok"], False, "the 3.5-point gap he spotted by eye read as agreement")
+        self.assertIn("DISAGREE", v["say"])
+        self.assertIn("the game is the one holding the items", v["say"])
+
+    def test_it_does_NOT_fire_on_the_truth(self):
+        """116/135 against the same bar must pass, or the watchdog cries wolf at the right answer."""
+        import chronicle_calibrate as cal
+        v = cal.verdict(0.8395, 116, 135)
+        self.assertIs(v["ok"], True, "the correct tally tripped the alarm: %s" % v["say"])
+
+    def test_silence_is_never_agreement(self):
+        import chronicle_calibrate as cal
+        v = cal.verdict(None, 118, 135)
+        self.assertIsNone(v["ok"], "no bar on any frame read as the game agreeing")
+        self.assertIn("not the same as agreeing", v["say"])
+        v2 = cal.verdict(0.85, 118, 0)
+        self.assertIsNone(v2["ok"], "a missing total read as a verdict")
+
+    def test_the_tolerance_is_wider_than_the_reader_error(self):
+        """±1.5 points of reader error inside a 3-point tolerance. A tolerance TIGHTER than the
+        instrument is an alarm that fires on itself; one far wider never fires at all."""
+        import chronicle_calibrate as cal
+        self.assertGreaterEqual(cal.TOLERANCE, 0.02)
+        self.assertLessEqual(cal.TOLERANCE, 0.05)
+
+    def test_it_runs_on_every_sweep_rather_than_when_someone_remembers(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn("def _chron_calibration(", src)
+        self.assertIn('"calibration": _cal_report', src,
+                      "the verdict is computed and never reaches the result — the exact shape of "
+                      "every defect this file has been fixing tonight")
+
+    def test_a_dead_board_is_reported_not_assumed(self):
+        """If the board cannot be asked, the sweep must SAY the comparison did not happen."""
+        from unittest import mock
+        import control_app as ca
+        import chronicle_calibrate as cal
+        with mock.patch.object(cal, "read_reel", lambda d, sample=6: (0.84, 5)), \
+             mock.patch.object(ca, "board_ownership", lambda n=0: {"ok": False, "why": "window shut"}):
+            v = ca._chron_calibration(["/nowhere"])
+        self.assertIsNone(v.get("ok"))
+        self.assertIn("did not answer", v.get("say", ""))
+
+
 class TestOneGauntletForBothSurfaces(unittest.TestCase):
     """v1916 — the board wore the D2R gauntlet and the console wore the macOS arrow.
 
