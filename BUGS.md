@@ -7661,3 +7661,33 @@ is a rule that applies to whoever remembered.
 The guard is **the class, not the two instances**: `TestEveryWrittenStateFileFollowsAnIsolatedHist`
 asks all eleven written state paths where they live with and without `TV_HIST`, with every other
 `TV_*` variable stripped, and fails any that stays in his tree. Seen RED for its own reason.
+
+## REG-253 — `throwOut` was in the schema and nowhere in the prompt (FIXED v1903)
+
+He asked, in his own words: *"items being routed correctly? you simulated every single item that
+would be found and made sure it gets muled or thrown out properly?"* The throw half had a hole.
+
+`throwOut` appeared **exactly once** in `VAULT_READ_PROMPT` — inside the JSON template, printed as
+`false`. Nothing told the reader what it meant, when to set it, or that `throwWhy` existed at all.
+Meanwhile `vault_retro` consumes **both**, gates them behind a strictly higher confidence floor
+(0.85) and three separate recordings, refuses to let one reel ever suggest a bin, and rides them out
+to him as `suggestions`. **An elaborate safety mechanism fed by a field nobody was ever asked to
+fill** — so an empty throw lane read as "nothing is junk" when it meant "nobody was asked".
+
+Two fixes, and the second does not depend on the first:
+
+1. **The prompt now defines it** — narrowly: a white/grey base with no sockets and no magical text,
+   never a named unique or set item, never a rune/gem/jewel/charm/material, never "I don't recognise
+   it", and `throwWhy` in the reader's own words. Konyo decides how wide *junk* should be; this is
+   the floor, not his policy.
+2. **A grail name is refused in code, whatever the reader says.** Every existing guard on this lane
+   was about *how much evidence* a throw needs; none was about *what may be thrown*, and "is this
+   junk" was a vision model's opinion. `vault_retro._grail_guard()` checks his roster: a named
+   unique or set piece is never a throw-out suggestion at any confidence, from any number of
+   recordings. An unloadable roster **says so once** rather than quietly answering "not grail".
+
+⚠ **My own first guard was vacuous and I caught it by turning the backstop off.** It asserted
+`"Isenhart's Parry" not in throwOut` — but the fold rewrites the straight apostrophe to his roster's
+curly one, so the name it looked for was never in that list either way. With the backstop disabled
+only 1 of 4 tests went red. It asserts on the lane being empty now, and 2 of 4 go red.
+A fourth test is the CLASS: every field `normalize_item()` consumes must appear in the prompt.

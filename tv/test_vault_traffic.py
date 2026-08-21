@@ -383,5 +383,62 @@ class TestTraffic(_Base):
         self.assertLess(dt, 20.0)
 
 
+class TestNoGrailNameIsEverAThrowOut(_Base):
+    """v1903 — every guard on the throw lane was about HOW MUCH evidence a throw needs. None was
+    about WHAT MAY BE THROWN, and "is this junk" was the vision reader's opinion alone.
+
+    Worse, the reader was never ASKED. `throwOut` appeared exactly once in VAULT_READ_PROMPT —
+    inside the JSON template, printed as `false` — with no definition, no criteria, and no mention
+    of `throwWhy` at all, while vault_retro consumed both, gated them behind a higher confidence
+    floor and three separate recordings, and rode them out to him as suggestions. An elaborate
+    safety mechanism fed by a field nobody was ever asked to fill. [[the-unjoined-end]]
+
+    Law 3 of vault_retro: there is no un-throw in Diablo. So this is settled in code, not left to
+    the reader: a name on his grail roster is refused at ANY confidence, from ANY number of
+    recordings."""
+
+    def _flagged(self, name, sessions=4):
+        items = [{"name": name, "kind": "item", "count": None,
+                  "throwOut": True, "throwWhy": "white base, no sockets"}]
+        return self.sweep(items, sessions=sessions)[0]
+
+    def test_a_unique_flagged_by_a_certain_reader_is_refused(self):
+        res = self._flagged("Harlequin Crest")
+        names = [t["name"] for t in res["throwOut"]]
+        self.assertNotIn("Harlequin Crest", names,
+                         "the sweep suggested binning a grail unique")
+        why = " ".join(h["why"] for h in res["held"] if h["name"] == "Harlequin Crest")
+        self.assertIn("GRAIL ROSTER", why, "it was withheld, but not for the right reason: %r" % why)
+
+    def test_a_set_piece_too(self):
+        """⚠ ASSERT ON THE LANE BEING EMPTY, NOT ON THE SPELLING. The first version of this test
+        checked `"Isenhart's Parry" not in names` and passed with the backstop switched OFF — the
+        fold rewrites the straight apostrophe to his roster's curly one, so the name it was looking
+        for was never going to be in that list either way. A test whose subject is renamed before
+        it looks is a green light measuring nothing. [[feedback-blind-fixture-green-gate]]"""
+        res = self._flagged("Isenhart's Parry")
+        self.assertEqual(res["throwOut"], [],
+                         "a set piece reached the throw lane: %r" % (res["throwOut"],))
+        self.assertTrue(any("GRAIL ROSTER" in h["why"] for h in res["held"]),
+                        "nothing was withheld for being on his roster: %r" % (res["held"],))
+
+    def test_a_genuine_white_base_still_reaches_him(self):
+        """The backstop must not swallow the lane it protects. A base name is not on the roster."""
+        res = self._flagged("Cracked Sash")
+        self.assertIn("Cracked Sash", [t["name"] for t in res["throwOut"]],
+                      "the backstop refused an item that is not a grail name — it now blocks "
+                      "everything, which is the same defect wearing the opposite coat")
+
+    def test_the_reader_is_actually_asked_for_what_the_sweep_consumes(self):
+        """THE CLASS, not the instance: every field normalize_item() reads off a reader's row has
+        to appear in the prompt the reader is given. `throwOut` and `throwWhy` did not."""
+        import tv_diablo as td
+        prompt = td.VAULT_READ_PROMPT
+        for field in ("name", "kind", "count", "conf", "throwOut", "throwWhy"):
+            self.assertIn(field, prompt,
+                          "vault_retro consumes %r and the prompt never mentions it — a field "
+                          "nobody is asked to fill" % field)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

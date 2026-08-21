@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1902",
+  "ver": "v1903",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1902: Every neighbouring piece of live state takes an isolated TV_HIST along with it, but the vault ledger - the record of what he owns - and the vault swept memo and the learned dead-frame file were bare HERE joins, so a sweep driven against a fixture hist wrote into his real tree. Nothing has hit it and that is exactly why it was worth fixing: what stopped it was the discipline of every fixture written so far, not the path, and the ledger is merge-max so nothing it gained would ever be subtracted. Three chronicle files had the softer version, isolating only when a test remembered their own env var. All of them derive from the hist now and the guard is the class rather than the instances - it asks all eleven written state paths where they live with and without TV_HIST and fails any that stays in his tree.",
+  "note": "v1903: He asked whether items get muled or thrown out properly and the throw half had a hole - throwOut appeared exactly once in the vault prompt, inside the JSON template, printed as false, with no definition, no criteria and no mention of throwWhy at all, while vault_retro consumes both and gates them behind a higher confidence floor and three separate recordings before riding them out to him as suggestions. An elaborate safety mechanism fed by a field nobody was ever asked to fill, so an empty throw lane read as nothing is junk when it meant nobody was asked. The prompt defines it narrowly now, and independently of that a grail name is refused in code whatever the reader says - every other guard on this lane was about how much evidence a throw needs and none was about what may be thrown.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -449,6 +449,48 @@ def _empty(why, sessions_seen=0):
 _RESOLVER_WARNED = [False]
 
 
+_GRAIL_WARNED = [False]
+
+
+def _grail_guard():
+    """A predicate: is this name a GRAIL ITEM — a named unique or set piece he is hunting?
+
+    v1903 — THE BACKSTOP THE THROW LANE NEVER HAD. Whether an item is junk is decided entirely by
+    the reader's `throwOut` flag: a vision model's opinion, arriving through a prompt (see
+    tv_diablo.VAULT_READ_PROMPT) with real consequences. Law 3 of this file is that there is no
+    un-throw in Diablo, and the whole gate above is built on that — a strictly higher confidence
+    floor, three separate recordings, never automatic. All of it guards HOW MUCH evidence a throw
+    needs, and none of it guards WHAT MAY BE THROWN.
+
+    So one thing is settled in code rather than left to the reader's judgement: a name on his grail
+    roster is never a throw-out suggestion, at any confidence, from any number of recordings. That
+    is not a matter of degree — a unique or set piece is the thing this entire project exists to
+    collect, and a suggestion to bin one is wrong even when the reader is certain.
+
+    ⚠ AN UNLOADABLE ROSTER TURNS THE BACKSTOP OFF, so it says so once rather than returning a quiet
+    False. A guard that cannot answer must not answer "no". [[feedback-silence-is-not-evidence]]
+    """
+    try:
+        import chronicle_resolve as _res
+        roster = _res.load_roster()
+        set_roster = _res.load_set_roster()
+    except Exception as e:
+        if not _GRAIL_WARNED[0]:
+            _GRAIL_WARNED[0] = True
+            print("   \u26a0 grail backstop unavailable (%s) \u2014 a throw-out suggestion can no "
+                  "longer be checked against his roster" % e)
+        return None
+
+    def is_grail(name):
+        try:
+            k = _res._norm(name)
+        except Exception:
+            return False
+        return bool(k) and any(r and k in r for r in (roster, set_roster))
+
+    return is_grail
+
+
 def _name_folder(resolve=None):
     """A function that CORRECTS a reader's item name onto his roster, or leaves it alone.
 
@@ -678,8 +720,20 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             unsure.append({"name": key[0], "why": "%s in %s — %s" % (key[0], key[1], v["why"])})
             continue
         owned.append(_owned_row(key, ev))
+    _is_grail = _grail_guard()
     for key in sorted(throw_flags, key=lambda k: (k[1], k[0].lower(), k[0])):
         ev = throw_flags[key]
+        # v1903 — A GRAIL NAME IS NEVER A THROW-OUT, at any confidence, from any number of
+        # recordings. Every other guard on this lane is about HOW MUCH evidence a throw needs;
+        # none of them was about WHAT MAY BE THROWN, and "is this junk" was the reader's opinion
+        # alone. A unique or set piece is the thing this whole project exists to collect.
+        if _is_grail is not None and _is_grail(key[0]):
+            held.append({"name": key[0],
+                         "why": "throw-out SUGGESTION refused for %s in %s \u2014 it is on his GRAIL "
+                                "ROSTER. Evidence is not the question here: a named unique or set "
+                                "piece is never junk, however sure the reader was"
+                                % (key[0], key[1])})
+            continue
         # Law 3: the STRICTER bar, on both axes. Single-session evidence can never clear it.
         # law 3 — the throw bar counts RECORDINGS, never re-looks. A single reel, however many times
         # he re-opened the panel in it, can never suggest binning an item.

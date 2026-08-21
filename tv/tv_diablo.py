@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1902"   # The ledger did not follow the isolation rule
+VERSION = "v1903"   # throwOut was in the schema and nowhere in the prompt
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -5044,6 +5044,24 @@ VAULT_READ_PROMPT = (
     "conf = your own confidence 0.0-1.0 that the names you returned are what is on the image. Be "
     "honest and low rather than generous: two sessions must agree before anything is kept, so an "
     "unsure read costs nothing and a confidently wrong one costs the shelf.\n"
+    # ── v1903 — `throwOut` WAS IN THE SCHEMA AND NOWHERE IN THE PROMPT ────────────────────────
+    # It appeared exactly once, inside the JSON template, printed as `false`. Nothing told the
+    # reader what it meant, when to set it, or that `throwWhy` existed at all — and vault_retro
+    # consumes both, gates them behind a higher confidence floor and three separate recordings,
+    # and rides them out to him as suggestions. An elaborate safety mechanism fed by a field
+    # nobody was ever asked to fill. [[the-unjoined-end]]
+    #
+    # The definition below is deliberately NARROW, and the code does not rely on it: a grail name
+    # is refused by vault_retro._grail_guard() whatever the reader says. Konyo decides how wide
+    # "junk" should be; this is the floor, not his policy.
+    "throwOut = true ONLY for an item that is plainly worthless: a WHITE or GREY base with no "
+    "sockets and no magical text. Never for a named unique or set item, never for a rune, a gem, "
+    "a jewel, a charm or a crafting material, and never because you do not recognise something. "
+    'When you set it true, also give throwWhy = a short reason in your own words, e.g. "white '
+    'base, no sockets". Default false. THERE IS NO UN-THROW IN DIABLO: a suggestion to bin '
+    "something he wanted is the one mistake here that cannot be taken back, so when in doubt "
+    "leave it false. His roster is checked again afterwards and a grail name is refused whatever "
+    "you say.\n"
     "If this is NOT a {surface} panel, or you cannot read any name on it, return items EMPTY. An "
     "empty answer is recoverable; a wrong one is not."
 )
