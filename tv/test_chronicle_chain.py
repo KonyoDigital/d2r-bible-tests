@@ -383,12 +383,24 @@ class TestANotFoundReceiptSurvivesTheWholeChain(unittest.TestCase):
         # [[feedback-fixtures-never-touch-live-data]]
         live = ca._CHRON_EVIDENCE_PATH
         before = os.path.getsize(live) if os.path.isfile(live) else None
-        old = ca._CHRON_EVIDENCE_PATH
-        ca._CHRON_EVIDENCE_PATH = os.path.join(tmp, "ev.json")
-        self.assertNotEqual(ca._CHRON_EVIDENCE_PATH, live,
-                            "the redirect did not take — refusing to run a write test that would "
-                            "land on live data")
-        try:
+        # v1925 — THROUGH THE SHARED HELPER, not by hand. conftest.redirect_module_path patches the
+        # ATTRIBUTE and asserts the redirect took; doing it inline here left that helper with zero
+        # call sites, so the repo prescribed an API nobody used and the prescription was untested.
+        # A helper nothing calls is a helper nothing proves. [[the-unjoined-end]]
+        from conftest import redirect_module_path
+        with redirect_module_path(ca, "_CHRON_EVIDENCE_PATH", os.path.join(tmp, "ev.json")):
+            self.assertNotEqual(ca._CHRON_EVIDENCE_PATH, live,
+                                "the redirect did not take — refusing to run a write test that "
+                                "would land on live data")
+            self._chain_body(cr, ca, cl, tmp)
+        after = os.path.getsize(live) if os.path.isfile(live) else None
+        shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(after, before,
+                         "THIS TEST WROTE TO THE LIVE BANKED EVIDENCE (%s). Those bytes were paid "
+                         "for by real page reads." % live)
+
+    def _chain_body(self, cr, ca, cl, tmp):
+        if True:
 
             older = [{"reel": "s_1787177267889_92273", "frame": "f_1787177277865.jpg",
                       "resp": {"ledger": "sets", "lane": "claude",
@@ -420,13 +432,7 @@ class TestANotFoundReceiptSurvivesTheWholeChain(unittest.TestCase):
             self.assertEqual(v["verdict"], "found",
                              "the not-found look is OLDER than the found one, so it is expired — "
                              "calling this a contradiction is the 12-vs-1 defect")
-        finally:
-            ca._CHRON_EVIDENCE_PATH = old
-            shutil.rmtree(tmp, ignore_errors=True)
-            after = os.path.getsize(live) if os.path.isfile(live) else None
-            self.assertEqual(after, before,
-                             "THIS TEST WROTE TO THE LIVE BANKED EVIDENCE (%s). Those bytes were "
-                             "paid for by real page reads." % live)
+
 
     def test_the_same_chain_still_reports_a_REAL_contradiction(self):
         """Seen red for its own reason: if the newer look is the not-found one, it must survive as
