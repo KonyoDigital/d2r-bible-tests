@@ -38936,8 +38936,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){}
     var missing = {}, readAt = (window._SET_MISSING || {}).readAt || '';
     try { ((window._SET_MISSING || {}).names || []).forEach(function(n){ missing[n] = 1; }); } catch(e){}
-    var doneThisReading = false;
-    try { doneThisReading = readAt && window.LSR.getItem('d2r_setRepairAt') === readAt; } catch(e){}
+    /* v1943 — `doneThisReading` IS GONE, AND THE STAMP IT READ IS NOW A RECEIPT, NOT A GATE.
+       v1942 replaced the inference with d2r_setRepairKept, which RECORDS his re-ticks instead of
+       guessing at them from elapsed time. That left this variable computed and read by nothing —
+       dead on the same day it stopped being load-bearing, which is exactly how the next reader ends
+       up believing the stamp still gates something. d2r_setRepairAt is still WRITTEN below, because
+       "which reading did this act on" is worth having; it just no longer decides anything. */
     /* ⚠ v1937 — AND THE ONE-SHOT CONVENTION THIS REPAIR NEVER JOINED.
        tests/_oneshots.ts derives every boot-apply guard OUT OF THIS FILE by the pattern
        `d2r_v<version><Thing>Applied`, so a spec that seeds a ledger can boot as a LATER load and
