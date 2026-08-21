@@ -9636,6 +9636,50 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestOneWriterForTheAutoReadMarks(unittest.TestCase):
+    """v1900 — chron_autoread.json had TWO writers, and that fact has un-marked the file TWICE.
+
+    v1762: the visit writer knew only "done" and rewrote the file WITHOUT "reels", so the watchdog
+    re-walked the whole backlog and PAID FOR IT AGAIN. v1784: the same shape with "skipped", so a
+    reel retired for a named reason read as never-swept. Both were fixed by teaching one writer
+    about one more key — which leaves the NEXT key exactly as fragile.
+
+    Three occurrences of one class is where you stop fixing instances. One writer now, and this
+    test drives BOTH marks and asserts every key survives each. [[feedback-generalize-fixes]]"""
+
+    def test_either_mark_preserves_every_key(self):
+        import json as _json
+        import shutil
+        import subprocess as _sp
+        import tempfile as _tf
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = _tf.mkdtemp(prefix="autoread-")
+        self.addCleanup(shutil.rmtree, root, True)
+        path = os.path.join(root, "deep", "chron_autoread.json")   # parent does NOT exist
+        prog = ("import sys, os, json; sys.path.insert(0, %r)\n"
+                "import control_app as ca\n"
+                "ca._CHRON_AUTOREAD['skipped'] = {'reel_x': 'no stash screen'}\n"
+                "ca._chron_autoread_mark(1700000000)\n"     # the VISIT writer
+                "ca._chron_reels_mark('reel_y')\n"          # the REEL writer
+                "ca._chron_autoread_mark(1700000001)\n"     # visit again, AFTER the reel mark
+                "print(json.dumps(json.load(open(ca._CHRON_AUTOREAD_PATH))))\n" % here)
+        out = _sp.run([sys.executable, "-c", prog], capture_output=True, text=True,
+                      env=dict(os.environ, TV_CHRON_AUTOREAD=path), timeout=180)
+        self.assertEqual(out.returncode, 0, out.stderr[-400:])
+        got = _json.loads(out.stdout.strip().splitlines()[-1])
+        self.assertEqual(sorted(got.get("done") or []), [1700000000, 1700000001])
+        self.assertIn("reel_y", got.get("reels") or [],
+                      "a visit mark wiped the swept reels again — v1762, a third time")
+        self.assertIn("reel_x", got.get("skipped") or {},
+                      "a mark wiped the retirement reasons again — v1784, a second time")
+
+    def test_there_is_exactly_one_writer(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertEqual(src.count("os.replace(tmp, _CHRON_AUTOREAD_PATH)"), 1,
+                         "a second writer of chron_autoread.json is back")
+
+
 class TestAResultSaveMakesItsOwnDirectoryAndSaysWhenItCannot(unittest.TestCase):
     """v1899 — found in the SUITE'S OWN OUTPUT, which had been carrying it for a while:
 

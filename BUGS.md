@@ -7570,3 +7570,29 @@ swallows its error. [[feedback-silence-is-not-evidence]]
 documented and legitimate: four need a browser that answers `--dump-dom` over http on his Mac (they
 run on CI), one is PowerShell-only, two are permanently skipped fixtures whose decisions are covered
 by other tests.
+
+## REG-250 — two writers for one file, and the third occurrence of one class (FIXED v1900)
+
+`chron_autoread.json` had **two writers** — the visit mark and the reel mark — and that fact has
+un-marked the file **twice**:
+
+- **v1762**: the visit writer knew only `done` and rewrote the file **without `reels`**, so the
+  watchdog re-walked the whole backlog and **paid for it again**.
+- **v1784**: the same shape with `skipped`, so a reel retired for a named reason read as never-swept.
+
+Both were fixed by teaching one writer about one more key, which leaves the **next** key exactly as
+fragile. Three occurrences of one class is where you stop fixing instances: there is **one writer**
+now (`_chron_autoread_save`), it writes every key from the live sources, it makes its parent, and
+it says so when it cannot — losing these marks is not cosmetic, it is **re-reading reels that have
+already been paid for**.
+
+The guard was **seen RED for its own reason** before it was believed: re-introducing v1762's exact
+defect (`"reels": []`) fails it with *"a visit mark wiped the swept reels again — v1762, a third
+time"*, and a second assertion pins the writer count at 1.
+
+Also swept the class from REG-249 across all 34 atomic-write sites in `tv/`. The ones that matter
+are the four whose path is **env-isolated** (`TV_CHRON_AUTOREAD`, `TV_CHRON_EVIDENCE`,
+`TV_CHRON_RESULT`, `TV_VAULT_RESULT`) — all four make their parent now. The evidence save holds the
+**banked pages**, the most expensive bytes the console keeps, because every one was paid for by a
+real read. The remaining sites write into directories that exist by construction (the reel dir,
+`tv/` itself) and were left alone rather than papered with a line each.

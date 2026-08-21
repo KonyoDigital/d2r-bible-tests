@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1899",
+  "ver": "v1900",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1899: The suite own output had been carrying a warning on every run that the chronicle result was not persisted because its directory did not exist, which means the sweep does not survive a restart at all. Both saves create their parent now and the noise is gone. And my own vault save from last night swallowed the failure entirely where the chronicle one has announced it for versions - written one ship after I fixed the same class in his code, and that silence undoes the whole point, because the reads that paid for the proposal are spent and he would find nothing and no reason. Also checked and clean: the suites are order-independent and every one passes alone.",
+  "note": "v1900: chron_autoread.json had two writers and that fact has un-marked the file twice already - v1762 wiped the swept reels so the watchdog re-walked the whole backlog and paid for it again, and v1784 wiped the retirement reasons. Both were fixed by teaching one writer about one more key, which leaves the next key just as fragile, so there is one writer now that writes every key from the live sources, makes its parent and says so when it cannot. The guard was seen red for its own reason first. Also swept every atomic write in tv - the four whose path is env-isolated now make their parent, including the banked evidence pages, the most expensive bytes the console holds.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

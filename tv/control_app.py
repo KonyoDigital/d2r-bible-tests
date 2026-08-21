@@ -9223,27 +9223,42 @@ def _chron_autoread_done():
     return _CHRON_AUTOREAD["done"]
 
 
-def _chron_autoread_mark(ts):
-    done = _chron_autoread_done()
-    done.add(int(ts))
+def _chron_autoread_save():
+    """THE ONE WRITER of chron_autoread.json — every key, every time.
+
+    v1900 — there were TWO, and this file has already been un-marked TWICE by that fact. v1762: the
+    visit writer knew only "done" and wiped "reels", so the watchdog re-walked the whole backlog and
+    PAID FOR IT AGAIN. v1784: the same shape again with "skipped", so a reel retired for a named
+    reason came back as never-swept. Both were fixed by teaching a writer about a key — which leaves
+    the next key to be added exactly as fragile, and the third occurrence of one class is where you
+    stop fixing instances. There is one writer now; a new key is added here and both marks get it.
+
+    It MAKES ITS PARENT and it SAYS SO WHEN IT CANNOT (v1899's lesson, one ship earlier): losing
+    these marks is not cosmetic, it is re-reading reels that have already been paid for.
+    """
+    payload = {"done": sorted(_chron_autoread_done()),
+               "reels": sorted(_chron_reels_seen()),
+               "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {})}
     try:
-        # v1762 — WRITE BOTH LISTS. This file gained a "reels" key when reel auto-sweep landed, and
-        # this writer knew only about "done". A visit mark would then rewrite the file WITHOUT the
-        # reels, silently un-marking every reel already swept — and the watchdog would re-walk the
-        # whole backlog on the next tick, paying for it again. Two writers, one file, one of them
-        # unaware of the other: the same shape as the whitelist that dropped gateHeld an hour ago.
-        payload = {"done": sorted(done), "reels": sorted(_chron_reels_seen()),
-                   # v1784 — the OTHER writer of this file. v1762 was
-                   # exactly this shape: a writer that knew only its own key wiped the
-                   # other one. The reasons must survive both marks, not one.
-                   "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {})}
+        try:
+            os.makedirs(os.path.dirname(_CHRON_AUTOREAD_PATH) or ".", exist_ok=True)
+        except Exception:
+            pass
         tmp = _CHRON_AUTOREAD_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh)
         os.replace(tmp, _CHRON_AUTOREAD_PATH)
-    except Exception:
-        pass
+        return True
+    except Exception as e:
+        print("   \u26a0 auto-read marks NOT persisted (%s) — reels already read may be swept again"
+              % str(e)[:140])
+        return False
 
+
+def _chron_autoread_mark(ts):
+    done = _chron_autoread_done()
+    done.add(int(ts))
+    _chron_autoread_save()
 
 def chronicle_autoread_tick():
     """One pass. Returns what it did, so a silent skip is impossible to mistake for a clean run —
@@ -9349,18 +9364,7 @@ def _chron_reels_seen():
 def _chron_reels_mark(reel_id):
     seen = _chron_reels_seen()
     seen.add(str(reel_id))
-    try:
-        payload = {"done": sorted(_chron_autoread_done()), "reels": sorted(seen),
-                   # v1784 — a mark without its reason is a decision with no author. Persisted so a
-                   # reel retired for a NAMED reason stays distinguishable from one genuinely swept.
-                   "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {})}
-        tmp = _CHRON_AUTOREAD_PATH + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh)
-        os.replace(tmp, _CHRON_AUTOREAD_PATH)
-    except Exception:
-        pass
-
+    _chron_autoread_save()
 
 def _reel_is_growing(reel_dir, quiet_s=90):
     """Is this reel STILL BEING WRITTEN? Measured, not inferred from whether a session exists.
@@ -10748,6 +10752,12 @@ def _chron_evidence_save(prop):
     """
     global _CHRON_EVIDENCE_WRITES, _CHRON_EVIDENCE_LAST_OK, _CHRON_EVIDENCE_FAILCOUNT
     try:
+        # v1900 — MAKE THE PARENT (v1899's class). These are the BANKED PAGES: the most expensive
+        # bytes the console holds, because every one of them was paid for by a real read.
+        try:
+            os.makedirs(os.path.dirname(_CHRON_EVIDENCE_PATH) or ".", exist_ok=True)
+        except Exception:
+            pass
         tmp = _CHRON_EVIDENCE_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(prop, fh)
@@ -12377,7 +12387,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1899",
+        "ver": "v1900",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
