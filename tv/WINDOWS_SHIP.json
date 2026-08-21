@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1917",
+  "ver": "v1918",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1917: He asked for F-Sets to cross reference what he still does not have, the way he remembers uniques doing. The integration is real - the v1789 focused hunt, which re-reads names the gate held - and it had two defects each hiding the other. It scored every page on a key the reader has never emitted, so every hunted frame was read and paid for with a real vision call and matched against an empty list; grep across every log on his machine shows it has never printed a hit line. And the test covering it handed it that same wrong shape. Second, it filtered to uniques while his last sweep held 41 names of which 41 are set pieces and zero are uniques, so it reported nothing was held and spent zero reads, with a bone helm sitting on six sightings one witness short. It reads the real page shape now and runs per ledger with its own evidence index, its own page kind and its own read cap.",
+  "note": "v1918: He asked for the ledger to register each item timestamped to when it was analyzed and to record what happened to it while routing and funnelling and tallying, in Diablo language, so a wrong route can be fixed surgically later. He is describing the visual backend log this file already calls every KAI read forever for debug - and its recorder was IIFE-private, so the accept path could not call it from the same file. Measured on the proposal on his disk: 302 rows ready to apply, all 302 carrying why and witnesses and seen with reel frame and lane, and the apply read exactly three fields per row. Six provenance facts arrived and one survived. Every applied item now leaves a row saying where it landed, which photograph and which eye produced it, when the game says he found it, and why in his words - and a refusal leaves a row too, which it never did.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

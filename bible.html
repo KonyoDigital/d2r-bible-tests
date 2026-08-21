@@ -38785,6 +38785,63 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // MERGE-MAX, enforced here and not merely intended: a name already found is SKIPPED, never
   // re-ticked. grailFoundUni TOGGLES — calling it on something already owned would UN-find it. That
   // is the one bug in this function that would be catastrophic and silent, so it is the first check.
+  /* ── v1918 — ONE PLACE THAT TURNS A SWEEP ROW INTO A LEDGER ROW ────────────────────────────
+     Konyo asked for the ledger to say, per item, WHEN it was analyzed and WHAT HAPPENED to it —
+     "in dii language so its related to the game and understood whats happening", so that a wrong
+     route can be fixed surgically later.
+
+     Everything below already existed and was thrown away at this boundary:
+       row.why        — the gate's verdict string  (all 302 rows of his current proposal carry it)
+       row.witnesses  — cross-frame / cross-lane / cross-reel / cross-reel-3+
+       row.seen[]     — {reel, frame, lane} per sighting
+       row.gameFound  — the game's own First Found + dropper (66 of the 302)
+     and the one fact only THIS function knows: which store the name actually landed in.
+
+     `store` is the routing answer he wants to debug: foundLog (the grail ledger) · owned (the
+     physical vault) · setPieces · refused. `why` is written in his words, not the engine's.
+     Nothing is invented: a field the row does not carry is simply absent. */
+  window._chRecordApplied = function(row, name, store, ledger, whyOverride){
+    if (!window.kaiChronicleRecord || !name) return null;
+    var r = row && typeof row === 'object' ? row : {};
+    var seen = (r.seen && r.seen.length) ? r.seen[0] : null;
+    var say = whyOverride || window._chSayWitnesses(r.witnesses, r.why);
+    return window.kaiChronicleRecord({
+      name: name,
+      status: (store === 'refused') ? 'refused' : 'accepted',
+      store: store,                       // WHERE it landed — the routing fact
+      ledger: ledger,                     // which chronicle asked for it
+      why: say,                           // in his words
+      source: 'chronicle-sweep',
+      witnesses: r.witnesses || null,     // the raw verdict, kept beside the sentence
+      reel: seen && seen.reel,            // WHICH recording and WHICH photograph
+      frameId: (seen && seen.frame) || r.frameId || null,
+      sessionId: (seen && seen.reel) || r.sessionId || null,
+      lane: seen && seen.lane,            // which eye
+      conf: (typeof r.conf === 'number') ? r.conf : (seen && seen.conf),
+      gameFoundAt: r.gameFound && r.gameFound.at,     // when the GAME says he found it
+      gameFoundBy: r.gameFound && r.gameFound.by,
+      _bump: true
+    });
+  };
+
+  /* The witness kinds, in Diablo words. The codes are the gate's; this is what they MEAN to him,
+     and it is the difference between a ledger he can debug and a ledger he can only read. */
+  window._chSayWitnesses = function(witnesses, fallbackWhy){
+    var w = Array.isArray(witnesses) ? witnesses : [];
+    var SAY = {
+      'cross-frame':    'seen on more than one photograph of the same page',
+      'cross-lane':     'two different eyes read the same row',
+      'cross-reel':     'seen in two separate Chronicle visits',
+      'cross-reel-3+':  'seen in three or more separate visits',
+      'cross-session':  'seen in two different play sessions',
+      'printed-tally':  'the page\u2019s own printed count agreed'
+    };
+    var said = [];
+    for (var i = 0; i < w.length; i++){ if (SAY[w[i]]) said.push(SAY[w[i]]); }
+    if (said.length) return said.join(' \u00b7 ');
+    return String(fallbackWhy || 'accepted from a Chronicle sweep');
+  };
+
   function _chronAlreadyUni(n){ try { return _ownedNames().has(n); } catch(e){ return false; } }
   function _chronAlreadySet(n){ try { return _setHave().has(n); } catch(e){ return false; } }
 
@@ -38944,6 +39001,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         } catch(e){ _landed = true; }   // cannot tell → do not invent a demotion
         if (_landed) res.uniques.push(n);
         else { res.vaulted = res.vaulted || []; res.vaulted.push(n); }
+        /* v1918 — WRITE THE PROVENANCE AT THE ONE POINT THAT KNOWS ALL OF IT. Here we hold the
+           row the console sent (why, witnesses, seen) AND the answer to "where did it actually
+           land", which is computed three lines up and was reported to nobody. */
+        try { window._chRecordApplied(row, n, _landed ? 'foundLog' : 'owned', 'uniques'); } catch(e){}
       } catch(e){} finally { window._grailStamp = _savedStamp; }
     });
     (add.sets || []).forEach(function(row){
@@ -38972,12 +39033,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _pieces = window._chronSetPieceSet && window._chronSetPieceSet();
         if (_pieces && _pieces.size) _known = _pieces.has(n);
       } catch(e){ _known = true; }
-      if (!_known){ res.unknown.push(n); return; }
+      if (!_known){
+        res.unknown.push(n);
+        /* v1918 — A REFUSAL IS THE MOST WORTH RECORDING. This is the branch that catches a reader
+           calling something a set piece when the board's own roster does not know it, and until now
+           it left no trace at all: the name vanished and the next person could not tell a refusal
+           from a name that was never proposed. */
+        try { window._chRecordApplied(row, n, 'refused', 'sets', 'the board roster has no such set piece'); } catch(e){}
+        return;
+      }
       var _savedS = window._grailStamp;
       try {
         if (_ds) window._grailStamp = function(){ return _ds; };
         if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(n);
         res.sets.push(n);
+        try { window._chRecordApplied(row, n, 'setPieces', 'sets'); } catch(e){}
       } catch(e){} finally { window._grailStamp = _savedS; }
     });
     // v1530 — A SET THE PANEL CALLED COMPLETE. The Chronicle often shows a set as done without its
@@ -41308,7 +41378,15 @@ window._renderStashFresh = function(){
       var nm = it && it.name; if (!nm) { return; }
       var kind = byKind[it.kind];
       if (!kind){                        // a grail item — not a tally
-        if (it.kind === 'item') grailNames.push(nm); else out.skipped.push(nm + ' (unknown kind)');
+        /* v1918 — CARRY THE EVIDENCE ACROSS, DO NOT HAND OVER A BARE STRING. vault_retro builds a
+           row with lane, kind, count, conf, witnesses and lastSeenTs (tv/vault_retro.py:815) and
+           this line reduced all of it to a name — so a grail item found by the VAULT lane arrived
+           at chronicleApply with no reel, no eye and no reason, and its ledger row could say only
+           "accepted from a Chronicle sweep" about an item that never came from the Chronicle. */
+        if (it.kind === 'item') grailNames.push({ name: nm, lane: it.lane, conf: it.conf,
+                                                  witnesses: it.witnesses, seen: it.witnesses,
+                                                  source: 'vault-sweep' });
+        else out.skipped.push(nm + ' (unknown kind)');
         return;
       }
       /* v1595 — THE BASE IS THE MAX OF BOTH STORES, not whichever _snap happens to prefer.
@@ -42240,7 +42318,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1917', name:'v1917 - The focused hunt was dead twice over', date:'2026-08-21', note:'He asked for F-Sets to cross reference what he still does not have, the way he remembers uniques doing. The integration is real - the v1789 focused hunt, which re-reads names the gate held - and it had two defects each hiding the other. It scored every page on a key the reader has never emitted, so every hunted frame was read and paid for with a real vision call and matched against an empty list; grep across every log on his machine shows it has never printed a hit line. And the test covering it handed it that same wrong shape. Second, it filtered to uniques while his last sweep held 41 names of which 41 are set pieces and zero are uniques, so it reported nothing was held and spent zero reads, with a bone helm sitting on six sightings one witness short. It reads the real page shape now and runs per ledger with its own evidence index, its own page kind and its own read cap.' };
+  window.D2R_BUILD = { id:'v1918', name:'v1918 - The per-item ledger existed and the accept path could not reach it', date:'2026-08-21', note:'He asked for the ledger to register each item timestamped to when it was analyzed and to record what happened to it while routing and funnelling and tallying, in Diablo language, so a wrong route can be fixed surgically later. He is describing the visual backend log this file already calls every KAI read forever for debug - and its recorder was IIFE-private, so the accept path could not call it from the same file. Measured on the proposal on his disk: 302 rows ready to apply, all 302 carrying why and witnesses and seen with reel frame and lane, and the apply read exactly three fields per row. Six provenance facts arrived and one survived. Every applied item now leaves a row saying where it landed, which photograph and which eye produced it, when the game says he found it, and why in his words - and a refusal leaves a row too, which it never did.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -42519,6 +42597,24 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     _chLogSave(log);
     return next;
   }
+  /* ── v1918 — THE PER-ITEM LEDGER EXISTED AND THE ACCEPT PATH COULD NOT REACH IT ─────────────
+     Konyo: "make sure it does register the items properly timestamped based on when it did analyze
+     it and add it to the vault/chronicle or whatever else happened in ledger while its routing and
+     funneling and tallying dii language ... so we can surgically fix something going in the future
+     when it wrongly routes or funnels or analyzes".
+
+     He is describing d2r_chronicleInboxLog, which this file's own comment already calls the
+     "VISUAL BACKEND — every KAI read forever for debug": one upserted row per name, never deleted,
+     carrying name/status/store/why/tier/frameId/sessionId/source/firstTs/lastTs/seenCount.
+
+     MEASURED ON THE PROPOSAL SITTING ON HIS DISK RIGHT NOW (tv/chron_last_result.json): 302 rows
+     ready to apply, ALL 302 carrying `why` + `witnesses[]` + `seen[{reel,frame,lane}]` — and
+     chronicleApply reads exactly three fields per row (name, date, gameFound) and drops the rest on
+     the floor. Six provenance facts arrive; one survives, and only where a page printed a date.
+
+     The recorder was IIFE-private, so the accept path could not call it even though it sits in the
+     same file. Publishing it is the whole join. [[the-unjoined-end]] */
+  window.kaiChronicleRecord = function(row){ try { return _chLogUpsert(row); } catch(e){ return null; } };
   function _chLogSetStatus(name, status, extra){
     var nm = String(name || '').trim(); if (!nm) return;
     var patch = Object.assign({ name: nm, status: status, statusTs: Date.now() }, extra || {});

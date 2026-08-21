@@ -10516,11 +10516,26 @@ class TestANonPieceNeverEntersTheSetLedger(unittest.TestCase):
                                     "it is in his ledger and nothing ever un-finds")
 
     def test_an_unknown_name_is_reported_not_written(self):
+        """⚠ v1918 — THIS GUARD BROKE ON ITS OWN REACH, NOT ON THE CODE. It pinned the literal
+        one-line spelling `res.unknown.push(n); return;` inside a 120-character window. v1918 added
+        a provenance write between the push and the return — the branch still refuses, still returns,
+        still writes nothing to the ledger — and the guard went red because the two statements
+        stopped being adjacent.
+
+        A guard that greps SOURCE fails on its own reach, and the fix is to assert the PROPERTY, not
+        the spelling: between entering the branch and leaving it, `unknown` is pushed, the branch
+        returns, and nothing that writes a find appears. [[source-reading-guard]]"""
         _src, body = self._sets_branch()
         i = body.find("if (!_known){")
         self.assertGreater(i, 0)
-        self.assertIn("res.unknown.push(n); return;", body[i:i + 120],
-                      "an unrecognised name still falls through into the write")
+        j = body.find("return;", i)
+        self.assertGreater(j, i, "the refusal branch no longer returns — the name falls through")
+        branch = body[i:j]
+        self.assertIn("res.unknown.push(n)", branch,
+                      "an unrecognised name is no longer reported as unknown")
+        for writer in ("toggleSetPiece", "res.sets.push", "grailTogglePiece"):
+            self.assertNotIn(writer, branch,
+                             "the refusal branch now WRITES the name it just refused (%s)" % writer)
 
     def test_an_unreadable_roster_does_NOT_invent_a_refusal(self):
         _src, body = self._sets_branch()

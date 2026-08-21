@@ -8230,3 +8230,52 @@ chronicle prompts take only `{path}` and `{ledger}`, and both explicitly forbid 
 reader expects to see (*"a name you expect to be there — leave it out"*). The hunt targets what was
 **seen once**, never what was **never seen**. That is a different feature and it is written down in
 `PROJECT_VAULT_MANAGER.md` rather than half-built.
+
+## REG-269 — the per-item ledger existed and the accept path could not reach it (FIXED v1918)
+
+Konyo: *"make sure it does register the items properly timestamped based on when it did analyze it
+and add it to the vault/chronicle or whatever else happened in ledger while its routing and
+funneling and tallying dii language so its related to the game and understood whats happening so
+that way we can surgically fix something going in the future when it wrongly routes or funnels or
+analyzes."*
+
+He is describing **`d2r_chronicleInboxLog`**, which this file's own comment already calls the
+*"VISUAL BACKEND — every KAI read forever for debug"*: one upserted row per name, never deleted.
+The recorder was **IIFE-private**, so `chronicleApply` could not call it even though they live in the
+same file.
+
+**MEASURED on the proposal sitting on his disk right now** (`tv/chron_last_result.json`): **302 rows
+ready to apply, all 302 carrying `why` + `witnesses[]` + `seen[{reel,frame,lane}]`** — and
+`chronicleApply` read exactly three fields per row (`name`, `date`, `gameFound`). Six provenance
+facts arrived; **one survived**, and only on the 66 rows where a page printed a legible date.
+
+Every applied item now leaves a row, verified end to end in a real page:
+
+```
+Harlequin Crest              accepted  store foundLog   uniques
+  why   "two different eyes read the same row · seen in two separate Chronicle visits"
+  reel  reel_s_1786998496819_31092 · frame f_1786998503940.jpg · lane claude
+  game  08/16/2026, 02:18 · Andariel        (kept apart from the board's own stamp)
+Tancred's Skull (bone helm)  accepted  store setPieces  sets
+  why   "seen on more than one photograph of the same page" · lane grok
+Totally Not A Set Piece      REFUSED   store refused    sets
+  why   "the board roster has no such set piece"
+```
+
+**`store` is the routing answer he wants to debug** — `foundLog` (grail ledger) · `owned` (physical
+vault) · `setPieces` · `refused` — and it is written at the one point in the code that knows it,
+three lines under where it was already computed and reported to nobody.
+
+⚠ **The refusal row is the one most worth having and the one that used to vanish**: a name the board
+roster rejects left no trace at all, so a refusal and a name that was never proposed looked identical.
+
+Also fixed: `vaultAccumApply` reduced every item to a bare name string before handing it on, so a
+grail item found by the **vault** lane arrived with no reel, no eye and no reason, and its ledger row
+would have claimed it came from the Chronicle. It carries `lane/conf/witnesses/source` across now.
+
+⚠ **A GUARD BROKE ON ITS OWN REACH, NOT ON THE CODE.** `test_an_unknown_name_is_reported_not_written`
+pinned the literal spelling `res.unknown.push(n); return;` inside a 120-character window; the
+provenance write between the push and the return moved them apart and it went red while the branch
+still refused, still returned, and still wrote nothing. It asserts the **property** now — pushed,
+returned, and no writer in the branch — and it was driven RED by letting the refusal write.
+[[source-reading-guard]]
