@@ -7691,3 +7691,29 @@ Two fixes, and the second does not depend on the first:
 curly one, so the name it looked for was never in that list either way. With the backstop disabled
 only 1 of 4 tests went red. It asserts on the lane being empty now, and 2 of 4 go red.
 A fourth test is the CLASS: every field `normalize_item()` consumes must appear in the prompt.
+
+## REG-254 — the simulator he asked for printed nothing (FIXED v1904)
+
+`python3 tv/vault_simulate.py` **printed nothing and exited 0.** The file has no `__main__`; the
+scenarios were reachable only by importing the module from `test_vault_lane.py`.
+
+Its own docstring promises the opposite: *"this prints the whole decision for a scenario in the
+words the Vault manager would use, so a wrong rule is visible rather than merely unasserted"* — and
+it exists because he asked for exactly that: *"simulate it based on the reels you already have …
+make sure its not discading anything it shouldnt. and make sure its muling anything it is."* The
+demonstration existed as code and could not be watched. **A quiet exit 0 is the worst possible
+answer, because it is indistinguishable from a clean run.**
+
+It runs now — six scenarios over his real reels, no vision calls, no writes — and a scenario whose
+reels are missing from the checkout prints `⚠ NO FRAMES … this is not a pass` and exits 1 rather
+than scrolling past. The assertions stay in `test_vault_lane.py`; this prints, that gate judges.
+
+⚠ **And the transcript did not show the number its own scenario is about.** `merge-max` claims
+*"count stays 5"* while the OWN line printed conf and witnesses only. It prints `x5` now — a
+demonstration that omits the quantity under discussion proves nothing to the person reading it.
+
+⚠ **The encoding guard caught the new CLI within the same run**, and that is the guard working:
+`test_every_cli_that_prints_non_ascii_is_encoding_safe` skips importable modules, so it had never
+looked at this file. Adding an entry point made it a CLI, and a CLI that prints `⚠`/`✅` on a
+non-UTF-8 console **crashes while REPORTING** — a clean tree exiting non-zero from the wrong place.
+`console_safe.enable()` added. [[dual-machine-setup]]

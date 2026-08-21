@@ -138,5 +138,50 @@ class TestLaneLock(unittest.TestCase):
         self.assertIsNone(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "runewords"}))
 
 
+@unittest.skipUnless(_has_reels(), "his sealed reels are not in this checkout")
+class TestTheSimulatorCanActuallyBeRUN(unittest.TestCase):
+    """v1904 — `python3 tv/vault_simulate.py` PRINTED NOTHING AND EXITED 0.
+
+    The module's own docstring promises: "this prints the whole decision for a scenario in the words
+    the Vault manager would use, so a wrong rule is visible rather than merely unasserted." It had no
+    `__main__` at all. The scenarios were reachable only by importing it from this file — so the
+    demonstration he asked for existed as code and could not be watched.
+
+    A quiet exit 0 is the worst possible answer here: it is indistinguishable from a clean run.
+    [[the-unjoined-end]] [[feedback-quiet-workflow-is-not-finished]]"""
+
+    def _run(self, *args):
+        import subprocess
+        return subprocess.run([sys.executable, os.path.join(HERE, "vault_simulate.py")] + list(args),
+                              capture_output=True, text=True, timeout=600)
+
+    def test_it_prints_every_scenario_and_exits_clean(self):
+        import vault_simulate as vs
+        out = self._run()
+        self.assertEqual(out.returncode, 0, out.stdout[-600:] + out.stderr[-600:])
+        for scn in vs.SCENARIOS:
+            self.assertIn(scn["id"], out.stdout, "the transcript skipped %r" % scn["id"])
+            self.assertIn(scn["expect"], out.stdout,
+                          "the transcript does not say what %r expects" % scn["id"])
+        self.assertNotIn("NO FRAMES", out.stdout,
+                         "a scenario exercised nothing and would have scrolled past as a pass")
+
+    def test_the_merge_max_transcript_SHOWS_THE_COUNT(self):
+        """Its whole claim is "count stays 5" — and the OWN line printed conf and witnesses only,
+        so the one number under discussion was invisible. A demonstration that omits the quantity
+        it is about proves nothing to the person reading it."""
+        out = self._run("merge-max")
+        self.assertEqual(out.returncode, 0, out.stderr[-400:])
+        line = [l for l in out.stdout.split("\n") if "OWN" in l and "Ral" in l]
+        self.assertTrue(line, "no OWN row for Ral: %s" % out.stdout[-400:])
+        self.assertIn("x5", line[0],
+                      "the count the scenario is about is not in its own transcript: %r" % line[0])
+
+    def test_an_unknown_scenario_name_is_refused_not_ignored(self):
+        out = self._run("no-such-scenario")
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("known:", out.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -28,6 +28,14 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+# v1904 — HIS WINDOWS CONSOLE. This file grew an entry point in the same ship, and the guard that
+# has watched every other CLI immediately caught it: a script that prints non-ASCII on a non-UTF-8
+# console crashes WHILE REPORTING, so a clean tree exits non-zero and the failure is in the wrong
+# place entirely. The guard skipped this module for versions because it had no __main__ to check.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+
+_console_safe_enable()
+
 import chronicle_retro as cr          # noqa: E402
 import vault_retro as vr              # noqa: E402
 
@@ -72,9 +80,15 @@ def explain(prop):
     if not prop.get("ok"):
         return ["REFUSED — %s" % prop.get("why")]
     for r in prop.get("owned") or []:
-        out.append("OWN     %-26s conf %.2f · %d witness(es) → goes to the Vault manager, which "
-                   "assigns the mule and the cell" % (r["name"], r.get("conf") or 0,
-                                                      len(r.get("witnesses") or [])))
+        # v1904 — PRINT THE COUNT. The `merge-max` scenario's whole claim is "count stays 5" and
+        # this line showed conf and witnesses only, so the one number it exists to demonstrate was
+        # invisible in the transcript. A demonstration that omits the quantity under discussion
+        # proves nothing to the person reading it. [[feedback-verify-not-proxy]]
+        _c = r.get("count")
+        out.append("OWN     %-26s %-9s conf %.2f · %d witness(es) → goes to the Vault manager, "
+                   "which assigns the mule and the cell"
+                   % (r["name"], ("x%d" % _c) if isinstance(_c, int) else "",
+                      r.get("conf") or 0, len(r.get("witnesses") or [])))
     for r in prop.get("throwOut") or []:
         out.append("DISCARD %-26s SUGGESTION ONLY — %s" % (r["name"], r.get("why")))
     for r in prop.get("unsure") or []:
@@ -166,3 +180,56 @@ def build(scn, hist_dir=None):
             for row in rows[idx:idx + 4]:
                 script[row["f"]] = items
     return {"reels": scn["reels"], "script": script, "surface": "stash"}
+
+
+# ── THE ENTRY POINT ─────────────────────────────────────────────────────────────────────────────
+# v1904 — THIS FILE HAD NONE. Its own docstring promises "this prints the whole decision for a
+# scenario in the words the Vault manager would use, so a wrong rule is visible rather than merely
+# unasserted" — and `python3 tv/vault_simulate.py` printed NOTHING and exited 0. The scenarios were
+# reachable only by importing the module from test_vault_lane.
+#
+# That is the same shape as every other defect in this arc: the demonstration existed, the sentence
+# describing it was true of the code that computes it, and the half that shows him was never joined.
+# A quiet exit 0 is the worst possible answer here, because it is indistinguishable from a clean run.
+#
+# THE ASSERTIONS LIVE IN test_vault_lane.py AND STAY THERE. This prints; that gate judges. What this
+# does check is that every scenario actually PRODUCED a proposal — a scenario that refuses, or whose
+# reels have been pruned out of the checkout, must not scroll past looking like a pass.
+def main(argv=None):
+    import sys as _sys
+    argv = list(argv if argv is not None else _sys.argv[1:])
+    want = [a for a in argv if not a.startswith("-")]
+    scns = [s for s in SCENARIOS if not want or s["id"] in want]
+    if not scns:
+        print("no scenario named %s. known: %s" % (want, ", ".join(s["id"] for s in SCENARIOS)))
+        return 2
+    bad = []
+    print("THE VAULT LANE, ON HIS OWN REELS — no vision calls, no writes.")
+    print("Assertions live in tv/test_vault_lane.py; this is the transcript.\n")
+    for scn in scns:
+        print("\u2500\u2500 %s" % scn["id"])
+        print("   %s" % scn["say"])
+        print("   EXPECT: %s" % scn.get("expect", "(unstated)"))
+        built = build(scn)
+        if not built["script"]:
+            print("   \u26a0 NO FRAMES — his reels for this scenario are not in this checkout, so "
+                  "nothing was exercised. This is not a pass.")
+            bad.append(scn["id"])
+            print()
+            continue
+        prop = run(built)
+        for line in explain(prop):
+            print("   %s" % line)
+        if not prop.get("ok"):
+            bad.append(scn["id"])
+        print()
+    if bad:
+        print("\u274c %d scenario(s) produced no proposal: %s" % (len(bad), ", ".join(bad)))
+        return 1
+    print("\u2705 %d scenario(s) ran and decided. Read the transcript above — a wrong rule is "
+          "visible in it." % len(scns))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
