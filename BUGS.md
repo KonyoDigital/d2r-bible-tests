@@ -9116,3 +9116,42 @@ still contained it, so `toggleSetPiece` took the *delete* branch instead of *add
 
 Guard: `tests/v1938_remaining_repair_outcome.spec.ts` — un-ticks one unrelated piece after the
 repair and requires 115, seen RED at 134 before being trusted.
+
+## REG-301 — the price tag that took seven minutes (FIXED v1941)
+
+Konyo: *"vault accumaltor i click this it says grouping frames.. what does it do and mean?"*
+
+It is the dry-run price tag — what a vault sweep WOULD cost, no model call, nothing written. It was
+not looping. `vault_scan_cost()` probes every frame through `stash_screen_open()`, a crop plus an
+OCR. **MEASURED on his own film: 0.118s x 2699 frames across 1065 sealed reels = ~7.4 MINUTES**, no
+progress, no timeout. `curl` against his live console returned `http=000` after 90s. "costs nothing"
+on that button was only ever about MONEY.
+
+Three fixes: the per-frame gate verdict memoised on `(size, mtime)` so a rewritten frame MISSES
+rather than lying (1367x, survives a restart); the quote itself memoised on the sealed-reel set
+(first call 414s, second **0.087s**, identical answer); and the button now ticks the seconds with a
+3-minute bound, because one static label looked the same at 5 seconds and at 7 minutes.
+
+Guard: `tv/test_gate_cache.py` — the test that matters plants a deliberately WRONG verdict, rewrites
+the file underneath it, and requires the memo to miss.
+
+## REG-302 — a stamp outlived its effect and froze F·Sets at 117 (FIXED v1942)
+
+Konyo, after v1939 was supposed to have fixed this: *"still it read 117! insted of 116/135"*.
+
+`doneThisReading` INFERRED his intent from a timestamp: "the repair already ran against this
+reading, so anything still ticked must be his doing." False on his board, because of REG-300 —
+v1925..v1938 removed the piece from storage and `persist()` wrote it straight back. **The effect was
+undone; the stamp survived.** So the repair believed it was done, refused to act, and the wrong
+count froze in permanently. v1939 stopped the undoing but could not un-stamp history.
+
+Fixed by recording instead of inferring: `d2r_setRepairKept` holds the pieces he has explicitly
+ticked back, written by `toggleSetPiece` — the only place his intent exists. In it = his ruling,
+outranks the game page for good. Not in it and reappeared = not his doing, corrected every load.
+Un-ticking withdraws the ruling. Strictly stronger than the stamp, and **self-healing**: any future
+defect that puts a piece back is corrected next load instead of frozen in by a receipt for work that
+no longer exists.
+
+Guard: a fourth test in `tests/v1938_remaining_repair_outcome.spec.ts` reproducing his exact frozen
+state — all ticked, stamp set, nothing recorded — requiring 116; and its inverse, that a deliberate
+re-tick survives a reload.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1941",
+  "ver": "v1942",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1941: The Vault Accumulator quote walked every frame of every sealed reel through a crop and an OCR: measured 7.4 minutes on his own film, behind a button whose label never changed and whose fetch had no timeout. The gate verdict and the quote are both memoised now, the button ticks, and it can no longer hang.",
+  "note": "v1942: His F Sets froze at 117. The repair had already stamped this reading as acted-on, but the effect was undone by REG-300 before v1939 fixed it, so the repair refused to act again and the wrong count froze in. It now honours a RECORDED re-tick instead of inferring one from a timestamp.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

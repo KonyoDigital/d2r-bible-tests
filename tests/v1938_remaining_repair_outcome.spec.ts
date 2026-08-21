@@ -174,4 +174,59 @@ test.describe('v1938 — the remaining-repair lands on 116/135 and stays there',
       }, after);
       expect(back, 'these are back in his set ledger and the game says he does not have them').toEqual([]);
     });
+
+  /* v1942 — ★★★ THE STAMP OUTLIVED THE EFFECT AND FROZE HIS COUNT AT 117.
+     Konyo, on his own board, after v1939 had supposedly fixed this: "still it read 117! insted of
+     116/135".
+
+     REG-300 (v1925..v1938) wrote the removal to storage without syncing the live Set, so the next
+     persist() put the piece straight back. v1939 stopped that. What v1939 could NOT do is un-stamp
+     what had already happened: `d2r_setRepairAt` still said "acted on this reading", so the repair
+     refused to act again and 117 was frozen in permanently. The effect was gone; the receipt for it
+     was not.
+
+     This reproduces exactly that state — the piece present, the stamp set, nothing recorded as a
+     deliberate re-tick — and requires the board to heal itself. */
+  test('★★★ a stamp with no effect behind it must not freeze the count', async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(1400);
+
+    const target = await page.evaluate(() => {
+      const w: any = window;
+      const names: string[] = [];
+      (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
+      const miss: string[] = (w._SET_MISSING || {}).names || [];
+      const seeded = miss.filter((n) => (w._SET_SEED || {})[n]);
+      const pick = seeded[0] || miss[0];
+      localStorage.setItem('d2r_setPieces', JSON.stringify(names));           // everything ticked
+      localStorage.setItem('d2r_setRepairAt', (w._SET_MISSING || {}).readAt || 'x');  // ...and ALREADY stamped
+      localStorage.removeItem('d2r_setRepairKept');
+      localStorage.removeItem('d2r_setRepairRemoved');
+      localStorage.setItem('d2r_grailUnfound', '{}');
+      return pick;
+    });
+
+    await page.reload();
+    await page.waitForTimeout(1600);
+    const healed = await page.evaluate(() =>
+      (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).length);
+    expect(healed, 'the stamp froze the count — the repair refused to correct itself').toBe(116);
+
+    /* AND THE OTHER HALF: a piece he TICKS BACK is his ruling and must survive every later load.
+       That is what the stamp was protecting, and it has to keep working now that it is gone. */
+    await page.evaluate((n: string) => (window as any).toggleSetPiece(n), target);
+    await page.waitForTimeout(400);
+    const kept = await page.evaluate((n: string) => ({
+      owned: (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).includes(n),
+      recorded: !!JSON.parse(localStorage.getItem('d2r_setRepairKept') || '{}')[n],
+    }), target);
+    expect(kept.recorded, 'his deliberate re-tick was not recorded as a ruling').toBe(true);
+    expect(kept.owned, 'his tick did not land').toBe(true);
+
+    await page.reload();
+    await page.waitForTimeout(1600);
+    const survived = await page.evaluate((n: string) =>
+      (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).includes(n), target);
+    expect(survived, 'the repair overruled a piece he had explicitly ticked back').toBe(true);
+  });
 });

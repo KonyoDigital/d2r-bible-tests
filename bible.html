@@ -21545,6 +21545,23 @@ function toggleSetPiece(piece) {
     if (!setPieces.has(piece)) {
       var _srr = JSON.parse(window.LSR.getItem('d2r_setRepairRemoved') || '{}') || {};
       if (_srr[piece]) { delete _srr[piece]; window.LSR.setItem('d2r_setRepairRemoved', JSON.stringify(_srr)); }
+      /* v1942 — AND RECORD THAT HE INSISTED. If the game's Remaining page lists this piece and he
+         is ticking it anyway, that is a RULING, not an accident, and the boot repair must never
+         strip it again. Recorded here because this is the only place his intent exists; the repair
+         used to INFER it from a timestamp and got it wrong on his own board (117 instead of 116). */
+      try {
+        var _miss = ((window._SET_MISSING || {}).names) || [];
+        if (_miss.indexOf(piece) >= 0) {
+          var _keep = JSON.parse(window.LSR.getItem('d2r_setRepairKept') || '{}') || {};
+          _keep[piece] = 1; window.LSR.setItem('d2r_setRepairKept', JSON.stringify(_keep));
+        }
+      } catch(e){}
+    } else {
+      /* un-ticking it withdraws the ruling — otherwise one tick would deafen the repair forever */
+      try {
+        var _k2 = JSON.parse(window.LSR.getItem('d2r_setRepairKept') || '{}') || {};
+        if (_k2[piece]) { delete _k2[piece]; window.LSR.setItem('d2r_setRepairKept', JSON.stringify(_k2)); }
+      } catch(e){}
     }
   } catch(e){}
   if (setPieces.has(piece)) setPieces.delete(piece);
@@ -38937,6 +38954,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        existed. [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] */
     var _repairSuppressed = false;
     try { _repairSuppressed = window.LSR.getItem('d2r_v1925RemainingRepairApplied') === '1'; } catch(e){}
+    var _repairKept = {};
+    try { _repairKept = JSON.parse(window.LSR.getItem('d2r_setRepairKept') || '{}') || {}; } catch(e){}
     /* v1938 — THE FLAG HAS TO STOP THE WHOLE BOOT REPAIR, NOT ONE OF ITS TWO BRANCHES.
        v1937 gated only the `missing[n]` branch. The OTHER branch — "not a set piece in this game" —
        kept running under suppression, so v949's merge fixture (which seeds two set pieces with
@@ -38976,7 +38995,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          it was working. A negative reading expires; the guard built on it must expire with it.
          The not-a-set-piece branch above has no such clause, because "this is a unique" does not
          go stale. [[stale-reading]] */
-      if (missing[n] && !doneThisReading && !_repairSuppressed){
+      /* ── v1942 — THE STAMP OUTLIVED THE EFFECT, AND FROZE HIS COUNT AT 117 ──────────────
+         Konyo, on his own board: "still it read 117! insted of 116/135".
+
+         `doneThisReading` was the right IDEA expressed as an inference. It exists so a piece he
+         re-ticks by hand is not stripped again on the next load, forever — see the note above. But
+         it inferred "he must have re-ticked it" from the fact that the repair had already run once
+         against this reading. That inference was false on his board, and the reason is a defect I
+         shipped: from v1925 to v1938 the repair edited storage without syncing the live in-memory
+         Set, so the very next persist() wrote the piece straight back (REG-300). The EFFECT was
+         undone; the STAMP survived. So the repair looked done, refused to act, and 117 froze in.
+         v1939 stopped the undoing but could not un-stamp what had already happened.
+
+         The fix is to stop inferring and start RECORDING. d2r_setRepairKept holds the names he has
+         explicitly ticked back after the game said he lacks them — written by toggleSetPiece, which
+         is the only place his intent is ever expressed. A name in there is his ruling and outranks
+         the game's page for good. A name NOT in there that reappeared did not come back by his
+         hand, so the repair corrects it, on this load and every load, which is what "self-healing"
+         has to mean if the stamp can ever be wrong. [[the-unjoined-end]] [[label-outlived-referent]] */
+      if (missing[n] && !_repairKept[n] && !_repairSuppressed){
         out.removed.push({ name: n, why: 'the game\u2019s own Remaining page still lists this as '
           + 'missing (read ' + ((window._SET_MISSING || {}).readAt || 'recently') + ')' });
         return;
@@ -42765,7 +42802,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1941', name:'v1941 - the price tag that took seven minutes', date:'2026-08-22', note:'The Vault Accumulator quote walked every frame of every sealed reel through a crop and an OCR: measured 7.4 minutes on his own film, behind a button whose label never changed and whose fetch had no timeout. The gate verdict and the quote are both memoised now, the button ticks, and it can no longer hang.' };
+  window.D2R_BUILD = { id:'v1942', name:'v1942 - the stamp that outlived its effect', date:'2026-08-22', note:'His F Sets froze at 117. The repair had already stamped this reading as acted-on, but the effect was undone by REG-300 before v1939 fixed it, so the repair refused to act again and the wrong count froze in. It now honours a RECORDED re-tick instead of inferring one from a timestamp.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

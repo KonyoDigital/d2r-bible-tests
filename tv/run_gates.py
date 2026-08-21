@@ -88,6 +88,12 @@ GATES = [
     Gate("test_tz_relay", [sys.executable, os.path.join(HERE, "test_tz_relay.py")], 60,
          why="the console TZ relay must treat a history-only payload as live, not as "
              "unreachable, and /d2r/api/tz must stay as open as /api/tz"),
+    Gate("test_gate_cache", [sys.executable, os.path.join(HERE, "test_gate_cache.py")], 60,
+         why="v1941 — the Vault Accumulator quote memoises a crop+OCR verdict per frame (7.4 "
+             "minutes of his evening before it did). The speed is not the risk: a stale 'stash' "
+             "on a rewritten frame would send the sweep to read a gameplay screen as a stash "
+             "page, and vault_retro calls that misroute permanent. Keyed on size+mtime so it "
+             "MISSES rather than lying"),
     Gate("test_shard_balance", [sys.executable, os.path.join(HERE, "test_shard_balance.py")], 30,
          why="Routine I must peel the every-item simulations into the slow project so "
              "--shard cannot dump them all into one 45-minute file-count bucket"),
