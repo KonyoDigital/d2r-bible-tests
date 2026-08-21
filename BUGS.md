@@ -8109,3 +8109,34 @@ Also confirmed by the same measurement, and worth recording because both were sh
 night: the panel's header reads *"this proposal was made 10h ago · restored from disk, not from this
 session"* — v1894's age line and v1895/v1899's persistence, both working on his machine, through a
 restart, on real data.
+
+## REG-265 — a thin TZ zone looks unfarmable and clicks like a farmable one (FIXED v1915)
+
+Konyo: *"the mouse cursor for TZ ZONES that arent worth farming at all i want a CANCELLED sign on it
+so i know i cant click them. only the TZ ZONES worth farming should be clickable and routable."*
+
+A thin zone (density < 600) was greyed and grayscaled and still routed on click, with the title
+saying *"not worth the window. Open it anyway"*.
+
+⚠ **THIS IS THE THIRD REVERSAL OF THE SAME DECISION AND THE THREAD IS RECORDED RATHER THAN SWAPPED
+IN SILENCE:**
+
+- **v1588** — a thin zone is inert: aria-disabled, no handler, a padlock. His call.
+- **v1801** — unlocked. Dropping the meaningless level term took thin from **15 of 66 to 40 of 66**,
+  and *"a lock over most of the map stops informing him of a ranking and starts punishing him for
+  one."* Asked directly, he chose greyed-and-cancelled-but-clickable.
+- **v1915** — locked again, in his own words above.
+
+**The v1801 consequence has not changed and is not hidden by this ship: under 600 density is thin, so
+a large share of the map is unclickable again.** He decided it twice in opposite directions; the
+later decision wins, and what a codebase must not do is let a reversal happen quietly.
+
+What v1588 never had — and what he actually asked for — is the **cursor**: `.tzz-thin` and everything
+inside it is `cursor: not-allowed`, and the hover lift is off. The title now ends *"Not farmable, so
+not clickable"* instead of *"Open it anyway"*.
+
+`tests/v1596_tz_emphasis.spec.ts` pinned v1801's choice in four assertions, which is exactly why the
+reversal could not be accidental. It pins the new one — no handler, `aria-disabled="true"`,
+`tabindex="-1"`, `cursor: not-allowed` — and the verdict half (grey, grayscale, THIN tag, "not worth
+the window") is untouched. **The test's name was renamed too**: *"but it is no longer a dead card"*
+would have been a label that outlived its assertion. [[label-outlived-referent]]

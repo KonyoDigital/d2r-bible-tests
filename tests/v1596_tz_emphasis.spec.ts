@@ -152,7 +152,7 @@ test.describe('v1596 — the NEXT terror zone states its own worth', () => {
      survive in full — the tag, the grey, the wording — and only the DEAD HANDLER goes. This test
      now pins exactly that pair, because the easy way to get this wrong is to unlock the card and
      let it stop looking thin. */
-  test('★ a THIN zone still reads as thin — but it is no longer a dead card', async ({ page }) => {
+  test('★ a THIN zone reads as thin AND cannot be clicked — the cursor says so', async ({ page }) => {
     await open(page, { ok: true, current: 'Blood Moor', next: 'Catacombs', ts: Date.now() });
     const c = await page.evaluate(() => {
       const el = Array.from(document.querySelectorAll('#hd-tz .tzz'))
@@ -169,6 +169,7 @@ test.describe('v1596 — the NEXT terror zone states its own worth', () => {
         onclick: el.getAttribute('onclick'),
         disabled: el.getAttribute('aria-disabled'),
         hasLockGlyph: !!el.querySelector('.tzz-lock'),
+        cursor: getComputedStyle(el).cursor,
       };
     });
     expect(c).toBeTruthy();
@@ -178,11 +179,24 @@ test.describe('v1596 — the NEXT terror zone states its own worth', () => {
     expect(c!.grayscale, 'the grayscale half of the treatment is gone').toBe(true);
     expect(c!.tag, 'the tag is now the ONLY verdict carrier — it cannot be empty').toBe('THIN');
     expect(c!.title.toLowerCase(), 'the card must still say why it is thin').toContain('not worth the window');
-    // ...and the dead handler, gone
-    expect(c!.role, 'he chose clickable — this must route').toBe('button');
-    expect(c!.tabindex, 'and be keyboard reachable').not.toBeNull();
-    expect(c!.onclick, 'and actually carry a handler').not.toBeNull();
-    expect(c!.disabled, 'aria-disabled contradicts a card that routes').toBeNull();
+    /* ── v1915 — INVERTED AGAIN, AND THIS IS THE THIRD TIME, SO THE WHOLE THREAD IS HERE ──────
+       v1588: a thin zone is inert (aria-disabled, no handler, a padlock) — his call.
+       v1801: unlocked, because dropping the level term took thin from 15 of 66 to 40 of 66, and
+              "a lock over most of the map stops informing him of a ranking and starts punishing
+              him for one" — asked directly, he chose greyed-and-cancelled-but-clickable.
+       v1915: locked again, in his own words, 2026-08-21: "the mouse cursor for TZ ZONES that
+              arent worth farming at all i want a CANCELLED sign on it so i know i cant click
+              them. only the TZ ZONES worth farming should be clickable and routable."
+
+       ⚠ THE v1801 CONSEQUENCE HAS NOT CHANGED and is not hidden by this edit: under 600 density
+       is thin, so a large share of the map is now unclickable again. He decided that twice in
+       opposite directions and the later decision wins; what a test must not do is let a reversal
+       happen QUIETLY, which is why this comment grows instead of the assertions being swapped in
+       silence. What v1588 never had, and he explicitly asked for, is the CURSOR saying so. */
+    expect(c!.onclick, 'he chose not-clickable — a thin card must carry no handler').toBeNull();
+    expect(c!.disabled, 'and must announce itself disabled to assistive tech').toBe('true');
+    expect(c!.tabindex, 'and must be out of the tab order').toBe('-1');
+    expect(c!.cursor, 'the CANCELLED sign is the half v1588 never had').toBe('not-allowed');
     expect(c!.hasLockGlyph, 'a padlock promises the click will not work, and now it does').toBe(false);
   });
 

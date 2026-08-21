@@ -3108,6 +3108,10 @@
     border: 1px solid rgba(224,168,96,.34); background: rgba(224,168,96,.07);
     padding: 6px 9px; border-radius: 7px; }
   .hd-tz .tz-foot { display: flex; gap: 6px; margin-top: 8px; }
+  /* v1915 — the CANCELLED cursor he asked for. The greying says "ranked low"; the cursor says
+     "there is nothing to open here", which is the half a colour cannot carry. Both columns. */
+  .tzz.tzz-thin, .tzz.tzz-thin * { cursor: not-allowed; }
+  .tzz.tzz-thin:hover { transform: none; }
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
   /* v1914 — the Sessions-side pointer at the waiting proposal. Sized like a banner note, not a
      button that competes with the hunt; the arrow is the only thing that says it goes somewhere. */
@@ -13728,9 +13732,29 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
            with a dead handler attached. */
         var _thin = (t.tier === 'thin');
         var _title = escC(x)
-          + (_thin ? ' — thin: low density, not worth the window. Open it anyway'
+          + (_thin ? ' — thin: low density, not worth the window. Not farmable, so not clickable'
                    : (_boss ? ' — open the ' + escC(t.why || _boss) + ' run' : ' — open the full tracker'));
-        var attrs = ' role="button" tabindex="0" onclick="' + _go + '"'
+        /* ── v1915 — A THIN ZONE IS NOT CLICKABLE, AND THE CURSOR SAYS SO ────────────────────
+           Konyo, 2026-08-21: "the mouse cursor for TZ ZONES that arent worth farming at all i want
+           a CANCELLED sign on it so i know i cant click them. only the TZ ZONES worth farming
+           should be clickable and routable."
+
+           ⚠ THIS REVERSES v1801, WHICH REVERSED v1588, AND BOTH WERE HIS CALL. v1588 made a thin
+           zone inert (no handler, aria-disabled, a padlock). v1801 took the lock off because
+           dropping the meaningless level term made 40 of 66 zones thin, and "a lock over most of
+           the map stops informing him of a ranking and starts overruling him with one" — asked and
+           answered at the time. He has now asked for the opposite, in his own words, and the
+           consequence is the same one v1801 named: under 600 density is thin, so a large share of
+           the map becomes unclickable. That is recorded here rather than argued, because he
+           decides — and because a comment that hides a reversal is how the next reader ends up
+           re-litigating a decision that was already made twice.
+
+           The verdict already showed (grey, grayscale, a THIN tag). What returns is the INERTNESS
+           and, this time, an explicit `cursor: not-allowed` — v1588 had no handler but never said
+           so with the pointer, which is the exact thing he is asking for. */
+        var attrs = _thin
+          ? ' role="button" tabindex="-1" aria-disabled="true" data-thin="1" title="' + _title + '"'
+          : ' role="button" tabindex="0" onclick="' + _go + '"'
             + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + _go + ';}"'
             + ' title="' + _title + '"';
         return '<div class="tzz tzz-' + t.tier + (hero ? ' tzz-hero' : '') + ' tzz-live'
