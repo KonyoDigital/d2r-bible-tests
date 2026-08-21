@@ -8868,3 +8868,27 @@ roster risks breaking matches against what the readers actually print.
 **REPORTED, NOT REMOVED.** Deleting grail rows that cost him nothing, to tidy a number that is
 already correct, is an unasked-for edit to his history. `_chRepairLedgers` now returns `debris` and
 touches none of it. Guards: `TestTheUniquesLedgerIsAuditedNotEdited` (3).
+
+## CLASS-3 SWEEP CLOSED — every API payload, and what was deliberately left alone (2026-08-21)
+
+Completing the sweep begun in REG-290, which covered only the chronicle sweep result. Extended to
+**every `self._json(...)` response payload** in `tv/control_app.py`, comments and docstrings
+stripped, matched against both UI files.
+
+**54 payload keys across all routes; 7 read by no UI.** Each was inspected rather than counted:
+
+| key | route | verdict |
+|---|---|---|
+| `nav`, `spawned` | `/api/board` | **by design.** v781 stopped the UI calling this route ("that spawned a second native window") and does the nav in-document. Kept as the explicit `?popout=1` escape hatch, and it has tests. Not a defect. |
+| `dup`, `retry_s` | intake | intake internals: a duplicate-record flag and a 429 rate-limit hint on a receiver the UI does not call. |
+| `hist`, `kaiVerTarget`, `vision` | diagnostics | path echo, an internal version target, per-row vision data. |
+
+**Nothing further to fix, and that is the finding.** The two keys that mattered (`newlyDated`,
+`contestedExpired`) were wired in v1930 and one was dropped; the rest are either deliberate or
+diagnostic.
+
+⚠ **One instrument note, because it produced a wrong attribution mid-sweep.** Locating a key's route
+by "the last `path == "/api/…"` before this line" is unreliable with nested handlers — it filed
+`dup` and `retry_s` under `/api/identity_name` when both are intake keys. The claim was checked
+against the surrounding code and corrected before it went anywhere.
+[[feedback-suspect-the-instrument]]
