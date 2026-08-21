@@ -261,5 +261,86 @@ class TestTheDoctorTellsTheTruth(unittest.TestCase):
         for name in ("reader prompts", "claude lane", "frame grouping", "board apply"):
             self.assertIn(name, src)
 
+
+class TestTheSecondEyeReceipt(unittest.TestCase):
+    """v1905 — READY IS NOT ASKED, AND ASKED IS NOT ANSWERED.
+
+    The doctor's `grok lane` check reports the lane is AVAILABLE. That is a status lamp, and a lamp
+    has been wrong on this exact lane before: G5 sat pinned PRIMARY and silently dark for weeks
+    while every honesty surface read clean, because a lane that never attempts never records a
+    failure. The receipt check reads the BANKED EVIDENCE — written by the readers themselves — and
+    answers the only question that matters: of the names Claude has seen, how many did the second
+    eye actually corroborate? [[grok-second-eye]]
+
+    Measured on his own evidence when this was written: uniques 35/298 (12%), sets 34/86 (40%).
+    """
+
+    def _with_evidence(self, payload):
+        import json as _json
+        import shutil
+        import tempfile
+        from unittest import mock
+        import chronicle_doctor as cd
+        import control_app as ca
+        root = tempfile.mkdtemp(prefix="receipt-")
+        self.addCleanup(shutil.rmtree, root, True)
+        path = os.path.join(root, "chron_evidence.json")
+        if payload is not None:
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump(payload, fh)
+        with mock.patch.object(ca, "_CHRON_EVIDENCE_PATH", path):
+            return cd._second_eye_receipt()
+
+    def test_a_lane_that_corroborated_nothing_is_not_a_witness(self):
+        import chronicle_doctor as cd
+        state, detail = self._with_evidence(
+            {"uniques": {"Shako": [{"lane": "claude"}], "Ali Baba's": [{"lane": "claude"}]},
+             "sets": {}})
+        self.assertEqual(state, cd.MISSING,
+                         "a second eye that has corroborated nothing reported OK: %r" % detail)
+        self.assertIn("corroborated NOTHING", detail)
+
+    def test_corroboration_is_counted_per_ledger(self):
+        import chronicle_doctor as cd
+        state, detail = self._with_evidence(
+            {"uniques": {"Shako": [{"lane": "claude"}, {"lane": "grok"}],
+                         "Ali Baba's": [{"lane": "claude"}]},
+             "sets": {"Isenhart's Parry": [{"lane": "grok"}]}})
+        self.assertEqual(state, cd.OK, detail)
+        self.assertIn("uniques 1/2 (50%)", detail)
+        self.assertIn("seen only by grok", detail,
+                      "a name only the second eye saw is the strongest thing it can report, "
+                      "and it was not reported: %r" % detail)
+
+    def test_no_evidence_is_UNKNOWN_never_a_failure(self):
+        """'I could not check' and 'it is broken' are different sentences — the doctor's own
+        doctrine, and collapsing them is how a health check starts lying."""
+        import chronicle_doctor as cd
+        state, detail = self._with_evidence(None)
+        self.assertEqual(state, cd.UNKNOWN, detail)
+        self.assertIn("nothing has been swept", detail)
+
+    def test_the_report_column_is_sized_from_the_data(self):
+        """A hardcoded width silently un-aligns the whole report the moment a check has a longer
+        name — which is exactly what adding this check did (`second eye receipt` is 18 chars against
+        a `%-16s`). The width comes from the longest name now, so the report cannot drift."""
+        import subprocess
+        import chronicle_doctor as cd
+        out = subprocess.run([sys.executable, os.path.join(HERE, "chronicle_doctor.py")],
+                             capture_output=True, text=True, timeout=600)
+        self.assertEqual(out.returncode, 0, out.stderr[-300:])
+        names = [n for n, _fn in cd.CHECKS]
+        w = max([len(n) for n in names] + [12])
+        for name in names:
+            row = [l for l in out.stdout.split("\n") if l.startswith("  ") and name in l]
+            self.assertTrue(row, "the report skipped the %r check" % name)
+            at = row[0].index(name)
+            detail_at = at + w + 1
+            self.assertGreater(len(row[0]), detail_at, "%r has no detail" % name)
+            self.assertNotEqual(row[0][detail_at], " ",
+                                "the detail column does not start where the padding ends for %r "
+                                "— the report is un-aligned:\n%s" % (name, row[0]))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

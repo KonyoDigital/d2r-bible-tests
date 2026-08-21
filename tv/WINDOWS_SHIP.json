@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1904",
+  "ver": "v1905",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1904: python3 tv/vault_simulate.py printed nothing and exited 0 - the file has no main, so the scenarios were reachable only by importing the module from a test, while its own docstring promises that it prints the whole decision for a scenario in the words the Vault manager would use. The demonstration he asked for existed as code and could not be watched, and a quiet exit 0 is the worst possible answer because it is indistinguishable from a clean run. It runs now over his real reels with no vision calls and no writes, a scenario whose reels are missing says so and exits 1, and the merge-max transcript finally prints the count it is entirely about. The encoding guard caught the new CLI in the same run, which is the guard working - it skips importable modules and had never looked at this file.",
+  "note": "v1905: The doctor reported the grok lane as available, which is a status lamp, and a lamp has been wrong on this exact lane before - G5 sat pinned primary and silently dark for weeks while every honesty surface read clean, because a lane that never attempts never records a failure. The new check reads the banked evidence written by the readers themselves and answers how many of the names claude saw the second eye actually corroborated: uniques 35 of 298 at 11.7 percent with grok never once seeing a unique claude missed, sets 34 of 86 at 39.5 percent. That gap is the falsifiable baseline for v1901 - if the framing was the variable the uniques rate on pages swept after it should rise well above 11.7 percent, and if it does not move the cause is elsewhere and the worker pool under concurrency is the next place to look.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

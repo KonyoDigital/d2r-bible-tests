@@ -7717,3 +7717,35 @@ demonstration that omits the quantity under discussion proves nothing to the per
 looked at this file. Adding an entry point made it a CLI, and a CLI that prints `⚠`/`✅` on a
 non-UTF-8 console **crashes while REPORTING** — a clean tree exiting non-zero from the wrong place.
 `console_safe.enable()` added. [[dual-machine-setup]]
+
+## REG-255 — the second eye had a lamp and no receipt (FIXED v1905) + a falsifiable prediction for v1901
+
+The doctor's `grok lane` check reports the lane is **available**. That is a status lamp, and a lamp
+has been wrong on this exact lane before: G5 sat pinned PRIMARY and **silently dark for weeks** while
+every honesty surface read clean, because a lane that never attempts never records a failure.
+
+The new `second eye receipt` check reads the **banked evidence** — written by the readers themselves
+— and answers the only question that matters: *of the names Claude has seen, how many did the second
+eye actually corroborate?* A lane that is ready and has corroborated nothing reports **MISSING**, not
+OK. No evidence at all is **UNKNOWN**, never a failure.
+
+**Measured on his own evidence, 2026-08-21, 767 banked pages:**
+
+| ledger | corroborated by both lanes | seen only by grok |
+|---|---|---|
+| uniques | **35 / 298 — 11.7 %** | **0** |
+| sets | **34 / 86 — 39.5 %** | 6 |
+
+⚠ **THIS IS THE BASELINE FOR v1901, AND IT IS FALSIFIABLE.** The uniques rate is a third of the sets
+rate and grok has *never once* seen a unique Claude missed — which is exactly what you would expect
+if the second eye was being handed the full 2940×1912 desktop grab on the densest pages, the framing
+v1780 measured at 0/6. If the framing was the variable, the uniques rate on pages swept **after**
+v1901 should rise materially above 11.7 % and grok-only sightings should stop being exactly 0.
+
+**If it does not move, the framing was not the cause** — v1829 already measured the full frame reading
+one refused page fine, grok included — and the next place to look is the worker pool under
+concurrency, which is where that note left the question open. Either answer is worth having; the
+point is that the number now exists and can be read off `chronicle_doctor.py` at any time.
+
+Also fixed in the same run: the doctor's report column was a hardcoded `%-16s`, which the 18-char
+name `second eye receipt` un-aligned on sight. The width comes from the longest name now.

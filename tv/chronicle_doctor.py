@@ -68,6 +68,53 @@ def _grok_lane():
     return OK, "second eye ready — cross-lane agreement is available"
 
 
+def _second_eye_receipt():
+    """v1905 — READY IS NOT ASKED, AND ASKED IS NOT ANSWERED.
+
+    The check above says the Grok lane is *available*. That is a status lamp, and a lamp has been
+    wrong on this exact lane before: G5 sat pinned PRIMARY and silently dark for weeks while every
+    honesty surface read clean, because a lane that never attempts never records a failure.
+
+    So this one reads the RECEIPT instead — the banked evidence, which is written by the readers
+    themselves — and answers the only question that matters: of the names Claude has seen, how many
+    did the second eye actually corroborate? A lane that is ready and has corroborated nothing is
+    not a second witness, it is a lamp. [[grok-second-eye]] [[unknown-stays-unknown]]
+    """
+    import control_app as ca
+    path = ca._CHRON_EVIDENCE_PATH
+    if not os.path.isfile(path):
+        return UNKNOWN, ("no banked evidence on this machine yet (%s) — nothing has been swept, so "
+                         "there is no receipt to read either way" % os.path.basename(path))
+    try:
+        ev = json.load(io.open(path, encoding="utf-8"))
+    except Exception as e:
+        return UNKNOWN, "the banked evidence could not be read: %s" % str(e)[:90]
+    parts, total_both, total_names = [], 0, 0
+    for ledger in ("uniques", "sets"):
+        d = ev.get(ledger) or {}
+        both = solo_g = 0
+        for sights in d.values():
+            lanes = {s.get("lane") for s in sights if isinstance(s, dict)}
+            if "grok" in lanes and "claude" in lanes:
+                both += 1
+            elif "grok" in lanes:
+                solo_g += 1
+        n = len(d)
+        total_both += both
+        total_names += n
+        if n:
+            parts.append("%s %d/%d (%.0f%%%s)"
+                         % (ledger, both, n, 100.0 * both / n,
+                            ", %d seen only by grok" % solo_g if solo_g else ""))
+    if not total_names:
+        return UNKNOWN, "the evidence file holds no names yet — nothing to corroborate"
+    if total_both == 0:
+        return MISSING, ("the second eye has corroborated NOTHING across %d name(s) — it is ready "
+                         "and it is not a witness. Check that sweeps are running with both lanes"
+                         % total_names)
+    return OK, "corroborated " + " · ".join(parts) + " — a receipt, not a lamp"
+
+
 def _footage():
     import chronicle_retro as cr
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
@@ -145,6 +192,7 @@ CHECKS = [
     ("reader prompts", _reader_prompts),
     ("claude lane", _claude_lane),
     ("grok lane", _grok_lane),
+    ("second eye receipt", _second_eye_receipt),
     ("footage", _footage),
     ("frame grouping", _grouping),
     ("sweep memory", _memory),
@@ -172,8 +220,12 @@ if __name__ == "__main__":
     d = diagnose()
     icon = {OK: "🟢", MISSING: "🟠", UNKNOWN: "⚪"}
     print("\n📜 CHRONICLE DOCTOR — this machine\n")
+    _w = max([len(r["name"]) for r in d["checks"]] + [12])
     for r in d["checks"]:
-        print("  %s %-16s %s" % (icon.get(r["state"], "?"), r["name"], r["detail"]))
+        # v1905 — WIDTH FROM THE DATA. A hardcoded %-16s silently un-aligns the whole
+        # report the moment a check has a longer name, which is what "second eye
+        # receipt" did on the run that added it.
+        print("  %s %-*s %s" % (icon.get(r["state"], "?"), _w, r["name"], r["detail"]))
     print()
     if d["ready"]:
         print("✅ READY — the arc can sweep, gate and register end to end.")
