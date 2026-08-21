@@ -23,7 +23,29 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  * refusal — which is the row most worth having and the one that used to vanish without trace.
  */
 test.describe('v1918 — every applied item leaves a provenance row', () => {
+  /* v1938 — THE FIXTURE HAS TO BE UN-OWNED OR THIS SPEC MEASURES THE SKIP PATH.
+     bible.html is HIS board, so a first load is not an empty one: the boot floor seeds 108 set
+     pieces and 357 grail finds. "Tancred's Skull (bone helm)" and 'Stormshield' are both in those
+     seeds, so chronicleApply did exactly the right thing — it SKIPPED them ("★ never un-find"),
+     wrote no provenance row, and the assertions read a correct skip as a broken recorder.
+     MEASURED: sp:108 fl:357 on a clean load; the apply returned skipped:["Tancred's Skull (bone
+     helm)"] with an empty sets[].
+
+     This spec has NEVER passed on CI — the last green Routine I was v1917, the run that would have
+     graded it was cancelled by the next push, and the first completed run (v1925) was already red.
+     A spec nobody ever saw green is a spec with no baseline. [[feedback_blind_fixture_green_gate]]
+
+     Un-owned through d2r_grailUnfound — the board's OWN un-tick store, which the boot floor already
+     consults — rather than by deleting the stores after load: _ownedNames() and _setHave() memoise,
+     so a post-boot delete changes storage and not the answer. */
+  const FIXTURE = ['Harlequin Crest', "Tancred's Skull (bone helm)", 'Stormshield'];
+
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript((names) => {
+      const gu = {};
+      names.forEach((n) => { gu[n] = 1; });
+      window.localStorage.setItem('d2r_grailUnfound', JSON.stringify(gu));
+    }, FIXTURE);
     await page.goto(URL);
     await page.waitForTimeout(1200);
     await page.evaluate(() => window.localStorage.setItem('d2r_chronicleInboxLog', '[]'));

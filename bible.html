@@ -18483,8 +18483,16 @@ window.renderHighValueFinds = renderHighValueFinds;
       try {
         var _spArr = _safeJsonParse(LS.getItem('d2r_setPieces'), []) || [];
         var _spSet = new Set(_spArr); var _spCh = false;
+        /* v1938 — TWO STORES SUPPRESS A SEEDED PIECE, AND THEY MEAN DIFFERENT THINGS.
+           d2r_grailUnfound is HIS un-tick (user truth, written by toggleSetPiece at the seeded
+           guard). d2r_setRepairRemoved is the GAME's Remaining filter saying he does not have it
+           (machine truth, written by _chRepairLedgers). v1925 wrote the machine reading into the
+           user store, which squatted in a namespace the nine-conflicts resolver owns — eight specs
+           across four suites asserted `grailUnfound` was empty and got 2. The floor is the only
+           thing that ever needed to consume them, and it treats them the same: do not re-add. */
+        var _sRm = _safeJsonParse(LS.getItem('d2r_setRepairRemoved'), {}) || {};
         Object.keys(typeof _SET_SEED!=='undefined'?_SET_SEED:{}).forEach(function(n){
-          if (_gUn[n]) return;
+          if (_gUn[n] || _sRm[n]) return;
           if (!_spSet.has(n)) { _spSet.add(n); _spCh = true; }
           if (!_gfl[n]) { _gfl[n] = _SET_SEED[n]; _gflCh = true; }
         });
@@ -38879,6 +38887,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        existed. [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] */
     var _repairSuppressed = false;
     try { _repairSuppressed = window.LSR.getItem('d2r_v1925RemainingRepairApplied') === '1'; } catch(e){}
+    /* v1938 — THE FLAG HAS TO STOP THE WHOLE BOOT REPAIR, NOT ONE OF ITS TWO BRANCHES.
+       v1937 gated only the `missing[n]` branch. The OTHER branch — "not a set piece in this game" —
+       kept running under suppression, so v949's merge fixture (which seeds two set pieces with
+       CURLY apostrophes, deliberately not roster spellings) booted as a later load and still had
+       both stripped: the union assertion read [] where it seeded 2. A spec that suppresses the
+       one-shots is asking for a board with NO boot mutation at all, and half of one is the harder
+       bug, because the suppression looks honoured. [[the-unjoined-end]]
+
+       Scoped to the AUTO call: a hand-run repair is a deliberate act and must never be silently
+       skipped by a flag whose whole meaning is "this is a later load". */
+    if (_repairSuppressed && opts.auto){ out.suppressed = true; return out; }
 
     var keep = [];
     sp.forEach(function(n){
@@ -38954,11 +38973,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!out.removed.length || dry) return out;
     try {
       window.LSR.setItem('d2r_setPieces', JSON.stringify(keep));
-      /* USER TRUTH, so the boot seed cannot put them back on the next load. */
+      /* MACHINE TRUTH — the game's Remaining filter, NOT his un-tick — so the boot seed cannot
+         put them back on the next load. These are different claims and they get different stores:
+         writing this into d2r_grailUnfound (v1925) meant a set-piece reading answered a question
+         the unique-grail resolver was asking. See the floor at the _SET_SEED loop, which is the
+         only consumer either store ever had. */
       var gu = {};
-      try { gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound') || '{}') || {}; } catch(e){}
+      try { gu = JSON.parse(window.LSR.getItem('d2r_setRepairRemoved') || '{}') || {}; } catch(e){}
       out.removed.forEach(function(r){ gu[r.name] = 1; });
-      window.LSR.setItem('d2r_grailUnfound', JSON.stringify(gu));
+      window.LSR.setItem('d2r_setRepairRemoved', JSON.stringify(gu));
       /* stamp the reading this repair acted on, so it cannot act on it twice */
       if (readAt) window.LSR.setItem('d2r_setRepairAt', readAt);
     } catch(e){ out.ok = false; out.why = String(e && e.message || e); return out; }
@@ -38983,7 +39006,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       setTimeout(function(){
         try {
           if (window.__chLedgerRepaired) return;
-          var r = window._chRepairLedgers();
+          var r = window._chRepairLedgers({ auto: true });
           window.__chLedgerRepaired = true;
           if (r && r.removed && r.removed.length){
             try { console.log('[ledger-repair] removed ' + r.removed.length + ' row(s): '
@@ -42676,7 +42699,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1937', name:'v1937 - The repair that edited a fixture', date:'2026-08-21', note:'The ledger repair from v1925 runs on load and removes rows the game Remaining page lists as missing - and it did that to another spec seeded fixture, which then read 108 of its own 110. The pre-push smoke does not run that spec; the full Playwright routine on CI did, and six of its recent runs show cancelled with one failure in the middle, a red full-suite run no local signal reproduced. The mechanism to prevent this already existed: the one-shots helper derives every boot-apply guard out of bible.html by a naming pattern so a spec can boot as a later load, and it was written because a hand-listed version went stale and reported that the app had mutated his ledger about a correct apply - the same failure one ship earlier. My guard key did not match the pattern so the suppressor could not see it. Naming a second guard correctly fixed the spec with zero spec changes, because the suppressor derives it from source. Two keys now answer two questions: which reading did this act on, and is a spec booting a later load. Suppression covers the game-Remaining apply only; a unique sitting in the set store is a structural invariant that does not go stale and is never suppressed - measured, his board removes three and a suppressed spec removes one.' };
+  window.D2R_BUILD = { id:'v1938', name:'v1938 - two claims, one store', date:'2026-08-21', note:'The remaining-repair wrote a game reading into the un-tick store, so eight assertions across four suites read 2 where they required 0. Split into d2r_setRepairRemoved, and the one-shot suppressor now stops the whole boot repair rather than one of its two branches.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

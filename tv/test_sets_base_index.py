@@ -187,7 +187,11 @@ class TestTheLedgerRepair(unittest.TestCase):
     def test_the_repair_and_its_boot_call_both_exist(self):
         s = self._src()
         self.assertIn("window._chRepairLedgers = function", s)
-        self.assertIn("window._chRepairLedgers()", s,
+        # v1938 — the boot call now passes {auto:true} so the one-shot suppressor can stop the
+        # WHOLE repair on a spec's later-load boot while a hand-run repair still works. Matched on
+        # the call HEAD, not the exact argument text, so adding an option does not read as "nothing
+        # runs it". [[source-reading-guard]]
+        self.assertIn("window._chRepairLedgers({", s,
                       "the repair exists but nothing runs it [[the-unjoined-end]]")
         self.assertIn("window._SET_MISSING", s)
 

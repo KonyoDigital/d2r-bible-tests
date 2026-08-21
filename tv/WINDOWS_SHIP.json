@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1937",
+  "ver": "v1938",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1937: The ledger repair from v1925 runs on load and removes rows the game Remaining page lists as missing - and it did that to another spec seeded fixture, which then read 108 of its own 110. The pre-push smoke does not run that spec; the full Playwright routine on CI did, and six of its recent runs show cancelled with one failure in the middle, a red full-suite run no local signal reproduced. The mechanism to prevent this already existed: the one-shots helper derives every boot-apply guard out of bible.html by a naming pattern so a spec can boot as a later load, and it was written because a hand-listed version went stale and reported that the app had mutated his ledger about a correct apply - the same failure one ship earlier. My guard key did not match the pattern so the suppressor could not see it. Naming a second guard correctly fixed the spec with zero spec changes, because the suppressor derives it from source. Two keys now answer two questions: which reading did this act on, and is a spec booting a later load. Suppression covers the game-Remaining apply only; a unique sitting in the set store is a structural invariant that does not go stale and is never suppressed - measured, his board removes three and a suppressed spec removes one.",
+  "note": "v1938: The remaining-repair wrote a game reading into the un-tick store, so eight assertions across four suites read 2 where they required 0. Split into d2r_setRepairRemoved, and the one-shot suppressor now stops the whole boot repair rather than one of its two branches.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

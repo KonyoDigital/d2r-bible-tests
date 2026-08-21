@@ -24,13 +24,25 @@ import * as path from 'path';
 // kaiChronicleLedger RE-ANNOTATES against live state afterwards, so an item can be settled and still
 // queued. Settled wins, and this asserts it.
 
+import { suppressOneShots } from './_oneshots';
+
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
+/* v1938 — THIS SPEC SEEDS A LEDGER, SO IT MUST BOOT AS A LATER LOAD.
+   v1925's remaining-repair runs 400ms after load and writes its own provenance rows into
+   d2r_chronicleInboxLog — the very store this fixture seeds and then counts. It read 3 rows where
+   it had seeded 2, and the empty-ledger test got a ledger that was no longer empty. The repair is
+   correct; the fixture was measuring the repair's output as if it were its own.
+   suppressOneShots() derives every boot-apply guard out of bible.html, so this needs no list and
+   cannot go stale — see tests/_oneshots.ts for why a hand-listed version already failed once. */
+const BOOT_AS_LATER_LOAD = suppressOneShots();
+
 async function withLedger(page: any, log: any[], inbox: any[]) {
-  await page.addInitScript(([l, i]: [any[], any[]]) => {
+  await page.addInitScript(([l, i, flags]: [any[], any[], Record<string, string>]) => {
+    for (const k of Object.keys(flags)) localStorage.setItem(k, flags[k]);
     localStorage.setItem('d2r_chronicleInboxLog', JSON.stringify(l));
     localStorage.setItem('d2r_chronicleInbox', JSON.stringify(i));
-  }, [log, inbox]);
+  }, [log, inbox, BOOT_AS_LATER_LOAD]);
   await page.goto(URL);
   await page.waitForTimeout(2400);
   await page.evaluate(() => {
