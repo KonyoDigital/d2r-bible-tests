@@ -399,5 +399,52 @@ class TestNoGateSkipsSilently(unittest.TestCase):
         self.assertIn("node tv/demo_console.mjs", h)
 
 
+class TestTheUniquesLedgerIsAuditedNotEdited(unittest.TestCase):
+    """The symmetric audit of d2r_foundLog, and the decision NOT to act on it.
+
+    Five rows matched neither roster. MEASURED, not guessed:
+
+        Atma's Scarab / Saracen's Chance   the roster spells these with a CURLY apostrophe.
+                                           Both _norm implementations fold ‘’ʼ to ', so they
+                                           resolve correctly and are NOT debris.
+        Naglring                           a misread of Nagelring — and Nagelring is ALSO in his
+                                           foundLog, so this is a duplicate, not a lost find.
+        Athena's Wrath (set piece)         same: the real name is also present.
+        Cow King's Leathers (set)          a SET NAME in the uniques ledger.
+
+    His 267/403 is RIGHT and none of this changes it. The uniques write path is already guarded —
+    it writes only when the name resolves — so these are historical rows, not an open leak.
+
+    They are REPORTED and NOT REMOVED. Deleting grail rows that cost him nothing, to tidy a number
+    that is already correct, is an unasked-for edit to his history. [[sweep-dont-ask]]
+    """
+
+    def _src(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_debris_is_collected(self):
+        s = self._src()
+        self.assertIn("out.debris", s, "the audit is missing")
+        self.assertIn("REPORT (never remove) DEBRIS", s)
+
+    def test_debris_is_never_added_to_the_removal_list(self):
+        """The one line that keeps this an audit instead of an edit."""
+        s = self._src()
+        i = s.index("out.debris = Object.keys(fl2)")
+        seg = s[i:i + 500]
+        self.assertNotIn("out.removed.push", seg,
+                         "debris must never reach the removal list — that would delete grail rows "
+                         "he never asked to lose")
+
+    def test_the_apostrophe_rows_are_not_treated_as_debris(self):
+        """Both normalisers fold ‘’ʼ to ', so a curly-apostrophe roster name resolves. If this
+        breaks, four real uniques start reading as debris."""
+        s = self._src()
+        self.assertIn("replace(/[‘’ʼ]/g, \"'\")", s,
+                      "the grail normaliser no longer folds curly apostrophes — Atma’s Scarab, "
+                      "Saracen’s Chance, Seraph’s Hymn and The Cat’s Eye would stop resolving")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

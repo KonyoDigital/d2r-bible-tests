@@ -8840,3 +8840,31 @@ group is indistinguishable from a page that held none.
 the ROSTER and compared the raw input, so it caught `M'avina's Tenet` and missed
 `M'avina's Tenet (belt)` — the same two-conventions gap, inside the guard. Caught by its own test.
 [[source-reading-guard]] Guards: `TestV1932APieceIsNotASet` (5), seen RED.
+
+## REG-295 — the uniques ledger, audited: 5 stray rows, and NONE of them cost him a find (v1933)
+
+Symmetric audit of `d2r_foundLog` against both rosters. 389 rows: 265 uniques, 119 set pieces
+(they live in both stores by design, v644), **5 matching neither**. Measured, not guessed:
+
+| row | verdict |
+|---|---|
+| `Atma's Scarab` | roster spells it `Atma’s Scarab` — a **curly** apostrophe. Both `_norm`s fold `‘’ʼ` → `'`, so it **resolves**. Not debris. |
+| `Saracen's Chance` | same |
+| `Naglring` | a misread of `Nagelring` — and **`Nagelring` is also in his foundLog**, so it is a duplicate, not a lost find |
+| `Athena's Wrath (set piece)` | same: the real name is also present |
+| `Cow King's Leathers (set)` | a SET NAME sitting in the uniques ledger |
+
+**His 267/403 is right and nothing here changes it.** `funiScan` counts against the roster, so a
+row that resolves to nothing cannot inflate it, and the two names that *could* have been lost are
+present under their real spelling. The uniques write path is already guarded — it writes only when
+the name resolves — so these are historical rows, not an open leak.
+
+⚠ **The unique roster uses BOTH apostrophe forms**: 83 straight, 4 curly (`Atma’s Scarab`,
+`Saracen’s Chance`, `Seraph’s Hymn`, `The Cat’s Eye`). The set roster uses only straight. Every
+comparison in this pipeline goes through a `_norm` that folds them — but an exact-match comparison
+written in future would silently miss those four. Recorded rather than "fixed": normalising the
+roster risks breaking matches against what the readers actually print.
+
+**REPORTED, NOT REMOVED.** Deleting grail rows that cost him nothing, to tidy a number that is
+already correct, is an unasked-for edit to his history. `_chRepairLedgers` now returns `debris` and
+touches none of it. Guards: `TestTheUniquesLedgerIsAuditedNotEdited` (3).
