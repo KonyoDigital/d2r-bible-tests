@@ -9010,3 +9010,34 @@ d2r_v1925RemainingRepairApplied    is a SPEC booting a later load  (suppression)
 suppressed: "this is a unique" is a structural invariant, not a one-shot decision, and it does not
 go stale. Measured — his board removes 3, a suppressed spec removes 1.
 [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]
+
+## MEASURED, NOT FIXED — Routine I produces a verdict about once in sixty runs (2026-08-21)
+
+Reading **every** CI workflow's history, not just the convenient ones:
+
+```
+Routine G  clean 9/9      Routine J  clean 9/9      Publish   clean 9/9
+Routine H  clean 9/9      Routine K  clean 9/9      Routine L clean 9/9
+📺 agent tests   6 failures — v1928..v1933, ALL FIXED by v1934's pathguard (green since)
+Routine I        1 completion in 12; 10 cancelled
+```
+
+`concurrency: cancel-in-progress: true` on `routine-i-${{ github.ref }}` means each push kills the
+running suite. Measured across 39 push-triggered runs: **36 of 38 gaps are under an hour, median 18
+minutes** — shorter than the suite takes. The nightly scheduled run shares the group deliberately
+("never doubles up with a late-evening push") and so is cancelled too.
+
+⚠ **THE HONEST READING IS THAT THIS IS MOSTLY MY FAILURE, NOT THE CI'S.** The config says plainly
+*"only the newest commit's verdict survives"*, and that design works — the last push does complete.
+**v1933's Routine I DID complete, with a failure, and I pushed four more times without reading it.**
+The gate produced its verdict and nobody looked.
+
+The secondary property is still real and worth him knowing: at an 18-minute push cadence the full
+suite rarely reaches a verdict, so a cross-spec regression can survive several ships. The
+pre-push smoke is 13 specs; Routine I is the whole suite.
+
+**NOT CHANGED.** The obvious fix — splitting the concurrency group by event so the nightly survives
+— was written, then reverted: it lets a push and the schedule run two full suites at once, which
+costs CI minutes and contradicts a documented decision. That is his money and his call. Options if
+he wants one: split the group by event (one guaranteed verdict a day, more minutes), or leave it and
+**read Routine I before the next push** — which is what the design already assumes.
