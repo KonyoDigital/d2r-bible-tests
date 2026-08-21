@@ -977,6 +977,8 @@
     border: 1px solid rgba(143,230,160,.34); background: rgba(143,230,160,.08); }
   .rcpt-guess { flex: none; margin-left: 6px; font-size: .78em; font-style: italic;
     font-weight: var(--fw-medium); letter-spacing: var(--ls-snug); color: var(--st-idle); opacity: .85; }
+  .rcpt.rc-empty { opacity: .55; }
+  .rcpt.rc-empty .rcpt-t { font-style: italic; }
   .rcpt-held { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: .78em;
     font-weight: var(--fw-semibold); letter-spacing: var(--ls-label); color: #ffb27a;
     border: 1px solid rgba(255,157,92,.42); background: rgba(255,157,92,.1); }
@@ -5652,8 +5654,11 @@
          ? '<span class="rcpt-sure" title="the accuracy gate certified this read' +
            ((r.gate && r.gate.reason) ? ' — ' + esc(r.gate.reason) : '') + '">✓ gated</span>'
          : '<span class="rcpt-guess" title="nothing has verified this yet — the live eye said it, the gate has not certified it">live guess</span>');
+    /* v1943 — an EMPTY routing is dimmed, so a row that carried nothing cannot pass at a glance
+       for one that carried something. 45 of his 46 intakes counted zero and every one of them wore
+       exactly the chrome of the single success. */
     return '<div class="rcpt ' + eng.cls + (go ? ' rc-go' : '') + (refs.frameId ? ' rc-art' : '')
-      + (held ? ' rc-held' : '') + '"'
+      + (held ? ' rc-held' : '') + (r.empty ? ' rc-empty' : '') + '"'
       + ' data-id="' + esc(r.id || '') + '"' + (refs.frameId ? (' data-frame="' + esc(refs.frameId) + '"') : '')
       + (go ? (' data-rtype="' + esc(r.route.type) + '" data-rtarget="' + esc(r.route.target) + '"') : '') + '>'
       + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t">' + esc(txt) + '</span>' + chip

@@ -8747,9 +8747,34 @@ def _receipts_stream():
                         tot = int(sum(int(v) for v in ik["counts"].values()))
                     except Exception:
                         tot = 0
+                # ── v1943 — A ROUTE THAT CARRIED NOTHING MUST NOT READ LIKE ONE THAT CARRIED
+                # SOMETHING. Konyo: "also AI read needs an update", looking at five identical
+                # `routed · ROUTED gems` rows.
+                #
+                # They were not vague — they were EMPTY, and the row could not tell him. MEASURED
+                # over his whole journal (4412 rows, 46 intakes, 2026-07-25 -> 2026-08-21 16:52):
+                # ONE succeeded and FORTY-FIVE counted nothing. The last eight are all
+                # ok=False errors=0 total=0 — the reader ran fine and found nothing to tally — and
+                # every one of them rendered exactly like a successful routing.
+                #
+                # `×N` was already appended when there was an N. The bug is the silence when there
+                # is not: `if tot` is falsy at zero, so a routing of nothing printed the same words
+                # as a routing of seven. Zero is a MEASUREMENT and it gets said out loud — the same
+                # rule v1887 applied to the stash tallies next door. [[unknown-stays-unknown]]
+                _ok = bool(ik.get("ok", True))
+                _err = int(ik.get("errors") or 0)
+                if tot:
+                    _tail = " \u00d7%d" % tot
+                elif _err:
+                    _tail = " \u00b7 read failed (%d image error%s)" % (_err, "" if _err == 1 else "s")
+                elif not _ok:
+                    _tail = " \u00b7 nothing counted"
+                else:
+                    _tail = ""
                 out.append({"id": "%s:%s:0" % (engine, frame_key), "engine": engine, "kind": kind,
                             "ts": ts, "refs": _refs(), "gate": gate, "held": held,
-                            "diablo": {"label": ("ROUTED " + tab + (" ×%d" % tot if tot else "")).strip()} if tab else None,
+                            "empty": (not tot),
+                            "diablo": {"label": ("ROUTED " + tab + _tail).strip()} if tab else None,
                             "route": {"type": "session", "target": sid} if sid else None})
                 continue
 
@@ -12851,7 +12876,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1942",
+        "ver": "v1943",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

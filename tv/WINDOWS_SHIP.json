@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1942",
+  "ver": "v1943",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1942: His F Sets froze at 117. The repair had already stamped this reading as acted-on, but the effect was undone by REG-300 before v1939 fixed it, so the repair refused to act again and the wrong count froze in. It now honours a RECORDED re-tick instead of inferring one from a timestamp.",
+  "note": "v1943: Forty-five of his forty-six intakes counted zero, and every one of them rendered in the feed exactly like the single success. The row now says nothing counted, or names the image errors, and an empty routing is dimmed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

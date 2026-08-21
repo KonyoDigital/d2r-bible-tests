@@ -2323,6 +2323,67 @@ class TestMasterBrainReconciler(unittest.TestCase):
         self.assertFalse(entry["sealed"])       # provisional guess — sealed reel wins in retro
         self.assertIn("f_5.jpg", entry["f"])
 
+class TestAnEmptyRoutingSaysSo(unittest.TestCase):
+    """v1943 — A ROUTE THAT CARRIED NOTHING MUST NOT READ LIKE ONE THAT CARRIED SOMETHING.
+
+    Konyo: *"also AI read needs an update"*, looking at five identical `routed · ROUTED gems` rows
+    in the AI-READS feed. They were not vague — they were EMPTY, and the row could not tell him.
+
+    MEASURED across his whole journal (4412 rows, 46 intake records, 2026-07-25 -> 2026-08-21
+    16:52): ONE succeeded and FORTY-FIVE counted nothing. The most recent eight are all
+    `ok=False errors=0 total=0` — the reader ran fine and found nothing to tally — and every one
+    rendered with exactly the chrome of the single success.
+
+    `×N` was already appended when there WAS an N. The defect was the silence when there was not:
+    `if tot` is falsy at zero, so a routing of nothing printed the same words as a routing of seven.
+    Zero is a measurement, and it gets said out loud. [[unknown-stays-unknown]]
+    """
+
+    def _stream_with(self, intake):
+        import control_app as ca
+        d = tempfile.mkdtemp(prefix="rcpt_")
+        jp = os.path.join(d, "sessions.jsonl")
+        with io.open(jp, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"lane": "intake", "ts": 1787000000000,
+                                "sessionId": "s1", "frameId": "f1", "intake": intake}) + "\n")
+        old = os.environ.get("TV_SESSIONS")
+        os.environ["TV_SESSIONS"] = jp
+        globals_cache = ca.__dict__.pop("_RECEIPTS_CACHE", None)   # the stream memoises on mtime
+        try:
+            # the RECEIPT kind is "route"; "routed" is the word the UI prints for it
+            return [r for r in ca._receipts_stream() if r.get("kind") == "route"]
+        finally:
+            ca.__dict__["_RECEIPTS_CACHE"] = globals_cache
+            if old is None:
+                os.environ.pop("TV_SESSIONS", None)
+            else:
+                os.environ["TV_SESSIONS"] = old
+
+    def test_a_routing_that_counted_nothing_says_nothing_counted(self):
+        rows = self._stream_with({"tab": "gems", "kind": "kai-funnel", "ok": False,
+                                  "errors": 0, "total": 0})
+        self.assertTrue(rows, "the intake lane produced no route receipt at all")
+        label = (rows[0].get("diablo") or {}).get("label") or ""
+        self.assertIn("nothing counted", label,
+                      "a routing that carried nothing reads exactly like one that carried "
+                      "something: %r" % label)
+        self.assertTrue(rows[0].get("empty"), "the row is not marked empty, so the feed cannot dim it")
+
+    def test_a_read_that_ERRORED_says_that_instead(self):
+        rows = self._stream_with({"tab": "runes", "kind": "tally", "ok": False,
+                                  "errors": 2, "total": 0})
+        label = (rows[0].get("diablo") or {}).get("label") or ""
+        self.assertIn("read failed", label, "an image error was reported as an empty shelf: %r" % label)
+        self.assertIn("2 image errors", label, "the error COUNT was dropped: %r" % label)
+
+    def test_a_real_routing_is_untouched(self):
+        rows = self._stream_with({"tab": "gems", "kind": "tally", "ok": True,
+                                  "errors": 0, "total": 7})
+        label = (rows[0].get("diablo") or {}).get("label") or ""
+        self.assertIn("×7", label, "a genuine count lost its number: %r" % label)
+        self.assertNotIn("nothing counted", label)
+        self.assertFalse(rows[0].get("empty"), "a routing of seven was marked empty")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
