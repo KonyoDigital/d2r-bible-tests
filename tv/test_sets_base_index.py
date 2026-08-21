@@ -309,5 +309,57 @@ class TestEveryLedgerStatusHasAPill(unittest.TestCase):
                          "render as bare text: %s" % missing)
 
 
+class TestEverySweepPayloadKeyIsRead(unittest.TestCase):
+    """A key computed, attached to a payload, and read by nothing.
+
+    Found by sweeping the chronicle sweep RESULT payload against both UI files with comments
+    stripped: seven keys no UI had ever read. Two mattered and are now rendered —
+
+        newlyDated        (v1846) the finds whose IN-GAME date is newer than the last sweep, which
+                          is exactly what he asked for when he said the stamp must be when he found
+                          it in game and NOT when the reader registered it. Computed for eighty
+                          versions, shown nowhere.
+        contestedExpired  (v1923, mine) names dropped from the contested count because the newest
+                          look says found.
+
+    ⚠ contestedExpired shipped in the SAME COMMIT that fixed calibration, contested and denial for
+    this exact defect. Fixing three instances of a class and shipping a fourth is how a class
+    survives being fixed. [[plumbing-with-no-tap]] [[feedback-generalize-fixes]]
+
+    ⚠ The first sweep was UNSCOPED and returned 153 keys — subprocess kwargs, HTTP headers,
+    platform strings. A finding too large to act on is noise. Scoped to the result payload it
+    returned 7. [[sweep-dont-ask]]
+    """
+
+    KEYS = ("calibration", "contested", "denial", "notFoundDatable", "newlyDated",
+            "contestedExpired")
+
+    def test_each_payload_key_the_panel_depends_on_is_actually_read(self):
+        import re
+        def strip(src):
+            src = re.sub(r"/\*.{0,4000}?\*/", " ", src, flags=re.S)
+            return re.sub(r"(?m)^\s*//.*$", " ", src)
+        with io.open(os.path.join(ROOT, "tv", "control_ui.html"), encoding="utf-8") as fh:
+            ui = strip(fh.read())
+        unread = [k for k in self.KEYS
+                  if not re.search(r"[.\[]['\"]?%s" % re.escape(k), ui)]
+        self.assertEqual(unread, [],
+                         "these are written into the sweep payload and no UI reads them, so they "
+                         "read as protection from the code side and carry nothing: %s" % unread)
+
+    def test_the_dropped_diagnostic_key_is_not_back_in_the_payload(self):
+        """contestedResolved is per-name internals that drive no decision. If it returns, it must
+        return with a consumer."""
+        import re
+        with io.open(os.path.join(ROOT, "tv", "control_app.py"), encoding="utf-8") as fh:
+            ca = fh.read()
+        with io.open(os.path.join(ROOT, "tv", "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        in_payload = '"contestedResolved": prop.get' in ca
+        read = bool(re.search(r"[.\[]['\"]?contestedResolved", ui))
+        self.assertFalse(in_payload and not read,
+                         "contestedResolved is back on the payload with nothing reading it")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

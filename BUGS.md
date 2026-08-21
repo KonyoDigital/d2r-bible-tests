@@ -8736,3 +8736,32 @@ reel_s_1787243026006_12211     1 free of 40   (2 of 3 agreed; 1 disagreed)
 
 Six of sixteen reels hold a readable inventory; the other ten say **"no frame held a readable
 inventory panel — which is not the same as an empty inventory"** rather than printing 0 free.
+
+## REG-290 — seven payload keys no UI ever read, and two of them were mine (FIXED v1930)
+
+Sweeping the chronicle sweep RESULT payload against both UI files, comments stripped, found **seven
+keys nothing has ever read**. Two mattered:
+
+- **`newlyDated`** (v1846) — the finds whose **in-game** date is newer than anything read before this
+  sweep. That is precisely what he asked for: *"the items need to eventually be timestamped to the
+  ingame finding … (NOT WHEN THE AI REGISTERED IT)"*. Computed for eighty versions, shown nowhere.
+- **`contestedExpired`** (v1923, mine) — names dropped from the contested count because the newest
+  look says found. Without it a row he saw flagged silently stops being flagged and nothing says why.
+
+⚠ **`contestedExpired` shipped in the SAME COMMIT that fixed `calibration`, `contested` and `denial`
+for this exact defect.** Fixing three instances of a class and shipping a fourth is how a class
+survives being fixed. [[feedback-generalize-fixes]] [[plumbing-with-no-tap]]
+
+`contestedResolved` (also mine) drove no decision and is **removed from the payload** rather than
+rendered — it is derivable, and an unread key is the thing being swept for.
+
+⚠ **The first sweep was unscoped and returned 153 keys** — subprocess kwargs, HTTP headers, platform
+strings. A finding too large to act on is noise; scoped to the result payload it returned 7.
+[[sweep-dont-ask]]
+
+## REG-291 — `\U` is not a JavaScript escape (FIXED v1930)
+
+The new block's icon was written `'\U0001f5d3'`. JavaScript understands `\uXXXX` and `\u{...}`, not
+uppercase `\U` — so the panel rendered the literal text **`U0001f5d3 2 find(s) carry…`**. The JS
+syntax gate passed (it is valid JS, just not the escape intended) and no text assertion would have
+caught it. Found by looking at the rendered strip. Swept both UI files for siblings: none.

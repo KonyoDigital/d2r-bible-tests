@@ -12481,7 +12481,13 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     "denial": _denial,
                     # v1923 — what this proposal is ALLOWED to conclude from its not-found side.
                     "notFoundDatable": prop.get("notFoundDatable"),
-                    "contestedResolved": prop.get("contestedResolved"),
+                    # v1930 — `contestedResolved` (the per-name verdict detail) was here and no UI
+                    # ever read it. It is DERIVABLE — `contestedExpired` is computed from it in
+                    # chronicle_retro — and it drives no decision he makes, so it is dropped from
+                    # the payload rather than rendered. The engine keeps it on the proposal, where
+                    # a debugger can still reach it.
+                    # Shipping an unread key in the very commit that fixed three of them is how a
+                    # class survives being fixed. [[plumbing-with-no-tap]]
                     "contestedExpired": prop.get("contestedExpired"),
                     # v1921 — THE NAMES READ BOTH WAYS. A piece the reader saw as FOUND on one page
                     # and NOT FOUND on another is the most informative row in a proposal, and until
@@ -12715,7 +12721,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1929",
+        "ver": "v1930",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

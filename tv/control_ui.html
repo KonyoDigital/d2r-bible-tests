@@ -13522,6 +13522,36 @@ function escC(s) {
         'nothing is wrong with the finds above \u2014 it means no not-found reading in this batch '
         + 'may be used to argue against one. Sweep again and they arrive with receipts.');
     }
+    /* v1930 — TWO MORE THINGS THAT WERE COMPUTED AND THROWN AWAY, and one of them is mine.
+       A payload-reach sweep over the sweep RESULT found seven keys no UI has ever read. Two matter:
+
+         newlyDated        (v1846) the finds whose IN-GAME date is newer than anything read before
+                           this sweep — precisely what he asked for when he said the timestamp must
+                           be "when found ingame (NOT WHEN THE AI REGISTERED IT)". Computed for
+                           eighty versions and shown nowhere.
+         contestedExpired  (v1923, mine) names dropped from the contested count because the NEWEST
+                           look says found. Without it a row he saw flagged yesterday silently
+                           stops being flagged and nothing says why.
+
+       ⚠ I added contestedExpired in the SAME COMMIT that fixed calibration, contested and denial
+       for exactly this defect. Fixing three instances of a class and shipping a fourth is how a
+       class survives being fixed. [[feedback-generalize-fixes]] [[plumbing-with-no-tap]] */
+    var nd = res.newlyDated || [];
+    if (nd.length) {
+      push(3.5, 'ok', '\u{1f5d3} ' + nd.length + ' find(s) carry an in-game date newer than your last sweep',
+        escC(nd.slice(0, 8).map(function (x) {
+          return x.name + (x.foundAt ? ' \u00b7 ' + x.foundAt : '');
+        }).join('  \u2014  ')) + (nd.length > 8 ? ' \u2026 and ' + (nd.length - 8) + ' more' : ''),
+        'these are the game\u2019s OWN dates, not when the reader saw them \u2014 nothing to do.');
+    }
+    var ce = res.contestedExpired || {};
+    var ceAll = [].concat(ce.uniques || [], ce.sets || []);
+    if (ceAll.length) {
+      push(4.5, 'ok', '\u2713 ' + ceAll.length + ' were read both ways and the NEWEST look says found',
+        escC(ceAll.slice(0, 8).join(', ')) + (ceAll.length > 8 ? ' \u2026' : ''),
+        'not contradictions \u2014 the not-found reading is older and has expired, so they are not '
+        + 'listed above.');
+    }
     if (cal && cal.ok === null && cal.say) {
       /* UNKNOWN IS NOT AGREEMENT, and it must not be silent either — a check that did not run looks
          exactly like a check that passed if nothing says otherwise. It ranks LAST because it is the
