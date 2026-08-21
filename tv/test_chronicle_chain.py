@@ -342,5 +342,112 @@ class TestTheSecondEyeReceipt(unittest.TestCase):
                                 "— the report is un-aligned:\n%s" % (name, row[0]))
 
 
+class TestANotFoundReceiptSurvivesTheWholeChain(unittest.TestCase):
+    """THE JOIN, END TO END, THROUGH THE REAL PERSISTENCE PATH — no mocks.
+
+    v1923 made a not-found reading expire when a later look disagrees, and I told Konyo the receipts
+    that make that possible "arrive on the next sweep". That is a PROMISE, and a promise about a
+    seam is exactly the shape this file exists to refuse: `proposal_from_pages` writing a receipt
+    and `resolve_contested` reading one are two halves that can each be perfect while nothing joins
+    them, and the failure would be silent by construction. [[the-unjoined-end]]
+
+    So this walks the real thing: a page that reads a piece NOT FOUND, a later page that reads it
+    FOUND, through merge_proposals and through _chron_evidence_save/_load to disk and back, and
+    asserts the resolver calls the older not-found EXPIRED rather than a contradiction.
+
+    That is the precise case behind the wrong answer of 2026-08-21 — "12 of your 36 set pieces are
+    ones the game shows as not-found", when three of them had been found since and the true number
+    was one. If this test ever goes red, that answer becomes possible again.
+    """
+
+    def test_the_receipt_is_written_survives_the_merge_and_reaches_the_resolver(self):
+        tmp = tempfile.mkdtemp(prefix="receipt-chain-")
+        sys.path.insert(0, HERE)
+        import chronicle_retro as cr
+        import control_app as ca
+        import counter_ledger as cl
+
+        # ⚠ THE ENV VAR IS READ ONCE, AT IMPORT. `_CHRON_EVIDENCE_PATH` is a module-level constant
+        # bound from TV_CHRON_EVIDENCE when control_app is first imported — which, in a suite, has
+        # already happened. Setting the environment here changes NOTHING and the write lands on his
+        # real banked evidence.
+        #
+        # The first draft of this test did exactly that and **truncated tv/chron_evidence.json from
+        # 525,187 bytes to 748** — 298 proposed uniques and 86 set pieces across 767 paid-for page
+        # reads, replaced by a two-item fixture. It was recovered in full from chron_last_result.json,
+        # which holds the same proposal; had that file not existed, the only way back would have been
+        # re-reading his entire history at full price.
+        #
+        # So: patch the ATTRIBUTE, and then ASSERT THE REDIRECT TOOK. Setting up a redirect and never
+        # checking it is the whole defect — the fixture looked isolated and was not.
+        # [[feedback-fixtures-never-touch-live-data]]
+        live = ca._CHRON_EVIDENCE_PATH
+        before = os.path.getsize(live) if os.path.isfile(live) else None
+        old = ca._CHRON_EVIDENCE_PATH
+        ca._CHRON_EVIDENCE_PATH = os.path.join(tmp, "ev.json")
+        self.assertNotEqual(ca._CHRON_EVIDENCE_PATH, live,
+                            "the redirect did not take — refusing to run a write test that would "
+                            "land on live data")
+        try:
+
+            older = [{"reel": "s_1787177267889_92273", "frame": "f_1787177277865.jpg",
+                      "resp": {"ledger": "sets", "lane": "claude",
+                               "found": ["Aldur's Rhythm (mace)"],
+                               "notFound": ["Natalya's Soul (claws)"]}}]
+            p1 = cr.proposal_from_pages(older)
+            seen = (p1.get("notFoundSeen") or {}).get("sets") or {}
+            self.assertIn("Natalya's Soul (claws)", seen,
+                          "the not-found reading reached the proposal with NO receipt — which is "
+                          "the state that made a claim on undatable evidence possible")
+            self.assertTrue(seen["Natalya's Soul (claws)"][0].get("frame"),
+                            "a receipt with no frame cannot be ordered, so it is not a receipt")
+
+            newer = [{"reel": "s_1787999999999_1", "frame": "f_1787999999999.jpg",
+                      "resp": {"ledger": "sets", "lane": "grok",
+                               "found": ["Natalya's Soul (claws)"]}}]
+            merged = cr.merge_proposals(p1, cr.proposal_from_pages(newer))
+            self.assertTrue((merged.get("notFoundSeen") or {}).get("sets"),
+                            "merge_proposals dropped the receipts")
+
+            ca._chron_evidence_save(merged)
+            back = ca._chron_evidence_load()
+            self.assertTrue((back or {}).get("notFoundSeen"),
+                            "the receipts did not survive the round trip to disk")
+
+            r = cl.resolve_all(back)
+            v = (r.get("sets") or {}).get("Natalya's Soul (claws)")
+            self.assertIsNotNone(v, "the resolver never saw the contested name")
+            self.assertEqual(v["verdict"], "found",
+                             "the not-found look is OLDER than the found one, so it is expired — "
+                             "calling this a contradiction is the 12-vs-1 defect")
+        finally:
+            ca._CHRON_EVIDENCE_PATH = old
+            shutil.rmtree(tmp, ignore_errors=True)
+            after = os.path.getsize(live) if os.path.isfile(live) else None
+            self.assertEqual(after, before,
+                             "THIS TEST WROTE TO THE LIVE BANKED EVIDENCE (%s). Those bytes were "
+                             "paid for by real page reads." % live)
+
+    def test_the_same_chain_still_reports_a_REAL_contradiction(self):
+        """Seen red for its own reason: if the newer look is the not-found one, it must survive as
+        a contradiction. A resolver that expires everything is as useless as one that expires
+        nothing. [[feedback-blind-fixture-green-gate]]"""
+        sys.path.insert(0, HERE)
+        import chronicle_retro as cr
+        import counter_ledger as cl
+        found_first = [{"reel": "s_1787177267889_92273", "frame": "f_1787177277865.jpg",
+                        "resp": {"ledger": "sets", "lane": "claude",
+                                 "found": ["Natalya's Soul (claws)"]}}]
+        nf_later = [{"reel": "s_1787999999999_1", "frame": "f_1787999999999.jpg",
+                     "resp": {"ledger": "sets", "lane": "grok",
+                              "notFound": ["Natalya's Soul (claws)"]}}]
+        merged = cr.merge_proposals(cr.proposal_from_pages(found_first),
+                                    cr.proposal_from_pages(nf_later))
+        v = (cl.resolve_all(merged).get("sets") or {}).get("Natalya's Soul (claws)")
+        self.assertEqual(v["verdict"], "not-found",
+                         "the NEWER look says not-found, so this is a real contradiction and must "
+                         "not be expired away")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

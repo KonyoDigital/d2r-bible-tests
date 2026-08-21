@@ -11927,5 +11927,76 @@ class TestV1923EveryCssVariableUsedIsActuallyDefined(unittest.TestCase):
 
 
 
+class TestV1924LiveStateFollowsTheFixture(unittest.TestCase):
+    """v1869 wrote the right rule and bound it at the wrong time.
+
+    `tv_diablo.STATE` was computed ONCE, at import, from TV_HIST. Inside a suite the import happens
+    during collection, so a test that repoints TV_HIST in its own body got his real tree anyway —
+    the redirect looked applied and was not, which is the same trap that truncated his banked
+    evidence the same night.
+
+    MEASURED ON HIS MACHINE, 2026-08-21: one gate run wrote **39 stub reads into the live
+    tv/state.json**, replaced his session id, and left `readCount: 39` against `cap: 240`. The file
+    went 3,867 -> 49,080 bytes and every read in it was `mode: "stub"`. It had been happening on
+    every local run, silently, because nothing compared the file before and after.
+
+    Guarded here and, behaviourally, by tv/conftest.py — which is what caught it.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+
+    def _tvd(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import tv_diablo as tvd
+        return tvd
+
+    def test_a_TV_HIST_set_after_import_still_redirects_live_state(self):
+        import tempfile
+        tvd = self._tvd()
+        real = tvd._state_path()
+        tmp = tempfile.mkdtemp(prefix="statepath-")
+        old_env, old_state = os.environ.get("TV_HIST"), tvd.STATE
+        try:
+            os.environ["TV_HIST"] = tmp
+            self.assertNotEqual(tvd._state_path(), real,
+                                "TV_HIST set after import must still move live state — this is the "
+                                "exact hole that spent 39 of his 240 daily reads")
+            self.assertTrue(tvd._state_path().startswith(os.path.realpath(tmp)))
+        finally:
+            tvd.STATE = old_state
+            if old_env is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old_env
+
+    def test_an_explicit_STATE_assignment_still_wins(self):
+        """Seen the other way too: a test that says exactly where state goes must not be overruled
+        by the environment, or every existing suite that assigns STATE breaks."""
+        import tempfile
+        tvd = self._tvd()
+        tmp = tempfile.mkdtemp(prefix="statepath2-")
+        old_env, old_state = os.environ.get("TV_HIST"), tvd.STATE
+        try:
+            os.environ["TV_HIST"] = tmp
+            tvd.STATE = os.path.join(tmp, "explicit.json")
+            self.assertTrue(tvd._state_path().endswith("explicit.json"))
+        finally:
+            tvd.STATE = old_state
+            if old_env is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old_env
+
+    def test_the_canary_that_found_it_is_installed(self):
+        """A behavioural guard that lives in a file nobody collects is not a guard."""
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conftest.py")
+        self.assertTrue(os.path.isfile(p), "tv/conftest.py is missing — the live-data canary is gone")
+        with open(p, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("chron_evidence.json", src)
+        self.assertIn("state.json", src)
+        self.assertIn("autouse=True", src, "the canary must run without being asked for")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

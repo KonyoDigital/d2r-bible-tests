@@ -8551,3 +8551,42 @@ readings carry no reel and no frame — receipts only arrived in v1921. So every
 and the engine refuses to quote any of them. That is the correct answer and it is also the proof
 that my "12" was never supportable by that file. `python3 tv/counter_ledger.py --audit` reports it
 and exits non-zero. Guards: `TestANotFoundReadingExpires` (6). [[stale-reading]] [[unknown-stays-unknown]]
+
+## REG-280 — a test spawned his engine and never reaped it (FIXED v1924)
+
+`tv/state.json` grew from **3,867 to 136,116 bytes** during a local gate run, carrying **80 stub
+reads** and leaving `readCount: 39` against a `cap: 240` — a test run had spent a sixth of his daily
+read budget.
+
+The cause was not the tests writing directly. A suite spawned `tv/tv_diablo.py` as a real
+subprocess and never reaped it; it ran for **22 minutes**, writing a stub read into his live state
+every ~17 seconds. The proof was in the file itself: `sessionId: s_1787314996559_31332` embeds the
+orphan's PID, 31332. Reaped by PID (never `pkill -f`). [[process-port-discipline]]
+
+## REG-281 — the v1869 live-state rule was bound at the wrong time (FIXED v1924)
+
+v1869 established the right rule — when `TV_HIST` points outside his tree, live state follows the
+fixture — and computed `tv_diablo.STATE` **once, at import**. Inside a suite the import happens
+during collection, so a test that repoints `TV_HIST` in its own body got his real tree anyway. The
+redirect looked applied and was not: the same trap, on the same night, that truncated his banked
+evidence.
+
+Worse, most suites never set `TV_HIST` at all, so the "default" was his live file. Measured:
+`test_agent`, `test_routes` and `test_control` each grew it ~1.7 KB per run, and had been doing so
+for as long as they existed. **A default that is safe only when the caller remembers to redirect is
+not a default, it is a trap.** `_state_path()` now resolves at call time, an explicit
+`tv_diablo.STATE = …` still wins, and under pytest with nothing redirected it lands in a temp dir.
+
+## REG-282 — nothing compared the live files before and after a test run (FIXED v1924)
+
+Both of the above had been happening on **every local run**, silently, because no check ever asked
+the only question that matters: *did the bytes change?*
+
+`tv/conftest.py` is a session-scoped autouse canary over the eight irreplaceable files — banked page
+reads, the last proposal, the play journal, the visit ledgers. **Every one is gitignored: there is
+no git recovery for any of them.**
+
+⚠ The obvious static guard was written first and **returned 26 hits, nearly all correct code** —
+`TV_HIST` and `TV_SESSIONS` are read at call time as well as at import, so redirecting them mid-test
+genuinely works. A guard with 26 false positives is a guard nobody reads. The canary has none,
+because it reasons about no mechanism at all. Seen RED on a planted write.

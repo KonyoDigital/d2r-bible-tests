@@ -259,5 +259,55 @@ class TestANotFoundReadingExpires(unittest.TestCase):
                          "confident number from it")
 
 
+class TestThePhantomNamer(TempDirCase):
+    """`--phantoms` names the board rows the game denies. Tested because an untested CLI branch is
+    a branch that works until the one evening he needs it."""
+
+    def _run(self, board_names, remaining=("Natalya's Soul (claws)",), counts=None):
+        import control_app as ca
+        _reading(self._tmp, list(remaining))
+        payload = json.dumps({"ok": True,
+                              "counts": {"foundLog": 0, "owned": 0,
+                                         "setPieces": counts if counts is not None else len(board_names)},
+                              "sample": {"foundLog": [], "owned": [], "setPieces": list(board_names)}})
+        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"), ca._ejs)
+        ca.__dict__["_MAIN_WIN"] = object()
+        ca.__dict__["_WINDOW_LIVE"] = True
+        ca._ejs = lambda w, js, timeout=8.0: payload
+        import io as _io
+        import contextlib
+        buf = _io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                rc = cl.main(["--phantoms"])
+        finally:
+            ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"], ca._ejs = old
+        return rc, buf.getvalue()
+
+    def test_it_names_the_row_the_game_denies(self):
+        rc, out = self._run(["Natalya's Soul (claws)", "Aldur's Rhythm (mace)"])
+        self.assertIn("Natalya's Soul (claws)", out)
+        self.assertIn("the rows to untick", out)
+        self.assertEqual(rc, 1, "a board carrying a denied row must not exit clean")
+
+    def test_a_clean_board_says_so_and_exits_zero(self):
+        """Seen green for its own reason, not because the namer names nothing.
+
+        The account has to CLOSE for this to be clean: 116 found + 19 missing = the 135 roster. An
+        earlier draft passed one missing name and expected zero, which made the exit code report a
+        19-piece shortfall rather than the clean board it claimed to be testing."""
+        remaining = ["p%d" % i for i in range(19)]
+        rc, out = self._run(["Aldur's Rhythm (mace)"], remaining=remaining, counts=116)
+        self.assertNotIn("the rows to untick", out)
+        self.assertIn("consistent with the game", out)
+        self.assertEqual(rc, 0)
+
+    def test_a_capped_sample_is_reported_rather_than_read_as_complete(self):
+        """The board says 118 and lists 2: a phantom could be hiding in the 116 nobody read, and
+        that must never be reported as 'no phantoms found'. [[unknown-stays-unknown]]"""
+        rc, out = self._run(["Aldur's Rhythm (mace)", "Aldur's Advance (boots)"], counts=118)
+        self.assertIn("the sample was capped", out)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

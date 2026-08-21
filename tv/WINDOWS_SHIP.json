@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1923",
+  "ver": "v1924",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1923: The game keeps its own list of what he does NOT have, and until now nothing in the pipeline could read a negative: every reader reads a found page and proposes an addition, so the count could only ever go up and a wrong row was invisible to all of it. One recording of the Chronicle Remaining filter falsifies rows no amount of found page reading could, and completes by subtraction - roster 135 minus remaining 19 gives the 116 he owns exactly, by name, with no model call. Wired at three points: the sweep flags a denied row, the panel shows it with its own next action, and the apply path withholds it, because a flag the register button ignores is decoration. It is time ordered, so a piece found after the page was shot is superseded rather than denied and an unestablished order stays UNKNOWN. Also joins calibration and contested to the panel - both were computed and thrown away - and fixes a CSS token that did not exist and so rendered the calming block louder than the warnings.",
+  "note": "v1924: A test truncated his banked page reads from 525187 bytes to 748 - 298 proposed uniques and 86 set pieces across 767 paid-for reads - because it redirected the evidence store with an environment variable while the consumer had bound that path at import. The redirect was a no-op and the write landed on his real file. It was recovered in full from the last-result store, which happens to hold the same proposal; had it not, the only way back was re-reading his whole history at full price. The same trap had a second victim: live state. A suite spawned the engine as a subprocess and never reaped it, so it ran 22 minutes writing stub reads into his real state.json, and separate suites grew it every run, leaving readCount 39 against a cap of 240. Both had been happening on every local run, silently, because nothing ever asked whether the bytes changed. A session-scoped canary now fingerprints the eight gitignored files that have no git recovery and fails the run naming any that moved. The static version of this guard was tried first and produced 26 false positives, so the canary reasons about no mechanism at all.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

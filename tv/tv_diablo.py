@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1923"   # The counter ledger
+VERSION = "v1924"   # The live-data canary
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -119,6 +119,60 @@ def _fixture_root(here):
 
 
 STATE  = os.path.join(_fixture_root(HERE), "state.json")
+_STATE_DEFAULT = STATE     # what import time chose, so a later explicit override is recognisable
+_TEST_STATE_DIR = [None]
+
+
+def _under_test():
+    """True when this process is a test run.
+
+    PYTEST_CURRENT_TEST is set by pytest for the duration of each test; `pytest` in sys.modules
+    covers collection and module import, which is when several suites already write. Both are
+    checked because either alone leaves a window, and the cost of a false positive here is a state
+    file in a temp directory — while the cost of a false negative is his real one.
+    """
+    return bool(os.environ.get("PYTEST_CURRENT_TEST")) or ("pytest" in sys.modules)
+
+
+def _test_state_dir():
+    """One temp directory per test process, created lazily and never cleaned up by us — a test that
+    wants to inspect what was written must still be able to find it."""
+    if _TEST_STATE_DIR[0] is None:
+        import tempfile
+        _TEST_STATE_DIR[0] = tempfile.mkdtemp(prefix="tvd-test-state-")
+    return _TEST_STATE_DIR[0]
+
+
+def _state_path():
+    """Where live state belongs RIGHT NOW — not where it belonged at import.
+
+    ⚠ v1924 — THE v1869 RULE ABOVE WAS CORRECT AND UNREACHABLE HALF THE TIME. `STATE` is computed
+    once, when this module is first imported, so a caller that repoints TV_HIST *afterwards* — which
+    is what a test method does, because the import happened during collection — got his real tree
+    anyway. The redirect looked applied and was not.
+
+    Measured on his own machine, 2026-08-21: one gate run wrote **39 stub reads into his live
+    tv/state.json**, replaced his session id, and left `readCount: 39` against a `cap: 240` — the
+    tests spent a sixth of his daily read budget and the file grew 3,867 -> 49,080 bytes. Every one
+    of those reads was `mode: "stub"`. It had been happening on every local run.
+
+    Explicit still wins: a test that assigns `tv_diablo.STATE = <tmp>` has said exactly where it
+    wants state, and that is honoured untouched. Only the untouched default re-reads the environment.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+    if STATE != _STATE_DEFAULT:
+        return STATE
+    root = _fixture_root(HERE)
+    if root == HERE and _under_test():
+        # ⚠ NOTHING REDIRECTED, AND WE ARE IN A TEST. v1869 only moves live state when TV_HIST says
+        # so, and most suites never set it — so `test_agent`, `test_routes` and `test_control` each
+        # wrote stub reads straight into his real state.json, measured at roughly 1.7 KB a suite,
+        # every local run, for as long as they have existed. A default that is safe only when the
+        # caller remembers to redirect is not a default, it is a trap. [[feedback-fixtures-never-touch-live-data]]
+        return os.path.join(_test_state_dir(), "state.json")
+    return os.path.join(root, "state.json")
+
+
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
 # v780 — one ON cycle = one theatre session. Every journal row carries this id so SIM/theatre
 # never glues multiple restarts into one mega-run (the 10min gap alone was too soft).
@@ -462,12 +516,13 @@ def _load():
     """v879 — one cold disk read per process; every later _load() is the in-memory dict.
     The old per-call json.load ran at 4Hz from /state AND inside every apply."""
     global _STATE_MEM, _STATE_PATH
-    if _STATE_MEM is None or _STATE_PATH != STATE:
-        _STATE_PATH = STATE
+    _p = _state_path()
+    if _STATE_MEM is None or _STATE_PATH != _p:
+        _STATE_PATH = _p
         _STATE_MEM = None
     if _STATE_MEM is None:
         try:
-            with open(STATE, encoding="utf-8") as f:
+            with open(_p, encoding="utf-8") as f:
                 _STATE_MEM = json.load(f)
         except Exception:
             _STATE_MEM = {"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0}
@@ -478,7 +533,7 @@ def _save(st):
     st is the in-memory dict (or replaces it — replay/tests pass fresh dicts)."""
     global _STATE_MEM, _STATE_PATH
     _STATE_MEM = st
-    _STATE_PATH = STATE
+    _STATE_PATH = _state_path()
     _STATE_DIRTY[0] = True
 
 def _state_flush():
@@ -487,9 +542,10 @@ def _state_flush():
     st = _STATE_MEM
     if st is None:
         return
-    tmp = STATE + ".tmp"
+    _p = _state_path()
+    tmp = _p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f: json.dump(st, f)
-    os.replace(tmp, STATE)
+    os.replace(tmp, _p)
     _STATE_DIRTY[0] = False
 
 def _state_saver_loop():

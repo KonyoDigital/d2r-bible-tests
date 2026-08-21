@@ -556,6 +556,45 @@ def main(argv=None):
     sys.path.insert(0, HERE)
     import chronicle_resolve as _res
     roster = _res.load_set_roster() if ledger == "sets" else _res.load_roster()
+    if "--phantoms" in argv:
+        # NAME THE WRONG ROWS. The arithmetic can say "the board carries 2 it should not" from the
+        # counts alone; naming them needs the board's actual list, which lives in localStorage and
+        # therefore needs his console open. That is a real dependency, not a missing feature — and
+        # the honest thing is to say so in one line rather than to guess or to fail obscurely.
+        try:
+            sys.path.insert(0, HERE)
+            import control_app as _ca
+            own = _ca.board_ownership(400) or {}
+        except Exception as e:
+            print("could not reach the board: %s" % str(e)[:160])
+            print("⚠ that is 'nobody asked the board', not 'the board is fine'.")
+            return 2
+        if not own.get("ok"):
+            print("the board did not answer: %s" % str(own.get("why"))[:180])
+            print("→ open TV DIABLO so the board window exists, then run this again.")
+            return 2
+        names = (own.get("sample") or {}).get("setPieces") or []
+        found = int((own.get("counts") or {}).get("setPieces") or 0)
+        if len(names) < found:
+            print("⚠ the board reported %d set pieces but only listed %d — the sample was capped, "
+                  "so a phantom could be hiding in the part nobody read." % (found, len(names)))
+        c = contradicted(names, ledger)
+        a = arithmetic(found, len(roster or {}), ledger)
+        print(a["say"])
+        print()
+        print(c["say"])
+        if c.get("contradicted"):
+            print()
+            print("  the rows to untick:")
+            for h in c["contradicted"]:
+                print("    %-42s %s" % (h["name"],
+                      "no date on the board, so only the page's date orders them"
+                      if h["undated"] else "board dates it %s" % h["boardDate"]))
+        if c.get("laterFinds"):
+            print()
+            print("  found since the page was shot (these are fine): %s"
+                  % ", ".join(x["name"] for x in c["laterFinds"]))
+        return 0 if (c.get("ok") and a.get("ok")) else 1
     if "--audit" in argv:
         a = audit()
         print("WHAT THIS EVIDENCE CAN ANSWER")
