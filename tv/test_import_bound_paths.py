@@ -46,6 +46,14 @@ if HERE not in sys.path:
 REGISTRY = {
     # ---- control_app: the live-state family. All six default under _fixture_root_for_state(),
     # which honours TV_HIST *at import only* — an isolated harness must set TV_HIST BEFORE import.
+    "control_app.py:_GATE_CACHE_PATH": (
+        "TV_GATE_CACHE", "import-bound",
+        "v1941 — memoised stash-gate verdicts (crop+OCR) for SEALED, immutable frames. Derived "
+        "state, gitignored, safe to delete: a cold cache costs time, never correctness. Keyed on "
+        "(size, mtime) so a rewritten frame MISSES rather than serving a stale verdict — a stale "
+        "'stash' would send the sweep to read a gameplay screen as a stash page, which vault_retro "
+        "calls permanent. Isolated by setting TV_GATE_CACHE BEFORE import; tv/test_gate_cache.py "
+        "does exactly that and asserts the path landed inside its tmpdir."),
     "control_app.py:_CHRON_EVIDENCE_PATH": (
         "TV_CHRON_EVIDENCE", "import-bound",
         "0 call-time readers; writes tv/chron_evidence.json (gitignored, paid for by real model "

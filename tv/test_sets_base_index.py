@@ -206,15 +206,26 @@ class TestTheLedgerRepair(unittest.TestCase):
         the repair looks like it is working. Proven in a browser: after a re-tick, run 2 removes 0.
         [[stale-reading]]"""
         s = self._src()
-        self.assertIn("d2r_setRepairAt", s, "no per-reading key — the repair would re-fire forever")
-        self.assertIn("!doneThisReading", s,
-                      "the missing-list branch must be gated on the reading key")
+        # v1946 — THE INVARIANT IS UNCHANGED; THE MECHANISM IS STRONGER. v1942 replaced
+        # `doneThisReading` with d2r_setRepairKept, because the old gate INFERRED his intent from
+        # elapsed time ("the repair already ran, so anything still ticked must be his doing") and
+        # that inference was false on his own board: REG-300 had undone the effect while the stamp
+        # survived, so the repair believed itself done and froze F·Sets at 117. A recorded ruling
+        # cannot go stale the way an inference can. The claim this test defends — a piece he ticks
+        # back is never stripped again — is now stronger, so it is pinned on the new mechanism.
+        self.assertIn("d2r_setRepairAt", s, "the per-reading receipt is gone — nothing records "
+                                            "which reading the repair acted on")
+        self.assertIn("d2r_setRepairKept", s,
+                      "nothing records his deliberate re-ticks, so the repair would strip them "
+                      "again on every load — the exact data-loss trap this test exists for")
+        self.assertIn("!_repairKept[n]", s,
+                      "the missing-list branch must honour a piece he has ticked back")
         # ...and the not-a-set-piece branch must NOT be gated: "this is a unique" never goes stale
         i_uni = s.index("it was routed into the set ledger by mistake")
         # v1937 added `&& !_repairSuppressed` to this line; the pin below caught the change, which
         # is the guard working. Anchored on the stable prefix so the next legitimate condition does
         # not read as a regression.
-        i_gate = s.index("if (missing[n] && !doneThisReading")
+        i_gate = s.index("if (missing[n] && !_repairKept[n]")
         self.assertLess(i_uni, i_gate,
                         "the unique branch must run before, and independently of, the expiring one")
 
@@ -555,7 +566,9 @@ class TestTheRepairJoinedTheOneShotConvention(unittest.TestCase):
     def test_only_the_expiring_branch_is_suppressed(self):
         """A structural invariant must not be switched off by a test convenience."""
         s = self._src()
-        self.assertIn("if (missing[n] && !doneThisReading && !_repairSuppressed)", s)
+        # v1946 — same re-point: the suppression flag still guards the same branch, beside the
+        # recorded ruling that replaced the inferred one.
+        self.assertIn("if (missing[n] && !_repairKept[n] && !_repairSuppressed)", s)
         i_uni = s.index("it was routed into the set ledger by mistake")
         i_supp = s.index("!_repairSuppressed")
         self.assertLess(i_uni, i_supp,

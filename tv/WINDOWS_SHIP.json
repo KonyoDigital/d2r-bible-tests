@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1945",
+  "ver": "v1946",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1945: The kai-funnel has posted guardHeld since v1197 and the route guard writes refused and err, but the intake_result handler built its record from seven fields and dropped the rest. So a guard hold, a failed read and an honestly empty screen were one indistinguishable record.",
+  "note": "v1946: Every receipt with a frameId already showed a 360px float on hover. That is enough to recognise a screen and not enough to read an item name off a stash tile, which is the whole reason he asked. The row icon now opens the full frame.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

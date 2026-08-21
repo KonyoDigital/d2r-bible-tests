@@ -993,6 +993,20 @@
     opacity: 0; transform: translateY(4px) scale(.98); transition: opacity .12s, transform .12s; }
   #rcpt-art.on { opacity: 1; transform: translateY(0) scale(1); }
   @media (prefers-reduced-motion: reduce){ #rcpt-art { transition: opacity .12s; transform: none; } }
+  /* v1946 — the FULL frame, opened from a receipt's eye. 360px on hover is enough to recognise a
+     screen; it is not enough to read an item name off a stash tile, which is the whole reason he
+     asked. Fixed overlay, click or Esc anywhere to dismiss, and the image is capped to the
+     viewport so a 2940px grab cannot push the caption off screen. */
+  #rcpt-full { position: fixed; inset: 0; z-index: 10000; display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+    background: rgba(4,3,2,.93); backdrop-filter: blur(3px); cursor: zoom-out; padding: 24px; }
+  #rcpt-full.on { display: flex; }
+  #rcpt-full img { max-width: min(96vw, 1800px); max-height: 86vh; object-fit: contain;
+    border-radius: 8px; box-shadow: 0 18px 60px rgba(0,0,0,.7); }
+  #rcpt-full .rf-cap { font-size: .82em; opacity: .8; text-align: center; max-width: 92vw;
+    word-break: break-all; }
+  .rcpt.rc-art .rcpt-ic { cursor: zoom-in; }
+  .rcpt.rc-art .rcpt-ic:hover { filter: brightness(1.5); }
   /* ══ v1616 — THE ITEM IS THE POINT, SO SHOW THE ITEM ══════════════════════════════════════
      Konyo, on the grail hero: "instead of this tooltip text it needs to have IMAGE HD ART ...
      floating cursor of the item with descriptions just like the whole console is".
@@ -5668,6 +5682,18 @@
   function _rcptBind(brain){
     if (brain._rcptBound) return; brain._rcptBound = true;
     brain.addEventListener('click', function(e){
+      // v1946 — the EYE opens the evidence; the row keeps its routing click
+      var ic = e.target.closest && e.target.closest('.rcpt-ic');
+      if (ic){
+        var art = ic.closest('.rc-art');
+        if (art){
+          e.stopPropagation();
+          _rcptArt.hide();
+          var t = art.querySelector('.rcpt-t');
+          _rcptFull.open(art.getAttribute('data-frame'), t ? t.textContent : '');
+          return;
+        }
+      }
       var row = e.target.closest && e.target.closest('.rc-go'); if (!row) return;
       _routeReceipt(row.getAttribute('data-rtype'), row.getAttribute('data-rtarget'));
     });
@@ -5689,6 +5715,44 @@
         el.style.left = Math.min(x + pad, window.innerWidth - w - 8) + 'px';
         el.style.top = Math.max(8, y - 208) + 'px'; },
       hide: function(){ if (el){ el.classList.remove('on'); cur = ''; } }
+    };
+  })();
+  /* ══ v1946 — CLICK THE EYE, SEE THE WHOLE FRAME ═══════════════════════════════════════════
+     Konyo: "i want the ledger to have tooltip images HD full screen when clicked on for the ledger
+     to sync to the item that it routed or funneled. so we can see what is being routed and to where
+     and surgically can fix it visualy and retro if needed".
+
+     Half of this already existed and had since v1356: every receipt carrying a frameId wears
+     `.rc-art` and shows #rcpt-art, a 360px float, on hover. What was missing was the FULL frame —
+     360px is enough to recognise a screen, not enough to read an item name off a stash tile, which
+     is the entire point of asking "what was routed, and from which picture".
+
+     The row's ICON is the affordance, not the row. A `.rc-go` row already spends its click routing
+     into the board, and taking that away to show a picture would trade one useful action for
+     another. The eye opens the evidence; the row still routes. */
+  var _rcptFull = (function(){
+    var wrap = null, img = null, cap = null;
+    function close(){ if (wrap) wrap.classList.remove('on'); }
+    function ensure(){
+      if (wrap) return wrap;
+      wrap = document.createElement('div'); wrap.id = 'rcpt-full';
+      img = document.createElement('img'); cap = document.createElement('div'); cap.className = 'rf-cap';
+      img.alt = ''; img.onerror = function(){ cap.textContent = 'that frame is not on disk any more'; };
+      wrap.appendChild(img); wrap.appendChild(cap);
+      wrap.addEventListener('click', close);
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+      document.body.appendChild(wrap);
+      return wrap;
+    }
+    return {
+      open: function(fid, caption){
+        if (!fid) return;
+        ensure();
+        img.src = '/hist/' + encodeURIComponent(fid) + '.jpg';   // FULL size — no ?w
+        cap.textContent = (caption || '') + '  ·  ' + fid;
+        wrap.classList.add('on');
+      },
+      close: close
     };
   })();
   /* ══ v1616 — THE ITEM HOVER CARD ═══════════════════════════════════════════════════════════
