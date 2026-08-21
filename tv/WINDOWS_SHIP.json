@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1894",
+  "ver": "v1895",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1894: The numbers I reported for his set-piece sweep were from the previous proposal: the file was written at 00:47 and I read it minutes earlier while the sweep was still folding and gating. The real answer is eleven of the thirteen cleared rather than six, thirty-six set rows rather than twenty-eight, and every one of those rows carries the game own First Found date. The surface had the same blindness I did - the engine has stamped every result for versions and nothing rendered it, so a proposal from an hour ago and one from last week looked identical. The console says how old it is now, and whether it came from disk.",
+  "note": "v1895: The vault job was in memory only, so he sweeps his vault, closes the console, and the proposal is gone while the reads that paid for it are spent. The chronicle solved this for the same reason versions ago. It persists now with the same atomic write and the same refusal to stringify what will not serialise, proven end to end in an isolated tree with his own confirmed untouched. The age ships in the same breath because a proposal that outlives the session must say how old it is, and the new live file joined the gate watchlist and the ignore file on day one, since new live state that nothing watches is exactly how the last three leaks survived.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

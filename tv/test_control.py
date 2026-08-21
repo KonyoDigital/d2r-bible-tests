@@ -9636,6 +9636,80 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestTheVaultProposalSurvivesARestart(unittest.TestCase):
+    """v1895 — the vault proposal was IN-MEMORY ONLY. He sweeps his vault, closes the console, and
+    the proposal is gone while the READS THAT PAID FOR IT are spent. The chronicle solved this in
+    v1763 for the same reason — "a fresh process reports the LAST sweep, not 'idle, nothing here'".
+
+    Proven end to end in an ISOLATED tree, and his own confirmed untouched by the same run:
+
+        save     -> the fixture's own vault_last_result.json, not his
+        reload   -> owned rows restored into a fresh, empty job
+        state    -> resultFromDisk true, resultTs set
+        his tv/  -> no vault_last_result.json, chronicle result byte-identical
+
+    The age fields matter more here than anywhere: a proposal that now OUTLIVES the session must
+    say how old it is, or one made last week reads as one made just now. [[stale-reading]]"""
+
+    def test_it_saves_and_restores_the_result(self):
+        import json as _json
+        import shutil
+        import subprocess as _sp
+        import tempfile as _tf
+        here = os.path.dirname(os.path.abspath(__file__))
+        d = _tf.mkdtemp(prefix="vres-test-")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "frames", "hist")
+        os.makedirs(hist, exist_ok=True)
+        prog = (
+            "import sys, os, json; sys.path.insert(0, %r)\n"
+            "import control_app as ca\n"
+            "with ca._VAULT_LOCK:\n"
+            "    ca._VAULT_JOB.update({'running': False, 'phase': 'done',\n"
+            "        'result': {'ok': True, 'owned': [{'name': 'Ral Rune', 'lane': 'stash'}]},\n"
+            "        'resultTs': 1787000000000, 'restoredFrom': None})\n"
+            "ca._vault_result_save()\n"
+            "with ca._VAULT_LOCK:\n"
+            "    ca._VAULT_JOB.clear(); ca._VAULT_JOB.update({'running': False})\n"
+            "st = ca.vault_sweep_state()\n"
+            "print(json.dumps({'names': [r['name'] for r in (st.get('result') or {}).get('owned') or []],\n"
+            "                  'fromDisk': bool(st.get('resultFromDisk')),\n"
+            "                  'hasTs': bool(st.get('resultTs')),\n"
+            "                  'path': ca._VAULT_RESULT_PATH}))\n" % here)
+        env = dict(os.environ, TV_HIST=hist)
+        out = _sp.run([sys.executable, "-c", prog], capture_output=True, text=True,
+                      env=env, timeout=180)
+        self.assertEqual(out.returncode, 0, out.stderr[-400:])
+        got = _json.loads(out.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["names"], ["Ral Rune"], "the proposal did not survive a fresh process")
+        self.assertTrue(got["fromDisk"], "a restored result does not say it came from disk")
+        self.assertTrue(got["hasTs"], "a restored result carries no age")
+        self.assertTrue(got["path"].startswith(os.path.realpath(hist))
+                        or got["path"].startswith(hist),
+                        "an isolated TV_HIST did not take the vault result with it: %s" % got["path"])
+
+    def test_his_own_file_is_not_created_by_that(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        # the isolation test above must never leave one in his tree
+        self.assertFalse(os.path.isfile(os.path.join(here, "vault_last_result.json")),
+                         "an isolated run wrote his vault result file")
+
+    def test_the_gate_watches_the_new_live_file(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "run_gates.py"), encoding="utf-8").read()
+        self.assertIn("vault_last_result.json", src,
+                      "new live state that the gate is not watching is how the last three leaks "
+                      "survived")
+
+    def test_the_console_shows_the_vault_proposal_s_age(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        body = _between(self, ui, "var _vAge = document.getElementById('vault-result-age');",
+                        "var owned = res.owned", min_len=200, what="the vault age line")
+        self.assertIn("this vault proposal was made", body)
+        self.assertIn("restored from disk", body)
+
+
 class TestUndoRetractsTheGameDateToo(unittest.TestCase):
     """v1891 — the undo bar promises "the ledger entry is erased and it returns to the hunt", and
     v1864's `d2r_gameFound` was left behind.

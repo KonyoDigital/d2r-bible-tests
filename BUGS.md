@@ -7439,3 +7439,30 @@ was made 12 min ago · restored from disk, not from this session"*, turning ambe
 ⚠ **And the type floor caught the new line the moment it existed.** `font-size: 11px` is under his
 declared ~13px floor; `TestV1504TypeFloor` failed, and it now uses `--fs-2xs`. Three surfaces had
 slipped under that floor before — the gate exists so a fourth does not.
+
+## REG-245 — the vault proposal did not survive a restart (FIXED v1895)
+
+`_VAULT_JOB` was **in-memory only**. He sweeps his vault, closes the console, and the proposal is
+gone — **while the reads that paid for it are spent.** The chronicle solved this in v1763 for exactly
+that reason: *"a fresh process reports the LAST sweep, not 'idle, nothing here'."*
+
+Now it persists, mirroring `_chron_result_save/load` deliberately — atomic `tmp` + `os.replace`, and
+**no `default=str`** (v1800: it turns an unserializable value into its REPR and reloads it as a
+**name**, silently corrupting the ledger instead of raising).
+
+**Proven end to end in an isolated tree, with his own confirmed untouched by the same run:**
+
+```
+save    -> the fixture's own vault_last_result.json, not his
+reload  -> owned rows restored into a fresh, empty job
+state   -> resultFromDisk true, resultTs set
+his tv/ -> no vault_last_result.json; chronicle result byte-identical
+```
+
+**The age matters more here than anywhere**, and that is the reason to ship it in the same breath: a
+proposal that now *outlives the session* must say how old it is, or one made last week reads as one
+made just now. Same line as the chronicle got in v1894 — *"this vault proposal was made 3d ago ·
+restored from disk, not from this session"*, amber past a day. [[stale-reading]]
+
+⚠ **The new live file joined the gate's watchlist and `.gitignore` on day one** — new live state that
+nothing watches is precisely how REG-215, REG-216 and REG-218 each survived.

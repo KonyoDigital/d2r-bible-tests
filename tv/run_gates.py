@@ -338,7 +338,7 @@ def _claim_the_tree():
 # not follow.
 _LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "chron_autoread.json",
                "chron_evidence.json", "vault_swept.json", "sessions.jsonl",
-               "chron_reads.json")
+               "chron_reads.json", "vault_last_result.json")   # v1895 — new live state joins on day one
 
 
 def _console_is_running(port=17772):

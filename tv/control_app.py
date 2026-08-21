@@ -10219,9 +10219,63 @@ def vault_scan_cost(hist_dir=None, limit=None):
     }
 
 
+def _vault_result_save():
+    """Persist the finished vault sweep. Best effort, silent on failure — losing the cache must
+    never take down the sweep that produced it. v1895; mirrors _chron_result_save deliberately,
+    including the atomic tmp+replace and the refusal to use `default=str` (v1800: it would turn an
+    unserializable value into its REPR and reload it as a NAME, silently corrupting the ledger)."""
+    try:
+        with _VAULT_LOCK:
+            res = _VAULT_JOB.get("result")
+        if not res:
+            return
+        payload = {"result": res, "savedTs": int(time.time() * 1000)}
+        tmp = _VAULT_RESULT_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh)
+            fh.flush()
+            try:
+                os.fsync(fh.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, _VAULT_RESULT_PATH)
+    except Exception:
+        pass
+
+
+def _vault_result_load():
+    """Restore the last vault proposal into an empty job. Never overwrites a live one."""
+    try:
+        with _VAULT_LOCK:
+            if _VAULT_JOB.get("result") or _VAULT_JOB.get("running"):
+                return False
+        if not os.path.isfile(_VAULT_RESULT_PATH):
+            return False
+        with open(_VAULT_RESULT_PATH, encoding="utf-8") as fh:
+            payload = json.load(fh) or {}
+        res = payload.get("result")
+        if not res:
+            return False
+        with _VAULT_LOCK:
+            _VAULT_JOB["result"] = res
+            _VAULT_JOB["phase"] = _VAULT_JOB.get("phase") or "done"
+            _VAULT_JOB["resultTs"] = payload.get("savedTs")
+            _VAULT_JOB["restoredFrom"] = payload.get("savedTs")
+        return True
+    except Exception:
+        return False
+
+
 def vault_sweep_state():
+    # v1895 — a fresh process reports the LAST sweep, not "idle, nothing here". Same reasoning the
+    # chronicle has used since v1763, and the same age fields the console renders (v1894), so a
+    # proposal from last week cannot read as one made just now. [[stale-reading]]
+    _vault_result_load()
     with _VAULT_LOCK:
-        return dict(_VAULT_JOB)
+        st = dict(_VAULT_JOB)
+    st["resultTs"] = _VAULT_JOB.get("resultTs")
+    st["resultFromDisk"] = bool(_VAULT_JOB.get("restoredFrom"))
+    return st
 
 
 def vault_sweep_start(hist_dir=None, limit=None, force=False):
@@ -10442,7 +10496,9 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                           "held": led.get("held") or []})
         globals()["_VAULT_LAST_PROPOSAL"] = out
         with _VAULT_LOCK:
-            _VAULT_JOB.update({"running": False, "phase": "done", "result": out, "error": None})
+            _VAULT_JOB.update({"running": False, "phase": "done", "result": out, "error": None,
+                               "resultTs": int(time.time() * 1000), "restoredFrom": None})
+        _vault_result_save()
     except Exception as e:
         with _VAULT_LOCK:
             _VAULT_JOB.update({"running": False, "phase": "error", "error": str(e)[:200]})
@@ -11115,7 +11171,23 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
     return merged, regated, report
 
 
+def _fixture_root_for_state():
+    """HERE, unless TV_HIST says this is a fixture's world — the v1867/v1869 rule, one call."""
+    try:
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(HERE)
+    except Exception:
+        return HERE
+
+
 _CHRON_RESULT_PATH = os.environ.get("TV_CHRON_RESULT") or os.path.join(HERE, "chron_last_result.json")
+# v1895 — THE VAULT PROPOSAL DID NOT SURVIVE A RESTART, and the chronicle's has for versions.
+# _VAULT_JOB is in-memory only: he sweeps his vault, closes the console, and the proposal is gone
+# while the READS THAT PAID FOR IT are spent. The chronicle solved this in v1763 for the same
+# reason — "a fresh process reports the LAST sweep, not 'idle, nothing here'".
+# Same isolation rule as every other live-state file (v1867): an isolated TV_HIST takes it along.
+_VAULT_RESULT_PATH = (os.environ.get("TV_VAULT_RESULT")
+                      or os.path.join(_fixture_root_for_state(), "vault_last_result.json"))
 
 
 def _chron_result_save():
@@ -12283,7 +12355,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1894",
+        "ver": "v1895",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

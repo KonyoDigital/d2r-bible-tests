@@ -14557,6 +14557,34 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     }
     var res = st.result;
     if (!res) return;
+    /* v1895 — the vault proposal now survives a restart (it was in-memory only, so a sweep he paid
+       real reads for vanished when he closed the console), which makes its AGE load-bearing in
+       exactly the way the chronicle's was: a proposal from last week must not read as one made just
+       now. Same line, same rule. [[stale-reading]] */
+    try {
+      var _vAge = document.getElementById('vault-result-age');
+      if (!_vAge){
+        var _vHost = document.getElementById('vault-body') || document.getElementById('vault-review');
+        if (_vHost && _vHost.parentNode){
+          _vAge = document.createElement('div');
+          _vAge.id = 'vault-result-age';
+          _vHost.parentNode.insertBefore(_vAge, _vHost);
+        }
+      }
+      if (_vAge){
+        if (!st.resultTs){ _vAge.textContent = ''; _vAge.className = 'chron-age'; }
+        else {
+          var _vm = Math.max(0, Math.round((Date.now() - st.resultTs) / 60000));
+          var _vw = _vm < 1 ? 'just now'
+                  : _vm < 60 ? (_vm + ' min ago')
+                  : _vm < 1440 ? (Math.round(_vm / 60) + 'h ago')
+                  : (Math.round(_vm / 1440) + 'd ago');
+          _vAge.textContent = 'this vault proposal was made ' + _vw
+            + (st.resultFromDisk ? ' \u00b7 restored from disk, not from this session' : '');
+          _vAge.className = 'chron-age' + (_vm >= 1440 ? ' stale' : '');
+        }
+      }
+    } catch(e){}
     var owned = res.owned || [], unsure = res.unsure || [], throwOut = res.throwOut || [];
     var held = res.held || [];
     // WHY an empty sweep is empty. vault_retro._verdict() distinguishes four different nothings and

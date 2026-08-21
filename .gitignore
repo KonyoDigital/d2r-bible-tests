@@ -96,7 +96,9 @@ tv/chron_last_result.json.tmp
 tv/chron_autoread.json
 tv/chron_autoread.json.tmp
 tv/chron_reads.json
-tv/chron_reads.json.tmp
+tv/vault_last_result.json
+tv/chron_reads.json
+tv/vault_last_result.json.tmp
 
 # v1780 — a running sweep declares itself here; machine state, never source
 tv/.sweep.lock
