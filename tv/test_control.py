@@ -9636,6 +9636,89 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestEveryWrittenStateFileFollowsAnIsolatedHist(unittest.TestCase):
+    """v1902 — THE ONE FILE THAT SAYS WHAT HE OWNS DID NOT FOLLOW THE ISOLATION RULE.
+
+    `VAULT_LEDGER_PATH` and `_VAULT_SWEPT_PATH` were bare `os.path.join(HERE, ...)`, so a sweep
+    driven against a fixture hist wrote its swept memo and its OWNED-ITEM LEDGER into his real tv/
+    tree. Nothing had hit it — and that is exactly why it was worth fixing rather than shrugging at:
+    what stopped it was the discipline of every fixture written so far, not the path. The gate that
+    proves his tree is byte-identical can only catch this AFTER a test reaches it, and by then the
+    ledger it corrupted is merge-max, so nothing it gained would ever be subtracted.
+
+    Three chronicle files had the softer version of the same hole: they isolated only when a test
+    remembered their own env var. A rule half the files follow is a rule nobody can rely on.
+
+    THIS TEST IS THE CLASS, not the two instances: it asks each written state path where it lives
+    with and without TV_HIST, and any that does not move is a live file a fixture can reach.
+    [[feedback-fixtures-never-touch-live-data]] [[gate-blind-to-unexercised-input]]"""
+
+    # Every path here is WRITTEN by the console or the agent. A read-only path may point anywhere.
+    MUST_MOVE = ("ca.VAULT_LEDGER_PATH", "ca._VAULT_SWEPT_PATH", "ca._VAULT_RESULT_PATH",
+                 "ca._CHRON_EVIDENCE_PATH", "ca._CHRON_AUTOREAD_PATH", "ca._CHRON_RESULT_PATH",
+                 "ca.chron_swept()", "ca.chron_reads()",
+                 "td._KNOWN_DEAD_FILE", "td.JOURNAL", "td.STATE")
+
+    def _paths(self, extra_env):
+        import json as _json
+        import subprocess as _sp
+        here = os.path.dirname(os.path.abspath(__file__))
+        prog = ("import sys, json; sys.path.insert(0, %r)\n"
+                "import control_app as ca, tv_diablo as td\n"
+                "out = {}\n"
+                "for nm in %r:\n"
+                "    mod, attr = nm.split('.', 1)\n"
+                "    src = ca if mod == 'ca' else td\n"
+                "    if attr.endswith('()'):\n"
+                "        fn = {'chron_swept()': ca._chron_swept_path,\n"
+                "              'chron_reads()': ca._chron_reads_path}[attr]\n"
+                "        out[nm] = os.path.realpath(fn())\n"
+                "    else:\n"
+                "        out[nm] = os.path.realpath(getattr(src, attr))\n"
+                "print(json.dumps(out))\n" % (here, self.MUST_MOVE))
+        prog = "import os\n" + prog
+        env = dict(os.environ)
+        # a fixture that sets ONLY TV_HIST — which is the whole point: it must not have to
+        # remember six other variables to stay out of his tree
+        for k in ("TV_CHRON_AUTOREAD", "TV_CHRON_EVIDENCE", "TV_CHRON_RESULT", "TV_CHRON_SWEPT",
+                  "TV_CHRON_READS", "TV_VAULT_RESULT", "TV_VAULT_LEDGER", "TV_VAULT_SWEPT",
+                  "TV_KNOWN_FRAMES", "TV_SESSIONS", "TV_HIST"):
+            env.pop(k, None)
+        env.update(extra_env)
+        out = _sp.run([sys.executable, "-c", prog], capture_output=True, text=True,
+                      env=env, timeout=240)
+        self.assertEqual(out.returncode, 0, out.stderr[-400:])
+        return _json.loads(out.stdout.strip().splitlines()[-1])
+
+    def test_none_of_them_stays_in_his_tree(self):
+        import shutil
+        import tempfile
+        root = tempfile.mkdtemp(prefix="isolation-")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "frames", "hist")
+        real = self._paths({})
+        fixture = self._paths({"TV_HIST": hist})
+        here = os.path.realpath(os.path.dirname(os.path.abspath(__file__)))
+        stuck = sorted(nm for nm in self.MUST_MOVE
+                       if os.path.realpath(os.path.dirname(fixture[nm])) == here)
+        self.assertEqual(stuck, [],
+                         "these WRITTEN state files still point at his real tv/ when a fixture "
+                         "isolates TV_HIST: %s" % (stuck,))
+        for nm in self.MUST_MOVE:
+            self.assertNotEqual(real[nm], fixture[nm], "%s did not move at all" % nm)
+
+    def test_the_env_override_still_wins(self):
+        """Isolation by hist must not take the specific-file override away — tests that want one
+        exact path (and the console's own doctor) still pass it by name."""
+        import shutil
+        import tempfile
+        root = tempfile.mkdtemp(prefix="isolation2-")
+        self.addCleanup(shutil.rmtree, root, True)
+        named = os.path.join(root, "i_said_here.json")
+        got = self._paths({"TV_HIST": os.path.join(root, "h"), "TV_VAULT_LEDGER": named})
+        self.assertEqual(got["ca.VAULT_LEDGER_PATH"], os.path.realpath(named))
+
+
 class TestOneWriterForTheAutoReadMarks(unittest.TestCase):
     """v1900 — chron_autoread.json had TWO writers, and that fact has un-marked the file TWICE.
 

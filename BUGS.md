@@ -7627,3 +7627,37 @@ Guards in `test_g5_grok_eyes.TestBothLanesSeeTheSamePixels`, **seen RED for thei
 restoring the pre-v1901 lane fails with *"the grok lane read the WHOLE DESKTOP GRAB — the framing
 v1780 measured at 0/6 pages"*. A third asserts neither lane names `LIST_BAND` itself, comments
 excluded — the copy that drifts is always the second one.
+
+## REG-252 — the file that says what he owns did not follow the isolation rule (FIXED v1902)
+
+Every neighbouring piece of live state takes an isolated `TV_HIST` along with it — sessions,
+frames, the chronicle's swept memo, its reads memo, and (v1895) the vault's own **result**. Two did
+not:
+
+```
+VAULT_LEDGER_PATH = os.path.join(HERE, "vault_accum.json")   # the record of WHAT HE OWNS
+_VAULT_SWEPT_PATH = os.path.join(HERE, "vault_swept.json")
+```
+
+A sweep driven against a fixture hist wrote its swept memo and its **owned-item ledger** into his
+real `tv/` tree. `tv_diablo._KNOWN_DEAD_FILE` — the learned dead-frame signatures, whose whole point
+is that the learning **survives restarts** — had it too.
+
+**Nothing has hit it, and that is exactly why it was worth fixing rather than shrugging at.** What
+stopped it was the discipline of every fixture written so far, not the path. The gate that proves
+his tree is byte-identical after a run can only catch this *after* a test reaches it, and by then
+the ledger it corrupted is merge-max: nothing it gained would ever be subtracted.
+
+Three chronicle files (`chron_evidence`, `chron_autoread`, `chron_last_result`) had the softer
+version — they isolated only when a test **remembered their own env var**, while the swept and reads
+memos have derived from `TV_HIST` for versions. A rule half the files follow is a rule nobody can
+rely on. All six derive from the hist now; each env override still wins where a test wants one
+specific file.
+
+`_fixture_root_for_state()` also **moved to the top of the file**. It sat 11,000 lines down, after
+every vault path had already been built from a bare `HERE` — a helper that arrives after its callers
+is a rule that applies to whoever remembered.
+
+The guard is **the class, not the two instances**: `TestEveryWrittenStateFileFollowsAnIsolatedHist`
+asks all eleven written state paths where they live with and without `TV_HIST`, with every other
+`TV_*` variable stripped, and fails any that stays in his tree. Seen RED for its own reason.

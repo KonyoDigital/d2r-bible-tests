@@ -49,6 +49,19 @@ if sys.platform == "win32":
             pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# v1902 — DEFINED HERE, AT THE TOP, because the state paths below need it and one of them did not
+# get it. It used to sit 11,000 lines down, after every vault path had already been built from a
+# bare HERE. A helper that arrives after its callers is a rule that applies to whoever remembered.
+
+
+def _fixture_root_for_state():
+    """HERE, unless TV_HIST says this is a fixture's world — the v1867/v1869 rule, one call."""
+    try:
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(HERE)
+    except Exception:
+        return HERE
 REPO = os.path.dirname(HERE)
 
 
@@ -9198,7 +9211,13 @@ def _unswept_chron_reels(limit=8):
 #
 # WHAT IT DOES NOT DO: it does not APPLY. The sweep produces a PROPOSAL, and the review gate stays
 # where v947 put it. Automatic reading, human-gated writing.
-_CHRON_AUTOREAD_PATH = os.environ.get("TV_CHRON_AUTOREAD") or os.path.join(HERE, "chron_autoread.json")
+# v1902 — THE HIST DECIDES, NOT THE FIXTURE'S MEMORY. These three isolated only when a test
+# remembered their own env var, while the swept memo and the reads memo have derived from
+# TV_HIST for versions and the vault's three now do too. A rule that half the files follow is
+# a rule nobody can rely on: the env override still wins where a test wants a specific file,
+# but forgetting it can no longer point a fixture at his real tree.
+_CHRON_AUTOREAD_PATH = (os.environ.get("TV_CHRON_AUTOREAD")
+                        or os.path.join(_fixture_root_for_state(), "chron_autoread.json"))
 _CHRON_AUTOREAD_EVERY_S = 20
 _CHRON_AUTOREAD = {"done": None, "reels": None, "lastTs": 0, "reads": 0, "skipped": {}, "tries": {}}
 # v1745.1 — Konyo: "i dont want it looping though the same video over and over.. it might loop and
@@ -10086,8 +10105,22 @@ def mini_start(seconds=None, test=False, focus=None):
 # subtract, because an obstructed or half-scrolled stash frame is a NORMAL event, not evidence
 # he threw something away.
 
-VAULT_LEDGER_PATH = os.path.join(HERE, "vault_accum.json")
-_VAULT_SWEPT_PATH = os.path.join(HERE, "vault_swept.json")
+# v1902 — THE ONE FILE THAT SAYS WHAT HE OWNS DID NOT FOLLOW THE ISOLATION RULE.
+#
+# Every neighbouring piece of live state takes an isolated TV_HIST along with it — sessions,
+# frames, the chronicle's swept memo, its evidence, its reads, its result, and (v1895) the vault's
+# own RESULT. These two did not: they were bare `os.path.join(HERE, ...)`, so a sweep driven
+# against a fixture hist wrote its swept memo and its OWNED-ITEM LEDGER into his real tv/ tree.
+#
+# Nothing has hit it, and that is the whole reason to fix it rather than shrug: what stopped it was
+# the discipline of every fixture written so far, not the path. The gate that proves his tree is
+# byte-identical after a run can only catch this AFTER a test reaches it, and by then the ledger it
+# corrupted is the record of what he owns — merge-max, so nothing it gains is ever subtracted.
+# Guard the PATH, not the call site. [[feedback-fixtures-never-touch-live-data]]
+VAULT_LEDGER_PATH = (os.environ.get("TV_VAULT_LEDGER")
+                     or os.path.join(_fixture_root_for_state(), "vault_accum.json"))
+_VAULT_SWEPT_PATH = (os.environ.get("TV_VAULT_SWEPT")
+                     or os.path.join(_fixture_root_for_state(), "vault_swept.json"))
 
 _VAULT_LOCK = threading.Lock()
 _VAULT_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0, "reelsTotal": 0,
@@ -10693,7 +10726,8 @@ def _chron_lanes():
 # in two recordings) could not fire unless both reels were in the same sweep. Read one reel tonight
 # and another tomorrow and the gate sees two lonely sightings. That is most of why nothing grounded
 # without Grok. The vault path has accumulated since v1533; the chronicle path never did.
-_CHRON_EVIDENCE_PATH = os.environ.get("TV_CHRON_EVIDENCE") or os.path.join(HERE, "chron_evidence.json")
+_CHRON_EVIDENCE_PATH = (os.environ.get("TV_CHRON_EVIDENCE")
+                        or os.path.join(_fixture_root_for_state(), "chron_evidence.json"))
 
 
 def _chron_evidence_load():
@@ -11195,16 +11229,8 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
     return merged, regated, report
 
 
-def _fixture_root_for_state():
-    """HERE, unless TV_HIST says this is a fixture's world — the v1867/v1869 rule, one call."""
-    try:
-        import tv_diablo as _tvd
-        return _tvd._fixture_root(HERE)
-    except Exception:
-        return HERE
-
-
-_CHRON_RESULT_PATH = os.environ.get("TV_CHRON_RESULT") or os.path.join(HERE, "chron_last_result.json")
+_CHRON_RESULT_PATH = (os.environ.get("TV_CHRON_RESULT")
+                      or os.path.join(_fixture_root_for_state(), "chron_last_result.json"))
 # v1895 — THE VAULT PROPOSAL DID NOT SURVIVE A RESTART, and the chronicle's has for versions.
 # _VAULT_JOB is in-memory only: he sweeps his vault, closes the console, and the proposal is gone
 # while the READS THAT PAID FOR IT are spent. The chronicle solved this in v1763 for the same
@@ -12387,7 +12413,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1901",
+        "ver": "v1902",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1901"   # The second witness was shown a different picture
+VERSION = "v1902"   # The ledger did not follow the isolation rule
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -2047,7 +2047,12 @@ HIST_MAX_PX = int(os.environ.get("TV_HIST_PX", "2560"))   # v753 — retina-cris
 # history registers an honest '⏳ transition' row instead of another 'nothing readable'.
 KNOWN_DEAD_CAP = 8
 _KNOWN_DEAD = []
-_KNOWN_DEAD_FILE = os.path.join(HERE, "known_frames.json")
+# v1902 — ISOLATED LIKE EVERY OTHER LEARNED FILE. This is WRITTEN (_known_dead_save), and it
+# was built from a bare HERE, so a run driven against a fixture hist taught HIS agent the
+# fixture's dead frames — permanently, since the whole point of the file is that learning
+# survives restarts. Guard the PATH, not the call site.
+_KNOWN_DEAD_FILE = (os.environ.get("TV_KNOWN_FRAMES")
+                    or os.path.join(_fixture_root(HERE), "known_frames.json"))
 def _known_dead_load():
     """v742 — learning survives restarts: the loading screen is learned ONCE, ever."""
     try:
