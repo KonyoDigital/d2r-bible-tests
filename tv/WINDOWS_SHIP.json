@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1910",
+  "ver": "v1911",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1910: A sweep of every routine asking one question - can this gate go red for the thing it exists to watch. Routine J captured four screenshots and exited 0 always, uploading them for a manual review nobody does, so it reported success for a page that could be four black rectangles or four copies of one unchanged view; it asserts now that every shot painted something, that the four states differ from each other, and that each shot was taken in the state it claims, with every threshold measured on the real page first. Routine H gated on failures only, so a page whose ITEMS array stopped loading reported zero tested and zero failed and passed, and it had collected page errors since the day it was written without ever looking at them. Routine K printed budget OK for metrics it never took, because undefined is not greater than the budget. Five routines could not see their own scripts. And the v587 spec failed twice on one runner and passed on the next, so both its phases poll now instead of sleeping.",
+  "note": "v1911: v1910 never reached the live site: the Publish workflow went red on ModuleNotFoundError for yaml, deploy skipped, the site left serving v1909, while locally 1413 tests and all 34 gates were green. PyYAML is installed on his Mac and is not on the runner, and the host is part of the fixture - this is the third host difference of the arc after his Windows console encoding and a local Python 3.9 against CI 3.11. Fixed by parsing the workflow paths block directly and verified under a simulated no-yaml host rather than by deleting the import and hoping. Skipping would have been worse than failing, because a test that skips on the only machine that publishes is a test that does not exist. The class is guarded now by an AST walk over every suite that fails on any third-party import outside what CI actually installs.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

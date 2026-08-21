@@ -7961,3 +7961,30 @@ can only remove timing failures, never add one.**
 A flaky gate is the same defect as a lamp: it stops carrying information, and it trains everyone to
 re-run instead of read. Compile-checked with `playwright test --list`, which runs no test and opens
 no browser — the suite itself still runs on GitHub, never on his Mac.
+
+## REG-261 — `import yaml` in a test took the deploy down, and every local signal was green (FIXED v1911)
+
+**v1910 never reached the live site.** The Publish workflow went red on
+`ModuleNotFoundError: No module named 'yaml'` — two errors in
+`TestEveryRoutineCanSeeTheInputItPolices`, Deploy skipped, `bull-4-u.com/d2r/` left serving v1909 —
+while locally **1,413 tests and all 34 gates were green.** PyYAML is installed on his Mac and is not
+on the runner.
+
+The host is part of the fixture, and this is the **third host-difference of this arc**: his Windows
+console encoding (v1904), a local Python **3.9** against CI's **3.11** (`sys.stdlib_module_names`
+does not exist here), and now a module that only one of the two machines has.
+
+**Fixed** by parsing the `on: push: paths:` block directly — the shape is fixed, three keys deep, one
+quoted string per line — and verified under a **simulated no-yaml host** (`__import__` patched to
+raise for `yaml`), not merely by deleting the import and hoping.
+
+⚠ **Skipping would have been worse than failing.** `try: import yaml / except: skipTest` turns green
+on the only machine that publishes, and a test that skips where it matters is a test that does not
+exist.
+
+**The class is guarded now:** `TestNoSuiteImportsSomethingCIDoesNotHave` walks every `tv/test_*.py`
+AST and fails on any third-party import outside the allowlist — which is exactly what CI installs
+(`pillow`, one line in `publish.yml` and `tv-tests.yml`), plus `playwright` where its single importer
+wraps it in a `try`. It asks the **filesystem** where each module lives rather than consulting
+`sys.stdlib_module_names`, which his 3.9 does not have — the guard must not repeat the defect it
+guards. Seen RED by restoring the exact import: *"test_control.py:9744 imports 'yaml'"*.

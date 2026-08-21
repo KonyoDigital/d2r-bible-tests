@@ -9636,6 +9636,79 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
+    """v1911 — `import yaml` IN A TEST TOOK THE PUBLISH WORKFLOW DOWN AND KEPT v1910 OFF THE SITE.
+
+    PyYAML is installed on his Mac and is not on the runner. Locally: 1,412 tests green and 34 gates
+    green. On CI: `ModuleNotFoundError: No module named 'yaml'`, two errors, **Publish red, Deploy
+    skipped, and the live site still serving the previous version** while every local signal said
+    the ship was clean. The host is part of the fixture, and this is the third host-difference of
+    the arc — after his Windows console encoding, and a local Python 3.9 against CI's 3.11.
+
+    THE ALLOWLIST IS WHAT CI ACTUALLY INSTALLS: `pillow`, one line in publish.yml and tv-tests.yml,
+    and nothing else. `playwright` is allowed only because its one importer wraps it in a try.
+
+    ⚠ SKIPPING WOULD HAVE BEEN WORSE THAN FAILING. `try: import yaml / except: skipTest` turns green
+    on the only machine that publishes — a test that skips where it matters is a test that does not
+    exist. [[feedback-blind-fixture-green-gate]] [[dual-machine-setup]]"""
+
+    ALLOWED_BARE = {"PIL"}                 # installed by `pip install --quiet pillow` on CI
+    ALLOWED_GUARDED = {"PIL", "playwright"}
+
+    @staticmethod
+    def _is_third_party(mod):
+        """Not 'is it stdlib' — `sys.stdlib_module_names` does not exist on his 3.9. Ask the
+        FILESYSTEM where the module lives: site-packages, or nowhere at all, means third party."""
+        import importlib.util
+        import sysconfig
+        try:
+            spec = importlib.util.find_spec(mod)
+        except Exception:
+            return True
+        if spec is None:
+            return True                     # not installed HERE — the CI case, verbatim
+        origin = spec.origin or ""
+        if origin in ("built-in", "frozen") or not origin:
+            return False
+        std = os.path.realpath(sysconfig.get_paths().get("stdlib") or "")
+        return "site-packages" in origin or not os.path.realpath(origin).startswith(std)
+
+    def test_every_third_party_import_is_one_CI_installs(self):
+        import ast
+        import glob
+        here = os.path.dirname(os.path.abspath(__file__))
+        repo_mods = {os.path.splitext(os.path.basename(p))[0]
+                     for p in glob.glob(os.path.join(here, "*.py"))}
+        bad = []
+        for path in sorted(glob.glob(os.path.join(here, "test_*.py"))):
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
+            inside_try = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Try):
+                    for sub in ast.walk(node):
+                        inside_try.add(id(sub))
+            for node in ast.walk(tree):
+                mods = []
+                if isinstance(node, ast.Import):
+                    mods = [a.name.split(".")[0] for a in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                    mods = [node.module.split(".")[0]]
+                for m in mods:
+                    if m in repo_mods or not self._is_third_party(m):
+                        continue
+                    ok = (self.ALLOWED_GUARDED if id(node) in inside_try else self.ALLOWED_BARE)
+                    if m not in ok:
+                        bad.append("%s:%d imports %r%s"
+                                   % (os.path.basename(path), getattr(node, "lineno", 0), m,
+                                      " (inside a try)" if id(node) in inside_try else ""))
+        self.assertEqual(bad, [],
+                         "a suite imports something the CI runner does not have — it will pass here "
+                         "and take the deploy down there:\n  " + "\n  ".join(bad)
+                         + "\nCI installs only pillow. Parse it by hand, or add the dependency to "
+                           "publish.yml AND tv-tests.yml and widen this allowlist.")
+
+
 class TestEveryRoutineCanSeeTheInputItPolices(unittest.TestCase):
     """v1910 — a gate that cannot see the input it polices is not a gate, and Routine I already says
     exactly that in its own path list. The other five did not follow it: editing `J_screens.js`,
@@ -9656,14 +9729,25 @@ class TestEveryRoutineCanSeeTheInputItPolices(unittest.TestCase):
     }
 
     def _paths(self, wf):
-        import yaml
+        """The `on: push: paths:` list, WITHOUT PyYAML.
+
+        ⚠ v1911 — THE FIRST VERSION IMPORTED yaml AND TOOK THE PUBLISH WORKFLOW DOWN WITH IT.
+        PyYAML is installed on his Mac and is NOT on the CI runner: `ModuleNotFoundError: No module
+        named 'yaml'`, two errors, Publish red, and **v1910 never reached the live site** while the
+        local suite and all 34 gates were green. The host is the fixture, and this is the third
+        host-difference of the arc after his Windows console encoding.
+
+        Skipping when the import fails would have been worse: a test that skips on the only machine
+        that publishes is a test that does not exist. So it parses the block itself — the shape is
+        fixed, three keys deep, one quoted string per line.
+        [[feedback-blind-fixture-green-gate]] [[dual-machine-setup]]"""
         repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         with open(os.path.join(repo, ".github", "workflows", wf), encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh)
-        # PyYAML parses the bare key `on:` as the BOOLEAN True, not the string "on" — a real trap
-        # in every GitHub-workflow test, and one that reads as "this workflow has no triggers".
-        on = doc.get("on", doc.get(True)) or {}
-        return ((on.get("push") or {}).get("paths")) or []
+            text = fh.read()
+        m = re.search(r"\n  push:\n    paths:\n((?:\s*(?:#[^\n]*|-\s*'[^']+')\n)+)", text)
+        if not m:
+            return []
+        return re.findall(r"-\s*'([^']+)'", m.group(1))
 
     def test_each_routine_watches_its_own_script_and_its_own_workflow(self):
         for wf, script in sorted(self.WATCHES.items()):
