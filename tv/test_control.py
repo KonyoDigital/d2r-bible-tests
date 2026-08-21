@@ -9636,6 +9636,59 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestAResultSaveMakesItsOwnDirectoryAndSaysWhenItCannot(unittest.TestCase):
+    """v1899 — found in the SUITE'S OWN OUTPUT, which had been carrying it for a while:
+
+        ⚠ chronicle result NOT persisted ([Errno 2] No such file or directory:
+          '/var/folders/.../nodeadlock.json.tmp') — this sweep will not survive a restart
+
+    repeated on every run. A result path whose directory does not exist means the sweep is not
+    persisted at all, and both saves had that shape.
+
+    ⚠ AND MY OWN VAULT SAVE (v1895) SWALLOWED THE FAILURE ENTIRELY. The chronicle's has said so out
+    loud for versions; mine was `except Exception: pass`, written one ship after I fixed the same
+    class in HIS code. Losing a vault proposal quietly undoes v1895 exactly — the reads that paid
+    for it are spent, he closes the console, and there is nothing and no reason.
+    [[feedback-silence-is-not-evidence]]"""
+
+    def test_the_vault_save_makes_its_parent(self):
+        import json as _json
+        import shutil
+        import subprocess as _sp
+        import tempfile as _tf
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = _tf.mkdtemp(prefix="mkparent-")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "not", "made", "yet")     # the parent does NOT exist
+        prog = ("import sys, os, json; sys.path.insert(0, %r)\n"
+                "import control_app as ca\n"
+                "with ca._VAULT_LOCK:\n"
+                "    ca._VAULT_JOB.update({'running': False, 'phase': 'done',\n"
+                "        'result': {'ok': True, 'owned': [{'name': 'Ral Rune'}]}, 'resultTs': 1})\n"
+                "ca._vault_result_save()\n"
+                "print(json.dumps({'saved': os.path.isfile(ca._VAULT_RESULT_PATH)}))\n" % here)
+        out = _sp.run([sys.executable, "-c", prog], capture_output=True, text=True,
+                      env=dict(os.environ, TV_HIST=hist), timeout=180)
+        self.assertEqual(out.returncode, 0, out.stderr[-300:])
+        self.assertTrue(_json.loads(out.stdout.strip().splitlines()[-1])["saved"],
+                        "the vault proposal was lost because its directory did not exist yet")
+
+    def test_both_saves_say_so_when_they_cannot(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn("chronicle result NOT persisted", src)
+        self.assertIn("vault result NOT persisted", src,
+                      "the vault save is silent again — a lost proposal with no reason")
+
+    def test_neither_save_swallows_its_error(self):
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        body = _between(self, src, "def _vault_result_save():", "def _vault_result_load():",
+                        min_len=200, what="the vault save")
+        self.assertNotIn("except Exception:\n        pass", body,
+                         "the vault save swallows its failure again")
+
+
 class TestTheArtGuardRefusesTraversalAndAllowsArt(unittest.TestCase):
     """v1898 — the art route's 403 guard now uses the one path rule, and it must stay exactly as
     strict. Normalising BOTH sides identically cannot admit a path outside ART_DIR; it only stops

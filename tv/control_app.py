@@ -10231,6 +10231,13 @@ def _vault_result_save():
             return
         payload = {"result": res, "savedTs": int(time.time() * 1000)}
         tmp = _VAULT_RESULT_PATH + ".tmp"
+        # v1899 — MAKE THE PARENT. With an isolated TV_HIST pointing at a directory that does not
+        # exist yet, the tmp write fails with ENOENT and the proposal is lost. The chronicle's save
+        # has the same shape and says so out loud when it happens; mine swallowed it entirely.
+        try:
+            os.makedirs(os.path.dirname(_VAULT_RESULT_PATH) or ".", exist_ok=True)
+        except Exception:
+            pass
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh)
             fh.flush()
@@ -10239,8 +10246,15 @@ def _vault_result_save():
             except Exception:
                 pass
         os.replace(tmp, _VAULT_RESULT_PATH)
-    except Exception:
-        pass
+    except Exception as e:
+        # v1899 — A SILENT FAILURE HERE UNDOES v1895 EXACTLY. The whole point of persisting the
+        # vault proposal is that the READS THAT PAID FOR IT are spent; losing it quietly means he
+        # closes the console and finds nothing, with no way to know why. The chronicle's save has
+        # said so for versions ("this sweep will not survive a restart") and mine said nothing —
+        # written last night, one ship after fixing the same class in his code.
+        # [[feedback-silence-is-not-evidence]]
+        print("   \u26a0 vault result NOT persisted (%s) — this sweep will not survive a restart"
+              % str(e)[:140])
 
 
 def _vault_result_load():
@@ -11206,6 +11220,14 @@ def _chron_result_save():
         if not payload.get("result"):
             return
         tmp = _CHRON_RESULT_PATH + ".tmp"
+        # v1899 — MAKE THE PARENT, the same as the vault save. The suite's own output carried
+        # "chronicle result NOT persisted ([Errno 2] No such file or directory: .../nodeadlock.json.tmp)"
+        # repeatedly: an isolated result path whose directory does not exist means the sweep is not
+        # persisted at all. Best-effort, exactly like the rest of this function.
+        try:
+            os.makedirs(os.path.dirname(_CHRON_RESULT_PATH) or ".", exist_ok=True)
+        except Exception:
+            pass
         # v1800 — NO `default=str`. It turned an unserializable value into its REPR instead of
         # raising: the exact v1798 defect (a set where a list belonged) would have been written as
         # the string "{'Foo', 'Bar'}" and reloaded as a name, silently corrupting the ledger rather
@@ -12355,7 +12377,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1898",
+        "ver": "v1899",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

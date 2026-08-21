@@ -7543,3 +7543,30 @@ the claim, and corrected it before shipping.
 
 A comment that invents the defect it fixes is the same lie as a receipt that reports the wrong
 number; it just takes longer to catch.
+
+## REG-249 — a result save that could not write, and a vault save that never said so (FIXED v1899)
+
+Found **in the suite's own output**, which had been carrying it for a while:
+
+```
+⚠ chronicle result NOT persisted ([Errno 2] No such file or directory:
+  '/var/folders/.../nodeadlock.json.tmp') — this sweep will not survive a restart
+```
+
+repeated on every run. A result path whose **directory does not exist** means the sweep is not
+persisted at all. Both saves had that shape; both create their parent now, and the noise is gone
+(**grep count 0** after the fix).
+
+⚠ **And my own vault save (v1895) swallowed the failure entirely** — `except Exception: pass`. The
+chronicle's has said *"this sweep will not survive a restart"* for versions. Mine was written **one
+ship after** I fixed the same class in his code.
+
+That silence undoes v1895 exactly: the reads that paid for the proposal are spent, he closes the
+console, and there is **nothing and no reason**. It speaks now, and a guard asserts neither save
+swallows its error. [[feedback-silence-is-not-evidence]]
+
+**Also checked and clean, so it is not re-checked later:** the suites are **order-independent**
+(reversed order: 1,326 green) and **every suite passes alone** — nine for nine. The 7 skips are all
+documented and legitimate: four need a browser that answers `--dump-dom` over http on his Mac (they
+run on CI), one is PowerShell-only, two are permanently skipped fixtures whose decisions are covered
+by other tests.

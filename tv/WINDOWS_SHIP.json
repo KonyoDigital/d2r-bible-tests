@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1898",
+  "ver": "v1899",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1898: The art server refuses anything outside the art directory with a prefix test, and on Windows a case difference makes that say no, so the traversal guard fails closed on his own pictures. It uses the same one path rule now: resolve both sides, ask the filesystem by inode, fall back to case normalisation, which is exactly as strict because normalising both sides identically cannot admit a path outside. And a correction I caught before shipping: I had written that the art directory was un-resolved and any symlink would 403 everything, then checked and found it realpath-d at its definition. A comment that invents the defect it fixes is the same lie as a wrong receipt.",
+  "note": "v1899: The suite own output had been carrying a warning on every run that the chronicle result was not persisted because its directory did not exist, which means the sweep does not survive a restart at all. Both saves create their parent now and the noise is gone. And my own vault save from last night swallowed the failure entirely where the chronicle one has announced it for versions - written one ship after I fixed the same class in his code, and that silence undoes the whole point, because the reads that paid for the proposal are spent and he would find nothing and no reason. Also checked and clean: the suites are order-independent and every one passes alone.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
