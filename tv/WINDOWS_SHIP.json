@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1940",
+  "ver": "v1941",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1940: The photo intake added the counts it read to the counts already stored, but the photo is OF the stash so the number read is a total. Re-photographing a shelf doubled it. Five sites now share one merge rule with vaultAccumApply, which had been doing it correctly next door for versions.",
+  "note": "v1941: The Vault Accumulator quote walked every frame of every sealed reel through a crop and an OCR: measured 7.4 minutes on his own film, behind a button whose label never changed and whose fetch had no timeout. The gate verdict and the quote are both memoised now, the button ticks, and it can no longer hang.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

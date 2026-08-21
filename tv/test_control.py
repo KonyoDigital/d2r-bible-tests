@@ -11545,8 +11545,18 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         self.assertGreater(i, 0)
         j = src.find('return "stash"', i)
         self.assertGreater(j, i, "the vault quote's probe moved — re-point this guard")
-        self.assertIn("stash_screen_open(", src[i:j],
-                      "the quote prices frames the sweep would refuse for free")
+        # v1941 — ASSERT THE GATE, NOT ITS SPELLING. This required the literal
+        # "stash_screen_open(" and so failed the moment the quote started calling
+        # stash_screen_open_CACHED() — a memo that delegates to the very same gate and is proven in
+        # tv/test_gate_cache.py to return the identical answer (and to MISS rather than lie when a
+        # frame is rewritten). The guard was right to fire: the two halves of a price must name the
+        # same thing, and it could not tell a rename from a divergence. So it now accepts the gate
+        # or a wrapper around it, and the behavioural half of the claim lives in a behavioural test.
+        # A guard that pins an exact call string fails on its own REACH, not on the code.
+        # [[source-reading-guard]]
+        seg = src[i:j]
+        self.assertTrue("stash_screen_open(" in seg or "stash_screen_open_cached(" in seg,
+                        "the quote prices frames the sweep would refuse for free")
 
     def test_a_BROKEN_gate_is_not_a_quiet_gate(self):
         """v1854 — stash_screen_open is shaped exactly like prep_tab_chrome was: a bare handler

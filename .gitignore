@@ -102,3 +102,7 @@ tv/vault_last_result.json.tmp
 
 # v1780 — a running sweep declares itself here; machine state, never source
 tv/.sweep.lock
+
+# v1941 — derived gate verdicts for sealed frames; machine state, never source
+tv/stash_gate_cache.json
+tv/stash_gate_cache.json.tmp

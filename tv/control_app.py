@@ -10213,7 +10213,54 @@ def vault_ledger_save(led):
     return _vault_json_save(VAULT_LEDGER_PATH, led if isinstance(led, dict) else {})
 
 
+_VAULT_QUOTE = {"sig": None, "res": None}
+
+
+def _hist_signature(hist):
+    """Cheap fingerprint of the sealed-reel set: how many, and the newest mtime."""
+    try:
+        names = sorted(os.listdir(hist))
+        newest = 0.0
+        for n in names:
+            try:
+                newest = max(newest, os.stat(os.path.join(hist, n)).st_mtime)
+            except OSError:
+                pass
+        return "%d:%.0f" % (len(names), newest)
+    except Exception:
+        return None
+
+
 def vault_scan_cost(hist_dir=None, limit=None):
+    """THE QUOTE IS MEMOISED TOO, not just the gate underneath it.
+
+    v1941 — caching the per-frame gate took this from ~7.4 minutes to 82 SECONDS, measured on his
+    own film (2699 frames, 1065 reels). Better, and still far past the point where a button with no
+    timeout reads as dead — which is exactly what he was looking at. The gate was not the only cost;
+    the sweep walks 2155 frames whatever the gate says.
+
+    So the answer itself is kept, keyed on the sealed-reel set (count + newest mtime). Nothing about
+    a sealed reel changes after it is sealed, so an unchanged set has an unchanged price, and the
+    second tap is instant. Seal a new reel and the signature moves and it re-prices — which is the
+    only time the number could differ.
+    """
+    hist = hist_dir or os.environ.get("TV_HIST") or HIST_DIR
+    sig = _hist_signature(hist)
+    if sig is not None and _VAULT_QUOTE["sig"] == sig and _VAULT_QUOTE["res"] is not None:
+        out = dict(_VAULT_QUOTE["res"])
+        out["cached"] = True
+        return out
+    try:
+        res = _vault_scan_cost_inner(hist_dir, limit)
+    finally:
+        _gate_cache_flush()
+    if sig is not None and isinstance(res, dict) and res.get("ok") is not False:
+        _VAULT_QUOTE["sig"] = sig
+        _VAULT_QUOTE["res"] = res
+    return res
+
+
+def _vault_scan_cost_inner(hist_dir=None, limit=None):
     """THE FREE PASS, vault edition. What a vault retro sweep WOULD cost, computed on HIS film.
     Zero model calls, zero writes — the number he gets to check before agreeing to spend.
 
@@ -10251,7 +10298,7 @@ def vault_scan_cost(hist_dir=None, limit=None):
         # number he reads before agreeing to spend describes the run he would actually get. Same
         # rule v1834 applied to the chronicle quote: both halves of a price must name the same
         # thing. A refused frame is still COUNTED as looked at; it is only not priced as a page.
-        if stash_screen_open(path) is None:
+        if stash_screen_open_cached(path) is None:
             return None
         return "stash"
 
@@ -11021,6 +11068,81 @@ _GATE_HEARD = [0]
 def gate_hearing():
     """(silent, heard) for this process — the tab-chrome OCR's own audibility, not a verdict."""
     return (_GATE_SILENT[0], _GATE_HEARD[0])
+
+
+# ── v1941 — THE GATE VERDICT IS CACHED, BECAUSE A SEALED FRAME NEVER CHANGES ──────────────────
+#
+# Konyo clicked the Vault Accumulator and got "grouping frames…" forever. It is not an infinite
+# loop — it is arithmetic. vault_scan_cost() probes EVERY frame through stash_screen_open(), and
+# that gate is a crop plus an OCR. MEASURED on his own film, 2026-08-21: 0.118s per call across
+# 3749 frames in 1065 sealed reels = ~7.4 MINUTES, single threaded, with no progress and no
+# timeout, behind a button whose own label says "tap to price it · costs nothing".
+#
+# "Costs nothing" was only ever about MONEY. It cost seven minutes of his evening instead.
+#
+# The frames are sealed reels — immutable by construction — so the verdict for a given file can
+# never change, and re-deriving it on every quote is pure waste. Keyed on (size, mtime) as well as
+# path so that if a frame ever IS rewritten the memo misses rather than lying: a stale "stash"
+# would misroute a real read, and vault_retro says what that costs in its own words — "a rune tab
+# misread as 'inventory' files his runes in the wrong lane, which merge-max then makes permanent."
+# A cache that can be wrong about THAT is worse than no cache, so the guard is cheap and total.
+_GATE_CACHE_PATH = (os.environ.get("TV_GATE_CACHE")
+                    or os.path.join(_fixture_root_for_state(), "stash_gate_cache.json"))
+_GATE_CACHE = None
+_GATE_CACHE_DIRTY = False
+_GATE_LOCK = threading.Lock()
+
+
+def _gate_cache():
+    global _GATE_CACHE
+    if _GATE_CACHE is None:
+        try:
+            with open(_GATE_CACHE_PATH, encoding="utf-8") as f:
+                _GATE_CACHE = json.load(f)
+            if not isinstance(_GATE_CACHE, dict):
+                _GATE_CACHE = {}
+        except Exception:
+            _GATE_CACHE = {}
+    return _GATE_CACHE
+
+
+def _gate_cache_flush():
+    """Write only when something changed, and never leave a half file behind."""
+    global _GATE_CACHE_DIRTY
+    with _GATE_LOCK:
+        if not _GATE_CACHE_DIRTY or _GATE_CACHE is None:
+            return
+        try:
+            d = os.path.dirname(_GATE_CACHE_PATH)
+            if d and not os.path.isdir(d):
+                os.makedirs(d, exist_ok=True)
+            tmp = _GATE_CACHE_PATH + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(_GATE_CACHE, f)
+            os.replace(tmp, _GATE_CACHE_PATH)
+            _GATE_CACHE_DIRTY = False
+        except Exception:
+            pass
+
+
+def stash_screen_open_cached(frame_path):
+    """stash_screen_open(), memoised on (size, mtime). Same answer, ~0s on a second look."""
+    global _GATE_CACHE_DIRTY
+    try:
+        st = os.stat(frame_path)
+        key = frame_path
+        sig = [int(st.st_size), int(st.st_mtime)]
+    except Exception:
+        return stash_screen_open(frame_path)
+    c = _gate_cache()
+    hit = c.get(key)
+    if isinstance(hit, list) and len(hit) == 3 and hit[0] == sig[0] and hit[1] == sig[1]:
+        return hit[2]
+    val = stash_screen_open(frame_path)
+    with _GATE_LOCK:
+        c[key] = [sig[0], sig[1], val]
+        _GATE_CACHE_DIRTY = True
+    return val
 
 
 def stash_screen_open(frame_path):
@@ -12729,7 +12851,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1940",
+        "ver": "v1941",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

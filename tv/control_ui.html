@@ -14789,9 +14789,27 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var btn = document.getElementById('vault-scan');
     var note = document.getElementById('vault-note');
     if (!body) return;
-    if (btn) { btn.disabled = true; btn.textContent = 'grouping frames…'; }
+    /* v1941 — A BUTTON THAT CANNOT SAY HOW LONG IT HAS BEEN WORKING READS AS A DEAD BUTTON.
+       Konyo: "vault accumaltor i click this it says grouping frames.. what does it do and mean?"
+       It meant: this fetch has not come back. MEASURED on his own film — the quote walked 2699
+       frames through a crop+OCR gate and took ~7.4 MINUTES; with the gate memoised it is 82s; with
+       the answer memoised the second tap is instant. But the label was a single static string set
+       once, so at every one of those durations the button looked identical and looked broken.
+       A tick and a bound: he can always tell working from stuck, and it can never hang forever. */
+    var _t0 = Date.now(), _tick = null, _ac = null;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'grouping frames…';
+      _tick = setInterval(function () {
+        var s = Math.round((Date.now() - _t0) / 1000);
+        btn.textContent = 'grouping frames… ' + s + 's';
+      }, 1000);
+    }
     try {
-      var r = await fetch('/api/vault_scan', { cache: 'no-store' });
+      try { _ac = new AbortController(); } catch (e) { _ac = null; }
+      var _bail = _ac ? setTimeout(function () { try { _ac.abort(); } catch (e) {} }, 180000) : null;
+      var r = await fetch('/api/vault_scan', { cache: 'no-store', signal: _ac ? _ac.signal : undefined });
+      if (_bail) clearTimeout(_bail);
       var j = await r.json();
       if (!j || j.ok === false) {
         body.innerHTML = '<div class="chron-none">could not price the sweep — '
@@ -14821,8 +14839,14 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (note) note.textContent = 'priced from your own film · 0 calls spent · nothing written';
       var go = document.getElementById('vault-run'); if (go) go.hidden = false;
     } catch (e) {
-      body.innerHTML = '<div class="chron-none">could not reach the console</div>';
+      var aborted = e && (e.name === 'AbortError');
+      body.innerHTML = '<div class="chron-none">' + (aborted
+        ? 'gave up after 3 minutes — the console is still pricing your film. It walks every frame '
+          + 'of every sealed reel, so the FIRST run after new footage is slow; tap again and the '
+          + 'memoised answer comes back at once.'
+        : 'could not reach the console') + '</div>';
     } finally {
+      if (_tick) clearInterval(_tick);
       if (btn) { btn.disabled = false; btn.textContent = 'price it again'; }
     }
   };
