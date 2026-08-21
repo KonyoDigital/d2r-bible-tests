@@ -217,8 +217,12 @@ class TestTheLedgerRepair(unittest.TestCase):
         toggleSetPiece writes every set piece into d2r_foundLog ON PURPOSE (v644), so all 116 of
         his real pieces are in both by design."""
         s = self._src()
-        self.assertNotIn("counted in BOTH your Holy Grail and your set ledger", s,
-                         "this rule deletes every legitimate set piece")
+        # assertNotIn on a 5.6MB string dumps the WHOLE FILE into the failure message — 11MB of
+        # output for a one-line defect, which is a failure nobody can read. Boolean + a short say.
+        self.assertFalse("counted in BOTH your Holy Grail and your set ledger" in s,
+                         "the both-ledgers rule is back in bible.html. It deletes every legitimate "
+                         "set piece: toggleSetPiece writes each one into d2r_foundLog on purpose "
+                         "(v644), so all 116 of his real pieces are in both by design.")
         self.assertIn("IN BOTH LEDGERS\" IS NORMAL".replace('\"', '"'), s.replace('“', '"'),
                       "the reason must stay recorded, or someone re-adds the rule")
 
