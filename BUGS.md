@@ -7518,3 +7518,28 @@ yet.
 ⚠ **And the guard failed on its own documentation — the fifth time tonight.** `_under`'s docstring
 quotes the shape it replaced, so `assertNotIn("h.startswith(root + os.sep)")` found the record of the
 fix. It asserts the **executable** form now (`…)):`), which the prose does not contain.
+
+## REG-248 — the art route's 403 guard, on his Windows machine (FIXED v1898)
+
+`_serve_art` refuses anything outside `ART_DIR` with a `startswith` prefix test. On Windows a case
+difference between the resolved target and `ART_DIR` makes that say **no**, and the traversal guard
+**fails closed on his own art** — a 403 on every picture, on the machine the suite cannot run on.
+
+It uses `tv_diablo._under` now: resolve both sides, ask the filesystem (inode identity), fall back
+to a case-normalised prefix. **Exactly as strict as before** — normalising both sides identically
+cannot admit a path outside `ART_DIR`. Verified:
+
+```
+boss_andariel.png · hd/x.png · ./boss_andariel.png     ALLOWED
+../control_app.py · ../../etc/passwd
+..%2f..%2fetc%2fpasswd · ../../../../../../etc/hosts   REFUSED
+```
+
+⚠ **What this does NOT fix, recorded because I nearly claimed the opposite.** I wrote a comment
+saying `ART_DIR` was un-resolved, so any symlink in the repo path would make the two incomparable
+and 403 everything. **`ART_DIR` is already `os.path.realpath`'d at its definition** (line 98). That
+half of the hazard does not exist in this repo and never did — I checked the line only after writing
+the claim, and corrected it before shipping.
+
+A comment that invents the defect it fixes is the same lie as a receipt that reports the wrong
+number; it just takes longer to catch.

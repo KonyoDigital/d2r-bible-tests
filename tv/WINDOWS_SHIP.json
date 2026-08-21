@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1897",
+  "ver": "v1898",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1897: Tonight isolation work compared paths with a raw startswith, four times, and that is a coin flip on two of his three surfaces: on Windows the same directory arrives in two cases and the rule decides a fixture is his real tree, and on his Mac the mirror, where the filesystem is case-insensitive so an uppercased spelling is the same directory while the comparison calls it different and isolated writes land in his real folder. The filesystem decides now, by inode, walking up the ancestors, with case normalisation only as the fallback for a directory that does not exist yet. One definition, four sites, five cases guarded.",
+  "note": "v1898: The art server refuses anything outside the art directory with a prefix test, and on Windows a case difference makes that say no, so the traversal guard fails closed on his own pictures. It uses the same one path rule now: resolve both sides, ask the filesystem by inode, fall back to case normalisation, which is exactly as strict because normalising both sides identically cannot admit a path outside. And a correction I caught before shipping: I had written that the art directory was un-resolved and any symlink would 403 everything, then checked and found it realpath-d at its definition. A comment that invents the defect it fixes is the same lie as a wrong receipt.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

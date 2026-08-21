@@ -12355,7 +12355,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1897",
+        "ver": "v1898",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -13098,7 +13098,26 @@ class Handler(BaseHTTPRequestHandler):
 
         rel = unquote(name).split("?", 1)[0].split("#", 1)[0]
         target = os.path.realpath(os.path.join(ART_DIR, rel))
-        if not (target == ART_DIR or target.startswith(ART_DIR + os.sep)):
+        # v1898 — THE SAME PATH RULE AS THE ISOLATION ONE, and here it is a 403 guard.
+        #
+        # ⚠ SAYING WHAT THIS DOES *NOT* FIX, because I nearly wrote the opposite: ART_DIR is ALREADY
+        # os.path.realpath'd at its definition, so the symlink half of this hazard does not exist in
+        # this repo and never did. I had written a comment claiming it did before checking line 98.
+        #
+        # What IS real: on his Windows machine a case difference between the resolved target and
+        # ART_DIR makes startswith say no, and the traversal guard fails CLOSED on his own art. That
+        # is a 403 on every picture, on the machine the suite cannot run on.
+        # _under resolves both sides and asks the filesystem (inode identity) before falling back to
+        # a case-normalised prefix, so this is exactly as strict as before — normalising both sides
+        # identically cannot admit a path outside ART_DIR — and stops refusing legitimate ones.
+        # [[dual-machine-setup]]
+        try:
+            import tv_diablo as _tvd3
+            _ok = _tvd3._under(target, ART_DIR)
+        except Exception:
+            _ok = (target == os.path.realpath(ART_DIR)
+                   or target.startswith(os.path.realpath(ART_DIR) + os.sep))
+        if not _ok:
             self._json(403, {"ok": False, "msg": "forbidden"})
             return
         if not os.path.isfile(target):

@@ -9636,6 +9636,46 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
         self.assertTrue(callable(_between))
 
 
+class TestTheArtGuardRefusesTraversalAndAllowsArt(unittest.TestCase):
+    """v1898 — the art route's 403 guard now uses the one path rule, and it must stay exactly as
+    strict. Normalising BOTH sides identically cannot admit a path outside ART_DIR; it only stops
+    refusing legitimate ones on a case-insensitive or case-normalising filesystem.
+
+    ⚠ WHAT THIS DOES NOT FIX, recorded because I nearly claimed the opposite: ART_DIR is ALREADY
+    realpath'd at its definition, so the symlink half of the hazard does not exist in this repo and
+    never did. The real half is his WINDOWS machine, where a case difference makes startswith say
+    no and the guard fails CLOSED on his own art — a 403 on every picture. [[dual-machine-setup]]"""
+
+    def test_traversal_is_still_refused(self):
+        import control_app as ca
+        import tv_diablo as tv
+        from urllib.parse import unquote
+        AD = ca.ART_DIR
+        for rel in ("../control_app.py", "../../etc/passwd", "..%2f..%2fetc%2fpasswd",
+                    "../../../../../../etc/hosts"):
+            r = unquote(rel).split("?", 1)[0].split("#", 1)[0]
+            target = os.path.realpath(os.path.join(AD, r))
+            self.assertFalse(tv._under(target, AD),
+                             "%r escaped the art directory: %s" % (rel, target))
+
+    def test_ordinary_art_is_still_served(self):
+        import control_app as ca
+        import tv_diablo as tv
+        AD = ca.ART_DIR
+        for rel in ("boss_andariel.png", "hd/x.png", "./boss_andariel.png"):
+            target = os.path.realpath(os.path.join(AD, rel))
+            self.assertTrue(tv._under(target, AD), "%r was refused" % rel)
+
+    def test_the_route_uses_the_one_rule(self):
+        import control_app as ca
+        body = _between(self, open(ca.__file__, encoding="utf-8").read(),
+                        "    def _serve_art(self, name):", "if not os.path.isfile(target):",
+                        min_len=200, what="the art route")
+        self.assertIn("_under(target, ART_DIR)", body,
+                      "the art guard grew its own path comparison again")
+        self.assertIn("403", body, "the refusal is gone")
+
+
 class TestHeldNamesReachTheInboxAndStayHeld(unittest.TestCase):
     """v1896 — VERIFIED, and it found nothing wrong. Recording that is the point.
 
