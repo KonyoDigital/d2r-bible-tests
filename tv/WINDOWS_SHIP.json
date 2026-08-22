@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1966",
+  "ver": "v1967",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1966: a commit subject naming a version must carry that version stamps, checked at the highest version named",
+  "note": "v1967: names the probable item behind an OCR slip, suggestion only, bound measured at 3",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

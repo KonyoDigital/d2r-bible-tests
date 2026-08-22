@@ -9710,3 +9710,54 @@ back to `v1901`. The gate reads v1966 / v1966 / v1966 / v1901 and refuses. It no
 
 The tell was the gate's own success line. A count in a green message is worth reading — it is the
 cheapest place a guard admits how far it actually reaches.
+
+## REG-320 — the inbox said "unclear read" about a name it could have identified (v1967)
+
+v1789 read his real ledger by hand and split 36 held rows three ways: six unresolved uniques,
+twenty-four reader debris, and **six OCR slips of items already in his grail** ("Battlecage" for
+Rattlecage, "Naglring" for Nagelring). It then built machinery for exactly one of the three —
+dismissing debris, because the Chronicle prints the BASE item name for a row he has NOT found, so
+"Templar Coat" is the game stating the *opposite* of a find. The slips were named in that spec's own
+header and given no resolver. Measured 2026-08-22: `bible.html` contained **zero** string-distance
+functions of any kind, so a slip reached him as `unclear read`.
+
+His ask, quoted in v1789's own header: *"cant like an extra AI take care of it and cross reference it
+... and if it still cant then leave it for me to tick off."*
+
+**Measured on his current reader output** (`tv/chron_last_result.json`): 369 names, 343 recognised
+(93%). Of the 26 that were not, four are slips of real roster entries and every one was mute.
+
+`window._nearestGrailName()` — bounded Levenshtein over `_gUniqueRoster() ∪ __setPieceNames()`,
+rendered into the pending row as `probably <Name>`. **It suggests and nothing else**: it never
+accepts, never writes, never moves a count, and a spec asserts every grail-ish store is
+byte-identical after it runs. A fuzzy match that grails an item invents a find, and an invented find
+is unrecoverable — he could not tell it from a real one later.
+
+### The bound is 3, and the first draft's 2 was INERT
+Written first as `2`, which felt conservative and produced **zero** suggestions on his real data —
+the slips are three edits out (`hawkfane` → `hawkmail` differs at f/m, n/i, e/l). That is a threshold
+above the ceiling of the signal: a branch that never runs, wearing a constant that looks tuned. The
+same shape as `STILL_MAX_DIFF=0.22` against a signal whose maximum was 0.133.
+
+At 3, the same 23 candidates yield four confident hits and nineteen silences:
+
+| read | probably | edits |
+|---|---|---|
+| Hawkfane | Hawkmail | 3 |
+| Stouthale | Stoutnail | 3 |
+| Endlessmane | Endlesshail | 3 |
+| Bloodfist Shard | Bloodpact Shard | 3 |
+
+`Templar Coat`, `Bone Visage`, `Tomahawk`, `Corona`, `Death Mask`, `Shadow Blade` and `Spired Helm`
+stay mute — held by the **tie rule** and the 6-character floor, not by the bound. A tie is an
+admission that the evidence does not name one item; printing either candidate would be a coin-flip
+wearing a verdict.
+
+**Two instrument errors on the way, both caught by re-measuring rather than by reasoning:** the
+candidate set was first drawn from `"n":` records (the 322-entry boss-drop-table `ITEMS` array, which
+v1692 already warns is not the roster), and then the roster was checked against `_UNI_EXTRA` alone —
+concluding wrongly that Hawkmail was untracked. The real roster is `ITEM_VALUE ∪ _UNI_EXTRA` = 525
+keys and contains every one of them.
+
+Guard: `tests/v1967_nearest_grail_name.spec.ts` — the hits, the eight refusals, purity, and an
+explicit **not-inert** assertion so a future narrowing fails loudly instead of going quiet.
