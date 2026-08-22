@@ -842,6 +842,20 @@ def apply_payload(proposal):
         "unsure": p.get("unsure") or [],
         "held": p.get("held") or [],
         "totals": p.get("totals") or {},
+        # v1996 — CARRY THE FREE EVIDENCE THROUGH. The sweep computes two things from the PIXELS,
+        # at no cost, on frames the paid reader had to give up on:
+        #   glimpsed    cells that are visibly occupied on a panel whose read named nothing (v1989)
+        #   reconciled  the per-frame comparison of names against occupied cells, and `overRead`,
+        #               the subset where the model named MORE than the panel can physically hold —
+        #               the only fabrication signal this lane has (v1994)
+        # Both were written onto the proposal and DROPPED HERE, so the board could not have rendered
+        # them however much it wanted to. Konyo asked for exactly this: "i want it to visually render
+        # the backend through the ledger visually so we can visually surgically fix anything needed."
+        # A signal computed and never carried is the same defect as one computed and never read.
+        # [[the-unjoined-end]]
+        "glimpsed": p.get("glimpsed") or [],
+        "reconciled": p.get("reconciled") or [],
+        "overRead": p.get("overRead") or [],
         "why": p.get("why") or "",
     }
 

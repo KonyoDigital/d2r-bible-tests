@@ -8267,6 +8267,14 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .ibx-when{color:var(--text-dim,#8a7d64);font-size:var(--fs-micro);white-space:nowrap}
 .ibx-dest{color:var(--gold-dim,#a07830);font-size:var(--fs-micro);white-space:nowrap}
 .ibx-row:has(.ibx-act){grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto}
+/* v1996 — THE BASE .ibx-row IS A FIVE-COLUMN GRID (when · name · pill · why · dest) and the pixel
+   rows carry only THREE children, so name/pill/why landed in columns 1-2-3 and the why-text ran
+   straight through the pill. Caught on the PIXELS, not by reading — the DOM was correct and the
+   text assertions all passed; only the render showed "seen but not named" superimposed on "22
+   square(s) are visibly full". Its own template, declared after both other .ibx-row rules because
+   the LAST declaration wins in this file. [[d2r-css-last-rule-wins]] */
+.ibx-row.ibx-eye-row{grid-template-columns:minmax(0,auto) auto minmax(0,1fr)}
+.ibx-row.ibx-eye-row .ibx-why{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.45}
 .ibx-act{display:flex;gap:6px}
 .ibx-b{font-size:var(--fs-micro);padding:2px 9px;border-radius:6px;border:1px solid var(--border-light,#4a3f2a);
   background:transparent;color:var(--text-dim,#8a7d64);cursor:pointer}
@@ -8283,6 +8291,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    a finding, and 324 receipts shouted at the same volume as two real changes is what made him ask
    for this. Uses the card's own tokens so it reads as part of the furniture. */
 .ibx-quiet{color:var(--text-dim,#8a7d64);opacity:.8}
+/* v1996 — the third bucket needs to READ as a finding, not as chrome. Amber, the same colour the
+   over-read pill uses, and declared AFTER .ibx-quiet because the last declaration wins here. */
+.ibx-eye{color:#f0c060;opacity:1}
 .ibx-fold{margin-top:10px;border:1px solid var(--border,#3a2f1e);border-radius:8px;
   background:color-mix(in srgb,var(--surface-2,#241c12) 55%,transparent)}
 .ibx-fold>summary{cursor:pointer;list-style:none;padding:9px 12px;
@@ -43130,6 +43141,49 @@ window._renderStashFresh = function(){
         });
       } catch(e){}
       out.muled = Math.max(0, _rdAssign() - _assign0 - _throwN);
+      /* ── v1996 — RENDER THE BACKEND. Konyo: "i want it to visually render the backend through the
+         ledger visually so we can visually surgically fix anything needed future wise."
+
+         The sweep computes two things from the PIXELS, free, on the very frames the paid reader had
+         to give up on — and both were printed to a console log and nowhere else. The console log is
+         not the board. apply_payload was also dropping them before they arrived (fixed the same
+         version), so this half could not have worked even if it existed.
+
+         They are ledger rows, not a new panel, because the ledger is where he already goes to ask
+         "why is this here" and the vocabulary above already carries the rule: no status may be
+         written that nothing renders. A frame is identified by its FILE NAME, which is the thing he
+         can actually go and look at. [[the-unjoined-end]] */
+      try {
+        var _rec = function(name, status, why, frame){
+          if (typeof window.kaiChronicleRecord !== 'function') return;
+          window.kaiChronicleRecord({ name: name, status: status, store: 'vault', ledger: 'vault',
+                                      target: 'vault-sweep', source: 'vault-sweep', _bump: true,
+                                      frameId: frame || '', why: why });
+        };
+        /* THE ROW NAME MUST BE UNIQUE PER FRAME. Measured: naming these by surface alone
+           ("stash panel") made the over-read row overwrite the glimpsed row for the same surface —
+           the ledger keys by name, so two findings about two different frames collided and one
+           simply vanished. glimpsedTotal said 55 (22+33) while only one row survived, which is the
+           tell: the work happened and the record did not. The FRAME is the thing he can actually go
+           and look at, so it belongs in the identity, not only in the detail. */
+        (payload.glimpsed || []).slice(0, 12).forEach(function(g){
+          var n = Number(g && g.occupied) || 0;
+          if (!n) return;
+          _rec((g.surface || 'stash') + ' · ' + (g.frame || '?'), 'glimpsed',
+               n + ' square(s) are visibly full and the read named none of them — D2R prints no '
+               + 'names in a grid, only in the hover tooltip. Film that tab once with the tooltip '
+               + 'up and the same sweep will name them.', g.frame);
+          out.glimpsedTotal = (out.glimpsedTotal || 0) + n;
+        });
+        (payload.overRead || []).slice(0, 12).forEach(function(o){
+          _rec((o.surface || 'stash') + ' · ' + (o.frame || '?'), 'over-read',
+               'the read named ' + o.named + ' item(s) but only ' + o.occupied + ' square(s) are '
+               + 'filled, so at least one name did not come from this picture'
+               + ((o.names && o.names.length) ? ' — it read: ' + o.names.join(', ') : '')
+               + '. Nothing was discarded; judge it against the frame.', o.frame);
+          out.overReadCount = (out.overReadCount || 0) + 1;
+        });
+      } catch(e){ out.skipped.push('could not ledger the pixel evidence: ' + (e && e.message || e)); }
       return out;
   };
 
@@ -44008,7 +44062,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1995', name:'v1995 - the map before the names', date:'2026-08-23', note:'which squares never move and which are open floor - and cell-level motion so a swap is not read as nothing happening' };
+  window.D2R_BUILD = { id:'v1996', name:'v1996 - the pixels reach the ledger', date:'2026-08-23', note:'three signals were computed from the pixels and rendered nowhere - apply_payload dropped them and the inbox filed an over-read under nothing to do' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -44726,7 +44780,27 @@ window._CH_PILL_MAP = {
       /* v1955 — restored with the v409 branch it belongs to. */
       'kept-in-inventory':['🎒 kept in your inventory', 'var(--best,#66ff88)'],
       'route-failed':    ['⚠ could not route', '#f0a060'],
-      'filed-by-hand':   ['✋ you filed this', '#9fd4ff']
+      'filed-by-hand':   ['✋ you filed this', '#9fd4ff'],
+      /* v1996 — THE FREE EVIDENCE FINALLY HAS A ROW. Konyo: "i want it to visually render the
+         backend through the ledger visually so we can visually surgically fix anything needed
+         future wise."
+
+         Two signals were being computed from the pixels at no cost and rendered NOWHERE — the
+         sweep printed them to a console log and the board never saw them, because apply_payload
+         dropped them on the way (fixed in the same version). Both say something no other row can:
+
+         GLIMPSED — the panel was read cleanly and named nothing, yet the cells are visibly full.
+           That is the third statement this board never had: not "found", not "nothing", but SEEN,
+           UNNAMED, film the tooltip. It never ticks a grail row and never invents a name.
+
+         OVER-READ — the read named MORE items than the panel can physically hold, so at least one
+           name came from somewhere other than the picture. It is the only fabrication signal this
+           lane has, and it is the class behind his own question about a charm he did not recognise:
+           "i dont think i even own this.. from what picture is this here?" Amber, not red: the
+           lattice refuses honestly on some frames and a tooltip legitimately covers cells, so this
+           is a FLAG to judge, never a verdict that discards his data. */
+      'glimpsed':        ['👁 seen but not named — film the tooltip', '#9fd4ff'],
+      'over-read':       ['⚠ named more than the panel holds', '#f0c060']
     };
 
   window.renderInbox = function(){
@@ -44808,14 +44882,46 @@ window._CH_PILL_MAP = {
        are not thrown away — they are the receipt that the reader looked — but they collapse into
        one line he can open, instead of being the whole page. */
     var CHANGED = { 'accepted': 1, 'dismissed': 1, 'blocked-unfound': 1, 'removed': 1, 'refused': 1 };
+    /* ── v1996 — A FINDING IS NOT A NO-OP, AND THE DEFAULT BUCKET WAS SWALLOWING ONE ──────────
+       v1925 split the ledger into DID SOMETHING and CONFIRMED WHAT WAS ALREADY TRUE, and it was
+       right to: 324 rows of "you already had this one" drowned the two that mattered.
+
+       But the split is `CHANGED[status]` versus EVERYTHING ELSE, so any status the map has not
+       heard of lands in "already had — nothing to do" by default. MEASURED the moment the pixel
+       evidence started arriving: an OVER-READ — the read named 27 items on a panel holding 22, the
+       only fabrication signal this lane has — was displayed to him as "nothing to do", under a
+       sentence reading "The readers changed nothing this time. That is a clean run."
+
+       A default bucket that absorbs unknown statuses turns every future signal silent on arrival.
+       So there are three kinds now, and the third is the honest one: it changed nothing AND it is
+       not a confirmation — it is something to look at. [[label-outlived-referent]]
+       [[feedback-silence-is-not-evidence]] */
+    var EYE = { 'glimpsed': 1, 'over-read': 1 };
     var did  = auto.filter(function(r){ return r && CHANGED[r.status]; });
-    var knew = auto.filter(function(r){ return !(r && CHANGED[r.status]); });
+    var eye  = auto.filter(function(r){ return r && EYE[r.status]; });
+    var knew = auto.filter(function(r){ return r && !CHANGED[r.status] && !EYE[r.status]; });
     H.push('<div class="ibx-sum">'
       + '<span class="ibx-n"><b>' + did.length + '</b> changed your grail</span>'
       + (knew.length ? '<span class="ibx-n ibx-quiet"><b>' + knew.length
           + '</b> already had \u2014 nothing to do</span>' : '')
+      + (eye.length ? '<span class="ibx-n ibx-eye"><b>' + eye.length
+          + '</b> need your eye</span>' : '')
       + '<span class="ibx-n"><b>' + pend.length + '</b> waiting on you</span>'
       + '</div>');
+
+    /* Its own group, above the collapsed history, because the whole point is that it does NOT
+       collapse. The frame is named because the frame is the thing he can go and open. */
+    if (eye.length){
+      H.push('<div class="ibx-h">\ud83d\udd0e What the pixels say \u2014 no name was invented</div>');
+      H.push('<div class="ibx-list">' + eye.map(function(x){
+        var lab = PILL[x.status] || [x.status, '#9fd4ff'];
+        return '<div class="ibx-row ibx-eye-row">'
+          + '<span class="ibx-nm">' + esc(x.name) + '</span>'
+          + '<span class="ibx-pill" style="color:' + lab[1] + '">' + esc(lab[0]) + '</span>'
+          + '<span class="ibx-why" title="' + esc(x.why || '') + '">' + esc(x.why || '') + '</span>'
+          + '</div>';
+      }).join('') + '</div>');
+    }
 
     if (pend.length){
       H.push('<div class="ibx-h">⏳ Could not call these — your ruling</div>');

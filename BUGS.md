@@ -10910,3 +10910,44 @@ correct for `BUGS.md` and wrong for any Python file that ends in a runner block,
 them here. Three guards caught three instances in one night and none of them was caught by reading —
 each looked right, imported fine, and passed the tests I chose to run. Append to prose; **insert**
 into code.
+
+## REG-355 — the backend finally renders, and the default bucket was swallowing a fabrication warning (v1996)
+
+Konyo's standing ask, from the top of this arc: *"i want it to visually render the backend through
+the ledger visually so we can visually surgically fix anything needed future wise."*
+
+I had built three pixel signals — `glimpsed` (v1989), `reconciled` and `overRead` (v1994) — and
+rendered **none** of them. Measured before this fix: `glimpsed` had **0 readers** in `bible.html`,
+`overRead` **0**, and `witnessCount` **0 readers anywhere in the repo**. I kept fixing unjoined ends
+while committing three more.
+
+**They failed to arrive twice over, and each half was silent on its own.**
+
+1. **`apply_payload` dropped them.** It returns a hand-built dict and never copied the three keys
+   through, so the board could not have rendered them however much it wanted to.
+2. **`renderInbox` filed them under "nothing to do".** The v1925 split is
+   `CHANGED[status]` versus **everything else** — so any status the map has not heard of falls into
+   the no-op bucket by default. Measured on the real board: an **over-read** — 27 names on a panel
+   holding 22, the only fabrication signal this lane has — was shown as *"2 already had — nothing to
+   do"*, under the sentence *"The readers changed nothing this time. That is a clean run."*
+
+**A default bucket that absorbs unknown statuses turns every future signal silent on arrival.** So
+there are three kinds now, not two: changed · confirmed · **needs your eye**, in its own group that
+does not collapse, each row naming the FRAME he can go and open.
+
+### Caught on the pixels, not by reading
+The first render put the pill straight through the why-text — *"seen but not named"* superimposed on
+*"22 square(s) are visibly full"*. The DOM was correct and **every text assertion passed**; only the
+picture showed it. Cause: the base `.ibx-row` is a **five**-column grid (when · name · pill · why ·
+dest) and these rows carry three children, so they landed in the wrong columns. They now have their
+own template, declared after both other `.ibx-row` rules because the last declaration wins here.
+
+Guarded by `tests/v1996_pixels_reach_the_ledger.spec.ts`, which pins **the bucket** and not merely
+the row — including `expect(sum).not.toMatch(/5\s*already had/)`, the exact wrong reading — plus a
+geometric overlap check that would have failed on the first render.
+
+### Harness note, so the next reader does not lose an hour
+`Page.captureScreenshot`'s `clip` is in **page** coordinates while `getBoundingClientRect()` is
+**viewport**-relative. On a scrolled page the difference is exactly `scrollY`, and the result is a
+plausible **black rectangle** rather than an error. `chrome-cdp-mac §3` warns about this for
+`captureBeyondViewport:true`; it applies with `false` too. Add `window.scrollX/scrollY` to the clip.

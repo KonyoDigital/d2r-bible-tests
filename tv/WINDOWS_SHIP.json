@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1995",
+  "ver": "v1996",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1995: which squares never move and which are open floor - and cell-level motion so a swap is not read as nothing happening",
+  "note": "v1996: three signals were computed from the pixels and rendered nowhere - apply_payload dropped them and the inbox filed an over-read under nothing to do",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
