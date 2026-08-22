@@ -10030,3 +10030,25 @@ green with 3 claims matching. The runeword denominator is DISTINCT words, not en
 is what the user-facing `N/N` means.
 
 **Also fixed here:** the `99/99` claim itself → `100/100`.
+
+## REG-329 — Orphan's Call is a keeper, on his ruling (v1974)
+
+Second ruling off v1970's honest label, and the same shape as the first: **Guillaume's Face**
+(15% crushing blow / 35% deadly strike) was discarded by a default nobody had decided.
+
+All four pieces now mule to `sets-rest`: `Guillaume's Face`, `Whitstan's Guard`, `Magnus' Skin`,
+`Wilhelm's Pride`.
+
+Verified on the rendered page, with every control holding: `Laying of Hands` still `sets-rest`
+(v1972), `Naj's Puzzler` still `__throwout` and still saying *"by DEFAULT only — you have never
+ruled…"*, `Sigon's Guard` still carrying his own junk ruling, `Tal Rasha's Lidless Eye` still
+`sets-major`. **And no count moved** — 34 sets · 135 pieces · 398 roster · 403 chronTotal, identical
+before and after. A routing decision must never move a tally, and it didn't.
+
+**SIX sets remain discarded by default and unruled**: Sazabi's Grand Tribute, Naj's Ancient Vestige,
+Hwanin's Majesty, Arcanna's Tricks, Bane's Garments, Heaven's Brethren.
+
+The spec now pins both rulings by **destination**, not by wording — `NOW_KEPT` covers all nine pieces
+of the two ruled sets, and the assertion is *a piece of a set he has RULED must never reach the
+throw-out pile*. The label was only ever how he found out; the destination is the thing that matters.
+`NEVER_RULED` still guards the six, so the two-branch test continues to discriminate.

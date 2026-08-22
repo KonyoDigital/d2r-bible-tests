@@ -27,7 +27,14 @@ const RULED_JUNK = ["Sigon's Guard", "Cleglaw's Tooth", "Vidala's Barb"];
    asserting it still lands in the throw-out pile would pin the bug rather than the behaviour.
    Seven sets remain genuinely unruled and they are what this spec now guards. */
 const NEVER_RULED = ["Sazabi's Cobalt Redeemer", "Naj's Puzzler", "Hwanin's Justice"];
-const NOW_KEPT = ['Laying of Hands', 'Rite of Passage', 'Telling of Beads', 'Dark Adherent', 'Credendum'];
+/* v1974 — ORPHAN'S CALL JOINED THEM. Guillaume's Face (15% CB / 35% DS) sat in exactly the position
+   Laying of Hands did: discarded by a default nobody had ruled on. Both sets are now his ruling, and
+   both are pinned here by DESTINATION rather than by wording — the label was only ever how he found
+   out. Six sets remain genuinely unruled, and NEVER_RULED below is what still guards them. */
+const NOW_KEPT = [
+  'Laying of Hands', 'Rite of Passage', 'Telling of Beads', 'Dark Adherent', 'Credendum',
+  "Guillaume's Face", "Whitstan's Guard", "Magnus' Skin", "Wilhelm's Pride",
+];
 
 test('routing is UNCHANGED — every one of these still goes to the throw-out pile', async ({ page }) => {
   await page.goto(URL);
@@ -77,7 +84,7 @@ test('the two labels are genuinely different on real items', async ({ page }) =>
    This is the assertion that would have caught the original defect had it existed: a piece of a set
    he has RULED must never reach the throw-out pile. It is deliberately about the destination, not
    the wording — the label was only ever the way he found out. */
-test('The Disciple is a keeper now — its pieces mule, they do not get thrown out', async ({ page }) => {
+test('the sets he RULED are keepers — their pieces mule, they do not get thrown out', async ({ page }) => {
   await page.goto(URL);
   for (const n of NOW_KEPT) {
     const r = await page.evaluate((x) => (window as any).suggestMule(x), n);
