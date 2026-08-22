@@ -42664,8 +42664,16 @@ window._renderStashFresh = function(){
              only move a row from the wrong pipe to the right one, never the reverse. */
           var _uni = [], _setp = [];
           grailNames.forEach(function(n){
+            /* v1981 — grailNames HOLDS OBJECTS, NOT STRINGS. v1918 made this array carry the row's
+               evidence across (name, lane, conf, witnesses) instead of a bare string, so
+               findSetPiece(n) was handed an OBJECT, returned null every time, and v1978's split
+               never fired — every set piece went on down the uniques pipe exactly as before. The
+               fix looked correct and was verified with a string literal, which is precisely the
+               proxy the standing rule forbids: it tested findSetPiece, not the join. Caught by
+               running a real payload through vaultAccumApply and reading grail:[] back. */
+            var _nm = (n && n.name) ? n.name : n;
             var sp = null;
-            try { sp = (typeof window.findSetPiece === 'function') ? window.findSetPiece(n) : null; } catch(e){ sp = null; }
+            try { sp = (typeof window.findSetPiece === 'function') ? window.findSetPiece(_nm) : null; } catch(e){ sp = null; }
             /* THE CANONICAL FORM, NOT THE READ ONE. The sets branch validates against
                _chronSetPieceSet() — 135 entries, all SLOT-SUFFIXED — and anything absent is pushed
                to `unknown` rather than ticked. So handing it the bare read name routes every set
@@ -42675,6 +42683,8 @@ window._renderStashFresh = function(){
                findSetPiece already returns that exact string as `.piece`, so the canonical name is
                free here and no second naming rule enters the tree. Caught by feeding the pipe and
                reading `unknown:["Laying of Hands"]` back — never by inspection. */
+            /* uniques keep the whole row so their ledger entry still carries reel/frame/conf;
+               sets need the canonical suffixed NAME, which is what _chronSetPieceSet() holds. */
             if (sp && sp.piece) _setp.push(sp.piece); else _uni.push(n);
           });
           var res = window.chronicleApply({ wouldAdd: { uniques: _uni, sets: _setp } });
@@ -43604,7 +43614,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1980', name:'v1980 - the sweep now mules what it registers', date:'2026-08-22', note:'vaultAccumApply called vaultAutoAssign zero times - registering and muling were two halves nobody joined' };
+  window.D2R_BUILD = { id:'v1981', name:'v1981 - the fix that never fired', date:'2026-08-22', note:'v1978 handed findSetPiece an object because grailNames carries rows not strings - verified against a string literal, which tested the wrong thing' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

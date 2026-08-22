@@ -10253,3 +10253,34 @@ the original body already referenced it four times — so that count is real rat
 
 **Verified:** `vaultAccumApply` now references `vaultAutoAssign`; `suggestMule('Shako')` → `bases`
 while `suggestMule("Sigon's Guard")` → `__throwout`, so the keeper places and the throw-out does not.
+
+## REG-336 — v1978's fix never fired: grailNames holds OBJECTS, not strings (v1981)
+
+v1978 split `grailNames` with `findSetPiece(n)` to send set pieces down the sets pipe. **It never
+fired once.** v1918 had already made that array carry the row's evidence across —
+`grailNames.push({ name, lane, conf, witnesses, … })` — so `findSetPiece` was handed an **object**,
+returned null every time, and every set piece went on down the uniques pipe exactly as before.
+
+**How it passed verification and still was wrong.** I checked it by calling
+`findSetPiece('Laying of Hands')` with a string literal. That tests `findSetPiece`; it does not test
+the join. It is the exact proxy the standing rule forbids — *verify the thing, not a proxy* — and the
+fix shipped green.
+
+**What actually caught it:** running a real payload through `vaultAccumApply` and reading `grail:[]`
+back. After extracting `n.name` first:
+
+```
+grail: ["Laying of Hands (bramble mitts)", "Sigon's Guard (shield)"]
+d2r_setPieces: both stored · foundLog: 2 keys
+```
+
+Uniques still push the whole row so their ledger entry keeps reel/frame/conf; only the sets branch
+takes the canonical name, because that is what `_chronSetPieceSet()` holds.
+
+### Two things this run surfaced, NOT fixed here
+- **`muled: 0`.** `vaultAutoAssign` walks `ownedPool()`, but this path registers grail finds
+  (`foundLog` / `setPieces`) and never adds to `owned`. So v1980's join is correct and simply has
+  nothing to place from THIS path — a grail tick is "I found this", not "it is in my stash". Whether
+  a vault sweep should also register physical ownership is a design question, not a bug to patch.
+- **`Shako` never reached `grail`.** A plain unique passed through `_uni` and came back in neither
+  `res.uniques` nor `res.sets`. Unexplained; needs its own pass rather than a guess.
