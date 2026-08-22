@@ -32267,14 +32267,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // (pala) · Aldur (druid) · Trang-Oul (necro) · Natalya (sin) · M'avina (ama) — PLUS Horazon's Splendor, the
     // RotW WARLOCK class set (was falling through to throw-out as "junk" — Konyo's 4 Horazon's pieces wrongly
     // discarded; it's the Warlock's Tal-Rasha-tier set, so it MULES to SETS-REST now, not the throw-out pile).
-    var _KEEP_SET = /Tal Rasha|Immortal King|Griswold|Aldur|Trang.?Oul|Natalya|M.?avina|Horazon/i;
+    /* v1972 — DISCIPLE ADDED ON HIS RULING. v1970 surfaced that eight sets were discarded by
+       SILENCE rather than by a decision, and The Disciple was the one that mattered: it holds
+       LAYING OF HANDS. He ruled it a keeper. Its five pieces now mule to sets-rest (MAJOR_SETS
+       is Tal Rasha / Immortal King / Griswold only), instead of the throw-out pile.
+       SEVEN sets remain discarded by default and unruled — Sazabi's Grand Tribute, Naj's Ancient
+       Vestige, Hwanin's Majesty, Arcanna's Tricks, Bane's Garments, Heaven's Brethren, Orphan's
+       Call — and _discardWhy still names them as defaults rather than judgements. */
+    var _KEEP_SET = /Tal Rasha|Immortal King|Griswold|Aldur|Trang.?Oul|Natalya|M.?avina|Horazon|Disciple/i;
     /* v1970 — "HE RULED IT JUNK" AND "IT FELL THROUGH" MUST NOT READ THE SAME.
        Everything outside _KEEP_SET is discarded, so the default is DISCARD and the row says
        "low set piece" either way. But the comment above names EIGHTEEN sets he actually ruled on
        (Sigon's, Cleglaw's, Angelic, Bul-Kathos…), and the board knows THIRTY-FOUR. The other eight
-       — The Disciple, Sazabi's Grand Tribute, Naj's Ancient Vestige, Hwanin's Majesty, Arcanna's
-       Tricks, Bane's Garments, Heaven's Brethren, Orphan's Call — were never ruled either way and
-       are discarded by silence. **The Disciple holds Laying of Hands.**
+       — Sazabi's Grand Tribute, Naj's Ancient Vestige, Hwanin's Majesty, Arcanna's Tricks,
+       Bane's Garments, Heaven's Brethren, Orphan's Call — were never ruled either way and are
+       discarded by silence. (The Disciple was the EIGHTH and held Laying of Hands; he ruled it
+       a keeper in v1972, which is exactly what naming the default was for.)
        That is exactly where Horazon's Splendor sat until v440, and the comment above records what
        it cost: "Konyo's 4 Horazon's pieces wrongly discarded".
        This changes NO routing — which sets are worth muling is his call, not a defect to fix behind
@@ -43457,7 +43465,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1971', name:'v1971 - a comment that outranked its own authority', date:'2026-08-22', note:'roster comment said 514/387 while the spec it names pins 398 - stale since v1720' };
+  window.D2R_BUILD = { id:'v1972', name:'v1972 - the Disciple is a keeper', date:'2026-08-22', note:'his ruling - Laying of Hands and its four siblings mule to sets-rest instead of the throw-out pile' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

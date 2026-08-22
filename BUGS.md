@@ -9967,3 +9967,28 @@ keys, which the 8× gap gave away), roster 398 ✓, and the set-piece figures 10
 nine slips), REG-323 (a spec assertion and a length pre-filter that kept the old bound), and this,
 which had been stale since v1720. This file warns twice that *"a count in a comment is a number
 nobody re-measures"*. The warning is correct; it is just not a guard.
+
+## REG-327 — The Disciple is a keeper, on his ruling (v1972)
+
+v1970 did not change routing; it made the difference between *a discard he chose* and *a discard
+nobody chose* visible, and named the eight sets in the second category. He read it and ruled:
+**add The Disciple to `_KEEP_SET`.**
+
+All five pieces now mule instead of being discarded — `Laying of Hands`, `Rite of Passage`,
+`Telling of Beads`, `Dark Adherent`, `Credendum` — to **`sets-rest`**, because `MAJOR_SETS` is
+`Tal Rasha | Immortal King | Griswold` only. That is a placement, not a downgrade.
+
+Verified on the rendered page, with all three controls holding: `Naj's Puzzler` still throws out and
+still says *"by DEFAULT only — you have never ruled…"*, `Sigon's Guard` still carries his own junk
+ruling, and `Tal Rasha's Lidless Eye` still routes to `sets-major`.
+
+**Seven sets remain discarded by default and unruled** — Sazabi's Grand Tribute, Naj's Ancient
+Vestige, Hwanin's Majesty, Arcanna's Tricks, Bane's Garments, Heaven's Brethren, Orphan's Call —
+each still labelled a default rather than a judgement, and each still one word away from a ruling.
+
+**The spec was updated with the code, not after it.** `tests/v1970_discard_by_default.spec.ts` pinned
+`Laying of Hands` as `__throwout`; left alone it would have failed CI and, worse, would have been
+pinning the defect rather than the behaviour. It now asserts the ruling directly — *a piece of a set
+he has RULED must never reach the throw-out pile* — which is the assertion that would have caught the
+original problem had it existed. The calibration case moved to `Naj's Puzzler`, which is still
+genuinely unruled, so the two-branch test still discriminates.

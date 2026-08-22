@@ -21,7 +21,13 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  */
 
 const RULED_JUNK = ["Sigon's Guard", "Cleglaw's Tooth", "Vidala's Barb"];
-const NEVER_RULED = ['Laying of Hands', "Sazabi's Cobalt Redeemer", "Naj's Puzzler", "Hwanin's Justice"];
+/* v1972 — LAYING OF HANDS LEFT THIS LIST BECAUSE HE RULED ON IT. v1970 existed to make the
+   difference between a discard he chose and a discard nobody chose visible; he read it and added
+   The Disciple to _KEEP_SET. So the item that motivated the whole change is now a KEEPER, and
+   asserting it still lands in the throw-out pile would pin the bug rather than the behaviour.
+   Seven sets remain genuinely unruled and they are what this spec now guards. */
+const NEVER_RULED = ["Sazabi's Cobalt Redeemer", "Naj's Puzzler", "Hwanin's Justice"];
+const NOW_KEPT = ['Laying of Hands', 'Rite of Passage', 'Telling of Beads', 'Dark Adherent', 'Credendum'];
 
 test('routing is UNCHANGED — every one of these still goes to the throw-out pile', async ({ page }) => {
   await page.goto(URL);
@@ -57,8 +63,27 @@ test('a set he never ruled says so, by name', async ({ page }) => {
 test('the two labels are genuinely different on real items', async ({ page }) => {
   await page.goto(URL);
   const ruled = await page.evaluate(() => (window as any).suggestMule("Sigon's Guard").why);
-  const unruled = await page.evaluate(() => (window as any).suggestMule('Laying of Hands').why);
+  const unruled = await page.evaluate(() => (window as any).suggestMule("Naj's Puzzler").why);
   expect(ruled).not.toBe(unruled);
   expect(unruled, 'the unruled label must name the set, so he knows WHICH set to rule on')
-    .toContain('Disciple');
+    .toContain('Naj');
+});
+
+/* v1972 — HIS RULING, PINNED. He read v1970's honest label and ruled: The Disciple is a keeper.
+   All five pieces now mule instead of being discarded, and the one that mattered is LAYING OF HANDS
+   (+350% damage to demons). sets-rest rather than sets-major because MAJOR_SETS is Tal Rasha /
+   Immortal King / Griswold only — a placement, not a downgrade.
+
+   This is the assertion that would have caught the original defect had it existed: a piece of a set
+   he has RULED must never reach the throw-out pile. It is deliberately about the destination, not
+   the wording — the label was only ever the way he found out. */
+test('The Disciple is a keeper now — its pieces mule, they do not get thrown out', async ({ page }) => {
+  await page.goto(URL);
+  for (const n of NOW_KEPT) {
+    const r = await page.evaluate((x) => (window as any).suggestMule(x), n);
+    expect(r?.id, `"${n}" is a piece of a set he RULED a keeper; it must never be discarded`)
+      .not.toBe('__throwout');
+    expect(r?.id, `"${n}" should mule to sets-rest (MAJOR_SETS is Tal Rasha/IK/Griswold only)`)
+      .toBe('sets-rest');
+  }
 });
