@@ -93,6 +93,12 @@ GATES = [
              "seed is his HISTORY, so the guards are the four REFUSALS: report-only unless "
              "--write, never shrink, never seed a piece the game lists as missing, never seed a "
              "name a boot one-shot owns"),
+    Gate("test_store_isolation", [sys.executable, os.path.join(HERE, "test_store_isolation.py")], 60,
+         why="v1965 — a non-owner browser gets its own world (I·<id8>· keys) so a guest's grail "
+             "never lands in his. That set was right for every store that existed when it was "
+             "written and was never extended: SEVEN grail-ish stores write BARE on a guest world, "
+             "including d2r_chronicleInboxLog, the Routing Ledger. Changing the namespacing "
+             "orphans guest data and is his call; this gate only refuses an EIGHTH"),
     Gate("test_gate_cache", [sys.executable, os.path.join(HERE, "test_gate_cache.py")], 60,
          why="v1941 — the Vault Accumulator quote memoises a crop+OCR verdict per frame (7.4 "
              "minutes of his evening before it did). The speed is not the risk: a stale 'stash' "

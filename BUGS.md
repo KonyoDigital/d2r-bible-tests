@@ -9583,3 +9583,76 @@ the doors is the point of this change. Recorded so the asymmetry is a known trad
 Verified in BOTH directions at both doors: un-tick retracts the date; **tick still writes the ledger
 row with a proper stamp** (the `if/else` in `toggleSetPiece` was restructured, so that regression was
 the one worth checking), and the uniques toggle round-trips `false → true → false` cleanly.
+
+---
+
+## REG-316 — the isolation set was right when it was written, and never extended (v1965)
+
+bible.html gives a non-owner browser its own world: keys in `_WP_FORKED` take an `I·<id8>·` prefix
+(`IL·` on ladder), so a guest's grail never lands in the owner's keys. Keys in neither fork set stay
+BARE in every world, deliberately — *"so every world LOOKS identical and bare-key presence can never
+be read as ownership."*
+
+**That set was correct for every store that existed when it was written.** Measured 2026-08-22: 29 of
+the 41 stores written through `LSR` are in a fork set, and **seven grail-ish stores are not**:
+
+`d2r_chronAdopted` · `d2r_chronicleInbox` · **`d2r_chronicleInboxLog`** · `d2r_gameFound` ·
+`d2r_setRepairAt` · `d2r_setRepairKept` · `d2r_setRepairRemoved`
+
+Every one postdates the fork sets. The third is the **Routing Ledger** — the surface he asked to be
+able to read surgically — and on a guest world it writes into the key the owner reads. The fourth is
+`d2r_gameFound`, which v1963/v1964 just made load-bearing at four doors.
+
+**THE NAMESPACING IS NOT CHANGED HERE, and that is deliberate.** Adding keys to `_WP_FORKED` orphans
+whatever a guest world already wrote under the bare name; this repo carries migration machinery
+because that cost is real. Which stores to migrate is his call. What is NOT his call is whether the
+NEXT store repeats the pattern silently — so the seven are named in `KNOWN_UNISOLATED` and an EIGHTH
+fails the gate.
+
+Practical exposure today is narrow: he is the owner on his console, so bare IS his. The leak needs
+one browser used both with and without the owner claim.
+
+⚠ **THE SUITE REFUSED IT ON THE FIRST RUN, CORRECTLY.** The new gate passed its own three tests and
+broke a different one: `test_every_cli_that_prints_non_ascii_is_encoding_safe` named it, because the
+file prints `I·<id8>·` and em-dashes in its failure messages without calling
+`console_safe.enable()`. On a non-UTF-8 console — his Windows cousin — that crashes WHILE REPORTING,
+so a clean tree exits non-zero for a reason unrelated to the code. A guard that cannot print its own
+verdict is worse than no guard. Fixed by the idiom the message itself prescribes.
+
+Guard: `tv/test_store_isolation.py`, registered in `run_gates.py` (42 gates). **Calibrated in three
+directions, each seen RED**: a new unisolated grail store fails; one of the seven becoming isolated
+fails (a stale allowlist hides the next one); and the fork sets ceasing to parse fails, because a
+guard whose input stopped parsing measures air. ⚠ Its reach is stated in the file: it reads
+`LSR.setItem('d2r_…')` literals, so a store written through a variable is invisible — the count is a
+floor, not a census, which is why the assertion is "no NEW escape" rather than "all isolated".
+[[source-reading-guard]]
+
+---
+
+## REG-317 — v1964's code shipped under the v1963 stamp, because I did not read a refusal
+
+`bump_version.py v1964` **REFUSED**, correctly and out loud:
+
+> `apostrophe in note/name would break the single-quoted D2R_BUILD literal`
+
+The note contained `read's`. The guard is right — an apostrophe would break the single-quoted
+`D2R_BUILD` literal in bible.html. **I piped its output to `tail -3` inside a backgrounded command
+and never read the result**, so the refusal went unseen, the four stamps stayed at v1963, and the
+commit went out titled "v1963 + v1964" claiming a ship that was never stamped.
+
+His own rule names it exactly: *"A vNNNN IS A SHIP, NOT A COMMIT — number ONLY commits that bump the
+four stamps."*
+
+**What is and is not affected.** v1964's CODE is live and correct: 41 gates and all 8 CI lanes green
+on it. The four stamps are internally CONSISTENT (all four read v1963), so nothing on the board
+contradicts anything else — the board simply reports one version behind what it carries. v1965
+supersedes it with a correctly bumped stamp.
+
+⚠ **This is the SECOND unread verdict tonight**, and the same shape as REG-313: a tool printed a
+refusal, the output was swallowed by a pipe in a background command, and I proceeded on the
+assumption it had worked. The lesson is not "read CI" or "read bump output" separately — it is that
+**a command whose verdict I do not read is a command I did not run.**
+
+Two concrete rules: never put an apostrophe in a bump note or name; and never pipe a bump through
+`tail` — its refusals are one line and land at the TOP of the output, which is precisely what `tail`
+discards.

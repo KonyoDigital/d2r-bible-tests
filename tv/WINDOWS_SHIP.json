@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1963",
+  "ver": "v1965",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1963: a piece removed by the repair kept its game-found dropper, so re-ticking it printed the rejected read back as corroboration",
+  "note": "v1965: seven grail stores added since write BARE on a guest world; the namespacing is his call, but an eighth now fails a gate",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
