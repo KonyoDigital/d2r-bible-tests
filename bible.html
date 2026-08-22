@@ -34122,7 +34122,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var sg = suggestMule(name);
       if (!sg) return;
       if (sg.id === '__throwout'){ suggested++; _log(name, 'throw-suggested', sg); return; }
-      if (muleById(sg.id)){ assign[name] = sg.id; n++; _log(name, 'muled', sg); }
+      if (muleById(sg.id)){ assign[name] = sg.id; n++; _log(name, 'muled', sg); return; }
+      /* ⚠ v1955 — RESTORING v409, WHICH I DELETED IN v1948 WHILE "ONLY" ADDING LOGGING.
+         The original one-liner ended `else if (sg && sg.id === '__keep'){ assign[name]='__keep';
+         n++; }`, with its own note: "__keep items (Anni/Torch/Gheed's) are handled (kept in
+         inventory), not left nagging in the dock". Rewriting that line into a readable block, I
+         carried the __throwout case forward and dropped this one — so from v1948 his Annihilus,
+         Torch and Gheed's sat in the unsorted dock forever, which is precisely the nagging v409
+         existed to stop. Caught by tests/v203_mule_vault.spec.ts: dock expected 0 chips, got 1,
+         and the leftover was Annihilus.
+
+         The lesson is not "be careful": it is that a refactor of a dense line must enumerate the
+         branches it is replacing, and a one-liner with three outcomes hides one of them by
+         construction. [[feedback-generalize-fixes]] */
+      if (sg.id === '__keep'){
+        assign[name] = '__keep'; n++;
+        _log(name, 'kept-in-inventory', sg);
+      }
     });
     saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s')+(suggested?(' · '+suggested+' suggested for throw-out (nothing binned)'):''));
   };
@@ -43030,7 +43046,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1954', name:'v1954 - the vault says who let it in', date:'2026-08-22', note:'tvVaultRegister puts a physical item into his vault when the TV sees a pickup and recorded nothing, so the store where his mystery charm appeared was the one store with no arrival record. It also accepts any name at all: Not A Real Item At All registered fine and was filed to a mule.' };
+  window.D2R_BUILD = { id:'v1955', name:'v1955 - the branch I deleted while adding logging', date:'2026-08-22', note:'v1948 rewrote a dense one-liner in vaultAutoAssign into a readable block and carried two of its three outcomes forward. The __keep branch from v409 was dropped, so Annihilus, Torch and Gheeds sat in the unsorted dock from v1948 onward.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43744,6 +43760,8 @@ window._CH_PILL_MAP = {
          Chance) are absent from the roster too, so refusing unknown names would lose true finds.
          It is FLAGGED, so the suspicious ones are visible and the genuine ones survive. */
       'vault-unknown':   ['❓ name not recognised', '#f0c060'],
+      /* v1955 — restored with the v409 branch it belongs to. */
+      'kept-in-inventory':['🎒 kept in your inventory', 'var(--best,#66ff88)'],
       'route-failed':    ['⚠ could not route', '#f0a060'],
       'filed-by-hand':   ['✋ you filed this', '#9fd4ff']
     };
