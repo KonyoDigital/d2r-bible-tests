@@ -9465,3 +9465,51 @@ without it is silent — not because it was measured biting.
 **Headroom, measured rather than assumed**: his whole board store is 879 KB across 93 keys against a
 ~5 MB quota (~17%); the ledger is the largest key at 265 KB and tops out near 325 KB. A quota
 failure is not a live risk, so `_chLsSet`'s silent swallow was left alone rather than gold-plated.
+
+---
+
+## REG-313 — a test seam born inside a branch (v1962)
+
+**Routine I went red on v1960 and v1961, and on nothing before them.** v1958 and v1959 were green;
+so were v1956 and earlier. The delta names the cause exactly — the two ships carrying the frame-eye
+guard — and it was found only by READING CI, four ships after the last time I did.
+
+`window._chFrameHref` was assigned inside `renderRoutingLedger`, BELOW its early return:
+
+```js
+if (!Array.isArray(rows) || !rows.length){ el.style.display = 'none'; return; }
+```
+
+Every probe I ran seeded his 326 ledger rows, so the renderer always ran past that line and the
+export always existed. **CI boots an EMPTY ledger**, returns early, and the export is never created.
+The guard then failed with its own message — *"_chFrameHref is not exposed — this guard would
+measure nothing"* — which is precisely what it was written to say.
+
+**The link-building was never broken.** It happens inside the same loop where the local is in scope,
+so the 324/324 frame links worked the whole time. What was conditional on his data was the SEAM A
+TEST CAN REACH. A pure function whose entire purpose is to be testable must not be born inside a
+branch — and "my probe always seeded data" is exactly how that goes unnoticed.
+
+Fixed by defining the helper above `renderRoutingLedger` at module scope. Verified in both
+conditions: with an EMPTY ledger the export exists and resolves
+(`/hist/reel_s_1786999742937_35523/f_1787000217218.jpg`), and with rows the panel still renders and
+all three frameId shapes resolve unchanged.
+
+**SEEN RED, AND THE FIRST ATTEMPT TO SEE IT RED WAS ITSELF WRONG.** Probing the shipped file
+reported `exposed: true` — appearing to refute the diagnosis. The cause was the probe: `file://`
+origins share localStorage between runs, so a PREVIOUS probe's 326 rows were still in the store at
+boot, the renderer ran past its early return, and the export already existed. Clearing the store and
+RELOADING before measuring reproduces CI exactly:
+
+| bytes | empty boot | `window._chFrameHref` |
+|---|---|---|
+| pre-v1962 (shipped, CI-red) | 0 rows | **false** |
+| post-v1962 | 0 rows | **true** |
+
+That is the same defect class as the bug itself, one level up: a measurement whose result depended
+on data left behind by an earlier measurement.
+
+⚠ **The wider lesson, and it is about me, not the code.** I shipped four versions tonight and read
+CI on none of them. The pre-push gate runs a SUBSET; Routine I runs the whole suite. Two red ships
+sat unnoticed for over an hour while I audited seven other territories and reported them clean.
+[[sweep-dont-ask]] says it in one line: *"Read CI. It is not optional and it is not later."*

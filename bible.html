@@ -34820,6 +34820,70 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
    v1918 published the recorder, v1943 and v1945 gave empty and refused reads an honest reason,
    and v1948 made the mule routing record the `why` suggestMule had always returned. So this is a
    rendering job, not a data job — the evidence was being written the whole time. */
+  /* v1962 — DEFINED OUT HERE, NOT INSIDE THE RENDERER, AND CI IS WHY.
+     v1960 assigned window._chFrameHref inside renderRoutingLedger, BELOW its
+     `if (!rows.length){ el.style.display='none'; return; }` early return. Every probe I ran seeded
+     his 326 ledger rows, so the renderer always ran past that line and the export always existed.
+     CI boots an EMPTY ledger, returns early, and the export is never created. Routine I went red on
+     v1960 and v1961 and on nothing before them — the delta names the cause exactly.
+
+     The link-building was never broken: it happens inside the same loop where the local is in
+     scope, so his 324/324 frame links worked throughout. What was conditional on his data was the
+     SEAM A TEST CAN REACH. A pure function whose whole purpose is to be testable must not be born
+     inside a branch.
+
+     THE GUARD DID ITS JOB — it asserts the export exists precisely so this fails loudly instead of
+     passing while measuring nothing, and that is exactly how it was caught. */
+  /* v1960 — THE EYE POINTED AT A FILE THAT WAS NEVER THERE.
+     MEASURED on his live ledger: 324 rows carry a frameId and only 42 resolved. The link was
+     built as '/hist/' + frameId + '.jpg', and THREE shapes reach this renderer:
+
+       reel_s_1785708285647_38665/f_1785708358178   reel-relative, no extension  → worked
+       f_1787000217218.jpg                          bare, WITH extension         → 404 (282 rows)
+       7_1786385852302                              verify beat, hist/ depth 1   → worked
+
+     The 282 are wrong twice over: '.jpg' appended to a name that already ends in it, AND the reel
+     directory dropped. The file is not missing — f_1787000217218.jpg sits at
+     hist/reel_s_1786999742937_35523/ — and the row knew: it carries `sessionId` beside `frameId`
+     and the renderer never read it. AFTER: 324 of 324 resolve, 0 regressions.
+
+     This is the "surgically" half of what he asked the ledger for — click the eye, see the
+     photograph the decision came from — and it was dead on seven of every eight rows. The server
+     already knew better: _hist_frame_paths tests `stem.endswith('.jpg')` before appending. The
+     board never learned the same rule, and _serve_hist does a literal path join and 404s, so
+     nothing downstream rescued it. Each path segment is encoded separately so the '/' survives.
+
+     ⚠ NOT a class fix across the console UI. Its six /hist/ builders look identical and are
+     CORRECT for their own data: zero of 1,157 console-side frameIds carry an extension. Same
+     shape, different data — measured before deciding not to touch them.
+
+     Hoisted onto window ON PURPOSE: the eye renders only when the page is served by his console
+     (/hist/ exists nowhere else), so a spec on file:// builds no links and every assertion about
+     them would pass vacuously. Exposing the pure builder makes the rule testable where the
+     rendering is not. */
+  var _frameHref = window._chFrameHref = function(row){
+    var f = String((row && row.frameId) || '').trim();
+    if (!f) return '';
+    /* v1961 — the '#v' verify suffix, mirrored from the server rather than invented here.
+       control_app.py's _hist_frame_paths does `base = fid.split("#", 1)[0]` because "Verify beats
+       use frameId 'N_ts#v' but the JPEG is always 'N_ts.jpg' (no #v file)". Without the strip such
+       a row builds /hist/N_ts%23v.jpg and 404s silently.
+       ⚠ UNEXERCISED, and said so rather than implied: 0 of his 326 ledger rows and 0 of the
+       frameIds in tv/sessions.jsonl carry a '#'. It is here because the server documents the
+       shape and the failure without it is silent — not because it was measured biting. */
+    var stem = f.split('#')[0].replace(/\.jpg$/i, '');
+    /* ONLY reel footage gets the directory. The first draft of this fix prefixed every bare name
+       with its session: that repaired 282 rows and turned 23 WORKING links into 404s, because
+       verify beats are named `N_ts` and live at hist/ depth 1. A fix that repairs 282 and breaks
+       23 is not a fix, and only measuring against his real ledger caught it. control_app.py's own
+       _hist_frame_paths docstring draws the line: "Verify beats use frameId 'N_ts#v' ... Reel
+       footage uses 'reel_<sid>/f_<ts>' relative form." So: prefix `f_` names, leave the rest. */
+    if (stem.indexOf('/') < 0 && /^f_/.test(stem)){
+      var sid = String((row && (row.sessionId || row.reel)) || '').trim();
+      if (sid) stem = (/^reel_/.test(sid) ? sid : ('reel_' + sid)) + '/' + stem;
+    }
+    return '/hist/' + stem.split('/').map(encodeURIComponent).join('/') + '.jpg';
+  };
 window.renderRoutingLedger = function(){
   var el = document.getElementById('routing-ledger'); if (!el) return;
   var rows = [];
@@ -34861,56 +34925,6 @@ window.renderRoutingLedger = function(){
   sorted.forEach(function(r){
     var p = PILL[r.status] || [String(r.status || 'read'), 'var(--text-dim,#8a7d64)'];
     var tgt = r.target ? (' \u2192 <b>' + esc(r.target) + '</b>') : (r.store ? (' \u2192 ' + esc(r.store)) : '');
-    /* v1960 — THE EYE POINTED AT A FILE THAT WAS NEVER THERE.
-       MEASURED on his live ledger: 324 rows carry a frameId and only 42 resolved. The link was
-       built as '/hist/' + frameId + '.jpg', and THREE shapes reach this renderer:
-
-         reel_s_1785708285647_38665/f_1785708358178   reel-relative, no extension  → worked
-         f_1787000217218.jpg                          bare, WITH extension         → 404 (282 rows)
-         7_1786385852302                              verify beat, hist/ depth 1   → worked
-
-       The 282 are wrong twice over: '.jpg' appended to a name that already ends in it, AND the reel
-       directory dropped. The file is not missing — f_1787000217218.jpg sits at
-       hist/reel_s_1786999742937_35523/ — and the row knew: it carries `sessionId` beside `frameId`
-       and the renderer never read it. AFTER: 324 of 324 resolve, 0 regressions.
-
-       This is the "surgically" half of what he asked the ledger for — click the eye, see the
-       photograph the decision came from — and it was dead on seven of every eight rows. The server
-       already knew better: _hist_frame_paths tests `stem.endswith('.jpg')` before appending. The
-       board never learned the same rule, and _serve_hist does a literal path join and 404s, so
-       nothing downstream rescued it. Each path segment is encoded separately so the '/' survives.
-
-       ⚠ NOT a class fix across the console UI. Its six /hist/ builders look identical and are
-       CORRECT for their own data: zero of 1,157 console-side frameIds carry an extension. Same
-       shape, different data — measured before deciding not to touch them.
-
-       Hoisted onto window ON PURPOSE: the eye renders only when the page is served by his console
-       (/hist/ exists nowhere else), so a spec on file:// builds no links and every assertion about
-       them would pass vacuously. Exposing the pure builder makes the rule testable where the
-       rendering is not. */
-    var _frameHref = window._chFrameHref = function(row){
-      var f = String((row && row.frameId) || '').trim();
-      if (!f) return '';
-      /* v1961 — the '#v' verify suffix, mirrored from the server rather than invented here.
-         control_app.py's _hist_frame_paths does `base = fid.split("#", 1)[0]` because "Verify beats
-         use frameId 'N_ts#v' but the JPEG is always 'N_ts.jpg' (no #v file)". Without the strip such
-         a row builds /hist/N_ts%23v.jpg and 404s silently.
-         ⚠ UNEXERCISED, and said so rather than implied: 0 of his 326 ledger rows and 0 of the
-         frameIds in tv/sessions.jsonl carry a '#'. It is here because the server documents the
-         shape and the failure without it is silent — not because it was measured biting. */
-      var stem = f.split('#')[0].replace(/\.jpg$/i, '');
-      /* ONLY reel footage gets the directory. The first draft of this fix prefixed every bare name
-         with its session: that repaired 282 rows and turned 23 WORKING links into 404s, because
-         verify beats are named `N_ts` and live at hist/ depth 1. A fix that repairs 282 and breaks
-         23 is not a fix, and only measuring against his real ledger caught it. control_app.py's own
-         _hist_frame_paths docstring draws the line: "Verify beats use frameId 'N_ts#v' ... Reel
-         footage uses 'reel_<sid>/f_<ts>' relative form." So: prefix `f_` names, leave the rest. */
-      if (stem.indexOf('/') < 0 && /^f_/.test(stem)){
-        var sid = String((row && (row.sessionId || row.reel)) || '').trim();
-        if (sid) stem = (/^reel_/.test(sid) ? sid : ('reel_' + sid)) + '/' + stem;
-      }
-      return '/hist/' + stem.split('/').map(encodeURIComponent).join('/') + '.jpg';
-    };
     var frame = (r.frameId && onConsole)
       ? '<a href="' + _frameHref(r) + '" target="_blank" '
         + 'style="margin-left:6px;opacity:.75;text-decoration:none" title="open the frame this came from">\uD83D\uDDBC</a>'
@@ -43348,7 +43362,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1961', name:'v1961 - a receipt on dead code is worse than no receipt', date:'2026-08-22', note:'the failed-write branch is reachable, completeSets is guarded at the merge, and the ledger stops calling itself a history' };
+  window.D2R_BUILD = { id:'v1962', name:'v1962 - a test seam born inside a branch', date:'2026-08-22', note:'window._chFrameHref only existed when the ledger had rows, so CI booted an empty ledger and the guard could not run' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

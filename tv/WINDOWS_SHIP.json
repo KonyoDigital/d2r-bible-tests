@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1961",
+  "ver": "v1962",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1961: the failed-write branch is reachable, completeSets is guarded at the merge, and the ledger stops calling itself a history",
+  "note": "v1962: window._chFrameHref only existed when the ledger had rows, so CI booted an empty ledger and the guard could not run",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
