@@ -42632,8 +42632,38 @@ window._renderStashFresh = function(){
     if (grailNames.length){
       if (typeof window.chronicleApply === 'function'){
         try {
-          var res = window.chronicleApply({ wouldAdd: { uniques: grailNames, sets: [] } });
-          out.grail = (res && res.uniques) || [];
+          /* v1978 — A SET PIECE FROM FILM WAS FILED AS A UNIQUE. `sets: []` was hardcoded, so a
+             Tal Rasha or Disciple piece read off a reel went down the uniques pipe and never
+             reached toggleSetPiece: it landed in the physical vault or was skipped, and the set
+             grail never ticked. The machinery was already present and simply never fed —
+             _chronicleApplyInner reads wouldAdd.sets in seven places and calls toggleSetPiece
+             twice. This is the JOIN, not new logic.
+
+             SPLIT WITH THE BOARD'S OWN RESOLVER. findSetPiece is what every other surface uses to
+             answer "is this name a set piece", and it already tolerates the bare and the
+             slot-suffixed form ("Tal Rasha's Adjudication (amulet)"). Anything else here would put
+             a second opinion about set membership in the tree, which is how two surfaces begin
+             disagreeing about one item.
+
+             A name findSetPiece cannot place stays a unique — the previous behaviour — so this can
+             only move a row from the wrong pipe to the right one, never the reverse. */
+          var _uni = [], _setp = [];
+          grailNames.forEach(function(n){
+            var sp = null;
+            try { sp = (typeof window.findSetPiece === 'function') ? window.findSetPiece(n) : null; } catch(e){ sp = null; }
+            /* THE CANONICAL FORM, NOT THE READ ONE. The sets branch validates against
+               _chronSetPieceSet() — 135 entries, all SLOT-SUFFIXED — and anything absent is pushed
+               to `unknown` rather than ticked. So handing it the bare read name routes every set
+               piece to unknown, which is WORSE than the uniques mis-file this fix replaces:
+                 _chronSetPieceSet().has('Laying of Hands')                  -> false
+                 _chronSetPieceSet().has('Laying of Hands (bramble mitts)')  -> true
+               findSetPiece already returns that exact string as `.piece`, so the canonical name is
+               free here and no second naming rule enters the tree. Caught by feeding the pipe and
+               reading `unknown:["Laying of Hands"]` back — never by inspection. */
+            if (sp && sp.piece) _setp.push(sp.piece); else _uni.push(n);
+          });
+          var res = window.chronicleApply({ wouldAdd: { uniques: _uni, sets: _setp } });
+          out.grail = ((res && res.uniques) || []).concat((res && res.sets) || []);
         } catch(e){ out.skipped.push('grail apply failed: ' + (e && e.message || e));
       try { if (typeof window.kaiChronicleRecord === 'function')
           window.kaiChronicleRecord({ name: 'grail apply', status: 'route-failed', store: 'vault',
@@ -43527,7 +43557,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1977', name:'v1977 - one phrase one meaning', date:'2026-08-22', note:'the lane pills said ON AIR like the broadcast card above them - they now say AUTO, with spacing and a row label' };
+  window.D2R_BUILD = { id:'v1978', name:'v1978 - a set piece from film is a set piece', date:'2026-08-22', note:'vault apply hardcoded sets empty so film-read set pieces were filed as uniques - now split via findSetPiece canonical name' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

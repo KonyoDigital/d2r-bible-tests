@@ -10156,3 +10156,46 @@ wrong about two details, which is exactly why findings get reproduced before the
 
 Its other observations (`MF QUICK SET` showing a value off the preset ticks, the header contrast, the
 clipped scrollbar) are pre-existing and outside this change; recorded here, not chased.
+
+## REG-333 — a set piece read off film was filed as a unique (v1978)
+
+Raised by a read-only Grok audit of the Vault Manager, then reproduced here before acting.
+
+`vaultAccumApply` called `chronicleApply({ wouldAdd: { uniques: grailNames, sets: [] } })` with
+**`sets` hardcoded empty**. A Tal Rasha or Disciple piece that a sweep grounded went down the uniques
+pipe, never reached `toggleSetPiece`, and the set grail never ticked. Measured: `vaultAccumApply` is
+11,573 chars and calls `toggleSetPiece` **0** times.
+
+The machinery already existed and was simply never fed — `_chronicleApplyInner` reads `wouldAdd.sets`
+in seven places and calls `toggleSetPiece` twice. **A join, not new logic.**
+
+### The trap that made my first fix WORSE than the bug
+The sets branch validates every name against `_chronSetPieceSet()` — **135 entries, all
+slot-suffixed** — and pushes anything absent to `unknown` rather than ticking it:
+
+```
+_chronSetPieceSet().has('Laying of Hands')                 -> false
+_chronSetPieceSet().has('Laying of Hands (bramble mitts)') -> true
+```
+
+So passing the bare read name routed **every** set piece to `unknown`. `findSetPiece` already returns
+the canonical string as `.piece`, so it costs nothing and introduces no second naming rule. **Caught
+by feeding the pipe and reading `unknown:["Laying of Hands"]` back — not by inspection.** The spec now
+pins the bare name as refused, so a later "simplification" fails loudly.
+
+### What I did NOT accept from that audit
+Its headline — *"film cannot see the names it would mule"* — is **not a defect**. `control_app.py`
+already documents it at v1861 and quotes the very same three frames the report offered as evidence:
+
+> *"READ FINE, AND THERE IS NOTHING NAMEABLE ON IT" IS A THIRD ANSWER. D2R prints no item names in a
+> stash grid; a name appears only in the HOVER tooltip. So a perfectly good read of a full shelf
+> honestly returns items:[] — measured on his own frames.*
+
+They are counted separately in `_read_no_names` precisely so the sweep can say which of three things
+happened. `owned: []` therefore follows from **physics**, not a broken join, and the `BLOCKED` verdict
+rests partly on re-presenting the code's own documented evidence as a discovery.
+
+**Still open and real from that audit:** `vaultAccumApply` calls neither `vaultAutoAssign` nor
+`suggestMule` (0 and 0 — it does not mule); `gate()` returns `"witnesses": n` as a COUNT while the
+board reads `.seen[0]` as an array; and `KEEP_MIN_WITNESSES` is applied with no per-kind exception, so
+one clean rune-tab photo stays unsure. Not fixed here — each needs its own verified pass.

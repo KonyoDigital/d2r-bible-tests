@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1977",
+  "ver": "v1978",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1977: the lane pills said ON AIR like the broadcast card above them - they now say AUTO, with spacing and a row label",
+  "note": "v1978: vault apply hardcoded sets empty so film-read set pieces were filed as uniques - now split via findSetPiece canonical name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
