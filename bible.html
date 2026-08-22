@@ -8233,6 +8233,14 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .ibx-pill{font-size:var(--fs-micro);border:1px solid;border-radius:999px;padding:1px 7px;white-space:nowrap}
 .ibx-nm{color:var(--q-unique);font-weight:var(--fw-medium);cursor:help;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ibx-why{color:var(--text-dim,#8a7d64);font-size:var(--fs-micro);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* v1968 — a row that HAS an answer must not look like a row that does not. .ibx-why is
+   --text-dim at micro size, so "probably Hawkmail" — the most actionable text in the row —
+   rendered in the least prominent style the panel owns. --text-muted, deliberately NOT a
+   rarity token: --q-set green would say "set item" about a name that is not one.
+   ⚠ IT MUST SIT AFTER .ibx-why. The span carries BOTH classes and both set `color` at equal
+   specificity, so source order decides — written above .ibx-why first, this rule was inert and
+   looked applied. That is this repo's standing CSS scar: the LAST declaration wins. */
+.ibx-why-near{color:var(--text-muted,#b5a48a);}
 .ibx-when{color:var(--text-dim,#8a7d64);font-size:var(--fs-micro);white-space:nowrap}
 .ibx-dest{color:var(--gold-dim,#a07830);font-size:var(--fs-micro);white-space:nowrap}
 .ibx-row:has(.ibx-act){grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto}
@@ -43426,7 +43434,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1967', name:'v1967 - the queue stops saying unclear read', date:'2026-08-22', note:'names the probable item behind an OCR slip, suggestion only, bound measured at 3' };
+  window.D2R_BUILD = { id:'v1968', name:'v1968 - a count nobody re-measured', date:'2026-08-22', note:'stale header count, an inert CSS rule, and a bound that outlived its calibration in three places' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -44157,9 +44165,17 @@ window._CH_PILL_MAP = {
      anywhere in this file (measured: zero), a slip just sat in the queue reading "unclear read".
 
      Measured on his CURRENT reader output, 2026-08-22 — 369 names, 343 recognised (93%). Of the 26
-     that were not, NINE are slips of real roster entries and every one was invisible to him:
-       Hawkfane->Hawkmail · Stouthale->Stoutnail · Endlessmane->Endlesshail · Kinemit->Kinemil's Awl
-       Nord's Tooth->Nord's Tenderizer · The Dragon->The Dragon Chang · Bloodfist Shard->Bloodfist
+     that were not, FOUR resolve to a single confident candidate and every one was invisible to him:
+       Hawkfane->Hawkmail · Stouthale->Stoutnail · Endlessmane->Endlesshail
+       Bloodfist Shard->Bloodpact Shard
+     ⚠ v1968 — THIS PARAGRAPH SHIPPED SAYING "NINE", AND NAMED MAPPINGS THE CODE DOES NOT MAKE
+     (Kinemit->Kinemil's Awl, Nord's Tooth->Nord's Tenderizer, The Dragon->The Dragon Chang, and
+     Bloodfist Shard->Bloodfist — that last one is not even the candidate it picks). The nine came
+     from an EARLIER count taken before the bound was calibrated, against the boss-drop-table ITEMS
+     array rather than the roster; the calibration below then measured four, and nobody re-read the
+     paragraph above it. Caught by reviewing the pushed bytes, not by writing them. This is the
+     exact failure the v1692 block already warns about in this same file — "a count in a comment is
+     a number nobody re-measures" — arriving one screen away from where it is written down.
      His words when he asked for this (v1789's header): "cant like an extra AI take care of it and
      cross reference it ... and if it still cant then leave it for me to tick off."
 
@@ -44218,7 +44234,12 @@ window._CH_PILL_MAP = {
     var best = null, bestD = 99, tie = false;
     for (var j = 0; j < _NGN_CACHE.length; j++){
       var cand = _NGN_CACHE[j][0];
-      if (Math.abs(cand.length - q.length) > 3) continue;   // cheap gate before the O(nm) work
+      /* The cheap gate before the O(nm) work — and it MUST track _NGN_MAX. Written as a literal 3
+         it becomes an invisible ceiling the moment the bound moves: raise _NGN_MAX to 4 and this
+         line still discards every candidate 4 apart in length, so the extra edit is unreachable
+         and the constant above looks tuned while doing nothing. Same shape as the assertion in
+         v1967's own spec that kept saying 2 after the bound became 3. */
+      if (Math.abs(cand.length - q.length) > _NGN_MAX) continue;
       var d = _ngnDist(q, cand, _NGN_MAX);
       if (d < 0) continue;
       if (d < bestD){ bestD = d; best = _NGN_CACHE[j][1]; tie = false; }

@@ -18,6 +18,14 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  * guesses freely would invent finds, and on this board a find is never created by inference.
  */
 
+/* The calibrated bound, kept beside the data it describes. This line WAS the literal `2`, left
+   behind when the bound moved to 3: the SLIPS below were updated, the assertion was not, and CI
+   failed with "Hawkfane should be within 2 edits" while the resolver had answered "Hawkmail"
+   correctly — the feature working and the test wrong. Third time in one day that a number survived
+   its own recalibration (the others: the header comment claiming NINE slips, and the bound itself).
+   Named once here so the next move of the bound cannot leave a straggler behind. */
+const NGN_MAX = 3;
+
 const SLIPS: Array<[string, string]> = [
   ['Hawkfane',        'Hawkmail'],
   ['Stouthale',       'Stoutnail'],
@@ -45,7 +53,7 @@ test('a slip of a real board item is named, and the row still waits for his ruli
     }, raw);
     expect(got, `"${raw}" should resolve to "${want}"`).not.toBeNull();
     expect(got!.name, `"${raw}" -> wrong candidate`).toBe(want);
-    expect(got!.dist, `"${raw}" should be within 2 edits`).toBeLessThanOrEqual(2);
+    expect(got!.dist, `"${raw}" should be within ${NGN_MAX} edits`).toBeLessThanOrEqual(NGN_MAX);
   }
 });
 
@@ -95,4 +103,32 @@ test('the resolver is not inert — it still fires on the class it was built for
     .map((x: string) => (window as any)._nearestGrailName(x))
     .filter(Boolean).length, SLIPS.map(s => s[0]));
   expect(n, 'every calibrated slip went silent — the bound is above the ceiling of the signal again').toBe(SLIPS.length);
+});
+
+/* v1968 — THE CASCADE, NOT THE SOURCE ORDER. `.ibx-why-near` was first written ABOVE `.ibx-why`.
+   The span carries both classes, both set `color`, and both are single-class selectors — equal
+   specificity, so source order alone decided and the dim rule won. The suggestion would have
+   rendered in exactly the style it exists to escape, while the rule sat in the file looking correct.
+
+   A comment saying "keep this below" is not a guard; the next person to sort the stylesheet does not
+   read comments. This asserts the OUTCOME — that an element carrying both classes computes to
+   something other than the dim colour — so the defect fails the build rather than the eye. It builds
+   synthetic spans instead of seeding the inbox, because the cascade is what is under test and a
+   panel that failed to render would report the same red for an unrelated reason. */
+test('the suggestion colour actually wins the cascade', async ({ page }) => {
+  await page.goto(URL);
+  const { dim, near } = await page.evaluate(() => {
+    const mk = (cls: string) => {
+      const el = document.createElement('span');
+      el.className = cls; el.textContent = 'x';
+      document.body.appendChild(el);
+      const c = getComputedStyle(el).color;
+      el.remove();
+      return c;
+    };
+    return { dim: mk('ibx-why'), near: mk('ibx-why ibx-why-near') };
+  });
+  expect(near, `a row WITH an answer computed the same colour as one without (${dim}) — `
+    + '.ibx-why-near lost the cascade, which happens silently when it is placed above .ibx-why')
+    .not.toBe(dim);
 });

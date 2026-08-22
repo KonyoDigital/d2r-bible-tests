@@ -9761,3 +9761,80 @@ keys and contains every one of them.
 
 Guard: `tests/v1967_nearest_grail_name.spec.ts` — the hits, the eight refusals, purity, and an
 explicit **not-inert** assertion so a future narrowing fails loudly instead of going quiet.
+
+## REG-321 — v1967 shipped a comment claiming NINE, and the code makes FOUR (v1968)
+
+Caught by reviewing the **pushed bytes**, not the working tree. The header block of
+`_nearestGrailName` shipped saying *"Of the 26 that were not, NINE are slips of real roster
+entries"* and listed mappings the function does not produce:
+
+| the comment claimed | what the code actually does |
+|---|---|
+| `Kinemit` → `Kinemil's Awl` | no candidate within the bound |
+| `Nord's Tooth` → `Nord's Tenderizer` | no candidate within the bound |
+| `The Dragon` → `The Dragon Chang` | no candidate within the bound |
+| `Bloodfist Shard` → `Bloodfist` | → **`Bloodpact Shard`** — not even the right candidate |
+
+**Where the nine came from:** an earlier count, taken before the bound was calibrated, against the
+322-entry boss-drop-table `ITEMS` array — which `v1692`'s own block explicitly warns is *not* the
+roster. The calibration that followed measured four and was written into the `_NGN_MAX` block one
+screen below. Nobody re-read the paragraph above it, so the file shipped carrying two contradictory
+statements with the stale one on top.
+
+This is the failure `bible.html` already documents in the v1692 block — *"a count in a comment is a
+number nobody re-measures"* — recurring **one screen away from where it is written down**. The v1692
+block had itself gone stale exactly that way in v1720 and says so. Third occurrence in this file.
+
+The corrected paragraph now carries the contradiction rather than quietly replacing it, because the
+interesting fact is not "four" — it is that a measured number and a remembered number sat adjacent
+and only one of them was true.
+
+## REG-322 — the new CSS rule was inert, and looked applied (v1968)
+
+`.ibx-why-near` was written **above** `.ibx-why` in the stylesheet. The span carries *both* classes,
+both set `color`, and both are single-class selectors — equal specificity, so **source order
+decides** and `.ibx-why`'s `--text-dim` won. The suggestion would have rendered in exactly the dim
+style it exists to escape, while the rule sat in the file looking correct.
+
+Caught before push by checking byte offsets rather than by reading the diff, which is the only way
+this class is catchable: a CSS rule that loses on order is indistinguishable, on inspection, from one
+that wins. Standing scar `d2r_css_last_rule_wins` — `.hero-title` once had FOUR competing rules and a
+twin `filterSilver` cost a whole pane. The rule now sits after `.ibx-why` and carries a comment
+saying it must stay there.
+
+## REG-323 — CI failed on a number that survived its own recalibration, for the third time in a day (v1968)
+
+`Routine I` went **red on v1967** — one test in the whole suite, and it was mine:
+
+```
+✓ line 47   got.name === 'Hawkmail'                       ← the resolver answered correctly
+✗ line 48   expect(dist).toBeLessThanOrEqual(2)           ← the assertion still said 2
+    Error: "Hawkfane" should be within 2 edits
+```
+
+**The feature worked and the test was wrong.** The bound had moved from 2 to 3 during calibration;
+the `SLIPS` table was updated, the assertion beside it was not.
+
+### The class, not the instance
+This is the **third** occurrence in one day of a number outliving the measurement that set it:
+
+| where | stale value | found by |
+|---|---|---|
+| the resolver's header comment | "NINE slips", with mappings the code never makes | reviewing the pushed bytes (REG-321) |
+| the spec's distance assertion | `toBeLessThanOrEqual(2)` | CI going red |
+| the length pre-filter | `Math.abs(len diff) > 3` as a literal | sweeping for the class after the other two |
+
+The third was found only because the first two forced a sweep, and it is the most dangerous of the
+three because it fails **silently**: raise `_NGN_MAX` to 4 and the pre-filter still discards every
+candidate 4 apart in length, so the extra edit is unreachable while the constant above it looks
+tuned. That is the `feedback_threshold_above_the_ceiling` shape — a bound that cannot be reached —
+hiding one line below the bound it contradicts.
+
+**Fixed by naming the number once on each side of the boundary**: `_NGN_MAX` in `bible.html` (used by
+both the pre-filter and the distance call) and `NGN_MAX` in the spec (used by the assertion and the
+message). Two names rather than one is deliberate — the spec must be able to disagree with the page,
+or it is asserting the page against itself.
+
+**What went right:** the failure was a single test, on the version that introduced it, because v1968
+was deliberately held back until Routine I returned. Stacking it would have buried a red spec under a
+green one.

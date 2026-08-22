@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1967",
+  "ver": "v1968",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1967: names the probable item behind an OCR slip, suggestion only, bound measured at 3",
+  "note": "v1968: stale header count, an inert CSS rule, and a bound that outlived its calibration in three places",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
