@@ -4843,10 +4843,13 @@ try {
   </div>
 
   <div class="sc-strip" id="sc-strip">
-    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('rune')">📸 Runes</button>
-    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('gem')">📸 Gems</button>
-    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('material')">📸 Mats</button>
-    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('vault')">📸 Vault</button>
+    <!-- v1975 — THE STRIP IS NOW THE LANE ROW, not four manual doors.
+             Konyo: "surgically remove … the manual ones and have like a on/off for that specific
+             MINI ON AIR … that way it forces me and my cuzin to just hit reel session."
+             Each pill arms ONE lane. The reading logic behind it is unchanged — tvStashAutoIntake
+             hands the reel's frame to the very same runeIntake/gemIntake/materialIntake, so each
+             section keeps its own crop and its own `kind` template. -->
+        <span id="sc-strip-lanes" class="sc-strip-lanes"></span>
     <button type="button" class="sc-strip-btn primary" onclick="window._sessionPrintPlan&&window._sessionPrintPlan()">🖨 Tonight’s plan</button>
     <button type="button" class="sc-strip-btn" onclick="switchTab('funi')">🏆 Grail wall</button>
   </div>
@@ -5003,18 +5006,22 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
   </div>
   <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
   <div class="tools-quickup" id="tools-quickup">
-    <div class="tqu-head"><span class="tqu-cam">📸</span><span class="tqu-headtxt"><b>Quick upload</b><small>AI reads a screenshot</small></span></div>
+    <!-- v1975 — THE CARDS STAYED, THE FILE PICKER WENT. quickIntake no longer opens a dialog; it
+     expands the card and ARMS that lane, so the reel reads it. The wording had to move with the
+     behaviour — a control that says "upload a screenshot" and instead flips a switch is the same
+     lie as a label that outlived its referent. -->
+<div class="tqu-head"><span class="tqu-cam">📡</span><span class="tqu-headtxt"><b>Auto lanes</b><small>the reel reads these — no photo needed</small></span></div>
     <div class="tqu-cards">
-      <button class="tqu-btn tqu-vault" style="--a:#f0c060" onclick="window.quickIntake&&window.quickIntake('vault')" title="AI-read a Vault / stash screenshot — items auto-file to their mules">
+      <button class="tqu-btn tqu-vault" style="--a:#f0c060" onclick="window.quickIntake&&window.quickIntake('vault')" title="ON AIR — the reel reads your vault automatically and files items to their mules. Tap to arm this lane.">
         <img class="tqu-art" src="art/horadric_cube_graphic.png" alt="" loading="lazy">
         <span class="tqu-txt"><b>Vault items</b><small>auto-file to mules</small></span></button>
-      <button class="tqu-btn tqu-rune" style="--a:#ffb454" onclick="window.quickIntake&&window.quickIntake('rune')" title="AI-tally a Rune stash screenshot">
+      <button class="tqu-btn tqu-rune" style="--a:#ffb454" onclick="window.quickIntake&&window.quickIntake('rune')" title="ON AIR — the reel tallies your runes automatically. Tap to arm this lane.">
         <img class="tqu-art" src="art/hd_ber_rune.png" alt="" loading="lazy">
         <span class="tqu-txt"><b>Runes</b><small>tally your count</small></span></button>
-      <button class="tqu-btn tqu-gem" style="--a:#6fd3e6" onclick="window.quickIntake&&window.quickIntake('gem')" title="AI-tally a Gem stash screenshot">
+      <button class="tqu-btn tqu-gem" style="--a:#6fd3e6" onclick="window.quickIntake&&window.quickIntake('gem')" title="ON AIR — the reel tallies your gems automatically. Tap to arm this lane.">
         <img class="tqu-art" src="art/hd_perfect_amethyst.png" alt="" loading="lazy">
         <span class="tqu-txt"><b>Gems</b><small>tally your count</small></span></button>
-      <button class="tqu-btn tqu-mat" style="--a:#b79cf0" onclick="window.quickIntake&&window.quickIntake('material')" title="AI-tally a Materials (uber / Sunder) screenshot">
+      <button class="tqu-btn tqu-mat" style="--a:#b79cf0" onclick="window.quickIntake&&window.quickIntake('material')" title="ON AIR — the reel tallies your materials (uber / Sunder) automatically. Tap to arm this lane.">
         <img class="tqu-art" src="art/hd_token_of_absolution.png" alt="" loading="lazy">
         <span class="tqu-txt"><b>Materials</b><small>ubers &amp; Sunders</small></span></button>
     </div>
@@ -5238,8 +5245,11 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="rune-stash-wrap">
         <!-- v274: runes grid on TOP, the long reference list moved to the bottom (Konyo) -->
         <div class="rs-ai-row">
-          <button class="rs-ai-btn" onclick="document.getElementById('rune-intake-file').click()" title="1 screenshot of your rune stash → the AI counts every rune and adds it to your tally">📸 AI intake — 1 photo tallies your runes</button>
-          <input type="file" id="rune-intake-file" accept="image/*" multiple style="display:none" onchange="window.runeIntake(this.files)">
+          <!-- v1975 — the 📸 manual door for runes is GONE; this lane is reel-driven.
+     tvStashAutoIntake('runes') hands the agent's frame to window.runeIntake, so the
+     section's OWN crop + kind template still runs — the manual button was only ever a
+     second way to supply the same File. OFF here makes the reel skip this lane. -->
+<span class="rs-ai-mini" id="mini-runes"></span>
         </div>
         <div class="rune-stash-grid" id="rune-stash-grid"></div>
         <div class="rune-stash-actions">
@@ -5283,8 +5293,11 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="rune-stash-wrap">
         <!-- v281: grid on TOP, descriptions on the bottom (Konyo — match runes) -->
         <div class="rs-ai-row">
-          <button class="rs-ai-btn" onclick="document.getElementById('gem-intake-file').click()" title="1 screenshot of your gems → the AI counts every gem by colour + cut and adds it to your tally">📸 AI intake — 1 photo tallies your gems</button>
-          <input type="file" id="gem-intake-file" accept="image/*" multiple style="display:none" onchange="window.gemIntake(this.files)">
+          <!-- v1975 — the 📸 manual door for gems is GONE; this lane is reel-driven.
+     tvStashAutoIntake('gems') hands the agent's frame to window.gemIntake, so the
+     section's OWN crop + kind template still runs — the manual button was only ever a
+     second way to supply the same File. OFF here makes the reel skip this lane. -->
+<span class="rs-ai-mini" id="mini-gems"></span>
         </div>
         <div class="gem-stash-grid" id="gem-stash-grid"></div>
         <div class="rune-stash-actions">
@@ -5975,15 +5988,11 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
   // v544 — QUICK UPLOAD shortcut: one always-visible bar at the top of Tools → tap a stash → expands its card
   // (so the read result is visible) and opens the file picker straight into that section's AI intake. Same
   // intake each section already has; this just routes another easy entry point (Konyo's ask).
-  window.quickIntake = function(which){
-    var map={ vault:{file:'vault-intake-file', card:'mule-vault-card', render:'renderVault'},
-              rune:{file:'rune-intake-file', card:'rune-stash-card', render:'renderRuneStash'},
-              gem:{file:'gem-intake-file', card:'gem-stash-card', render:'renderGemStash'},
-              material:{file:'material-intake-file', card:'material-stash-card', render:null} };
-    var m=map[which]; if(!m) return;
-    try{ var card=document.getElementById(m.card); if(card&&card.classList.contains('collapsed')){ if(window.toggleCardCollapse)window.toggleCardCollapse(m.card); if(m.render&&typeof window[m.render]==='function')window[m.render](); } }catch(e){}
-    try{ var f=document.getElementById(m.file); if(f){ f.click(); } }catch(e){}
-  };
+  /* v1975 — the file-picker quickIntake was HERE and is gone. It opened each section's hidden
+   <input type=file>, the manual door being retired; those inputs no longer exist for
+   runes/gems/materials. The NAME survives further down with the same signature, arming the
+   lane instead of asking for a photo. Two definitions of one window.* symbol is a silent
+   last-one-wins hazard, so the dead one does not stay. */
   </script>
 
   <div class="boss-card collapsible collapsed tool-premium tool-primary" id="smart-insights-card" style="--tc:#9d7bd8">
@@ -6088,8 +6097,11 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div class="rune-stash-wrap">
         <!-- v281: grid on TOP (like runes/gems), descriptions on the bottom (Konyo) -->
         <div class="rs-ai-row">
-          <button class="rs-ai-btn" onclick="document.getElementById('material-intake-file').click()" title="1 screenshot of your keys / organs / essences / statues / shards → the AI counts each and adds it to your tally">📸 AI intake — 1 photo tallies your keys, organs, essences &amp; statues</button>
-          <input type="file" id="material-intake-file" accept="image/*" multiple style="display:none" onchange="window.materialIntake(this.files)">
+          <!-- v1975 — the 📸 manual door for materials is GONE; this lane is reel-driven.
+     tvStashAutoIntake('materials') hands the agent's frame to window.materialIntake, so the
+     section's OWN crop + kind template still runs — the manual button was only ever a
+     second way to supply the same File. OFF here makes the reel skip this lane. -->
+<span class="rs-ai-mini" id="mini-materials"></span>
         </div>
         <div class="material-stash-grid" id="material-stash-grid"></div>
         <div class="rune-stash-actions">
@@ -41419,6 +41431,20 @@ body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:n
    pulse → LIVE green glow — the same three-state feel as the old TV KAI board). */
 .sc-card-tvd .sc-card-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tvd-switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+/* v1975 — THE PER-SECTION MINI ON AIR. Deliberately a smaller sibling of .tvd-switch above, not a
+   new dialect: same track/knob/word anatomy, ~80% scale, so seven sections read as one system.
+   Placed AFTER .tvd-switch so nothing here can be outranked by it at equal specificity — the
+   standing CSS scar on this repo is that the LAST declaration wins. */
+.mini-onair{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:var(--fs-micro);line-height:1}
+.mini-track{position:relative;width:38px;height:18px;border-radius:999px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.25));flex:0 0 auto;transition:background .18s ease,border-color .18s ease}
+.mini-knob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:linear-gradient(180deg,#8a7c62,#5c5142);box-shadow:0 1px 3px rgba(0,0,0,.45);transition:left .18s ease,background .18s ease}
+.mini-word{font-weight:var(--fw-medium);letter-spacing:.04em;white-space:nowrap}
+.mini-what{color:var(--text-dim,#756657);white-space:nowrap}
+.mini-onair.mini-on .mini-track{background:linear-gradient(180deg,rgba(120,200,120,.22),rgba(40,90,40,.30));border-color:rgba(140,220,140,.45)}
+.mini-onair.mini-on .mini-knob{left:22px;background:linear-gradient(180deg,#9ee39e,#4f9a4f)}
+.mini-onair.mini-on .mini-word{color:#8fd98f}
+.mini-onair.mini-off .mini-word{color:var(--text-dim,#756657)}
+.mini-onair:focus-visible{outline:2px solid var(--border-light);outline-offset:3px;border-radius:999px}
 .tvd-track{position:relative;width:46px;height:22px;border-radius:999px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.25));transition:border-color .25s,background .25s,box-shadow .3s}
 .tvd-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#8a7c62,#5c5142);box-shadow:0 1px 3px rgba(0,0,0,.6);transition:left .28s cubic-bezier(.4,1.6,.4,1),background .25s,box-shadow .3s}
 .tvd-word{font-family:var(--mono);font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:var(--ls-label);color:var(--text-dim);min-width:74px;transition:color .25s}
@@ -43467,7 +43493,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1974', name:'v1974 - the Orphan set is a keeper', date:'2026-08-22', note:'his second ruling - Guillaume Face and its three siblings mule instead of being discarded' };
+  window.D2R_BUILD = { id:'v1975', name:'v1975 - the mini on air, one per lane', date:'2026-08-22', note:'manual photo doors for runes gems materials removed - the reel drives the same intake functions, each lane has an on off' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -45091,7 +45117,120 @@ window._CH_PILL_MAP = {
 
   // Feed the agent's last JPEG into the LOCKED tally pipeline (same as 📸 quick-upload).
   // Never rebuilds intake — only supplies a File. Deep-lane only; OCR never calls this.
-  window.tvStashAutoIntake = async function(tab, opts){
+  /* v1975 — THE MINI ON AIR, ONE PER SECTION.
+   Konyo: "all the AI INTAKE the manual ones… surgically remove them all and have like a on/off for
+   that specific MINI ON AIR… that way it forces me and my cuzin also to just hit reel session
+   instead of anything manual."
+
+   WHAT THIS IS NOT: it does not remove any INTAKE FUNCTION. tvStashAutoIntake dispatches to
+   window[runeIntake|gemIntake|materialIntake] by name — deleting those would break the automation
+   this exists to promote. Only the manual DOOR goes: the 📸 button and its hidden <input type=file>.
+   The engine underneath is untouched, which is also why nothing needed re-proving.
+
+   DEFAULT IS ON. A lane the user has never touched must be armed, because the whole point is that
+   doing nothing yields automatic intake. `_miniOnAirOn` returns true for an unset key — the inverse
+   of the v1737 bug where a toggle defaulted to include and only did anything once switched OFF.
+
+   OFF IS A REAL REFUSAL, not a hidden button. tvStashAutoIntake consults it, so a lane switched off
+   stops taking reel frames — otherwise the pill would be decoration and the user would be lied to. */
+var _MINI_LANES_KEY = 'd2r_autoLanes';
+function _miniLanes(){
+  try { return JSON.parse((window.LSR && window.LSR.getItem(_MINI_LANES_KEY)) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+window._miniOnAirOn = function(lane){
+  var m = _miniLanes();
+  return m[lane] !== false;          // unset => ON, deliberately
+};
+window._miniOnAirToggle = function(lane){
+  var m = _miniLanes();
+  m[lane] = (m[lane] === false);     // flip; unset counts as ON so the first click turns it OFF
+  try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_MINI_LANES_KEY, JSON.stringify(m)); } catch(e){}
+  try { window._miniOnAirPaint(); } catch(e){}
+  return m[lane] !== false;
+};
+/* Repaints every mini from state. Called after a toggle and on load, so two minis for the same lane
+   (if a section ever renders twice) can never disagree — the DOM is a view of the store, never the
+   store itself. */
+window._miniOnAirPaint = function(){
+  try {
+    var els = document.querySelectorAll('.mini-onair[data-lane]');
+    for (var i = 0; i < els.length; i++){
+      var el = els[i], lane = el.getAttribute('data-lane'), on = window._miniOnAirOn(lane);
+      el.classList.toggle('mini-on', !!on);
+      el.classList.toggle('mini-off', !on);
+      el.setAttribute('aria-checked', on ? 'true' : 'false');
+      var w = el.querySelector('.mini-word');
+      if (w) w.textContent = on ? 'ON AIR' : 'OFF';
+      el.setAttribute('title', on
+        ? 'ON AIR — the reel reads this automatically. No photo needed: just run a reel session.'
+        : 'OFF — the reel will SKIP this section. Nothing here updates until you switch it back on.');
+    }
+  } catch(e){}
+};
+/* The markup, built in ONE place so seven sections cannot drift into seven dialects. */
+window._miniOnAirHtml = function(lane, what){
+  var on = window._miniOnAirOn(lane);
+  return '<span class="mini-onair ' + (on ? 'mini-on' : 'mini-off') + '" data-lane="' + lane + '"'
+    + ' role="switch" tabindex="0" aria-checked="' + (on ? 'true' : 'false') + '"'
+    + ' onclick="window._miniOnAirToggle(\'' + lane + '\')"'
+    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._miniOnAirToggle(\'' + lane + '\')}">'
+    + '<span class="mini-track"><span class="mini-knob"></span></span>'
+    + '<span class="mini-word">' + (on ? 'ON AIR' : 'OFF') + '</span>'
+    + '<span class="mini-what">' + what + '</span></span>';
+};
+try { if (document.readyState !== 'loading') setTimeout(window._miniOnAirPaint, 0);
+      else document.addEventListener('DOMContentLoaded', window._miniOnAirPaint); } catch(e){}
+/* Where the minis live. Rendered from ONE table so a lane cannot exist in the strip and be missing
+   from its section, which is how two surfaces start disagreeing about the same switch. */
+var _MINI_SLOTS = [
+  { slot:'sc-strip-lanes', lanes:[['runes','Runes'],['gems','Gems'],['materials','Mats'],['vault','Vault']] },
+  { slot:'mini-runes',     lanes:[['runes','runes tally']] },
+  { slot:'mini-gems',      lanes:[['gems','gems tally']] },
+  { slot:'mini-materials', lanes:[['materials','materials tally']] }
+];
+window._miniOnAirMount = function(){
+  try {
+    for (var i=0;i<_MINI_SLOTS.length;i++){
+      var s=_MINI_SLOTS[i], el=document.getElementById(s.slot);
+      if (!el) continue;                       // a slot that is not on this tab yet is not an error
+      var H='';
+      for (var k=0;k<s.lanes.length;k++) H += window._miniOnAirHtml(s.lanes[k][0], s.lanes[k][1]);
+      el.innerHTML=H;
+    }
+    window._miniOnAirPaint();
+  } catch(e){}
+};
+/* v1975 — quickIntake KEEPS ITS NAME AND STOPS OPENING A FILE PICKER.
+   It was the Tools "📸 quick upload" shortcut: tap a stash, expand its card, open that section's
+   file dialog. That is precisely the manual door being retired. Deleting the function outright would
+   break v544_quick_upload.spec.ts and any older caller, and would do it SILENTLY — a call into
+   undefined is swallowed by the `window.quickIntake &&` guards at every site. So it survives with the
+   same signature and the same "expand the card so the result is visible" behaviour, and then arms the
+   lane instead of asking for a photo. Same intent (get this section read), no manual step. */
+window.quickIntake = function(which){
+  var LANE = { vault:'vault', rune:'runes', runes:'runes', gem:'gems', gems:'gems',
+               material:'materials', materials:'materials' };
+  var CARD = { vault:'mule-vault-card', runes:'rune-stash-card', gems:'gem-stash-card',
+               materials:'material-stash-card' };
+  var lane = LANE[String(which||'').toLowerCase()];
+  if (!lane) return { ok:false, why:'unknown-lane' };
+  try {
+    var card = document.getElementById(CARD[lane]);
+    if (card && typeof window.toggleCardCollapse === 'function' && card.classList.contains('collapsed')) {
+      window.toggleCardCollapse(CARD[lane]);
+    }
+  } catch(e){}
+  var on = window._miniOnAirOn(lane);
+  if (!on) on = window._miniOnAirToggle(lane);   // tapping a DARK lane arms it; tapping a live one leaves it alone
+  try { window._miniOnAirMount(); } catch(e){}
+  return { ok:true, lane:lane, on:on, via:'mini-on-air' };
+};
+try { if (document.readyState !== 'loading') setTimeout(window._miniOnAirMount, 0);
+      else document.addEventListener('DOMContentLoaded', window._miniOnAirMount); } catch(e){}
+
+
+window.tvStashAutoIntake = async function(tab, opts){
     // v890 (Grok pp1 A1) — DOUBLE-COUNT GUARD: when the live funnel already tallied
     // runes/gems this session, the AUTO photo-intake (which ADDS stack counts) defers —
     // otherwise a vaulted Ist counts once from the vault and again from the stash photo.
@@ -45103,6 +45242,12 @@ window._CH_PILL_MAP = {
     opts = opts || {};
     tab = _normStashTab(tab);
     if (tab !== 'runes' && tab !== 'gems' && tab !== 'materials') return { ok:false, why:'not-tally-tab' };
+    /* v1975 — THE MINI IS A REAL SWITCH. If this lane's pill is OFF, the reel does not read it.
+       Without this the toggle is decoration: the user is told a lane is dark while frames keep
+       flowing into it, which is the exact class of lie this board keeps guarding against.
+       Returns a NAMED reason so a lane he switched off is distinguishable from one that failed —
+       'nobody looked' and 'we looked and found nothing' must never read alike. */
+    try { if (window._miniOnAirOn && !window._miniOnAirOn(tab)) return { ok:false, why:'lane-off', lane:tab }; } catch(e){}
     if (window._stashShutter) return { ok:false, why:'busy' };
     // v945.6 — claim tab lease before shutter so engine-driver + board never dual-fire
     var _sLease = await _intakeLeaseClaim(tab);

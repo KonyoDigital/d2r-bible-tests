@@ -7,7 +7,22 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // the file picker straight into that section's existing AI intake. Konyo: "another shortcut easily clickable
 // and uploadable to." Routes to the SAME intake each section already has — just a faster entry point.
 
-test('the quick-upload bar renders 4 stash buttons at the top of Tools', async ({ page }) => {
+/* v1975 — THE BAR SURVIVED; THE FILE PICKERS DID NOT.
+ *
+ * Konyo: "surgically remove … the manual ones and have like a on/off for that specific MINI ON AIR …
+ * that way it forces me and my cuzin also to just hit reel session instead of anything manual."
+ *
+ * So the four stash entries above are no longer buttons that open a file dialog — they are ON/OFF
+ * lane pills. What did NOT change is the machinery behind them: tvStashAutoIntake hands the reel's
+ * frame to the very same window.runeIntake / gemIntake / materialIntake, so each section keeps its
+ * own crop (_runeSheetPrep, _tallyPrepImage) and its own `kind` template. The manual button was only
+ * ever a second way to supply the same File.
+ *
+ * quickIntake KEEPS ITS NAME on purpose. Every call site guards with `window.quickIntake &&`, so
+ * deleting it would have failed SILENTLY — the worst possible outcome. It now expands the card as
+ * before and arms the lane instead of asking for a photo.
+ */
+test('the lane bar renders 4 stash lanes at the top of Tools', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1400);
   const r = await page.evaluate(() => {
     const w: any = window; w.switchTab('tools');
@@ -15,7 +30,7 @@ test('the quick-upload bar renders 4 stash buttons at the top of Tools', async (
     return { bar: !!bar, buttons: bar ? [...bar.querySelectorAll('.tqu-btn')].map((b) => b.textContent!.trim()) : [] };
   });
   expect(r.bar).toBe(true);
-  expect(r.buttons.length).toBe(4);
+  expect(r.buttons.length, 'four lanes: Vault / Runes / Gems / Mats').toBe(4);
   expect(r.buttons.join(' ')).toMatch(/Vault/);
   expect(r.buttons.join(' ')).toMatch(/Runes/);
   expect(r.buttons.join(' ')).toMatch(/Gems/);

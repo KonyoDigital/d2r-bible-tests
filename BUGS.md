@@ -10052,3 +10052,49 @@ The spec now pins both rulings by **destination**, not by wording — `NOW_KEPT`
 of the two ruled sets, and the assertion is *a piece of a set he has RULED must never reach the
 throw-out pile*. The label was only ever how he found out; the destination is the thing that matters.
 `NEVER_RULED` still guards the six, so the two-branch test continues to discriminate.
+
+## REG-330 — the manual AI-intake doors for runes/gems/materials are gone; each lane has an ON/OFF mini (v1975)
+
+Konyo: *"all the AI INTAKE the manual ones… surgically remove them all and have like a on/off for that
+specific MINI ON AIR that we already have coded for automated and AI reads… that way it forces me and
+my cuzin also to just hit reel session instead of anything manual."*
+
+**Restore point before any of this: `restore/v1974-before-intake-consolidation` (on origin).**
+
+### What was removed, and what deliberately was NOT
+Removed: the 📸 button and its hidden `<input type="file">` for **runes, gems, materials**.
+
+**Every intake FUNCTION survives.** `tvStashAutoIntake` dispatches to
+`window[runeIntake|gemIntake|materialIntake]` **by name**, and its own comment says it *"only supplies
+a File"*. Deleting those would have broken the automation this change exists to promote — and broken
+it **silently**, since every call site is guarded with `window.x &&`. So each section keeps its own
+reading logic: runes still go through `_runeSheetPrep`, gems/materials through `_tallyPrepImage`, and
+each still posts its own `kind` template. That is asserted first in the new spec.
+
+### The mini
+One component (`_miniOnAirHtml` / `_miniOnAirToggle` / `_miniOnAirPaint` / `_miniOnAirMount`), one
+store (`d2r_autoLanes`), rendered from one `_MINI_SLOTS` table so a lane cannot appear in the strip
+and be missing from its section. CSS is a smaller sibling of `.tvd-switch`, placed **after** it so it
+cannot be outranked at equal specificity.
+
+- **Default is ON.** An unset lane is armed, because the point is that doing nothing yields automatic
+  intake. This is the inverse of the v1737 bug, where a toggle defaulted to INCLUDE and only did
+  anything once switched OFF.
+- **OFF is a real refusal.** `tvStashAutoIntake` consults it and returns `{ok:false, why:'lane-off'}` —
+  a NAMED reason, so a lane he switched off is distinguishable from one that failed.
+
+### Two hazards found on the way, both silent
+1. **A second map keyed by those input ids.** `quickIntake` drove the same file pickers from a Tools
+   bar; removing the inputs would have made four buttons do nothing, with no error. `quickIntake`
+   therefore **keeps its name and signature** and now expands the card and arms the lane instead.
+2. **Two `window.quickIntake` definitions briefly existed** — last-one-wins, exactly the CSS-order
+   trap. The dead file-picker version was removed rather than left to confuse.
+
+### Verified on a real page, not asserted
+7 minis render · defaults all ON · manual inputs for the three lanes = 0 · all six intake fns still
+`function` · toggling runes OFF makes the reel return `lane-off` · gems still reaches its fetch ·
+`quickIntake('rune')` arms the lane · **0 console errors** · and `v544_quick_upload`'s targets are
+intact (bar present, 4 cards, labels unchanged).
+
+**Still manual by design:** `craft` (his instruction — set aside), and `vault`/`set`/`grail`, which
+are next.
