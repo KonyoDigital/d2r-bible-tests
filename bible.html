@@ -32259,11 +32259,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // RotW WARLOCK class set (was falling through to throw-out as "junk" — Konyo's 4 Horazon's pieces wrongly
     // discarded; it's the Warlock's Tal-Rasha-tier set, so it MULES to SETS-REST now, not the throw-out pile).
     var _KEEP_SET = /Tal Rasha|Immortal King|Griswold|Aldur|Trang.?Oul|Natalya|M.?avina|Horazon/i;
+    /* v1970 — "HE RULED IT JUNK" AND "IT FELL THROUGH" MUST NOT READ THE SAME.
+       Everything outside _KEEP_SET is discarded, so the default is DISCARD and the row says
+       "low set piece" either way. But the comment above names EIGHTEEN sets he actually ruled on
+       (Sigon's, Cleglaw's, Angelic, Bul-Kathos…), and the board knows THIRTY-FOUR. The other eight
+       — The Disciple, Sazabi's Grand Tribute, Naj's Ancient Vestige, Hwanin's Majesty, Arcanna's
+       Tricks, Bane's Garments, Heaven's Brethren, Orphan's Call — were never ruled either way and
+       are discarded by silence. **The Disciple holds Laying of Hands.**
+       That is exactly where Horazon's Splendor sat until v440, and the comment above records what
+       it cost: "Konyo's 4 Horazon's pieces wrongly discarded".
+       This changes NO routing — which sets are worth muling is his call, not a defect to fix behind
+       his back. It changes what the row SAYS, so a discard he chose and a discard nobody chose stop
+       being the same sentence. [[unknown-stays-unknown]] */
+    var _RULED_JUNK = /Sigon|Sander|Hsarus|Cleglaw|Iratha|Angelic|Arctic|Cathan|Death.s|Vidala|Berserker|Milabrega|Isenhart|Civerb|Infernal|Bul.?Kathos|Cow King|Tancred/i;
+    var _discardWhy = function(setName){
+      return _RULED_JUNK.test(String(setName || ''))
+        ? 'low set piece — track for grail, discard: ' + setName
+        /* Reads inside the audit's own sentence, which already supplies the verb:
+           "...but the rules would discard it — by DEFAULT only — you have never ruled X keep or
+           junk" (site: the `should-review` finding). Saying "discard" again here made it twice
+           in six words with two em-dashes. The string is a CLAUSE, not a sentence. */
+        : 'by DEFAULT only — you have never ruled ' + setName + ' keep or junk';
+    };
     try{
       var spm = window.findSetPiece && window.findSetPiece(name);
       if (spm){
         var psn = (spm.set && spm.set.name) || name;
-        if (!_KEEP_SET.test(psn)) return {id:'__throwout', why:'low set piece — track for grail, discard: '+psn};
+        if (!_KEEP_SET.test(psn)) return {id:'__throwout', why:_discardWhy(psn)};
         return MAJOR_SETS.test(psn) ? {id:'sets-major', why:'set piece: '+psn} : {id:'sets-rest', why:'set piece: '+psn};
       }
     }catch(e){}
@@ -32272,7 +32294,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var isSet = (tip && tip.rarity==='set') || (it && it.tier==='set') || /\bset\b|\(any/i.test(name);
     if (isSet){
       var sn = (tip && tip.setName) || name;
-      if (!_KEEP_SET.test(sn)) return {id:'__throwout', why:'low set — track for grail, discard: '+sn};
+      if (!_KEEP_SET.test(sn)) return {id:'__throwout', why:_discardWhy(sn)};
       return MAJOR_SETS.test(sn) ? {id:'sets-major', why:'major set: '+sn} : {id:'sets-rest', why:'set: '+sn};
     }
     // v404 — a FORGED RUNEWORD (Enigma, Spirit, Call to Arms…) is real gear, not a misread. ALL runewords go
@@ -43426,7 +43448,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1969', name:'v1969 - the resolver that already existed', date:'2026-08-22', note:'withdraws v1967 - D2R_INBOX_FOLD already does this, better calibrated, and the new one was unreachable' };
+  window.D2R_BUILD = { id:'v1970', name:'v1970 - a discard nobody chose', date:'2026-08-22', note:'names the eight sets discarded by default rather than by his ruling - wording only, routing unchanged' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

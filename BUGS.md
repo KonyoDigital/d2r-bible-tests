@@ -9895,3 +9895,39 @@ REG-321/322/323 stand — the stale-count, the inert CSS rule and the recalibrat
 real, and the lesson about naming a bound once on each side of a boundary is worth keeping even
 though the bound itself is gone. **The visual check is what killed this feature**: every parser-level
 gate was green, six specs passed, and one look at the rendered panel showed `near-marked: 0`.
+
+## REG-325 — a discard he chose and a discard nobody chose read the same sentence (v1970)
+
+The vault keeps eight sets (`_KEEP_SET`) and throws out everything else, so **the default is
+discard**. The v394 comment names **18** sets he actually ruled junk — Sigon's, Cleglaw's, Angelic,
+Arctic, Cathan's, Bul-Kathos and the rest. The board knows **34**. The remaining **8 are discarded by
+silence** and every one of them printed the same row as a set he had judged:
+
+> `low set piece — track for grail, discard: <set>`
+
+| never ruled either way | holds |
+|---|---|
+| **The Disciple** | **Laying of Hands** (+350% damage to demons) |
+| Sazabi's Grand Tribute | Cobalt Redeemer |
+| Naj's Ancient Vestige | Naj's Puzzler |
+| Hwanin's Majesty | Hwanin's Justice |
+| Arcanna's Tricks · Bane's Garments · Heaven's Brethren · Orphan's Call | — |
+
+**This is the position Horazon's Splendor occupied until v440**, and the code comment records the
+cost in his own words: *"Konyo's 4 Horazon's pieces wrongly discarded"*. The defect was never the
+routing — it is that the row gave him no way to separate a verdict from a default, so the one case
+worth a second look was indistinguishable from eighteen settled ones.
+
+**Nothing was re-routed.** Which sets are worth muling is his call and not a defect to fix behind his
+back; a wrongly-kept item costs a stash tab, a wrongly-discarded one is gone, and only he knows which
+error he prefers. So the fix is to the SENTENCE:
+
+```
+Sigon's Guard    -> low set piece — track for grail, discard: Sigon's Complete Steel
+Laying of Hands  -> discard by DEFAULT — you have never ruled The Disciple (set) keep or junk
+```
+
+Verified on the rendered page, with `Tal Rasha's Lidless Eye -> sets-major` as the control proving the
+harness discriminates. Guard: `tests/v1970_discard_by_default.spec.ts` — and **its routing assertions
+are the important ones**: every name above must still return `__throwout`, so that if a future edit
+turns this honest label into a behaviour change, the build goes red.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1969",
+  "ver": "v1970",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1969: withdraws v1967 - D2R_INBOX_FOLD already does this, better calibrated, and the new one was unreachable",
+  "note": "v1970: names the eight sets discarded by default rather than by his ruling - wording only, routing unchanged",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
