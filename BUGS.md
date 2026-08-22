@@ -9656,3 +9656,57 @@ assumption it had worked. The lesson is not "read CI" or "read bump output" sepa
 Two concrete rules: never put an apostrophe in a bump note or name; and never pipe a bump through
 `tail` — its refusals are one line and land at the TOP of the output, which is precisely what `tail`
 discards.
+
+---
+
+## REG-318 — the rule that says what a version means, finally enforced (v1966)
+
+REG-317 recorded that v1964 shipped under the v1963 stamp because a refusal went unread. This is the
+guard, because the rule it breaks was already written down and nothing checked it: *"A vNNNN IS A
+SHIP, NOT A COMMIT — number ONLY commits that bump the four stamps."*
+
+`tv/version_stamp_gate.py`, wired into `hooks/pre-push`. If the commit subject names a version, the
+stamps must carry it.
+
+**It checks the HIGHEST version named, not the first — and that is the whole design.** The subject
+that caused REG-317 was "v1963 + v1964". A first-match gate would have found v1963, matched the
+stamps, and agreed with the mistake. Verified: on that exact subject with those exact stamps it
+REFUSES and names both the fix and the apostrophe trap that caused it.
+
+Calibrated in five directions: a correct claim passes; the REG-317 subject refuses; an unnumbered
+commit (`test:`, `ci:`) passes in silence, because those are exactly the commits the rule says must
+NOT be numbered; a stamp it cannot read REFUSES rather than passing, since a gate that cannot read
+its input measures nothing; and it was proven in situ by temporarily claiming v1999 against v1965
+stamps.
+
+⚠ **AND A MISTAKE OF MINE IN TESTING IT, recorded because it is the more useful half.** That in-situ
+proof was done with `git commit --amend` on a commit ALREADY PUSHED, which diverged local from
+origin (1 ahead, 1 behind) for a test I had already run another way minutes earlier by stubbing
+`subject()`. The content was byte-identical so nothing was lost, and `git reset --mixed origin/main`
+realigned it with the working tree intact. **Never amend a published commit — and never reach for a
+riskier proof when a safe one has already answered the question.**
+
+## REG-319 — the version-stamp gate graded three of the four surfaces (v1966)
+
+REG-318 shipped the gate that enforces *"a vNNNN is a ship, not a commit"*. It was caught, before its
+own push, printing `✅ v1966 claimed and all 3 stamps agree` — while `tv/bump_version.py:6-7` names
+**four** places a version lives: `bible.html`'s `D2R_BUILD`, `tv/control_app.py`'s `/api/status`,
+`tv/tv_diablo.py`'s `VERSION`, and `tv/WINDOWS_SHIP.json`. `STAMPS` listed three. `tv/control_app.py`
+was missing.
+
+**Why it mattered:** a tree whose `control_app.py` stamp had been left behind — exactly the
+half-bumped state `bump_version.py:71-72` records having happened before — would have passed the gate
+whose entire purpose is that the four agree. A guard shorter than its own subject reports clean for
+the one case it exists to catch.
+
+**Why the pattern is unambiguous despite 12 `"ver"` keys in that file:** only one is a `vNNNN`
+literal; the rest are `_app_ver()` calls and `st.get("ver")` reads. `bump_version.py:97` already
+depends on that, raising unless `s.count('"ver": "<cur>"') == 1`.
+
+**Calibrated red, in a temp copy, with the live tree never written to:** the four stamp files were
+copied to a scratch dir, the module's `REPO` repointed at it, and *only* `control_app.py` knocked
+back to `v1901`. The gate reads v1966 / v1966 / v1966 / v1901 and refuses. It now prints
+`all 4 stamps agree`.
+
+The tell was the gate's own success line. A count in a green message is worth reading — it is the
+cheapest place a guard admits how far it actually reaches.

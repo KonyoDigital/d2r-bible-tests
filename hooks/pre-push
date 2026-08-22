@@ -134,6 +134,23 @@ gate_run() {
 # Found by a third-eye review of the hook. Verified before arming: `python3 tv/review_lite.py`
 # exits 0 today ("review-lite clean — 6 state paths, chronicle tolerances, caps, reader guards"),
 # so making it block refuses nothing that is currently green.
+# ── v1966 — A COMMIT THAT NAMES A VERSION MUST CARRY THAT VERSION'S STAMPS ───────────────────────
+# Konyo's rule was already written down — "A vNNNN IS A SHIP, NOT A COMMIT: number ONLY commits that
+# bump the four stamps" — and nothing enforced it. On 2026-08-22 `bump_version.py v1964` REFUSED
+# ("apostrophe in note/name would break the single-quoted D2R_BUILD literal"; the note said read's),
+# the refusal was piped through `tail -3` in a background command and never read, and the commit went
+# out titled "v1963 + v1964" with all four stamps still at v1963. Code correct, every gate and CI lane
+# green — only the claim was false, and the board reported one version behind what it carried.
+#
+# It checks the HIGHEST version the subject names, not the first: that subject named two, and a
+# first-match gate would have found v1963, matched the stamps and agreed with the mistake.
+# Silent on commits that name no version — those are exactly the ones his rule says not to number.
+if ! gate_run "version-stamp" "python3 tv/version_stamp_gate.py" 30 -- \
+     python3 "$REPO/tv/version_stamp_gate.py"; then
+  echo "          ↑ the commit subject claims a version the four stamps do not carry."
+  exit 1
+fi
+
 if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
   echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
   echo "            actually does. Fix it, or say why it is now correct, then push again."
