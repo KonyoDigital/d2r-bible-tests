@@ -112,7 +112,34 @@ def _second_eye_receipt():
         return MISSING, ("the second eye has corroborated NOTHING across %d name(s) — it is ready "
                          "and it is not a witness. Check that sweeps are running with both lanes"
                          % total_names)
-    return OK, "corroborated " + " · ".join(parts) + " — a receipt, not a lamp"
+    # v1957 — AND SAY WHAT THE CROSS-LANE RATE DOES NOT SAY.
+    # "corroborated uniques 35/298 (12%)" is true and reads as "88% of his finds cannot ground",
+    # which is false. Cross-lane is one of THREE routes to a second witness; cross-reel and
+    # cross-frame are the others, and most names take those. MEASURED on his own banked evidence:
+    # 269 of 298 uniques (90%) and 80 of 86 sets (93%) can reach two witnesses by SOME route, while
+    # only 29 uniques and 6 sets are single sightings.
+    #
+    # A number that is accurate and invites the wrong conclusion is the defect this file exists to
+    # prevent — it was written because a READY lamp implied a working lane. So report the figure a
+    # reader actually needs beside the one they asked for. [[unknown-stays-unknown]]
+    solo_all = 0
+    ground_all = 0
+    name_all = 0
+    for ledger in ("uniques", "sets"):
+        for sights in (ev.get(ledger) or {}).values():
+            sights = sights if isinstance(sights, list) else []
+            lanes = {s.get("lane") for s in sights if isinstance(s, dict) and s.get("lane")}
+            reels = {s.get("reel") for s in sights if isinstance(s, dict) and s.get("reel")}
+            frames = {s.get("frame") for s in sights if isinstance(s, dict) and s.get("frame")}
+            name_all += 1
+            if len(lanes) > 1 or len(reels) > 1 or len(frames) > 1:
+                ground_all += 1
+            else:
+                solo_all += 1
+    reach = (" · %d/%d (%.0f%%) can reach TWO witnesses by some route (lane, reel or frame); "
+             "%d rest on a single sighting"
+             % (ground_all, name_all, 100.0 * ground_all / max(name_all, 1), solo_all))
+    return OK, "corroborated " + " · ".join(parts) + reach + " — a receipt, not a lamp"
 
 
 def _footage():

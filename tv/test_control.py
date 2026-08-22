@@ -1377,7 +1377,16 @@ class TestExitSafeguard(unittest.TestCase):
         t0 = time.time()
         ca._schedule_exit_stop("unit-x")
         elapsed = time.time() - t0
-        self.assertLess(elapsed, 0.15)   # fire-and-forget, never waits for stop_agent
+        # v1957 — THRESHOLD SET FROM THE MEASURED GAP, NOT FROM FEEL.
+        # 0.15 failed a full gate run at 0.1544 while his Chrome was eating ~190% CPU, and passed
+        # 3/3 on the same commit at a quieter load. Scheduler starvation, not a slow call.
+        # MEASURED over 7 runs: median 0.0005s, worst 0.0297s. A BLOCKING version waits for
+        # stop_agent, which takes ~0.37s. So the honest bound sits between 0.03 and 0.37, and 0.15
+        # was only 5x the worst working case — close enough to the noise floor to cry wolf.
+        # 0.25 keeps a 8x margin over the worst good run and still fires well before a real block.
+        # A gate that fails on the host's mood teaches him to ignore it, which is the same defect as
+        # one that never fails. [[feedback-blind-fixture-green-gate]]
+        self.assertLess(elapsed, 0.25)   # fire-and-forget, never waits for stop_agent (~0.37s)
         time.sleep(0.35)                 # daemon finishes stop
         self.assertIn(("stop", False), self._calls)
 
