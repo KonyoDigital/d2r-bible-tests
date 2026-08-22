@@ -5161,6 +5161,12 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <div id="vault-intake-report" hidden style="margin:14px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <!-- Recently-registered intake history = the bottom zone of the unified engine -->
       <div id="vault-journal" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(127,212,255,.28);border-radius:10px;background:rgba(127,212,255,.03);font-size:12px;line-height:1.6"></div>
+      <!-- v1949 — THE ROUTING LEDGER. bible.html has called d2r_chronicleInboxLog the
+           "VISUAL BACKEND - every KAI read forever for debug" since v1356, and NOTHING HAS EVER
+           RENDERED IT. Measured 2026-08-22: the store is written on every routing decision and read
+           exactly once, as a boolean. Konyo: "i want it to visually render the backend through the
+           ledger visually so we can visually surgically fix anything needed future wise". -->
+      <div id="routing-ledger" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(240,192,96,.28);border-radius:10px;background:rgba(240,192,96,.03);font-size:12px;line-height:1.5"></div>
       <!-- v455: dedicated Socketed/Larzuk Review — SAME runeword engine (_baseRWLine) as throw-out, but for the
            MULED socketed / Larzuk bases: exact-socket + base-TYPE match + already-created (Chronicle) split.
            Placed ABOVE the Throw-Out Review (v456) so the "what can I still create" readout sits with the kept
@@ -16539,7 +16545,7 @@ window._isSuperior = function(n){ try {
 // with this name so the "Recently registered" history shows who logged it. Click the 👤 badge to switch.
 let intakeLogger = (LS.getItem('d2r_logger') || 'Konyo');
 window.getIntakeLogger = function(){ return intakeLogger; };
-window.setIntakeLogger = function(name){ intakeLogger = (String(name == null ? '' : name).trim()) || 'Konyo'; try { LS.setItem('d2r_logger', intakeLogger); } catch(e){} try { if (typeof renderJournal === 'function') renderJournal(); } catch(e){} };
+window.setIntakeLogger = function(name){ intakeLogger = (String(name == null ? '' : name).trim()) || 'Konyo'; try { LS.setItem('d2r_logger', intakeLogger); } catch(e){} try { if (typeof renderJournal === 'function') renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} } catch(e){} };
 window.cycleIntakeLogger = async function(){
   var cur = intakeLogger;
   var nm = (typeof uiPrompt === 'function') ? await uiPrompt('Who is logging these uploads? (e.g. Konyo, or your cousin’s name)', cur) : prompt('Who is logging?', cur);
@@ -34478,7 +34484,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // the watched folder: forget the stored handle (IndexedDB), drop the session handle, stop the auto-watch
     // poll, and flip the UI back to 📂 Connect. A blank start is genuinely blank.
     try { if (typeof window._vUnlinkFolder === 'function') await window._vUnlinkFolder(); } catch(e){}
-    try { renderJournal(); } catch(e){}
+    try { renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} } catch(e){}
     try { renderVault(); } catch(e){}
     window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🧹 full reset — 0 owned, folder unlinked, blank start');
@@ -34524,7 +34530,70 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      still says Konyo. It looks like the rename failed, so he does it again — while every intake
      from that moment is already being tagged Cousin. The label on screen disagreeing with the tag
      being written is the worse half. */
-  function renderJournal(){
+  /* v1949 — THE ROUTING LEDGER: what the board DECIDED, and why.
+   Three logs exist and they answer three different questions. d2r_chronicleInbox is what still
+   needs HIS ruling (renderInbox draws it). d2r_intakeLog is which screenshot produced which read
+   ("Recently Registered" draws it). d2r_chronicleInboxLog is which decision sent which item WHERE
+   and WHY — and it had no view at all, despite the file naming it the VISUAL BACKEND.
+
+   Every row it holds already carries name / status / store / why / target / frameId, because
+   v1918 published the recorder, v1943 and v1945 gave empty and refused reads an honest reason,
+   and v1948 made the mule routing record the `why` suggestMule had always returned. So this is a
+   rendering job, not a data job — the evidence was being written the whole time. */
+window.renderRoutingLedger = function(){
+  var el = document.getElementById('routing-ledger'); if (!el) return;
+  var rows = [];
+  try { rows = JSON.parse((window.LSR && window.LSR.getItem('d2r_chronicleInboxLog')) || '[]') || []; } catch(e){ rows = []; }
+  if (!Array.isArray(rows) || !rows.length){ el.style.display = 'none'; return; }
+  var esc = function(x){ return String(x == null ? '' : x)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var when = function(ts){
+    ts = Number(ts || 0); if (!ts) return '';
+    var m = Math.round((Date.now() - ts) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    if (m < 1440) return Math.round(m / 60) + 'h ago';
+    return new Date(ts).toLocaleDateString();
+  };
+  var PILL = (window._CH_PILL_MAP) || {};
+  /* NEWEST FIRST, and a STABLE order — v1765 measured this same panel family returning a different
+     sequence on two loads of the same rows, because it rendered whatever the store handed back. */
+  var sorted = rows.slice().sort(function(a, b){
+    return (Number(b.lastTs || b.firstTs || 0)) - (Number(a.lastTs || a.firstTs || 0));
+  }).slice(0, 120);
+  var onConsole = false;
+  try { onConsole = /(:|^)(17772|17771)\b/.test(String(location.host || '')); } catch(e){}
+  var H = ['<details class="vj-details"><summary class="vj-head to-sum to-acc-blue">'
+    + '<span class="to-emblem">\u2696</span><span class="to-hd"><span class="to-hd-top">'
+    + '<span class="to-st">The Routing Ledger</span><span class="to-ct">' + rows.length + '</span></span>'
+    + '<span class="to-subt">every decision the board made \u2014 what went where, and why</span></span>'
+    + '<span class="to-rule"></span></summary><div style="margin-top:8px">'];
+  sorted.forEach(function(r){
+    var p = PILL[r.status] || [String(r.status || 'read'), 'var(--text-dim,#8a7d64)'];
+    var tgt = r.target ? (' \u2192 <b>' + esc(r.target) + '</b>') : (r.store ? (' \u2192 ' + esc(r.store)) : '');
+    var frame = (r.frameId && onConsole)
+      ? '<a href="/hist/' + encodeURIComponent(r.frameId) + '.jpg" target="_blank" '
+        + 'style="margin-left:6px;opacity:.75;text-decoration:none" title="open the frame this came from">\uD83D\uDDBC</a>'
+      : (r.frameId ? '<span style="margin-left:6px;opacity:.4" title="' + esc(r.frameId)
+                     + ' \u2014 open the board from the console to view it">\uD83D\uDDBC</span>' : '');
+    H.push('<div style="display:flex;gap:8px;align-items:baseline;padding:3px 0;'
+      + 'border-top:1px solid rgba(255,255,255,.05)">'
+      + '<span style="flex:0 0 auto;color:' + p[1] + '">' + esc(p[0]) + '</span>'
+      + '<span style="flex:1 1 auto;min-width:0"><b>' + esc(r.name || '?') + '</b>' + tgt + frame
+      + (r.why ? ('<span style="display:block;opacity:.7">' + esc(r.why) + '</span>') : '')
+      + '</span>'
+      + '<span style="flex:0 0 auto;opacity:.55">' + esc(when(r.lastTs || r.firstTs)) + '</span>'
+      + '</div>');
+  });
+  if (rows.length > sorted.length)
+    H.push('<div style="opacity:.55;padding-top:6px">showing the newest ' + sorted.length
+           + ' of ' + rows.length + '</div>');
+  H.push('</div></details>');
+  el.innerHTML = H.join('');
+  el.style.display = '';
+};
+
+function renderJournal(){
     var el = document.getElementById('vault-journal');
     if (!el) return;
     var j = journal();
@@ -35096,7 +35165,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){}
     journalAdd(logged, perFile);
     try { var _promoted=(typeof window._promoteUnknownBases==='function')?window._promoteUnknownBases():[]; if(_promoted.length && typeof window._grailToast==='function') window._grailToast('🧰','<b>'+_promoted.length+'</b> read'+(_promoted.length>1?'s':'')+' promoted to forge bases',_promoted.join(', ')); } catch(e){}   // v631 · v1576 — was `typeof toast`, a name declared NOWHERE in the file: the guard was permanently false and this promotion never once announced itself. The real toast is window._grailToast(ico,main,sub).
-    persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
+    persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){}
     window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     // v342.7 — fixed-format, scrollable, ORGANIZED report card with a grand TOTAL (Konyo: "fixed format
     // on the bottom … scrollbar … total of registered items also not just each section").
@@ -35559,8 +35628,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { window.LSR.setItem(DONE, String(Date.now())); } catch(e){}
     } catch(e){}
   })();
-  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); renderJournal(); initShotExample(); initFolderWatch(); });
-  else { renderVault(); renderJournal(); initShotExample(); initFolderWatch(); }
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} initShotExample(); initFolderWatch(); });
+  else { renderVault(); renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} initShotExample(); initFolderWatch(); }
 })();
 </script>
 <script id="v470-forge-js">
@@ -42836,7 +42905,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1948', name:'v1948 - the mule routing says why', date:'2026-08-22', note:'suggestMule has always returned an id and a reason. vaultAutoAssign used the id and discarded the reason, so an item on an unexpected mule had no story. It now writes a ledger row per placement, and a throw-out suggestion is surfaced instead of silently skipped.' };
+  window.D2R_BUILD = { id:'v1949', name:'v1949 - the visual backend finally has a view', date:'2026-08-22', note:'bible.html has called d2r_chronicleInboxLog the visual backend since v1356 and nothing ever rendered it. It is written on every routing decision and read exactly once, as a boolean. Now it has a card beside the intake journal.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43498,6 +43567,35 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       return c;
     };
 
+/* v1949 — ONE PILL MAP, TWO RENDERERS. It lived inside renderInbox, and the routing ledger needs
+   exactly the same vocabulary. Two copies of one status table is how "removed" ends up styled in
+   one panel and bare dim text in the other — which is the v1927 scar verbatim, one panel over.
+   Published so a THIRD surface cannot fork it either. [[copy-drift]] */
+window._CH_PILL_MAP = {
+      'accepted':        ['✓ ticked',    'var(--best,#66ff88)'],
+      'in-chronicle':    ['✓ in grail',  'var(--best,#66ff88)'],
+      'dismissed':       ['✕ ignored',   'var(--text-dim,#8a7d64)'],
+      'blocked-unfound': ['⛔ you un-ticked it', '#f0c060'],
+      'pending':         ['⏳ needs you', '#f0c060'],
+      /* v1927 — v1925 STARTED WRITING THESE AND NEVER TOLD THE PILL MAP. The ledger repair records
+         `removed` and the write guard records `refused`, and neither was here, so both fell through
+         to the bare-status fallback: "removed" as plain dim text sitting beside a green "✓ ticked".
+         Measured on the rendered panel before this line existed.
+         A row that CHANGED his grail must not read quieter than one that confirmed it — the whole
+         point of the split above is that changes are the loud half. [[the-unjoined-end]] */
+      'removed':         ['⛔ taken out', '#f0a060'],
+      'refused':         ['⛔ kept out', '#f0a060'],
+      /* v1948 — THE MULE ROUTING FINALLY SAYS WHY. suggestMule() has always returned {id, why} —
+         "major set: Tal Rasha", "low set piece — track for grail, discard: Sigon's" — and
+         vaultAutoAssign took the id and threw the why on the floor. So an item appearing on a mule
+         he did not expect (the charm, 2026-08-21) had no story anywhere. Same shape as v1945, where
+         the funnel POSTED guardHeld and the handler dropped it: the reason existed at the moment of
+         the decision and was never written down. Taught here FIRST, so no status can be written
+         that nothing renders. [[the-unjoined-end]] */
+      'muled':           ['⚖ filed to a mule', 'var(--best,#66ff88)'],
+      'throw-suggested': ['🗑 suggested throw-out', '#f0c060']
+    };
+
   window.renderInbox = function(){
     var host = document.getElementById('inbox-panel');
     if (!host) return;
@@ -43533,30 +43631,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (store)                    return '\u2192 ' + store;
       return status === 'dismissed' ? '\u2192 nowhere' : '';
     };
-    var PILL = {
-      'accepted':        ['✓ ticked',    'var(--best,#66ff88)'],
-      'in-chronicle':    ['✓ in grail',  'var(--best,#66ff88)'],
-      'dismissed':       ['✕ ignored',   'var(--text-dim,#8a7d64)'],
-      'blocked-unfound': ['⛔ you un-ticked it', '#f0c060'],
-      'pending':         ['⏳ needs you', '#f0c060'],
-      /* v1927 — v1925 STARTED WRITING THESE AND NEVER TOLD THE PILL MAP. The ledger repair records
-         `removed` and the write guard records `refused`, and neither was here, so both fell through
-         to the bare-status fallback: "removed" as plain dim text sitting beside a green "✓ ticked".
-         Measured on the rendered panel before this line existed.
-         A row that CHANGED his grail must not read quieter than one that confirmed it — the whole
-         point of the split above is that changes are the loud half. [[the-unjoined-end]] */
-      'removed':         ['⛔ taken out', '#f0a060'],
-      'refused':         ['⛔ kept out', '#f0a060'],
-      /* v1948 — THE MULE ROUTING FINALLY SAYS WHY. suggestMule() has always returned {id, why} —
-         "major set: Tal Rasha", "low set piece — track for grail, discard: Sigon's" — and
-         vaultAutoAssign took the id and threw the why on the floor. So an item appearing on a mule
-         he did not expect (the charm, 2026-08-21) had no story anywhere. Same shape as v1945, where
-         the funnel POSTED guardHeld and the handler dropped it: the reason existed at the moment of
-         the decision and was never written down. Taught here FIRST, so no status can be written
-         that nothing renders. [[the-unjoined-end]] */
-      'muled':           ['⚖ filed to a mule', 'var(--best,#66ff88)'],
-      'throw-suggested': ['🗑 suggested throw-out', '#f0c060']
-    };
+    var PILL = window._CH_PILL_MAP || {};
     /* v1765 — A LOG WITH NO ORDER IS NOT A LOG. Measured across two loads of the same 17 rows:
        the sequence differed both times, and neither was alphabetical — the panel rendered whatever
        order the store happened to hand back. He asked this panel for "history wise what happened...

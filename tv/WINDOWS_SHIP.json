@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1948",
+  "ver": "v1949",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1948: suggestMule has always returned an id and a reason. vaultAutoAssign used the id and discarded the reason, so an item on an unexpected mule had no story. It now writes a ledger row per placement, and a throw-out suggestion is surfaced instead of silently skipped.",
+  "note": "v1949: bible.html has called d2r_chronicleInboxLog the visual backend since v1356 and nothing ever rendered it. It is written on every routing decision and read exactly once, as a boolean. Now it has a card beside the intake journal.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
