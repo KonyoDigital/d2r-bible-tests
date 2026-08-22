@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1952",
+  "ver": "v1954",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1952: tvChronicleRoute ticks a find into his chronicle when the TV sees it and recorded nothing, and two call sites discard its return so a failed route said nothing at all. assignItem recorded nothing either, leaving his own hand indistinguishable from a blank.",
+  "note": "v1954: tvVaultRegister puts a physical item into his vault when the TV sees a pickup and recorded nothing, so the store where his mystery charm appeared was the one store with no arrival record. It also accepts any name at all: Not A Real Item At All registered fine and was filed to a mule.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

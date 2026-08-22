@@ -33235,6 +33235,53 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // grailFoundUni path), set pieces → toggleSetPiece (setPieces store + the same ledger).
   // Chronicles stay separate coding-wise; this only knocks on each engine's front door.
   // src: 'vault' (his stash commit) · 'chat' (a DISCOVERED broadcast — knowledge, never vault).
+  /* v1954 — WRAP THE VAULT REGISTER SO AN ARRIVAL LEAVES A RECORD.
+     Konyo, about a charm on a mule he did not recognise: "i dont think i even own this.. from what
+     picutre is this here?". THIS is the path that answers it — tvVaultRegister is what puts a
+     physical item into d2r_owned when the TV sees a pickup — and it called kaiChronicleRecord ZERO
+     times. One of its two call sites also discards the return, so a refused register said nothing.
+
+     The vault is the store whose mistakes are permanent and the one he has actually been bitten by,
+     which makes "nothing arrived without a row" the property most worth having. Wrapped rather than
+     edited, for the same reason v1952 wrapped tvChronicleRoute: this runs on live TV reads, it has
+     several exit paths, and a wrapper cannot change WHAT it decides — only make it speak. */
+  (function(){
+    var _inner = window.tvVaultRegister;
+    if (typeof _inner !== 'function') return;
+    /* Does the board know this name AT ALL — as a unique, a set piece, or anything in ITEMS?
+       Deliberately generous: this decides whether to FLAG, never whether to keep. */
+    function _known(n){
+      try {
+        if (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === n; })) return true;
+        if (typeof window.findSetPiece === 'function' && window.findSetPiece(n)) return true;
+        if (typeof window._gUniqueRoster === 'function' && window._gUniqueRoster().indexOf(n) >= 0) return true;
+        if (typeof tipOf === 'function' && tipOf(n)) return true;
+      } catch(e){}
+      return false;
+    }
+    window.tvVaultRegister = function(name){
+      var r;
+      try { r = _inner.apply(this, arguments); }
+      catch(e){ r = { ok:false, why:'threw: ' + (e && e.message || e) }; }
+      try {
+        var nm = String(name || '').trim();
+        if (nm && r && !r.dup && typeof window.kaiChronicleRecord === 'function'){
+          window.kaiChronicleRecord({
+            name: (r && r.name) || nm,
+            status: (r && r.ok) ? (_known(nm) ? 'vault-registered' : 'vault-unknown') : 'route-failed',
+            store: 'owned', ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: true,
+            why: (r && r.ok)
+              ? (_known(nm)
+                  ? 'the TV saw you pick this up, so it went into your vault'
+                  : ('the TV read this name and NOTHING on the board matches it \u2014 kept, because '
+                     + 'some of your real finds are not on the roster either, but worth your eye'))
+              : ('not registered \u2014 ' + ((r && r.why) || 'no reason given')) });
+        }
+      } catch(e){}
+      return r;
+    };
+  })();
+
   window.tvChronicleRoute = function(name, src){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
@@ -42983,7 +43030,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1952', name:'v1952 - the last two silent writes', date:'2026-08-22', note:'tvChronicleRoute ticks a find into his chronicle when the TV sees it and recorded nothing, and two call sites discard its return so a failed route said nothing at all. assignItem recorded nothing either, leaving his own hand indistinguishable from a blank.' };
+  window.D2R_BUILD = { id:'v1954', name:'v1954 - the vault says who let it in', date:'2026-08-22', note:'tvVaultRegister puts a physical item into his vault when the TV sees a pickup and recorded nothing, so the store where his mystery charm appeared was the one store with no arrival record. It also accepts any name at all: Not A Real Item At All registered fine and was filed to a mule.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43685,6 +43732,18 @@ window._CH_PILL_MAP = {
          recorded nothing either, which left "why is this here" ambiguous in the one case where the
          answer is simply "you put it there". */
       'tv-routed':       ['📺 the TV saw this', 'var(--best,#66ff88)'],
+      /* v1954 — the TV -> VAULT path. tvVaultRegister puts a PHYSICAL item into d2r_owned when the
+         TV sees a pickup, and recorded nothing, so the store where his mystery charm turned up was
+         the one store with no arrival record. Its failure reuses `route-failed` rather than minting
+         a synonym — one vocabulary, not two. */
+      'vault-registered':['🏦 registered to your vault', 'var(--best,#66ff88)'],
+      /* v1954 — AND THE ONE THAT ANSWERS HIS CHARM. tvVaultRegister accepts ANY name: measured,
+         "Not A Real Item At All" registered ok:true and was filed to uni-weap. A misread off the TV
+         lands in the vault with no roster check, which is how an item he does not own appears on a
+         mule. It is NOT rejected — three of his real uniques (Atma's Scarab, Naglring, Saracen's
+         Chance) are absent from the roster too, so refusing unknown names would lose true finds.
+         It is FLAGGED, so the suspicious ones are visible and the genuine ones survive. */
+      'vault-unknown':   ['❓ name not recognised', '#f0c060'],
       'route-failed':    ['⚠ could not route', '#f0a060'],
       'filed-by-hand':   ['✋ you filed this', '#9fd4ff']
     };
