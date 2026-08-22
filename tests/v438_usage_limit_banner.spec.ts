@@ -1,5 +1,6 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { seedIntake } from './_intake';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 const TINY_JPG = Buffer.from(
   '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
@@ -30,7 +31,7 @@ test('a usage-limit error shows a clear banner and aborts (no false empties)', a
     (window as any).renderVault();
   });
   // drop 3 files — once the cap is detected, the rest must be skipped, not faked as empty
-  await page.setInputFiles('#vault-intake-file', [0,1,2].map(i => ({ name:`s${i}.jpg`, mimeType:'image/jpeg', buffer: TINY_JPG })));
+  await seedIntake(page, 'vault', [0,1,2].map(i => ({ name:`s${i}.jpg`, mimeType:'image/jpeg', buffer: TINY_JPG })));
   await page.waitForFunction(
     () => /usage limit|Last scan|registered/i.test(document.getElementById('vault-intake-report')?.textContent || ''),
     undefined, { timeout: 10000 }

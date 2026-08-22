@@ -10753,3 +10753,44 @@ declaration wins and an earlier `.tqu-*` rule has silently outranked a later int
 **Not a bug, recorded because it looks like one:** `d2r_autoLanes` reads `{}` after a click.
 `_miniOnAirOn` returns true for an unset key by design — "doing nothing yields automatic intake" — so
 `{}` means all four lanes are ARMED, and an already-on lane is not rewritten.
+
+## REG-352 — 17 tests pinned the manual door I removed, and CI has been RED on every ship since (v1993)
+
+Konyo asked for the manual AI-intake doors to go — *"surgically remove them all… that way it forces
+me and my cuzin to just hit reel session instead of anything manual"* — and v1975/v1976 did it:
+`vault-intake-file`, `rune-intake-file`, `gem-intake-file`, `material-intake-file` are gone (5 file
+inputs remain in `bible.html`, none of them these).
+
+**Seventeen tests across seven specs kept seeding themselves through those inputs.** Playwright waits
+for a selector that will never exist, so each burned its full 120s timeout:
+
+```
+Routine I — Playwright suite, shard 4/6:  11 failed · 330 passed (33.3m)
+Error: page.setInputFiles: Test timeout of 120000ms exceeded.   ×10
+```
+
+RED on every ship since v1975 and I never went back for it. **A test that pins a retired contract is
+worse than no test** — it is a red gate everyone learns to scroll past, which is how the next real
+failure goes unread. That is the exact trap `sweep-dont-ask` exists to break, and I walked into it
+while carrying the rule.
+
+**The tests were not wrong about the LOGIC** they assert — dedup, shared-stash routing, cost
+reporting, the throw-out triage, the cropped-flag contract. They were wrong about the DOOR. The
+intake functions never moved: `window.vaultIntake / runeIntake / gemIntake / materialIntake` are all
+still exported, and they are the very seam the automated lane feeds — `tvStashAutoIntake` "only
+supplies a File" to these same functions.
+
+So seeding now goes through `tests/_intake.ts` → `seedIntake(page, lane, files)`, which builds real
+`File` objects and calls that function. **The specs now exercise the AUTOMATED path** instead of a
+door the product no longer has — which is what integrating them should have meant in the first
+place, rather than leaving them to rot.
+
+16 call sites converted mechanically across 5 specs. Three tests asserted the doors' *existence* and
+were rewritten to pin the current contract instead:
+- `v205` → the manual door is gone AND `vaultIntake` (the name `tvStashAutoIntake` dispatches to)
+  survives — a rename would break the automated lane silently
+- `v544` ×2 → the four doors are gone, the four functions live, and tapping a lane expands the card,
+  keeps the lane armed, and **reaches for a reel** (v1992)
+
+`tests/v1975_mini_on_air_lanes.spec.ts` already asserted `doors === 0` and needed no change — it was
+written after the removal and is the one that got it right.

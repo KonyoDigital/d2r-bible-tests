@@ -5,6 +5,7 @@
 // (Hephasto banner screenshot → correct unrecognized extraction, ~$0.001/shot).
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { seedIntake } from './_intake';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -39,21 +40,23 @@ test.describe('v205 AI intake', () => {
     });
   });
 
-  test('intake button + file input exist in the vault toolbar', async ({ page }) => {
+  /* v1993 — the manual toolbar door was REMOVED in v1975/v1976 at Konyo's ask. What has to survive
+     is the function behind it, because tvStashAutoIntake dispatches to `vaultIntake` BY NAME and a
+     rename would break the automated lane silently. Every other test in this file now seeds through
+     that function (tests/_intake.ts) rather than through a picker the product no longer has. */
+  test('the manual vault door is gone and vaultIntake — the seam the reel feeds — survives', async ({ page }) => {
     const r = await page.evaluate(() => ({
-      btn: !!document.querySelector('#mule-vault-card .vault-btn[title*="AI reads"]'),
       input: !!document.getElementById('vault-intake-file'),
-      multiple: (document.getElementById('vault-intake-file') as HTMLInputElement)?.multiple,
+      fn: typeof (window as any).vaultIntake,
     }));
-    expect(r.btn).toBe(true);
-    expect(r.input).toBe(true);
-    expect(r.multiple).toBe(true);
+    expect(r.input, 'the manual vault file input came back — it was removed on purpose').toBe(false);
+    expect(r.fn, 'vaultIntake is the name tvStashAutoIntake dispatches to').toBe('function');
   });
 
   test('uploading a screenshot logs items as owned, assigns them, persists, and reports', async ({ page }) => {
-    await page.setInputFiles('#vault-intake-file', {
+    await seedIntake(page, 'vault', [{
       name: 'stash.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG,
-    });
+    }]);
     await page.waitForFunction(
       () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }
@@ -91,7 +94,7 @@ test.describe('v205 AI intake', () => {
       });
     });
     // first upload reads normally
-    await page.setInputFiles('#vault-intake-file', { name: 'dup.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'dup.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(
       () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }
@@ -99,7 +102,7 @@ test.describe('v205 AI intake', () => {
     const after1 = calls;
     expect(after1).toBeGreaterThan(0);
     // SAME filename again → manual seen-ledger skips it: "Nothing new to read", and NO new AI call
-    await page.setInputFiles('#vault-intake-file', { name: 'dup.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'dup.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(
       () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Nothing new to read'),
       undefined, { timeout: 10000 }
@@ -118,10 +121,10 @@ test.describe('v205 AI intake', () => {
       })
     );
     // first file → NEW (1 copy)
-    await page.setInputFiles('#vault-intake-file', { name: 'raven1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'raven1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     // DIFFERENT filename, SAME item → already-owned but under Raven Frost's default target (4) → extra copy
-    await page.setInputFiles('#vault-intake-file', { name: 'raven2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'raven2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('extra copies'), undefined, { timeout: 10000 });
     const r = await page.evaluate(() => ({
       count: eval('copies')['Raven Frost'],
@@ -150,7 +153,7 @@ test.describe('v205 AI intake', () => {
       return route.fulfill({ status: 200, contentType: 'application/json',
         body: JSON.stringify({ items: ['The Stone of Jordan'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
-    await page.setInputFiles('#vault-intake-file', { name: 'cropped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'cropped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     expect(reads.length).toBe(1);
     expect(reads[0].cropped).toBe(true);
@@ -168,7 +171,7 @@ test.describe('v205 AI intake', () => {
       return route.fulfill({ status: 200, contentType: 'application/json',
         body: JSON.stringify({ items: ['Manald Heal'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
-    await page.setInputFiles('#vault-intake-file', { name: 'fullimg.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'fullimg.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(() => (eval('owned') as Set<string>).has('Manald Heal'), undefined, { timeout: 10000 });
     expect(reads2.length).toBe(1);
     expect(reads2[0].cropped).toBe(false);
@@ -183,7 +186,7 @@ test.describe('v205 AI intake', () => {
       return route.fulfill({ status: 200, contentType: 'application/json',
         body: JSON.stringify({ items: [], unrecognized: ['Glarbfaxe of Nonsense'], finds: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
-    await page.setInputFiles('#vault-intake-file', { name: 'needs_look.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'needs_look.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     const r = await page.evaluate(() => {
       const nl = document.querySelector('#vault-intake-report .vir-needlook');
@@ -212,7 +215,7 @@ test.describe('v205 AI intake', () => {
       }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: ['The Stone of Jordan'], unrecognized: [], finds: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
-    await page.setInputFiles('#vault-intake-file', { name: 'clipped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await seedIntake(page, 'vault', [{ name: 'clipped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     const r = await page.evaluate(() => ({
       owned: eval('owned').has('The Stone of Jordan'),
@@ -225,9 +228,9 @@ test.describe('v205 AI intake', () => {
   test('endpoint failure reports an error instead of silently dropping', async ({ page }) => {
     await page.unroute('**/api/intake');
     await page.route('**/api/intake', (route) => route.fulfill({ status: 502, body: '{"error":"upstream"}' }));
-    await page.setInputFiles('#vault-intake-file', {
+    await seedIntake(page, 'vault', [{
       name: 'stash.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG,
-    });
+    }]);
     await page.waitForFunction(
       () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }

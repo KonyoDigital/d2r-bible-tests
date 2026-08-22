@@ -1,5 +1,6 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { seedIntake } from './_intake';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v567 — THE AUTO-RESCAN MONEY LOOP (live incident 2026-07-04 21:30-21:43): a screenshot whose AI read
@@ -24,7 +25,7 @@ test('a NO-MATCH read gets a soft retry mark — never deleted (the loop-maker),
     localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake');
     (window as any).switchTab('tools'); (window as any).renderVault();
   });
-  await page.setInputFiles('#vault-intake-file', { name: 'nomatch.png', mimeType: 'image/png', buffer: TINY_JPG });
+  await seedIntake(page, 'vault', [{ name: 'nomatch.png', mimeType: 'image/png', buffer: TINY_JPG }]);
   await page.waitForFunction(() => /Last scan/.test(document.getElementById('vault-intake-report')?.textContent || ''), undefined, { timeout: 15000 });
   const seen = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}'));
   expect(seen['nomatch.png']).toBe('retry');       // soft mark: the quiet auto-scan skips it (truthy)…
@@ -48,7 +49,7 @@ test('a MATCHED read gets the hard seen mark — never offered again, even by a 
     localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake');
     (window as any).switchTab('tools'); (window as any).renderVault();
   });
-  await page.setInputFiles('#vault-intake-file', { name: 'hit.png', mimeType: 'image/png', buffer: TINY_JPG });
+  await seedIntake(page, 'vault', [{ name: 'hit.png', mimeType: 'image/png', buffer: TINY_JPG }]);
   await page.waitForFunction(() => /Last scan/.test(document.getElementById('vault-intake-report')?.textContent || ''), undefined, { timeout: 15000 });
   const r = await page.evaluate(() => {
     const w: any = window;

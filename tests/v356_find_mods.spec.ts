@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { seedIntake } from './_intake';
 
 // v356 — magic/rare finds now carry the verbatim stat lines read off the screenshot tooltip, so a
 // skiller shows its actual "+1 to <skill>" (read, not guessed) on the keeper card + hover.
@@ -18,7 +19,7 @@ test('a magic find stores + renders its read stat lines (skiller +skills)', asyn
   });
   await page.goto(URL); await page.waitForTimeout(1500);
   await page.evaluate(() => (window as any).switchTab('tools'));
-  await page.setInputFiles('#vault-intake-file', { name: 'skiller.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+  await seedIntake(page, 'vault', [{ name: 'skiller.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG }]);
   await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
   const r = await page.evaluate(() => {
     const w = window as any;

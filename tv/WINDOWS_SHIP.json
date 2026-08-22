@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1992",
+  "ver": "v1993",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1992: arming a lane was a switch wired to nothing - the board now asks the console to record and says what it answered",
+  "note": "v1993: seventeen specs seeded through a manual file input removed in v1975 and had CI red ever since - they now feed the same intake seam the reel lane feeds",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

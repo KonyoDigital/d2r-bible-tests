@@ -5,6 +5,7 @@
 // A grail UNIQUE re-read still collapses (you don't own two Tyrael's).
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { seedIntake } from './_intake';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 const TINY_JPG = Buffer.from(
@@ -33,7 +34,7 @@ test.describe('v375 base quantity dedup', () => {
   test('two base reads in ONE batch (fresh vault) → ×2 copies, NOT a collapsed duplicate shot', async ({ page }) => {
     // BOTH files in a single batch — the exact bug scenario (7 shots at once, two white Threshers).
     // _preReg = 0 at batch start, so the OLD code would collapse the 2nd to a phantom "duplicate shot".
-    await page.setInputFiles('#vault-intake-file', [
+    await seedIntake(page, 'vault', [
       { name: 'thresher1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
       { name: 'thresher2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
     ]);
@@ -57,7 +58,7 @@ test.describe('v375 base quantity dedup', () => {
         body: JSON.stringify({ items: ['Windforce'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }),
       })
     );
-    await page.setInputFiles('#vault-intake-file', [
+    await seedIntake(page, 'vault', [
       { name: 'wf1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
       { name: 'wf2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
     ]);
