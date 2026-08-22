@@ -10469,3 +10469,43 @@ ledger row lost its reel and frame — the same field-name mismatch as REG-334, 
 now reads the witness rows and accepts `session` as an alias for `reel`.
 
 `tv/test_vault_retro.py` + `tv/test_vault_traffic.py`: **51 tests OK** after the change.
+
+## REG-342 — one reader per Forge tab (v1987)
+
+Konyo, with a screenshot of F·Sets showing both: *"the Chronicle AI READER for uniques should be
+located only in uniques and for the tab F-SETS it should only render the Chronicle AI READER for
+SETS."*
+
+The cross-button was deliberate once — v1711 made the two Forge headers symmetric so he could
+"register a uniques batch while standing on #tab-fsets". **Safe to remove now**: the defect that era
+actually fixed was the REPORT NODE — a read started on one tab rendering into the other tab's hidden
+div — and that fix is `_chronShotReport` fanning out to *every* `.chron-shot-report` container, which
+stays untouched. Only the extra door goes. Result: `uniques` on `tab-funi` only, `sets` on
+`tab-fsets` only.
+
+### The lane question, answered from the code
+He asked whether the Runes/Gems/Materials lanes are time-based and can get "stuck on looped". They
+cannot:
+- `_stashVisitDone` — *"once per visit per tally tab"*; each fires **once** while the stash is open
+- it **resets on close**: `else if (_stashVisitOpen) { _stashVisitOpen = false; _stashVisitDone = {}; }`
+- `_intakeLeaseClaim` carries `ttlMs: 120000`, so a stuck cross-document claim expires
+- `_stashShutter` is "ONE truth for both lanes", preventing concurrent fires
+- and TV·D does show it: the ON-AIR stage reads that shutter for its READING… state
+
+## REG-343 — a P1 fix that was a no-op, reverted rather than shipped (v1987)
+
+The handoff's P1: a grail tick is not stash stock, so `vaultAutoAssign` (which walks `ownedPool()`)
+has nothing to file. I added `owned.add(_nm)` inside the apply, plus `_vaultEnsureDrawable` for the
+`ownedPool()` membership filter.
+
+**Measured after a real `apply_payload` run: `I·<id8>·d2r_owned` stayed `[]` and `muled` stayed `0`.**
+The `typeof owned !== 'undefined'` guard silently skipped — `owned` is a `let` in a different scope
+than `vaultAccumApply`. That is the **muleById defect again**: a guard that can never pass, shipping
+as a fix while doing nothing. Reverted rather than shipped.
+
+`_vaultEnsureDrawable` is KEPT — it demonstrably works (`EXTRA_ITEMS['Blood Shield']` created on a
+real payload) and is the documented "universe guarantee" `tvVaultRegister` already relies on.
+
+**Still open, stated plainly:** `chronicleApply` reports `vaulted` for a base, yet `d2r_owned` does not
+gain it — so nothing reaches `ownedPool()` and nothing can be filed. That join needs its own pass with
+the scope established first, not a guess at the end of an arc.

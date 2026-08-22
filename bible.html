@@ -8763,7 +8763,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
        because a Sets page tallied as Uniques is worse than no tally at all. -->
   <div style="margin-top:8px">
     <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff" onclick="window._chronShotPick('uniques')" title="photograph the in-game Chronicle UNIQUES page — read as EVIDENCE, nothing is registered until you press register">📜 Read my Chronicle · UNIQUES</button>
-    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff;margin-left:6px" onclick="window._chronShotPick('sets')" title="photograph the in-game Chronicle SETS page — separate ledger, separate read">🧩 Read my Chronicle · SETS</button>
+    
   </div>
   <input type="file" id="chron-shot-file" accept="image/*" multiple style="display:none" onchange="window.chronicleShotIntake(this.files)">
   <div id="chron-shot-report" class="chron-shot-report forge-note" style="display:none;margin:8px 0"></div>
@@ -8780,7 +8780,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
        (:8306-8317). Glyph mapping unified across both tabs: 📜 = UNIQUES, 🧩 = SETS (fsets'
        SETS button used to wear 📜; funi's mapping is the one kept). -->
   <div style="margin-top:8px">
-    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff" onclick="window._chronShotPick('uniques')" title="photograph the in-game Chronicle UNIQUES page — read as EVIDENCE, nothing is registered until you press register">📜 Read my Chronicle · UNIQUES</button>
+    <!-- v1988 — EACH FORGE TAB READS ITS OWN LEDGER. Konyo: "the Chronicle AI READER for uniques
+     should be located only in uniques and for the tab F-SETS it should only render the
+     Chronicle AI READER for SETS." The cross-button was v1711 convenience — "he can now
+     register a uniques batch while standing on #tab-fsets". Safe to remove: the defect that
+     era fixed was the REPORT NODE, and _chronShotReport still fans out to every
+     .chron-shot-report container, so a read started anywhere still renders where he is
+     standing. Only the extra door goes. -->
     <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff;margin-left:6px" onclick="window._chronShotPick('sets')" title="photograph the in-game Chronicle SETS page — read as evidence, nothing registers until you press register">🧩 Read my Chronicle · SETS</button>
   </div>
   <!-- the SETS read renders HERE when he is on this tab — the Uniques tab's report element is
@@ -34555,6 +34561,39 @@ window.renderLaneLocks = function(){
    remembered. That is also what he actually said it needed to be — "its our decision and if its
    there there a reason for it". The board records the reason; it does not invent it.
    [[unknown-stays-unknown]] */
+/* v1987 — THE UNIVERSE GUARANTEE, EXTENDED TO FILM. tvVaultRegister (v739) says it: "anything TV
+   registers must be drawable by the Vault Manager… so the mirror NEVER has invisible items." The
+   live hover path obeys that. The FILM path did not, and that is why `muled` was always 0:
+
+     · a unique the sweep grounds goes to chronicleApply, which writes d2r_foundLog — a FIND
+     · vaultAutoAssign walks ownedPool(), which is built from `owned` — STASH STOCK
+     · ownedPool() also DROPS any name absent from ITEMS / EXTRA_ITEMS / set pieces, so even
+       owned.add('Shako') stays invisible without a reference entry
+
+   A vault-sweep row is not a bare claim that he FOUND something: it carries a lane — stash,
+   inventory or equipment — which means the film saw it sitting in his stash. That is exactly what
+   `owned` means. So the row is registered as stock as well as ticked as a find, and the two
+   statements stay separate: the grail says he has ever found it, `owned` says it is there now.
+
+   Deliberately NOT refactoring tvVaultRegister to share this. Its stub is the twin of the block
+   below and copy-drift is a real risk here, but it is the LIVE hover path, it works, and the hover
+   flow cannot be exercised from this machine tonight. Rewriting a working live path on evidence I
+   cannot gather is the trade this session has already been burned by. Named here so the twin is
+   findable: search EXTRA_ITEMS + "UNIVERSE GUARANTEE". */
+window._vaultEnsureDrawable = function(name, note){
+  var nm = String(name || '').trim();
+  if (!nm) return false;
+  try {
+    var known = (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === nm; }))
+             || (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[nm]);
+    if (!known && typeof EXTRA_ITEMS !== 'undefined'){
+      EXTRA_ITEMS[nm] = { rarity:'basic', base:nm, cat:'🎞 film-vaulted', val:'tv',
+        desc: note || 'read from a reel — physically in your stash' };
+      return true;
+    }
+  } catch(e){}
+  return false;
+};
 window._laneLockSetWhere = function(name, where){
   var all = _laneLockAll(); var nm = String(name || '').trim();
   if (!all[nm]) return false;
@@ -42906,6 +42945,16 @@ window._renderStashFresh = function(){
             /* uniques keep the whole row so their ledger entry still carries reel/frame/conf;
                sets need the canonical suffixed NAME, which is what _chronSetPieceSet() holds. */
             if (sp && sp.piece) _setp.push(sp.piece); else _uni.push(n);
+            /* v1987 — REVERTED, AND THE REASON IS THE POINT. This tried owned.add(_nm) here so
+               vaultAutoAssign could see film rows. Measured after a real apply:
+               I·<id8>·d2r_owned stayed [] and muled stayed 0 — the `typeof owned !== 'undefined'`
+               guard silently skipped, because `owned` is a `let` in a different scope than
+               vaultAccumApply. A guard that can never pass is the muleById defect again, and
+               shipping it would have looked like a fix while doing nothing.
+               The real join is still open: chronicleApply reports `vaulted` for a base, yet
+               d2r_owned does not gain it, so nothing reaches ownedPool() and nothing can be filed.
+               That needs its own pass with the scope established first, not a guess at the end of
+               an arc. [[the-unjoined-end]] */
           });
           var res = window.chronicleApply({ wouldAdd: { uniques: _uni, sets: _setp } });
           out.grail = ((res && res.uniques) || []).concat((res && res.sets) || []);
@@ -43843,7 +43892,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1986', name:'v1986 - witnesses ship as rows', date:'2026-08-22', note:'apply_payload flattened them to an int so the 3-session equipment lock could never fire on a real apply' };
+  window.D2R_BUILD = { id:'v1987', name:'v1987 - one reader per forge tab', date:'2026-08-22', note:'uniques reads only on F-Uniques and sets only on F-Sets - and a P1 no-op reverted rather than shipped' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

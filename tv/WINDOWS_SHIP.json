@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1986",
+  "ver": "v1987",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1986: apply_payload flattened them to an int so the 3-session equipment lock could never fire on a real apply",
+  "note": "v1987: uniques reads only on F-Uniques and sets only on F-Sets - and a P1 no-op reverted rather than shipped",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
