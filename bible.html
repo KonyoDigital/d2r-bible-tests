@@ -4849,7 +4849,7 @@ try {
              Each pill arms ONE lane. The reading logic behind it is unchanged — tvStashAutoIntake
              hands the reel's frame to the very same runeIntake/gemIntake/materialIntake, so each
              section keeps its own crop and its own `kind` template. -->
-        <span id="sc-strip-lanes" class="sc-strip-lanes"></span>
+        <span class="sc-lanes-lbl">Auto lanes</span><span id="sc-strip-lanes" class="sc-strip-lanes"></span>
     <button type="button" class="sc-strip-btn primary" onclick="window._sessionPrintPlan&&window._sessionPrintPlan()">🖨 Tonight’s plan</button>
     <button type="button" class="sc-strip-btn" onclick="switchTab('funi')">🏆 Grail wall</button>
   </div>
@@ -41450,7 +41450,26 @@ body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:n
    new dialect: same track/knob/word anatomy, ~80% scale, so seven sections read as one system.
    Placed AFTER .tvd-switch so nothing here can be outranked by it at equal specificity — the
    standing CSS scar on this repo is that the LAST declaration wins. */
-.mini-onair{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:var(--fs-micro);line-height:1}
+/* v1977 — TWO THINGS A SECOND PAIR OF EYES CAUGHT, neither visible to a behaviour test.
+   (a) THE WORD COLLIDED. The card above these reads 'AUTO INTAKE · ON AIR' with a status pill that
+       can say OFF AIR, and every lane below also said 'ON AIR'. Grok, shown the screenshot with no
+       hint: "A user could reasonably think the master switch is fighting the individual toggles or
+       that 'ON AIR' means two opposite things at once." It does mean two things: the card is the
+       BROADCAST state (is the reel running), a lane is whether THIS category is read. So the lanes
+       say AUTO / OFF, and the phrase ON AIR keeps exactly one meaning on this screen.
+   (b) THEY WERE CRAMPED — "minimal padding", same review. Pills now carry their own breathing room
+       and the row spaces them, so four switches read as four choices rather than one striped bar. */
+.mini-onair{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:var(--fs-micro);line-height:1;padding:5px 10px 5px 6px;border:1px solid transparent;border-radius:999px;transition:background .18s ease,border-color .18s ease}
+.mini-onair:hover{background:rgba(255,255,255,.04);border-color:var(--border-light)}
+/* v1977 — THE ROW NEEDED TO SAY WHAT IT IS. Shown the screenshot cold, the second eye read the
+   pills as the detail of the card above them: "a user can still read the pills as the detailed
+   state of the card or assume the card's ON/OFF and the pills are fighting each other." The card
+   is the BROADCAST state; these are per-category lanes. Naming the row separates them without
+   touching his card. (Two other findings from that review were checked against the pixels and
+   REJECTED: the pills are not cramped after the padding fix — the row went 459px to 534px — and
+   there is no vertical misalignment. A review is evidence, not a verdict.) */
+.sc-lanes-lbl{font-size:var(--fs-micro);color:var(--text-dim,#756657);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+#sc-strip-lanes{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
 .mini-track{position:relative;width:38px;height:18px;border-radius:999px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.25));flex:0 0 auto;transition:background .18s ease,border-color .18s ease}
 .mini-knob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:linear-gradient(180deg,#8a7c62,#5c5142);box-shadow:0 1px 3px rgba(0,0,0,.45);transition:left .18s ease,background .18s ease}
 .mini-word{font-weight:var(--fw-medium);letter-spacing:.04em;white-space:nowrap}
@@ -43508,7 +43527,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1976', name:'v1976 - vault sets and grail lose their manual doors', date:'2026-08-22', note:'vault keeps its folder watch and gets a pill - sets and grail get an honest note instead of a switch that controls nothing' };
+  window.D2R_BUILD = { id:'v1977', name:'v1977 - one phrase one meaning', date:'2026-08-22', note:'the lane pills said ON AIR like the broadcast card above them - they now say AUTO, with spacing and a row label' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -45176,9 +45195,9 @@ window._miniOnAirPaint = function(){
       el.classList.toggle('mini-off', !on);
       el.setAttribute('aria-checked', on ? 'true' : 'false');
       var w = el.querySelector('.mini-word');
-      if (w) w.textContent = on ? 'ON AIR' : 'OFF';
+      if (w) w.textContent = on ? 'AUTO' : 'OFF';
       el.setAttribute('title', on
-        ? 'ON AIR — the reel reads this automatically. No photo needed: just run a reel session.'
+        ? 'AUTO — the reel reads this lane on its own. No photo needed: just run a reel session.'
         : 'OFF — the reel will SKIP this section. Nothing here updates until you switch it back on.');
     }
   } catch(e){}
@@ -45191,7 +45210,7 @@ window._miniOnAirHtml = function(lane, what){
     + ' onclick="window._miniOnAirToggle(\'' + lane + '\')"'
     + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._miniOnAirToggle(\'' + lane + '\')}">'
     + '<span class="mini-track"><span class="mini-knob"></span></span>'
-    + '<span class="mini-word">' + (on ? 'ON AIR' : 'OFF') + '</span>'
+    + '<span class="mini-word">' + (on ? 'AUTO' : 'OFF') + '</span>'
     + '<span class="mini-what">' + what + '</span></span>';
 };
 try { if (document.readyState !== 'loading') setTimeout(window._miniOnAirPaint, 0);

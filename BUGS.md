@@ -10128,3 +10128,31 @@ The spec now asserts the negative too: **no pill may exist for `grail` or `sets`
 8 minis render · the only remaining manual door is `craft-intake-file` · `vault-dir-input` intact ·
 `_startFolderAutoWatch` still a function · `vaultIntake` / `setIntake` / `grailIntake` / `craftIntake`
 all still functions · 2 review notes shown · **0 console errors**.
+
+## REG-332 — the lane pills said ON AIR, and so did the card above them (v1977)
+
+Found by **looking**, not by testing. Every behaviour assertion in v1975/v1976 passed; the defect was
+only visible on the rendered page, and it was confirmed by a second model family shown the screenshot
+**cold, with no hint of what to look for**:
+
+> *"The card title claims the feature is ON AIR while its own toggle says OFF AIR. Below it, the four
+> pills also say 'ON AIR'… A user could reasonably think the master switch is fighting the individual
+> toggles, or that **'ON AIR' means two opposite things at once**."*
+
+It did mean two things. The card is the **broadcast** state — is the reel running. A lane is whether
+**this category** gets read. Two different questions wearing one phrase, stacked vertically.
+
+**Fixed three ways, smallest first:** the lanes now read `AUTO` / `OFF`, so `ON AIR` keeps exactly one
+meaning on the screen; the pills gained padding and the row a gap; and the row is now labelled
+**"Auto lanes"** so it stops reading as the card's detail. His card was not touched — the tension
+between its title and its status pill is pre-existing and is the honest broadcast state.
+
+### Two findings from the same review were REJECTED against the pixels
+The follow-up read claimed the pills were *"still cramped… rounded ends touching"* and that *"the left
+pill sits slightly higher than the right three."* Neither survives inspection: the row measured
+**459px → 534px** after the padding change, the gaps are plainly visible, and the baseline is even.
+**A review is evidence, not a verdict** — the same review was right about the thing that mattered and
+wrong about two details, which is exactly why findings get reproduced before they are believed.
+
+Its other observations (`MF QUICK SET` showing a value off the preset ticks, the header contrast, the
+clipped scrollbar) are pre-existing and outside this change; recorded here, not chased.

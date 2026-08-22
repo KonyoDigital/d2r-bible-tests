@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1976",
+  "ver": "v1977",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1976: vault keeps its folder watch and gets a pill - sets and grail get an honest note instead of a switch that controls nothing",
+  "note": "v1977: the lane pills said ON AIR like the broadcast card above them - they now say AUTO, with spacing and a row label",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
