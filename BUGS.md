@@ -10717,3 +10717,39 @@ My instrument was at fault twice over: I monkey-patched `window.suggestMule`, bu
 calls the **bare closure-scoped** `suggestMule`, so the call counter read 0 and measured nothing
 about the function under test. The store change was REG-348's prune, not an overwrite.
 [[feedback-suspect-the-instrument]]
+
+## REG-351 — the four "Auto lanes" cards promised a reel and only flipped a flag (v1992)
+
+Konyo went looking in Tools → Vault Manager for a Shadow-AI button that **does not exist** — measured,
+zero occurrences of any shadow-AI surface in `bible.html`, `control_app.py` or `tv_diablo.py`. I had
+described that design to him and never built it, which is how he ended up clicking around for it.
+
+What he was actually clicking is `quickIntake('vault')` at `bible.html:5015`. It expands the card and
+arms a lane in `d2r_autoLanes`. **That is all it did.** The lane flag is only read LATER, by
+`tvStashAutoIntake`, while a session is *already* recording — so on a board with no reel running, all
+four cards were switches wired to nothing he could see. The card's own subtitle says "the reel reads
+these", true only once a reel exists.
+
+**Both halves existed and were never joined.** The console has had `POST /api/on` since v778
+(`control_app.py:15598`); measured, `/api/on` appeared **zero times** in `bible.html`. So the board
+has never once asked the console to start a reel.
+
+Now `quickIntake` → `_laneStartReel(lane)`:
+- **same-origin only** (`:17771|:17772`) — the public site must never poke a service on his laptop,
+  and off-console it says so instead of failing silently
+- surfaces the console's REASON, which was previously discarded. `/api/on` answers with `why` when a
+  mini is counting down or the disk is under 8 GB; nothing had ever read it.
+
+Proven against a stub on **:17771** (never :17772 — his live console was up on pid 27335 throughout):
+```
+ok       -> 🔴 ON AIR — the reel is recording; the vault lane reads and files what it sees.
+refusal  -> ⚠ could not start the reel: already recording — seal the current session first (42s left)
+file://  -> ⚡ vault lane is ARMED. Open this board from the TV DIABLO console to start the reel.
+```
+Verified on pixels at 1440: the say-line takes its own full-width row under the four cards, squeezes
+nothing, clips nothing. `.tqu-say` is declared AFTER `.tqu-cards` on purpose — in this file the last
+declaration wins and an earlier `.tqu-*` rule has silently outranked a later intent before.
+
+**Not a bug, recorded because it looks like one:** `d2r_autoLanes` reads `{}` after a click.
+`_miniOnAirOn` returns true for an unset key by design — "doing nothing yields automatic intake" — so
+`{}` means all four lanes are ARMED, and an already-on lane is not rewritten.

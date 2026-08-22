@@ -3473,6 +3473,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .tqu-headtxt b{font-size:14px;color:#e8ddf5;font-weight:var(--fw-bold);letter-spacing:.3px}
 #tab-tools .tqu-headtxt small{font-size:var(--fs-micro);color:#a99cc4;text-transform:uppercase;letter-spacing:.5px}
 #tab-tools .tqu-cards{display:flex;gap:10px;flex-wrap:wrap;flex:1 1 auto}
+/* v1992 — THE REEL'S ANSWER HAS TO LAND SOMEWHERE HE IS LOOKING. quickIntake now starts a reel and
+   the console answers with a reason when it refuses; without a surface those answers went nowhere.
+   flex-basis:100% forces its own row inside #tools-quickup's flex line, so it can never squeeze the
+   four cards. Declared AFTER .tqu-cards deliberately — in this file the LAST declaration wins and
+   an earlier .tqu-* rule has silently outranked a later intent before. */
+#tab-tools .tqu-say{flex:1 0 100%;margin-top:8px;padding:7px 11px;border-radius:9px;font-size:var(--fs-micro);line-height:1.45;color:#e8ddf5;background:rgba(157,123,216,.10);border:1px solid rgba(157,123,216,.28)}
+#tab-tools .tqu-say:empty{display:none}
 #tab-tools .tqu-btn{display:flex;align-items:center;gap:11px;min-width:152px;flex:1 1 152px;padding:9px 13px;cursor:pointer;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01));border:1px solid var(--a,rgba(255,255,255,.2));border-color:color-mix(in srgb,var(--a) 45%,transparent);border-radius:12px;transition:transform .09s,box-shadow .15s,filter .12s,background .15s}
 #tab-tools .tqu-btn:hover{transform:translateY(-2px);box-shadow:0 7px 20px color-mix(in srgb,var(--a) 32%,transparent);filter:brightness(1.07);background:linear-gradient(180deg,color-mix(in srgb,var(--a) 15%,transparent),color-mix(in srgb,var(--a) 4%,transparent))}
 #tab-tools .tqu-btn:active{transform:translateY(0)}
@@ -44001,7 +44008,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1991', name:'v1991 - the mules stick', date:'2026-08-23', note:'the sweep files items through the live door and the reference entry is persisted so a reload no longer throws the vault away' };
+  window.D2R_BUILD = { id:'v1992', name:'v1992 - the lane starts the reel', date:'2026-08-23', note:'arming a lane was a switch wired to nothing - the board now asks the console to record and says what it answered' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -45753,7 +45760,69 @@ window.quickIntake = function(which){
   var on = window._miniOnAirOn(lane);
   if (!on) on = window._miniOnAirToggle(lane);   // tapping a DARK lane arms it; tapping a live one leaves it alone
   try { window._miniOnAirMount(); } catch(e){}
+  /* ── v1992 — ARMING A LANE IS NOT STARTING A REEL, AND THE CARD PROMISED A REEL ─────────────
+     Konyo, hunting for a button that did not exist: "i want it to start a reel for the vault
+     manager.. it needs to read and analyze those items that are in the reel".
+
+     He was right that nothing happened. This function armed a flag in d2r_autoLanes and stopped.
+     The lane flag is only read LATER, by tvStashAutoIntake, while a session is already recording —
+     so on a board with no session running, every one of these four cards was a switch wired to
+     nothing he could see. The card's own subtitle says "the reel reads these", which is true only
+     once a reel exists. [[the-unjoined-end]] [[label-outlived-referent]]
+
+     The console has had the door open the whole time: POST /api/on starts the agent
+     (control_app.py:15598). NOTHING IN THIS FILE HAS EVER CALLED IT — measured, zero occurrences
+     of /api/on in bible.html before this version. So the two halves were built and never joined.
+
+     SAME-ORIGIN ONLY, the rule this board already applies to every console route: the public site
+     must never poke a service on his laptop, so off-console this says so out loud rather than
+     failing silently. And /api/on answers with a REASON when it refuses — a mini already counting
+     down, under 8GB free — which was invisible until something asked. */
+  try { window._laneStartReel(lane); } catch(e){}
   return { ok:true, lane:lane, on:on, via:'mini-on-air' };
+};
+
+/* Kept separate from quickIntake so the arming still works with the network half stubbed, and so a
+   future caller (the Vault Manager card, a keyboard shortcut) can start a reel without re-deriving
+   the host rule. Async by nature; quickIntake stays synchronous for its existing callers. */
+window._laneSay = function(msg){
+  try {
+    var host = document.getElementById('tools-quickup');
+    if (host){
+      var el = document.getElementById('tqu-say');
+      if (!el){ el = document.createElement('div'); el.id = 'tqu-say'; el.className = 'tqu-say'; host.appendChild(el); }
+      el.textContent = msg;
+    }
+    var vs = document.getElementById('vault-status');
+    if (vs) vs.textContent = msg;
+  } catch(e){}
+};
+window._laneStartReel = function(lane){
+  var LABEL = { vault:'vault', runes:'runes', gems:'gems', materials:'materials' };
+  var nice = LABEL[lane] || lane;
+  if (!/:(17772|17771)\b/.test(String(location.host || ''))){
+    window._laneSay('\u26a1 ' + nice + ' lane is ARMED. Open this board from the TV DIABLO console to start the reel from here.');
+    return Promise.resolve({ ok:false, why:'not served by the console' });
+  }
+  window._laneSay('\u{1F534} starting a reel for the ' + nice + ' lane\u2026');
+  return fetch('/api/on', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j && j.ok){
+        window._laneSay('\u{1F534} ON AIR \u2014 the reel is recording; the ' + nice
+                        + ' lane reads and files what it sees. Watch it on the TV\u00b7D tab.');
+      } else {
+        /* the console's refusals are INFORMATIVE and were being thrown away */
+        window._laneSay('\u26a0 could not start the reel: '
+                        + String((j && (j.why || j.error || j.msg)) || 'the console refused')
+                        + ((j && j.secondsLeft) ? (' (' + j.secondsLeft + 's left)') : ''));
+      }
+      return j;
+    })
+    .catch(function(e){
+      window._laneSay('\u26a0 the console did not answer: ' + String(e && e.message || e));
+      return { ok:false, why:String(e && e.message || e) };
+    });
 };
 try { if (document.readyState !== 'loading') setTimeout(window._miniOnAirMount, 0);
       else document.addEventListener('DOMContentLoaded', window._miniOnAirMount); } catch(e){}

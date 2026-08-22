@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1991",
+  "ver": "v1992",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1991: the sweep files items through the live door and the reference entry is persisted so a reload no longer throws the vault away",
+  "note": "v1992: arming a lane was a switch wired to nothing - the board now asks the console to record and says what it answered",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
