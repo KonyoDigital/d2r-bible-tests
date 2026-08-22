@@ -9838,3 +9838,60 @@ or it is asserting the page against itself.
 **What went right:** the failure was a single test, on the version that introduced it, because v1968
 was deliberately held back until Routine I returned. Stacking it would have buried a red spec under a
 green one.
+
+## REG-324 — v1967's resolver is WITHDRAWN: it duplicated a better engine, and was dead code (v1969)
+
+v1967 added `_nearestGrailName` to name the probable item behind an OCR slip. It was measured,
+calibrated, guarded by six specs, verified in a real browser — and it should never have been written.
+Removed in full (9,009 bytes, spec deleted).
+
+### 1. The machinery already existed, under different words
+`D2R_INBOX_FOLD` (v1794, `bible.html:17856`) already resolves misreads, with four outcomes stated in
+its own header:
+
+```
+misread-settled  a slip of an item he ALREADY has        -> retired; there was never a decision
+misread-open     a slip of a real item he does NOT have  -> shown as the REAL item, raw read kept
+ambiguous        two roster items within AMBIGUITY_GAP   -> held, BOTH named, never guessed
+not-in-game      folds onto nothing in the roster        -> quarantined to the reader lane
+```
+
+**Recon missed it because I grepped for the wrong vocabulary** — `levenshtein|editDistance|_fuzzy|
+_closest|misread|alias` — and this engine says *fold*, *NEAR_CUTOFF* and *AMBIGUITY_GAP*. The count
+should have been the tell: `grep -c "suggest|nearest|closest|guess"` returned **165 hits** and I read
+none of them, concluding "no near-name resolver exists" from a search for names rather than for
+behaviour. `workflow-topology §0` says to grep the CONCEPT, not the filename you had in mind; the
+same applies to functions.
+
+### 2. Its threshold contradicts a calibrated one, and the calibration is better
+`NEAR_CUTOFF = 0.86`, calibrated in `tv/chronicle_resolve.py` against HIS OWN ledger, with a gate
+asserting both literals agree. Its comment rejects exactly what I built:
+
+> *"0.86 folds all five real OCR slips (battlecage->rattlecage .90, naglring->nagelring .94) and
+> pulls no debris onto a roster item; 0.80 pulls 'the dragon' onto 'the dragon chang', which is a
+> GUESS about which item he saw. A wrong fold writes a find he never made."*
+
+`hawkfane`->`hawkmail` scores ≈**0.625**. My bound of 3 edits admits it; the calibrated engine refuses
+it on purpose, and is right to: at that distance the name could be Hawkmail, Hawkfist, or nothing in
+this game. **My "measured" bound of 3 was measured against my own candidate list, not against the
+question "would this fold be correct".** A threshold calibrated on the wrong quantity is not calibrated.
+
+### 3. It was unreachable
+It rendered in the `pend` branch. Every row reaching that branch is already a roster name — the
+`hold` verdicts are `tier-grail-ungrounded`, `g4-disagreed` and gate-uncorroborated, all grail-tier —
+and the function returns null for names already in the roster. **Proven in a browser, not argued:**
+seeding a queue with `Hawkfane`, `Stouthale`, `Templar Coat`, `Toothrow` rendered four rows and
+`document.querySelectorAll('.ibx-why-near').length === 0`. `kaiChronicleTriage('Hawkfane')` returns
+`{action:'dismiss', why:'not-in-game'}` — it never arrives.
+
+### 4. And nothing was being swallowed, which was my whole premise
+The reader lane renders **"🔎 N reads matched nothing in this game — handed to the reader, not to
+you"**, names them, and deliberately offers no put-back, *"because putting a string that is not an
+item in this game back in front of him is the exact thing he asked to stop; the ledger still holds
+every one of them."* `Hawkfane` was already visible to him, correctly labelled, the whole time.
+
+### What survives
+REG-321/322/323 stand — the stale-count, the inert CSS rule and the recalibration stragglers were
+real, and the lesson about naming a bound once on each side of a boundary is worth keeping even
+though the bound itself is gone. **The visual check is what killed this feature**: every parser-level
+gate was green, six specs passed, and one look at the rendered panel showed `near-marked: 0`.

@@ -8233,14 +8233,6 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .ibx-pill{font-size:var(--fs-micro);border:1px solid;border-radius:999px;padding:1px 7px;white-space:nowrap}
 .ibx-nm{color:var(--q-unique);font-weight:var(--fw-medium);cursor:help;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ibx-why{color:var(--text-dim,#8a7d64);font-size:var(--fs-micro);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* v1968 — a row that HAS an answer must not look like a row that does not. .ibx-why is
-   --text-dim at micro size, so "probably Hawkmail" — the most actionable text in the row —
-   rendered in the least prominent style the panel owns. --text-muted, deliberately NOT a
-   rarity token: --q-set green would say "set item" about a name that is not one.
-   ⚠ IT MUST SIT AFTER .ibx-why. The span carries BOTH classes and both set `color` at equal
-   specificity, so source order decides — written above .ibx-why first, this rule was inert and
-   looked applied. That is this repo's standing CSS scar: the LAST declaration wins. */
-.ibx-why-near{color:var(--text-muted,#b5a48a);}
 .ibx-when{color:var(--text-dim,#8a7d64);font-size:var(--fs-micro);white-space:nowrap}
 .ibx-dest{color:var(--gold-dim,#a07830);font-size:var(--fs-micro);white-space:nowrap}
 .ibx-row:has(.ibx-act){grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto}
@@ -43434,7 +43426,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1968', name:'v1968 - a count nobody re-measured', date:'2026-08-22', note:'stale header count, an inert CSS rule, and a bound that outlived its calibration in three places' };
+  window.D2R_BUILD = { id:'v1969', name:'v1969 - the resolver that already existed', date:'2026-08-22', note:'withdraws v1967 - D2R_INBOX_FOLD already does this, better calibrated, and the new one was unreachable' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -44155,120 +44147,6 @@ window._CH_PILL_MAP = {
       'filed-by-hand':   ['✋ you filed this', '#9fd4ff']
     };
 
-  /* v1967 — "HAWKFANE" IS HAWKMAIL, AND NOTHING SAID SO.
-     v1789 read his real ledger by hand and split 36 held rows three ways: six unresolved uniques,
-     TWENTY-FOUR reader debris, and SIX OCR slips of items already in his grail ("Battlecage" for
-     Rattlecage, "Naglring" for Nagelring). It then built the machinery for exactly one of those
-     three — dismissing debris, because the Chronicle prints the BASE item name for a row he has
-     NOT found, so "Templar Coat" is the game stating the opposite of a find. The slips were named
-     in that spec's own header and never given a resolver: with no string-distance function
-     anywhere in this file (measured: zero), a slip just sat in the queue reading "unclear read".
-
-     Measured on his CURRENT reader output, 2026-08-22 — 369 names, 343 recognised (93%). Of the 26
-     that were not, FOUR resolve to a single confident candidate and every one was invisible to him:
-       Hawkfane->Hawkmail · Stouthale->Stoutnail · Endlessmane->Endlesshail
-       Bloodfist Shard->Bloodpact Shard
-     ⚠ v1968 — THIS PARAGRAPH SHIPPED SAYING "NINE", AND NAMED MAPPINGS THE CODE DOES NOT MAKE
-     (Kinemit->Kinemil's Awl, Nord's Tooth->Nord's Tenderizer, The Dragon->The Dragon Chang, and
-     Bloodfist Shard->Bloodfist — that last one is not even the candidate it picks). The nine came
-     from an EARLIER count taken before the bound was calibrated, against the boss-drop-table ITEMS
-     array rather than the roster; the calibration below then measured four, and nobody re-read the
-     paragraph above it. Caught by reviewing the pushed bytes, not by writing them. This is the
-     exact failure the v1692 block already warns about in this same file — "a count in a comment is
-     a number nobody re-measures" — arriving one screen away from where it is written down.
-     His words when he asked for this (v1789's header): "cant like an extra AI take care of it and
-     cross reference it ... and if it still cant then leave it for me to tick off."
-
-     IT SUGGESTS AND NOTHING ELSE. It never accepts, never writes, never touches a count. A fuzzy
-     match that grails an item invents a find, and this project's cardinal rule is that a find is
-     never created or destroyed by inference. The row still waits for his ruling; it just stops
-     being mute about what the name probably was.
-
-     THE FOUR REFUSALS ARE THE DESIGN, not defensiveness:
-       · a TRUNCATION ("Firel...", "Natalya's...") is an honest partial read, not a misread — there
-         is no evidence to guess from, and unknown-stays-unknown says say so rather than invent.
-       · a BASE NAME is v1789's debris class. Suggesting "Templar Coat" means "Guardian Angel" would
-         invert the one fact that row carries: that he has NOT found it.
-       · a TIE is an admission, not an answer. Two candidates at the same distance means the
-         evidence does not name one, and printing either would be a coin-flip wearing a verdict.
-       · a name ALREADY in the roster is not a misread at all.
-     Reuses _gUniqueRoster()/__setPieceNames()/BASE_DB/_norm — the roster is not copied here,
-     because a second copy of the roster is the drift this file has already paid for twice. */
-  /* THE BOUND IS 3, AND IT WAS MEASURED, NOT CHOSEN. Written first as 2 — which felt safe and was
-     in fact INERT: run against the 23 unresolved names in his real reader output it produced ZERO
-     suggestions, because the slips that motivated the whole function are 3 edits out
-     ("hawkfane"->"hawkmail" differs at f/m, n/i, e/l). A threshold above the ceiling of the signal
-     is an absent branch wearing a tuned-looking constant, which is a scar this project already
-     carries (STILL_MAX_DIFF=0.22 against a signal whose max was 0.133).
-     At 3 the same 23 names yield FOUR confident hits and nineteen silences:
-       Hawkfane->Hawkmail · Stouthale->Stoutnail · Endlessmane->Endlesshail
-       Bloodfist Shard->Bloodpact Shard
-     and Templar Coat, Bone Visage, Tomahawk, Corona, Death Mask, Shadow Blade, Spired Helm stay
-     mute — the debris class is held by the tie rule and the length floor, not by the bound.
-     Raising it further is not free: at 4 the roster's own near-twins start naming each other. */
-  var _NGN_MAX = 3;
-  var _NGN_CACHE = null;
-  window._nearestGrailName = function(raw){
-    var s = String(raw == null ? '' : raw).trim();
-    if (s.length < 6) return null;                       // short strings match everything
-    if (/(\.\.\.|…)\s*$/.test(s)) return null;      // an honest truncation is not a misread
-    if (/\(/.test(s)) return null;                       // suffixed forms resolve via findSetPiece
-    var q;
-    try { q = _norm(s); } catch (e) { return null; }
-    if (!q) return null;
-    try {
-      if (window.BASE_DB && window.BASE_DB[s]) return null;   // v1789 debris: the OPPOSITE of a find
-    } catch (e) {}
-    if (!_NGN_CACHE){
-      var out = [];
-      try { (window._gUniqueRoster ? window._gUniqueRoster() : []).forEach(function(n){ out.push(n); }); } catch (e) {}
-      try { (window.__setPieceNames ? window.__setPieceNames() : []).forEach(function(n){ out.push(n); }); } catch (e) {}
-      var seen = {}, keep = [];
-      out.forEach(function(n){
-        var k; try { k = _norm(n); } catch (e) { return; }
-        if (!k || seen[k]) return; seen[k] = 1; keep.push([k, n]);
-      });
-      _NGN_CACHE = keep;
-    }
-    for (var i = 0; i < _NGN_CACHE.length; i++) if (_NGN_CACHE[i][0] === q) return null;  // already known
-    var best = null, bestD = 99, tie = false;
-    for (var j = 0; j < _NGN_CACHE.length; j++){
-      var cand = _NGN_CACHE[j][0];
-      /* The cheap gate before the O(nm) work — and it MUST track _NGN_MAX. Written as a literal 3
-         it becomes an invisible ceiling the moment the bound moves: raise _NGN_MAX to 4 and this
-         line still discards every candidate 4 apart in length, so the extra edit is unreachable
-         and the constant above looks tuned while doing nothing. Same shape as the assertion in
-         v1967's own spec that kept saying 2 after the bound became 3. */
-      if (Math.abs(cand.length - q.length) > _NGN_MAX) continue;
-      var d = _ngnDist(q, cand, _NGN_MAX);
-      if (d < 0) continue;
-      if (d < bestD){ bestD = d; best = _NGN_CACHE[j][1]; tie = false; }
-      else if (d === bestD && _NGN_CACHE[j][1] !== best){ tie = true; }
-    }
-    if (!best || bestD > _NGN_MAX || tie) return null;      // a tie is an admission, not an answer
-    return { name: best, dist: bestD };
-  };
-  /* Levenshtein with an early bail at `max`: a row is only interesting within 2 edits, so the
-     bounded form is both faster and the honest expression of the rule. Returns -1 past the bound. */
-  function _ngnDist(a, b, max){
-    var la = a.length, lb = b.length;
-    if (Math.abs(la - lb) > max) return -1;
-    var prev = new Array(lb + 1), cur = new Array(lb + 1), i, j;
-    for (j = 0; j <= lb; j++) prev[j] = j;
-    for (i = 1; i <= la; i++){
-      cur[0] = i;
-      var rowMin = cur[0];
-      for (j = 1; j <= lb; j++){
-        var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
-        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
-        if (cur[j] < rowMin) rowMin = cur[j];
-      }
-      if (rowMin > max) return -1;
-      var t = prev; prev = cur; cur = t;
-    }
-    return prev[lb] <= max ? prev[lb] : -1;
-  }
-
   window.renderInbox = function(){
     var host = document.getElementById('inbox-panel');
     if (!host) return;
@@ -44361,23 +44239,10 @@ window._CH_PILL_MAP = {
       H.push('<div class="ibx-h">⏳ Could not call these — your ruling</div>');
       H.push('<div class="ibx-list">' + pend.map(function(x){
         var nm = esc(x.name);
-        /* v1967 — say what the name probably was. SUGGESTION ONLY: the row still waits for his
-           ruling and no count moves. Silent when there is no confident single candidate, because
-           "unclear read" is the honest answer then and a guess would read as a finding. */
-        var _near = null;
-        try { _near = window._nearestGrailName ? window._nearestGrailName(x.name) : null; } catch (e) { _near = null; }
-        var _whyTxt = _near
-          ? ('probably ' + _near.name)
-          : (SAY(x.triageWhy) || 'unclear read');
-        var _whyTip = _near
-          ? ('the reader wrote "' + String(x.name) + '"; the closest name on your board is "'
-             + _near.name + '" (' + _near.dist + ' character' + (_near.dist === 1 ? '' : 's')
-             + ' different). Nothing has been ticked \u2014 this is a suggestion, and the row is still yours to rule on.')
-          : (x.triageWhy || '');
         return '<div class="ibx-row">'
           + '<span class="ibx-nm" data-arttip="' + nm + '">' + nm + '</span>'
-          + '<span class="ibx-why' + (_near ? ' ibx-why-near' : '') + '" title="' + esc(_whyTip) + '">'
-          + esc(_whyTxt) + '</span>'
+          + '<span class="ibx-why" title="' + esc(x.triageWhy || '') + '">'
+          + esc(SAY(x.triageWhy) || 'unclear read') + '</span>'
           + '<span class="ibx-act">'
           + '<button type="button" class="ibx-b ibx-ok" onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">tick it</button>'
           + '<button type="button" class="ibx-b" onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">ignore</button>'

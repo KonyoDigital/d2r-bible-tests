@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1968",
+  "ver": "v1969",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1968: stale header count, an inert CSS rule, and a bound that outlived its calibration in three places",
+  "note": "v1969: withdraws v1967 - D2R_INBOX_FOLD already does this, better calibrated, and the new one was unreachable",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
