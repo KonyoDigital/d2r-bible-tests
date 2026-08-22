@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1987",
+  "ver": "v1988",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1987: uniques reads only on F-Uniques and sets only on F-Sets - and a P1 no-op reverted rather than shipped",
+  "note": "v1988: vault reads get 600s, tally photographs keep 120s - and stash-exit already closes the vault read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

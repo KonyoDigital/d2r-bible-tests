@@ -43892,7 +43892,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1987', name:'v1987 - one reader per forge tab', date:'2026-08-22', note:'uniques reads only on F-Uniques and sets only on F-Sets - and a P1 no-op reverted rather than shipped' };
+  window.D2R_BUILD = { id:'v1988', name:'v1988 - the vault lease is not a tally lease', date:'2026-08-22', note:'vault reads get 600s, tally photographs keep 120s - and stash-exit already closes the vault read' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -45388,7 +45388,27 @@ window._CH_PILL_MAP = {
   }
   function _intakeLeaseClaim(tab){
     var owner = _intakeLeaseOwner();
-    var body = JSON.stringify({ tab: tab, owner: owner, ttlMs: 120000 });
+      /* v1988 — THE VAULT LEASE IS NOT A TALLY LEASE. Konyo: "the button VAULT MANAGER this one
+         automatically timebased should be alot longer… or some sort of mechanism that maybe closes
+         it automatically based on exiting the stash/inventory?"
+
+         BOTH HALVES, AND THE SECOND ONE ALREADY EXISTED. Closing on stash-exit is real and shipped:
+         when the stash closes, the poll clears `_stashVisitDone = {}` AND sets
+         `window._vaultAutoDone = false`, so the vault read ends with the stash rather than with a
+         clock. The lease is only the crash-guard underneath it — what releases the claim if the
+         page dies mid-read and nothing gets to clean up.
+
+         120s was one bar for three very different jobs. A runes tally is a single photograph; a
+         vault read walks a stash he is actively scrolling. Sizing them apart means a long vault read
+         is no longer cut off by a guard meant for a snapshot, while a stuck tally still frees in two
+         minutes instead of ten.
+
+         Still a TTL, deliberately — not "no expiry". A lease that never expires is a lock nobody can
+         release, which is worse than one that ends early. His "own kill switch" idea is the right
+         next step and is NOT this: that is the read deciding it is finished, which needs the reader
+         to know when the stash is done. Recorded, not faked. */
+      var _ttl = /^vault(_|count_)/.test(String(tab || '')) ? 600000 : 120000;
+var body = JSON.stringify({ tab: tab, owner: owner, ttlMs: _ttl });
     return fetch('http://127.0.0.1:17772/intake_claim', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body
     }).then(function(r){ return r.json(); }).then(function(j){

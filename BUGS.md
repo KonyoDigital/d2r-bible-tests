@@ -10509,3 +10509,37 @@ real payload) and is the documented "universe guarantee" `tvVaultRegister` alrea
 **Still open, stated plainly:** `chronicleApply` reports `vaulted` for a base, yet `d2r_owned` does not
 gain it — so nothing reaches `ownedPool()` and nothing can be filed. That join needs its own pass with
 the scope established first, not a guess at the end of an arc.
+
+## REG-344 — the vault lease is not a tally lease (v1988)
+
+Konyo: *"the button VAULT MANAGER this one automatically timebased should be alot longer… or some
+sort of mechanism that maybe closes it automatically based on exiting the stash/inventory? is there a
+way to mechanism this???"*
+
+**Both halves — and the second already existed.** Closing on stash-exit is shipped: when the stash
+closes, the poll clears `_stashVisitDone = {}` **and** sets `window._vaultAutoDone = false`, so the
+vault read ends with the stash rather than with a clock. The lease is only the crash-guard
+underneath — what frees the claim if the page dies mid-read and nothing cleans up.
+
+`_intakeLeaseClaim` hard-coded `ttlMs: 120000` for three very different jobs:
+
+| lane | job | TTL now |
+|---|---|---|
+| `vault_*`, `vaultcount_*` | walking a stash he is actively scrolling | **600000** |
+| `runes` / `gems` / `materials` | a single photograph | 120000 |
+
+Sizing them apart means a long vault read is no longer cut off by a guard meant for a snapshot, while
+a stuck tally still frees in two minutes instead of ten.
+
+**Still a TTL, deliberately.** A lease that never expires is a lock nobody can release — worse than
+one that ends early. His "own kill switch" idea is the right next step and is explicitly NOT this: it
+is the read deciding it is finished, which needs the reader to know when the stash is done. Recorded
+as future work rather than faked.
+
+### Measured, not assumed — `toggleOwned` does not register stock
+Chasing REG-343 further: `toggleOwned('Bonesnap')` runs cleanly and creates **no `d2r_owned` key at
+all**. And `chronicleApply`'s `vaulted` is not "put in the vault" — it is
+`_landed = hasOwnProperty(foundLog, n); if (_landed) uniques.push(n); else vaulted.push(n)`, i.e.
+**"toggleOwned ran and this did not land in the grail."** So nothing on the film path puts a base
+into `owned`, which is why `ownedPool()` stays empty and `muled` stays 0. That is the precise
+statement of the open join, replacing the vaguer one in REG-343.
