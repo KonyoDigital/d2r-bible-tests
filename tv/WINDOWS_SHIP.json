@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1989",
+  "ver": "v1990",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1989: a nameless read is not an empty shelf - occupancy proves cells are filled without guessing what fills them",
+  "note": "v1990: the gate test now asks the silence counter the code already kept - a dead OCR lane skips, a refused real frame still fails",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

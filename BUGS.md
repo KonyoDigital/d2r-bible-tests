@@ -10582,3 +10582,36 @@ film and `vault_retro.sweep` called them **zero** times.
    belongs with.
 
 Both are the muleById shape — a call into nothing, swallowed by a guard.
+
+## REG-346 — the gate test could not tell a dead OCR lane from a broken gate (v1990)
+
+`test_his_three_real_frames_are_no_longer_given_a_wrong_tab` went RED mid-suite on 2026-08-23
+("5_1784984201581.jpg stopped being admitted at all") and PASSED on the **identical commit** minutes
+earlier. Measured alone at load 30 it returns `'personal'` in 0.34s. Nothing about the gate had
+changed — v1989's hunks are all in `_vault_sweep_run` (10261-10721); `stash_screen_open` is at 11302.
+
+**The code already knew the difference and the test threw it away.** `control_app.py:11344` says it
+in as many words: zero OCR lines means EITHER a genuinely blank strip (gameplay — 61 of his 68
+grid-called frames, correctly refused) OR a lane that could not run, and it counts the second in
+`_GATE_SILENT` instead of pretending it learned something. The same comment records this exact flake
+happening before: *"this gate's own test went RED once during a run while his live session held the
+OCR worker, and passed alone seconds later."* The test read every `None` as a regression.
+
+So it now asks the counter it already had (`ca.gate_hearing()`), around each call:
+- lane went **silent** on this call → `skipTest` — the run measured nothing about the gate
+- lane was **heard** and the gate still refused → still fails, and now says which
+
+**PROVEN RED FOR ITS OWN REASON** — the skip is narrow, not a way of never failing:
+```
+1. untouched (lane works)                  -> PASS
+2. OCR lane SILENT (sabotage)              -> SKIP
+3. lane HEARD but gate refuses (sabotage)  -> FAIL     ← the real defect still fails
+```
+
+### The hypothesis I measured and DISCARDED
+First read of the timeouts said `OcrWorker.read` defaults to **1.2s** and the gate passes no
+override, so "the cold read blows the budget" looked obvious. Measured instead of assumed, n=6 at
+load 26-30: **0.21 / 0.29 / 0.29 / 0.21 / 0.29 / 0.50s, zero over budget.** Only the
+process-cold first read is slow (0.90s / 0.96s across two runs) — thin headroom, but not a
+demonstrated failure, so no timeout was changed on a story. Recorded because the next reader will
+find the same 1.2s and reach for the same wrong fix.

@@ -9787,8 +9787,31 @@ class TestOneLegibleLabelIsNotASelectedTab(unittest.TestCase):
         if not os.path.isfile(os.path.join(hist, "5_1784984201581.jpg")):
             self.skipTest("his frames are not in this checkout")
         for f, want in frames.items():
+            # v1990 — A SILENT OCR LANE IS NOT A VERDICT ABOUT THE GATE.
+            #
+            # This assertion went RED mid-suite on 2026-08-23 ("5_1784984201581.jpg stopped being
+            # admitted at all") and PASSED on the identical commit minutes earlier and again when
+            # measured alone at load 30. The gate itself already knows the difference and says so
+            # at control_app.py:11344 — zero OCR lines means EITHER a genuinely blank strip OR a
+            # lane that could not run, and it counts the second in _GATE_SILENT rather than
+            # pretending it learned something. The test threw that distinction away and read every
+            # None as a regression.
+            #
+            # So ask the counter. If the lane went silent on THIS call, the run measured nothing
+            # about the gate and must say so. If the lane was HEARD and the gate still refused,
+            # that is a real failure and still fails. [[feedback-silence-is-not-evidence]]
+            # [[feedback-suspect-the-instrument]]
+            _before = ca.gate_hearing()
             got = ca.stash_screen_open(os.path.join(hist, f))
-            self.assertIsNotNone(got, "%s stopped being admitted at all" % f)
+            _after = ca.gate_hearing()
+            if got is None and _after[0] > _before[0]:
+                self.skipTest("the tab-chrome OCR lane answered nothing on %s — that is a fact "
+                              "about the lane, not about the gate (silent %d->%d, heard %d->%d)"
+                              % (f, _before[0], _after[0], _before[1], _after[1]))
+            self.assertIsNotNone(got, "%s stopped being admitted at all — and the OCR lane WAS "
+                                      "heard (silent %d->%d, heard %d->%d), so this is the gate "
+                                      "refusing a real stash frame, not a dead lane"
+                                 % (f, _before[0], _after[0], _before[1], _after[1]))
             if want:
                 self.assertEqual(got, want, "%s: the gate says %r, the picture says %r"
                                  % (f, got, want))
