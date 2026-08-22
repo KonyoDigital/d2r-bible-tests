@@ -10429,3 +10429,43 @@ forever while looking correctly wired.
 functions assigned nowhere — they have never run and never will: muleById"*. That is a gate earning
 its keep on the exact failure class this session kept hitting — a join that reads as wired from both
 ends and carries nothing.
+
+## REG-341 — the production payload flattened witnesses, so v1984's lock could never fire (v1986)
+
+**The v1981 scar, repeated by me one version later.** REG-339 shipped a 3-distinct-session equipment
+lock and I proved it with hand-made arrays. Production sends something else.
+
+`tv/vault_retro.py :: apply_payload` emitted `"witnesses": len(...)`, turning the list `_witness_rows`
+builds into an **int**. Measured on a proposal built the way `sweep()` builds one:
+
+```
+owned row      witnesses : list, len 3
+apply_payload  witnesses : int,  3
+```
+
+The board's lock does `for (i = 0; i < _ws.length; i++)`. **A number has no `.length`, so the loop
+never ran, `_sids` was always `[]`, and `_laneLocked` could never reach three sessions.** Equipment
+could not be locked on the only path that actually runs — while the tests stayed green because they
+hand in `witnesses: [{session:'s_A'}, …]`. And `shaped` carries no `owned` key, so the board had no
+raw rows to fall back to.
+
+Every reader wants the array anyway — `witnesses[0].session`, `witnesses.length`. Nothing wanted the
+int. Rows now ship; the count survives as `witnessCount`.
+
+### Proven with the production shape, and sabotaged to prove the guard is load-bearing
+```
+apply_payload output → vaultAccumApply:
+  Harlequin Crest (equipment, s_A+s_B+s_C) → locked 'equipment', 3 sessions
+  Annihilus       (inventory, s_A)         → '' watching 1/3
+  Bonesnap        (stash)                  → '' never locks
+sabotage (restore len(...)) → witnesses int 3 → board collects [] → LOCK CANNOT REACH 3
+```
+⚠ The first sabotage attempt did **not** reproduce the failure: that list-comprehension string exists
+in **two** functions and `replace(...,1)` hit the wrong one. Re-anchored on the `witnessCount` pair.
+A sabotage that fails to go red proves nothing about the fix — only about the sabotage.
+
+**Also fixed here:** `_vlog` read `it.seen[0]`, which vault items never have, so every raised/held
+ledger row lost its reel and frame — the same field-name mismatch as REG-334, on the vault side. It
+now reads the witness rows and accepts `session` as an alias for `reel`.
+
+`tv/test_vault_retro.py` + `tv/test_vault_traffic.py`: **51 tests OK** after the change.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1985",
+  "ver": "v1986",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1985: no reel index sessions row or frame carries a character name - so the lane lock takes his label instead of guessing one",
+  "note": "v1986: apply_payload flattened them to an int so the 3-session equipment lock could never fire on a real apply",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -806,7 +806,19 @@ def apply_payload(proposal):
 
     THROW-OUTS ARE NOT IN `items`. They ride along as `suggestions`, flagged as suggestions, because
     nothing this module produces may bin anything on its own.
-    """
+    
+
+    ⚠ v1986 — WITNESSES SHIP AS ROWS, NOT AS A COUNT. This used to emit
+    `"witnesses": len(...)`, turning the list _witness_rows builds into an int. Every reader on
+    the board treats it as an ARRAY — `witnesses[0].session`, `witnesses.length` — so the
+    production payload never looked like what the board expects, and a JS `for (i < w.length)`
+    over a number simply never ran. That silently disabled REG-339's 3-session equipment lock
+    on the only path that actually runs: it locked fine against hand-made arrays in tests and
+    could not fire on a real apply. Measured: owned row `witnesses` is list len 3, the shaped
+    item was int 3.
+
+    The count survives as `witnessCount` for any surface that wants a number. Losing the rows
+    also cost provenance — reel and frame live on those dicts and nowhere else in `items`."""
     p = proposal if isinstance(proposal, dict) else {}
     if not p.get("ok"):
         return {"ok": False, "source": "vault-retro", "mode": "merge-max", "items": [],
@@ -814,7 +826,9 @@ def apply_payload(proposal):
                 "generatedTs": p.get("generatedTs")}
     items = [{"name": r["name"], "lane": r["lane"], "kind": r.get("kind") or "item",
               "count": r.get("count"), "conf": r.get("conf"),
-              "witnesses": len(r.get("witnesses") or []), "lastSeenTs": r.get("lastSeenTs")}
+              "witnesses": [w for w in (r.get("witnesses") or []) if isinstance(w, dict)],
+              "witnessCount": len(r.get("witnesses") or []),
+              "lastSeenTs": r.get("lastSeenTs")}
              for r in (p.get("owned") or [])]
     return {
         "ok": True,

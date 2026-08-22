@@ -42748,11 +42748,17 @@ window._renderStashFresh = function(){
     function _vlog(nm, it, kind, status, why){
       try {
         if (typeof window.kaiChronicleRecord !== 'function') return;
-        var seen0 = (it && it.seen && it.seen[0]) || {};
+        /* v1986 — ITEMS NEVER CARRIED `seen`, SO EVERY VAULT LEDGER ROW LOST ITS REEL AND FRAME.
+       Same shape as REG-334 on the chronicle side: the board read a field name nothing emits.
+       apply_payload ships `witnesses` = [{session, frame, lane, conf}], so read those and accept
+       `session` as an alias for `reel` — the two sweeps disagree about that key. Before this, every
+       raised/held row said "vault-sweep" with no eye to open. */
+    var _w0 = (it && ((it.seen && it.seen[0]) || (it.witnesses && it.witnesses[0]))) || {};
+    var seen0 = (typeof _w0 === 'object') ? _w0 : {};
         window.kaiChronicleRecord({
           name: nm, status: status, store: KEY[kind] || kind, ledger: 'vault', why: why,
           target: kind, source: 'vault-sweep', lane: it && it.lane, conf: it && it.conf,
-          witnesses: it && it.witnesses, reel: seen0.reel || null,
+          witnesses: it && it.witnesses, reel: (seen0.reel || seen0.session) || null,
           frameId: seen0.frame || null, _bump: true });
       } catch(e){}
     }
@@ -43837,7 +43843,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1985', name:'v1985 - he names the character because the film cannot', date:'2026-08-22', note:'no reel index sessions row or frame carries a character name - so the lane lock takes his label instead of guessing one' };
+  window.D2R_BUILD = { id:'v1986', name:'v1986 - witnesses ship as rows', date:'2026-08-22', note:'apply_payload flattened them to an int so the 3-session equipment lock could never fire on a real apply' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
