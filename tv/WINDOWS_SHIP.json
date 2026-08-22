@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1978",
+  "ver": "v1979",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1978: vault apply hardcoded sets empty so film-read set pieces were filed as uniques - now split via findSetPiece canonical name",
+  "note": "v1979: the board read seen which nothing emits - chronicle hangs sightings and vault hangs witnesses, both with the frame",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

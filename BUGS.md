@@ -10199,3 +10199,29 @@ rests partly on re-presenting the code's own documented evidence as a discovery.
 `suggestMule` (0 and 0 — it does not mule); `gate()` returns `"witnesses": n` as a COUNT while the
 board reads `.seen[0]` as an array; and `KEEP_MIN_WITNESSES` is applied with no per-kind exception, so
 one clean rune-tab photo stays unsure. Not fixed here — each needs its own verified pass.
+
+## REG-334 — every held row reached the inbox with no frame (v1979)
+
+The board read `h.seen[0]` for a held row's provenance. **Nothing emits `seen`.** Measured:
+
+| sweep | what it actually hangs on the row | keys |
+|---|---|---|
+| chronicle (`chronicle_retro.py`) | `sightings` | `reel`, `frame`, `witness`, `conf`, `lane` |
+| vault (`vault_retro.py`) | `witnesses` | `session`, `frame`, `lane`, `conf` |
+
+Neither is called `seen`, so `seen[0]` was `undefined`, `frameId` came out `''`, and `_chFrameHref`
+(v1960) had nothing to build a link from. **The held rows — precisely the ones he must rule on — could
+not show him the frame that produced them.** The two sweeps also disagree about the session key
+(`reel` vs `session`), so even a rename would have fixed only one of them.
+
+Fixed board-side, reading all three names and accepting `session` as an alias for `reel`. That repairs
+both pipes at once, works on rows already stored, and touches no Python payload contract that its own
+tests pin. Verified by feeding a chronicle-shaped and a vault-shaped held row and reading the queued
+proposal back: `frameId:"f_9.jpg"/sessionId:"s_123"` and `frameId:"f_4.jpg"/sessionId:"s_777"`.
+
+**Credit where due, and a correction.** The Grok audit called this "witnesses are flattened to a
+number… provenance dies at the join," pointing at `apply_payload`'s `"witnesses": len(...)`. That
+flattening is real but it is **not** this bug: it applies to `items` (owned rows), while `held` passes
+through untouched. The actual defect is a field-name mismatch on the held path, in **both** sweeps —
+broader than reported, and in a different place. The finding was worth chasing; the diagnosis needed
+re-deriving.

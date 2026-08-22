@@ -40013,9 +40013,24 @@ function renderJournal(){
       var _held = (proposal && proposal.held) || [];
       if (_held.length && typeof window.kaiChroniclePropose === 'function'){
         res.queued = window.kaiChroniclePropose(_held.map(function(h){
-          var seen0 = (h && h.seen && h.seen[0]) || {};
-          return { name: h && h.name, tier: (h && h.ledger === 'sets') ? 'set' : 'grail',
-                   frameId: seen0.frame || '', sessionId: seen0.reel || '',
+/* v1979 — `seen` IS A FIELD NOTHING EMITS, so every held row reached the inbox with no
+                       provenance. Measured: the chronicle sweep builds
+                       _sight = {"reel","frame","witness","conf","lane"} and hangs them on the row as
+                       `sightings`; the vault sweep builds {"session","frame","lane","conf"} and hangs
+                       them as `witnesses`. NEITHER is called `seen`. So seen[0] was undefined, frameId
+                       came out '', and _chFrameHref had nothing to build a link from — the held rows,
+                       which are exactly the ones he must rule on, could not show him the frame that
+                       produced them.
+
+                       Read all three names, and accept `session` as an alias for `reel`, because the
+                       two sweeps disagree about that key too. Board-side on purpose: it fixes both
+                       pipes at once, works on rows already stored, and does not touch a Python
+                       payload contract its own tests pin. [[the-unjoined-end]] */
+                    var _prov = (h && ((h.seen && h.seen[0]) || (h.sightings && h.sightings[0])
+                                       || (h.witnesses && h.witnesses[0]))) || {};
+                    var seen0 = (typeof _prov === 'object') ? _prov : {};
+                    return { name: h && h.name, tier: (h && h.ledger === 'sets') ? 'set' : 'grail',
+                             frameId: seen0.frame || '', sessionId: seen0.reel || seen0.session || '',
                    source: 'chronicle-sweep',
                    /* gateHeld is the whole point of routing these here. Without it the board's
                       triage sees a well-formed grail name and AUTO-TICKS it, which quietly undoes
@@ -43557,7 +43572,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1978', name:'v1978 - a set piece from film is a set piece', date:'2026-08-22', note:'vault apply hardcoded sets empty so film-read set pieces were filed as uniques - now split via findSetPiece canonical name' };
+  window.D2R_BUILD = { id:'v1979', name:'v1979 - a held row can show its frame', date:'2026-08-22', note:'the board read seen which nothing emits - chronicle hangs sightings and vault hangs witnesses, both with the frame' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
