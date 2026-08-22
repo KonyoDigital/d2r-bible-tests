@@ -13418,9 +13418,25 @@ function escC(s) {
     var btn = document.getElementById('chron-scan');
     var note = document.getElementById('chron-note');
     if (!body) return;
-    if (btn) { btn.disabled = true; btn.textContent = 'grouping frames…'; }
+    /* v1956 — THE SAME TICK AND BOUND THE VAULT BUTTON GOT IN v1941, because this is the same
+       defect one panel over. MEASURED: chronicle_scan_cost() takes 316 SECONDS on his film. The
+       label was set once, so at 5 seconds and at five and a half MINUTES the button looked
+       identical and looked broken — which is exactly what he reported about its twin. The answer
+       is memoised server-side now, so the second press returns at once; this makes the FIRST one
+       legible instead of silent. */
+    var _t0 = Date.now(), _tick = null, _ac = null;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'grouping frames…';
+      _tick = setInterval(function () {
+        btn.textContent = 'grouping frames… ' + Math.round((Date.now() - _t0) / 1000) + 's';
+      }, 1000);
+    }
     try {
-      var r = await fetch('/api/chronicle_scan', { cache: 'no-store' });
+      try { _ac = new AbortController(); } catch (e) { _ac = null; }
+      var _bail = _ac ? setTimeout(function () { try { _ac.abort(); } catch (e) {} }, 420000) : null;
+      var r = await fetch('/api/chronicle_scan', { cache: 'no-store', signal: _ac ? _ac.signal : undefined });
+      if (_bail) clearTimeout(_bail);
       var j = await r.json();
       if (!j || j.ok === false) {
         // honest-absent: say the sweep could not be priced, never imply "there is nothing to sweep"
@@ -13477,8 +13493,16 @@ function escC(s) {
       // v1520 — the real run is offered only AFTER he has seen what it costs
       var go = document.getElementById('chron-run'); if (go) go.hidden = false;
     } catch (e) {
-      body.innerHTML = '<div class="chron-none">could not reach the console</div>';
+      var aborted = e && (e.name === 'AbortError');
+      body.innerHTML = '<div class="chron-none">' + (aborted
+        ? 'gave up after 7 minutes \u2014 the console is still pricing your film. It walks every '
+          + 'frame of every sealed reel, so the FIRST run after new footage is slow; press again '
+          + 'and the memoised answer comes back at once.'
+        : 'could not reach the console') + '</div>';
     } finally {
+      /* v1956 — CLEAR THE TICK. An interval left running after the button resets keeps rewriting
+         the label forever, which would be a worse bug than the silence it replaced. */
+      if (_tick) clearInterval(_tick);
       if (btn) { btn.disabled = false; btn.textContent = 'price the sweep again'; }
     }
   };

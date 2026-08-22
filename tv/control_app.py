@@ -9585,7 +9585,39 @@ def _chron_autoread_loop():
             pass
 
 
+_CHRON_QUOTE = {"sig": None, "res": None}
+
+
 def chronicle_scan_cost(hist_dir=None, limit=None, reel_id=None):
+    """v1956 — MEMOISED, for the same reason and by the same key as the vault quote.
+
+    MEASURED on his own film: this takes **316 SECONDS** — five and a half minutes — behind a button
+    whose label never changes and whose fetch has no timeout. That is the identical defect v1941
+    fixed one panel over, and finding it here is only the class sweep the vault one earned: two
+    "price it" buttons, two silent five-minute waits, one of them fixed.
+
+    The shape differs in a way worth writing down. The VAULT quote was slow because its probe ran a
+    crop+OCR per frame, so memoising the GATE fixed most of it. This probe returns a constant and
+    costs nothing — the time is the sweep machinery walking his reels — so a gate cache would buy
+    nothing here and only the ANSWER is worth keeping. Same symptom, different cause; the fix that
+    worked there is not automatically the fix that works here.
+
+    Keyed on the sealed-reel set, so a new reel re-prices and an unchanged one answers instantly.
+    """
+    _hist = hist_dir or os.environ.get("TV_HIST") or HIST_DIR
+    _sig = None if reel_id else _hist_signature(_hist)     # a single-reel quote is not the same question
+    if _sig is not None and _CHRON_QUOTE["sig"] == _sig and _CHRON_QUOTE["res"] is not None:
+        _out = dict(_CHRON_QUOTE["res"])
+        _out["cached"] = True
+        return _out
+    _res = _chronicle_scan_cost_inner(hist_dir, limit, reel_id)
+    if _sig is not None and isinstance(_res, dict) and _res.get("ok") is not False:
+        _CHRON_QUOTE["sig"] = _sig
+        _CHRON_QUOTE["res"] = _res
+    return _res
+
+
+def _chronicle_scan_cost_inner(hist_dir=None, limit=None, reel_id=None):
     """v1516 — what a Chronicle retro sweep would cost, computed on HIS film. No model calls.
 
     Konyo has been told "97% cheaper" — this is the route that lets him verify it instead of
@@ -12908,7 +12940,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1955",
+        "ver": "v1956",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
