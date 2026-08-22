@@ -1405,7 +1405,27 @@ def merge_proposals(base, incoming):
         # completeSets holds SIGHTINGS, so it de-dupes by (reel, frame, lane) like a name does.
         # setGroups holds a set of PIECE NAMES seen under one set heading — a union, because a
         # half-scrolled page showing three of five pieces must never delete the other two.
+        # ── v1961 — AND THIS IS THE DOOR THAT BITES ───────────────────────────────────────
+        # v1960 put _is_piece_not_set on the setGroups merge and stopped there. That was half a
+        # fix, and it repaired the HARMLESS half: v1932's own comment says so in as many words —
+        # "setGroups alone is harmless — no UI reads it. `completeSets` is the one that bites: a
+        # set the panel calls complete is ONE ROW WORTH FIVE PIECES, expanded by the board. A piece
+        # accepted as a set there would tick pieces he does not own, from a single misread heading."
+        #
+        # Both are guarded at INTAKE by the same `continue` (completeSets is populated inside that
+        # block, after the refusal), and both were copied across the merge unexamined. Fixing one
+        # door on one of them left the worst path open.
+        #
+        # ⚠ NOT MEASURED BITING: his live proposal carries completeSets: {} — empty. That is
+        # "nothing has come through yet", not "safe", and it is exactly when a guard is cheap.
         for name, sightings in (src.get("completeSets") or {}).items():
+            if _is_piece_not_set(name):
+                out.setdefault("refusedGroups", []).append({
+                    "set": name, "reel": None, "frame": None,
+                    "why": "a set PIECE cannot be complete — refused at the merge, where it would "
+                           "otherwise expand into pieces he does not own",
+                })
+                continue
             bucket = out["completeSets"].setdefault(name, [])
             seen = {(x.get("reel"), x.get("frame"), x.get("lane")) for x in bucket}
             for sg in (sightings or []):

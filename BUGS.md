@@ -9399,3 +9399,69 @@ not the DOM, because the eye renders only on the console host — a spec on `fil
 at all and every assertion about them would pass while measuring nothing. `_chFrameHref` is hoisted
 onto `window` for exactly that reason, and the test asserts the exposure exists so the guard fails
 loudly rather than going quiet if it ever disappears.
+
+---
+
+## REG-310 — v1960 put a receipt on a branch that cannot fire (v1961)
+
+Found by the post-ship review of v1960, in v1960's own work.
+
+REG-307 added a ledger row for "the stash write failed". **That branch is unreachable.**
+`_writeStash` wraps every step in its own `try { } catch(e){}` — the memory mirror, the LSR write,
+the LS mirror, the re-renders — so it CANNOT THROW, and its caller is written as
+`try { _writeStash(...) } catch(e){ out.skipped.push(kind + ' (write failed)') }`. That catch has
+never been reachable, and v1960 made it worse by putting a receipt inside it: a row on dead code
+reads as protection that does not exist, which is the exact defect class this ledger arc exists to
+end.
+
+Proven by executing all three failure paths, not by reading: "grail apply threw" and "no
+chronicleApply on this build" both fired and wrote their rows; the write branch produced nothing.
+
+Swallowing remains correct for the memory mirror, the LS mirror and the re-renders — none is the
+durable store and none should abort a write. **The LSR write IS the durable store**, so its failure
+is now returned instead of eaten and the caller asks rather than catching something that never
+arrives. The other two `_writeStash` call sites ignore the return and are unchanged. Verified by
+forcing it: a stubbed `LSR.setItem` that throws on stash keys now yields
+`skipped: ["runes (write failed)"]` and a `route-failed` row naming the cause.
+
+## REG-311 — REG-308 was half a fix, and it repaired the harmless half (v1961)
+
+v1960 put `_is_piece_not_set` on the `setGroups` merge and stopped. v1932's own comment says which
+of the two matters, in as many words:
+
+> "setGroups alone is harmless — no UI reads it. `completeSets` is the one that bites: a set the
+> panel calls complete is ONE ROW WORTH FIVE PIECES, expanded by the board. A piece accepted as a
+> set there would tick pieces he does not own, from a single misread heading."
+
+Both are guarded at INTAKE by the same `continue` — `completeSets` is populated inside that block,
+after the refusal — and both were copied across `merge_proposals` unexamined. Guarding one door on
+the harmless twin left the path that can tick items he does not own.
+
+⚠ **Not measured biting**: his live proposal carries `completeSets: {}`. That is "nothing has come
+through yet", not "safe", and it is exactly when a guard is cheap.
+
+Verified: two piece-keyed complete-set claims refused into `refusedGroups`, while a real set's
+sightings survive from BOTH sources (2 of 2) — the cross-reel corroboration the old `dict.update`
+defect destroyed is intact.
+
+## REG-312 — the ledger is a WINDOW and called itself a history (v1961)
+
+Both writers cap `d2r_chronicleInboxLog` at `.slice(-400)`, consistently and deliberately — and
+nowhere visibly. This file's own comment called it "every KAI read forever for debug". **He is at
+326 of 400 (82%)**, so the oldest decisions will begin dropping silently out of the one surface he
+asked for so he could "surgically fix anything needed". A row discarded without a word is the defect
+this ledger exists to end; it just happened to point at the ledger itself.
+
+The cap is NOT changed — 400 is a deliberate number and storage policy is his. What changed is that
+the subtitle stops claiming "every decision the board made" once the window is full, and the comment
+now says what the store is.
+
+Also: the `#v` verify-suffix strip, mirrored from `control_app.py`'s `_hist_frame_paths`
+(`base = fid.split("#", 1)[0]`), because without it such a row builds `/hist/N_ts%23v.jpg` and 404s
+silently. ⚠ **UNEXERCISED and labelled so**: 0 of his 326 ledger rows and 0 of the frameIds in
+`tv/sessions.jsonl` carry a `#`. It is there because the server documents the shape and the failure
+without it is silent — not because it was measured biting.
+
+**Headroom, measured rather than assumed**: his whole board store is 879 KB across 93 keys against a
+~5 MB quota (~17%); the ledger is the largest key at 265 KB and tops out near 325 KB. A quota
+failure is not a live risk, so `_chLsSet`'s silent swallow was left alone rather than gold-plated.

@@ -34846,7 +34846,17 @@ window.renderRoutingLedger = function(){
   var H = ['<details class="vj-details"><summary class="vj-head to-sum to-acc-blue">'
     + '<span class="to-emblem">\u2696</span><span class="to-hd"><span class="to-hd-top">'
     + '<span class="to-st">The Routing Ledger</span><span class="to-ct">' + rows.length + '</span></span>'
-    + '<span class="to-subt">every decision the board made \u2014 what went where, and why</span></span>'
+    /* v1961 — IT IS A WINDOW, AND IT CALLED ITSELF A HISTORY. Both writers cap this store at
+       `.slice(-400)` — consistently, deliberately, and nowhere visibly. This file's own comment
+       calls it "every KAI read forever for debug"; his board is at 326 rows and climbing, so the
+       oldest decisions will begin dropping silently, out of the one surface he asked for so he
+       could "surgically fix anything needed". A row discarded without a word is the same defect
+       this whole ledger exists to end — it just points at the ledger itself.
+       The cap is NOT changed here: that is a storage-policy call and 400 is a deliberate number.
+       What changes is that the subtitle stops overclaiming once the window is full. */
+    + '<span class="to-subt">' + (rows.length >= 400
+        ? 'the most recent 400 decisions — older ones have been dropped'
+        : 'every decision the board made — what went where, and why') + '</span></span>'
     + '<span class="to-rule"></span></summary><div style="margin-top:8px">'];
   sorted.forEach(function(r){
     var p = PILL[r.status] || [String(r.status || 'read'), 'var(--text-dim,#8a7d64)'];
@@ -34881,7 +34891,14 @@ window.renderRoutingLedger = function(){
     var _frameHref = window._chFrameHref = function(row){
       var f = String((row && row.frameId) || '').trim();
       if (!f) return '';
-      var stem = f.replace(/\.jpg$/i, '');
+      /* v1961 — the '#v' verify suffix, mirrored from the server rather than invented here.
+         control_app.py's _hist_frame_paths does `base = fid.split("#", 1)[0]` because "Verify beats
+         use frameId 'N_ts#v' but the JPEG is always 'N_ts.jpg' (no #v file)". Without the strip such
+         a row builds /hist/N_ts%23v.jpg and 404s silently.
+         ⚠ UNEXERCISED, and said so rather than implied: 0 of his 326 ledger rows and 0 of the
+         frameIds in tv/sessions.jsonl carry a '#'. It is here because the server documents the
+         shape and the failure without it is silent — not because it was measured biting. */
+      var stem = f.split('#')[0].replace(/\.jpg$/i, '');
       /* ONLY reel footage gets the directory. The first draft of this fix prefixed every bare name
          with its session: that repaired 282 rows and turned 23 WORKING links into 404s, because
          verify beats are named `N_ts` and live at hist/ depth 1. A fix that repairs 282 and breaks
@@ -42181,7 +42198,20 @@ window._renderStashFresh = function(){
         Object.keys(obj||{}).forEach(function(k){ var v=parseInt(obj[k],10); if(isFinite(v)&&v>0) mem[k]=v; });
       }
     } catch(e){}
-    try { window.LSR.setItem(KEY[kind], JSON.stringify(obj||{})); } catch(e){}
+    /* v1961 — REPORT THE ONE FAILURE THAT MATTERS. Every step in this function is wrapped in its
+       own `catch(e){}`, so _writeStash CANNOT THROW — and its caller in vaultAccumApply is written
+       as `try { _writeStash(...) } catch(e){ out.skipped.push(kind + ' (write failed)') }`. That
+       catch has never been reachable. v1960 added a ledger row inside it, which made the problem
+       worse rather than better: a receipt on a branch that cannot fire reads as protection that
+       does not exist, and that is the exact defect class the ledger work exists to end.
+
+       Swallowing is right for the in-memory mirror, the LS mirror and the re-renders — none of them
+       is the durable store and none should abort a write. The LSR write IS the durable store, so
+       its failure is returned rather than eaten. The other two call sites ignore the return and are
+       unchanged by this. */
+    var _wErr = '';
+    try { window.LSR.setItem(KEY[kind], JSON.stringify(obj||{})); }
+    catch(e){ _wErr = String((e && e.message) || e || 'unknown'); }
     try {
       // also bare localStorage path if LSR mirrors
       if (window.LS && window.LS.setItem) window.LS.setItem(KEY[kind], JSON.stringify(obj||{}));
@@ -42189,6 +42219,7 @@ window._renderStashFresh = function(){
     try { var rn = REND[kind]; if (typeof window[rn] === 'function') window[rn](); } catch(e){}
     try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
     try { if (typeof window.renderSessionCockpit === 'function') window.renderSessionCockpit(); } catch(e){}
+    return _wErr;   // '' when the durable write succeeded
   }
   function _ensureModal(){
     var m = document.getElementById('v687-intake-modal');
@@ -42407,13 +42438,13 @@ window._renderStashFresh = function(){
          The four remaining skips are ordinary outcomes ("read as none") and stay unlogged: two of them
          also sit inside the span test_neither_branch_writes_anything measures, and a refusal that
          starts writing is exactly what that guard exists to stop. */
-      try { _writeStash(kind, pend[kind]); }
-      catch(e){ out.skipped.push(kind + ' (write failed)');
+      var _wf = '';
+      try { _wf = _writeStash(kind, pend[kind]); } catch(e){ _wf = String((e && e.message) || e); }
+      if (_wf){ out.skipped.push(kind + ' (write failed)');
         try { if (typeof window.kaiChronicleRecord === 'function')
           window.kaiChronicleRecord({ name: kind, status: 'route-failed', store: 'vault',
             ledger: 'vault', target: 'vault-sweep', source: 'vault-sweep', _bump: true,
-            why: 'the sweep could not write your ' + kind + ' to the stash \u2014 '
-                   + (e && e.message || e) }); } catch(e2){} }
+            why: 'the sweep could not write your ' + kind + ' to the stash \u2014 ' + _wf }); } catch(e2){} }
       try { window._stashTouch(kind); } catch(e){}
       try { var r = window[REND[kind]]; if (typeof r === 'function') r(); } catch(e){}
     });
@@ -43317,7 +43348,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1960', name:'v1960 - the ledger learns to name what it refused', date:'2026-08-22', note:'throw-out suggestions and three silent failures now leave a row, and the piece-is-not-a-set guard finally runs at the merge door' };
+  window.D2R_BUILD = { id:'v1961', name:'v1961 - a receipt on dead code is worse than no receipt', date:'2026-08-22', note:'the failed-write branch is reachable, completeSets is guarded at the merge, and the ledger stops calling itself a history' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43481,7 +43512,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // v946/v947.6 — CHRONICLE INBOX + LEDGER (review gate; never silent grail write)
   // SPEC: tv/PLAN_ONE_SYSTEM.md · Chronicle write-in.
   //  · d2r_chronicleInbox  = ACTION queue (pending only — accept / dismiss)
-  //  · d2r_chronicleInboxLog = VISUAL BACKEND (every KAI read forever for debug)
+  //  · d2r_chronicleInboxLog = VISUAL BACKEND (the most recent 400 KAI reads — both writers
+  //    cap it with .slice(-400); it is a WINDOW, not a history, and v1961 made the panel say so)
   // Cross-ref: found/forge/sets skip re-queue but still land on the ledger with status.
   var _CH_LOG_KEY = 'd2r_chronicleInboxLog';
   var _CH_INBOX_KEY = 'd2r_chronicleInbox';
