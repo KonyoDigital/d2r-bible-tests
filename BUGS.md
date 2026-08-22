@@ -10225,3 +10225,31 @@ flattening is real but it is **not** this bug: it applies to `items` (owned rows
 through untouched. The actual defect is a field-name mismatch on the held path, in **both** sweeps —
 broader than reported, and in a different place. The finding was worth chasing; the diagnosis needed
 re-deriving.
+
+## REG-335 — the function that quotes "muling the items" did not mule (v1980)
+
+`vaultAccumApply`'s own header says the sweep exists to *"feed the vault manager for throwing out or
+muling."* Measured: that body called `vaultAutoAssign` **0** times and `suggestMule` **0** times. It
+registered rows and stopped.
+
+Muling lived behind a separate button — ⚖️ Auto-assign unsorted — which had **zero programmatic
+callers**. So "register a sweep" and "mule what it registered" were two halves nobody joined, and the
+second only happened if he pressed it himself. The on-disk ledger (`owned: []`) made it look like
+nothing had ever been found; in truth nothing had ever been *placed*.
+
+### Why calling it here is a join, not new policy
+- `vaultAutoAssign()` takes no arguments and walks `ownedPool()`, so it acts on what the apply just
+  registered without being handed anything.
+- It **skips anything already assigned** (`if (assign[name]) return`), so running it after every apply
+  is idempotent — it can only place items that have no mule yet.
+- A `__throwout` verdict is **logged as a suggestion and never assigned**. Nothing is auto-binned. That
+  contract is untouched and is the one that must never bend: there is no un-throw in Diablo.
+- It is the same function his button calls, so no second opinion about where an item belongs enters
+  the tree.
+
+Guarded so a failure cannot lose a registration that already succeeded: the apply's result returns
+regardless, and the newly-placed count reports separately as `out.muled`. `assign` is in scope there —
+the original body already referenced it four times — so that count is real rather than always zero.
+
+**Verified:** `vaultAccumApply` now references `vaultAutoAssign`; `suggestMule('Shako')` → `bases`
+while `suggestMule("Sigon's Guard")` → `__throwout`, so the keeper places and the throw-out does not.

@@ -42694,7 +42694,39 @@ window._renderStashFresh = function(){
                  + ' grail item(s) the sweep found were NOT registered' }); } catch(e2){}
       }
     }
-    return out;
+    /* v1980 — THE FUNCTION THAT QUOTES "muling the items" DID NOT MULE.
+         Its own header says the sweep exists to "feed the vault manager for throwing out or muling",
+         and measured, this body called vaultAutoAssign ZERO times and suggestMule ZERO times. It
+         registered rows and stopped. Muling lived behind a separate button (⚖️ Auto-assign unsorted),
+         which had NO programmatic caller at all — so registering a sweep and then muling it were two
+         halves nobody joined, and the second half only ever happened if he pressed it himself.
+
+         WHY THIS IS SAFE TO CALL HERE, and why it is a join rather than new policy:
+           · vaultAutoAssign takes no arguments and walks ownedPool(), so it acts on what the apply
+             just registered without being handed anything.
+           · it SKIPS anything already assigned (`if (assign[name]) return`), so running it after
+             every apply is idempotent — it can only place items that have no mule yet.
+           · a __throwout verdict is LOGGED as a suggestion and never assigned. Nothing is auto-binned;
+             that contract is untouched, and it is the one that must never bend — there is no un-throw
+             in Diablo.
+           · it is the same function his ⚖️ button calls. This adds no second opinion about where an
+             item belongs; it presses the button he would have pressed.
+
+         Guarded so a failure here can never lose the registration that already succeeded: the apply's
+         own result is returned regardless, and the count is reported separately. */
+      try {
+        if (typeof window.vaultAutoAssign === 'function') {
+          var _before = 0;
+          try { _before = Object.keys(assign || {}).length; } catch(e){}
+          window.vaultAutoAssign();
+          try { out.muled = Math.max(0, Object.keys(assign || {}).length - _before); } catch(e){ out.muled = 0; }
+        } else {
+          out.skipped.push('no vaultAutoAssign on this build — registered items were not muled');
+        }
+      } catch(e){
+        out.skipped.push('auto-assign failed after registering: ' + (e && e.message || e));
+      }
+      return out;
   };
 
   function _wrapIntake(name, kind, review){
@@ -43572,7 +43604,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1979', name:'v1979 - a held row can show its frame', date:'2026-08-22', note:'the board read seen which nothing emits - chronicle hangs sightings and vault hangs witnesses, both with the frame' };
+  window.D2R_BUILD = { id:'v1980', name:'v1980 - the sweep now mules what it registers', date:'2026-08-22', note:'vaultAccumApply called vaultAutoAssign zero times - registering and muling were two halves nobody joined' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

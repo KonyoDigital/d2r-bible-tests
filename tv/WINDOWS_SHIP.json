@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1979",
+  "ver": "v1980",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1979: the board read seen which nothing emits - chronicle hangs sightings and vault hangs witnesses, both with the frame",
+  "note": "v1980: vaultAccumApply called vaultAutoAssign zero times - registering and muling were two halves nobody joined",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
