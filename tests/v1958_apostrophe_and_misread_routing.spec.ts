@@ -92,6 +92,62 @@ test('★★★ a curly apostrophe routes to the same mule as a straight one', a
   expect(r.bad, `${r.bad.length}/${r.n} names route differently with a curly apostrophe`).toEqual([]);
 });
 
+test('★★★ an en-dash routes to the same mule as a hyphen', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1600);
+
+  /* The same two-normalizer gap, one character over — and it had to be swept for rather than
+     assumed, because fixing only the apostrophe would have closed the class on paper and left an
+     identical defect behind a different byte. The v1794 resolver folds `–—` to `-`; the global one
+     did not. Measured before the fix: 10 of the 13 hyphenated names the board knows routed
+     differently on an en-dash read — the WHOLE Trang-Oul set, which is a class endgame set that
+     _KEEP_SET exists to protect, plus Tal Rasha's Fine-Spun Cloth, every one to UNI-WEAPONS. */
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const names = new Set<string>();
+    try { (w.__setPieceNames() || []).forEach((n: string) => { if (/-/.test(n)) names.add(n); }); } catch (e) {}
+    try { (w._gUniqueRoster() || []).forEach((n: string) => { if (/-/.test(n)) names.add(n); }); } catch (e) {}
+    const bad: any[] = [];
+    [...names].forEach((n) => {
+      let a: any = null, b: any = null;
+      try { a = w.suggestMule(n); } catch (e) {}
+      try { b = w.suggestMule(n.replace(/-/g, '–')); } catch (e) {}   // en-dash, what OCR emits
+      if ((a && a.id) !== (b && b.id)) bad.push({ n, hyphen: a && a.id, enDash: b && b.id });
+    });
+    return { n: names.size, bad };
+  });
+
+  expect(r.n, 'hyphen sample collapsed — a name source returned nothing').toBeGreaterThan(8);
+  expect(r.bad, `${r.bad.length}/${r.n} names route differently with an en-dash`).toEqual([]);
+});
+
+test('★★★ a Sunder charm reaches the shared stash whichever bytes read it', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1600);
+
+  /* suggestMule returns null in exactly one place — isSharedStash, its first line — so null means
+     SHARED STASH, NEVER MULE. SHARED_STASH_RE anchors five names carrying a straight apostrophe,
+     and bul-kathos' nightmare carries a hyphen too, so both byte classes reach them. Read with the
+     other byte they all routed to UNI-WEAPONS. This is the case a truthiness check hides: the fix
+     had the right answer and dropped it because the answer was falsy. */
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const names = ["Talic's Anguish", "Korlic's Pain", "Madawc's Ire",
+                   "Bul-Kathos' Nightmare", "Worusk's End"];
+    return names.map((st) => {
+      const other = st.replace(/'/g, '’').replace(/-/g, '–');
+      const p = (n: string) => { try { const s = w.suggestMule(n); return s === null ? null : (s && s.id); }
+                                 catch (e) { return 'threw'; } };
+      return { name: st, straight: p(st), other: p(other) };
+    });
+  });
+
+  r.forEach((row) => {
+    expect(row.straight, `${row.name} must route to the shared stash`).toBeNull();
+    expect(row.other, `${row.name} read with the other bytes must not be muled`).toBeNull();
+  });
+});
+
 test('★★ an OCR slip is filed as the item it is a misread of, and says so', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);

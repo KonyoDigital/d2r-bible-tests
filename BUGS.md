@@ -9248,3 +9248,59 @@ Guard: `tests/v1958_apostrophe_and_misread_routing.spec.ts` — three tests. The
 apostrophe-bearing name from the board's own tables at runtime and asserts the RULE (curly routes
 where straight routes) rather than a five-name snapshot, so names added later are covered; it fails
 on 40+ names with v1958 reverted.
+
+---
+
+## REG-304 — the en-dash: the same gap one character over (v1959)
+
+REG-303 fixed the apostrophe. The v1794 resolver also folds `–—` to `-` and the global `_norm` did
+not, so an en-dash read broke identically. Measured on the 13 hyphenated names the board knows:
+**10 routed differently** — the whole **Trang-Oul** set (a class endgame set `_KEEP_SET` exists to
+protect) plus Tal Rasha's Fine-Spun Cloth, every one to UNI-WEAPONS.
+
+Fixing only the apostrophe would have closed the class on paper and left an identical defect behind
+a different byte. Swept afterwards for further classes: across all 533 board names the ONLY
+non-ASCII character is U+2019 (4 occurrences). Nothing else to fold.
+
+## REG-305 — a byte-repair's `null` is a verdict, not a miss (v1959)
+
+Found by reviewing my own v1958 after it shipped, which is the whole point of the post-ship pass.
+
+`suggestMule` returns `null` in exactly one place — `if (isSharedStash(name)) return null` on its
+first line — so `null` means **shared stash, never mule**. v1958's repair hop accepted the result
+only `if (_as && _as.id)`, which threw that verdict away and fell through to route the *unrepaired*
+name to a mule.
+
+`SHARED_STASH_RE` anchors five names each carrying a straight apostrophe — the Sunder charms
+`talic's anguish`, `korlic's pain`, `madawc's ire`, `bul-kathos' nightmare` (also a hyphen),
+`worusk's end`. Read with the other byte, **all five routed to UNI-WEAPONS instead of the shared
+stash.** It measured identically before v1958, so it was not introduced there — but the hop had the
+answer in its hand and discarded it because the answer was falsy, which is worse than not looking.
+
+The fuzzy roster fold below it deliberately keeps the `&& _fs.id` form: a *guessed* name may not
+speak for an item confidently enough to suppress its filing. The byte repair is exact; the fold is
+not. Guard: a fifth test in `tests/v1958_apostrophe_and_misread_routing.spec.ts`.
+
+## REG-306 — three rows that said the wrong thing about what happened (v1959)
+
+He asked for a ledger he could read surgically. These are the rows that lied to it.
+
+**A throw-out read as a vault registration.** `tvVaultRegister` has THREE outcomes — file to a mule,
+route to the 🗑 throw-out review with the planner's advice (`mode:'throwout'`, the v739 branch), or
+refuse. v1954 collapsed the first two, so an item the board judged junk produced *"the TV saw you
+pick this up, so it went into your vault"*. Measured: `Sigon's Gage` routes `__throwout`, stays
+owned (the v739 no-undo invariant holds — verified), and logged as `vault-registered`. It now logs
+`throw-suggested`, a status already taught to the pill map, with a reason that says it is still his.
+
+**A guard reading a field its producer never sets.** The same wrapper skipped logging on `!r.dup`.
+`tvVaultRegister` returns `mode:'new'|'already'` and never a `dup` field — the only `dup:` in this
+file is set by a different function (the inbox queue, ~18208). The duplicate-suppression it looks
+like it performs **has never once run**. Harmless only by luck, because `_chLogUpsert` merges a
+repeat and bumps `seenCount`, which is the better behaviour anyway. Guard removed rather than
+repaired, and the row now distinguishes a first sighting from a re-read.
+
+**Two sibling wrappers, one question, opposite answers.** `tvChronicleRoute`'s wrapper dropped
+`already` on the floor while the vault wrapper twenty lines up logged it. A TV re-read of something
+he owns is a decision, and its `seenCount` is the signal that the reader keeps finding the same row.
+Logging cannot flood the view — the upsert merges. Both now agree. Measured: a re-read logged 0 rows
+before, 1 row with `seenCount: 2` after.

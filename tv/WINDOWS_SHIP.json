@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1958",
+  "ver": "v1959",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1958: the mule router split three major sets across four mules on one byte; and an OCR slip is now filed as the item it is a misread of",
+  "note": "v1959: an en-dash read misrouted the whole Trang-Oul set; the global _norm now folds dashes as the resolver already did",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

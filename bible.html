@@ -9266,11 +9266,18 @@ function _materialIndex(){
    major sets across four mules, under a roster note that says NEVER SPLIT A SET. Their straight
    forms all routed correctly, which is the whole difference: one byte.
 
+   AND THE SAME SWEEP, ONE CHARACTER OVER. The v1794 resolver folds `\u2013\u2014` to `-` as well, and this
+   one did not, so an en-dash read broke the identical way: measured on the 13 hyphenated names the
+   board knows, TEN routed differently \u2014 the whole Trang-Oul set (a class endgame set that _KEEP_SET
+   exists to protect) plus Tal Rasha's Fine-Spun Cloth, every one of them to UNI-WEAPONS. Fixing
+   only the apostrophe would have left an identical defect behind a different byte, which is how a
+   class gets closed on paper and stays open in the tree.
+
    THE BOARD WAS THE ONLY HALF THAT HAD NOT LEARNED IT. tv/chronicle_resolve.py:80 folds \u2019 to '
    before it resolves, and this file's OTHER _norm (the v1794 resolver) folds \u2018\u2019\u02BC too. This one
    never did, so the same name was one item to the console and two to the board. Fixed at the
    normalizer rather than at each caller, because the callers are not the ones that were wrong. */
-function _norm(s){ return (s||'').replace(/[\u2018\u2019\u02BC\u00B4]/g, "'").toLowerCase().replace(/[()]/g,' ').replace(/\s+/g,' ').trim(); }
+function _norm(s){ return (s||'').replace(/[\u2018\u2019\u02BC\u00B4]/g, "'").replace(/[\u2013\u2014\u2212]/g, '-').toLowerCase().replace(/[()]/g,' ').replace(/\s+/g,' ').trim(); }
 // Resolve a feeds-into label ("Worldstone Shard (Northern)", "Key of Destruction",
 // "Essence of Hatred", "Annihilus") to its SPECIAL_DROPS entry. Direction-tolerant
 // for shards (label "Worldstone Shard (Northern)" ↔ item "Worldstone Shard (Northern)").
@@ -32156,12 +32163,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        is the one every branch below then sees. The label he reads is still the raw one. */
     try {
       if (!_sugFolding){
-        var _ap = String(name).replace(/[\u2018\u2019\u02BC\u00B4]/g, "'");
+        var _ap = String(name).replace(/[\u2018\u2019\u02BC\u00B4]/g, "'")
+                               .replace(/[\u2013\u2014\u2212]/g, '-');
         if (_ap !== String(name)){
           _sugFolding = true;
           try {
+            /* RETURNED UNCONDITIONALLY, and `null` is the whole reason why. suggestMule returns
+               null in exactly one place — `if (isSharedStash(name)) return null` on its first line —
+               so null is not "no answer", it is the answer SHARED STASH, NEVER MULE. The first
+               version of this hop accepted the repair only `if (_as && _as.id)`, which threw that
+               verdict away and fell through to route the unrepaired name to a mule.
+
+               MEASURED, and it is the six Sunder charms: SHARED_STASH_RE anchors five names that
+               each carry a straight apostrophe (talic's anguish, korlic's pain, madawc's ire,
+               bul-kathos' nightmare, worusk's end — the last also carrying a hyphen). Read with the
+               other byte, every one of them routed to UNI-WEAPONS instead of the shared stash.
+               Pre-existing rather than introduced here — it measured identically before v1958 — but
+               this hop had the answer in its hand and discarded it, which is worse than not looking.
+
+               Safe because the repair is EXACT: a byte fold, not a guess. The fuzzy roster fold
+               below deliberately keeps the `&& _fs.id` form — a guessed name may not speak for an
+               item confidently enough to suppress its filing. */
             var _as = suggestMule(_ap);
-            if (_as && _as.id) return _as;
+            return _as;   // includes null = shared stash; same item, so its verdict is authoritative
           } finally { _sugFolding = false; }
         }
       }
@@ -33376,15 +33400,41 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       catch(e){ r = { ok:false, why:'threw: ' + (e && e.message || e) }; }
       try {
         var nm = String(name || '').trim();
-        if (nm && r && !r.dup && typeof window.kaiChronicleRecord === 'function'){
+        /* v1959 \u2014 `!r.dup` WAS ALWAYS TRUE. tvVaultRegister returns `mode: 'new' | 'already'`
+           and never a `dup` field; the only `dup:` in this file is set by a DIFFERENT function
+           (the inbox queue, ~line 18208). The guard was written against a producer that does not
+           produce it, so the duplicate-suppression it looks like it performs has never once run.
+           Harmless only by luck: _chLogUpsert merges a repeat into the existing row and bumps
+           seenCount, which is the behaviour worth having anyway \u2014 so the guard is removed rather
+           than repaired, and the row now says which of the two actually happened. */
+        if (nm && r && typeof window.kaiChronicleRecord === 'function'){
           window.kaiChronicleRecord({
             name: (r && r.name) || nm,
-            status: (r && r.ok) ? (_known(nm) ? 'vault-registered' : 'vault-unknown') : 'route-failed',
+            /* v1959 \u2014 A THROW-OUT IS THE ONE DECISION HE MUST BE ABLE TO SEE.
+               tvVaultRegister has THREE outcomes, not two: it can file to a mule, or route to the
+               \ud83d\uddd1 throw-out review with the planner's advice (mode 'throwout', the v739 branch), or
+               refuse. v1954 collapsed the first two into 'vault-registered' \u2014 so an item the board
+               decided was junk produced a row reading "the TV saw you pick this up, so it went into
+               your vault", indistinguishable from a keeper. Measured: Sigon's Gage routes
+               __throwout, stays owned (the v739 invariant holds), and logged as vault-registered.
+
+               He asked for the ledger so he could "visually surgically fix anything needed". The
+               throw-out call is the one with no undo and the one most worth his eye, and it was the
+               one the ledger could not show. 'throw-suggested' is already taught to _CH_PILL_MAP. */
+            status: (r && r.ok)
+              ? (r.mode === 'throwout' ? 'throw-suggested'
+                                       : (_known(nm) ? 'vault-registered' : 'vault-unknown'))
+              : 'route-failed',
             store: 'owned', ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: true,
             why: (r && r.ok)
-              ? (_known(nm)
-                  ? 'the TV saw you pick this up, so it went into your vault'
-                  : _unknownWhy(nm))
+              ? (r.mode === 'throwout'
+                  ? ('the TV saw you pick this up and it went to the \ud83d\uddd1 throw-out review, NOT a mule '
+                     + '\u2014 it is still yours and still counted' + ((r && r.why) ? (': ' + r.why) : ''))
+                  : (_known(nm)
+                      ? (r.mode === 'already'
+                          ? 'the TV saw this again \u2014 you already had it, so nothing moved'
+                          : 'the TV saw you pick this up, so it went into your vault')
+                      : _unknownWhy(nm)))
               : ('not registered \u2014 ' + ((r && r.why) || 'no reason given')) });
         }
       } catch(e){}
@@ -33448,14 +33498,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try {
         if (typeof window.kaiChronicleRecord === 'function'){
           var nm = String(name || '').trim();
-          if (nm && r && !r.already){
+          /* v1959 \u2014 A RE-READ IS A DECISION TOO, and the two wrappers disagreed about it.
+             This one dropped `already` on the floor while its sibling twenty lines up logs the
+             same case and bumps seenCount. He asked for a ledger of "every decision the board
+             made"; a TV re-read of something he owns IS one, and its seenCount is the signal that
+             says the reader keeps finding the same row. Logging it cannot flood the view because
+             _chLogUpsert merges a repeat into the existing row rather than appending. The status
+             stays tv-routed; only the reason distinguishes the two, so nothing new must be taught
+             to the pill map. */
+          if (nm && r){
             window.kaiChronicleRecord({
               name: (r && r.name) || nm,
               status: (r && r.ok) ? 'tv-routed' : 'route-failed',
               store: (r && r.kind === 'set') ? 'setPieces' : 'foundLog',
               ledger: (r && r.kind === 'set') ? 'sets' : 'uniques',
               target: String(src || 'tv'), source: 'tv-route', _bump: true,
-              why: (r && r.ok)
+              why: (r && r.ok && r.already)
+                ? 'the TV read this again \u2014 it was already in your ' + ((r.kind === 'set') ? 'set ledger' : 'grail')
+                : (r && r.ok)
                 ? ('the TV saw this on your ' + String(src || 'screen') + ' and ticked it')
                 : ('could not route it \u2014 ' + ((r && r.why) || 'no reason given')) });
           }
@@ -43156,7 +43216,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1958', name:'v1958 - a curly apostrophe was a different item', date:'2026-08-22', note:'the mule router split three major sets across four mules on one byte; and an OCR slip is now filed as the item it is a misread of' };
+  window.D2R_BUILD = { id:'v1959', name:'v1959 - the same gap one character over', date:'2026-08-22', note:'an en-dash read misrouted the whole Trang-Oul set; the global _norm now folds dashes as the resolver already did' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
