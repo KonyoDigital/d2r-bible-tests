@@ -9304,3 +9304,98 @@ repaired, and the row now distinguishes a first sighting from a re-read.
 he owns is a decision, and its `seenCount` is the signal that the reader keeps finding the same row.
 Logging cannot flood the view — the upsert merges. Both now agree. Measured: a re-read logged 0 rows
 before, 1 row with `seenCount: 2` after.
+
+---
+
+## REG-307 — the ledger could not name the one decision with no undo (v1960)
+
+He asked to "visually render the backend through the ledger... so we can visually surgically fix
+anything needed". Two lanes could not be read there at all.
+
+**Throw-out suggestions were a NUMBER.** `vaultAccumApply` set `out.suggestions = <count>` and left
+no row, so he saw "3 suggestions" and never which three, from which reel, on whose word — for the
+one lane that has no undo. They now log a `throw-suggested` row carrying the witness's reel and
+frame, so the ledger's click-the-eye opens the actual photograph the suggestion came from.
+
+**It still does not act, deliberately.** `control_app.py` states the contract twice — the throw list
+ships flagged `automatic:false`, "the BOARD ignores it by contract … never registered", and a
+proposal that is ONLY throw-outs is refused outright because "pressing apply could only ever
+destroy". `vault_retro.py:30` says the same. Logging a row registers nothing and touches neither
+`owned` nor `assign` — measured: after applying a payload with one throw-out, `owned` and
+`muleAssign` are unchanged and the row is present. How wide "junk" is remains his call.
+
+**And three silent failures.** `_vlog` fires for `raised` and `stash-held` and nothing else, so all
+seven `out.skipped` paths left no ledger row. Three of them are not outcomes but FAILURES — the
+stash write threw, the grail apply threw, or the build has no `chronicleApply` — each leaving only a
+string inside a return value, read once by the console and then gone. Silence is not evidence, and a
+write that failed is the last thing that should be quiet. The other four are ordinary outcomes
+("read as none") and stay unlogged; two also sit inside the span `test_neither_branch_writes_anything`
+measures, where a refusal that starts writing is exactly what that guard exists to stop.
+
+## REG-308 — a guard on the intake door and not the merge door (v1960)
+
+v1932 taught the reader that a PIECE is not a SET and refused piece-keyed groups out loud into
+`refusedGroups`. **The guard works** — measured: `_is_piece_not_set` returns True for
+`M'avina's True Sight`, `Tenet`, `Caster`, `Embrace` and `Cleglaw's Claw`, and False for every real
+set name tested (`Tal Rasha's Wrappings (Sorc)`, `Trang-Oul's Avatar`, `Sigon's Complete Steel`,
+`Hsarus' Defense (set)`, `Bul-Kathos' Children (Barb)`).
+
+**It has never once fired on his data.** `merge_proposals` is a SECOND door and copied every key
+across unexamined. His live `chron_last_result.json` carries **5 of 43** group keys the guard would
+refuse, and no `refusedGroups` key at all — which is what "never fired" looks like from outside. An
+accumulator carries history forward by design, so a group admitted before the guard existed is
+re-admitted on every merge, forever. v1932's own comment measured "5 of 38"; the same five are still
+there at 43. A guard on one of two doors is a guard-shaped delay.
+
+Refused out loud at the merge too, and any refusal the source already recorded is carried across —
+a receipt that does not survive a merge is a receipt that expires.
+
+⚠ **Scope held deliberately.** Five keys are bare possessives (`M'avina's`, `Cathan's`,
+`Trang-Oul's`, `Immortal King's`, `Natalya's`) — neither pieces nor valid set names. The guard lets
+them through and this change does NOT extend it to them. On his data refusing them would be
+lossless (measured: not one carries a piece absent from a properly-named group), but "lossless on
+his data" is not "lossless in general" — a future read could put the only sighting of a piece under
+one. Widening what counts as invalid is a policy change, not a bug fix.
+
+## REG-309 — the eye pointed at a file that was never there (v1960)
+
+The Routing Ledger's frame link is the "surgically" half of what he asked it for — click the eye,
+see the photograph the decision came from. **It was dead on seven of every eight rows.**
+
+Measured on his live ledger: 324 rows carry a `frameId` and **only 42 resolved**. The link was built
+as `'/hist/' + frameId + '.jpg'`, and THREE shapes reach that renderer:
+
+| frameId | where it lives | before |
+|---|---|---|
+| `reel_s_1785708285647_38665/f_1785708358178` | reel dir, no extension | ✅ |
+| `f_1787000217218.jpg` | reel dir, name carries `.jpg` | ❌ 282 rows |
+| `7_1786385852302` | `hist/` depth 1 (a verify beat) | ✅ |
+
+The 282 are wrong twice: `.jpg` appended to a name that already ends in it, AND the reel directory
+dropped. The file is not missing — `f_1787000217218.jpg` sits at
+`hist/reel_s_1786999742937_35523/` — and **the row knew all along**: it carries `sessionId` beside
+`frameId`, and the renderer never read it. All 282 rebuild exactly.
+
+**The near-regression, which is the part worth keeping.** The first fix prefixed every bare name
+with its session. That repaired 282 rows and turned the 23 verify beats into 404s — a fix that
+repairs 282 and breaks 23 is not a fix, and nothing but measuring against his real ledger would have
+caught it. `control_app.py`'s own `_hist_frame_paths` docstring draws the line: *"Verify beats use
+frameId 'N_ts#v' … Reel footage uses 'reel_<sid>/f_<ts>' relative form."* So the rule prefixes `f_`
+names and leaves the rest. **AFTER: 324 of 324 resolve, 0 regressions.**
+
+The server always knew better — `_hist_frame_paths` tests `stem.endswith('.jpg')` before appending —
+but the board never learned the same rule and `_serve_hist` does a literal path join, so nothing
+downstream rescued it.
+
+⚠ **Deliberately NOT swept across the console UI.** Its six `/hist/` builders look identical and are
+CORRECT for their own data: **zero of 1,157** console-side frameIds carry an extension (680 bare,
+477 path form). Same shape, different data — measured before deciding not to touch them. The root is
+upstream (the python proposal's `frame` field carries the filename with its extension while sessions
+write it bare), and the fix is at the DISPLAY layer on purpose: 282 historical rows already hold the
+bad shape, so repairing only the writer would leave every one of them dead forever.
+
+Guard: a sixth test in `tests/v1958_apostrophe_and_misread_routing.spec.ts`. It calls the BUILDER,
+not the DOM, because the eye renders only on the console host — a spec on `file://` builds no links
+at all and every assertion about them would pass while measuring nothing. `_chFrameHref` is hoisted
+onto `window` for exactly that reason, and the test asserts the exposure exists so the guard fails
+loudly rather than going quiet if it ever disappears.

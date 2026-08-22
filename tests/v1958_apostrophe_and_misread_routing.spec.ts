@@ -148,6 +148,45 @@ test('★★★ a Sunder charm reaches the shared stash whichever bytes read it'
   });
 });
 
+test('★★★ the ledger frame link resolves all three frameId shapes', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1600);
+
+  /* v1960 — his live ledger held 324 rows with a frameId and only 42 resolved. Three shapes reach
+     this builder, and the old link ('/hist/' + frameId + '.jpg') was right for exactly one:
+
+       reel_s_1785708285647_38665/f_1785708358178   reel-relative, no extension  → worked
+       f_1787000217218.jpg                          bare, WITH extension         → 404 (282 rows)
+       7_1786385852302                              verify beat, hist/ depth 1   → worked
+
+     The 282 are wrong twice — '.jpg' appended to a name already ending in it, and the reel
+     directory dropped — while the row carried `sessionId` all along and nothing read it.
+     Measured against his real ledger: before 42/324, after 324/324, regressions 0.
+
+     THIS TEST EXISTS BECAUSE THE FIRST FIX BROKE THE THIRD SHAPE. Prefixing every bare name with
+     its session repaired 282 rows and turned 23 working links into 404s.
+
+     It calls the BUILDER, not the DOM, and that is the point. The eye renders only on the console
+     host, so a spec on file:// produces no links at all and every assertion about them would pass
+     while measuring nothing — the blind-fixture trap, caught while writing this very test. */
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    if (typeof w._chFrameHref !== 'function') return { missing: true, out: [] as string[] };
+    const cases = [
+      { sessionId: 'reel_s_1785708285647_38665', frameId: 'reel_s_1785708285647_38665/f_1785708358178' },
+      { sessionId: 'reel_s_1786999742937_35523', frameId: 'f_1787000217218.jpg' },
+      { sessionId: 's_1786385768689_67392', frameId: '7_1786385852302' },
+    ];
+    return { missing: false, out: cases.map((c) => w._chFrameHref(c)) };
+  });
+
+  expect(r.missing, '_chFrameHref is not exposed — this guard would measure nothing').toBe(false);
+  expect(r.out[0]).toBe('/hist/reel_s_1785708285647_38665/f_1785708358178.jpg');
+  expect(r.out[1]).toBe('/hist/reel_s_1786999742937_35523/f_1787000217218.jpg');
+  expect(r.out[2]).toBe('/hist/7_1786385852302.jpg');   // NOT prefixed — the near-regression
+  r.out.forEach((h) => expect(h, 'no doubled extension').not.toMatch(/\.jpg\.jpg$/i));
+});
+
 test('★★ an OCR slip is filed as the item it is a misread of, and says so', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);

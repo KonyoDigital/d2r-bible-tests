@@ -1414,8 +1414,34 @@ def merge_proposals(base, incoming):
                     continue
                 seen.add(key)
                 bucket.append(sg)
+        # ── v1960 — THE GUARD WAS ON THE INTAKE DOOR AND NOT THIS ONE ─────────────────────
+        # v1932 taught the reader that a PIECE is not a SET and refused piece-keyed groups out
+        # loud into `refusedGroups`. That guard works — measured: _is_piece_not_set returns True
+        # for "M'avina's True Sight", "M'avina's Tenet", "M'avina's Caster", "M'avina's Embrace"
+        # and False for every real set name tested.
+        #
+        # It has never run on his live proposal, because merge_proposals is a SECOND door and this
+        # loop copied every key across unexamined. `chron_last_result.json` (2026-08-21 22:45)
+        # carries SEVEN group keys for M'avina's — four of them pieces, plus a bare possessive —
+        # and no `refusedGroups` key at all, which is what "the guard never fired" looks like from
+        # outside. An accumulator carries its history forward by design, so a group admitted once
+        # before the guard existed is re-admitted on every merge, forever. A guard on one of two
+        # doors is not a guard; it is a guard-shaped delay.
+        #
+        # Refused OUT LOUD here as well, for the reason v1932 gave: a silently dropped group is
+        # indistinguishable from a page that held none. [[unknown-stays-unknown]]
         for name, pieces in (src.get("setGroups") or {}).items():
+            if _is_piece_not_set(name):
+                out.setdefault("refusedGroups", []).append({
+                    "set": name, "reel": None, "frame": None,
+                    "why": "this is a set PIECE, not a set — refused at the merge, where a "
+                           "pre-guard group would otherwise be carried forward forever",
+                })
+                continue
             out["setGroups"].setdefault(name, set()).update(set(pieces or ()))
+        # carry any refusals the source already recorded, so the receipt survives a merge too
+        for _rg in (src.get("refusedGroups") or []):
+            out.setdefault("refusedGroups", []).append(_rg)
         # notFound was dropped entirely by the old merge, so "the game says he has NOT found this"
         # survived one sweep and then vanished — an absence that cannot be carried is an absence
         # nobody can act on.

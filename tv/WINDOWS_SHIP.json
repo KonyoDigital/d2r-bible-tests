@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1959",
+  "ver": "v1960",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1959: an en-dash read misrouted the whole Trang-Oul set; the global _norm now folds dashes as the resolver already did",
+  "note": "v1960: throw-out suggestions and three silent failures now leave a row, and the piece-is-not-a-set guard finally runs at the merge door",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

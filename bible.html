@@ -34851,8 +34851,51 @@ window.renderRoutingLedger = function(){
   sorted.forEach(function(r){
     var p = PILL[r.status] || [String(r.status || 'read'), 'var(--text-dim,#8a7d64)'];
     var tgt = r.target ? (' \u2192 <b>' + esc(r.target) + '</b>') : (r.store ? (' \u2192 ' + esc(r.store)) : '');
+    /* v1960 — THE EYE POINTED AT A FILE THAT WAS NEVER THERE.
+       MEASURED on his live ledger: 324 rows carry a frameId and only 42 resolved. The link was
+       built as '/hist/' + frameId + '.jpg', and THREE shapes reach this renderer:
+
+         reel_s_1785708285647_38665/f_1785708358178   reel-relative, no extension  → worked
+         f_1787000217218.jpg                          bare, WITH extension         → 404 (282 rows)
+         7_1786385852302                              verify beat, hist/ depth 1   → worked
+
+       The 282 are wrong twice over: '.jpg' appended to a name that already ends in it, AND the reel
+       directory dropped. The file is not missing — f_1787000217218.jpg sits at
+       hist/reel_s_1786999742937_35523/ — and the row knew: it carries `sessionId` beside `frameId`
+       and the renderer never read it. AFTER: 324 of 324 resolve, 0 regressions.
+
+       This is the "surgically" half of what he asked the ledger for — click the eye, see the
+       photograph the decision came from — and it was dead on seven of every eight rows. The server
+       already knew better: _hist_frame_paths tests `stem.endswith('.jpg')` before appending. The
+       board never learned the same rule, and _serve_hist does a literal path join and 404s, so
+       nothing downstream rescued it. Each path segment is encoded separately so the '/' survives.
+
+       ⚠ NOT a class fix across the console UI. Its six /hist/ builders look identical and are
+       CORRECT for their own data: zero of 1,157 console-side frameIds carry an extension. Same
+       shape, different data — measured before deciding not to touch them.
+
+       Hoisted onto window ON PURPOSE: the eye renders only when the page is served by his console
+       (/hist/ exists nowhere else), so a spec on file:// builds no links and every assertion about
+       them would pass vacuously. Exposing the pure builder makes the rule testable where the
+       rendering is not. */
+    var _frameHref = window._chFrameHref = function(row){
+      var f = String((row && row.frameId) || '').trim();
+      if (!f) return '';
+      var stem = f.replace(/\.jpg$/i, '');
+      /* ONLY reel footage gets the directory. The first draft of this fix prefixed every bare name
+         with its session: that repaired 282 rows and turned 23 WORKING links into 404s, because
+         verify beats are named `N_ts` and live at hist/ depth 1. A fix that repairs 282 and breaks
+         23 is not a fix, and only measuring against his real ledger caught it. control_app.py's own
+         _hist_frame_paths docstring draws the line: "Verify beats use frameId 'N_ts#v' ... Reel
+         footage uses 'reel_<sid>/f_<ts>' relative form." So: prefix `f_` names, leave the rest. */
+      if (stem.indexOf('/') < 0 && /^f_/.test(stem)){
+        var sid = String((row && (row.sessionId || row.reel)) || '').trim();
+        if (sid) stem = (/^reel_/.test(sid) ? sid : ('reel_' + sid)) + '/' + stem;
+      }
+      return '/hist/' + stem.split('/').map(encodeURIComponent).join('/') + '.jpg';
+    };
     var frame = (r.frameId && onConsole)
-      ? '<a href="/hist/' + encodeURIComponent(r.frameId) + '.jpg" target="_blank" '
+      ? '<a href="' + _frameHref(r) + '" target="_blank" '
         + 'style="margin-left:6px;opacity:.75;text-decoration:none" title="open the frame this came from">\uD83D\uDDBC</a>'
       : (r.frameId ? '<span style="margin-left:6px;opacity:.4" title="' + esc(r.frameId)
                      + ' \u2014 open the board from the console to view it">\uD83D\uDDBC</span>' : '');
@@ -42237,6 +42280,39 @@ window._renderStashFresh = function(){
        received and deliberately ignored, which is the only honest way to report a refusal. */
     out.suggestions = ((p.throwOut && p.throwOut.length) || (p.suggestions && p.suggestions.length) || 0);
 
+    /* v1959 \u2014 COUNTED IS NOT SHOWN. The line above is the entire record a throw-out suggestion
+       used to leave: a NUMBER. He asked to "visually render the backend through the ledger... so we
+       can visually surgically fix anything needed", and the one lane with no undo was the one lane
+       the ledger could not name \u2014 he saw "3 suggestions" and never which three, from which reel,
+       on whose word.
+
+       IT STILL DOES NOT ACT, AND THAT IS DELIBERATE. control_app.py says the contract twice: the
+       throw list ships flagged `automatic:false`, "the BOARD ignores it by contract \u2014 it is shown
+       as a SUGGESTION there and never registered", and a proposal that is ONLY throw-outs is
+       refused outright because "pressing apply could only ever destroy". vault_retro.py:30 says the
+       same. That refusal is his v1903 policy and it is not mine to widen \u2014 how wide "junk" is has
+       no un-throw and is his call. Logging a row REGISTERS nothing, files nothing, and touches
+       neither `owned` nor `assign`; it only lets him see what was proposed and refused.
+
+       The row carries the witness's session and frame, so the ledger's click-the-eye opens the
+       actual photograph the suggestion came from \u2014 which is the "surgically" half of the ask. */
+    try {
+      var _sug = (p.throwOut && p.throwOut.length) ? p.throwOut
+               : ((p.suggestions && p.suggestions.length) ? p.suggestions : []);
+      _sug.forEach(function(sg){
+        var nm = String((sg && sg.name) || '').trim();
+        if (!nm || typeof window.kaiChronicleRecord !== 'function') return;
+        var w0 = (sg.witnesses && sg.witnesses[0]) || {};
+        window.kaiChronicleRecord({
+          name: nm, status: 'throw-suggested', store: 'suggestion', ledger: 'vault',
+          target: 'throwout', source: 'vault-sweep', lane: sg.lane, conf: sg.conf,
+          witnesses: sg.witnesses, reel: w0.session || w0.reel || null, frameId: w0.frame || null,
+          why: 'the reader suggested binning this and the board did NOT act on it \u2014 '
+               + (sg.why || sg.throwWhy || 'no reason given'),
+          _bump: true });
+      });
+    } catch(e){}
+
     var byKind = { rune:'runes', gem:'gems', material:'materials' };
     var pend = {};                       // kind -> merged map, written once at the end
     var grailNames = [];
@@ -42322,7 +42398,22 @@ window._renderStashFresh = function(){
     });
 
     Object.keys(pend).forEach(function(kind){
-      try { _writeStash(kind, pend[kind]); } catch(e){ out.skipped.push(kind + ' (write failed)'); }
+      /* v1959 \u2014 THE THREE SILENT FAILURES. _vlog fires for `raised` and `stash-held` and for
+         nothing else, so every one of the seven out.skipped paths left the ledger with no row. Three
+         of them are not outcomes, they are FAILURES: the stash write threw, the grail apply threw, or
+         the build has no chronicleApply at all. Each left only a string inside a return value \u2014 read
+         once by the console and then gone \u2014 while the surface he was told to read said nothing.
+         Silence is not evidence, and a write that failed is the last thing that should be quiet.
+         The four remaining skips are ordinary outcomes ("read as none") and stay unlogged: two of them
+         also sit inside the span test_neither_branch_writes_anything measures, and a refusal that
+         starts writing is exactly what that guard exists to stop. */
+      try { _writeStash(kind, pend[kind]); }
+      catch(e){ out.skipped.push(kind + ' (write failed)');
+        try { if (typeof window.kaiChronicleRecord === 'function')
+          window.kaiChronicleRecord({ name: kind, status: 'route-failed', store: 'vault',
+            ledger: 'vault', target: 'vault-sweep', source: 'vault-sweep', _bump: true,
+            why: 'the sweep could not write your ' + kind + ' to the stash \u2014 '
+                   + (e && e.message || e) }); } catch(e2){} }
       try { window._stashTouch(kind); } catch(e){}
       try { var r = window[REND[kind]]; if (typeof r === 'function') r(); } catch(e){}
     });
@@ -42333,9 +42424,19 @@ window._renderStashFresh = function(){
         try {
           var res = window.chronicleApply({ wouldAdd: { uniques: grailNames, sets: [] } });
           out.grail = (res && res.uniques) || [];
-        } catch(e){ out.skipped.push('grail apply failed: ' + (e && e.message || e)); }
+        } catch(e){ out.skipped.push('grail apply failed: ' + (e && e.message || e));
+      try { if (typeof window.kaiChronicleRecord === 'function')
+          window.kaiChronicleRecord({ name: 'grail apply', status: 'route-failed', store: 'vault',
+            ledger: 'vault', target: 'vault-sweep', source: 'vault-sweep', _bump: true,
+            why: 'the sweep found grail items but applying them threw \u2014 '
+                 + (e && e.message || e) }); } catch(e2){} }
       } else {
-        out.skipped.push('no chronicleApply on this build — ' + grailNames.length + ' grail item(s) not registered');
+        out.skipped.push('no chronicleApply on this build \u2014 ' + grailNames.length + ' grail item(s) not registered');
+    try { if (typeof window.kaiChronicleRecord === 'function')
+          window.kaiChronicleRecord({ name: 'grail apply', status: 'route-failed', store: 'vault',
+            ledger: 'vault', target: 'vault-sweep', source: 'vault-sweep', _bump: true,
+            why: 'this board build has no chronicleApply, so ' + grailNames.length
+                 + ' grail item(s) the sweep found were NOT registered' }); } catch(e2){}
       }
     }
     return out;
@@ -43216,7 +43317,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1959', name:'v1959 - the same gap one character over', date:'2026-08-22', note:'an en-dash read misrouted the whole Trang-Oul set; the global _norm now folds dashes as the resolver already did' };
+  window.D2R_BUILD = { id:'v1960', name:'v1960 - the ledger learns to name what it refused', date:'2026-08-22', note:'throw-out suggestions and three silent failures now leave a row, and the piece-is-not-a-set guard finally runs at the merge door' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
