@@ -31585,6 +31585,8 @@ body{
 .vll-nm{color:var(--q-unique);font-weight:var(--fw-medium)}
 .vll-where{color:var(--text-muted,#b5a48a)}
 .vll-mule{color:var(--text-dim,#756657)}
+.vll-who{background:rgba(0,0,0,.25);border:1px solid var(--border-light);border-radius:6px;color:var(--text,#f4e8d0);font-size:var(--fs-micro);padding:2px 7px;min-width:150px}
+.vll-who::placeholder{color:var(--text-dim,#756657);font-style:italic}
 .vll-seen{color:var(--text-dim,#756657);margin-left:auto}
 .vll-locked{color:#8fd98f}
 .vll-watching{color:var(--text-muted,#b5a48a)}
@@ -34509,12 +34511,24 @@ window.renderLaneLocks = function(){
     var r = all[n] || {};
     var _n = (r.sessions && r.sessions.length) || 0;
     var mule = '';
+    /* v1985.1 — muleById IS NOT ON window. `window.muleById && window.muleById(a)` is a guard that
+       can never pass, so the mule label would have rendered empty forever while looking wired.
+       test_the_board_calls_nothing_that... caught it on the push and named it exactly: "optional
+       calls to functions assigned nowhere — they have never run and never will: muleById". It is a
+       closure function the vault code already calls bare (vaultAutoAssign does), so call it bare and
+       let the try/catch cover a build where it is absent. */
     try { var a = (typeof assign !== 'undefined') ? assign[n] : null;
-          var m = a && window.muleById && window.muleById(a);
+          var m = (a && typeof muleById === 'function') ? muleById(a) : null;
           mule = (m && (m.name || m.id)) || (a || ''); } catch(e){ mule = ''; }
     H += '<div class="vll-row">'
        + '<span class="vll-nm">' + esc(n) + '</span>'
        + '<span class="vll-where">' + esc(WHERE[r.lane] || r.lane || 'locked') + '</span>'
+       /* v1985 — the character/mule label is HIS to type; the film never carries it. Empty shows a
+          prompt rather than a fabricated name, so "not told yet" and "told" never look alike. */
+       + '<input class="vll-who" type="text" value="' + esc(r.where || '') + '"'
+       + ' placeholder="which character / mule?" maxlength="40"'
+       + ' title="Yours to fill — the reels do not record which character an item is on, so the board will not guess."'
+       + ' onchange="window._laneLockSetWhere(' + JSON.stringify(n).replace(/"/g,'&quot;') + ',this.value)">'
        + (mule ? '<span class="vll-mule">filed: ' + esc(mule) + '</span>' : '')
        + '<span class="vll-seen' + (_n >= MINS ? ' vll-locked' : ' vll-watching') + '">'
        + (_n >= MINS ? ('🔒 locked · ' + _n + ' sessions')
@@ -34526,6 +34540,29 @@ window.renderLaneLocks = function(){
   });
   H += '</div>';
   el.innerHTML = H; el.hidden = false;
+};
+/* v1985 — HE NAMES THE CHARACTER, BECAUSE THE FILM CANNOT.
+   Konyo asked for the lock to render "based on the character/mule that its currently on". I checked
+   whether that is readable and it is not:
+     · no reel index carries a character — index.json holds sessionId and focus, nothing else
+     · sessions.jsonl has ZERO character / charName / profile / hero rows
+     · charName appears zero times in vault_retro.py, control_app.py and tv_diablo.py
+     · and on his own footage the name is simply not on screen: a real Chronicle frame shows the
+       character SPRITE, the orbs, the belt and the skill bar — D2R prints the name only on the
+       character panel, which he does not film.
+   Inferring "Sorc" from a sprite or a skill icon would be a guess wearing a fact, which is the one
+   thing this board refuses. So the field is HIS to fill: one label per locked item, typed once,
+   remembered. That is also what he actually said it needed to be — "its our decision and if its
+   there there a reason for it". The board records the reason; it does not invent it.
+   [[unknown-stays-unknown]] */
+window._laneLockSetWhere = function(name, where){
+  var all = _laneLockAll(); var nm = String(name || '').trim();
+  if (!all[nm]) return false;
+  var w = String(where == null ? '' : where).trim().slice(0, 40);
+  if (w) all[nm].where = w; else delete all[nm].where;
+  try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_LANE_LOCK_KEY, JSON.stringify(all)); } catch(e){}
+  try { window.renderLaneLocks && window.renderLaneLocks(); } catch(e){}
+  return true;
 };
 window._laneLockRelease = function(name){
   var all = _laneLockAll(); var nm = String(name || '').trim();
@@ -43800,7 +43837,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1984', name:'v1984 - three separate sessions, and show where it lives', date:'2026-08-22', note:'his ruling - a lane lock needs 3 distinct sessions, not one sighting, and the panel names the lane and mule but never invents a character' };
+  window.D2R_BUILD = { id:'v1985', name:'v1985 - he names the character because the film cannot', date:'2026-08-22', note:'no reel index sessions row or frame carries a character name - so the lane lock takes his label instead of guessing one' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

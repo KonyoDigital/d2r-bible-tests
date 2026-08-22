@@ -10390,3 +10390,42 @@ this pipeline — `charName`/`char_name` appears **zero** times in `vault_retro.
 and `tv_diablo.py`, and no frame carries a character identity. So a row states the LANE and the MULE
 and never guesses a character. That gap is named as unbuilt in `PROJECT_VAULT_MANAGER.md`; printing a
 name the film never read would be the fabrication this board exists to prevent.
+
+## REG-340 — he names the character, because the film cannot (v1985)
+
+He asked for the lock to render "based on the character/mule that its currently on". I checked
+whether that is readable before building it, and it is **not**:
+
+- a reel's `index.json` carries `sessionId` and `focus` — **nothing else**
+- `sessions.jsonl` has **zero** `character` / `charName` / `profile` / `hero` rows
+- `charName` appears **zero** times in `vault_retro.py`, `control_app.py`, `tv_diablo.py`
+- **and it is not on screen.** A real Chronicle frame from his own footage shows the character
+  SPRITE, the orbs, the belt and the skill bar. D2R prints the name only on the character panel,
+  which he does not film.
+
+Inferring "Sorc" from a sprite or a skill icon would be a guess wearing a fact — the same class as
+reading a boss thumbnail's filename instead of opening it. So the field is **his**: one label per
+locked item, typed once, remembered (`_laneLockSetWhere`), empty until he fills it.
+
+That is also what he actually asked for — *"it just needs to understand it that its our decision and
+if its there there a reason for it."* The board records the reason; it does not invent it. An empty
+field shows a prompt rather than a placeholder name, so **"not told yet" and "told" never look alike**.
+
+**Verified:** locks at 3 distinct sessions, `where` is `undefined` until set, `'Sorc — Blizz'`
+round-trips into the store and back into the field.
+
+⚠ **The honest limit stands:** if he wants this filled automatically, the reel must film the character
+panel at least once per session. That is a capture change, not a code change, and it is the real
+prerequisite — `PROJECT_VAULT_MANAGER.md` lists "no character/mule identity on a frame" as unbuilt for
+exactly this reason.
+
+### v1985.1 — the gate caught a guard that could never pass
+`renderLaneLocks` looked up the mule with `window.muleById && window.muleById(a)`. **`muleById` is
+never assigned to `window`** — it is a closure function the vault code calls bare (`vaultAutoAssign`
+does exactly that). So the guard was permanently falsy and the mule label would have rendered empty
+forever while looking correctly wired.
+
+`test_the_board_calls_nothing_that...` refused the push and named it precisely: *"optional calls to
+functions assigned nowhere — they have never run and never will: muleById"*. That is a gate earning
+its keep on the exact failure class this session kept hitting — a join that reads as wired from both
+ends and carries nothing.

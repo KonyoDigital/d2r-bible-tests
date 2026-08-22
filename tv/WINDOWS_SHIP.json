@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1984",
+  "ver": "v1985",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1984: his ruling - a lane lock needs 3 distinct sessions, not one sighting, and the panel names the lane and mule but never invents a character",
+  "note": "v1985: no reel index sessions row or frame carries a character name - so the lane lock takes his label instead of guessing one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
