@@ -18636,9 +18636,18 @@ function renderGrailProgress() {
   let _fu = null; try { if (typeof window.funiScan === 'function') _fu = window.funiScan(); } catch (e) {}
   // v1692 — the pre-funiScan fallback used to loop `allGrails` (the boss-drop-table shortlist, 83
   // entries) instead of his real roster. window._gUniqueRoster() is the resolver's ITEM_VALUE ∪
-  // _UNI_EXTRA union (514 names). ⚠ THE UNION IS NOT THE DENOMINATOR: _gUniqueRoster() returns the
-  // FILTERED roster (514 − 127 set pieces = 387), which is what the Forge Uniques tab counts
-  // against. v659_grail_seed.spec.ts pins 387 — that spec, not this comment, is the authority.
+  // _UNI_EXTRA union (525 names). ⚠ THE UNION IS NOT THE DENOMINATOR: _gUniqueRoster() returns the
+  // FILTERED roster (525 − 127 set pieces = 398), which is what the Forge Uniques tab counts
+  // against. v659_grail_seed.spec.ts pins 398 — that spec, not this comment, is the authority.
+  // ⚠ v1971 — THIS SAID 514/387 AND DEFERRED TO A SPEC THAT SAYS 398. v1720 added the eleven RotW
+  // uniques he ruled in (_UNI_EXTRA 69 → 80, roster 387 → 398). The paragraph a few hundred lines
+  // above was corrected then; this one was not — so the file asserted both numbers, and the half
+  // sitting next to the code was the wrong one, while pointing at an authority that disagreed.
+  // Re-measured 2026-08-22 rather than adjusted on paper: ITEM_VALUE 505 ∪ _UNI_EXTRA 80 = 525,
+  // window._gUniqueRoster().length = 398 in a browser, and v659_grail_seed.spec.ts:70 reads
+  // `expect(r.total).toBe(398)` with its own note "v1720: 387 + the eleven he ruled in".
+  // This file warns twice that a count in a comment is a number nobody re-measures. It has now
+  // gone stale exactly that way four times in one day (REG-321, REG-323 twice, and this).
   const _realRoster = (typeof window._gUniqueRoster === 'function') ? window._gUniqueRoster() : allGrails.map(i => i.n);
   const total = _fu ? (_fu.chronTotal || _fu.total) : _realRoster.length;
   const have = _fu ? _fu.found : _realRoster.filter(n => _gFound(n)).length;
@@ -43448,7 +43457,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1970', name:'v1970 - a discard nobody chose', date:'2026-08-22', note:'names the eight sets discarded by default rather than by his ruling - wording only, routing unchanged' };
+  window.D2R_BUILD = { id:'v1971', name:'v1971 - a comment that outranked its own authority', date:'2026-08-22', note:'roster comment said 514/387 while the spec it names pins 398 - stale since v1720' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

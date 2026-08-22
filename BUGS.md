@@ -9931,3 +9931,39 @@ Verified on the rendered page, with `Tal Rasha's Lidless Eye -> sets-major` as t
 harness discriminates. Guard: `tests/v1970_discard_by_default.spec.ts` — and **its routing assertions
 are the important ones**: every name above must still return `__throwout`, so that if a future edit
 turns this honest label into a behaviour change, the build goes red.
+
+## REG-326 — the comment deferred to a spec, and the spec disagreed with it (v1971)
+
+`bible.html:18639` described the roster and named its own authority:
+
+> *"…_gUniqueRoster() is the resolver's ITEM_VALUE ∪ _UNI_EXTRA union (**514** names) … the FILTERED
+> roster (**514 − 127** set pieces = **387**) … v659_grail_seed.spec.ts pins **387** — that spec, not
+> this comment, is the authority."*
+
+`v659_grail_seed.spec.ts:70` reads `expect(r.total).toBe(398)`, with its own note *"v1720: 387 + the
+eleven he ruled in"*. **The comment pointed at an authority that contradicted it.**
+
+v1720 added the eleven RotW uniques he ruled in (`_UNI_EXTRA` 69 → 80, roster 387 → 398). A paragraph
+elsewhere in the same file was corrected then — it already says *"525 − 127 set pieces = 398 unique
+names, measured in a browser, not assumed"* — and this one was not. So the file asserted **both**
+numbers, and the copy sitting next to the code was the wrong one.
+
+**Re-measured, not adjusted on paper:**
+
+| | claimed | measured 2026-08-22 |
+|---|---|---|
+| ITEM_VALUE ∪ _UNI_EXTRA | 514 | **525** (505 ∪ 80) |
+| `_gUniqueRoster().length` | 387 | **398** (in a browser) |
+| what v659 pins | 387 | **398** |
+
+Found by sweeping every count claimed in a comment against its live value — a sweep run *because* the
+same class had already bitten twice tonight. The other claims all held: `ITEM_VALUE` 505 ✓,
+`_UNI_EXTRA` 80 ✓, `BASE_DB` 508 ✓ (top-level keys — a first pass counted 4140 by walking nested
+keys, which the 8× gap gave away), roster 398 ✓, and the set-piece figures 108/110/127/135 are four
+*different* quantities, all correct: 108 = set pieces in his found ledger, 110 = the same in the
+346-key `d2r_foundLog`, 127 = union members that are set-piece names, 135 = the roster total.
+
+**Fourth instance in one day** of a number outliving its measurement — REG-321 (a header claiming
+nine slips), REG-323 (a spec assertion and a length pre-filter that kept the old bound), and this,
+which had been stale since v1720. This file warns twice that *"a count in a comment is a number
+nobody re-measures"*. The warning is correct; it is just not a guard.
