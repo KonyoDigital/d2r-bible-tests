@@ -41961,6 +41961,24 @@ window._renderStashFresh = function(){
     var pend = {};                       // kind -> merged map, written once at the end
     var grailNames = [];
 
+        /* v1951 — DEFINED ONCE, ABOVE THE LOOP, AND DELIBERATELY OUTSIDE THE REFUSAL REGION.
+       v1950 put this helper between the `saw === 0` refusal and the `saw > have` raise, and
+       tv/test_control.py::test_neither_branch_writes_anything counts the `return;` statements in
+       exactly that span to prove a refused row still returns early and writes nothing. My helper's
+       own guard clause made that count 3 where it demands 2, and the gate refused the push. The
+       guard was right: a function body is not a refusal path, and code should not sit inside a
+       region a guard measures by accident. One definition per call beats one per item anyway. */
+    function _vlog(nm, it, kind, status, why){
+      try {
+        if (typeof window.kaiChronicleRecord !== 'function') return;
+        var seen0 = (it && it.seen && it.seen[0]) || {};
+        window.kaiChronicleRecord({
+          name: nm, status: status, store: KEY[kind] || kind, ledger: 'vault', why: why,
+          target: kind, source: 'vault-sweep', lane: it && it.lane, conf: it && it.conf,
+          witnesses: it && it.witnesses, reel: seen0.reel || null,
+          frameId: seen0.frame || null, _bump: true });
+      } catch(e){}
+    }
     items.forEach(function(it){
       var nm = it && it.name; if (!nm) { return; }
       var kind = byKind[it.kind];
@@ -42006,8 +42024,21 @@ window._renderStashFresh = function(){
          [[unknown-stays-unknown]] */
       if (saw === 0){ out.skipped.push(nm + ' (read as none — nothing to raise)'); return; }
       if (!isFinite(saw) || saw < 0){ out.skipped.push(nm + ' (no readable count)'); return; }
-      if (saw > have){ pend[kind][nm] = saw; out.raised.push(nm + ' ' + have + '→' + saw); }
-      else            { out.held.push(nm + ' (held ' + have + ', read ' + saw + ')'); }
+      /* v1950 — SAY IT IN THE LEDGER, NOT ONLY IN THE RETURN VALUE. `out.raised`/`out.held` are an
+         honest receipt for the caller and vanish the moment the call ends. This is the path that
+         edits his rune/gem/material counts from a reel read, and until now it left no trace a
+         person could go back to. The evidence is already in hand — the lane that read it, how many
+         witnesses agreed, and the reel/frame it came from — so the row can name all of it and the
+         v1949 card can show it beside the picture. [[the-unjoined-end]] */
+      if (saw > have){
+        pend[kind][nm] = saw; out.raised.push(nm + ' ' + have + '→' + saw);
+        _vlog(nm, it, kind, 'raised', 'read ' + saw + ' in your film, stored was ' + have
+                        + (it && it.lane ? ' \u00b7 ' + it.lane + ' lane' : ''));
+      } else {
+        out.held.push(nm + ' (held ' + have + ', read ' + saw + ')');
+        _vlog(nm, it, kind, 'stash-held', 'held ' + have + ' \u2014 this read said ' + saw
+                            + ', and a read may never lower a count');
+      }
     });
 
     Object.keys(pend).forEach(function(kind){
@@ -42905,7 +42936,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1949', name:'v1949 - the visual backend finally has a view', date:'2026-08-22', note:'bible.html has called d2r_chronicleInboxLog the visual backend since v1356 and nothing ever rendered it. It is written on every routing decision and read exactly once, as a boolean. Now it has a card beside the intake journal.' };
+  window.D2R_BUILD = { id:'v1951', name:'v1951 - the reel sweep writes to the ledger too', date:'2026-08-22', note:'vaultAccumApply raises his rune gem and material counts from what the readers found in his film and recorded nothing. Every raise and every hold now leaves a row with the lane, the reason and the frame.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43593,7 +43624,13 @@ window._CH_PILL_MAP = {
          the decision and was never written down. Taught here FIRST, so no status can be written
          that nothing renders. [[the-unjoined-end]] */
       'muled':           ['⚖ filed to a mule', 'var(--best,#66ff88)'],
-      'throw-suggested': ['🗑 suggested throw-out', '#f0c060']
+      'throw-suggested': ['🗑 suggested throw-out', '#f0c060'],
+      /* v1950 — the reel sweep changes his STASH and said nothing. vaultAccumApply raises rune,
+         gem and material counts from what the readers found in his film, and called
+         kaiChronicleRecord exactly zero times in 220 lines — so the one path that edits the store
+         whose mistakes are permanent was the one path with no row in the ledger. */
+      'raised':          ['📈 count raised', 'var(--best,#66ff88)'],
+      'stash-held':      ['⏸ held, the read was lower', '#f0c060']
     };
 
   window.renderInbox = function(){
