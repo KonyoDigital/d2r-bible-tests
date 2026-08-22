@@ -12221,5 +12221,53 @@ class TestV1928NothingRunnableLivesBelowTheRunner(unittest.TestCase):
 
 
 
+class TestV1994TheTwoLayersAreCompared(unittest.TestCase):
+    """v1994 — Konyo: "we need an AI manager that reads and analyzes above them to cross reference
+    and check and verify.. so like another layer of accuracy.. maybe even two."
+
+    Both layers already existed and had never been introduced to each other. inventory_occupancy
+    counts filled cells from the pixels, free; the paid read returns names. Nobody compared the two
+    numbers, so the one failure a reader cannot self-report — naming an item that is not in the
+    picture — had no detector at all.
+
+    MEASURED on his own frames before this was wired (occupied / synthetic named / verdict):
+        5_1784984201581  22  0->under-read  22->agree  27->over-read
+        7_1784984245418  23  0->under-read  23->agree  28->over-read
+        8_1784984208085  22  0->under-read  22->agree  27->over-read
+    """
+
+    def test_the_three_verdicts_and_their_boundaries(self):
+        import control_app as ca
+        rv = ca.reconcile_verdict
+        # the fabrication signal — one more name than the panel can hold is already over-read
+        self.assertEqual(rv(23, 22), "over-read")
+        self.assertEqual(rv(27, 22), "over-read")
+        # exactly full is agreement, not a fault
+        self.assertEqual(rv(22, 22), "agree")
+        # naming fewer than are there is normal: a tooltip covers cells, a read is partial
+        self.assertEqual(rv(5, 22), "agree")
+        # nothing named while cells are filled is THE GLIMPSE, not a fabrication
+        self.assertEqual(rv(0, 22), "under-read")
+        # and an empty panel read as empty is agreement, NOT an under-read
+        self.assertEqual(rv(0, 0), "agree")
+
+    def test_it_never_says_over_read_when_the_panel_is_unmeasured(self):
+        """occupied=0 can mean 'measured empty'. named=0 there must NOT read as a glimpse, or an
+        empty stash would be reported as items needing a tooltip pass forever."""
+        import control_app as ca
+        self.assertEqual(ca.reconcile_verdict(0, 0), "agree")
+        # but a single name against a measured-empty panel IS over-read, which is the honest reading
+        self.assertEqual(ca.reconcile_verdict(1, 0), "over-read")
+
+    def test_the_sweep_actually_calls_it(self):
+        """The join, not the function. A verdict nothing computes is the muleById defect again."""
+        import control_app as ca
+        src = open(ca.__file__, encoding="utf-8").read()
+        self.assertIn("reconcile_verdict(_named, _occN)", src,
+                      "the sweep no longer computes a verdict — the layer above is unwired")
+        self.assertIn('prop["reconciled"]', src,
+                      "the comparison is computed and never handed to the board")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -10261,6 +10261,31 @@ def _vault_retro():
     return _vr
 
 
+def reconcile_verdict(named, occupied):
+    """v1994 — do the two layers agree about how much is in this panel?
+
+    Layer 1 counts OCCUPIED CELLS from the pixels, free and model-free. Layer 2 is the paid read and
+    returns NAMES. This is the whole comparison, extracted so it can be tested directly instead of
+    grepped for: inline logic can only ever be guarded by a source scan, and a source scan fails on
+    its own reach rather than on the code. [[source-reading-guard]]
+
+      over-read   the read named MORE items than there are filled cells. At least one name came from
+                  somewhere other than the picture. This is the only fabrication signal this lane
+                  has, and it is the class behind "i dont think i even own this".
+      under-read  nothing named, cells filled -> THE GLIMPSE (v1989): needs a tooltip pass.
+      agree       the two independent layers corroborate, at no cost.
+
+    A verdict, never an action. Callers MARK the read; nothing is discarded on a heuristic.
+    """
+    n = int(named or 0)
+    occ = int(occupied or 0)
+    if n > occ:
+        return "over-read"
+    if n == 0 and occ > 0:
+        return "under-read"
+    return "agree"
+
+
 def _vault_corpus():
     """v1989 — the pixel side of the vault: lattice + occupancy. Same rule as its twin above — a
     real import or nothing. It is asked ONLY when a read came back with no names, so a missing
@@ -10572,7 +10597,10 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # died is still money spent and still belongs in the count.
         _not_stash = [0]
         _read_no_names = [0]
-        _glimpsed = []   # v1989 — cells we can SEE are occupied on a frame whose read named nothing     # read cleanly, and the panel prints no names to read
+        # read cleanly, and the panel prints no names to read
+        _glimpsed = []      # v1989 — cells we can SEE are occupied on a frame whose read named nothing
+        _reconciled = []    # v1994 — every read frame, names-vs-cells, whichever way it came out
+        _over_read = []     # v1994 — the subset where the model named MORE than the panel can hold
         _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
 
         def _classify(p):
@@ -10656,6 +10684,61 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 #   8_1785078207015 materials -> {"items":[],"conf":0.0}
                 # Counted separately so the end-of-sweep line can say WHICH of the three happened
                 # instead of offering him two possibilities, neither of them the true one.
+                # ── v1994 — THE LAYER ABOVE THE READ: CROSS-CHECK THE NAMES AGAINST THE CELLS ──
+                #
+                # Konyo: "we need an AI manager that reads and analyzes above them to cross
+                # reference and check and verify.. so like another layer of accuracy.. maybe even
+                # two."
+                #
+                # The two layers were already here and had never been introduced to each other.
+                # Layer 1 counts OCCUPIED CELLS from the pixels, free, no model
+                # (vault_corpus.inventory_occupancy — an empty cell is uniformly near-black at mean
+                # 4.3 std 0.6-1.0, an occupied one is 31-169 std 20-78). Layer 2 is the paid model
+                # read, which returns NAMES. Nobody ever compared the two numbers.
+                #
+                # Comparing them is free and it catches the one failure a reader cannot self-report:
+                #
+                #   named > occupied   OVER-READ. The model produced more item names than there are
+                #                      filled cells in the panel it was looking at. At least one of
+                #                      those names came from somewhere other than the picture. This
+                #                      is the fabrication signal the vault has never had, and it is
+                #                      exactly the class that put items in his vault he does not own
+                #                      ("i dont think i even own this.. from what picture is this
+                #                      here?").
+                #   named == 0 < occ   UNDER-READ, already handled below as THE GLIMPSE (v1989):
+                #                      something is there, no tooltip, needs a filming pass.
+                #   otherwise          the two layers agree, and the read carries a second witness
+                #                      that costs nothing.
+                #
+                # IT FLAGS AND REPORTS; IT DOES NOT BIN. A disagreement is a FINDING, not a verdict
+                # about which layer is right — the lattice refuses honestly on some frames and a
+                # tooltip legitimately covers cells. Silently dropping his data on a heuristic is the
+                # opposite of what this board is for. [[feedback-contradiction-is-the-finding]]
+                # [[unknown-stays-unknown]]
+                if isinstance(_r, dict) and not _r.get("note"):
+                    try:
+                        _named = len(_r.get("items") or [])
+                        _vc2 = _vault_corpus()
+                        _lat2 = _vc2.inventory_lattice(p) if _vc2 else None
+                        if _lat2 and _lat2.get("ok"):
+                            _oc2 = _vc2.inventory_occupancy(p, _lat2)
+                            if _oc2.get("ok"):
+                                _occN = int(_oc2.get("occupied") or 0)
+                                _verdict = reconcile_verdict(_named, _occN)
+                                _reconciled.append({"frame": os.path.basename(p), "surface": surface,
+                                                    "named": _named, "occupied": _occN,
+                                                    "free": _oc2.get("free"), "verdict": _verdict})
+                                if _verdict == "over-read":
+                                    _over_read.append({"frame": os.path.basename(p),
+                                                       "surface": surface, "named": _named,
+                                                       "occupied": _occN,
+                                                       "names": [str((it or {}).get("name") or it)[:40]
+                                                                 for it in (_r.get("items") or [])][:12]})
+                                    # the read still travels; it is MARKED, never discarded
+                                    _r["reconcile"] = {"verdict": "over-read", "named": _named,
+                                                       "occupied": _occN}
+                    except Exception:
+                        pass
                 if isinstance(_r, dict) and not _r.get("note") and not (_r.get("items") or []):
                     _read_no_names[0] += 1
                     # ── v1989 — THE GLIMPSE. Konyo: "it can also like reverse engineer my inventory
@@ -10737,6 +10820,29 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                          _g.get("occupied"), _g.get("free")))
             try:
                 prop["glimpsed"] = _glimpsed
+            except Exception:
+                pass
+        # ── v1994 — SAY WHAT THE TWO LAYERS AGREED AND DISAGREED ABOUT ─────────────────────────
+        # A cross-check nobody reads is not a check. The counts go to the console AND onto the
+        # proposal, so the board can render the disagreement rather than average it away.
+        if _reconciled:
+            _agree = sum(1 for r in _reconciled if r.get("verdict") == "agree")
+            print("   \U0001f9ee cross-check: %d read frame(s) compared names against occupied cells "
+                  "\u2014 %d agree, %d named nothing, %d named MORE than the panel holds."
+                  % (len(_reconciled), _agree,
+                     sum(1 for r in _reconciled if r.get("verdict") == "under-read"),
+                     len(_over_read)))
+            for _o in _over_read[:6]:
+                print("      \u26a0 %s %s \u2014 the read named %d item(s) but only %d cell(s) are "
+                      "filled: %s" % (_o.get("surface") or "?", _o.get("frame") or "?",
+                                      _o.get("named"), _o.get("occupied"),
+                                      ", ".join(_o.get("names") or [])[:120]))
+            if _over_read:
+                print("        an over-read is the ONLY fabrication signal this lane has. Nothing was "
+                      "discarded \u2014 those rows are marked so you can judge them.")
+            try:
+                prop["reconciled"] = _reconciled
+                prop["overRead"] = _over_read
             except Exception:
                 pass
         _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
@@ -13005,7 +13111,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1993",
+        "ver": "v1994",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

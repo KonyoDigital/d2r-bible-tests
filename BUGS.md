@@ -10794,3 +10794,51 @@ were rewritten to pin the current contract instead:
 
 `tests/v1975_mini_on_air_lanes.spec.ts` already asserted `doors === 0` and needed no change — it was
 written after the removal and is the one that got it right.
+
+## REG-353 — the layer above the read: names cross-checked against cells (v1994)
+
+Konyo: *"we need an AI manager that reads and analyzes above them to cross reference and check and
+verify.. so like another layer of accuracy.. maybe even two."*
+
+**Both layers already existed and had never been introduced to each other.**
+
+| layer | what it produces | cost |
+|---|---|---|
+| 0 `stash_screen_open` | is this a stash panel at all | free (OCR of tab chrome) |
+| 1 `inventory_occupancy` | **how many cells are FILLED** | free (pixels) |
+| 2 `claude_vault_read` | **which items are NAMED** | paid |
+| 3 `vault_retro.gate()` | 2+ witnesses, conf floor | free |
+| 4 lane lock | 3 distinct sessions | free |
+
+Layer 1 produces a COUNT and layer 2 produces NAMES, about the same panel, and nothing ever compared
+the two numbers. Comparing them is free and catches the one failure a reader cannot self-report:
+
+```
+named > occupied   OVER-READ — more names than filled cells. At least one name came from
+                   somewhere other than the picture.
+named == 0 < occ   UNDER-READ — the glimpse (v1989): something is there, no tooltip.
+otherwise          the two independent layers corroborate, at zero cost.
+```
+
+**The over-read is the only fabrication signal this lane has ever had**, and it is exactly the class
+behind his own complaint — *"it wrongly muled a random charm.. i dont think i even own this.. from
+what picture is this here?"*
+
+**It flags and reports; it does not bin.** A disagreement is a FINDING, not a ruling about which
+layer is right — the lattice refuses honestly on some frames, and a tooltip legitimately covers
+cells. The read still travels, marked with `reconcile`, and the counts reach `prop["reconciled"]` /
+`prop["overRead"]` so the board can render the disagreement instead of averaging it away.
+
+**Measured on his own frames** (occupied / synthetic named / verdict):
+```
+5_1784984201581   22   0 -> under-read   22 -> agree   27 -> over-read
+7_1784984245418   23   0 -> under-read   23 -> agree   28 -> over-read
+8_1784984208085   22   0 -> under-read   22 -> agree   27 -> over-read
+```
+
+The verdict is a real function, `reconcile_verdict()`, not an inline ternary — inline logic can only
+ever be guarded by a source scan, and a source scan fails on its own reach rather than on the code.
+Guarded by `TestV1994TheTwoLayersAreCompared`, including the boundary that matters
+(`occupied=0, named=0` is **agree**, not a permanent glimpse on an empty stash) and the join itself.
+**Sabotage-proven**: changing `n > occ` to `n >= occ` turns it red (2 failures); restoring makes it
+green.
