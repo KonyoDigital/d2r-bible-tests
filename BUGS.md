@@ -10284,3 +10284,30 @@ takes the canonical name, because that is what `_chronSetPieceSet()` holds.
   a vault sweep should also register physical ownership is a design question, not a bug to patch.
 - **`Shako` never reached `grail`.** A plain unique passed through `_uni` and came back in neither
   `res.uniques` nor `res.sets`. Unexplained; needs its own pass rather than a guess.
+
+## REG-337 — a vaulted row landed and the result said nothing happened (v1982)
+
+Chasing REG-336's unexplained `Shako` turned up no bug in the routing — it turned up a **fifth
+outcome** and a reporting gap.
+
+`chronicleApply` returns `uniques / sets / skipped / unknown` **and `vaulted`**, the last for a name
+that is a BASE rather than a grail unique. `Shako` is the base; `Harlequin Crest` is the unique
+(`_gUniqueRoster().includes('Shako')` → **false**). The board routed it to physical vault stock,
+exactly right — my test item was the wrong one.
+
+But `out.grail` counted only `uniques + sets`, so **a sweep carrying nothing but bases reported an
+empty success**. That is the shape this board keeps auditing out: a real outcome the caller cannot
+see, indistinguishable from "nothing was found."
+
+Reported on its own key rather than folded into `grail`, because a base in the vault and a grail tick
+are not the same claim and must not add up to one number.
+
+**Verified with all three kinds in one payload:**
+```
+grail:   ["Harlequin Crest", "Laying of Hands (bramble mitts)"]
+vaulted: ["Shako"]
+muled:   0
+```
+
+`muled: 0` remains correct and explained: `vaultAutoAssign` walks `ownedPool()`, and a grail tick is
+not stash stock. Whether a vault sweep should also register physical ownership is his design call.
