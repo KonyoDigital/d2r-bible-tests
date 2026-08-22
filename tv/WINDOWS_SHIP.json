@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1990",
+  "ver": "v1991",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1990: the gate test now asks the silence counter the code already kept - a dead OCR lane skips, a refused real frame still fails",
+  "note": "v1991: the sweep files items through the live door and the reference entry is persisted so a reload no longer throws the vault away",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

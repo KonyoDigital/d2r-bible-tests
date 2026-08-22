@@ -10615,3 +10615,105 @@ load 26-30: **0.21 / 0.29 / 0.29 / 0.21 / 0.29 / 0.50s, zero over budget.** Only
 process-cold first read is slow (0.90s / 0.96s across two runs) — thin headroom, but not a
 demonstrated failure, so no timeout was changed on a story. Recorded because the next reader will
 find the same 1.2s and reach for the same wrong fix.
+
+## REG-347 — the sweep registered items and nothing ever reached a mule (v1991)
+
+Konyo's ask: *"auto-arrange in mules based on the items the readers read and analyze within the
+reels."* `vaultAccumApply` did not do it, and v1987's attempt was reverted for the right reason:
+`typeof owned !== 'undefined'` inside that IIFE is a guard that **can never pass** — `owned` is a
+`let` in `tvVaultRegister`'s closure. Its note said the real join "needs its own pass with the scope
+established first, not a guess at the end of an arc".
+
+**The scope is now measured, not assumed.** Headless Chrome, clean store, called from `window`
+exactly as the apply calls it:
+```
+window.tvVaultRegister('Shako')
+  -> {ok:true, mode:'new', mule:'uni-armor', muleName:'UNI-ARMOR'}
+  d2r_owned      ["Shako"]
+  d2r_muleAssign {"Shako":"uni-armor"}
+```
+So the apply goes through the **live door** rather than growing a second writer. Full table, driven
+by real `vault_retro.apply_payload` output (not handmade rows):
+
+| row | expected | measured |
+|---|---|---|
+| Harlequin Crest, equipment, 3 sessions | grail tick, never muled | ✅ ticked · `laneLocked` · absent from `d2r_muleAssign` |
+| Laying of Hands | set tick via `.piece` | ✅ `"Laying of Hands (bramble mitts)"` |
+| Shako, stash | owned + a mule locker | ✅ `d2r_owned` + `{"Shako":"uni-armor"}` |
+
+**`out.muled` was structurally always 0** and looked like a measurement. It read
+`Object.keys(assign).length` on both sides — and `assign` is in the same out-of-scope closure, so
+both reads threw, both were caught, and the answer was 0 every time since v1980. It now counts from
+`d2r_muleAssign`, the store `saveA()` actually writes, and the throw-out review bucket is reported
+separately as `out.throwout` because parking something for review is not muling it.
+
+`_vaultEnsureDrawable` (v1987) is **deleted**: it had exactly one occurrence — its own definition —
+and duplicated a rule `tvVaultRegister` already enforces. Going through the real door retires it.
+
+## REG-348 — everything the sweep filed was thrown away by the next page load (v1991)
+
+**This is why the vault looked empty even when the chain worked.** One apply, then one reload:
+```
+before reload   d2r_owned      ["Shako","Cracked Sash","Laying of Hands (bramble mitts)"]
+                d2r_muleAssign {"Laying of Hands (bramble mitts)":"sets-rest","Shako":"uni-armor", ...}
+AFTER  reload   d2r_owned      []                    <-- all of it gone
+                d2r_muleAssign unchanged             <-- orphan rows pointing at nothing
+                EXTRA_ITEMS['Shako'] -> false
+```
+
+Two correct halves, never joined across a reload. `tvVaultRegister`'s UNIVERSE GUARANTEE (v739)
+writes `EXTRA_ITEMS[name]` so the manager can always DRAW the item — but `EXTRA_ITEMS` is a `const`
+object literal seeded at parse time and **never persisted** (89 mentions in `bible.html`, zero
+writes to any store). The load-time prune at `bible.html:18511` then filters `owned` against
+`_EXTRA_ITEM_SET`, built from that static constant. A runtime registration survived exactly as long
+as the tab did.
+
+**v342.16 and v465 each patched this same shape with a regex whitelist** (`_SHARED_KEEP`,
+`_SOCKET_KEEP`) and v465's comment states the symptom in his words: *"every reload silently DROPPED
+them, so a later intake batch looked like it did not build on top of the earlier one (Konyo's
+accumulation bug)."* A regex cannot cover an arbitrary item name, so this persists the entries
+instead: `d2r_tvExtraItems`, added to `_LP_FORKED` so it forks per install exactly like `d2r_owned`,
+re-seeded into both `EXTRA_ITEMS` and `_EXTRA_ITEM_SET` immediately after the set is built and long
+before the prune. One writer door, `window._tvExtraRemember`, so object and store cannot drift.
+
+Measured after: `d2r_owned` and `EXTRA_ITEMS` both survive the reload. Guarded by
+`tests/v1991_vault_mules_stick.spec.ts`, which asserts **after** a reload — every earlier version of
+this would have passed without one.
+
+## REG-349 — OPEN, NOT FIXED: the universe guarantee inverts the throw-out verdict
+
+Measured on the real board, and it needs Konyo's ruling rather than my guess.
+
+`tvVaultRegister` writes `EXTRA_ITEMS[name] = {rarity:'basic', ...}` **before** it asks
+`suggestMule`. The planner then sees a known basic with a slot and files it by slot, so the
+white-base throw-out verdict never survives to be seen. 5 of 5 flipped:
+
+```
+                suggestMule BEFORE the stub  ->  AFTER the stub
+Cracked Sash    __throwout                   ->  uni-armor
+Quilted Armor   __throwout                   ->  uni-armor
+Grim Wand       __throwout                   ->  uni-weap
+Stag Bow        __throwout                   ->  uni-weap
+Cap             __throwout                   ->  uni-armor
+```
+Not destructive — nothing is ever binned — but every white base TV registers goes onto a mule
+instead of into the throw-out review bucket, which is the opposite of what the planner decided.
+
+**I built the one-line fix (ask the planner first) and REVERTED it**, because measuring it showed
+the cure moves a real keeper the wrong way: with the correct order, `suggestMule('Shako')` returns
+`__throwout` — "white Shako, its runewords are forged or belong in endgame". That is defensible for
+a white Shako he just picked up and wrong for the `Shako` a reader read off **Harlequin Crest's base
+line**, which is how the name arrives from film. The board cannot currently tell those two apart,
+and picking one silently is exactly the fabrication this repo audits out. His call.
+
+## REG-350 — `vaultAutoAssign` appeared to overwrite `__throwout`, and the instrument was wrong
+
+Recorded so the next reader does not chase it. A probe showed `{"Cracked Sash":"__throwout"}` become
+`{"Cracked Sash":"uni-armor"}` after `vaultAutoAssign()`, which reads as the review bucket being
+overwritten. The source refutes it — `if (assign[name]) return;` and an explicit `__throwout` early
+return.
+
+My instrument was at fault twice over: I monkey-patched `window.suggestMule`, but `vaultAutoAssign`
+calls the **bare closure-scoped** `suggestMule`, so the call counter read 0 and measured nothing
+about the function under test. The store change was REG-348's prune, not an overwrite.
+[[feedback-suspect-the-instrument]]

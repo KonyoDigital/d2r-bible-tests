@@ -3677,7 +3677,7 @@ window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(windo
 // Both directions, across reloads. Moving d2r_owned into the shared set is therefore a NO-OP — it was
 // built in v1633 with a union migration and REVERTED because the merge could not survive a reload
 // (the board re-derives from the ledger). Nobody try it a fourth time.
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -18284,6 +18284,54 @@ window._isSkiller=_isSkiller;
 
 window.EXTRA_UNIQUES = EXTRA_UNIQUES;
 const _EXTRA_ITEM_SET = new Set(Object.keys(EXTRA_ITEMS).map(function(n){ return _norm(n); }));
+/* ── v1991 — A REFERENCE ENTRY THAT LIVES ONLY IN MEMORY IS AN ITEM THAT VANISHES ON RELOAD ──
+   MEASURED on the real board, headless Chrome, one apply then one reload:
+       before reload   d2r_owned ["Shako","Cracked Sash","Laying of Hands (bramble mitts)"]
+                       d2r_muleAssign {"Laying of Hands (bramble mitts)":"sets-rest","Shako":"uni-armor", ...}
+       AFTER  reload   d2r_owned []                      <-- every one of them gone
+                       d2r_muleAssign unchanged          <-- orphan rows pointing at nothing
+       EXTRA_ITEMS['Shako'] -> false
+
+   THE MECHANISM, and it is two correct halves that were never joined. tvVaultRegister's UNIVERSE
+   GUARANTEE (v739) writes EXTRA_ITEMS[name] so the Vault Manager can always DRAW what TV registers
+   — but EXTRA_ITEMS is a `const` object literal, seeded at parse time and NEVER persisted to any
+   store (89 mentions in this file, zero writes). The load-time prune two hundred lines below then
+   filters `owned` against _EXTRA_ITEM_SET, which is built from that STATIC constant. So a runtime
+   registration survives exactly as long as the tab does.
+
+   This is the same defect v342.16 and v465 each patched with a REGEX whitelist (_SHARED_KEEP,
+   _SOCKET_KEEP) — and their comments say why in his words: "every reload silently DROPPED them, so
+   a later intake batch looked like it did not build on top of the earlier one (Konyo's accumulation
+   bug)". A regex cannot cover this case: a TV-vaulted name is an arbitrary item name. So the
+   entries are PERSISTED instead of pattern-matched, which also retires the guesswork for good.
+
+   Seeded HERE — immediately after _EXTRA_ITEM_SET is built and long before the prune — so both the
+   object and the set know these names by the time anything filters against them.
+   [[the-unjoined-end]] [[feedback-generalize-fixes]] */
+try {
+  var _tvxRaw = _safeJsonParse(LS.getItem('d2r_tvExtraItems'), {}) || {};
+  Object.keys(_tvxRaw).forEach(function(_n){
+    if (!_n) return;
+    var _e = _tvxRaw[_n];
+    if (!_e || typeof _e !== 'object') return;
+    if (!EXTRA_ITEMS[_n]) EXTRA_ITEMS[_n] = _e;
+    _EXTRA_ITEM_SET.add(_norm(_n));
+  });
+} catch(e){}
+/* The writer half. tvVaultRegister and any other runtime registrar calls this INSTEAD of writing
+   EXTRA_ITEMS directly, so there is one door and the store cannot drift from the object. */
+window._tvExtraRemember = function(name, entry){
+  var nm = String(name || '').trim();
+  if (!nm || !entry) return false;
+  try {
+    EXTRA_ITEMS[nm] = entry;
+    try { _EXTRA_ITEM_SET.add(_norm(nm)); } catch(e){}
+    var all = _safeJsonParse(LS.getItem('d2r_tvExtraItems'), {}) || {};
+    all[nm] = entry;
+    window.LSR.setItem('d2r_tvExtraItems', JSON.stringify(all));
+    return true;
+  } catch(e){ return false; }
+};
 function findExtraItem(name){
   if (!name) return null;
   var q = _norm(name);
@@ -33410,8 +33458,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _known = (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === name; }))
           || (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]);
         if (!_known && typeof EXTRA_ITEMS !== 'undefined'){
-          EXTRA_ITEMS[name] = { rarity:'basic', base:name, cat:'📺 TV-vaulted', val:'tv',
+          /* v1991 — REMEMBER IT ACROSS RELOADS, not just for this tab. Writing EXTRA_ITEMS[name]
+             here is what made the item drawable; it is also what made it VANISH on the next load,
+             because the load-time prune filters `owned` against a set built from the static const.
+             _tvExtraRemember writes both the object and the store. */
+          var _tvEntry = { rarity:'basic', base:name, cat:'📺 TV-vaulted', val:'tv',
             desc:'registered live by TV DIABLO — physically in your stash' };
+          if (typeof window._tvExtraRemember === 'function') window._tvExtraRemember(name, _tvEntry);
+          else EXTRA_ITEMS[name] = _tvEntry;
         }
       } catch(e){}
       var sg = null;
@@ -34561,39 +34615,25 @@ window.renderLaneLocks = function(){
    remembered. That is also what he actually said it needed to be — "its our decision and if its
    there there a reason for it". The board records the reason; it does not invent it.
    [[unknown-stays-unknown]] */
-/* v1987 — THE UNIVERSE GUARANTEE, EXTENDED TO FILM. tvVaultRegister (v739) says it: "anything TV
-   registers must be drawable by the Vault Manager… so the mirror NEVER has invisible items." The
-   live hover path obeys that. The FILM path did not, and that is why `muled` was always 0:
-
-     · a unique the sweep grounds goes to chronicleApply, which writes d2r_foundLog — a FIND
-     · vaultAutoAssign walks ownedPool(), which is built from `owned` — STASH STOCK
-     · ownedPool() also DROPS any name absent from ITEMS / EXTRA_ITEMS / set pieces, so even
-       owned.add('Shako') stays invisible without a reference entry
-
-   A vault-sweep row is not a bare claim that he FOUND something: it carries a lane — stash,
-   inventory or equipment — which means the film saw it sitting in his stash. That is exactly what
-   `owned` means. So the row is registered as stock as well as ticked as a find, and the two
-   statements stay separate: the grail says he has ever found it, `owned` says it is there now.
-
-   Deliberately NOT refactoring tvVaultRegister to share this. Its stub is the twin of the block
-   below and copy-drift is a real risk here, but it is the LIVE hover path, it works, and the hover
+/* v1991 — THE UNIVERSE GUARANTEE HAS ONE HOME AGAIN, AND IT IS THE LIVE DOOR.
+   v1987 added `_vaultEnsureDrawable` here as a FILM-path twin of the EXTRA_ITEMS stub that
+   tvVaultRegister performs at :33406, and said in its own note why it was not merged: "the hover
    flow cannot be exercised from this machine tonight. Rewriting a working live path on evidence I
-   cannot gather is the trade this session has already been burned by. Named here so the twin is
-   findable: search EXTRA_ITEMS + "UNIVERSE GUARANTEE". */
-window._vaultEnsureDrawable = function(name, note){
-  var nm = String(name || '').trim();
-  if (!nm) return false;
-  try {
-    var known = (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === nm; }))
-             || (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[nm]);
-    if (!known && typeof EXTRA_ITEMS !== 'undefined'){
-      EXTRA_ITEMS[nm] = { rarity:'basic', base:nm, cat:'🎞 film-vaulted', val:'tv',
-        desc: note || 'read from a reel — physically in your stash' };
-      return true;
-    }
-  } catch(e){}
-  return false;
-};
+   cannot gather is the trade this session has already been burned by."
+
+   That premise is now FALSE, measured rather than argued. Headless Chrome, clean store, called
+   from window exactly as vaultAccumApply now calls it:
+       window.tvVaultRegister('Shako')
+         -> {ok:true, mode:'new', mule:'uni-armor', muleName:'UNI-ARMOR'}
+         d2r_owned ["Shako"] · d2r_muleAssign {"Shako":"uni-armor"}
+
+   So the film path goes through the live door instead of carrying a copy of its rule, and the twin
+   is deleted rather than kept in sync by hand. It had exactly ONE occurrence in this file — its own
+   definition — so nothing called it and nothing loses a caller. A helper that is never reached is
+   the same defect as the missing owned.add it was written beside. [[copy-drift]] [[the-unjoined-end]]
+
+   The guarantee itself is unchanged and still stated where it is enforced: search
+   "UNIVERSE GUARANTEE" in tvVaultRegister. */
 window._laneLockSetWhere = function(name, where){
   var all = _laneLockAll(); var nm = String(name || '').trim();
   if (!all[nm]) return false;
@@ -43002,18 +43042,87 @@ window._renderStashFresh = function(){
 
          Guarded so a failure here can never lose the registration that already succeeded: the apply's
          own result is returned regardless, and the count is reported separately. */
+      /* ── v1991 — THE JOIN: WRITE PHYSICAL STOCK THROUGH THE DOOR THE LIVE PATH ALREADY USES ──
+         Konyo asked for the sweep to "auto-arrange in mules based on the items the readers read".
+         It could not, and v1987 wrote down exactly why and then guessed at the fix:
+         `typeof owned !== 'undefined'` inside this IIFE is a guard that can NEVER pass, because
+         `owned` is a `let` in tvVaultRegister's closure. Measured after a real apply,
+         I·<id8>·d2r_owned stayed [] and muled stayed 0. That was reverted rather than shipped, and
+         its note said the real join "needs its own pass with the scope established first".
+
+         THIS IS THAT PASS, AND THE SCOPE IS NOW MEASURED RATHER THAN ASSUMED. In headless Chrome
+         on a clean store, called from window exactly as this line calls it:
+             window.tvVaultRegister('Shako')
+               -> {ok:true, mode:'new', mule:'uni-armor', muleName:'UNI-ARMOR'}
+               d2r_owned      ["Shako"]
+               d2r_muleAssign {"Shako":"uni-armor"}
+         So the door writes owned, picks the mule via suggestMule, persists both and re-renders —
+         all inside its own closure, where `owned` and `assign` actually live. Calling it is not a
+         second writer and not a second opinion about where an item belongs; it is the same function
+         his live TV pickup calls. [[the-unjoined-end]] [[copy-drift]]
+
+         WHY NOT _vaultEnsureDrawable: it was a v1987 stub of the same EXTRA_ITEMS guarantee
+         tvVaultRegister performs at bible.html:33406, and it had exactly ONE occurrence in the file
+         — its own definition. Going through the real door makes it redundant instead of making it
+         a second copy of a rule. It is removed in this same version.
+
+         WHAT IT MUST NOT DO: a LANE-LOCKED name is skipped. Equipment and inventory are where HE
+         put the item, and he was explicit — "if its there there a reason for it". Those still get
+         their grail tick above; they simply never get told to move. */
+      var _rdAssign = function(){
+        try { return Object.keys(JSON.parse((window.LSR && window.LSR.getItem('d2r_muleAssign')) || '{}') || {}).length; }
+        catch(e){ return 0; }
+      };
+      var _assign0 = _rdAssign();
+      var _stocked = [], _lockedOut = [];
+      try {
+        var _names = [], _seenN = {};
+        var _pushN = function(v){
+          var sN = (v && v.name) ? v.name : v;
+          sN = (sN == null) ? '' : String(sN).trim();
+          if (sN && !_seenN[sN]) { _seenN[sN] = 1; _names.push(sN); }
+        };
+        (out.grail || []).forEach(_pushN);
+        (out.vaulted || []).forEach(_pushN);
+        _names.forEach(function(nm){
+          var lk = '';
+          try { lk = (window._laneLocked && window._laneLocked(nm)) || ''; } catch(e){}
+          if (lk){ _lockedOut.push({ name: nm, lane: lk }); return; }
+          try {
+            var rg = (typeof window.tvVaultRegister === 'function') ? window.tvVaultRegister(nm) : null;
+            if (rg && rg.ok) _stocked.push({ name: rg.label || nm, mule: rg.mule || null,
+                                             muleName: rg.muleName || '', mode: rg.mode || '' });
+          } catch(e){}
+        });
+      } catch(e){ out.skipped.push('stocking failed: ' + (e && e.message || e)); }
+      out.stocked = _stocked;
+      if (_lockedOut.length) out.laneLocked = _lockedOut;
       try {
         if (typeof window.vaultAutoAssign === 'function') {
-          var _before = 0;
-          try { _before = Object.keys(assign || {}).length; } catch(e){}
           window.vaultAutoAssign();
-          try { out.muled = Math.max(0, Object.keys(assign || {}).length - _before); } catch(e){ out.muled = 0; }
         } else {
           out.skipped.push('no vaultAutoAssign on this build — registered items were not muled');
         }
       } catch(e){
         out.skipped.push('auto-assign failed after registering: ' + (e && e.message || e));
       }
+      /* v1991 — COUNT FROM THE STORE, NOT FROM A NAME THAT IS NOT IN SCOPE. This read
+         `Object.keys(assign).length` on both sides, and `assign` is in tvVaultRegister's closure —
+         so both reads threw, both were caught, and out.muled was STRUCTURALLY 0 on every run since
+         v1980 while the line looked like a measurement. Same defect as the owned.add above, in the
+         reporting instead of the writing. d2r_muleAssign is the store saveA() actually writes. */
+      /* AND THE THROW-OUT BUCKET IS NOT A MULE. v739's mirror doctrine files a junk verdict to
+         '__throwout' — visible, reversible, never dropped — and that IS a placement, so it moves
+         d2r_muleAssign. Counting it as "muled" would tell him the sweep put gear on a mule when it
+         actually parked it for review. Reported on its own key instead. */
+      var _throwN = 0;
+      out.throwout = [];
+      try {
+        _stocked.forEach(function(x){
+          if (x && x.mule === '__throwout'){ _throwN++; out.throwout.push(x.name); }
+        });
+      } catch(e){}
+      out.muled = Math.max(0, _rdAssign() - _assign0 - _throwN);
       return out;
   };
 
@@ -43892,7 +44001,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1990', name:'v1990 - silence is not a verdict', date:'2026-08-23', note:'the gate test now asks the silence counter the code already kept - a dead OCR lane skips, a refused real frame still fails' };
+  window.D2R_BUILD = { id:'v1991', name:'v1991 - the mules stick', date:'2026-08-23', note:'the sweep files items through the live door and the reference entry is persisted so a reload no longer throws the vault away' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
