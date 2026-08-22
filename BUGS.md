@@ -9992,3 +9992,41 @@ pinning the defect rather than the behaviour. It now asserts the ruling directly
 he has RULED must never reach the throw-out pile* — which is the assertion that would have caught the
 original problem had it existed. The calibration case moved to `Naj's Puzzler`, which is still
 genuinely unruled, so the two-branch test still discriminates.
+
+## REG-328 — the stale-count class, finally given a gate (v1973)
+
+`bible.html` warns twice that *"a count in a comment is a number nobody re-measures"*. On
+**2026-08-22 it drifted that way five times**:
+
+| | what drifted |
+|---|---|
+| REG-321 | a header claimed NINE misread slips; the code made four, and named a candidate it never picks |
+| REG-323 | a spec assertion still read `toBeLessThanOrEqual(2)` after the bound became 3 — **CI caught it** |
+| REG-323 | a length pre-filter still hardcoded `3`, which would have capped reach **silently** if the bound rose |
+| REG-326 | the roster block claimed `514 − 127 = 387` while naming a spec that pins **398** — stale since v1720 |
+| **this** | the shopping-list comment said *"between the chronicle and 99/99"* with **100** runewords live |
+
+Every one was written by someone who had just measured. The warning was already there and already
+believed; what was missing is the thing that **fails**. So: `tv/comment_count_gate.py`, registered in
+`run_gates.py`, 60s cap.
+
+### What it deliberately does NOT check — most of the design
+Numbers near the same words are usually **different quantities, all correct at once**. Measured on
+this file: `108` = set pieces in his found ledger · `110` = the same in the 346-key `d2r_foundLog` ·
+`127` = union members that are set-piece names · `135` = the roster total. Likewise *"~300 rows × 14
+bosses ≈ 50k DOM nodes"* is an explicitly approximate perf note, and *"the Shako drops from 11
+bosses"* counts drop sources. **A gate that flagged those would be wrong four times and get switched
+off** — which is exactly how a red signal becomes furniture.
+
+So it checks only claims that name their subject unambiguously, against a value parsed from the same
+file, where the author plainly intended the pair to be equal. Three today: the runeword denominator,
+`ITEM_VALUE` keys, `_UNI_EXTRA` keys. It also fails loudly if it cannot MEASURE a value — a parser
+that missed its literal is a broken gate, not a passing one.
+
+### Calibrated on real data, in both directions
+Run before the fix it went **red on the live defect without being told where to look**; run after,
+green with 3 claims matching. The runeword denominator is DISTINCT words, not entries — `Spirit
+(sword)` and `Spirit (shield)` are one runeword in two bases, so 101 entries are 100 words, and 100
+is what the user-facing `N/N` means.
+
+**Also fixed here:** the `99/99` claim itself → `100/100`.

@@ -74,6 +74,8 @@ class Gate:
 GATES = [
     Gate("js-syntax",   [sys.executable, os.path.join(HERE, "js_syntax_gate.py")], 300,
          why="every surface must PARSE — a bad edit blanks a 37k-line page"),
+    Gate("comment-count", [sys.executable, os.path.join(HERE, "comment_count_gate.py")], 60,
+         why="a count in a comment is a number nobody re-measures — five drifted in one day"),
     Gate("visual-lock", [sys.executable, os.path.join(REPO, "visual_lock_invariant.py")], 120,
          why="the locked type system may not drift"),
     Gate("test_control", [sys.executable, os.path.join(HERE, "test_control.py")], 900,
