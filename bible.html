@@ -20463,7 +20463,27 @@ function toggleOwned(name) {
     wasOwned = _gFound(name);
     try {
       const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
-      if (wasOwned){ delete fl[name]; if (owned.has(name)){ owned.delete(name); persist(); } }   // un-tick also clears any legacy vault entry
+      if (wasOwned){ delete fl[name]; if (owned.has(name)){ owned.delete(name); persist(); }
+        /* v1964 — RETRACT THE GAME-FOUND DATE HERE TOO. v1891 taught _forgeUndo that an un-tick must
+           delete d2r_gameFound, because "the reason he un-ticks is usually that the READ WAS WRONG, so
+           the date belongs to a different item entirely. Left behind, it re-attaches itself the moment
+           he ticks that name by hand later." v1963 taught the automatic repair the same thing.
+
+           FOUR DOORS LEAD TO THAT RETRACTION AND ONLY TWO KNEW IT. Measured: un-ticking through
+           toggleOwned (a unique) deletes the ledger row and leaves the date standing — and these are the doors he actually
+           clicks, while _forgeUndo is only the Forge's undo bar. A rule implemented at half its entrances
+           is a rule that holds until he uses the other half. [[the-unjoined-end]]
+
+           ⚠ NO REDO HERE, AND THAT IS A REAL DIFFERENCE FROM _forgeUndo, not an oversight. The Forge's
+           undo bar stashes the date in _FORGE_REDO so a redo puts it back unchanged; a plain toggle has
+           no redo, so an accidental un-tick loses a legitimate date with no recovery. v1891 already
+           accepted that cost in principle — "if he genuinely found it, the next read re-establishes it" —
+           and consistency across the doors is the whole point of this change. Recorded so the asymmetry
+           is a known trade-off rather than a surprise. */
+        try { var _gfU = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
+              if (Object.prototype.hasOwnProperty.call(_gfU, name)){ delete _gfU[name];
+                window.LSR.setItem('d2r_gameFound', JSON.stringify(_gfU)); } } catch(e){}
+      }   // un-tick also clears any legacy vault entry
       else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
       window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
       _gFoundDirty();
@@ -21550,7 +21570,27 @@ function renderSetTracker() {
 function toggleSetPiece(piece) {
   // v644 — set pieces chronicle into the same found ledger
   try { const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
-    if (setPieces.has(piece)) delete fl[piece]; else fl[piece] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+    if (setPieces.has(piece)){ delete fl[piece];
+      /* v1964 — RETRACT THE GAME-FOUND DATE HERE TOO. v1891 taught _forgeUndo that an un-tick must
+         delete d2r_gameFound, because "the reason he un-ticks is usually that the READ WAS WRONG, so
+         the date belongs to a different item entirely. Left behind, it re-attaches itself the moment
+         he ticks that name by hand later." v1963 taught the automatic repair the same thing.
+
+         FOUR DOORS LEAD TO THAT RETRACTION AND ONLY TWO KNEW IT. Measured: un-ticking through
+         toggleSetPiece (a set piece) deletes the ledger row and leaves the date standing — and these are the doors he actually
+         clicks, while _forgeUndo is only the Forge's undo bar. A rule implemented at half its entrances
+         is a rule that holds until he uses the other half. [[the-unjoined-end]]
+
+         ⚠ NO REDO HERE, AND THAT IS A REAL DIFFERENCE FROM _forgeUndo, not an oversight. The Forge's
+         undo bar stashes the date in _FORGE_REDO so a redo puts it back unchanged; a plain toggle has
+         no redo, so an accidental un-tick loses a legitimate date with no recovery. v1891 already
+         accepted that cost in principle — "if he genuinely found it, the next read re-establishes it" —
+         and consistency across the doors is the whole point of this change. Recorded so the asymmetry
+         is a known trade-off rather than a surprise. */
+      try { var _gfP = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
+            if (Object.prototype.hasOwnProperty.call(_gfP, piece)){ delete _gfP[piece];
+              window.LSR.setItem('d2r_gameFound', JSON.stringify(_gfP)); } } catch(e){}
+    } else fl[piece] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
     window.LSR.setItem('d2r_foundLog', JSON.stringify(fl)); } catch(e){}
   // v682 — a seeded piece un-tick is USER TRUTH: record it so the boot floor never re-asserts it
   // v684 — MAC-ladder must NOT write this: d2r_grailUnfound isn't ladder-forked, so a ladder un-tick
@@ -39542,6 +39582,30 @@ function renderJournal(){
       try { gu = JSON.parse(window.LSR.getItem('d2r_setRepairRemoved') || '{}') || {}; } catch(e){}
       out.removed.forEach(function(r){ gu[r.name] = 1; });
       window.LSR.setItem('d2r_setRepairRemoved', JSON.stringify(gu));
+      /* v1963 — AND RETRACT THE GAME-FOUND DATE, because v1891 closed this joint on ONE door only.
+         An UNDO already deletes d2r_gameFound (see _forgeUndo), and its comment says why in words
+         that describe this path exactly: "The reason he un-ticks is usually that the READ WAS
+         WRONG, so the date belongs to a different item entirely. Left behind, it re-attaches
+         itself the moment he ticks that name by hand later … a claim sourced from a read he threw
+         away."
+
+         The REPAIR is the same retraction reached automatically instead of by hand — the game's
+         Remaining filter saying he does not have this — and it left the date sitting there. Found
+         live on his board: `Natalya's Soul (claws)` is in d2r_setRepairRemoved AND still carries
+         `05/27/2026, 01:02 · The Cow King · n=6`. Ticking it by hand would print that dropper on
+         the chip as corroboration, when it is the very reading the repair rejected. Two records
+         that look like agreement and are one read counted twice.
+
+         Retracted, never inverted: if he genuinely found it, the next read re-establishes the date,
+         exactly as _forgeUndo's comment promises. [[the-unjoined-end]] [[feedback-contradiction-is-the-finding]] */
+      try {
+        var _gfR = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
+        var _gfCh = false;
+        out.removed.forEach(function(r){
+          if (Object.prototype.hasOwnProperty.call(_gfR, r.name)){ delete _gfR[r.name]; _gfCh = true; }
+        });
+        if (_gfCh) window.LSR.setItem('d2r_gameFound', JSON.stringify(_gfR));
+      } catch(e){}
       /* stamp the reading this repair acted on, so it cannot act on it twice */
       if (readAt) window.LSR.setItem('d2r_setRepairAt', readAt);
     } catch(e){ out.ok = false; out.why = String(e && e.message || e); return out; }
@@ -43362,7 +43426,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1962', name:'v1962 - a test seam born inside a branch', date:'2026-08-22', note:'window._chFrameHref only existed when the ledger had rows, so CI booted an empty ledger and the guard could not run' };
+  window.D2R_BUILD = { id:'v1963', name:'v1963 - the repair rejected a read and kept its date', date:'2026-08-22', note:'a piece removed by the repair kept its game-found dropper, so re-ticking it printed the rejected read back as corroboration' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

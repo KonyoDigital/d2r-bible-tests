@@ -187,6 +187,46 @@ test('★★★ the ledger frame link resolves all three frameId shapes', async 
   r.out.forEach((h) => expect(h, 'no doubled extension').not.toMatch(/\.jpg\.jpg$/i));
 });
 
+test('★★★ the repair retracts the game-found date it just rejected', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForTimeout(1600);
+
+  /* v1963 — v1891 closed this joint on ONE door. `_forgeUndo` (his manual un-tick) deletes
+     d2r_gameFound, and its comment says why in words that describe the REPAIR path exactly:
+     "The reason he un-ticks is usually that the READ WAS WRONG, so the date belongs to a different
+     item entirely. Left behind, it re-attaches itself the moment he ticks that name by hand later
+     … a claim sourced from a read he threw away."
+
+     The repair is that same retraction reached automatically — the game's Remaining filter saying
+     he does not have the piece — and it left the date behind. FOUND LIVE on his board:
+     `Natalya's Soul (claws)` sits in d2r_setRepairRemoved AND still carries
+     "05/27/2026, 01:02 · The Cow King · n=6". Ticking it by hand would print that dropper on the
+     chip as corroboration, when it is the very reading the repair rejected — two records that look
+     like agreement and are one read counted twice.
+
+     SEEN RED: against the pre-v1963 file this test's final assertion fails (the date survives). */
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const piece = "Natalya's Soul (claws)";
+    const sp = JSON.parse(localStorage.getItem('d2r_setPieces') || '[]');
+    if (sp.indexOf(piece) < 0) { sp.push(piece); localStorage.setItem('d2r_setPieces', JSON.stringify(sp)); }
+    const gf = JSON.parse(localStorage.getItem('d2r_gameFound') || '{}');
+    gf[piece] = { at: '05/27/2026, 01:02', by: 'The Cow King', n: 6 };
+    localStorage.setItem('d2r_gameFound', JSON.stringify(gf));
+    localStorage.removeItem('d2r_setRepairAt');
+    let out: any = null;
+    try { out = w._chRepairLedgers({ missing: {}, readAt: String(Date.now()) }); } catch (e) { return { threw: String(e) }; }
+    const gf2 = JSON.parse(localStorage.getItem('d2r_gameFound') || '{}');
+    const rm = JSON.parse(localStorage.getItem('d2r_setRepairRemoved') || '{}');
+    return { removed: (out && out.removed || []).length, recorded: !!rm[piece], dateSurvived: !!gf2[piece] };
+  });
+
+  expect(r.threw, 'the repair must not throw').toBeUndefined();
+  expect(r.removed, 'the repair should have removed the planted piece').toBeGreaterThan(0);
+  expect(r.recorded, 'the removal must be recorded in d2r_setRepairRemoved').toBe(true);
+  expect(r.dateSurvived, 'a rejected read must not leave its First Found date behind').toBe(false);
+});
+
 test('★★ an OCR slip is filed as the item it is a misread of, and says so', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);

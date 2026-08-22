@@ -9513,3 +9513,73 @@ on data left behind by an earlier measurement.
 CI on none of them. The pre-push gate runs a SUBSET; Routine I runs the whole suite. Two red ships
 sat unnoticed for over an hour while I audited seven other territories and reported them clean.
 [[sweep-dont-ask]] says it in one line: *"Read CI. It is not optional and it is not later."*
+
+---
+
+## REG-314 — the repair rejected a read and kept its date (v1963)
+
+v1891 closed this joint on ONE door. `_forgeUndo` — his manual un-tick — deletes `d2r_gameFound`,
+and its own comment says why, in words that describe the OTHER door exactly:
+
+> "The reason he un-ticks is usually that the READ WAS WRONG, so the date belongs to a different item
+> entirely. Left behind, it re-attaches itself the moment he ticks that name by hand later, and v1871
+> prints it on the chip: '⚔ found in game Jul 18, 2026 · Andariel' — **a claim sourced from a read he
+> threw away**."
+
+`_chRepairLedgers` is that same retraction reached automatically instead of by hand — the game's
+Remaining filter saying he does not have the piece. It deletes from `setPieces`, records
+`d2r_setRepairRemoved`, and **never touches `d2r_gameFound`**.
+
+**FOUND LIVE ON HIS BOARD.** `Natalya's Soul (claws)` sits in `d2r_setRepairRemoved` AND still
+carries `05/27/2026, 01:02 · The Cow King · n=6`. Tick it by hand and the chip prints that dropper
+as corroboration — when it is the very reading the repair rejected.
+
+⚠ **AND IT NEARLY COST HIM A WRONG DECISION.** I first read those two records as INDEPENDENT and
+disagreeing — a bare "appeared on the Remaining list" against a specific date + named dropper + kill
+count — and told him the specific one looked stronger, which would have made `Natalya's Odium` a
+second complete set at 22. They are not independent. They are **one read counted twice**: the repair
+rejected the reading and left its date standing, so the "corroboration" was the rejected claim
+wearing a second hat. [[feedback-contradiction-is-the-finding]] — a contradiction is only a finding
+when the two sides are genuinely independent sources.
+
+Fixed by retracting the date for every piece the repair removes, mirroring `_forgeUndo` exactly.
+Never inverted: if he genuinely found it, the next read re-establishes the date — the same promise
+`_forgeUndo`'s comment makes.
+
+Verified red-then-green on the same planted state: pre-v1963 the repair removes the piece and the
+date SURVIVES; post-v1963 it removes the piece and the date is gone, with `removed: 1` both times so
+the repair's own behaviour is unchanged. Guard: an eighth test in
+`tests/v1958_apostrophe_and_misread_routing.spec.ts`.
+
+---
+
+## REG-315 — the same retraction, at the two doors he actually clicks (v1964)
+
+REG-314 fixed the automatic repair. This is the census that should have come with it.
+
+Retracting a rejected read's First Found date has **four doors**, and v1891 taught exactly one:
+
+| door | reached by | retracts `d2r_gameFound`? |
+|---|---|---|
+| `_forgeUndo` | the Forge's undo bar | ✅ v1891 |
+| `_chRepairLedgers` | the automatic repair | ✅ v1963 |
+| `toggleSetPiece` | **clicking a set piece** (`grailTogglePiece` delegates here) | ❌ → fixed here |
+| `toggleOwned` | **clicking a unique** (`grailFoundUni` delegates here) | ❌ → fixed here |
+
+Measured before fixing: un-ticking through either toggle deletes the ledger row and leaves the date
+standing. Those are the doors he uses; `_forgeUndo` is only the Forge's undo bar. **A rule
+implemented at half its entrances is a rule that holds until he uses the other half.**
+
+⚠ `vaultUnown` is deliberately NOT in this list. It removes an item from the physical vault, which
+under the v677 split is not a retraction of a FIND — he still found it, he simply no longer has it
+stashed. Clearing the date there would be wrong, and the census exists partly to say so.
+
+⚠ **NO REDO AT THESE DOORS, and that is a real difference rather than an oversight.** `_forgeUndo`
+stashes the date in `_FORGE_REDO` so a redo restores it unchanged; a plain toggle has no redo, so an
+accidental un-tick loses a legitimate date with no recovery. v1891 already accepted that cost in
+principle — *"if he genuinely found it, the next read re-establishes it"* — and consistency across
+the doors is the point of this change. Recorded so the asymmetry is a known trade-off.
+
+Verified in BOTH directions at both doors: un-tick retracts the date; **tick still writes the ledger
+row with a proper stamp** (the `if/else` in `toggleSetPiece` was restructured, so that regression was
+the one worth checking), and the uniques toggle round-trips `false → true → false` cleanly.
