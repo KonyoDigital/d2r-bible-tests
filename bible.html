@@ -5113,7 +5113,9 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <span class="collapse-chevron">▾</span>
     </div>
     <div class="boss-body">
-      <div class="vault-toolbar">
+      <!-- v1984 — what the lock is holding, shown next to the button that skips them. -->
+<div id="vault-lane-locks" class="vault-lane-locks" hidden></div>
+<div class="vault-toolbar">
         <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoAssign()">⚖️ Auto-assign unsorted</button>
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
@@ -31574,6 +31576,20 @@ body{
 .vault-registered{margin:0 0 14px;width:100%}
 /* v366 — dedicated Throw-Out Review gallery: screenshot-synced cards for discarded reads */
 .vault-throwout{margin:0 0 14px;width:100%}
+/* v1984 — the lane-lock panel. Deliberately quiet: it is a record of HIS decisions, not an alert. */
+.vault-lane-locks{margin:0 0 12px;padding:9px 12px;border:1px solid var(--border-light);border-radius:10px;background:rgba(255,255,255,.02)}
+.vll-h{font-weight:var(--fw-medium);font-size:var(--fs-micro);letter-spacing:.03em}
+.vll-sub{color:var(--text-dim,#756657);font-size:var(--fs-micro);margin:2px 0 8px}
+.vll-list{display:flex;flex-direction:column;gap:5px}
+.vll-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:var(--fs-micro)}
+.vll-nm{color:var(--q-unique);font-weight:var(--fw-medium)}
+.vll-where{color:var(--text-muted,#b5a48a)}
+.vll-mule{color:var(--text-dim,#756657)}
+.vll-seen{color:var(--text-dim,#756657);margin-left:auto}
+.vll-locked{color:#8fd98f}
+.vll-watching{color:var(--text-muted,#b5a48a)}
+.vll-x{background:none;border:1px solid var(--border-light);border-radius:999px;color:var(--text-dim,#756657);font-size:var(--fs-micro);padding:2px 9px;cursor:pointer}
+.vll-x:hover{color:var(--text,#f4e8d0);border-color:var(--text-muted,#b5a48a)}
 .to-det{border:1px solid rgba(212,168,71,.22);border-radius:12px;background:rgba(154,166,178,.05);overflow:hidden}
 /* v610 — FLAGSHIP section headers (Konyo: "i want to understand that it's a section… flagship it").
    The review headers become ENGRAVED DIVIDER PLATES: ringed emblem medallion · Cinzel gold-gradient
@@ -34412,22 +34428,105 @@ window._laneLockAll = _laneLockAll;
 /* The lanes that mean "this is where it lives, leave it". `stash` is deliberately NOT one of them —
    a stash item is exactly what the vault manager exists to file. */
 var _LOCKED_LANES = { equipment: 1, inventory: 1 };
-window._laneLockNote = function(name, lane){
+window._laneLockNote = function(name, lane, sessions){
   var nm = String(name || '').trim();
   var ln = String(lane || '').trim().toLowerCase();
   if (!nm || !_LOCKED_LANES[ln]) return false;
   var all = _laneLockAll();
-  var row = all[nm] || { lane: ln, seen: 0, firstTs: Date.now() };
-  row.lane = ln; row.seen = (row.seen || 0) + 1; row.lastTs = Date.now();
+  var row = all[nm] || { lane: ln, sessions: [], firstTs: Date.now() };
+  row.lane = ln; row.lastTs = Date.now();
+  /* WITNESSES ARE DISTINCT SESSION IDS — the same law vault_retro states for grounding: "two
+     still-runs inside one reel are ONE witness". Counting sightings instead would let a single
+     scroll past his belt lock an item three times over, which is the accuracy he asked for. */
+  var seen = {};
+  (row.sessions || []).forEach(function(s){ if (s) seen[s] = 1; });
+  var incoming = [];
+  if (Array.isArray(sessions)) incoming = sessions;
+  else if (sessions) incoming = [sessions];
+  incoming.forEach(function(s){ s = String(s || '').trim(); if (s) seen[s] = 1; });
+  row.sessions = Object.keys(seen);
   all[nm] = row;
   try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_LANE_LOCK_KEY, JSON.stringify(all)); } catch(e){}
+  try { window.renderLaneLocks && window.renderLaneLocks(); } catch(e){}
   return true;
+};
+/* v1985 — THREE SEPARATE SESSIONS, HIS RULING. v1983 locked on FIRST sight, reasoning that a wrong
+   lock is cheaper than telling him to move gear. He overruled it: "still needs the three witnesses i
+   want accuracy here i dont want it wrongly doing it". He is right, and the reason is better than
+   mine — a lock that fires on one glimpse is not protection, it is noise that makes the panel
+   untrustworthy, and an untrusted lock gets ignored exactly when it matters. PROJECT_VAULT_MANAGER.md
+   already said 3+ across separate sessions; I had substituted my own bar for his written one.
+
+   Below the bar the row is still RECORDED and shown as pending, so he can watch it build and nothing
+   is silently discarded — an unmet threshold must never look like an absence. */
+var LANE_LOCK_MIN_SESSIONS = 3;
+window.LANE_LOCK_MIN_SESSIONS = LANE_LOCK_MIN_SESSIONS;
+window._laneLockSessions = function(name){
+  var r = _laneLockAll()[String(name || '').trim()];
+  return (r && r.sessions && r.sessions.length) || 0;
 };
 window._laneLocked = function(name){
   var r = _laneLockAll()[String(name || '').trim()];
-  return r ? r.lane : '';
+  if (!r) return '';
+  /* THE BAR IS THE POINT. Under three distinct sessions this returns '' — the item is watched, not
+     locked, and auto-assign may still file it. Returning the lane early would be the eager behaviour
+     he overruled. */
+  var n = (r.sessions && r.sessions.length) || 0;
+  return (n >= LANE_LOCK_MIN_SESSIONS) ? r.lane : '';
 };
 /* A lock he can undo — a protection with no release is a trap, and he may re-file gear himself. */
+/* v1984 — RENDER WHERE IT LIVES. Konyo: "should render it based on the character/mule that its
+   currently on. so it doesnt need to automate it it just needs to understand it that its our
+   decision and if its there there a reason for it."
+
+   So this SHOWS and never acts. It lists what the lock is holding, with the lane it was last read
+   in and the mule it is filed to, so a skipped item is a visible decision rather than an absence.
+
+   ⚠ WHAT IT CANNOT SAY, AND DOES NOT PRETEND TO. The in-game CHARACTER name is not captured
+   anywhere in this pipeline — measured: charName/char_name appears ZERO times in vault_retro.py,
+   control_app.py and tv_diablo.py, and no frame carries a character identity. So a row says the
+   LANE ("on your character" / "in your inventory") and, when he has filed one, the MULE. It never
+   guesses a character. That gap is real and is named in PROJECT_VAULT_MANAGER.md as unbuilt;
+   printing a name the film never read would be exactly the fabrication this board audits out.
+   [[unknown-stays-unknown]] */
+window.renderLaneLocks = function(){
+  var el = document.getElementById('vault-lane-locks');
+  if (!el) return;
+  var all = {};
+  try { all = window._laneLockAll ? window._laneLockAll() : {}; } catch(e){ all = {}; }
+  var names = Object.keys(all).sort(function(a,b){ return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+  if (!names.length){ el.hidden = true; el.innerHTML = ''; return; }
+  var esc = function(x){ return String(x == null ? '' : x)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var WHERE = { equipment: 'on your character', inventory: 'in your inventory' };
+  var MINS = window.LANE_LOCK_MIN_SESSIONS || 3;
+  var H = '<div class="vll-h">🔒 Locked where they are — never suggested for a mule</div>'
+        + '<div class="vll-sub">You put these here. The board records it and leaves them alone. '
+        + 'A lock needs ' + MINS + ' separate sessions; below that it is only WATCHING, and the item '
+        + 'can still be filed.</div>';
+  H += '<div class="vll-list">';
+  names.forEach(function(n){
+    var r = all[n] || {};
+    var _n = (r.sessions && r.sessions.length) || 0;
+    var mule = '';
+    try { var a = (typeof assign !== 'undefined') ? assign[n] : null;
+          var m = a && window.muleById && window.muleById(a);
+          mule = (m && (m.name || m.id)) || (a || ''); } catch(e){ mule = ''; }
+    H += '<div class="vll-row">'
+       + '<span class="vll-nm">' + esc(n) + '</span>'
+       + '<span class="vll-where">' + esc(WHERE[r.lane] || r.lane || 'locked') + '</span>'
+       + (mule ? '<span class="vll-mule">filed: ' + esc(mule) + '</span>' : '')
+       + '<span class="vll-seen' + (_n >= MINS ? ' vll-locked' : ' vll-watching') + '">'
+       + (_n >= MINS ? ('🔒 locked · ' + _n + ' sessions')
+                     : ('👁 watching · ' + _n + '/' + MINS + ' sessions')) + '</span>'
+       + '<button type="button" class="vll-x" title="Release this lock — it becomes mulable again"'
+       + ' onclick="window._laneLockRelease(' + JSON.stringify(n).replace(/"/g,'&quot;')
+       + ');window.renderLaneLocks&&window.renderLaneLocks()">release</button>'
+       + '</div>';
+  });
+  H += '</div>';
+  el.innerHTML = H; el.hidden = false;
+};
 window._laneLockRelease = function(name){
   var all = _laneLockAll(); var nm = String(name || '').trim();
   if (!all[nm]) return false;
@@ -42627,7 +42726,19 @@ window._renderStashFresh = function(){
            equipment or inventory row locks that name, so auto-assign will not later tell him to
            move gear off his character. Noted for EVERY kind, before any branch returns — a rune
            on his belt is still on his belt. */
-        try { window._laneLockNote && window._laneLockNote(nm, it.lane); } catch(e){}
+        try {
+          /* the row's witnesses ARE its sessions — vault_retro builds them as
+             {"session","frame","lane","conf"}. Passing them raw keeps the distinct-session count
+             honest: three sightings inside one reel stay ONE witness. */
+          var _ws = (it && it.witnesses) || [];
+          var _sids = [];
+          for (var _i = 0; _i < _ws.length; _i++){
+            var _w = _ws[_i];
+            var _s = _w && (_w.session || _w.reel || _w.sid);
+            if (_s) _sids.push(_s);
+          }
+          window._laneLockNote && window._laneLockNote(nm, it.lane, _sids);
+        } catch(e){}
         var kind = byKind[it.kind];
       if (!kind){                        // a grail item — not a tally
         /* v1918 — CARRY THE EVIDENCE ACROSS, DO NOT HAND OVER A BARE STRING. vault_retro builds a
@@ -43689,7 +43800,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1983', name:'v1983 - the lane lock', date:'2026-08-22', note:'equipment and inventory items are locked where they live and never suggested for a mule - the sweep always carried the lane, the board discarded it' };
+  window.D2R_BUILD = { id:'v1984', name:'v1984 - three separate sessions, and show where it lives', date:'2026-08-22', note:'his ruling - a lane lock needs 3 distinct sessions, not one sighting, and the panel names the lane and mule but never invents a character' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

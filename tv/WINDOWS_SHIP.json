@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1983",
+  "ver": "v1984",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1983: equipment and inventory items are locked where they live and never suggested for a mule - the sweep always carried the lane, the board discarded it",
+  "note": "v1984: his ruling - a lane lock needs 3 distinct sessions, not one sighting, and the panel names the lane and mule but never invents a character",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

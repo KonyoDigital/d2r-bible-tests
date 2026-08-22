@@ -10349,3 +10349,44 @@ that stopped working.
 **Verified end to end:** `Harlequin Crest`(equipment)→locked, `Annihilus`(inventory)→locked,
 `Bonesnap`(stash)→**not** locked, release returns it to unlocked, and all three still register to
 grail — the lock records where a thing lives and never touches whether he found it.
+
+## REG-339 — the lane lock renders where it lives, and needs THREE separate sessions (v1984)
+
+Two changes on top of v1983, one of them a correction he made to my design.
+
+### He overruled my bar, and his reason was better than mine
+v1983 locked on **first sight**. My argument: a wrong lock is cheaper than telling him to move gear.
+His answer: *"still needs the three witnesses i want accuracy here i dont want it wrongly doing it"*.
+
+He is right, and the reason is stronger than my asymmetry argument: **a lock that fires on one glimpse
+is not protection, it is noise — and an untrusted panel gets ignored exactly when it matters.**
+`PROJECT_VAULT_MANAGER.md` already specified *3+ verified reads across separate sessions*; I had
+substituted my own bar for his written one.
+
+**Witnesses are DISTINCT SESSION IDS**, the same law `vault_retro` states for grounding — "two
+still-runs inside one reel are ONE witness". The row's `witnesses[].session` feed it, so three
+sightings in one reel do **not** lock anything. Verified:
+
+```
+read 1 (s_A) → 1 session   not locked
+read 2 (s_A) → 1 session   not locked      ← same reel counted once
+read 3 (s_B) → 2 sessions  not locked
+read 4 (s_C) → 3 sessions  LOCKED equipment
+```
+
+Below the bar the row is still recorded and shown as **👁 watching · n/3**, because an unmet threshold
+must never look like an absence.
+
+### It renders where the thing lives
+Konyo: *"should render it based on the character/mule that its currently on… it just needs to
+understand it that its our decision and if its there there a reason for it."*
+
+`renderLaneLocks()` lists each held name with its lane ("on your character" / "in your inventory"),
+the mule it is filed to when he has filed one, its session count, and a **release** button — a
+protection with no release is a trap.
+
+⚠ **What it cannot say, and does not pretend to.** The in-game CHARACTER name is captured nowhere in
+this pipeline — `charName`/`char_name` appears **zero** times in `vault_retro.py`, `control_app.py`
+and `tv_diablo.py`, and no frame carries a character identity. So a row states the LANE and the MULE
+and never guesses a character. That gap is named as unbuilt in `PROJECT_VAULT_MANAGER.md`; printing a
+name the film never read would be the fabrication this board exists to prevent.
