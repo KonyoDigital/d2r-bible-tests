@@ -170,5 +170,108 @@ class TestTheTitleWindowAdmitsSomething(unittest.TestCase):
                          "the lobby menu scores %.5f and must stay outside the window" % s)
 
 
+class TestV1995TheRoomBeforeTheNames(unittest.TestCase):
+    """v1995 — Konyo: "like a IROBOT cleaning my house it maps out my house and it doesnt necesarily
+    know whats there yet.. so same here i want it to like sort of understand the reverse of it and
+    see where we have room."
+
+    WHAT IS PROVEN ON HIS OWN FILM and what is not, stated separately because they are not the same
+    claim:
+
+      space_map      PROVEN. reel_s_1784984019250_95276, 94 of 153 frames held a readable panel and
+                     every one read 22/18. The map came out as his actual inventory:
+                         FFFFF.....
+                         FFFFF.....
+                         FFFFFF....
+                         FFFFFF....
+                     22 fixed squares in the top-left block (the cube / tome / charm cluster he
+                     named), 18 open floor, 0 churn.
+
+      motion_between UNPROVEN ON HIS FILM. Scanned every reel: not one shows the panel changing,
+      infer_transfer because none of them caught him actually stashing. That is missing FOOTAGE, not
+                     a broken detector, and it must never be reported as "works" — so these tests
+                     drive it on constructed grids, which proves the ARITHMETIC and nothing more.
+                     [[unknown-stays-unknown]]
+    """
+
+    @staticmethod
+    def _fake(grid_rows):
+        """'##..' -> [True,True,False,False]; '?' -> None (a cell the lattice could not call)."""
+        return [[True if c == '#' else None if c == '?' else False for c in r] for r in grid_rows]
+
+    def _patch(self, mapping):
+        """Point inventory_occupancy at constructed grids, keyed by path."""
+        import vault_corpus as vc
+        real = vc.inventory_occupancy
+
+        def fake(p, lat=None):
+            g = mapping.get(p)
+            if g is None:
+                return {"ok": False, "why": "not in fixture"}
+            occ = sum(1 for row in g for c in row if c is True)
+            free = sum(1 for row in g for c in row if c is False)
+            return {"ok": True, "occupied": occ, "free": free, "cells": occ + free, "grid": g}
+        vc.inventory_occupancy = fake
+        self.addCleanup(setattr, vc, "inventory_occupancy", real)
+        return vc
+
+    def test_a_single_frame_is_a_fixture_and_maps_nothing(self):
+        vc = self._patch({"a": self._fake(["##..", "....."])})
+        r = vc.space_map(["a"])
+        self.assertIsNone(r.get("ok"), "one frame must never be enough to call a square fixed")
+        self.assertIn("fixture", r.get("say", ""))
+
+    def test_fixed_open_and_churn_are_separated(self):
+        # square (0,0) always full = furniture; (0,3) always empty = floor; (0,1) flips = churn
+        vc = self._patch({
+            "a": self._fake(["##.."]), "b": self._fake(["#..."]),
+            "c": self._fake(["##.."]), "d": self._fake(["#..."]),
+        })
+        r = vc.space_map(["a", "b", "c", "d"])
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["mask"][0][0], "fixed")
+        self.assertEqual(r["mask"][0][1], "churn")
+        self.assertEqual(r["mask"][0][3], "open")
+
+    def test_motion_counts_squares_not_totals(self):
+        """The case a total-vs-total comparison CANNOT see: one item leaves, another arrives, and
+        the count is identical."""
+        vc = self._patch({"a": self._fake(["#..."]), "b": self._fake(["...#"])})
+        m = vc.motion_between(["a"], ["b"])
+        self.assertTrue(m["ok"])
+        self.assertEqual((m["left"], m["arrived"]), (1, 1),
+                         "a swap read as 'nothing happened' — this is why it is cell-level")
+
+    def test_a_balanced_transfer_is_named_and_an_unbalanced_one_is_not(self):
+        vc = self._patch({
+            "i0": self._fake(["###."]), "i1": self._fake(["#..."]),      # inventory: 2 left
+            "s0": self._fake(["#..."]), "s1": self._fake(["###."]),      # stash: 2 arrived
+            "s2": self._fake(["####"]),                                  # stash: 3 arrived
+        })
+        good = vc.infer_transfer(["i0"], ["i1"], ["s0"], ["s1"])
+        self.assertEqual(good["verdict"], "stashed")
+        self.assertEqual(good["moved"], 2)
+        self.assertTrue(good["balanced"])
+
+        # 2 out, 3 in — it must REFUSE to call that a clean transfer
+        bad = vc.infer_transfer(["i0"], ["i1"], ["s0"], ["s2"])
+        self.assertEqual(bad["verdict"], "partial")
+        self.assertFalse(bad["balanced"])
+        self.assertIn("do NOT balance", bad["say"])
+
+    def test_it_refuses_across_different_geometries(self):
+        """Cell (2,3) of a 4x10 grid is not cell (2,3) of a 4x9 grid."""
+        vc = self._patch({"a": self._fake(["####"]), "b": self._fake(["###"])})
+        m = vc.motion_between(["a"], ["b"])
+        self.assertIsNone(m.get("ok"))
+        self.assertIn("different grids", m.get("say", ""))
+
+    def test_an_unreadable_side_is_not_an_empty_one(self):
+        vc = self._patch({"a": self._fake(["####"])})
+        m = vc.motion_between(["a"], ["missing"])
+        self.assertIsNone(m.get("ok"))
+        self.assertIn("not 'nothing moved'", m.get("say", ""))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

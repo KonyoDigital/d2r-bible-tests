@@ -367,5 +367,174 @@ def inventory_reading(frame_paths):
                                             "averaged away" % sum(k for _, k in c[1:])))
     return out
 
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# v1995 — THE MAP BEFORE THE NAMES.  Konyo: "like a IROBOT cleaning my house it maps out my house
+# and it doesnt necesarily know whats there yet.. so same here i want it to like sort of understand
+# the reverse of it and see where we have room."
+#
+# Everything above answers "what is in this panel". These answer "what SHAPE is this panel", which
+# is a different and cheaper question, and it survives having no names at all.
+#
+# THE THREE KINDS OF CELL, and the distinction is his:
+#   FIXED    occupied in essentially every frame — the Horadric Cube, tomes, charms. His words:
+#            "the space that isnt locked for the items like hordaic cube and my other tombs and
+#            charms.. which again should render this and lock it accordingly like the equipment."
+#            Furniture, not loot. Nothing should ever suggest moving it.
+#   OPEN     free in essentially every frame — "the grey area that left is space to loot and play
+#            with for farming".
+#   CHURN    changes between frames — where loot actually flows. This is the interesting set and it
+#            is where a stash-from-inventory shows up.
+#
+# NOTHING HERE NAMES AN ITEM, EVER. It is arithmetic on a boolean grid. That is the point: it works
+# on exactly the frames the paid reader has to give up on, and it cannot fabricate.
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+
+_MAP_MIN_FRAMES = 3          # 1 frame is a fixture; 2 is a coincidence. His own witness rule.
+_STABLE_AT = 0.90            # occupied (or free) in >=90% of readable frames = not churn
+
+
+def _grids(frame_paths):
+    """Occupancy grids that agree on GEOMETRY. A lattice that fit differently describes a different
+    panel, and comparing cell (2,3) across two geometries compares two different squares."""
+    grids, refused, shapes = [], [], {}
+    for p in (frame_paths or []):
+        o = inventory_occupancy(p)
+        if not o.get("ok") or not o.get("grid"):
+            refused.append({"frame": p, "why": o.get("why") or "no grid"})
+            continue
+        g = o["grid"]
+        shape = (len(g), len(g[0]) if g else 0)
+        shapes[shape] = shapes.get(shape, 0) + 1
+        grids.append((p, g, shape))
+    if not grids:
+        return [], refused, None
+    # the modal geometry wins; the rest are refused rather than reshaped
+    best = sorted(shapes.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+    keep = [(p, g) for (p, g, sh) in grids if sh == best]
+    for (p, g, sh) in grids:
+        if sh != best:
+            refused.append({"frame": p, "why": "grid %sx%s, the run agreed on %sx%s" % (sh[0], sh[1], best[0], best[1])})
+    return keep, refused, best
+
+
+def space_map(frame_paths):
+    """The iRobot map of one panel: which squares are furniture, which are open floor, which churn.
+
+    Returns {ok, rows, cols, fixed, open, churn, frames, refused, mask} where `mask` is a grid of
+    'fixed' | 'open' | 'churn' | None, so a renderer can draw the room without knowing a single item
+    name.
+    """
+    keep, refused, shape = _grids(frame_paths)
+    if len(keep) < _MAP_MIN_FRAMES:
+        return {"ok": None, "frames": len(keep), "refused": refused,
+                "say": "%d readable frame(s) — need %d before calling any square fixed. One frame "
+                       "is a fixture." % (len(keep), _MAP_MIN_FRAMES)}
+    rows, cols = shape
+    n = len(keep)
+    fixed = open_ = churn = 0
+    mask = []
+    for i in range(rows):
+        line = []
+        for j in range(cols):
+            vals = [g[i][j] for (_p, g) in keep if g[i][j] is not None]
+            if not vals:
+                line.append(None)
+                continue
+            share = sum(1 for v in vals if v) / float(len(vals))
+            if share >= _STABLE_AT:
+                line.append("fixed"); fixed += 1
+            elif share <= (1.0 - _STABLE_AT):
+                line.append("open"); open_ += 1
+            else:
+                line.append("churn"); churn += 1
+        mask.append(line)
+    return {"ok": True, "rows": rows, "cols": cols, "frames": n, "refused": refused,
+            "fixed": fixed, "open": open_, "churn": churn, "mask": mask,
+            "say": "%d square(s) never move (cube / tomes / charms — treat them like equipment), "
+                   "%d are open floor, %d churn (that is where loot lands)" % (fixed, open_, churn)}
+
+
+def motion_between(before_paths, after_paths):
+    """Did things LEAVE this panel, or arrive in it? Counts only — never which item.
+
+    Cell-level, so it is far stronger than comparing two totals: a frame where one item left and
+    another arrived has an unchanged total and a very obvious cell delta.
+    """
+    a, ra, sa = _grids(before_paths)
+    b, rb, sb = _grids(after_paths)
+    if not a or not b:
+        return {"ok": None, "say": "one side had no readable panel — that is not 'nothing moved'",
+                "refused": ra + rb}
+    if sa != sb:
+        return {"ok": None, "say": "the two sides fit different grids (%s vs %s) — refusing to "
+                                   "compare square to square" % (sa, sb), "refused": ra + rb}
+    rows, cols = sa
+
+    def _stable(grids):
+        """A square is only credited when the frames on that side AGREE about it."""
+        out = []
+        for i in range(rows):
+            line = []
+            for j in range(cols):
+                vals = [g[i][j] for (_p, g) in grids if g[i][j] is not None]
+                if not vals:
+                    line.append(None); continue
+                share = sum(1 for v in vals if v) / float(len(vals))
+                line.append(True if share >= _STABLE_AT else False if share <= 1 - _STABLE_AT else None)
+            out.append(line)
+        return out
+
+    A, B = _stable(a), _stable(b)
+    left = arrived = unchanged = unsure = 0
+    for i in range(rows):
+        for j in range(cols):
+            x, y = A[i][j], B[i][j]
+            if x is None or y is None:
+                unsure += 1
+            elif x and not y:
+                left += 1
+            elif y and not x:
+                arrived += 1
+            else:
+                unchanged += 1
+    return {"ok": True, "left": left, "arrived": arrived, "unchanged": unchanged, "unsure": unsure,
+            "framesBefore": len(a), "framesAfter": len(b), "refused": ra + rb,
+            "say": "%d square(s) emptied, %d filled, %d unchanged, %d could not be called"
+                   % (left, arrived, unchanged, unsure)}
+
+
+def infer_transfer(inv_before, inv_after, stash_before, stash_after):
+    """THE CROSS-REFERENCE HE ASKED FOR — "if two reels or a couple show this logic it should be
+    able to also as an extra layer of measurement and accuracy to cross reference between those
+    reels and understand alone that it moved from my inventory to my stash".
+
+    Two panels, two moments, and CONSERVATION is the check: if the inventory lost k squares and the
+    stash gained k, that is a stash-in and the two independent measurements agree. If they do not
+    balance, that is the finding — items also enter from the floor and leave to a vendor — and it
+    says so instead of picking the flattering reading. [[feedback-contradiction-is-the-finding]]
+    """
+    mi = motion_between(inv_before, inv_after)
+    ms = motion_between(stash_before, stash_after)
+    if not mi.get("ok") or not ms.get("ok"):
+        return {"ok": None, "inventory": mi, "stash": ms,
+                "say": "one panel could not be read on both sides — no transfer can be claimed"}
+    out_i, in_s = mi["left"], ms["arrived"]
+    moved = min(out_i, in_s)
+    balanced = (out_i == in_s) and moved > 0
+    if moved == 0:
+        verdict, say = "no-transfer", "nothing left the inventory and landed in the stash"
+    elif balanced:
+        verdict = "stashed"
+        say = ("%d item(s) moved INVENTORY -> STASH. Two independent panels agree exactly "
+               "(%d out, %d in), and no name was needed to know it." % (moved, out_i, in_s))
+    else:
+        verdict = "partial"
+        say = ("%d square(s) emptied in the inventory and %d filled in the stash — they do NOT "
+               "balance, so at least one item came from or went somewhere else (floor, vendor, "
+               "cube). Reported, not reconciled away." % (out_i, in_s))
+    return {"ok": True, "verdict": verdict, "moved": moved, "leftInventory": out_i,
+            "arrivedStash": in_s, "balanced": balanced, "inventory": mi, "stash": ms, "say": say}
+
+
 if __name__ == "__main__":
     sys.exit(main())

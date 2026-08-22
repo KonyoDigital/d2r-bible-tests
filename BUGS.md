@@ -10842,3 +10842,71 @@ Guarded by `TestV1994TheTwoLayersAreCompared`, including the boundary that matte
 (`occupied=0, named=0` is **agree**, not a permanent glimpse on an empty stash) and the join itself.
 **Sabotage-proven**: changing `n > occ` to `n >= occ` turns it red (2 failures); restoring makes it
 green.
+
+## REG-354 — the map before the names: the room, and what moved in it (v1995)
+
+Konyo: *"like a IROBOT cleaning my house it maps out my house and it doesnt necesarily know whats
+there yet.. so same here i want it to like sort of understand the reverse of it and see where we have
+room."* And the layer on top: *"if two reels or a couple show this logic it should be able to also as
+an extra layer of measurement and accuracy to cross reference between those reels and understand
+alone that it moved from my inventory to my stash."*
+
+Everything before this asks *what is in the panel*. This asks *what SHAPE is the panel*, which is a
+cheaper question and survives having no names at all. Three kinds of square, and the distinction is
+his:
+
+- **FIXED** — occupied in ≥90% of frames. *"the space that isnt locked for the items like hordaic
+  cube and my other tombs and charms.. which again should render this and lock it accordingly like
+  the equipment."* Furniture, not loot. Nothing should ever suggest moving it.
+- **OPEN** — free in ≥90%. *"the grey area that left is space to loot and play with for farming."*
+- **CHURN** — changes between frames. Where loot actually flows.
+
+**PROVEN ON HIS OWN FILM.** `reel_s_1784984019250_95276`, **94 of 153 frames** held a readable panel,
+every one reading 22/18, and the map came out as his actual inventory:
+```
+FFFFF.....     F = fixed (the cube / tome / charm cluster he named)
+FFFFF.....     . = open floor
+FFFFFF....     ~ = churn
+FFFFFF....
+```
+22 fixed in the top-left block, 18 open, 0 churn. **No model, no names, zero cost.**
+
+`motion_between` is **cell-level, not total-level**, which catches the case a count comparison cannot
+see at all: one item leaves and another arrives, and the total is identical. `infer_transfer` then
+cross-references two panels and uses **conservation** as the check — inventory loses k squares and
+the stash gains k → a stash-in, corroborated by two independent measurements and no name required.
+When they do NOT balance it says `partial` and reports both numbers, because items also arrive from
+the floor and leave to a vendor.
+
+### ⚠ THE HALF THAT IS NOT PROVEN, AND WHY IT MUST NOT BE REPORTED AS WORKING
+`motion_between` / `infer_transfer` are **UNPROVEN ON HIS FILM**. Every one of his 31 reels was
+scanned; **not one shows the panel changing**, because none captured him actually stashing. That is
+missing FOOTAGE, not a broken detector — and the two are indistinguishable unless someone says which
+it is. The tests therefore drive it on constructed grids, which proves the ARITHMETIC and nothing
+more. **To activate it: one reel that films the inventory, then the stash, with items moved between
+them.** [[unknown-stays-unknown]]
+
+Guards refuse the two ways this could quietly lie: a **single frame maps nothing** (one frame is a
+fixture — this project has already paid for believing one), and **two different lattice geometries
+are never compared square to square**, because cell (2,3) of a 4×10 grid is not cell (2,3) of a 4×9.
+
+### The guard that caught me mid-ship
+The v1994 push was **BLOCKED** by `TestRunnerIsLast`: I appended the new class *after*
+`unittest.main()`, where it can never run — the exact silent-zero-coverage defect that guard was
+written for in v1476, whose docstring says *"this session I appended a new test class after the
+runner anyway and the suite happily reported 267 OK with my test uncollected."* I did it again, in
+**both** files: `test_inventory_lattice.py` has its runner at line 173 and my six tests landed below
+it. Both hoisted; both now run (19 and 4).
+
+**And then a THIRD time in the same ship**, on `vault_corpus.py` — caught by
+`TestV1928NothingRunnableLivesBelowTheRunner`, which reported six definitions below the `__main__`
+guard at :370. That one is subtler than the test-class case: module-level defs below a runner guard
+*do* get defined on import, so every check I ran by hand passed. They are only dead when the module
+is run **as a script**, where `sys.exit(main())` fires first — so `python3 vault_corpus.py` would
+have had `main()` running without them.
+
+**THE COMMON CAUSE IS MINE, NOT THE CODE'S: I keep reaching for `cat >> file.py`.** Appending is
+correct for `BUGS.md` and wrong for any Python file that ends in a runner block, which is most of
+them here. Three guards caught three instances in one night and none of them was caught by reading —
+each looked right, imported fine, and passed the tests I chose to run. Append to prose; **insert**
+into code.

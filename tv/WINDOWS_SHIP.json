@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1994",
+  "ver": "v1995",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1994: the free cell count and the paid name list describe the same panel and nothing compared them - a read that names more items than the panel holds is now flagged",
+  "note": "v1995: which squares never move and which are open floor - and cell-level motion so a swap is not read as nothing happening",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
