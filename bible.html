@@ -33992,10 +33992,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     persistOwned(); renderVault();
     status('🗑 "'+name+'" dismissed');
   };
+  /* v1948 — AN AUTOMATIC PLACEMENT MUST LEAVE ITS REASON BEHIND.
+     Konyo: "i want it to visually render the backend through the ledger visually so we can visually
+     surgically fix anything needed future wise" — and, earlier, about a charm on a mule he did not
+     recognise: "from what picture is this here?".
+
+     suggestMule() has ALWAYS answered that. It returns {id, why} and the why is already a sentence a
+     person can act on. This function used `sg.id` and discarded `sg.why`, so every automatic
+     placement was unexplainable by construction. Now each one writes a ledger row — which v1946
+     already renders with a click-through to the frame — so "why is this here" is one click.
+
+     ⚠ AND A THROW-OUT IS A SUGGESTION, NEVER AN ACTION. suggestMule can answer {id:'__throwout'};
+     muleById() does not resolve it, so those items were skipped SILENTLY — he was never told the
+     board considered them junk. They are now recorded as a suggestion and still not acted on.
+     vaultAccumApply states the rule this obeys: "There is no un-throw in Diablo, and nothing here
+     may bin anything." */
   window.vaultAutoAssign = function(){
-    var n=0;
-    ownedPool().forEach(function(name){ if(!assign[name]){ var sg=suggestMule(name); if(sg && muleById(sg.id)){ assign[name]=sg.id; n++; } else if(sg && sg.id==='__keep'){ assign[name]='__keep'; n++; } } });   // v409 — __keep items (Anni/Torch/Gheed's) are "handled" (kept in inventory), not left nagging in the dock
-    saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s'));
+    var n=0, suggested=0;
+    function _log(name, status, sg){
+      try {
+        if (typeof window.kaiChronicleRecord === 'function')
+          window.kaiChronicleRecord({ name: name, status: status, store: 'assign', ledger: 'vault',
+                                      why: (sg && sg.why) || '', target: (sg && sg.id) || '',
+                                      source: 'auto-assign', _bump: true });
+      } catch(e){}
+    }
+    ownedPool().forEach(function(name){
+      if (assign[name]) return;
+      var sg = suggestMule(name);
+      if (!sg) return;
+      if (sg.id === '__throwout'){ suggested++; _log(name, 'throw-suggested', sg); return; }
+      if (muleById(sg.id)){ assign[name] = sg.id; n++; _log(name, 'muled', sg); }
+    });
+    saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s')+(suggested?(' · '+suggested+' suggested for throw-out (nothing binned)'):''));
   };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
   // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
@@ -42807,7 +42836,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1947', name:'v1947 - the seed baker', date:'2026-08-22', note:'A hand-baked seed is stale the moment he plays: the one built at 00:30 was already behind by a piece and seven finds by 03:00. tv/bake_seed.py rebuilds it from his real board, reports drift by default, and refuses four ways.' };
+  window.D2R_BUILD = { id:'v1948', name:'v1948 - the mule routing says why', date:'2026-08-22', note:'suggestMule has always returned an id and a reason. vaultAutoAssign used the id and discarded the reason, so an item on an unexpected mule had no story. It now writes a ledger row per placement, and a throw-out suggestion is surfaced instead of silently skipped.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43517,7 +43546,16 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
          A row that CHANGED his grail must not read quieter than one that confirmed it — the whole
          point of the split above is that changes are the loud half. [[the-unjoined-end]] */
       'removed':         ['⛔ taken out', '#f0a060'],
-      'refused':         ['⛔ kept out', '#f0a060']
+      'refused':         ['⛔ kept out', '#f0a060'],
+      /* v1948 — THE MULE ROUTING FINALLY SAYS WHY. suggestMule() has always returned {id, why} —
+         "major set: Tal Rasha", "low set piece — track for grail, discard: Sigon's" — and
+         vaultAutoAssign took the id and threw the why on the floor. So an item appearing on a mule
+         he did not expect (the charm, 2026-08-21) had no story anywhere. Same shape as v1945, where
+         the funnel POSTED guardHeld and the handler dropped it: the reason existed at the moment of
+         the decision and was never written down. Taught here FIRST, so no status can be written
+         that nothing renders. [[the-unjoined-end]] */
+      'muled':           ['⚖ filed to a mule', 'var(--best,#66ff88)'],
+      'throw-suggested': ['🗑 suggested throw-out', '#f0c060']
     };
     /* v1765 — A LOG WITH NO ORDER IS NOT A LOG. Measured across two loads of the same 17 rows:
        the sequence differed both times, and neither was alphabetical — the panel rendered whatever

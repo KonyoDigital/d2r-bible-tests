@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1947",
+  "ver": "v1948",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1947: A hand-baked seed is stale the moment he plays: the one built at 00:30 was already behind by a piece and seven finds by 03:00. tv/bake_seed.py rebuilds it from his real board, reports drift by default, and refuses four ways.",
+  "note": "v1948: suggestMule has always returned an id and a reason. vaultAutoAssign used the id and discarded the reason, so an item on an unexpected mule had no story. It now writes a ledger row per placement, and a throw-out suggestion is surfaced instead of silently skipped.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
