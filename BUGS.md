@@ -10543,3 +10543,42 @@ all**. And `chronicleApply`'s `vaulted` is not "put in the vault" — it is
 **"toggleOwned ran and this did not land in the grail."** So nothing on the film path puts a base
 into `owned`, which is why `ownedPool()` stays empty and `muled` stays 0. That is the precise
 statement of the open join, replacing the vaguer one in REG-343.
+
+## REG-345 — THE GLIMPSE: proving something is there without claiming to know what (v1989)
+
+Konyo: *"it can also like reverse engineer my inventory type of style for like items that it doesnt
+know what they are because we only have a GLIMPSE of it and view it but with NO TOOLTIP so there is
+no TEXT to read… so those items can be like shown to be missing or not found or told to need to
+verify."*
+
+A nameless read is **not an empty shelf**. D2R draws no names in a grid, so the reader is right to
+return `items: []` — but the CELLS are still measurable. `inventory_occupancy` separates them on
+brightness alone: an empty cell is uniformly near-black (mean 4.3, std 0.6–1.0); an occupied one is
+31–169 with std 20–78.
+
+**Measured on his own reels, not fixtures:**
+```
+reel_s_1784984019250_95276  f_1784984209709  grid 10×4  occupied=22 free=18
+                            f_1784984218860             occupied=22 free=18   ← three frames agree
+                            f_1784984236715             occupied=22 free=18
+reel_s_1787242455315_9654   f_1787242458369             occupied=33 free=7
+2 frames REFUSED honestly ("columns pitch pinned to the search bound")
+```
+
+So the sweep can now make the third statement the board had no word for: **not "found", not
+"nothing" — SEEN, UNNAMED, verify with a tooltip pass.** It never invents an item and never ticks a
+grail row.
+
+**It is free.** Pure local pixel work, no model turn, and it runs only on a frame that already passed
+the stash template gate and already cost a read — so it adds nothing to a frame that was never going
+to be read. This is the join Grok flagged: `inventory_lattice`/`inventory_occupancy` worked on his
+film and `vault_retro.sweep` called them **zero** times.
+
+### Two silent failures caught before shipping
+1. I called `_vault_corpus()` — **which did not exist** — inside a bare `except: pass`. It would have
+   thrown and done nothing, forever, looking wired. Added as a real accessor beside its twin
+   `_vault_retro()`, and proven: `_vault_corpus().inventory_occupancy(his frame)` → `22/18`.
+2. `_glimpsed` was never declared. Same outcome. Declared beside `_read_no_names`, the counter it
+   belongs with.
+
+Both are the muleById shape — a call into nothing, swallowed by a guard.

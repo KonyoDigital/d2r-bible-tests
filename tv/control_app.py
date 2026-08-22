@@ -10261,6 +10261,14 @@ def _vault_retro():
     return _vr
 
 
+def _vault_corpus():
+    """v1989 — the pixel side of the vault: lattice + occupancy. Same rule as its twin above — a
+    real import or nothing. It is asked ONLY when a read came back with no names, so a missing
+    module costs the glimpse and never the read."""
+    import vault_corpus as _vc
+    return _vc
+
+
 def _vault_swept_load():
     try:
         with open(_VAULT_SWEPT_PATH, encoding="utf-8") as fh:
@@ -10563,7 +10571,8 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # The tick stays INSIDE the lane so "classified" counts probes ATTEMPTED — a probe that
         # died is still money spent and still belongs in the count.
         _not_stash = [0]
-        _read_no_names = [0]     # read cleanly, and the panel prints no names to read
+        _read_no_names = [0]
+        _glimpsed = []   # v1989 — cells we can SEE are occupied on a frame whose read named nothing     # read cleanly, and the panel prints no names to read
         _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
 
         def _classify(p):
@@ -10649,6 +10658,44 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 # instead of offering him two possibilities, neither of them the true one.
                 if isinstance(_r, dict) and not _r.get("note") and not (_r.get("items") or []):
                     _read_no_names[0] += 1
+                    # ── v1989 — THE GLIMPSE. Konyo: "it can also like reverse engineer my inventory
+                    # type of style for like items that it doesnt know what they are because we only
+                    # have a GLIMPSE of it and view it but with NO TOOLTIP so there is no TEXT to
+                    # read... so those items can be like shown to be missing or not found or told to
+                    # need to verify."
+                    #
+                    # A nameless read is NOT an empty shelf. D2R draws no names in a grid, so the
+                    # reader is right to return items:[] — but the CELLS are still measurable.
+                    # inventory_occupancy separates them on brightness alone: an empty cell is
+                    # uniformly near-black (mean 4.3, std 0.6-1.0), an occupied one is 31-169 with
+                    # std 20-78. Measured on his own reels here: 22 occupied / 18 free on three
+                    # consecutive frames of reel_s_1784984019250_95276, and 33/7 on another.
+                    #
+                    # So we can prove SOMETHING IS THERE without claiming to know what it is. That
+                    # is the honest middle the board had no word for: not "found", not "nothing" —
+                    # SEEN, UNNAMED, needs a tooltip pass. It never invents an item and never ticks
+                    # a grail row. [[unknown-stays-unknown]]
+                    #
+                    # Free: pure local pixel work, no model turn. It runs only on a frame that
+                    # ALREADY passed the stash template gate and already cost a read, so it adds no
+                    # spend to a frame that was never going to be read.
+                    try:
+                        _vcorp = _vault_corpus()
+                        if _vcorp is not None:
+                            _lat = _vcorp.inventory_lattice(p)
+                            if _lat.get("ok"):
+                                _occ = _vcorp.inventory_occupancy(p, _lat)
+                                # a REFUSAL stays a refusal — lattice and occupancy both say no
+                                # often, and each no is a real failure seen on his film.
+                                if _occ.get("ok") and _occ.get("occupied"):
+                                    _glimpsed.append({
+                                        "frame": os.path.basename(p),
+                                        "surface": surface,
+                                        "occupied": _occ.get("occupied"),
+                                        "free": _occ.get("free"),
+                                    })
+                    except Exception:
+                        pass
                 return _r
             except Exception:
                 return {"note": "the reader failed on this page — not read"}
@@ -10674,6 +10721,24 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             print("   \U0001f441 %d panel(s) READ CLEANLY and held no readable name. D2R prints "
                   "no names in a stash grid — a name exists only in the HOVER tooltip. This is not "
                   "a failure and not an empty shelf; it is the footage." % _read_no_names[0])
+        # v1989 — AND SAY WHAT WE COULD STILL PROVE. The line above is honest but it stops at
+        # "no names", which reads like nothing was there. The cells say otherwise: occupancy
+        # separates an empty slot from a full one on brightness alone — no model turn, no guess
+        # about WHICH item. So the panel can make the third statement he asked for — SEEN,
+        # UNNAMED, verify with a tooltip pass — instead of leaving him to read a bare shelf.
+        if _glimpsed:
+            _tot = sum(int(g.get("occupied") or 0) for g in _glimpsed)
+            print("   \U0001f9e9 %d item(s) are VISIBLY THERE across %d panel(s) \u2014 occupied "
+                  "cells counted from the pixels, names unknown. Film those tabs once with the "
+                  "tooltip up and the same sweep will name them." % (_tot, len(_glimpsed)))
+            for _g in _glimpsed[:6]:
+                print("      \u00b7 %s %s \u2014 %s occupied / %s free"
+                      % (_g.get("surface") or "?", _g.get("frame") or "?",
+                         _g.get("occupied"), _g.get("free")))
+            try:
+                prop["glimpsed"] = _glimpsed
+            except Exception:
+                pass
         _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
         # remember ONLY the reels this run actually read — a reel that errored or was skipped stays
         # unread, or one bad run permanently hides footage from every future sweep.
@@ -12940,7 +13005,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1988",
+        "ver": "v1989",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

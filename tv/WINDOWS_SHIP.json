@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1988",
+  "ver": "v1989",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1988: vault reads get 600s, tally photographs keep 120s - and stash-exit already closes the vault read",
+  "note": "v1989: a nameless read is not an empty shelf - occupancy proves cells are filled without guessing what fills them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
