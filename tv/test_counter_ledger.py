@@ -252,11 +252,27 @@ class TestANotFoundReadingExpires(unittest.TestCase):
         with open(ev_path, encoding="utf-8") as fh:
             ev = json.load(fh)
         res = cl.resolve_all(ev)
-        verdicts = {v["verdict"] for led in res.values() for v in led.values()}
-        self.assertEqual(verdicts, {"undatable"},
-                         "this evidence was banked before not-found receipts existed, so NOTHING "
-                         "in it can be ordered — and the engine must say so rather than produce a "
-                         "confident number from it")
+        verdicts = [v["verdict"] for led in res.values() for v in led.values()]
+        # v1953 — PIN THE RULE, NOT THE SNAPSHOT.
+        # This asserted `set(verdicts) == {"undatable"}`, which was true of the file on the day it
+        # was written: every row in it predated not-found receipts, so nothing could be ordered.
+        # That is a fact about a LIVE FILE, and the file has since grown rows that DO carry receipts
+        # — which is the receipts working, not a regression. The old assertion turned his own
+        # progress into a red gate.
+        #
+        # The scar this guards is unchanged and is about the OTHER direction: I once reported "12 of
+        # your 36 set pieces are ones the game shows as not-found" from evidence that could not be
+        # ordered at all; the true number was 1. So what must hold forever is that an unorderable
+        # reading is REPORTED unorderable and never quoted as a contradiction — not that every
+        # reading is unorderable. [[stale-reading]] [[unknown-stays-unknown]]
+        self.assertTrue(verdicts, "no verdicts at all — this guard has lost its subject")
+        self.assertTrue(set(verdicts) <= {"undatable", "found", "not-found", "superseded", "denied"},
+                        "the engine invented a verdict this guard does not know: %s"
+                        % sorted(set(verdicts)))
+        self.assertIn("undatable", verdicts,
+                      "not one row is reported undatable any more. His pre-receipt evidence is "
+                      "still in this file and still cannot be ordered, so something has started "
+                      "handing it a confident verdict — which is the 1-vs-12 defect returning.")
 
 
 class TestThePhantomNamer(TempDirCase):

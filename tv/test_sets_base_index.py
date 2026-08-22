@@ -309,8 +309,23 @@ class TestEveryLedgerStatusHasAPill(unittest.TestCase):
         import re
         with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
             s = fh.read()
-        i = s.index("var PILL = {")
-        pills = set(re.findall(r"'([a-z\-]+)':\s*\[", s[i:i + 1400]))
+        # v1953 — ANCHOR ON THE MAP, AND BOUND BY ITS REAL END.
+        # Two ways this guard broke its own reach at once:
+        #   · v1949 hoisted the table out of renderInbox to window._CH_PILL_MAP so the new routing
+        #     ledger could share one vocabulary, and `s.index("var PILL = {")` then raised
+        #     ValueError — the guard ERRORED rather than failing, which reads as a broken test
+        #     rather than a broken join, and CI reported it on two ships before I looked;
+        #   · the 1400-character window was already a guess, and v1948/v1951/v1952 added five more
+        #     statuses. A byte count that happens to fit today silently stops covering the tail —
+        #     the same defect the vault-quote guard had, fixed there by bounding on the real end.
+        i = s.find("window._CH_PILL_MAP = {")
+        if i < 0:
+            i = s.index("var PILL = {")          # pre-v1949 shape, kept so this reads either
+        end = s.index("};", i)
+        pills = set(re.findall(r"'([a-z\-]+)':\s*\[", s[i:end]))
+        self.assertGreater(len(pills), 5,
+                           "the pill map scan found almost nothing (%d) — suspect the instrument "
+                           "before the code" % len(pills))
         # ⚠ SCOPE IT TO THE LEDGER'S OWN WRITER. A bare `status: '...'` grep pulled in farm, hunt,
         # idle, now, pipe and queued — other subsystems entirely, none of which this panel renders.
         # A guard that reaches past its subject reports six defects that are not there, and six
