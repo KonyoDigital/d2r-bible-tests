@@ -34385,7 +34385,58 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      board considered them junk. They are now recorded as a suggestion and still not acted on.
      vaultAccumApply states the rule this obeys: "There is no un-throw in Diablo, and nothing here
      may bin anything." */
-  window.vaultAutoAssign = function(){
+  /* v1983 — THE LANE LOCK. Konyo, PROJECT_VAULT_MANAGER.md, in capitals:
+   "inventory and main character equiment (SHOULD NEVER BE TOLD TO BE MOVED its locked there)".
+
+   Until now nothing enforced that, and nothing COULD: vault_retro carries
+   LANES = ("stash","inventory","equipment") on every row, and the board threw the lane away before
+   anything saw it. ownedPool() returns Array.from(owned) — bare NAMES — and suggestMule(name) takes
+   no lane at all, so an item on his character was indistinguishable from stash junk and got a mule
+   verdict like anything else. v1980 made vaultAutoAssign run after every sweep, which turned a
+   button he pressed into something that happens on its own — so the gap stopped being theoretical.
+
+   LOCKED ON FIRST SIGHT, not after the spec's "3+ verified reads". The two errors are not
+   symmetric: a wrong lock means an item is not auto-muled and he releases it in one call; no lock
+   means the board tells him to move gear off his character, which is the one thing he said in
+   capitals it must never do. Sightings are still counted so the 3+ state can be SHOWN, but they do
+   not gate the protection.
+
+   IT LOCKS, IT NEVER TICKS. This records where a thing lives; it makes no claim about owning or
+   finding it, and it never writes a grail row. [[unknown-stays-unknown]] */
+var _LANE_LOCK_KEY = 'd2r_laneLock';
+function _laneLockAll(){
+  try { return JSON.parse((window.LSR && window.LSR.getItem(_LANE_LOCK_KEY)) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+window._laneLockAll = _laneLockAll;
+/* The lanes that mean "this is where it lives, leave it". `stash` is deliberately NOT one of them —
+   a stash item is exactly what the vault manager exists to file. */
+var _LOCKED_LANES = { equipment: 1, inventory: 1 };
+window._laneLockNote = function(name, lane){
+  var nm = String(name || '').trim();
+  var ln = String(lane || '').trim().toLowerCase();
+  if (!nm || !_LOCKED_LANES[ln]) return false;
+  var all = _laneLockAll();
+  var row = all[nm] || { lane: ln, seen: 0, firstTs: Date.now() };
+  row.lane = ln; row.seen = (row.seen || 0) + 1; row.lastTs = Date.now();
+  all[nm] = row;
+  try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_LANE_LOCK_KEY, JSON.stringify(all)); } catch(e){}
+  return true;
+};
+window._laneLocked = function(name){
+  var r = _laneLockAll()[String(name || '').trim()];
+  return r ? r.lane : '';
+};
+/* A lock he can undo — a protection with no release is a trap, and he may re-file gear himself. */
+window._laneLockRelease = function(name){
+  var all = _laneLockAll(); var nm = String(name || '').trim();
+  if (!all[nm]) return false;
+  delete all[nm];
+  try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_LANE_LOCK_KEY, JSON.stringify(all)); } catch(e){}
+  return true;
+};
+
+window.vaultAutoAssign = function(){
     var n=0, suggested=0;
     function _log(name, status, sg){
       try {
@@ -34397,6 +34448,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     ownedPool().forEach(function(name){
       if (assign[name]) return;
+      /* v1983 — NEVER TELL HIM TO MOVE WHAT IS ON HIS CHARACTER. PROJECT_VAULT_MANAGER.md, his
+         words in capitals: "inventory and main character equiment (SHOULD NEVER BE TOLD TO BE MOVED
+         its locked there)". A name last seen in the equipment or inventory lane is skipped here
+         entirely — not routed, not suggested, not counted as unsorted. It is logged so the skip is
+         visible rather than a silent absence: a lock nobody can see is indistinguishable from a
+         rule that stopped working. */
+      var _lk = '';
+      try { _lk = (window._laneLocked && window._laneLocked(name)) || ''; } catch(e){ _lk = ''; }
+      if (_lk){ _log(name, 'lane-locked', { id:'', why:'last seen in your ' + _lk + ' — locked there, never suggested for a mule' }); return; }
       var sg = suggestMule(name);
       if (!sg) return;
       if (sg.id === '__throwout'){ suggested++; _log(name, 'throw-suggested', sg); return; }
@@ -42562,7 +42622,13 @@ window._renderStashFresh = function(){
     }
     items.forEach(function(it){
       var nm = it && it.name; if (!nm) { return; }
-      var kind = byKind[it.kind];
+      /* v1983 — RECORD WHERE IT LIVES BEFORE DECIDING WHAT TO DO WITH IT. The sweep already
+           carries the lane on every row; this is the first thing on the board to keep it. An
+           equipment or inventory row locks that name, so auto-assign will not later tell him to
+           move gear off his character. Noted for EVERY kind, before any branch returns — a rune
+           on his belt is still on his belt. */
+        try { window._laneLockNote && window._laneLockNote(nm, it.lane); } catch(e){}
+        var kind = byKind[it.kind];
       if (!kind){                        // a grail item — not a tally
         /* v1918 — CARRY THE EVIDENCE ACROSS, DO NOT HAND OVER A BARE STRING. vault_retro builds a
            row with lane, kind, count, conf, witnesses and lastSeenTs (tv/vault_retro.py:815) and
@@ -43623,7 +43689,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1982', name:'v1982 - a vaulted row is a landing', date:'2026-08-22', note:'chronicleApply has a fifth outcome and the sweep result omitted it - a base-only sweep reported an empty success' };
+  window.D2R_BUILD = { id:'v1983', name:'v1983 - the lane lock', date:'2026-08-22', note:'equipment and inventory items are locked where they live and never suggested for a mule - the sweep always carried the lane, the board discarded it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

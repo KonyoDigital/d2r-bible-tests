@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1982",
+  "ver": "v1983",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1982: chronicleApply has a fifth outcome and the sweep result omitted it - a base-only sweep reported an empty success",
+  "note": "v1983: equipment and inventory items are locked where they live and never suggested for a mule - the sweep always carried the lane, the board discarded it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

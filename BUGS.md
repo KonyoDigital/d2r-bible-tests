@@ -10311,3 +10311,41 @@ muled:   0
 
 `muled: 0` remains correct and explained: `vaultAutoAssign` walks `ownedPool()`, and a grail tick is
 not stash stock. Whether a vault sweep should also register physical ownership is his design call.
+
+## REG-338 — the lane lock: never tell him to move what is on his character (v1983)
+
+`PROJECT_VAULT_MANAGER.md`, his words in capitals:
+
+> *"inventory and main character equiment (**SHOULD NEVER BE TOLD TO BE MOVED its locked there**)"*
+
+Nothing enforced it, and nothing **could**. Measured before this change:
+
+```
+vault_retro LANES = ("stash","inventory","equipment")   ← the sweep carries a lane on every row
+board 'equipment' = 0 occurrences                        ← the lane died before the board
+per-item lane key = 0
+ownedPool()       → Array.from(owned) = bare NAMES
+suggestMule(name) → takes no lane argument at all
+```
+
+So an item on his character was indistinguishable from stash junk and got a mule verdict like
+anything else. **v1980 made this worse by making `vaultAutoAssign` run after every sweep** — a button
+he pressed became something that happens on its own.
+
+**The lane was never missing — it was discarded.** `vaultAccumApply` already sees `it.lane` on every
+row and mentioned `equipment` zero times. `_laneLockNote(name, lane)` now records it, before any
+branch returns, for every kind — a rune on his belt is still on his belt.
+
+**Locked on FIRST SIGHT, not after the spec's "3+ verified reads".** The two errors are not
+symmetric: a wrong lock means an item is not auto-muled and he releases it in one call; no lock means
+the board tells him to move gear off his character, which is the thing he said in capitals must never
+happen. Sightings are counted so the 3+ state can be shown, but they do not gate the protection.
+
+`stash` is deliberately NOT a locked lane — a stash item is exactly what the vault manager exists to
+file. The lock is releasable (`_laneLockRelease`), because a protection with no release is a trap. And
+the skip is **logged** (`lane-locked`), because a lock nobody can see is indistinguishable from a rule
+that stopped working.
+
+**Verified end to end:** `Harlequin Crest`(equipment)→locked, `Annihilus`(inventory)→locked,
+`Bonesnap`(stash)→**not** locked, release returns it to unlocked, and all three still register to
+grail — the lock records where a thing lives and never touches whether he found it.
