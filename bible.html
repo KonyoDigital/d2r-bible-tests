@@ -33126,6 +33126,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function assignItem(name, muleId){
     if (!muleById(muleId)) return;
     assign[name]=muleId; saveA(); selectedChip=null; renderVault(); refreshOpenCard();
+    /* v1952 — HIS OWN HAND IS ALSO AN ANSWER. The board's placements have carried a reason since
+       v1948; a manual one carried nothing, so a row he filed himself and a row from before the
+       ledger existed looked identical — both blank. "you filed this" is the shortest true answer to
+       "why is this here", and it is the one the ledger could not give. */
+    try {
+      if (typeof window.kaiChronicleRecord === 'function')
+        window.kaiChronicleRecord({ name: name, status: 'filed-by-hand', store: 'assign',
+          ledger: 'vault', target: muleId, source: 'by-hand',
+          why: 'you filed it here yourself', _bump: true });
+    } catch(e){}
     var card=document.querySelector('[data-vault-mule="'+(window.CSS&&CSS.escape?CSS.escape(muleId):muleId)+'"]');
     if (card){ card.classList.remove('vm-flash'); void card.offsetWidth; card.classList.add('vm-flash'); }
     status('🏦 '+name+' → '+muleById(muleId).name);
@@ -33260,6 +33270,43 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok:false, why:'not-chronicle' };
     } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
   };
+
+  /* v1952 — WRAP THE TV ROUTE SO ITS OUTCOME IS RECORDED, WITHOUT TOUCHING ITS INTERNALS.
+     tvChronicleRoute ticks a find into his chronicle when the TV sees it — the live path that
+     changes his grail — and called kaiChronicleRecord ZERO times. Worse, two of its call sites
+     (a vault register and an equipped-item read) discard the return value entirely, so a route
+     that answered {ok:false, why:'no-engine'} said nothing to anyone. A refusal that nobody hears
+     is the shape this whole arc has been about.
+
+     Wrapped rather than edited: this runs on live TV reads, it has several exit paths, and the
+     outcome object already carries everything a row needs. A wrapper cannot change WHAT it decides,
+     only make the decision speak. [[the-unjoined-end]] */
+  (function(){
+    var _inner = window.tvChronicleRoute;
+    if (typeof _inner !== 'function') return;
+    window.tvChronicleRoute = function(name, src){
+      var r;
+      try { r = _inner.apply(this, arguments); }
+      catch(e){ r = { ok:false, why:'threw: ' + (e && e.message || e) }; }
+      try {
+        if (typeof window.kaiChronicleRecord === 'function'){
+          var nm = String(name || '').trim();
+          if (nm && r && !r.already){
+            window.kaiChronicleRecord({
+              name: (r && r.name) || nm,
+              status: (r && r.ok) ? 'tv-routed' : 'route-failed',
+              store: (r && r.kind === 'set') ? 'setPieces' : 'foundLog',
+              ledger: (r && r.kind === 'set') ? 'sets' : 'uniques',
+              target: String(src || 'tv'), source: 'tv-route', _bump: true,
+              why: (r && r.ok)
+                ? ('the TV saw this on your ' + String(src || 'screen') + ' and ticked it')
+                : ('could not route it \u2014 ' + ((r && r.why) || 'no reason given')) });
+          }
+        }
+      } catch(e){}
+      return r;
+    };
+  })();
 
   window.tvVaultUnregister = function(name){
     try {
@@ -42936,7 +42983,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1951', name:'v1951 - the reel sweep writes to the ledger too', date:'2026-08-22', note:'vaultAccumApply raises his rune gem and material counts from what the readers found in his film and recorded nothing. Every raise and every hold now leaves a row with the lane, the reason and the frame.' };
+  window.D2R_BUILD = { id:'v1952', name:'v1952 - the last two silent writes', date:'2026-08-22', note:'tvChronicleRoute ticks a find into his chronicle when the TV sees it and recorded nothing, and two call sites discard its return so a failed route said nothing at all. assignItem recorded nothing either, leaving his own hand indistinguishable from a blank.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -43630,7 +43677,16 @@ window._CH_PILL_MAP = {
          kaiChronicleRecord exactly zero times in 220 lines — so the one path that edits the store
          whose mistakes are permanent was the one path with no row in the ledger. */
       'raised':          ['📈 count raised', 'var(--best,#66ff88)'],
-      'stash-held':      ['⏸ held, the read was lower', '#f0c060']
+      'stash-held':      ['⏸ held, the read was lower', '#f0c060'],
+      /* v1952 — the last two writes into his vault that left no trace. tvChronicleRoute ticks a
+         find into his chronicle when the TV sees it and recorded NOTHING, so the live path that
+         changes his grail was invisible; two of its call sites also discard its return, so a
+         FAILED route said nothing at all. And assignItem — his own hand filing an item to a mule —
+         recorded nothing either, which left "why is this here" ambiguous in the one case where the
+         answer is simply "you put it there". */
+      'tv-routed':       ['📺 the TV saw this', 'var(--best,#66ff88)'],
+      'route-failed':    ['⚠ could not route', '#f0a060'],
+      'filed-by-hand':   ['✋ you filed this', '#9fd4ff']
     };
 
   window.renderInbox = function(){

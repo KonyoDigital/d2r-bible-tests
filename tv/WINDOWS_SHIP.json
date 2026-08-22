@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1951",
+  "ver": "v1952",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1951: vaultAccumApply raises his rune gem and material counts from what the readers found in his film and recorded nothing. Every raise and every hold now leaves a row with the lane, the reason and the frame.",
+  "note": "v1952: tvChronicleRoute ticks a find into his chronicle when the TV sees it and recorded nothing, and two call sites discard its return so a failed route said nothing at all. assignItem recorded nothing either, leaving his own hand indistinguishable from a blank.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
