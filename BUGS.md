@@ -10098,3 +10098,33 @@ intact (bar present, 4 cards, labels unchanged).
 
 **Still manual by design:** `craft` (his instruction — set aside), and `vault`/`set`/`grail`, which
 are next.
+
+## REG-331 — vault, sets and grail lose their manual doors; only one of them gets a switch (v1976)
+
+Removed: the 📸 manual door for **vault**, **sets** and **grail** — four buttons (grail had two) and
+three hidden `<input type="file">`. `craft-intake-file` is now the **only** manual intake left, set
+aside on his instruction.
+
+### The three were not treated the same, and the difference is the whole point
+
+**VAULT gets a pill.** It has a real auto lane: `_startAutoWatch` polls the linked folder every
+**12000ms** into the same `window.vaultIntake`, which keeps all 38 of its crop steps and its
+`locate`/`rawname`/`socketcheck`/`vault` templates. Its `webkitdirectory` picker **stays** — that is
+the automation's *setup*, not a manual read, and removing it would disarm the very lane being
+promoted.
+
+**SETS and GRAIL get NO pill, deliberately.** Their ticks are *"review-first, never silent"* — the TV
+DIABLO panel says exactly that — and `kaiChronicleAcceptAll` / `kaiChronicleAcceptSession` are called
+**zero** times inside `bible.html`; he accepts from the console. There is no auto-apply to arm, so a
+switch would control **nothing**. A control that controls nothing is decoration, which is precisely
+what v1975's `lane-off` guard exists to prevent — it would have been a lie of exactly the kind this
+board keeps auditing out. They get an honest line instead: *"Set pieces tick from a reel session —
+the reader proposes, you approve in the Chronicle queue."*
+
+The spec now asserts the negative too: **no pill may exist for `grail` or `sets`.** A future well-meant
+"consistency" pass that adds them would fail the build.
+
+### Verified on a real page
+8 minis render · the only remaining manual door is `craft-intake-file` · `vault-dir-input` intact ·
+`_startFolderAutoWatch` still a function · `vaultIntake` / `setIntake` / `grailIntake` / `craftIntake`
+all still functions · 2 review notes shown · **0 console errors**.

@@ -5119,7 +5119,12 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()">↺ Reset assignments</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="FULL RESET — wipes the Recently-registered log, the scan ledger, AND every ✓ owned/vaulted item + mule assignments + set-piece checks. A true blank start (mule roster + rune/gem tallies stay).">🧹 Reset everything (blank start)</button>
-        <button class="vault-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('vault-intake-file').click()" title="drop stash/loot screenshots — AI reads the items, checks them ✓ owned, and assigns them to lockers">📸 AI intake</button>
+        <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
+     _startAutoWatch polls the linked folder every 12s and feeds the same window.vaultIntake,
+     which keeps all 38 of its crop steps and its locate/rawname/socketcheck/vault templates.
+     The folder picker beside this (webkitdirectory) STAYS — that is the automation's setup,
+     not a manual read. The ON/OFF for this lane is the Vault pill in the Tools lane row. -->
+<span class="vault-lane-mini" id="mini-vault-section"></span>
         <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
         <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
         <button class="vault-btn" id="vault-clear-scan-btn" style="display:none;border-color:rgba(240,192,96,.45);color:var(--gold-bright,#f0c060)" onclick="window.vaultClearScanHistory()" title="WIPE THE SCAN SLATE — forget which screenshot files were already read, so the next folder scan treats every file as fresh and re-reads them. Does NOT touch your ✓ owned items, mules, Magic &amp; Rare, or the registered vault — only the seen-files ledger.">🧽 Clear scan history</button>
@@ -5128,7 +5133,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
           <span class="vw-txt"><span class="vw-t1">FOLDER LINKED</span><span class="vw-t2">watching for new shots…</span></span>
         </span>
         <input type="file" id="vault-dir-input" webkitdirectory multiple accept="image/*" style="display:none">
-        <input type="file" id="vault-intake-file" accept="image/*" multiple style="display:none" onchange="window.vaultIntake(this.files)">
+        
         <span class="vault-status" id="vault-status"></span>
       </div>
       <div class="vault-find">
@@ -6151,8 +6156,13 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
     <div class="boss-body">
       <div class="rs-ai-row" style="margin:0 0 12px">
-        <button class="rs-ai-btn" onclick="document.getElementById('set-intake-file').click()" title="1 screenshot of your set items (stash/inventory) → the AI checks off the pieces you own in the tracker">📸 AI intake — 1 photo checks off the set pieces you own</button>
-        <input type="file" id="set-intake-file" accept="image/*" multiple style="display:none" onchange="window.setIntake(this.files)">
+        <!-- v1976 — the manual 📸 set door is GONE, and NO on/off pill replaced it, deliberately.
+     Grail and set ticks are "review-first, never silent" (the TV DIABLO panel says so in those
+     words): the reel proposes, he accepts in the Chronicle queue. There is no auto-apply lane
+     here to arm or disarm, so a switch would control nothing — decoration, which is exactly
+     what the lane-off guard exists to prevent. Reads now arrive from a reel session. -->
+<div class="rs-ai-note">🎞 Set pieces tick from a <b>reel session</b> — the reader proposes, you approve in the Chronicle queue.</div>
+        
       </div>
       <div id="set-intake-report" hidden class="rs-ai-report" style="margin:0 0 12px"></div>
       <div class="set-tracker" id="set-tracker"></div>
@@ -8739,8 +8749,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 <div class="tab-content" id="tab-funi">
   <div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_funi.png" alt="" onerror="this.replaceWith(document.createTextNode('🏆'))"></span><div class="forge-headtxt"><div class="forge-title">Forge · Uniques</div>
   <div class="forge-sub">Your unique-grail task plan — every missing unique mapped to its <b>best farm run</b> (real odds · kills/hr), synced to the Calculator ✓. Tick <b>✓ found</b> and it leaves the hunt.</div>
-  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your in-game grail / collection tracker — the AI reads every FOUND item and auto-ticks it here (uniques AND set pieces, both synced)">📸 Import my grail — AI reads screenshots</button></div></div></div>
-  <input type="file" id="grail-intake-file" accept="image/*" multiple style="display:none" onchange="window.grailIntake(this.files)">
+  <div style="margin-top:10px"><!-- v1976 — the manual 📸 grail door is GONE, and NO on/off pill replaced it, deliberately.
+     Grail and set ticks are "review-first, never silent" (the TV DIABLO panel says so in those
+     words): the reel proposes, he accepts in the Chronicle queue. There is no auto-apply lane
+     here to arm or disarm, so a switch would control nothing — decoration, which is exactly
+     what the lane-off guard exists to prevent. Reads now arrive from a reel session. -->
+<div class="rs-ai-note">🎞 Grail finds arrive from a <b>reel session</b> — the reader proposes, you approve in the Chronicle queue.</div></div></div></div>
+  
   <div id="grail-intake-report" class="forge-note" style="display:none;margin:8px 0"></div>
   <!-- CHRONICLE PHOTO INTAKE (board-side). Two buttons, never one: the caller STATES the ledger,
        because a Sets page tallied as Uniques is worse than no tally at all. -->
@@ -8755,7 +8770,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 <div class="tab-content" id="tab-fsets">
   <div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_fsets.png" alt="" onerror="this.replaceWith(document.createTextNode('🧩'))"></span><div class="forge-headtxt"><div class="forge-title">Forge · Sets</div>
   <div class="forge-sub">Your set-grail task plan — every missing <b>piece</b> mapped to its best farm run (same engine as Forge · Uniques), <b>⚡ last-piece sets first</b>. Tick a piece the moment it drops — it syncs to the Item Set Tracker.</div>
-  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your grail tracker — set pieces auto-tick here too (one import covers uniques + sets)">📸 Import my grail — AI reads screenshots</button></div></div></div>
+  <div style="margin-top:10px"></div></div></div>
   <!-- 2026-08-13 — symmetry pass (Konyo: "F-uniqes and F-sets... i want these two areas also
        aligned... additives not removing so just sync and align them both"). #tab-funi had a
        two-row header (Import, then BOTH Chronicle buttons); #tab-fsets had one row missing the
@@ -43493,7 +43508,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1975', name:'v1975 - the mini on air, one per lane', date:'2026-08-22', note:'manual photo doors for runes gems materials removed - the reel drives the same intake functions, each lane has an on off' };
+  window.D2R_BUILD = { id:'v1976', name:'v1976 - vault sets and grail lose their manual doors', date:'2026-08-22', note:'vault keeps its folder watch and gets a pill - sets and grail get an honest note instead of a switch that controls nothing' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -45187,7 +45202,8 @@ var _MINI_SLOTS = [
   { slot:'sc-strip-lanes', lanes:[['runes','Runes'],['gems','Gems'],['materials','Mats'],['vault','Vault']] },
   { slot:'mini-runes',     lanes:[['runes','runes tally']] },
   { slot:'mini-gems',      lanes:[['gems','gems tally']] },
-  { slot:'mini-materials', lanes:[['materials','materials tally']] }
+  { slot:'mini-materials', lanes:[['materials','materials tally']] },
+  { slot:'mini-vault-section', lanes:[['vault','vault auto-read']] }
 ];
 window._miniOnAirMount = function(){
   try {

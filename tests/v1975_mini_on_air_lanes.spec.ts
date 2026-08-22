@@ -94,3 +94,43 @@ test('the minis render, and both surfaces agree because they read one store', as
      a switch. */
   expect(r.states.every((x) => x === true), 'every pill for one lane shows the same state').toBe(true);
 });
+
+/* v1976 — VAULT, SETS AND GRAIL LOST THEIR MANUAL DOORS TOO, but not in the same way, and the
+   difference is the point.
+
+   VAULT has a real auto lane — _startAutoWatch polls the linked folder every 12s into the same
+   window.vaultIntake — so it gets a pill. Its webkitdirectory picker STAYS: that is the automation's
+   setup, not a manual read, and deleting it would disarm the very lane being promoted.
+
+   SETS and GRAIL got NO pill, deliberately. Their ticks are "review-first, never silent" — the panel
+   says exactly that — and kaiChronicleAcceptAll/AcceptSession are called ZERO times inside this
+   file; he accepts from the console. With no auto-apply to arm, a switch would control nothing, and
+   a switch that controls nothing is the decoration the lane-off guard exists to prevent. */
+test('only the craft door remains, and the vault automation is untouched', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const r = await page.evaluate(() => ({
+    doors: [...document.querySelectorAll('input[type=file][id$="-intake-file"]')].map((x) => x.id),
+    folder: !!document.getElementById('vault-dir-input'),
+    watch: typeof (window as any)._startFolderAutoWatch,
+    fns: ['vaultIntake','setIntake','grailIntake','craftIntake'].map((f) => [f, typeof (window as any)[f]]),
+  }));
+  expect(r.doors, 'craft is the only manual door left — he set it aside deliberately').toEqual(['craft-intake-file']);
+  expect(r.folder, 'the folder picker is the auto-watch SETUP, not a manual door — it must survive').toBe(true);
+  expect(r.watch, 'the vault folder auto-watch must still exist').toBe('function');
+  for (const [n, t] of r.fns) {
+    expect(t, `${n} must survive — the automation calls these by name`).toBe('function');
+  }
+});
+
+test('sets and grail say where reads come from, instead of offering a switch that does nothing', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const r = await page.evaluate(() => ({
+    notes: [...document.querySelectorAll('.rs-ai-note')].map((n) => n.textContent || ''),
+    lanes: [...document.querySelectorAll('.mini-onair')].map((p) => p.getAttribute('data-lane')),
+  }));
+  expect(r.notes.length, 'both review-first sections must explain the new source').toBeGreaterThanOrEqual(2);
+  expect(r.notes.join(' ')).toMatch(/reel session/i);
+  /* The assertion that keeps this honest: no pill may exist for a lane with nothing to arm. */
+  expect(r.lanes.includes('grail'), 'grail must NOT get a pill — nothing auto-applies there').toBe(false);
+  expect(r.lanes.includes('sets'), 'sets must NOT get a pill — nothing auto-applies there').toBe(false);
+});
