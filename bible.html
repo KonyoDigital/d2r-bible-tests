@@ -9258,7 +9258,19 @@ function _materialIndex(){
   window.__MAT_IDX = out;
   return out;
 }
-function _norm(s){ return (s||'').toLowerCase().replace(/[()]/g,' ').replace(/\s+/g,' ').trim(); }
+/* v1958 \u2014 FOLD THE CURLY APOSTROPHE HERE, AT THE ROOT.
+   This normalizer feeds findSetPiece and tipOf, and it did not treat \u2019 and ' as the same
+   character \u2014 so a set piece read with a curly apostrophe matched NOTHING. Measured: Griswold\u2019s
+   Redemption, Immortal King\u2019s Soul Cage and M\u2019avina\u2019s True Sight each fell past every set rule in
+   suggestMule to `default: weapons`, and Tal Rasha\u2019s Adjudication went to SHARED \u2014 splitting three
+   major sets across four mules, under a roster note that says NEVER SPLIT A SET. Their straight
+   forms all routed correctly, which is the whole difference: one byte.
+
+   THE BOARD WAS THE ONLY HALF THAT HAD NOT LEARNED IT. tv/chronicle_resolve.py:80 folds \u2019 to '
+   before it resolves, and this file's OTHER _norm (the v1794 resolver) folds \u2018\u2019\u02BC too. This one
+   never did, so the same name was one item to the console and two to the board. Fixed at the
+   normalizer rather than at each caller, because the callers are not the ones that were wrong. */
+function _norm(s){ return (s||'').replace(/[\u2018\u2019\u02BC\u00B4]/g, "'").toLowerCase().replace(/[()]/g,' ').replace(/\s+/g,' ').trim(); }
 // Resolve a feeds-into label ("Worldstone Shard (Northern)", "Key of Destruction",
 // "Essence of Hatred", "Annihilus") to its SPECIAL_DROPS entry. Direction-tolerant
 // for shards (label "Worldstone Shard (Northern)" ↔ item "Worldstone Shard (Northern)").
@@ -32106,8 +32118,73 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // MUST match that and never route them to a mule. {id:'__keep'} → muleById() can't resolve it → the item is
   // still registered/owned + shown in the keep advisory, but it is NOT assigned to any mule.
   var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed's Fortune)$/i;
+  var _sugFolding = false;   // v1958 re-entry guard, see below
   function suggestMule(name){
     if (isSharedStash(name)) return null;
+    /* v1958 \u2014 ROUTE A MISREAD BY THE ITEM IT IS A MISREAD OF.
+       MEASURED, not suspected: tvVaultRegister('Battlecage') filed to UNI-WEAPONS, and Rattlecage
+       is a Cuirass. tvVaultRegister('Naglring') filed to UNI-WEAPONS, and Nagelring is a ring. Both
+       reached the LAST line of this function \u2014 `default: weapons` \u2014 because nothing here had ever
+       heard of the slip, and that default is a confident answer to a question nobody could answer.
+       Every OCR slip his readers produce lands in the weapons mule.
+
+       v1794 taught the INBOX to fold a slip onto this file's own roster and nothing else could
+       reach it: the fold was wired at one end only, which is why it read as working. Same repair,
+       now available to the routing decision.
+
+       WHY THIS IS A ROUTING REPAIR AND NOT A GRAIL CLAIM. The item is written to the vault either
+       way \u2014 this changes only WHICH DRAWER, never whether he owns something. It does not tick a
+       grail, does not add a witness, and does not rename the tile: the label stays the raw read, so
+       what the reader saw is still what he sees. A fold is a repair of a SPELLING, and that is all
+       it is allowed to do here (kaiChronicleTriage says the same thing in its own words).
+
+       IT IS CONSERVATIVE, MEASURED ACROSS 14 NAMES: only the two real slips move. Blood Shield,
+       Horazon's Splendor, Grand Charm, Larzuk Helm Base, Viper Magi and every other RotW custom or
+       placeholder fold to NULL and are routed exactly as before \u2014 a real find of his that simply
+       is not on the roster must never be dragged onto a roster name that resembles it. */
+    /* v1958 \u2014 AND THE SECOND HALF OF THE APOSTROPHE, for the lookups a normalizer cannot reach.
+       Fixing the global _norm above repaired FOUR of the five measured set pieces (Griswold\u2019s,
+       Immortal King\u2019s, M\u2019avina\u2019s, Tal Rasha\u2019s) because findSetPiece resolves through it. It did
+       NOT repair Horazon\u2019s Splendor, and the reason is structural rather than a second bug: that
+       one is decided by tipOf, whose lookup is an EXACT KEY \u2014 as are ITEMS.find(i.n === name) and
+       EXTRA_ITEMS[name] a few lines down. An exact-key map cannot be taught to fold a character; it
+       can only be handed a name that already has. Measured after the _norm fix: curly \u2192 uni-weap
+       ("nothing recognises this name"), straight \u2192 sets-rest ("set: Horazon's Splendor").
+
+       So this is not the same rule written twice. _norm folds for everything that normalizes;
+       this folds for everything that does not, and one hop covers both because the repaired name
+       is the one every branch below then sees. The label he reads is still the raw one. */
+    try {
+      if (!_sugFolding){
+        var _ap = String(name).replace(/[\u2018\u2019\u02BC\u00B4]/g, "'");
+        if (_ap !== String(name)){
+          _sugFolding = true;
+          try {
+            var _as = suggestMule(_ap);
+            if (_as && _as.id) return _as;
+          } finally { _sugFolding = false; }
+        }
+      }
+    } catch(e){}
+    try {
+      if (!_sugFolding && typeof window.d2rResolveItem === 'function'
+          && typeof window.d2rInboxEngine === 'function'){
+        var _rv = window.d2rResolveItem(name);
+        if (_rv && _rv.kind === 'unknown'){
+          var _fe = window.d2rInboxEngine({ name: name });
+          var _fc = _fe && _fe.canonical;
+          if (_fc && String(_fc) !== String(name)){
+            _sugFolding = true;                       // one hop only; the fold target is on the roster
+            try {
+              var _fs = suggestMule(String(_fc));
+              if (_fs && _fs.id)
+                return { id: _fs.id, why: (_fs.why || '') + ' \u2014 read as \u201c' + name
+                         + '\u201d, filed as a misread of ' + _fc };
+            } finally { _sugFolding = false; }
+          }
+        }
+      }
+    } catch(e){}
     if (KEEP_IN_INVENTORY.test(String(name||'').trim())) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
     // v394 — KEEP only the genuinely good sets; the low/junk partial sets (Sigon's, Sander's, Hsarus',
     // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
@@ -32336,7 +32413,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){}
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
     if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
-    return {id:'uni-weap', why: base ? 'weapon — base: '+base : 'default: weapons'};
+    /* v1958 \u2014 the last line, and the one that must not sound sure. Reaching here means NOTHING
+       recognised the name: not BASE_DB, not the set/runeword/circlet rules, not ARMOR_RE or
+       JEWELRY_RE, and not the v1958 fold above. Weapons stays the drawer (he has no unsorted mule,
+       and inventing one would ask him to make a character in game), but the reason now says it is a
+       park rather than a classification, so the vault tile and the ledger row both read honestly. */
+    return {id:'uni-weap', why: base ? 'weapon — base: '+base
+              : 'nothing on the board recognises this name — parked in weapons, worth your eye'};
   }
 
   function muleById(id){ return roster.find(function(m){return m.id===id;}); }
@@ -33259,6 +33342,34 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } catch(e){}
       return false;
     }
+    /* v1958 \u2014 NAME THE LIKELY SLIP INSTEAD OF ONLY REPORTING A MISS.
+       v1954 gave the vault a row for every arrival, which is what surfaced the mystery charm he
+       asked about ("i dont think i even own this.. from what picutre is this here?"). But the row
+       it wrote said only "name not recognised", which tells him a read went wrong and not WHICH
+       read \u2014 and the board already knows: v1794's inbox engine folds a reader's slip onto this
+       file's own roster, so "Battlecage" resolves to Rattlecage. The fold was reachable from the
+       inbox and from nowhere else, which is the unjoined-end shape exactly: two halves each built
+       right, never joined, silent by construction.
+
+       IT NAMES, IT DOES NOT ACT. The suggestion is appended to the reason string and changes
+       nothing about what got registered \u2014 same store, same name, same ok. A fold is a repair of
+       a SPELLING, never a second witness (kaiChronicleTriage says so in its own words twelve lines
+       below its gateHeld branch), so promoting a fuzzy match into a vault write here would undo the
+       corroboration rule in a different file, which is how a rule stops being a rule.
+
+       d2rInboxEngine is PURE \u2014 measured, not assumed: zero setItem/localStorage/record calls in
+       its 161 lines. That matters because this runs on live TV reads. */
+    function _unknownWhy(nm){
+      var base = 'the TV read this name and NOTHING on the board matches it \u2014 kept, because '
+               + 'some of your real finds are not on the roster either, but worth your eye';
+      var sug = null;
+      try {
+        var e = window.d2rInboxEngine({ name: nm });
+        if (e && e.canonical && String(e.canonical) !== nm) sug = String(e.canonical);
+      } catch(e){}
+      return sug ? (base + ' \u2014 closest roster name is ' + sug + ', so this may be a misread of it')
+                 : base;
+    }
     window.tvVaultRegister = function(name){
       var r;
       try { r = _inner.apply(this, arguments); }
@@ -33273,8 +33384,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             why: (r && r.ok)
               ? (_known(nm)
                   ? 'the TV saw you pick this up, so it went into your vault'
-                  : ('the TV read this name and NOTHING on the board matches it \u2014 kept, because '
-                     + 'some of your real finds are not on the roster either, but worth your eye'))
+                  : _unknownWhy(nm))
               : ('not registered \u2014 ' + ((r && r.why) || 'no reason given')) });
         }
       } catch(e){}
@@ -43046,7 +43156,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1957', name:'v1957 - a true number that invited a false conclusion', date:'2026-08-22', note:'The doctor reported cross-lane corroboration at 12 percent for uniques, which reads as 88 percent cannot ground. Cross-lane is one of three routes: 91 percent can reach two witnesses by some route and only 35 names rest on a single sighting.' };
+  window.D2R_BUILD = { id:'v1958', name:'v1958 - a curly apostrophe was a different item', date:'2026-08-22', note:'the mule router split three major sets across four mules on one byte; and an OCR slip is now filed as the item it is a misread of' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

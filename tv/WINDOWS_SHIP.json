@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1957",
+  "ver": "v1958",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1957: The doctor reported cross-lane corroboration at 12 percent for uniques, which reads as 88 percent cannot ground. Cross-lane is one of three routes: 91 percent can reach two witnesses by some route and only 35 names rest on a single sighting.",
+  "note": "v1958: the mule router split three major sets across four mules on one byte; and an OCR slip is now filed as the item it is a misread of",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

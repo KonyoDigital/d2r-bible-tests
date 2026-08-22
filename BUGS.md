@@ -9155,3 +9155,96 @@ no longer exists.
 Guard: a fourth test in `tests/v1938_remaining_repair_outcome.spec.ts` reproducing his exact frozen
 state — all ticked, stamp set, nothing recorded — requiring 116; and its inverse, that a deliberate
 re-tick survives a reload.
+
+---
+
+## REG-303 — a curly apostrophe split three major sets across four mules
+
+Found while measuring, not reported: `tvVaultRegister('Battlecage')` filed to UNI-WEAPONS, and
+Rattlecage is a Cuirass. Pulling that thread found the larger one underneath it.
+
+**The board treated `’` and `'` as different items.** `findSetPiece` and `tipOf` resolve through the
+global `_norm`, which lowercased, stripped parens and collapsed whitespace — and never folded the
+curly apostrophe. So a set piece read with one matched nothing at all and fell past every set rule
+in `suggestMule` to its last line, `default: weapons`:
+
+| read as | went to | belongs in |
+|---|---|---|
+| Griswold’s Redemption | UNI-WEAPONS | SETS-TAL-IK |
+| Immortal King’s Soul Cage | UNI-WEAPONS | SETS-TAL-IK |
+| M’avina’s True Sight | UNI-WEAPONS | SETS-REST |
+| Tal Rasha’s Adjudication | SHARED STASH | SETS-TAL-IK |
+| Horazon’s Splendor | UNI-WEAPONS | SETS-REST |
+
+**AND THE TABLE ABOVE WAS THE SMALL HALF.** Swept across every apostrophe-bearing name the board
+knows — **206** of them, and **119 of his 135 set pieces carry one** — **158 routed to a different
+mule depending on which apostrophe byte was read.** After v1958: zero.
+
+(The first sweep said 39 of 87. It read `window.SETS`, which does not exist on the page, so it
+silently measured uniques only and undercounted by four times while looking healthy. The figure
+above comes from `__setPieceNames()`, the accessor findSetPiece itself resolves through.) The 39 include Andariel's Visage, Arkaine's Valor,
+Arreat's Face, Nightwing's Veil, Ormus' Robes, Skullder's Ire and Thundergod's Vigor — all body
+armour or helms, all landing in UNI-WEAPONS when read with a curly apostrophe.
+
+One of the 39 is worse than a misfiling. **`Gheed's Fortune` went from `__keep` to `uni-weap`** — the
+KEEP_IN_INVENTORY rule, whose whole purpose is that the charm only works on the character actively
+playing, was bypassed by the apostrophe. Muling it is not a tidy-up error; it is moving the item
+somewhere it does nothing.
+
+Three major sets split across four mules, under a roster note in this file that reads *never split a
+set*. Every straight-apostrophe form routed correctly the whole time — the difference is one byte,
+and OCR emits both.
+
+**THIS WAS HALF-SEEN FOUR DAYS AGO, IN REG-295.** That audit found the same fact — *"the unique
+roster uses BOTH apostrophe forms: 83 straight, 4 curly"* — and concluded: *"Every comparison in
+this pipeline goes through a `_norm` that folds them, but an exact-match comparison written in
+future would silently miss those four. Recorded rather than fixed."*
+
+Both halves of that sentence were right about the LEDGER pipeline and neither was checked against
+the ROUTING one. There are two `_norm`s in this file. The v1794 resolver folds; the global one — the
+one `findSetPiece` and `tipOf` use, and therefore the one `suggestMule` decides mules by — did not.
+So the danger REG-295 correctly identified was not hypothetical and not in the future: it was
+already live, in a pipeline the audit never named, and it was the larger of the two by far. The
+lesson is about scope, not vigilance — *"this pipeline"* was doing load-bearing work in that
+sentence and nobody asked which pipelines there were.
+
+**Only the board had failed to learn it.** `tv/chronicle_resolve.py:80` has folded `’` to `'` since
+2026-08-18, and this file's OTHER `_norm` (the v1794 resolver) folds `‘’ʼ` too. One name was one
+item to the console and two to the board — the two-halves shape, silent by construction.
+
+Not hypothetical damage: the v440 comment beside `_KEEP_SET` records that his four Horazon's pieces
+were once wrongly discarded as junk, and Horazon’s Splendor is in this table.
+
+**Fixed in two places because there are two mechanisms, not because the rule is written twice.**
+The global `_norm` now folds the character, which repairs everything that resolves through a
+normalizer — four of the five above. It could not repair Horazon’s Splendor, whose slot is decided
+by `tipOf`'s EXACT-KEY lookup; an exact-key map cannot be taught to fold a character, it can only be
+handed a name that already has. So `suggestMule` also repairs the name once at its top, ahead of
+every branch. Measured after both: 5/5 route identically to their straight forms.
+
+**And the misread half.** `suggestMule` now folds an unresolved name onto the roster the way the
+inbox has since v1794 (`Battlecage` → routed as `Rattlecage` → UNI-ARMOR), naming the repair in the
+`why` rather than relabelling the tile. Measured conservative across 14 names: only genuine slips
+move; Blood Shield, Horazon's Splendor, Grand Charm, Larzuk Helm Base and every other RotW custom
+fold to null and route exactly as before. A real find of his that is not on the roster must never be
+dragged onto a roster name that resembles it.
+
+**Left for him, deliberately.** A name nothing recognises still parks in UNI-WEAPONS, because there
+is no unsorted mule and inventing one would ask him to make a character in game. Only the wording
+changed, from `default: weapons` to a reason that says it is a park rather than a classification.
+An unsorted drawer is his call.
+
+**IT WAS LIVE ON HIS BOARD, not a constructed example.** Five of his real stores hold curly
+apostrophes right now — `d2r_chronApplied` (14), `L·d2r_grailFarm` (3), `d2r_gameFound` (2),
+`d2r_chronicleInboxLog` (2), `d2r_grailFarm` (2) — and the names are four amulets: **Atma’s Scarab ·
+Saracen’s Chance · Seraph’s Hymn · The Cat’s Eye**. Measured against the pre-v1958 file, all four
+routed to **UNI-WEAPONS**; after, all four reach **UNI-SMALL**, where his rings and amulets live.
+
+These are the same four names an earlier check in this session reported as missing from the roster,
+twice, because it searched with a straight apostrophe. The board had folded them all along and the
+tooling had not — which is the defect and its own misdiagnosis wearing the same byte.
+
+Guard: `tests/v1958_apostrophe_and_misread_routing.spec.ts` — three tests. The first derives every
+apostrophe-bearing name from the board's own tables at runtime and asserts the RULE (curly routes
+where straight routes) rather than a five-name snapshot, so names added later are covered; it fails
+on 40+ names with v1958 reverted.
