@@ -11623,3 +11623,32 @@ nothing is orphaned.
 
 Sabotage-proven on the exact shape that got through: a new `d2r_vaultSabotage` written via a constant
 now fails the guard, where before it would have passed unseen.
+
+## REG-377 — the JS half of "a caller with no symbol" (v2015)
+
+v2010 gated Python with CPython's own symtable. **JavaScript had nothing.**
+
+`TestNoOptionalCallToAFunctionThatCannotExist` catches `window.X && window.X()` on a name assigned
+nowhere — the *guarded* form, which fails silently and forever. A **bare** `window.X(...)` on such a
+name throws, which is loud and gets fixed in a minute — **unless it sits inside a `try/catch`, and
+this file is full of them.** Then it is exactly as silent as the guarded form.
+
+That is the shape that hit three times in Python in one night — v1989 `_vault_corpus()`, v2008
+`js_syntax_gate.loopback_path()` and `time.time()` — each swallowed by an `except`, each looking
+perfectly wired from the end I was reading.
+
+**Two things are legitimately never assigned**, and without handling them the guard would be noisy
+enough to get bypassed:
+- **browser built-ins** — `addEventListener`, `print`, `scrollTo`, `showDirectoryPicker`…
+- **top-level `function NAME(){}`** — a classic-script declaration **is** `window.NAME` with no
+  `window.NAME =` anywhere. `toggleSec` is one, and a first cut of this reported it as a defect.
+
+Both are resolved structurally rather than allowlisted by name, so a new built-in or a new
+declaration needs no maintenance here.
+
+**Zero findings on the current board**, which is exactly when a guard must be asked whether it can go
+red — so it is sabotage-proven twice: a planted ghost, and the literal v1989 shape written in JS
+(`try { window._vaultCorpusThatDoesNotExist(); } catch(e){}`), which fails by name.
+
+Comments are stripped first — a guard that reads its own documentation passes on prose — and the
+strip is **size-floored**, because an unbounded `/*…*/` once ate 16.9% of this file.

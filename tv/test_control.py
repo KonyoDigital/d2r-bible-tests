@@ -13010,5 +13010,82 @@ class TestV2012TheLauncherDoesNotRaceItself(unittest.TestCase):
         self.assertIn("PROCEED", self._run(18881, 25))
 
 
+class TestV2015NoBareWindowCallIntoNothing(unittest.TestCase):
+    """v2015 — the JS twin of v2010, and the half that was still open.
+
+    TestNoOptionalCallToAFunctionThatCannotExist catches `window.X && window.X()` on a name assigned
+    nowhere — the guarded form, which fails SILENTLY and forever. A BARE `window.X(...)` on such a
+    name throws, which is loud and gets fixed in a minute — UNLESS it sits inside a try/catch, and
+    this file is full of try/catch. Then it is exactly as silent as the guarded form.
+
+    That is the shape that hit three times in Python in one night (v1989 `_vault_corpus`, v2008
+    `js_syntax_gate` and `time`), each one swallowed by an `except` and each looking perfectly wired.
+    v2010 gated Python with CPython's own symtable. JavaScript had nothing.
+
+    TWO THINGS ARE LEGITIMATELY NEVER ASSIGNED and would make this noisy without them:
+      · browser built-ins — window.addEventListener, print, scrollTo, showDirectoryPicker…
+      · top-level `function NAME(){}` — a classic script declaration IS window.NAME, without any
+        `window.NAME =` anywhere. `toggleSec` is one, and a first cut flagged it.
+    Both are resolved rather than allowlisted by name, so a new built-in or a new declaration needs
+    no maintenance here. [[the-unjoined-end]] [[feedback-comments-vs-code]]
+    """
+
+    BUILTINS = {
+        "addEventListener", "removeEventListener", "print", "scrollTo", "scrollBy", "alert",
+        "showDirectoryPicker", "showOpenFilePicker", "showSaveFilePicker", "matchMedia",
+        "requestAnimationFrame", "cancelAnimationFrame", "setTimeout", "setInterval",
+        "clearTimeout", "clearInterval", "getComputedStyle", "fetch", "open", "close", "focus",
+        "blur", "confirm", "prompt", "postMessage", "btoa", "atob", "queueMicrotask",
+    }
+
+    @staticmethod
+    def _strip(text):
+        """Comments out first — a guard that reads its own documentation passes on prose. Bounded,
+        because an unbounded /*…*/ once ate 16.9% of this file."""
+        text = re.sub(r"/\*.{0,4000}?\*/", " ", text, flags=re.S)
+        return re.sub(r"(?m)^\s*//.*$", " ", text)
+
+    def _board(self):
+        with open(os.path.join(HERE, "..", "bible.html"), encoding="utf-8") as fh:
+            raw = fh.read()
+        body = self._strip(raw)
+        self.assertGreater(len(body), len(raw) * 0.5,
+                           "comment-stripping removed most of the file — the instrument is broken, "
+                           "and a broken instrument passes everything")
+        return body
+
+    def test_no_bare_window_call_lands_on_a_name_nothing_binds(self):
+        body = self._board()
+        assigned = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=", body))
+        # a top-level `function NAME(` in a classic script IS window.NAME
+        assigned |= set(re.findall(r"(?m)^\s*function\s+([A-Za-z_$][\w$]*)\s*\(", body))
+        called = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*\(", body))
+        optional = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*(?:&&|\?)\s*window\.\1\s*\(", body))
+        bare = called - optional - self.BUILTINS - assigned
+        self.assertEqual(
+            sorted(bare), [],
+            "these are CALLED as window.X(...) and window.X is assigned nowhere. Outside a try that "
+            "throws; inside one — and this file is full of them — it is silent forever and reads as "
+            "wired from both ends: %s" % ", ".join(sorted(bare)))
+
+    def test_it_catches_a_planted_one(self):
+        """Zero findings is exactly when a guard must be asked whether it can go red."""
+        body = self._board() + "\ntry { window._v2015_ghost(1); } catch(e){}\n"
+        assigned = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=", body))
+        assigned |= set(re.findall(r"(?m)^\s*function\s+([A-Za-z_$][\w$]*)\s*\(", body))
+        called = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*\(", body))
+        optional = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*(?:&&|\?)\s*window\.\1\s*\(", body))
+        self.assertIn("_v2015_ghost", called - optional - self.BUILTINS - assigned)
+
+    def test_a_top_level_function_declaration_is_not_a_finding(self):
+        """`function toggleSec(h){}` with no `window.toggleSec =` anywhere IS window.toggleSec, and
+        a first cut of this guard reported it. A false positive on real code gets a guard bypassed."""
+        body = self._board()
+        self.assertTrue(re.search(r"(?m)^\s*function\s+toggleSec\s*\(", body),
+                        "toggleSec stopped being a top-level declaration — re-check this guard")
+        assigned = set(re.findall(r"(?m)^\s*function\s+([A-Za-z_$][\w$]*)\s*\(", body))
+        self.assertIn("toggleSec", assigned)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
