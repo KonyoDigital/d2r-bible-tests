@@ -101,7 +101,7 @@ def _reap(proc):
         pass
 
 
-def _dump_dom_cdp(browser, url, timeout=40):
+def _dump_dom_cdp(browser, url, timeout=40, profile=None):
     """v2008 — the fallback that ACTUALLY WORKS ON THIS MAC, so three real guards stop being dead.
 
     `--dump-dom` over http://127.0.0.1 never answers on his Chrome. The skip message has said so
@@ -132,7 +132,12 @@ def _dump_dom_cdp(browser, url, timeout=40):
     port = _free_port()
     if not port:
         return None
-    prof = tempfile.mkdtemp(prefix="cdp-dom-")
+    # v2008 — A CALLER MAY OWN THE PROFILE. The fresh-machine test loads bible.html to let the
+    # board initialise ITSELF, then loads a probe page that reads what that boot wrote — so both
+    # loads must share one user-data-dir. A helper that always minted its own would quietly test a
+    # different question: an empty browser reading an empty store, which passes for the wrong reason.
+    _owned = profile is None
+    prof = tempfile.mkdtemp(prefix="cdp-dom-") if _owned else profile
     proc = subprocess.Popen(
         [browser, "--headless=new", "--disable-gpu", "--no-sandbox",
          "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
@@ -179,7 +184,8 @@ def _dump_dom_cdp(browser, url, timeout=40):
         return None
     finally:
         _reap(proc)
-        shutil.rmtree(prof, ignore_errors=True)
+        if _owned:
+            shutil.rmtree(prof, ignore_errors=True)
 
 
 def _free_port():
@@ -4494,6 +4500,18 @@ class TestAFreshMachineStartsEmpty(unittest.TestCase):
                 mode_ok = []   # the mode that answered — the second load reuses it, no re-probing
 
                 def load(rel, budget=9000):
+                    # v2008 — the probe already knows which launch path answers on this machine.
+                    # Without this the two doomed headless attempts cost 45s EACH, per load, twice:
+                    # measured 204s for one test that CDP finishes in about 16s.
+                    try:
+                        import js_syntax_gate as _jsg
+                        if _jsg.loopback_path() == "cdp":
+                            cdp0 = _dump_dom_cdp(browser, "http://127.0.0.1:%d/%s" % (port, rel),
+                                                 timeout=LOAD_TIMEOUT_S, profile=profile)
+                            if cdp0 is not None:
+                                return cdp0
+                    except Exception:
+                        pass
                     for mode in (mode_ok or _MODES):
                         proc = subprocess.Popen(
                             [browser, mode, "--disable-gpu", "--no-sandbox",
@@ -4521,6 +4539,15 @@ class TestAFreshMachineStartsEmpty(unittest.TestCase):
                             # v1925 — reap on EVERY path, not only the timeout one: an assertion or
                             # an exception raised out of load() used to strand the whole Chrome tree.
                             _reap(proc)
+                    # v2008 — BEFORE GIVING UP, ASK THE PATH THAT WORKS HERE. --dump-dom never
+                    # returns for bible.html on this Mac (measured: 45s timeout in BOTH headless
+                    # modes), and CDP loads the same 5.8MB page in 7.7s and hands back 9.26MB of
+                    # DOM. The profile is passed through so the second load still sees what the
+                    # first boot wrote — that shared state IS the test.
+                    cdp = _dump_dom_cdp(browser, "http://127.0.0.1:%d/%s" % (port, rel),
+                                        timeout=LOAD_TIMEOUT_S, profile=profile)
+                    if cdp is not None:
+                        return cdp
                     timed_out.append(rel)
                     return None
 

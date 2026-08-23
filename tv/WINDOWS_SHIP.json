@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2008",
+  "ver": "v2009",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2008: dump-dom never answers over loopback here and CDP does - three install-key guards had been skipping since v1490",
+  "note": "v2009: the fresh-machine test had its own loader that never reached the CDP fallback and burned 90s per load on attempts the probe knew were doomed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

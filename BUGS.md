@@ -11375,3 +11375,34 @@ helper returns None and every caller skips exactly as before. CI is deliberately
 dependency — its `--dump-dom` may well answer, and adding a package to two workflows to enable a
 fallback nothing there needs is cost for nothing. Sabotage-proven: a **bare** `import websocket`
 still fails the guard.
+
+## REG-369 — the fresh-machine test loaded nothing, and the suite got FASTER by testing more (v2009)
+
+`TestAFreshMachineStartsEmpty` has its own local `load()` — it does not go through `_dump_dom`, so
+v2008's fallback never reached it. It was skipping with *"the browser did not finish loading
+bible.html within 45s in ANY headless mode"*, which is true and was being read as a machine fault.
+
+**CDP loads the same 5.8 MB page in 7.7 s and hands back 9.26 MB of DOM.**
+
+The test now runs and skips for an **honest** reason instead: *"this browser derived machine='mac',
+so there is no W· world to check"* — a real environment fact, not a broken harness.
+
+**The profile had to travel with it.** The test loads `bible.html` so the board initialises ITSELF,
+then loads a probe page that reads what that boot wrote — both loads must share one
+`user-data-dir`. A helper minting its own profile would quietly test a different question: an empty
+browser reading an empty store, which passes for the wrong reason. `_dump_dom_cdp` now accepts a
+caller's profile and does not delete what it did not create.
+
+### The suite got faster by running more
+Both loaders now ask `loopback_path()` before trying anything, instead of burning two 45-second
+attempts per call that the probe already knows are doomed:
+
+| | before | after |
+|---|---|---|
+| the three install-key guards | skipped → 297 s | **26.7 s** |
+| the fresh-machine test | skipped → 204 s | **24.4 s** |
+| **whole `test_control` suite** | 349 s, 7 skipped | **268.9 s, 4 skipped** |
+
+699 tests, OK. All four remaining skips are honest facts — PowerShell is Windows-only, `machine='mac'`
+has no `W·` world, and two pruned-fixture tests are superseded by v2007's discovered-frame versions.
+None of them is a harness that cannot run.
