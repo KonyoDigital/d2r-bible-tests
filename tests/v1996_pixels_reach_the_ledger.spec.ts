@@ -137,6 +137,59 @@ test('v2004 — a silent pixel lane says so instead of looking like an empty sta
   expect(rows.join(' | ')).toContain('NOTHING WAS MEASURED');
 });
 
+test('v2006 — the disk verdict is READ, never re-derived', async ({ page }) => {
+  /* The first cut compared rt.freeGb < 12 here while the sweep compared the UNROUNDED float, so at
+     exactly 12.0GB free — where his disk actually sat — python warned and the board did not. The
+     side holding the real number decides and ships `low`; this only renders it. */
+  await page.goto(URL); await page.waitForTimeout(1200);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('d2r_ownerClaim', '*'); });
+  await page.goto(URL); await page.waitForTimeout(1600);
+
+  const base = {
+    ok: true, source: 'vault-retro', mode: 'merge-max', generatedTs: 1, sessionsRead: ['s_A'],
+    items: [], suggestions: [], glimpsed: [], overRead: [], reconciled: [], room: null,
+  };
+  // freeGb rounds to exactly the old threshold, but the sweep said NOT low
+  const notLow = await page.evaluate((b: any) => (window as any).vaultAccumApply({
+    ...b, retention: { candidates: 0, freeMb: 0, onDisk: 31, freeGb: 12.0, low: false, floorGb: 8,
+                       say: 'NOTHING is safe to delete yet' },
+  }), base);
+  expect(notLow.retention, 'retention never reached the result').toBeTruthy();
+
+  await page.evaluate(() => {
+    const w: any = window;
+    try { w.switchTab('tools'); } catch (e) { /* */ }
+    const c = document.getElementById('inbox-card');
+    if (c && c.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('inbox-card');
+    try { w.renderInbox(); } catch (e) { /* */ }
+  });
+  await page.waitForTimeout(600);
+  let rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#inbox-panel .ibx-eye-row')).map((r) => (r as HTMLElement).innerText));
+  expect(rows.join(' | '), 'the board invented a disk warning the sweep did not raise')
+    .not.toContain('near the recording floor');
+
+  // and when the sweep DOES say low, it must show — at the same freeGb
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('d2r_ownerClaim', '*'); });
+  await page.goto(URL); await page.waitForTimeout(1600);
+  await page.evaluate((b: any) => (window as any).vaultAccumApply({
+    ...b, retention: { candidates: 0, freeMb: 0, onDisk: 31, freeGb: 12.0, low: true, floorGb: 8,
+                       say: 'NOTHING is safe to delete yet' },
+  }), base);
+  await page.evaluate(() => {
+    const w: any = window;
+    try { w.switchTab('tools'); } catch (e) { /* */ }
+    const c = document.getElementById('inbox-card');
+    if (c && c.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('inbox-card');
+    try { w.renderInbox(); } catch (e) { /* */ }
+  });
+  await page.waitForTimeout(600);
+  rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#inbox-panel .ibx-eye-row')).map((r) => (r as HTMLElement).innerText));
+  expect(rows.join(' | '), 'the sweep said the disk was low and the board said nothing')
+    .toContain('refuses to record below 8GB');
+});
+
 test('the pixel row does not overlap its own pill', async ({ page }) => {
   await applyAndOpen(page);
   /* CAUGHT ON THE PIXELS, NOT BY READING. The base .ibx-row is a FIVE-column grid (when · name ·

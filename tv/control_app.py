@@ -11017,6 +11017,45 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             except Exception as _re:
                 if not _pix_err:
                     _pix_err.append("%s: %s" % (type(_re).__name__, str(_re)[:120]))
+        # ── v2006 — AND SAY WHAT COULD BE FREED. Konyo asked for the oldest reels to go "after it
+        # analyzes them and ledgers them and registers", which means the tool has to RUN, and
+        # reel_retention.py had no caller at all — the module-level version of plumbing with no tap.
+        #
+        # IT REPORTS, IT NEVER DELETES. Deleting his film cannot be undone, so `--apply --yes` stays
+        # a thing he types. What the sweep owes him is the FACT: how much is reclaimable now, and how
+        # close the disk is to the 8GB floor below which ON AIR refuses to record at all. Both are
+        # free to compute and neither was on any surface. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        try:
+            import reel_retention as _rr
+            import shutil as _shd
+            _rp = _rr.plan(hist)
+            _free_gb = _shd.disk_usage(hist).free / 1e9
+            # v2006 — ONE SIDE DECIDES. The first cut compared the UNROUNDED float here and the
+            # ROUNDED one on the board, so at exactly 12.0GB free — which is where his disk sat
+            # when this shipped — python warned and the board did not. Two halves, two thresholds,
+            # one fact. The boolean travels; nobody re-derives it.
+            _ON_AIR_FLOOR_GB = 8.0      # /api/on refuses below this; the warning must lead it
+            _WARN_AT_GB = 12.0
+            prop["retention"] = {"candidates": len(_rp.get("candidates") or []),
+                                 "freeMb": _rp.get("freeMb") or 0,
+                                 "onDisk": _rp.get("onDisk") or 0,
+                                 "freeGb": round(_free_gb, 1),
+                                 "low": bool(_free_gb < _WARN_AT_GB),
+                                 "floorGb": _ON_AIR_FLOOR_GB,
+                                 "say": _rp.get("say") or ""}
+            if _rp.get("candidates"):
+                print("   \U0001f5c3 %s \u2014 run `python3 tv/reel_retention.py` to see the plan, "
+                      "`--apply --yes` to act on it. Nothing is deleted by a sweep."
+                      % _rp.get("say"))
+            else:
+                print("   \U0001f5c3 retention: %s" % _rp.get("say"))
+            if _free_gb < _WARN_AT_GB:
+                print("   \u26a0 %.1fGB free. ON AIR refuses to record below 8GB, and %d reel(s) "
+                      "are holding the disk." % (_free_gb, _rp.get("onDisk") or 0))
+        except Exception as _rre:
+            # v1998's rule: a lane that cannot report its own failure is indistinguishable from a
+            # clean one. This is a REPORT, so a failure here must never look like "nothing to free".
+            print("   \u26a0 could not work out what is reclaimable: %s" % str(_rre)[:120])
         if _pix_err:
             print("   \u26a0 the free pixel lane could not run: %s" % _pix_err[0])
             print("     so 'no glimpse' and 'no cross-check' this run mean NOTHING WAS MEASURED, "
@@ -13348,7 +13387,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2005",
+        "ver": "v2006",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

@@ -42849,7 +42849,7 @@ window._renderStashFresh = function(){
 
        So the question is asked once: does this payload carry ANYTHING worth acting on? A new signal
        is added to this list and nothing else has to remember it. */
-    var _EVIDENCE = ['glimpsed', 'overRead', 'reconciled', 'room', 'pixelLaneError'];
+    var _EVIDENCE = ['glimpsed', 'overRead', 'reconciled', 'room', 'pixelLaneError', 'retention'];
     var _carries = _EVIDENCE.some(function(k){
       var v = p[k];
       if (v == null) return false;
@@ -43277,6 +43277,28 @@ window._renderStashFresh = function(){
         }
         /* AND THE SILENCE. Without this row, a run where nothing could be measured looks exactly
            like a run where his panels were empty — which is the whole thing v1998 exists to stop. */
+        /* v2006 — the disk, and what is reclaimable. Two rows because they are two facts: one is
+           "here is space you could take back", the other is "you are close to the point where ON
+           AIR will not record at all", and that second one is urgent in a way the first is not. */
+        var rt = payload.retention;
+        if (rt){
+          if (rt.candidates > 0){
+            _rec('your footage', 'retention',
+                 (rt.say || '') + ' \u2014 nothing is deleted by a sweep; run '
+                 + 'tv/reel_retention.py to see the plan.', (rt.onDisk || 0) + ' reel(s)');
+          }
+          /* v2006 — READ THE VERDICT, DO NOT RE-DERIVE IT. This compared rt.freeGb < 12 while
+             the sweep compared the UNROUNDED float, so at exactly 12.0GB free — where his disk
+             actually sat — python warned and this did not. The side with the real number decides
+             and ships `low`; this only renders it. [[feedback-contradiction-is-the-finding]] */
+          if (rt.low){
+            _rec('the disk', 'disk-low',
+                 rt.freeGb + 'GB free. ON AIR refuses to record below '
+                 + (rt.floorGb != null ? rt.floorGb : 8) + 'GB, and '
+                 + (rt.onDisk || 0) + ' reel(s) are holding it.', '');
+          }
+          out.retention = rt;
+        }
         if (payload.pixelLaneError){
           _rec('the pixel lane', 'pixel-lane-down',
                String(payload.pixelLaneError) + ' \u2014 so "no glimpse" and "no cross-check" this '
@@ -44162,7 +44184,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2005', name:'v2005 - law19 for python and for the payload', date:'2026-08-23', note:'a function with no caller and a payload key with no reader are the same defect and only the DOM half was guarded' };
+  window.D2R_BUILD = { id:'v2006', name:'v2006 - the tool that nothing ran', date:'2026-08-23', note:'reel_retention had no caller and its disk threshold was computed twice with two different roundings' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -44909,7 +44931,12 @@ window._CH_PILL_MAP = {
            told from "nothing was measured", and then no surface showed it. A reason nobody can read
            is the same as no reason. [[the-unjoined-end]] */
       'room':            ['🧹 the room, measured', '#9fd4ff'],
-      'pixel-lane-down': ['⚠ nothing was measured this run', '#f0a060']
+      'pixel-lane-down': ['⚠ nothing was measured this run', '#f0a060'],
+      /* v2006 — WHAT COULD BE FREED, and how close the disk is to the floor where ON AIR stops
+         recording. reel_retention.py computed both and had no caller at all. It REPORTS; deleting
+         his film stays something he types, because it cannot be undone. */
+      'retention':       ['🗃 footage that has given up its information', '#9fd4ff'],
+      'disk-low':        ['⚠ the disk is near the recording floor', '#f0a060']
     };
 
   window.renderInbox = function(){
@@ -45005,7 +45032,8 @@ window._CH_PILL_MAP = {
        So there are three kinds now, and the third is the honest one: it changed nothing AND it is
        not a confirmation — it is something to look at. [[label-outlived-referent]]
        [[feedback-silence-is-not-evidence]] */
-    var EYE = { 'glimpsed': 1, 'over-read': 1, 'room': 1, 'pixel-lane-down': 1 };
+    var EYE = { 'glimpsed': 1, 'over-read': 1, 'room': 1, 'pixel-lane-down': 1,
+                'retention': 1, 'disk-low': 1 };
     var did  = auto.filter(function(r){ return r && CHANGED[r.status]; });
     var eye  = auto.filter(function(r){ return r && EYE[r.status]; });
     var knew = auto.filter(function(r){ return r && !CHANGED[r.status] && !EYE[r.status]; });

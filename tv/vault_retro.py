@@ -861,6 +861,9 @@ def apply_payload(proposal):
         # defect v1996 fixed for glimpsed/reconciled — committed again eight versions later, by me.
         "room": p.get("room") or None,
         "pixelLaneError": p.get("pixelLaneError") or "",
+        # v2006 — how much footage has given up its information, and how close the disk is to the
+        # floor below which ON AIR refuses to record. A report, never an instruction to delete.
+        "retention": p.get("retention") or None,
         "why": p.get("why") or "",
     }
 

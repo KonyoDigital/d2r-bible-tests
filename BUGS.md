@@ -11268,3 +11268,27 @@ With honest eyes it immediately found one more: **`lastSeenTs`**, whose single "
 six weeks ago and one read this morning arrived identical. Both it and `witnessCount` are now
 carried — sightings and sessions are different numbers, and twelve sightings across two sessions is a
 different claim from two across two.
+
+## REG-366 — the retention tool had no caller, and its threshold disagreed with itself (v2006)
+
+`reel_retention.py` shipped in v2001 correct and complete, and **nothing imported it** — the
+module-level version of plumbing with no tap. Konyo asked for the oldest reels to go *"after it
+analyzes them and ledgers them and registers"*, which means the tool has to RUN; as shipped it ran
+only if he opened a terminal.
+
+A vault sweep now reports it: how much footage has given up its information, and how close the disk
+is to the **8 GB floor below which `/api/on` refuses to record at all**. It **reports and never
+deletes** — `--apply --yes` stays something he types, because deleting his film cannot be undone.
+
+Measured on his tree as this shipped: 31 reels, 0 reclaimable (no reel swept by both lanes yet),
+**12.0 GB free — 4.0 GB of headroom above the recording floor.**
+
+### And the threshold disagreed with itself
+The first cut compared the **unrounded** float in python (`_free_gb < 12.0`) and the **rounded** one
+on the board (`rt.freeGb < 12`). His disk measured **12.0077 GB**, which displays as `12.0` — so
+python would have warned and the board would have stayed silent, about the same disk, in the same
+run. Two halves, two thresholds, one fact.
+
+The side holding the real number now decides and ships `low` (and `floorGb`); the board renders the
+verdict it was given and re-derives nothing. Guarded both ways at the same `freeGb`: the board must
+not invent a warning the sweep did not raise, and must not swallow one it did.
