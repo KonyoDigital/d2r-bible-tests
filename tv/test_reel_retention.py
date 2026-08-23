@@ -1,0 +1,135 @@
+"""v2001 — the retention planner's five bars, and the proof it can actually select and delete.
+
+A deleter nobody has watched select anything is worse than none: on his real tree it correctly
+reports ZERO candidates today, so without these the "safe" answer and a broken one are the same
+output. Every case here runs against a TEMP fixture — never his frames.
+[[feedback-fixtures-never-touch-live-data]] [[feedback-blind-fixture-green-gate]]
+"""
+import json
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+import console_safe  # noqa: F401,E402 — this file's own docstring carries 🔓, and a suite that
+                     # crashes while REPORTING makes a clean tree exit non-zero
+console_safe.enable()
+
+import reel_retention as rr  # noqa: E402
+
+
+class TestRetentionSelectsAndRefuses(unittest.TestCase):
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.hist = os.path.join(self.root, "hist")
+        os.makedirs(self.hist)
+        self.addCleanup(shutil.rmtree, self.root, True)
+        # point the module's ledger lookup at the fixture, never at his tree
+        self._real_here = rr.HERE
+        rr.HERE = self.root
+        self.addCleanup(setattr, rr, "HERE", self._real_here)
+
+    def _reel(self, ms, n=1, kb=8):
+        name = "reel_s_%d_%d" % (ms, n)
+        d = os.path.join(self.hist, name)
+        os.makedirs(d)
+        with open(os.path.join(d, "f_%d.jpg" % ms), "wb") as fh:
+            fh.write(b"\0" * (kb * 1024))
+        return name
+
+    def _ledgers(self, chron=None, vault=None):
+        with open(os.path.join(self.root, "chronicle_swept.json"), "w") as fh:
+            json.dump(chron or {}, fh)
+        if vault is not None:
+            with open(os.path.join(self.root, "vault_swept.json"), "w") as fh:
+                json.dump(vault, fh)
+
+    def test_it_selects_only_a_reel_BOTH_lanes_have_sealed_with_evidence(self):
+        good = self._reel(1_000_000_000_000)
+        nopages = self._reel(1_000_000_000_001)
+        novault = self._reel(1_000_000_000_002)
+        never = self._reel(1_000_000_000_003)
+        self._ledgers(
+            chron={good: {"pages": 12}, nopages: {"pages": 0}, novault: {"pages": 9}},
+            vault={good: {"ts": 1}, nopages: {"ts": 1}})
+        p = rr.plan(self.hist, keep_recent=0)
+        names = [c["reel"] for c in p["candidates"]]
+        self.assertEqual(names, [good], "selected %s" % names)
+        why = {k["reel"]: k["why"] for k in p["kept"]}
+        self.assertIn("0 pages", why[nopages])
+        self.assertIn("VAULT", why[novault])
+        self.assertIn("never chronicle-swept", why[never])
+
+    def test_a_zero_page_seal_is_never_a_candidate_however_old(self):
+        """The bar that matters most: 1166 MB of his footage is sealed with 0 pages, and the engine
+        reopens exactly those when the prompt improves."""
+        old = self._reel(1_000_000_000_000)
+        self._ledgers(chron={old: {"pages": 0}}, vault={old: {"ts": 1}})
+        self.assertEqual(rr.plan(self.hist, keep_recent=0)["candidates"], [])
+
+    def test_the_newest_are_kept_whatever_the_ledgers_say(self):
+        reels = [self._reel(1_000_000_000_000 + i) for i in range(6)]
+        self._ledgers(chron={r: {"pages": 5} for r in reels},
+                      vault={r: {"ts": 1} for r in reels})
+        p = rr.plan(self.hist, keep_recent=5)
+        self.assertEqual([c["reel"] for c in p["candidates"]], [reels[0]],
+                         "keep_recent must protect the newest five")
+
+    def test_it_stops_as_soon_as_the_target_is_met(self):
+        reels = [self._reel(1_000_000_000_000 + i, kb=1024) for i in range(4)]
+        self._ledgers(chron={r: {"pages": 5} for r in reels},
+                      vault={r: {"ts": 1} for r in reels})
+        p = rr.plan(self.hist, free_mb=1.5, keep_recent=0)
+        self.assertLess(len(p["candidates"]), 4, "it emptied the shelf instead of meeting the target")
+        self.assertGreaterEqual(p["freeMb"], 1.0)
+        self.assertTrue(any("target was already met" in k["why"] for k in p["kept"]))
+
+    def test_oldest_first(self):
+        newer = self._reel(1_000_000_000_009)
+        older = self._reel(1_000_000_000_000)
+        self._ledgers(chron={newer: {"pages": 5}, older: {"pages": 5}},
+                      vault={newer: {"ts": 1}, older: {"ts": 1}})
+        p = rr.plan(self.hist, keep_recent=0)
+        self.assertEqual([c["reel"] for c in p["candidates"]], [older, newer])
+
+    def test_apply_REFUSES_without_yes_and_deletes_nothing(self):
+        r1 = self._reel(1_000_000_000_000)
+        self._ledgers(chron={r1: {"pages": 5}}, vault={r1: {"ts": 1}})
+        p = rr.plan(self.hist, keep_recent=0)
+        self.assertEqual(len(p["candidates"]), 1)
+        out = rr.apply_plan(p, yes=False)
+        self.assertFalse(out["ok"])
+        self.assertTrue(os.path.isdir(os.path.join(self.hist, r1)),
+                        "it deleted footage without an explicit yes")
+
+    def test_apply_with_yes_actually_removes_it_and_leaves_the_rest(self):
+        gone = self._reel(1_000_000_000_000)
+        stay = self._reel(1_000_000_000_001)
+        self._ledgers(chron={gone: {"pages": 5}, stay: {"pages": 0}},
+                      vault={gone: {"ts": 1}, stay: {"ts": 1}})
+        p = rr.plan(self.hist, keep_recent=0)
+        out = rr.apply_plan(p, yes=True)
+        self.assertTrue(out["ok"], out)
+        self.assertEqual(out["removed"], [gone])
+        self.assertFalse(os.path.isdir(os.path.join(self.hist, gone)))
+        self.assertTrue(os.path.isdir(os.path.join(self.hist, stay)),
+                        "it took a reel that had given up nothing")
+
+    def test_an_unparseable_reel_name_sorts_NEWEST_so_nobody_deletes_it_first(self):
+        odd = "reel_weird_name"
+        os.makedirs(os.path.join(self.hist, odd))
+        self.assertEqual(rr._reel_ts(odd), float("inf"))
+
+    def test_a_missing_hist_dir_refuses_rather_than_reporting_an_empty_plan(self):
+        p = rr.plan(os.path.join(self.root, "nope"))
+        self.assertFalse(p["ok"])
+        self.assertEqual(p["candidates"], [])
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

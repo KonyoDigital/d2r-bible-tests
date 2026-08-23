@@ -122,6 +122,12 @@ GATES = [
              "the two bars on real piles — had never been executed at any size"),
     Gate("test_inventory_lattice", [sys.executable, os.path.join(HERE, "test_inventory_lattice.py")], 180,
          why="v1925 — the inventory lattice AND its refusals. A column of checkboxes in the game-creation lobby is periodic, so a lattice fitter finds a lattice in it and answers \"18 occupied, 9 free\" about a menu; every case here is a real frame from his own reel, so a loosened refusal fails here instead of on his screen"),
+    Gate("test_reel_retention", [sys.executable, os.path.join(HERE, "test_reel_retention.py")], 120,
+         why="v2001 — the only script in this tree that DELETES his footage. On his real reels it "
+             "correctly reports zero candidates today, so without these the safe answer and a broken "
+             "one are the same output: they prove it can select, that a 0-page seal never qualifies "
+             "(1166 MB of his film is in that state and the engine reopens it), that --apply refuses "
+             "without --yes, and that it takes the right directory and leaves the rest"),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),

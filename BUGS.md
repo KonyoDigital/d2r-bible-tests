@@ -11088,3 +11088,41 @@ and disabled — never the same grey as one he switched off.
 Verified against a stub on **:17771** (never :17772 — his live console), all four states rendered and
 read on the pixels; and the console→agent round trip measured directly: `_shadow_set(False)` →
 `tv_diablo.shadow_ai_on()` returns `False` on the next check, both halves resolving the same path.
+
+## REG-361 — retention: the obvious rule would have deleted 1.1 GB of unread footage (v2001)
+
+Konyo: *"for storage optimization … it should delete the oldest and older reel session after it
+analyzes them and ledgers them and registers and they all get funneled properly as they should and
+are."* On keying it to swept + evidence banked: *"its fine"*.
+
+**Measured on his 31 reels before writing a line of it**, because the obvious rule is the wrong one:
+
+| bucket | reels | MB |
+|---|---|---|
+| read — evidence banked (`pages>0`) | 6 | 254 |
+| **sealed with 0 pages** | **12** | **1166** |
+| never chronicle-swept | 13 | 1058 |
+
+"Delete what has been swept" takes 18 reels and 1420 MB — and **1166 MB of that was never actually
+read**. A 0-page seal does not mean *done*; it means *this reader found nothing*, and the engine
+already knows it, because it reopens exactly those on its own:
+```
+🔓 8 reel(s) reopened - sealed with 0 pages by an older reader (now p1839)
+```
+So the safe rule is the inverse of the obvious one: **footage that has yielded nothing is the
+footage most worth keeping.** Free disk is 13 GB against an 8 GB ON AIR floor, so there is room to
+be careful.
+
+**Five bars, each because deleting his film cannot be undone**: evidence banked (`pages ≥ 1`) ·
+sealed by **both** lanes · the newest 5 always kept · oldest first · stops the moment the target is
+met. `--apply` refuses without `--yes`.
+
+**On his real tree it selects NOTHING today, and that is the correct answer**: `vault_swept.json`
+does not exist, so the vault manager has never sealed anything, and no reel has been through both
+lanes. The report says exactly that rather than printing an empty list.
+
+Which is precisely why the fixture tests matter — **on his data the safe answer and a broken one are
+the same output.** Nine tests on temp dirs (never his frames) prove it can select, that a 0-page seal
+never qualifies however old, that `keep_recent` protects the newest, that it stops at the target,
+that `--apply` without `--yes` deletes nothing, and that it removes the right directory and leaves
+the rest. Verified after the run: his 31 reels and 2.8 GB are intact.
