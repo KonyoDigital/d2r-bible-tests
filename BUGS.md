@@ -11406,3 +11406,32 @@ attempts per call that the probe already knows are doomed:
 699 tests, OK. All four remaining skips are honest facts — PowerShell is Windows-only, `machine='mac'`
 has no `W·` world, and two pruned-fixture tests are superseded by v2007's discovered-frame versions.
 None of them is a harness that cannot run.
+
+## REG-370 — a caller with no symbol: the shape that hit eight times now has a gate (v2010)
+
+A reference to a name nothing binds. Outside a `try` it crashes loudly and is fixed in a minute;
+**inside one it is swallowed and the code looks perfectly wired forever.** Both halves read fine from
+their own end — that is the defining property, and it is why reading never catches it.
+
+Three that shipped in this arc, all mine:
+
+| version | the call | what it did |
+|---|---|---|
+| v1989 | `_vault_corpus()` — a function that did not exist | inside a bare `except: pass`; would have done nothing, silently, forever |
+| v2008 | `js_syntax_gate.loopback_path()` without the import | the module is imported LOCALLY inside the test methods, so the name was undefined at module scope. Timing did not move — 93.6 s per call, twice — and the shortcut **looked** wired |
+| v2008 | `time.time()` in a file that never imports `time` | same swallow, same silence |
+
+LAW19 already covers *a symbol with no caller* (v2005) and *a payload key with no reader*. **This is
+the third face: a caller with no symbol.**
+
+### It uses CPython's own symbol table, and the hand-rolled version is why
+A hand-rolled AST walk was tried first and produced **59 findings, nearly all false** — closure
+variables, parameters, module dunders — because getting nested scopes right *is* writing pyflakes,
+which is not installed and would be a dependency CI lacks. `symtable` is the compiler's own answer to
+"what scope does this name resolve to", it is stdlib, and it is correct by construction.
+
+**Currently zero findings across the tree** — which is exactly when a guard must be asked whether it
+can go red. Sabotage-proven twice: on a synthetic file carrying all three real shapes (both bugs
+caught, and closures / parameters / imported names correctly ignored), and by reintroducing the exact
+v2008 bug into `control_app.py`, which fails with
+`control_app.py: 'js_syntax_gate' in _v2010_sabotage()`.

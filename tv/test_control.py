@@ -12718,5 +12718,128 @@ class TestV2007TheEndToEndGateRunsOnWhateverFootageEXISTS(unittest.TestCase):
                          "geometry called them NOT D2R: %s" % ", ".join(clashes[:5]))
 
 
+class TestV2010NoCallIntoANameThatIsNotThere(unittest.TestCase):
+    """v2010 — the shape that hit EIGHT times in one night, three of them mine, finally has a gate.
+
+    A reference to a name nothing binds. Outside a try it crashes loudly and is fixed in a minute;
+    inside one it is swallowed and the code looks perfectly wired forever. Both halves read fine
+    from their own end — that is the defining property.
+
+      v1989  `_vault_corpus()` — a function that did not exist — inside a bare `except: pass`.
+             It would have done nothing, silently, for as long as the file lived.
+      v2008  `js_syntax_gate.loopback_path()` without the import. The module is imported LOCALLY
+             inside the test methods, so the name was undefined at module scope. The timing did not
+             move (93.6s per call, twice) and the shortcut LOOKED wired.
+      v2008  `time.time()` in a file that never imports `time`. Same swallow, same silence.
+
+    LAW19 already covers "a symbol with no caller" (v2005) and "a payload key with no reader". This
+    is the third face: A CALLER WITH NO SYMBOL.
+
+    ⚠ IT USES CPYTHON'S OWN SYMBOL TABLE, not a hand-rolled walk. The hand-rolled version was tried
+    first and produced 59 findings of which nearly all were false — closure variables, parameters,
+    module dunders — because getting nested scopes right IS writing pyflakes. `symtable` is the
+    compiler's own answer to "what scope does this name resolve to", it is stdlib, and it needs no
+    dependency the CI runner lacks. [[source-reading-guard]] [[the-unjoined-end]]
+    """
+
+    _BUILTIN = None
+
+    @classmethod
+    def _builtins(cls):
+        if cls._BUILTIN is None:
+            import builtins
+            cls._BUILTIN = set(dir(builtins)) | {
+                "__file__", "__name__", "__doc__", "__spec__", "__package__", "__builtins__",
+                # Windows-only names this tree references behind a platform check
+                "WindowsError",
+            }
+        return cls._BUILTIN
+
+    @staticmethod
+    def _module_globals(st):
+        return {s.get_name() for s in st.get_symbols()
+                if s.is_assigned() or s.is_imported() or s.is_namespace()}
+
+    @classmethod
+    def _scan(cls, path):
+        import symtable
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        try:
+            st = symtable.symtable(src, path, "exec")
+        except SyntaxError:
+            return []          # a parse error is a different gate's job, not this one's
+        mod = cls._module_globals(st)
+        out, stack = [], list(st.get_children())
+        while stack:
+            scope = stack.pop()
+            for sym in scope.get_symbols():
+                # a name the COMPILER resolved to global scope, that is read and never bound
+                if sym.is_global() and sym.is_referenced() and not sym.is_assigned():
+                    n = sym.get_name()
+                    if n not in mod and n not in cls._builtins():
+                        out.append("%s: %r in %s()" % (os.path.basename(path), n, scope.get_name()))
+            stack.extend(scope.get_children())
+        return out
+
+    def test_no_python_file_calls_a_name_nothing_binds(self):
+        import glob
+        here = os.path.dirname(os.path.abspath(__file__))
+        bad = []
+        for f in sorted(glob.glob(os.path.join(here, "*.py"))):
+            bad += self._scan(f)
+        self.assertEqual(
+            bad, [],
+            "these read a name that is bound NOWHERE — module scope, enclosing scope, parameter or "
+            "builtin. Inside a try/except that is silent forever and the code looks wired:\n  "
+            + "\n  ".join(bad))
+
+    def test_the_detector_actually_catches_the_three_that_shipped(self):
+        """A guard that has never been seen RED is measuring nothing — and this one currently finds
+        zero, which is exactly when that question must be asked."""
+        import tempfile
+        src = (
+            "import time\n"
+            "def outer(a):\n"
+            "    def inner(b):\n"
+            "        try:\n"
+            "            return a + b\n"          # closure — must NOT be flagged
+            "        except Exception:\n"
+            "            return None\n"
+            "    return inner\n"
+            "def v2008_one():\n"
+            "    try:\n"
+            "        return js_syntax_gate.loopback_path()\n"   # never imported
+            "    except Exception:\n"
+            "        return None\n"
+            "def v1989_shape():\n"
+            "    try:\n"
+            "        return _vault_corpus()\n"                  # does not exist
+            "    except Exception:\n"
+            "        return None\n"
+            "def params_are_fine(delay=1, reason=''):\n"
+            "    try:\n"
+            "        return '%s/%s' % (reason, delay)\n"        # params — must NOT be flagged
+            "    except Exception:\n"
+            "        return ''\n"
+            "def imported_is_fine():\n"
+            "    try:\n"
+            "        return time.time()\n"                      # imported — must NOT be flagged
+            "    except Exception:\n"
+            "        return 0\n")
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        p = os.path.join(d, "sab.py")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(src)
+        found = " ".join(self._scan(p))
+        self.assertIn("js_syntax_gate", found, "it misses the v2008 bug it exists for")
+        self.assertIn("_vault_corpus", found, "it misses the v1989 bug it exists for")
+        for clean in ("'a'", "'b'", "'delay'", "'reason'", "'time'"):
+            self.assertNotIn(clean, found,
+                             "false positive on %s — closures, parameters and imports are legal "
+                             "and a noisy guard gets bypassed" % clean)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

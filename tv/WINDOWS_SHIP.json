@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2009",
+  "ver": "v2010",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2009: the fresh-machine test had its own loader that never reached the CDP fallback and burned 90s per load on attempts the probe knew were doomed",
+  "note": "v2010: the shape that hit eight times in one night - a name nothing binds, swallowed by a try, looking wired from both ends",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
