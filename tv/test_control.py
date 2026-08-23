@@ -13189,5 +13189,89 @@ class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
 
 
 
+class TestV2019TheTooltipPassGivesBackWhatItTook(unittest.TestCase):
+    """v2019 — a toggle whose OFF is not the inverse of its ON.
+
+    Konyo, with both switches sitting OFF and the header still reading ON AIR: "and its not just
+    recording non stop is it..? it says end session.. but i never started a session." Measured while
+    he watched: +16 frames / +37MB in 15 seconds — ~150MB/min, ~9GB/hour, on top of 3.1GB already
+    on disk, with 17GB free.
+
+    toggleTooltipPass ON took three server-side actions (arm the mini lane, POST /api/shadow
+    {on:true}, POST /api/on -> STARTS A RECORDING). OFF took none. It wrote a local flag and
+    returned, so the pass started a session he never asked for and never gave it back.
+
+    The old code defended this in a comment: sealing is his ON AIR control and must not be a side
+    effect of a toggle. That rule is RIGHT, and it is exactly why the code was wrong - it applied
+    the rule to one end of the switch only. If OFF may not seal, ON may not start. Undoing what
+    this toggle did is not overriding his control, it is returning it; a reel HE started stays
+    untouchable, and `startedReel` is what tells the two apart.
+
+    AND THE MESSAGE WAS THE WORSE HALF. Two OFF texts existed. The one for a pass that named
+    something warned that the reel was still rolling. The one for a pass that named NOTHING - the
+    likely first run, and the case he hit - never mentioned the reel and said the reel may be "not
+    recording", pointing away from a reel recording at 9GB/hour. The branch that fires when the
+    news is worst told him least. That asymmetry is what the message tests below pin.
+    """
+
+    @staticmethod
+    def _toggle_body():
+        import os
+        import re
+        bib = os.path.join(os.path.dirname(HERE), "bible.html")
+        with open(bib, encoding="utf-8") as fh:
+            text = fh.read()
+        start = text.index("window.toggleTooltipPass = function(){")
+        body = text[start:start + 12000]
+        # Comments out first, bounded - this block's own prose names every marker below, so an
+        # unstripped read would find them in the explanation rather than in the code.
+        body = re.sub(r"/\*.{0,6000}?\*/", " ", body, flags=re.S)
+        body = re.sub(r"(?m)//[^\n]*$", " ", body)
+        return body
+
+    def test_on_records_whether_it_started_the_reel(self):
+        """Without this, OFF cannot tell a reel it started from one he started."""
+        body = self._toggle_body()
+        self.assertIn("startedReel", body,
+                      "ON must record whether IT started the reel - /api/on answers ok:false when "
+                      "one is already rolling, so j.ok is that answer")
+        self.assertIn("wokeReader", body,
+                      "ON must record whether IT woke the reader, or OFF will switch off a reader "
+                      "he turned on himself")
+
+    def test_off_seals_the_reel_it_started(self):
+        body = self._toggle_body()
+        i_off = body.find("'/api/off'")
+        self.assertNotEqual(i_off, -1,
+                            "OFF never calls /api/off, so a reel this pass started runs forever - "
+                            "measured at ~9GB/hour on his machine")
+        i_mine = body.find("st.startedReel")
+        self.assertNotEqual(i_mine, -1, "the seal must be conditional on having started it")
+        self.assertLess(i_mine, i_off,
+                        "the /api/off call must be GATED on startedReel - sealing a reel HE "
+                        "started is the one thing this toggle may never do")
+
+    def test_both_off_messages_state_the_reel_state(self):
+        """The zero-named branch is the one that fires on a first run and the one that used to
+        say nothing. Neither branch may leave the reel unexplained."""
+        body = self._toggle_body()
+        self.assertNotIn("not recording \u2014 check the shadow reader", body,
+                         "the old zero-named text pointed AWAY from a reel that was recording")
+        self.assertIn("STILL ROLLING", body,
+                      "when the reel is HIS, OFF must say plainly that it is still rolling")
+        self.assertIn("sealed", body,
+                      "when the reel was this pass's, OFF must say it was sealed")
+
+    def test_a_failed_seal_is_never_reported_as_stopped(self):
+        """Silence from the console must not read as 'nothing is recording'."""
+        body = self._toggle_body()
+        self.assertIn("COULD NOT SEAL THE REEL", body,
+                      "a refused /api/off must say so, loudly, and name the OFF AIR button")
+        self.assertIn("may STILL", body,
+                      "a thrown fetch must report the reel as possibly-still-recording, never as "
+                      "stopped [[feedback-silence-is-not-evidence]]")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

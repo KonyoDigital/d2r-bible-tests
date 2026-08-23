@@ -11796,3 +11796,50 @@ but it is not re-evaluated either. **The fix applies to names registered from he
   that was not `owned`, and `renderVault`'s v409 line correctly drops assignments for unowned items.
   Re-tested with the item genuinely owned: the placement **survives**. My fixture was the bug.
   [[feedback-suspect-the-instrument]]
+
+## REG-381 — the Tooltip pass started a recording he never asked for and never gave it back (v2019)
+
+**Found by Konyo, live, while trying to use the feature.** Both switches sitting OFF, the header
+still reading ON AIR: *"and its not just recording non stop is it..? it says end session.. but i
+never started a session."*
+
+Measured while he watched: **+16 frames / +37 MB in 15 seconds** — ~150 MB/min, ~**9 GB/hour**, on
+top of the 3.1 GB already in `tv/frames`, with **17 GB free**. Under two hours of headroom, and
+`/api/on` refuses below an 8 GB floor.
+
+### OFF was not the inverse of ON
+`toggleTooltipPass` **ON** took three server-side actions — armed the vault mini-lane,
+`POST /api/shadow {on:true}`, and `POST /api/on`, which **starts a recording**. **OFF** took none of
+them: it wrote a local flag and returned.
+
+The old code defended this in a comment: *"sealing a recording is his ON AIR control and must not be
+a side effect of a toggle."* **That rule is right, and it is exactly why the code was wrong** — it
+applied the rule to one end of the switch only. If OFF may not seal, then ON may not start. Undoing
+what this toggle did is not overriding his control, it is **returning** it. A reel *he* started stays
+untouchable; `startedReel` is what tells the two apart, and `/api/on` already answers
+`{ok:false, mode:'mini', why:'already recording'}`, so `j.ok` **is** that answer — no extra probe.
+
+Same for the reader: ON now reads `/api/shadow` first and records `wokeReader`, so OFF never
+switches off a reader he turned on himself. An unreadable pre-state is assumed ON, so the failure
+mode is "leave it alone".
+
+### ⚠ The message was the worse half
+Two OFF texts existed:
+
+* named something → *"The reel is still rolling; seal it from ON AIR."* ✅
+* named **nothing** → *"…the reader may be off **or the reel not recording** — check the shadow
+  reader above."* ❌
+
+The second never mentioned the reel and pointed **away** from one recording at 9 GB/hour. It is also
+the overwhelmingly likely first run, and the exact case he hit. **The branch that fires when the news
+is worst was the branch that told him least.** Both branches now state the reel's state, and a
+refused or unanswered `/api/off` reports *possibly still recording* rather than silence.
+[[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+
+Guarded by `TestV2019TheTooltipPassGivesBackWhatItTook` — 4 checks, all seen RED on the old code.
+
+### Also corrected: a false alarm I raised at him
+I reported that the UI lamp disagreed with the server (panel green, `/api/shadow` saying off). It did
+not. His screenshot was 17:28 and my probe was 17:30, and he had toggled off in between — the server
+was telling the truth the whole time. A reading carries the age of the thing it measured.
+[[stale-reading]]

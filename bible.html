@@ -44248,7 +44248,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2018', name:'v2018 - the planner is asked about the item', date:'2026-08-23', note:'REG-349 closed: suggestMule was grading a rarity basic stub written three lines earlier, so every white base filed to the uniques mules' };
+  window.D2R_BUILD = { id:'v2019', name:'v2019 - the tooltip pass gives back what it took', date:'2026-08-23', note:'OFF now seals the reel ON started and puts the reader back, and both OFF messages state the reel state' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -46174,16 +46174,70 @@ window.toggleTooltipPass = function(){
   if (!window._shadowOnConsole || !window._shadowOnConsole()) return Promise.resolve(null);
   var st = _tpState(), say = document.getElementById('tp-say');
   if (st && st.on){
-    /* OFF reports what the pass yielded and STOPS TRACKING — it does not stop the reel. Sealing a
-       recording is his ON AIR control and must not be a side effect of a toggle. */
-    var got = Math.max(0, _tpOwnedCount() - (st.baseline || 0));
-    _tpSet({ on:false, baseline:0, endedTs:Date.now(), last:got });
+    /* ── v2019 — OFF MUST UNDO WHAT ON DID, OR IT IS NOT A TOGGLE ──────────────────────────────
+       Konyo, watching both switches sit OFF while the header still said ON AIR: "and its not just
+       recording non stop is it..? it says end session.. but i never started a session."
+
+       He was right, and it was measured while he watched: +16 frames and +37MB in 15 seconds —
+       ~150MB/min, ~9GB/hour, on top of the 3.1GB already in tv/frames.
+
+       ON took THREE server-side actions: armed the vault mini-lane, POST /api/shadow {on:true},
+       and POST /api/on — which STARTS A RECORDING. OFF took none of them. It wrote a local flag
+       and returned. So the pass started a session he never asked for and never gave it back.
+
+       The old comment defended this: "sealing a recording is his ON AIR control and must not be a
+       side effect of a toggle." That rule is right, and it is exactly why the OLD code was wrong —
+       it applied the rule to only ONE end of the switch. If OFF may not seal, then ON may not
+       start. Undoing something this toggle did is not overriding his control; it is returning it.
+       A reel HE started is still untouchable, and `startedReel` is how the two are told apart.
+
+       ⚠ AND THE WORST HALF WAS THE MESSAGE. There were two OFF texts. The one for a pass that
+       named something said "The reel is still rolling; seal it from ON AIR." The one for a pass
+       that named NOTHING — the overwhelmingly likely first run, and the case he actually hit —
+       never mentioned the reel at all and said "the reader may be off or the reel NOT RECORDING",
+       actively pointing away from a reel that was recording at 9GB/hour. The branch that fires
+       when the news is worst was the branch that told him least. [[the-unjoined-end]] */
+    var got  = Math.max(0, _tpOwnedCount() - (st.baseline || 0));
+    var mine = !!(st && st.startedReel);       // did THIS pass start the reel, or did he?
+    var woke = !!(st && st.wokeReader);        // did THIS pass wake the reader, or was it already on?
+    var head = got ? ('pass ended — ' + got + ' item(s) named. ')
+                   : ('pass ended and nothing was named. ');
+    _tpSet({ on:false, baseline:0, endedTs:Date.now(), last:got, startedReel:false, wokeReader:false });
     window.renderTooltipPass();
-    if (say) say.textContent = (got
-      ? 'pass ended — ' + got + ' item(s) named. The reel is still rolling; seal it from ON AIR.'
-      : 'pass ended and nothing was named. If you hovered items, the reader may be off or the reel '
-        + 'not recording — check the shadow reader above.');
-    return Promise.resolve({ ok:true, named:got });
+    if (say) say.textContent = head + (mine ? 'sealing the reel it started…' : 'putting the reader back…');
+    var chain = Promise.resolve(null);
+    if (woke) chain = chain.then(function(){
+      return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
+                                    body: JSON.stringify({ on:false }) }).catch(function(){ return null; });
+    });
+    if (!mine){
+      return chain.then(function(){
+        try { window.renderShadowAI && window.renderShadowAI(); } catch(e){}
+        /* NOT ours — say so plainly in BOTH branches, which is the half that was missing. */
+        if (say) say.textContent = head + 'The reel is STILL ROLLING — you started it, so seal it '
+          + 'from ON AIR when you are done.';
+        return { ok:true, named:got, sealed:false, reelWasMine:false };
+      });
+    }
+    return chain
+      .then(function(){ return fetch('/api/off', { method:'POST',
+                          headers:{'Content-Type':'application/json'}, body:'{}' }); })
+      .then(function(r){ return r.json(); })
+      .then(function(jj){
+        var ok = !!(jj && jj.ok !== false);
+        if (say) say.textContent = head + (ok
+          ? 'The reel this pass started is sealed — nothing is recording.'
+          : ('\u26a0 COULD NOT SEAL THE REEL, it is still recording — press OFF AIR now: '
+             + String((jj && (jj.why || jj.error || jj.msg)) || 'the console refused')));
+        try { window.renderShadowAI && window.renderShadowAI(); } catch(e){}
+        return { ok:true, named:got, sealed:ok, reelWasMine:true };
+      })
+      .catch(function(e){
+        /* the console's silence must never read as "stopped" */
+        if (say) say.textContent = head + '\u26a0 the console did not answer, so the reel may STILL '
+          + 'BE RECORDING — press OFF AIR: ' + String(e && e.message || e);
+        return { ok:true, named:got, sealed:false, reelWasMine:true };
+      });
   }
   _tpSet({ on:true, baseline:_tpOwnedCount(), startedTs:Date.now() });
   window.renderTooltipPass();
@@ -46192,12 +46246,30 @@ window.toggleTooltipPass = function(){
      BEFORE the reel starts, or the first seconds of film are recorded with nothing listening. */
   try { if (window._miniOnAirOn && !window._miniOnAirOn('vault') && window._miniOnAirToggle)
           window._miniOnAirToggle('vault'); } catch(e){}
-  return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
-                                body: JSON.stringify({ on:true }) })
+  /* v2019 — READ THE READER'S STATE BEFORE CHANGING IT, and remember what we actually changed.
+     Without this, OFF cannot tell "I woke it" from "it was already awake" and would switch off a
+     reader he turned on himself. The same question decides the reel: /api/on answers
+     {ok:false, mode:'mini', why:'already recording'} when one is already rolling, so `j.ok` IS
+     the answer to "did this pass start it" — no extra probe needed. */
+  var _wasReaderOn = false;
+  return fetch('/api/shadow').then(function(r){ return r.json(); })
+    .then(function(pre){ _wasReaderOn = !!(pre && pre.on); })
+    .catch(function(){ /* unknown -> assume it was already on, so OFF leaves it alone */
+                       _wasReaderOn = true; })
+    .then(function(){
+      return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
+                                    body: JSON.stringify({ on:true }) });
+    })
     .then(function(){ return fetch('/api/on', { method:'POST',
                         headers:{'Content-Type':'application/json'}, body:'{}' }); })
     .then(function(r){ return r.json(); })
     .then(function(j){
+      try {
+        var _s = _tpState() || {};
+        _s.startedReel = !!(j && j.ok);     // false when /api/on refused: he was already recording
+        _s.wokeReader  = !_wasReaderOn;
+        _tpSet(_s);
+      } catch(e){}
       if (j && j.ok){
         if (say) say.textContent = '🔴 rolling — HOVER each item you want named. The reader fires '
           + 'on the tooltip text.';
