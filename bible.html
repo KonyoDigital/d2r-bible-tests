@@ -33541,6 +33541,36 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       } catch(e){}
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(name);
+      /* v2018 — REG-349: ASK THE PLANNER ABOUT THE ITEM, NOT ABOUT A STUB I WROTE THREE LINES AGO.
+         The UNIVERSE GUARANTEE below writes EXTRA_ITEMS[name] = {rarity:'basic', base:name} so the
+         mirror can DRAW an unknown name. That write used to happen FIRST, and suggestMule's very
+         next act is to look the name up — so the planner was not reading the item, it was reading
+         my placeholder. It saw a known basic with a slot and filed it BY SLOT.
+
+         MEASURED on his own board (99 runewords forged, profile main), 17 of 20 verdicts flip:
+
+              name              planner asked about the ITEM   asked about the STUB (shipped)
+              Phase Blade       __throwout (spare base)        uni-weap
+              Monarch           __throwout (spare base)        uni-armor
+              Archon Plate      __throwout (spare base)        uni-armor
+              Harlequin Crest   shared                         shared          (unchanged)
+              Stormshield       uni-armor                      uni-armor       (unchanged)
+
+         So every white base he stashes has been landing on his UNIQUES mules. Nothing is destroyed
+         either way, but a white Phase Blade sitting in UNI-WEAPONS is silently wrong, and the
+         planner's actual verdict never survived to be seen.
+
+         WHY THIS WAS BUILT ONCE AND REVERTED. REG-349 held it back because suggestMule('Shako')
+         can return __throwout, which is right for a white Shako and wrong for the `Shako` a reader
+         reads off HARLEQUIN CREST's second tooltip line. That is now handled where it belongs — at
+         the READER: v2016 tells it the tooltip's FIRST line is the name, and v2017 forbids
+         completing a partial one. 'Harlequin Crest' itself still routes to `shared`, measured above.
+
+         THE STUB STILL RUNS, just after — and before the __throwout branch returns, so BOTH exits
+         keep the drawability guarantee v739 added. Moving it below that branch would resurrect the
+         invisible-item bug instead. [[the-unjoined-end]] */
+      var sg = null;
+      try { sg = suggestMule(name); } catch(e){}
       // v739 — UNIVERSE GUARANTEE: anything TV registers must be drawable by the Vault Manager.
       // Unknown names (RotW customs like 'Blood Shield' / 'Compendium') get a minimal reference
       // entry (the v298 EXTRA_ITEMS mechanism) so the mirror NEVER has invisible items.
@@ -33558,8 +33588,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           else EXTRA_ITEMS[name] = _tvEntry;
         }
       } catch(e){}
-      var sg = null;
-      try { sg = suggestMule(name); } catch(e){}
       if (sg && sg.id === '__throwout'){
         // v739 — THE VAULT IS A MIRROR, NOT AN OPINION (Konyo: 'in my stash = it counts, period';
         // 3 runs of stashed items silently vanishing because the planner said vendor-it). The item
@@ -44220,7 +44248,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2017', name:'v2017 - never complete a partial name', date:'2026-08-23', note:'the vault prompt refused names it could not read and said nothing about names it could half read' };
+  window.D2R_BUILD = { id:'v2018', name:'v2018 - the planner is asked about the item', date:'2026-08-23', note:'REG-349 closed: suggestMule was grading a rarity basic stub written three lines earlier, so every white base filed to the uniques mules' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -11729,3 +11729,70 @@ Worth recording because of what did *not* happen: every attempt was an `assert c
 write, so **all four aborted without touching the file**. The fix was to stop guessing and print the
 line — `grep` for the lowercase form found nothing, and that silence was the answer sitting in plain
 view for three attempts. [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+
+## REG-349 — CLOSED (v2018): the planner was grading a stub I wrote three lines earlier
+
+Open since it was first measured, held back for a ruling that turned out not to be needed once the
+thing was actually measured. `sweep-dont-ask`: *never escalate a question you have not first tried
+to measure.*
+
+`tvVaultRegister` did three things to an unknown name, in this order:
+
+1. write `EXTRA_ITEMS[name] = {rarity:'basic', base:name}` — the v739 **universe guarantee**, which
+   is what makes an unknown name drawable in the Vault Manager;
+2. `sg = suggestMule(name)`;
+3. `if (sg.id === '__throwout')` → the 🗑 throw-out review bucket.
+
+`suggestMule`'s first act is to look the name up. With (1) before (2) **the planner was not reading
+the item, it was reading a placeholder written three lines earlier** — a known `basic` with a slot —
+so it filed by slot and the white-base verdict never survived to be seen.
+
+### Measured on HIS board, not an empty one
+The first pass ran on a fresh page and returned `bases :: white base — still needed` for `Shako`,
+contradicting the note that blocked this. Both readings were right: the branch turns on
+`_baseUnmadeRunewords`, and on an empty board nothing is forged, so every base still has a job. That
+is a **blind fixture** — the gate could not fail. Re-run with his 93 real localStorage keys seeded
+into a scratch browser (99 runewords forged, profile `main`), **17 of 20 verdicts flip**:
+
+```
+                planner asked about the ITEM        asked about the STUB (shipped)
+Phase Blade     __throwout (spare — all forged)  →  uni-weap
+Berserker Axe   __throwout                       →  uni-weap
+Monarch         __throwout                       →  uni-armor
+Archon Plate    __throwout                       →  uni-armor
+Harlequin Crest shared                              shared        (unchanged)
+Stormshield     uni-armor                           uni-armor     (unchanged)
+```
+
+So every white base he stashed was landing on his **UNIQUES** mules. Nothing was ever destroyed —
+but a white Phase Blade sitting in UNI-WEAPONS is silently wrong, and the planner's real verdict was
+never visible.
+
+### Why the ruling is no longer needed
+It was held because `suggestMule('Shako')` returns `__throwout`, right for a white Shako and wrong
+for the `Shako` a reader reads off **Harlequin Crest's second tooltip line**. That is now handled
+where it belongs — **at the reader**: v2016 tells it the tooltip's FIRST line is the name, v2017
+forbids completing a partial one. `Harlequin Crest` itself still routes to `shared`, measured above.
+And the destination is a **review bucket with the planner's why as advice**, never a bin.
+
+### The ordering is now 2 → 1 → 3, and the middle position is load-bearing
+The stub still runs, just after the planner and **before the `__throwout` branch, which RETURNS**.
+Push it below and an item routed to throw-out review stops being drawable — the exact invisible-item
+bug v739 added the guarantee to prevent. A plain "suggestMule comes first" assertion would pass on
+that second mistake, so `TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub` pins **all three**
+positions, and was seen RED for its own reason before being believed.
+
+### What this does NOT fix — stated rather than implied
+An item already registered under the old order has its `{rarity:'basic'}` stub **persisted** in
+`d2r_tvExtraItems` (v1991 made it durable, deliberately). On reload `suggestMule` still returns the
+by-slot verdict for that name. Its placement does not move — `if (!assign[name])` holds, verified —
+but it is not re-evaluated either. **The fix applies to names registered from here on.**
+
+### Two false alarms, recorded because both nearly shipped as findings
+* **`Death's Web` has stat text in its `base` field.** It is `{n:"Death's Web", runes:"(unique, not
+  RW)", base:"-30 to enemy poison res…"}` — the UNIQUE, deliberately parked in the runeword list and
+  labelled as such on the same line. Not a defect.
+* **"Manual mule placements are pruned at load."** They are not. I seeded a placement for an item
+  that was not `owned`, and `renderVault`'s v409 line correctly drops assignments for unowned items.
+  Re-tested with the item genuinely owned: the placement **survives**. My fixture was the bug.
+  [[feedback-suspect-the-instrument]]

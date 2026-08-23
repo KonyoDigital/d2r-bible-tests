@@ -13118,5 +13118,76 @@ class TestV2015NoBareWindowCallIntoNothing(unittest.TestCase):
         self.assertIn("toggleSec", assigned)
 
 
+class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
+    """v2018 (REG-349) — ORDER IS THE WHOLE DEFECT, so order is what this guards.
+
+    tvVaultRegister does three things to an unknown name, and for 1279 versions it did them in the
+    wrong order:
+
+        1. write EXTRA_ITEMS[name] = {rarity:'basic', base:name}   <- the v739 UNIVERSE GUARANTEE
+        2. sg = suggestMule(name)                                  <- the planner
+        3. if (sg.id === '__throwout') ... route to the review bucket
+
+    suggestMule's first act is to look the name up. With (1) before (2) it did not read the item, it
+    read a placeholder written three lines earlier - a known 'basic' with a slot - and filed it BY
+    SLOT. MEASURED on his own board (99 runewords forged, profile main): 17 of 20 verdicts flip.
+    Every white base he stashed was landing on his UNIQUES mules.
+
+    THE CORRECT ORDER IS 2 -> 1 -> 3, and BOTH the middle and the end matter:
+      * the planner must be asked BEFORE the stub, or it is grading my own fabrication;
+      * the stub must still be written BEFORE the __throwout branch, because that branch RETURNS.
+        Move it below and an item routed to throw-out review becomes undrawable - which is exactly
+        the invisible-item bug v739 added the guarantee to prevent.
+
+    A plain 'suggestMule comes first' assertion would pass on that second mistake, so all three
+    positions are pinned. [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+    """
+
+    @staticmethod
+    def _register_body():
+        """The INNER tvVaultRegister, comments stripped.
+
+        Bounded stripping only - an unbounded /*...*/ strip once ate 16.9% of this file. And the
+        stripping is not optional here: the block comment this guard protects NAMES all three
+        markers in its own prose, so an unstripped read finds them in the explanation rather than
+        in the code and passes no matter what the code does. [[feedback-comments-vs-code]]
+        """
+        import os
+        import re
+        bib = os.path.join(os.path.dirname(HERE), "bible.html")
+        with open(bib, encoding="utf-8") as fh:
+            text = fh.read()
+        start = text.index("window.tvVaultRegister = function(name){")
+        body = text[start:start + 9000]
+        body = re.sub(r"/\*.{0,4000}?\*/", " ", body, flags=re.S)
+        body = re.sub(r"(?m)//[^\n]*$", " ", body)
+        return body
+
+    def test_the_planner_is_asked_before_the_stub_is_written(self):
+        body = self._register_body()
+        i_ask = body.find("sg = suggestMule(name)")
+        i_stub = body.find("var _tvEntry = { rarity:'basic'")
+        i_branch = body.find("if (sg && sg.id === '__throwout')")
+        self.assertNotEqual(i_ask, -1, "suggestMule call not found in tvVaultRegister")
+        self.assertNotEqual(i_stub, -1, "the v739 universe stub not found in tvVaultRegister")
+        self.assertNotEqual(i_branch, -1, "the __throwout branch not found in tvVaultRegister")
+        self.assertLess(
+            i_ask, i_stub,
+            "REG-349: the {rarity:'basic'} stub is written BEFORE suggestMule is asked, so the "
+            "planner grades a placeholder instead of the item and files every white base by slot")
+        self.assertLess(
+            i_stub, i_branch,
+            "the universe stub must be written BEFORE the __throwout branch, which RETURNS - "
+            "otherwise an item routed to throw-out review is not drawable (the v739 bug)")
+
+    def test_the_throwout_branch_still_never_overwrites_a_manual_placement(self):
+        """The routing change is only safe because this guard holds: he outranks the planner."""
+        body = self._register_body()
+        self.assertIn("if (!assign[name]) assign[name] = '__throwout';", body,
+                      "the throw-out branch must keep its !assign[name] guard - without it the "
+                      "reorder starts clobbering placements he made by hand")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

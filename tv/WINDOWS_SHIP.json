@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2017",
+  "ver": "v2018",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2017: the vault prompt refused names it could not read and said nothing about names it could half read",
+  "note": "v2018: REG-349 closed: suggestMule was grading a rarity basic stub written three lines earlier, so every white base filed to the uniques mules",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
