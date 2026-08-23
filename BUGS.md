@@ -11051,3 +11051,40 @@ correctly broke `test_stash_open_unlocks_the_vault_and_locks_the_chronicle` (`'p
 **An unavailable law is not a violated one**: if `lane_lock` cannot be imported, the sweep reads
 exactly as before rather than refusing every page. Guarded, and sabotage-proven — removing the fold
 turns the ambiguity test red while the other four stay green.
+
+## REG-360 — the shadow reader existed for 1068 versions and had no switch (v2000)
+
+Konyo: *"is there a way to like have an AI lurking in the shadows reading the game ingame and
+sometimes firing whats needed? … for this it should have an ON/OFF for shadow AI a button to click a
+cool widget."* Then, hunting Tools for it: *"where exactly is ther button for SHADOW AI"*.
+
+**There was none.** Measured: zero shadow-AI occurrences across `bible.html`, `control_app.py` and
+`tv_diablo.py`. I had described the design to him and never built it, so he spent time clicking
+around for a button that did not exist. I also told him it was *blocked* because "control_app exposes
+zero HTTP routes" — **that was wrong**: it exposes 38, one of which (`/api/on`) I used the same night.
+
+**The reader has existed since v932.** `_text_eye_loop` OCRs the live frame and turns new item-ish
+text into a PRIORITY read. What it never had was a switch he could reach: `TV_TEXT_EYE` is checked
+**once, before the loop starts** — a boot flag — and an env var of a running process cannot be
+changed from outside anyway.
+
+**One writer, one reader, its own file.** `shadow_ai.json` is written only by the console and read
+only by the agent, so there is no lock and no lost write. It is deliberately **not** `state.json`:
+the agent owns that file, and a console also writing it is the `pt_signals.json` shape exactly —
+four programs whole-file-writing one path and erasing each other seconds later. It rides
+`_fixture_root` for the same reason `STATE` does, so a test that repoints `TV_HIST` can never switch
+off the eye in his real world.
+
+**Absent means ON, and unreadable means ON.** The eye has run by default since v932; a fresh
+checkout, a wiped frames dir or a truncated write mid-save must never silently blind it. Off is only
+ever something he chose.
+
+**Three facts, three surfaces, never merged into one lamp.** `on` is his choice · `available` is
+whether local OCR exists at all · `recording` is whether a reel is rolling. That separation is the G5
+scar paid forward: G5 sat dark for weeks reporting `mode=primary, calls=0` because one object
+answered "is it ready" and "was it asked" with the same word. A lane that **cannot** run shows amber
+and disabled — never the same grey as one he switched off.
+
+Verified against a stub on **:17771** (never :17772 — his live console), all four states rendered and
+read on the pixels; and the console→agent round trip measured directly: `_shadow_set(False)` →
+`tv_diablo.shadow_ai_on()` returns `False` on the next check, both halves resolving the same path.

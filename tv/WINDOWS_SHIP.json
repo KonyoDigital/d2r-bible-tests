@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1999",
+  "ver": "v2000",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1999: lane_lock declared at most one lane is ever unlocked and nothing called it - and its surface list was missing the two stash tabs he is in most often",
+  "note": "v2000: the lurking reader has run since v932 with no way to turn it off and no surface admitting it exists",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

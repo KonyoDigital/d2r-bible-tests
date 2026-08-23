@@ -3479,6 +3479,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
    four cards. Declared AFTER .tqu-cards deliberately — in this file the LAST declaration wins and
    an earlier .tqu-* rule has silently outranked a later intent before. */
 #tab-tools .tqu-say{flex:1 0 100%;margin-top:8px;padding:7px 11px;border-radius:9px;font-size:var(--fs-micro);line-height:1.45;color:#e8ddf5;background:rgba(157,123,216,.10);border:1px solid rgba(157,123,216,.28)}
+/* v2000 — the shadow reader's widget. Its own full-width row like .tqu-say, so it can never
+   squeeze the four lane cards. Declared after them because the last declaration wins in this file. */
+#tab-tools .shadow-ai{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(20,16,28,.55),rgba(20,16,28,.25));border:1px solid rgba(157,123,216,.26)}
+#tab-tools .shadow-ai[hidden]{display:none}
+#tab-tools .sha-sw{position:relative;flex:0 0 auto;width:52px;height:27px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);transition:background .18s,border-color .18s}
+#tab-tools .sha-sw .sha-dot{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#6b6478;transition:transform .18s,background .18s}
+#tab-tools .sha-sw .sha-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.35;transition:opacity .18s}
+#tab-tools .sha-sw.sha-on{background:rgba(102,255,136,.16);border-color:rgba(102,255,136,.45)}
+#tab-tools .sha-sw.sha-on .sha-dot{transform:translateX(25px);background:var(--best,#66ff88)}
+#tab-tools .sha-sw.sha-on .sha-eye{opacity:0}
+#tab-tools .sha-sw.sha-on .sha-dot::after{content:'';position:absolute;inset:0;border-radius:50%;box-shadow:0 0 9px 2px rgba(102,255,136,.5)}
+/* DEAD is not OFF, and it must not look like it: no OCR on this machine means the switch cannot do
+   anything, and the widget says so in amber rather than sitting quietly grey. */
+#tab-tools .sha-sw.sha-dead{background:rgba(240,192,96,.12);border-color:rgba(240,192,96,.45);cursor:not-allowed}
+#tab-tools .sha-sw.sha-dead .sha-dot{background:#f0c060}
+#tab-tools .sha-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0}
+#tab-tools .sha-txt b{font-size:13px;color:#e8ddf5;font-weight:var(--fw-bold)}
+#tab-tools .sha-txt small{font-size:var(--fs-micro);color:#a99cc4}
 #tab-tools .tqu-say:empty{display:none}
 #tab-tools .tqu-btn{display:flex;align-items:center;gap:11px;min-width:152px;flex:1 1 152px;padding:9px 13px;cursor:pointer;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01));border:1px solid var(--a,rgba(255,255,255,.2));border-color:color-mix(in srgb,var(--a) 45%,transparent);border-radius:12px;transition:transform .09s,box-shadow .15s,filter .12s,background .15s}
 #tab-tools .tqu-btn:hover{transform:translateY(-2px);box-shadow:0 7px 20px color-mix(in srgb,var(--a) 32%,transparent);filter:brightness(1.07);background:linear-gradient(180deg,color-mix(in srgb,var(--a) 15%,transparent),color-mix(in srgb,var(--a) 4%,transparent))}
@@ -5031,6 +5049,24 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <button class="tqu-btn tqu-mat" style="--a:#b79cf0" onclick="window.quickIntake&&window.quickIntake('material')" title="ON AIR — the reel tallies your materials (uber / Sunder) automatically. Tap to arm this lane.">
         <img class="tqu-art" src="art/hd_token_of_absolution.png" alt="" loading="lazy">
         <span class="tqu-txt"><b>Materials</b><small>ubers &amp; Sunders</small></span></button>
+    </div>
+    <!-- v2000 — 👁 THE SHADOW READER. Konyo: "is there a way to like have an AI lurking in the
+         shadows reading the game ingame and sometimes firing whats needed? … for this it should
+         have an ON/OFF for shadow AI a button to click a cool widget."
+
+         The lurking reader has existed since v932 — the TEXT EYE OCRs the live frame and turns new
+         item-ish text into a PRIORITY read. It had no switch he could reach and no surface saying
+         it was there at all, which is why he went hunting for a button that did not exist.
+
+         It reports THREE facts and never averages them into one lamp: what he chose, whether the
+         lane can run at all, and whether a reel is actually rolling. A single green light covering
+         all three is the G5 scar exactly — "mode=primary, calls=0", every lamp green, lane dark. -->
+    <div class="shadow-ai" id="shadow-ai" hidden>
+      <button type="button" class="sha-sw" id="sha-sw" onclick="window.toggleShadowAI&&window.toggleShadowAI()"
+              aria-pressed="true" title="the reader that watches while you play">
+        <span class="sha-dot"></span><span class="sha-eye">👁</span>
+      </button>
+      <span class="sha-txt"><b>Shadow reader</b><small id="sha-say">checking…</small></span>
     </div>
   </div>
 
@@ -44077,7 +44113,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1999', name:'v1999 - the law has a caller', date:'2026-08-23', note:'lane_lock declared at most one lane is ever unlocked and nothing called it - and its surface list was missing the two stash tabs he is in most often' };
+  window.D2R_BUILD = { id:'v2000', name:'v2000 - the shadow reader gets a switch', date:'2026-08-23', note:'the lurking reader has run since v932 with no way to turn it off and no surface admitting it exists' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -45918,6 +45954,63 @@ window._laneSay = function(msg){
     if (vs) vs.textContent = msg;
   } catch(e){}
 };
+/* ── v2000 — 👁 THE SHADOW READER'S SWITCH ────────────────────────────────────────────────────
+   Konyo went looking in Tools for a Shadow-AI button and there was none; I had described the design
+   and never built it. The READER itself has existed since v932 (tv_diablo's text eye: OCR the live
+   frame, turn new item-ish text into a PRIORITY read). What was missing was a switch he could reach
+   and any surface admitting the thing exists.
+
+   SAME-ORIGIN ONLY, like every other console route here: the public site must never poke a service
+   on his laptop. Off-console the widget stays HIDDEN rather than showing a dead toggle — a control
+   that cannot do anything is worse than no control.
+
+   IT REPORTS THREE FACTS AND NEVER MERGES THEM. `on` is his choice; `available` is whether local
+   OCR exists at all; `recording` is whether a reel is rolling. G5 spent weeks reporting
+   mode=primary with calls=0 — every lamp green, the lane dark — because one object answered "is it
+   ready" and "was it asked" with the same word. [[grok-second-eye]] */
+window._shadowOnConsole = function(){
+  return /:(17772|17771)\b/.test(String(location.host || ''));
+};
+window.renderShadowAI = function(){
+  var host = document.getElementById('shadow-ai');
+  if (!host) return Promise.resolve(null);
+  if (!window._shadowOnConsole()){ host.hidden = true; return Promise.resolve(null); }
+  return fetch('/api/shadow').then(function(r){ return r.json(); }).then(function(j){
+    host.hidden = false;
+    var sw = document.getElementById('sha-sw'), say = document.getElementById('sha-say');
+    if (!sw || !say) return j;
+    var dead = (j && j.available === false);
+    sw.classList.toggle('sha-on', !!(j && j.on) && !dead);
+    sw.classList.toggle('sha-dead', dead);
+    sw.setAttribute('aria-pressed', (j && j.on) ? 'true' : 'false');
+    sw.disabled = !!dead;
+    say.textContent = (j && j.say) || '';
+    return j;
+  }).catch(function(e){
+    var say = document.getElementById('sha-say');
+    if (say) say.textContent = 'the console did not answer: ' + String(e && e.message || e);
+    return null;
+  });
+};
+window.toggleShadowAI = function(){
+  if (!window._shadowOnConsole()) return Promise.resolve(null);
+  var sw = document.getElementById('sha-sw');
+  if (sw && sw.classList.contains('sha-dead')) return Promise.resolve(null);
+  var want = !(sw && sw.classList.contains('sha-on'));
+  var say = document.getElementById('sha-say');
+  if (say) say.textContent = want ? 'switching on\u2026' : 'switching off\u2026';
+  return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
+                                body: JSON.stringify({ on: want }) })
+    .then(function(r){ return r.json(); })
+    .then(function(){ return window.renderShadowAI(); })
+    .catch(function(e){
+      if (say) say.textContent = 'could not switch it: ' + String(e && e.message || e);
+      return null;
+    });
+};
+try { if (document.readyState !== 'loading') setTimeout(window.renderShadowAI, 0);
+      else document.addEventListener('DOMContentLoaded', window.renderShadowAI); } catch(e){}
+
 window._laneStartReel = function(lane){
   var LABEL = { vault:'vault', runes:'runes', gems:'gems', materials:'materials' };
   var nice = LABEL[lane] || lane;

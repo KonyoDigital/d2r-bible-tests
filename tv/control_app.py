@@ -10286,6 +10286,69 @@ def reconcile_verdict(named, occupied):
     return "agree"
 
 
+def _shadow_path():
+    """The switch file, resolved through tv_diablo so BOTH processes agree on one path — including
+    the fixture redirect. Deriving it here independently is how two halves drift."""
+    import tv_diablo as _tv
+    return _tv.SHADOW
+
+
+def _shadow_state():
+    """v2000 — the shadow reader's three facts, kept apart on purpose.
+
+    Konyo asked for "an ON/OFF for shadow AI a button to click a cool widget". The switch is the
+    easy half; the honest half is that a switch reporting only its own position lies whenever the
+    thing it switches cannot run. G5 did exactly that for weeks — mode=primary, calls=0, every lamp
+    green, the lane dark. So `on` is his choice, `available` is whether local OCR exists at all, and
+    `recording` is whether a reel is rolling right now. [[grok-second-eye]] [[the-unjoined-end]]
+    """
+    on, why = True, "the default since v932 — the file only exists once he has chosen"
+    try:
+        with open(_shadow_path(), encoding="utf-8") as fh:
+            j = json.load(fh) or {}
+        on = bool(j.get("on", True))
+        why = "you switched it %s" % ("on" if on else "off")
+    except OSError:
+        pass
+    except Exception as e:
+        why = "the switch file is unreadable (%s) — treating it as ON, never as OFF" % str(e)[:60]
+    avail = None
+    try:
+        import tv_diablo as _tv
+        avail = bool(_tv._OCR.available())
+    except Exception:
+        avail = None
+    rec = False
+    try:
+        rec = bool(_agent_alive())
+    except Exception:
+        rec = False
+    return {"ok": True, "on": on, "why": why, "available": avail, "recording": rec,
+            "say": ("the shadow reader is OFF — nothing is being watched" if not on
+                    else "no local OCR on this machine, so the lane cannot run whatever the switch says"
+                    if avail is False
+                    else "watching — it reads on-screen text and fires a priority read when it sees "
+                         "something worth reading" if rec
+                    else "armed — it starts watching when a reel is rolling")}
+
+
+def _shadow_set(on):
+    """Write his choice. Atomic, because a half-written switch read mid-save must never blind the
+    eye — tv_diablo treats an unreadable file as ON for the same reason."""
+    p = _shadow_path()
+    try:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"on": bool(on), "ts": int(time.time() * 1000)}, fh)
+        os.replace(tmp, p)
+    except Exception as e:
+        return {"ok": False, "why": "could not write the switch: %s" % str(e)[:120]}
+    out = _shadow_state()
+    out["changed"] = True
+    return out
+
+
 def _vault_corpus():
     """v1989 — the pixel side of the vault: lattice + occupancy. Same rule as its twin above — a
     real import or nothing. It is asked ONLY when a read came back with no names, so a missing
@@ -13129,7 +13192,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1999",
+        "ver": "v2000",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -14808,6 +14871,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/g5_status":
             self._json(200, _g5_status())
             return
+        if path == "/api/shadow":
+            # v2000 — WHAT THE WIDGET READS. Three separate facts, never averaged into one lamp:
+            #   on        what HE chose (absent file = ON, the default since v932)
+            #   available whether the lane could run at all — no local OCR means the switch is
+            #             decoration, and a switch that cannot do anything must say so
+            #   recording whether a reel is actually rolling; the eye only fires during one
+            # A single green light covering all three is the g5 scar: "mode=primary, calls=0".
+            self._json(200, _shadow_state())
+            return
         # ══ END GROK EYES (G5) ══
         if path == "/api/autoroute-sweep":
             # G3 — read-only de-duped sweep of what KAI witnessed → per-tracker tally.
@@ -15718,6 +15790,15 @@ class Handler(BaseHTTPRequestHandler):
             # The clamped value is ECHOED (5 and 999 come back honest, never silently altered).
             self._json(200, mini_start(body.get("seconds"), test=bool(body.get("test")),
                                        focus=body.get("focus")))
+            return
+        if path == "/api/shadow":
+            # v2000 — ONE WRITER. The agent only ever READS this file, so there is no lock and no
+            # lost write; state.json is deliberately untouched because the agent owns that one.
+            want = body.get("on")
+            if want is None:
+                self._json(200, {"ok": False, "why": "say {\"on\": true} or {\"on\": false}"})
+                return
+            self._json(200, _shadow_set(bool(want)))
             return
         if path == "/api/on":
             # v1578 — REFUSE LOUDLY while a mini is counting down (the mirror of mini_start's

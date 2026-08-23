@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v1999"   # the law has a caller
+VERSION = "v2000"   # the shadow reader gets a switch
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -119,6 +119,56 @@ def _fixture_root(here):
 
 
 STATE  = os.path.join(_fixture_root(HERE), "state.json")
+# ── v2000 — THE SHADOW SWITCH. ONE WRITER, ONE READER, ITS OWN FILE ─────────────────────────────
+# Konyo: "is there a way to like have an AI lurking in the shadows reading the game ingame and
+# sometimes firing whats needed? … for this it should have an ON/OFF for shadow AI a button to
+# click a cool widget."
+#
+# The lurking AI already exists and has since v932: the TEXT EYE OCRs the live frame continuously
+# and turns new item-ish text into a PRIORITY read. What it never had was a switch he could reach.
+# TV_TEXT_EYE is read ONCE, before the loop starts, so it is a boot flag and an env var of a running
+# process cannot be changed from outside anyway.
+#
+# NOT state.json, deliberately. The agent WRITES that file; a console that also wrote it is the
+# pt_signals.json shape exactly — four programs whole-file-writing one path and erasing each other's
+# rows seconds later. This file has exactly ONE writer (the console) and ONE reader (this process),
+# so no lock is needed and no write can be lost.
+#
+# It rides _fixture_root for the same reason STATE does: a test that repoints TV_HIST has said "this
+# is not his world", and must not be able to switch off the eye in his real one.
+# [[feedback-fixtures-never-touch-live-data]] [[achilles-trading-book-shrank]]
+SHADOW = os.path.join(_fixture_root(HERE), "shadow_ai.json")
+_SHADOW_CACHE = {"mtime": -1.0, "on": True}
+
+
+def shadow_ai_on():
+    """Is the lurking reader allowed to fire right now? Default ON, and ABSENT means ON.
+
+    A missing file must read as ON, not OFF: the eye has run by default since v932 and a fresh
+    checkout, a wiped frames dir or a first run must not silently switch it off. Off is only ever
+    something he chose.
+
+    Cached on mtime because the caller polls this every 0.7s; a stat is cheap, a json parse 86,000
+    times an hour is not.
+    """
+    if os.environ.get("TV_TEXT_EYE", "1") == "0":
+        return False           # the boot override still wins, so nothing that worked stops working
+    try:
+        m = os.path.getmtime(SHADOW)
+    except OSError:
+        _SHADOW_CACHE["mtime"] = -1.0
+        _SHADOW_CACHE["on"] = True
+        return True
+    if m != _SHADOW_CACHE["mtime"]:
+        _SHADOW_CACHE["mtime"] = m
+        try:
+            with open(SHADOW, encoding="utf-8") as fh:
+                _SHADOW_CACHE["on"] = bool((json.load(fh) or {}).get("on", True))
+        except Exception:
+            # an unreadable switch is not an OFF switch — a truncated write mid-save must not
+            # silently blind the eye until someone notices
+            _SHADOW_CACHE["on"] = True
+    return _SHADOW_CACHE["on"]
 _STATE_DEFAULT = STATE     # what import time chose, so a later explicit override is recognisable
 _TEST_STATE_DIR = [None]
 
@@ -3775,6 +3825,9 @@ def _text_eye_loop():
     (local Vision, ~50-150ms) and turns NEW item-ish text into an immediate PRIORITY read
     of the frozen frame via _settle_enqueue (whose drain path bypasses the same-view gate,
     so these can never be deduped away). Text re-arms after a TTL so revisits re-read."""
+    # v2000 — the OCR check stays at the top: no local Vision means this lane can never work and
+    # the thread should not exist. The ON/OFF moved INSIDE the loop, because a switch he can only
+    # use by restarting the agent is not a switch. TV_TEXT_EYE=0 still short-circuits everything.
     if os.environ.get("TV_TEXT_EYE", "1") == "0" or not _OCR.available():
         return
     eye = os.path.join(FRAMES, "eye.jpg")
@@ -3792,6 +3845,11 @@ def _text_eye_loop():
                 if seen:
                     seen.clear()
             if globals().get("_AI_PAUSED") or not os.path.isfile(eye):
+                continue
+            # v2000 — HIS SWITCH, honoured live. Checked here rather than at thread start so
+            # flipping it takes effect on the next 0.7s tick instead of at the next ON AIR.
+            # Costs one cached stat; the file is absent on a normal run and absent means ON.
+            if not shadow_ai_on():
                 continue
             # v934.2 / v935.7 — NO PIN, NO SCAN. Boot default used to be mode="full", so the
             # text eye OCR'd console chrome (STANDBY / LIVE) and burned a Sonnet read.
