@@ -10601,6 +10601,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         _glimpsed = []      # v1989 — cells we can SEE are occupied on a frame whose read named nothing
         _reconciled = []    # v1994 — every read frame, names-vs-cells, whichever way it came out
         _over_read = []     # v1994 — the subset where the model named MORE than the panel can hold
+        _pix_err = []       # v1998 — why the pixel lane went quiet, if it did. Once, not per frame.
         _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
 
         def _classify(p):
@@ -10737,8 +10738,16 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                                     # the read still travels; it is MARKED, never discarded
                                     _r["reconcile"] = {"verdict": "over-read", "named": _named,
                                                        "occupied": _occN}
-                    except Exception:
-                        pass
+                    except Exception as _pe:
+                        # v1998 — A SILENT PIXEL LANE READS EXACTLY LIKE A CLEAN PANEL.
+                        # `except: pass` here means a missing vault_corpus, a broken lattice or a
+                        # renamed function produces ZERO cross-checks and ZERO complaint — the same
+                        # shape as the accessor that did not exist and threw into a bare except for
+                        # a whole version. Recorded ONCE per sweep (this runs per frame; a per-frame
+                        # print would bury the run) and read out at the end.
+                        # [[feedback-silence-is-not-evidence]]
+                        if not _pix_err:
+                            _pix_err.append("%s: %s" % (type(_pe).__name__, str(_pe)[:120]))
                 if isinstance(_r, dict) and not _r.get("note") and not (_r.get("items") or []):
                     _read_no_names[0] += 1
                     # ── v1989 — THE GLIMPSE. Konyo: "it can also like reverse engineer my inventory
@@ -10777,8 +10786,9 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                                         "occupied": _occ.get("occupied"),
                                         "free": _occ.get("free"),
                                     })
-                    except Exception:
-                        pass
+                    except Exception as _ge:
+                        if not _pix_err:      # v1998 — same lane, same one-line record
+                            _pix_err.append("%s: %s" % (type(_ge).__name__, str(_ge)[:120]))
                 return _r
             except Exception:
                 return {"note": "the reader failed on this page — not read"}
@@ -10843,6 +10853,14 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             try:
                 prop["reconciled"] = _reconciled
                 prop["overRead"] = _over_read
+            except Exception:
+                pass
+        if _pix_err:
+            print("   \u26a0 the free pixel lane could not run: %s" % _pix_err[0])
+            print("     so 'no glimpse' and 'no cross-check' this run mean NOTHING WAS MEASURED, "
+                  "not that the panels were empty.")
+            try:
+                prop["pixelLaneError"] = _pix_err[0]
             except Exception:
                 pass
         _tick(reelsDone=int((prop.get("totals") or {}).get("sessionsSeen") or 0))
@@ -13111,7 +13129,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v1997",
+        "ver": "v1998",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

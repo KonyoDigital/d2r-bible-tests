@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1997",
+  "ver": "v1998",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1997: vaultAccumApply returned early on an empty item list which is exactly the payload the glimpse produces",
+  "note": "v1998: apply_payload had never been executed by a test and the pixel lane could fail without saying so",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

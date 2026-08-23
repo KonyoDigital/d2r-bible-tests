@@ -27,6 +27,7 @@ used rows with no `name`/`lane`, which `_rows_of` correctly drops, and it read t
 possible breakage rather than a malformed probe. These tests use the real row shape.
 """
 
+import json
 import os
 import sys
 import unittest
@@ -249,6 +250,97 @@ class TestADeclaredFocusIsTrusted(unittest.TestCase):
     def test_a_reel_with_no_focus_behaves_exactly_as_before(self):
         self.assertIsNone(v._declared_surface({}))
         self.assertIsNone(v._declared_surface(None))
+
+
+class TestApplyPayloadIsTheProductionSHAPE(unittest.TestCase):
+    """v1998 — the function that shapes EVERY payload the board receives had never been executed.
+
+    Measured before this class existed: `apply_payload` appears in ZERO test files. It owns the
+    contract between this module and the board, and it is where REG-341 lived — it emitted
+    `"witnesses": len(...)`, turning the list `_witness_rows` builds into an int. Every reader on
+    the board treats it as an ARRAY (`witnesses[0].session`, `witnesses.length`), so a JS loop over
+    a number simply never ran, and the 3-session equipment lock could not fire on a real apply. It
+    locked fine against hand-made arrays in the tests that existed, because none of them went
+    through this function.
+
+    Grok's read of the same gap, 2026-08-23: "No committed test asserts apply_payload items have
+    list witnesses… Without this, REG-341 is a comment."
+    """
+
+    @staticmethod
+    def _prop(**kw):
+        import vault_retro as vr
+        ev = lambda s, f, lane, c: {"session": s, "frame": f, "lane": lane, "conf": c,
+                                    "kind": "item", "count": None, "ts": 1787242458369}
+        row = vr._owned_row(("Harlequin Crest", "equipment"),
+                            [ev("s_A", "f1", "equipment", 0.97),
+                             ev("s_B", "f2", "equipment", 0.95),
+                             ev("s_C", "f3", "equipment", 0.96)])
+        base = {"ok": True, "owned": [row], "generatedTs": 1787242458369,
+                "sessionsRead": ["s_A", "s_B", "s_C"]}
+        base.update(kw)
+        return base
+
+    def test_witnesses_ship_as_ROWS_and_the_count_rides_beside_them(self):
+        import vault_retro as vr
+        it = vr.apply_payload(self._prop())["items"][0]
+        self.assertIsInstance(it["witnesses"], list,
+                              "witnesses collapsed to a scalar — the board loops over it and a loop "
+                              "over a number never runs, which is REG-341 exactly")
+        self.assertEqual(len(it["witnesses"]), 3)
+        self.assertEqual(it["witnessCount"], 3, "the count must survive as its own field")
+        self.assertNotIsInstance(it["witnesses"], int)
+
+    def test_the_board_can_count_DISTINCT_sessions_the_way_the_lane_lock_does(self):
+        """The lock needs 3 DISTINCT sessions. That is only possible if the rows carry `session`."""
+        import vault_retro as vr
+        w = vr.apply_payload(self._prop())["items"][0]["witnesses"]
+        self.assertEqual(sorted({r["session"] for r in w}), ["s_A", "s_B", "s_C"])
+        for r in w:
+            self.assertTrue(r.get("frame"), "provenance lost: reel/frame live on these rows and nowhere else")
+            self.assertEqual(r.get("lane"), "equipment")
+            self.assertIsNotNone(r.get("conf"), "conf is re-gated from these rows by control_app")
+
+    def test_non_dict_witnesses_are_dropped_rather_than_shipped(self):
+        import vault_retro as vr
+        p = self._prop()
+        p["owned"][0]["witnesses"] = [{"session": "s_A", "frame": "f1", "lane": "stash", "conf": 0.9},
+                                      "not-a-row", None, 7]
+        it = vr.apply_payload(p)["items"][0]
+        self.assertEqual(len(it["witnesses"]), 1, "a junk witness reached the board")
+        self.assertEqual(it["witnessCount"], 4,
+                         "witnessCount counts what the sweep SAW, not what survived the filter — "
+                         "collapsing those two hides that something was dropped")
+
+    def test_the_free_pixel_evidence_is_carried_through(self):
+        """v1996 — glimpsed/reconciled/overRead were computed and then dropped HERE, so the board
+        could not render them however much it wanted to."""
+        import vault_retro as vr
+        pl = vr.apply_payload(self._prop(
+            glimpsed=[{"frame": "f_a.jpg", "surface": "personal", "occupied": 22, "free": 18}],
+            reconciled=[{"frame": "f_b.jpg", "named": 27, "occupied": 22, "verdict": "over-read"}],
+            overRead=[{"frame": "f_b.jpg", "named": 27, "occupied": 22}]))
+        self.assertEqual(len(pl["glimpsed"]), 1)
+        self.assertEqual(len(pl["reconciled"]), 1)
+        self.assertEqual(pl["overRead"][0]["named"], 27)
+
+    def test_a_refused_proposal_returns_empty_lists_and_never_None(self):
+        """`None` and `[]` mean different things and the board branches on both."""
+        import vault_retro as vr
+        out = vr.apply_payload({"ok": False, "why": "nothing to propose"})
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["items"], [])
+        self.assertEqual(out["suggestions"], [])
+        self.assertIn("nothing to propose", out["why"])
+
+    def test_it_writes_nothing(self):
+        """The law the whole arc rests on: this module may never write."""
+        import vault_retro as vr
+        p = self._prop()
+        before = json.dumps(p, sort_keys=True, default=str)
+        vr.apply_payload(p)
+        self.assertEqual(json.dumps(p, sort_keys=True, default=str), before,
+                         "apply_payload mutated the proposal it was handed")
 
 
 if __name__ == "__main__":

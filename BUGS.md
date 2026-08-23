@@ -10973,3 +10973,44 @@ production payload differed in the ONE field the feature keys on, and I chose th
 
 "Nothing to apply" now means nothing to apply **and nothing seen** — never merely nothing named.
 Re-measured against CI's exact payload: `0 changed your grail · 1 already had · **3 need your eye**`.
+
+## REG-357 — the function that shapes every production payload had never been executed (v1998)
+
+Measured: **`apply_payload` appears in ZERO test files.** It owns the contract between `vault_retro`
+and the board, and it is where REG-341 lived — it emitted `"witnesses": len(...)`, turning the list
+`_witness_rows` builds into an int. Every reader on the board treats it as an ARRAY
+(`witnesses[0].session`, `witnesses.length`), so a JS loop over a number simply never ran and the
+3-session equipment lock **could not fire on a real apply**. It locked fine in the tests that
+existed, because none of them went through this function.
+
+Grok's read of the same gap: *"No committed test asserts apply_payload items have list witnesses…
+Without this, REG-341 is a comment."* It was a comment. Six tests now pin the shape:
+
+- witnesses is a **list of rows**, `witnessCount` rides beside it as the int
+- the board can count **distinct sessions** the way the lane lock does, and every row still carries
+  `frame` / `lane` / `conf` — provenance lives on those dicts and nowhere else
+- a junk witness is dropped while `witnessCount` still counts what the sweep **saw**, because
+  collapsing those two hides that something was dropped
+- the v1996 pixel evidence survives the shaping
+- a refused proposal returns `[]`, never `None` — the board branches on both
+- it **mutates nothing**, which is the law the whole module rests on
+
+**Sabotage-proven, and carefully**: the anchor is the `witnesses`/`witnessCount` PAIR, because the
+list-comprehension alone appears in two functions and a previous attempt at this patched the wrong
+one and went green. Restoring `"witnesses": len(...)` → 3 failures; reverting → 27 pass.
+
+## REG-358 — the free pixel lane could fail silently, which reads as an empty stash (v1998)
+
+Both pixel call sites sat in `except Exception: pass`. A missing `vault_corpus`, a broken lattice or
+a renamed function would produce **zero glimpses and zero complaint** — identical to "his panels were
+empty". Not hypothetical: v1989 shipped a call to `_vault_corpus()`, a function that **did not
+exist**, inside exactly such a block; it would have done nothing forever while looking wired.
+
+The lane now records the first failure once — it runs per frame, so a per-frame print would bury the
+run — reads it out at the end (*"so 'no glimpse' and 'no cross-check' this run mean NOTHING WAS
+MEASURED, not that the panels were empty"*), and sets `prop["pixelLaneError"]` so the board can tell
+the two apart.
+
+Guarded with **AST, not a grep**: the question is whether the handler for the try block containing
+the pixel calls is a bare `pass`, and a text search cannot see block structure. Sabotage-proven —
+restoring one bare handler fails with `still swallows into a bare pass at line 10789`.

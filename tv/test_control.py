@@ -12269,5 +12269,60 @@ class TestV1994TheTwoLayersAreCompared(unittest.TestCase):
                       "the comparison is computed and never handed to the board")
 
 
+class TestV1998ThePixelLaneCannotFailSILENTLY(unittest.TestCase):
+    """v1998 — `except Exception: pass` around the free pixel work means a missing vault_corpus, a
+    broken lattice or a renamed function produces ZERO glimpses and ZERO complaint, which reads
+    exactly like "his panels were empty".
+
+    That is not hypothetical here: v1989 shipped a call to `_vault_corpus()` — a function that did
+    not exist — inside a bare except, and it would have done nothing forever while looking wired.
+
+    Checked with AST, not a grep: the question is whether the HANDLER for the try block containing
+    the pixel calls is a bare `pass`, and a text search cannot see block structure.
+    [[feedback-silence-is-not-evidence]] [[source-reading-guard]]
+    """
+
+    def _tree(self):
+        import ast
+        import control_app as ca
+        with open(ca.__file__, encoding="utf-8") as fh:
+            return ast.parse(fh.read()), ast
+
+    def test_no_pixel_try_block_swallows_into_a_bare_pass(self):
+        tree, ast = self._tree()
+        PIXEL = ("inventory_lattice", "inventory_occupancy", "_vault_corpus")
+        bad = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Try):
+                continue
+            body_src = " ".join(
+                n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+                for n in ast.walk(node) if isinstance(n, ast.Call) and hasattr(n, "func"))
+            if not any(k in body_src for k in PIXEL):
+                continue
+            for h in node.handlers:
+                only_pass = len(h.body) == 1 and isinstance(h.body[0], ast.Pass)
+                if only_pass:
+                    bad.append("line %d" % h.lineno)
+        self.assertEqual(bad, [],
+                         "a pixel-lane try block still swallows into a bare pass at %s — a lane that "
+                         "cannot report its own failure is indistinguishable from an empty stash"
+                         % ", ".join(bad))
+
+    def test_the_failure_is_recorded_once_and_read_out(self):
+        """The join: recording without reporting is the same silence one step later."""
+        import control_app as ca
+        with open(ca.__file__, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("_pix_err.append", src, "nothing records why the pixel lane went quiet")
+        self.assertIn("the free pixel lane could not run", src,
+                      "the failure is recorded and never printed — a log nobody writes to the run")
+        self.assertIn('prop["pixelLaneError"]', src,
+                      "the board cannot tell 'measured nothing' from 'measured empty'")
+        # recorded ONCE, not per frame: this runs inside a per-frame reader
+        self.assertIn("if not _pix_err:", src,
+                      "without the guard a broken lane prints once per frame and buries the run")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
