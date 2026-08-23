@@ -1,8 +1,44 @@
 # 🗄 THE VAULT MANAGER — his brief, in his words, and what it actually asks for
 
-**Status: SPEC ONLY. Nothing below is built yet.** Written 2026-08-21 from his message so the brief
-survives a compaction, and so the first person to work on it starts from what he said rather than
-from a summary of a summary.
+**Status as of 2026-08-23 — MOSTLY BUILT. The line below used to read "SPEC ONLY. Nothing below is
+built yet."** That was true when this was written on 2026-08-21 and stopped being true overnight, and
+a false status line at the top of a brief is worse than none: this document exists so the next person
+starts from what he SAID, and a stale header sends them to build what already exists.
+[[label-outlived-referent]]
+
+### Built and shipped (v1989 → v2011), each proven on his own film
+
+| | |
+|---|---|
+| inventory lattice + occupancy | `vault_corpus`, called from `control_app` — 22 occupied / 18 free on his reels |
+| **the glimpse** | a nameless read is not an empty shelf: cells counted, names never invented (v1989) |
+| **names vs cells cross-check** | `over-read` = the model named more than the panel holds — the only fabrication signal this lane has (v1994) |
+| **the room map** | fixed (cube/tomes/charms) · open floor · churn — 94 of 153 frames of one reel (v1995) |
+| **reel → grail tick → owned → mule** | and it SURVIVES A RELOAD, which it did not before (v1991) |
+| **3-session equipment/inventory lock** | `_laneLocked` gates the mule; Harlequin Crest on equipment ticks the grail and is never moved |
+| lane cards start a reel | `/api/on` had never once been called from the board (v1992) |
+| shadow-reader switch | the text eye has run since v932 and had no control surface (v2000) |
+| pixel evidence in the ledger | glimpsed · over-read · room · pixel-lane-down, as rows he can act on (v1996, v2004) |
+| vault seal is reopenable | records the reader, so a better one looks again (v2002) |
+| a complete answer may seal | a grid has no names by design — stop paying to re-read it (v2003) |
+| retention planner | reports what has given up its information; deletes only with `--apply --yes` (v2001, v2006) |
+
+### Not built, and why — none of these is "we forgot"
+
+1. **Per-slot identity on stash personal/shared.** The 10×4 inventory is the solved panel; the stash
+   grids are not.
+2. **Character / mule identity from film.** v1985's ruling stands: he names the character, because
+   the film cannot. Printing a name the reader never read is the fabrication this board audits out.
+3. **The 1:1 console render** of equipment + inventory + stash per mule.
+4. **`infer_transfer`** (inventory → stash with no names) — the arithmetic is tested, and it is
+   UNPROVEN ON HIS FILM. All 31 reels were scanned; not one shows the panel changing, because none
+   captured him stashing. **Missing footage, not a missing function.** One reel that films the
+   inventory, then the stash, with items moved between them, activates it.
+5. **REG-349** — a white `Shako` and Harlequin Crest's base line arrive as the same string, so the
+   throw-out verdict inverts. The fix was built and REVERTED; it is his ruling, not a bug to guess
+   at. v2011 only makes the reader's own reason visible instead of a default sentence.
+
+Written 2026-08-21 from his message so the brief survives a compaction.
 
 > "the whole point of this is for the ai readers to log and register exactly whats currently in my
 > inventory and main character equiment (SHOULD NEVER BE TOLD TO BE MOVED its locked there) because
