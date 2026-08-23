@@ -594,7 +594,10 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
     throw_flags = {}       # (name, lane) -> [sighting...] the reader flagged as junk
     unsure, held = [], []
     sessions_read, sessions_seen = [], 0
-    frames_seen = classified = pages_read = skipped = 0
+    # v2020 — `classified` counts CALLS MADE. `answered` counts calls that came back with a
+    # surface. They are the same number only when the classifier works, and the whole of
+    # REG-382 is the case where they are not. See _verdict().
+    frames_seen = classified = pages_read = skipped = answered = 0
     trusted = 0   # runs whose surface came from HIS declared focus rather than a paid read
 
     _fold = _name_folder(resolve)
@@ -660,6 +663,8 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             else:
                 classified += 1
                 surface = _surface_of(classify(os.path.join(reel_dir, probe)))
+                if surface is not None:
+                    answered += 1
             if surface is None:
                 # Law 4: unclassifiable is HELD, never guessed into a lane.
                 skipped += 1
@@ -758,6 +763,8 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
 
     totals = {"sessionsSeen": sessions_seen, "framesSeen": frames_seen, "classified": classified,
               "pagesRead": pages_read, "skipped": skipped,
+              # v2020 — how many of those classify calls came back with an actual surface.
+              "classifierAnswered": answered,
               # v1603 — classify calls SKIPPED because he had already said what he was looking at.
               # Reported rather than silently pocketed: "9 classifies" and "9 classifies + 4 you
               # told us" are different facts about the same sweep.
@@ -790,9 +797,32 @@ def _verdict(totals, owned, unsure):
                 "read from them — the reader, not the footage, is what to check."
                 % totals["sessionsSeen"])
     if not totals["pagesRead"]:
-        return ("%d still screen(s) were examined across %d reel(s) and NONE was a stash, inventory "
-                "or equipment panel — there was nothing to read. This is not a reader failure."
-                % (totals["classified"], totals["sessionsSeen"]))
+        # ── v2020 (REG-382) — "NOBODY LOOKED" WAS BEING PRINTED AS "WE LOOKED AND FOUND NOTHING" ──
+        # This branch used to fire on `pagesRead == 0` alone and announce that NONE of his stills was
+        # a stash panel, and that this "is not a reader failure". Both halves were false whenever the
+        # classifier never answered — and the FREE --cost pass installs `classify=lambda p: None`,
+        # a classifier that refuses everything BY DESIGN, so the free pass was structurally
+        # guaranteed to print it.
+        #
+        # MEASURED, 2026-08-23: `vault_retro.py --cost` reported "84 still screen(s) ... NONE was a
+        # stash, inventory or equipment panel" over the same corpus in which vault_doctor finds 16
+        # stash panels in 238 sampled frames, and in which frame f_1784984209709 carries a COMPLETE
+        # Annihilus tooltip that a paid chronicle sweep had already read. Three witnesses against it.
+        #
+        # This is the most expensive possible wrong answer: the cost pass is what you run BEFORE
+        # deciding to pay, and it told him his footage held nothing and the reader was blameless.
+        # A sweep that has never run is why vault_swept.json has never existed.
+        # [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+        if not totals.get("classifierAnswered"):
+            return ("%d still screen(s) were examined and the classifier answered about NONE of them, "
+                    "so whether any is a stash panel is UNKNOWN — this says nothing about the footage. "
+                    "The free --cost pass is exactly this state by design: it installs a classifier "
+                    "that refuses everything, so nothing is read and nothing is charged."
+                    % totals["classified"])
+        return ("%d still screen(s) were examined across %d reel(s), the classifier answered about "
+                "%d of them, and NONE was a stash, inventory or equipment panel — there was nothing "
+                "to read. This is not a reader failure."
+                % (totals["classified"], totals["sessionsSeen"], totals["classifierAnswered"]))
     if unsure:
         return ("%d page(s) were read and every name so far has only ONE session behind it — open the "
                 "same stash on camera once more and they ground." % totals["pagesRead"])

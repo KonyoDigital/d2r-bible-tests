@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2019",
+  "ver": "v2021",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2019: OFF now seals the reel ON started and puts the reader back, and both OFF messages state the reel state",
+  "note": "v2021: REG-382 the free cost pass reported a stub classifier as a measurement of his footage, REG-383 the seed guard sat on the clear as well as the write",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

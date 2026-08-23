@@ -18661,6 +18661,26 @@ window.renderHighValueFinds = renderHighValueFinds;
   try {
     if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder' && !window._isCousinShell) {   // v663 — the grail floor is the OWNER's
       var _gUn = _safeJsonParse(LS.getItem('d2r_grailUnfound'), {}) || {};
+      /* v2021 — FREE THE ENTRIES ALREADY TRAPPED. The fix above stops new ones; his board already
+         held two. Deleting these is provably lossless, and the proof is the two loops directly
+         below: BOTH floors iterate `Object.keys(_GRAIL_SEED)` / `Object.keys(_SET_SEED)` and consult
+         _gUn only for names they are already walking. A record for a name in NEITHER seed is
+         therefore never read by the thing it exists to veto - its only remaining effect is the
+         "marked NOT found, by you" band, which he cannot clear by tapping. Inert and misleading is
+         the whole of what is being removed. Same accessor as the read above, so the
+         read-modify-write stays coherent. */
+      try {
+        var _gunDead = Object.keys(_gUn).filter(function(n){
+          return !(typeof _GRAIL_SEED !== 'undefined' && _GRAIL_SEED[n])
+              && !(typeof _SET_SEED !== 'undefined' && _SET_SEED[n]);
+        });
+        if (_gunDead.length){
+          _gunDead.forEach(function(n){ delete _gUn[n]; });
+          LS.setItem('d2r_grailUnfound', JSON.stringify(_gUn));
+          console.warn('[bible] v2021 cleared ' + _gunDead.length + ' un-tick record(s) no seed can '
+            + 'ever re-tick, so nothing could clear them: ' + _gunDead.join(', '));
+        }
+      } catch(e){}
       var _gfl = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {};
       var _gch = false, _gflCh = false;
       // v677 — the floor writes the LEDGER only: chronicle finds never enter the vault.
@@ -20699,7 +20719,30 @@ function toggleOwned(name) {
   // v659 — seeded grail names: an explicit un-tick is USER TRUTH — record it so the boot floor
   // respects it (mirrors d2r_rwUnmade for the runeword seed); re-ticking clears the record.
   // v684 — same mac-ladder guard as toggleSetPiece: never let a ladder toggle mutate MAIN's shared unfound ledger.
-  try { if (window._GRAIL_SEED && window._GRAIL_SEED[name] && (window._isCousinShell || window.D2R_PROFILE !== 'ladder')) { var _gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (wasOwned) _gu[name] = 1; else delete _gu[name]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_gu)); } } catch(e){}
+  /* ── v2021 (REG-383) — THE SEED GUARD BELONGS ON THE WRITE, NEVER ON THE CLEAR ──────────────
+     Konyo: "i tallied blood crescent why is it saying this though? unmarked.. something."
+
+     The F-Uniques forge was showing him "2 marked NOT found, by you - your un-tick stands until you
+     tap one", and TAPPING COULD NOT CLEAR IT. Both halves of this line were gated on
+     _GRAIL_SEED[name]: the write AND the clear. The seed is a hardcoded 243-name constant that gets
+     re-cut between versions, so a name can be un-ticked while it IS seeded and later fall out of the
+     seed - after which the record is unwritable AND unclearable. A trapped entry, and the band's own
+     instruction is then impossible to follow.
+
+     MEASURED on his board: d2r_grailUnfound held exactly 2 names, `Blood Crescent` and
+     `Sazabi's Ghost Liberator (balrog skin)`. BOTH are also dated in d2r_foundLog (Aug 21 and Aug 6),
+     and NEITHER is in _GRAIL_SEED (243 entries) or _SET_SEED (108). 2 of 2 self-contradictory, 2 of 2
+     unclearable.
+
+     Asymmetry is the whole defect: RECORDING an un-tick only matters for a name the boot floor would
+     otherwise re-tick, so that half stays gated. REMOVING one must always be possible, or the store
+     accumulates entries nothing can reach. [[label-outlived-referent]] [[the-unjoined-end]] */
+  try { if (window._isCousinShell || window.D2R_PROFILE !== 'ladder') {
+    var _gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'), _guCh = false;
+    if (wasOwned){ if (window._GRAIL_SEED && window._GRAIL_SEED[name]){ _gu[name] = 1; _guCh = true; } }
+    else if (Object.prototype.hasOwnProperty.call(_gu, name)){ delete _gu[name]; _guCh = true; }
+    if (_guCh) window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_gu));
+  } } catch(e){}
   // Celebrate first-time ownership of grail items
   if (!wasOwned) {
     const item = ITEMS.find(i => i.n === name);
@@ -21779,7 +21822,15 @@ function toggleSetPiece(piece) {
   // would land in MAIN's shared ledger and permanently gate main's seed floor (and a ladder re-tick
   // would erase main's explicit un-marks). The floor only runs on the owner (mac main); cousin's
   // W·-family writes stay correct via LSR.
-  try { if (window._SET_SEED && window._SET_SEED[piece] && (window._isCousinShell || window.D2R_PROFILE !== 'ladder')) { var _sgu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (setPieces.has(piece)) _sgu[piece] = 1; else delete _sgu[piece]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_sgu)); } } catch(e){}
+  /* v2021 — the set-piece twin of the grail fix above, same reasoning: gate the WRITE on the
+     seed, never the CLEAR, or a piece that falls out of _SET_SEED keeps an un-tick nothing can
+     remove. Fixed together because one of the two names trapped on his board is a SET piece. */
+  try { if (window._isCousinShell || window.D2R_PROFILE !== 'ladder') {
+    var _sgu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'), _sguCh = false;
+    if (setPieces.has(piece)){ if (window._SET_SEED && window._SET_SEED[piece]){ _sgu[piece] = 1; _sguCh = true; } }
+    else if (Object.prototype.hasOwnProperty.call(_sgu, piece)){ delete _sgu[piece]; _sguCh = true; }
+    if (_sguCh) window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_sgu));
+  } } catch(e){}
   /* v1939 — AND CLEAR THE MACHINE STORE WHEN HE TICKS IT BACK.
      d2r_setRepairRemoved says "the game's Remaining filter listed this as one he does not have".
      If he then ticks the piece by hand, that sentence is no longer true, and leaving it in place
@@ -44248,7 +44299,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2019', name:'v2019 - the tooltip pass gives back what it took', date:'2026-08-23', note:'OFF now seals the reel ON started and puts the reader back, and both OFF messages state the reel state' };
+  window.D2R_BUILD = { id:'v2021', name:'v2021 - an un-tick nothing could clear', date:'2026-08-23', note:'REG-382 the free cost pass reported a stub classifier as a measurement of his footage, REG-383 the seed guard sat on the clear as well as the write' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

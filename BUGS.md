@@ -11843,3 +11843,65 @@ I reported that the UI lamp disagreed with the server (panel green, `/api/shadow
 not. His screenshot was 17:28 and my probe was 17:30, and he had toggled off in between — the server
 was telling the truth the whole time. A reading carries the age of the thing it measured.
 [[stale-reading]]
+
+## REG-382 — the FREE cost pass told him his footage was worthless (v2020)
+
+`vault_retro.py --cost` is the pass you run *before* deciding to pay. Over his 32 reels it printed:
+
+> *84 still screen(s) were examined across 32 reel(s) and NONE was a stash, inventory or equipment
+> panel — there was nothing to read. **This is not a reader failure.***
+
+Confident, actionable, and false. Three witnesses against it:
+
+* `vault_doctor` finds **16 stash panels in 238 sampled frames** of the same corpus;
+* I opened three frames by eye — Stash + Inventory wide open, packed;
+* `f_1784984209709.jpg` carries a **complete Annihilus tooltip** that a paid chronicle sweep had
+  already read.
+
+**The cause is the cost pass's own stub.** It calls
+`sweep(dirs, classify=lambda p: None, ...)` — a classifier that refuses everything **by design**, so
+nothing is read and nothing is charged. `_verdict` then fired on `pagesRead == 0` alone and reported
+the stub's silence as a measurement of his film. *"Nobody looked"* printed as *"we looked and found
+nothing"*, in the one place where the answer decides whether he spends money.
+[[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+
+`sweep()` now counts `classifierAnswered` — classify calls that came back with a surface, as opposed
+to calls merely *made* — and the branch requires it. With none, it says UNKNOWN and names the stub.
+
+### Two instrument errors of mine on the way here, both recorded so neither repeats
+* A tooltip ranker scored a **lava scene** top: it counted bright pixels anywhere inside a band of
+  dark rows, so the brightest frame in the corpus won.
+* The rewrite scanned `tv/frames/hist/*.jpg` — the **1052 loose top-level frames**. The reels live in
+  `tv/frames/hist/reel_*/` and hold **3337**. I was one step from reporting "there are no tooltips in
+  his footage" off a third of it. **The count was the tell and I did not check it**: the doctor prints
+  3337 on every run.
+* The detector was then **calibrated against the Annihilus frame and FAILED** — true positive 0.12,
+  lava scene 10.64. A D2R tooltip is *translucent*, so luminance and saturation do not separate it
+  from dark scenery. **Not shipped.** A detector that ranks the one known hit below four known misses
+  is worse than none. [[feedback-blind-fixture-green-gate]]
+
+## REG-383 — an un-tick nothing could write and nothing could clear (v2021)
+
+**Found by Konyo:** *"i tallied blood crescent why is it saying this though? unmarked.. something."*
+
+F·Uniques was showing *"❓ 2 marked NOT found, by you — your un-tick stands until you tap one"*, and
+tapping could not clear it.
+
+`d2r_grailUnfound` is his explicit un-tick, and its only job is to stop the boot floor re-ticking a
+name. Both the write and the clear sat behind the same guard — `_GRAIL_SEED[name]` /
+`_SET_SEED[piece]`. Those seeds are hardcoded constants (243 and 108) that get **re-cut between
+versions**, so a name un-ticked while seeded and later dropped from the seed leaves a record that is
+unwritable *and* unclearable.
+
+**Measured on his board:** `d2r_grailUnfound` held exactly two names. Both are dated in `foundLog`
+(`Blood Crescent` Aug 21 · `Sazabi's Ghost Liberator (balrog skin)` Aug 6). **Neither is in either
+seed.** 2 of 2 self-contradictory, 2 of 2 unreachable.
+
+**Asymmetry was the whole defect.** Recording an un-tick only matters for a name the floor would
+otherwise re-tick, so that half stays gated. Removing one must always be possible.
+
+**The migration is provably lossless**, and the proof is the two loops it sits above: both floors do
+`Object.keys(_GRAIL_SEED).forEach` / `Object.keys(_SET_SEED).forEach` and consult `_gUn` only for
+names they are already walking. A record for a name in neither seed is therefore never read by the
+thing it exists to veto — its only surviving effect was a band he could not clear.
+[[label-outlived-referent]] [[the-unjoined-end]]
