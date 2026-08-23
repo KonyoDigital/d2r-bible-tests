@@ -42791,7 +42791,22 @@ window._renderStashFresh = function(){
     var p = (payload && typeof payload === 'object') ? payload : {};
     var out = { ok:true, raised:[], held:[], grail:[], suggestions:0, skipped:[], ts:Date.now() };
     var items = p.items || [];
-    if (!items.length && !(p.throwOut||p.suggestions||[]).length)
+    /* ── v1997 — A PAYLOAD THAT NAMES NOTHING IS NOT AN EMPTY PAYLOAD ─────────────────────────
+       This guard returned early on "no items", and the PIXEL EVIDENCE is carried by exactly the
+       payload that has none. The glimpse (v1989) exists for a read that named nothing while the
+       cells are visibly full, and an over-read (v1994) can land on a frame whose names were all
+       rejected — so the one case the whole feature was built for bailed out three lines in, before
+       anything could reach the ledger.
+
+       CAUGHT BY CI, NOT BY ME. My own probe fed a payload containing a real named row ("Shako"),
+       so the early return never fired and the render looked perfect; the spec passed `items: []`
+       and CI came back "1 already had — nothing to do" with no eye bucket at all. That is the
+       blind-fixture shape exactly: a friendlier fixture than production, and a green read from it.
+       [[feedback-blind-fixture-green-gate]]
+
+       "Nothing to apply" now means nothing to apply AND nothing seen — never merely nothing named. */
+    var _pixN = ((p.glimpsed || []).length + (p.overRead || []).length);
+    if (!items.length && !(p.throwOut||p.suggestions||[]).length && !_pixN)
       return { ok:false, why:'the payload carried no items' };
 
     /* throw-outs are acknowledged and NOT acted on — the count is the receipt that they were
@@ -44062,7 +44077,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1996', name:'v1996 - the pixels reach the ledger', date:'2026-08-23', note:'three signals were computed from the pixels and rendered nowhere - apply_payload dropped them and the inbox filed an over-read under nothing to do' };
+  window.D2R_BUILD = { id:'v1997', name:'v1997 - nothing named is not nothing seen', date:'2026-08-23', note:'vaultAccumApply returned early on an empty item list which is exactly the payload the glimpse produces' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -10951,3 +10951,25 @@ geometric overlap check that would have failed on the first render.
 **viewport**-relative. On a scrolled page the difference is exactly `scrollY`, and the result is a
 plausible **black rectangle** rather than an error. `chrome-cdp-mac §3` warns about this for
 `captureBeyondViewport:true`; it applies with `false` too. Add `window.scrollX/scrollY` to the clip.
+
+## REG-356 — the one payload the glimpse was built for bailed out three lines in (v1997)
+
+`vaultAccumApply` opened with:
+```js
+if (!items.length && !(p.throwOut||p.suggestions||[]).length)
+  return { ok:false, why:'the payload carried no items' };
+```
+The pixel evidence is carried by **exactly the payload that has no items**. The glimpse (v1989)
+exists for a read that named nothing while the cells are visibly full; an over-read (v1994) can land
+on a frame whose names were all rejected. So the single case the whole feature was built for returned
+early, before anything could reach the ledger.
+
+**CI caught it; I did not.** My own probe fed a payload containing a real named row (`Shako`), so the
+early return never fired and the render looked perfect — three rows, correct bucket, clean pixels.
+The spec passed `items: []` and CI came back `1 already had — nothing to do` with **no eye bucket at
+all**. That is the blind-fixture shape exactly: a fixture friendlier than production, and a green
+read taken from it. The lesson is not "write better fixtures" — it is that the fixture and the
+production payload differed in the ONE field the feature keys on, and I chose the fixture.
+
+"Nothing to apply" now means nothing to apply **and nothing seen** — never merely nothing named.
+Re-measured against CI's exact payload: `0 changed your grail · 1 already had · **3 need your eye**`.
