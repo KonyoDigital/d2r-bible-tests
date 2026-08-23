@@ -11260,8 +11260,28 @@ def vault_apply(proposal=None):
         return {"ok": False, "why": "could not shape the proposal: %s" % str(e)[:160]}
     payload = json.dumps(dict(shaped, owned=owned, unsure=unsure, throwOut=throw,
                               source="vault-accumulator"))
-    js = ("(function(){try{if(typeof window.vaultAccumApply!=='function')return JSON.stringify("
-          "{ok:false,why:'this board build has no vaultAccumApply — update the board'});"
+    # ── v2034 — SAY WHICH OF THE TWO IT IS ─────────────────────────────────────────────────
+    # This answered "this board build has no vaultAccumApply — update the board" for BOTH causes,
+    # and only one of them is about the build:
+    #   (a) the window is showing the CONSOLE RAIL, not the board. Nothing is wrong with anything;
+    #       he just navigates back. This is the common case — one window, same-origin nav (v781).
+    #   (b) the window IS the board and its build predates vaultAccumApply. Then "update" is right.
+    # Hit live: a completed sweep with two grounded names could not be applied, and the message
+    # sent me to check bible.html — which had the function nine times over. A message that names
+    # the wrong cause costs exactly as much as no message. [[label-outlived-referent]]
+    #
+    # The two are told apart by what the window is actually showing: the board has #tab-tools, the
+    # console rail has details.sig-adv. Neither is a guess about the build.
+    js = ("(function(){try{if(typeof window.vaultAccumApply!=='function'){"
+          "var onBoard=!!document.getElementById('tab-tools');"
+          "var onRail=!!document.querySelector('details.sig-adv');"
+          "return JSON.stringify({ok:false,why:("
+          "onRail&&!onBoard ? 'the window is on the CONSOLE, not the board — open the board "
+          "(KONYO / Sessions / Forge / Tools) and apply again; nothing is wrong with the build' :"
+          "onBoard ? 'the board is open but this build has no vaultAccumApply — reload it (it is "
+          "read fresh from disk, so a reload is enough)' :"
+          "'the window is showing neither the board nor the console rail — cannot reach the vault')"
+          "});}"
           "var r=window.vaultAccumApply(%s);return JSON.stringify({ok:true,applied:r});}"
           "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % payload
     try:
@@ -13471,7 +13491,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2033",
+        "ver": "v2034",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

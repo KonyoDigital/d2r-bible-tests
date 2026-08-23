@@ -12516,3 +12516,28 @@ Grok, `primary` = Grok then Claude. **Two of those three are Claude-led**, so he
 Eyes"* described the switch by the option he is least often on — and by the one his cousin will never
 have. It reads `👁 EYES`; the lane is named in the sub-text where it belongs.
 [[label-outlived-referent]]
+
+## v2034 — the apply blamed the board build for a window that was on the console
+
+`vault_apply` answered **"this board build has no vaultAccumApply — update the board"** whenever the
+function was missing from the window. Two very different things produce that, and only one is about
+the build:
+
+* **the window is showing the CONSOLE RAIL, not the board.** Nothing is wrong with anything; he just
+  navigates back. This is the *common* case — one window, same-origin nav (v781).
+* **the window IS the board and its build predates `vaultAccumApply`.** Only then is "update" right.
+
+**Hit live:** a finished sweep with two grounded names could not be applied, and the message sent me
+to check `bible.html` — which contained the function **nine times over**. A message that names the
+wrong cause costs exactly as much as no message, and spends trust on top.
+
+Told apart by what the window is *showing* — `#tab-tools` on the board, `details.sig-adv` on the rail
+— never by guessing at the build. A third answer exists for "neither", because *"I cannot see where
+you are"* must not borrow either diagnosis. [[label-outlived-referent]]
+
+### ⚠ And a process scar of my own, one message after naming it
+I edited the working tree **while a push gate was running**, and the gate grades the working tree,
+not the commit. `test_board_window_fallback_defines_url` failed in the gate and **passes standalone**
+— a torn read of `control_app.py` mid-write. I had flagged that exact risk in the message before it
+happened. Naming a hazard is not the same as avoiding it: the fix is to hold edits until the push
+returns, not to note the danger and continue.

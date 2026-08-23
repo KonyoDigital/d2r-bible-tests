@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2033",
+  "ver": "v2034",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2033: the disclosure title was quieter than the body text around it so he twice concluded the eyes switch had been removed",
+  "note": "v2034: one message covered both a console-rail window and a genuinely old board, and only one of them is about the build",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

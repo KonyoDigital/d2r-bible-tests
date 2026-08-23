@@ -14117,5 +14117,64 @@ class TestV2032EveryTooltipFrameReachesTheReader(unittest.TestCase):
 
 
 
+class TestV2034TheApplyNamesWhichCauseStoppedIt(unittest.TestCase):
+    """v2034 — one message for two causes, and only one of them was about the build.
+
+    vault_apply answered "this board build has no vaultAccumApply — update the board" whenever the
+    function was missing from the window. Two very different things produce that:
+
+      (a) the window is showing the CONSOLE RAIL, not the board. Nothing is wrong with anything and
+          he just navigates back. This is the COMMON case — one window, same-origin nav (v781).
+      (b) the window IS the board and its build predates vaultAccumApply. Only then is "update" the
+          right instruction.
+
+    HIT LIVE: a finished sweep with two grounded names could not be applied, and the message sent me
+    to check bible.html — which contained the function nine times over. A message that names the
+    wrong cause costs exactly as much as no message, and worse, it spends his trust.
+
+    The two are told apart by what the window is SHOWING (#tab-tools on the board, details.sig-adv
+    on the rail), never by guessing at the build. [[label-outlived-referent]]
+    """
+
+    @staticmethod
+    def _apply_src():
+        import inspect
+        import control_app as ca
+        return inspect.getsource(ca.vault_apply)
+
+    def test_the_console_case_does_not_say_update_the_board(self):
+        src = self._apply_src()
+        i = src.find("onRail&&!onBoard")
+        self.assertNotEqual(i, -1, "the console-rail case is not distinguished at all")
+        seg = _between(self, src, "onRail&&!onBoard", "onBoard ?", min_len=30,
+                       what="the console-rail branch")
+        self.assertNotIn("update the board", seg,
+                         "when the window is merely on the console rail, telling him to UPDATE THE "
+                         "BOARD sends him to fix something that is not broken")
+        self.assertIn("CONSOLE", seg, "it must say where the window actually is")
+
+    def test_the_stale_board_case_still_says_reload(self):
+        src = self._apply_src()
+        self.assertIn("reload it", src,
+                      "a genuinely old board must still be told to reload - control_ui and "
+                      "bible.html are both read fresh from disk, so a reload IS the fix")
+
+    def test_all_three_outcomes_are_distinct(self):
+        """Neither-board-nor-rail is its own answer: 'I cannot see where you are' is not the same
+        as either diagnosis, and must not borrow one of their instructions."""
+        src = self._apply_src()
+        for probe in ("onRail&&!onBoard", "onBoard ? 'the board is open",
+                      "neither the board nor the console"):
+            self.assertIn(probe, src, "missing branch: %s" % probe)
+
+    def test_it_reads_the_dom_not_the_version(self):
+        """Which view is on screen is a FACT about the window. Inferring it from a version stamp
+        would be the same guess this whole class of bug is made of."""
+        src = self._apply_src()
+        self.assertIn("getElementById('tab-tools')", src)
+        self.assertIn("querySelector('details.sig-adv')", src)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
