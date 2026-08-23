@@ -789,11 +789,34 @@ def chronicle_kind(read):
     if str(read.get("scene") or "").lower() != "chronicle":
         return None
     tab = str(read.get("chronicleTab") or "").lower()
-    if tab == "uniques":
-        return "chronicle-uniques"
-    if tab == "sets":
-        return "chronicle-sets"
-    return None
+    if tab not in ("uniques", "sets"):
+        return None
+    # ── v1999 — AND THE FRAME MUST NOT ALSO CLAIM AN OWNERSHIP PANEL ──────────────────────────
+    # lane_lock.py states the law in its own words — "AT MOST ONE LANE IS EVER UNLOCKED" — and had
+    # ZERO production callers: only tests imported it. A module that documents a law and enforces
+    # nothing is the muleById shape at module scale.
+    #
+    # It could not be joined to the VAULT sweep, and that is worth writing down so nobody tries:
+    # VAULT_READ_PROMPT never asks for chronicleTab, so lane_for() on that path can only ever answer
+    # "vault" — a gate that can never refuse. The signal exists HERE, because READ_PROMPT asks for
+    # stashTab AND chronicleTab on every frame (tv_diablo.py:264).
+    #
+    # THE CASE IT CATCHES: the reader fills BOTH — scene=chronicle, chronicleTab=uniques, and
+    # stashTab=personal. The vault sweep and the chronicle sweep are separate runs over the SAME
+    # reels, so such a frame can be filed as OWNERSHIP by one and as a grail FIND by the other. The
+    # costs are not symmetrical and lane_lock says why: "a Chronicle row filed as OWNERSHIP claims he
+    # owns an item he has merely seen listed, and a stash item filed as a Chronicle FIND ticks a
+    # grail row he never earned."
+    #
+    # Locking costs one unread page. Guessing costs the truth of his ledger. [[the-unjoined-end]]
+    try:
+        import lane_lock as _ll
+        _v = _ll.lane_for(read)
+        if _v.get("lane") != _ll.CHRONICLE:
+            return None
+    except ImportError:
+        pass          # the law is unavailable, not violated — read as before rather than refuse all
+    return "chronicle-" + tab
 
 
 def classifier(claude_read, on_seen=None):

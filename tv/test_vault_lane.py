@@ -183,5 +183,80 @@ class TestTheSimulatorCanActuallyBeRUN(unittest.TestCase):
         self.assertIn("known:", out.stdout)
 
 
+class TestV1999TheLawHasACallerAtLast(unittest.TestCase):
+    """v1999 — lane_lock.py declares "AT MOST ONE LANE IS EVER UNLOCKED" and had ZERO production
+    callers. Only tests imported it. A module that documents a law and enforces nothing is the
+    muleById defect at module scale.
+
+    WHY IT COULD NOT JOIN THE VAULT SWEEP, so nobody tries: VAULT_READ_PROMPT never asks for
+    chronicleTab, so lane_for() on that path can only ever answer "vault" — a gate that can never
+    refuse. The signal exists on the CHRONICLE path, where READ_PROMPT asks for stashTab AND
+    chronicleTab on every frame (tv_diablo.py:264).
+
+    AND THE VOCABULARY WAS BLIND TO ITS OWN INPUT. VAULT_SURFACES listed
+    stash/inventory/equipment/runes/gems/materials while `stashTab` carries the RotW LEFT TABS —
+    "Personal·Shared·Gems·Materials·Runes". Three overlapped by luck; `personal` and `shared`, the
+    two he is in most often, did not. Measured before the fix:
+        chronicle_kind({scene:'chronicle', chronicleTab:'uniques', stashTab:'personal'})
+          -> 'chronicle-uniques'      (should be None — the frame claims both)
+    [[gate-blind-to-unexercised-input]]
+    """
+
+    def test_a_frame_claiming_BOTH_is_refused_for_every_real_stash_tab(self):
+        import chronicle_retro as cr
+        for tab in ("personal", "shared", "gems", "materials", "runes"):
+            self.assertIsNone(
+                cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "uniques", "stashTab": tab}),
+                "a frame claiming the chronicle AND the %s stash tab was read as a chronicle page — "
+                "the cost is not symmetrical: it ticks a grail row he never earned" % tab)
+
+    def test_a_clean_chronicle_page_still_reads(self):
+        """The lock must cost one ambiguous page, not every page."""
+        import chronicle_retro as cr
+        self.assertEqual(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "uniques"}),
+                         "chronicle-uniques")
+        self.assertEqual(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "sets"}),
+                         "chronicle-sets")
+        # an EMPTY stashTab is not a claim
+        self.assertEqual(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "uniques",
+                                            "stashTab": ""}), "chronicle-uniques")
+
+    def test_personal_and_shared_fold_to_stash_rather_than_minting_a_new_lane(self):
+        """`surface` is compared against vault_retro.LANES; a lane named "personal" is a value no
+        consumer knows. Recognise the input, keep the output vocabulary."""
+        import lane_lock as L
+        import vault_retro as vr
+        for tab in ("personal", "shared"):
+            v = L.lane_for({"scene": "stash", "stashTab": tab})
+            self.assertEqual(v["lane"], L.VAULT)
+            self.assertEqual(v["surface"], "stash",
+                             "%s must fold to a lane vault_retro recognises" % tab)
+            self.assertIn(v["surface"], vr.LANES)
+
+    def test_the_join_is_real_and_not_a_comment(self):
+        """The whole point of this version. A law with no caller is prose."""
+        import chronicle_retro as cr
+        with open(cr.__file__, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("import lane_lock", src,
+                      "chronicle_retro no longer consults the lane lock — it is prose again")
+
+    def test_a_missing_lane_lock_reads_as_before_rather_than_refusing_everything(self):
+        """An unavailable law is not a violated one. If the module vanished, the sweep must keep
+        working exactly as it did before it existed — never refuse every page."""
+        import sys
+        import chronicle_retro as cr
+        saved = sys.modules.get("lane_lock")
+        sys.modules["lane_lock"] = None      # import lane_lock -> ImportError
+        try:
+            self.assertEqual(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "uniques"}),
+                             "chronicle-uniques")
+        finally:
+            if saved is not None:
+                sys.modules["lane_lock"] = saved
+            else:
+                sys.modules.pop("lane_lock", None)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

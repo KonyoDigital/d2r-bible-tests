@@ -11014,3 +11014,40 @@ the two apart.
 Guarded with **AST, not a grep**: the question is whether the handler for the try block containing
 the pixel calls is a bare `pass`, and a text search cannot see block structure. Sabotage-proven —
 restoring one bare handler fails with `still swallows into a bare pass at line 10789`.
+
+## REG-359 — the module that declares the law had zero callers, and its vocabulary was blind (v1999)
+
+`tv/lane_lock.py` states it in its own words — *"THE LAW: AT MOST ONE LANE IS EVER UNLOCKED"* — and
+**only tests imported it**. Zero production callers. A module that documents a law and enforces
+nothing is the `muleById` defect at module scale.
+
+**Why it could not join the VAULT sweep, written down so nobody tries.** `VAULT_READ_PROMPT` never
+asks for `chronicleTab`, so `lane_for()` on that path can only ever answer `"vault"` — a gate that
+can never refuse. The signal lives on the **chronicle** path, where `READ_PROMPT` asks for `stashTab`
+AND `chronicleTab` on every frame (`tv_diablo.py:264`). So the join is at `chronicle_kind()`.
+
+**The case it catches**: the reader fills BOTH — `scene=chronicle`, `chronicleTab=uniques`,
+`stashTab=personal`. The vault sweep and the chronicle sweep are separate runs over the SAME reels,
+so such a frame can be filed as OWNERSHIP by one and as a grail FIND by the other. `lane_lock` states
+why that matters: *"a Chronicle row filed as OWNERSHIP claims he owns an item he has merely seen
+listed, and a stash item filed as a Chronicle FIND ticks a grail row he never earned."*
+
+### And the vocabulary did not match its own input
+`VAULT_SURFACES` listed `stash/inventory/equipment/runes/gems/materials`, while `stashTab` carries the
+RotW **left tabs** — `tv_diablo.py:259` says so verbatim: *"Personal·Shared·Gems·Materials·Runes"*.
+Three overlapped by luck. **`personal` and `shared` — the two he is in most often — did not.**
+Measured before the fix:
+```
+chronicle_kind({scene:'chronicle', chronicleTab:'uniques', stashTab:'personal'})
+  -> 'chronicle-uniques'      # should be None; the frame claims both
+```
+So the ambiguity guard was blind on precisely the case it exists for.
+
+They are **folded to `"stash"`**, not added as surfaces of their own: `surface` is compared against
+`vault_retro.LANES` (`stash/inventory/equipment`) and a lane named `personal` is a value no consumer
+knows. Recognise the input, keep the output vocabulary — the first attempt renamed the surface and
+correctly broke `test_stash_open_unlocks_the_vault_and_locks_the_chronicle` (`'personal' != 'stash'`).
+
+**An unavailable law is not a violated one**: if `lane_lock` cannot be imported, the sweep reads
+exactly as before rather than refusing every page. Guarded, and sabotage-proven — removing the fold
+turns the ambiguity test red while the other four stay green.

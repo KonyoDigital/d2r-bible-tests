@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v1998",
+  "ver": "v1999",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v1998: apply_payload had never been executed by a test and the pixel lane could fail without saying so",
+  "note": "v1999: lane_lock declared at most one lane is ever unlocked and nothing called it - and its surface list was missing the two stash tabs he is in most often",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

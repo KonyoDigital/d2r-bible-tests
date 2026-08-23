@@ -33,7 +33,24 @@ decide this, and that is exactly why the decision lives in one audited place rat
 re-derived per lane.
 """
 
+# v1999 — PERSONAL AND SHARED WERE MISSING, AND THEY ARE TWO OF THE FIVE REAL TAB NAMES.
+# This tuple is matched against the reader's `stashTab`, and tv_diablo.py:259 says exactly what that
+# field carries: "RotW left tabs: Personal·Shared·Gems·Materials·Runes". Three of the five happened
+# to overlap; `personal` and `shared` — the two he is in most often — did not, so a frame claiming
+# BOTH a personal stash and a chronicle tab was not seen as ambiguous and the lock stayed open on
+# precisely the case it exists for. Measured: chronicle_kind({scene:'chronicle',
+# chronicleTab:'uniques', stashTab:'personal'}) returned 'chronicle-uniques' before this line.
+# A vocabulary that does not match its input is a gate blind to the data it grades.
+# [[gate-blind-to-unexercised-input]]
 VAULT_SURFACES = ("stash", "inventory", "equipment", "runes", "gems", "materials")
+# The five names the reader actually puts in `stashTab` are the RotW LEFT TABS
+# (tv_diablo.py:259 — "Personal·Shared·Gems·Materials·Runes"). Three overlap with the surfaces
+# above; `personal` and `shared` did not, so a frame claiming BOTH a personal stash and a chronicle
+# tab was not seen as ambiguous and the lock stayed open on precisely the case it exists for.
+# They are FOLDED to "stash" rather than added as surfaces of their own, because `surface` is
+# compared against vault_retro.LANES ("stash","inventory","equipment") and a lane named "personal"
+# would be a value no consumer knows. Recognise the input, keep the output vocabulary.
+_TAB_TO_SURFACE = {"personal": "stash", "shared": "stash"}
 CHRONICLE_LEDGERS = ("uniques", "sets", "runewords")
 
 VAULT = "vault"
@@ -52,6 +69,7 @@ def _vault_surface(verdict):
         return s if s in VAULT_SURFACES else None
     for key in ("surface", "stashTab", "scene", "kind"):
         s = _clean(verdict.get(key))
+        s = _TAB_TO_SURFACE.get(s, s)
         if s in VAULT_SURFACES:
             return s
     return None
