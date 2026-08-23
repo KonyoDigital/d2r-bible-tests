@@ -3530,7 +3530,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .sm-bar i{position:absolute;inset:0 auto 0 0;width:0;min-width:0;border-radius:999px;background:linear-gradient(90deg,#5fa8e0,#7fd4ff);box-shadow:0 0 6px 1px rgba(127,212,255,.45);transition:width .3s}
 #tab-tools .sm-bar.sm-warm i{background:linear-gradient(90deg,#e0a860,#ffd48f)}
 #tab-tools .sm-bar.sm-hot  i{background:linear-gradient(90deg,#e06a6a,#ff9f9f)}
-#tab-tools .sm-v{font-size:10px;color:#9fb6cc;width:34px;flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums}
+#tab-tools .sm-v{font-size:10px;color:#9fb6cc;width:52px;flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 #tab-tools .sub-meter.sm-unknown{border-color:rgba(255,255,255,.14)}
 #tab-tools .sub-meter.sm-unknown .sm-bar i{background:rgba(255,255,255,.18)}
 @media (max-width:560px){
@@ -44382,7 +44382,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2026', name:'v2026 - the eagle eye', date:'2026-08-23', note:'a manager above every lane that sees what no single component can, plus the chronicle-vs-ownership line pinned' };
+  window.D2R_BUILD = { id:'v2027', name:'v2027 - a declared focus survives a full session', date:'2026-08-23', note:'pressing a lane card now tells the sweep what he is looking at, plus the TZ chase, a real relaunch and a scale on the meter' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -46449,6 +46449,14 @@ window.renderSubMeter = function(){
         bar.classList.remove('sm-warm','sm-hot');
         return;
       }
+      /* v2027 — SHOW THE SCALE BESIDE THE BAR. Grok, shown this row cold with no hint:
+         "the two numbers '9' lack any visible unit or scale on the bars themselves" and "the tiny
+         blue segments could be mistaken for decorative dots rather than progress indicators".
+         Both true, and both invisible to me because I knew what the numbers meant. The cap lived
+         only in the sentence on the left, so anyone scanning the right-hand column saw `HR ▁ 9`
+         and could not tell 9 of what — which also makes a 0.2% sliver read as decoration rather
+         than as a measurement. The compact cap (4k / 20k) fits the column; the exact figures stay
+         in the sentence and the title. [[grok-second-eye]] */
       var pct = Math.max(0, Math.min(100, (used / max) * 100));
       /* v2023.1 — A MINIMUM IN PIXELS, NOT PERCENT. The first cut floored at 2%, which on a 132px
          track is 2.6px and looked identical to empty on the render. Verified on pixels: 5px is the
@@ -46456,7 +46464,9 @@ window.renderSubMeter = function(){
       var wpx = bar.getBoundingClientRect().width || 0;
       var minPct = wpx ? (5 / wpx) * 100 : 4;
       fill.style.width = (used > 0 ? Math.max(minPct, pct) : 0) + '%';
-      v.textContent = String(used);
+      var cap = max >= 1000 ? (Math.round(max / 100) / 10).toString().replace(/\.0$/, '') + 'k'
+                            : String(max);
+      v.textContent = used + '/' + cap;
       bar.classList.toggle('sm-warm', pct >= 60 && pct < 85);
       bar.classList.toggle('sm-hot', pct >= 85);
     }
@@ -46555,7 +46565,15 @@ window._laneStartReel = function(lane){
     return Promise.resolve({ ok:false, why:'not served by the console' });
   }
   window._laneSay('\u{1F534} starting a reel for the ' + nice + ' lane\u2026');
-  return fetch('/api/on', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
+  /* v2027 — SAY WHAT HE IS LOOKING AT. Pressing this card IS a declaration, and the sweep has
+     trusted a declared focus in place of a paid classify call since v1603 — it just never got one
+     from here, because only MINI passed a focus. The vault lane's surface is his STASH panel; the
+     tally lanes name themselves. An unknown name cannot travel: _mini_focus() validates it server
+     side against MINI_FOCUSES before it is stamped into a reel. */
+  var FOCUS = { vault:'stash', runes:'runes', gems:'gems', materials:'materials' };
+  var _focus = FOCUS[lane] || null;
+  return fetch('/api/on', { method:'POST', headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify(_focus ? { focus:_focus } : {}) })
     .then(function(r){ return r.json(); })
     .then(function(j){
       if (j && j.ok){

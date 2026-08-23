@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2026",
+  "ver": "v2027",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2026: a manager above every lane that sees what no single component can, plus the chronicle-vs-ownership line pinned",
+  "note": "v2027: pressing a lane card now tells the sweep what he is looking at, plus the TZ chase, a real relaunch and a scale on the meter",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

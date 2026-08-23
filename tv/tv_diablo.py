@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2026"   # the eagle eye
+VERSION = "v2027"   # a declared focus survives a full session
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -278,10 +278,27 @@ try:
     MINI_SECONDS = max(10, min(40, int(float(_mini_raw)))) if MINI_MODE else 0
 except Exception:
     MINI_SECONDS = 25 if MINI_MODE else 0        # a garbled number is still a mini run
-MINI_FOCUS  = (_argv_val("--mini-focus") or "stash") if MINI_MODE else ""
+# ── v2027 — A DECLARED FOCUS IS A DECLARATION WHATEVER THE SESSION LENGTH ────────────────────
+# Konyo, after filming a reel with the Tools -> "Vault items (auto-file to mules)" card: "when i
+# click this it doesnt need the same logic to read the items and vault them automatically ... it
+# should understand its focused and i am working together with it on a focused task".
+#
+# He was right that it was coded — and right to check, because it only ever reached MINI. This read
+# --mini-focus ONLY `if MINI_MODE`, so a full ON AIR session dropped the flag on the floor and wrote
+# focus:"" into index.json. MEASURED on the reel he had just filmed
+# (reel_s_1787508759592_46621, 80 frames, 30 of 40 sampled frames showing a stash panel):
+# index.json keys were ['blank','blankPass','frames','n','sessionId'] — no focus at all. So the
+# sweep paid a classifier to work out what he had already told the console he was doing.
+#
+# The bound (MINI_SECONDS) is genuinely mini-only and stays that way. The FOCUS is not about
+# duration; it is about what he says he is looking at.
+_FOCUS_ARG  = _argv_val("--mini-focus")
+MINI_FOCUS  = _FOCUS_ARG or ("stash" if MINI_MODE else "")
 # v1783 — the FLAG BEING PRESENT is the choice. "stash" also arrives as the fallback above and as
 # the console's pre-selected button, so the value alone cannot say whether he picked it.
-MINI_FOCUS_CHOSEN = bool(_argv_val("--mini-focus")) if MINI_MODE else False
+# vault_retro._declared_surface() enforces exactly this: focusChosen false -> the focus is NOT
+# trusted, so a defaulted "stash" can never label town as a stash panel.
+MINI_FOCUS_CHOSEN = bool(_FOCUS_ARG)
 if MINI_MODE:
     print(f"⏱ MINI CAPTURE — {MINI_SECONDS}s, focus={MINI_FOCUS}", flush=True)
 MOTION_PEAK  = 0.10

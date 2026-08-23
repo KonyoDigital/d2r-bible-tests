@@ -13687,5 +13687,86 @@ class TestV2026TheEagleEyeSeesTheWholeConsole(unittest.TestCase):
 
 
 
+class TestV2027ADeclaredFocusSurvivesAFullSession(unittest.TestCase):
+    """v2027 — Konyo, after filming a reel with Tools -> "Vault items (auto-file to mules)": "when i
+    click this it doesnt need the same logic to read the items and vault them automatically ... it
+    should understand its focused and i am working together with it on a focused task ... ( i
+    remeber this was coded ) i just want to make sure".
+
+    He was right that it was coded, and right to check: it only ever reached MINI. THREE separate
+    joins were missing and any one of them alone would have made the feature inert.
+
+      1. tv_diablo read --mini-focus ONLY `if MINI_MODE`, so a full session dropped the flag and
+         wrote focus:"" into index.json.
+      2. /api/on never passed a focus at all, though start_agent has accepted one since v1603.
+      3. the lane card posted a bare '{}'.
+
+    MEASURED on the reel he had just filmed - reel_s_1787508759592_46621, 80 frames, 30 of 40
+    sampled frames showing a stash panel - index.json keys were
+    ['blank','blankPass','frames','n','sessionId']. No focus. So the sweep paid a classifier to work
+    out what he had already told the console he was doing.
+
+    What must NOT change: a DEFAULTED focus is still untrusted. vault_retro._declared_surface()
+    keys on focusChosen, and that is what stops a fallback "stash" labelling town as a stash panel.
+    """
+
+    def test_tv_diablo_reads_the_focus_outside_mini_mode(self):
+        import re
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read()
+        m = re.search(r"^MINI_FOCUS\s*=\s*(.+)$", src, re.M)
+        self.assertIsNotNone(m, "MINI_FOCUS assignment not found")
+        line = m.group(1).strip()
+        # v2027 — ASSERT THE PROPERTY, NOT A SUBSTRING. The first cut banned the text
+        # `if MINI_MODE else ""` outright and failed on the CORRECT line, because the fix keeps
+        # that conditional for the DEFAULT ("stash" only when it is a mini) while reading the flag
+        # unconditionally in front of it. A guard that cannot tell those two apart would have
+        # forced the fix to be written worse to satisfy it.
+        self.assertTrue(line.startswith("_FOCUS_ARG"),
+                        "the --mini-focus flag must be read UNCONDITIONALLY and only the DEFAULT "
+                        "may depend on MINI_MODE; got: %s" % line)
+
+    def test_a_defaulted_focus_is_still_not_chosen(self):
+        """The half that must not regress. focusChosen is what stops a fallback labelling town."""
+        import re
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read()
+        m = re.search(r"^MINI_FOCUS_CHOSEN\s*=\s*(.+)$", src, re.M)
+        self.assertIsNotNone(m)
+        self.assertIn("_FOCUS_ARG", m.group(1),
+                      "chosen-ness must come from the FLAG BEING PRESENT, never from the value")
+
+    def test_api_on_passes_a_validated_focus(self):
+        import inspect
+        import re
+        import control_app as ca
+        src = inspect.getsource(ca.Handler.do_POST) if hasattr(ca, "Handler") else None
+        if src is None:
+            import os
+            here = os.path.dirname(os.path.abspath(__file__))
+            src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        self.assertIn('_mini_focus(body.get("focus"))', src,
+                      "/api/on must VALIDATE the focus - an unvalidated string gets stamped into a "
+                      "reel and later trusted by the sweep in place of a classify call")
+
+    def test_the_lane_card_declares_a_focus_the_server_will_accept(self):
+        """A map whose values the server rejects is a join that looks wired and carries nothing."""
+        import os
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        bib = open(os.path.join(os.path.dirname(here), "bible.html"), encoding="utf-8").read()
+        m = re.search(r"var FOCUS = \{([^}]*)\}", bib)
+        self.assertIsNotNone(m, "_laneStartReel has no focus map")
+        vals = set(re.findall(r":'([a-z-]+)'", m.group(1)))
+        self.assertTrue(vals, "the focus map is empty")
+        import control_app as ca
+        self.assertTrue(vals <= set(ca.MINI_FOCUSES),
+                        "the lane card declares %s, which the server would reject: MINI_FOCUSES is %s"
+                        % (sorted(vals - set(ca.MINI_FOCUSES)), sorted(ca.MINI_FOCUSES)))
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

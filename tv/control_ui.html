@@ -14274,10 +14274,34 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     if (_tzBoundaryTimer) clearTimeout(_tzBoundaryTimer);
     var now = new Date();
     var intoMs = ((now.getMinutes() % 30) * 60 + now.getSeconds()) * 1000 + now.getMilliseconds();
+    /* ── v2027 — ONE SHOT AT THE TURN IS NOT ENOUGH, AND THE BOARD ALREADY KNEW ────────────
+       Konyo, screenshot stamped 21:01:27: the panel read "UPDATED 21:00" with Dry Hills and
+       Halls of the Dead as LIVE NOW while The Pit sat in UP NEXT. "the TZ TRACKER should be NOW
+       the pits.. but its like stuck on the previous one.. this needs a refreshing at :00 and :30
+       that one minute".
+
+       This fired ONCE, six seconds after the boundary, and then fell back to a 60-120s interval
+       that is gated on the panel being on screen. Six seconds is the feed's usual settle, not its
+       guaranteed one - so when the tracker has not published the new slot yet, the console takes
+       the stale answer and does not look again for up to two minutes, at the exact moment the
+       answer matters most.
+
+       bible.html's copy of this panel has chased since v1881: `_chase = [now+8000, now+25000,
+       now+60000]`. The console never got it. Two implementations of one behaviour, and only one
+       of them was fixed - which is why it is worth saying out loud that these are now the same
+       shape rather than quietly patching one. [[copy-drift]]
+
+       The chase is NOT gated on _tzOnScreen: a turn he missed because he was on another tab is
+       exactly the state that makes the panel wrong when he comes back. */
+    var _tzChase = [];
     _tzBoundaryTimer = setTimeout(function () {
       _tzFetch();
+      _tzChase = [8000, 25000, 60000].map(function (d) { return setTimeout(_tzFetch, d); });
       _tzSchedule();                       // re-arm for the slot that just began
     }, (1800000 - intoMs) + 6000);
+    // re-arming must not leave the previous slot's chase running, or a stale slot keeps refetching
+    if (window.__tzChasePrev) window.__tzChasePrev.forEach(function (t) { clearTimeout(t); });
+    window.__tzChasePrev = _tzChase;
   }
   try {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _tzWire);

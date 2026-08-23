@@ -13440,7 +13440,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2026",
+        "ver": "v2027",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -16177,7 +16177,12 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(200, {"ok": False, "msg": "still shutting down — session saving; try ON again in a moment",
                                      "mode": "stopping", "error": "still stopping"})
                     return
-            r = start_agent(sim=False, test=bool(body.get("test")))
+            # v2027 — CARRY HIS DECLARATION. start_agent has taken a focus since v1603; only
+            # mini_start ever passed one, so pressing a lane card started an UNDECLARED
+            # session and the sweep paid a classifier to rediscover what he had just said.
+            # _mini_focus() validates it, so an unknown string cannot travel into a reel.
+            r = start_agent(sim=False, test=bool(body.get("test")),
+                            focus=(_mini_focus(body.get("focus")) if body.get("focus") else None))
             _console_beacon_async("onair")   # v875 — the dashboard flips 🔴 within seconds
             self._json(200, r)   # v778-pre — ON opens NOTHING (one-window world)
             return
@@ -16213,6 +16218,80 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as _e:
                 r = _force_kill_all_agents("stop (stop_agent raised: %s)" % str(_e)[:120])
             self._json(200, r)
+            return
+        if path == "/api/relaunch":
+            # ── v2027 — THE ONE THING HE COULD NOT DO FROM THE APP ────────────────────────────
+            # Konyo: "bash tv/tvd-scan.sh — but again this is a button i click within the console
+            # right? nothing terminal code related that i need to manually do?"
+            #
+            # It was terminal-only, and the RESTART button does NOT do it: /api/restart calls
+            # stop_agent() then start_agent(), which cycles the AGENT inside this process. The
+            # process itself keeps serving the Python it booted with, while bible.html is read
+            # fresh from disk on every load — which is exactly how his window came to show
+            # "V2024 CONTROL · BOARD V2026". Two halves of one version, and only one of them can
+            # move without a relaunch.
+            #
+            # os.execv REPLACES this process image in place: same pid, same executable path, no
+            # window in which the port is unbound and no second process racing for :17772. The
+            # pywebview window closes and reopens, which is what a relaunch looks like.
+            #
+            # ⚠ SCREEN RECORDING. The TCC grant is keyed to the executable, and execv keeps the
+            # same one — but "should" is not "measured", and a console that comes back unable to
+            # capture is a worse outcome than one that needed a terminal. So this REPORTS the
+            # pre-relaunch grant in its reply, and the eagle eye re-checks it afterwards. If it is
+            # ever seen to drop, the fallback is tvd-scan.sh and this route should be retired
+            # rather than patched. [[chrome-cdp-mac]] [[unknown-stays-unknown]]
+            #
+            # It refuses while anything is in flight, because a relaunch mid-read throws away work
+            # that has already been paid for on his subscription.
+            try:
+                _busy = []
+                try:
+                    if _CHRON_JOB.get("running"):
+                        _busy.append("a chronicle sweep is reading")
+                except Exception:
+                    pass
+                try:
+                    if _VAULT_JOB.get("running"):
+                        _busy.append("a vault sweep is reading")
+                except Exception:
+                    pass
+                try:
+                    if mini_state().get("running"):
+                        _busy.append("a mini is recording")
+                except Exception:
+                    pass
+                if _busy:
+                    self._json(200, {"ok": False, "why": " and ".join(_busy)
+                                     + " — relaunching now would throw away a paid read. "
+                                       "Let it finish, then press again.", "busy": True})
+                    return
+                try:
+                    _grant = bool((doctor_payload() or {}).get("screen_recording"))
+                except Exception:
+                    _grant = None
+                self._json(200, {"ok": True, "relaunching": True,
+                                 "was": VERSION_STR if "VERSION_STR" in dir() else None,
+                                 "screenRecordingBefore": _grant,
+                                 "why": "replacing this process with the version on disk"})
+                try:
+                    self.wfile.flush()
+                except Exception:
+                    pass
+
+                def _exec_soon():
+                    time.sleep(0.6)          # let the reply reach the page before the image is gone
+                    try:
+                        stop_agent(farewell=False)
+                    except Exception:
+                        pass
+                    try:
+                        os.execv(sys.executable, [sys.executable] + sys.argv)
+                    except Exception:
+                        os._exit(3)          # a failed execv must not leave a half-dead console
+                threading.Thread(target=_exec_soon, daemon=True).start()
+            except Exception as _e:
+                self._json(200, {"ok": False, "why": "relaunch refused: %s" % str(_e)[:200]})
             return
         if path == "/api/restart":
             if _stop_inflight:

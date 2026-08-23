@@ -12190,3 +12190,60 @@ module, or state the reason each member is there.** Hand-copied lists of someone
 stale silently and are only discovered by an outage. The failure message now prints only the
 *unknown* verdicts rather than all of them, so the next person sees the one word that matters.
 [[gate-blind-to-unexercised-input]]
+
+## v2027 — a declared focus now survives a full session, and three other joins
+
+### The one he caught: pressing "Vault items" declared nothing
+**Konyo**, after filming a reel with Tools → *Vault items (auto-file to mules)*: *"when i click this
+it doesnt need the same logic to read the items and vault them automatically … it should understand
+its focused and i am working together with it on a focused task … (i remeber this was coded) i just
+want to make sure."*
+
+He was right that it was coded, and right to check — it only ever reached **MINI**. Three separate
+joins were missing, and any one alone would have made the feature inert:
+
+1. `tv_diablo` read `--mini-focus` **only `if MINI_MODE`**, so a full session dropped the flag and
+   wrote `focus:""`.
+2. `/api/on` never passed a focus at all — though `start_agent` has accepted one since v1603.
+3. the lane card posted a bare `'{}'`.
+
+**Measured on the reel he had just filmed** — `reel_s_1787508759592_46621`, 80 frames, **30 of 40
+sampled frames showing a stash panel** — `index.json` keys were
+`['blank','blankPass','frames','n','sessionId']`. No focus. So the sweep paid a classifier to work
+out what he had already told the console he was doing.
+
+**What deliberately did NOT change:** a *defaulted* focus is still untrusted.
+`vault_retro._declared_surface()` keys on `focusChosen`, and that is what stops a fallback `"stash"`
+labelling town as a stash panel. Chosen-ness comes from **the flag being present**, never the value.
+
+⚠ The guard's own first cut banned the text `if MINI_MODE else ""` outright and **failed on the
+correct line** — the fix keeps that conditional for the *default* while reading the flag
+unconditionally in front of it. A guard that cannot tell those apart would have forced the fix to be
+written worse to satisfy it. It asserts the property now.
+
+### The TZ tracker was one shot at the turn
+**Konyo**, screenshot at 21:01:27: *"the TZ TRACKER should be NOW the pits.. but its like stuck on
+the previous one.. this needs a refreshing at :00 and :30 that one minute."*
+
+The console fired **one** fetch six seconds after the boundary, then fell back to a 60–120s interval
+gated on being on screen. Six seconds is the feed's usual settle, not its guaranteed one.
+`bible.html`'s copy of this same panel has chased at `+8s/+25s/+60s` since v1881; **the console never
+got it.** Two implementations of one behaviour, one of them fixed. [[copy-drift]]
+
+⚠ And a correction: I first diagnosed this in `bible.html`'s TZ tab and was wrong — the panel in his
+screenshot lives in `tv/control_ui.html`. Fourth instrument error of the night.
+
+### A relaunch he can press
+*"but again this is a button i click within the console right? nothing terminal code related?"* — it
+was terminal-only. `/api/restart` cycles the **agent** inside the process; the process keeps serving
+the Python it booted with, while `bible.html` is read fresh from disk — which is exactly how his
+window came to show **`V2024 CONTROL · BOARD V2026`**. New `/api/relaunch` execs the process in
+place: same pid, same executable, no window where the port is unbound. It refuses while a sweep or
+mini is in flight, because a relaunch mid-read discards a paid read.
+
+### And the meter had no scale
+Grok, shown the row cold: *"the two numbers '9' lack any visible unit or scale on the bars
+themselves"* and *"the tiny blue segments could be mistaken for decorative dots rather than progress
+indicators"*. Both true, and both invisible to me because I knew what the numbers meant. The cap
+lived only in the sentence on the left. It now reads `9/4k` and `9/20k` beside each bar.
+[[grok-second-eye]]
