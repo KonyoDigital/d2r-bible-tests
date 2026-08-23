@@ -3349,6 +3349,9 @@ def open_control_window():
             # only when no session is live and no sweep is running, and never applies. See
             # chronicle_autoread_tick.
             threading.Thread(target=_chron_autoread_loop, daemon=True, name="tvd-chron-autoread").start()
+            # v2035 — seals a LANE-declared reel once the stash leaves the screen.
+            threading.Thread(target=_stash_watch_loop, daemon=True,
+                             name="tvd-stash-watch").start()
         except Exception as _ee:
             print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
@@ -10102,6 +10105,113 @@ def _mini_watchdog(token, ends_ts):
         pass
 
 
+# ── v2035 — THE LANE REEL SEALS ITSELF WHEN HE LEAVES THE STASH ──────────────────────────────
+#
+# Konyo, twice: "when we start like moving and like close stash.. enter a new Waypoint through a
+# portal it should kill it completley for sure by then", and then, live: "i hit auto vault. and now
+# i exited the stash... and am going to farm... verifiy and monitor it and make sure it closes
+# automatically".
+#
+# IT DID NOT. Measured while he farmed: recording=True, 5297 -> 5683 frames over seven minutes of
+# footage of him walking around, at roughly 9GB/hour. The feature had been asked for, filed, and
+# never built — so the honest answer to "make sure it closes" was "it does not".
+#
+# THE SIGNAL IS ALREADY FREE. stash_screen_open answers, per frame, whether a stash panel is on
+# screen — a crop and an OCR, no model call. Closing the stash, walking off, taking a waypoint: all
+# of them stop that answer. So the watcher needs no new detector, only to look.
+#
+# THREE THINGS IT MUST NOT DO, each of which would be worse than the leak it fixes:
+#   * it must never seal a session HE started. Only a reel opened by a lane card (declared focus)
+#     is auto-closable, because that reel has a stated subject and leaving the subject ends it. A
+#     plain ON AIR is his, for whatever he is doing, and guessing at that is not the machine's job.
+#   * it must not fire on a blink. One frame without a panel is him scrolling a tab or a tooltip
+#     covering the chrome. It wants a RUN of them, over real seconds.
+#   * silence must not read as absence. If frames stop arriving it says so and does nothing —
+#     "I cannot see" is not "he left". [[unknown-stays-unknown]]
+_STASH_WATCH_GRACE_S = 25.0      # how long the panel must be gone before the reel is sealed
+_STASH_WATCH_POLL_S = 5.0
+
+
+def _stash_watch_loop():
+    """Seal a LANE-declared reel once the stash has been off screen for the grace period."""
+    gone_since = None
+    while True:
+        try:
+            time.sleep(_STASH_WATCH_POLL_S)
+            m = mini_state()
+            # v2035 — `_agent_alive()`, not an invented `agent_running()`. The first cut called a
+            # name nothing binds, which is the same defect TestV2010 caught in the relaunch route
+            # an hour earlier. Two in one night: writing the call before checking the symbol exists
+            # is the habit, and the guard is the only thing that has caught it both times.
+            if not _agent_alive():
+                gone_since = None
+                continue
+            # only a reel with a DECLARED focus is ours to close
+            if not (m.get("focus") or _current_declared_focus()):
+                gone_since = None
+                continue
+            fr = _newest_frame_path()
+            if not fr:
+                gone_since = None          # no frames = no evidence, not evidence of leaving
+                continue
+            try:
+                # v2035 — UNCACHED, DELIBERATELY. The frame this watches is frames/eye.jpg, a single
+                # path REWRITTEN IN PLACE many times a second. stash_screen_open_cached keys on
+                # (size, mtime), and mtime has 1-second granularity — two different screens written
+                # in the same second at a similar size collide, and the watcher would then be
+                # deciding whether he left the stash from a picture of somewhere he no longer is.
+                # Caching is right for reel frames, which never change once written; it is wrong for
+                # a live view. Measured while he fought Colenzo: the cached call answered "stash" for
+                # a frame the uncached gate correctly called gameplay. At a 5s poll the crop+OCR is
+                # affordable, and being right matters more than being fast here. [[stale-reading]]
+                open_now = stash_screen_open(fr) is not None
+            except Exception:
+                gone_since = None          # a gate that threw has not seen him leave
+                continue
+            if open_now:
+                gone_since = None
+                continue
+            if gone_since is None:
+                gone_since = time.time()
+                continue
+            if (time.time() - gone_since) >= _STASH_WATCH_GRACE_S:
+                gone_since = None
+                try:
+                    print("  \U0001f512 stash closed for %.0fs — sealing the lane reel"
+                          % _STASH_WATCH_GRACE_S, flush=True)
+                    stop_agent(farewell=False)
+                except Exception as _e:
+                    print("  \u26a0 auto-seal failed: %s" % str(_e)[:120], flush=True)
+        except Exception:
+            gone_since = None
+
+
+def _newest_frame_path():
+    """The most recent captured frame, or None. None means UNKNOWN, never 'nothing there'."""
+    # v2035 — HIST_DIR and its parent, both of which EXIST. The first cut referenced a
+    # `FRAMES_DIR` that nothing binds, guarded by `if "FRAMES_DIR" in globals()` — which does not
+    # stop the name being a reference, exactly as `VERSION_STR` did in the relaunch route. Same
+    # mistake, same night, caught by the same guard. Live frames land beside frames/hist while a
+    # session records, so both are searched.
+    try:
+        import glob as _g
+        cands = _g.glob(os.path.join(HIST_DIR, "*.jpg"))
+        cands += _g.glob(os.path.join(os.path.dirname(HIST_DIR), "*.jpg"))
+        if not cands:
+            return None
+        return max(cands, key=lambda _p: os.stat(_p).st_mtime)
+    except Exception:
+        return None
+
+
+def _current_declared_focus():
+    """The focus this session declared, if any — read from the live mini state only."""
+    try:
+        return (mini_state() or {}).get("focus") or ""
+    except Exception:
+        return ""
+
+
 def mini_state():
     """GET shape. secondsLeft is clamped at 0 — a negative countdown is a lie about a session
     that is already over."""
@@ -13491,7 +13601,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2034",
+        "ver": "v2035",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

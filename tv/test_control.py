@@ -14176,5 +14176,75 @@ class TestV2034TheApplyNamesWhichCauseStoppedIt(unittest.TestCase):
 
 
 
+class TestV2035TheLaneReelSealsItselfWhenHeLeavesTheStash(unittest.TestCase):
+    """v2035 — Konyo asked for this twice and it had never been built.
+
+    "when we start like moving and like close stash.. enter a new Waypoint through a portal it
+    should kill it completley for sure by then", and then live: "i hit auto vault. and now i exited
+    the stash... and am going to farm... verifiy and monitor it and make sure it closes
+    automatically".
+
+    IT DID NOT. Measured while he farmed: recording=True, 5297 -> 5683 frames over seven minutes of
+    footage of him walking around, at roughly 9GB/hour. The honest answer to "make sure it closes"
+    was "it does not".
+
+    The signal was already free — stash_screen_open answers per frame whether a panel is on screen,
+    a crop and an OCR with no model call. Closing the stash, walking off, taking a waypoint all stop
+    that answer.
+    """
+
+    def test_it_only_closes_a_reel_with_a_DECLARED_focus(self):
+        """A plain ON AIR is HIS, for whatever he is doing. Guessing at that is not the machine's
+        job, and auto-sealing it would destroy a recording he deliberately started."""
+        import inspect
+        import control_app as ca
+        src = inspect.getsource(ca._stash_watch_loop)
+        self.assertIn("_current_declared_focus", src,
+                      "the watcher must only close a reel a LANE CARD opened")
+        self.assertIn("stop_agent", src, "it must actually seal")
+
+    def test_a_single_frame_without_a_panel_does_not_seal(self):
+        """One frame is him scrolling a tab, or a tooltip covering the chrome. It needs a RUN."""
+        import inspect
+        import control_app as ca
+        src = inspect.getsource(ca._stash_watch_loop)
+        self.assertIn("gone_since", src, "there must be a grace window, not a single-frame trigger")
+        self.assertGreaterEqual(ca._STASH_WATCH_GRACE_S, 10,
+                                "a grace shorter than ~10s will seal on a tab switch")
+
+    def test_silence_is_not_absence(self):
+        """No frames, or a gate that threw, is 'I cannot see' — never 'he left'. Sealing on a blind
+        read would end a session because the CAMERA failed. [[unknown-stays-unknown]]"""
+        import inspect
+        import control_app as ca
+        src = inspect.getsource(ca._stash_watch_loop)
+        i = src.find("_newest_frame_path()")
+        self.assertNotEqual(i, -1)
+        seg = _between(self, src, "fr = _newest_frame_path()", "try:", min_len=20,
+                       what="the no-frame branch")
+        self.assertIn("gone_since = None", seg,
+                      "no frame must RESET the countdown, never advance it")
+
+    def test_it_reads_the_live_frame_UNCACHED(self):
+        """frames/eye.jpg is one path rewritten in place many times a second, and the gate cache is
+        keyed on (size, mtime) with 1s granularity. Measured live: the cached call answered 'stash'
+        for a frame the uncached gate correctly called gameplay. [[stale-reading]]"""
+        import inspect
+        import control_app as ca
+        src = inspect.getsource(ca._stash_watch_loop)
+        self.assertIn("stash_screen_open(fr)", src)
+        self.assertNotIn("stash_screen_open_cached(fr)", src,
+                         "the live view must not be read through a (size, mtime) cache")
+
+    def test_the_watcher_is_actually_started(self):
+        """A loop nobody starts is the class this whole night kept finding."""
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        self.assertIn('name="tvd-stash-watch"', src, "the watcher thread is never started")
+        self.assertIn("target=_stash_watch_loop", src)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

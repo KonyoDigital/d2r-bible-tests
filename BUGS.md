@@ -12541,3 +12541,43 @@ not the commit. `test_board_window_fallback_defines_url` failed in the gate and 
 — a torn read of `control_app.py` mid-write. I had flagged that exact risk in the message before it
 happened. Naming a hazard is not the same as avoiding it: the fix is to hold edits until the push
 returns, not to note the danger and continue.
+
+## REG-389 — the lane reel never closed when he left the stash (v2035)
+
+**Konyo asked for this twice.** First: *"when we start like moving and like close stash.. enter a new
+Waypoint through a portal it should kill it completley for sure by then."* Then, live: *"i hit auto
+vault. and now i exited the stash... and am going to farm... verifiy and monitor it and make sure it
+closes automatically."*
+
+**It did not, and the feature had never been built.** Measured while he farmed: `recording=True`,
+**5297 → 5683 frames over seven minutes** of footage of him walking around, at roughly 9 GB/hour.
+The honest answer to "make sure it closes" was "it does not" — it had been asked for, filed, and
+never written.
+
+**The signal was already free.** `stash_screen_open` answers, per frame, whether a panel is on
+screen — a crop and an OCR, no model call. Closing the stash, walking off, taking a waypoint: all of
+them stop that answer. The watcher needed no new detector, only to look.
+
+Three things it must not do, each worse than the leak it fixes:
+
+* **never seal a session HE started.** Only a reel opened by a lane card (declared focus) is
+  auto-closable — that reel has a stated subject, and leaving the subject ends it. A plain ON AIR is
+  his, for whatever he is doing.
+* **not fire on a blink.** One frame without a panel is a tab switch or a tooltip over the chrome.
+  It wants a run of them, over 25 real seconds.
+* **silence is not absence.** No frames, or a gate that threw, resets the countdown. Sealing on a
+  blind read would end a session because the *camera* failed. [[unknown-stays-unknown]]
+
+### ⚠ Three of my own defects on the way, two of them the same one
+* **`agent_running()`** — a name nothing binds, caught by `TestV2010`. That is the **second** time in
+  one night (after `VERSION_STR` in the relaunch route). Writing the call before checking the symbol
+  exists is the habit; the guard is the only thing that has caught it both times.
+* **`FRAMES_DIR`** — invented again, in the same function, "guarded" by
+  `if "FRAMES_DIR" in globals()`, which does not stop a name being a reference. Identical to the
+  `VERSION_STR` mistake, three hours later.
+* **A false alarm I raised at him.** I saw the cached gate answer `stash` for a frame of him
+  fighting Colenzo and called it a false positive in v2028. Re-measured uncached: `canons []`,
+  `inventory_title False`, `fingerprint gameplay`, verdict `None` — **the gate was right**. The
+  cache was the problem: `frames/eye.jpg` is one path rewritten in place many times a second, and
+  the cache keys on `(size, mtime)` with 1-second granularity. Correct for reel frames, which never
+  change once written; wrong for a live view. The watcher reads uncached. [[stale-reading]]

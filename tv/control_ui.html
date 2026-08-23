@@ -1859,7 +1859,11 @@
        sub-line fits the rail and still reads as a section header. */
     display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sig-adv > summary::after { content: 'engines · eyes · fleet'; display: block;
-    margin-top: 2px; font-size: var(--fs-3xs, 9px); letter-spacing: .04em; text-transform: none;
+    /* v2034.1 — the SAME fallback the file's other --fs-3xs use carries. A hardcoded 9px here
+       gave one token two values, which is a design token behaving like a last-declaration-
+       wins bug: whichever rule the browser reached last decided the size. The gate caught it
+       and blocked the push, correctly. */
+    margin-top: 2px; font-size: var(--fs-3xs, var(--fs-2xs)); letter-spacing: .04em; text-transform: none;
     color: #6f6a58; font-weight: var(--fw-regular); white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
   .sig-adv[open] > summary { color: var(--gold, #f0c060); border-color: rgba(240,192,96,.34);
