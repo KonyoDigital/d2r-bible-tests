@@ -12444,3 +12444,48 @@ against his ledgers**.
 A frame-level proof is evidence the reader CAN see it. It is not evidence the pipeline accepted it,
 and reporting one as the other is the same failure as a lamp that reports intent instead of effect.
 [[feedback-verify-not-proxy]] [[unknown-stays-unknown]]
+
+## REG-388 — the dedupe that makes a held grid cheap makes a hover pass invisible (v2032)
+
+`_distinct` keeps only frames that LOOK different from the last kept one, so a panel held still
+costs ONE read instead of forty. Exactly right for a grid — and exactly inverted for a tooltip pass,
+where the panel is identical frame to frame and only a small tooltip rectangle changes. `jpeg_sig`
+fingerprints the **whole** frame, so that rectangle moves it far less than the default
+`max_diff=0.06` tolerates.
+
+**Measured on his tooltip reel**, on the 73-frame run that holds all 18 of its tooltips:
+
+| `_distinct` parameters | pages | tooltips among them |
+|---|---|---|
+| vault today (defaults) | 2 | **1** |
+| chronicle's `max_diff=0.002` | 36 | 8 |
+| chronicle's full tuning | 72 | 18 |
+
+**One name reached him out of eighteen chances**, and the vault lane had simply inherited the
+untuned defaults the chronicle lane learned to override — `chronicle_retro:620` passes
+`CHRON_STILL_MAX_DIFF=0.002` and `CHRON_SIG_TOL=4`; `vault_retro:803` passed nothing. [[copy-drift]]
+
+**Copying the chronicle's numbers would be the wrong fix**: 72 of 73 frames is not a dedupe at all,
+and it would cost that on every lane. The vault lane only cares about frames carrying a **name**, and
+those are free to spot — a tooltip covering the tab strip is exactly what makes the gate answer the
+**generic** `"stash"` rather than a tab (v2028). So the cheap dedupe still picks the grid pages and
+every tooltip frame is added on top, in reel order so witnesses land in the order he hovered them.
+
+**Result: 19 pages, 18 of them tooltips** — 18× the naming opportunity at a quarter the cost of the
+chronicle tuning. With no `panel_gate` supplied the behaviour is unchanged, so nothing that calls
+`sweep()` without one moves.
+
+### His question, and the honest answer
+> *"perimiters should have been mimicking the logic we have for cropping enlarging and template …
+> so also for this we need a logic coding for after the item tooltip is opened a sort of magnifier?"*
+
+Half right, and the half he's right about is worth building **later**. `_distinct` is a *selection*
+threshold (which frames), the tally crops are *spatial* (what part of a frame) — different axes. But
+a tooltip **magnifier** is a real improvement: v2029 sends the whole 2940×1912 frame so the model can
+read ~200px of text.
+
+**And a still-run gives the localisation for free:** the panel is static and the tooltip is the only
+thing that moves, so a pixel-diff between two frames of one run bounds the tooltip exactly — no
+detector, and therefore none of the calibration failure that sank the standalone attempt (it ranked
+a lava scene above the known positive). **Deliberately not built yet:** the chain has never been
+proven end to end into his ledger, and optimising an unverified path is how a fix becomes a story.

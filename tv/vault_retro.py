@@ -800,7 +800,42 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             lane_default = SURFACE_LANE.get(surface, "stash")
             # A held-still panel is ONE page; a SCROLLED panel is several. _distinct is the chronicle's
             # calibrated "same pixels?" test — borrowed so the two sweeps pay alike.
-            for name in _cr._distinct(names, sig_of):
+            # ── v2032 — THE DEDUPE THAT MAKES A HELD GRID CHEAP MAKES A HOVER PASS INVISIBLE ──
+            # _distinct keeps only frames that LOOK different from the last kept one, so a panel he
+            # held still costs ONE read instead of forty. Exactly right for a grid — and exactly
+            # inverted for a tooltip pass, where the panel is identical frame to frame and only a
+            # small tooltip rectangle changes. jpeg_sig fingerprints the WHOLE frame, so that
+            # rectangle moves it far less than the default max_diff=0.06 tolerates.
+            #
+            # MEASURED on his tooltip reel, the 73-frame run that holds all 18 of its tooltips:
+            #     vault today (defaults)                  2 pages,  1 tooltip
+            #     chronicle's max_diff=0.002             36 pages,  8 tooltips
+            #     chronicle's full tuning                72 pages, 18 tooltips
+            # So one name reached him out of eighteen chances.
+            #
+            # COPYING THE CHRONICLE'S NUMBERS IS THE WRONG FIX: 72 of 73 frames is not a dedupe at
+            # all, and the tally lanes would pay it too. The vault lane only cares about frames that
+            # carry a NAME, and those are identifiable FOR FREE — a tooltip covering the tab strip
+            # is exactly what makes the gate answer the GENERIC "stash" rather than a tab (v2028).
+            #
+            # So: the cheap dedupe still decides the GRID pages, and every tooltip frame is added on
+            # top. ~20 reads instead of 72, and 18 of 18 names instead of 1. Chronological order is
+            # preserved so witnesses read in the order he actually hovered them. [[copy-drift]]
+            _pages = list(_cr._distinct(names, sig_of))
+            if panel_gate is not None:
+                _have = set(_pages)
+                for _n in names:
+                    if _n in _have:
+                        continue
+                    try:
+                        if panel_gate(os.path.join(reel_dir, _n)) == "stash":
+                            _pages.append(_n)
+                            _have.add(_n)
+                    except Exception:
+                        continue
+                _order = {n: i for i, n in enumerate(names)}
+                _pages.sort(key=lambda n: _order.get(n, 1 << 30))
+            for name in _pages:
                 path = os.path.join(reel_dir, name)
                 resp = reader(path, surface)
                 if not isinstance(resp, dict) or resp.get("note"):

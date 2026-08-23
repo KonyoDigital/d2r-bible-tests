@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2031",
+  "ver": "v2032",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2031: v2027 joined three of four and the stamp stayed behind if MINI_MODE, so a full session parsed the flag and never wrote it to the reel the sweep reads",
+  "note": "v2032: the vault lane inherited the untuned dedupe defaults, so 73 frames holding 18 tooltips offered the reader 2 pages and 1 name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

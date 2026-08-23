@@ -14016,5 +14016,106 @@ class TestV2031TheDeclaredFocusChainIsJoinedAtEVERYLink(unittest.TestCase):
 
 
 
+class TestV2032EveryTooltipFrameReachesTheReader(unittest.TestCase):
+    """v2032 — the dedupe that makes a held grid cheap makes a hover pass invisible.
+
+    _distinct keeps only frames that LOOK different from the last kept one, so a panel held still
+    costs ONE read instead of forty. Right for a grid, inverted for a tooltip pass: the panel is
+    identical frame to frame and only a small tooltip rectangle changes, and jpeg_sig fingerprints
+    the WHOLE frame, so that rectangle moves it far less than the default max_diff=0.06 tolerates.
+
+    MEASURED on his tooltip reel, on the 73-frame run holding all 18 of its tooltips:
+        vault today (defaults)        2 pages,  1 tooltip
+        chronicle's max_diff=0.002   36 pages,  8 tooltips
+        chronicle's full tuning      72 pages, 18 tooltips
+    One name reached him out of eighteen chances.
+
+    COPYING THE CHRONICLE'S NUMBERS WOULD BE THE WRONG FIX — 72 of 73 frames is not a dedupe. The
+    vault lane only cares about frames carrying a NAME, and those are free to spot: a tooltip
+    covering the tab strip is exactly what makes the gate answer the GENERIC "stash" (v2028). So the
+    cheap dedupe still picks the GRID pages and every tooltip frame is added on top: 19 pages, 18 of
+    them tooltips.
+    """
+
+    def _reel(self, td, n_plain=6, n_tip=4):
+        """A fake reel: `plain` frames the gate calls a TAB, `tip` frames it calls generic stash."""
+        import json
+        import os
+        d = os.path.join(td, "reel_s_TEST")
+        os.makedirs(d, exist_ok=True)
+        rows = []
+        order = []
+        for i in range(n_plain):
+            fn = "f_plain_%03d.jpg" % i
+            open(os.path.join(d, fn), "w").close()
+            rows.append({"f": fn, "ts": 1000 + i}); order.append(fn)
+        for i in range(n_tip):
+            fn = "f_tip_%03d.jpg" % i
+            open(os.path.join(d, fn), "w").close()
+            rows.append({"f": fn, "ts": 2000 + i}); order.append(fn)
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": "s_TEST", "n": len(rows), "frames": rows}, fh)
+        return d, order
+
+    def test_a_tooltip_frame_is_never_deduped_away(self):
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            d, order = self._reel(td)
+            seen = []
+            gate = lambda p: ("stash" if "_tip_" in p else "personal")
+            vr.sweep([d], sig=lambda p: "SAME",             # every frame looks identical to _distinct
+                     classify=lambda p: "stash",
+                     reader=lambda p, s: (seen.append(p.split("/")[-1]), {"items": []})[1],
+                     panel_gate=gate)
+            tips = [n for n in seen if "_tip_" in n]
+            self.assertEqual(len(tips), 4,
+                             "every tooltip frame must reach the reader - the tooltip is the ONLY "
+                             "place an item name exists, so deduping one away is losing a name. "
+                             "got: %s" % seen)
+
+    def test_the_grid_is_still_deduped(self):
+        """The saving must survive: identical grid frames still collapse."""
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            d, order = self._reel(td, n_plain=6, n_tip=0)
+            seen = []
+            vr.sweep([d], sig=lambda p: "SAME",
+                     classify=lambda p: "stash",
+                     reader=lambda p, s: (seen.append(p), {"items": []})[1],
+                     panel_gate=lambda p: "personal")
+            self.assertLess(len(seen), 6,
+                            "six identical grid frames must NOT all be read - that is the dedupe "
+                            "this lane depends on for cost")
+
+    def test_pages_are_offered_in_the_order_he_hovered_them(self):
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            d, order = self._reel(td)
+            seen = []
+            vr.sweep([d], sig=lambda p: "SAME", classify=lambda p: "stash",
+                     reader=lambda p, s: (seen.append(p.split("/")[-1]), {"items": []})[1],
+                     panel_gate=lambda p: ("stash" if "_tip_" in p else "personal"))
+            pos = [order.index(n) for n in seen if n in order]
+            self.assertEqual(pos, sorted(pos),
+                             "pages must be read in reel order, so witnesses land in the order he "
+                             "actually hovered them: %s" % seen)
+
+    def test_no_panel_gate_means_the_old_behaviour(self):
+        """Every caller that passes no gate must be byte-identical to before."""
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            d, order = self._reel(td)
+            seen = []
+            vr.sweep([d], sig=lambda p: "SAME", classify=lambda p: "stash",
+                     reader=lambda p, s: (seen.append(p), {"items": []})[1])
+            self.assertLessEqual(len(seen), 2,
+                                 "with no gate supplied the cheap dedupe must be all there is")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
