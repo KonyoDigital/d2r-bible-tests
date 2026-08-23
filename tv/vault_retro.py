@@ -856,6 +856,11 @@ def apply_payload(proposal):
         "glimpsed": p.get("glimpsed") or [],
         "reconciled": p.get("reconciled") or [],
         "overRead": p.get("overRead") or [],
+        # v2004 — the ROOM (which squares never move, which are open floor) and the reason the pixel
+        # lane went quiet if it did. Both were computed and then dropped here, which is the same
+        # defect v1996 fixed for glimpsed/reconciled — committed again eight versions later, by me.
+        "room": p.get("room") or None,
+        "pixelLaneError": p.get("pixelLaneError") or "",
         "why": p.get("why") or "",
     }
 

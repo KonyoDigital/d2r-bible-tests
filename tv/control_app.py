@@ -10735,6 +10735,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         _over_read = []     # v1994 — the subset where the model named MORE than the panel can hold
         _pix_err = []       # v1998 — why the pixel lane went quiet, if it did. Once, not per frame.
         _read_ok = [0]      # v2003 — frames that came back a READ, not a refusal. The denominator.
+        _panels = []        # v2004 — paths whose panel MEASURED, so the room can be mapped at the end
         _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
 
         def _classify(p):
@@ -10863,6 +10864,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                                 _reconciled.append({"frame": os.path.basename(p), "surface": surface,
                                                     "named": _named, "occupied": _occN,
                                                     "free": _oc2.get("free"), "verdict": _verdict})
+                                _panels.append(p)   # v2004 — this one measured; the room needs 3+
                                 if _verdict == "over-read":
                                     _over_read.append({"frame": os.path.basename(p),
                                                        "surface": surface, "named": _named,
@@ -10989,6 +10991,32 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 prop["overRead"] = _over_read
             except Exception:
                 pass
+        # ── v2004 — AND MAP THE ROOM. Konyo: "like a IROBOT cleaning my house it maps out my house
+        # and it doesnt necesarily know whats there yet.. so same here i want it to like sort of
+        # understand the reverse of it and see where we have room."
+        #
+        # space_map has worked on his film since v1995 — 94 of 153 frames of one reel, and the map
+        # came out as his actual inventory — and NOTHING CALLED IT. I built it, proved it, and left
+        # it exactly as unjoined as lane_lock, which I had fixed hours earlier. Found by sweeping my
+        # own additions for the defect class I keep finding in his. [[the-unjoined-end]]
+        #
+        # Free: the same local pixel work, on frames that already passed the gate and already cost a
+        # read. It needs 3+ measured panels, because one frame is a fixture.
+        if len(_panels) >= 3:
+            try:
+                _vc3 = _vault_corpus()
+                _room = _vc3.space_map(_panels) if _vc3 else None
+                if _room and _room.get("ok"):
+                    print("   \U0001f9f9 the room: %s" % _room.get("say"))
+                    prop["room"] = {"fixed": _room.get("fixed"), "open": _room.get("open"),
+                                    "churn": _room.get("churn"), "frames": _room.get("frames"),
+                                    "rows": _room.get("rows"), "cols": _room.get("cols"),
+                                    "say": _room.get("say")}
+                elif _room:
+                    print("   \U0001f9f9 the room could not be mapped: %s" % _room.get("say"))
+            except Exception as _re:
+                if not _pix_err:
+                    _pix_err.append("%s: %s" % (type(_re).__name__, str(_re)[:120]))
         if _pix_err:
             print("   \u26a0 the free pixel lane could not run: %s" % _pix_err[0])
             print("     so 'no glimpse' and 'no cross-check' this run mean NOTHING WAS MEASURED, "
@@ -13320,7 +13348,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2003",
+        "ver": "v2004",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

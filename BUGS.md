@@ -11200,3 +11200,31 @@ Extracted to `vault_seal_is_definitive()` rather than left inline, for the same 
 on its own reach. Guarded, including junk in the reconcile list — a non-dict entry must not satisfy
 the length check and then be waved through. **Sabotage-proven** on the subtlest bar: removing the
 "every read frame was cross-checked" check turns it red with 2 failures.
+
+## REG-364 — I swept my own night's work and found the defect I keep fixing in his (v2004)
+
+After shipping v1989–v2003 I ran the audit I keep running on his code, against mine. Three of my own
+additions had **zero production callers or readers**:
+
+| mine | state |
+|---|---|
+| `space_map` | **0 call sites.** Built it, proved it on his film — 94 of 153 frames of one reel, and the map came out as his actual inventory — and never joined it. |
+| `infer_transfer` | 0 call sites. Honestly blocked: no reel of his shows the panel changing. Named, not faked. |
+| `pixelLaneError` | written by v1998, **read by no surface**. The signal that tells "nothing was measured" from "the panels were empty" was itself invisible. |
+
+`space_map` is the iRobot map he asked for — *"see where we have room"* — and I left it exactly as
+unjoined as `lane_lock`, which I had fixed **hours earlier**. It now runs at the end of a sweep on the
+panels that already measured (free, 3+ frames required), rides the proposal as `room`, and renders as
+a ledger row: *"22 square(s) never move (cube / tomes / charms — treat them like equipment), 18 are
+open floor."* Which is his ruling made visible: furniture is shown, never suggested for a move.
+
+### And the same line broke twice
+The apply's early return counted `glimpsed + overRead` only, so a payload whose **sole** evidence was
+the room bailed out with *"the payload carried no items"* — **the same defect v1997 fixed for the
+other two, in the same line, eight versions later, in my own fix.** The instance had been fixed; the
+shape had not.
+
+The evidence keys are now enumerated **once**: `['glimpsed','overRead','reconciled','room',
+'pixelLaneError']`. A new signal is added there and nothing else has to remember it. Guarded by two
+new specs — one that applies a room-only payload and asserts it renders, one that asserts a silent
+lane says `NOTHING WAS MEASURED` rather than looking like an empty stash.

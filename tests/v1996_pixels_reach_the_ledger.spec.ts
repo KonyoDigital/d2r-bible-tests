@@ -79,6 +79,57 @@ test('each row names the frame he can go and open, and the over-read says what i
   expect(over).toContain('Nothing was discarded');
 });
 
+test('v2004 — a payload carrying ONLY a room still applies, and the room renders', async ({ page }) => {
+  /* The early-return counted glimpsed+overRead only, so a payload whose sole evidence was the ROOM
+     bailed out with "the payload carried no items" — the same defect v1997 fixed for the other two,
+     in the same line, eight versions later. The evidence keys are now enumerated in ONE place. */
+  await page.goto(URL); await page.waitForTimeout(1200);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('d2r_ownerClaim', '*'); });
+  await page.goto(URL); await page.waitForTimeout(1600);
+  const out = await page.evaluate(() => (window as any).vaultAccumApply({
+    ok: true, source: 'vault-retro', mode: 'merge-max', generatedTs: 1, sessionsRead: ['s_A'],
+    items: [], suggestions: [], glimpsed: [], overRead: [], reconciled: [],
+    room: { fixed: 22, open: 18, churn: 0, frames: 12, rows: 4, cols: 10,
+            say: '22 square(s) never move, 18 are open floor' },
+  }));
+  expect(out.ok, 'a payload whose only evidence is the room was refused').not.toBe(false);
+  expect(out.room, 'the room never reached the result').toBeTruthy();
+  expect(out.room.fixed).toBe(22);
+
+  await page.evaluate(() => {
+    const w: any = window;
+    try { w.switchTab('tools'); } catch (e) { /* */ }
+    const c = document.getElementById('inbox-card');
+    if (c && c.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('inbox-card');
+    try { w.renderInbox(); } catch (e) { /* */ }
+  });
+  await page.waitForTimeout(600);
+  const rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#inbox-panel .ibx-eye-row')).map((r) => (r as HTMLElement).innerText));
+  expect(rows.join(' | '), 'the room was computed and rendered nowhere').toContain('never move');
+});
+
+test('v2004 — a silent pixel lane says so instead of looking like an empty stash', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1200);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('d2r_ownerClaim', '*'); });
+  await page.goto(URL); await page.waitForTimeout(1600);
+  const out = await page.evaluate(() => (window as any).vaultAccumApply({
+    ok: true, source: 'vault-retro', mode: 'merge-max', generatedTs: 1, sessionsRead: ['s_A'],
+    items: [], suggestions: [], glimpsed: [], overRead: [], reconciled: [], room: null,
+    pixelLaneError: 'ImportError: no module named vault_corpus',
+  }));
+  expect(out.pixelLaneError, 'the reason the lane went quiet was dropped').toContain('ImportError');
+  const rows = await page.evaluate(() => {
+    const w: any = window;
+    try { w.switchTab('tools'); } catch (e) { /* */ }
+    const c = document.getElementById('inbox-card');
+    if (c && c.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('inbox-card');
+    try { w.renderInbox(); } catch (e) { /* */ }
+    return Array.from(document.querySelectorAll('#inbox-panel .ibx-eye-row')).map((r) => (r as HTMLElement).innerText);
+  });
+  expect(rows.join(' | ')).toContain('NOTHING WAS MEASURED');
+});
+
 test('the pixel row does not overlap its own pill', async ({ page }) => {
   await applyAndOpen(page);
   /* CAUGHT ON THE PIXELS, NOT BY READING. The base .ibx-row is a FIVE-column grid (when · name ·

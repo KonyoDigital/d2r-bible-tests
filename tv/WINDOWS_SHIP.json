@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2003",
+  "ver": "v2004",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2003: a stash grid has no names by design so reading it again buys nothing and costs money - now it seals until the reader improves",
+  "note": "v2004: space_map worked on his film since v1995 and nothing called it - and the early return dropped a payload whose only evidence was the room",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -42841,8 +42841,23 @@ window._renderStashFresh = function(){
        [[feedback-blind-fixture-green-gate]]
 
        "Nothing to apply" now means nothing to apply AND nothing seen — never merely nothing named. */
-    var _pixN = ((p.glimpsed || []).length + (p.overRead || []).length);
-    if (!items.length && !(p.throwOut||p.suggestions||[]).length && !_pixN)
+    /* v2004 — ENUMERATE THE EVIDENCE IN ONE PLACE, because the enumeration is what keeps rotting.
+       v1997 fixed this guard for glimpsed/overRead after CI caught an over-read being dropped. Eight
+       versions later I added `room` and `pixelLaneError` and this line silently bailed on a payload
+       carrying only a room — the SAME defect, in the same line, in my own fix. The instance was
+       fixed; the shape was not. [[feedback-generalize-fixes]]
+
+       So the question is asked once: does this payload carry ANYTHING worth acting on? A new signal
+       is added to this list and nothing else has to remember it. */
+    var _EVIDENCE = ['glimpsed', 'overRead', 'reconciled', 'room', 'pixelLaneError'];
+    var _carries = _EVIDENCE.some(function(k){
+      var v = p[k];
+      if (v == null) return false;
+      if (Array.isArray(v)) return v.length > 0;
+      if (typeof v === 'string') return v.length > 0;
+      return true;                       // an object (room) is evidence by existing
+    });
+    if (!items.length && !(p.throwOut||p.suggestions||[]).length && !_carries)
       return { ok:false, why:'the payload carried no items' };
 
     /* throw-outs are acknowledged and NOT acted on — the count is the receipt that they were
@@ -43234,6 +43249,25 @@ window._renderStashFresh = function(){
                + '. Nothing was discarded; judge it against the frame.', o.frame);
           out.overReadCount = (out.overReadCount || 0) + 1;
         });
+        /* v2004 — THE ROOM. Squares that never move are furniture — the cube, tomes, charms —
+           and per his ruling they are treated like equipment: shown, never suggested for a move.
+           Open floor is what he actually has to farm into. */
+        var rm = payload.room;
+        if (rm && (rm.fixed != null)){
+          _rec('your inventory', 'room',
+               rm.say || ((rm.fixed || 0) + ' fixed, ' + (rm.open || 0) + ' open, '
+                          + (rm.churn || 0) + ' churn'),
+               (rm.frames || 0) + ' panel(s)');
+          out.room = rm;
+        }
+        /* AND THE SILENCE. Without this row, a run where nothing could be measured looks exactly
+           like a run where his panels were empty — which is the whole thing v1998 exists to stop. */
+        if (payload.pixelLaneError){
+          _rec('the pixel lane', 'pixel-lane-down',
+               String(payload.pixelLaneError) + ' \u2014 so "no glimpse" and "no cross-check" this '
+               + 'run mean NOTHING WAS MEASURED, not that the panels were empty.', '');
+          out.pixelLaneError = String(payload.pixelLaneError);
+        }
       } catch(e){ out.skipped.push('could not ledger the pixel evidence: ' + (e && e.message || e)); }
       return out;
   };
@@ -44113,7 +44147,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2003', name:'v2003 - a complete answer may seal', date:'2026-08-23', note:'a stash grid has no names by design so reading it again buys nothing and costs money - now it seals until the reader improves' };
+  window.D2R_BUILD = { id:'v2004', name:'v2004 - the room reaches him', date:'2026-08-23', note:'space_map worked on his film since v1995 and nothing called it - and the early return dropped a payload whose only evidence was the room' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -44851,7 +44885,16 @@ window._CH_PILL_MAP = {
            lattice refuses honestly on some frames and a tooltip legitimately covers cells, so this
            is a FLAG to judge, never a verdict that discards his data. */
       'glimpsed':        ['👁 seen but not named — film the tooltip', '#9fd4ff'],
-      'over-read':       ['⚠ named more than the panel holds', '#f0c060']
+      'over-read':       ['⚠ named more than the panel holds', '#f0c060'],
+      /* v2004 — TWO MORE THINGS THAT WERE COMPUTED AND RENDERED NOWHERE, and I wrote both of them.
+         THE ROOM — his iRobot ask: "it maps out my house and it doesnt necesarily know whats there
+           yet.. so same here i want it to like sort of understand the reverse of it and see where
+           we have room." space_map has worked on his film since v1995 and NOTHING CALLED IT.
+         THE SILENCE — v1998 made the pixel lane record why it went quiet, so "no glimpse" could be
+           told from "nothing was measured", and then no surface showed it. A reason nobody can read
+           is the same as no reason. [[the-unjoined-end]] */
+      'room':            ['🧹 the room, measured', '#9fd4ff'],
+      'pixel-lane-down': ['⚠ nothing was measured this run', '#f0a060']
     };
 
   window.renderInbox = function(){
@@ -44947,7 +44990,7 @@ window._CH_PILL_MAP = {
        So there are three kinds now, and the third is the honest one: it changed nothing AND it is
        not a confirmation — it is something to look at. [[label-outlived-referent]]
        [[feedback-silence-is-not-evidence]] */
-    var EYE = { 'glimpsed': 1, 'over-read': 1 };
+    var EYE = { 'glimpsed': 1, 'over-read': 1, 'room': 1, 'pixel-lane-down': 1 };
     var did  = auto.filter(function(r){ return r && CHANGED[r.status]; });
     var eye  = auto.filter(function(r){ return r && EYE[r.status]; });
     var knew = auto.filter(function(r){ return r && !CHANGED[r.status] && !EYE[r.status]; });
