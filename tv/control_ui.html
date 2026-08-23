@@ -1839,13 +1839,35 @@
   /* v931 (Konyo: 'i never clicked them — hide them, automate') — the rare levers live behind a
      tiny ⚙ disclosure, closed by default. Same buttons, same onclicks; just out of his face. */
   .sig-adv { margin: 2px 0 4px; }
-  .sig-adv > summary { list-style: none; cursor: pointer; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono);
-    letter-spacing: var(--ls-label); text-transform: uppercase; color: #6f6a58; padding: 2px;
-    transition: color .15s; user-select: none; }
+  /* v2033 — Konyo: "i want typtography and more structure for the title of the Advanced so its
+     seen and emphasized". It was --fs-2xs in #6f6a58, quieter than the body text around it, which
+     is why he twice concluded the Grok switch had been REMOVED when it was sitting inside this
+     disclosure the whole time. A control you cannot find is a control that does not exist.
+     Given weight, a rule above it for structure, and a hairline plate so it reads as a SECTION
+     rather than a stray line — while staying closed by default, because it is still the rare path. */
+  .sig-adv > summary { list-style: none; cursor: pointer;
+    font: var(--fw-bold) var(--fs-xs)/var(--lh-snug) var(--mono);
+    letter-spacing: .12em; text-transform: uppercase; color: #a89a72;
+    padding: 7px 9px; margin-top: 9px; border-radius: 8px;
+    border: 1px solid rgba(240,192,96,.16);
+    background: linear-gradient(180deg, rgba(240,192,96,.075), rgba(240,192,96,.02));
+    transition: color .15s, border-color .15s, background .15s; user-select: none;
+    /* v2033.1 — VERIFIED ON PIXELS, and the first cut was wrong. A flex ROW with the hint pushed
+       right by margin-left:auto looked fine at full width and BROKE in the rail, which is 227px:
+       the ⚙ landed alone on one line above the word, and the hint wrapped to "engines · eyes ·" /
+       "fleet". Rendered at 901 and measured, not eyeballed. A column with the hint as its own
+       sub-line fits the rail and still reads as a section header. */
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sig-adv > summary::after { content: 'engines · eyes · fleet'; display: block;
+    margin-top: 2px; font-size: var(--fs-3xs, 9px); letter-spacing: .04em; text-transform: none;
+    color: #6f6a58; font-weight: var(--fw-regular); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .sig-adv[open] > summary { color: var(--gold, #f0c060); border-color: rgba(240,192,96,.34);
+    background: linear-gradient(180deg, rgba(240,192,96,.13), rgba(240,192,96,.04)); }
   .sig-adv > summary::-webkit-details-marker { display: none; }
   .sig-adv > summary::before { content: '▸ '; color: #5b5647; }
   .sig-adv[open] > summary::before { content: '▾ '; }
-  .sig-adv > summary:hover { color: var(--gold-dim); }
+  .sig-adv > summary:hover { color: var(--gold, #f0c060); border-color: rgba(240,192,96,.42); }
   .sig-adv .util-strip { margin-top: 5px; }
   /* v931 — 👁👁🧠 THREE EYES: the panel opens with who's watching, in plain words. */
   .eyes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 3px; }
@@ -5114,7 +5136,7 @@
         <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
              The utility strip keeps the rare paths one small click away, out of the flow. -->
         <details class="sig-adv" ontoggle="if (this.open) { try { window._fleetRefresh(); } catch(e) {} }">
-          <summary>⚙ advanced</summary>
+          <summary>⚙ ADVANCED</summary>
           <div class="util-strip">
             <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
             <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
@@ -5142,7 +5164,14 @@
           <!-- ══ GROK EYES (G5) — REMOVABLE optional console toggle; OFF default; cousin never needs this ══ -->
           <div id="g5-eyes-card" class="g5-eyes-card" hidden title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
             <div class="g5-eyes-row">
-              <span class="g5-eyes-lab">🟣 Grok Eyes</span>
+              <!-- v2033 — Konyo: "should it really be called Grok Eyes? cuz default is Claude
+                   eyes? lol.. so just eyes?". He is right, and it is a LABEL THAT NAMES ONE
+                   OPTION AS THE WHOLE CONTROL. This card is a three-way switch over WHICH eyes
+                   read: off = Claude only, shadow = Claude then Grok, primary = Grok then
+                   Claude. Two of those three positions are Claude-led, so heading it "Grok
+                   Eyes" describes the switch by the option he is least often on.
+                   [[label-outlived-referent]] -->
+              <span class="g5-eyes-lab">👁 EYES</span>
               <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
                 <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude subscription intake only (default)">OFF</button>
                 <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Dual intake: Claude first, Grok if Claude fails (subscription CLIs)">SHADOW</button>

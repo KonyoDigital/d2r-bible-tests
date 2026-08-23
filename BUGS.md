@@ -12489,3 +12489,30 @@ thing that moves, so a pixel-diff between two frames of one run bounds the toolt
 detector, and therefore none of the calibration failure that sank the standalone attempt (it ranked
 a lava scene above the known positive). **Deliberately not built yet:** the chain has never been
 proven end to end into his ledger, and optimising an unverified path is how a fix becomes a story.
+
+## v2033 — ADVANCED is a heading now, and "Grok Eyes" named the option not the control
+
+**Konyo:** *"i want typtography and more structure for the title of the Advanced so its seen and
+emphasized"* — and, separately, *"should it really be called Grok Eyes? cuz default is Claude eyes?
+lol.. so just eyes?"*
+
+### The heading nobody could find
+`.sig-adv > summary` was `--fs-2xs` in `#6f6a58` — **quieter than the body text around it**. That is
+why he twice concluded the Grok switch had been *removed* when it was sitting inside that disclosure
+the whole time. **A control you cannot find is a control that does not exist.**
+
+It now has weight (`--fs-xs` bold, `#a89a72` → gold when open), a plate and border so it reads as a
+**section** rather than a stray line, and a `engines · eyes · fleet` sub-line saying what is inside.
+Still closed by default — it is still the rare path.
+
+⚠ **The first cut was wrong and the pixels caught it.** A flex ROW with the hint pushed right by
+`margin-left:auto` looked fine at full width and **broke in the rail, which is 227px**: the `⚙`
+landed alone on a line above the word, and the hint wrapped to `engines · eyes ·` / `fleet`.
+Rendered at 901 and measured, not eyeballed. It is a block with the hint as its own sub-line now.
+
+### A label that named one option as the whole control
+The card is a **three-way switch over which eyes read**: `off` = Claude only, `shadow` = Claude then
+Grok, `primary` = Grok then Claude. **Two of those three are Claude-led**, so heading it *"Grok
+Eyes"* described the switch by the option he is least often on — and by the one his cousin will never
+have. It reads `👁 EYES`; the lane is named in the sub-text where it belongs.
+[[label-outlived-referent]]

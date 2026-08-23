@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2032",
+  "ver": "v2033",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2032: the vault lane inherited the untuned dedupe defaults, so 73 frames holding 18 tooltips offered the reader 2 pages and 1 name",
+  "note": "v2033: the disclosure title was quieter than the body text around it so he twice concluded the eyes switch had been removed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
