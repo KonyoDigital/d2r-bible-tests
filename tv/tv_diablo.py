@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2010"   # a caller with no symbol
+VERSION = "v2011"   # the reason nobody was asked for
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -5144,15 +5144,25 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
 # with nothing; the vault side recorded only a timestamp, which makes its seal permanent however much
 # the reader improves. That is the same "a stale verdict made permanent" defect v1830 fixed on the
 # other lane, still live on this one. BUMP THIS WHENEVER VAULT_READ_PROMPT CHANGES.
-VAULT_PROMPT_VER = "vp2002"
+VAULT_PROMPT_VER = "vp2011"   # v2011 — throwWhy joined the item shape; a better reader may look again
 
 VAULT_READ_PROMPT = (
     "Image {path} = a Diablo II Resurrected (RotW mod) {surface} panel: a grid of item icons, some "
     "with a name label or a stack count.\n"
     "Reply with STRICT JSON only, no markdown, no prose:\n"
     '{{"surface":"{surface}","items":[],"conf":0.0}}\n'
+    # ── v2011 — `throwWhy` WAS IN THE PROSE AND NOWHERE IN THE SHAPE ──────────────────────────
+    # The exact mirror of v1903, which found `throwOut` in the schema and nowhere in the prose. The
+    # instruction below says "When you set it true, also give throwWhy = a short reason in your own
+    # words" — and the JSON template it must match listed four keys, none of them throwWhy. A model
+    # told to reply with STRICT JSON matching a template emits the template's keys.
+    #
+    # vault_retro:260 then reads it with `or "the reader flagged it as junk"`, so the loss is
+    # INVISIBLE: every throw-out suggestion in his review bucket carried the same generic sentence,
+    # and it read like the reader's opinion rather than a default standing in for one.
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
     'Each item = {{"name":"<exact text you can read>","kind":"rune|gem|material|item",'
-    '"count":<int or null>,"throwOut":false}}\n'
+    '"count":<int or null>,"throwOut":false,"throwWhy":""}}\n'
     "NAME IS THE ONLY THING THAT MATTERS AND THE ONLY THING YOU MAY NOT GUESS. Return a row ONLY "
     "when you can actually READ its name on this image. An icon you recognise but whose label you "
     "cannot read is NOT a row — leave it out. This read runs unattended over old footage and writes "

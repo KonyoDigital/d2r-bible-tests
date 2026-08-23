@@ -12841,5 +12841,89 @@ class TestV2010NoCallIntoANameThatIsNotThere(unittest.TestCase):
                              "and a noisy guard gets bypassed" % clean)
 
 
+class TestV2011ThePromptShapeAndTheConsumerAGREE(unittest.TestCase):
+    """v2011 — this defect has now appeared TWICE, in opposite directions, in the same prompt.
+
+    ⚠ The first cut of this guard looked for `_row_of`, the name Grok's handoff used. There is no
+    such function — it is `normalize_item`. The guard REFUSED rather than passing on an empty set,
+    which is the only reason the mistake was visible in one run: a guard that cannot find its
+    subject must fail, never return "nothing wrong here". [[source-reading-guard]]
+
+      v1903  `throwOut` was in the JSON SCHEMA and nowhere in the prose. Nothing told the reader
+             what it meant or when to set it, while vault_retro consumed it, gated it behind a
+             higher confidence floor and rode it out to him as suggestions — "an elaborate safety
+             mechanism fed by a field nobody was ever asked to fill".
+
+      v2011  `throwWhy` was in the PROSE and nowhere in the schema. The instruction says "When you
+             set it true, also give throwWhy = a short reason in your own words", and the JSON
+             template it must match listed four keys, none of them throwWhy. A model told to reply
+             with STRICT JSON matching a template emits the template's keys.
+
+    Both were invisible because the consumer has a fallback: `or "the reader flagged it as junk"`
+    fired on EVERY suggestion and read like the reader's own words.
+
+    So the two halves are pinned to each other: every field `_row_of` reads off a raw item must be a
+    field the reader was actually ASKED for. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+
+    # fields _row_of builds from something OTHER than the raw item — not the reader's to supply
+    DERIVED = {"lane", "conf"}
+
+    def _template_keys(self):
+        import tv_diablo as tv
+        m = re.search(r"Each item = \{\{(.+?)\}\}", tv.VAULT_READ_PROMPT, re.S)
+        self.assertIsNotNone(m, "the item template moved or was renamed — this guard reads nothing")
+        return set(re.findall(r'"([A-Za-z_][\w]*)"\s*:', m.group(1)))
+
+    def _consumed_keys(self):
+        import ast
+        import vault_retro as vr
+        with open(vr.__file__, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        fn = None
+        for n in ast.walk(tree):
+            if isinstance(n, ast.FunctionDef) and n.name == "normalize_item":
+                fn = n
+        self.assertIsNotNone(fn, "normalize_item moved — this guard is measuring nothing")
+        keys = set()
+        for n in ast.walk(fn):
+            # raw.get("x")
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                    and n.func.attr == "get" and isinstance(n.func.value, ast.Name)
+                    and n.func.value.id == "raw" and n.args
+                    and isinstance(n.args[0], ast.Constant)):
+                keys.add(n.args[0].value)
+        return keys
+
+    def test_every_field_the_consumer_reads_was_actually_asked_for(self):
+        tmpl, used = self._template_keys(), self._consumed_keys()
+        self.assertTrue(tmpl, "the item template parsed to no keys at all")
+        missing = sorted(k for k in used
+                         if k not in tmpl and k not in self.DERIVED
+                         and not k.endswith("_tab") and "_" not in k)
+        self.assertEqual(
+            missing, [],
+            "vault_retro.normalize_item reads these off the raw item and the prompt never asks the reader "
+            "for them, so they arrive empty and a fallback stands in silently: %s. Template asks "
+            "for: %s" % (", ".join(missing), ", ".join(sorted(tmpl))))
+
+    def test_throwWhy_specifically_is_in_the_shape(self):
+        """The field this version exists for. Named on its own so a regression says WHICH."""
+        self.assertIn("throwWhy", self._template_keys(),
+                      "throwWhy left the item template again — every throw-out suggestion will "
+                      "carry the same default sentence and read like the reader's opinion")
+
+    def test_a_prompt_change_moves_the_version(self):
+        """v2002 records the reader on every vault seal so a better one can reopen it. A prompt
+        edited without moving VAULT_PROMPT_VER leaves every seal claiming a reader that no longer
+        exists."""
+        import tv_diablo as tv
+        self.assertTrue(getattr(tv, "VAULT_PROMPT_VER", "").startswith("vp"),
+                        "VAULT_PROMPT_VER is missing or malformed")
+        self.assertNotEqual(tv.VAULT_PROMPT_VER, "vp2002",
+                            "the prompt gained throwWhy in v2011 and the version did not move — "
+                            "seals made by the older reader can never reopen")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

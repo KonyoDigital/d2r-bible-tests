@@ -257,7 +257,12 @@ def normalize_item(raw, surface, lane_default, page_conf):
         "count": _count_of(raw.get("count")),
         "conf": _conf_of(raw.get("conf"), page_conf),
         "throwOut": raw.get("throwOut") is True,
-        "throwWhy": str(raw.get("throwWhy") or "").strip()[:160] or "the reader flagged it as junk",
+        # v2011 — SAY WHEN THIS IS A DEFAULT. The reader was never asked for throwWhy in the JSON
+        # shape (fixed in tv_diablo the same version), so this fallback fired on EVERY suggestion
+        # and read like the reader's own words. A substituted default must be labelled as one, or
+        # it is a sentence with no author. [[unknown-stays-unknown]]
+        "throwWhy": (str(raw.get("throwWhy") or "").strip()[:160]
+                     or "no reason given by the reader — flagged as junk on the throwOut flag alone"),
     }
 
 

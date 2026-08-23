@@ -11435,3 +11435,43 @@ can go red. Sabotage-proven twice: on a synthetic file carrying all three real s
 caught, and closures / parameters / imported names correctly ignored), and by reintroducing the exact
 v2008 bug into `control_app.py`, which fails with
 `control_app.py: 'js_syntax_gate' in _v2010_sabotage()`.
+
+## REG-371 — throwWhy was in the prose and nowhere in the shape (v2011)
+
+The exact mirror of v1903, in the same prompt. That version found `throwOut` **in the JSON schema and
+nowhere in the prose** — *"an elaborate safety mechanism fed by a field nobody was ever asked to
+fill."* This is the other direction:
+
+```
+prose:     "When you set it true, also give throwWhy = a short reason in your own words"
+template:  {"name":…,"kind":…,"count":…,"throwOut":false}          ← no throwWhy
+```
+
+A model told to reply with **STRICT JSON matching a template** emits the template's keys. So the
+reason was requested in prose, never in the shape, and never arrived.
+
+**And the loss was invisible**, which is the part that matters. `vault_retro` read it as
+`or "the reader flagged it as junk"` — so **every** throw-out suggestion in his review bucket carried
+the same sentence, and it read like the reader's own words rather than a default standing in for one.
+That default now says it is one: *"no reason given by the reader — flagged as junk on the throwOut
+flag alone."*
+
+`VAULT_PROMPT_VER` moved `vp2002 → vp2011`, which is v2002's machinery doing its job: a better reader
+now exists, so rows==0 seals reopen and those frames get looked at again.
+
+### Why it matters for REG-349
+The prompt already asks the reader to tell *"a WHITE or GREY base with no sockets and no magical
+text"* from *"a named unique or set item"* — which is exactly the distinction `suggestMule('Shako')`
+cannot make from a string. **The eye that saw the item has the information the name matcher lacks**,
+and it can now say WHY in its own words. That does not decide REG-349 — still his ruling — but the
+evidence for it will no longer be a generic sentence.
+
+### The guard, and its own near-miss
+The two halves are now pinned: every field `normalize_item` reads off a raw item must be one the
+reader was actually asked for. Sabotage-proven — removing `throwWhy` fails twice, once generally and
+once by name.
+
+⚠ The first cut looked for **`_row_of`**, the name Grok's handoff used. There is no such function; it
+is `normalize_item`. The guard **refused rather than passing on an empty set**, which is the only
+reason the mistake surfaced in one run — a guard that cannot find its subject must fail, never report
+"nothing wrong here."
