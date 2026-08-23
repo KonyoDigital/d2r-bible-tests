@@ -5119,6 +5119,7 @@
             <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
             <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
             <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
+            <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
             <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">\U0001F985 eagle</button>
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
           </div>
@@ -10502,6 +10503,53 @@
   /* v2028 — the eagle eye's tap. Three states per check and never two of them merged:
      ok (green) · needs-you (amber) · UNKNOWN (grey) — "I could not check" is not "it is fine",
      and a monitor that paints them alike is the thing it was built to catch. */
+  /* ── v2030 — THE BUTTON THE ENDPOINT WAS MISSING ─────────────────────────────────────────
+     v2027 added /api/relaunch — Konyo had asked "this is a button i click within the console
+     right? nothing terminal code related that i need to manually do?" — and then never gave him
+     the button. v1550's guard caught it exactly: "a route with no caller is plumbing with no tap".
+     Built on both ends and never joined, in the same version that fixed three other instances of
+     the same shape. [[the-unjoined-end]]
+
+     ⚠ IT IS NOT ↻ bridge. That cycles the AGENT inside this process; this replaces the PROCESS,
+     which is the only way to pick up new Python. Distinct titles, because two buttons that look
+     alike and differ in what they restart is how someone presses the wrong one at 2am.
+
+     It confirms in place rather than behind a modal: the window WILL disappear and come back, and
+     that is worth knowing before it happens rather than after. */
+  (function(){
+    var _armed = false, _t = null;
+    var b = $('btn-relaunch');
+    if (!b) return;
+    b.onclick = async function(){
+      if (!_armed){
+        _armed = true;
+        b.textContent = '\u27f2 sure? the window will reopen';
+        _t = setTimeout(function(){ _armed = false; b.textContent = '\u27f2 relaunch'; }, 4000);
+        return;
+      }
+      clearTimeout(_t); _armed = false;
+      b.textContent = '\u27f2 relaunching\u2026';
+      b.disabled = true;
+      try {
+        var r = await fetch(API + '/api/relaunch', { method:'POST',
+                  headers:{'Content-Type':'application/json'}, body:'{}' });
+        var j = await r.json();
+        if (j && j.ok === false){
+          /* a refusal is the useful half — it means a paid read is in flight */
+          b.textContent = '\u27f2 relaunch';
+          b.disabled = false;
+          if (window.toast) window.toast(j.why || 'the console refused the relaunch');
+          else alert(j.why || 'the console refused the relaunch');
+          return;
+        }
+        b.textContent = '\u27f2 restarting\u2026';
+      } catch(e){
+        /* the process may already be gone — that is a SUCCESS, not a failure */
+        b.textContent = '\u27f2 restarting\u2026';
+      }
+    };
+  })();
+
   $('btn-eagle').onclick = async function(){
     var out = $('eagle-out'); if (!out) return;
     out.style.display = 'block';

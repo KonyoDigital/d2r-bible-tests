@@ -12378,3 +12378,27 @@ exact comments-vs-code trap already on file here.
 Both converted to anchored reads. The count went **25 → 23**, below the ceiling, so the ratchet is
 lowered to 23 as its own docstring instructs: *"Lower the number as sites are converted; never raise
 it."* A debt ceiling that only ever holds is not a ratchet.
+
+## v2030 — the button the endpoint was missing
+
+v2026's Playwright went red on v1550's guard — *"a route with no caller is plumbing with no tap —
+give it one or delete it"* — for `/api/eagle`. v2028 gave the eagle eye a real console consumer, and
+**Playwright stayed red**, because by then there was a second orphan: **`/api/relaunch`**.
+
+I added that route in v2027 *because he asked for exactly this* — *"this is a button i click within
+the console right? nothing terminal code related that i need to manually do?"* — and then never gave
+him the button. Built on both ends and never joined, in the very version that fixed three other
+instances of the same shape. The guard was right both times. [[the-unjoined-end]]
+
+`⟲ relaunch` now sits in ⚙ advanced beside `↻ bridge`, with deliberately distinct titles: **bridge
+cycles the AGENT inside the process; relaunch replaces the PROCESS**, which is the only way to pick
+up new Python. Two buttons that look alike and differ in what they restart is how someone presses
+the wrong one at 2am.
+
+It confirms in place (the window will vanish and come back — worth knowing before, not after),
+surfaces a refusal rather than swallowing it (a refusal means a paid read is in flight), and treats
+a thrown fetch as **success**, because by then the process it was talking to is already gone.
+
+⚠ Instrument note: my first orphan re-check reported 3 new orphans and I had simply dropped `tv/tvd`
+from the haystack. The spec reads four files; a check that reads three is measuring its own reach.
+[[feedback-suspect-the-instrument]]

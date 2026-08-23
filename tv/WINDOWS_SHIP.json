@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2029",
+  "ver": "v2030",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2029: the item lanes now read the whole frame instead of a grid crop that cut the tooltip off, and a stash tab normalises to a surface",
+  "note": "v2030: api/relaunch shipped in v2027 with no caller, which is the same unjoined end that version fixed three times elsewhere",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
