@@ -153,8 +153,23 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
     const ui = fs.readFileSync(path.resolve(__dirname, '..', 'tv', 'control_ui.html'), 'utf8');
     let tvd = '';
     try { tvd = fs.readFileSync(path.resolve(__dirname, '..', 'tv', 'tvd'), 'utf8'); } catch { /* */ }
+    /* v2000 — bible.html IS A CONSOLE CONSUMER, and this guard could not see it.
+     *
+     * The console SERVES the board over http on :17772, so a fetch() in bible.html is a same-origin
+     * call to these very routes — that is exactly how _laneStartReel reaches /api/on (v1992) and how
+     * the shadow widget reaches /api/shadow (v2000). Scanning only control_ui.html meant any
+     * BOARD-ONLY route read as plumbing with no tap.
+     *
+     * This widens the guard's REACH, not its tolerance: the assertion below is unchanged and still
+     * demands a real caller. A source scan that misses a legitimate consumer fails on its own reach
+     * rather than on the code, and the first thing it does is accuse working plumbing.
+     * [[source-reading-guard]] [[plumbing-with-no-tap]] */
+    let board = '';
+    try { board = fs.readFileSync(path.resolve(__dirname, '..', 'bible.html'), 'utf8'); } catch { /* */ }
+    expect(board.length, 'bible.html did not load — this guard would then pass by being blind')
+      .toBeGreaterThan(1000);
     const routes = [...new Set([...app.matchAll(/path == "(\/api\/[a-z_0-9]+)"/g)].map((m) => m[1]))];
-    const orphans = routes.filter((r) => !ui.includes(r) && !tvd.includes(r));
+    const orphans = routes.filter((r) => !ui.includes(r) && !tvd.includes(r) && !board.includes(r));
     expect(orphans, 'a route with no caller is plumbing with no tap — give it one or delete it')
       .toEqual([]);
     expect(routes.length).toBeGreaterThan(25);
