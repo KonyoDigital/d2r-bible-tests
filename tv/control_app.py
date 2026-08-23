@@ -10929,7 +10929,12 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             except Exception:
                 return {"note": "the reader failed on this page — not read"}
 
-        prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit)
+        # v2023 — SPEND THE BUDGET WHERE THE STASH ACTUALLY IS. The first real sweep took the 4
+        # mini-first reels (234 frames, 0 pages read) while a reel that is 59% stash panels sat
+        # unswept. stash_screen_open_cached is a crop and an OCR with no model call, so the
+        # ordering can afford to ask it about every reel before we pay to read any of them.
+        prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit,
+                         panel_gate=stash_screen_open_cached)
         if _not_stash[0]:
             # said out loud, never silently: "the stash was never open on camera" and "the reader
             # found nothing in it" are different answers and only one of them is about his stash
@@ -13387,7 +13392,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2021",
+        "ver": "v2023",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -14059,6 +14064,45 @@ try:
     import g5_grok_eyes as _G5
 except Exception:
     _G5 = None
+
+
+def _meter_state():
+    """Subscription burn, as READS against the window — never a token or dollar figure.
+
+    Returns known:false rather than zeros when the recorder has never written, so the widget can
+    say "not measured" instead of drawing an empty tank that looks like good news."""
+    out = {"known": False, "why": "", "unit": "reads",
+           "hour": None, "day": None, "hourlyMax": None, "dailyMax": None,
+           "armed": None, "lastTs": None,
+           "note": "vision runs on the Claude SUBSCRIPTION via `claude -p` — no API tokens are billed"}
+    try:
+        import tv_diablo as _tv
+    except Exception as e:
+        out["why"] = "tv_diablo unavailable: %s" % str(e)[:120]
+        return out
+    try:
+        out["hourlyMax"] = int(getattr(_tv, "_SUB_HOURLY_MAX", 0)) or None
+        out["dailyMax"] = int(getattr(_tv, "_SUB_DAILY_MAX", 0)) or None
+        out["armed"] = bool(_tv._vision_budget_armed())
+    except Exception:
+        pass
+    try:
+        path = getattr(_tv, "_SUB_BUDGET_PATH", "")
+        if not path or not os.path.isfile(path):
+            out["why"] = "no vision read has been recorded on this machine yet"
+            return out
+        with open(path, encoding="utf-8") as fh:
+            st = json.load(fh) or {}
+        calls = [float(c) for c in (st.get("calls") or []) if isinstance(c, (int, float))]
+    except Exception as e:
+        out["why"] = "budget file unreadable: %s" % str(e)[:120]
+        return out
+    now = time.time()
+    out["known"] = True
+    out["hour"] = sum(1 for c in calls if now - c <= 3600)
+    out["day"] = sum(1 for c in calls if now - c <= 86400)
+    out["lastTs"] = int(max(calls) * 1000) if calls else None
+    return out
 
 
 def _g5_status():
@@ -15065,6 +15109,29 @@ class Handler(BaseHTTPRequestHandler):
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
         if path == "/api/g5_status":
             self._json(200, _g5_status())
+            return
+        if path == "/api/meter":
+            # ── v2022 — THE METER. Konyo: "the console needs a meter lol... like how much tokens is
+            # it spending", then "okay is there a way to visually render it?"
+            #
+            # IT DOES NOT SPEND TOKENS, AND THE METER MUST SAY SO. Every vision read is `claude -p`
+            # on his SUBSCRIPTION login — _claude_env() strips ANTHROPIC_API_KEY/AUTH_TOKEN from the
+            # child env precisely so a stray shell key can never route it through the metered API.
+            # So there is no dollar figure to show, and inventing one would be the worst kind of
+            # number: confident, familiar, and about nothing. What is real, and what actually
+            # constrains him, is READS AGAINST THE SUBSCRIPTION WINDOW.
+            #
+            # THE DATA ALREADY EXISTED AND HAD NO SURFACE. _sub_budget_record() has appended a
+            # timestamp per read since v1472, atomically since v1779, with a live circuit breaker at
+            # 4000/hour and 20000/day. bible.html referenced it ZERO times. Built on both ends,
+            # never joined. [[the-unjoined-end]]
+            #
+            # HONEST-ABSENT: a missing budget file is `known:false`, never a comfortable 0 — "nobody
+            # measured" and "measured, nothing spent" are opposite facts and a meter that renders
+            # them the same is worse than no meter. Same for a disarmed breaker: caps that are not
+            # enforced are reported as off rather than drawn as headroom.
+            # [[unknown-stays-unknown]]
+            self._json(200, _meter_state())
             return
         if path == "/api/shadow":
             # v2000 — WHAT THE WIDGET READS. Three separate facts, never averaged into one lamp:

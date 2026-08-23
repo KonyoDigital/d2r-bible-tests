@@ -43,6 +43,7 @@ Pure by construction: the caller injects the signature fn, the classifier and th
 tests drive every law from fixtures with zero JPEGs and zero vision calls.
 """
 
+import glob
 import os
 import json
 import time
@@ -182,15 +183,72 @@ def _frame_rows(frames):
     return out
 
 
-def order_reels(hist_dirs):
-    """Mini/stash-focused reels first, everything else in the order given (newest-first, per caller).
+def panel_density(reel_dir, panel_gate, sample_every=8, cap=24):
+    """FREE: what fraction of sampled frames in this reel actually show an ownership panel.
 
-    A STABLE sort: reels of equal preference keep the caller's order, so the answer cannot depend on
-    a filesystem listing order (law 1's "no ordering of inputs may change the answer" applies to the
-    reels too — this only chooses what we PAY to read first, not what the fold concludes).
+    `panel_gate(path)` is control_app.stash_screen_open (or its cached twin) — a crop and an OCR,
+    no model call, which is why the sweep can afford to ask it about every reel before paying to
+    read any of them. Returns 0.0 when the reel is unreadable rather than raising: a reel we cannot
+    measure must sort LAST, never first.
+    """
+    try:
+        frames = sorted(glob.glob(os.path.join(reel_dir, "*.jpg")))
+    except Exception:
+        return 0.0
+    probe = frames[::max(1, int(sample_every))][:max(1, int(cap))]
+    if not probe:
+        return 0.0
+    hits = 0
+    for f in probe:
+        try:
+            if panel_gate(f) is not None:
+                hits += 1
+        except Exception:
+            continue
+    return hits / float(len(probe))
+
+
+def order_reels(hist_dirs, panel_gate=None):
+    """Reels that actually SHOW a stash first; mini-ness only breaks ties.
+
+    ── v2023 — "MINI-FIRST" WAS SORTING BY THE WRONG THING ─────────────────────────────────────
+    Konyo, on being told the first real sweep read nothing: *"but didnt we say it needs to know like
+    we have a identifed and classifer for templates when im in the vault/stashing it should know
+    that when to grab the reels after that specific moment and until it closes"*. He is right, and
+    the ordering was the reason it did not.
+
+    MEASURED, 2026-08-23, the first vault sweep ever run. It took the 4 mini-first reels, examined
+    234 frames, and read ZERO pages. Sampling those same four with the panel gate:
+
+        reel_s_1787307553811_9452     25 frames   0 of  7 sampled show a panel
+        reel_s_1787307317840_8033    148 frames   0 of 37 sampled show a panel
+        reel_s_1787251265965_42930    22 frames   0 of  6 sampled show a panel
+        reel_s_1787181101377_20439    39 frames   0 of 10 sampled show a panel
+        ──────────────────────────────────────────────────────────────────────
+        reel_s_1784984019250_95276   153 frames  23 of 39 sampled show a panel   <- NOT SWEPT
+
+    Zero out of sixty against fifty-nine percent. The reader was never the problem; it was pointed
+    at footage of him walking around. `is_mini_reel` asks whether he PRESSED MINI, which is a
+    statement of intent and not evidence about the film — and the sweep had no way to prefer, or be
+    pointed at, a reel that demonstrably contains what it is looking for.
+
+    THE GATE COSTS NOTHING, WHICH IS THE WHOLE POINT. control_app already says so in its own words
+    about the quote path: "The gate costs no model call — a crop and an OCR." So the sweep can price
+    every reel by measured panel density before spending a single read on any of them.
+
+    STILL A STABLE SORT. Reels of equal density keep the caller's order, so law 1 holds: this only
+    chooses what we PAY to read first, never what the fold concludes. And with no gate supplied the
+    behaviour is exactly the old one, so nothing that calls this without a gate changes.
     """
     dirs = [d for d in (hist_dirs or []) if d]
-    return sorted(dirs, key=lambda d: 0 if is_mini_reel(_load_index(d), d) else 1)
+    if panel_gate is None:
+        return sorted(dirs, key=lambda d: 0 if is_mini_reel(_load_index(d), d) else 1)
+    dens = {}
+    for d in dirs:
+        dens[d] = panel_density(d, panel_gate)
+    # HIGHEST density first; mini-ness only breaks ties; then the caller's order.
+    return sorted(dirs, key=lambda d: (-dens.get(d, 0.0),
+                                       0 if is_mini_reel(_load_index(d), d) else 1))
 
 
 # ── normalisation (law 4: honest-absent) ────────────────────────────────────────
@@ -564,7 +622,8 @@ def _name_folder(resolve=None):
     return fold
 
 
-def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None):
+def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None,
+          panel_gate=None):
     """THE VAULT RETRO SWEEP: sealed reels in, a PROPOSAL of what he owns out. Writes nothing.
 
     hist_dirs: sealed reel directories, newest-first (mini/stash reels are re-ordered to the front).
@@ -587,7 +646,9 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         return _empty("cannot sweep: no %s was supplied — this is not an empty vault, it is a sweep "
                       "that never ran" % missing, len(hist_dirs or []))
 
-    dirs = order_reels(hist_dirs)
+    # v2023 — order by MEASURED panel density when a gate is supplied, so `limit` spends the
+    # budget on reels that demonstrably show a stash instead of on the four most recent ones.
+    dirs = order_reels(hist_dirs, panel_gate=panel_gate)
     if limit:
         dirs = dirs[:limit]
     evidence = {}          # (name, lane) -> [sighting...]

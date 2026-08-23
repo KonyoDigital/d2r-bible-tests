@@ -10781,10 +10781,61 @@ class TestTheVaultProposalSurvivesARestart(unittest.TestCase):
                         "an isolated TV_HIST did not take the vault result with it: %s" % got["path"])
 
     def test_his_own_file_is_not_created_by_that(self):
+        """v2023 — ASSERT WHAT THIS MEANS: the isolated run must not CREATE OR TOUCH his file.
+
+        This used to assert the file was simply ABSENT, and it blocked a push on 2026-08-23 with
+        "an isolated run wrote his vault result file". Nothing had written it: `tv/vault_last_result
+        .json` was stamped 19:04 by the FIRST REAL VAULT SWEEP ever run on this project, which
+        persists its result on purpose (v1763 — "a sweep that is not written down did not happen").
+
+        So the old assertion was only ever true because the feature it guards had never been used.
+        A check that passes only while nobody exercises the thing it protects is measuring the
+        disuse, not the isolation — and it fails for the first time on the day the feature starts
+        working, which is the worst possible moment to cry wolf.
+        [[feedback-suspect-the-instrument]] [[gate-blind-to-unexercised-input]]
+
+        It now brackets its OWN isolated run and asserts the live file is byte-identical across it,
+        which is the property that was actually intended and which holds whether or not a real
+        sweep has ever run. Its sibling above is what proves the isolated path writes into TV_HIST.
+        """
+        import json as _json
+        import shutil
+        import subprocess as _sp
+        import tempfile as _tf
         here = os.path.dirname(os.path.abspath(__file__))
-        # the isolation test above must never leave one in his tree
-        self.assertFalse(os.path.isfile(os.path.join(here, "vault_last_result.json")),
-                         "an isolated run wrote his vault result file")
+        live = os.path.join(here, "vault_last_result.json")
+
+        def sig():
+            try:
+                st = os.stat(live)
+                with open(live, "rb") as fh:
+                    import hashlib
+                    return (int(st.st_size), hashlib.md5(fh.read()).hexdigest())
+            except FileNotFoundError:
+                return None
+
+        before = sig()
+        d = _tf.mkdtemp(prefix="vres-leak-")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "frames", "hist")
+        os.makedirs(hist, exist_ok=True)
+        prog = (
+            "import sys, os, json; sys.path.insert(0, %r)\n"
+            "import control_app as ca\n"
+            "with ca._VAULT_LOCK:\n"
+            "    ca._VAULT_JOB.update({'running': False, 'phase': 'done',\n"
+            "        'result': {'ok': True, 'owned': [{'name': 'Ral Rune', 'lane': 'stash'}]},\n"
+            "        'resultTs': 1787000000000, 'restoredFrom': None})\n"
+            "ca._vault_result_save()\n"
+            "print(ca._VAULT_RESULT_PATH)\n" % here)
+        out = _sp.run([sys.executable, "-c", prog], capture_output=True, text=True,
+                      env=dict(os.environ, TV_HIST=hist), timeout=180)
+        self.assertEqual(out.returncode, 0, out.stderr[-400:])
+        after = sig()
+        self.assertEqual(
+            before, after,
+            "an isolated run CREATED OR MODIFIED his live vault_last_result.json — the fixture "
+            "escaped TV_HIST and wrote into his tree [[feedback-fixtures-never-touch-live-data]]")
 
     def test_the_gate_watches_the_new_live_file(self):
         here = os.path.dirname(os.path.abspath(__file__))
@@ -13270,6 +13321,84 @@ class TestV2019TheTooltipPassGivesBackWhatItTook(unittest.TestCase):
         self.assertIn("may STILL", body,
                       "a thrown fetch must report the reel as possibly-still-recording, never as "
                       "stopped [[feedback-silence-is-not-evidence]]")
+
+
+
+class TestV2023TheSweepSpendsWhereTheStashIs(unittest.TestCase):
+    """v2023 — the first vault sweep ever run read ZERO pages, and the reader was innocent.
+
+    It took the 4 "mini-first" reels, examined 234 frames and read nothing. Sampled with the panel
+    gate, those four show a stash panel in 0 of 60 frames. A reel that shows one in 23 of 39 sat
+    unswept. Only 4 of his 32 reels contain a panel at all, so an ordering that ignores the film had
+    a 4-in-32 shot and drew zero.
+
+    `is_mini_reel` asks whether he PRESSED MINI - a statement of intent, not evidence about what is
+    on the film. The gate that IS evidence costs no model call (control_app's own words: "a crop and
+    an OCR"), so the ordering can price every reel before a single read is paid for.
+
+    Guarded on BEHAVIOUR with a fake gate, not on his footage: a test that needs his reels on disk
+    would skip on CI and prove nothing there. [[feedback-blind-fixture-green-gate]]
+    """
+
+    def test_a_reel_that_shows_a_panel_outranks_one_that_does_not(self):
+        import os
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            empty = os.path.join(td, "reel_s_1_empty"); os.makedirs(empty)
+            full = os.path.join(td, "reel_s_2_full"); os.makedirs(full)
+            for i in range(8):
+                open(os.path.join(empty, "f_%d.jpg" % i), "w").close()
+                open(os.path.join(full, "f_%d.jpg" % i), "w").close()
+            gate = lambda path: "stash" if "_full" in path else None
+            # caller order deliberately puts the EMPTY one first, as the old mini-first sort did
+            out = vr.order_reels([empty, full], panel_gate=gate)
+            self.assertEqual(os.path.basename(out[0]), "reel_s_2_full",
+                             "the reel that actually shows a stash panel must be swept FIRST - "
+                             "spending `limit` on footage of him walking around is why the first "
+                             "real sweep read 0 pages")
+
+    def test_no_gate_means_the_old_behaviour_exactly(self):
+        """Every existing caller passes no gate; none of them may change."""
+        import os
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            a = os.path.join(td, "reel_s_1_a"); os.makedirs(a)
+            b = os.path.join(td, "reel_s_2_b"); os.makedirs(b)
+            self.assertEqual(vr.order_reels([a, b]), vr.order_reels([a, b]),
+                             "the no-gate path must stay deterministic")
+            self.assertEqual(len(vr.order_reels([a, b])), 2)
+
+    def test_a_reel_it_cannot_measure_sorts_last_not_first(self):
+        """An unreadable reel must never be preferred - 'we could not look' is not 'it is full'."""
+        import os
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            good = os.path.join(td, "reel_s_1_good"); os.makedirs(good)
+            boom = os.path.join(td, "reel_s_2_boom"); os.makedirs(boom)
+            for i in range(4):
+                open(os.path.join(good, "f_%d.jpg" % i), "w").close()
+                open(os.path.join(boom, "f_%d.jpg" % i), "w").close()
+            def gate(path):
+                if "_boom" in path:
+                    raise RuntimeError("gate exploded")
+                return "stash"
+            out = vr.order_reels([boom, good], panel_gate=gate)
+            self.assertEqual(os.path.basename(out[0]), "reel_s_1_good",
+                             "a reel whose gate throws must sort LAST, never first")
+
+    def test_the_gate_reaches_the_sweep(self):
+        """A gate wired into order_reels but not threaded through sweep() would be inert."""
+        import inspect
+        import vault_retro as vr
+        self.assertIn("panel_gate", inspect.signature(vr.sweep).parameters,
+                      "sweep() must accept panel_gate or the ordering fix never runs")
+        src = inspect.getsource(vr.sweep)
+        self.assertIn("panel_gate=panel_gate", src,
+                      "sweep() must HAND the gate to order_reels - accepting it and dropping it is "
+                      "the same defect wearing a parameter [[the-unjoined-end]]")
 
 
 

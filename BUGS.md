@@ -11905,3 +11905,90 @@ otherwise re-tick, so that half stays gated. Removing one must always be possibl
 names they are already walking. A record for a name in neither seed is therefore never read by the
 thing it exists to veto — its only surviving effect was a band he could not clear.
 [[label-outlived-referent]] [[the-unjoined-end]]
+
+## REG-384 — the first vault sweep ever run read ZERO pages, and the reader was innocent (v2023)
+
+Kicked the vault sweep for the first time in the project's life (`vault_swept.json` had never
+existed). It took 4 reels, examined **234 frames**, and read **0 pages**.
+
+`classifierAnswered: 0` — and v2020's fix meant it correctly said UNKNOWN instead of falsely
+clearing the footage. Then the measurement said why:
+
+```
+                                frames   sampled frames showing a stash panel
+reel_s_1787307553811_9452           25    0 of  7
+reel_s_1787307317840_8033          148    0 of 37
+reel_s_1787251265965_42930          22    0 of  6
+reel_s_1787181101377_20439          39    0 of 10
+──────────────────────────────────────────────────
+reel_s_1784984019250_95276         153   23 of 39   ← NOT SWEPT
+```
+
+**Zero of sixty against fifty-nine percent**, and only **4 of his 32 reels contain a panel at all** —
+so the ordering had a 4-in-32 shot and drew zero. `is_mini_reel` asks whether he *pressed MINI*,
+which is a statement of intent, not evidence about the film.
+
+**The gate that IS evidence costs nothing**, and `control_app` says so itself about the quote path:
+*"The gate costs no model call — a crop and an OCR."* So the ordering can price every reel by
+measured panel density before a single read is paid for. Konyo named the fix before I did: *"it
+needs to know … when I'm in the vault/stashing it should know when to grab the reels."*
+
+`order_reels(dirs, panel_gate=…)` now sorts by measured density, mini-ness only breaking ties, and
+`sweep()` threads the gate through. Re-measured on his 32 reels:
+
+```
+NEW  100% · 100% · 55% · 40%   (summed 2.95)
+OLD    0% ·   0% ·  0% ·  0%   (summed 0.00)
+```
+
+With no gate supplied the behaviour is byte-identical to before, so nothing that calls it without
+one changes. A reel whose gate **throws** sorts LAST — "we could not look" is not "it is full".
+Guarded by `TestV2023TheSweepSpendsWhereTheStashIs` (4 checks, behaviour-only with a fake gate so it
+proves the same thing on CI as here), seen RED on the old sort.
+
+## v2022 — the console had no meter, and the data had been there since v1472
+
+Konyo: *"the console needs a meter lol… how much tokens is it spending"*, then *"is there a way to
+visually render it?"*
+
+**It spends no tokens, and the meter says so.** Vision is `claude -p` on his **subscription** —
+`_claude_env()` strips `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` from the child env precisely so a
+stray shell key cannot reroute it to the metered API, and I verified the guard is *wired*: 2 claude
+spawn sites, both pass `env=` from it, 0 unguarded. A dollar figure would be confident, familiar and
+about nothing.
+
+What is real is **reads against the subscription window** — recorded per read by
+`_sub_budget_record()` since v1472, atomically since v1779, with a live breaker at 4000/hour and
+20000/day. `bible.html` referenced it **zero times**. Built on both ends, never joined.
+[[the-unjoined-end]]
+
+New `GET /api/meter` + a `.sub-meter` lane row beside Shadow reader / Tooltip pass. Deliberately not
+a switch — there is nothing to turn on and a pill would invite a dead click. Two tracks because the
+caps bind at different times. `known:false` renders as *not measured*, never a comfortable empty
+tank, and a disarmed breaker is drawn as unknown rather than as headroom. A real but tiny share
+floors at 2% width, because 9 of 4000 rounds to an empty bar and reads as "nothing is happening"
+while a sweep is running. [[unknown-stays-unknown]]
+
+### v2023 addendum — a guard that could only pass while the feature was unused
+
+The v2023 push was **BLOCKED by his own pre-push gate**, correctly in form and wrongly in substance:
+
+```
+FAIL: test_his_own_file_is_not_created_by_that
+AssertionError: True is not false : an isolated run wrote his vault result file
+```
+
+Nothing had written it. `tv/vault_last_result.json` was stamped **19:04** by the **first real vault
+sweep ever run on this project**, which persists its result on purpose (v1763 — *"a sweep that is
+not written down did not happen"*).
+
+The assertion was `assertFalse(os.path.isfile(live))` — **absolute absence**. That was only ever true
+because the vault sweep had never run. A check that passes only while nobody exercises the thing it
+protects is measuring the disuse, not the isolation — and it fires for the first time on the day the
+feature starts working, which is the worst possible moment to cry wolf.
+[[gate-blind-to-unexercised-input]] [[feedback-suspect-the-instrument]]
+
+It now brackets its **own** isolated subprocess and asserts the live file is byte-identical across
+it, which is the property that was always intended and which holds whether or not a real sweep has
+run. Sabotage-proven: with `TV_HIST` removed the subprocess writes into his tree and the guard
+fails; his file was backed up and restored byte-identical.

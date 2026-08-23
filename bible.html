@@ -3510,6 +3510,38 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .tp-sw.tp-on .tp-eye{opacity:0}
 #tab-tools .tp-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0;flex:1 1 auto}
 #tab-tools .tp-txt b{font-size:13px;color:#f0d9a8;font-weight:var(--fw-bold)}
+/* v2022 — THE SUBSCRIPTION METER. Same lane-row language as .shadow-ai / .tip-pass so it reads as
+   one family, but deliberately NOT a switch: there is nothing here to turn on, and giving it a
+   pill would invite a click that does nothing. Two tracks (hour, day) because the two caps bind at
+   different times — a burst can be fine for the day and still trip the hour. */
+#tab-tools .sub-meter{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(18,28,40,.62),rgba(18,28,40,.34));border:1px solid rgba(120,170,220,.20)}
+#tab-tools .sub-meter[hidden]{display:none}
+#tab-tools .sm-ico{flex:0 0 auto;width:27px;height:27px;display:flex;align-items:center;justify-content:center;font-size:15px;border-radius:8px;background:rgba(120,170,220,.13);border:1px solid rgba(120,170,220,.24)}
+#tab-tools .sm-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0;flex:1 1 auto}
+#tab-tools .sm-txt b{font-size:13px;color:#cfe3f7;font-weight:var(--fw-bold)}
+#tab-tools .sm-txt small{font-size:11px;color:#8fa8c0;overflow-wrap:anywhere}
+#tab-tools .sm-tracks{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;width:132px;max-width:38vw}
+#tab-tools .sm-row{display:flex;align-items:center;gap:6px}
+#tab-tools .sm-k{font-size:9.5px;letter-spacing:.05em;color:#7f97ad;width:26px;flex:0 0 auto;text-transform:uppercase}
+/* v2023.1 — VERIFIED ON PIXELS: the old track (rgba(255,255,255,.08)) was BRIGHTER than a
+   nearly-empty fill, so an idle meter read as ambiguous rather than as 'barely used'. The
+   track is now recessed and the fill carries a glow, so empty looks empty. */
+#tab-tools .sm-bar{position:relative;flex:1 1 auto;height:6px;border-radius:999px;background:rgba(0,0,0,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);overflow:hidden}
+#tab-tools .sm-bar i{position:absolute;inset:0 auto 0 0;width:0;min-width:0;border-radius:999px;background:linear-gradient(90deg,#5fa8e0,#7fd4ff);box-shadow:0 0 6px 1px rgba(127,212,255,.45);transition:width .3s}
+#tab-tools .sm-bar.sm-warm i{background:linear-gradient(90deg,#e0a860,#ffd48f)}
+#tab-tools .sm-bar.sm-hot  i{background:linear-gradient(90deg,#e06a6a,#ff9f9f)}
+#tab-tools .sm-v{font-size:10px;color:#9fb6cc;width:34px;flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums}
+#tab-tools .sub-meter.sm-unknown{border-color:rgba(255,255,255,.14)}
+#tab-tools .sub-meter.sm-unknown .sm-bar i{background:rgba(255,255,255,.18)}
+@media (max-width:560px){
+  /* v2023.1 — MEASURED AT 375px: the full sentence wrapped to four lines and RAN PAST the row's
+     99.5px box. A meter that overflows its own container at phone width is not a meter. The long
+     form moves to the title attribute and the visible text becomes the number that matters. */
+  #tab-tools .sm-tracks{width:104px}
+  #tab-tools .sm-k{display:none}
+  #tab-tools .sub-meter{align-items:flex-start}
+  #tab-tools .sm-txt small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+}
 #tab-tools .tp-txt small{font-size:var(--fs-micro);color:#c9b68f}
 #tab-tools .tp-count{flex:0 0 auto;font-size:var(--fs-micro);color:#f0c060;border:1px solid rgba(240,192,96,.35);border-radius:999px;padding:2px 10px;white-space:nowrap}
 #tab-tools .tp-count[hidden]{display:none}
@@ -5103,6 +5135,23 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       </button>
       <span class="tp-txt"><b>Tooltip pass</b><small id="tp-say">…</small></span>
       <span class="tp-count" id="tp-count" hidden></span>
+    </div>
+    <!-- v2022 — SUBSCRIPTION METER. Konyo: "the console needs a meter lol... like how much tokens
+         is it spending", then "okay is there a way to visually render it?"
+
+         IT SPENDS NO TOKENS AND THE METER SAYS SO. Vision is `claude -p` on his SUBSCRIPTION —
+         _claude_env() strips ANTHROPIC_API_KEY/AUTH_TOKEN from the child env so a stray shell key
+         cannot route it through the metered API. A dollar figure here would be confident, familiar
+         and about nothing. What is real is READS against the subscription window, which is what
+         actually stops a sweep. The data has been recorded per read since v1472 and had no surface
+         at all: bible.html referenced it zero times. -->
+    <div class="sub-meter" id="sub-meter" hidden>
+      <span class="sm-ico">⚡</span>
+      <span class="sm-txt"><b>Subscription</b><small id="sm-say">checking…</small></span>
+      <span class="sm-tracks">
+        <span class="sm-row"><span class="sm-k">hr</span><span class="sm-bar" id="sm-bar-h"><i id="sm-fill-h"></i></span><span class="sm-v" id="sm-v-h">–</span></span>
+        <span class="sm-row"><span class="sm-k">day</span><span class="sm-bar" id="sm-bar-d"><i id="sm-fill-d"></i></span><span class="sm-v" id="sm-v-d">–</span></span>
+      </span>
     </div>
   </div>
 
@@ -44299,7 +44348,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2021', name:'v2021 - an un-tick nothing could clear', date:'2026-08-23', note:'REG-382 the free cost pass reported a stub classifier as a measurement of his footage, REG-383 the seed guard sat on the clear as well as the write' };
+  window.D2R_BUILD = { id:'v2023', name:'v2023 - spend the sweep where the stash actually is', date:'2026-08-23', note:'REG-384 the ordering picked reels by whether he pressed MINI instead of by whether the film shows a stash, plus the subscription meter' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -46340,6 +46389,86 @@ window.toggleTooltipPass = function(){
 };
 try { if (document.readyState !== 'loading') setTimeout(window.renderTooltipPass, 0);
       else document.addEventListener('DOMContentLoaded', window.renderTooltipPass); } catch(e){}
+
+/* ── v2022 — THE SUBSCRIPTION METER ────────────────────────────────────────────────────────────
+   Renders /api/meter. Three states, never collapsed into one:
+     known:false  → "not measured", greyed, NOT a comfortable empty tank. "Nobody measured" and
+                    "measured, nothing spent" are opposite facts and a meter that draws them the
+                    same is worse than no meter. [[unknown-stays-unknown]]
+     armed:false  → the caps exist but are not enforced, so the bars are drawn as UNKNOWN rather
+                    than as reassuring headroom.
+     known+armed  → reads this hour and today, against the caps that actually bind.
+   Console-only, like its two neighbours: off-console there is no /api to ask. */
+var _SM_TIMER = null;
+window.renderSubMeter = function(){
+  var host = document.getElementById('sub-meter');
+  if (!host) return Promise.resolve(null);
+  if (!window._shadowOnConsole || !window._shadowOnConsole()){ host.hidden = true; return Promise.resolve(null); }
+  return fetch('/api/meter').then(function(r){ return r.json(); }).then(function(j){
+    host.hidden = false;
+    var say = document.getElementById('sm-say');
+    function paint(barId, fillId, vId, used, max){
+      var bar = document.getElementById(barId), fill = document.getElementById(fillId), v = document.getElementById(vId);
+      if (!bar || !fill || !v) return;
+      if (used === null || used === undefined || !max){
+        fill.style.width = '100%'; v.textContent = '–';
+        bar.classList.remove('sm-warm','sm-hot');
+        return;
+      }
+      var pct = Math.max(0, Math.min(100, (used / max) * 100));
+      /* v2023.1 — A MINIMUM IN PIXELS, NOT PERCENT. The first cut floored at 2%, which on a 132px
+         track is 2.6px and looked identical to empty on the render. Verified on pixels: 5px is the
+         smallest sliver that reads as "something, but barely" rather than as nothing. */
+      var wpx = bar.getBoundingClientRect().width || 0;
+      var minPct = wpx ? (5 / wpx) * 100 : 4;
+      fill.style.width = (used > 0 ? Math.max(minPct, pct) : 0) + '%';
+      v.textContent = String(used);
+      bar.classList.toggle('sm-warm', pct >= 60 && pct < 85);
+      bar.classList.toggle('sm-hot', pct >= 85);
+    }
+    var known = !!(j && j.known);
+    host.classList.toggle('sm-unknown', !known);
+    if (!known){
+      paint('sm-bar-h','sm-fill-h','sm-v-h', null, null);
+      paint('sm-bar-d','sm-fill-d','sm-v-d', null, null);
+      if (say) say.textContent = 'not measured — ' + ((j && j.why) || 'no reading available')
+        + ' · this lane bills NO API tokens, it runs on your Claude subscription';
+      return j;
+    }
+    paint('sm-bar-h','sm-fill-h','sm-v-h', j.hour, j.hourlyMax);
+    paint('sm-bar-d','sm-fill-d','sm-v-d', j.day, j.dailyMax);
+    var pctH = (j.hourlyMax ? (j.hour / j.hourlyMax) * 100 : 0);
+    var shownPct = (pctH < 0.1 && j.hour > 0) ? '<0.1' : pctH.toFixed(1);
+    var LONG = j.hour + ' read' + (j.hour === 1 ? '' : 's') + ' this hour of ' + j.hourlyMax
+      + ' (' + shownPct + '%) · ' + j.day + ' today of ' + j.dailyMax
+      + (j.armed ? '' : ' · ⚠ the cap is NOT enforced right now')
+      + ' · reads, not tokens — this runs on your Claude subscription';
+    /* v2023.1 — the phone form is the NUMBER, not the essay. The long form survives on the title
+       so nothing is lost, it just stops overflowing the row. */
+    var SHORT = j.hour + '/' + j.hourlyMax + ' this hour · ' + j.day + '/' + j.dailyMax + ' today'
+      + (j.armed ? '' : ' · ⚠ cap off');
+    var narrow = (window.innerWidth || 9999) <= 560;
+    if (say){ say.textContent = narrow ? SHORT : LONG; }
+    host.setAttribute('title', LONG);
+    return j;
+  }).catch(function(e){
+    var say = document.getElementById('sm-say');
+    host.classList.add('sm-unknown');
+    if (say) say.textContent = 'the console did not answer: ' + String(e && e.message || e);
+    return null;
+  });
+};
+try {
+  var _smBoot = function(){
+    window.renderSubMeter();
+    if (_SM_TIMER) clearInterval(_SM_TIMER);
+    /* 20s: fast enough to watch a sweep climb, slow enough that an idle console is not polling
+       a file every second for a number that changes a few times an hour. */
+    _SM_TIMER = setInterval(function(){ try { window.renderSubMeter(); } catch(e){} }, 20000);
+  };
+  if (document.readyState !== 'loading') setTimeout(_smBoot, 0);
+  else document.addEventListener('DOMContentLoaded', _smBoot);
+} catch(e){}
 
 window._shadowOnConsole = function(){
   return /:(17772|17771)\b/.test(String(location.host || ''));

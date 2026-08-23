@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2021",
+  "ver": "v2023",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2021: REG-382 the free cost pass reported a stub classifier as a measurement of his footage, REG-383 the seed guard sat on the clear as well as the write",
+  "note": "v2023: REG-384 the ordering picked reels by whether he pressed MINI instead of by whether the film shows a stash, plus the subscription meter",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
