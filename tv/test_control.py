@@ -101,6 +101,101 @@ def _reap(proc):
         pass
 
 
+def _dump_dom_cdp(browser, url, timeout=40):
+    """v2008 — the fallback that ACTUALLY WORKS ON THIS MAC, so three real guards stop being dead.
+
+    `--dump-dom` over http://127.0.0.1 never answers on his Chrome. The skip message has said so
+    since v1579 and it names its own fix in the same breath: "file:// works, and Playwright drives
+    the same binary fine". Both are true, and so is a third thing — CDP works. It was used about
+    fifteen times on this machine in one night without a single hang.
+
+    So the tests it was blocking are not testing anything on the machine that has the data:
+      REG-069  a key read RAW
+      REG-075  a gate on a differently-named function
+      REG-076  the console read BARE while the board wrote W·, and a machine that should have
+               started empty greeted its owner with "HOLY GRAIL 243 / 403 · 60% claimed"
+    Three bugs in one family, and the test that executes the shipped lsFork against seeded storage
+    has been skipping.
+
+    Returns a CompletedProcess-alike so callers need no change, or None — a probe that could not run
+    proves nothing and must never be reported as a pass. It degrades to None (not an error) when
+    websocket-client is absent, so CI, where --dump-dom may work fine, is untouched.
+    [[chrome-cdp-mac]] [[feedback-blind-fixture-green-gate]]
+    """
+    try:
+        import json as _json
+        import urllib.parse as _up
+        import urllib.request as _ur
+        import websocket  # noqa: F401 — optional; absent means "fall through to the skip"
+    except Exception:
+        return None
+    port = _free_port()
+    if not port:
+        return None
+    prof = tempfile.mkdtemp(prefix="cdp-dom-")
+    proc = subprocess.Popen(
+        [browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+         "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
+         "--no-first-run", "--no-default-browser-check",
+         # chrome-cdp-mac: without this the WS upgrade is refused 403 and nothing else says why
+         "--remote-allow-origins=*", "about:blank"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        base = "http://127.0.0.1:%d" % port
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            try:
+                _ur.urlopen(base + "/json/version", timeout=2)
+                break
+            except Exception:
+                time.sleep(0.3)
+        else:
+            return None
+        req = _ur.Request(base + "/json/new?" + _up.quote(url, safe=":/.#?=&"), method="PUT")
+        tab = _json.loads(_ur.urlopen(req, timeout=15).read().decode())
+        ws = websocket.create_connection(tab["webSocketDebuggerUrl"], timeout=timeout,
+                                         origin=base)
+        try:
+            time.sleep(2.0)          # the probe pages run inline script on load
+            ws.send(_json.dumps({"id": 1, "method": "Runtime.evaluate",
+                                 "params": {"expression": "document.documentElement.outerHTML",
+                                            "returnByValue": True}}))
+            got = ""
+            end = time.time() + timeout
+            while time.time() < end:
+                m = _json.loads(ws.recv())
+                if m.get("id") == 1:
+                    got = (((m.get("result") or {}).get("result") or {}).get("value")) or ""
+                    break
+            if not got:
+                return None
+            return subprocess.CompletedProcess([browser, url], 0, got, "")
+        finally:
+            try:
+                ws.close()
+            except Exception:
+                pass
+    except Exception:
+        return None
+    finally:
+        _reap(proc)
+        shutil.rmtree(prof, ignore_errors=True)
+
+
+def _free_port():
+    import socket
+    try:
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        p = s.getsockname()[1]
+        s.close()
+        # never 9222/9223 — chrome-cdp-mac: Chrome holds one and TradingView Desktop the other,
+        # and an ephemeral bind would not have handed those out anyway. Stated so nobody pins them.
+        return p if p not in (9222, 9223) else None
+    except Exception:
+        return None
+
+
 def _dump_dom(browser, url, budget=6000, timeout=45):
     """v1579 — launch Chrome --dump-dom WITHOUT the hang that held a push hostage.
 
@@ -123,6 +218,24 @@ def _dump_dom(browser, url, budget=6000, timeout=45):
     Returns a CompletedProcess, or None if no mode answered - callers skipTest on None, because a
     probe that could not run proves nothing and must not be reported as a pass.
     """
+    # v2008 — SKIP THE DOOMED ATTEMPTS. js_syntax_gate has already probed this machine and knows
+    # which launch path answers; on his Mac that is CDP, and trying both headless modes first costs
+    # 45s each per call for a result the probe already has. Measured: 297s for three tests, ~270s of
+    # it waiting on attempts known to fail. If the probe never ran or is unsure, fall through and
+    # try everything, exactly as before.
+    #
+    # ⚠ THE FIRST CUT OF THIS BLOCK CALLED `js_syntax_gate.loopback_path()` WITHOUT IMPORTING IT.
+    # The module is imported locally inside the test methods, not at module scope, so the name was
+    # undefined here — NameError straight into the `except Exception: pass` below, falling through
+    # to the slow path. The timing did not move (93.6s per call, twice) and the shortcut LOOKED
+    # wired. Eighth instance of this exact shape in one night, third of them mine. Caught only by
+    # timing a single call instead of trusting the change. [[the-unjoined-end]]
+    try:
+        import js_syntax_gate as _jsg
+        if _jsg.loopback_path() == "cdp" and url.startswith("http"):
+            return _dump_dom_cdp(browser, url, timeout=timeout)
+    except Exception:
+        pass
     for mode in ("--headless=new", "--headless=old"):
         with tempfile.TemporaryDirectory() as prof:
             proc = subprocess.Popen(
@@ -148,6 +261,10 @@ def _dump_dom(browser, url, budget=6000, timeout=45):
                 # The second communicate() the timeout branch used to make could itself block
                 # on a pipe a surviving grandchild held — _reap closes the pipes instead.
                 _reap(proc)
+    # v2008 — NEITHER HEADLESS MODE ANSWERED. That is the normal outcome on his Mac, and it has
+    # been skipping three real guards for ~430 versions. CDP drives the same binary reliably here,
+    # so ask that before giving up. Returns None if it cannot either, and the callers still skip.
+    return _dump_dom_cdp(browser, url, timeout=timeout)
     return None
 
 
@@ -10046,7 +10163,14 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
     exist. [[feedback-blind-fixture-green-gate]] [[dual-machine-setup]]"""
 
     ALLOWED_BARE = {"PIL"}                 # installed by `pip install --quiet pillow` on CI
-    ALLOWED_GUARDED = {"PIL", "playwright"}
+    # v2008 — `websocket` joins them, and ONLY as a GUARDED import. It drives the CDP fallback that
+    # lets three long-dead guards run on his Mac, and it is optional by construction: absent, the
+    # import raises, the helper returns None, and every caller skips exactly as it did before. CI is
+    # deliberately NOT given the dependency — its `--dump-dom` may well answer over loopback, and
+    # adding a package to two workflows to enable a fallback nothing there needs is cost for
+    # nothing. If that ever changes, the guard's own message says the price: add it to publish.yml
+    # AND tv-tests.yml, then widen this.
+    ALLOWED_GUARDED = {"PIL", "playwright", "websocket"}
 
     @staticmethod
     def _is_third_party(mod):

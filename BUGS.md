@@ -11330,3 +11330,48 @@ AssertionError: f_1784984130673.jpg: a LIT PHOTOGRAPH (frac_dark=0.0, dark_cols=
 content) classified as 'stash-runes'. This is the wallpaper bug.
 ```
 The original defect, reproduced end to end on his real pixels, for the first time since it was fixed.
+
+## REG-368 — three guards had been dead for ~430 versions because one launch path was mistaken for the machine (v2008)
+
+`browser_can_load_localhost()` measured `--dump-dom` over `http://127.0.0.1` and concluded this Mac
+cannot load a loopback page. The measurement was right; **the conclusion was drawn one step too
+wide** — and v1490's own note says so in the same breath:
+
+> *"Playwright drives the same binaries over the same loopback fine, so it is this launch path on
+> this machine, not the network and not the page."*
+
+CDP is a third path and it works here. **Measured on the identical loopback URL, same browser, same
+server: `--dump-dom` → False, CDP → `"LOOPBACK_OK"`.**
+
+What was skipping is the install-scoped key family — three real bugs, one of which greeted a fresh
+machine with **someone else's chronicle** (`HOLY GRAIL 243 / 403 · 60% claimed`):
+
+| | |
+|---|---|
+| REG-069 | a key read RAW |
+| REG-075 | a gate on a differently-named function |
+| REG-076 | the console read BARE while the board wrote `W·` |
+
+The test that executes the shipped `lsFork` against seeded storage — written *because* "a grep-level
+assertion is not enough, all three passed a reading" — has not run since. **All four now run and
+pass, on the machine that has the data, every push.**
+
+### 297s → 26.7s, and the reason was another call into nothing
+The first cut worked and cost **297 seconds** — `_dump_dom` tried both headless modes (45s each) per
+call before reaching CDP, on a machine where the probe already knew they were doomed. So the probe
+now records **which** path answers and `_dump_dom` asks it first — the v2006 rule again: the side
+that measured it decides, nobody re-derives.
+
+That fix appeared to do nothing (93.6s per call, unchanged) because it called
+`js_syntax_gate.loopback_path()` **without importing it** — the module is imported locally inside
+the test methods, not at module scope, so it raised `NameError` into my own `except Exception: pass`.
+**Eighth instance of that shape in one night, third of them mine**, and caught only by timing a
+single call instead of trusting the change. A second one in the same session: `_cdp_can_load_localhost`
+used `time.time()` in a file that never imports `time` — same swallow, same silence, found the same
+way.
+
+`websocket` is allowlisted as a **GUARDED** import only. It is optional by construction: absent, the
+helper returns None and every caller skips exactly as before. CI is deliberately not given the
+dependency — its `--dump-dom` may well answer, and adding a package to two workflows to enable a
+fallback nothing there needs is cost for nothing. Sabotage-proven: a **bare** `import websocket`
+still fails the guard.

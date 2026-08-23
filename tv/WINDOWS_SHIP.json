@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2007",
+  "ver": "v2008",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2007: two end-to-end gate tests were pinned to pruned reel names and can be pinned to pixel signatures instead",
+  "note": "v2008: dump-dom never answers over loopback here and CDP does - three install-key guards had been skipping since v1490",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

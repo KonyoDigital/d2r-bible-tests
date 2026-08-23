@@ -86,6 +86,22 @@ def _serve(root):
 _LOOPBACK_OK = []   # cached capability verdict: [] = unprobed, [True] / [False] once known
 
 
+# v2008 — WHICH path answered, not merely whether one did. `--dump-dom` never answers over loopback
+# on his Mac, and _dump_dom used to try BOTH headless modes — 45s each — before reaching the CDP
+# fallback. Measured: three tests took 297s, of which ~270s was waiting for two attempts already
+# known to be doomed. The probe knows which path works; carrying that is the difference between a
+# five-minute tax on every push and a thirty-second one. Same rule as the disk threshold in v2006:
+# the side that measured it decides, and nobody re-derives.
+LOOPBACK_PATH = []
+
+
+def loopback_path():
+    """'dump-dom' | 'cdp' | None — how this machine can load an http://127.0.0.1 page, if at all."""
+    if not _LOOPBACK_OK:
+        browser_can_load_localhost()
+    return LOOPBACK_PATH[0] if LOOPBACK_PATH else None
+
+
 def browser_can_load_localhost(browser=None, timeout=12):
     """Can this browser answer `--dump-dom` for an http://127.0.0.1 page AT ALL?
 
@@ -135,8 +151,108 @@ def browser_can_load_localhost(browser=None, timeout=12):
     finally:
         srv.shutdown()
         shutil.rmtree(root, ignore_errors=True)
+    if ok:
+        LOOPBACK_PATH.append("dump-dom")
+    if not ok:
+        # ── v2008 — ONE LAUNCH PATH IS BROKEN, NOT THE CAPABILITY ────────────────────────────
+        # v1490 measured `--dump-dom` correctly: it never answers over loopback on this Mac. The
+        # CONCLUSION was drawn one step too wide, and its own note says so in the same breath —
+        # "Playwright drives the same binaries over the same loopback fine, so it is this launch
+        # path on this machine, not the network and not the page."
+        #
+        # CDP is a third path and it works here. MEASURED on the identical loopback URL, same
+        # browser, same server: --dump-dom -> False, CDP -> "LOOPBACK_OK".
+        #
+        # It matters because three real guards have been skipping on the only machine that has the
+        # data: REG-069 (a key read RAW), REG-075 (a gate on a differently-named function) and
+        # REG-076 — the console read BARE while the board wrote W·, so a machine that should have
+        # started empty greeted its owner with "HOLY GRAIL 243 / 403 · 60% claimed".
+        #
+        # Tried only AFTER --dump-dom fails, so nothing that works today changes, and it degrades
+        # to False when websocket-client is absent. [[chrome-cdp-mac]]
+        ok = _cdp_can_load_localhost(browser, timeout=timeout)
+        if ok:
+            LOOPBACK_PATH.append("cdp")
     _LOOPBACK_OK.append(ok)
     return ok
+
+
+def _cdp_can_load_localhost(browser, timeout=12):
+    """Same question, asked down the launch path that works on this machine. Never raises."""
+    try:
+        import json as _json
+        import socket as _sock
+        import time as _time
+        import urllib.parse as _up
+        import urllib.request as _ur
+        import websocket
+    except Exception:
+        return False
+    root = tempfile.mkdtemp()
+    prof = tempfile.mkdtemp()
+    srv = proc = None
+    try:
+        with open(os.path.join(root, "_probe.html"), "w", encoding="utf-8") as fh:
+            fh.write("<!doctype html><html><body>LOOPBACK_OK</body></html>")
+        srv, port = _serve(root)
+        sk = _sock.socket()
+        sk.bind(("127.0.0.1", 0))
+        dport = sk.getsockname()[1]
+        sk.close()
+        proc = subprocess.Popen(
+            [browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+             f"--remote-debugging-port={dport}", f"--user-data-dir={prof}",
+             "--no-first-run", "--no-default-browser-check",
+             # without this the WS upgrade is refused 403 and nothing else explains why
+             "--remote-allow-origins=*", "about:blank"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        base = f"http://127.0.0.1:{dport}"
+        end = _time.time() + timeout
+        while _time.time() < end:
+            try:
+                _ur.urlopen(base + "/json/version", timeout=2)
+                break
+            except Exception:
+                _time.sleep(0.3)
+        else:
+            return False
+        url = f"http://127.0.0.1:{port}/_probe.html"
+        tab = _json.loads(_ur.urlopen(
+            _ur.Request(base + "/json/new?" + _up.quote(url, safe=":/.#?=&"), method="PUT"),
+            timeout=10).read().decode())
+        ws = websocket.create_connection(tab["webSocketDebuggerUrl"], timeout=timeout, origin=base)
+        try:
+            _time.sleep(1.0)
+            ws.send(_json.dumps({"id": 1, "method": "Runtime.evaluate",
+                                 "params": {"expression": "document.body.textContent",
+                                            "returnByValue": True}}))
+            stop = _time.time() + timeout
+            while _time.time() < stop:
+                m = _json.loads(ws.recv())
+                if m.get("id") == 1:
+                    val = ((m.get("result") or {}).get("result") or {}).get("value") or ""
+                    return "LOOPBACK_OK" in val
+            return False
+        finally:
+            try:
+                ws.close()
+            except Exception:
+                pass
+    except Exception:
+        return False
+    finally:
+        if proc is not None:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        if srv is not None:
+            srv.shutdown()
+        shutil.rmtree(root, ignore_errors=True)
+        shutil.rmtree(prof, ignore_errors=True)
 
 
 NO_LOOPBACK = ("this browser never answers --dump-dom over http://127.0.0.1 on this machine "
