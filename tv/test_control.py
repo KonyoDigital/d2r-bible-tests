@@ -13931,5 +13931,90 @@ class TestV2029AnItemsNameIsInATooltipNotInTheGrid(unittest.TestCase):
 
 
 
+class TestV2031TheDeclaredFocusChainIsJoinedAtEVERYLink(unittest.TestCase):
+    """v2031 — v2027 fixed THREE links of a four-link chain and I reported it as wired end to end.
+
+    The chain that lets a lane card tell the sweep what he is looking at:
+
+        1. bible.html   the card POSTs { focus: 'stash' }
+        2. /api/on      accepts it and validates it through _mini_focus()
+        3. tv_diablo    parses --mini-focus OUTSIDE MINI mode
+        4. tv_diablo    STAMPS it into the reel's index.json          <-- v2027 missed this one
+
+    Link 4 stayed behind `if MINI_MODE:`, so the flag was parsed correctly and never written down —
+    and vault_retro reads the SEALED REEL, not the argv of a process that has already exited.
+
+    MEASURED on the reel he filmed at 22:18 under a console that already carried v2027:
+    index.json keys were ['blank','blankPass','frames','n','sessionId']. No focus at all, not even
+    an empty one. Three of four joined and the chain still carried nothing, which is the defining
+    property of this class — it reads as wired from both ends. [[the-unjoined-end]]
+
+    So this guard walks EVERY link rather than sampling one. A chain test that checks three links is
+    the bug it is trying to catch.
+    """
+
+    @staticmethod
+    def _tvd():
+        import os
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "tv_diablo.py"), encoding="utf-8").read()
+        src = re.sub(r'"""(?:.|\n)*?"""', " ", src)
+        src = re.sub(r"(?m)#[^\n]*$", " ", src)
+        return src
+
+    def test_link1_the_card_sends_a_focus(self):
+        import os
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        bib = open(os.path.join(os.path.dirname(here), "bible.html"), encoding="utf-8").read()
+        self.assertRegex(bib, r"var FOCUS = \{", "link 1: the lane card has no focus map")
+        self.assertIn("{ focus:_focus }", bib, "link 1: the card does not SEND the focus")
+
+    def test_link2_the_route_validates_it(self):
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        self.assertIn('_mini_focus(body.get("focus"))', src,
+                      "link 2: /api/on must accept AND validate a focus")
+
+    def test_link3_the_agent_parses_it_outside_mini_mode(self):
+        import re
+        src = self._tvd()
+        m = re.search(r"^MINI_FOCUS\s*=\s*(.+)$", src, re.M)
+        self.assertIsNotNone(m, "link 3: MINI_FOCUS assignment is gone")
+        self.assertTrue(m.group(1).strip().startswith("_FOCUS_ARG"),
+                        "link 3: the flag must be read unconditionally; only the DEFAULT may "
+                        "depend on MINI_MODE")
+
+    def test_link4_the_agent_STAMPS_it_into_the_reel(self):
+        """The one v2027 left. Everything upstream is inert without it, and silently so."""
+        src = self._tvd()
+        i_focus = src.find('_ixdoc["focus"]')
+        self.assertNotEqual(i_focus, -1, "link 4: the focus is never stamped into index.json")
+        head = src[:i_focus]
+        last_if = head.rfind("if ")
+        guard = head[last_if:last_if + 40] if last_if != -1 else ""
+        self.assertNotIn("MINI_MODE", guard,
+                         "link 4: the focus stamp is gated on MINI_MODE, so a full session parses "
+                         "the flag and never writes it down - the reel is what the sweep reads")
+        self.assertIn("if MINI_FOCUS", guard,
+                      "the stamp should fire whenever a focus was actually declared")
+
+    def test_focusChosen_travels_with_the_focus_not_with_the_mini(self):
+        """vault_retro._declared_surface keys its TRUST on focusChosen. A focus stamped without it
+        would be trusted by default - the exact inversion v1783 built the field to prevent."""
+        src = self._tvd()
+        i_fc = src.find('_ixdoc["focusChosen"]')
+        self.assertNotEqual(i_fc, -1, "focusChosen is never stamped")
+        head = src[:i_fc]
+        last_if = head.rfind("if ")
+        guard = head[last_if:last_if + 40] if last_if != -1 else ""
+        self.assertNotIn("MINI_MODE", guard,
+                         "focusChosen must be written wherever the focus is, or a declared focus "
+                         "arrives with no statement of whether he chose it")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

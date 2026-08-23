@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2030"   # the button the endpoint was missing
+VERSION = "v2031"   # the fourth link of the focus chain
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -7420,9 +7420,26 @@ def close_session(reason="stop", farewell=True):
                 # v1595 — STAMP THE MINI. Without this the flag changes nothing that
                 # outlives the process: vault_retro reads the sealed reel, not the argv of
                 # a run that has already exited.
+                # ── v2031 — THE FOURTH JOIN, AND v2027 LEFT IT ───────────────────────────────
+                # v2027 fixed three links so a lane card could declare a focus on a FULL session:
+                # tv_diablo parses --mini-focus outside MINI mode, /api/on accepts a focus, and the
+                # card sends one. Then the STAMP stayed behind `if MINI_MODE:` — so the flag was
+                # parsed correctly and never written down, and vault_retro reads the sealed reel,
+                # not the argv of a process that has already exited.
+                #
+                # MEASURED on the reel he filmed at 22:18 under a console that already had v2027:
+                # index.json keys were ['blank','blankPass','frames','n','sessionId'] — no focus at
+                # all, not even an empty one. Four links in a chain, three joined, and the whole
+                # thing still carries nothing. That is the defining property of this class: it
+                # reads as wired from both ends. [[the-unjoined-end]]
+                #
+                # mini / miniSeconds stay MINI-only because they genuinely are about the bound.
+                # The FOCUS is about what he says he is looking at, which has nothing to do with
+                # how long the recording runs.
+                if MINI_FOCUS:
+                    _ixdoc["focus"] = MINI_FOCUS
                 if MINI_MODE:
                     _ixdoc["mini"] = True
-                    _ixdoc["focus"] = MINI_FOCUS
                     # v1783 — RECORD WHETHER HE CHOSE THIS. The retro sweep skips the classifier
                     # for a declared focus on the v1603 premise that pressing MINI TELLS the app
                     # what he is parked on. That holds for a focus he picked and fails for one he
@@ -7430,8 +7447,13 @@ def close_session(reason="stop", farewell=True):
                     # an untouched default then labels town, a fight and a Chronicle page as a
                     # stash panel without any of them being looked at. An untouched default is not
                     # a statement, so the sweep is told which kind of stamp this is.
-                    _ixdoc["focusChosen"] = MINI_FOCUS_CHOSEN
                     _ixdoc["miniSeconds"] = MINI_SECONDS
+                # v2031 — focusChosen travels with the FOCUS, never with the mini. The sweep keys
+                # its trust on it (_declared_surface: focusChosen false -> not trusted), so a focus
+                # stamped without it would be trusted by default — the exact inversion v1783 built
+                # this field to prevent.
+                if MINI_FOCUS:
+                    _ixdoc["focusChosen"] = MINI_FOCUS_CHOSEN
                 _indexed = False
                 for _attempt in (1, 2):     # one retry, then say so out loud
                     try:

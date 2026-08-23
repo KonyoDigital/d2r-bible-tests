@@ -12402,3 +12402,45 @@ a thrown fetch as **success**, because by then the process it was talking to is 
 ⚠ Instrument note: my first orphan re-check reported 3 new orphans and I had simply dropped `tv/tvd`
 from the haystack. The spec reads four files; a check that reads three is measuring its own reach.
 [[feedback-suspect-the-instrument]]
+
+## REG-387 — v2027 joined three links of a four-link chain and I called it wired (v2031)
+
+The chain that lets a lane card tell the sweep what he is looking at:
+
+```
+1. bible.html   the card POSTs { focus: 'stash' }              v2027 ✓
+2. /api/on      accepts and validates via _mini_focus()        v2027 ✓
+3. tv_diablo    parses --mini-focus OUTSIDE mini mode          v2027 ✓
+4. tv_diablo    STAMPS it into the reel's index.json           v2027 ✗  ← still `if MINI_MODE:`
+```
+
+**Measured on the reel he filmed at 22:18, under a console that already carried v2027:**
+`index.json` keys were `['blank','blankPass','frames','n','sessionId']`. **No focus at all — not
+even an empty one.** The flag was parsed correctly and never written down, and `vault_retro` reads
+the **sealed reel**, not the argv of a process that has already exited.
+
+Three of four joined and the chain still carries nothing. That is the defining property of this
+class: **it reads as wired from both ends.** [[the-unjoined-end]]
+
+`focus` and `focusChosen` are now stamped whenever a focus was *declared*, on any session.
+`mini`/`miniSeconds` stay MINI-only because they are genuinely about the bound — the focus is about
+what he says he is looking at, which has nothing to do with how long the recording runs.
+`focusChosen` travels with the focus, never with the mini: `_declared_surface()` keys its **trust**
+on it, so a focus stamped without it would be trusted by default — the exact inversion v1783 built
+that field to prevent.
+
+`TestV2031TheDeclaredFocusChainIsJoinedAtEVERYLink` walks **all four links** rather than sampling
+one, because a chain test that checks three links is the bug it is trying to catch.
+
+### ⚠ And the correction this belongs to
+I closed the previous stretch with *"every blocker between here and the auto-arranged render is now
+fixed and shipped."* **That was an overclaim.** What was proven was frame-level — a reader returning
+a name from a one-off classify (`Sullied Grand Charm of Blight` 0.6, `Annihilus` 0.9). What was
+**not** proven is a name surviving the gate and the apply into the ledger, which is the thing he
+actually asked for. Verified at the time of writing: `vault_accum.json` is `owned=0 held=0 byKey=0`,
+and both sealed reels read `rows=0 agentVer=v2026` — the v2028/v2029 fixes have **never been run
+against his ledgers**.
+
+A frame-level proof is evidence the reader CAN see it. It is not evidence the pipeline accepted it,
+and reporting one as the other is the same failure as a lamp that reports intent instead of effect.
+[[feedback-verify-not-proxy]] [[unknown-stays-unknown]]
