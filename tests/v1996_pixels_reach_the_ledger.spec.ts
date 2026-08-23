@@ -119,14 +119,21 @@ test('v2004 — a silent pixel lane says so instead of looking like an empty sta
     pixelLaneError: 'ImportError: no module named vault_corpus',
   }));
   expect(out.pixelLaneError, 'the reason the lane went quiet was dropped').toContain('ImportError');
-  const rows = await page.evaluate(() => {
+  /* Render and READ in two steps with a wait between, exactly as the room test above does.
+     Doing both inside one page.evaluate() read the DOM before the card had finished expanding, and
+     CI came back with an empty row list while the same payload rendered fine locally — my harness
+     disagreeing with itself, not the product. [[feedback-suspect-the-instrument]] */
+  await page.evaluate(() => {
     const w: any = window;
     try { w.switchTab('tools'); } catch (e) { /* */ }
     const c = document.getElementById('inbox-card');
     if (c && c.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('inbox-card');
     try { w.renderInbox(); } catch (e) { /* */ }
-    return Array.from(document.querySelectorAll('#inbox-panel .ibx-eye-row')).map((r) => (r as HTMLElement).innerText);
   });
+  await page.waitForTimeout(600);
+  const rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#inbox-panel .ibx-eye-row')).map((r) => (r as HTMLElement).innerText));
+  expect(rows.length, 'no pixel row rendered at all').toBeGreaterThan(0);
   expect(rows.join(' | ')).toContain('NOTHING WAS MEASURED');
 });
 
