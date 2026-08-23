@@ -12247,3 +12247,70 @@ themselves"* and *"the tiny blue segments could be mistaken for decorative dots 
 indicators"*. Both true, and both invisible to me because I knew what the numbers meant. The cap
 lived only in the sentence on the left. It now reads `9/4k` and `9/20k` beside each bar.
 [[grok-second-eye]]
+
+## REG-385 — the gate threw away every frame that had a NAME on it (v2028)
+
+**The root cause of "no name to be had", and the exact inverse of how it looked.**
+
+`stash_screen_open` admits a frame only when `stash_chrome_canons` finds a legible stash tab label.
+A D2R hover tooltip is drawn **on top of that tab strip**. So the gate refused, with perfect
+consistency, **the only frames that carry a readable item NAME** — and kept the bare grids, which
+print none. Every vault sweep sealed *"read N panel(s), every one cross-checked, no name to be had"*
+while he had been hovering items on camera the whole time.
+
+**Looked at, not inferred.** Two frames it refused:
+
+```
+f_1784984195842.jpg   "Sullied Grand Charm of Blight / +1 to Eldritch Skills (Warlock Only)"
+                      its "Ctrl + Left Click to Move to Inventory" line sits across the tab row
+f_1787508818939.jpg   "Marshal's Amulet / +3 to Offensive Auras (Paladin Only)"
+                      "Shift + Left Click to Equip" over GEMS/MATERIALS
+```
+
+On the second the chrome **still** OCRs as `['StrNAL','SHAktD','GE',…]` — PERSONAL and SHARED are
+there, corrupted *just past* the fuzzy matcher (`SHAkED` canonicalises, `SHAktD` does not).
+Loosening that matcher would have been the dangerous fix.
+
+**v1913 already saw the mechanism and stopped one step short:** *"5_1784984201581 canons ['gems'] (a
+WRAITHSTEP tooltip covers the rest)"*. It fixed which tab is **selected**; nobody asked what happens
+when the tooltip covers them **all**.
+
+### The conjunction is the whole safety
+Additive, inside `if not canons:`, so a frame the old gate admitted is untouched:
+
+* the **`INVENTORY` title** — far right, where a stash-side tooltip cannot reach, and drawn only
+  when the inventory is open, which **is** the "both panels at once" template this gate enforces;
+* **and** the pixel grid fingerprint.
+
+**Neither alone is safe.** Calibrated on 7 labelled frames: `classify_stash_grid` **alone calls a
+LAVA SCENE a stash panel**. Together: **0 wrong of 7** — all five occluded frames admitted, both
+gameplay frames refused. Measured yield across his four stash reels: **+20 frames, +13% more
+panels**, 11 of them on the reel he filmed tonight.
+
+It returns the **generic** `"stash"`: with the strip occluded the selected tab is genuinely unknown,
+and naming it would reintroduce the v1857 misroute. `SURFACE_LANE` maps every stash tab to one lane,
+so nothing misroutes.
+
+### Also in v2028
+* **A run is not condemned by one occluded probe frame** — the sweep now asks the FREE panel gate
+  about neighbours and pays at most **one** classify to rescue a run. ⚠ The first cut retried
+  `classify` itself, which on the console is *free gate + PAID model call* — three retries per
+  rejected run would have tripled classify spend. A cost regression wearing a fix's clothes.
+* **🦅 the eagle eye is in the console** — `⚙ advanced → 🦅 eagle`. This also closes a red CI:
+  v1550's guard says *"a route with no caller is plumbing with no tap"*, and `/api/eagle` shipped in
+  v2026 with zero consumers. The guard was right.
+* **Millenium.** Konyo, on passing v2000: *"i want to call it millenium 2027 … Millenium 27 …
+  thats better even more to the point"*. The footer is now the name and the last two digits — but
+  the version-skew detection it replaced is **kept and stated in words**: a drifted console reads
+  `Millenium 24 · ⚠ console v2024, agent v2026, board v2026 — relaunch`. Collapsing it to a bare
+  name would have deleted the only place that drift is visible.
+
+### ⚠ And the gate caught me twice while writing this
+* `TestV2010NoCallIntoANameThatIsNotThere` blocked the push over **`VERSION_STR`** in my relaunch
+  route — a name I invented and then "guarded" with `if "VERSION_STR" in dir()`, which does not stop
+  a reference being a reference. Exactly the class that guard exists for. It asks `status_payload()`
+  now.
+* My own new guard failed on **correct** code because it `.find()`-ed bare names and the *import
+  line* `from stash_eye import classify_stash_grid, inventory_title_visible` puts them in the
+  opposite order. It reads call sites now. A guard that cannot tell an import from a call is reading
+  the wrong thing. [[feedback-suspect-the-instrument]]

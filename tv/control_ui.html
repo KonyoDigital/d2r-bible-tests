@@ -5119,8 +5119,16 @@
             <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
             <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
             <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
+            <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">\U0001F985 eagle</button>
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
           </div>
+          <!-- v2028 — 🦅 THE EAGLE EYE, in the console. Konyo: "dont we need like a type of EAGLE
+               EYE kind of style management system here? eyes from above it all like that can see
+               bugs happening or something and fix it when its out of line?"
+               It also closes a red CI: v1550's guard says "a route with no caller is plumbing with
+               no tap — give it one or delete it", and /api/eagle shipped in v2026 with zero
+               consumers. The guard was right, and this is the tap it asked for. -->
+          <div id="eagle-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid rgba(255,255,255,.14);border-radius:8px;margin-top:6px"></div>
           <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
           <!-- v1496 · 🖥 THE FLEET — who is online and when each machine was last here. Konyo asked for
                "a tracker for whose logged in and when, like we have for the website"; /console has
@@ -5204,7 +5212,10 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v945 control</span>
+      <!-- v2027 — THE NAME. Konyo: "we said in the beginning of this project we will rename
+           it when we hit version 2000.. i want to call it millenium 2027.. etc from there".
+           The number tracks the ship, LAST TWO DIGITS: v2027 -> Millenium 27. -->
+      <span id="foot-ver">Millenium</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -6699,11 +6710,35 @@
     var _cv = st.ver || '—';
     var _av = st.agentVer || '';
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = _cv + ' control'
-      + (_av ? (' · agent ' + _av) : '')
-      + (_bv ? (' · board ' + _bv) : '')
-      + (st.platform ? ' · ' + st.platform : '')
-      + (st.shell ? ' · ' + st.shell : '');
+    /* ── v2027 — MILLENIUM. Konyo, on hitting v2000: "i want to call it millenium 2027.. etc
+       from there.. and the entire bottom area where its agent 2027 all the way to agent :17771
+       on the far bottom.. change it and make it to the point". So: the name and the number, and
+       nothing else — WHEN THERE IS NOTHING ELSE TO SAY.
+
+       ⚠ WHAT THIS MUST NOT THROW AWAY. The old string spelled out control/agent/board versions
+       and turned AMBER when they disagreed, and that skew is not decoration: it is how
+       "V2024 CONTROL · BOARD V2026" became visible at all — a console serving the Python it
+       booted with while bible.html is read fresh from disk. Collapsing the bar to a single name
+       would have deleted the only place that drift is on screen.
+
+       So the drift is still detected, and it is now stated in WORDS rather than left for him to
+       spot by diffing three version numbers: clean reads `Millenium 2027`, skewed reads
+       `Millenium 2027 · ⚠ console v2027, board v2026 — relaunch`. Quiet when it is fine, explicit
+       when it is not. [[label-outlived-referent]] */
+    /* v2027 — "Millenium 27.... Millenium 28. thats better even more to the point hehe". The
+       LAST TWO DIGITS, so the bar is a name and a number and nothing else. (And when the ship
+       count reaches 3000 he renames it again, which is his to decide and not something to
+       pre-build a branch for.) */
+    var _num = String(_cv || '').replace(/^v/i, '').slice(-2);
+    var _skewNow = ((_av && _cv !== _av) || (_bv && _cv !== _bv));
+    var _lbl = 'Millenium' + (_num ? (' ' + _num) : '');
+    if (_skewNow){
+      var _bits = [];
+      if (_av && _cv !== _av) _bits.push('agent ' + _av);
+      if (_bv && _cv !== _bv) _bits.push('board ' + _bv);
+      _lbl += ' · \u26a0 console ' + _cv + ', ' + _bits.join(', ') + ' — relaunch';
+    }
+    $('foot-ver').textContent = _lbl;
     try {
       var _skew = ((_av && _cv !== _av) || (_bv && _cv !== _bv));
       $('foot-ver').style.color = _skew ? '#d8a94a' : '';
@@ -10464,6 +10499,45 @@
   $('btn-stop').onclick = async function(e){ await cutFeed(this, e, true); };
   $('btn-restart').onclick = function(e){ post('/api/restart', this, e); };
   // v924 — 🛡 FARM DAY gate: one press, one verdict (the claude-auth ping takes a few seconds)
+  /* v2028 — the eagle eye's tap. Three states per check and never two of them merged:
+     ok (green) · needs-you (amber) · UNKNOWN (grey) — "I could not check" is not "it is fine",
+     and a monitor that paints them alike is the thing it was built to catch. */
+  $('btn-eagle').onclick = async function(){
+    var out = $('eagle-out'); if (!out) return;
+    out.style.display = 'block';
+    out.style.borderColor = '';
+    out.innerHTML = '\U0001F985 looking over the whole console… (the sub-doctors take a moment)';
+    this.disabled = true;
+    try {
+      var r = await fetch(API + '/api/eagle'); var j = await r.json();
+      if (!j || j.ok === false){
+        out.style.borderColor = '#e07070';
+        out.innerHTML = '<div style="color:#e07070">\U0001F985 the eagle eye could not run — '
+          + ((j && j.why) || 'no answer') + '</div>';
+        return;
+      }
+      var checks = j.checks || [];
+      var needs = checks.filter(function(c){ return c.state === 'missing'; }).length;
+      var unk   = checks.filter(function(c){ return c.state === 'unknown'; }).length;
+      var col = needs ? '#e9b96e' : (unk ? '#9aa6b2' : '#8fd0a0');
+      var rows = checks.map(function(c){
+        var ic = c.state === 'ok' ? '\u2713' : (c.state === 'missing' ? '\u26a0' : '?');
+        var cc = c.state === 'ok' ? '#7f958a' : (c.state === 'missing' ? '#e9b96e' : '#9aa6b2');
+        return '<div style="color:' + cc + '">' + ic + ' <b>' + c.check + '</b> — ' + c.why + '</div>';
+      }).join('');
+      out.style.borderColor = col;
+      out.innerHTML = '<div style="color:' + col + ';font-weight:var(--fw-semibold);letter-spacing:.6px">'
+        + '\U0001F985 EAGLE EYE · ' + (needs ? (needs + ' need you') : (unk ? (unk + ' not measured') : 'all clear'))
+        + '</div>' + rows;
+    } catch(e){
+      out.style.borderColor = '#e07070';
+      out.innerHTML = '<div style="color:#e07070">\U0001F985 the console did not answer: '
+        + (e && e.message || e) + '</div>';
+    } finally {
+      this.disabled = false;
+    }
+  };
+
   $('btn-farmgate').onclick = async function(){
     var out = $('farmgate-out'); if (!out) return;
     out.style.display = 'block';

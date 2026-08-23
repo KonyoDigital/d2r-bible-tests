@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2027",
+  "ver": "v2028",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2027: pressing a lane card now tells the sweep what he is looking at, plus the TZ chase, a real relaunch and a scale on the meter",
+  "note": "v2028: the gate refused every frame a hover tooltip covered, which is every frame that had a name on it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

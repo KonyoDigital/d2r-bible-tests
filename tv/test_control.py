@@ -13768,5 +13768,96 @@ class TestV2027ADeclaredFocusSurvivesAFullSession(unittest.TestCase):
 
 
 
+class TestV2028ATooltipIsNotAnAbsentStash(unittest.TestCase):
+    """v2028 — THE ROOT CAUSE OF "no name to be had", and the exact inverse of how it looked.
+
+    stash_screen_open admits a frame only when stash_chrome_canons finds a legible tab label. A D2R
+    hover tooltip is drawn ON TOP of that tab strip. So the gate refused, with perfect consistency,
+    the only frames that carry a readable item NAME — and kept the bare grids, which print none.
+    Every vault sweep therefore sealed "read N panel(s), every one cross-checked, no name to be had"
+    while he had been hovering items on camera the whole time.
+
+    LOOKED AT, not inferred:
+      f_1784984195842.jpg  "Sullied Grand Charm of Blight / +1 to Eldritch Skills (Warlock Only)"
+      f_1787508818939.jpg  "Marshal's Amulet / +3 to Offensive Auras (Paladin Only)"
+    On the second the chrome still OCRs as ['StrNAL','SHAktD','GE',...] — PERSONAL and SHARED are
+    THERE, corrupted just past the fuzzy matcher ('SHAkED' canonicalises, 'SHAktD' does not).
+
+    MEASURED across his four stash reels: 16 of 170 in-panel frames refused while BRACKETED by
+    frames the gate resolves, and the new path admits 20 more (+13%).
+
+    THE CONJUNCTION IS THE WHOLE SAFETY, and either half alone is unsafe — CALIBRATED on 7 labelled
+    frames, classify_stash_grid ALONE calls a LAVA SCENE a stash panel. The INVENTORY title is on
+    the far right where a stash-side tooltip cannot reach, and D2R draws it only when the inventory
+    is open, which IS the "both panels at once" template this gate exists to enforce.
+    """
+
+    @staticmethod
+    def _gate_src():
+        import os
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        i = src.index("def stash_screen_open(frame_path)")
+        body = src[i:i + 12000]
+        body = re.sub(r'"""(?:.|\n)*?"""', " ", body)
+        body = re.sub(r"(?m)#[^\n]*$", " ", body)
+        return body
+
+    def test_an_occluded_tab_strip_has_a_second_way_in(self):
+        body = self._gate_src()
+        self.assertIn("inventory_title_visible", body,
+                      "a tooltip over the tab strip must not read as an absent stash - without a "
+                      "second admission path the gate throws away every frame that has a NAME on it")
+        self.assertIn("classify_stash_grid", body,
+                      "the pixel fingerprint is the other half of the conjunction")
+
+    def test_neither_half_admits_on_its_own(self):
+        """The calibration says why: the fingerprint alone calls a LAVA SCENE a stash panel."""
+        body = self._gate_src()
+        # v2028 — MEASURE THE CALL SITES, NOT THE IMPORT. The first cut used .find() on the bare
+        # names and failed on correct code, because `from stash_eye import classify_stash_grid,
+        # inventory_title_visible` puts them in the opposite order on the IMPORT line. A guard that
+        # cannot tell an import from a call is reading the wrong thing.
+        i_inv = body.find("inventory_title_visible(")
+        i_grid = body.find("classify_stash_grid(")
+        self.assertNotEqual(i_inv, -1, "inventory_title_visible is imported but never CALLED")
+        self.assertNotEqual(i_grid, -1, "classify_stash_grid is imported but never CALLED")
+        self.assertLess(i_inv, i_grid,
+                        "the INVENTORY title must gate the fingerprint, not the other way round - "
+                        "the fingerprint alone is the half with a known false positive (it calls a "
+                        "LAVA SCENE a stash panel)")
+
+    def test_it_returns_the_generic_surface_not_a_guessed_tab(self):
+        """v1859: the tab is a GUESS and a guess may not name a lane. When the strip is occluded we
+        genuinely do not know which tab is selected, so the honest answer is the generic one."""
+        body = self._gate_src()
+        i = body.find("inventory_title_visible")
+        seg = body[i: i + 700]
+        self.assertIn('return "stash"', seg,
+                      "an occluded-strip admission must return the GENERIC stash surface; naming a "
+                      "tab it cannot see would reintroduce the v1857 misroute")
+
+    def test_the_new_path_is_additive_and_cannot_loosen_the_old_one(self):
+        """It lives INSIDE `if not canons`, so a frame the old gate admitted is untouched."""
+        body = self._gate_src()
+        i_canon = body.find("if not canons:")
+        i_inv = body.find("inventory_title_visible")
+        self.assertNotEqual(i_canon, -1, "the canons branch is gone - the old gate has been rewritten")
+        self.assertLess(i_canon, i_inv,
+                        "the occlusion path must sit inside the `not canons` branch, so it can only "
+                        "ever ADD admissions and never change an existing verdict")
+
+    def test_the_inventory_anchor_exists_and_is_bounded(self):
+        import stash_eye as se
+        self.assertTrue(hasattr(se, "inventory_title_visible"))
+        self.assertTrue(hasattr(se, "_INV_BAND"))
+        x0, y0, x1, y1 = se._INV_BAND
+        self.assertGreater(x0, 0.5, "the band must be on the RIGHT half, away from the stash tooltip")
+        self.assertLessEqual(x1, 1.0)
+        self.assertLess(y0, y1)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

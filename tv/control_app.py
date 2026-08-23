@@ -11812,6 +11812,37 @@ def stash_screen_open(frame_path):
         from stash_eye import stash_chrome_canons, tab_from_gem
         canons = stash_chrome_canons(lines)
         if not canons:
+            # ── v2028 — A TOOLTIP OVER THE TAB STRIP IS NOT AN ABSENT STASH ─────────────────
+            # THE ROOT CAUSE OF "no name to be had", and the exact inverse of what it looks like.
+            #
+            # This gate admits on one legible tab label. A D2R hover tooltip is drawn ON TOP of
+            # that strip, so it refused — consistently — the only frames that carry a readable item
+            # NAME, and kept the bare grids, which print none. MEASURED across his four stash
+            # reels: 16 of 170 in-panel frames (9%, and 10% on each of his two best) are refused
+            # while BRACKETED by frames this gate resolves, so the panel is provably still open.
+            #
+            # v1913's own note already saw the mechanism and stopped one step short: "5_1784984201581
+            # canons ['gems'] (a WRAITHSTEP tooltip covers the rest)". It fixed which tab is
+            # SELECTED; nobody asked what happens when the tooltip covers them ALL.
+            #
+            # ADDITIVE, never a loosening. The conjunction is the INVENTORY title — on the far
+            # right, where a stash-side tooltip cannot reach, and drawn only when the inventory is
+            # open, which is the "both panels at once" template this gate exists to enforce — AND
+            # the pixel grid fingerprint. Neither alone is safe: CALIBRATED on 7 labelled frames,
+            # the fingerprint ALONE calls a LAVA SCENE a stash panel, and the title alone says
+            # nothing about the left half. Together: 0 wrong of 7, admitting all five occluded
+            # frames and refusing both gameplay ones.
+            #
+            # It returns the GENERIC "stash": the tab is genuinely unknown here and must not be
+            # guessed (v1859). SURFACE_LANE maps every stash tab to one lane, so nothing misroutes.
+            try:
+                from stash_eye import classify_stash_grid, inventory_title_visible
+                if inventory_title_visible(str(frame_path)):
+                    _lab, _ = classify_stash_grid(str(frame_path))
+                    if str(_lab or "").startswith("stash"):
+                        return "stash"
+            except Exception:
+                pass
             return None
         # ── v1913 — ONE LEGIBLE LABEL IS NOT A SELECTED TAB ────────────────────────────────────
         #
@@ -13440,7 +13471,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2027",
+        "ver": "v2028",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -16270,8 +16301,17 @@ class Handler(BaseHTTPRequestHandler):
                     _grant = bool((doctor_payload() or {}).get("screen_recording"))
                 except Exception:
                     _grant = None
+                # v2028 — `VERSION_STR` DID NOT EXIST. I invented the name and then "guarded" it
+                # with `if "VERSION_STR" in dir()`, which does not stop the reference being a
+                # reference — TestV2010NoCallIntoANameThatIsNotThere caught it and blocked the push,
+                # which is precisely the class that guard was built for. The version lives in the
+                # status payload, so ask the thing that already knows.
+                try:
+                    _was = (status_payload() or {}).get("ver")
+                except Exception:
+                    _was = None
                 self._json(200, {"ok": True, "relaunching": True,
-                                 "was": VERSION_STR if "VERSION_STR" in dir() else None,
+                                 "was": _was,
                                  "screenRecordingBefore": _grant,
                                  "why": "replacing this process with the version on disk"})
                 try:

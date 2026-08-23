@@ -658,7 +658,10 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
     # v2020 — `classified` counts CALLS MADE. `answered` counts calls that came back with a
     # surface. They are the same number only when the classifier works, and the whole of
     # REG-382 is the case where they are not. See _verdict().
-    frames_seen = classified = pages_read = skipped = answered = 0
+    # v2028 — `rescued` counts runs admitted only because a NEIGHBOUR frame resolved the tab
+    # the probe's tooltip was covering. It is reported, not pocketed: if it ever reads 0 on
+    # footage with tooltips, this fix has stopped working.
+    frames_seen = classified = pages_read = skipped = answered = rescued = 0
     trusted = 0   # runs whose surface came from HIS declared focus rather than a paid read
 
     _fold = _name_folder(resolve)
@@ -726,6 +729,64 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                 surface = _surface_of(classify(os.path.join(reel_dir, probe)))
                 if surface is not None:
                     answered += 1
+                else:
+                    # ── v2028 — ONE OCCLUDED FRAME MUST NOT CONDEMN THE RUN ──────────────────
+                    # THE ROOT CAUSE OF THE WHOLE "no name to be had" STORY, and it is the exact
+                    # inverse of what anyone would guess.
+                    #
+                    # stash_screen_open identifies a stash panel by OCR-ing the TAB CHROME
+                    # (PERSONAL / SHARED / GEMS / MATERIALS / RUNES). A D2R hover tooltip is drawn
+                    # ON TOP of that row. So the gate rejects, with perfect consistency, exactly
+                    # the frames that contain a readable item NAME — and keeps the ones showing a
+                    # bare grid, which prints no names at all.
+                    #
+                    # LOOKED AT, not inferred. Two frames the gate refused:
+                    #   f_1784984195842.jpg  "Sullied Grand Charm of Blight / Required Level: 42 /
+                    #                         +1 to Eldritch Skills (Warlock Only)" — its
+                    #                        "Ctrl + Left Click to Move to Inventory" line sits
+                    #                        straight across the tab row.
+                    #   f_1787508818939.jpg  "Marshal's Amulet / +3 to Offensive Auras" — same,
+                    #                        "Shift + Left Click to Equip" over GEMS/MATERIALS.
+                    #
+                    # MEASURED across his four stash reels: 16 of 170 in-panel frames (9%, and 10%
+                    # on each of the two best reels) are refused while BRACKETED by frames the gate
+                    # resolves — i.e. the panel is provably still open. Every one of those is a
+                    # frame he was hovering on.
+                    #
+                    # A still-run is ONE HELD SCREEN by construction. So a single frame's occluded
+                    # tab row cannot be evidence about the run; any frame that resolves settles it.
+                    # This is FREE — classify here is a crop and an OCR, no model call — and it is
+                    # bounded at 3 extra looks so a genuinely non-stash run stays cheap.
+                    #
+                    # It rescues the RIGHT frames too: the reader below walks _distinct(names), so
+                    # once the run is admitted the tooltip frames are read like any other.
+                    # [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+                    # ⚠ THE RESCUE MUST BE FREE. The first cut of this retried `classify`, and
+                    # `classify` on the console is the FREE gate followed by a PAID model call
+                    # (control_app._classify: `if stash_screen_open(p) is None: return None` then
+                    # `_tv.claude_read(p)`). Three retries per rejected run would have tripled the
+                    # classify spend on exactly the runs that are NOT stash panels — a cost
+                    # regression wearing a fix's clothes.
+                    #
+                    # panel_gate is the free half on its own (a crop and an OCR), and v2023 already
+                    # threads it in for the ordering. So: ask the FREE gate whether any neighbour
+                    # sees the panel, and only then pay ONE classify, on that frame.
+                    _alts = [n for n in names if n != probe]
+                    if _alts and panel_gate is not None:
+                        _step = max(1, len(_alts) // 4)
+                        for _alt in _alts[::_step][:4]:
+                            try:
+                                _seen = panel_gate(os.path.join(reel_dir, _alt)) is not None
+                            except Exception:
+                                _seen = False
+                            if not _seen:
+                                continue
+                            classified += 1
+                            surface = _surface_of(classify(os.path.join(reel_dir, _alt)))
+                            if surface is not None:
+                                answered += 1
+                                rescued += 1
+                            break        # one paid look is the whole budget for a rescue
             if surface is None:
                 # Law 4: unclassifiable is HELD, never guessed into a lane.
                 skipped += 1
@@ -826,6 +887,8 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
               "pagesRead": pages_read, "skipped": skipped,
               # v2020 — how many of those classify calls came back with an actual surface.
               "classifierAnswered": answered,
+              # v2028 — runs saved from a tooltip-occluded probe frame.
+              "occludedRescued": rescued,
               # v1603 — classify calls SKIPPED because he had already said what he was looking at.
               # Reported rather than silently pocketed: "9 classifies" and "9 classifies + 4 you
               # told us" are different facts about the same sweep.

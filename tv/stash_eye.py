@@ -461,6 +461,57 @@ def tab_from_gem(src_path: str) -> Tuple[str, Dict[str, Any]]:
         return "", detail
 
 
+# ── v2028 — THE INVENTORY TITLE, THE ONE ANCHOR A STASH-SIDE TOOLTIP CANNOT COVER ────────────
+_INV_BAND = (0.60, 0.08, 1.00, 0.20)
+
+
+def inventory_title_visible(src_path: str) -> bool:
+    """Is D2R's gold INVENTORY title printed on the right of this frame?
+
+    WHY THIS EXISTS. stash_screen_open admits a frame only if stash_chrome_canons finds a legible
+    tab label. A D2R hover tooltip is drawn ON TOP of that tab strip, so the gate refuses, with
+    perfect consistency, exactly the frames that contain a readable item NAME — and keeps the bare
+    grids, which print no names at all. That is why every vault sweep came back "no name to be had".
+
+    LOOKED AT, not inferred. Two refused frames:
+      f_1784984195842.jpg  "Sullied Grand Charm of Blight" — its "Ctrl + Left Click to Move to
+                           Inventory" line sits straight across the tab row.
+      f_1787508818939.jpg  "Marshal's Amulet" — "Shift + Left Click to Equip" over GEMS/MATERIALS.
+    On the second, the chrome still OCRs as ['StrNAL','SHAktD','GE',...] — PERSONAL and SHARED are
+    THERE, corrupted just past the fuzzy matcher's tolerance ('SHAkED' canonicalises, 'SHAktD' does
+    not). Loosening that matcher would be the dangerous fix; this is the additive one, in the same
+    spirit as the is_boot_screen guard above: it never tightens the fragile heuristics and so can
+    never regress them.
+
+    The title sits on the FAR RIGHT, opposite the stash tab strip, so a stash-side tooltip cannot
+    reach it — and D2R draws the inventory beside the stash whenever the stash is open, which is
+    exactly the "both at the same time" template the vault gate was built around.
+
+    Band calibrated on his own 2940x1912 frames; the OCR is forgiving about the O, because the
+    engine reliably returns INVENT&RY / INVf NT&RY / I NVENT&R Y.
+    """
+    try:
+        import os as _os
+        import tempfile as _tf
+        from PIL import Image  # type: ignore
+        import tv_diablo as _tvd
+        im = _open_rgb(src_path)
+        w, h = im.size
+        if w < 200 or h < 200:
+            return False
+        x0, y0, x1, y1 = _INV_BAND
+        box = im.crop((int(w * x0), int(h * y0), int(w * x1), int(h * y1)))
+        box = box.resize((box.width * 3, box.height * 3), Image.LANCZOS)
+        out = _os.path.join(_tf.gettempdir(), "inv_title_%d.jpg" % _os.getpid())
+        box.save(out, quality=92)
+        rd = _tvd.ocr_fast(out) or {}
+        j = " ".join(str(x) for x in (rd.get("raw_lines") or rd.get("lines") or [])).upper()
+        j = j.replace("0", "O").replace("&", "O").replace("@", "O").replace(" ", "")
+        return ("INVENT" in j) or ("NVENTO" in j) or ("NVENTR" in j)
+    except Exception:
+        return False
+
+
 def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
     """Pixel fingerprint of the left stash GRID (intake crop region) → tab guess.
 
