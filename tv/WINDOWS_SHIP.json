@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2006",
+  "ver": "v2007",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2006: reel_retention had no caller and its disk threshold was computed twice with two different roundings",
+  "note": "v2007: two end-to-end gate tests were pinned to pruned reel names and can be pinned to pixel signatures instead",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

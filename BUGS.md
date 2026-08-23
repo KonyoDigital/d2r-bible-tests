@@ -11292,3 +11292,41 @@ run. Two halves, two thresholds, one fact.
 The side holding the real number now decides and ships `low` (and `floorGb`); the board renders the
 verdict it was given and re-derives nothing. Guarded both ways at the same `freeGb`: the board must
 not invent a warning the sweep did not raise, and must not swallow one it did.
+
+## REG-367 — two guards on the template gate were permanently dead, and his current film can hold them (v2007)
+
+`TestStashPanelOpenGuard` has two real-frame tests that had not run since the corpus was pruned —
+v1712 called it honestly: *"PERMANENTLY skipped in both venues… A skip that reads like a passing
+environment check is the friendlier face of a gate that never runs."* It kept the pure-predicate
+tests covering the DECISION and wrote down exactly what was gone:
+
+> *"What is genuinely lost here is only the END-TO-END path (crop → features → label) on real
+> pixels, which is why these are kept rather than deleted."*
+
+**The fixtures were pinned to REEL NAMES, and reel names get pruned.** Pin to a PROPERTY instead and
+the coverage survives any pruning. Measured across 199 sampled frames of his 31 current reels, every
+case the pruned pair covered is present:
+```
+gameplay / gameplay        122
+stash    / stash            43
+stash    / stash-default    31
+gameplay / not-d2r           3     <- the wallpaper bug's exact verdict
+```
+Three tests now run on whatever footage exists — **0 skips on his machine, every push** — including a
+cross-check that the two INDEPENDENT detectors (`stash_screen_open`'s tab-chrome OCR and
+`classify_stash_grid`'s pixel geometry) never flatly contradict each other, since the vault sweep
+leans on both.
+
+### The first cut skipped instead of failing, and sabotage caught it
+Anchoring the search on the **verdict** (`pick == "not-d2r"`) meant that breaking the predicate
+produced no not-d2r frames at all — so the search found nothing and the test **skipped**. `OK
+(skipped=1)` against a deliberately broken gate. That is the *"a gate that always skips is the same
+defect"* scar, in my own new test, the first time I ran it against a broken predicate.
+
+Re-anchored on `frac_dark` / `dark_cols` — measurements of the picture, which survive any change to
+the rule that reads them. Now the frame is still found and the ASSERTION fails:
+```
+AssertionError: f_1784984130673.jpg: a LIT PHOTOGRAPH (frac_dark=0.0, dark_cols=0 — no game
+content) classified as 'stash-runes'. This is the wallpaper bug.
+```
+The original defect, reproduced end to end on his real pixels, for the first time since it was fixed.

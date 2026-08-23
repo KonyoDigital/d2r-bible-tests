@@ -12441,5 +12441,131 @@ class TestV2003ACompleteAnswerMaySeal(unittest.TestCase):
                         "re-reading with the SAME reader buys nothing and costs money")
 
 
+class TestV2007TheEndToEndGateRunsOnWhateverFootageEXISTS(unittest.TestCase):
+    """v2007 — restores what v1712 recorded as permanently lost.
+
+    TestStashPanelOpenGuard has two real-frame tests that have not run since the corpus was pruned,
+    "PERMANENTLY skipped in both venues". v1712 handled that honestly: it kept the pure-predicate
+    tests covering the DECISION and wrote down exactly what was gone —
+
+        "What is genuinely lost here is only the END-TO-END path (crop -> features -> label) on real
+         pixels, which is why these are kept rather than deleted."
+
+    THE FIXTURES WERE PINNED TO REEL NAMES, and reel names get pruned. Pin to a PROPERTY instead and
+    the same coverage survives any pruning: ask his corpus for a frame that classifies not-d2r and a
+    frame that classifies as an open stash, whichever reels happen to be on disk today.
+
+    MEASURED across 199 sampled frames of his 31 current reels — every case the pruned pair covered
+    is present:
+        gameplay / gameplay        122
+        stash    / stash            43
+        stash    / stash-default    31
+        gameplay / not-d2r           3     <- the wallpaper bug's exact verdict
+
+    It still skips where there is genuinely no footage (CI, a fresh checkout), and says so. The
+    difference is that it now RUNS on the machine that has the film, every push, instead of nowhere.
+    [[feedback-blind-fixture-green-gate]]
+    """
+
+    HIST = os.path.join(HERE, "frames", "hist")
+    _CACHE = {}
+
+    @classmethod
+    def _find(cls, shape, cap=260):
+        """First frame whose measured PIXELS match `shape`. Cached so the tests scan once.
+
+        ⚠ IT SEARCHES BY FEATURES, NOT BY VERDICT, and the first cut got this wrong. Anchoring on
+        `pick == "not-d2r"` meant that breaking the predicate produced NO not-d2r frames, so the
+        search found nothing and the test SKIPPED — sabotage-proven, and a skip is not a failure.
+        That is the "a gate that always skips is the same defect" scar, in my own new test, the
+        first time I ran it against a broken predicate.
+
+        frac_dark and dark_cols are measurements of the picture and survive any change to the rule
+        that reads them, so the frame is still found and the ASSERTION is what fails.
+        [[feedback-blind-fixture-green-gate]] [[feedback-suspect-the-instrument]]
+        """
+        if shape in cls._CACHE:
+            return cls._CACHE[shape]
+        import glob
+        frames = []
+        for d in sorted(glob.glob(os.path.join(cls.HIST, "reel_*"))):
+            frames += sorted(glob.glob(os.path.join(d, "*.jpg")))[::12]
+        hit = None
+        for p in frames[:cap]:
+            try:
+                label, detail = se.classify_stash_grid(p)
+            except Exception:
+                continue
+            fd = (detail or {}).get("frac_dark")
+            dc = (detail or {}).get("dark_cols")
+            if fd is None or dc is None:
+                continue
+            # LIT PHOTOGRAPH — the wallpaper shape. Measured in his corpus: 2 frames at fd=0.0, 0 cols.
+            if shape == "lit-photo" and fd < 0.05 and dc == 0:
+                hit = (p, label, detail); break
+            # OPEN PANEL — measured: 61 frames, e.g. fd=0.5302/15 cols, fd=0.3688/11 cols.
+            if shape == "open-panel" and 0.15 <= fd <= 0.65 and dc >= 10:
+                hit = (p, label, detail); break
+        cls._CACHE[shape] = hit
+        return hit
+
+    def test_a_not_d2r_frame_never_carries_a_stash_label(self):
+        """THE wallpaper bug, end to end on real pixels: 69 desktop frames sealed as stash-gems and
+        fired a phantom tally that read 0. The predicate is tested at measured values elsewhere;
+        this proves the whole path still agrees with it."""
+        hit = self._find("lit-photo")
+        if not hit:
+            self.skipTest("no lit-photograph frame in this checkout's footage — the DECISION is "
+                          "still covered by the _panel_open_from_features tests, which need no film")
+        p, label, detail = hit
+        self.assertFalse(str(label).startswith("stash"),
+                         "%s: a LIT PHOTOGRAPH (frac_dark=%s, dark_cols=%s — no game content) "
+                         "classified as %r. This is the wallpaper bug: 69 desktop frames sealed as "
+                         "stash-gems and fired a phantom tally that read 0."
+                         % (os.path.basename(p), detail.get("frac_dark"),
+                            detail.get("dark_cols"), label))
+        self.assertEqual(detail.get("pick"), "not-d2r")
+
+    def test_a_real_open_panel_is_still_recognised(self):
+        """The other half, and the one a too-strict guard breaks: refusing everything is not a fix.
+        A gate that never says yes is the same defect as one that never says no."""
+        hit = self._find("open-panel")
+        if not hit:
+            self.skipTest("no open-stash frame in this checkout's footage")
+        p, label, detail = hit
+        self.assertTrue(str(label).startswith("stash"),
+                        "%s: a real open stash panel classified as %r" % (os.path.basename(p), label))
+
+    def test_the_two_detectors_do_not_flatly_contradict_each_other(self):
+        """stash_screen_open (OCR of the tab chrome) and classify_stash_grid (pixel geometry) are
+        INDEPENDENT. Where the OCR one admits a frame, the pixel one must not call it not-d2r —
+        that combination means one of them is badly wrong, and it is exactly the pair the vault
+        sweep leans on. Reported as the finding it is, rather than averaged.
+        [[feedback-contradiction-is-the-finding]]"""
+        import glob
+        import control_app as ca
+        frames = []
+        for d in sorted(glob.glob(os.path.join(self.HIST, "reel_*"))):
+            frames += sorted(glob.glob(os.path.join(d, "*.jpg")))[::12]
+        if not frames:
+            self.skipTest("no footage in this checkout")
+        clashes, looked = [], 0
+        for p in frames[:120]:
+            if ca.stash_screen_open(p) is None:
+                continue
+            looked += 1
+            try:
+                _label, detail = se.classify_stash_grid(p)
+            except Exception:
+                continue
+            if str((detail or {}).get("pick") or "") == "not-d2r":
+                clashes.append(os.path.basename(p))
+        if not looked:
+            self.skipTest("the OCR gate admitted no frame in this sample — nothing to cross-check")
+        self.assertEqual(clashes, [],
+                         "the tab-chrome OCR admitted these frames as a stash while the pixel "
+                         "geometry called them NOT D2R: %s" % ", ".join(clashes[:5]))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
