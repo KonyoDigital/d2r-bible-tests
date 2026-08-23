@@ -12379,5 +12379,67 @@ class TestV2002AVaultSealIsNotALifeSentence(unittest.TestCase):
                       "the skip list does not consult the predicate — seals are permanent again")
 
 
+class TestV2003ACompleteAnswerMaySeal(unittest.TestCase):
+    """v2003 — "no rows" is two different facts and was treated as one.
+
+    A sweep that FAILED must never seal; that safeguard is from v1785 and it stands. A sweep that
+    READ every frame and found nothing NAMEABLE has given a COMPLETE answer, and D2R guarantees the
+    same answer forever: a stash GRID prints no names at all, only the hover tooltip does. Proven on
+    his own film, where the reader returns items:[] and is right to.
+
+    Until this, those frames took a PAID read, produced no rows, sealed nothing, and were paid for
+    again on the very next sweep. Forever.
+
+    It is only ever a PAUSE: v2002 records the reader on the seal, so the moment VAULT_PROMPT_VER
+    changes every one of these reopens by itself. That net had to exist before this could ship,
+    which is why they are two versions and not one.
+    """
+
+    U = {"verdict": "under-read"}
+    A = {"verdict": "agree"}
+    O = {"verdict": "over-read"}
+
+    def _f(self):
+        import control_app as ca
+        return ca.vault_seal_is_definitive
+
+    def test_every_frame_read_and_cross_checked_is_a_complete_answer(self):
+        f = self._f()
+        self.assertTrue(f(3, [self.U, self.U, self.U], [], []))
+        self.assertTrue(f(2, [self.U, self.A], [], []),
+                        "a panel measured EMPTY (0 named, 0 occupied) is settled too")
+
+    def test_it_refuses_every_way_the_answer_could_be_incomplete(self):
+        f = self._f()
+        self.assertFalse(f(0, [], [], []), "a sweep that read nothing knows nothing")
+        self.assertFalse(f(3, [self.U] * 3, [], ["boom"]),
+                         "the pixel lane failed — no cross-check means no verdict")
+        self.assertFalse(f(3, [self.U, self.U, self.O], [self.O], []),
+                         "a frame naming MORE than its panel holds is not settled")
+        self.assertFalse(f(3, [self.U, self.U], [], []),
+                         "one read frame was never cross-checked — the picture is partial")
+        self.assertFalse(f(2, [self.U, {"verdict": "?"}], [], []),
+                         "an unrecognised verdict must never count as settled")
+
+    def test_junk_in_the_reconcile_list_cannot_pass_by_being_counted(self):
+        """A non-dict entry must not satisfy the length check and then be waved through."""
+        self.assertFalse(self._f()(2, [self.U, "nope"], [], []))
+
+    def test_a_definitive_seal_records_zero_rows_so_v2002_can_reopen_it(self):
+        """The two halves have to agree: this writes rows=0, and _vault_still_sealed reopens a
+        rows==0 seal the moment the prompt changes. If this wrote rows=1 it would be permanent."""
+        import control_app as ca
+        with open(ca.__file__, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('"rows": 0', src, "a definitive seal must record ZERO rows, or it is permanent")
+        self.assertIn("vault_seal_is_definitive(_read_ok[0]", src,
+                      "the sweep does not consult the predicate — the leak is back")
+        import tv_diablo as tv
+        self.assertFalse(ca._vault_still_sealed({"rows": 0, "promptVer": "vp-old"}),
+                         "a definitive seal from an older reader must reopen")
+        self.assertTrue(ca._vault_still_sealed({"rows": 0, "promptVer": tv.VAULT_PROMPT_VER}),
+                        "re-reading with the SAME reader buys nothing and costs money")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

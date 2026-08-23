@@ -10357,6 +10357,33 @@ def _vault_corpus():
     return _vc
 
 
+def vault_seal_is_definitive(read_ok, reconciled, over_read, pix_err):
+    """v2003 — may a sweep that grounded NO ROWS seal the reel, or must the footage stay readable?
+
+    "No rows" is two different facts and was treated as one. A sweep that FAILED must never seal —
+    that safeguard stands. A sweep that READ every frame and found nothing NAMEABLE has given a
+    COMPLETE answer, and D2R guarantees the same answer forever: a stash GRID prints no names, only
+    the hover tooltip does. Proven on his own film, where the reader returns items:[] and is right to.
+
+    Extracted rather than left inline so it can be TESTED rather than grepped for — inline logic can
+    only ever be guarded by a source scan, and a source scan fails on its own reach.
+    [[source-reading-guard]]
+
+    Five ways the answer can be incomplete, and any one of them refuses:
+      nothing was read            a sweep that read nothing knows nothing
+      the pixel lane failed       no cross-check means no verdict (v1998's _pix_err)
+      an over-read happened       a frame naming MORE than it holds is not settled
+      a read frame went unchecked len(reconciled) must equal the reads
+      a verdict is not settled    only under-read (cells full, no names) and agree (0 vs 0) count
+    """
+    if not read_ok or pix_err or over_read:
+        return False
+    rec = [r for r in (reconciled or []) if isinstance(r, dict)]
+    if len(rec) != read_ok:
+        return False
+    return all(str(r.get("verdict") or "") in ("under-read", "agree") for r in rec)
+
+
 def _vault_still_sealed(rec, prompt_ver=None):
     """v2002 — may this vault sweep SKIP a sealed reel, or must it reopen it?
 
@@ -10707,6 +10734,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         _reconciled = []    # v1994 — every read frame, names-vs-cells, whichever way it came out
         _over_read = []     # v1994 — the subset where the model named MORE than the panel can hold
         _pix_err = []       # v1998 — why the pixel lane went quiet, if it did. Once, not per frame.
+        _read_ok = [0]      # v2003 — frames that came back a READ, not a refusal. The denominator.
         _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
 
         def _classify(p):
@@ -10822,6 +10850,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                 # opposite of what this board is for. [[feedback-contradiction-is-the-finding]]
                 # [[unknown-stays-unknown]]
                 if isinstance(_r, dict) and not _r.get("note"):
+                    _read_ok[0] += 1
                     try:
                         _named = len(_r.get("items") or [])
                         _vc2 = _vault_corpus()
@@ -11006,9 +11035,56 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                                     "promptVer": _pv, "agentVer": _av}
             _vault_swept_save(swept)
         else:
-            print("   \u26a0 vault sweep produced no rows — sealing nothing, so the footage stays "
-                  "readable. The reader ran (v1785's seam). The lines above say which of the three "
-                  "it was: refused by the template, read-and-nothing-nameable, or genuinely empty.")
+            # ── v2003 — A COMPLETE ANSWER MAY SEAL; AN INCOMPLETE ONE MAY NOT ────────────────
+            #
+            # "No rows" has always been treated as one thing, and it is two. A sweep that FAILED
+            # must never seal — that is the v1785-era safeguard and it stands. But a sweep that
+            # READ every frame and found nothing NAMEABLE has given a complete answer, and D2R
+            # guarantees it will give the same one forever: a stash GRID prints no names at all,
+            # only the hover tooltip does. Proven on his own film — the reader returns items:[]
+            # and is right to.
+            #
+            # Until now those frames took a PAID read, produced no rows, sealed nothing, and were
+            # paid for again on the very next sweep. Forever. That is the leak.
+            #
+            # FIVE THINGS MUST ALL HOLD, and each is a way the answer could be incomplete:
+            #   something was read          a sweep that read nothing knows nothing
+            #   the pixel lane worked       v1998's _pix_err — no cross-check means no verdict
+            #   no over-read                a frame that named MORE than it holds is not settled
+            #   EVERY read frame reconciled len(_reconciled) == reads, or some frame went unchecked
+            #   every verdict is settled    under-read (full cells, no names) or agree (0 vs 0)
+            #
+            # And it is only ever a PAUSE, never a life sentence: v2002 records the reader on the
+            # seal, so the moment VAULT_PROMPT_VER changes every one of these reopens by itself.
+            _definitive = vault_seal_is_definitive(_read_ok[0], _reconciled, _over_read, _pix_err)
+            if _definitive:
+                _pv = _av = ""
+                try:
+                    import tv_diablo as _tvv
+                    _pv = getattr(_tvv, "VAULT_PROMPT_VER", "") or ""
+                    _av = getattr(_tvv, "VERSION", "") or ""
+                except Exception:
+                    pass
+                for sess in (prop.get("sessionsRead") or []):
+                    swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": 0,
+                                        "promptVer": _pv, "agentVer": _av,
+                                        "why": "read %d panel(s), every one cross-checked, no name "
+                                               "to be had" % _read_ok[0]}
+                _vault_swept_save(swept)
+                print("   \u2705 read %d panel(s) and cross-checked every one \u2014 no name to be "
+                      "had, which is a COMPLETE answer, not a failure. Sealed at %s so the same "
+                      "frames are not paid for again; a newer vault reader reopens them by itself."
+                      % (_read_ok[0], _pv or "?"))
+            else:
+                _whynot = ("nothing was read" if not _read_ok[0]
+                           else "the pixel lane could not run" if _pix_err
+                           else "a frame named more than its panel holds" if _over_read
+                           else "%d of %d read frame(s) were never cross-checked"
+                                % (_read_ok[0] - len(_reconciled), _read_ok[0]))
+                print("   \u26a0 vault sweep produced no rows and the answer is INCOMPLETE (%s) "
+                      "\u2014 sealing nothing, so the footage stays readable. The lines above say "
+                      "which of the three it was: refused by the template, "
+                      "read-and-nothing-nameable, or genuinely empty." % _whynot)
 
         # ACCUMULATE ACROSS SESSIONS — merge-max only, and the merge itself lives in vault_retro.
         # This ledger is what the readers have SEEN; it is never what he owns.
@@ -13244,7 +13320,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2002",
+        "ver": "v2003",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

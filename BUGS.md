@@ -11167,3 +11167,36 @@ nothing, and are paid for again next sweep. The v1994 reconciler now gives the s
 a *confirmed* nameless read seal safely (cells occupied + zero names = a complete answer, not a
 failure), and v2002's reopen net makes such a seal recoverable. Not wired yet — the safety net had to
 exist first.
+
+## REG-363 — the sweep paid to re-read the same nameless grids forever (v2003)
+
+"No rows" is **two different facts** and was treated as one.
+
+A sweep that **failed** must never seal — that safeguard is from v1785 and it stands. But a sweep
+that **read every frame and found nothing nameable** has given a *complete* answer, and D2R
+guarantees it will give the same one forever: a stash **grid prints no names at all**, only the hover
+tooltip does. Proven on his own film, where the reader returns `items: []` and is right to.
+
+Until now those frames passed the template gate, took a **paid** read, produced no rows, sealed
+nothing, and were paid for again on the very next sweep. Forever. That is the leak, and it is the
+whole reason `vault_swept.json` has never existed on his machine.
+
+**Five bars, and any one refuses** — each is a way the answer could be incomplete:
+
+| bar | why |
+|---|---|
+| something was read | a sweep that read nothing knows nothing |
+| the pixel lane worked | v1998's `_pix_err` — no cross-check means no verdict |
+| no over-read | a frame naming MORE than its panel holds is not settled |
+| **every** read frame reconciled | `len(reconciled) == reads`, or some frame went unchecked |
+| every verdict settled | only `under-read` (cells full, no names) and `agree` (0 vs 0) |
+
+**It is a pause, never a life sentence.** v2002 records the reader on the seal, so the moment
+`VAULT_PROMPT_VER` changes every one of these reopens by itself — which is exactly why the two are
+separate versions: the net had to exist and be proven before this could ship.
+
+Extracted to `vault_seal_is_definitive()` rather than left inline, for the same reason
+`reconcile_verdict()` was: inline logic can only be guarded by a source scan, and a source scan fails
+on its own reach. Guarded, including junk in the reconcile list — a non-dict entry must not satisfy
+the length check and then be waved through. **Sabotage-proven** on the subtlest bar: removing the
+"every read frame was cross-checked" check turns it red with 2 failures.
