@@ -11324,11 +11324,59 @@ def _chron_lanes():
         pass
     try:
         import g5_grok_eyes as _g5
-        if hasattr(_g5, "g5_chronicle_read") and _g5.has_subscription():
+        # ── v2024 — THE MODE SWITCH MUST POWER THE LANE, NOT JUST THE READS ────────────────────
+        # Konyo: "is this MODE CONTROL needs to be across the entire console allround so when its
+        # toggled its powered allround". It was not.
+        #
+        # has_subscription() answers a CAPABILITY question — "is a Grok CLI on PATH and logged in".
+        # It never looks at the mode. switch_on() is the one that does (env override, else
+        # `st["on"] and st["mode"] != "off"`), and this line was not asking it. So setting G5 to
+        # OFF left grok in the lane list: the sweep still announced two lanes, the gate still
+        # scored the run as cross-lane corroborated, and a switch he had deliberately turned off
+        # went on being counted. A switch that does not switch is the class this file keeps
+        # guarding against in every other lane. [[the-unjoined-end]]
+        #
+        # BOTH questions, and they are different: capability says whether it COULD run, the mode
+        # says whether he WANTS it to. Verified on his machine at the time of the fix —
+        # has_subscription()=True, switch_on()=True, mode=primary — so today's behaviour is
+        # unchanged and the switch simply starts working when he flips it.
+        if hasattr(_g5, "g5_chronicle_read") and _g5.has_subscription() and _g5.switch_on():
             lanes.append("grok")
     except Exception:
         pass
     return lanes
+
+
+def _chron_lane_detail():
+    """Per-lane {present, why} — so "off" and "not installed" never read alike.
+
+    The lane LIST is what the gate scores; this is what a human is owed when grok is missing.
+    'You switched it off' and 'there is no Grok CLI here' are different facts and only one of them
+    is a problem. [[unknown-stays-unknown]]"""
+    out = {"claude": {"present": False, "why": ""}, "grok": {"present": False, "why": ""}}
+    try:
+        import tv_diablo as _tv
+        if hasattr(_tv, "claude_chronicle_read"):
+            out["claude"] = {"present": True, "why": "subscription CLI"}
+        else:
+            out["claude"] = {"present": False, "why": "no claude_chronicle_read in this build"}
+    except Exception as e:
+        out["claude"] = {"present": False, "why": "tv_diablo unavailable: %s" % str(e)[:80]}
+    try:
+        import g5_grok_eyes as _g5
+        if not hasattr(_g5, "g5_chronicle_read"):
+            out["grok"] = {"present": False, "why": "g5_grok_eyes has no chronicle reader"}
+        elif not _g5.has_subscription():
+            out["grok"] = {"present": False,
+                           "why": "no Grok CLI on PATH, or not logged in on this machine"}
+        elif not _g5.switch_on():
+            out["grok"] = {"present": False,
+                           "why": "you switched it off (mode=%s)" % _g5.mode_intent()}
+        else:
+            out["grok"] = {"present": True, "why": "mode=%s" % _g5.mode_intent()}
+    except Exception as e:
+        out["grok"] = {"present": False, "why": "g5 unavailable: %s" % str(e)[:80]}
+    return out
 
 
 # v1763 — A SWEEP THAT IS NOT WRITTEN DOWN DID NOT HAPPEN.
@@ -13392,7 +13440,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2023",
+        "ver": "v2024",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

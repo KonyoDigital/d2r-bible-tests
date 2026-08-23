@@ -13402,5 +13402,72 @@ class TestV2023TheSweepSpendsWhereTheStashIs(unittest.TestCase):
 
 
 
+class TestV2024TheModeSwitchPowersTheLane(unittest.TestCase):
+    """v2024 — Konyo: "is this MODE CONTROL needs to be across the entire console allround so when
+    its toggled its powered allround". It was not.
+
+    _chron_lanes() added grok on has_subscription() alone - a CAPABILITY question ("is a Grok CLI on
+    PATH and logged in") that never looks at the mode. switch_on() is the mode-aware one. So setting
+    G5 to OFF left grok in the lane list: the sweep still announced two lanes and the gate still
+    scored the run as cross-lane corroborated, while a switch he had deliberately turned off went on
+    being counted.
+
+    Three modes, three different right answers, and "off" must be distinguishable from "absent".
+    """
+
+    def _lanes_with(self, capable, switched_on, mode="primary"):
+        import control_app as ca
+        import g5_grok_eyes as g5
+        cap, sw, mi = g5.has_subscription, g5.switch_on, g5.mode_intent
+        try:
+            g5.has_subscription = lambda: capable
+            g5.switch_on = lambda: switched_on
+            g5.mode_intent = lambda: mode
+            return list(ca._chron_lanes()), ca._chron_lane_detail()
+        finally:
+            g5.has_subscription, g5.switch_on, g5.mode_intent = cap, sw, mi
+
+    def test_dual_when_installed_and_switched_on(self):
+        lanes, _ = self._lanes_with(True, True, "primary")
+        self.assertIn("claude", lanes)
+        self.assertIn("grok", lanes, "installed + switched on must give BOTH lanes")
+
+    def test_switched_off_removes_the_lane(self):
+        """The whole fix. Before this, OFF still shipped a grok lane."""
+        lanes, detail = self._lanes_with(True, False, "off")
+        self.assertIn("claude", lanes)
+        self.assertNotIn("grok", lanes,
+                         "G5 set to OFF must remove the grok lane everywhere, not just from the "
+                         "reads - otherwise the gate keeps scoring a switch he turned off")
+        self.assertIn("switched it off", detail["grok"]["why"],
+                      "a lane he turned off must SAY so")
+
+    def test_not_installed_says_something_different_from_switched_off(self):
+        """'You turned it off' and 'there is no Grok here' are different facts. His cousin's
+        machine is the second one and must never be reported as the first."""
+        lanes, detail = self._lanes_with(False, False, "off")
+        self.assertNotIn("grok", lanes)
+        self.assertIn("no Grok CLI", detail["grok"]["why"])
+        self.assertNotIn("switched it off", detail["grok"]["why"])
+
+    def test_claude_alone_is_a_working_configuration(self):
+        """The cousin's machine. Claude-only must still be a full lane list, not an error."""
+        lanes, detail = self._lanes_with(False, False)
+        self.assertEqual(lanes, ["claude"])
+        self.assertTrue(detail["claude"]["present"])
+
+    def test_a_grok_only_sweep_is_refused_out_loud(self):
+        """Claude is PRIMARY. Without it there is no page for a second opinion to be ABOUT, and the
+        sweep says so rather than starting a run that cannot ground anything."""
+        import inspect
+        import control_app as ca
+        src = inspect.getsource(ca.vault_sweep_start)
+        self.assertIn('"claude" not in lanes', src,
+                      "a sweep with no primary lane must refuse")
+        self.assertIn("primary (Claude) lane is unavailable", src,
+                      "and it must say WHY, not just return false")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -875,10 +875,15 @@ def _verdict(totals, owned, unsure):
         # A sweep that has never run is why vault_swept.json has never existed.
         # [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
         if not totals.get("classifierAnswered"):
-            return ("%d still screen(s) were examined and the classifier answered about NONE of them, "
-                    "so whether any is a stash panel is UNKNOWN — this says nothing about the footage. "
-                    "The free --cost pass is exactly this state by design: it installs a classifier "
-                    "that refuses everything, so nothing is read and nothing is charged."
+            # v2024 — DO NOT NAME A CAUSE THIS FUNCTION CANNOT SEE. The first cut asserted the
+            # --cost stub, which is only ONE way to reach this state; the first REAL sweep hit it
+            # too, from a live classifier that refused every still. Naming the wrong cause sends
+            # him to check the wrong thing, which is the same failure as the verdict this replaced.
+            return ("%d still screen(s) were examined and the classifier answered about NONE of "
+                    "them, so whether any is a stash panel is UNKNOWN — this says nothing about "
+                    "the footage. Two things reach this state: the free --cost pass, which installs "
+                    "a classifier that refuses everything by design, or a real sweep whose "
+                    "classifier refused every still. Check which before concluding anything."
                     % totals["classified"])
         return ("%d still screen(s) were examined across %d reel(s), the classifier answered about "
                 "%d of them, and NONE was a stash, inventory or equipment panel — there was nothing "

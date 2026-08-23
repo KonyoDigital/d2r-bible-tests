@@ -11992,3 +11992,53 @@ It now brackets its **own** isolated subprocess and asserts the live file is byt
 it, which is the property that was always intended and which holds whether or not a real sweep has
 run. Sabotage-proven: with `TV_HIST` removed the subprocess writes into his tree and the guard
 fails; his file was backed up and restored byte-identical.
+
+## v2024 — the G5 mode switch did not power the lane, and the whole chain demonstrated end to end
+
+**Konyo:** *"is this MODE CONTROL needs to be across the entire console allround so when its toggled
+its powered allround"*. It was not.
+
+`_chron_lanes()` added grok on `has_subscription()` alone — a **capability** question ("is a Grok CLI
+on PATH and logged in") that never looks at the mode. `switch_on()` is the mode-aware one (env
+override, else `st["on"] and st["mode"] != "off"`). So setting G5 to **off** left grok in the lane
+list: the sweep announced two lanes, the gate scored the run as cross-lane corroborated, and a
+switch he had deliberately turned off went on being counted. A switch that does not switch.
+[[the-unjoined-end]]
+
+Both questions are now asked, and they are different: capability says whether it **could** run, the
+mode says whether he **wants** it to. Measured on his machine at the time of the fix —
+`has_subscription()=True`, `switch_on()=True`, `mode=primary` — so today's behaviour is unchanged
+and the switch simply starts working when he flips it.
+
+New `_chron_lane_detail()` so **"off" never reads like "absent"**: *"you switched it off (mode=off)"*
+vs *"no Grok CLI on PATH, or not logged in on this machine"*. His cousin's machine is the second and
+must never be reported as the first. Guarded by `TestV2024TheModeSwitchPowersTheLane` (5 checks),
+seen RED on the old gate. Grok-only is **refused out loud** — Claude is primary, and without it
+there is no page for a second opinion to be about.
+
+### The three-witness chain, demonstrated on the real engine
+Ran the real `vault_retro.sweep()` against a fixture of **real stash frames** with a synthetic
+reader — so the grouping, the fold and the corroboration gate all run for real and only what the
+model "sees" is controlled:
+
+| | result |
+|---|---|
+| 1 session | `unsure: [Shaftstop]`, **owned: []** — a single sighting does not ground (law 2) |
+| 3 sessions | `owned: [Shaftstop]`, three named witnesses each with session · frame · lane · conf |
+| all 6 orderings | **1 identical answer** — the fold does not depend on input order (law 1) |
+| throw-out | lands in `throwOut` **and stays owned**, `suggestion: true`, reason carried in `why` |
+
+`apply_payload` emits `readOnlyUntilApply: true`, `mode: merge-max`, `witnessCount`, `lastSeenTs` —
+shaped for the board's one apply path, writing nothing itself (law 5).
+
+⚠ **Two fixture mistakes of mine on the way, both mine and not the engine's.** Flat PIL images read
+0 pages — correctly, a uniform rectangle is what a blank capture looks like and the probe refuses
+those. Then real frames still read 0: *"reel has no readable index.json — held, not guessed"*. **A
+reel IS its index**, and honest-absent was working exactly as designed while I blamed the sweep.
+Also, `throwWhy` appeared to vanish — it does not; the row carries it as `why`, and my probe read
+the wrong key. Third instrument error of the night.
+
+### Also corrected: my own v2020 message named a cause it could not see
+It asserted the `--cost` stub, which is only *one* way to reach "classifier answered about none".
+The first real sweep reached it too, from a live classifier that refused every still. Naming the
+wrong cause sends him to check the wrong thing — the same failure as the verdict it replaced.
