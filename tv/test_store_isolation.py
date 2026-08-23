@@ -46,9 +46,31 @@ KNOWN_UNISOLATED = {
     "d2r_setRepairAt",
     "d2r_setRepairKept",
     "d2r_setRepairRemoved",
+    # ── v2014 — MINE, and listed rather than silently forked ─────────────────────────────────
+    # The docstring is explicit that changing the namespacing is Konyo's call and that adding keys
+    # to a fork set orphans whatever a guest world already wrote. What is NOT his call is whether a
+    # new store repeats the pattern in silence — so these are named here with what it costs.
+    "d2r_autoLanes",      # v1975 — which lanes auto-read. A guest switching one off switches it
+                          # off for him. A PREFERENCE, so the damage is annoyance, not data.
+    "d2r_laneLock",       # v1983 — WHICH ITEM IS ON WHICH OF HIS CHARACTERS. This is the one that
+                          # matters: it is per-account data of exactly the kind d2r_owned forks
+                          # for, Main and Ladder do not share characters, and a guest's lock would
+                          # suppress muling on his board. Recommend forking into _LP_FORKED; it is
+                          # one day old, re-earned after 3 sessions, so almost nothing is orphaned.
+    "d2r_tooltipPass",    # v2013 — pass on/off plus a baseline COUNTED FROM the forked d2r_owned.
+                          # An unforked state beside a forked baseline gives a wrong delta the
+                          # moment he switches profile mid-pass. Harmless but incoherent.
 }
 
-GRAILISH = re.compile(r"grail|found|set|rw|chron|repair|vault|mule|stash", re.I)
+# v2014 — `lane|lock|tooltip|pass|auto` joined the pattern. The three stores that slipped through
+# were invisible TWICE OVER: written through a constant (fixed above) and not matching this. None of
+# them is grail data, but every one is PER-ACCOUNT data of exactly the kind d2r_owned forks for —
+# d2r_laneLock records which item sits on which of HIS characters, and Main and Ladder do not share
+# characters. Unisolated, a guest world writes into the key the owner reads: a cousin's lane lock
+# would suppress muling on his board, and a cousin switching an auto lane off would switch it off
+# for him.
+GRAILISH = re.compile(r"grail|found|set|rw|chron|repair|vault|mule|stash|lane|lock|tooltip|pass|auto",
+                      re.I)
 
 
 def _read():
@@ -66,8 +88,17 @@ def _fork_sets(src):
 
 
 def _written(src):
-    return (set(re.findall(r"LSR\.setItem\(\s*'(d2r_[A-Za-z0-9_]+)'", src))
-            | set(re.findall(r'LSR\.setItem\(\s*"(d2r_[A-Za-z0-9_]+)"', src)))
+    direct = (set(re.findall(r"LSR\.setItem\(\s*'(d2r_[A-Za-z0-9_]+)'", src))
+              | set(re.findall(r'LSR\.setItem\(\s*"(d2r_[A-Za-z0-9_]+)"', src)))
+    # v2014 — AND THE ONES WRITTEN THROUGH A NAMED CONSTANT. The docstring above already called this
+    # reach a FLOOR — "a store written through a variable is invisible to it" — and three stores then
+    # walked straight through the gap: d2r_autoLanes (v1975), d2r_laneLock (v1983) and
+    # d2r_tooltipPass (v2013), each declared as `var X_KEY = 'd2r_…'` and written as
+    # `LSR.setItem(X_KEY, …)`. A stated limitation is not the same as an accepted one.
+    consts = dict(re.findall(r"var\s+([A-Za-z_$][\w$]*)\s*=\s*['\"](d2r_[A-Za-z0-9_]+)['\"]", src))
+    via_const = {key for name, key in consts.items()
+                 if re.search(r"LSR\.setItem\(\s*%s\b" % re.escape(name), src)}
+    return direct | via_const
 
 
 class TestGrailStoresAreIsolatedPerWorld(unittest.TestCase):

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2013",
+  "ver": "v2014",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2013: 220 items are visibly in his stash and none nameable - the three controls that fix it now move together",
+  "note": "v2014: three stores I added walked past the isolation test - written through constants and not matching its pattern",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -11590,3 +11590,36 @@ footage that had ten, a bias that nearly produced *"your film has no stash in it
 
 Sabotage-proven: disabling the tooltip branch turns it red. Verified after: his 31 reels and 2.8 GB
 untouched.
+
+## REG-376 — three of my own stores walked through the isolation guard, invisible twice over (v2014)
+
+`test_store_isolation` exists so *"the next store added"* cannot repeat the unisolated pattern in
+silence. Three of mine did — `d2r_autoLanes` (v1975), `d2r_laneLock` (v1983), `d2r_tooltipPass`
+(v2013) — because they were invisible to it **two separate ways**:
+
+1. **Written through a named constant.** The guard scanned `LSR.setItem('d2r_…')` literals; mine are
+   `var _LANE_LOCK_KEY = 'd2r_laneLock'` then `LSR.setItem(_LANE_LOCK_KEY, …)`. Its own docstring
+   called this out — *"a store written through a variable is invisible to it, so the count is a
+   floor, not a census"* — and **a stated limitation is not an accepted one**. Now resolved back to
+   the literal through the constant.
+2. **Not matching `GRAILISH`.** None of `lane`, `lock`, `tooltip`, `pass`, `auto` was in the pattern.
+   None of the three is grail data — but every one is **per-account data of exactly the kind
+   `d2r_owned` forks for**.
+
+**Why it matters, concretely.** Unisolated keys stay BARE in every world, so a guest shares them with
+the owner:
+
+| store | what a guest world does to his board |
+|---|---|
+| **`d2r_laneLock`** | records **which item is on which of his characters**. A cousin's lock would suppress muling on *his* board — and Main and Ladder do not share characters either |
+| `d2r_autoLanes` | a cousin switching an auto lane off switches it off for him. A preference, so annoyance not data |
+| `d2r_tooltipPass` | its baseline is counted **from the forked `d2r_owned`**, so an unforked state beside a forked baseline gives a wrong delta the moment he switches profile mid-pass |
+
+**Listed, not silently forked.** That file is explicit that changing the namespacing is Konyo's call
+and that adding a key to a fork set orphans whatever a guest world already wrote. So all three are
+named in `KNOWN_UNISOLATED` with what each costs and a recommendation: **`d2r_laneLock` is the one
+worth forking** — it is per-account by nature, one day old, and re-earned after 3 sessions, so almost
+nothing is orphaned.
+
+Sabotage-proven on the exact shape that got through: a new `d2r_vaultSabotage` written via a constant
+now fails the guard, where before it would have passed unseen.
