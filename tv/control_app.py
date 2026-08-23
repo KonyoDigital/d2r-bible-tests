@@ -10197,6 +10197,13 @@ def _newest_frame_path():
         import glob as _g
         cands = _g.glob(os.path.join(HIST_DIR, "*.jpg"))
         cands += _g.glob(os.path.join(os.path.dirname(HIST_DIR), "*.jpg"))
+        # v2036 - A FRAME STILL BEING WRITTEN IS NOT A FRAME. The capture writes `eye.jpg.part.jpg`
+        # and then renames it. Hand that half-file to stash_screen_open and it OCRs a torn JPEG,
+        # answers None, and the watcher reads that as "he closed the stash" - ending a session he
+        # is still using, mid-farm. A torn read must never be mistaken for an absent stash.
+        # Measured 2026-08-24 02:0x: `eye.jpg.part.jpg` was sitting in this very glob at full size
+        # (1433054 B), one mtime tick away from being the newest candidate.
+        cands = [_p for _p in cands if ".part." not in os.path.basename(_p)]
         if not cands:
             return None
         return max(cands, key=lambda _p: os.stat(_p).st_mtime)
@@ -13601,7 +13608,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2035",
+        "ver": "v2036",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

@@ -14246,5 +14246,76 @@ class TestV2035TheLaneReelSealsItselfWhenHeLeavesTheStash(unittest.TestCase):
 
 
 
+class TestV2036ATornFrameIsNotAnAbsentStash(unittest.TestCase):
+    """A frame still being WRITTEN must never read as evidence he left the stash.
+
+    The capture writes `eye.jpg.part.jpg` and then renames it. Measured on the live tree at
+    2026-08-24 02:0x, that partial was sitting in `_newest_frame_path`'s own glob at full size
+    (1433054 B) - one mtime tick from being the newest candidate. Had it won, the v2035 watcher
+    would have handed a torn JPEG to `stash_screen_open`, which does NOT throw on garbage: it
+    answers None, `open_now` goes False, the 25s eviction timer starts, and a session he is
+    still farming in gets sealed under him.
+
+    The loop already refuses to act on no-frames and on a gate that threw. A TORN frame is the
+    third case, and it was the one that read as a confident answer. [[unknown-stays-unknown]]
+
+    SABOTAGE-PROVEN: drop the `.part.` filter in `_newest_frame_path` and the first test goes red.
+    """
+
+    def _mk(self, d, name, age_s):
+        import os, time
+        q = os.path.join(d, name)
+        with open(q, "wb") as f:
+            f.write(b"\xff\xd8\xff\xe0" + b"0" * 64)
+        t = time.time() - age_s
+        os.utime(q, (t, t))
+        return q
+
+    def test_the_partial_never_wins_even_when_it_is_newest(self):
+        import os, tempfile
+        import unittest.mock as mock
+        import control_app
+        with tempfile.TemporaryDirectory() as root:
+            hist = os.path.join(root, "hist")
+            os.makedirs(hist)
+            real = self._mk(hist, "f_1787526382111.jpg", 30)   # COMPLETE, older
+            self._mk(hist, "eye.jpg.part.jpg", 1)              # TORN, newest
+            with mock.patch.object(control_app, "HIST_DIR", hist):
+                got = control_app._newest_frame_path()
+            self.assertIsNotNone(got, "a complete frame was present; None would stall the watcher")
+            self.assertNotIn(".part.", os.path.basename(got),
+                             "the half-written frame won - the watcher would OCR a torn JPEG, "
+                             "answer None, and seal a session he is still using")
+            self.assertEqual(os.path.basename(got), os.path.basename(real))
+
+    def test_only_partials_reads_as_UNKNOWN_never_as_a_frame(self):
+        """Every candidate torn = nobody looked. None, which the loop treats as no evidence."""
+        import os, tempfile
+        import unittest.mock as mock
+        import control_app
+        with tempfile.TemporaryDirectory() as root:
+            hist = os.path.join(root, "hist")
+            os.makedirs(hist)
+            self._mk(hist, "eye.jpg.part.jpg", 1)
+            with mock.patch.object(control_app, "HIST_DIR", hist):
+                self.assertIsNone(control_app._newest_frame_path())
+
+    def test_the_loop_still_refuses_to_act_on_no_evidence(self):
+        """The two pre-existing no-evidence branches must survive this edit."""
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        body = _between(self, src, "def _stash_watch_loop", "def _newest_frame_path",
+                        what="the stash watch loop")
+        # assertTrue, not assertIn: a failing assertIn against this source dumps the whole slice
+        # into the log. The message below says more than 2600 chars of Python ever would.
+        self.assertTrue("no frames = no evidence" in body,
+                        "the no-frames branch is gone - the watcher would treat 'I cannot see' "
+                        "as 'he left', which is the whole defect the loop exists to avoid")
+        self.assertTrue("a gate that threw has not seen him leave" in body,
+                        "the gate-threw branch is gone from the watch loop")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

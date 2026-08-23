@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2035",
+  "ver": "v2036",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2035: he left the stash and it filmed his farming run for seven minutes at 9GB per hour",
+  "note": "v2036: the auto-close watcher skipped partial writes: eye.jpg.part.jpg sat in its glob at full size and would have read as you leaving the stash",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
