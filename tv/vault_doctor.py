@@ -166,6 +166,15 @@ def _names():
                          "tooltip already on film will now be read. Only if a re-sweep still names "
                          "nothing do you need to film a fresh pass with items hovered."
                          % m["occupied"])
+    # ⚠ HOW MANY OF HIS FRAMES CARRY A TOOLTIP IS *NOT* MEASURED HERE, AND MUST NOT BE GUESSED.
+    # It was attempted 2026-08-23 with local OCR and the attempt is recorded so nobody repeats it:
+    # full-frame OCR mangles the text past any word match — "Keep in Inventory to Gain Bonus" comes
+    # back as "KIop IN IHYQNT•RY T• GAlW ••Hui", so a tolerant matcher still scored 0 of 16 gated
+    # frames on a reel where a tooltip was READ BY EYE minutes earlier. Cropped and 2x-upscaled the
+    # same region gave "SmALL CHARm", but a tooltip FOLLOWS THE CURSOR, so there is no fixed crop.
+    # The probe measured OCR quality, not tooltip presence. The paid vision reader is a different
+    # instrument and is the one v2016 now asks; the yield of a re-sweep is UNKNOWN, never zero.
+    # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
     return UNKNOWN, "nothing named and nothing measured as occupied — no evidence either way"
 
 
