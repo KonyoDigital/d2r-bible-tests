@@ -70,16 +70,23 @@ test('the badge is a DELTA, not a total — zero after hovering is a real answer
     // seed a vault that already has items, then start a pass: the badge must read 0, not 3
     w.LSR.setItem('d2r_owned', JSON.stringify(['Shako', 'Ist', 'Gheed’s Fortune']));
     w.LSR.setItem('d2r_tooltipPass', JSON.stringify({ on: true, baseline: 3, startedTs: 1 }));
-    const host = document.getElementById('tip-pass')!;
-    host.hidden = false;                       // render() would hide it off-console; we want the text
+    /* renderTooltipPass BAILS on the console check before it touches the badge, so unhiding the
+       host is not enough — it re-hides and returns without painting. The 4th test in this file
+       already stubs _shadowOnConsole; this one did not, and CI came back with an EMPTY badge
+       rather than a wrong number. My harness disagreeing with itself, not the product.
+       [[feedback-suspect-the-instrument]] */
+    const realOn = w._shadowOnConsole;
+    w._shadowOnConsole = () => true;
     w.renderTooltipPass();
     const zero = (document.getElementById('tp-count') || { textContent: '' }).textContent;
     // now two more names arrive, as a hover pass would produce
     w.LSR.setItem('d2r_owned', JSON.stringify(['Shako', 'Ist', 'Gheed’s Fortune', 'A', 'B']));
     w.renderTooltipPass();
     const two = (document.getElementById('tp-count') || { textContent: '' }).textContent;
+    w._shadowOnConsole = realOn;
     return { zero, two };
   });
+  expect(r.zero, 'the badge painted nothing at all — render bailed before touching it').not.toBe('');
   expect(r.zero, 'the badge counted the whole vault instead of the pass').toContain('0 named');
   expect(r.two, 'two names arrived and the badge did not move').toContain('2 named');
 });
