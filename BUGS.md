@@ -12042,3 +12042,45 @@ the wrong key. Third instrument error of the night.
 It asserted the `--cost` stub, which is only *one* way to reach "classifier answered about none".
 The first real sweep reached it too, from a live classifier that refused every still. Naming the
 wrong cause sends him to check the wrong thing — the same failure as the verdict it replaced.
+
+## v2025 — one lane switch, the same meaning in all four lanes
+
+**Konyo, looking at three switches that overlap:** *"we have this toggle vault auto-read but then
+what does this need to be on if we have shaddow and tooltip pass on toggled? like whats the
+difference here?"* — then *"fix it so there one unified logic here"*.
+
+He was right that it did nothing. Every call to `_miniOnAirOn`, comments stripped:
+
+| site | what it does |
+|---|---|
+| ×2 | paints the pill |
+| ×2 | **arms** it — `quickIntake` and the tooltip pass |
+| ×1 | the only real gate — `tvStashAutoIntake`, which returns early for `runes\|gems\|materials` and answers `not-tally-tab` for anything else |
+
+So the **vault** lane's switch was decoration — the precise thing this file's own v1975 comment warns
+about: *"the user is told a lane is dark while frames keep flowing into it"*.
+
+### Where it belongs, and why there
+The reel→vault chain is `sweep → apply_payload → vaultAccumApply → tvVaultRegister`. **That is where
+the automated path files**, so that is where the switch goes. Now all four lanes mean one thing:
+lane OFF = the reel does not file into it.
+
+Two things it must not do, both already laws here:
+
+* **It must never block his hand.** This gates the SWEEP's apply only. `tvVaultRegister` called
+  directly — the Item Checker, a manual add — is untouched, exactly as REG-383 settled it. Guarded:
+  a test asserts `_miniOnAirOn` does **not** appear inside `tvVaultRegister`.
+* **A lane he switched off is REPORTED.** `lane-off` is a named reason in `out.skipped`, the same
+  shape `tvStashAutoIntake` returns. The grail tick still happens either way — knowing he owns it
+  and deciding where to put it are different questions.
+
+An unreadable switch defaults to **ON**: losing his loot to a thrown exception in a UI helper is a
+far worse failure than filing into a lane he meant to close. Guarded by
+`TestV2025OneLaneSwitchMeansTheSameThingEverywhere` (4 checks), 3 seen RED on the old code.
+
+### ⚠ And a correction: I said `tvVaultRegister` had one caller. It has two.
+I reported that the only real caller was `aicJudgeApply` and that the reel path never reached it.
+Wrong — `vaultAccumApply` calls it too, at the stocking loop. **My grep was piped through `head -14`
+and truncated before that line.** The chain was joined the whole time, which also means the v2018
+planner fix sits squarely in the sweep's apply path rather than only in the Item Checker.
+[[feedback-suspect-the-instrument]]

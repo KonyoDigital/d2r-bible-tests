@@ -43347,7 +43347,41 @@ window._renderStashFresh = function(){
         };
         (out.grail || []).forEach(_pushN);
         (out.vaulted || []).forEach(_pushN);
+        /* ── v2025 — ONE LANE SWITCH, THE SAME MEANING IN ALL FOUR LANES ──────────────────────
+           Konyo, looking at three switches that overlap: "we have this toggle vault auto-read but
+           then what does this need to be on if we have shaddow and tooltip pass on toggled? like
+           whats the difference here?" — then "fix it so there one unified logic here".
+
+           He was right that it did nothing. I traced EVERY call to _miniOnAirOn: two paint the
+           pill, two ARM it (quickIntake / the tooltip pass), and exactly one is a real gate —
+           tvStashAutoIntake, which returns early for runes|gems|materials and answers
+           'not-tally-tab' for anything else. So the VAULT lane's switch was decoration, which is
+           the precise thing this file's own v1975 comment warns about: "the user is told a lane is
+           dark while frames keep flowing into it".
+
+           This is where the automated path files, so this is where the switch belongs. Now all
+           four lanes mean the same thing: lane OFF = the reel does not file into it.
+
+           TWO THINGS IT MUST NOT DO, and both are laws already written here:
+             · it must never block HIS hand. This gates the SWEEP's apply only; tvVaultRegister
+               called directly — the Item Checker, a manual add — is untouched, exactly as REG-383
+               settled it: he outranks the machine.
+             · a lane he switched off must be REPORTED, never silently dropped. 'lane-off' is a
+               named reason in out.skipped, the same shape tvStashAutoIntake returns, because
+               "nobody looked" and "we looked and found nothing" must never read alike.
+           The grail tick above still happens either way — knowing he owns it and deciding where to
+           put it are different questions. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+        var _laneOn = true;
+        try {
+          if (typeof window._miniOnAirOn === 'function') _laneOn = !!window._miniOnAirOn('vault');
+        } catch(e){ _laneOn = true; }   // unknown -> file it; a broken switch must not eat his loot
+        if (!_laneOn){
+          out.skipped.push('lane-off: the VAULT lane switch is off, so ' + _names.length
+            + ' name(s) were grail-ticked but NOT filed to a mule — turn AUTO vault auto-read on');
+          out.laneOff = true;
+        }
         _names.forEach(function(nm){
+          if (!_laneOn) return;
           var lk = '';
           try { lk = (window._laneLocked && window._laneLocked(nm)) || ''; } catch(e){}
           if (lk){ _lockedOut.push({ name: nm, lane: lk }); return; }
@@ -44348,7 +44382,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2024', name:'v2024 - the mode switch powers the lane', date:'2026-08-23', note:'G5 off left grok in the lane list so the gate kept scoring a switch he had turned off, plus the three-witness chain demonstrated end to end' };
+  window.D2R_BUILD = { id:'v2025', name:'v2025 - one lane switch means the same everywhere', date:'2026-08-23', note:'the vault lane pill was decoration; the gate now lives where the automated path files, and never blocks a manual add' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

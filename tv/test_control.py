@@ -13469,5 +13469,72 @@ class TestV2024TheModeSwitchPowersTheLane(unittest.TestCase):
 
 
 
+class TestV2025OneLaneSwitchMeansTheSameThingEverywhere(unittest.TestCase):
+    """v2025 — Konyo: "we have this toggle vault auto-read but then what does this need to be on if
+    we have shaddow and tooltip pass on toggled?" then "fix it so there one unified logic here".
+
+    He was right that it did nothing. Every call to _miniOnAirOn, comments stripped: two paint the
+    pill, two ARM it (quickIntake / the tooltip pass), and exactly ONE is a real gate —
+    tvStashAutoIntake, which returns early for runes|gems|materials and answers 'not-tally-tab' for
+    anything else. The VAULT lane's switch was decoration, the precise thing this file's own v1975
+    comment warns about: "the user is told a lane is dark while frames keep flowing into it".
+
+    vaultAccumApply is where the automated path files, so that is where the switch belongs, and now
+    all four lanes mean the same thing.
+    """
+
+    @staticmethod
+    def _apply_body():
+        import os
+        import re
+        bib = os.path.join(os.path.dirname(HERE), "bible.html")
+        with open(bib, encoding="utf-8") as fh:
+            text = fh.read()
+        start = text.index("window.vaultAccumApply = function(payload)")
+        body = text[start:start + 30000]
+        body = re.sub(r"/\*.{0,8000}?\*/", " ", body, flags=re.S)
+        body = re.sub(r"(?m)//[^\n]*$", " ", body)
+        return body
+
+    def test_the_sweep_apply_asks_the_vault_lane_switch(self):
+        body = self._apply_body()
+        self.assertIn("_miniOnAirOn('vault')", body,
+                      "vaultAccumApply must consult the VAULT lane switch, or the pill is "
+                      "decoration and the reel files into a lane he switched dark")
+
+    def test_a_lane_he_switched_off_is_REPORTED_not_silently_dropped(self):
+        body = self._apply_body()
+        self.assertIn("lane-off", body,
+                      "a skipped lane must carry a NAMED reason - 'nobody looked' and 'we looked "
+                      "and found nothing' must never read alike")
+
+    def test_a_broken_switch_files_rather_than_eats(self):
+        """If the switch cannot be read, the safe default is to FILE. Losing his loot to a thrown
+        exception in a UI helper is a far worse failure than filing into a lane he meant to close."""
+        body = self._apply_body()
+        i = body.find("_miniOnAirOn('vault')")
+        self.assertNotEqual(i, -1)
+        window = body[max(0, i - 260): i + 260]
+        self.assertIn("_laneOn = true", window,
+                      "the catch around the switch read must default to ON")
+
+    def test_it_gates_the_SWEEP_not_his_hand(self):
+        """REG-383 settled it: he outranks the machine. The gate lives in the sweep's apply path,
+        never inside tvVaultRegister itself, so a manual add and the Item Checker are untouched."""
+        import os
+        import re
+        bib = os.path.join(os.path.dirname(HERE), "bible.html")
+        with open(bib, encoding="utf-8") as fh:
+            text = fh.read()
+        start = text.index("window.tvVaultRegister = function(name){")
+        reg = text[start:start + 9000]
+        reg = re.sub(r"/\*.{0,6000}?\*/", " ", reg, flags=re.S)
+        reg = re.sub(r"(?m)//[^\n]*$", " ", reg)
+        self.assertNotIn("_miniOnAirOn", reg,
+                         "the lane switch must NOT live inside tvVaultRegister - that would let a "
+                         "UI toggle veto something he did by hand")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

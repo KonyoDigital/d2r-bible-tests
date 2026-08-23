@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2024",
+  "ver": "v2025",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2024: G5 off left grok in the lane list so the gate kept scoring a switch he had turned off, plus the three-witness chain demonstrated end to end",
+  "note": "v2025: the vault lane pill was decoration; the gate now lives where the automated path files, and never blocks a manual add",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
