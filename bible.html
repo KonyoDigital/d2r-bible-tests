@@ -42922,6 +42922,21 @@ window._renderStashFresh = function(){
           name: nm, status: status, store: KEY[kind] || kind, ledger: 'vault', why: why,
           target: kind, source: 'vault-sweep', lane: it && it.lane, conf: it && it.conf,
           witnesses: it && it.witnesses, reel: (seen0.reel || seen0.session) || null,
+          /* v2005 — SIGHTINGS AND SESSIONS ARE DIFFERENT NUMBERS, and only one of them was ever
+             shown. `witnesses` is the row list, so its length is DISTINCT sightings that survived
+             the filter; `witnessCount` is what the sweep actually SAW, including the ones a junk
+             filter dropped. v1986 added it saying "the count survives as witnessCount for any
+             surface that wants a number" — and no surface ever wanted it. Twelve sightings across
+             two sessions is a different claim from two across two, and he could not tell them
+             apart. [[the-unjoined-end]] */
+          witnessCount: (it && it.witnessCount != null) ? it.witnessCount
+                        : ((it && it.witnesses && it.witnesses.length) || 0),
+          /* v2005 — AND WHEN IT WAS LAST SEEN. vault_retro computes lastSeenTs as the max ts across
+             every sighting and the board dropped it, so a row read six weeks ago and one read this
+             morning arrived identical. A reading carries the age of the THING IT MEASURED, and this
+             is that age. Caught only after the guard stopped counting its own comments as readers —
+             lastSeenTs had exactly one "reader" in bible.html and it was prose. [[stale-reading]] */
+          lastSeenTs: (it && it.lastSeenTs) || null,
           frameId: seen0.frame || null, _bump: true });
       } catch(e){}
     }
@@ -44147,7 +44162,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2004', name:'v2004 - the room reaches him', date:'2026-08-23', note:'space_map worked on his film since v1995 and nothing called it - and the early return dropped a payload whose only evidence was the room' };
+  window.D2R_BUILD = { id:'v2005', name:'v2005 - law19 for python and for the payload', date:'2026-08-23', note:'a function with no caller and a payload key with no reader are the same defect and only the DOM half was guarded' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

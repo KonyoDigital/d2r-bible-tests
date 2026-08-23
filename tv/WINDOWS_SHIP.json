@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2004",
+  "ver": "v2005",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2004: space_map worked on his film since v1995 and nothing called it - and the early return dropped a payload whose only evidence was the room",
+  "note": "v2005: a function with no caller and a payload key with no reader are the same defect and only the DOM half was guarded",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

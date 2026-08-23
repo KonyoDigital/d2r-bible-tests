@@ -306,5 +306,195 @@ class TestTheKnownOffendersStayFixed(unittest.TestCase):
                       "board overlay and the console closes out from under an open lightbox")
 
 
+class TestLaw19ForPythonToo(unittest.TestCase):
+    """v2005 — LAW19 says "every symbol a change adds must have a caller AND a writer", and this
+    file has enforced it for DOM ids and `typeof` guards only. The SAME shape in Python was
+    unguarded, and it cost this repo six times in one night (2026-08-22/23), four of them mine:
+
+      lane_lock.py        declared "AT MOST ONE LANE IS EVER UNLOCKED" with zero production callers
+                          — only tests imported it (REG-359)
+      vault_corpus.py     space_map worked on his film and NOTHING called it (REG-364)
+      control_app.py      prop["glimpsed"] / ["overRead"] written, read by no surface (REG-355)
+      control_app.py      prop["pixelLaneError"] the same, three versions later (REG-364)
+
+    Every one looked wired from its own end. That is the defining property, and it is mechanically
+    checkable, so it must not depend on anyone remembering to look.
+
+    THE ALLOWLIST IS THE POINT. An entry has to carry a REASON, and "we might need it later" is not
+    one — the four above all had that reason. Blocked-on-evidence is: infer_transfer cannot be
+    joined until a reel exists that films the inventory and then the stash with items moved between,
+    and no reel of his does.
+    """
+
+    # symbol -> why it is allowed to have no production caller TODAY
+    ALLOWED = {
+        "vault_corpus.py:infer_transfer":
+            "blocked on FOOTAGE, not on code: every one of his 31 reels was scanned and not one "
+            "shows the panel changing, because none captured him stashing. Joining it now would be "
+            "a gate that can never fire. Delete this line the day such a reel exists.",
+        "lane_lock.py:may_write":
+            "a thin wrapper over lane_for(), which IS joined (chronicle_retro.chronicle_kind, "
+            "v1999). Calling it from there would compare the chronicle tab against itself — "
+            "tautological wiring is worse than none. Kept because it is the documented public API "
+            "of the law; delete it rather than fake a caller.",
+        "stash_eye.py:prep_stash_grid":
+            "PRE-EXISTING, not introduced by this arc. Pure image prep mirroring _tallyPrepImage; "
+            "listed here so it is visible rather than silently tolerated.",
+        "counter_ledger.py:missing_names":
+            "PRE-EXISTING. A set-difference helper beside owned_by_subtraction, which IS used. "
+            "Listed so the next reader sees it rather than rediscovering it.",
+    }
+
+    WATCH = ("vault_corpus.py", "vault_retro.py", "lane_lock.py", "reel_retention.py",
+             "stash_eye.py", "counter_ledger.py")
+
+    def _orphans(self):
+        import ast
+        here = os.path.dirname(os.path.abspath(__file__))
+        prod = [f for f in os.listdir(here)
+                if f.endswith(".py") and not f.startswith("test_")]
+        text = {}
+        for f in prod:
+            try:
+                with open(os.path.join(here, f), encoding="utf-8") as fh:
+                    text[f] = fh.read()
+            except OSError:
+                pass
+        for extra, rel in (("bible.html", os.path.join(here, "..", "bible.html")),
+                           ("control_ui.html", os.path.join(here, "control_ui.html"))):
+            try:
+                with open(rel, encoding="utf-8") as fh:
+                    text[extra] = fh.read()
+            except OSError:
+                pass
+        found = []
+        for f in self.WATCH:
+            if f not in text:
+                continue
+            for node in ast.parse(text[f]).body:
+                if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+                    continue
+                calls = 0
+                for g, t in text.items():
+                    pat = r"(?<!def )\b%s\s*\(" % node.name if g == f else r"\b%s\s*\(" % node.name
+                    calls += len(re.findall(pat, t))
+                if calls == 0:
+                    found.append("%s:%s" % (f, node.name))
+        return found
+
+    def test_every_public_helper_has_a_caller_or_a_justified_reason(self):
+        orphans = self._orphans()
+        new = [o for o in orphans if o not in self.ALLOWED]
+        self.assertEqual(
+            new, [],
+            "these public functions have NO production caller and no reason on record: %s. "
+            "Join them, delete them, or add them to ALLOWED with a reason that is not "
+            "'we might need it later'." % ", ".join(new))
+
+    def test_the_allowlist_does_not_outlive_its_entries(self):
+        """An allowlist that keeps names nobody has needed for years is how it stops being read."""
+        orphans = set(self._orphans())
+        stale = [k for k in self.ALLOWED if k not in orphans]
+        self.assertEqual(
+            stale, [],
+            "these are on the allowlist but are NOT orphans any more — they were joined or "
+            "deleted, so remove the excuse: %s" % ", ".join(stale))
+
+    def test_every_reason_is_a_real_one(self):
+        for k, why in self.ALLOWED.items():
+            self.assertGreater(len(why), 60, "%s has a token reason, not a real one" % k)
+            self.assertNotIn("might need it later", why.lower(),
+                             "%s: that is the reason all four defects already had" % k)
+
+
+class TestLaw19ForThePayloadContract(unittest.TestCase):
+    """v2005 — the OTHER half of the same class, and the one that bit hardest.
+
+    apply_payload's returned dict IS the contract with the board. A key added there and read by no
+    surface is computed, carried, and thrown away — and it looks perfectly wired from the writing
+    end. It happened five times in one arc:
+
+      glimpsed / overRead   computed v1989/v1994, rendered nowhere until v1996 (REG-355)
+      room / pixelLaneError computed v1995/v1998, rendered nowhere until v2004 (REG-364)
+      witnessCount          added v1986 "for any surface that wants a number" — none ever did
+
+    Same allowlist discipline: a key may be unread only with a REASON.
+    """
+
+    ALLOWED = {
+        "generatedTs":
+            "metadata, not a signal: the moment the proposal was built. The board shows reel and "
+            "frame provenance from the witness rows instead, which is what he can actually open.",
+        "readOnlyUntilApply":
+            "a CONTRACT MARKER asserting vault_retro wrote nothing — it is for a reader auditing "
+            "the payload's honesty, not for a pixel. Rendering it would say nothing he can act on.",
+    }
+
+    @staticmethod
+    def _strip_comments(text):
+        """v2005 — A GUARD THAT READS ITS OWN DOCUMENTATION IS BLIND.
+
+        Caught by sabotage: unjoining `witnessCount` left the guard GREEN, because the comment
+        explaining why witnessCount matters contains the word witnessCount. Exactly the scar already
+        on record — an explanatory comment blinding a guard that grepped for a module name.
+
+        ⚠ AND THE STRIP ITSELF HAS A SCAR: an unbounded /*…*/ regex once ate 16.9% of bible.html,
+        because a `/*` inside a STRING started a comment that ran to the next one anywhere in the
+        file. So the block pattern is NON-GREEDY and the result is size-checked by the caller: a
+        strip that removes most of the file is a broken instrument, not a clean bill of health.
+        [[feedback-comments-vs-code]] [[source-reading-guard]]
+        """
+        text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)      # non-greedy block comments
+        text = re.sub(r"(?m)^\s*//.*$", " ", text)                # whole-line // comments only
+        text = re.sub(r"(?s)<!--.*?-->", " ", text)                # html comments
+        return text
+
+    def _unread(self):
+        import ast
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "vault_retro.py"), encoding="utf-8") as fh:
+            vr = fh.read()
+        surfaces = ""
+        for rel in (os.path.join(here, "..", "bible.html"), os.path.join(here, "control_ui.html")):
+            try:
+                with open(rel, encoding="utf-8") as fh:
+                    surfaces += self._strip_comments(fh.read())
+            except OSError:
+                pass
+        self.assertGreater(len(surfaces), 2_000_000,
+                           "comment-stripping removed most of the surfaces (%d bytes left) — the "
+                           "instrument is broken, and a broken instrument passes everything"
+                           % len(surfaces))
+        fn = None
+        for n in ast.parse(vr).body:
+            if isinstance(n, ast.FunctionDef) and n.name == "apply_payload":
+                fn = n
+        assert fn is not None, "apply_payload moved — this guard is measuring nothing"
+        keys = set()
+        for node in ast.walk(fn):
+            if isinstance(node, ast.Dict):
+                for k in node.keys:
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                        keys.add(k.value)
+        return sorted(k for k in keys
+                      if not re.search(r"\b%s\b" % re.escape(k), surfaces))
+
+    def test_every_payload_key_reaches_a_surface_or_says_why_not(self):
+        unread = self._unread()
+        new = [k for k in unread if k not in self.ALLOWED]
+        self.assertEqual(
+            new, [],
+            "apply_payload emits these and NO surface reads them: %s. Render them, drop them, or "
+            "add them to ALLOWED with a reason. A key carried and never read is the shape that cost "
+            "five versions in one arc." % ", ".join(new))
+
+    def test_the_allowlist_does_not_outlive_its_entries(self):
+        unread = set(self._unread())
+        stale = [k for k in self.ALLOWED if k not in unread]
+        self.assertEqual(stale, [],
+                         "these are allowlisted but ARE read now — remove the excuse: %s"
+                         % ", ".join(stale))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

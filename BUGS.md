@@ -11228,3 +11228,43 @@ The evidence keys are now enumerated **once**: `['glimpsed','overRead','reconcil
 'pixelLaneError']`. A new signal is added there and nothing else has to remember it. Guarded by two
 new specs — one that applies a room-only payload and asserts it renders, one that asserts a silent
 lane says `NOTHING WAS MEASURED` rather than looking like an empty stash.
+
+## REG-365 — LAW19 was enforced for DOM ids only, and the same shape cost six versions in one arc (v2005)
+
+`test_reachability.py` states LAW19 — *"every symbol a change adds must have a caller AND a writer"* —
+and enforced it for **DOM ids** and **`typeof` guards**. The identical shape in Python and in the
+payload contract was unguarded, and it cost six versions in one night, **four of them mine**:
+
+| | |
+|---|---|
+| `lane_lock.py` | declared "AT MOST ONE LANE IS EVER UNLOCKED", zero production callers (REG-359) |
+| `vault_corpus.space_map` | worked on his film and nothing called it (REG-364) |
+| `prop["glimpsed"]` / `["overRead"]` | written, read by no surface until v1996 (REG-355) |
+| `prop["room"]` / `["pixelLaneError"]` | the same, eight versions later (REG-364) |
+
+Every one looked wired from its own end — that is the defining property. It is mechanically
+checkable, so it must not depend on anyone remembering to look.
+
+**Two guards, both with an allowlist that demands a REASON** (the existing file's own principle: *"an
+allowlist you have to justify is the point; one that grows silently is not"*), and both with a second
+test that fails when an entry stops being an orphan — an excuse that outlives its subject is how a
+list stops being read.
+
+Four public functions had no caller: `infer_transfer` (blocked on FOOTAGE — no reel of his shows the
+panel changing), `may_write` (a wrapper whose only honest caller would compare a value to itself),
+and two pre-existing helpers now visible instead of silently tolerated. **"We might need it later" is
+explicitly rejected** — that was the reason all four defects already had.
+
+### The guard read its own documentation and passed
+Sabotage caught it: unjoining `witnessCount` left the payload guard **green**, because the comment
+explaining why `witnessCount` matters contains the word `witnessCount`. The exact scar already on
+record. Comments are now stripped before searching — **non-greedy**, because an unbounded `/*…*/`
+regex once ate 16.9% of `bible.html`, and the result is size-floored so a runaway strip fails loudly
+instead of passing everything. (Measured: 5,828,213 → 4,791,192 bytes, 17.8% — this file really is
+that commented.)
+
+With honest eyes it immediately found one more: **`lastSeenTs`**, whose single "reader" was prose.
+`vault_retro` computes it as the max ts across every sighting and the board dropped it, so a row read
+six weeks ago and one read this morning arrived identical. Both it and `witnessCount` are now
+carried — sightings and sessions are different numbers, and twelve sightings across two sessions is a
+different claim from two across two.
