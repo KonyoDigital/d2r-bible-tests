@@ -12935,6 +12935,13 @@ class TestV2011ThePromptShapeAndTheConsumerAGREE(unittest.TestCase):
         self.assertIn("first line", p,
                       "it must say WHICH line of the tooltip is the name, or the reader may return "
                       "a stat line")
+        # v2017 — and the half the vault prompt never had. READ_PROMPT has always said "Never
+        # complete partial names"; the vault covered only "cannot read it at all". Asking for
+        # tooltips (v2016) made a partial name MORE likely, not less — a tooltip clipped at the
+        # panel edge is half a name in the most authoritative place on the frame.
+        self.assertIn("never complete a partial name", p,
+                      "a half-readable label may still be completed — the most convincing "
+                      "fabrication there is, because the model is right about most of the letters")
 
     def test_a_prompt_change_moves_the_version(self):
         """v2002 records the reader on every vault seal so a better one can reopen it. A prompt
@@ -12943,7 +12950,7 @@ class TestV2011ThePromptShapeAndTheConsumerAGREE(unittest.TestCase):
         import tv_diablo as tv
         self.assertTrue(getattr(tv, "VAULT_PROMPT_VER", "").startswith("vp"),
                         "VAULT_PROMPT_VER is missing or malformed")
-        for stale in ("vp2002", "vp2011"):
+        for stale in ("vp2002", "vp2011", "vp2016"):
             self.assertNotEqual(tv.VAULT_PROMPT_VER, stale,
                                 "the prompt changed after %s and the version did not move — seals "
                                 "made by the older reader can never reopen" % stale)

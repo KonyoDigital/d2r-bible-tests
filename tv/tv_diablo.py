@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2016"   # the reader was never told about the tooltip
+VERSION = "v2017"   # never complete a partial name
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -5144,7 +5144,7 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
 # with nothing; the vault side recorded only a timestamp, which makes its seal permanent however much
 # the reader improves. That is the same "a stale verdict made permanent" defect v1830 fixed on the
 # other lane, still live on this one. BUMP THIS WHENEVER VAULT_READ_PROMPT CHANGES.
-VAULT_PROMPT_VER = "vp2016"   # v2016 — the reader is finally told about the hover tooltip
+VAULT_PROMPT_VER = "vp2017"   # v2017 — and never to complete a partial name
 
 VAULT_READ_PROMPT = (
     # ── v2016 — THE VAULT READER WAS NEVER TOLD ABOUT THE HOVER TOOLTIP ──────────────────────
@@ -5185,6 +5185,18 @@ VAULT_READ_PROMPT = (
     # [[the-unjoined-end]] [[unknown-stays-unknown]]
     'Each item = {{"name":"<exact text you can read>","kind":"rune|gem|material|item",'
     '"count":<int or null>,"throwOut":false,"throwWhy":""}}\n'
+    # v2017 — NEVER COMPLETE A PARTIAL NAME. READ_PROMPT has said this since the chronicle lane
+    # existed ("Never invent from icons alone. Never complete partial names."). The vault prompt
+    # covered the first half in its own words — "an icon you recognise but whose label you cannot
+    # read is not a row" — and never the second. An UNREADABLE label is refused; a HALF-readable one
+    # was never addressed, and completing it is the most plausible-looking fabrication there is,
+    # precisely because the model is right about most of the letters.
+    #
+    # v2016 made this MORE likely, not less: now that a tooltip is requested, a tooltip clipped at
+    # the panel edge is a partial name sitting in the most authoritative place on the frame.
+    "NEVER COMPLETE A PARTIAL NAME. Half a label, a name clipped by the panel edge, or one covered "
+    "by another window is NOT a name — leave the row out. Being right about most of the letters is "
+    "what makes a completed name convincing, and convincing is what makes it permanent.\n"
     "NAME IS THE ONLY THING THAT MATTERS AND THE ONLY THING YOU MAY NOT GUESS. Return a row ONLY "
     "when you can actually READ its name on this image. An icon you recognise but whose label you "
     "cannot read is NOT a row — leave it out. This read runs unattended over old footage and writes "

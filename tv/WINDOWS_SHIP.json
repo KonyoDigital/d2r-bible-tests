@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2016",
+  "ver": "v2017",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2016: his own frame carries a full Annihilus tooltip that the vault prompt never asked about - and the advice to film one was wrong",
+  "note": "v2017: the vault prompt refused names it could not read and said nothing about names it could half read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

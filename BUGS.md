@@ -11699,3 +11699,33 @@ returned the total every time — measuring the instrument, not the panel.
 The inventory works because **10×4 is known and enforced**; the refusal does the real work. RotW is a
 mod and nothing here records its stash dimensions, so any stash occupancy today would be a guess
 dressed as a measurement — feeding the glimpse and the over-read detector that exist to catch that.
+
+## REG-380 — the vault prompt refused unreadable names and never addressed half-readable ones (v2017)
+
+Swept the class REG-378 belongs to: what does the **chronicle** prompt teach the reader that the
+**vault** prompt does not? Six differences, and most are not gaps — a stash panel shows no ground
+loot, the detached hover label is a ground item, `kind: item` already holds a forged runeword, and
+`lane`/`surface` do the job `names_loc` does. Two looked real; one turned out to be covered in
+different words (*"an icon you recognise but whose label you cannot read is not a row"* is
+"never invent from icons alone").
+
+**One was a real gap: `Never complete partial names.`** The vault prompt refuses a label it
+*cannot read at all* and said nothing about one it can **half** read. Completing it is the most
+plausible-looking fabrication there is, **precisely because the model is right about most of the
+letters** — and it lands in a ledger where a confident wrong name is permanent.
+
+**v2016 made it more likely, not less.** Now that a tooltip is requested, a tooltip clipped at the
+panel edge is half a name sitting in the most authoritative place on the frame.
+
+`VAULT_PROMPT_VER` `vp2016 → vp2017`. Guarded and sabotage-proven.
+
+### Four failed edits, one root cause, nothing corrupted
+The anchor missed four times. Every failure traced to the same thing: **I took my search strings
+from a `.lower()`-ed dump of the prompt** (printed by an earlier test failure) and searched
+case-sensitively against a file that uses CAPS for emphasis — then, correcting the case, guessed the
+indentation wrong too (the prompt body uses four spaces; a neighbouring block uses six).
+
+Worth recording because of what did *not* happen: every attempt was an `assert count == 1` before the
+write, so **all four aborted without touching the file**. The fix was to stop guessing and print the
+line — `grep` for the lowercase form found nothing, and that silence was the answer sitting in plain
+view for three attempts. [[feedback-suspect-the-instrument]] [[source-reading-guard]]
