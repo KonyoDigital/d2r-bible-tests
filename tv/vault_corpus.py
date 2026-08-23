@@ -218,6 +218,34 @@ def main(argv=None):
 _LAT_LO, _LAT_HI = 70.0, 100.0
 INV_CROP = (0.595, 0.495, 0.915, 0.70)   # fractions of the frame
 INV_COLS, INV_ROWS = 10, 4               # the D2 inventory is ALWAYS this
+
+# ── v2016 — WHY THERE IS NO STASH LATTICE, AND WHY WIDENING THE CROP WILL NOT MAKE ONE ─────────
+# The obvious next feature is "do the same for the stash" — it holds far more than the inventory, and
+# vault_doctor reports 220 occupied cells with zero names on his film. It was attempted 2026-08-23 and
+# the attempt is recorded here because the obvious method is GUARANTEED to produce a confident wrong
+# answer.
+#
+# WHAT IS REAL: the stash region genuinely has a grid. Measured on the left side of his own frames,
+# _fit(_ridge(median)) returns pitch 86.8 x 87.0 — IDENTICAL to the inventory's 86.8 x 85.8 on the
+# same frame, with ridge scores 26-38 against a 3.0 noise floor. That is D2R's cell size and it is
+# not a coincidence.
+#
+# WHAT IS NOT: this fitter cannot find where a grid ENDS. `_fit` does not detect ridges — it
+# GENERATES them: `xs = arange(phase, n, pitch)` lays evenly-spaced samples across the WHOLE crop and
+# keeps the best-scoring pitch/phase. So the returned positions are evenly spaced by construction,
+# and the cell COUNT is simply crop_width / pitch. Measured: the same frame yields 13x12, 11x9 or 9x9
+# purely by moving the crop, and a "longest evenly-spaced run" check returns the total every time —
+# it measures the instrument, not the panel.
+#
+# WHY THE INVENTORY WORKS ANYWAY: because 10x4 is KNOWN and ENFORCED. The refusal above —
+# `if (nc, nr) != (INV_COLS, INV_ROWS)` — is doing the real work; the fit only has to agree. That is
+# also what turns the LOBBY MENU away, and the comment above says so.
+#
+# SO A STASH LATTICE NEEDS GROUND TRUTH THIS REPO DOES NOT HAVE. RotW is a mod and nothing here
+# records its stash dimensions. Until the panel's own BORDER is detected (a real edge, not a fitted
+# pitch), or he states the grid size, any stash occupancy would be a guess dressed as a measurement —
+# and it would feed the glimpse and the over-read detector, which exist to catch exactly that.
+# [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
 INV_SAMPLE = 8                           # frames per reel: corroboration, not volume
 
 
