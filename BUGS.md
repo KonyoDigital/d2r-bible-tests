@@ -12314,3 +12314,67 @@ so nothing misroutes.
   line* `from stash_eye import classify_stash_grid, inventory_title_visible` puts them in the
   opposite order. It reads call sites now. A guard that cannot tell an import from a call is reading
   the wrong thing. [[feedback-suspect-the-instrument]]
+
+## REG-386 — the last two blockers between his hover footage and a NAME (v2029)
+
+v2028 taught the gate that a tooltip covering the tab strip is not an absent stash. The frames then
+reached the reader and it **still** returned `items:[]` at `conf 0.9` — confident there was nothing.
+Two more things were in the way, both measured on his own frames.
+
+### 1. The crop threw the tooltip away
+`claude_vault_read` cropped every non-inventory surface to the calibrated stash-grid band:
+
+```
+crop band                          x  8%..40%   y 20%..47%
+"Sullied Grand Charm of Blight"    tooltip at   y ~2..12%    ENTIRELY ABOVE IT
+"Marshal's Amulet"                 tooltip at   y ~4..13%    ENTIRELY ABOVE IT
+```
+
+The model never saw them. It was asked to read a grid and read the grid honestly.
+
+**The domain decides the rule.** A tally tab (runes/gems/materials) is **counted from the grid** and
+its band is genuinely calibrated on his Mac. An **item's** identity exists only in a hover tooltip,
+which follows the cursor and can be anywhere on screen — so no band can be right for it, and the
+only rectangle known to contain it is the frame. This is v1861's own reasoning one surface wider:
+*"an uncalibrated band is not a band"*. [[unknown-stays-unknown]]
+
+### 2. A stash TAB is not a surface, and the prompt says the word out loud
+`stash_screen_open` answers with a **tab** (`personal` / `shared` / …). `OWNERSHIP_SURFACES` has no
+such members — they are tabs *of* the stash — and the prompt renders the value literally: *"a
+Diablo II Resurrected (RotW mod) **{surface}** panel"*.
+
+**Measured, same frame, one word changed:**
+
+```
+surface=personal  ->  0 item(s), conf 0.0
+surface=stash     ->  1 item,    conf 0.9   ·  Annihilus
+```
+
+`vault_retro._surface_of()` already filters tabs out on the sweep path, so this is defensive rather
+than a live bug — but the failure it removes is the exact shape this lane's doctrine forbids: **a
+lane that could not answer, looking identical to an empty shelf.**
+
+### Proven end to end
+On `f_1784984195842.jpg`, a frame the gate refused until v2028:
+
+```
+gate 'stash'  ->  full frame  ->  1 item, conf 0.6  ·  "Sullied Grand Charm of Blight"
+```
+
+**The first item name the vault lane has ever read off a tooltip**, after 3 versions of unblocking:
+v2028 admitted the frame, v2029 showed the reader the tooltip, and vp2017 told it not to guess.
+
+### v2029 addendum — the gate blocked my own guard, twice, for the right reasons
+
+`TestTheSourceGuardsDoNotGetMoreDangerous` refused the push: *"25 byte-counted source slices, up
+from 24. Use `_between(self, src, start, end)` instead."* My new guard had introduced
+`body = src[i:i + 12000]` — a fixed byte window that slides off what it meant to read, and on which
+`assertNotIn` silently **passes**.
+
+⚠ And one of the two new matches was **my own comment**, which quoted the offending pattern
+verbatim. The meta-guard greps source, so prose describing the defect counted as the defect — the
+exact comments-vs-code trap already on file here.
+
+Both converted to anchored reads. The count went **25 → 23**, below the ceiling, so the ratchet is
+lowered to 23 as its own docstring instructs: *"Lower the number as sites are converted; never raise
+it."* A debt ceiling that only ever holds is not a ratchet.

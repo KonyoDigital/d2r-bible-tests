@@ -9844,7 +9844,10 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
 
     ⚠ The number is a DEBT, not a target. It is here to be reduced. [[source-reading-guard]]"""
 
-    LIMIT = 24
+    # v2029 — 24 -> 23. Converting the v2028 gate-body read to an anchored slice removed one,
+    # so the ratchet moves down as its own docstring instructs: "Lower the number as sites
+    # are converted; never raise it." A debt ceiling that only ever holds is not a ratchet.
+    LIMIT = 23
 
     def test_no_new_byte_counted_slices(self):
         import re as _re
@@ -13798,8 +13801,11 @@ class TestV2028ATooltipIsNotAnAbsentStash(unittest.TestCase):
         import re
         here = os.path.dirname(os.path.abspath(__file__))
         src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        # v2029 — anchored to the NEXT def, not a byte count. A fixed window slides off what it
+        # meant to read and assertNotIn passes on the remainder.
         i = src.index("def stash_screen_open(frame_path)")
-        body = src[i:i + 12000]
+        j = src.find("\ndef ", i + 20)
+        body = src[i:j if j > i else len(src)]
         body = re.sub(r'"""(?:.|\n)*?"""', " ", body)
         body = re.sub(r"(?m)#[^\n]*$", " ", body)
         return body
@@ -13856,6 +13862,72 @@ class TestV2028ATooltipIsNotAnAbsentStash(unittest.TestCase):
         self.assertGreater(x0, 0.5, "the band must be on the RIGHT half, away from the stash tooltip")
         self.assertLessEqual(x1, 1.0)
         self.assertLess(y0, y1)
+
+
+
+class TestV2029AnItemsNameIsInATooltipNotInTheGrid(unittest.TestCase):
+    """v2029 — the last two blockers between his hover footage and a NAME.
+
+    v2028 taught the GATE that a tooltip covering the tab strip is not an absent stash. The frames
+    then reached the reader and it STILL returned items:[] at conf 0.9 — confident there was
+    nothing. Two more things were in the way, and both were measured on his own frames.
+
+    1. THE CROP THREW THE TOOLTIP AWAY. claude_vault_read cropped every non-inventory surface to
+       the calibrated stash-grid band, x 8%..40% y 20%..47%. The two tooltips sat at y ~2..13% —
+       ENTIRELY ABOVE IT. The model was asked to read a grid and read the grid honestly.
+       A tally tab is COUNTED from the grid and its band is genuinely calibrated; an ITEM's identity
+       exists only in a tooltip that follows the cursor, so no band can be right for it. This is
+       v1861's own rule one surface wider: "an uncalibrated band is not a band".
+
+    2. A STASH TAB IS NOT A SURFACE. stash_screen_open answers with a TAB (personal/shared/...),
+       and the prompt renders the value literally: "a ... {surface} panel". MEASURED, same frame,
+       one word changed:  surface=personal -> 0 items conf 0.0  ·  surface=stash -> 1 item conf 0.9
+       ("Annihilus"). A lane that could not answer, looking exactly like an empty shelf.
+
+    PROVEN END TO END on f_1784984195842.jpg, a frame the gate used to refuse:
+        gate 'stash' -> full frame -> 1 item, conf 0.6, "Sullied Grand Charm of Blight"
+    the first item name the vault lane has ever read off a tooltip.
+    """
+
+    @staticmethod
+    def _reader_src():
+        import inspect
+        import re
+        import tv_diablo as tv
+        src = inspect.getsource(tv.claude_vault_read)
+        src = re.sub(r'"""(?:.|\n)*?"""', " ", src)
+        src = re.sub(r"(?m)#[^\n]*$", " ", src)
+        return src
+
+    def test_the_item_lanes_read_the_whole_frame(self):
+        src = self._reader_src()
+        self.assertIn("_TALLY", src,
+                      "the crop must be scoped to the TALLY tabs; cropping an item lane throws the "
+                      "tooltip away, and the tooltip is the only place an item's name exists")
+        # v2029 — ANCHORED, NOT BYTE-COUNTED. The first cut used a fixed byte window, and
+        # TestTheSourceGuardsDoNotGetMoreDangerous blocked the push for it: a char window silently
+        # slides off the thing it meant to read, and assertNotIn PASSES on an empty slice. _between
+        # fails loudly and names which anchor moved.
+        seg = _between(self, src, "_band =", "if _band", what="the band selection")
+        self.assertIn("in _TALLY", seg,
+                      "the band must be taken ONLY for a tally surface")
+
+    def test_a_stash_tab_is_normalised_to_a_surface(self):
+        src = self._reader_src()
+        self.assertIn('("personal", "shared")', src,
+                      "personal/shared are stash TABS, not surfaces - passed through they render "
+                      "into the prompt as 'a personal panel' and the read silently returns nothing")
+        seg = _between(self, src, 'if surface in ("personal", "shared")', "_read_path",
+                       min_len=20, what="the tab normalisation")
+        self.assertIn('"stash"', seg, "they must normalise to the stash surface")
+
+    def test_the_tally_lanes_keep_their_calibrated_band(self):
+        """The crop is not wrong everywhere - it is measured on his Mac for the tally tabs, and
+        widening those to full frames would be a cost regression for no benefit."""
+        src = self._reader_src()
+        self.assertIn("crops_for_aspect", src, "the tally lanes must still use the calibrated band")
+        for tab in ("runes", "gems", "materials"):
+            self.assertIn(tab, src, "the tally set must still name %s" % tab)
 
 
 

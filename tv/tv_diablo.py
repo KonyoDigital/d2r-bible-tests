@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2028"   # a tooltip is not an absent stash
+VERSION = "v2029"   # an items name is in a tooltip not in the grid
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -5374,6 +5374,22 @@ def claude_vault_read(image_path, surface, timeout=None):
         return {"note": "not read — %s" % _blocked}
 
     surface = str(surface or "stash").strip().lower()
+    # ── v2029 — A STASH TAB IS NOT A SURFACE, AND THE PROMPT SAYS THE WORD OUT LOUD ───────────
+    # stash_screen_open answers with a TAB name (personal / shared / gems / materials / runes).
+    # OWNERSHIP_SURFACES has no "personal" or "shared" — those are tabs of the stash — and this
+    # prompt renders the value literally: "a Diablo II Resurrected (RotW mod) {surface} panel".
+    # Asked about "a personal panel", which is not a thing, the model correctly finds nothing.
+    #
+    # MEASURED, same frame, one word changed:
+    #     surface=personal -> 0 item(s), conf 0.0
+    #     surface=stash    -> 1 item,    conf 0.9   ·  Annihilus
+    #
+    # vault_retro._surface_of() already filters tabs out on the sweep path, so this is defensive
+    # rather than a live bug — but the failure it prevents is the exact shape this lane's doctrine
+    # forbids: a lane that could not answer looking identical to an empty shelf. Normalising costs
+    # nothing and removes a silent wrong answer from a plausible caller mistake. [[the-unjoined-end]]
+    if surface in ("personal", "shared"):
+        surface = "stash"
     if os.environ.get("TV_STUB"):
         # the same TDD seam the other readers have: drivable end to end at zero vision cost
         try:
@@ -5412,9 +5428,29 @@ def claude_vault_read(image_path, surface, timeout=None):
             # measured for the left panel only. So the honest move is NOT to invent one: read the
             # FULL FRAME for inventory. It costs more tokens and it is the only rectangle known to
             # contain the panel. [[unknown-stays-unknown]] — an uncalibrated band is not a band.
-            _layout = surface if surface in ("runes", "gems", "materials") else "runes"
-            _band = (None if surface == "inventory"
-                     else _se.crops_for_aspect(_layout, float(_W) / float(_H)))
+            # ── v2029 — AN ITEM'S NAME IS IN A TOOLTIP, AND A TOOLTIP IS NOT IN THE GRID ─────
+            # v2028 taught the GATE that a tooltip covering the tab strip is not an absent stash.
+            # The frames then reached this reader and it still returned items:[] at conf 0.9 —
+            # confident there was nothing — because THIS CROP had already thrown the tooltip away.
+            #
+            # MEASURED on the two frames the gate had been refusing:
+            #     crop band  x 8%..40%   y 20%..47%
+            #     "Sullied Grand Charm of Blight"   tooltip at y ~2..12%   ENTIRELY ABOVE IT
+            #     "Marshal's Amulet"                tooltip at y ~4..13%   ENTIRELY ABOVE IT
+            # The model never saw them. It was asked to read a grid, and it read the grid honestly.
+            #
+            # THE DOMAIN DECIDES THE RULE. A tally tab (runes/gems/materials) is COUNTED from the
+            # grid, and its band is genuinely calibrated on his Mac. An ITEM's identity exists only
+            # in the hover tooltip, which follows the cursor and can be anywhere on screen — so no
+            # band can be right for it, and the only rectangle known to contain it is the frame.
+            #
+            # This is v1861's own reasoning applied one surface wider: "an uncalibrated band is not
+            # a band". It costs more tokens on the item lanes and buys the only thing those lanes
+            # are for. [[unknown-stays-unknown]]
+            _TALLY = ("runes", "gems", "materials")
+            _layout = surface if surface in _TALLY else "runes"
+            _band = (_se.crops_for_aspect(_layout, float(_W) / float(_H))
+                     if surface in _TALLY else None)
             if _band:
                 _c = _im.crop((int(_W * _band[0]), int(_H * _band[1]),
                                int(_W * _band[2]), int(_H * _band[3])))
