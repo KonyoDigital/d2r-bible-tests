@@ -3497,6 +3497,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .sha-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0}
 #tab-tools .sha-txt b{font-size:13px;color:#e8ddf5;font-weight:var(--fw-bold)}
 #tab-tools .sha-txt small{font-size:var(--fs-micro);color:#a99cc4}
+/* v2013 — the tooltip pass. Its own full-width row like the shadow reader, declared after it so the
+   last declaration wins, and amber-gold because it is the one control that asks HIM to do something
+   rather than reporting what the machine did. */
+#tab-tools .tip-pass{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(40,30,12,.55),rgba(40,30,12,.22));border:1px solid rgba(240,192,96,.30)}
+#tab-tools .tip-pass[hidden]{display:none}
+#tab-tools .tp-sw{position:relative;flex:0 0 auto;width:52px;height:27px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);transition:background .18s,border-color .18s}
+#tab-tools .tp-sw .tp-dot{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#6b6478;transition:transform .18s,background .18s}
+#tab-tools .tp-sw .tp-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.35;transition:opacity .18s}
+#tab-tools .tp-sw.tp-on{background:rgba(240,192,96,.18);border-color:rgba(240,192,96,.55)}
+#tab-tools .tp-sw.tp-on .tp-dot{transform:translateX(25px);background:#f0c060;box-shadow:0 0 9px 2px rgba(240,192,96,.45)}
+#tab-tools .tp-sw.tp-on .tp-eye{opacity:0}
+#tab-tools .tp-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0;flex:1 1 auto}
+#tab-tools .tp-txt b{font-size:13px;color:#f0d9a8;font-weight:var(--fw-bold)}
+#tab-tools .tp-txt small{font-size:var(--fs-micro);color:#c9b68f}
+#tab-tools .tp-count{flex:0 0 auto;font-size:var(--fs-micro);color:#f0c060;border:1px solid rgba(240,192,96,.35);border-radius:999px;padding:2px 10px;white-space:nowrap}
+#tab-tools .tp-count[hidden]{display:none}
 #tab-tools .tqu-say:empty{display:none}
 #tab-tools .tqu-btn{display:flex;align-items:center;gap:11px;min-width:152px;flex:1 1 152px;padding:9px 13px;cursor:pointer;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01));border:1px solid var(--a,rgba(255,255,255,.2));border-color:color-mix(in srgb,var(--a) 45%,transparent);border-radius:12px;transition:transform .09s,box-shadow .15s,filter .12s,background .15s}
 #tab-tools .tqu-btn:hover{transform:translateY(-2px);box-shadow:0 7px 20px color-mix(in srgb,var(--a) 32%,transparent);filter:brightness(1.07);background:linear-gradient(180deg,color-mix(in srgb,var(--a) 15%,transparent),color-mix(in srgb,var(--a) 4%,transparent))}
@@ -5067,6 +5083,26 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         <span class="sha-dot"></span><span class="sha-eye">👁</span>
       </button>
       <span class="sha-txt"><b>Shadow reader</b><small id="sha-say">checking…</small></span>
+    </div>
+    <!-- v2013 — 🔎 TOOLTIP PASS. Konyo: "or to click on what within the console? like we need a
+         feature button for this thats on/off cool desgined".
+
+         WHAT IT IS FOR, measured by vault_doctor on his own film: 220 occupied cells across 10
+         stash panels and ZERO readable names. D2R prints no names in a grid — a name exists only
+         in the HOVER TOOLTIP. So the whole chain is starving on one thing, and it is a thing only
+         he can do: hover the items while a reel is rolling.
+
+         WHY A BUTTON AND NOT AN INSTRUCTION. Every piece already existed and had to be put in the
+         right state SEPARATELY: arm the vault lane, switch the shadow reader on, start a reel. Three
+         controls in two places, and getting one wrong makes the pass silently worthless. This is
+         one action that does all three and then says what to do. -->
+    <div class="tip-pass" id="tip-pass" hidden>
+      <button type="button" class="tp-sw" id="tp-sw" onclick="window.toggleTooltipPass&&window.toggleTooltipPass()"
+              aria-pressed="false" title="arm everything and film a naming pass">
+        <span class="tp-dot"></span><span class="tp-eye">🔎</span>
+      </button>
+      <span class="tp-txt"><b>Tooltip pass</b><small id="tp-say">…</small></span>
+      <span class="tp-count" id="tp-count" hidden></span>
     </div>
   </div>
 
@@ -44184,7 +44220,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2012', name:'v2012 - the launcher stops racing itself', date:'2026-08-23', note:'three launches in fifty seconds each killed the one before it - and a free doctor that says why the vault is empty' };
+  window.D2R_BUILD = { id:'v2013', name:'v2013 - one button for the tooltip pass', date:'2026-08-23', note:'220 items are visibly in his stash and none nameable - the three controls that fix it now move together' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -46054,6 +46090,106 @@ window._laneSay = function(msg){
    OCR exists at all; `recording` is whether a reel is rolling. G5 spent weeks reporting
    mode=primary with calls=0 — every lamp green, the lane dark — because one object answered "is it
    ready" and "was it asked" with the same word. [[grok-second-eye]] */
+/* ── v2013 — 🔎 THE TOOLTIP PASS ──────────────────────────────────────────────────────────────
+   Konyo: "or to click on what within the console? like we need a feature button for this thats
+   on/off cool desgined".
+
+   WHAT IT IS FOR, measured by vault_doctor on his own film: 220 occupied cells across 10 stash
+   panels and ZERO readable names. D2R prints no names in a grid — a name exists only in the HOVER
+   TOOLTIP — so the entire chain is starving on one thing, and it is a thing only he can do.
+
+   WHY A BUTTON. Every piece already existed and had to be put in the right state SEPARATELY: arm
+   the vault lane, switch the shadow reader on, start a reel. Three controls in two places, and
+   getting any one wrong makes the pass silently worthless — which is the exact shape this board
+   keeps auditing out. One action does all three, then says what to do.
+
+   IT COUNTS WHAT IT ACTUALLY CHANGED. The badge is `d2r_owned` now minus `d2r_owned` when the pass
+   started — a delta, not a total, because a total tells him nothing about whether hovering worked.
+   Zero after five minutes of hovering is a REAL answer and must stay visible. [[the-unjoined-end]] */
+var _TP_KEY = 'd2r_tooltipPass';
+
+function _tpState(){
+  try { return JSON.parse((window.LSR && window.LSR.getItem(_TP_KEY)) || 'null') || null; }
+  catch(e){ return null; }
+}
+function _tpSet(v){
+  try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_TP_KEY, JSON.stringify(v)); }
+  catch(e){}
+}
+function _tpOwnedCount(){
+  try { return (JSON.parse((window.LSR && window.LSR.getItem('d2r_owned')) || '[]') || []).length; }
+  catch(e){ return 0; }
+}
+
+window.renderTooltipPass = function(){
+  var host = document.getElementById('tip-pass');
+  if (!host) return;
+  if (!window._shadowOnConsole || !window._shadowOnConsole()){ host.hidden = true; return; }
+  host.hidden = false;
+  var st = _tpState(), sw = document.getElementById('tp-sw');
+  var say = document.getElementById('tp-say'), cnt = document.getElementById('tp-count');
+  var on = !!(st && st.on);
+  if (sw){ sw.classList.toggle('tp-on', on); sw.setAttribute('aria-pressed', on ? 'true':'false'); }
+  if (on){
+    var d = Math.max(0, _tpOwnedCount() - ((st && st.baseline) || 0));
+    if (say) say.textContent = 'HOVER each item you want named — the reader fires on the tooltip '
+      + 'text. Seal the reel when you are done.';
+    if (cnt){ cnt.hidden = false; cnt.textContent = d + ' named this pass'; }
+  } else {
+    if (say) say.textContent = 'films a naming pass: arms the vault lane, wakes the shadow reader '
+      + 'and starts a reel, so hovering an item captures its name.';
+    if (cnt) cnt.hidden = true;
+  }
+};
+
+window.toggleTooltipPass = function(){
+  if (!window._shadowOnConsole || !window._shadowOnConsole()) return Promise.resolve(null);
+  var st = _tpState(), say = document.getElementById('tp-say');
+  if (st && st.on){
+    /* OFF reports what the pass yielded and STOPS TRACKING — it does not stop the reel. Sealing a
+       recording is his ON AIR control and must not be a side effect of a toggle. */
+    var got = Math.max(0, _tpOwnedCount() - (st.baseline || 0));
+    _tpSet({ on:false, baseline:0, endedTs:Date.now(), last:got });
+    window.renderTooltipPass();
+    if (say) say.textContent = (got
+      ? 'pass ended — ' + got + ' item(s) named. The reel is still rolling; seal it from ON AIR.'
+      : 'pass ended and nothing was named. If you hovered items, the reader may be off or the reel '
+        + 'not recording — check the shadow reader above.');
+    return Promise.resolve({ ok:true, named:got });
+  }
+  _tpSet({ on:true, baseline:_tpOwnedCount(), startedTs:Date.now() });
+  window.renderTooltipPass();
+  if (say) say.textContent = 'arming…';
+  /* the three states, in the order that matters: the lane must be armed and the reader awake
+     BEFORE the reel starts, or the first seconds of film are recorded with nothing listening. */
+  try { if (window._miniOnAirOn && !window._miniOnAirOn('vault') && window._miniOnAirToggle)
+          window._miniOnAirToggle('vault'); } catch(e){}
+  return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
+                                body: JSON.stringify({ on:true }) })
+    .then(function(){ return fetch('/api/on', { method:'POST',
+                        headers:{'Content-Type':'application/json'}, body:'{}' }); })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j && j.ok){
+        if (say) say.textContent = '🔴 rolling — HOVER each item you want named. The reader fires '
+          + 'on the tooltip text.';
+      } else {
+        /* the console's refusal is the useful half and must not be swallowed */
+        if (say) say.textContent = '⚠ lane armed and reader on, but the reel did not start: '
+          + String((j && (j.why || j.error || j.msg)) || 'the console refused')
+          + ((j && j.secondsLeft) ? (' (' + j.secondsLeft + 's left)') : '');
+      }
+      try { window.renderShadowAI && window.renderShadowAI(); } catch(e){}
+      return j;
+    })
+    .catch(function(e){
+      if (say) say.textContent = '⚠ the console did not answer: ' + String(e && e.message || e);
+      return null;
+    });
+};
+try { if (document.readyState !== 'loading') setTimeout(window.renderTooltipPass, 0);
+      else document.addEventListener('DOMContentLoaded', window.renderTooltipPass); } catch(e){}
+
 window._shadowOnConsole = function(){
   return /:(17772|17771)\b/.test(String(location.host || ''));
 };

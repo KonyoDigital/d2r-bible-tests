@@ -11541,3 +11541,52 @@ Measured on his tree the moment it was written:
 **220 items are visibly in his stash and not one is nameable.** That is the whole answer, and it was
 previously invisible. It samples MID-REEL on purpose: sampling the first frames found zero stash
 panels on footage that had ten — a biased sample that nearly produced "your film has no stash in it".
+
+## REG-374 — one button for the only thing the chain cannot do without him (v2013)
+
+Konyo: *"or to click on what within the console? like we need a feature button for this thats on/off
+cool desgined"* — asked after being told the fix was a shell command.
+
+**What it is for**, measured by `vault_doctor` on his own film: **220 occupied cells across 10 stash
+panels and ZERO readable names.** D2R prints no names in a grid; a name exists only in the HOVER
+TOOLTIP. So the entire chain starves on one thing, and it is a thing only he can do.
+
+**Why a button and not an instruction.** Every piece already existed and had to be put in the right
+state *separately*: arm the vault lane, wake the shadow reader, start a reel. **Three controls in two
+places, and getting any one wrong makes the pass silently worthless** — the exact shape this board
+keeps auditing out. One action does all three, in the order that matters: the lane is armed and the
+reader awake **before** the reel starts, or the first seconds of film record with nothing listening.
+
+**The badge is a DELTA, not a total.** `d2r_owned` now minus `d2r_owned` when the pass began. A total
+would read "247 owned" whether or not the pass captured anything, which is precisely the reading that
+hides a pass that did nothing. **Zero after five minutes of hovering is a real answer and stays
+visible** — and the OFF message says so out loud: *"pass ended and nothing was named. If you hovered
+items, the reader may be off or the reel not recording."*
+
+**Ending a pass does not stop the reel.** Sealing a recording is his ON AIR control; a toggle that
+silently sealed it would take a decision that is his and lose the tail of a session he was still
+filming. The OFF message says the reel is still rolling.
+
+Verified on pixels against a stub on **:17771** (never :17772, his live console), both paths:
+```
+ok       🔴 rolling — HOVER each item you want named. The reader fires on the tooltip text.
+refused  ⚠ lane armed and reader on, but the reel did not start: already recording — seal the
+           current session first (42s left)
+```
+The refusal reaching the screen is the point: the console's reason was previously thrown away.
+
+## REG-375 — the doctor could not be shown to reach its other two answers (v2013)
+
+`vault_doctor` reports ONE of three causes on his tree. That is exactly when a diagnostic must be
+asked whether it can still report the other two — **a doctor that has lost that ability looks
+identical to one that is right**, and it sends him to fix the wrong thing with confidence.
+
+Six tests, every one on a TEMP fixture through `TV_HIST`, never his frames: no footage → *record
+one*; footage with no panel → *open your stash*; the tooltip answer that is true today, asserted to
+carry the count (220) he can act on; the **measured-EMPTY mirror**, which must read OK rather than as
+a fault; UNKNOWN where nothing was measured, because "I could not check" and "it is broken" are
+different sentences; and that the sample is MID-REEL — sampling the first frames found zero panels on
+footage that had ten, a bias that nearly produced *"your film has no stash in it"*.
+
+Sabotage-proven: disabling the tooltip branch turns it red. Verified after: his 31 reels and 2.8 GB
+untouched.

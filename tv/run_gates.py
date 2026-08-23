@@ -122,6 +122,13 @@ GATES = [
              "the two bars on real piles — had never been executed at any size"),
     Gate("test_inventory_lattice", [sys.executable, os.path.join(HERE, "test_inventory_lattice.py")], 180,
          why="v1925 — the inventory lattice AND its refusals. A column of checkboxes in the game-creation lobby is periodic, so a lattice fitter finds a lattice in it and answers \"18 occupied, 9 free\" about a menu; every case here is a real frame from his own reel, so a loosened refusal fails here instead of on his screen"),
+    Gate("test_vault_doctor", [sys.executable, os.path.join(HERE, "test_vault_doctor.py")], 120,
+         why="v2013 — the doctor answers 'why is the vault empty', and its three causes need three "
+             "different actions from him. On his real tree it reports ONE of them, so without these "
+             "a doctor that had lost the ability to say the other two would look identical: every "
+             "case runs on a TEMP fixture through TV_HIST, including the tooltip answer that is "
+             "true today (220 occupied cells, zero names) and the measured-EMPTY mirror that must "
+             "read OK rather than as a fault"),
     Gate("test_reel_retention", [sys.executable, os.path.join(HERE, "test_reel_retention.py")], 120,
          why="v2001 — the only script in this tree that DELETES his footage. On his real reels it "
              "correctly reports zero candidates today, so without these the safe answer and a broken "

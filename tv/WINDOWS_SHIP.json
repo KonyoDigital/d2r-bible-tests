@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2012",
+  "ver": "v2013",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2012: three launches in fifty seconds each killed the one before it - and a free doctor that says why the vault is empty",
+  "note": "v2013: 220 items are visibly in his stash and none nameable - the three controls that fix it now move together",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
