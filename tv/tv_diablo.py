@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2001"   # footage that has given up its information
+VERSION = "v2002"   # a vault seal is not a life sentence
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -5139,6 +5139,13 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
 # conf, throwOut, throwWhy} and REFUSES a row with no name, so an invented row is impossible by
 # construction. lane ∈ (stash, inventory, equipment); kind ∈ (rune, gem, material, item); both fall
 # back to the surface's own default when the reader does not say, and never invent an item.
+# v2002 — THE VAULT READER HAD NO VERSION AT ALL, so nothing could tell an old read from a new one.
+# The chronicle side has had PROMPT_VER since v832 and uses it to REOPEN reels a weaker reader sealed
+# with nothing; the vault side recorded only a timestamp, which makes its seal permanent however much
+# the reader improves. That is the same "a stale verdict made permanent" defect v1830 fixed on the
+# other lane, still live on this one. BUMP THIS WHENEVER VAULT_READ_PROMPT CHANGES.
+VAULT_PROMPT_VER = "vp2002"
+
 VAULT_READ_PROMPT = (
     "Image {path} = a Diablo II Resurrected (RotW mod) {surface} panel: a grid of item icons, some "
     "with a name label or a stack count.\n"

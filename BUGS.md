@@ -11126,3 +11126,44 @@ the same output.** Nine tests on temp dirs (never his frames) prove it can selec
 never qualifies however old, that `keep_recent` protects the newest, that it stops at the target,
 that `--apply` without `--yes` deletes nothing, and that it removes the right directory and leaves
 the rest. Verified after the run: his 31 reels and 2.8 GB are intact.
+
+## REG-362 — a vault seal was a life sentence, and the vault reader had no version at all (v2002)
+
+Found while building retention (REG-361), which needs `vault_swept.json` to mean something.
+
+The **chronicle** lane learned this in v1830: a seal records `{ts, classified, pages, promptVer,
+agentVer}`, and a reel an older reader sealed with *nothing* is **reopened** when the prompt improves. Its own words: *"only the 'I looked and there was nothing' claim expires."*
+
+The **vault** lane never learned it:
+- the seal recorded `{"ts": ...}` — no rows, no reader
+- **`VAULT_READ_PROMPT` had no version constant at all** — zero occurrences of any `VAULT_PROMPT_VER`
+- the skip list was `not in swept`, so **any** sealed reel was skipped forever
+
+So a vault verdict was permanent however much the reader improved — the same "stale verdict made
+permanent" defect v1830 fixed on the other lane, still live on the lane whose mistakes reach his
+stash. And it is not academic: the reader was rebuilt in v1785 (`claude_vault_read`, the seam that
+had never existed), so any reel sealed before that was sealed by a reader that could not produce
+rows at all.
+
+Fixed as the exact mirror of the chronicle rule:
+```
+unreadable record  -> stay sealed   a broken row is not a licence to re-spend his subscription
+rows > 0           -> stay sealed   the findings outlive the reader that found them
+rows == 0          -> reopen ONLY if a different vault prompt is current now
+```
+`VAULT_PROMPT_VER = "vp2002"` now exists beside the prompt, with a note to bump it whenever the
+prompt changes; the seal records `{ts, rows, promptVer, agentVer}`; and the sweep prints which reels
+it reopened, in the same words the chronicle sweep uses.
+
+**Every row he already has is `{"ts": ...}`** — no rows, no promptVer — so all of them reopen. That
+is deliberate: without it the ledger he has today would stay frozen under whatever reader wrote it.
+
+Sabotage-proven: putting the seal back to `{"ts": ...}` turns the guard red.
+
+### Still open, and it costs money every sweep
+A stash **grid** has no names by design — proven on his own film, where the reader correctly returns
+`items: []`. Those frames pass the template gate, take a **paid** read, produce no rows, seal
+nothing, and are paid for again next sweep. The v1994 reconciler now gives the signal that would let
+a *confirmed* nameless read seal safely (cells occupied + zero names = a complete answer, not a
+failure), and v2002's reopen net makes such a seal recoverable. Not wired yet — the safety net had to
+exist first.

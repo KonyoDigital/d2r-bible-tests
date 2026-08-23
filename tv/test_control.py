@@ -12324,5 +12324,60 @@ class TestV1998ThePixelLaneCannotFailSILENTLY(unittest.TestCase):
                       "without the guard a broken lane prints once per frame and buries the run")
 
 
+class TestV2002AVaultSealIsNotALifeSentence(unittest.TestCase):
+    """v2002 — the vault lane never learned the lesson the chronicle lane paid for in v1830.
+
+    The chronicle seal records {ts, classified, pages, promptVer, agentVer} and REOPENS a reel that
+    an older reader sealed with nothing. The vault seal recorded {"ts": ...} — and VAULT_READ_PROMPT
+    had no version constant at ALL, so nothing could tell an old read from a new one and a vault seal
+    was permanent however much the reader improved. A stale verdict made permanent, on the lane whose
+    mistakes reach his stash. [[label-outlived-referent]] [[feedback-generalize-fixes]]
+
+    The rule mirrors the chronicle one exactly: a productive seal is never re-spent; only the claim
+    "I looked and there was nothing" expires, and it expires when the eye that made it is replaced.
+    """
+
+    def _f(self):
+        import control_app as ca
+        return ca._vault_still_sealed
+
+    def test_a_productive_seal_is_never_respent(self):
+        """His subscription pays for these reads. Findings outlive the reader that found them."""
+        self.assertTrue(self._f()({"ts": 1, "rows": 7, "promptVer": "vp0001"}))
+
+    def test_an_empty_seal_reopens_only_when_the_reader_changed(self):
+        import tv_diablo as tv
+        cur = tv.VAULT_PROMPT_VER
+        self.assertTrue(self._f()({"ts": 1, "rows": 0, "promptVer": cur}),
+                        "re-reading with the SAME prompt buys nothing and costs money")
+        self.assertFalse(self._f()({"ts": 1, "rows": 0, "promptVer": "vp0001"}),
+                         "a newer vault reader must be allowed to look again")
+
+    def test_the_legacy_ts_only_seal_reopens(self):
+        """Every row written before v2002 is {"ts": ...} with no rows and no promptVer. Those must
+        reopen, or the ledger he already has stays frozen under the reader that made it."""
+        self.assertFalse(self._f()({"ts": 1}))
+
+    def test_an_unreadable_record_is_not_a_licence_to_respend(self):
+        for junk in ("not-a-dict", None, 7, []):
+            self.assertTrue(self._f()(junk), "a broken row must not trigger a paid re-read")
+
+    def test_the_vault_prompt_carries_a_version_at_all(self):
+        import tv_diablo as tv
+        self.assertTrue(getattr(tv, "VAULT_PROMPT_VER", ""),
+                        "without a version nothing can ever tell an old vault read from a new one")
+
+    def test_the_seal_records_what_read_it(self):
+        """A seal that cannot say which reader made it cannot be reopened by a better one."""
+        import control_app as ca
+        with open(ca.__file__, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('"promptVer": _pv', src, "the vault seal no longer records its reader")
+        self.assertIn('"rows": int(_rows)', src,
+                      "without rows, a productive seal cannot be told from an empty one")
+        self.assertIn("_vault_still_sealed(_sealed_rec(d))", src,
+                      "the skip list does not consult the predicate — seals are permanent again")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

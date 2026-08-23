@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2001",
+  "ver": "v2002",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2001: the obvious retention rule would have deleted 1166 MB of reels that were sealed with zero pages and never actually read",
+  "note": "v2002: the vault reader had no version constant so a sealed reel stayed sealed however much the reader improved",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

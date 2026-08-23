@@ -10357,6 +10357,35 @@ def _vault_corpus():
     return _vc
 
 
+def _vault_still_sealed(rec, prompt_ver=None):
+    """v2002 — may this vault sweep SKIP a sealed reel, or must it reopen it?
+
+    The exact mirror of _chron_still_sealed, because the vault lane never learned the lesson the
+    chronicle lane paid for in v1830: it recorded only {"ts": ...}, so a reel sealed by any reader
+    stayed sealed forever, however much the reader improved. A stale verdict made permanent.
+
+      unreadable record  -> stay sealed. A broken row is not a licence to re-spend his subscription.
+      rows > 0           -> stay sealed. The findings outlive the reader that found them.
+      rows == 0          -> reopen ONLY if a different vault prompt is current now. "I looked and
+                            there was nothing" is the one claim that expires, and it expires when
+                            the eye that made it is replaced.
+    """
+    if not isinstance(rec, dict):
+        return True
+    if (rec.get("rows") or 0) > 0:
+        return True
+    want = prompt_ver
+    if want is None:
+        try:
+            import tv_diablo as _tvd
+            want = getattr(_tvd, "VAULT_PROMPT_VER", None)
+        except Exception:
+            want = None
+    if want is None:
+        return True       # cannot tell which reader is current -> change nothing
+    return str(rec.get("promptVer") or "") == str(want)
+
+
 def _vault_swept_load():
     try:
         with open(_VAULT_SWEPT_PATH, encoding="utf-8") as fh:
@@ -10641,9 +10670,22 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # the swept memory is keyed by whatever sweep() reports in sessionsRead; check the reel
         # basename BOTH ways (reel_<sid> and bare <sid>) so a naming mismatch can only ever cause a
         # re-read — never a silently skipped reel.
+        def _sealed_rec(d):
+            b = os.path.basename(d)
+            return swept.get(b) if b in swept else swept.get(b.replace("reel_", "", 1))
+
+        # v2002 — a SEAL IS NOT A LIFE SENTENCE. This was `not in swept`, so any sealed reel was
+        # skipped forever regardless of which reader sealed it. _vault_still_sealed keeps a
+        # productive seal and reopens a rows==0 one once the vault prompt changes.
         dirs = [d for d in _cr.reel_dirs(hist)
-                if force or (os.path.basename(d) not in swept
-                             and os.path.basename(d).replace("reel_", "", 1) not in swept)]
+                if force or _sealed_rec(d) is None
+                or not _vault_still_sealed(_sealed_rec(d))]
+        _reopened = [os.path.basename(d) for d in dirs if _sealed_rec(d) is not None]
+        if _reopened:
+            print("   \U0001f513 %d reel(s) reopened - sealed with no rows by an older vault reader "
+                  "(now %s): %s" % (len(_reopened),
+                                    getattr(__import__("tv_diablo"), "VAULT_PROMPT_VER", "?"),
+                                    ", ".join(_reopened[:4])))
         with _VAULT_LOCK:
             _VAULT_JOB["reelsTotal"] = len(dirs)
             _VAULT_JOB["phase"] = "reading"
@@ -10950,8 +10992,18 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # whatever the cause. What changes is that the message now says what is actually known.
         _rows = len((prop.get("uniques") or {})) + len((prop.get("owned") or []))
         if _rows:
+            # v2002 — RECORD WHICH READER SEALED IT. {"ts": ...} alone cannot answer "is this
+            # verdict still current", which is why a vault seal used to be permanent.
+            _pv = _av = ""
+            try:
+                import tv_diablo as _tvv
+                _pv = getattr(_tvv, "VAULT_PROMPT_VER", "") or ""
+                _av = getattr(_tvv, "VERSION", "") or ""
+            except Exception:
+                pass
             for sess in (prop.get("sessionsRead") or []):
-                swept[str(sess)] = {"ts": int(time.time() * 1000)}
+                swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": int(_rows),
+                                    "promptVer": _pv, "agentVer": _av}
             _vault_swept_save(swept)
         else:
             print("   \u26a0 vault sweep produced no rows — sealing nothing, so the footage stays "
@@ -13192,7 +13244,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2001",
+        "ver": "v2002",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
