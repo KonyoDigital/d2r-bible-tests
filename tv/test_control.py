@@ -13536,5 +13536,156 @@ class TestV2025OneLaneSwitchMeansTheSameThingEverywhere(unittest.TestCase):
 
 
 
+class TestV2026AChronicleIsNotAStash(unittest.TestCase):
+    """v2026 — ENGRAVE THE ONE DISTINCTION THAT DECIDES WHICH LEDGER A NAME LANDS IN.
+
+    Konyo: "the grail doesnt really mean anything we invented it didnt we? ... just chronicles are
+    the different area here that needs to understand and know the diffrence of when in chronicle or
+    just on ground or something it should register it as an item ... the logic coding should be
+    engraved so its working properly and bugs or mis-reads dont happen".
+
+    He is right about the grail: it is a self-imposed collection goal, not a game mechanic. The
+    distinction that IS load-bearing is CHRONICLE vs OWNERSHIP, because they are different FACTS:
+
+        chronicle page   "I have found this at some point"   -> a catalogue entry
+        stash/inventory  "this is physically here, now"      -> owned, needs a mule
+
+    Confuse them in one direction and a catalogue of everything he has ever found gets filed onto
+    mules he does not own. Confuse them the other way and a stash panel inflates the found-log.
+
+    Both directions ARE separated today. Nothing pinned it, so nothing stopped the next edit from
+    quietly widening one of the two lists. This is that pin.
+    """
+
+    def test_a_chronicle_page_can_never_be_an_ownership_claim(self):
+        import vault_retro as vr
+        self.assertNotIn("chronicle", vr.OWNERSHIP_SURFACES,
+                         "adding 'chronicle' to OWNERSHIP_SURFACES would file his entire found-log "
+                         "onto mules - a catalogue of what he HAS FOUND is not a list of what he HAS")
+        self.assertIsNone(vr._surface_of("chronicle"),
+                          "a chronicle surface must normalise to None so the sweep HOLDS it")
+        self.assertIsNone(vr._surface_of({"surface": "chronicle"}))
+
+    def test_every_ownership_surface_is_a_place_things_physically_ARE(self):
+        """The whitelist is the whole guard, so its membership is the thing to state out loud."""
+        import vault_retro as vr
+        self.assertEqual(set(vr.OWNERSHIP_SURFACES),
+                         {"stash", "inventory", "equipment", "runes", "gems", "materials"},
+                         "OWNERSHIP_SURFACES changed - every member must be somewhere an item "
+                         "physically sits, never a catalogue, a vendor screen or a drop log")
+
+    def test_the_chronicle_lane_refuses_a_non_chronicle_scene(self):
+        """The mirror. A stash panel must not inflate the found-log either."""
+        import os
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "chronicle_retro.py"), encoding="utf-8").read()
+        src = re.sub(r'"""(?:.|\n)*?"""', " ", src)
+        src = re.sub(r"(?m)#[^\n]*$", " ", src)
+        hits = len(re.findall(r'scene["\']?\s*\)?\s*or\s*""\)\.lower\(\)\s*!=\s*"chronicle"', src))
+        self.assertGreaterEqual(
+            hits, 1,
+            "the chronicle lane must require scene == 'chronicle' - without it a stash frame can "
+            "be folded into the found-log as though he had catalogued it")
+
+    def test_the_two_lists_do_not_overlap(self):
+        """Any surface accepted by BOTH lanes would be double-counted: once as owned, once as
+        found, from a single sighting. The corroboration gate would then see two 'witnesses' that
+        are one frame."""
+        import vault_retro as vr
+        self.assertNotIn("chronicle", vr.SURFACE_LANE,
+                         "a chronicle surface must not map to an ownership LANE either")
+        for s in vr.OWNERSHIP_SURFACES:
+            self.assertNotEqual(s, "chronicle")
+
+
+
+class TestV2026TheEagleEyeSeesTheWholeConsole(unittest.TestCase):
+    """v2026 — Konyo: "is there a MANAGER for the AI console? ... dont we need like a type of EAGLE
+    EYE kind of style management system here? eyes from above it all".
+
+    The per-lane doctors each answer about ONE lane; run_gates answers about the SOURCE before a
+    push. Nothing looked at the RUNNING SYSTEM, and every defect found the night this was written
+    was that shape - no component wrong, two correct things disagreeing:
+
+        the console served v2018 while the tree was v2024, for two hours
+        the vault sweep read 0 pages while 4 reels on disk were 40-100% stash panels
+        G5 said mode=off while the lane list still shipped a grok lane
+        the free cost pass called his footage worthless, from its own refusing stub
+
+    The property that matters most here is the LAST one in this class: a check that throws must be
+    reported as UNKNOWN, never dropped. A monitor whose failures are invisible is the thing it was
+    built to catch.
+    """
+
+    def test_it_runs_and_every_row_is_a_named_state(self):
+        import console_doctor as cd
+        rows = cd.run(include_slow=False)   # the sub-doctors cost ~2min; guarded separately
+        self.assertGreaterEqual(len(rows), 5, "the eagle eye lost checks")
+        for r in rows:
+            self.assertIn(r["state"], (cd.OK, cd.MISSING, cd.UNKNOWN),
+                          "%r is not one of ok/missing/unknown" % r)
+            self.assertTrue(str(r.get("why") or "").strip(),
+                            "check %r answered with no reason - a verdict with no why is a lamp"
+                            % r.get("check"))
+
+    def test_a_check_that_throws_is_UNKNOWN_not_silently_dropped(self):
+        """The defining property. If a check can vanish, the report is a green light with a hole
+        in it - exactly the class this doctor exists to find. [[unknown-stays-unknown]]"""
+        import console_doctor as cd
+        def boom():
+            raise RuntimeError("deliberate")
+        original = cd.CHECKS[:]
+        try:
+            cd.CHECKS.append(("exploding check", boom))
+            rows = cd.run(include_slow=False)
+            hit = [r for r in rows if r["check"] == "exploding check"]
+            self.assertEqual(len(hit), 1, "a throwing check DISAPPEARED from the report")
+            self.assertEqual(hit[0]["state"], cd.UNKNOWN,
+                             "a throwing check must be UNKNOWN, never ok")
+            self.assertIn("threw", hit[0]["why"])
+        finally:
+            cd.CHECKS[:] = original
+
+    def test_version_drift_compares_two_real_versions(self):
+        """The check that would have caught the two-hour drift. It must read a version from the
+        TREE - the first cut read only 400KB of a 5.8MB bible.html and answered None, which is a
+        check that never fires."""
+        import console_doctor as cd
+        v = cd._tree_version()
+        self.assertIsNotNone(v, "the tree version could not be read - the drift check is inert")
+        self.assertRegex(v, r"^v\d+$")
+
+    def test_it_calls_the_other_doctors_rather_than_reimplementing_them(self):
+        """Two copies of one rule are two things that drift apart, and only one gets fixed."""
+        import inspect
+        import console_doctor as cd
+        src = inspect.getsource(cd)
+        self.assertIn("vault_doctor", src)
+        self.assertIn("chronicle_doctor", src)
+        self.assertNotIn("inventory_lattice", src,
+                         "the eagle eye must not re-implement vault_doctor's pixel work")
+
+    def test_the_console_exposes_it(self):
+        """A doctor nobody can reach from the app is a script, not a management system."""
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        # v2026 — assertTrue on a boolean, NOT assertIn on a 900KB string. The first cut used
+        # assertIn and its failure message dumped the entire control_app.py into the log — 907KB
+        # of noise around one line of signal, in the CI output someone reads at 3am.
+        self.assertTrue('"/api/eagle"' in src, "the eagle eye has no route in control_app.py")
+        self.assertTrue("console_doctor" in src, "the /api/eagle route does not call console_doctor")
+        # v2026 — AND IT MUST NOT HAVE TAKEN SOMEONE ELSE'S PATH. /api/doctor has been the Windows
+        # self-diagnosis since v801; this dispatch is a first-match-wins chain, so a duplicate
+        # branch above it silently retires the original. Exactly what happened, caught by a 45s
+        # timeout in TestDoctor rather than by anything naming the collision.
+        self.assertEqual(src.count('if path == "/api/doctor":'), 1,
+                         "/api/doctor is declared more than once - the earlier branch shadows the "
+                         "later one and one of the two endpoints is now unreachable")
+        self.assertEqual(src.count('if path == "/api/eagle":'), 1)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

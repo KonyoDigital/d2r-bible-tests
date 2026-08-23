@@ -266,9 +266,22 @@ class TestANotFoundReadingExpires(unittest.TestCase):
         # reading is REPORTED unorderable and never quoted as a contradiction — not that every
         # reading is unorderable. [[stale-reading]] [[unknown-stays-unknown]]
         self.assertTrue(verdicts, "no verdicts at all — this guard has lost its subject")
-        self.assertTrue(set(verdicts) <= {"undatable", "found", "not-found", "superseded", "denied"},
+        # v2026 — `same-moment` WAS MISSING FROM THIS LIST, AND IT IS THE ENGINE'S OWN WORD.
+        # counter_ledger:428 sets it and its docstring says outright: "Only `not-found`,
+        # `same-moment` and `undatable` are real". The allowlist named neither of the last two
+        # correctly, so the guard could only pass while no row in his evidence had ever produced
+        # one — and it went red the first night a sweep banked a same-frame disagreement.
+        #
+        # That is the SECOND guard in one evening that held only because the path it watched had
+        # never executed (the other asserted vault_last_result.json was absent, which was true only
+        # because the vault sweep had never run). Both fired on the day the feature started
+        # working, which is the worst moment for a false alarm. The lesson generalises: an
+        # allowlist of another module's outputs must be derived from that module, or stated with
+        # the reason each member is there. [[gate-blind-to-unexercised-input]]
+        KNOWN = {"undatable", "found", "not-found", "same-moment", "superseded", "denied"}
+        self.assertTrue(set(verdicts) <= KNOWN,
                         "the engine invented a verdict this guard does not know: %s"
-                        % sorted(set(verdicts)))
+                        % sorted(set(verdicts) - KNOWN))
         self.assertIn("undatable", verdicts,
                       "not one row is reported undatable any more. His pre-receipt evidence is "
                       "still in this file and still cannot be ordered, so something has started "

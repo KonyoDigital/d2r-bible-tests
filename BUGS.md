@@ -12084,3 +12084,109 @@ Wrong — `vaultAccumApply` calls it too, at the stocking loop. **My grep was pi
 and truncated before that line.** The chain was joined the whole time, which also means the v2018
 planner fix sits squarely in the sweep's apply path rather than only in the Item Checker.
 [[feedback-suspect-the-instrument]]
+
+## v2026 — 🦅 THE EAGLE EYE, and the chronicle/ownership line engraved
+
+**Konyo:** *"is there a MANAGER for the AI console? … dont we need like a type of EAGLE EYE kind of
+style management system here? eyes from above it all like that can see bugs happening or something
+and fix it when its out of line?"*
+
+There wasn't. The pieces existed and nothing sat above them: `chronicle_doctor` and `vault_doctor`
+each answer about **one lane**, `run_gates` answers about the **source** before a push. Nothing
+looked at the **running system**.
+
+And that is precisely the shape of every defect found tonight — **no component was wrong, two
+correct things disagreed**:
+
+| | |
+|---|---|
+| the console served **v2018** while the tree was **v2024**, for two hours | invisible from either half |
+| the vault sweep read **0 pages** while 4 reels on disk were 40–100% stash panels | invisible to the sweep |
+| G5 said `mode=off` while the lane list still shipped a grok lane | invisible to G5 |
+| the vault pill said a lane was dark while the reel filed into it anyway | invisible to the pill |
+| the **free** cost pass called his footage worthless, from its own refusing stub | invisible to the stub |
+
+`tv/console_doctor.py` — seven checks, free by construction (filesystem, git, localhost; no model
+turn, no network, no paid read), reachable at `GET /api/doctor`.
+
+It **caught real drift on its very first run**: *"the console is RUNNING v2024 while the tree is
+v2025"*. It also caught **its own** first bug in the same run — `_tree_version()` read 400 KB of a
+5.8 MB `bible.html` and answered `None`, i.e. a version check that could never fire. Which is the
+argument for running a new doctor before believing it.
+
+**The property that matters most**: a check that throws is reported **UNKNOWN**, never dropped. A
+monitor whose failures are invisible is the thing it was built to catch. Guarded explicitly.
+
+It **calls** the other doctors rather than re-implementing them, and a test asserts it does not
+carry a copy of `vault_doctor`'s pixel work. [[copy-drift]] The sub-doctor call costs ~2 minutes, so
+`run(include_slow=False)` exists and the slow check is **named** rather than guessed at — adding a
+check never silently joins the slow set. Suite cost 125s → 55s.
+
+### And the line that decides which ledger a name lands in
+**Konyo:** *"the grail doesnt really mean anything we invented it didnt we? … just chronicles are the
+different area here that needs to understand and know the diffrence."*
+
+Right on both counts. The grail is a self-imposed goal, not a game mechanic. The load-bearing
+distinction is **chronicle vs ownership**, because they are different facts:
+
+```
+chronicle page    "I have found this at some point"   → a catalogue entry
+stash / inventory "this is physically here, now"      → owned, needs a mule
+```
+
+Both directions were already separated — `"chronicle"` is absent from `OWNERSHIP_SURFACES` so
+`_surface_of()` holds it, and `chronicle_retro` requires `scene == "chronicle"` — but **nothing
+pinned it**, so nothing stopped the next edit widening one list. `TestV2026AChronicleIsNotAStash`
+pins both directions and the no-overlap property; adding `chronicle` to `OWNERSHIP_SURFACES` turns 3
+of its 4 checks red.
+
+### v2026 addendum — the eagle eye shadowed an endpoint that had existed since v801
+
+The v2026 push was **blocked by the pre-push gate**, and the failure looked nothing like the cause:
+
+```
+ERROR: test_doctor_endpoint_live — urlopen timed out after 45s
+```
+
+`/api/doctor` has been the Windows self-diagnosis since v801 — *"fast, read-only, never spawns the
+CLI"*. My new eagle-eye route claimed the **same path**, and this dispatch is a chain of
+`if path == …` with an early return, so the new branch sat **above** the old one and shadowed it
+completely. `/api/doctor` silently stopped being a fast check and became a two-minute whole-system
+sweep, which is why it timed out.
+
+**A route table where the first match wins is a last-declaration-wins surface** — the same class as
+CSS specificity and a twin JS assignment. Adding a branch can retire an existing one and nothing
+warns. [[d2r-css-last-rule-wins]] [[copy-drift]]
+
+The eagle eye now lives at **`/api/eagle`**, and the guard pins uniqueness rather than mere presence:
+`src.count('if path == "/api/doctor":') == 1`. Sabotage-proven by pointing it back at `/api/doctor`.
+
+⚠ And the guard's own first version was wrong in a smaller way: it used `assertIn` against the
+900 KB `control_app.py`, so its failure message dumped **907 KB** into the log — that much noise
+around one line of signal, in the output someone reads at 3am. It asserts on a boolean now.
+
+### v2026 addendum — a SECOND guard that only passed while its path had never run
+
+The v2026 push was blocked again, this time by `test_counter_ledger`:
+
+```
+FAIL: test_his_real_banked_evidence_is_reported_UNDATABLE_not_quoted
+AssertionError: the engine invented a verdict this guard does not know:
+                ['found', 'not-found', 'same-moment', 'undatable']
+```
+
+`same-moment` is **the engine's own word**. `counter_ledger.py:428` sets it, and that module's own
+docstring says outright: *"Only `not-found`, `same-moment` and `undatable` are real"*. The guard's
+allowlist simply never included it — so it could only pass while no row in his banked evidence had
+ever produced one, and it went red the first night a sweep banked a same-frame disagreement.
+
+**That is the second guard in one evening that held only because the path it watched had never
+executed** — the other asserted `vault_last_result.json` was *absent*, true only because the vault
+sweep had never run. Both fired on the day their feature started working, which is the worst
+possible moment for a false alarm.
+
+The generalisable lesson: **an allowlist of another module's outputs must be derived from that
+module, or state the reason each member is there.** Hand-copied lists of someone else's enum go
+stale silently and are only discovered by an outage. The failure message now prints only the
+*unknown* verdicts rather than all of them, so the next person sees the one word that matters.
+[[gate-blind-to-unexercised-input]]

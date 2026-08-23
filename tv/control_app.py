@@ -13440,7 +13440,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2025",
+        "ver": "v2026",
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -15157,6 +15157,41 @@ class Handler(BaseHTTPRequestHandler):
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
         if path == "/api/g5_status":
             self._json(200, _g5_status())
+            return
+        if path == "/api/eagle":
+            # v2026 — 🦅 THE EAGLE EYE, reachable from the app.
+            #
+            # ⚠ IT IS /api/eagle AND NOT /api/doctor, AND THAT COST A BLOCKED PUSH. The first cut
+            # claimed /api/doctor — which has existed since v801 as the Windows self-diagnosis
+            # ("fast, read-only, never spawns the CLI"). Python's dispatch here is a chain of
+            # `if path == ...` with an early return, so the NEW branch sat above the old one and
+            # SHADOWED it completely: /api/doctor stopped being the fast Windows check and became
+            # a two-minute whole-system sweep. TestDoctor.test_doctor_endpoint_live caught it by
+            # timing out at 45s, which is the failure looking nothing like the cause.
+            #
+            # A route table where the first match wins is a LAST-DECLARATION-WINS surface, same
+            # class as CSS specificity and the twin JS assignment: adding a branch can silently
+            # retire an existing one and nothing warns. [[d2r-css-last-rule-wins]] [[copy-drift]] Konyo: "dont we need like a type of
+            # EAGLE EYE kind of style management system here? eyes from above it all like that can
+            # see bugs happening or something and fix it when its out of line?"
+            #
+            # The per-lane doctors each answer about ONE lane and run_gates answers about the SOURCE
+            # before a push. Nothing looked at the RUNNING SYSTEM, and every defect found the night
+            # this was written was exactly that shape: no component was wrong, two correct things
+            # disagreed. Version drift is the cleanest example — the process serves the code it
+            # booted with while every stamp on the page reads from disk, so the UI can show a
+            # version the process has never executed. Invisible from inside either half.
+            #
+            # It REPORTS. It calls the other doctors rather than re-implementing them, and it never
+            # collapses "I could not check" into "it is fine".
+            try:
+                import console_doctor as _cd
+                self._json(200, {"ok": True, "checks": _cd.run(),
+                                 "generatedTs": int(time.time() * 1000)})
+            except Exception as _e:
+                # a doctor that cannot run must say so, never answer "all clear"
+                self._json(200, {"ok": False, "checks": [],
+                                 "why": "console_doctor unavailable: %s" % str(_e)[:200]})
             return
         if path == "/api/meter":
             # ── v2022 — THE METER. Konyo: "the console needs a meter lol... like how much tokens is
