@@ -12925,5 +12925,90 @@ class TestV2011ThePromptShapeAndTheConsumerAGREE(unittest.TestCase):
                             "seals made by the older reader can never reopen")
 
 
+class TestV2012TheLauncherDoesNotRaceItself(unittest.TestCase):
+    """v2012 — three launches in fifty seconds, each killing the one before it.
+
+    start_tvd_mac.sh frees :17772 before binding, which is right (v1379.1: a double-click must boot
+    THIS checkout, never window-only onto a stale headless). It was UNCONDITIONAL, so two launches
+    close together race. MEASURED in his own control_app.log, 2026-08-23, after he closed the window:
+
+        01:30:01  auto-pull: fast-forward ok   -> native window up
+        01:30:21  auto-pull: fast-forward ok   -> window gone (signal-SIGTERM)
+        01:30:51  auto-pull: fast-forward ok   -> window gone (signal-SIGTERM)
+
+    Each SIGTERM ran the exit safeguard and stopped ON AIR. Had he been recording, that is a session
+    destroyed by a race with itself.
+
+    ⚠ AND THOSE THREE LINES WERE MISREAD ONCE. They look like a poller reacting to a git push;
+    auto-pull runs ONCE PER LAUNCH. Reading them as a timeline of cause blamed a push nine minutes
+    earlier. [[feedback-suspect-the-instrument]]
+
+    THE TEST DRIVES THE SHIPPED FUNCTION, extracted from start_tvd_mac.sh itself — not a copy. A
+    copy is the fixture trap: it passes while the real script rots. And it uses a THROWAWAY port,
+    never :17772, which is his live console.
+    """
+
+    PORT = 18879        # never 17772 (his console) and never 9222/9223 (Chrome / TradingView)
+
+    def _guard_script(self):
+        """The real _tvd_age_secs plus the real stand-down loop, lifted out of the shipped file."""
+        path = os.path.join(HERE, "start_tvd_mac.sh")
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        fn = re.search(r"(_tvd_age_secs\(\) \{.*?\n\})", src, re.S)
+        self.assertIsNotNone(fn, "the age helper is gone from start_tvd_mac.sh — the guard is unwired")
+        loop = re.search(r"(if command -v lsof.*?TV_FORCE_PORT.*?\nfi)", src, re.S)
+        self.assertIsNotNone(loop, "the stand-down loop is gone from start_tvd_mac.sh")
+        body = loop.group(1).replace("17772", "$PORT").replace('"$_TVD_PORT_GRACE"', '"$GRACE"')
+        body = re.sub(r'>>"\$HERE/control_app\.log"[^\n]*', ">/dev/null", body)
+        body = body.replace("exit 0", 'echo "STAND-DOWN"; exit 0')
+        return ('#!/bin/bash\nPORT="$1"; GRACE="${2:-25}"\n' + fn.group(1) + "\n" + body
+                + '\necho "PROCEED"\n')
+
+    def _run(self, port, grace, env=None):
+        import tempfile
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        sh = os.path.join(d, "g.sh")
+        with open(sh, "w", encoding="utf-8") as fh:
+            fh.write(self._guard_script())
+        e = dict(os.environ)
+        e.pop("TV_FORCE_PORT", None)
+        if env:
+            e.update(env)
+        r = subprocess.run(["bash", sh, str(port), str(grace)], capture_output=True, text=True,
+                           timeout=30, env=e)
+        return (r.stdout or "").strip()
+
+    def test_it_stands_down_for_a_young_incumbent_and_replaces_an_old_one(self):
+        # ⚠ start_new_session=True is REQUIRED, and the first cut omitted it. _reap kills the
+        # process GROUP — its docstring states the precondition in as many words ("the launcher is
+        # started in its own session") — so without it os.getpgid() returns the TEST RUNNER's group
+        # and killpg SIGKILLs the suite mid-run. Observed exactly that: one dot, then exit 1 with no
+        # summary and no traceback. Using a helper without honouring its documented contract.
+        srv = subprocess.Popen([sys.executable, "-m", "http.server", str(self.PORT),
+                                "--bind", "127.0.0.1"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               start_new_session=True)
+        self.addCleanup(_reap, srv)
+        time.sleep(1.5)
+        if not shutil.which("lsof"):
+            self.skipTest("no lsof on this machine — the guard cannot see the incumbent either")
+        young = self._run(self.PORT, 25)
+        if "STAND-DOWN" not in young and "PROCEED" not in young:
+            self.skipTest("the guard produced no verdict (%r) — probe could not run" % young[:60])
+        self.assertIn("STAND-DOWN", young,
+                      "a console seconds old was taken over — that IS the restart storm")
+        self.assertIn("PROCEED", self._run(self.PORT, 0),
+                      "an OLD incumbent must still be replaced; a launcher that never takes the "
+                      "port cannot recover from a stale console")
+        self.assertIn("PROCEED", self._run(self.PORT, 25, {"TV_FORCE_PORT": "1"}),
+                      "TV_FORCE_PORT must restore the old unconditional behaviour")
+
+    def test_a_free_port_is_never_blocked(self):
+        """The ordinary case. A guard that refuses a normal launch is worse than the storm."""
+        self.assertIn("PROCEED", self._run(18881, 25))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

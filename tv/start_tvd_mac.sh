@@ -97,6 +97,56 @@ fi
 # (never window-only onto a stale headless that still holds the port).
 LOG="$HERE/control_app.log"
 VER=$(python3 -c "import re,pathlib; t=pathlib.Path('$HERE/control_app.py').read_text(); m=re.search(r'\"ver\": \"(v[\\d.]+)\"', t); print(m.group(1) if m else 'v?')" 2>/dev/null || echo "v?")
+# ── v2012 — DO NOT KILL A CONSOLE THAT IS SECONDS OLD; IT IS THE ONE STARTING UP ────────────
+#
+# The kill below is right: a double-click must boot THIS checkout and never window-only onto a
+# stale headless (v1379.1). But it is UNCONDITIONAL, and two launches close together therefore
+# race — launch 2 kills launch 1, launch 3 kills launch 2.
+#
+# MEASURED on his machine, control_app.log 2026-08-23. He closed the window with ✕, and then:
+#     01:30:01  auto-pull: fast-forward ok   → native window up
+#     01:30:21  auto-pull: fast-forward ok   → window gone (signal-SIGTERM)
+#     01:30:51  auto-pull: fast-forward ok   → window gone (signal-SIGTERM)
+# Three launches in fifty seconds, each SIGTERMing the one before it, each stopping ON AIR through
+# the exit safeguard. If he had been recording, that is a session killed by a race with itself.
+#
+# ⚠ AND IT WAS MISREAD ONCE ALREADY. Those three `auto-pull` lines look like a poller reacting to a
+# git push; auto-pull runs ONCE PER LAUNCH, right above. Reading them as a timeline of cause pinned
+# the blame on a push nine minutes earlier. The lines are a symptom of relaunching, not a cause.
+#
+# THE RULE: if something is already listening and it is YOUNGER than the grace window, another
+# launch is still coming up — stand down rather than take the port from it. An incumbent that is
+# genuinely old is stale and still gets replaced, exactly as before.
+#
+# TV_FORCE_PORT=1 restores the old unconditional behaviour, for the case this guard gets wrong:
+# a console crash-looping would hold the port with a forever-young pid and block a manual launch.
+_TVD_PORT_GRACE="${TV_PORT_GRACE_S:-25}"     # supervisor cycles at 20s; a console binds in a few
+
+_tvd_age_secs() {   # elapsed seconds for a pid from macOS `ps -o etime=` ([[dd-]hh:]mm:ss); -1 unknown
+  local e d h m s
+  e=$(ps -o etime= -p "$1" 2>/dev/null | tr -d ' ')
+  [ -z "$e" ] && { echo -1; return; }
+  d=0; h=0; m=0; s=0
+  case "$e" in *-*) d=${e%%-*}; e=${e#*-};; esac
+  case "$e" in
+    *:*:*) h=${e%%:*}; e=${e#*:}; m=${e%%:*}; s=${e#*:};;
+    *:*)   m=${e%%:*}; s=${e#*:};;
+    *)     s=$e;;
+  esac
+  echo $(( 10#$d*86400 + 10#$h*3600 + 10#$m*60 + 10#$s ))
+}
+
+if command -v lsof >/dev/null 2>&1 && [ -z "${TV_FORCE_PORT:-}" ]; then
+  for pid in $(lsof -tiTCP:17772 -sTCP:LISTEN 2>/dev/null); do
+    _age=$(_tvd_age_secs "$pid")
+    if [ "$_age" -ge 0 ] && [ "$_age" -lt "$_TVD_PORT_GRACE" ]; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') port :17772 held by pid $pid, ${_age}s old — STANDING DOWN. Another console is still coming up; taking the port now is the restart storm that killed a session on 2026-08-23. TV_FORCE_PORT=1 to override." \
+        >>"$HERE/control_app.log" 2>/dev/null || true
+      exit 0
+    fi
+  done
+fi
+
 # soft-kill anything still listening on the control port (not us — we have not bound yet)
 if command -v lsof >/dev/null 2>&1; then
   for pid in $(lsof -tiTCP:17772 -sTCP:LISTEN 2>/dev/null); do

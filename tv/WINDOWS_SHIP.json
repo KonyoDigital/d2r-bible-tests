@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2011",
+  "ver": "v2012",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2011: throwWhy was in the prose and not in the json shape so every throw-out suggestion carried the same default sentence",
+  "note": "v2012: three launches in fifty seconds each killed the one before it - and a free doctor that says why the vault is empty",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

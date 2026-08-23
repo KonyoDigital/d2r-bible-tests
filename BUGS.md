@@ -11475,3 +11475,69 @@ once by name.
 is `normalize_item`. The guard **refused rather than passing on an empty set**, which is the only
 reason the mistake surfaced in one run — a guard that cannot find its subject must fail, never report
 "nothing wrong here."
+
+## REG-372 — the launcher raced itself and killed a live session (v2012)
+
+`start_tvd_mac.sh` frees `:17772` before binding, which is right — v1379.1: a double-click must boot
+THIS checkout, never window-only onto a stale headless. It was **unconditional**, so two launches
+close together race. Measured in his own `control_app.log`, 2026-08-23, after he closed the window
+with ✕:
+
+```
+01:30:01  auto-pull: fast-forward ok   → native window up
+01:30:21  auto-pull: fast-forward ok   → window gone (signal-SIGTERM)
+01:30:51  auto-pull: fast-forward ok   → window gone (signal-SIGTERM)
+```
+
+Three launches in fifty seconds, each SIGTERMing the one before it, each running the exit safeguard
+and stopping ON AIR. **Had he been recording, that is a session destroyed by a race with itself.**
+
+**Now:** if something is already listening and it is younger than 25 s (the supervisor cycles at 20 s;
+a console binds in a few), another launch is still coming up — stand down rather than take the port.
+An incumbent that is genuinely old is stale and still gets replaced. `TV_FORCE_PORT=1` restores the
+old behaviour for the case this gets wrong: a crash-looping console would hold the port with a
+forever-young pid.
+
+Proven on a **throwaway** port, never `:17772`: young → STAND-DOWN · old → PROCEED · override →
+PROCEED · free port → PROCEED. The test drives the function **extracted from the shipped script**,
+not a copy — a copy passes while the real file rots. Sabotage-proven: deleting the loop fails both
+tests by name.
+
+### Two mistakes of mine on the way here, both worth the record
+**I blamed the wrong thing first.** Those three `auto-pull` lines look like a poller reacting to a git
+push; auto-pull runs **once per launch**, twenty lines above the kill. Reading them as a timeline of
+cause pinned it on a push nine minutes earlier, and I told him so. The lines are a symptom of
+relaunching, not a cause. [[feedback-suspect-the-instrument]]
+
+**I called `_reap` on a process I had not put in its own session.** Its docstring states the
+precondition outright — *"the launcher is started in its own session, so ONE killpg reaches the
+renderer grandchildren"* — so `os.getpgid()` returned the **test runner's** group and `killpg`
+SIGKILLed the suite mid-run: one dot, exit 1, no summary, no traceback. Using a helper without
+honouring its documented contract.
+
+## REG-373 — why the vault is empty, answerable for free (v2012)
+
+`tv/vault_accum.json` has been 72 bytes of empty since 2026-08-20, and finding out WHY required
+paying for a sweep. Empty has three causes needing three different actions — no footage · footage but
+no stash panels · panels but no readable names — and **an empty file looks identical whichever one it
+is**.
+
+`tv/vault_doctor.py` answers it from his own film: local pixels only, no model turn, no console, no
+network. It runs while the console is down, which is exactly when someone wants to know. Doctrine
+borrowed wholesale from `chronicle_doctor`: reports, never fixes, never guesses; OK / MISSING /
+UNKNOWN, and an UNKNOWN is never dressed as a failure.
+
+Measured on his tree the moment it was written:
+```
+🟢 footage        31 reel(s) on disk
+🟢 stash panels   10 of 155 sampled frame(s) are a stash panel
+🟢 panels measure 10 of 10 panel(s) measured
+🟢 anything there 220 occupied cell(s) across 10 panel(s) — there IS loot in this footage
+🟠 readable names ZERO named items, and 220 cell(s) are visibly full. D2R prints NO names in a
+                  stash grid — a name exists only in the HOVER TOOLTIP.
+🟠 sealed reels   vault_swept.json does not exist — retention has nothing it may delete
+```
+
+**220 items are visibly in his stash and not one is nameable.** That is the whole answer, and it was
+previously invisible. It samples MID-REEL on purpose: sampling the first frames found zero stash
+panels on footage that had ten — a biased sample that nearly produced "your film has no stash in it".
