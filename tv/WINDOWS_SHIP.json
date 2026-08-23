@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2015",
+  "ver": "v2016",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2015: a bare window call into nothing is loud outside a try and silent inside one, and this file is full of them",
+  "note": "v2016: his own frame carries a full Annihilus tooltip that the vault prompt never asked about - and the advice to film one was wrong",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2015"   # the js half of a caller with no symbol
+VERSION = "v2016"   # the reader was never told about the tooltip
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -5144,9 +5144,31 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
 # with nothing; the vault side recorded only a timestamp, which makes its seal permanent however much
 # the reader improves. That is the same "a stale verdict made permanent" defect v1830 fixed on the
 # other lane, still live on this one. BUMP THIS WHENEVER VAULT_READ_PROMPT CHANGES.
-VAULT_PROMPT_VER = "vp2011"   # v2011 — throwWhy joined the item shape; a better reader may look again
+VAULT_PROMPT_VER = "vp2016"   # v2016 — the reader is finally told about the hover tooltip
 
 VAULT_READ_PROMPT = (
+    # ── v2016 — THE VAULT READER WAS NEVER TOLD ABOUT THE HOVER TOOLTIP ──────────────────────
+    # This file already states the fact, at line ~305, as a calibrated truth from his real videos:
+    #     "panel grids show item ICONS with no text — names ONLY come from hover tooltips
+    #      (first line = name), ground labels, waypoint labels…"
+    # READ_PROMPT (the chronicle lane) acts on it in four places — "names = READABLE text labels
+    # only (tooltips first line, …)", the sockets rule, names_loc. VAULT_READ_PROMPT mentioned
+    # tooltip or hover ZERO times and described only "a grid of item icons… with a name label".
+    #
+    # So on a frame where he HOVERS an item, the reader was asked about the grid, correctly answered
+    # items:[] because a grid prints no names, and the fully legible tooltip beside it was never
+    # requested. MEASURED by opening one of his own frames: f_1784984209709 carries a complete
+    # tooltip — "Annihilus / Small Charm / Keep in Inventory to Gain Bonus / Required Level: 70 /
+    # +1 to All Skills…" — in a frame the sweep had already PAID to read.
+    #
+    # That is why vault_doctor reports 220 occupied cells and zero names, and why the advice "film
+    # the tooltip" was wrong: he already did. The same asymmetry as v2002 — the chronicle lane
+    # learned something and the vault lane never got it. [[the-unjoined-end]] [[copy-drift]]
+    "A HOVER TOOLTIP, when one is on screen, is the MOST RELIABLE name in the frame — the grid "
+    "itself prints none. Its FIRST LINE is the item name; return that item like any other, with the "
+    "kind you can tell from the tooltip and conf high, because the name is written out rather than "
+    "inferred from an icon. A tooltip that is cut off at the panel edge is not readable — leave it "
+    "out. Never merge the tooltip's stat lines into the name.\n"
     "Image {path} = a Diablo II Resurrected (RotW mod) {surface} panel: a grid of item icons, some "
     "with a name label or a stack count.\n"
     "Reply with STRICT JSON only, no markdown, no prose:\n"

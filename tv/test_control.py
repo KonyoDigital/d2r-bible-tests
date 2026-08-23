@@ -12913,6 +12913,29 @@ class TestV2011ThePromptShapeAndTheConsumerAGREE(unittest.TestCase):
                       "throwWhy left the item template again — every throw-out suggestion will "
                       "carry the same default sentence and read like the reader's opinion")
 
+    def test_the_vault_reader_is_told_about_the_hover_tooltip(self):
+        """v2016 — it was not, for the whole life of the vault lane.
+
+        This repo states the fact as a calibrated truth from his real videos (tv_diablo.py ~305):
+        "panel grids show item ICONS with no text — names ONLY come from hover tooltips (first line
+        = name)". READ_PROMPT acts on it in four places. VAULT_READ_PROMPT mentioned tooltip or
+        hover ZERO times, so on a frame where he hovers an item the reader was asked about the grid,
+        correctly answered items:[] because a grid prints no names, and never saw the fully legible
+        tooltip beside it.
+
+        Found by OPENING one of his frames: f_1784984209709 carries a complete tooltip —
+        "Annihilus / Small Charm / … / +1 to All Skills" — in a frame the sweep had already PAID to
+        read. That is why the vault shows 220 occupied cells and zero names.
+        """
+        import tv_diablo as tv
+        p = tv.VAULT_READ_PROMPT.lower()
+        self.assertIn("tooltip", p,
+                      "the vault reader is not told about the hover tooltip — the only place a stash "
+                      "item's name is ever written")
+        self.assertIn("first line", p,
+                      "it must say WHICH line of the tooltip is the name, or the reader may return "
+                      "a stat line")
+
     def test_a_prompt_change_moves_the_version(self):
         """v2002 records the reader on every vault seal so a better one can reopen it. A prompt
         edited without moving VAULT_PROMPT_VER leaves every seal claiming a reader that no longer
@@ -12920,9 +12943,10 @@ class TestV2011ThePromptShapeAndTheConsumerAGREE(unittest.TestCase):
         import tv_diablo as tv
         self.assertTrue(getattr(tv, "VAULT_PROMPT_VER", "").startswith("vp"),
                         "VAULT_PROMPT_VER is missing or malformed")
-        self.assertNotEqual(tv.VAULT_PROMPT_VER, "vp2002",
-                            "the prompt gained throwWhy in v2011 and the version did not move — "
-                            "seals made by the older reader can never reopen")
+        for stale in ("vp2002", "vp2011"):
+            self.assertNotEqual(tv.VAULT_PROMPT_VER, stale,
+                                "the prompt changed after %s and the version did not move — seals "
+                                "made by the older reader can never reopen" % stale)
 
 
 class TestV2012TheLauncherDoesNotRaceItself(unittest.TestCase):

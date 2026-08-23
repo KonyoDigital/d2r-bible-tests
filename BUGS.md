@@ -11652,3 +11652,50 @@ red — so it is sabotage-proven twice: a planted ghost, and the literal v1989 s
 
 Comments are stripped first — a guard that reads its own documentation passes on prose — and the
 strip is **size-floored**, because an unbounded `/*…*/` once ate 16.9% of this file.
+
+## REG-378 — the vault reader was never told about the hover tooltip, and my advice was wrong (v2016)
+
+Found by **opening one of his frames** instead of reasoning about it. `f_1784984209709` — a frame the
+sweep had already **paid** to read — carries a complete, fully legible tooltip:
+
+> *Annihilus · Small Charm · Keep in Inventory to Gain Bonus · Required Level: 70 · +1 to All Skills ·
+> +18 to all Attributes · All Resistances +13 · +5% to Experience Gained*
+
+**This repo already knew the rule.** `tv_diablo.py:305`, calibrated on his real session videos:
+
+> *"panel grids show item ICONS with no text — names ONLY come from hover tooltips (first line = name)"*
+
+`READ_PROMPT` — the **chronicle** lane — acts on it in four places. **`VAULT_READ_PROMPT` mentioned
+tooltip or hover ZERO times** and described only *"a grid of item icons… with a name label"*. So on a
+frame where he hovers an item, the reader was asked about the grid, correctly answered `items: []`
+because a grid prints no names, and the tooltip beside it was never requested.
+
+The same asymmetry as v2002: the chronicle lane learned something and the vault lane never got it.
+
+### The advice I gave him was the wrong kind of wrong
+`vault_doctor` said *"film one pass with the tooltip up"* — and **he already had.** Telling someone to
+re-shoot footage they already possess is confident, actionable and useless. Corrected: if a reel was
+swept before `vp2016`, **re-sweep it** — v2002's machinery reopens a `rows==0` seal on a prompt
+change, so any tooltip already on film will now be read. Only if a re-sweep still names nothing does
+he need to film anything new.
+
+`VAULT_PROMPT_VER` `vp2011 → vp2016`. Guarded: the prompt must mention the tooltip **and** say which
+line is the name, or a reader could return a stat line. Sabotage-proven by deleting the instruction.
+
+## REG-379 — why a stash lattice cannot be fitted, recorded where it would be attempted (v2016)
+
+The obvious next feature is per-slot identity on the stash grids. Attempted, and the obvious method is
+**guaranteed** to produce a confident wrong answer.
+
+**Real:** the stash region has a grid — pitch **86.8 × 87.0**, identical to the inventory's 86.8 × 85.8
+on the same frame, ridge scores 26–38 against a 3.0 noise floor.
+
+**Not real:** `_fit` cannot find where a grid **ends**. It does not detect ridges — it **generates**
+them (`arange(phase, n, pitch)` across the whole crop, keeping the best pitch/phase). The positions
+are evenly spaced by construction and the cell count is simply `crop_width / pitch`. The same frame
+yielded **13×12, 11×9 and 9×9** purely by moving the crop, and a "longest evenly-spaced run" check
+returned the total every time — measuring the instrument, not the panel.
+
+The inventory works because **10×4 is known and enforced**; the refusal does the real work. RotW is a
+mod and nothing here records its stash dimensions, so any stash occupancy today would be a guess
+dressed as a measurement — feeding the glimpse and the over-read detector that exist to catch that.

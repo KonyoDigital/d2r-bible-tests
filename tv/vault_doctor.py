@@ -154,10 +154,18 @@ def _names():
     if rows:
         return OK, "%d row(s) in the ledger — the readers have named things" % rows
     if m.get("occupied"):
+        # v2016 — THE ADVICE WAS WRONG AND IS CORRECTED HERE. It said "film one pass with the
+        # tooltip up", and he already had: f_1784984209709 carries a complete Annihilus tooltip in a
+        # frame the sweep had PAID to read. The reader was never TOLD about tooltips —
+        # VAULT_READ_PROMPT mentioned them zero times until v2016. Telling him to re-film footage he
+        # already has is the worst kind of wrong answer: confident, actionable and useless.
         return MISSING, ("ZERO named items, and %d cell(s) are visibly full. D2R prints NO names in "
-                         "a stash grid — a name exists only in the HOVER TOOLTIP. Film one pass with "
-                         "the tooltip up over the items you care about and the same sweep will name "
-                         "them." % m["occupied"])
+                         "a stash grid — a name exists only in the HOVER TOOLTIP, and until v2016 "
+                         "the vault reader was never told to look at one. If these reels were swept "
+                         "before vp2016, RE-SWEEP them: the seal reopens on a prompt change and any "
+                         "tooltip already on film will now be read. Only if a re-sweep still names "
+                         "nothing do you need to film a fresh pass with items hovered."
+                         % m["occupied"])
     return UNKNOWN, "nothing named and nothing measured as occupied — no evidence either way"
 
 
