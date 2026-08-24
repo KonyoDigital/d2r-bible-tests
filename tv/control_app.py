@@ -3363,6 +3363,11 @@ def open_control_window():
             # v2053 — reclaims regenerable test output when the disk gets short. Never his footage.
             threading.Thread(target=_warden_loop, daemon=True,
                              name="tvd-space-warden").start()
+            # v2072 — say it out loud when the window is behind the disk. ANNOUNCES ONLY unless
+            # TV_AUTO_RELAUNCH=1, and even then refuses while the agent is alive: a restart mid-film
+            # orphans the frames of the session it kills, which is the defect v2071 repairs.
+            threading.Thread(target=_drift_loop, daemon=True,
+                             name="tvd-version-drift").start()
         except Exception as _ee:
             print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
@@ -10401,6 +10406,143 @@ def prune_stats():
         return dict(_PRUNE_STATS)
 
 
+# ── v2072 — THE DRIFT NOBODY WAS WATCHING ────────────────────────────────────────────────────
+# Konyo: "i want this problem automated... why doesnt it auto update?"
+#
+# BOTH HALVES ALREADY EXISTED AND NOTHING JOINED THEM. `ver_match` in the farm gate (~:14480)
+# compares the RUNNING stamp against control/agent/board and is block-severity; `/api/relaunch`
+# replaces the process with os.execv and already refuses while a chronicle sweep, a vault sweep or
+# a mini is in flight. What was missing is that ver_match only runs when he presses 🛡 gate — so
+# the console can sit five ships behind for a whole night and never say so. It did tonight: v2064
+# running against v2069 on disk.
+#
+# ⚠ THIS ANNOUNCES. IT DOES NOT RESTART HIM BY DEFAULT. The third eye refused an earlier version of
+# this that called execv automatically, and it was right twice over: a relaunch mid-film both
+# interrupts the session and — because the reel fold runs at SEAL — leaves the frames of the killed
+# session ORPHANED, which is the exact defect v2071 exists to repair. Automating a restart would
+# have manufactured work for the module that cleans up after crashes.
+#
+# So the loop MEASURES and PUBLISHES. Acting is opt-in via TV_AUTO_RELAUNCH=1, and even then it
+# refuses unless the agent is dead as well as the three job flags being clear — `_agent_alive()` is
+# the check the busy list does not include and is the one that means "he is filming".
+_DRIFT = {"checked": None, "running": None, "disk": None, "drift": None, "say": "not measured yet"}
+_DRIFT_EVERY_S = float(os.environ.get("TV_DRIFT_EVERY_S", "300") or 300)
+
+
+def _disk_ver():
+    """The stamp the file on disk carries, which is what a relaunch would boot into.
+
+    Returns None rather than a guess when the literal is not found EXACTLY once — a file with two
+    "ver" literals is a file this cannot reason about, and picking the first would be a coin toss
+    reported as a measurement. [[unknown-stays-unknown]]
+    """
+    try:
+        with open(os.path.abspath(__file__), encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError:
+        return None
+    m = re.findall(r'"ver": "(v[\d.]+)"', src)
+    return m[0] if len(m) == 1 else None
+
+
+def drift_state():
+    """What the console is running vs what is on disk. Reads two things; changes nothing."""
+    with _PRUNE_LOCK:
+        return dict(_DRIFT)
+
+
+def _drift_once():
+    running = disk = None
+    try:
+        running = (status_payload() or {}).get("ver")
+    except Exception:
+        running = None
+    disk = _disk_ver()
+    if not running or not disk:
+        say = ("cannot compare versions — %s is unknown, so this is UNMEASURED rather than in sync"
+               % ("the running stamp" if not running else "the disk stamp"))
+        drift = None
+    elif running == disk:
+        say = "in sync on %s" % running
+        drift = False
+    else:
+        say = ("this window is running %s while %s is on disk — relaunch to pick it up "
+               "(⚙ ADVANCED -> \u27f2 relaunch)" % (running, disk))
+        drift = True
+    with _PRUNE_LOCK:
+        _DRIFT.update({"checked": int(time.time() * 1000), "running": running,
+                       "disk": disk, "drift": drift, "say": say})
+    return drift
+
+
+def drift_may_relaunch():
+    """MAY this process replace itself right now? -> (bool, why). Decides; never acts.
+
+    Pulled out of the loop so it can be TESTED. A decision buried in a `while True` is a decision
+    nobody can put a case to, which is how the busy-list in the relaunch route came to be missing
+    the one check that matters.
+
+    OPT-IN. Announcing is the default; restarting him is not. And beyond the route's own three job
+    flags this also refuses while `_agent_alive()` — the route does not check it, and it is the one
+    that means HE IS FILMING. Restarting then both interrupts the session and ORPHANS the frames of
+    the session it kills, because the reel fold runs at seal (v2071). Automating a restart without
+    this check would manufacture work for the module that cleans up after crashes.
+    """
+    if os.environ.get("TV_AUTO_RELAUNCH") != "1":
+        return False, "auto-relaunch is opt-in (TV_AUTO_RELAUNCH=1); announcing only"
+    busy = []
+    try:
+        if _CHRON_JOB.get("running"):
+            busy.append("a chronicle sweep is reading")
+        if _VAULT_JOB.get("running"):
+            busy.append("a vault sweep is reading")
+        if (mini_state() or {}).get("running"):
+            busy.append("a mini is recording")
+        if _agent_alive():
+            busy.append("the agent is alive — he is filming")
+    except Exception as e:
+        # could not tell -> do not act. An unmeasurable state is never a green light.
+        return False, "could not tell what is running (%s)" % str(e)[:80]
+    if busy:
+        return False, " and ".join(busy) + " — a relaunch now would throw that away"
+    return True, "nothing in flight"
+
+
+def _drift_loop():
+    """Announce drift. Restart only if he has explicitly asked for it AND nothing is in flight."""
+    announced = None
+    while True:
+        try:
+            time.sleep(_DRIFT_EVERY_S)
+            d = _drift_once()
+            if not d:
+                announced = None
+                continue
+            st = drift_state()
+            if announced != st.get("disk"):          # say it once per new disk version, not forever
+                print("  \u27f2 %s" % st["say"], flush=True)
+                announced = st.get("disk")
+            ok, why = drift_may_relaunch()
+            if not ok:
+                continue
+            print("  \u27f2 auto-relaunch: nothing in flight, replacing this process with %s"
+                  % st.get("disk"), flush=True)
+            # the same sequence the route's own _exec_soon uses — that one is nested inside the
+            # handler and cannot be called from here, and inventing a name for it is how v2010's
+            # "a caller with no symbol" defect happens. Verified to bind: stop_agent, os.execv.
+            try:
+                stop_agent(farewell=False)
+            except Exception:
+                pass
+            try:
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            except Exception as e:
+                print("  \u26a0 auto-relaunch failed, staying on the old version: %s"
+                      % str(e)[:120], flush=True)
+        except Exception:
+            pass
+
+
 def prune_reclaimable():
     """What THE ONE DELETION AUTHORITY says could be freed. Asks; never acts.
 
@@ -14267,12 +14409,13 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2071",
+        "ver": "v2072",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
         # measured-zero: the loop reports every pass, including the ones that dropped nothing.
         "prune": prune_stats(),
+        "drift": drift_state(),   # v2072 — running vs disk, so a five-ship-behind window says so
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": ledger_backup_state(),
         # v2053 — what the space warden has reclaimed, so the disk is a number he can see.

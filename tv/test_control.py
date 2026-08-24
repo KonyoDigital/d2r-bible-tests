@@ -16609,5 +16609,125 @@ class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
                          "a gap longer than GAP_MS did not split the recording")
 
 
+class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
+    """Both halves existed and nothing joined them. `ver_match` in the farm gate compares the RUNNING
+    stamp against control/agent/board and is block-severity; /api/relaunch replaces the process with
+    os.execv. But ver_match only runs when he presses 🛡 gate, so the console can sit five ships
+    behind all night and never say so — it did: v2064 running against v2069 on disk.
+
+    ⚠ ANNOUNCING IS THE DEFAULT. The third eye refused an earlier version that called execv
+    automatically and was right twice: a relaunch mid-film interrupts the session AND orphans the
+    frames of the session it kills, because the reel fold runs at seal (v2071). Automating a restart
+    without the agent check would manufacture work for the module that cleans up after crashes."""
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def test_auto_relaunch_is_OFF_unless_he_asks(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TV_AUTO_RELAUNCH", None)
+            ok, why = ca.drift_may_relaunch()
+        self.assertFalse(ok, "it would restart him without being asked")
+        self.assertIn("opt-in", why)
+
+    def test_it_refuses_while_the_AGENT_is_alive(self):
+        """The check the relaunch route does NOT make, and the one that means he is filming."""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "_agent_alive", lambda: True), \
+             mock.patch.object(ca, "mini_state", lambda: {"running": False}):
+            ok, why = ca.drift_may_relaunch()
+        self.assertFalse(ok, "it would have restarted the console while he was filming — and "
+                             "orphaned the frames of the session it killed")
+        self.assertIn("filming", why)
+
+    def test_it_refuses_while_a_sweep_is_reading(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        for job, label in (("_CHRON_JOB", "chronicle"), ("_VAULT_JOB", "vault")):
+            with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+                 mock.patch.object(ca, job, {"running": True}), \
+                 mock.patch.object(ca, "_agent_alive", lambda: False), \
+                 mock.patch.object(ca, "mini_state", lambda: {"running": False}):
+                ok, why = ca.drift_may_relaunch()
+            self.assertFalse(ok, "%s sweep in flight and it would still relaunch" % label)
+            self.assertIn(label, why)
+
+    def test_an_unmeasurable_state_is_never_a_green_light(self):
+        import unittest.mock as mock
+        ca = self._ca()
+
+        def boom():
+            raise RuntimeError("cannot tell")
+
+        with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "_agent_alive", boom):
+            ok, why = ca.drift_may_relaunch()
+        self.assertFalse(ok, "it acted on a state it could not read")
+        self.assertIn("could not tell", why)
+
+    def test_it_DOES_allow_it_when_asked_and_idle(self):
+        """The mirror. If it refused in every case the tests above would prove nothing."""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "_CHRON_JOB", {"running": False}), \
+             mock.patch.object(ca, "_VAULT_JOB", {"running": False}), \
+             mock.patch.object(ca, "_agent_alive", lambda: False), \
+             mock.patch.object(ca, "mini_state", lambda: {"running": False}):
+            ok, why = ca.drift_may_relaunch()
+        self.assertTrue(ok, why)
+
+    def test_an_ambiguous_disk_stamp_is_UNKNOWN_not_a_guess(self):
+        """_disk_ver returns None unless the literal appears EXACTLY once. Picking the first of two
+        would be a coin toss reported as a measurement. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock, tempfile, shutil
+        ca = self._ca()
+        root = tempfile.mkdtemp(prefix="ver_")
+        self.addCleanup(shutil.rmtree, root, True)
+        for label, body, want in (
+                ("one", '"ver": "v2072"\n', "v2072"),
+                ("two", '"ver": "v2072"\n"ver": "v9999"\n', None),
+                ("none", "nothing here\n", None)):
+            f = os.path.join(root, "%s.py" % label)
+            with open(f, "w", encoding="utf-8") as fh:
+                fh.write(body)
+            with mock.patch.object(ca, "__file__", f):
+                self.assertEqual(ca._disk_ver(), want, "the %s-literal case is wrong" % label)
+
+    def test_the_drift_is_PUBLISHED_or_nothing_can_show_it(self):
+        ca = self._ca()
+        st = ca.status_payload() or {}
+        self.assertIn("drift", st, "the status payload does not carry drift, so no surface can "
+                                   "ever show him that his window is behind")
+        d = st["drift"]
+        for k in ("checked", "running", "disk", "drift", "say"):
+            self.assertIn(k, d)
+
+    def test_before_it_has_run_it_says_so_rather_than_in_sync(self):
+        """A drift field defaulting to False would read as 'in sync' from the first second, which is
+        a claim nobody measured."""
+        ca = self._ca()
+        import inspect
+        src = inspect.getsource(ca)
+        i = src.index('_DRIFT = {')
+        blk = src[i:src.index("\n\n", i)]
+        self.assertIn('"drift": None', blk, "drift defaults to something other than None")
+        self.assertIn("not measured yet", blk)
+
+    def test_the_loop_is_actually_started(self):
+        """A watcher nobody starts is the defect it was written to fix. [[the-unjoined-end]]"""
+        ca = self._ca()
+        import inspect
+        src = inspect.getsource(ca)
+        self.assertIn("target=_drift_loop", src,
+                      "_drift_loop is never spawned, so the console still says nothing")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
