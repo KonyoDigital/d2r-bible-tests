@@ -13881,7 +13881,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2042",
+        "ver": "v2043",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -16955,10 +16955,46 @@ def board_window():
             min_size=(1080, 700),
             background_color="#060504",
         )
-        if _apply_path:
-            webview.start(_board_apply_on_load, (_win, _apply_path))
-        else:
-            webview.start()
+        # ── v2043 — THE BOARD WINDOW WAS EPHEMERAL, AND THAT IS THE WHOLE BUG ────────────────
+        # The MAIN window starts with `private_mode=False` (line ~3380) so its localStorage
+        # persists. This start() passed NOTHING, and pywebview defaults private_mode to True — so
+        # every board window got a FRESH, EMPTY, throwaway store.
+        #
+        # Measured 2026-08-24, and this is the measurement that finally isolated it: a bare
+        # pywebview process pointed at an INERT same-origin URL (/api/status, so none of
+        # bible.html's own JS runs) saw **0 keys**, while the on-disk store held 23 including
+        # d2r_installId. Nothing about the board's identity code was at fault.
+        #
+        # Everything downstream follows from this one flag:
+        #   · bible.html finds no d2r_installIdCache, mints a NEW install id, and _D2R_PFX becomes
+        #     'I·<newid>·' — a brand-new GUEST world on every single launch (six ids in one night).
+        #   · d2r_grailFarm "reappears" only because the console re-bridges it; there is no
+        #     migration and there never was.
+        #   · d2r_owned and d2r_muleAssign have no bridge, so an applied vault evaporated every
+        #     time — which is why the vault kept reading 0 after a real, verified apply.
+        #
+        # The code already knew this state existed: line ~3401 warns "board storage is EPHEMERAL
+        # this run (tallies/grail reset on quit)". It was only ever wired for the main window.
+        _bkw = {}
+        try:
+            import inspect as _bi
+            if "private_mode" in set(_bi.signature(webview.start).parameters):
+                _bkw["private_mode"] = False
+        except Exception:
+            pass
+        try:
+            if _apply_path:
+                webview.start(_board_apply_on_load, (_win, _apply_path), **_bkw)
+            else:
+                webview.start(**_bkw)
+        except TypeError:
+            # older pywebview without private_mode — an ephemeral window beats no window, but SAY SO
+            print("\u26a0 pywebview too old for private_mode=False — this board window's storage is "
+                  "EPHEMERAL: anything applied here is lost when it closes.", flush=True)
+            if _apply_path:
+                webview.start(_board_apply_on_load, (_win, _apply_path))
+            else:
+                webview.start()
     except Exception as e:
         _loud_fail(
             "TV DIABLO",

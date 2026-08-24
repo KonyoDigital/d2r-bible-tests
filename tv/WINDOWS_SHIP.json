@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2042",
+  "ver": "v2043",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2042: retention kept chronicle reels waiting for the vault lane, which by OWNERSHIP_SURFACES will never read them",
+  "note": "v2043: board_window called webview.start with no private_mode so every board window threw its localStorage away; the main window has always passed private_mode False",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

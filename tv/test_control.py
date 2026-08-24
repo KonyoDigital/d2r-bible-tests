@@ -14770,5 +14770,58 @@ class TestV2041ADurableReceiptForALedgerThatLivesInAWindow(unittest.TestCase):
 
 
 
+class TestV2043TheBoardWindowIsNotEphemeral(unittest.TestCase):
+    """The board window threw its localStorage away on every launch, and that was the whole bug.
+
+    The MAIN window starts with `private_mode=False` so its store persists. `board_window()` called
+    `webview.start()` with nothing, and pywebview defaults private_mode to True — a fresh, empty,
+    throwaway store per process.
+
+    ISOLATED 2026-08-24 by a controlled experiment, deliberately with NO bible.html JS involved: a
+    bare pywebview process pointed at an inert same-origin URL wrote a sentinel; a second process
+    read it back.
+        ephemeral  -> wrote 'hello-A', next process read null, 0 keys
+        persistent -> wrote 'hello-B', next process read 'hello-B', 1 key
+
+    Everything downstream followed from that flag: bible.html found no cached install id, minted a
+    new one, `_D2R_PFX` became 'I·<newid>·', and every launch was a brand-new GUEST world (six ids
+    in one night). d2r_grailFarm only LOOKED like it survived because the console re-bridges it;
+    d2r_owned has no bridge, so an applied vault evaporated every time.
+
+    ⚠ SCOPE: this makes a board window's OWN world survive across launches. It does NOT let a
+    spawned window reach the running main window's store — measured, the persistent probe saw its
+    own sentinel and not his 404-entry ledger. The apply still belongs in the main window, which is
+    what v2040's guest-world refusal enforces.
+    """
+
+    def _src(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        return open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+
+    def test_the_board_window_asks_for_persistent_storage(self):
+        blk = _between(self, self._src(), "def board_window():", "def main():",
+                       what="board_window")
+        self.assertTrue('_bkw["private_mode"] = False' in blk,
+                        "board_window() no longer requests persistent storage - every board window "
+                        "is a throwaway world again and an applied vault evaporates on close")
+
+    def test_it_does_not_pass_a_flag_this_pywebview_cannot_take(self):
+        """The main path already learned this: an older pywebview has no private_mode."""
+        blk = _between(self, self._src(), "def board_window():", "def main():",
+                       what="board_window")
+        self.assertTrue("signature(webview.start).parameters" in blk,
+                        "the flag is passed without checking the installed pywebview accepts it")
+        self.assertTrue("EPHEMERAL" in blk,
+                        "the fallback no longer SAYS the storage is ephemeral - a silent downgrade "
+                        "here loses an apply with no warning")
+
+    def test_the_main_window_still_asks_for_it_too(self):
+        """A guard on the board must not distract from the window that holds his real ledger."""
+        self.assertTrue("_start_kw = dict(debug=False, private_mode=False)" in self._src(),
+                        "the MAIN window stopped requesting persistent storage - his grail ledger "
+                        "would reset on every quit")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
