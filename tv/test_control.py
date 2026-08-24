@@ -14668,5 +14668,107 @@ class TestV2039TheBoardDoesNotLieAboutBeingEmpty(unittest.TestCase):
 
 
 
+class TestV2041ADurableReceiptForALedgerThatLivesInAWindow(unittest.TestCase):
+    """His grail and vault ledgers live ONLY in a window's localStorage - vault_ledger_load() says
+    so in its own docstring: the console has never held them. A crash or a force-quit takes 404
+    found uniques and 120 set pieces with it, silently.
+
+    Made urgent 2026-08-24: spawned board windows are unclaimed GUEST worlds, and six of them in one
+    night wrote six `I·<id>·` namespaces into the same on-disk store, leaving none of his bare keys
+    on disk. His ledger was fine - verified live at 404/5/120 with real names - but nothing on disk
+    could have proven it and nothing would have brought it back.
+    """
+
+    def _patch(self, ca, tmp, answer):
+        import unittest.mock as mock
+        return (mock.patch.object(ca, "_LEDGER_BACKUP_DIR", tmp),
+                mock.patch.object(ca, "board_ownership", lambda sample=0: answer))
+
+    def _run(self, answer, tmp, force=True, reset=True):
+        import control_app as ca
+        if reset:
+            ca._LEDGER_BACKUP_STATE.update({"last": "", "counts": None, "writes": 0, "why": ""})
+        a, b = self._patch(ca, tmp, answer)
+        with a, b:
+            return ca._ledger_snapshot_once(force=force)
+
+    def test_a_refusal_never_becomes_a_backup(self):
+        """board_ownership refuses honestly on a timeout. Filing that as a backup would record
+        'he owns nothing' as though it had been measured. [[unknown-stays-unknown]]"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path, why = self._run({"ok": False, "why": "the board did not answer in time"}, tmp)
+            self.assertIsNone(path, "a refusal was written to disk as a backup")
+            self.assertEqual(len(glob.glob(os.path.join(tmp, "*.json"))), 0)
+
+    def test_an_empty_ledger_is_refused(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path, why = self._run({"ok": True, "counts": {"foundLog": 0, "owned": 0, "setPieces": 0},
+                                   "sample": {"foundLog": [], "owned": [], "setPieces": []}}, tmp)
+            self.assertIsNone(path, "an empty ledger was filed over real history")
+            self.assertIn("EMPTY", why)
+
+    def test_a_truncated_ledger_is_refused(self):
+        """A partial copy that calls itself a backup is worse than no backup."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path, why = self._run({"ok": True,
+                                   "counts": {"foundLog": 404, "owned": 5, "setPieces": 120},
+                                   "sample": {"foundLog": ["a", "b"], "owned": ["c"],
+                                              "setPieces": ["d"]}}, tmp)
+            self.assertIsNone(path, "a truncated ledger was written as if complete")
+            self.assertIn("truncated", why)
+
+    def _full(self):
+        return {"ok": True, "counts": {"foundLog": 2, "owned": 1, "setPieces": 1},
+                "sample": {"foundLog": ["Wormskull", "Wolfhowl"], "owned": ["Raven Frost"],
+                           "setPieces": ["Angelic Halo (ring)"]}}
+
+    def test_a_complete_ledger_is_written_with_its_names(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path, why = self._run(self._full(), tmp)
+            self.assertIsNotNone(path, "a complete ledger was not written: %s" % why)
+            d = json.load(open(path, encoding="utf-8"))
+            self.assertEqual(d["counts"]["foundLog"], 2)
+            self.assertIn("Wormskull", d["ledger"]["foundLog"])
+            self.assertTrue(d.get("takenAt"), "a backup with no timestamp cannot be ordered")
+
+    def test_an_unchanged_ledger_does_not_spam_a_second_copy(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self._run(self._full(), tmp)
+            path, why = self._run(self._full(), tmp, force=False, reset=False)
+            self.assertIsNone(path, "an identical ledger was filed twice")
+            self.assertIn("unchanged", why)
+
+    def test_it_keeps_a_bounded_number_of_copies(self):
+        import tempfile, control_app as ca
+        with tempfile.TemporaryDirectory() as tmp:
+            for i in range(ca._LEDGER_BACKUP_KEEP + 6):
+                open(os.path.join(tmp, "ledger_2020-01-01_%06d.json" % i), "w").write("{}")
+            self._run(self._full(), tmp)
+            left = glob.glob(os.path.join(tmp, "ledger_*.json"))
+            self.assertLessEqual(len(left), ca._LEDGER_BACKUP_KEEP,
+                                 "backups grow without bound")
+
+    def test_the_backups_are_written_OUTSIDE_the_public_repo(self):
+        """d2r-bible-tests is PUBLIC and a push to main PUBLISHES. His ledger must never land in it."""
+        import control_app as ca
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(ca.__file__)))
+        d = os.path.abspath(ca._LEDGER_BACKUP_DIR)
+        self.assertFalse(d.startswith(os.path.abspath(repo) + os.sep),
+                         "ledger backups are inside the PUBLIC repo (%s) - a push would publish "
+                         "his entire grail history" % d)
+
+    def test_the_backup_loop_is_actually_started(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        self.assertTrue('name="tvd-ledger-backup"' in src, "the backup loop is never started")
+        self.assertTrue("target=_ledger_backup_loop" in src)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

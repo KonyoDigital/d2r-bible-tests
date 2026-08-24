@@ -3357,6 +3357,10 @@ def open_control_window():
             # this exists and what makes it safe; the short version is 96% full at 5-6 GB/hour.
             threading.Thread(target=_prune_loop, daemon=True,
                              name="tvd-rolling-prune").start()
+            # v2041 — his grail/vault ledgers live ONLY in a window's localStorage; this is the
+            # first durable copy of them that has ever existed. Written outside the repo.
+            threading.Thread(target=_ledger_backup_loop, daemon=True,
+                             name="tvd-ledger-backup").start()
         except Exception as _ee:
             print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
@@ -10686,6 +10690,91 @@ def _vault_json_save(path, rec):
         return False
 
 
+# ── v2041 — A DURABLE RECEIPT FOR A LEDGER THAT LIVES IN A WINDOW ────────────────────────────
+# His grail and vault ledgers live in localStorage inside bible.html. `vault_ledger_load()` says it
+# plainly: the console has never held them. That means the ONLY copy of 404 found uniques, 120 set
+# pieces and his owned list is in a running window's memory, and a crash, a force-quit or a WebKit
+# eviction takes it with no trace and no warning.
+#
+# WHAT MADE THIS URGENT, 2026-08-24: spawned board windows are UNCLAIMED GUEST worlds. Six of them
+# in one night, six install ids, each writing its own `I·<id>·` namespace into the SAME on-disk
+# store — so the file on disk ended up holding guest keys and none of his bare ones. His real
+# ledger was fine (verified live: 404/5/120 with real names), but nothing on disk could have proven
+# it, and nothing would have brought it back.
+#
+# So: read the ledger through the same read-only channel the cross-reference already uses, and
+# write a timestamped copy OUTSIDE THE REPO. The repo is PUBLIC - his ledger must never land in it.
+_LEDGER_BACKUP_DIR = os.path.join(os.path.expanduser("~"), "d2r_ledger_backups")
+_LEDGER_BACKUP_EVERY_S = 1800.0
+_LEDGER_BACKUP_KEEP = 20
+_LEDGER_BACKUP_STATE = {"last": "", "counts": None, "writes": 0, "why": ""}
+
+
+def ledger_backup_state():
+    """What the backup loop has actually done. Never a guess."""
+    return dict(_LEDGER_BACKUP_STATE)
+
+
+def _ledger_snapshot_once(force=False):
+    """One snapshot. Returns (wrote_path_or_None, why). Never raises, never writes an empty ledger."""
+    try:
+        got = board_ownership(sample=5000)
+    except Exception as e:
+        return (None, "the board refused: %s" % str(e)[:90])
+    if not isinstance(got, dict) or not got.get("ok"):
+        # A TIMEOUT IS NOT AN EMPTY LEDGER - board_ownership already refuses honestly, and writing a
+        # backup from a refusal would file "he owns nothing" as though it were measured.
+        return (None, str((got or {}).get("why") or "the board did not answer"))
+    counts = got.get("counts") or {}
+    led = got.get("sample") or {}
+    total = sum(int(counts.get(k) or 0) for k in ("foundLog", "owned", "setPieces"))
+    if total <= 0:
+        return (None, "the board answered with an EMPTY ledger - refusing to file that over a "
+                      "backup that has content")
+    # every store must be COMPLETE or the copy is a silent truncation pretending to be a backup
+    for k in ("foundLog", "owned", "setPieces"):
+        if len(led.get(k) or []) < int(counts.get(k) or 0):
+            return (None, "%s came back truncated (%d of %s) - a partial ledger is not a backup"
+                          % (k, len(led.get(k) or []), counts.get(k)))
+    if not force and _LEDGER_BACKUP_STATE.get("counts") == counts:
+        return (None, "unchanged since the last snapshot (%s)" % json.dumps(counts))
+    try:
+        if not os.path.isdir(_LEDGER_BACKUP_DIR):
+            os.makedirs(_LEDGER_BACKUP_DIR)
+        stamp = time.strftime("%Y-%m-%d_%H%M%S")
+        out = os.path.join(_LEDGER_BACKUP_DIR, "ledger_%s.json" % stamp)
+        with open(out, "w", encoding="utf-8") as fh:
+            json.dump({"takenAt": stamp, "source": "board_ownership on the live window",
+                       "counts": counts, "ledger": led}, fh, indent=1, ensure_ascii=False)
+        _LEDGER_BACKUP_STATE["last"] = stamp
+        _LEDGER_BACKUP_STATE["counts"] = counts
+        _LEDGER_BACKUP_STATE["writes"] = int(_LEDGER_BACKUP_STATE.get("writes") or 0) + 1
+        _LEDGER_BACKUP_STATE["why"] = "wrote %s" % os.path.basename(out)
+        try:
+            import glob as _lg
+            keep = sorted(_lg.glob(os.path.join(_LEDGER_BACKUP_DIR, "ledger_*.json")))
+            for old in keep[:-_LEDGER_BACKUP_KEEP]:
+                os.remove(old)
+        except Exception:
+            pass
+        return (out, "ok")
+    except Exception as e:
+        return (None, "could not write the backup: %s" % str(e)[:90])
+
+
+def _ledger_backup_loop():
+    """Snapshot his ledger while a window is alive to be asked."""
+    while True:
+        try:
+            time.sleep(_LEDGER_BACKUP_EVERY_S)
+            path, why = _ledger_snapshot_once()
+            _LEDGER_BACKUP_STATE["why"] = why if not path else _LEDGER_BACKUP_STATE["why"]
+            if path:
+                print("  \U0001f9fe ledger backup: %s" % os.path.basename(path), flush=True)
+        except Exception:
+            pass
+
+
 def vault_ledger_load():
     try:
         with open(VAULT_LEDGER_PATH, encoding="utf-8") as fh:
@@ -13792,12 +13881,14 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2040",
+        "ver": "v2041",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
         # measured-zero: the loop reports every pass, including the ones that dropped nothing.
         "prune": prune_stats(),
+        # v2041 — the only durable copy of a ledger that otherwise lives in a window.
+        "ledgerBackup": ledger_backup_state(),
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
