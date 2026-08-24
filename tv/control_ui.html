@@ -1831,8 +1831,28 @@
   .primary button.act:hover, .primary button.act:focus-visible { opacity: 1; }
   .primary button.act:disabled { opacity: .32; }
   button.act.lit { opacity: 1; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 26px var(--accent-soft); filter: brightness(1.12); animation: liveRing 3s ease-in-out infinite; }
-  .util-strip { display: flex; gap: 6px; margin: 2px 0 4px; }
-  .util-btn { flex: 1; background: rgba(0,0,0,.25); border: 1px solid var(--edge); color: #7f958a;
+  /* v2066 — THE ADVANCED STRIP MUST WRAP. It is `display:flex` with no `flex-wrap`, and a flex
+     item never shrinks below its min-content width whatever `flex:1` says — so seven buttons
+     in a narrow sidebar column simply run off the end. MEASURED at vw901 on the running
+     console: btn-relaunch reaches x=922, btn-eagle 1034, btn-farmgate 1090 and btn-repair
+     **1165**, all past a 901px viewport, while document.scrollWidth stays 901 — so they are
+     CLIPPED, not scrollable, and simply cannot be pressed.
+     v2059 added the 7th button and pushed 🩹 repair furthest out, which is how this surfaced;
+     the row had been overflowing for three buttons before that. Wrapping fixes all four.
+     (375 is NOT addressed here and is not a regression: 205 elements overflow at that width,
+     including .topbar, .brand and .clock — the console is not a phone surface.) */
+  .util-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
+  /* v2066 — ...but the same class is reused INSIDE the repair panel, where the buttons carry real
+     sentences rather than two-word labels. `flex: 1 1 84px` squeezed "restore dates from the game"
+     into FOUR stacked lines and a box twice the height of the field beside it. The geometry check
+     said CLIPPED=none the whole time — nothing overflowed, it just looked wrong, which is the one
+     failure a rect can never report. Here they size to their own text and the ROW wraps instead. */
+  #repair-box .util-btn { flex: 0 1 auto; }
+  /* `white-space: nowrap` was tried here and REVERTED in the same pass: it fixed 1440 and
+     broke 901, where the panel is 227px wide and the label needs ~270 — the text then ran
+     outside its own button. `flex: 0 1 auto` alone sizes to content where there is room and
+     wraps to two lines where there is not, which is the honest behaviour at both widths. */
+  .util-btn { flex: 1 1 84px; min-width: 0; background: rgba(0,0,0,.25); border: 1px solid var(--edge); color: #7f958a;
     border-radius: 6px; padding: 4px 6px; cursor: pointer; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono);
     letter-spacing: var(--ls-wide); transition: color 120ms, border-color 120ms; }
   .util-btn:hover { color: var(--gold); border-color: var(--edge-hi, rgba(240,192,96,.4)); }
@@ -5169,13 +5189,13 @@
                Both press the BOARD's own toggles — the console still never writes the ledger. -->
           <div id="repair-box" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px">
             <div style="color:#e9b96e;font-weight:var(--fw-semibold);letter-spacing:.6px">🩹 LEDGER REPAIR</div>
-            <div style="margin-top:6px">
+            <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
               <button class="util-btn" id="btn-repair-dates" type="button" title="Rewrite find-dates that carry a given stamp, using the in-game Chronicle (d2r_gameFound). A name the game has no date for is LEFT ALONE — unknown stays unknown.">restore dates from the game</button>
-              <input id="repair-stamp" type="text" placeholder="stamp prefix, e.g. Aug 24, 2026" style="width:170px;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px;margin-left:5px">
+              <input id="repair-stamp" type="text" placeholder="stamp prefix, e.g. Aug 24, 2026" style="flex:1 1 150px;min-width:0;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
             </div>
-            <div style="margin-top:6px">
-              <input id="repair-name" type="text" placeholder="item name" style="width:200px;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
-              <select id="repair-kind" style="background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px;margin-left:5px">
+            <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+              <input id="repair-name" type="text" placeholder="item name" style="flex:1 1 140px;min-width:0;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
+              <select id="repair-kind" style="flex:1 1 170px;min-width:0;max-width:100%;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
                 <option value="set-drop">drop from SET store (keep the grail row)</option>
                 <option value="set">toggle set piece</option>
                 <option value="unique">toggle unique</option>
