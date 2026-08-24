@@ -71,8 +71,22 @@ def score(hist_dir=None):
         # that the corpus is no longer confined to the loose half of the archive.
         p = os.path.join(hist, frame)
         if not os.path.isfile(p):
-            missing.append(frame)
-            continue
+            # v2047 — LOOK IN THE PROTECTED COPY BEFORE GIVING UP.
+            # The corpus named frames inside the ROTATING archive, and rotation ate them: 7 of 14
+            # were gone by 2026-08-24, and every one of them was a `panel: False` NEGATIVE. The
+            # ratchet FALSE_TALLIES = 0 was therefore being measured against zero cases that could
+            # ever fail it — a corpus that scores perfectly because the hard half evaporated.
+            # [[gate-blind-to-unexercised-input]]
+            #
+            # frames/corpus/ is inside the gitignored tv/frames/ (these are HIS screenshots and the
+            # repo is PUBLIC) and is not matched by reel_retention's `reel_*` glob, so nothing
+            # prunes it. Names are flattened, because a reel path here would recreate a reel dir.
+            alt = os.path.join(os.path.dirname(hist), "corpus", frame.replace("/", "__"))
+            if os.path.isfile(alt):
+                p = alt
+            else:
+                missing.append(frame)
+                continue
         label, detail = se.classify_stash_grid(p)
         claims_panel = label != "gameplay"
         rows.append((frame, bool(t.get("panel")), t.get("tab"), label,

@@ -207,8 +207,36 @@ class TestTheGridAgainstHandLabelledFrames(unittest.TestCase):
         """A missing frame must never read as a pass — an empty corpus scores perfectly."""
         rows, missing = self._rows()
         self.assertEqual(missing, [], "labelled frames vanished from the checkout: %s" % (missing,))
-        self.assertEqual(len(rows), 14, "the corpus lost frames — it spans BOTH halves of the "
-                                        "archive now, the loose one and the reels")
+        # v2047 — 10, not 14. Rotation ate 7 entries that named frames in the ROTATING archive; the
+        # survivors are now copied to tv/frames/corpus/ where nothing prunes them, and three fresh
+        # negatives were labelled by opening them. The 7 are recorded under `_lost` rather than
+        # deleted, because a corpus that quietly shrinks scores BETTER every time it loses a hard
+        # case. Raise this number when frames are added; never lower it to make a red run green.
+        self.assertEqual(len(rows), 10, "the corpus lost frames — the survivors live in "
+                                        "tv/frames/corpus/ precisely so this cannot happen again")
+
+    def test_the_corpus_still_contains_cases_that_could_FAIL(self):
+        """THE EROSION GUARD, and it is the one that was missing.
+
+        By 2026-08-24 all 7 `panel: false` entries had been eaten by archive rotation, leaving 7
+        positives and nothing else. The ratchet FALSE_TALLIES = 0 was then being measured against
+        ZERO cases that could ever produce a false tally — a perfect score from an empty exam.
+
+        A corpus of positives cannot catch the expensive error, which is claiming a panel that was
+        never open (REG-203: a fire-lit fight read as `stash-gems`). The replacements are deliberately
+        the HARD kind: dark_cols 47, 38 and 33, and 47 is higher than the real SHARED-tab panel's 40.
+        [[gate-blind-to-unexercised-input]] [[feedback-blind-fixture-green-gate]]
+        """
+        import stash_grid_score as sgs
+        truth = sgs.load_truth()
+        negatives = [n for n, t in truth.items() if not t.get("panel")]
+        positives = [n for n, t in truth.items() if t.get("panel")]
+        self.assertGreaterEqual(len(negatives), 3,
+                                "the corpus has %d negative(s) — it can no longer catch a FALSE "
+                                "tally, which is the expensive error" % len(negatives))
+        self.assertGreaterEqual(len(positives), 5,
+                                "the corpus has %d positive(s) — it can no longer catch a MISS"
+                                % len(positives))
 
     def test_no_frame_without_a_panel_is_given_a_TALLY(self):
         """THE EXPENSIVE ERROR. A false tally writes a tally count for a panel that was never open;

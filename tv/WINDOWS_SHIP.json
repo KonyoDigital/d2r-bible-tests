@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2046",
+  "ver": "v2047",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2046: it asserted a constant 9GB per hour; his last three reels averaged 5.8 and the rate swings twofold with scene complexity",
+  "note": "v2047: seven hand-labelled negatives were eaten by archive rotation, and a vault_doctor fixture was standing on his live ledger",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

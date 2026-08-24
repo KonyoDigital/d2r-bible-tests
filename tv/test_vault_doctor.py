@@ -9,6 +9,7 @@ On his real tree it reports one of those three. That is exactly when a gate must
 can report the others, so every case here is driven on a TEMP fixture through TV_HIST — never his
 frames. [[feedback-fixtures-never-touch-live-data]] [[feedback-blind-fixture-green-gate]]
 """
+import json
 import os
 import shutil
 import sys
@@ -31,6 +32,16 @@ class TestTheDoctorCanReachEachAnswer(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
         self._old = os.environ.get("TV_HIST")
         os.environ["TV_HIST"] = self.root
+        # v2047 — ISOLATE `HERE` TOO, NOT JUST TV_HIST.
+        # TV_HIST moved the FRAMES into the fixture, but vault_doctor reads its ledger from
+        # `os.path.join(HERE, "vault_accum.json")` — the LIVE tree. So these cases were reading his
+        # real accumulator, and the tooltip case passed only because that file happened to be empty.
+        # The moment a sweep filled it (owned=7, 2026-08-24) the case flipped to OK and the suite
+        # went red — not because the doctor changed, but because a fixture had been standing on live
+        # data the whole time. [[feedback-fixtures-never-touch-live-data]]
+        self._old_here = vd.HERE
+        vd.HERE = self.root
+        self.addCleanup(setattr, vd, "HERE", self._old_here)
         vd._CACHE.clear()                      # the measure pass is cached; each case measures fresh
         self.addCleanup(vd._CACHE.clear)
         if self._old is None:
@@ -69,9 +80,12 @@ class TestTheDoctorCanReachEachAnswer(unittest.TestCase):
         by handing the measure pass the numbers it would have produced."""
         vd._CACHE.update({"sampled": 155, "gated": 10, "measured": 10,
                           "occupied": 220, "free": 180, "refused": 0, "frames": []})
-        # an empty ledger beside those cells is the case that must produce the tooltip sentence
+        # an empty ledger beside those cells is the case that must produce the tooltip sentence.
+        # WRITE it — do not hope the live one happens to be empty, which is how this passed for
+        # months and then flipped the first time a real sweep banked something.
         led = os.path.join(vd.HERE, "vault_accum.json")
-        self.assertTrue(os.path.isfile(led), "vault_accum.json is missing — this check reads it")
+        with open(led, "w", encoding="utf-8") as fh:
+            json.dump({"owned": {}, "byKey": {}, "held": []}, fh)
         st, why = self._state(vd.diagnose(), "readable names")
         self.assertEqual(st, vd.MISSING)
         self.assertIn("HOVER TOOLTIP", why)

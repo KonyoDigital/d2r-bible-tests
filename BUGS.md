@@ -12581,3 +12581,115 @@ Three things it must not do, each worse than the leak it fixes:
   cache was the problem: `frames/eye.jpg` is one path rewritten in place many times a second, and
   the cache keys on `(size, mtime)` with 1-second granularity. Correct for reel frames, which never
   change once written; wrong for a live view. The watcher reads uncached. [[stale-reading]]
+
+---
+
+## REG-390 — every board window threw its localStorage away (v2043)
+
+**This is why the vault kept reading 0 after a real, verified apply.**
+
+The MAIN window starts with `private_mode=False`, so its store persists. `board_window()` called
+`webview.start()` with nothing, and pywebview defaults `private_mode` to **True** — a fresh, empty,
+throwaway store for every board window.
+
+Isolated by experiment, deliberately with no `bible.html` JS involved: a bare pywebview process
+pointed at an INERT same-origin URL (`/api/status`) wrote a sentinel; a second process read it back.
+
+```
+ephemeral   wrote 'hello-A'  ->  next process read null,      0 keys
+persistent  wrote 'hello-B'  ->  next process read 'hello-B', 1 key
+```
+
+Everything downstream followed from that one flag. `bible.html` found no cached install id, minted a
+new one, `_D2R_PFX` became `I·<newid>·`, and every launch was a brand-new GUEST world — **six
+install ids in one night**. `d2r_grailFarm` only *looked* like it migrated because the console
+re-bridges it on load; `d2r_owned` has no bridge, so an applied vault evaporated every time.
+
+The codebase already knew this state could exist — the main path warns *"board storage is EPHEMERAL
+this run (tallies/grail reset on quit)"*. It was only ever wired for the main window.
+
+⚠ **SCOPE.** This makes a board window's OWN world survive across launches. It does **not** let a
+spawned window reach the running main window's store — measured: a persistent probe beside the live
+console saw its own sentinel, not his 404-entry ledger. **The apply belongs in the MAIN window.**
+
+⚠ **Two wrong causes were published before this one**, both refuted by measurement: "my SIGTERM lost
+an unflushed write" (refuted by spawning a window beside a living one and killing nothing), and "a
+migration carries the bulk keys but not the vault" (refuted — there is no migration). In both cases
+the symptom was explained instead of the variable being isolated. The sentinel test took two minutes.
+
+**Guard:** `tv/test_control.py::TestV2043TheBoardWindowIsNotEphemeral`.
+Related: v2045 removed the queued apply that had been built to work around the symptom.
+
+---
+
+## REG-391 — retention held reels for a lane that was never coming (v2042)
+
+`reel_retention` kept any reel the VAULT lane had not swept. But
+`vault_retro.OWNERSHIP_SURFACES` deliberately excludes `chronicle`, so a reel that DECLARED a
+chronicle focus is never the vault lane's to read — and holding it until the vault sweeps it holds
+it **forever**.
+
+Measured with the disk at 96%: five reels declaring `chronicle-uniques` / `chronicle-sets`, **185
+MB**, kept on exactly that reason. The planner's own headline read *"NOTHING is safe to delete
+yet"* and it was wrong about those five.
+
+The hold now asks whether the lane will ever come, and errs toward KEEPING everywhere it is unsure:
+an unreadable index still owes, and a reel with no declared focus still owes (the vault lane
+classifies those, so it may genuinely read them). Deleting footage is irreversible — *"I could not
+tell"* must never resolve to *"delete it"*.
+
+**Guard:** `tv/test_reel_retention.py::TestV2042AHoldThatCanNeverBeSatisfiedIsALeak`.
+
+---
+
+## REG-392 — the calibration corpus lost every case that could fail it (v2047)
+
+`tv/stash_grid_truth.json` is the hand-labelled ground truth for `stash_eye.classify_stash_grid` —
+the thing that decides whether a frame shows a stash panel. It named frames in the **rotating**
+archive, and rotation ate them: by 2026-08-24, **7 of 14 entries were gone, and every one of them
+was a `panel: false` NEGATIVE.**
+
+So the ratchet `FALSE_TALLIES = 0` was being measured against **zero cases that could ever produce a
+false tally** — a perfect score from an empty exam. A corpus of positives cannot catch the expensive
+error, which is claiming a panel that was never open (REG-203: a fire-lit fight read as
+`stash-gems`). The suite was red on `test_the_corpus_is_actually_present`, and nothing ran it: the
+pre-push gate only runs `test_agent` and `test_control`.
+
+**Fixed three ways:**
+* survivors copied to `tv/frames/corpus/`, inside the gitignored `tv/frames/` (his screenshots, and
+  this repo is PUBLIC) and not matched by `reel_retention`'s `reel_*` glob, so nothing prunes them.
+  `stash_grid_score` resolves there when the rotating archive no longer has the frame.
+* three fresh negatives labelled **by opening the images**, deliberately the hard kind:
+  `dark_cols` 47, 38 and 33 — and **47 is higher than the real SHARED-tab panel's 40**, which is
+  exactly why no `dark_cols` bound can separate them. Throne of Destruction (fire-lit Baal fight),
+  Chaos Sanctuary (Venom Lord), Throne of Destruction (Ancients' Way).
+* the 7 lost entries are recorded under `_lost` rather than deleted, because a corpus that quietly
+  shrinks scores BETTER every time it loses a hard case.
+
+**Guard:** `tv/test_stash_eye_aspect.py::test_the_corpus_still_contains_cases_that_could_FAIL` —
+the erosion guard that was missing. Sabotage-proven: strip the negatives and it fails with
+*"the corpus has 0 negative(s)"*.
+
+---
+
+## REG-393 — a vault_doctor fixture was standing on his LIVE ledger (v2047)
+
+`test_vault_doctor` isolated `TV_HIST` so the frames came from a temp dir, but `vault_doctor` reads
+its ledger from `os.path.join(HERE, "vault_accum.json")` — the **live tree**. The tooltip case
+passed only because that file happened to be empty.
+
+The moment a real sweep banked something (`owned=7`, 2026-08-24) the case flipped to OK and the
+suite went red — not because the doctor changed, but because a fixture had been standing on live
+data the whole time. It had therefore been passing for the wrong reason since it was written.
+
+`setUp` now points `vd.HERE` at the temp root, and the case **writes** the empty ledger it needs
+instead of hoping. Verified by running the suite twice with the live ledger full: green both times,
+and the live file untouched at `owned=7`.
+
+**Related:** the same audit found `tv/vault_accum.json`, `tv/vault_swept.json` and
+`tv/shadow_ai.json` were TRACKED in a PUBLIC repo. `vault_accum.json` was committed empty as
+scaffolding at v1884; after a sweep it holds item names, frame ids, session ids and witness counts.
+It survived only because every `git add` tonight named explicit paths — one `git add -A` would have
+published it. Now gitignored and untracked, local copies kept, and a simulated fresh clone passes
+every vault suite.
+
