@@ -1,7 +1,40 @@
 import { test, expect } from './_net_stub';
+import * as fs from 'fs';
 import * as path from 'path';
 
-const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
+/* THE ORIGIN IS THE FIXTURE, and getting it wrong made the first cut of this spec fail on its own
+ * anti-vacuity assertion the first time CI ever ran it — which is the guard working, not failing.
+ *
+ * bible.html resolves _D2R_OWNER = true for `navigator.webdriver && file://` (bible.html:3715, an
+ * AUTOMATION-ONLY escape hatch so the 105 file:// specs address BARE keys). An owner has no claim
+ * bar. And seeding another install's d2r_ownerClaim to force a GUEST does not help either: the
+ * banner's own guard is `if (claimed || window._D2R_OWNER) return` (bible.html:4127) — a guest on a
+ * machine claimed by someone else is a deliberately QUIET state.
+ *
+ * So on file:// the bar can never appear, and a spec measuring it there measures nothing. Over an
+ * http origin with NO claim in the store it appears exactly as it does for a new person.
+ * MEASURED on a scratch http server before this spec was rewritten:
+ *   http + no claim        owner=false  bar SHOWN 88px  --claim-h 96px
+ *   http + activeProfile   owner=false  bar SHOWN       ladder ribbon present
+ *   d2r_ownerClaim='*'     owner=true   bar HIDDEN      --claim-h 0px   (documented escape hatch)
+ * [[feedback-blind-fixture-green-gate]] */
+const ORIGIN = 'http://d2r-geometry.test';
+const HTML = fs.readFileSync(path.resolve(__dirname, '..', 'bible.html'), 'utf8');
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64');
+
+const serve = (page: any) =>
+  page.route(ORIGIN + '/**', (r: any) => {
+    const p2 = new URL(r.request().url()).pathname;
+    if (p2 === '/' || p2 === '/bible.html')
+      return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: HTML });
+    if (/\.(png|jpe?g|gif|webp|svg|ico)$/i.test(p2))
+      return r.fulfill({ status: 200, contentType: 'image/png', body: PNG_1X1 });
+    // fulfil, never abort: an aborted request never resolves and screenshots wait on it
+    return r.fulfill({ status: 200, contentType: 'text/plain', body: '' });
+  });
+const URL_ = ORIGIN + '/bible.html';
 
 /* v2062 — NOTHING MAY SIT ON THE CLAIM BAR.
  *
@@ -23,11 +56,11 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  * fresh browser is actually in.
  */
 
-const LADDER_GUEST = (page: any) =>
-  page.addInitScript(() => {
-    localStorage.setItem('d2r_ownerClaim', 'some-other-machines-install-id');  // guest -> bar UP
-    localStorage.setItem('d2r_activeProfile', 'ladder');                       // -> ladder ribbon
-  });
+/* NO CLAIM AT ALL is what raises the bar — not a foreign claim, which silences it by design. */
+const LADDER_UNCLAIMED = async (page: any) => {
+  await serve(page);
+  await page.addInitScript(() => localStorage.setItem('d2r_activeProfile', 'ladder'));
+};
 
 type Box = { id: string; x: number; y: number; right: number; bottom: number; h: number };
 
@@ -58,9 +91,9 @@ const measure = (page: any) =>
 
 for (const vw of [1440, 901, 375]) {
   test(`★ v2062 — at ${vw}px nothing overlaps the claim bar or anything under it`, async ({ page }) => {
-    await LADDER_GUEST(page);
+    await LADDER_UNCLAIMED(page);
     await page.setViewportSize({ width: vw, height: 1000 });
-    await page.goto(URL);
+    await page.goto(URL_);
     await page.waitForTimeout(1800);
     const r: any = await measure(page);
 
@@ -91,13 +124,17 @@ for (const vw of [1440, 901, 375]) {
 test('★ v2062 — an OWNER has no claim bar, and the offsets collapse to their base', async ({ page }) => {
   /* The other half of the token: --claim-h must be 0 when there is no bar, or every element sits
    * 96px too low forever on the page he actually uses. */
-  await page.addInitScript(() => localStorage.setItem('d2r_activeProfile', 'ladder'));
+  await serve(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_activeProfile', 'ladder');
+    localStorage.setItem('d2r_ownerClaim', '*');   // bible.html:3718 — the documented owner hatch
+  });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(URL);
+  await page.goto(URL_);
   await page.waitForTimeout(1800);
   const r: any = await measure(page);
   const bar = r.boxes.find((b: Box) => b.id === 'claim-bar');
-  expect(bar, 'the harness produced a GUEST here; this case needs the owner state').toBeFalsy();
+  expect(bar, 'the owner hatch did not take — this case needs the OWNER state, where there is no bar').toBeFalsy();
   expect(r.claimH === '0px' || r.claimH === '', `--claim-h is ${r.claimH} with no bar on the page`).toBe(true);
   const ribbon = r.boxes.find((b: Box) => b.id === 'ladder-ribbon');
   expect(ribbon, 'no ladder ribbon in the owner state either').toBeTruthy();
