@@ -84,6 +84,37 @@ def _colour_carries_meaning(text, failures):
             failures.append("bible.html: %s (missing: %s)" % (why, needle))
 
 
+def _no_orphaned_grid_card(text, failures):
+    """v2075 — A CARD WITH NO AREA FALLS OUT OF THE LAYOUT AND NOBODY NOTICES.
+
+    #tab-session's grid names its areas explicitly at >=960px. #sc-card-tvd was given NONE, so it
+    auto-placed onto an implicit THIRD ROW and took one of three columns. MEASURED at 1440: row 3
+    was 129.75px tall with tvd 561px wide in a 1395px grid — about 834x130px of nothing, every time
+    he opened Sessions. Row 2 was 232.5px because `intel` is 233px while the TZ card is 105px,
+    leaving ~127px of gap under it. Total 589px -> 462px once tvd had a home.
+
+    Nothing failed, because CSS grid auto-placement is not an error — it is a silent fallback. So
+    the lock is: every sc-card the grid holds must be NAMED in the template. A new card added
+    without an area trips this instead of quietly landing in a row of its own.
+    """
+    import re as _re
+    m = _re.search(r'#tab-session \.sc-grid-tf\{[^}]*grid-template-areas:([^;}]+)', text)
+    if not m:
+        failures.append("bible.html: #tab-session's grid no longer declares grid-template-areas — "
+                        "every card then auto-places and the layout is whatever order the DOM is in")
+        return
+    areas = m.group(1)
+    for card, area in (("#sc-card-tz", "tz"), ("#sc-card-intel", "intel"),
+                       ("#sc-card-log", "log"), ("#sc-card-tvd", "tvd")):
+        if ('"%s"' % area) not in areas and (" %s " % area) not in (" " + areas.replace('"', " ") + " "):
+            failures.append("bible.html: %s has no place in the Sessions grid template — it will "
+                            "auto-place onto a row of its own and leave the other columns empty"
+                            % card)
+        if ("%s{grid-area:%s}" % (card, area)) not in text.replace(" ", ""):
+            failures.append("bible.html: %s is not assigned grid-area:%s — the template names the "
+                            "area but nothing claims it" % (card, area))
+
+
 def check():
     failures = []
     for name, cfg in SURFACES.items():
@@ -96,6 +127,7 @@ def check():
         text = "\n".join(lines)
         if name.startswith("bible"):
             _colour_carries_meaning(text, failures)
+            _no_orphaned_grid_card(text, failures)
         # 1) no raw weight literals — every one must be var(--fw-*)
         for i, line in enumerate(lines, 1):
             for m in RAW_WEIGHT.finditer(line):

@@ -8736,12 +8736,22 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 @media(min-width:960px){
   #tab-session .sc-grid-tf{
     grid-template-columns:1.4fr 1fr 1fr;
-    grid-template-areas:"ops ops ops" "tz intel log";
+    /* v2075 — #sc-card-tvd HAD NO AREA, so it auto-placed onto an implicit THIRD ROW and took
+       ONE of three columns. MEASURED at 1440: row 3 is 129.75px tall and tvd is 561px wide in a
+       1395px grid — roughly 834x130px of nothing, every time he opens Sessions. And row 2 was
+       232.5px because `intel` is 233px tall while `sc-card-tz` is only 105px, leaving ~127px of
+       gap under the TZ card. Konyo: "for session tab.. there alot of space scroll bar down after
+       the TZ tracker needs to optimize the space".
+       TZ and TV-D now stack in column 1 while intel and log span both rows, so column 1's height
+       is used by a second card instead of by air, and no column is orphaned. Nothing is removed
+       or collapsed — the same five cards, in the space they already occupied. */
+    grid-template-areas:"ops ops ops" "tz intel log" "tvd intel log";
   }
   #tab-session .sc-card-ops{grid-area:ops}
   #tab-session #sc-card-tz{grid-area:tz}
   #tab-session #sc-card-intel{grid-area:intel}
   #tab-session #sc-card-log{grid-area:log}
+  #tab-session #sc-card-tvd{grid-area:tvd}
 }
 #tab-session .sc-ops-row{
   display:grid;grid-template-columns:28px 52px 1fr auto;gap:8px;align-items:center;
@@ -44500,7 +44510,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2072', name:'v2072 - the drift nobody was watching', date:'2026-08-24', note:'Konyo: i want this problem automated, why doesnt it auto update. BOTH HALVES ALREADY EXISTED AND NOTHING JOINED THEM. ver_match in the farm gate compares the RUNNING stamp against control, agent and board and is block severity; /api/relaunch replaces the process with os.execv and refuses while a sweep or a mini is in flight. But ver_match only runs when he presses the gate button, so the console sat five ships behind all night and never said so - v2064 running against v2069 on disk. A background loop now measures it every five minutes and publishes it in the status payload. IT ANNOUNCES; IT DOES NOT RESTART HIM. The third eye refused an earlier version that called execv automatically and was right twice: a relaunch mid-film interrupts the session AND orphans the frames of the session it kills, because the reel fold runs at seal. Auto-restart is opt-in and refuses while the agent is alive - the check the relaunch route itself does not make.' };
+  window.D2R_BUILD = { id:'v2076', name:'v2076 - the eyes control was 20th of 25', date:'2026-08-24', note:'The control that decides whether the third eye runs sat 20th of 25 children inside ADVANCED, behind eight util buttons, four output panels, the repair box and the fleet list, in a rail 238 to 430px wide. It was never hidden by status - g5_status reports present, authorized, mode shadow, and refreshG5 polls every 20s. Moving it to first was necessary and NOT sufficient: measured with no scrollIntoView it still sat 609px into a 786px rail because the details element itself lives near the bottom. It now leads the panel under a real heading and opening ADVANCED brings it into view. Also: sc-card-tvd had no grid area so it auto-placed onto an implicit third row taking one of three columns - 589px of grid became 462px with no orphaned columns.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

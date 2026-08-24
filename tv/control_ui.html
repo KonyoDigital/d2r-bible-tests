@@ -4235,6 +4235,13 @@
     0%,100% { box-shadow: 0 0 0 0 rgba(240,192,96,0); }
     50% { box-shadow: 0 0 10px 0 rgba(240,192,96,.35); }
   }
+  /* v2076 — ADVANCED had no structure: 25 children in DOM order with nothing naming a group.
+     A heading is the cheapest possible fix and the one he asked for by name ("TITLE it"). */
+  .adv-sec-h { margin: 8px 0 5px; font-size: var(--fs-2xs); font-weight: var(--fw-semibold);
+    letter-spacing: var(--ls-label); color: #c4b5e8; text-transform: uppercase;
+    border-bottom: 1px solid rgba(185,162,224,.22); padding-bottom: 4px; }
+  .adv-sec-h-rest { margin-top: 14px; color: var(--text-muted, #b5a48a);
+    border-bottom-color: var(--edge, rgba(255,255,255,.14)); }
   .g5-eyes-card { margin-top: 8px; padding: 8px 9px; border: 1px solid rgba(185,162,224,.28);
     border-radius: 8px; background: rgba(40,32,56,.4); }
   .g5-eyes-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -5159,8 +5166,44 @@
       <div class="rail-secondary">
         <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
              The utility strip keeps the rare paths one small click away, out of the flow. -->
-        <details class="sig-adv" ontoggle="if (this.open) { try { window._fleetRefresh(); } catch(e) {} }">
+        <details class="sig-adv" ontoggle="if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
           <summary>⚙ ADVANCED</summary>
+          <!-- v2076 — THE CONTROL THAT DECIDES WHETHER THE THIRD EYE RUNS WAS 20th OF 25.
+               Konyo, twice: "when i click ADVANCED settings to toggle grok eyes ... i dont see it at
+               all — we said structure it, TITLE it and EMPHASIZE it". It was never hidden by status:
+               MEASURED on his live console, /api/g5_status returns present=true, mode=shadow,
+               authorized=true, so paintG5 runs `card.hidden=false` every 20s. It was BURIED —
+               counted in DOM order it sat 20th of 25 children, behind 8 util buttons, four output
+               panels, the whole repair box and the fleet list, inside a rail that is
+               clamp(238px,23vw,430px) wide. A full-page screenshot would have shown it looking
+               fine while it was still unreachable in the actual rail; the third eye caught that my
+               proof plan would have done exactly that.
+               It now leads the panel, under a real heading, because it decides whether the second
+               opinion happens at all. [[visual-regression-detector]] -->
+          <div class="adv-sec-h">👁 WHICH EYES READ</div>
+          <!-- ══ GROK EYES (G5) — REMOVABLE optional console toggle; OFF default; cousin never needs this ══ -->
+          <div id="g5-eyes-card" class="g5-eyes-card" hidden title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
+            <div class="g5-eyes-row">
+              <!-- v2033 — Konyo: "should it really be called Grok Eyes? cuz default is Claude
+                   eyes? lol.. so just eyes?". He is right, and it is a LABEL THAT NAMES ONE
+                   OPTION AS THE WHOLE CONTROL. This card is a three-way switch over WHICH eyes
+                   read: off = Claude only, shadow = Claude then Grok, primary = Grok then
+                   Claude. Two of those three positions are Claude-led, so heading it "Grok
+                   Eyes" describes the switch by the option he is least often on.
+                   [[label-outlived-referent]] -->
+              <span class="g5-eyes-lab">👁 EYES</span>
+              <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
+                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude subscription intake only (default)">OFF</button>
+                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Dual intake: Claude first, Grok if Claude fails (subscription CLIs)">SHADOW</button>
+                <button type="button" class="g5-seg-btn" data-g5="primary" id="btn-g5-primary" title="Dual intake: Grok first, Claude if Grok fails (SuperGrok login · NO API keys)">PRIMARY</button>
+              </span>
+              <!-- v1381.2 — ⚡ one-click SuperGrok authorize (browser once; no-spam when already linked) -->
+              <button type="button" class="g5-auth-btn" id="btn-g5-auth" title="Install is via TV installer / x.ai CLI. This opens grok login in the browser once per PC. Already authorized = no re-prompt.">⚡ Authorize</button>
+            </div>
+            <div class="g5-eyes-hint" id="g5-eyes-hint">optional · default OFF · cousin never needs this</div>
+          </div>
+          <!-- ══ END GROK EYES (G5) ══ -->
+          <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
           <div class="util-strip">
             <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
             <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
@@ -5220,28 +5263,6 @@
             <div class="fleet-head">🖥 THE FLEET <button class="util-btn fleet-refresh" type="button" title="re-check who is online" onclick="window._fleetRefresh(true)">↻</button></div>
             <div id="fleet-list"><div class="fleet-none">open ⚙ advanced to check the fleet…</div></div>
           </div>
-          <!-- ══ GROK EYES (G5) — REMOVABLE optional console toggle; OFF default; cousin never needs this ══ -->
-          <div id="g5-eyes-card" class="g5-eyes-card" hidden title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
-            <div class="g5-eyes-row">
-              <!-- v2033 — Konyo: "should it really be called Grok Eyes? cuz default is Claude
-                   eyes? lol.. so just eyes?". He is right, and it is a LABEL THAT NAMES ONE
-                   OPTION AS THE WHOLE CONTROL. This card is a three-way switch over WHICH eyes
-                   read: off = Claude only, shadow = Claude then Grok, primary = Grok then
-                   Claude. Two of those three positions are Claude-led, so heading it "Grok
-                   Eyes" describes the switch by the option he is least often on.
-                   [[label-outlived-referent]] -->
-              <span class="g5-eyes-lab">👁 EYES</span>
-              <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
-                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude subscription intake only (default)">OFF</button>
-                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Dual intake: Claude first, Grok if Claude fails (subscription CLIs)">SHADOW</button>
-                <button type="button" class="g5-seg-btn" data-g5="primary" id="btn-g5-primary" title="Dual intake: Grok first, Claude if Grok fails (SuperGrok login · NO API keys)">PRIMARY</button>
-              </span>
-              <!-- v1381.2 — ⚡ one-click SuperGrok authorize (browser once; no-spam when already linked) -->
-              <button type="button" class="g5-auth-btn" id="btn-g5-auth" title="Install is via TV installer / x.ai CLI. This opens grok login in the browser once per PC. Already authorized = no re-prompt.">⚡ Authorize</button>
-            </div>
-            <div class="g5-eyes-hint" id="g5-eyes-hint">optional · default OFF · cousin never needs this</div>
-          </div>
-          <!-- ══ END GROK EYES (G5) ══ -->
         </details>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
         <!-- v1753 — TITLE, because this sub-label lives in a CLIP ZONE. Measured: the closed-state
@@ -10743,6 +10764,30 @@
     }
     this.disabled = false;
   };
+  /* v2076 — "I DONT SEE IT AT ALL WHEN I CLICK ON IT." Moving the eyes control to the FRONT of
+     ADVANCED was necessary and not sufficient, and measuring it without scrollIntoView is what
+     showed that — the third eye predicted exactly this trap:
+
+        1440   card sits 609px into a 786px rail   -> below the fold
+         901   card sits 545px into an 820px rail  -> below the fold
+
+     <details class="sig-adv"> lives near the BOTTOM of the rail, so opening it puts its content
+     off-screen no matter which child is first. A full-page screenshot would have shown the card
+     rendering perfectly while he still could not see it.
+
+     So opening ADVANCED now brings it INTO VIEW. Nearest scrolling ancestor only, `block:'nearest'`
+     so it moves the least it can, and guarded — a console that throws while opening a panel is
+     worse than one that scrolls awkwardly. [[visual-regression-detector]] */
+  window._advOpened = function (det) {
+    try {
+      var lead = document.getElementById('g5-eyes-card');
+      var target = (lead && !lead.hidden) ? lead : det;
+      if (target && target.scrollIntoView) {
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      }
+    } catch (e) {}
+  };
+
   // ══ GROK EYES (G5) — optional 3-way console switch; default OFF; cousin never needs this ══
   (function g5EyesUi(){
     var card = $('g5-eyes-card'), hint = $('g5-eyes-hint'), authBtn = $('btn-g5-auth');

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2072",
+  "ver": "v2076",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2072: Konyo: i want this problem automated, why doesnt it auto update. BOTH HALVES ALREADY EXISTED AND NOTHING JOINED THEM. ver_match in the farm gate compares the RUNNING stamp against control, agent and board and is block severity; /api/relaunch replaces the process with os.execv and refuses while a sweep or a mini is in flight. But ver_match only runs when he presses the gate button, so the console sat five ships behind all night and never said so - v2064 running against v2069 on disk. A background loop now measures it every five minutes and publishes it in the status payload. IT ANNOUNCES; IT DOES NOT RESTART HIM. The third eye refused an earlier version that called execv automatically and was right twice: a relaunch mid-film interrupts the session AND orphans the frames of the session it kills, because the reel fold runs at seal. Auto-restart is opt-in and refuses while the agent is alive - the check the relaunch route itself does not make.",
+  "note": "v2076: The control that decides whether the third eye runs sat 20th of 25 children inside ADVANCED, behind eight util buttons, four output panels, the repair box and the fleet list, in a rail 238 to 430px wide. It was never hidden by status - g5_status reports present, authorized, mode shadow, and refreshG5 polls every 20s. Moving it to first was necessary and NOT sufficient: measured with no scrollIntoView it still sat 609px into a 786px rail because the details element itself lives near the bottom. It now leads the panel under a real heading and opening ADVANCED brings it into view. Also: sc-card-tvd had no grid area so it auto-placed onto an implicit third row taking one of three columns - 589px of grid became 462px with no orphaned columns.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

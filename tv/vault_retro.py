@@ -77,6 +77,23 @@ SURFACE_LANE = {
 }
 LANES = ("stash", "inventory", "equipment")
 
+# ── v2075 — THE LANES HE HAS ALREADY RULED ON. HIS WORDS: ────────────────────────────────────
+# "the whole point of this is for the ai readers to log and register exactly whats currently in my
+#  inventory and main character equipment (SHOULD NEVER BE TOLD TO BE MOVED its locked there)"
+# and PROJECT_VAULT_MANAGER.md territory 1: "never suggest moving it — it is LOCKED there".
+#
+# bible.html has carried `_LOCKED_LANES = { equipment: 1, inventory: 1 }` since v1712. The BOARD
+# knew; this engine — the thing that actually PRODUCES the suggestions — did not. Measured before
+# fixing: a NON-grail item on the equipment lane, flagged junk in 4 recordings at conf 0.99, cleared
+# the throw bar with "corroborated across 4 recordings". The only guard on that path was the grail
+# roster, so anything he WEARS that is not a named grail item — a crafted amulet, a rare ring, a
+# socketed base mid-build — could be offered up for binning. [[the-unjoined-end]]
+#
+# There is no un-throw in Diablo, so this refuses rather than ranks: no amount of evidence promotes
+# a locked lane, exactly as no confidence promotes a grail name (v1903). Evidence is not the
+# question here; the LANE is.
+LOCKED_LANES = ("equipment", "inventory")
+
 # A surface that already tells us what KIND of thing is on it. Used only as a fallback when the
 # reader does not say — never to invent an item, only to type one it did return.
 SURFACE_KIND = {"runes": "rune", "gems": "gem", "materials": "material"}
@@ -981,6 +998,15 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         # recordings. Every other guard on this lane is about HOW MUCH evidence a throw needs;
         # none of them was about WHAT MAY BE THROWN, and "is this junk" was the reader's opinion
         # alone. A unique or set piece is the thing this whole project exists to collect.
+        if key[1] in LOCKED_LANES:
+            # v2075 — the LANE decides, before any evidence is weighed. He is wearing it or
+            # carrying it; that is not a shelf to tidy.
+            held.append({"name": key[0],
+                         "why": "throw-out SUGGESTION refused for %s \u2014 it is on his %s, a "
+                                "LOCKED lane. He said it plainly: equipment and inventory are never "
+                                "to be told to move. No number of recordings promotes a lane he has "
+                                "already ruled on" % (key[0], key[1].upper())})
+            continue
         if _is_grail is not None and _is_grail(key[0]):
             held.append({"name": key[0],
                          "why": "throw-out SUGGESTION refused for %s in %s \u2014 it is on his GRAIL "
