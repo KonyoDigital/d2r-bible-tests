@@ -32,6 +32,7 @@ tv/sessions.*.jsonl
 tv/*.log
 tv/.tvd_supervisor_pause
 tv/.tvd_window.pid
+tv/board_window.pid
 
 # G5 Grok Eyes — per-machine mode + shadow log + sub budget (cousin-safe; OFF default)
 tv/g5_grok_eyes.state

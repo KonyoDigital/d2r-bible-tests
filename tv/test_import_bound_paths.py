@@ -72,6 +72,11 @@ REGISTRY = {
     "control_app.py:_VAULT_SWEPT_PATH": (
         "TV_VAULT_SWEPT", "import-bound",
         "0 call-time readers; writes tv/vault_swept.json. Patch the attribute."),
+    "control_app.py:_VAULT_SEEN_PATH": (
+        "TV_VAULT_SEEN", "import-bound",
+        "0 call-time readers; writes tv/vault_seen.json (gitignored — his item names). v2051 "
+        "added the constant and missed this registry, so the gate that exists to catch exactly "
+        "that went red on CI. Patch the attribute."),
     "control_app.py:_VAULT_RESULT_PATH": (
         "TV_VAULT_RESULT", "import-bound",
         "0 call-time readers; writes tv/vault_last_result.json. Patch the attribute."),

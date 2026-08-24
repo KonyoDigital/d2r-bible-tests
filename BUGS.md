@@ -12767,3 +12767,17 @@ file.
 mirror (*without* the prior it must still NOT ground, or the main case proves nothing) and the
 same-session case. Sabotage-proven.
 
+### v2051 addendum — the path shipped, the registry that exists to catch it did not
+
+`_VAULT_SEEN_PATH` is import-bound from `TV_VAULT_SEEN`, the same shape as `TV_VAULT_LEDGER` /
+`TV_VAULT_SWEPT`. The gate `test_import_bound_paths` is exactly for this: a new module-level
+env-bound path with no registry entry. CI went red on v2051:
+
+```
+AssertionError: Lists differ: [] != ['control_app.py:_VAULT_SEEN_PATH']
+```
+
+Registered, added to the isolation MUST_MOVE list (so a fixture that sets only `TV_HIST` still
+cannot reach his real `vault_seen.json`), and the file-layer join is now tested
+(`TestV2052TheSeenFileIsTheJoin`) — TestV2051 only ever proved the in-memory fold.
+

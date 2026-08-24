@@ -10478,7 +10478,8 @@ class TestEveryWrittenStateFileFollowsAnIsolatedHist(unittest.TestCase):
     [[feedback-fixtures-never-touch-live-data]] [[gate-blind-to-unexercised-input]]"""
 
     # Every path here is WRITTEN by the console or the agent. A read-only path may point anywhere.
-    MUST_MOVE = ("ca.VAULT_LEDGER_PATH", "ca._VAULT_SWEPT_PATH", "ca._VAULT_RESULT_PATH",
+    MUST_MOVE = ("ca.VAULT_LEDGER_PATH", "ca._VAULT_SWEPT_PATH", "ca._VAULT_SEEN_PATH",
+                 "ca._VAULT_RESULT_PATH",
                  "ca._CHRON_EVIDENCE_PATH", "ca._CHRON_AUTOREAD_PATH", "ca._CHRON_RESULT_PATH",
                  "ca.chron_swept()", "ca.chron_reads()",
                  "td._KNOWN_DEAD_FILE", "td.JOURNAL", "td.STATE")
@@ -10506,6 +10507,7 @@ class TestEveryWrittenStateFileFollowsAnIsolatedHist(unittest.TestCase):
         # remember six other variables to stay out of his tree
         for k in ("TV_CHRON_AUTOREAD", "TV_CHRON_EVIDENCE", "TV_CHRON_RESULT", "TV_CHRON_SWEPT",
                   "TV_CHRON_READS", "TV_VAULT_RESULT", "TV_VAULT_LEDGER", "TV_VAULT_SWEPT",
+                  "TV_VAULT_SEEN",
                   "TV_KNOWN_FRAMES", "TV_SESSIONS", "TV_HIST"):
             env.pop(k, None)
         env.update(extra_env)
@@ -10539,8 +10541,11 @@ class TestEveryWrittenStateFileFollowsAnIsolatedHist(unittest.TestCase):
         root = tempfile.mkdtemp(prefix="isolation2-")
         self.addCleanup(shutil.rmtree, root, True)
         named = os.path.join(root, "i_said_here.json")
-        got = self._paths({"TV_HIST": os.path.join(root, "h"), "TV_VAULT_LEDGER": named})
+        seen = os.path.join(root, "i_said_seen.json")
+        got = self._paths({"TV_HIST": os.path.join(root, "h"),
+                           "TV_VAULT_LEDGER": named, "TV_VAULT_SEEN": seen})
         self.assertEqual(got["ca.VAULT_LEDGER_PATH"], os.path.realpath(named))
+        self.assertEqual(got["ca._VAULT_SEEN_PATH"], os.path.realpath(seen))
 
 
 class TestOneWriterForTheAutoReadMarks(unittest.TestCase):
@@ -15047,6 +15052,51 @@ class TestV2051TwiceEverNotTwiceInOneSweep(unittest.TestCase):
                              "the SAME session counted as two witnesses — one eye looking twice is "
                              "repetition, and that is exactly what law 2 forbids")
 
+
+class TestV2052TheSeenFileIsTheJoin(unittest.TestCase):
+    """v2051 remembered ungrounded sightings in tv/vault_seen.json. TestV2051 proves the
+    in-memory fold; this proves the FILE layer, which is the half that actually persists
+    across process restarts — and the half whose path shipped unregistered, so CI went red
+    and the isolation test did not know to move it.
+    [[the-unjoined-end]] [[feedback-fixtures-never-touch-live-data]]"""
+
+    def _row(self, name, session):
+        return {"name": name, "lane": "stash", "kind": "item", "conf": 0.9,
+                "witnesses": [{"session": session, "frame": "f.jpg", "lane": "stash", "conf": 0.9}]}
+
+    def test_a_row_survives_a_save_and_a_load(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "vault_seen.json")
+            with mock.patch.object(ca, "_VAULT_SEEN_PATH", path):
+                n = ca.vault_seen_save([self._row("Enigma", "s_A")])
+                self.assertEqual(n, 1)
+                rows = ca.vault_seen_load()
+            self.assertEqual([r.get("name") for r in rows], ["Enigma"])
+            self.assertEqual({w.get("session") for w in rows[0]["witnesses"]}, {"s_A"})
+            self.assertTrue(os.path.isfile(path), "the patched path was never written")
+
+    def test_a_name_this_sweep_did_not_see_is_not_forgotten(self):
+        """Absence of evidence is not evidence — vault_seen_save unions, it does not replace."""
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "vault_seen.json")
+            with mock.patch.object(ca, "_VAULT_SEEN_PATH", path):
+                ca.vault_seen_save([self._row("Enigma", "s_A")])
+                ca.vault_seen_save([self._row("Dwarf Star", "s_B")])
+                names = {r.get("name") for r in ca.vault_seen_load()}
+            self.assertEqual(names, {"Enigma", "Dwarf Star"})
+
+    def test_the_sweep_run_asks_both_ends_of_the_join(self):
+        """Anchor on the CALL, not a comment that names the functions.
+        co_names holds what the function actually references; a docstring mentioning
+        vault_seen_save cannot satisfy this."""
+        import inspect
+        names = set(ca._vault_sweep_run.__code__.co_names)
+        self.assertIn("vault_seen_load", names)
+        self.assertIn("vault_seen_save", names)
+        # keyword names of a CALL are not always in co_names (they can sit in co_consts).
+        # the unique call form is: prior_seen=_prior_seen
+        src = inspect.getsource(ca._vault_sweep_run)
+        self.assertEqual(src.count("prior_seen=_prior_seen"), 1)
 
 
 if __name__ == "__main__":
