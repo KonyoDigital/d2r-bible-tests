@@ -40,6 +40,7 @@ import json
 import os
 import shutil
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -171,6 +172,12 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     global _DURABLE
     _DURABLE = _durable_sessions(HERE)
     recent = set(reels[-keep_recent:]) if keep_recent else set()
+    try:
+        import frame_authority as _fa
+        _fixtures = _fa.test_referenced_reels()
+    except Exception:
+        _fixtures = set()          # cannot ask -> hold nothing extra, but never hold LESS safely:
+                                   # the other rules still apply and eligibility is unchanged
     candidates, kept, freed = [], [], 0.0
 
     # ── v2068 — A RULE THAT NEVER RUNS MUST SAY SO ─────────────────────────────────────────────
@@ -185,7 +192,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     # reported as UNMEASURED, never as "fine" and never as "broken" — this run simply contains no
     # reel that reaches it, and that is a fact about the footage, not about the rule.
     # [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
-    RULES = ("recent", "never-chronicle-swept", "zero-pages", "rows-not-banked",
+    RULES = ("test-fixture", "recent", "never-chronicle-swept", "zero-pages", "rows-not-banked",
              "vault-owes", "target-met", "eligible")
     hits = dict((r, 0) for r in RULES)
 
@@ -199,7 +206,22 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         ce, ve = _entry(chron, reel), _entry(vault, reel)
         pages = int((ce or {}).get("pages") or 0)
 
-        if reel in recent:
+        if reel in _fixtures:
+            # ── v2069 — A REEL A TEST OPENS IS A FIXTURE, WHATEVER THE LEDGERS SAY ─────────────
+            # Learned the expensive way, on a prune that had already run: six reels went as
+            # "sealed by both lanes, has given up its information" and THREE were named by
+            # tv/test_control.py. The suite did not go red — those cases skipTest when the footage
+            # is absent — so a real check silently became a permanent skip.
+            #
+            # It had happened twice before and been absorbed: two cases already read "fixture reel
+            # ... was pruned — PERMANENTLY skipped in both venues". Of the 17 reels the suite names,
+            # EIGHT are already gone. Nobody was wrong at any step; the deleter asks the ledgers,
+            # and the ledgers have no idea a test exists.
+            # [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
+            why = _rule("test-fixture",
+                        "the TEST SUITE opens this reel by name — deleting it does not turn a test "
+                        "red, it turns one into a permanent skip, which is worse")
+        elif reel in recent:
             why = _rule("recent",
                         "one of the %d most recent — kept so a re-sweep always has real footage"
                         % keep_recent)
@@ -264,10 +286,68 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
                      "every reel is recent, unread, or still owed to a lane."))}
 
 
+TOMBSTONE_PATH = os.path.join(HERE, "reel_tombstones.json")
+
+
+def _tombstone(hist, cands):
+    """Write down what a reel WAS before its frames go.
+
+    Konyo: "after the sweep ... data needs to be extracted and ledgered and counted for items as
+    witnesses so when they get pruned they continue to exist on record."
+
+    apply_plan used to rmtree and return a count, so a deleted reel left NOTHING behind — not its
+    id, not how much was read from it, not why it was judged spent. The rows it produced live in the
+    ledger, but the reel itself simply stopped having existed, and "I never recorded that" and "that
+    was pruned in August" became the same answer.
+
+    Written BEFORE the delete and flushed to disk, so a crash mid-delete leaves a record of MORE
+    than was removed rather than less. Returns the rows it wrote; a failure here is reported and
+    does NOT block the delete he asked for — but it is never silent.
+    """
+    rows = []
+    for c in cands or []:
+        d = os.path.join(hist, c["reel"])
+        rec = {"reel": c["reel"], "session": _reel_ts_key(c["reel"]),
+               "mb": c.get("mb"), "pages": c.get("pages"), "why": c.get("why"),
+               "deletedTs": int(time.time() * 1000)}
+        try:
+            rec["frames"] = len([f for f in os.listdir(d) if f.endswith(".jpg")])
+        except Exception:
+            rec["frames"] = None          # UNKNOWN, never 0 — nobody counted
+        try:
+            with open(os.path.join(d, "index.json"), encoding="utf-8") as fh:
+                ix = json.load(fh) or {}
+            rec["focus"] = ix.get("focus") or None
+            rec["startedTs"] = ix.get("startedTs") or ix.get("ts") or None
+        except Exception:
+            rec["focus"] = None
+        rows.append(rec)
+    try:
+        old = _load(TOMBSTONE_PATH)
+        prev = old.get("reels") if isinstance(old, dict) else None
+    except Exception:
+        prev = None
+    blob = {"reels": (prev or []) + rows, "updatedTs": int(time.time() * 1000)}
+    tmp = TOMBSTONE_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(blob, fh, indent=1)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, TOMBSTONE_PATH)
+    return rows
+
+
 def apply_plan(p, yes=False):
     """Delete what plan() selected. Refuses without an explicit yes — this is not undoable."""
     if not yes:
         return {"ok": False, "why": "refusing to delete without --yes; run without --apply to read the plan"}
+    # v2069 — THE RECORD GOES DOWN FIRST. Written before a single rmtree, so a crash halfway leaves
+    # a tombstone for more reels than were actually removed rather than for fewer.
+    tomb, tomb_why = None, None
+    try:
+        tomb = _tombstone(p["hist"], p.get("candidates") or [])
+    except Exception as e:
+        tomb_why = str(e)[:160]
     removed, failed = [], []
     for c in p.get("candidates") or []:
         path = os.path.join(p["hist"], c["reel"])
@@ -277,7 +357,10 @@ def apply_plan(p, yes=False):
         except Exception as e:
             failed.append({"reel": c["reel"], "why": str(e)[:120]})
     return {"ok": not failed, "removed": removed, "failed": failed,
-            "freedMb": p.get("freeMb", 0)}
+            "freedMb": p.get("freeMb", 0),
+            "tombstoned": (len(tomb) if tomb is not None else None),
+            "tombstonePath": TOMBSTONE_PATH,
+            "tombstoneWhy": tomb_why}
 
 
 def main(argv=None):

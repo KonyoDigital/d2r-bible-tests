@@ -205,6 +205,103 @@ def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
     return out
 
 
+def test_referenced_reels(repo=None):
+    """Reel ids the TEST SUITE opens by name. A reel a test reads is a FIXTURE, whatever the ledgers
+    say about it.
+
+    v2069 — MEASURED, after the fact, on a prune I had already run. Six reels were deleted as
+    "sealed by both lanes, has given up its information" and THREE of them were named by
+    tv/test_control.py. The suite did not go red: those tests are written to skipTest when the
+    footage is absent, so a real check silently became a permanent skip — a gate that always skips
+    is the same defect as one that is always green.
+
+    It had happened twice before and been absorbed: the suite already carries two cases marked
+    "fixture reel ... was pruned — PERMANENTLY skipped in both venues". Nobody was wrong at any
+    step, which is exactly why it kept happening — the deleter asked the ledgers and the ledgers
+    have no idea a test exists.
+
+    Only REAL reel ids count (a 10-16 digit epoch): tests build their own throwaway dirs called
+    reel_s_1_1, and holding those would be holding nothing.
+    """
+    import re
+    root = repo or os.path.dirname(HERE)
+    # plan() asks this for every run and the suite file alone is ~0.9 MB — 28 ms a call, which is
+    # nothing once and 2.8 s across a hundred plans. Keyed on the files' (size, mtime) so an edited
+    # test is picked up immediately rather than cached into invisibility.
+    try:
+        stamp = tuple(sorted(
+            (f, os.stat(f).st_size, int(os.stat(f).st_mtime))
+            for pat in ("tv/test_*.py", "tests/*.spec.ts", "tests/*.ts", "tv/*_test.py")
+            for f in glob.glob(os.path.join(root, pat))))
+    except OSError:
+        stamp = None
+    cached = globals().get("_FIXTURE_CACHE")
+    if stamp is not None and cached and cached[0] == stamp:
+        return set(cached[1])
+    out = set()
+    for pat in ("tv/test_*.py", "tests/*.spec.ts", "tests/*.ts", "tv/*_test.py"):
+        for f in glob.glob(os.path.join(root, pat)):
+            try:
+                with open(f, encoding="utf-8", errors="replace") as fh:
+                    src = fh.read()
+            except OSError:
+                continue
+            out.update(re.findall(r"reel_s_\d{10,16}_\d+", src))
+    if stamp is not None:
+        globals()["_FIXTURE_CACHE"] = (stamp, frozenset(out))
+    return out
+
+
+def loose_frames(hist_dir):
+    """Frames sitting DIRECTLY in hist/, belonging to no reel — and therefore to no authority.
+
+    v2069 — MEASURED on his tree the night this was written: 3,420 loose .jpg files, 3.41 GB, which
+    is more than a third of all his footage. Every deleter was blind to them by construction:
+    reel_retention iterates `reel_*` directories, this module globbed `hist/reel_*`, and
+    space_warden has tv/frames on its NEVER list. So a third of the disk was invisible to the three
+    things whose whole job is deciding what may go — not protected, just unseen, which is worse
+    because it reads as protected.
+
+    They are two different populations and the difference decides everything:
+      · `f_<ms>.jpg`      an ungrouped RECORDING. The indexer never turned it into a reel, so no
+                          lane has swept it and it may hold names nothing has read.
+      · `<n>_<ms>.jpg`    probe / extract artifacts from the free pixel lane.
+
+    This REPORTS them and refuses all of them. Classifying an ungrouped recording is a different
+    job — it needs the indexer, not a deleter — and until that exists "I do not know what this is"
+    must resolve to KEEP. [[unknown-stays-unknown]]
+    """
+    import re
+    out = {"recording": [], "artifact": [], "bytes": 0, "recordingBytes": 0, "artifactBytes": 0}
+    try:
+        names = [f for f in os.listdir(hist_dir)
+                 if f.endswith(".jpg") and os.path.isfile(os.path.join(hist_dir, f))]
+    except OSError as e:
+        return dict(out, ok=False, say="cannot read %s: %s" % (hist_dir, e))
+    for f in names:
+        try:
+            n = os.path.getsize(os.path.join(hist_dir, f))
+        except OSError:
+            continue
+        out["bytes"] += n
+        if re.match(r"f_\d{10,16}\.jpg$", f):
+            out["recording"].append(f)
+            out["recordingBytes"] += n
+        else:
+            out["artifact"].append(f)
+            out["artifactBytes"] += n
+    out["ok"] = True
+    out["say"] = ("%d loose frame(s) belong to no reel (%.2f GB): %d look like an UNGROUPED "
+                  "RECORDING (%.2f GB) that no lane has swept, %d look like probe artifacts "
+                  "(%.2f GB). NONE is offered for deletion — a frame nothing has classified is not "
+                  "a frame anything may delete."
+                  % (len(names), out["bytes"] / 1e9,
+                     len(out["recording"]), out["recordingBytes"] / 1e9,
+                     len(out["artifact"]), out["artifactBytes"] / 1e9)) if names else \
+                 "no loose frames — every frame on disk belongs to a reel"
+    return out
+
+
 def main(argv=None):
     import sys
     argv = list(sys.argv[1:] if argv is None else argv)
@@ -217,6 +314,9 @@ def main(argv=None):
     print("   %s" % p["say"])
     for k, n in sorted(p["heldBy"].items(), key=lambda kv: -kv[1]):
         print("     held  %5d  %s" % (n, k))
+    lf = loose_frames(hist)
+    print("\n\u26a0  BELONGING TO NO REEL, AND THEREFORE TO NO AUTHORITY:")
+    print("   %s" % lf.get("say"))
     return 0
 
 

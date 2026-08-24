@@ -116,4 +116,5 @@ tv/stash_gate_cache.json.tmp
 tv/vault_accum.json
 tv/vault_seen.json
 tv/vault_swept.json
+tv/reel_tombstones.json
 tv/shadow_ai.json

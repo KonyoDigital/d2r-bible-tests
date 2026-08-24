@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2068",
+  "ver": "v2069",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2068: The retention plan is a chain of REASONS NOT TO DELETE checked in order, so an earlier reason hides every later one. Measured on his 35 reels: 12 never-swept, 11 sealed-with-zero-pages, 5 recent, 1 vault-owes, 6 eligible - and the v2056 rule fired ZERO times. On his footage a working v2056 and a deleted one are indistinguishable, which is the mirror of a blind fixture: real data, right gate, still green. The plan now counts its own branches and names the ones it never reached, reported as UNMEASURED rather than as fine or as broken. NOT REACHED and NOT APPLICABLE are kept apart: target-met cannot fire without a free_mb target, so it is unreachable by construction rather than untested by the footage, and folding them together would make an inert branch look like a rule that quietly stopped working.",
+  "note": "v2069: I pruned six reels he authorised and THREE were named by tv/test_control.py. The suite did not go red - those cases skipTest when the footage is absent - so a real check silently became a permanent skip, which is the same defect as a gate that is always green. It had happened twice before and been absorbed: two cases already read fixture reel was pruned PERMANENTLY skipped. Of the 17 reels the suite opens by name, EIGHT are already gone. The authority now scans the suite for reel ids and holds any reel a test names, checked FIRST. Also: apply_plan wrote no record, so a deleted reel left nothing behind - a tombstone now goes down BEFORE the first rmtree. And 3420 loose frames, 3.41 GB, sat directly in hist belonging to no reel and therefore to no authority; they are now reported and refused rather than invisible.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

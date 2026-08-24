@@ -16097,5 +16097,246 @@ class TestV2068ARuleThatNeverRunsMustSaySo(unittest.TestCase):
                          "counted under a tag nothing declares: %s" % sorted(tagged - declared))
 
 
+class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
+    """apply_plan used to rmtree and return a count, so a deleted reel left NOTHING behind — not its
+    id, not how much was read from it, not why it was judged spent. "I never recorded that" and
+    "that was pruned in August" became the same answer.
+
+    And 3,420 frames — 3.41 GB, a third of his footage — sat DIRECTLY in hist/, belonging to no
+    reel and therefore to no authority: reel_retention iterates reel_* dirs, frame_authority globbed
+    hist/reel_*, space_warden has tv/frames on its NEVER list. Not protected. Unseen, which reads as
+    protected and is worse.
+
+    All fixtures. His reels are never read or written here.
+    [[feedback-fixtures-never-touch-live-data]]"""
+
+    def _rr(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention
+        return reel_retention
+
+    def _fa(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import frame_authority
+        return frame_authority
+
+    def _hist(self, reels=(), loose=()):
+        import tempfile, shutil, json as _j
+        root = tempfile.mkdtemp(prefix="v2069_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        for name, nframes, focus in reels:
+            d = os.path.join(hist, name)
+            os.makedirs(d)
+            for k in range(nframes):
+                with open(os.path.join(d, "f_%d.jpg" % (1000 + k)), "wb") as fh:
+                    fh.write(b"x" * 512)
+            if focus:
+                with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+                    _j.dump({"focus": focus}, fh)
+        for name in loose:
+            with open(os.path.join(hist, name), "wb") as fh:
+                fh.write(b"y" * 1024)
+        return root, hist
+
+    def test_the_tombstone_is_written_BEFORE_anything_is_deleted(self):
+        """A crash halfway must leave a record of MORE than was removed, never less."""
+        import unittest.mock as mock
+        rr = self._rr()
+        root, hist = self._hist(reels=[("reel_s_111_1", 3, "stash")])
+        seen = {}
+
+        def boom(path):
+            seen["tomb_exists_at_delete_time"] = os.path.exists(rr.TOMBSTONE_PATH)
+            raise OSError("refusing, on purpose")
+
+        with mock.patch.object(rr, "TOMBSTONE_PATH", os.path.join(root, "tomb.json")), \
+             mock.patch.object(rr.shutil, "rmtree", boom):
+            r = rr.apply_plan({"hist": hist, "freeMb": 1,
+                               "candidates": [{"reel": "reel_s_111_1", "mb": 1.0, "pages": 4,
+                                               "why": "fixture"}]}, yes=True)
+        self.assertTrue(seen.get("tomb_exists_at_delete_time"),
+                        "the delete ran before the record was on disk — a crash there loses the "
+                        "reel AND its record")
+        self.assertEqual(r["tombstoned"], 1)
+        self.assertFalse(r["ok"], "a failed delete was reported as success")
+
+    def test_the_tombstone_records_what_the_reel_WAS(self):
+        import unittest.mock as mock, json as _j
+        rr = self._rr()
+        root, hist = self._hist(reels=[("reel_s_222_2", 4, "chronicle-sets")])
+        tp = os.path.join(root, "tomb.json")
+        with mock.patch.object(rr, "TOMBSTONE_PATH", tp):
+            rr.apply_plan({"hist": hist, "freeMb": 1,
+                           "candidates": [{"reel": "reel_s_222_2", "mb": 9.5, "pages": 31,
+                                           "why": "read and sealed by BOTH lanes"}]}, yes=True)
+        rec = _j.load(open(tp, encoding="utf-8"))["reels"][0]
+        self.assertEqual(rec["reel"], "reel_s_222_2")
+        self.assertEqual(rec["session"], "s_222_2")
+        self.assertEqual(rec["frames"], 4, "the frame count was not captured before deletion")
+        self.assertEqual(rec["pages"], 31)
+        self.assertEqual(rec["focus"], "chronicle-sets")
+        self.assertIn("sealed by BOTH lanes", rec["why"])
+        self.assertTrue(rec["deletedTs"])
+        self.assertFalse(os.path.isdir(os.path.join(hist, "reel_s_222_2")), "the reel survived")
+
+    def test_a_second_prune_APPENDS_rather_than_replacing(self):
+        """A tombstone file that only remembers the last run is a tombstone that forgets."""
+        import unittest.mock as mock, json as _j
+        rr = self._rr()
+        root, hist = self._hist(reels=[("reel_s_1_1", 1, None), ("reel_s_2_2", 1, None)])
+        tp = os.path.join(root, "tomb.json")
+        with mock.patch.object(rr, "TOMBSTONE_PATH", tp):
+            rr.apply_plan({"hist": hist, "freeMb": 1,
+                           "candidates": [{"reel": "reel_s_1_1", "mb": 1, "pages": 1, "why": "a"}]},
+                          yes=True)
+            rr.apply_plan({"hist": hist, "freeMb": 1,
+                           "candidates": [{"reel": "reel_s_2_2", "mb": 1, "pages": 1, "why": "b"}]},
+                          yes=True)
+        rows = _j.load(open(tp, encoding="utf-8"))["reels"]
+        self.assertEqual([r["reel"] for r in rows], ["reel_s_1_1", "reel_s_2_2"],
+                         "the second prune overwrote the first run's record")
+
+    def test_a_reel_the_SUITE_opens_is_never_a_deletion_candidate(self):
+        """Six reels were pruned as "sealed by both lanes" and THREE were named by this very file.
+        The suite did not go red — those cases skipTest when the footage is absent — so a real check
+        silently became a permanent skip. Of the 17 reels the suite names, EIGHT are already gone.
+        [[feedback-blind-fixture-green-gate]]"""
+        rr = self._rr()
+        fa = self._fa()
+        fixtures = fa.test_referenced_reels()
+        self.assertTrue(fixtures, "the authority found no test-referenced reels at all — the scan "
+                                  "is broken and every fixture is deletable again")
+        p = rr.plan()
+        cand = {c["reel"] for c in p["candidates"]}
+        self.assertEqual(cand & fixtures, set(),
+                         "these reels are opened by the test suite and were offered for deletion: "
+                         "%s" % sorted(cand & fixtures))
+
+    def test_a_fixture_reel_that_WOULD_be_eligible_is_held(self):
+        """⚠ THE FIRST VERSION OF THIS GUARD PROVED NOTHING, and only a sabotage showed it: deleting
+        the fixture hold outright left every test green, because after the prune his tree has NO
+        eligible reels at all — the fixtures never reach that branch, so holding them changes no
+        observable output.
+
+        A guard that can only pass is the thing this whole file keeps finding. So the case is built:
+        a reel sealed by BOTH lanes and old enough to be eligible, which is ALSO named by the suite.
+        Without the hold it is offered for deletion; with it, it is kept and says why.
+        [[feedback-blind-fixture-green-gate]]"""
+        import unittest.mock as mock, json as _j, tempfile, shutil
+        rr = self._rr()
+        fa = self._fa()
+        root = tempfile.mkdtemp(prefix="fixhold_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "frames", "hist")
+        os.makedirs(hist)
+        # oldest first; KEEP_RECENT protects the newest 5, so build 7 and target the oldest
+        names = ["reel_s_178400000000%d_1" % i for i in range(7)]
+        for n in names:
+            d = os.path.join(hist, n)
+            os.makedirs(d)
+            with open(os.path.join(d, "f_1.jpg"), "wb") as fh:
+                fh.write(b"x" * 4096)
+        target = names[0]
+        # sealed by BOTH lanes with real pages -> would otherwise be "eligible"
+        with open(os.path.join(root, "chronicle_swept.json"), "w", encoding="utf-8") as fh:
+            _j.dump({n: {"pages": 9} for n in names}, fh)
+        with open(os.path.join(root, "vault_swept.json"), "w", encoding="utf-8") as fh:
+            _j.dump({n: {"ts": 1, "rows": 0} for n in names}, fh)
+
+        def run(fixtures):
+            with mock.patch.object(rr, "HERE", root), \
+                 mock.patch.object(fa, "test_referenced_reels", lambda *a, **k: set(fixtures)):
+                return rr.plan(hist)
+
+        # BASELINE: with nothing declared a fixture, the target IS offered for deletion
+        base = run(set())
+        self.assertIn(target, {c["reel"] for c in base["candidates"]},
+                      "the fixture-free baseline does not offer the reel, so this case cannot tell "
+                      "the hold from its absence — the test would be measuring nothing")
+        # AND WITH THE HOLD: it is kept, for the fixture reason
+        held = run({target})
+        self.assertNotIn(target, {c["reel"] for c in held["candidates"]},
+                         "a reel the suite opens by name was offered for deletion")
+        why = [k["why"] for k in held["kept"] if k["reel"] == target]
+        self.assertTrue(why and "TEST SUITE" in why[0],
+                        "it was kept, but for some other reason — the fixture rule did not fire")
+        self.assertEqual(held["coverage"]["test-fixture"], 1)
+
+    def test_the_fixture_hold_is_checked_FIRST(self):
+        """Order matters: if `recent` or `eligible` were checked first, a fixture would be reported
+        under the wrong reason and the coverage line would say the fixture rule never fired — which
+        is exactly the shape v2068 exists to surface."""
+        rr = self._rr()
+        p = rr.plan()
+        self.assertIn("test-fixture", p["coverage"],
+                      "the fixture rule is not counted, so nothing can tell whether it ran")
+        if p["coverage"]["test-fixture"]:
+            held = [k["reel"] for k in p["kept"] if "TEST SUITE" in k["why"]]
+            self.assertEqual(len(held), p["coverage"]["test-fixture"],
+                             "the counter and the reasons disagree about how many reels were held "
+                             "as fixtures")
+
+    def test_only_REAL_reel_ids_count_as_fixtures(self):
+        """Tests build throwaway dirs called reel_s_1_1; holding those would be holding nothing, and
+        would make the fixture count look healthy while protecting no footage."""
+        fa = self._fa()
+        got = fa.test_referenced_reels()
+        for name in got:
+            stamp = name.split("_")[2]
+            self.assertGreaterEqual(len(stamp), 10,
+                                    "%r was counted as a fixture reel; a throwaway test dir is not "
+                                    "footage" % name)
+
+    def test_it_survives_the_authority_being_unavailable(self):
+        """reel_retention must still plan if frame_authority cannot be imported — it just holds
+        nothing extra. A deleter that CRASHES when a helper is missing is worse than one that is
+        merely less careful."""
+        import unittest.mock as mock
+        rr = self._rr()
+        real = __import__("builtins").__import__
+
+        def no_fa(name, *a, **k):
+            if name == "frame_authority":
+                raise ImportError("gone")
+            return real(name, *a, **k)
+
+        with mock.patch("builtins.__import__", no_fa):
+            p = rr.plan()
+        self.assertTrue(p["ok"], "the plan died when frame_authority was unavailable")
+        self.assertEqual(p["coverage"]["test-fixture"], 0)
+
+    def test_loose_frames_are_SEEN_and_split_by_what_they_are(self):
+        fa = self._fa()
+        root, hist = self._hist(reels=[("reel_s_9_9", 1, None)],
+                                loose=["f_1787520892804.jpg", "f_1787520892999.jpg",
+                                       "197_1787525952517.jpg", ".stash_eye_tab.jpg"])
+        lf = fa.loose_frames(hist)
+        self.assertTrue(lf["ok"])
+        self.assertEqual(len(lf["recording"]), 2,
+                         "an ungrouped RECORDING was not recognised — those may hold names no lane "
+                         "has read")
+        self.assertEqual(len(lf["artifact"]), 2)
+        self.assertIn("NONE is offered for deletion", lf["say"])
+
+    def test_loose_frames_are_never_offered_for_deletion(self):
+        """A frame nothing has classified is not a frame anything may delete."""
+        fa = self._fa()
+        root, hist = self._hist(reels=[], loose=["f_1787520892804.jpg", "9_1787525952517.jpg"])
+        p = fa.plan_frames(hist, root=root)
+        self.assertEqual(p["prunable"], [],
+                         "a loose frame was offered up — it belongs to no reel, so nothing has "
+                         "sealed it and nothing has read it")
+        self.assertEqual(p["scanned"], 0, "plan_frames counted loose frames as reel frames")
+
+    def test_an_empty_hist_says_so_rather_than_warning(self):
+        fa = self._fa()
+        root, hist = self._hist(reels=[("reel_s_3_3", 1, None)])
+        lf = fa.loose_frames(hist)
+        self.assertEqual(lf["recording"], [])
+        self.assertIn("no loose frames", lf["say"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
